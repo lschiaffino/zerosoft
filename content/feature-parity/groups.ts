@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-10',
+  lastReviewed: '2026-11-11',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -373,17 +373,31 @@ const parity: ProductParity = {
     }),
 
     // Reportes
-    row('response-metrics', 'reports', ['Messages, active chats and median first response', 'Mensajes, chats activos y mediana de primera respuesta', 'Mensagens, chats ativos e mediana de primeira resposta'], 'have'),
-    row('ticket-metrics', 'reports', ['Ticket and resolution metrics', 'Métricas de tickets y resolución', 'Métricas de tickets e resolução'], 'have'),
-    row('per-agent', 'reports', ['By person and by group', 'Por persona y por grupo', 'Por pessoa e por grupo'], 'have'),
-    row('report-filters', 'reports', ['Filter reports by label and date range', 'Filtrar reportes por etiqueta y rango', 'Filtrar relatórios por etiqueta e período'], 'have', {
+    row('response-metrics', 'reports', ['Messages, active chats and first response time', 'Mensajes, chats activos y tiempo de primera respuesta', 'Mensagens, chats ativos e tempo de primeira resposta'], 'have', {
       detail: [
-        '7, 30 or 90 days or any date range, by label, by chat or group and by number',
-        '7, 30 o 90 días o cualquier rango de fechas, por etiqueta, por chat o grupo y por número',
-        '7, 30 ou 90 dias ou qualquer período, por etiqueta, por chat ou grupo e por número',
+        'Median and 9 out of 10, per day and by how fast the reply was; chats waiting now by how long; new chats; received by weekday and hour',
+        'Mediana y 9 de cada 10, por día y según qué tan rápido se respondió; chats esperando ahora según hace cuánto; chats nuevos; recibidos por día de la semana y hora',
+        'Mediana e 9 em cada 10, por dia e pela rapidez da resposta; chats esperando agora por tempo de espera; chats novos; recebidas por dia da semana e hora',
       ],
     }),
-    row('csv-export', 'reports', ['CSV export of chats, messages and tickets', 'Export CSV de chats, mensajes y tickets', 'Exportar CSV de chats, mensagens e tickets'], 'have'),
+    row('report-dashboard', 'reports', ['Dashboard with tabs, charts and comparison with the previous period', 'Tablero con pestañas, gráficos y comparación con el período anterior', 'Painel com abas, gráficos e comparação com o período anterior'], 'have', {
+      detail: [
+        'Overview, Conversations, Response, Team, Groups, Broadcasts, Tickets and tasks, Labels; each number shows its change against the same number of days before',
+        'Resumen, Conversaciones, Respuesta, Equipo, Grupos, Envíos, Tickets y tareas, Etiquetas; cada número muestra el cambio contra la misma cantidad de días anteriores',
+        'Resumo, Conversas, Resposta, Equipe, Grupos, Envios, Tickets e tarefas, Etiquetas; cada número mostra a variação contra a mesma quantidade de dias anteriores',
+      ],
+    }),
+    row('ticket-metrics', 'reports', ['Ticket and resolution metrics', 'Métricas de tickets y resolución', 'Métricas de tickets e resolução'], 'have'),
+    row('per-agent', 'reports', ['By person, by line, by group and by label', 'Por persona, por línea, por grupo y por etiqueta', 'Por pessoa, por linha, por grupo e por etiqueta'], 'have'),
+    row('broadcast-metrics', 'reports', ['Broadcast delivery: sent, delivered, read and replied', 'Entrega de los envíos: enviados, entregados, leídos y respondidos', 'Entrega dos envios: enviadas, entregues, lidas e respondidas'], 'have'),
+    row('report-filters', 'reports', ['Filter reports by line, assigned person, label and date range', 'Filtrar reportes por línea, persona asignada, etiqueta y rango', 'Filtrar relatórios por linha, responsável, etiqueta e período'], 'have', {
+      detail: [
+        '7, 30 or 90 days or any date range up to a year, in your time zone',
+        '7, 30 o 90 días o cualquier rango de fechas de hasta un año, en tu zona horaria',
+        '7, 30 ou 90 dias ou qualquer período de até um ano, no seu fuso horário',
+      ],
+    }),
+    row('csv-export', 'reports', ['CSV export of chats, messages, tickets and each report tab', 'Export CSV de chats, mensajes, tickets y cada pestaña de los reportes', 'Exportar CSV de chats, mensagens, tickets e cada aba dos relatórios'], 'have'),
 
     // Apps
     row('mobile-app', 'apps', ['Mobile app', 'App mobile', 'App mobile'], 'partial', {

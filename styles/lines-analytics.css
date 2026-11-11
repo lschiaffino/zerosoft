@@ -1,0 +1,202 @@
+/* =====================================================================
+   Lines, reportes: el tablero. Filetes de 1px, sin pastillas ni sombras.
+   El verde del producto (--c-groups) es "recibidos" y lo activo; la tinta
+   apagada es "enviados". Lo que se mueve (líneas que se dibujan, barras
+   que crecen, números que cuentan) se apaga con prefers-reduced-motion.
+   ===================================================================== */
+
+.la {
+  --la-in: var(--c-groups);
+  --la-out: color-mix(in srgb, var(--ink) 46%, var(--bg));
+  --la-third: color-mix(in srgb, var(--ink) 80%, var(--bg));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- Encabezado, filtros y pestañas ---------- */
+.la-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.la-range { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; font-size: 0.8125rem; color: var(--dim); }
+.la-range strong { font-weight: 500; color: var(--ink-2); }
+.la .ui-tabs { overflow-x: auto; display: flex; flex-wrap: nowrap; scrollbar-width: none; margin: 0; }
+.la .ui-tabs::-webkit-scrollbar { display: none; }
+.la .ui-tab { flex: none; white-space: nowrap; }
+
+/* ---------- Tarjetas de números ---------- */
+.la-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  overflow: hidden;
+}
+.la-kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Las tarjetas llenan cada fila: la última se estira en vez de dejar huecos. */
+  flex: 1 1 calc(100% / var(--cols, 4));
+  min-width: 150px;
+  padding: 14px 16px 12px;
+  background: var(--bg);
+  /* Filetes entre tarjetas sin pintar los huecos de la última fila. */
+  box-shadow: 1px 0 0 0 var(--line), 0 1px 0 0 var(--line);
+  animation: la-rise 420ms var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.la-kpi-label { font-size: 0.75rem; color: var(--dim); overflow-wrap: anywhere; }
+.la-kpi-value {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.la-kpi-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-height: 1.1rem; font-size: 0.75rem; color: var(--dim); }
+.la-delta { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.la-delta[data-tone='good'] { color: var(--ok-ink); }
+.la-delta[data-tone='bad'] { color: var(--bad-ink); }
+/* La mini serie se descubre de izquierda a derecha (con vector-effect el trazo punteado no sirve para dibujarla). */
+.la-spark { display: block; width: 100%; height: 30px; margin-top: 4px; overflow: visible; animation: la-reveal 900ms var(--ease) 120ms backwards; }
+.la-spark-line { fill: none; stroke: var(--la-in); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.la-spark-area { fill: var(--la-in); opacity: 0.12; }
+.la-spark[data-tone='out'] .la-spark-line { stroke: var(--la-out); }
+.la-spark[data-tone='out'] .la-spark-area { fill: var(--la-out); }
+
+/* ---------- Paneles ---------- */
+.la-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.la-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  animation: la-rise 480ms var(--ease) 80ms backwards;
+}
+.la-panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.la-panel-title { margin: 0; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--brand-gray-2); }
+.la-panel-note { margin: 0; font-size: 0.8125rem; color: var(--dim); }
+.la-panel-empty { margin: 0; padding: 20px 0; font-size: 0.875rem; color: var(--dim); }
+.la-panel .table-wrap { margin: 0; border: 0; border-radius: 0; }
+.la-panel .table { width: 100%; margin: 0; border: 0; }
+.la-panel .table th:first-child, .la-panel .table td:first-child { padding-left: 0; }
+.la-panel .table th:last-child, .la-panel .table td:last-child { padding-right: 0; }
+.la-panel .table tbody tr:last-child td { border-bottom: 0; }
+.la-table td.num, .la-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.la-table td.num { font-family: var(--mono); font-size: 0.8125rem; }
+.la-table a { color: var(--ink); font-weight: 500; text-decoration: none; }
+.la-table a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.la-muted { color: var(--dim); }
+.la-foot { margin: 0; font-size: 0.8125rem; color: var(--dim); }
+
+/* ---------- Gráfico de líneas y barras ---------- */
+.la-chart { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.la-chart-wrap { position: relative; width: 100%; min-width: 0; }
+.la-chart-wrap svg { display: block; width: 100%; overflow: visible; }
+.la-s0 { --la-c: var(--la-in); }
+.la-s1 { --la-c: var(--la-out); }
+.la-s2 { --la-c: var(--la-third); }
+.la-line { fill: none; stroke: var(--la-c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: la-draw 1000ms var(--ease) forwards; }
+.la-line-compare { fill: none; stroke: var(--la-c); stroke-width: 1.25; stroke-dasharray: 3 4; opacity: 0; animation: la-fade-compare 500ms ease-out 700ms forwards; }
+.la-area { fill: var(--la-c); stroke: none; opacity: 0; animation: la-fade-area 700ms ease-out 450ms forwards; }
+.la-dot { fill: var(--la-c); animation: la-fade 400ms ease-out 600ms backwards; }
+.la-bar { fill: var(--la-c); transform-box: fill-box; transform-origin: 50% 100%; animation: la-grow 620ms var(--ease) backwards; animation-delay: calc(var(--i, 0) * var(--la-step, 10ms)); }
+.la-grid-line { stroke: var(--line); stroke-width: 1; }
+.la-axis { fill: var(--dim); font-size: 11px; font-family: var(--mono); }
+.la-hover-line { stroke: var(--ink); stroke-width: 1; opacity: 0.35; }
+.la-tooltip {
+  position: absolute;
+  top: 4px;
+  z-index: var(--z-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.la-tooltip strong { font-weight: 600; color: var(--ink); }
+.la-tip-row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.la-swatch { display: inline-block; flex: none; width: 8px; height: 8px; background: var(--la-c); }
+.la-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; color: var(--dim); }
+.la-legend li { display: flex; align-items: center; gap: 6px; }
+.la-legend-compare { display: inline-block; width: 14px; border-top: 1.25px dashed var(--dim); }
+
+/* ---------- Barras horizontales con nombre ---------- */
+.la-bars { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.la-bars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; min-width: 0; font-size: 0.875rem; }
+.la-bars-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.la-bars-label a { color: inherit; text-decoration: none; }
+.la-bars-label a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.la-bars-value { font-family: var(--mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.la-bars-value small { margin-left: 6px; font-size: inherit; color: var(--dim); }
+.la-bars-track { grid-column: 1 / -1; height: 6px; background: var(--bg-soft); border-radius: 1px; overflow: hidden; }
+.la-bars-fill { display: block; height: 100%; width: calc(var(--w, 0) * 100%); min-width: 0; background: var(--la-in); transform-origin: 0 50%; animation: la-grow-x 700ms var(--ease) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+.la-bars[data-tone='ink'] .la-bars-fill { background: var(--la-out); }
+.la-bars-sub { grid-column: 1 / -1; font-size: 0.75rem; color: var(--dim); }
+
+/* ---------- Mapa de calor: día de la semana por hora ---------- */
+.la-heat { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 8px; align-items: center; font-size: 0.6875rem; color: var(--dim); }
+.la-heat-row { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; min-width: 0; }
+.la-heat-cell {
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  max-height: 22px;
+  width: 100%;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--la-in) calc(var(--v, 0) * 100%), var(--bg-soft));
+  animation: la-fade 500ms ease-out backwards;
+  animation-delay: calc(var(--h, 0) * 14ms);
+}
+.la-heat-hours { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; font-family: var(--mono); }
+.la-heat-hours span { grid-column: span 3; }
+.la-heat-day { white-space: nowrap; }
+.la-heat-scale { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--dim); }
+.la-heat-scale i { display: inline-block; width: 12px; height: 12px; border-radius: 1px; background: color-mix(in srgb, var(--la-in) calc(var(--v, 0) * 100%), var(--bg-soft)); }
+
+/* ---------- Embudo ---------- */
+.la-funnel-pct { color: var(--dim); }
+
+/* ---------- Vacío ---------- */
+.la-empty { padding: 8px 0 24px; animation: la-rise 420ms var(--ease) backwards; }
+
+@keyframes la-draw { to { stroke-dashoffset: 0; } }
+@keyframes la-fade { from { opacity: 0; } }
+@keyframes la-fade-area { to { opacity: 0.12; } }
+@keyframes la-fade-compare { to { opacity: 0.6; } }
+@keyframes la-grow { from { transform: scaleY(0); } }
+@keyframes la-grow-x { from { transform: scaleX(0); } }
+@keyframes la-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes la-rise { from { opacity: 0; transform: translateY(6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .la-kpi, .la-panel, .la-empty, .la-dot, .la-bar, .la-bars-fill, .la-heat-cell, .la-spark { animation: none; }
+  .la-line { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+  .la-area { animation: none; opacity: 0.12; }
+  .la-line-compare { animation: none; opacity: 0.6; }
+}
+
+@media (max-width: 900px) {
+  .la-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .la-kpi { flex-basis: 50%; min-width: 0; max-width: 100%; padding: 12px 12px 10px; }
+  .la-kpi-value { font-size: 1.25rem; }
+  .la-panel { padding: 14px 12px; }
+  .la-heat { gap: 2px 6px; }
+  .la-heat-row, .la-heat-hours { gap: 1px; }
+}
