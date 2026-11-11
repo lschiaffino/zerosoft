@@ -70,6 +70,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-lines-qr-reconnect',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: a new QR after the number was unlinked',
+      es: 'Lines e Inbox: un QR nuevo después de desvincular el número',
+      pt: 'Lines e Inbox: um QR novo depois de desvincular o número',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'When a number was unlinked from the phone, "Ask for a new QR" kept showing the session as disconnected. It now shows the QR so you can link the number again.',
+        es: 'Cuando un número se desvinculaba desde el teléfono, "Pedir un QR nuevo" seguía mostrando la sesión desconectada. Ahora muestra el QR para volver a vincular el número.',
+        pt: 'Quando um número era desvinculado pelo telefone, "Pedir um QR novo" continuava mostrando a sessão desconectada. Agora mostra o QR para vincular o número de novo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
