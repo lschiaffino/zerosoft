@@ -78,8 +78,8 @@ function openHub(app: WaLiveApp): Hub {
   return hub;
 }
 
-/** Se suma a la conexión de la app (la abre si no había); al salir el último, se cierra. */
-function join(app: WaLiveApp, onChange: Listener, onStatus: (s: RealtimeStatus) => void): () => void {
+/** Se suma a la conexión de la app (la abre si no había); al salir el último, se cierra. Exportada para los tests. */
+export function joinWaLive(app: WaLiveApp, onChange: Listener, onStatus: (s: RealtimeStatus) => void): () => void {
   let hub = hubs.get(app);
   if (!hub) {
     hub = openHub(app);
@@ -114,7 +114,7 @@ export function useWaLive(app: WaLiveApp, onChange: (chatIds: string[]) => void)
   useEffect(() => {
     let pending: Set<string> | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const leave = join(
+    const leave = joinWaLive(
       app,
       (ids) => {
         const set = (pending ??= new Set());
@@ -152,7 +152,7 @@ export function useWaLiveChat(app: WaLiveApp, chatId: string | null | undefined,
   useEffect(() => {
     if (!chatId) return;
     const run = coalesced(() => cb.current());
-    return join(
+    return joinWaLive(
       app,
       (ids) => {
         if (!ids.length || ids.includes(chatId)) run();
