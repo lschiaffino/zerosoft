@@ -339,6 +339,7 @@ export const SHORTCUTS: ReadonlyArray<{ keys: string; id: string }> = [
   { keys: 'g i / g d / g s', id: 'goto' },
   { keys: '⌘J', id: 'ai' },
   { keys: ';', id: 'snippet' },
+  { keys: '/', id: 'commands' },
   { keys: '⌘Enter', id: 'send' },
   { keys: 'z', id: 'undo' },
   { keys: '?', id: 'help' },

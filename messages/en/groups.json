@@ -2048,5 +2048,148 @@
       "empty": "Every group you can see is linked to a HubSpot company.",
       "more": "Show more groups"
     }
+  },
+  "slash": {
+    "assign": {
+      "name": "assign",
+      "desc": "Assign this chat to someone",
+      "keys": "owner person agent",
+      "empty": "Nobody matches. Press Esc to keep it as text.",
+      "you": "You",
+      "meKeys": "me myself",
+      "nobodyKeys": "nobody unassigned"
+    },
+    "team": {
+      "name": "team",
+      "desc": "Assign this chat to a team",
+      "keys": "group",
+      "empty": "No team matches. Press Esc to keep it as text.",
+      "noneKeys": "none"
+    },
+    "close": {
+      "name": "close",
+      "desc": "Close this chat",
+      "keys": "done resolve finish"
+    },
+    "reopen": {
+      "name": "reopen",
+      "desc": "Reopen this chat",
+      "keys": "open"
+    },
+    "label": {
+      "name": "label",
+      "desc": "Add or remove a label",
+      "keys": "tag labels",
+      "empty": "No label matches. Press Esc to keep it as text."
+    },
+    "note": {
+      "name": "note",
+      "desc": "Write an internal note. Only your team sees it",
+      "keys": "internal private comment"
+    },
+    "reply": {
+      "name": "reply",
+      "desc": "Go back to writing on WhatsApp",
+      "keys": "whatsapp message answer"
+    },
+    "ticket": {
+      "name": "ticket",
+      "desc": "Create a ticket from the last customer message",
+      "keys": "issue case"
+    },
+    "task": {
+      "name": "task",
+      "desc": "Add a task from the last message",
+      "keys": "todo reminder"
+    },
+    "later": {
+      "name": "later",
+      "desc": "Send this message later",
+      "keys": "schedule time tomorrow"
+    },
+    "attach": {
+      "name": "attach",
+      "desc": "Attach a document",
+      "keys": "file upload"
+    },
+    "poll": {
+      "name": "poll",
+      "desc": "Send a poll",
+      "keys": "vote survey"
+    },
+    "contact": {
+      "name": "contact",
+      "desc": "Share a contact",
+      "keys": "card phone"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Open the emoji picker",
+      "keys": "smiley emoticon"
+    },
+    "mute": {
+      "name": "mute",
+      "desc": "Stop notifications for this chat",
+      "keys": "silence notifications"
+    },
+    "unmute": {
+      "name": "unmute",
+      "desc": "Turn notifications back on for this chat",
+      "keys": "notifications sound"
+    },
+    "pin": {
+      "name": "pin",
+      "desc": "Pin this chat to the top of the list",
+      "keys": "top keep"
+    },
+    "unpin": {
+      "name": "unpin",
+      "desc": "Unpin this chat",
+      "keys": "top"
+    },
+    "archive": {
+      "name": "archive",
+      "desc": "Archive this chat",
+      "keys": "hide"
+    },
+    "unarchive": {
+      "name": "unarchive",
+      "desc": "Move this chat back to the main list",
+      "keys": "restore"
+    },
+    "unread": {
+      "name": "unread",
+      "desc": "Mark this chat as unread",
+      "keys": "mark"
+    },
+    "read": {
+      "name": "read",
+      "desc": "Mark this chat as read",
+      "keys": "mark"
+    },
+    "summary": {
+      "name": "summary",
+      "desc": "Summarize this chat with AI",
+      "keys": "ai recap summarize"
+    },
+    "translate": {
+      "name": "translate",
+      "desc": "Translate the customer's messages or what you wrote",
+      "keys": "language",
+      "empty": "Nothing matches. Press Esc to keep it as text.",
+      "chat": "The customer's messages, into your language",
+      "chatKeys": "chat customer messages incoming",
+      "yours": "Your message"
+    },
+    "details": {
+      "name": "details",
+      "desc": "Show or hide the chat details",
+      "keys": "info panel contact"
+    },
+    "quick": {
+      "name": "quick-replies",
+      "desc": "Add or edit your quick replies",
+      "keys": "saved replies shortcuts settings"
+    }
   }
 }

@@ -19,6 +19,9 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
+import { useSlashMenu } from '@/components/ui/useSlashMenu';
+import { SlashIcon } from '@/components/ui/SlashMenu';
+import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
@@ -150,6 +153,7 @@ export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
   const tw = useTranslations('inboxWa');
   const tc = useTranslations('common.aiCompose');
+  const ts = useTranslations('common.slash');
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const errText = useErrorText();
@@ -535,9 +539,7 @@ export default function ChatThread(props: ThreadProps) {
     [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "/" al principio abre las respuestas rápidas; "@" en una nota, las personas.
-  const slash = mode === 'reply' ? /^\/([a-z0-9_-]*)$/i.exec(text.trim()) : null;
-  const quickMatches = slash ? props.quickReplies.filter((q) => q.shortcut.startsWith(slash[1].toLowerCase())).slice(0, 6) : [];
+  // "@" en una nota abre las personas ("/" abre los comandos y las respuestas rápidas, más abajo).
   const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
   const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
 
@@ -573,6 +575,50 @@ export default function ChatThread(props: ThreadProps) {
     resetKey: chat.id,
   });
   const aiAllowed = mode === 'reply' && !editing && !leaving;
+
+  // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
+  // Con el menú abierto no se muestran las menciones ni los emojis de ":".
+  const slash = useSlashMenu({
+    text,
+    caret,
+    inputRef,
+    disabled: !!editing || leaving,
+    apply: (next, at) => {
+      setText(next);
+      setCaret(at);
+      pendingCaret.current = at;
+    },
+    inserts: mode === 'reply' ? props.quickReplies : [],
+    insertsLabel: t('thread.quickReplies'),
+    commands: useLinesSlashCommands({
+      chat,
+      me: props.me,
+      people: props.people,
+      teams: props.teams,
+      labels: props.labels,
+      caps: props.caps,
+      mode,
+      messages,
+      translateOn,
+      ai: aiAllowed ? ai : null,
+      patchChat,
+      setMode,
+      openTicket,
+      openTask: setTaskFor,
+      openLater,
+      attach: () => fileRef.current?.click(),
+      openPoll: () => (setPollError(''), setPollOpen(true)),
+      openContact: () => setContactOpen(true),
+      openEmoji: () => setEmojiOpen(true),
+      toggleMute: () => void toggleMute(),
+      toggleUnread: () => void toggleUnread(),
+      toggleArchived: () => void patchChat({ archived: !chat.archived }).then((res) => res && showToast(res.archived ? t('wa.archived') : t('wa.unarchived'))),
+      summarize: () => void summarize(),
+      toggleTranslate,
+      toggleDetails,
+      manageQuickReplies: () => router.push('/app/lines/settings?tab=quick'),
+    }),
+  });
 
   function pickMention(i: number) {
     const p = mentionMatches[i];
@@ -686,7 +732,7 @@ export default function ChatThread(props: ThreadProps) {
   const emojiSuggest = useEmojiSuggest({
     text,
     caret,
-    disabled: !!editing,
+    disabled: !!editing || slash.open,
     apply: (start, end, emoji) => {
       const next = text.slice(0, start) + emoji + text.slice(end);
       setText(next);
@@ -700,8 +746,9 @@ export default function ChatThread(props: ThreadProps) {
   });
 
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (slash.onKeyDown(e)) return;
     if (!editing && emojiSuggest.onKeyDown(e)) return;
-    if (mentionMatches.length > 0) {
+    if (mentionMatches.length > 0 && !slash.open) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         setMentionIndex((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + mentionMatches.length) % mentionMatches.length);
@@ -712,11 +759,6 @@ export default function ChatThread(props: ThreadProps) {
         pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
         return;
       }
-    }
-    if (quickMatches.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
-      e.preventDefault();
-      setText(quickMatches[0].body);
-      return;
     }
     // ⌘J (Ctrl+J) en el campo: "Ayudame a escribir", como en Inbox.
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j' && aiAllowed) {
@@ -1826,25 +1868,9 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
-          {quickMatches.length > 0 && (
-            <ul className="gr-quick" role="listbox" aria-label={t('thread.quickReplies')}>
-              {quickMatches.map((q, i) => (
-                <li key={q.id} role="option" aria-selected={i === 0}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setText(q.body);
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    <strong>/{q.shortcut}</strong> {q.body.slice(0, 80)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {slash.menu}
           {emojiSuggest.strip}
-          {mentionMatches.length > 0 && (
+          {mentionMatches.length > 0 && !slash.open && (
             <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
@@ -1956,6 +1982,7 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
                       { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
                       { key: 'ai', icon: <PencilSparkle size={17} />, label: tc('open'), onSelect: ai.openBar },
+                      { key: 'commands', icon: <SlashIcon size={17} />, label: ts('menuItem'), onSelect: slash.openFromButton },
                     ]}
                   />
                 </>
@@ -1977,7 +2004,8 @@ export default function ChatThread(props: ThreadProps) {
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}
-                placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : t('wa.typeMessage')}
+                placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : slash.placeholder(t('wa.typeMessage'))}
+                {...slash.inputProps}
                 aria-label={editing ? t('thread.editLabel') : mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
                 onPaste={(e) => {
                   const files = filesFrom(e.clipboardData);

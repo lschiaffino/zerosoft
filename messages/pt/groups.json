@@ -2048,5 +2048,148 @@
       "empty": "Todos os grupos que você vê estão vinculados a uma empresa do HubSpot.",
       "more": "Mostrar mais grupos"
     }
+  },
+  "slash": {
+    "assign": {
+      "name": "atribuir",
+      "desc": "Atribuir esta conversa a alguém",
+      "keys": "responsável pessoa agente",
+      "empty": "Ninguém corresponde. Pressione Esc para deixar como texto.",
+      "you": "Você",
+      "meKeys": "eu mim",
+      "nobodyKeys": "ninguém nenhum"
+    },
+    "team": {
+      "name": "equipe",
+      "desc": "Atribuir esta conversa a uma equipe",
+      "keys": "grupo",
+      "empty": "Nenhuma equipe corresponde. Pressione Esc para deixar como texto.",
+      "noneKeys": "nenhuma"
+    },
+    "close": {
+      "name": "fechar",
+      "desc": "Fechar esta conversa",
+      "keys": "resolver concluir pronto"
+    },
+    "reopen": {
+      "name": "reabrir",
+      "desc": "Reabrir esta conversa",
+      "keys": "abrir"
+    },
+    "label": {
+      "name": "etiqueta",
+      "desc": "Colocar ou tirar uma etiqueta",
+      "keys": "etiquetas tag",
+      "empty": "Nenhuma etiqueta corresponde. Pressione Esc para deixar como texto."
+    },
+    "note": {
+      "name": "nota",
+      "desc": "Escrever uma nota interna. Só a sua equipe vê",
+      "keys": "interna privada comentário"
+    },
+    "reply": {
+      "name": "responder",
+      "desc": "Voltar a escrever pelo WhatsApp",
+      "keys": "whatsapp mensagem"
+    },
+    "ticket": {
+      "name": "ticket",
+      "desc": "Criar um ticket com a última mensagem do cliente",
+      "keys": "caso chamado"
+    },
+    "task": {
+      "name": "tarefa",
+      "desc": "Adicionar uma tarefa com a última mensagem",
+      "keys": "pendência lembrete"
+    },
+    "later": {
+      "name": "depois",
+      "desc": "Enviar esta mensagem mais tarde",
+      "keys": "agendar hora amanhã tarde"
+    },
+    "attach": {
+      "name": "anexar",
+      "desc": "Anexar um documento",
+      "keys": "arquivo enviar"
+    },
+    "poll": {
+      "name": "enquete",
+      "desc": "Enviar uma enquete",
+      "keys": "votar votação"
+    },
+    "contact": {
+      "name": "contato",
+      "desc": "Compartilhar um contato",
+      "keys": "cartão telefone"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Abrir os emojis",
+      "keys": "emoticon carinha"
+    },
+    "mute": {
+      "name": "silenciar",
+      "desc": "Parar de receber avisos desta conversa",
+      "keys": "avisos notificações"
+    },
+    "unmute": {
+      "name": "ativar-avisos",
+      "desc": "Voltar a receber avisos desta conversa",
+      "keys": "notificações som"
+    },
+    "pin": {
+      "name": "fixar",
+      "desc": "Fixar esta conversa no topo da lista",
+      "keys": "topo"
+    },
+    "unpin": {
+      "name": "desafixar",
+      "desc": "Desafixar esta conversa",
+      "keys": "soltar"
+    },
+    "archive": {
+      "name": "arquivar",
+      "desc": "Arquivar esta conversa",
+      "keys": "esconder"
+    },
+    "unarchive": {
+      "name": "desarquivar",
+      "desc": "Devolver esta conversa à lista principal",
+      "keys": "restaurar"
+    },
+    "unread": {
+      "name": "não-lida",
+      "desc": "Marcar esta conversa como não lida",
+      "keys": "marcar"
+    },
+    "read": {
+      "name": "lida",
+      "desc": "Marcar esta conversa como lida",
+      "keys": "marcar"
+    },
+    "summary": {
+      "name": "resumo",
+      "desc": "Resumir esta conversa com IA",
+      "keys": "ia resumir"
+    },
+    "translate": {
+      "name": "traduzir",
+      "desc": "Traduzir as mensagens do cliente ou o que você escreveu",
+      "keys": "idioma",
+      "empty": "Nada corresponde. Pressione Esc para deixar como texto.",
+      "chat": "As mensagens do cliente, para o seu idioma",
+      "chatKeys": "chat cliente mensagens recebidas",
+      "yours": "Sua mensagem"
+    },
+    "details": {
+      "name": "detalhes",
+      "desc": "Mostrar ou ocultar os detalhes da conversa",
+      "keys": "info painel contato"
+    },
+    "quick": {
+      "name": "respostas",
+      "desc": "Adicionar ou editar as suas respostas rápidas",
+      "keys": "rápidas salvas atalhos ajustes"
+    }
   }
 }

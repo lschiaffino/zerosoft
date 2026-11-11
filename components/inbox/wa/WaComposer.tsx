@@ -13,6 +13,11 @@ import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/Ai
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
+import { useSlashMenu } from '@/components/ui/useSlashMenu';
+import { SlashIcon } from '@/components/ui/SlashMenu';
+import type { SlashCommand } from '@/lib/slash-commands';
+import { useAiSlashCommands } from '@/components/ai/slash-commands';
+import { useInboxComposerCommands } from '../slash-commands';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -48,14 +53,17 @@ const WaComposer = forwardRef<
     mentionables?: Array<{ phone: string; name: string }>;
     /** Se escribió algo (para mandar "escribiendo"). */
     onTyping?: () => void;
+    /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
+    commands?: SlashCommand[];
   }
->(function WaComposer({ thread, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
+>(function WaComposer({ thread, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
   const [text, setText] = useState(() => initialDraft('inbox', thread.id, thread.draft));
   const [caret, setCaret] = useState(0);
   const tc = useTranslations('common.aiCompose');
+  const ts = useTranslations('common.slash');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [emoji, setEmoji] = useState(false);
   const [snipQ, setSnipQ] = useState<string | null>(null);
@@ -185,6 +193,28 @@ const WaComposer = forwardRef<
     window.dispatchEvent(new Event('zs:voice-dictate'));
   };
 
+  // Comandos con "/": las acciones del chat (las pasa la conversación), las del campo, los snippets y la AI.
+  // Con el menú abierto no se muestran las menciones, los snippets de ";" ni los emojis de ":".
+  const fieldCommands = useInboxComposerCommands({ onLater: () => busy === '' && onSendLater(text.trim()), openEmoji: () => setEmoji(true), dictate });
+  const aiCommands = useAiSlashCommands(ai);
+  const slash = useSlashMenu({
+    text,
+    caret,
+    inputRef: area,
+    disabled: !!disabled || !!paused || !!editing,
+    apply: (next, at) => {
+      setText(next);
+      setCaret(at);
+      requestAnimationFrame(() => {
+        area.current?.focus();
+        area.current?.setSelectionRange(at, at);
+      });
+    },
+    commands: [...(commands ?? []), ...fieldCommands, ...aiCommands],
+    inserts: snippets.map((sn) => ({ id: sn.id, shortcut: sn.shortcut, title: sn.title, body: fillSnippet(sn.body, thread.title) })),
+    insertsLabel: t('snippets'),
+  });
+
   /** Abre la lista de snippets (lo mismo que escribir ";"). */
   const openSnippets = () => {
     const el = area.current;
@@ -215,7 +245,7 @@ const WaComposer = forwardRef<
   const emojiSuggest = useEmojiSuggest({
     text,
     caret,
-    disabled: !!disabled,
+    disabled: !!disabled || slash.open,
     apply: (start, end, emoji) => {
       const next = text.slice(0, start) + emoji + text.slice(end);
       setText(next);
@@ -258,13 +288,15 @@ const WaComposer = forwardRef<
     ...(editing ? [] : [{ key: 'ai', label: tc('open'), icon: <PencilSparkle size={16} />, divider: true, onSelect: ai.openBar }]),
     { key: 'dictate', label: t('dictate'), icon: <Mic size={16} />, divider: !!editing, onSelect: dictate },
     ...(snippets.length ? [{ key: 'snippets', label: t('snippets'), icon: <SnippetIcon />, onSelect: openSnippets }] : []),
+    ...(editing ? [] : [{ key: 'commands', label: ts('menuItem'), icon: <SlashIcon />, onSelect: slash.openFromButton }]),
   ];
 
   const hasText = !!text.trim();
   return (
     <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
       {banner}
-      {mentionQ !== null && people.length > 0 && (
+      {slash.menu}
+      {!slash.open && mentionQ !== null && people.length > 0 && (
         <ul className="ib-snippets ib-wa-mentions" role="listbox" aria-label={w('mention')}>
           {people.map((p, i) => (
             <li key={p.phone} role="option" aria-selected={i === mentionIdx}>
@@ -276,7 +308,7 @@ const WaComposer = forwardRef<
           ))}
         </ul>
       )}
-      {snipQ !== null && matches.length > 0 && (
+      {!slash.open && snipQ !== null && matches.length > 0 && (
         <ul className="ib-snippets" role="listbox" aria-label={t('snippets')}>
           {matches.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === snipIdx}>
@@ -319,7 +351,8 @@ const WaComposer = forwardRef<
           rows={1}
           value={text}
           disabled={disabled}
-          placeholder={disabled ? t('disconnected') : w('placeholder')}
+          placeholder={disabled ? t('disconnected') : slash.placeholder(w('placeholder'))}
+          {...slash.inputProps}
           onPaste={(e) => {
             if (!onPasteFiles || editing) return;
             const files = [...(e.clipboardData?.files ?? [])];
@@ -341,8 +374,9 @@ const WaComposer = forwardRef<
             setMentionIdx(0);
           }}
           onKeyDown={(e) => {
+            if (slash.onKeyDown(e)) return;
             if (emojiSuggest.onKeyDown(e)) return;
-            if (mentionQ !== null && people.length) {
+            if (!slash.open && mentionQ !== null && people.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 setMentionIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : people.length - 1)) % people.length);
@@ -360,7 +394,7 @@ const WaComposer = forwardRef<
                 return;
               }
             }
-            if (snipQ !== null && matches.length) {
+            if (!slash.open && snipQ !== null && matches.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 setSnipIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);

@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-slash-commands',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: type / for commands',
+      es: 'Lines e Inbox: escribí / para los comandos',
+      pt: 'Lines e Inbox: digite / para os comandos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'In a Lines chat, type / in the message box to see what you can do without leaving the keyboard: assign the chat to a person or a team, close or reopen it, add or remove a label, switch to an internal note, create a ticket or a task, send later, attach a file, send a poll, mute, pin, archive, mark unread, summarize or translate. Keep typing to filter, in your language or in English, and press Enter. "/assign ana" picks the person in one go. Your quick replies are in the same list and still expand with /shortcut.',
+        es: 'En un chat de Lines, escribí / en el cuadro de mensaje para ver lo que podés hacer sin soltar el teclado: asignar el chat a una persona o a un equipo, cerrarlo o reabrirlo, poner o sacar una etiqueta, pasar a una nota interna, crear un ticket o una tarea, enviar más tarde, adjuntar un archivo, enviar una encuesta, silenciar, fijar, archivar, marcar como no leído, resumir o traducir. Seguí escribiendo para filtrar, en tu idioma o en inglés, y apretá Enter. "/asignar ana" elige a la persona de una. Tus respuestas rápidas están en la misma lista y se siguen insertando con /atajo.',
+        pt: 'Em uma conversa do Lines, digite / na caixa de mensagem para ver o que dá para fazer sem tirar as mãos do teclado: atribuir a conversa a uma pessoa ou a uma equipe, fechar ou reabrir, colocar ou tirar uma etiqueta, passar para uma nota interna, criar um ticket ou uma tarefa, enviar mais tarde, anexar um arquivo, enviar uma enquete, silenciar, fixar, arquivar, marcar como não lida, resumir ou traduzir. Continue digitando para filtrar, no seu idioma ou em inglês, e pressione Enter. "/atribuir ana" escolhe a pessoa de uma vez. As suas respostas rápidas estão na mesma lista e continuam entrando com /atalho.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox, / in the message box of a WhatsApp chat or an email lists the actions of that chat: done, snooze, remind me, folder, notes, mark unread, pin, archive, mute for 8 hours or a week, send later and dictate. Your snippets are in the list too, and ; still opens them.',
+        es: 'En Inbox, / en el cuadro de mensaje de un chat de WhatsApp o de un correo muestra las acciones de ese chat: hecho, posponer, recordarme, carpeta, notas, marcar como no leído, fijar, archivar, silenciar por 8 horas o una semana, enviar más tarde y dictar. Tus snippets también están en la lista, y ; los sigue abriendo.',
+        pt: 'No Inbox, / na caixa de mensagem de uma conversa de WhatsApp ou de um email mostra as ações dessa conversa: concluir, adiar, lembrar, pasta, notas, marcar como não lida, fixar, arquivar, silenciar por 8 horas ou uma semana, enviar mais tarde e ditar. Os seus snippets também estão na lista, e ; continua abrindo.',
+      },
+      {
+        product: 'platform',
+        en: 'The same list has "Help me write": suggest a reply, polish, shorten, make it formal, fix the grammar or translate what you wrote. A command never sends a message: it removes the /command from the box and leaves the rest of your text as it was. To send a message that really starts with /, press Esc and then Enter. You can also open the list from the + menu.',
+        es: 'La misma lista trae "Ayudame a escribir": sugerir una respuesta, pulir, acortar, pasar a formal, corregir la gramática o traducir lo que escribiste. Un comando nunca manda un mensaje: saca el /comando del cuadro y deja el resto de tu texto como estaba. Para mandar un mensaje que de verdad empieza con /, apretá Esc y después Enter. También podés abrir la lista desde el menú +.',
+        pt: 'A mesma lista traz "Ajude-me a escrever": sugerir uma resposta, polir, encurtar, deixar formal, corrigir a gramática ou traduzir o que você escreveu. Um comando nunca envia uma mensagem: tira o /comando da caixa e deixa o resto do seu texto como estava. Para enviar uma mensagem que realmente começa com /, pressione Esc e depois Enter. Você também pode abrir a lista pelo menu +.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-ai-polish',
     date: '2026-11-11',
     title: {

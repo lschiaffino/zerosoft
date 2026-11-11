@@ -1140,5 +1140,55 @@
       "gone": "This conversation is no longer available. Reload the page.",
       "failed": "The AI could not write this. Try again."
     }
+  },
+  "slash": {
+    "label": "Commands",
+    "actions": "Actions",
+    "inserts": "Saved replies",
+    "ai": "Write with AI",
+    "empty": "Nothing matches. Press Esc to keep it as text.",
+    "foot": "↑↓ move · Enter choose · Esc keep as text",
+    "count": "{n, plural, =0 {No results} one {# result} other {# results}}",
+    "checked": "on",
+    "placeholder": "{base} or / for commands",
+    "menuItem": "Commands",
+    "aiCommands": {
+      "write": {
+        "name": "write",
+        "desc": "Describe the message and get a draft",
+        "keys": "ai draft help compose"
+      },
+      "suggest": {
+        "name": "suggest",
+        "desc": "Draft a reply to the last message",
+        "keys": "ai reply answer"
+      },
+      "polish": {
+        "name": "polish",
+        "desc": "Fix and clarify what you wrote",
+        "keys": "ai improve rewrite"
+      },
+      "shorter": {
+        "name": "shorter",
+        "desc": "Make what you wrote shorter",
+        "keys": "ai short brief"
+      },
+      "formal": {
+        "name": "formal",
+        "desc": "Make what you wrote more formal",
+        "keys": "ai tone polite"
+      },
+      "fix": {
+        "name": "fix",
+        "desc": "Fix spelling and grammar, nothing else",
+        "keys": "ai grammar spelling typos"
+      },
+      "translate": {
+        "name": "translate",
+        "desc": "Translate what you wrote into another language",
+        "keys": "ai language",
+        "empty": "No language matches. Press Esc to keep it as text."
+      }
+    }
   }
 }

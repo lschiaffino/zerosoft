@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-10',
+  lastReviewed: '2026-11-11',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -111,7 +111,7 @@ const parity: ProductParity = {
       ],
     }),
     row('snippets', 'writing', ['Snippets', 'Snippets', 'Snippets'], 'have', {
-      detail: ['; and the shortcut, with the chat name as a variable. Not shared with a team', '; y el atajo, con el nombre del chat como variable. Sin compartir con un equipo', '; e o atalho, com o nome da conversa como variável. Sem compartilhar com uma equipe'],
+      detail: ['; and the shortcut (or / and the shortcut), with the chat name as a variable. Not shared with a team', '; y el atajo (o / y el atajo), con el nombre del chat como variable. Sin compartir con un equipo', '; e o atalho (ou / e o atalho), com o nome da conversa como variável. Sem compartilhar com uma equipe'],
     }),
     row('ai-write', 'writing', ['Write with AI', 'Escribir con IA', 'Escrever com IA'], 'partial', {
       weight: 2,
@@ -135,7 +135,7 @@ const parity: ProductParity = {
       detail: ['J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letter and ? for the list', 'J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letra y ? para la lista', 'J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letra e ? para a lista'],
     }),
     row('command', 'navigation', ['Command palette', 'Paleta de comandos', 'Paleta de comandos'], 'partial', {
-      detail: ['Cmd+K finds your chats and Inbox views across the suite; actions are shortcuts, not commands', 'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite; las acciones son atajos, no comandos', 'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte; as ações são atalhos, não comandos'],
+      detail: ['Cmd+K finds your chats and Inbox views across the suite. The actions of the open chat are commands in its message field (type /), not in Cmd+K', 'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite. Las acciones del chat abierto son comandos en su campo de mensaje (escribí /), no en Cmd+K', 'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte. As ações da conversa aberta são comandos no campo de mensagem (digite /), não no Cmd+K'],
     }),
     row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'have', {
       detail: [
