@@ -8,7 +8,7 @@
  * team, del dueño del workspace (owner_id = SessionUser.id).
  */
 import { listOwnerSpacePeople } from './workspace';
-import { currentVisibleSql } from './track-access';
+import { currentTrackViewer, currentVisibleSql, isGuest } from './track-access';
 import { getDb } from './db';
 import { trackWorkspaceId } from './track-labels';
 import type { UserRow } from './db';
@@ -215,9 +215,19 @@ export async function getPlan(id: string): Promise<TrackPlanRow | undefined> {
   return (await getDb().prepare('SELECT * FROM track_plans WHERE id = ?').get(id)) as TrackPlanRow | undefined;
 }
 
+/**
+ * Un invitado de Track solo ve los equipos de su lista (lib/track-access):
+ * plans e iniciativas quedan fuera de su alcance. Sin persona (cron) no aplica.
+ */
+export async function planningClosed(scope: WorkspaceScope): Promise<boolean> {
+  const viewer = await currentTrackViewer();
+  return viewer ? isGuest(trackWorkspaceId(scope.teamId, scope.ownerId), viewer) : false;
+}
+
 export async function getAccessiblePlan(id: string, scope: WorkspaceScope): Promise<TrackPlanRow | undefined> {
   const plan = await getPlan(id);
-  return plan && inScope(plan, scope) ? plan : undefined;
+  if (!plan || !inScope(plan, scope)) return undefined;
+  return (await planningClosed(scope)) ? undefined : plan;
 }
 
 async function logEvent(planId: string, userId: string | null, type: string, meta: Record<string, unknown>): Promise<void> {
@@ -470,6 +480,7 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
     where.push(`p.id IN ${inClause(opts.ids.length)}`);
     args.push(...opts.ids);
   }
+  if (await planningClosed(scope)) return [];
   const rows = (await db
     .prepare(
       `SELECT p.*, u.name AS lead_name, u.email AS lead_email,

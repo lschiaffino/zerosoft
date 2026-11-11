@@ -27,10 +27,15 @@ export function summaryPrompt(chatName: string, lines: string[], locale: string)
   ].join('\n');
 }
 
+/**
+ * Quien llama ya verificó que la persona ve el chat (chatGuard). Con
+ * `maskPhones` (personas que ven los teléfonos ocultos) el modelo tampoco los
+ * recibe, igual que en los borradores.
+ */
 export async function summarizeChat(
   ws: string,
   chatId: string,
-  opts: { days?: number; locale?: string } = {},
+  opts: { days?: number; locale?: string; maskPhones?: boolean } = {},
 ): Promise<{ summary: string; messages: number }> {
   const chat = await getChatRow(ws, chatId);
   if (!chat) throw new GroupsError('not_found', 404);
@@ -42,15 +47,17 @@ export async function summarizeChat(
     )
     .all(chat.id, since)) as MessageRow[];
   if (rows.length === 0) throw new GroupsError('no_messages');
+  const hide = opts.maskPhones === true;
   const lines = rows.map((m) => {
-    const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone ? `+${m.sender_phone}` : 'Customer');
+    const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone && !hide ? `+${m.sender_phone}` : 'Customer');
     const text = (m.body || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
-    return `[${m.created_at.slice(0, 16).replace('T', ' ')}] ${who}: ${text}`;
+    return `[${m.created_at.slice(0, 16).replace('T', ' ')}] ${hide ? maskPhoneText(who) : who}: ${hide ? maskPhoneText(text) : text}`;
   });
+  const name = chatDisplayName(chat);
   const res = await aiGenerateText({
     workspaceId: ws,
     feature: 'groups_summary',
-    prompt: summaryPrompt(chatDisplayName(chat), lines, opts.locale ?? 'en'),
+    prompt: summaryPrompt(hide ? maskPhoneText(name) : name, lines, opts.locale ?? 'en'),
     maxOutputTokens: 700,
     temperature: 0.2,
   });

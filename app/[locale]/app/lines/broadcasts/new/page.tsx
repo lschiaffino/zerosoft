@@ -20,7 +20,7 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
   const [numbers, chats, labels, properties] = await Promise.all([
     listNumbers(user.id, viewer),
     listChats(user.id, me, { limit: 200, viewer }),
-    listLabels(user.id),
+    listLabels(user.id, viewer),
     listPropertyDefs(user.id),
   ]);
   // ?list=<id>: la audiencia es una lista guardada (sus chats de hoy, hasta 500).

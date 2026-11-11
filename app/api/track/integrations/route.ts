@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     slack: {
       configured: slackConfigured(),
       connection: slack,
-      subs: slack ? await listChannelSubs(ws) : [],
+      subs: slack ? await listChannelSubs(ws, { forViewer: true }) : [],
       log: slack && admin ? await listIntegrationEvents(ws, 'slack', 10) : [],
       urls: {
         commands: `${origin}/api/track/slack/commands`,

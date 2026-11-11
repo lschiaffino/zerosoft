@@ -2745,13 +2745,15 @@ export async function syncGroups(ws: string, numberId: string): Promise<{ groups
 
 export const LABEL_COLORS = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'] as const;
 
-export async function listLabels(ws: string): Promise<Array<LabelDto & { count: number }>> {
+/** Etiquetas del workspace. Con `viewer`, el conteo es solo de los chats que ve (lib/groups-access). */
+export async function listLabels(ws: string, viewer?: GroupsViewer | null): Promise<Array<LabelDto & { count: number }>> {
+  const access = chatAccessSql(viewer, 'c');
+  const count = access
+    ? `SELECT COUNT(*) FROM groups_chat_labels cl JOIN groups_chats c ON c.id = cl.chat_id WHERE cl.label_id = l.id AND ${access.sql}`
+    : 'SELECT COUNT(*) FROM groups_chat_labels cl WHERE cl.label_id = l.id';
   return (await getDb()
-    .prepare(
-      `SELECT l.id, l.name, l.color, (SELECT COUNT(*) FROM groups_chat_labels cl WHERE cl.label_id = l.id) AS count
-       FROM groups_labels l WHERE l.user_id = ? ORDER BY l.name COLLATE NOCASE`,
-    )
-    .all(ws)) as Array<LabelDto & { count: number }>;
+    .prepare(`SELECT l.id, l.name, l.color, (${count}) AS count FROM groups_labels l WHERE l.user_id = ? ORDER BY l.name COLLATE NOCASE`)
+    .all(...(access?.args ?? []), ws)) as Array<LabelDto & { count: number }>;
 }
 
 function cleanLabel(input: { name?: string; color?: string }): { name: string; color: string } {

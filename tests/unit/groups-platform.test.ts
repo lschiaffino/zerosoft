@@ -28,7 +28,8 @@ import {
 import { createTicket, getTicket, updateTicket } from '@/lib/groups-tickets';
 import { handleRpc } from '@/lib/groups-mcp';
 import { notifyPerson, saveSubscription, takePending, vapidJwt, vapidKeys, fakePushes } from '@/lib/groups-push';
-import { reportRange, groupsAnalytics } from '@/lib/groups-analytics';
+import { linesAnalytics } from '@/lib/groups-analytics';
+import { analyticsRange, type OverviewData } from '@/lib/groups-analytics-shared';
 import { searchApps } from '@/lib/app-search';
 import { createWebhook, listDeliveries, resendDelivery, retryDueWebhooks } from '@/lib/webhooks';
 import { makeUser } from './helpers';
@@ -328,16 +329,18 @@ describe('push web', () => {
 
 describe('reportes con filtros', () => {
   it('rango propio y filtro por etiqueta', async () => {
-    expect(reportRange(30, { from: '2026-10-01', to: '2026-10-07' })).toMatchObject({ days: 7, from: '2026-10-01', to: '2026-10-07' });
-    expect(reportRange(7, {}, new Date('2026-10-25T10:00:00Z')).days).toBe(7);
+    expect(analyticsRange({ days: 30, from: '2026-10-01', to: '2026-10-07' })).toMatchObject({ days: 7, from: '2026-10-01', to: '2026-10-07' });
+    expect(analyticsRange({ days: 7 }, new Date('2026-10-25T10:00:00Z')).days).toBe(7);
     const { user, row } = await setup('gp-report');
     await ingestEvents(row, [msg('5491100000071@c.us', 'RP-1', 'uno', 'Uno'), msg('5491100000072@c.us', 'RP-2', 'dos', 'Dos'), msg('5491100000072@c.us', 'RP-3', 'tres', 'Dos')]);
     const chats = (await listChats(user.id, user.id)).rows;
     const label = await createLabel(user.id, { name: 'Clientes' });
     await updateChat(user.id, chats.find((c) => c.name === 'Dos')!.id, { labelIds: [label.id] });
-    expect((await groupsAnalytics(user.id, 30)).totals.inbound).toBe(3);
-    expect((await groupsAnalytics(user.id, 30, [], { labelId: label.id })).totals.inbound).toBe(2);
-    expect((await groupsAnalytics(user.id, 30, [], { from: '2020-01-01', to: '2020-01-31' })).totals.inbound).toBe(0);
+    const viewer = await groupsViewer(user.id, user.id, 'owner');
+    const inbound = async (q: Parameters<typeof linesAnalytics>[3]) => ((await linesAnalytics(user.id, viewer, 'overview', { days: 30, ...q })) as OverviewData).kpis.inbound.value;
+    expect(await inbound({})).toBe(3);
+    expect(await inbound({ labelId: label.id })).toBe(2);
+    expect(await inbound({ from: '2020-01-01', to: '2020-01-31' })).toBe(0);
   });
 });
 

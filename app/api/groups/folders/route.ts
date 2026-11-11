@@ -44,10 +44,14 @@ export async function PATCH(req: Request) {
   }
 }
 
-/** ?id=<carpeta>: la borra con sus subcarpetas; los chats quedan sin carpeta. */
+/** ?id=<carpeta>: la borra con sus subcarpetas; los chats quedan sin carpeta. Con chats que la persona no ve adentro, 403. */
 export async function DELETE(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = new URL(req.url).searchParams.get('id') ?? '';
-  return id && (await deleteFolder(s.ws, id)) ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
+  try {
+    return id && (await deleteFolder(s.ws, id, await sessionViewer(s))) ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
+  } catch (err) {
+    return handleGroupsError(err);
+  }
 }
