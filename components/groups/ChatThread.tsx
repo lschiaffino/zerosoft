@@ -74,7 +74,6 @@ import {
   TranslateIcon,
   UnreadIcon,
   ReadIcon,
-  PinIcon,
   MuteIcon,
   Bell,
   Sparkle,
