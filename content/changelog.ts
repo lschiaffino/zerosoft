@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-app-button-tones',
+    date: '2026-11-12',
+    title: {
+      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
+      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
+      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
+        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
+        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {
