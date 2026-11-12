@@ -4,6 +4,7 @@
  */
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export type PermissionKind = 'microphone' | 'accessibility' | 'camera' | 'screen';
 export type PermissionAsk = PermissionKind | 'accessibility-reset' | `reset-${PermissionKind}`;
@@ -100,6 +101,7 @@ export type Remote<T> = ({ ok: true } & T) | { ok: false; error: RemoteError };
 export interface VoiceServerSettings {
   language: string;
   cleanupMode: 'raw' | 'clean' | 'formal' | 'per_app';
+  cleanupDepth: 'light' | 'standard' | 'thorough';
   aiCleanup: boolean;
   styles: Record<'email' | 'chat' | 'note' | 'other', 'formal' | 'neutral' | 'casual'>;
 }
@@ -131,6 +133,8 @@ export interface HudState {
 
 export const api = {
   get: () => invoke<SettingsView>('settings_get'),
+  /** Cierra esta ventana. window.close() del navegador no hace nada en el webview de Mac. */
+  closeWindow: () => getCurrentWindow().close().catch(() => window.close()),
   save: (input: SettingsInput) => invoke<{ ok: boolean; error?: string; view?: SettingsView }>('settings_save', { input }),
   ask: (kind: PermissionAsk) => invoke<SettingsView>('permission_ask', { kind }),
   onRefresh: (cb: () => void) => void listen('settings://refresh', () => cb()),

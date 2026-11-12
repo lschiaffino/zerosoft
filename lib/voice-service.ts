@@ -97,7 +97,7 @@ export async function dictate(args: {
   const tone = dictationTone(settings, context);
   // raw: la transcripción tal cual, solo con los reemplazos y snippets del diccionario.
   const cleaned = tone
-    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup, fast: args.fast })
+    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup, depth: settings.cleanupDepth, fast: args.fast })
     : { text: applyDictionary(tr.text.replace(/\s+/g, ' ').trim(), dictionary), ai: false, aiError: null };
   const t3 = Date.now();
   const timings = (saveMs: number): DictateTimings => ({ setupMs: t1 - t0, transcribeMs: t2 - t1, cleanupMs: t3 - t2, saveMs, totalMs: t3 - t0 + saveMs });
