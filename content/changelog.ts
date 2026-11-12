@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-voice-note-player',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: voice notes look like WhatsApp',
+      es: 'Lines e Inbox: las notas de voz se ven como en WhatsApp',
+      pt: 'Lines e Inbox: as notas de voz parecem as do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A voice note shows who recorded it (photo with a microphone), a waveform with a dot that moves as it plays and the length below. Once it starts, the speed button (1×, 1.5×, 2×) takes the photo’s place.',
+        es: 'Una nota de voz muestra quién la grabó (foto con un micrófono), una onda con un punto que avanza mientras suena y la duración debajo. Al darle play, el botón de velocidad (1×, 1,5×, 2×) ocupa el lugar de la foto.',
+        pt: 'Uma nota de voz mostra quem gravou (foto com um microfone), uma onda com um ponto que avança enquanto toca e a duração embaixo. Ao dar play, o botão de velocidade (1×, 1,5×, 2×) fica no lugar da foto.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox.',
+        es: 'Lo mismo en Inbox.',
+        pt: 'O mesmo no Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {

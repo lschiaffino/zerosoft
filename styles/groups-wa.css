@@ -388,21 +388,34 @@
 .wa-video { display: block; max-width: 330px; width: 100%; border-radius: 6px; background: #000; }
 .wa-media-off { display: inline-block; padding: 8px 10px; font-size: 0.8125rem; color: var(--wa-text-2); }
 
-.wa-voice { display: grid; grid-template-columns: 34px minmax(0, 1fr) 22px; align-items: center; gap: 8px; width: min(300px, 62vw); padding: 4px 2px 14px; }
-.wa-voice-play { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; color: var(--wa-icon); background: none; border: 0; border-radius: 50%; cursor: pointer; }
+/* Nota de voz como en WhatsApp: [foto con micrófono | velocidad] [play] [onda con perilla]; la duración debajo de la onda. */
+.wa-voice { display: grid; grid-template-columns: 48px 34px minmax(0, 1fr); align-items: center; gap: 6px 8px; width: min(320px, 64vw); padding: 6px 4px 16px 2px; }
+.wa-voice-lead { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; }
+.wa-voice-avatar { position: relative; display: inline-flex; }
+.wa-voice-avatar-blank { width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-voice-mic { position: absolute; right: -6px; bottom: -4px; display: inline-flex; color: var(--wa-text-2); filter: drop-shadow(0 0 1.5px var(--wa-bubble-in)); }
+.gr-msg-out .wa-voice-mic { filter: drop-shadow(0 0 1.5px var(--wa-bubble-out)); }
+.wa-voice-speed {
+  min-width: 42px; height: 26px; padding: 0 8px; font: inherit; font-size: 0.8125rem; font-weight: 600; color: #fff;
+  background: color-mix(in srgb, var(--wa-text-2) 85%, transparent); border: 0; border-radius: 13px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.wa-voice-speed:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.wa-voice-play { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; color: var(--wa-text-2); background: none; border: 0; border-radius: 50%; cursor: pointer; }
 .wa-voice-play:focus-visible { outline: 2px solid var(--wa-primary); }
 .wa-voice-play:disabled { opacity: 0.4; cursor: default; }
 .wa-voice-track { position: relative; min-width: 0; }
-.wa-voice-bars { display: flex; align-items: center; gap: 2px; height: 26px; }
-.wa-voice-bars i { flex: 1; min-width: 2px; max-width: 3px; border-radius: 1px; background: color-mix(in srgb, var(--wa-text-2) 55%, transparent); }
-.wa-voice-bars i.is-on { background: var(--wa-primary); }
-.gr-msg-out .wa-voice-bars i.is-on { background: #53bdeb; }
-.wa-voice-seek { position: absolute; inset: 0 0 auto; width: 100%; height: 26px; margin: 0; opacity: 0; cursor: pointer; }
+.wa-voice-bars { position: relative; display: flex; align-items: center; gap: 2px; height: 28px; padding-left: 4px; }
+.wa-voice-bars i { flex: 1; min-width: 2px; max-width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--wa-text-2) 45%, transparent); transition: background-color 0.1s linear; }
+.wa-voice-bars i.is-on { background: var(--wa-text); }
+/* Perilla: un punto que marca por dónde va (al principio cuando no arrancó). */
+.wa-voice-knob {
+  position: absolute; top: 50%; left: calc(4px + (100% - 8px) * var(--p, 0)); width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  background: var(--wa-text); border-radius: 50%; pointer-events: none;
+}
+.wa-voice-seek { position: absolute; inset: 0 0 auto; width: 100%; height: 28px; margin: 0; opacity: 0; cursor: pointer; }
 .wa-voice-seek:focus-visible { opacity: 0.3; }
-.wa-voice-meta { position: absolute; left: 0; top: 30px; display: flex; align-items: center; gap: 8px; font-size: 0.6875rem; color: var(--wa-text-2); }
-.wa-voice-speed { padding: 0 6px; font: inherit; font-size: 0.6875rem; font-weight: 600; color: #fff; background: rgba(11, 20, 26, 0.35); border: 0; border-radius: 9px; cursor: pointer; }
+.wa-voice-meta { position: absolute; left: 4px; top: 32px; font-size: 0.6875rem; color: var(--wa-text-2); font-variant-numeric: tabular-nums; }
 .wa-voice-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; color: var(--wa-text-2); }
-.wa-voice-badge.is-ptt { color: var(--wa-tick-blue); }
 .wa-voice.is-failed .wa-voice-bars { opacity: 0.4; }
 
 .wa-doc { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: min(320px, 62vw); min-height: 60px; padding: 8px 10px; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
@@ -770,7 +783,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-audio-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--wa-text); }
 .wa-audio-bar { display: block; height: 4px; background: color-mix(in srgb, var(--wa-text-2) 35%, transparent); border-radius: 2px; overflow: hidden; }
 .wa-audio-bar i { display: block; height: 100%; background: var(--wa-primary); }
-.wa-voice-badge.is-audio { width: 34px; height: 34px; color: #fff; background: #ff8a1b; border-radius: 50%; }
+.wa-voice-badge.is-audio { width: 40px; height: 40px; color: #fff; background: #ff8a1b; border-radius: 50%; }
 
 /* Contacto compartido con botones. */
 .wa-contact-card { display: flex; flex-direction: column; min-width: 240px; }
@@ -925,7 +938,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox[data-chat-style='zerosoft'] .gr-emoji-picker { border: 1px solid var(--line); border-radius: var(--radius-1); }
 .gr-inbox[data-chat-style='zerosoft'] .wa-chevron { background: transparent; border-radius: var(--radius-1); }
 .gr-inbox[data-chat-style='zerosoft'] .wa-voice-bars i.is-on,
-.gr-inbox[data-chat-style='zerosoft'] .gr-msg-out .wa-voice-bars i.is-on { background: var(--ink); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-voice-knob { background: var(--ink); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-msg.is-deleted .gr-bubble { border: 1px dashed var(--line); }
 
 /* Entrada "Archivados" arriba de la lista de Inbox, como en WhatsApp Web. */

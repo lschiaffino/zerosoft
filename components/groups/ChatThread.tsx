@@ -1435,7 +1435,16 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
-                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined} waveform={media.waveform} />
+                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
+                  waveform={media.waveform}
+                  avatar={
+                    m.direction === 'in'
+                      ? chat.kind === 'dm'
+                        ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
+                        : { name: inName(m), seed: m.senderPhone || m.senderName }
+                      : { name: author || '', seed: m.authorId || 'me' }
+                  }
+                />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
               )}
