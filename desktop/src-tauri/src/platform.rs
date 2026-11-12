@@ -147,7 +147,7 @@ mod mac {
         }
     }
 
-    /// Texto en el portapapeles general, marcado como de paso y solo para esta Mac (macOS 12+).
+    /// Texto en el portapapeles general, marcado como de paso y solo para esta Mac (macOS 10.12+).
     pub fn set_private_text(text: &str) -> bool {
         use objc2::sel;
         unsafe {
@@ -359,8 +359,9 @@ pub fn frontmost_app() -> String {
 
 /// Pone en el portapapeles el texto de un dictado (para pegarlo) marcado como de paso:
 /// - Mac: con `org.nspasteboard.TransientType` y `org.nspasteboard.ConcealedType` (los gestores de
-///   historial que siguen nspasteboard.org no lo guardan) y, en macOS 12 o más, solo en esta Mac
-///   (`NSPasteboardContentsCurrentHostOnly`: no va al Portapapeles universal).
+///   historial que siguen nspasteboard.org no lo guardan) y solo en esta Mac
+///   (`NSPasteboardContentsCurrentHostOnly`, macOS 10.12 o más: todas las que soporta la app; no va
+///   al Portapapeles universal).
 /// - Windows: con `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`=0 y
 ///   `CanUploadToCloudClipboard`=0 (no va al historial de Windows ni a la nube).
 pub fn write_text_private(cb: &mut arboard::Clipboard, text: &str) -> bool {
@@ -379,37 +380,68 @@ pub fn write_text_private(cb: &mut arboard::Clipboard, text: &str) -> bool {
 }
 
 /// La clave que la app de Electron (0.1.x) dejó en el llavero ("zerosoft Safe Storage", cuenta
-/// "zerosoft Key"). Se mira sin leer el secreto (no pide permiso).
-pub fn electron_keychain_exists() -> bool {
+/// "zerosoft Key"), si es de ella: la carpeta de esa app está (`owned_folder`) o el ítem tiene
+/// exactamente los atributos con que lo crea Chromium (etiqueta igual al servicio, sin creador ni
+/// descripción). Se mira sin leer el secreto (no pide permiso). Si no, se deja como está.
+pub fn electron_keychain_exists(owned_folder: bool) -> bool {
     #[cfg(target_os = "macos")]
-    return keychain("find-generic-password");
+    return keychain_item().is_some_and(|attrs| owned_folder || chromium_item(&attrs));
     #[cfg(not(target_os = "macos"))]
-    false
+    {
+        let _ = owned_folder;
+        false
+    }
 }
 
-/// La borra (solo ese servicio y esa cuenta). true si ya no está.
-pub fn delete_electron_keychain() -> bool {
+/// La borra si es de la app vieja. `security` borra el primer ítem que coincide: se repite hasta
+/// que no quede ninguno (como mucho 5). true si ya no está.
+pub fn delete_electron_keychain(owned_folder: bool) -> bool {
     #[cfg(target_os = "macos")]
     {
-        if !electron_keychain_exists() {
-            return true;
+        for _ in 0..5 {
+            if !electron_keychain_exists(owned_folder) {
+                return true;
+            }
+            let _ = keychain(&["delete-generic-password"]);
         }
-        let _ = keychain("delete-generic-password");
-        return !electron_keychain_exists();
+        return !electron_keychain_exists(owned_folder);
     }
     #[cfg(not(target_os = "macos"))]
-    true
+    {
+        let _ = owned_folder;
+        true
+    }
+}
+
+/// Los atributos que imprime `security find-generic-password` (sin -g ni -w: sin el secreto).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn chromium_item(attrs: &str) -> bool {
+    use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
+    let has = |line: &str| attrs.lines().any(|l| l.trim() == line);
+    has(&format!("0x00000007 <blob>=\"{ELECTRON_KEYCHAIN_SERVICE}\""))
+        && has(&format!("\"svce\"<blob>=\"{ELECTRON_KEYCHAIN_SERVICE}\""))
+        && has(&format!("\"acct\"<blob>=\"{ELECTRON_KEYCHAIN_ACCOUNT}\""))
+        && has("\"crtr\"<uint32>=<NULL>")
+        && has("\"desc\"<blob>=<NULL>")
 }
 
 #[cfg(target_os = "macos")]
-fn keychain(action: &str) -> bool {
+fn keychain_item() -> Option<String> {
+    let out = keychain(&["find-generic-password"])?;
+    Some(out)
+}
+
+/// `security <acción> -s <servicio> -a <cuenta>`: la salida si terminó bien.
+#[cfg(target_os = "macos")]
+fn keychain(action: &[&str]) -> Option<String> {
     use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
-    std::process::Command::new("/usr/bin/security")
-        .args([action, "-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT])
-        .stdout(std::process::Stdio::null())
+    let out = std::process::Command::new("/usr/bin/security")
+        .args(action)
+        .args(["-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT])
         .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
+        .output()
+        .ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 /// La tecla de la "v" para `tap_paste` (Mac; en Windows no se usa). Llamar en el hilo principal.
@@ -464,6 +496,15 @@ mod tests {
         assert_eq!(context_for_app("Figma"), "other");
         assert_eq!(context_for_app(""), "other");
         assert_eq!(context_for_app("Mailchimp Desktop"), "other");
+    }
+
+    #[test]
+    fn keychain_item_must_look_like_chromiums() {
+        let real = "keychain: \"/Users/x/Library/Keychains/login.keychain-db\"\nattributes:\n    0x00000007 <blob>=\"zerosoft Safe Storage\"\n    \"acct\"<blob>=\"zerosoft Key\"\n    \"crtr\"<uint32>=<NULL>\n    \"desc\"<blob>=<NULL>\n    \"svce\"<blob>=\"zerosoft Safe Storage\"\n";
+        assert!(chromium_item(real));
+        assert!(!chromium_item(&real.replace("0x00000007 <blob>=\"zerosoft Safe Storage\"", "0x00000007 <blob>=\"Otra app\"")));
+        assert!(!chromium_item(&real.replace("\"crtr\"<uint32>=<NULL>", "\"crtr\"<uint32>=\"abcd\"")));
+        assert!(!chromium_item(""));
     }
 
     #[test]

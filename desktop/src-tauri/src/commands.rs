@@ -776,7 +776,7 @@ fn privacy_view(app: &AppHandle) -> Value {
     let st = app.state::<AppState>();
     let data = st.privacy.snapshot();
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
-    let stores = crate::privacy::Paths::of(app).map(|p| crate::privacy::stores(&p, autostart, platform::electron_keychain_exists())).unwrap_or_default();
+    let stores = crate::privacy::Paths::of(app).map(|p| crate::privacy::stores(&p, autostart, platform::electron_keychain_exists(p.electron_profile().is_some()))).unwrap_or_default();
     let mut events = data.events;
     events.reverse();
     json!({
@@ -848,7 +848,7 @@ pub async fn privacy(app: AppHandle, window: WebviewWindow, action: String, targ
                 deleted(Tag::Old);
             }
             "electron_keychain" => {
-                if !platform::delete_electron_keychain() {
+                if !platform::delete_electron_keychain(paths.electron_profile().is_some()) {
                     return Err("delete".into());
                 }
                 deleted(Tag::Old);
@@ -879,7 +879,8 @@ pub async fn privacy(app: AppHandle, window: WebviewWindow, action: String, targ
                 crate::system_audio::stop_because(crate::system_audio::Why::User);
                 blank_tabs(&app).await;
                 app.state::<AppState>().privacy.clear();
-                if !crate::privacy::wipe_files(&paths, platform::delete_electron_keychain) {
+                let ours = paths.electron_profile().is_some();
+                if crate::privacy::wipe_files(&paths, || platform::delete_electron_keychain(ours)).is_none() {
                     reload_tabs(&app);
                     return Ok(json!({ "ok": false, "view": privacy_view(&app) }));
                 }

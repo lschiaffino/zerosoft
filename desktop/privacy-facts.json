@@ -320,17 +320,17 @@
    "delete": false,
    "en": {
     "name": "Open windows and tabs",
-    "what": "For each tab, its path inside zerosoft and its title, which can include the name of a record such as a document or a contact. Also window sizes and positions, and your tab preferences. Plain JSON. With \"Reopen my windows and tabs\" off, only the preferences are saved.",
+    "what": "For each tab, its path inside zerosoft and its title, which can include the name of a record such as a document or a contact. Also window sizes and positions, and your tab preferences. Plain JSON. With \"Reopen my windows and tabs\" off, only the preferences are saved. Versions before 0.3.7 kept it in Roaming on Windows; it is moved once, and anything left there is listed and deleted with the rest.",
     "kept": "Rewritten as tabs change. Removed when you delete all local data."
    },
    "es": {
     "name": "Ventanas y pestañas abiertas",
-    "what": "De cada pestaña, su ruta dentro de zerosoft y su título, que puede incluir el nombre de un registro, como un documento o un contacto. También el tamaño y la posición de las ventanas, y tus preferencias de pestañas. JSON sin cifrar. Con \"volver a abrir mis ventanas y pestañas\" apagado, solo se guardan las preferencias.",
+    "what": "De cada pestaña, su ruta dentro de zerosoft y su título, que puede incluir el nombre de un registro, como un documento o un contacto. También el tamaño y la posición de las ventanas, y tus preferencias de pestañas. JSON sin cifrar. Con \"volver a abrir mis ventanas y pestañas\" apagado, solo se guardan las preferencias. Las versiones anteriores a la 0.3.7 lo dejaban en Roaming en Windows; se mueve una vez, y lo que quede ahí se lista y se borra con el resto.",
     "kept": "Se reescribe cuando cambian las pestañas. Se borra con \"borrar todos los datos locales\"."
    },
    "pt": {
     "name": "Janelas e abas abertas",
-    "what": "De cada aba, o caminho dentro do zerosoft e o título, que pode incluir o nome de um registro, como um documento ou um contato. Também o tamanho e a posição das janelas, e suas preferências de abas. JSON sem criptografia. Com \"reabrir minhas janelas e abas\" desligado, só as preferências são salvas.",
+    "what": "De cada aba, o caminho dentro do zerosoft e o título, que pode incluir o nome de um registro, como um documento ou um contato. Também o tamanho e a posição das janelas, e suas preferências de abas. JSON sem criptografia. Com \"reabrir minhas janelas e abas\" desligado, só as preferências são salvas. Versões anteriores à 0.3.7 o deixavam em Roaming no Windows; ele é movido uma vez, e o que sobrar lá é listado e apagado com o resto.",
     "kept": "É regravado quando as abas mudam. Apagado com \"apagar todos os dados locais\"."
    },
    "all": true
@@ -373,18 +373,18 @@
    "delete": true,
    "en": {
     "name": "Dictations that were not sent",
-    "what": "The audio of a dictation that could not be sent (no connection, signed out, server error), as a WAV file, plus when it was recorded, how long it is, why it failed and, if that switch is on, the name of the app in front. Not encrypted. On macOS only your user can read the files (mode 600). Audio that was sent is not kept.",
-    "kept": "At most 20, each for 7 days (also checked at launch) or until it is sent. It is only sent to the server it was recorded for. Turn off \"Keep dictations that could not be sent\" and none is written."
+    "what": "The audio of a dictation that could not be sent (no connection, signed out, server error), as a WAV file, plus when it was recorded, how long it is, why it failed and, if that switch is on, the name of the app in front. Not encrypted. On macOS only your user can read the files (mode 600). Audio that was sent is not kept. On Windows, versions before 0.3.7 kept them in Roaming; they are moved once, and anything left there is listed, pruned and deleted with the rest.",
+    "kept": "At most 20, each for 7 days (also checked at launch) or until it is sent. It is only sent to the server it was recorded for (dictations saved by this version or later; older ones go to the current server). Turn off \"Keep dictations that could not be sent\" and none is written."
    },
    "es": {
     "name": "Dictados que no se enviaron",
-    "what": "El audio de un dictado que no se pudo enviar (sin conexión, sin sesión, error del servidor), como archivo WAV, más cuándo se grabó, cuánto dura, por qué falló y, si esa llave está prendida, el nombre de la app de adelante. Sin cifrar. En macOS solo tu usuario puede leer los archivos (modo 600). El audio que sí se envió no se guarda.",
-    "kept": "Como mucho 20, cada uno 7 días (también se revisa al abrir) o hasta que se envía. Solo se manda al servidor para el que se grabó. Apagá \"guardar los dictados que no se pudieron enviar\" y no se escribe ninguno."
+    "what": "El audio de un dictado que no se pudo enviar (sin conexión, sin sesión, error del servidor), como archivo WAV, más cuándo se grabó, cuánto dura, por qué falló y, si esa llave está prendida, el nombre de la app de adelante. Sin cifrar. En macOS solo tu usuario puede leer los archivos (modo 600). El audio que sí se envió no se guarda. En Windows, las versiones anteriores a la 0.3.7 los dejaban en Roaming; se mueven una vez, y lo que quede ahí se lista, se poda y se borra con el resto.",
+    "kept": "Como mucho 20, cada uno 7 días (también se revisa al abrir) o hasta que se envía. Solo se manda al servidor para el que se grabó (los guardados por esta versión o una posterior; los anteriores van al servidor de ahora). Apagá \"guardar los dictados que no se pudieron enviar\" y no se escribe ninguno."
    },
    "pt": {
     "name": "Ditados que não foram enviados",
-    "what": "O áudio de um ditado que não pôde ser enviado (sem conexão, sem sessão, erro do servidor), como arquivo WAV, mais quando foi gravado, a duração, por que falhou e, se essa chave estiver ligada, o nome do app da frente. Sem criptografia. No macOS só o seu usuário pode ler os arquivos (modo 600). O áudio que foi enviado não é guardado.",
-    "kept": "No máximo 20, cada um por 7 dias (também conferido ao abrir) ou até ser enviado. Só é enviado ao servidor para o qual foi gravado. Desligue \"guardar os ditados que não puderam ser enviados\" e nenhum é gravado."
+    "what": "O áudio de um ditado que não pôde ser enviado (sem conexão, sem sessão, erro do servidor), como arquivo WAV, mais quando foi gravado, a duração, por que falhou e, se essa chave estiver ligada, o nome do app da frente. Sem criptografia. No macOS só o seu usuário pode ler os arquivos (modo 600). O áudio que foi enviado não é guardado. No Windows, versões anteriores à 0.3.7 os deixavam em Roaming; eles são movidos uma vez, e o que sobrar lá é listado, podado e apagado com o resto.",
+    "kept": "No máximo 20, cada um por 7 dias (também conferido ao abrir) ou até ser enviado. Só é enviado ao servidor para o qual foi gravado (os guardados por esta versão ou posterior; os anteriores vão para o servidor atual). Desligue \"guardar os ditados que não puderam ser enviados\" e nenhum é gravado."
    },
    "all": true
   },
@@ -427,17 +427,17 @@
    "en": {
     "name": "Website data",
     "what": "What the zerosoft website stores, as in a browser: local storage and databases (including what it keeps for offline use). On Windows this folder also holds the cookies and the cache. Written by the system webview (WebKit on macOS, WebView2 on Windows) in its own formats.",
-    "kept": "Until you delete it. Deleting website data on its own signs you out on this computer and on the server, and asks the webview to clear it; the webview does not confirm when it is done. \"Delete all local data\" removes the folder at the next launch, before any window opens."
+    "kept": "Until you delete it. Deleting website data on its own signs you out on this computer and on the server, and asks the webview to clear it; the webview does not confirm when it is done. \"Delete all local data\" removes the folder at the next launch, before any window opens; if it cannot, Settings says so."
    },
    "es": {
     "name": "Datos del sitio",
     "what": "Lo que guarda el sitio de zerosoft, como en un navegador: almacenamiento local y bases de datos (incluido lo que deja para usar sin conexión). En Windows esta carpeta también tiene las cookies y la caché. Lo escribe el webview del sistema (WebKit en macOS, WebView2 en Windows) en sus propios formatos.",
-    "kept": "Hasta que lo borres. Borrar los datos del sitio por separado cierra la sesión en esta computadora y en el servidor, y le pide al webview que los borre; el webview no avisa cuándo terminó. \"Borrar todos los datos locales\" borra la carpeta al abrir la app de nuevo, antes de que aparezca ninguna ventana."
+    "kept": "Hasta que lo borres. Borrar los datos del sitio por separado cierra la sesión en esta computadora y en el servidor, y le pide al webview que los borre; el webview no avisa cuándo terminó. \"Borrar todos los datos locales\" borra la carpeta al abrir la app de nuevo, antes de que aparezca ninguna ventana; si no puede, Ajustes lo dice."
    },
    "pt": {
     "name": "Dados do site",
     "what": "O que o site do zerosoft guarda, como em um navegador: armazenamento local e bancos de dados (incluindo o que deixa para uso offline). No Windows esta pasta também tem os cookies e o cache. Gravado pelo webview do sistema (WebKit no macOS, WebView2 no Windows) nos formatos próprios dele.",
-    "kept": "Até você apagar. Apagar os dados do site separadamente encerra a sessão neste computador e no servidor, e pede ao webview que os apague; o webview não avisa quando terminou. \"Apagar todos os dados locais\" remove a pasta ao abrir o app de novo, antes de qualquer janela aparecer."
+    "kept": "Até você apagar. Apagar os dados do site separadamente encerra a sessão neste computador e no servidor, e pede ao webview que os apague; o webview não avisa quando terminou. \"Apagar todos os dados locais\" remove a pasta ao abrir o app de novo, antes de qualquer janela aparecer; se não conseguir, Ajustes avisa."
    },
    "all": true
   },
@@ -532,17 +532,17 @@
    "delete": true,
    "en": {
     "name": "Downloaded installers",
-    "what": "On Windows, each update leaves its installer in a folder named zerosoft-<version>-updater-… in your temporary folder. On macOS the update is applied in place and its temporary files are removed.",
+    "what": "On Windows, each update leaves its installer in a folder named exactly zerosoft-<version>-updater-<letters> in your temporary folder; only folders with that name and a version number are listed. On macOS the update is applied in place and its temporary files are removed.",
     "kept": "Until you delete them, or Windows cleans the temporary folder."
    },
    "es": {
     "name": "Instaladores bajados",
-    "what": "En Windows, cada actualización deja su instalador en una carpeta zerosoft-<versión>-updater-… de tu carpeta temporal. En macOS la actualización se aplica en el lugar y sus archivos temporales se borran.",
+    "what": "En Windows, cada actualización deja su instalador en una carpeta llamada exactamente zerosoft-<versión>-updater-<letras> de tu carpeta temporal; solo se listan carpetas con ese nombre y un número de versión. En macOS la actualización se aplica en el lugar y sus archivos temporales se borran.",
     "kept": "Hasta que los borres, o Windows limpie la carpeta temporal."
    },
    "pt": {
     "name": "Instaladores baixados",
-    "what": "No Windows, cada atualização deixa o instalador em uma pasta zerosoft-<versão>-updater-… da pasta temporária. No macOS a atualização é aplicada no lugar e os arquivos temporários são apagados.",
+    "what": "No Windows, cada atualização deixa o instalador em uma pasta chamada exatamente zerosoft-<versão>-updater-<letras> da pasta temporária; só pastas com esse nome e um número de versão são listadas. No macOS a atualização é aplicada no lugar e os arquivos temporários são apagados.",
     "kept": "Até você apagar, ou o Windows limpar a pasta temporária."
    },
    "all": true
@@ -552,23 +552,23 @@
    "code": [
     "desktop/src-tauri/src/privacy.rs"
    ],
-   "mac": "~/Library/Application Support/zerosoft/",
+   "mac": "~/Library/Application Support/zerosoft/, ~/Library/Caches/zerosoft-desktop-updater/",
    "win": "%APPDATA%\\zerosoft\\, %LOCALAPPDATA%\\zerosoft-desktop-updater\\",
    "content": true,
    "delete": true,
    "en": {
     "name": "Data from the old app (0.1.x)",
-    "what": "Only if you used the first version of the desktop app (0.1.0 to 0.1.2, built with Electron): its folder, with its settings, an encrypted copy of the session (session.bin) and the cookies of its own browser. This version does not read it.",
+    "what": "Only if you used the first version of the desktop app (0.1.0 to 0.1.2, built with Electron): its folder, with its settings, an encrypted copy of the session (session.bin) and the cookies of its own browser. This version does not read it. The app only treats a folder as the old app's if it has the exact name and files that app leaves (such as Local State, Preferences or session.bin, or a pending update for the updater cache); a folder of another app with a similar name is never listed or deleted. If the old app is still running, some files may stay; they are then reported after \"Delete all\".",
     "kept": "Until you delete it."
    },
    "es": {
     "name": "Datos de la app vieja (0.1.x)",
-    "what": "Solo si usaste la primera versión de la app de escritorio (0.1.0 a 0.1.2, hecha con Electron): su carpeta, con sus ajustes, una copia cifrada de la sesión (session.bin) y las cookies de su propio navegador. Esta versión no la lee.",
+    "what": "Solo si usaste la primera versión de la app de escritorio (0.1.0 a 0.1.2, hecha con Electron): su carpeta, con sus ajustes, una copia cifrada de la sesión (session.bin) y las cookies de su propio navegador. Esta versión no la lee. La app solo toma una carpeta como de la app vieja si tiene el nombre exacto y archivos que deja esa app (como Local State, Preferences o session.bin, o una actualización pendiente en la caché del updater); una carpeta de otra app con un nombre parecido nunca se lista ni se borra. Si la app vieja sigue abierta, pueden quedar archivos; en ese caso se avisa después de \"borrar todo\".",
     "kept": "Hasta que la borres."
    },
    "pt": {
     "name": "Dados do app antigo (0.1.x)",
-    "what": "Só se você usou a primeira versão do app de desktop (0.1.0 a 0.1.2, feita com Electron): a pasta dela, com ajustes, uma cópia criptografada da sessão (session.bin) e os cookies do navegador dela. Esta versão não a lê.",
+    "what": "Só se você usou a primeira versão do app de desktop (0.1.0 a 0.1.2, feita com Electron): a pasta dela, com ajustes, uma cópia criptografada da sessão (session.bin) e os cookies do navegador dela. Esta versão não a lê. O app só considera uma pasta do app antigo se ela tiver o nome exato e arquivos que esse app deixa (como Local State, Preferences ou session.bin, ou uma atualização pendente no cache do updater); uma pasta de outro app com nome parecido nunca é listada nem apagada. Se o app antigo ainda estiver aberto, alguns arquivos podem ficar; nesse caso isso é informado depois de \"apagar tudo\".",
     "kept": "Até você apagar."
    },
    "all": true
@@ -585,17 +585,17 @@
    "delete": true,
    "en": {
     "name": "Keychain key from the old app (0.1.x)",
-    "what": "macOS only, and only if you used version 0.1.x: the key it used to encrypt its session copy, in your login keychain as \"zerosoft Safe Storage\". Deleting it removes only that item.",
+    "what": "macOS only, and only if you used version 0.1.x: the key it used to encrypt its session copy, in your login keychain as \"zerosoft Safe Storage\". Deleting it removes only that item. It is only shown, and deleted, if the old app's folder is there or the item looks exactly like the one Chromium creates; otherwise it is left alone. If macOS refuses (keychain locked or access denied), \"Delete all\" goes on and reports it.",
     "kept": "Until you delete it."
    },
    "es": {
     "name": "Clave del llavero de la app vieja (0.1.x)",
-    "what": "Solo en macOS, y solo si usaste la versión 0.1.x: la clave con la que cifraba su copia de la sesión, en tu llavero de inicio de sesión como \"zerosoft Safe Storage\". Borrarla saca solo ese ítem.",
+    "what": "Solo en macOS, y solo si usaste la versión 0.1.x: la clave con la que cifraba su copia de la sesión, en tu llavero de inicio de sesión como \"zerosoft Safe Storage\". Borrarla saca solo ese ítem. Solo se muestra, y se borra, si está la carpeta de la app vieja o el ítem es exactamente como el que crea Chromium; si no, se deja. Si macOS no deja (llavero bloqueado o acceso denegado), \"borrar todo\" sigue y lo avisa.",
     "kept": "Hasta que la borres."
    },
    "pt": {
     "name": "Chave das chaves do app antigo (0.1.x)",
-    "what": "Só no macOS, e só se você usou a versão 0.1.x: a chave que ele usava para criptografar a cópia da sessão, no seu chaveiro de sessão como \"zerosoft Safe Storage\". Apagar remove só esse item.",
+    "what": "Só no macOS, e só se você usou a versão 0.1.x: a chave que ele usava para criptografar a cópia da sessão, no seu chaveiro de sessão como \"zerosoft Safe Storage\". Apagar remove só esse item. Só é mostrada, e apagada, se a pasta do app antigo estiver lá ou o item for exatamente como o que o Chromium cria; senão, fica como está. Se o macOS não deixar (chaveiro bloqueado ou acesso negado), \"apagar tudo\" continua e avisa.",
     "kept": "Até você apagar."
    },
    "all": true
@@ -1015,9 +1015,9 @@
     "desktop/src-tauri/src/platform.rs",
     "desktop/src-tauri/src/dictation.rs"
    ],
-   "en": "Dictated text the app puts on the clipboard to paste is marked as temporary. On macOS it carries the TransientType and ConcealedType markers, which clipboard history apps that follow nspasteboard.org skip, and on macOS 12 or later it stays on this Mac instead of going to Universal Clipboard. On Windows it is excluded from clipboard history and from the cloud clipboard. Your previous clipboard is put back as it was, without markers. Text you copy yourself from the history in Settings is not marked.",
-   "es": "El texto dictado que la app pone en el portapapeles para pegar va marcado como temporal. En macOS lleva las marcas TransientType y ConcealedType, que los historiales de portapapeles que siguen nspasteboard.org saltean, y en macOS 12 o más queda en esta Mac en vez de ir al Portapapeles universal. En Windows queda fuera del historial del portapapeles y del portapapeles en la nube. Tu portapapeles anterior se devuelve como estaba, sin marcas. El texto que copiás vos desde el historial de Ajustes no va marcado.",
-   "pt": "O texto ditado que o app coloca na área de transferência para colar vai marcado como temporário. No macOS leva as marcas TransientType e ConcealedType, que os históricos de área de transferência que seguem nspasteboard.org ignoram, e no macOS 12 ou posterior fica neste Mac em vez de ir para a Área de Transferência Universal. No Windows fica fora do histórico da área de transferência e da área de transferência na nuvem. Sua área de transferência anterior é devolvida como estava, sem marcas. O texto que você copia do histórico em Ajustes não é marcado."
+   "en": "Dictated text the app puts on the clipboard to paste is marked as temporary. On macOS it carries the TransientType and ConcealedType markers, which clipboard history apps that follow nspasteboard.org skip, and it stays on this Mac instead of going to Universal Clipboard (every macOS version the app supports allows this). On Windows it is excluded from clipboard history and from the cloud clipboard. Your previous clipboard is put back as it was, without markers. Text you copy yourself from the history in Settings is not marked.",
+   "es": "El texto dictado que la app pone en el portapapeles para pegar va marcado como temporal. En macOS lleva las marcas TransientType y ConcealedType, que los historiales de portapapeles que siguen nspasteboard.org saltean, y queda en esta Mac en vez de ir al Portapapeles universal (todas las versiones de macOS que soporta la app lo permiten). En Windows queda fuera del historial del portapapeles y del portapapeles en la nube. Tu portapapeles anterior se devuelve como estaba, sin marcas. El texto que copiás vos desde el historial de Ajustes no va marcado.",
+   "pt": "O texto ditado que o app coloca na área de transferência para colar vai marcado como temporário. No macOS leva as marcas TransientType e ConcealedType, que os históricos de área de transferência que seguem nspasteboard.org ignoram, e fica neste Mac em vez de ir para a Área de Transferência Universal (todas as versões do macOS que o app suporta permitem isso). No Windows fica fora do histórico da área de transferência e da área de transferência na nuvem. Sua área de transferência anterior é devolvida como estava, sem marcas. O texto que você copia do histórico em Ajustes não é marcado."
   }
  ],
  "indicators": [

@@ -71,7 +71,7 @@ function state(platform: 'darwin' | 'win32') {
     privacy: {
       facts: FACTS,
       capturing: null as string | null,
-      lastWipe: null as boolean | null,
+      lastWipe: null as { ok: boolean; leftovers: string[]; error: string | null } | null,
       usage: { microphone: { last: NOW - 60_000, count: 12 }, clipboard: { last: NOW - 50_000, count: 12 } },
       stores: [
         store('settings', `${dir}/settings.json`, 412, 1),
@@ -104,7 +104,7 @@ function state(platform: 'darwin' | 'win32') {
 
 type Call = { cmd: string; args: Record<string, unknown> };
 
-async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: number; capturing?: string; lastWipe?: boolean } = {}) {
+async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: number; capturing?: string; lastWipe?: { ok: boolean; leftovers: string[]; error: string | null } } = {}) {
   const st = state(opts.platform ?? 'darwin');
   st.privacy.capturing = opts.capturing ?? null;
   st.privacy.lastWipe = opts.lastWipe ?? null;
@@ -199,8 +199,9 @@ test.describe('desktop settings: privacy and data', () => {
   });
 
   test('says when the last launch finished deleting everything, and old-version leftovers can be deleted', async ({ page }) => {
-    await open(page, { lastWipe: true });
-    await expect(page.locator('#priv-last-wipe')).toHaveText('zerosoft borró todos sus datos locales al abrirse.');
+    await open(page, { lastWipe: { ok: true, leftovers: ['electron_keychain'], error: null } });
+    // Lo que quedó de versiones anteriores se nombra.
+    await expect(page.locator('#priv-last-wipe')).toHaveText('zerosoft borró todos sus datos locales al abrirse. Esto no se pudo borrar y sigue en la lista de abajo: Clave del llavero de la app vieja (0.1.x).');
     const old = page.locator('#priv-stores li[data-store="electron_data"]');
     await expect(old).toContainText('session.bin');
     await old.getByRole('button', { name: 'Borrar' }).click();

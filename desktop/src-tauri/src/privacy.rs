@@ -398,16 +398,23 @@ pub fn record(app: &AppHandle, e: Event) {
 
 /// Identificador de la app (tauri.conf.json): nombre de sus carpetas. Un test lo compara.
 pub const IDENTIFIER: &str = "ai.zerosoft.desktop";
-/// La app de Electron (0.1.0 a 0.1.2) guardaba en <carpeta de datos>/zerosoft y su clave de
-/// safeStorage en el llavero con este servicio y esta cuenta.
+/// La app de Electron (0.1.0 a 0.1.2) guardaba en <carpeta de datos>/zerosoft, su caché del
+/// updater en zerosoft-desktop-updater, y su clave de safeStorage en el llavero.
 pub const ELECTRON_FOLDER: &str = "zerosoft";
+pub const ELECTRON_UPDATER_FOLDER: &str = "zerosoft-desktop-updater";
 pub const ELECTRON_KEYCHAIN_SERVICE: &str = "zerosoft Safe Storage";
 pub const ELECTRON_KEYCHAIN_ACCOUNT: &str = "zerosoft Key";
+/// Lo que deja Electron (Chromium) en su carpeta de datos: sin alguno de estos, una carpeta
+/// "zerosoft" no es la nuestra (puede ser de otra app con el mismo nombre).
+const ELECTRON_PROFILE_MARKERS: [&str; 5] = ["session.bin", "Local State", "Preferences", "Partitions", "SingletonLock"];
+/// Lo que deja electron-updater en su caché.
+const ELECTRON_UPDATER_MARKERS: [&str; 3] = ["pending", "update-info.json", "installer.exe"];
 
 /// Carpetas de la app en este sistema.
 #[derive(Debug, Clone)]
 pub struct Paths {
-    /// Roaming en Windows (%APPDATA%): solo settings.json y el plugin de la ventana.
+    /// Roaming en Windows (%APPDATA%): settings.json y el plugin de la ventana (y, de versiones
+    /// anteriores, sesión, dictados y registro).
     pub config: PathBuf,
     /// Local (%LOCALAPPDATA% en Windows): sesión, dictados, registro y el webview.
     pub local_data: PathBuf,
@@ -416,6 +423,15 @@ pub struct Paths {
     pub temp: PathBuf,
     pub identifier: String,
     pub mac: bool,
+}
+
+/// Una carpeta real (no un enlace) cuyo nombre en su carpeta es exactamente `name` (en un disco
+/// que no distingue mayúsculas, "ZeroSoft" de otra app no cuenta) y que tiene alguna de `markers`.
+/// Las marcas se miran sin seguir enlaces: SingletonLock de Chromium es un enlace roto.
+pub fn owned_folder(dir: &Path, name: &str, markers: &[&str]) -> bool {
+    let real_dir = fs::symlink_metadata(dir).is_ok_and(|m| m.is_dir());
+    let exact = dir.parent().and_then(|p| fs::read_dir(p).ok()).is_some_and(|rd| rd.flatten().any(|e| e.file_name() == name));
+    real_dir && exact && markers.iter().any(|m| fs::symlink_metadata(dir.join(m)).is_ok())
 }
 
 impl Paths {
@@ -432,41 +448,41 @@ impl Paths {
         })
     }
 
-    /// Las mismas carpetas sin la app (antes de crearla: el borrado pendiente al arrancar). Como
-    /// las resuelve Tauri: Mac ~/Library/…/<id>; Windows %APPDATA%\<id> y %LOCALAPPDATA%\<id>.
-    pub fn from_env(home: Option<PathBuf>, appdata: Option<PathBuf>, local_appdata: Option<PathBuf>, mac: bool) -> Option<Paths> {
-        let home = home?;
-        let (config, local_data, cache) = if mac {
-            let support = home.join("Library").join("Application Support").join(IDENTIFIER);
-            (support.clone(), support, home.join("Library").join("Caches").join(IDENTIFIER))
-        } else {
-            let local = local_appdata?.join(IDENTIFIER);
-            (appdata?.join(IDENTIFIER), local.clone(), local)
-        };
-        Some(Paths { config, local_data, cache, home, temp: std::env::temp_dir(), identifier: IDENTIFIER.into(), mac })
-    }
-
-    pub fn current_env() -> Option<Paths> {
-        let var = |k: &str| std::env::var_os(k).map(PathBuf::from);
-        let mac = cfg!(target_os = "macos");
-        Paths::from_env(if mac { var("HOME") } else { var("USERPROFILE") }, var("APPDATA"), var("LOCALAPPDATA"), mac)
-    }
-
     /// El archivo que pide terminar "borrar todo" en el próximo arranque.
     pub fn wipe_marker(&self) -> PathBuf {
         self.local_data.join(".wipe-pending")
+    }
+
+    /// La misma cosa en la carpeta de configuración, donde la dejaban versiones anteriores (solo
+    /// donde config y local son carpetas distintas: Windows).
+    fn legacy(&self, name: &str) -> Option<PathBuf> {
+        (self.config != self.local_data).then(|| self.config.join(name))
+    }
+
+    /// La carpeta de la app de Electron, si de verdad es suya.
+    pub fn electron_profile(&self) -> Option<PathBuf> {
+        let dir = self.config.parent()?.join(ELECTRON_FOLDER);
+        owned_folder(&dir, ELECTRON_FOLDER, &ELECTRON_PROFILE_MARKERS).then_some(dir)
+    }
+
+    /// Su caché del updater (Mac: ~/Library/Caches; Windows: %LOCALAPPDATA%), si de verdad es suya.
+    pub fn electron_updater_cache(&self) -> Option<PathBuf> {
+        let base = if self.mac { self.cache.parent()? } else { self.local_data.parent()? };
+        let dir = base.join(ELECTRON_UPDATER_FOLDER);
+        owned_folder(&dir, ELECTRON_UPDATER_FOLDER, &ELECTRON_UPDATER_MARKERS).then_some(dir)
     }
 
     /// Dónde está cada cosa (vacío = no existe en este sistema, o no es un archivo).
     pub fn paths_of(&self, id: &str) -> Vec<PathBuf> {
         let lib = self.home.join("Library");
         let one = |p: PathBuf| vec![p];
+        let with_legacy = |name: &str| std::iter::once(self.local_data.join(name)).chain(self.legacy(name)).collect::<Vec<_>>();
         match id {
             "settings" => one(self.config.join("settings.json")),
-            "session" => one(self.local_data.join("session.json")),
+            "session" => with_legacy("session.json"),
             "window_state" => one(self.config.join(".window-state.json")),
-            "pending" => one(self.local_data.join("pending")),
-            "activity" => one(self.local_data.join("privacy")),
+            "pending" => with_legacy("pending"),
+            "activity" => with_legacy("privacy"),
             // WKWebView guarda con el identificador de la app; WebView2, en EBWebView.
             "web_data" => one(if self.mac { lib.join("WebKit").join(&self.identifier) } else { self.local_data.join("EBWebView") }),
             "web_cookies" if self.mac => one(lib.join("HTTPStorages").join(format!("{}.binarycookies", self.identifier))),
@@ -474,29 +490,35 @@ impl Paths {
             "os_prefs" if self.mac => one(lib.join("Preferences").join(format!("{}.plist", self.identifier))),
             // Windows: el instalador de cada actualización queda en una carpeta temporal.
             "update_temp" if !self.mac => fs::read_dir(&self.temp)
-                .map(|rd| rd.flatten().map(|e| e.path()).filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(is_update_temp)).collect())
+                .map(|rd| rd.flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_dir())).map(|e| e.path()).filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(is_update_temp)).collect())
                 .unwrap_or_default(),
-            "electron_data" => {
-                let base = self.config.parent().map(|p| p.join(ELECTRON_FOLDER));
-                let updater = (!self.mac).then(|| self.local_data.parent().map(|p| p.join("zerosoft-desktop-updater"))).flatten();
-                base.into_iter().chain(updater).collect()
-            }
+            "electron_data" => self.electron_profile().into_iter().chain(self.electron_updater_cache()).collect(),
             _ => vec![],
         }
     }
 
-    /// Lo que se muestra como ruta de un dato (la carpeta temporal para los instaladores).
+    /// Lo que se muestra como ruta de un dato.
     pub fn shown_path(&self, id: &str) -> Option<PathBuf> {
         match id {
             "update_temp" if !self.mac => Some(self.temp.clone()),
+            "electron_data" => Some(self.paths_of(id).into_iter().next().unwrap_or_else(|| self.config.parent().unwrap_or(&self.config).join(ELECTRON_FOLDER))),
             _ => self.paths_of(id).into_iter().next(),
         }
     }
 }
 
-/// Carpeta temporal de un instalador de la app (tauri-plugin-updater: "<app>-<versión>-updater-").
+/// Carpeta temporal de un instalador de la app: exactamente "zerosoft-<versión>-updater-<letras>"
+/// (tauri-plugin-updater), con una versión X.Y.Z (y un sufijo -beta.1 si lo hay).
 pub fn is_update_temp(name: &str) -> bool {
-    name.starts_with("zerosoft-") && name.contains("-updater-")
+    let Some(rest) = name.strip_prefix("zerosoft-") else { return false };
+    let Some((version, suffix)) = rest.split_once("-updater-") else { return false };
+    let (core, pre) = version.split_once('-').unwrap_or((version, ""));
+    let nums: Vec<&str> = core.split('.').collect();
+    nums.len() == 3
+        && nums.iter().all(|n| !n.is_empty() && n.len() <= 5 && n.bytes().all(|b| b.is_ascii_digit()))
+        && pre.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.')
+        && !suffix.is_empty()
+        && suffix.bytes().all(|b| b.is_ascii_alphanumeric())
 }
 
 /// Ids de `stores` en privacy-facts.json, en el orden en que se muestran.
@@ -521,6 +543,11 @@ pub const DELETABLE: [&str; 6] = ["pending", "activity", "web_data", "update_tem
 
 /// Lo que "Borrar todo" borra (además del ítem de inicio). `os_prefs` es del sistema.
 pub const WIPED_BY_DELETE_ALL: [&str; 11] = ["settings", "session", "window_state", "pending", "activity", "web_data", "web_cookies", "web_cache", "update_temp", "electron_data", "electron_keychain"];
+
+/// Lo propio de la app: si no se puede borrar, "borrar todo" no sigue.
+const OWN: [&str; 5] = ["settings", "session", "window_state", "pending", "activity"];
+/// Lo que dejaron versiones anteriores: se intenta, y lo que quede se informa sin frenar el resto.
+const LEFTOVERS: [&str; 3] = ["update_temp", "electron_data", "electron_keychain"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -560,7 +587,8 @@ pub fn measure(p: &Path) -> (u64, u64) {
     total
 }
 
-/// El inventario. `autostart` y `keychain`: si existen el ítem de inicio y la clave de Electron.
+/// El inventario. `autostart`: si existe el ítem de inicio; `keychain`: si existe la clave de la
+/// app de Electron y es de ella (platform.rs).
 pub fn stores(paths: &Paths, autostart: bool, keychain: bool) -> Vec<Store> {
     STORE_IDS
         .iter()
@@ -574,17 +602,17 @@ pub fn stores(paths: &Paths, autostart: bool, keychain: bool) -> Vec<Store> {
             let shown = paths.shown_path(id)?;
             let all = paths.paths_of(id);
             let (bytes, files) = all.iter().map(|p| measure(p)).fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
-            Some(Store { id, path: shown.to_string_lossy().into_owned(), exists: all.iter().any(|p| p.exists()), bytes, files, deletable })
+            Some(Store { id, path: shown.to_string_lossy().into_owned(), exists: all.iter().any(|p| fs::symlink_metadata(p).is_ok()), bytes, files, deletable })
         })
         .collect()
 }
 
-/// Borra un archivo o una carpeta. true si ya no está.
+/// Borra un archivo o una carpeta (un enlace se borra como enlace, sin seguirlo). true si ya no está.
 pub fn remove(p: &Path) -> bool {
     match fs::symlink_metadata(p) {
         Err(_) => true,
-        Ok(m) if m.is_dir() => fs::remove_dir_all(p).is_ok() || !p.exists(),
-        Ok(_) => fs::remove_file(p).is_ok() || !p.exists(),
+        Ok(m) if m.is_dir() => fs::remove_dir_all(p).is_ok() || fs::symlink_metadata(p).is_err(),
+        Ok(_) => fs::remove_file(p).is_ok() || fs::symlink_metadata(p).is_err(),
     }
 }
 
@@ -606,82 +634,189 @@ pub fn delete_pending(paths: &Paths) -> bool {
     delete_store(paths, "pending")
 }
 
-/// "Borrar todos los datos locales", la parte que se hace con la app abierta: los archivos
-/// propios, los instaladores viejos, lo que dejó la app de Electron y su clave del llavero
-/// (`keychain`). Desde acá nada se vuelve a escribir (WIPED). Los datos del webview se borran al
-/// próximo arranque, antes de crear ninguna ventana (`finish_wipe`): con el webview abierto, su
-/// borrado no avisa cuándo terminó. Si algo no se pudo borrar, WIPED se apaga y no hay reinicio.
-pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> bool {
-    set_wiped(true);
-    let mut ok = true;
-    let mut keychain = Some(keychain);
-    for id in WIPED_BY_DELETE_ALL {
-        ok &= match id {
-            // Con el webview abierto no se borran sus carpetas: al arrancar (FINISH_WIPE).
-            "web_data" | "web_cookies" | "web_cache" => FINISH_WIPE.contains(&id),
-            "electron_keychain" => keychain.take().is_some_and(|k| k()),
-            _ => delete_store(paths, id),
-        };
-    }
-    if ok {
-        let marker = paths.wipe_marker();
-        if let Some(dir) = marker.parent() {
-            let _ = fs::create_dir_all(dir);
-        }
-        ok = fs::write(&marker, b"1").is_ok();
-    }
-    if !ok {
-        set_wiped(false);
-    }
-    ok
-}
-
 /// Lo que se borra al arrancar con el pedido pendiente: los datos del webview y, de nuevo, los
 /// archivos que se pudieron escribir al cerrar (la posición de la ventana).
 const FINISH_WIPE: [&str; 6] = ["web_data", "web_cookies", "web_cache", "window_state", "settings", "session"];
 
-/// Al arrancar, antes de crear la app: si quedó pedido "borrar todo", borra los datos del webview
-/// (nada los tiene abiertos todavía). Reintenta un rato: los procesos del webview anterior pueden
-/// tardar en cerrar. None = no había nada pendiente; Some(ok).
-pub fn finish_wipe(paths: &Paths, attempts: u32, wait: std::time::Duration) -> Option<bool> {
-    let marker = paths.wipe_marker();
-    if !marker.exists() {
+/// Nombres de lo que el pedido puede pedir borrar al arrancar (validación del archivo).
+fn finish_names(identifier: &str) -> [String; 6] {
+    [identifier.to_string(), format!("{identifier}.binarycookies"), "EBWebView".into(), ".window-state.json".into(), "settings.json".into(), "session.json".into()]
+}
+
+/// El pedido de "borrar todo" que queda en disco para el próximo arranque.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WipeMarker {
+    pub version: u32,
+    /// Rutas absolutas a borrar, resueltas por la app cuando se pidió.
+    pub targets: Vec<PathBuf>,
+    /// Lo de versiones anteriores que no se pudo borrar (ids de stores).
+    pub leftovers: Vec<String>,
+}
+
+/// Cómo terminó "borrar todo" (lo muestra Ajustes después de reiniciar).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WipeResult {
+    /// Lo propio y los datos del webview, borrados.
+    pub ok: bool,
+    /// Lo de versiones anteriores que quedó (ids de stores).
+    pub leftovers: Vec<String>,
+    /// El pedido no se pudo cumplir: "marker" (ilegible o con rutas que no son de la app) o
+    /// "locked" (el webview anterior las tenía abiertas).
+    pub error: Option<&'static str>,
+}
+
+/// "Borrar todos los datos locales", la parte que se hace con la app abierta.
+/// - Lo propio (ajustes, sesión, ventana, dictados, registro): si algo no se puede borrar, no se
+///   sigue, WIPED se apaga y no hay reinicio (devuelve None).
+/// - Lo que dejaron versiones anteriores (instaladores, Electron y su clave, `keychain`): se
+///   intenta; lo que quede va en el pedido y se informa, sin frenar el resto.
+/// - Queda el pedido con las rutas del webview: se borran al próximo arranque, antes de crear
+///   ninguna ventana (con el webview abierto, su borrado no avisa cuándo terminó).
+///
+/// Desde acá nada se vuelve a escribir (WIPED) hasta que la app reinicia.
+pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> Option<WipeMarker> {
+    set_wiped(true);
+    let own = OWN.iter().all(|id| delete_store(paths, id));
+    if !own {
+        set_wiped(false);
         return None;
     }
-    let mut ok = false;
+    let mut keychain = Some(keychain);
+    let leftovers: Vec<String> = LEFTOVERS
+        .iter()
+        .filter(|id| {
+            let gone = match **id {
+                "electron_keychain" => keychain.take().is_some_and(|k| k()),
+                _ => delete_store(paths, id),
+            };
+            !gone
+        })
+        .map(|id| id.to_string())
+        .collect();
+    let marker = WipeMarker { version: 1, targets: FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect(), leftovers };
+    let file = paths.wipe_marker();
+    if let Some(dir) = file.parent() {
+        let _ = fs::create_dir_all(dir);
+    }
+    if fs::write(&file, serde_json::to_vec(&marker).unwrap_or_default()).is_err() {
+        set_wiped(false);
+        return None;
+    }
+    Some(marker)
+}
+
+/// Una ruta del pedido que se puede borrar: absoluta, con uno de los nombres fijos y dentro de
+/// la carpeta personal o de las de la app. Nada de "..".
+fn valid_target(paths: &Paths, t: &Path) -> bool {
+    let names = finish_names(&paths.identifier);
+    let named = t.file_name().and_then(|n| n.to_str()).is_some_and(|n| names.iter().any(|x| x == n));
+    let clean = t.components().all(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir));
+    let bases = [Some(paths.home.as_path()), paths.config.parent(), paths.local_data.parent()];
+    let inside = bases.iter().flatten().any(|b| b.is_absolute() && b.components().count() > 1 && t.starts_with(b) && t != *b);
+    t.is_absolute() && named && clean && inside
+}
+
+/// Al arrancar, antes de crear ninguna ventana: si quedó pedido "borrar todo", borra las rutas
+/// del pedido que sean válidas y, además, las que la app resuelve ahora (por si cambió algo).
+/// Reintenta un rato: los procesos del webview anterior pueden tardar en cerrar. None = no había
+/// nada pendiente.
+pub fn finish_wipe(paths: &Paths, attempts: u32, wait: std::time::Duration) -> Option<WipeResult> {
+    let file = paths.wipe_marker();
+    let raw = fs::read(&file).ok()?;
+    let _ = fs::remove_file(&file);
+    let parsed: Option<WipeMarker> = serde_json::from_slice(&raw).ok().filter(|m: &WipeMarker| m.version == 1);
+    let mut error = None;
+    let mut targets: Vec<PathBuf> = FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect();
+    match &parsed {
+        None => error = Some("marker"),
+        Some(m) => {
+            for t in &m.targets {
+                if valid_target(paths, t) {
+                    if !targets.contains(t) {
+                        targets.push(t.clone());
+                    }
+                } else {
+                    error = Some("marker");
+                }
+            }
+        }
+    }
+    let mut gone = false;
     for i in 0..attempts.max(1) {
         if i > 0 {
             std::thread::sleep(wait);
         }
-        ok = FINISH_WIPE.iter().all(|id| delete_store(paths, id)) && FINISH_WIPE.iter().all(|id| paths.paths_of(id).iter().all(|p| !p.exists()));
-        if ok {
+        targets.iter().for_each(|t| {
+            remove(t);
+        });
+        gone = targets.iter().all(|t| fs::symlink_metadata(t).is_err());
+        if gone {
             break;
         }
     }
-    let _ = fs::remove_file(&marker);
-    Some(ok)
+    if !gone && error.is_none() {
+        error = Some("locked");
+    }
+    Some(WipeResult { ok: gone && error.is_none(), leftovers: parsed.map(|m| m.leftovers).unwrap_or_default(), error })
 }
 
 /// Resultado del borrado terminado al arrancar (lo lee Ajustes).
-pub static LAST_WIPE: OnceLock<bool> = OnceLock::new();
+pub static LAST_WIPE: OnceLock<WipeResult> = OnceLock::new();
 
-/// Después de crear la app: si el arranque terminó un "borrar todo", queda anotado.
+/// Después de crear el estado de la app: si el arranque terminó un "borrar todo", queda anotado.
 pub fn note_finished_wipe(app: &AppHandle) {
-    if let Some(ok) = LAST_WIPE.get() {
-        record(app, Event::new(Kind::DataDeleted).trigger(Tag::Settings).result(if *ok { Tag::All } else { Tag::Failed }));
+    if let Some(r) = LAST_WIPE.get() {
+        record(app, Event::new(Kind::DataDeleted).trigger(Tag::Settings).result(if r.ok && r.leftovers.is_empty() { Tag::All } else { Tag::Failed }));
     }
 }
 
-/// Mueve un archivo o carpeta de lugar una vez (Windows: de Roaming a Local). Si el destino ya
-/// existe, no pisa nada.
+/// Copia un archivo o una carpeta entera (sin seguir enlaces: un enlace no se copia).
+fn copy_all(from: &Path, to: &Path) -> bool {
+    let Ok(m) = fs::symlink_metadata(from) else { return false };
+    if m.is_file() {
+        return fs::copy(from, to).is_ok();
+    }
+    if !m.is_dir() || fs::create_dir_all(to).is_err() {
+        return false;
+    }
+    fs::read_dir(from).map(|rd| rd.flatten().all(|e| copy_all(&e.path(), &to.join(e.file_name())))).unwrap_or(false)
+}
+
+/// Mueve un archivo o carpeta de lugar (Windows: de Roaming a Local). Si renombrar no anda (otra
+/// unidad, carpetas redirigidas), copia y después borra el original. Si el destino ya existe y
+/// los dos son carpetas, mueve lo que no esté; un archivo que ya existe no se pisa. Lo que quede
+/// en el origen igual se lista, se poda y se borra (`paths_of`). true = no quedó nada en el origen.
 pub fn migrate(from: &Path, to: &Path) -> bool {
-    if from == to || !from.exists() || to.exists() {
+    if from == to || fs::symlink_metadata(from).is_err() {
         return true;
     }
     if let Some(dir) = to.parent() {
         let _ = fs::create_dir_all(dir);
     }
-    fs::rename(from, to).is_ok()
+    if fs::symlink_metadata(to).is_err() {
+        if fs::rename(from, to).is_ok() {
+            return true;
+        }
+        if copy_all(from, to) {
+            return remove(from);
+        }
+        remove(to);
+        return false;
+    }
+    if from.is_dir() && to.is_dir() {
+        if let Ok(rd) = fs::read_dir(from) {
+            for e in rd.flatten() {
+                let dest = to.join(e.file_name());
+                if fs::symlink_metadata(&dest).is_err() {
+                    migrate(&e.path(), &dest);
+                }
+            }
+        }
+        let _ = fs::remove_dir(from);
+    }
+    fs::symlink_metadata(from).is_err()
 }
 
 // ---------- Hechos (desktop/privacy-facts.json) ----------
@@ -882,48 +1017,93 @@ mod tests {
         assert!(by("web_cookies").path.ends_with("HTTPStorages/ai.zerosoft.desktop.binarycookies"));
         assert!(by("os_prefs").path.ends_with("Library/Preferences/ai.zerosoft.desktop.plist") && !by("os_prefs").deletable);
         assert!(by("electron_keychain").exists && by("electron_keychain").deletable);
+        assert!(!by("electron_data").exists, "no hay carpeta de Electron");
         assert_eq!((by("autostart").path.as_str(), by("autostart").exists), ("", false));
-
-        // Windows: cookies y caché van dentro de la carpeta de WebView2; no hay llavero; los
-        // instaladores viejos y la carpeta de Electron se listan.
-        let w = paths(&root, false);
-        fs::create_dir_all(w.temp.join("zerosoft-0.3.5-updater-ab12")).unwrap();
-        fs::write(w.temp.join("zerosoft-0.3.5-updater-ab12/zerosoft-0.3.5-installer.exe"), vec![0u8; 50]).unwrap();
-        fs::create_dir_all(w.temp.join("otra-app-updater-x")).unwrap();
-        let electron = w.config.parent().unwrap().join(ELECTRON_FOLDER);
-        fs::create_dir_all(&electron).unwrap();
-        fs::write(electron.join("session.bin"), b"cifrado").unwrap();
-        let win = stores(&w, true, true);
-        assert_eq!(
-            win.iter().map(|s| s.id).collect::<Vec<_>>(),
-            ["settings", "session", "window_state", "pending", "activity", "web_data", "update_temp", "electron_data", "autostart"]
-        );
-        let wby = |id: &str| win.iter().find(|s| s.id == id).unwrap().clone();
-        assert!(wby("web_data").path.ends_with("EBWebView") && wby("web_data").path.contains("local"));
-        assert!(wby("session").path.contains("local") && wby("settings").path.contains("roaming"));
-        assert_eq!((wby("update_temp").bytes, wby("update_temp").files), (50, 1));
-        assert!(wby("electron_data").exists);
-
         assert!(delete_pending(&p));
         assert!(!local.join("pending").exists());
         assert!(delete_pending(&p), "borrar lo que no está también es ok");
-        assert_eq!(stores(&p, false, false).iter().find(|s| s.id == "pending").unwrap().bytes, 0);
+        let _ = fs::remove_dir_all(root);
+    }
 
-        // Borrar todo con la app abierta: lo propio, los instaladores, Electron y su clave; queda
-        // pedido terminar al arrancar. Mientras tanto nada se vuelve a escribir.
+    #[test]
+    fn old_app_folders_only_count_when_they_are_really_ours() {
+        let root = tmp("electron");
+        let w = paths(&root, false);
+        let parent = w.config.parent().unwrap().to_path_buf();
+        // Una carpeta "zerosoft" de otra app (sin nada de Chromium): no es nuestra, no se lista ni se borra.
+        let theirs = parent.join(ELECTRON_FOLDER);
+        fs::create_dir_all(theirs.join("docs")).unwrap();
+        fs::write(theirs.join("docs/importante.txt"), b"de otra app").unwrap();
+        assert!(w.electron_profile().is_none());
+        assert!(w.paths_of("electron_data").is_empty());
+        assert!(delete_store(&w, "electron_data"));
+        assert!(theirs.join("docs/importante.txt").exists());
+        // Con una marca de Chromium (SingletonLock es un enlace roto: cuenta igual), sí.
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("host-1234", theirs.join("SingletonLock")).unwrap();
+        #[cfg(not(unix))]
+        fs::write(theirs.join("Local State"), b"{}").unwrap();
+        assert_eq!(w.electron_profile(), Some(theirs.clone()));
+        // Un enlace llamado "zerosoft" que apunta a otra carpeta: no se sigue.
+        #[cfg(unix)]
+        {
+            let other = root.join("otra");
+            fs::create_dir_all(&other).unwrap();
+            fs::write(other.join("Preferences"), b"x").unwrap();
+            let fake = root.join("enlace");
+            fs::create_dir_all(&fake).unwrap();
+            std::os::unix::fs::symlink(&other, fake.join(ELECTRON_FOLDER)).unwrap();
+            assert!(!owned_folder(&fake.join(ELECTRON_FOLDER), ELECTRON_FOLDER, &ELECTRON_PROFILE_MARKERS));
+        }
+        // Nombre exacto: "ZeroSoft" no es "zerosoft" (en un disco que no distingue mayúsculas).
+        let case = root.join("mayus");
+        fs::create_dir_all(case.join("ZeroSoft/Partitions")).unwrap();
+        assert!(!owned_folder(&case.join(ELECTRON_FOLDER), ELECTRON_FOLDER, &ELECTRON_PROFILE_MARKERS));
+        // La caché de su updater: solo con lo que deja electron-updater.
+        let cache = w.local_data.parent().unwrap().join(ELECTRON_UPDATER_FOLDER);
+        fs::create_dir_all(&cache).unwrap();
+        assert!(w.electron_updater_cache().is_none());
+        fs::create_dir_all(cache.join("pending")).unwrap();
+        assert_eq!(w.paths_of("electron_data"), vec![theirs.clone(), cache.clone()]);
+        assert!(delete_store(&w, "electron_data"));
+        assert!(!theirs.exists() && !cache.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn delete_all_wipes_own_files_and_reports_old_leftovers_without_stopping() {
+        let root = tmp("wipe");
+        let w = paths(&root, false);
+        fs::create_dir_all(w.local_data.join("pending")).unwrap();
+        fs::write(w.local_data.join("pending/a.json"), b"{}").unwrap();
+        fs::create_dir_all(&w.config).unwrap();
+        fs::write(w.config.join("settings.json"), b"{}").unwrap();
+        fs::write(w.config.join(".window-state.json"), b"{}").unwrap();
+        // Lo que dejó una versión anterior en Roaming también se borra.
+        fs::create_dir_all(w.config.join("privacy")).unwrap();
+        fs::write(w.config.join("session.json"), b"{}").unwrap();
+        fs::create_dir_all(w.temp.join("zerosoft-0.3.5-updater-ab12")).unwrap();
+        fs::write(w.temp.join("zerosoft-0.3.5-updater-ab12/zerosoft-0.3.5-installer.exe"), vec![0u8; 50]).unwrap();
+        fs::create_dir_all(w.temp.join("zerosoft-cache-updater-x")).unwrap();
+        let win = stores(&w, true, false);
+        let wby = |id: &str| win.iter().find(|s| s.id == id).unwrap().clone();
+        assert!(wby("web_data").path.ends_with("EBWebView") && wby("web_data").path.contains("local"));
+        assert!(wby("session").path.contains("local") && wby("settings").path.contains("roaming"));
+        assert!(wby("session").exists, "el session.json viejo de Roaming cuenta");
+        assert_eq!((wby("update_temp").bytes, wby("update_temp").files), (50, 1));
+
         let log = Log::open(&w.local_data.join("privacy"));
         log.record(Event::new(Kind::MicStart));
-        let mut keychain_asked = false;
-        assert!(wipe_files(&w, || {
-            keychain_asked = true;
-            true
-        }));
-        assert!(keychain_asked);
-        for id in ["settings", "session", "window_state", "pending", "activity", "update_temp", "electron_data"] {
+        // La clave del llavero no se pudo borrar: igual se borra lo propio y queda el pedido.
+        let marker = wipe_files(&w, || false).expect("lo propio se borró");
+        assert_eq!(marker.leftovers, ["electron_keychain"]);
+        for id in OWN {
             assert!(w.paths_of(id).iter().all(|p| !p.exists()), "{id}");
         }
-        assert!(w.temp.join("otra-app-updater-x").exists(), "solo lo de zerosoft");
+        assert!(!w.temp.join("zerosoft-0.3.5-updater-ab12").exists());
+        assert!(w.temp.join("zerosoft-cache-updater-x").exists(), "solo instaladores con versión");
         assert!(w.wipe_marker().exists());
+        assert!(marker.targets.iter().all(|t| t.is_absolute()) && marker.targets.contains(&w.local_data.join("EBWebView")));
         log.record(Event::new(Kind::MicStop));
         assert!(!log.path().exists(), "después de borrar todo no se escribe nada");
         assert!(crate::config::save(&w.config, &crate::config::normalize(&Value::Null, "windows", crate::config::DEFAULT_SERVER.into())).is_ok());
@@ -932,43 +1112,93 @@ mod tests {
         // Al arrancar: los datos del webview (y la posición de la ventana, escrita al cerrar).
         set_wiped(false);
         fs::create_dir_all(w.local_data.join("EBWebView/Default/IndexedDB")).unwrap();
-        fs::write(w.local_data.join("EBWebView/Default/Cookies"), b"x").unwrap();
         fs::write(w.config.join(".window-state.json"), b"{}").unwrap();
-        assert_eq!(finish_wipe(&w, 3, std::time::Duration::from_millis(1)), Some(true));
+        let r = finish_wipe(&w, 3, std::time::Duration::from_millis(1)).unwrap();
+        assert_eq!(r, WipeResult { ok: true, leftovers: vec!["electron_keychain".into()], error: None });
         assert!(!w.local_data.join("EBWebView").exists() && !w.config.join(".window-state.json").exists());
         assert!(!w.wipe_marker().exists());
         assert_eq!(finish_wipe(&w, 3, std::time::Duration::from_millis(1)), None, "sin pedido no borra nada");
 
-        // Si la clave del llavero no se pudo borrar: no queda pedido, se puede volver a escribir.
-        assert!(!wipe_files(&w, || false));
-        assert!(!wiped() && !w.wipe_marker().exists());
+        // Si lo propio no se puede borrar (una carpeta en lugar de settings.json que no se deja
+        // borrar no se puede simular fácil: un archivo en una carpeta sin permisos), no hay pedido.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::create_dir_all(w.local_data.join("pending")).unwrap();
+            fs::write(w.local_data.join("pending/b.json"), b"{}").unwrap();
+            fs::set_permissions(w.local_data.join("pending"), fs::Permissions::from_mode(0o500)).unwrap();
+            fs::set_permissions(&w.local_data, fs::Permissions::from_mode(0o500)).unwrap();
+            assert!(wipe_files(&w, || true).is_none());
+            assert!(!wiped() && !w.wipe_marker().exists());
+            fs::set_permissions(&w.local_data, fs::Permissions::from_mode(0o700)).unwrap();
+            fs::set_permissions(w.local_data.join("pending"), fs::Permissions::from_mode(0o700)).unwrap();
+        }
         let _ = fs::remove_dir_all(root);
     }
 
     #[test]
-    fn paths_match_tauri_and_migrate_once() {
+    fn the_wipe_request_is_validated_before_deleting_anything() {
+        let root = tmp("marker");
+        let w = paths(&root, false);
+        fs::create_dir_all(&w.local_data).unwrap();
+        let outside = root.join("ajeno");
+        fs::create_dir_all(outside.join("EBWebView")).unwrap();
+        let victim = w.home.join("Documentos");
+        fs::create_dir_all(&victim).unwrap();
+        let bad = WipeMarker {
+            version: 1,
+            targets: vec!["relative/EBWebView".into(), outside.join("EBWebView"), victim.clone(), w.home.clone(), w.home.join("../x/settings.json"), w.local_data.join("EBWebView")],
+            leftovers: vec![],
+        };
+        fs::write(w.wipe_marker(), serde_json::to_vec(&bad).unwrap()).unwrap();
+        let r = finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap();
+        assert_eq!(r.error, Some("marker"));
+        assert!(!r.ok);
+        assert!(outside.join("EBWebView").exists() && victim.exists() && w.home.exists(), "nada fuera de lo de la app");
+        // Un pedido ilegible: igual se borra lo que la app resuelve, y se avisa.
+        fs::write(w.wipe_marker(), b"no es json").unwrap();
+        fs::create_dir_all(w.local_data.join("EBWebView")).unwrap();
+        let r = finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap();
+        assert_eq!((r.ok, r.error), (false, Some("marker")));
+        assert!(!w.local_data.join("EBWebView").exists());
+        // Una ruta de la app resuelta distinto (otra carpeta personal, mismos nombres): vale.
+        let moved = w.home.join("AppData/Local/ai.zerosoft.desktop/EBWebView");
+        fs::create_dir_all(&moved).unwrap();
+        fs::write(w.wipe_marker(), serde_json::to_vec(&WipeMarker { version: 1, targets: vec![moved.clone()], leftovers: vec![] }).unwrap()).unwrap();
+        assert_eq!(finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap().error, None);
+        assert!(!moved.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn paths_match_tauri_and_migrate_with_copy_fallback() {
         let conf: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         assert_eq!(conf["identifier"], IDENTIFIER);
-        let mac = Paths::from_env(Some("/Users/ana".into()), None, None, true).unwrap();
-        assert_eq!(mac.config, PathBuf::from("/Users/ana/Library/Application Support/ai.zerosoft.desktop"));
-        assert_eq!(mac.local_data, mac.config);
-        assert_eq!(mac.cache, PathBuf::from("/Users/ana/Library/Caches/ai.zerosoft.desktop"));
-        let win = Paths::from_env(Some("C:/Users/ana".into()), Some("C:/Users/ana/AppData/Roaming".into()), Some("C:/Users/ana/AppData/Local".into()), false).unwrap();
-        assert_eq!(win.config, PathBuf::from("C:/Users/ana/AppData/Roaming/ai.zerosoft.desktop"));
-        assert_eq!(win.local_data, PathBuf::from("C:/Users/ana/AppData/Local/ai.zerosoft.desktop"));
-        assert!(Paths::from_env(Some("x".into()), None, None, false).is_none());
-        assert!(is_update_temp("zerosoft-0.3.6-updater-Ab3x") && !is_update_temp("zerosoft-cache") && !is_update_temp("other-0.1-updater-x"));
-
+        for ok in ["zerosoft-0.3.6-updater-Ab3x", "zerosoft-1.10.0-beta.1-updater-x9"] {
+            assert!(is_update_temp(ok), "{ok}");
+        }
+        for bad in ["zerosoft-cache-updater-x", "zerosoft-0.3-updater-x", "zerosoft-0.3.6-updater-", "other-0.1.0-updater-x", "zerosoft-0.3.6-updater-../x", "ZEROSOFT-0.3.6-updater-x"] {
+            assert!(!is_update_temp(bad), "{bad}");
+        }
         let root = tmp("migrate");
         let (from, to) = (root.join("roaming/pending"), root.join("local/pending"));
         fs::create_dir_all(&from).unwrap();
         fs::write(from.join("a.json"), b"{}").unwrap();
         assert!(migrate(&from, &to));
         assert!(to.join("a.json").exists() && !from.exists());
+        // Los dos existen: se mueve lo que falta, no se pisa lo que está.
         fs::create_dir_all(&from).unwrap();
+        fs::write(from.join("a.json"), b"viejo").unwrap();
         fs::write(from.join("b.json"), b"{}").unwrap();
-        assert!(migrate(&from, &to));
-        assert!(from.join("b.json").exists() && !to.join("b.json").exists(), "no pisa lo que ya está");
+        assert!(!migrate(&from, &to), "queda a.json en el origen");
+        assert!(to.join("b.json").exists() && fs::read(to.join("a.json")).unwrap() == b"{}");
+        assert!(from.join("a.json").exists());
+        // Copiar y borrar cuando renombrar no anda: lo mismo que hace copy_all + remove.
+        let (src, dst) = (root.join("x/privacy"), root.join("y/privacy"));
+        fs::create_dir_all(src.join("sub")).unwrap();
+        fs::write(src.join("sub/activity.json"), b"{}").unwrap();
+        assert!(copy_all(&src, &dst) && remove(&src));
+        assert!(dst.join("sub/activity.json").exists() && !src.exists());
         let _ = fs::remove_dir_all(root);
     }
 

@@ -336,7 +336,9 @@
     "privSystem": "What the system does on its own",
     "privAll": "Removed by \"Delete all local data\"",
     "errOtherServer": "Recorded for another server",
-    "pendingOtherServer": "Recorded for {server}. It is only sent there."
+    "pendingOtherServer": "Recorded for {server}. It is only sent there.",
+    "privLastWipeLeftovers": "These could not be deleted and are still listed below: {list}.",
+    "privLastWipeMarker": "zerosoft found a request to delete all local data that it could not fully trust, so it only deleted its own folders. Check the list below and use \"Delete all local data\" again if anything is left."
   },
   "es": {
     "open": "Abrir zerosoft",
@@ -675,7 +677,9 @@
     "privSystem": "Lo que hace el sistema por su cuenta",
     "privAll": "Lo borra \"borrar todos los datos locales\"",
     "errOtherServer": "Grabado para otro servidor",
-    "pendingOtherServer": "Grabado para {server}. Solo se manda ahí."
+    "pendingOtherServer": "Grabado para {server}. Solo se manda ahí.",
+    "privLastWipeLeftovers": "Esto no se pudo borrar y sigue en la lista de abajo: {list}.",
+    "privLastWipeMarker": "zerosoft encontró un pedido de borrar todos los datos locales en el que no pudo confiar del todo, así que solo borró sus propias carpetas. Mirá la lista de abajo y usá \"Borrar todos los datos locales\" de nuevo si quedó algo."
   },
   "pt": {
     "open": "Abrir zerosoft",
@@ -1014,6 +1018,8 @@
     "privSystem": "O que o sistema faz por conta própria",
     "privAll": "Removido por \"apagar todos os dados locais\"",
     "errOtherServer": "Gravado para outro servidor",
-    "pendingOtherServer": "Gravado para {server}. Só é enviado para lá."
+    "pendingOtherServer": "Gravado para {server}. Só é enviado para lá.",
+    "privLastWipeLeftovers": "Isto não pôde ser apagado e continua na lista abaixo: {list}.",
+    "privLastWipeMarker": "O zerosoft encontrou um pedido de apagar todos os dados locais em que não pôde confiar totalmente, então só apagou as próprias pastas. Confira a lista abaixo e use \"Apagar todos os dados locais\" de novo se sobrou algo."
   }
 }

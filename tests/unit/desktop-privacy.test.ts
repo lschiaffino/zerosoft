@@ -14,49 +14,124 @@ const rust = (file: string) => readFileSync(join(root, 'desktop', 'src-tauri', '
 const LOCALES = ['en', 'es', 'pt'] as const;
 const SECTIONS = ['permissions', 'stores', 'network', 'never', 'system', 'indicators', 'events', 'controls', 'security', 'open'] as const;
 
-/** Código de Rust sin los módulos de test ni los comentarios. Respeta strings y raw strings. */
-export function productionRust(src: string): string {
-  let out = '';
-  let i = 0;
-  while (i < src.length) {
-    const test = src.indexOf('#[cfg(test)]', i);
-    if (test < 0) {
-      out += src.slice(i);
-      break;
-    }
-    out += src.slice(i, test);
-    const open = src.indexOf('{', test);
-    let depth = 0;
-    let j = open;
-    for (; j < src.length; j++) {
-      const c = src[j];
-      if (c === '"' || (c === 'r' && /^r#*"/.test(src.slice(j, j + 4)))) {
-        const raw = c === 'r';
-        const hashes = raw ? (/^r(#*)"/.exec(src.slice(j))?.[1] ?? '') : '';
-        const end = raw ? `"${hashes}` : '"';
-        j += raw ? hashes.length + 2 : 1;
-        while (j < src.length && src.slice(j, j + end.length) !== end) j += !raw && src[j] === '\\' ? 2 : 1;
-        j += end.length - 1;
-        continue;
-      }
-      if (c === '{') depth++;
-      if (c === '}' && --depth === 0) break;
-    }
-    i = j + 1;
-  }
-  return out
-    .split('\n')
-    .filter((l) => !l.trim().startsWith('//'))
-    .join('\n');
+interface Literal {
+  start: number;
+  end: number;
+  value: string;
 }
 
-/** Rutas del servidor que la parte nativa nombra en un string: /api/... y /robots.txt, sin query. */
-export function nativeEndpoints(src: string): string[] {
+/**
+ * Rust "enmascarado": comentarios (de línea y de bloque), contenido de strings, raw strings y
+ * literales de carácter pasan a espacios (mismas posiciones), y los módulos #[cfg(test)] se sacan.
+ * Devuelve ese código y los strings que quedan, con su posición.
+ */
+export function scanRust(src: string): { code: string; literals: Literal[] } {
+  const out = src.split('');
+  const literals: Literal[] = [];
+  const blank = (a: number, b: number) => {
+    for (let k = a; k < b; k++) if (out[k] !== '\n') out[k] = ' ';
+  };
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    const two = src.slice(i, i + 2);
+    if (two === '//') {
+      const e = src.indexOf('\n', i);
+      const end = e < 0 ? src.length : e;
+      blank(i, end);
+      i = end;
+    } else if (two === '/*') {
+      let depth = 0;
+      let k = i;
+      do {
+        if (src.slice(k, k + 2) === '/*') {
+          depth++;
+          k += 2;
+        } else if (src.slice(k, k + 2) === '*/') {
+          depth--;
+          k += 2;
+        } else k++;
+      } while (depth > 0 && k < src.length);
+      blank(i, k);
+      i = k;
+    } else if (c === '"' || ((c === 'r' || c === 'b') && /^(?:b?r#*"|b")/.test(src.slice(i, i + 4)) && !/[A-Za-z0-9_]/.test(src[i - 1] ?? ''))) {
+      const m = /^(b?)(r?)(#*)"/.exec(src.slice(i))!;
+      const raw = m[2] === 'r';
+      const close = `"${m[3]}`;
+      const open = i + m[0].length;
+      let k = open;
+      while (k < src.length && src.slice(k, k + close.length) !== close) k += !raw && src[k] === '\\' ? 2 : 1;
+      literals.push({ start: open, end: k, value: src.slice(open, k) });
+      blank(open, k);
+      i = k + close.length;
+    } else if (c === "'" && /^'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)|[^\\'\n])'/.test(src.slice(i, i + 12))) {
+      const m = /^'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)|[^\\'\n])'/.exec(src.slice(i, i + 12))!;
+      blank(i + 1, i + m[0].length - 1);
+      i += m[0].length;
+    } else i++;
+  }
+  let code = out.join('');
+  // Módulos de test: desde #[cfg(test)] hasta su llave de cierre (con strings ya enmascarados).
+  for (let t = code.indexOf('#[cfg(test)]'); t >= 0; t = code.indexOf('#[cfg(test)]', t + 1)) {
+    const open = code.indexOf('{', t);
+    const semi = code.indexOf(';', t);
+    if (open < 0 || (semi >= 0 && semi < open)) continue;
+    let depth = 0;
+    let k = open;
+    for (; k < code.length; k++) {
+      if (code[k] === '{') depth++;
+      if (code[k] === '}' && --depth === 0) break;
+    }
+    code = code.slice(0, t) + code.slice(t, k + 1).replace(/[^\n]/g, ' ') + code.slice(k + 1);
+    for (let n = literals.length - 1; n >= 0; n--) if (literals[n].start > t && literals[n].end <= k) literals.splice(n, 1);
+  }
+  return { code, literals };
+}
+
+const VERB = /(?:Method::(GET|POST|PUT|PATCH|DELETE|HEAD)\b|(?:\.|::)(get|post|put|patch|delete|head)\()/g;
+
+/** El método HTTP de un string con una ruta: el verbo de la misma sentencia, o el de la variable
+ * que la guarda (`let url = format!(…); … http.post(url)`). BROWSER = se abre en el navegador. */
+function methodFor(code: string, lit: Literal): string {
+  const before = code.slice(0, lit.start);
+  const stmtStart = Math.max(before.lastIndexOf(';'), before.lastIndexOf('{'), before.lastIndexOf('}')) + 1;
+  const verbs = [...code.slice(stmtStart, lit.start).matchAll(VERB)];
+  if (verbs.length) {
+    const v = verbs[verbs.length - 1];
+    return (v[1] ?? v[2]).toUpperCase();
+  }
+  const lets = [...before.slice(Math.max(0, lit.start - 400)).matchAll(/\blet\s+(?:mut\s+)?([a-z_][a-z0-9_]*)\s*=/g)];
+  const name = lets.length ? lets[lets.length - 1][1] : null;
+  if (!name) return '?';
+  const after = code.slice(lit.end, lit.end + 1500);
+  const candidates = [
+    { re: new RegExp(`(?:\\.|::)(get|post|put|patch|delete|head)\\(\\s*(?:[\\w&]+\\s*,\\s*)?&?${name}\\b`), m: (x: RegExpExecArray) => x[1].toUpperCase() },
+    { re: /updater_builder\(/, m: () => 'GET' },
+    { re: new RegExp(`open_url\\(\\s*&?${name}\\b`), m: () => 'BROWSER' },
+  ]
+    .map((c) => ({ x: c.re.exec(after), m: c.m }))
+    .filter((c): c is { x: RegExpExecArray; m: (x: RegExpExecArray) => string } => c.x !== null)
+    .sort((a, b) => a.x.index - b.x.index);
+  return candidates.length ? candidates[0].m(candidates[0].x) : '?';
+}
+
+/** Cada pedido al servidor que hace la parte nativa: "MÉTODO /ruta" (sin query; "/ruta" sola si
+ * se abre en el navegador). Strings con /api/ que no son pedidos: `ignore`. */
+export function nativeEndpoints(src: string, ignore: string[] = []): string[] {
+  const { code, literals } = scanRust(src);
   const found = new Set<string>();
-  for (const m of productionRust(src).matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
-    for (const e of m[1].matchAll(/\/(?:api\/[A-Za-z0-9_.{}/-]*|robots\.txt)/g)) found.add(e[0]);
+  for (const lit of literals) {
+    for (const e of lit.value.matchAll(/\/(?:api\/[A-Za-z0-9_.{}/-]*|robots\.txt)/g)) {
+      if (ignore.includes(e[0])) continue;
+      const method = methodFor(code, lit);
+      found.add(method === 'BROWSER' ? e[0] : `${method} ${e[0]}`);
+    }
   }
   return [...found];
+}
+
+function rustFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? rustFiles(join(dir, d.name)) : d.name.endsWith('.rs') ? [join(dir, d.name)] : []));
 }
 
 function texts(value: unknown): string[] {
@@ -122,17 +197,36 @@ describe('hechos de privacidad del escritorio', () => {
     expect(existsSync(join(root, 'app', '[locale]', ...F.path.split('/').filter(Boolean), 'page.tsx'))).toBe(true);
   });
 
-  it('la lista de lo que sale es completa: cada dirección que llama el código está en los hechos, y al revés', () => {
-    const dir = join(root, 'desktop', 'src-tauri', 'src');
-    const inCode = new Set(readdirSync(dir).filter((f) => f.endsWith('.rs')).flatMap((f) => nativeEndpoints(readFileSync(join(dir, f), 'utf8'))));
+  it('la lista de lo que sale es completa: cada pedido del código (método y ruta) está en los hechos, y al revés', () => {
     // Strings con /api/ que no son pedidos: prefijos que nav.rs compara y el callback del login de
     // Google al que vuelve el navegador (nav.rs).
-    for (const notARequest of ['/api/', '/api/auth/', '/api/auth/callback/google']) inCode.delete(notARequest);
-    const inFacts = new Set(F.network.flatMap((n) => n.endpoints.map((e) => e.replace(/^[A-Z]+ /, ''))));
+    const ignore = ['/api/', '/api/auth/', '/api/auth/callback/google'];
+    const inCode = new Set(rustFiles(join(root, 'desktop', 'src-tauri', 'src')).flatMap((f) => nativeEndpoints(readFileSync(f, 'utf8'), ignore)));
+    expect([...inCode].filter((e) => e.startsWith('?')), 'pedidos sin método reconocible').toEqual([]);
+    const inFacts = new Set(F.network.flatMap((n) => n.endpoints));
     expect([...inCode].sort()).toEqual([...inFacts].sort());
-    // Sanidad: el extractor encuentra lo que tiene que encontrar.
-    expect(inCode.has('/api/voice/dictate') && inCode.has('/api/auth/signout') && inCode.has('/api/desktop/update/latest.json')).toBe(true);
-    expect(nativeEndpoints('// GET /api/nope\nfn a() { get("/api/si?x=1"); }\n#[cfg(test)]\nmod tests { fn b() { get("/api/test"); let r = r#"}"#; } }\nfn c() { get(format!("{}/api/otra/{id}", s)); }')).toEqual(['/api/si', '/api/otra/{id}']);
+    for (const e of ['POST /api/voice/dictate', 'HEAD /robots.txt', 'GET /api/auth/csrf', 'POST /api/auth/signout', 'GET /api/desktop/update/latest.json', '/api/desktop/login', 'DELETE /api/voice/dictionary/{id}', 'PATCH /api/voice/settings']) {
+      expect(inCode.has(e), e).toBe(true);
+    }
+  });
+
+  it('el extractor de pedidos no se confunde', () => {
+    const sample = [
+      "fn a() { let q = '\"'; let x = b'}'; api::get(app, \"/api/si?x=1\"); }",
+      '// GET /api/comentario',
+      '/* bloque "/api/bloque" /* anidado */ sigue */',
+      'fn b() { let url = format!("{}/api/var", s);',
+      '  let c = 1;',
+      '  http.post(url).send(); }',
+      'fn c() { api::send_json(&app, reqwest::Method::PATCH, "/api/patch", &v); }',
+      'fn d() { let feed = format!("{}/api/feed", s); let b = app.updater_builder(); }',
+      'fn e() { let mut url = Url::parse(&format!("{s}/api/browser")); app.opener().open_url(url.as_str(), None); }',
+      "fn f<'a>(x: &'a str) { http.delete(format!(\"{x}/api/borrar/{id}\")); }",
+      '#[cfg(test)]',
+      'mod tests { fn t() { api::get(app, "/api/test"); let r = r#"}"#; } }',
+      'fn g() { http.head(format!("{}/robots.txt", s)); }',
+    ].join('\n');
+    expect(nativeEndpoints(sample).sort()).toEqual(['/api/browser', 'DELETE /api/borrar/{id}', 'GET /api/feed', 'GET /api/si', 'HEAD /robots.txt', 'PATCH /api/patch', 'POST /api/var'].sort());
   });
 
   it('los números que se dicen son los del código', () => {

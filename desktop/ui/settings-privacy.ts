@@ -53,8 +53,8 @@ export interface PrivacyView {
   facts: Facts;
   /** Clave del texto de lo que se captura ahora (trayMic…), o null. */
   capturing: string | null;
-  /** Este arranque terminó un "borrar todo": true si se borró todo, false si algo quedó. */
-  lastWipe: boolean | null;
+  /** Este arranque terminó un "borrar todo" (privacy.rs, WipeResult), o null. */
+  lastWipe: { ok: boolean; leftovers: string[]; error: 'marker' | 'locked' | null } | null;
 }
 
 type Result = { ok: boolean; view?: PrivacyView; file?: string; restart?: boolean; requested?: boolean };
@@ -264,9 +264,14 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
     const cur = deps.view();
     now.className = data.capturing ? 'notice info' : 'help';
     now.textContent = data.capturing ? s('privCapturing', { what: s(data.capturing) }) : s('privNotCapturing');
-    wipe.hidden = data.lastWipe === null || data.lastWipe === undefined;
-    wipe.className = data.lastWipe === false ? 'notice error' : 'notice info';
-    wipe.textContent = data.lastWipe === false ? s('privLastWipeFailed') : data.lastWipe ? s('privLastWipeOk') : '';
+    const lw = data.lastWipe;
+    wipe.hidden = !lw;
+    if (lw) {
+      const names = lw.leftovers.map((id) => facts.stores.find((x) => x.id === id)?.[locale].name ?? id).join(', ');
+      const failed = !lw.ok;
+      wipe.className = failed || names ? 'notice error' : 'notice info';
+      wipe.textContent = [failed ? s(lw.error === 'marker' ? 'privLastWipeMarker' : 'privLastWipeFailed') : s('privLastWipeOk'), names ? s('privLastWipeLeftovers', { list: names }) : ''].filter(Boolean).join(' ');
+    }
 
     perms.replaceChildren(
       ...facts.permissions.map((p) => {

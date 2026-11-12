@@ -285,11 +285,6 @@ fn handle_deep_link(app: &AppHandle, raw: &str) {
 
 pub fn run() {
     START.get_or_init(Instant::now);
-    // "Borrar todos los datos locales" pide terminar acá: los datos del webview se borran antes de
-    // crear ninguna ventana (y antes de que el plugin de la ventana lea su posición).
-    if let Some(ok) = privacy::Paths::current_env().and_then(|p| privacy::finish_wipe(&p, 6, std::time::Duration::from_millis(700))) {
-        let _ = privacy::LAST_WIPE.set(ok);
-    }
     tauri::Builder::default()
         // Primero: una segunda instancia (y en Windows, el deep link) vuelve a la primera.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_main(app)))
@@ -346,6 +341,11 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let platform = if cfg!(target_os = "macos") { "macos" } else { "windows" };
+            // "Borrar todos los datos locales" pide terminar acá: los datos del webview se borran
+            // antes de crear ninguna ventana, con las mismas carpetas que resolvió la app al pedirlo.
+            if let Some(r) = privacy::Paths::of(&handle).and_then(|p| privacy::finish_wipe(&p, 6, std::time::Duration::from_millis(700))) {
+                let _ = privacy::LAST_WIPE.set(r);
+            }
             let config_dir = app.path().app_config_dir()?;
             // Sesión, dictados sin enviar y registro en la carpeta local (en Windows, %LOCALAPPDATA%:
             // no viaja con un perfil itinerante). Lo que versiones anteriores dejaron en Roaming se
@@ -401,8 +401,12 @@ pub fn run() {
                 tray::rebuild(&sa);
                 indicator::update(&sa);
             });
-            // Los dictados sin enviar de más de una semana se borran ya al arrancar.
+            // Los dictados sin enviar de más de una semana se borran ya al arrancar (también los que
+            // hayan quedado en Roaming si no se pudieron mover).
             handle.state::<AppState>().pending.list(state::now_ms());
+            if roaming_data != local_dir {
+                retry::PendingStore::new(roaming_data.join("pending")).list(state::now_ms());
+            }
             privacy::note_finished_wipe(&handle);
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;
