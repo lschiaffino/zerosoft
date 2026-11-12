@@ -413,7 +413,7 @@ const WaConversation = forwardRef<
         </span>
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={author} kind="dm" size={28} seed={m.senderHandle || m.senderName} />}
+            {!cont && <Avatar name={author} kind="dm" size={26} seed={m.senderHandle || m.senderName} />}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -617,7 +617,7 @@ const WaConversation = forwardRef<
           <ArrowLeft size={22} />
         </button>
         <button type="button" className="wa-head-who" onClick={props.onToggleInfo} aria-expanded={props.infoOpen} aria-label={group ? w('groupInfo') : w('contactInfo')}>
-          <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={40} />
+          <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
           <span className="gr-thread-title">
             <h2 dir="auto">{name}</h2>
             <span className={`wa-head-sub${live ? ' is-typing' : ''}`}>{subtitle}</span>
