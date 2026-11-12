@@ -366,7 +366,7 @@ pub fn new_window(app: &AppHandle, path: &str) {
 
 pub fn new_tab(app: &AppHandle) {
     let label = focused_label(app);
-    open_in(app, &label, HOME, Place::End, true);
+    open_in(app, &label, HOME, Place::End, false);
     show_window(app, &label);
 }
 
@@ -820,7 +820,7 @@ pub fn strip_action(app: &AppHandle, label: &str, action: &str, id: Option<u64>,
     let mine = |id: u64| st(app).s.lock().unwrap().window_of(id) == Some(label);
     match (action, id) {
         ("new", _) => {
-            open_in(app, label, HOME, Place::End, true);
+            open_in(app, label, HOME, Place::End, false);
         }
         ("activate", Some(id)) if mine(id) => show_tab(app, id, true),
         ("close", Some(id)) if mine(id) => close_tab(app, id),
@@ -902,7 +902,7 @@ pub fn on_menu(app: &AppHandle, id: &str) -> bool {
                 let Ok(n) = n.parse::<u64>() else { return true };
                 let label = st(app).s.lock().unwrap().window_of(n).map(str::to_string).unwrap_or(focused);
                 match what {
-                    "new" => open_in(app, &label, HOME, Place::End, true),
+                    "new" => open_in(app, &label, HOME, Place::End, false),
                     "dup" => duplicate(app, n),
                     "window" => detach(app, n, None),
                     "close" => close_tab(app, n),

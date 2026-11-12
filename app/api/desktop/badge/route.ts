@@ -20,5 +20,7 @@ export async function GET(req: NextRequest) {
   // con email dentro de la ventana y no por el login del navegador (lib/desktop-auth.ts).
   if (!since) await recordLifecycleEvent(realUserId(user), 'desktop_installed');
   const badge = await desktopBadge(user, since);
-  return NextResponse.json({ ...badge, user: { email: user.email, name: user.name ?? '' } }, { headers: { 'cache-control': 'no-store' } });
+  // En un workspace ajeno, `user` es el dueño: la cuenta que se muestra es la de quien inició sesión.
+  const me = user.actingUser ?? user;
+  return NextResponse.json({ ...badge, user: { email: me.email, name: me.name ?? '' } }, { headers: { 'cache-control': 'no-store' } });
 }

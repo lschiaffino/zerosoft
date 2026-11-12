@@ -436,7 +436,7 @@ function renderStart(panel: HTMLElement) {
           type: 'button',
           onclick: async () => {
             await api.save({ onboarded: true });
-            window.close();
+            await api.closeWindow();
           },
         },
         s('finish'),
@@ -1033,7 +1033,7 @@ async function reload(rerender = true) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !e.defaultPrevented) window.close();
+  if (e.key === 'Escape' && !e.defaultPrevented) void api.closeWindow();
 });
 
 api.onRefresh(() => void reload(false));

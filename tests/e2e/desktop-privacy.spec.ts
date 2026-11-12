@@ -26,8 +26,9 @@ const FILES: Record<string, string> = {
   '/settings-tabs': transpiled('settings-tabs.ts'),
   '/tauri-core.js': 'export const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);',
   '/tauri-event.js': 'export const listen = () => Promise.resolve(() => {});',
+  '/tauri-window.js': 'export const getCurrentWindow = () => ({ close: () => Promise.resolve() });',
 };
-const IMPORT_MAP = JSON.stringify({ imports: { '@tauri-apps/api/core': '/tauri-core.js', '@tauri-apps/api/event': '/tauri-event.js' } });
+const IMPORT_MAP = JSON.stringify({ imports: { '@tauri-apps/api/core': '/tauri-core.js', '@tauri-apps/api/event': '/tauri-event.js', '@tauri-apps/api/window': '/tauri-window.js' } });
 const html = fs
   .readFileSync(path.join(UI, 'settings.html'), 'utf8')
   .replace('<script src="settings.js"></script>', () => `<script type="importmap">${IMPORT_MAP}</script><script type="module" src="/settings.js"></script>`);
