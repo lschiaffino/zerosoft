@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-filter-panel-soft',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: a softer filter panel',
+      es: 'Lines e Inbox: un panel de filtros más suave',
+      pt: 'Lines e Inbox: um painel de filtros mais suave',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The filter panel uses the same light border, rounded corners and soft shadow as the chat menus, and its search box no longer has a heavy outline.',
+        es: 'El panel de filtros usa el mismo borde fino, las esquinas redondeadas y la sombra suave de los menús del chat, y su buscador ya no tiene un borde grueso.',
+        pt: 'O painel de filtros usa a mesma borda fina, os cantos arredondados e a sombra suave dos menus do chat, e a busca não tem mais uma borda grossa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {
