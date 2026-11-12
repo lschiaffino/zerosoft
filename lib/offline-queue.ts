@@ -11,6 +11,7 @@
  */
 
 import { NOTES_DB_PREFIX, notesDbName } from '@/components/notes/notesOffline';
+import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY } from './optimistic-send';
 import { clearSessionHint } from '@/lib/session-hint';
 
 export const QUEUED_HEADER = 'x-zs-queued';
@@ -207,6 +208,14 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
   try {
     // Borrador del bloc de Notes (components/notes/NotesHome.tsx): no queda para quien entre después.
     localStorage.removeItem('zs:notes:scratch-draft');
+  } catch {
+    // Sin almacenamiento: nada que borrar.
+  }
+  try {
+    // Lines: los textos que no salieron y los borradores de cada chat (lib/optimistic-send.ts): nada de esto queda
+    // para quien entre después en la misma pestaña.
+    sessionStorage.removeItem(UNSENT_LINES_KEY);
+    for (const key of Object.keys(sessionStorage)) if (key.startsWith(LINES_DRAFT_PREFIX)) sessionStorage.removeItem(key);
   } catch {
     // Sin almacenamiento: nada que borrar.
   }

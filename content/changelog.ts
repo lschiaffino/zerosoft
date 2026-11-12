@@ -29,6 +29,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-whatsapp-realtime-speed',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: WhatsApp messages arrive and go out without waiting',
+      es: 'Lines e Inbox: los mensajes de WhatsApp llegan y salen sin esperar',
+      pt: 'Lines e Inbox: as mensagens do WhatsApp chegam e saem sem esperar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The open chat no longer reloads its last 60 messages every 4 seconds: it reloads when something changes in that chat (a new message, ticks, reactions, edits, a note from a teammate, "typing"), which it learns from the same check the chat list uses, every 3 seconds. A live connection that delivers each change the moment it is saved is ready, and is turned on per workspace.',
+        es: 'El chat abierto ya no relee sus últimos 60 mensajes cada 4 segundos: los relee cuando algo cambia en ese chat (un mensaje nuevo, las tildes, las reacciones, una edición, una nota de un compañero, "escribiendo"), y se entera por la misma consulta que usa la lista de chats, cada 3 segundos. Una conexión en vivo que avisa cada cambio en el momento en que se guarda está lista, y se prende por workspace.',
+        pt: 'A conversa aberta não relê mais as últimas 60 mensagens a cada 4 segundos: relê quando algo muda nessa conversa (uma mensagem nova, os tiques, as reações, uma edição, uma nota de um colega, "digitando"), e fica sabendo pela mesma consulta que a lista de conversas usa, a cada 3 segundos. Uma conexão ao vivo que avisa cada mudança no momento em que é salva está pronta, e é ligada por workspace.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox, the open WhatsApp chat reloads as soon as the check sees a change in it, without waiting for the chat list. Ticks and reactions on any message now count as a change, not only on the last one.',
+        es: 'En Inbox, el chat de WhatsApp abierto se relee apenas la consulta ve un cambio en él, sin esperar a la lista de chats. Las tildes y las reacciones de cualquier mensaje ahora cuentan como cambio, no solo las del último.',
+        pt: 'No Inbox, a conversa do WhatsApp aberta se relê assim que a consulta vê uma mudança nela, sem esperar a lista de conversas. Os tiques e as reações de qualquer mensagem agora contam como mudança, não só os da última.',
+      },
+      {
+        product: 'groups',
+        en: 'A text you send appears in the chat when you press Enter, with a clock while it goes out, and the field is free for the next one right away. Texts written one after another go out in order, and a file sent right after a text waits for it. If one does not go out, its bubble stays marked as not sent and you can retry it or remove it, also after opening another chat or reloading the page.',
+        es: 'Un texto que mandás aparece en el chat al apretar Enter, con un reloj mientras sale, y el campo queda libre para el próximo enseguida. Los textos escritos uno atrás del otro salen en orden, y un archivo mandado justo después de un texto lo espera. Si uno no sale, su burbuja queda marcada como no enviada y se puede reintentar o quitar, también después de abrir otro chat o de recargar la página.',
+        pt: 'Um texto que você envia aparece na conversa ao apertar Enter, com um relógio enquanto sai, e o campo fica livre para o próximo na hora. Textos escritos um atrás do outro saem em ordem, e um arquivo enviado logo depois de um texto espera por ele. Se um não sair, o balão fica marcado como não enviado e dá para tentar de novo ou remover, também depois de abrir outra conversa ou recarregar a página.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox too: a WhatsApp text appears when you press Enter and you can keep writing. If it does not go out, the text goes back to the field with the error, so nothing is lost.',
+        es: 'En Inbox también: un texto de WhatsApp aparece al apretar Enter y podés seguir escribiendo. Si no sale, el texto vuelve al campo con el error, así no se pierde nada.',
+        pt: 'No Inbox também: um texto do WhatsApp aparece ao apertar Enter e você pode continuar escrevendo. Se não sair, o texto volta para o campo com o erro, então nada se perde.',
+      },
+      {
+        product: 'groups',
+        en: 'Saving a message that arrives takes 4 database queries instead of 11 in Lines and 4 instead of 7 in Inbox, and the chat list is told in the same step. Sending a text from Lines reaches WhatsApp after 2 waits on the database instead of 6.',
+        es: 'Guardar un mensaje que llega lleva 4 consultas a la base en vez de 11 en Lines y 4 en vez de 7 en Inbox, y la lista de chats se entera en el mismo paso. Mandar un texto desde Lines llega a WhatsApp después de 2 esperas a la base en vez de 6.',
+        pt: 'Salvar uma mensagem que chega leva 4 consultas ao banco em vez de 11 no Lines e 4 em vez de 7 no Inbox, e a lista de conversas fica sabendo no mesmo passo. Enviar um texto pelo Lines chega ao WhatsApp depois de 2 esperas pelo banco em vez de 6.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {

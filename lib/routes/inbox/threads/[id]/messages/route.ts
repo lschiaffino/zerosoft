@@ -1,5 +1,5 @@
 import { createScheduled, listMessages } from '@/lib/inbox/core';
-import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
+import { iFail, iJson, inboxOwner, parseBody, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
 import { sendSchema } from '@/lib/inbox/schemas';
 import { sendToThread } from '@/lib/inbox/send';
@@ -21,15 +21,19 @@ export async function GET(req: Request, ctx: Ctx) {
 
 /** Manda ya, o programa el envío con sendAt. */
 export async function POST(req: Request, ctx: Ctx) {
-  const limited = await limitByIp(req, 'inbox-send', 120, 60).catch(() => null);
+  // El límite por IP y la sesión, a la vez: no dependen uno de la otra y cada uno es una ida a la base.
+  const [limited, a, { id }] = await Promise.all([limitByIp(req, 'inbox-send', 120, 60).catch(() => null), inboxOwner(), ctx.params]);
   if (limited) return limited;
-  const { id } = await ctx.params;
-  return withOwner(async (owner) => {
+  if ('res' in a) return a.res;
+  const owner = a.owner;
+  try {
     const body = await parseBody(req, sendSchema);
     if (body.sendAt) return iJson({ scheduled: await createScheduled(owner, id, body.body, body.sendAt) }, 201);
-    if (body.replyTo || body.mentions?.length) await sendWaMessage(owner, id, body.body, { replyTo: body.replyTo, mentions: body.mentions });
-    else await sendToThread(owner, id, body.body);
+    if (body.replyTo || body.mentions?.length) await sendWaMessage(owner, id, body.body, { replyTo: body.replyTo, mentions: body.mentions, clientId: body.clientId });
+    else await sendToThread(owner, id, body.body, body.clientId);
     const page = await listMessages(owner, id);
     return iJson({ messages: page.messages, more: page.more, cursor: page.cursor }, 201);
-  });
+  } catch (err) {
+    return iFail(err);
+  }
 }

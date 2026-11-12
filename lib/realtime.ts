@@ -259,6 +259,8 @@ export interface SseLiveOptions<E> {
   tickMs?: number;
   tick?: () => Promise<void>;
   signal?: AbortSignal;
+  /** `bye` lleva el cursor hasta donde se mandó (el cliente puede seguir desde ahí sin releer; lib/wa-live.ts). */
+  byeCursor?: boolean;
 }
 
 /**
@@ -293,9 +295,11 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
           stopAll();
         }
       };
+      // Hasta dónde se mandó: con `byeCursor` va en `bye`, así quien reconecta sabe desde dónde seguir sin releer todo.
+      let cursor = opts.cursor;
       const close = (reason?: string) => {
         if (closed) return;
-        write(sseFrame('bye', reason ? { reason } : {}));
+        write(sseFrame('bye', { ...(reason ? { reason } : {}), ...(opts.byeCursor ? { cursor } : {}) }));
         closed = true;
         stopAll();
         try {
@@ -305,7 +309,6 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
         }
       };
       opts.signal?.addEventListener('abort', () => close());
-      let cursor = opts.cursor;
       // Lo que llega mientras se lee el atraso se guarda y sale después, en orden.
       const pending: Array<{ events: E[]; cursor: number }> = [];
       let live = false;

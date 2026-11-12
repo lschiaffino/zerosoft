@@ -57,6 +57,7 @@ import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
+import { linesDraftKey, unsentLines } from './optimistic';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -101,9 +102,9 @@ function Highlight({ text, q }: { text: string; q: string }) {
   return <>{parts}</>;
 }
 
-function readDraft(chatId: string): string {
+function readDraft(me: string, chatId: string): string {
   try {
-    return window.sessionStorage.getItem(`gr-draft:${chatId}`) ?? '';
+    return window.sessionStorage.getItem(linesDraftKey(me, chatId)) ?? '';
   } catch {
     return '';
   }
@@ -507,7 +508,19 @@ export default function InboxShell({
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, lo que hace
   // otra persona. Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista cada 5 s: se relee solo
   // cuando algo cambió.
-  const { live: liveOn } = useWaLive('groups', () => void load(true));
+  // Un texto que no salió de un chat que ya no está abierto: se avisa acá (la lista siempre está) y el texto queda
+  // en ese chat como no enviado, con reintentar (./optimistic.ts).
+  useEffect(() => unsentLines.setOwner(me), [me]);
+  useEffect(
+    () =>
+      unsentLines.subscribe((e) => {
+        if (e.type !== 'failed' || e.chatId === live.current.current) return;
+        showToast(t('wa.unsent', { name: live.current.rows.find((r) => r.id === e.chatId)?.name || '…' }), true);
+      }),
+    [showToast, t],
+  );
+  // Devuelve la carga: el aviso espera a que termine antes de pedir otra (nunca corta una en curso; lib/wa-live-client.ts).
+  const { live: liveOn } = useWaLive('groups', () => load(true));
   useEffect(() => {
     // Red de seguridad (escribiendo…, importaciones, líneas caídas): cada 5 s si el aviso no anda, cada minuto si anda.
     const id = setInterval(() => {
@@ -797,7 +810,7 @@ export default function InboxShell({
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
     // El chat que se deja muestra su borrador ya, desde el clic (sin esperar a que el otro termine de abrir).
-    const draft = c.id !== (switchingTo ?? current) ? readDraft(c.id) : '';
+    const draft = c.id !== (switchingTo ?? current) ? readDraft(me, c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
     return (
       <li
