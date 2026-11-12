@@ -235,10 +235,11 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en los fragmentos de WhatsApp.
   const shown = rows.slice(0, limit);
   if (hits.some((h, i) => shown[i].channel === 'whatsapp' && h.snippet.includes('@'))) {
-    const { resolveTextMentions } = await import('../wa-contacts');
+    const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
     const texts = await resolveTextMentions(
       'inbox',
       hits.map((h, i) => ({ accountId: shown[i].channel === 'whatsapp' ? shown[i].account_id : '', text: h.snippet })),
+      { someone: () => someoneWord(owner) },
     ).catch(() => hits.map((h) => h.snippet));
     hits.forEach((h, i) => (h.snippet = texts[i]));
   }

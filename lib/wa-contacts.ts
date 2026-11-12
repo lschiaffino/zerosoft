@@ -20,7 +20,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
-import { mentionCandidates, mentionDigits, replaceMentions, type MentionMap } from './wa-mentions';
+import { hiddenMentions, mentionCandidates, mentionSomeone, replaceMentions, type MentionMap } from './wa-mentions';
 
 export type WaApp = 'inbox' | 'lines';
 
@@ -226,22 +226,31 @@ export async function phoneForLid(scope: Pick<ContactScope, 'app' | 'accountId'>
   return r?.phone ?? '';
 }
 
+/** Teléfonos guardados como mencionados (los lids van como "<dígitos>@lid"). */
+function explicitPhones(items: Array<{ mentions?: unknown }>): Set<string> {
+  const out = new Set<string>();
+  for (const it of items) if (Array.isArray(it.mentions)) for (const m of it.mentions) if (typeof m === 'string' && /^\d{8,15}$/.test(m)) out.add(m);
+  return out;
+}
+
 /**
  * A quién son las menciones de una tanda de mensajes: dígitos → nombre y
  * teléfono. Un id guardado como mencionado que es un teléfono queda aunque no
- * se conozca el nombre (se muestra el teléfono); un lid desconocido no.
+ * se conozca el nombre (se muestra el teléfono). Un lid que no se conoce queda
+ * sin nombre ni teléfono: se muestra como "alguien", nunca con sus dígitos.
  */
 export async function mentionTargets(scope: Pick<ContactScope, 'app' | 'accountId'>, items: Array<{ body: string; mentions?: unknown }>): Promise<MentionMap> {
   const candidates = mentionCandidates(items);
   if (!candidates.length) return {};
   const rows = await lookupContacts(scope, candidates);
-  const explicitPhones = new Set<string>();
-  for (const it of items) if (Array.isArray(it.mentions)) for (const m of it.mentions) if (typeof m === 'string' && /^\d{8,15}$/.test(m)) explicitPhones.add(m);
+  const phones = explicitPhones(items);
+  const hidden = new Set(items.flatMap((it) => hiddenMentions(it)));
   const out: MentionMap = {};
   for (const d of candidates) {
     const r = rows.get(d);
     if (r && (displayName(r) || r.phone)) out[d] = { name: displayName(r), phone: r.phone };
-    else if (explicitPhones.has(d)) out[d] = { name: '', phone: d };
+    else if (phones.has(d)) out[d] = { name: '', phone: d };
+    else if (hidden.has(d)) out[d] = { name: '', phone: '' };
   }
   return out;
 }
@@ -264,27 +273,78 @@ export async function resolveLidSenders<E extends { type: string }>(scope: Pick<
   return out;
 }
 
+/** "Alguien" en el idioma del dueño de la cuenta (para los textos que arma el servidor). */
+export async function someoneWord(userId: string): Promise<string> {
+  try {
+    const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale?: string | null } | undefined;
+    return mentionSomeone(row?.locale);
+  } catch {
+    return mentionSomeone('en');
+  }
+}
+
+export interface TextMentionOptions {
+  /**
+   * Cómo se muestra una mención que no se sabe de quién es ("alguien"): el
+   * texto, o cómo conseguirlo (solo se pide si hace falta). Sin esto, esos
+   * "@<dígitos>" quedan como están.
+   */
+  someone?: string | (() => Promise<string>);
+  /**
+   * Cómo se escribe el teléfono cuando no hay nombre (por defecto "+<teléfono>").
+   * `id`: los dígitos del texto (el mismo teléfono, o un lid). Si devuelve '',
+   * la mención queda como una que no se sabe de quién es.
+   */
+  phone?: (phone: string, id: string) => string;
+}
+
 /**
- * Textos cortos (vista previa de la lista, avisos, fragmentos de búsqueda) con
- * "@<dígitos>" reemplazado por "@Nombre" (o "@+teléfono" si solo se sabe el
- * teléfono), con la libreta de la cuenta de cada texto. Una consulta por cuenta.
+ * Textos (vista previa de la lista, avisos, fragmentos de búsqueda, lo que
+ * lee el asistente, el export) con "@<dígitos>" reemplazado por "@Nombre" (o
+ * "@+teléfono" si solo se sabe el teléfono), con la libreta de la cuenta de
+ * cada texto. `mentions`: la lista guardada de mencionados del mensaje, si se
+ * tiene. Una consulta por cuenta.
  */
-export async function resolveTextMentions(app: WaApp, items: Array<{ accountId: string; text: string }>): Promise<string[]> {
+export async function resolveTextMentions(
+  app: WaApp,
+  items: Array<{ accountId: string; text: string; mentions?: unknown }>,
+  opts: TextMentionOptions = {},
+): Promise<string[]> {
   const out = items.map((it) => it.text);
+  const asItem = (i: number) => ({ body: items[i].text, mentions: items[i].mentions });
   const byAccount = new Map<string, number[]>();
   items.forEach((it, i) => {
-    if (it.accountId && it.text && mentionDigits(it.text).length) byAccount.set(it.accountId, [...(byAccount.get(it.accountId) ?? []), i]);
+    if (it.accountId && it.text && it.text.includes('@') && mentionCandidates([asItem(i)]).length) byAccount.set(it.accountId, [...(byAccount.get(it.accountId) ?? []), i]);
   });
+  let someone: string | undefined;
   for (const [accountId, idx] of byAccount) {
-    const digits = [...new Set(idx.flatMap((i) => mentionDigits(items[i].text)))];
+    const list = idx.map(asItem);
+    const digits = mentionCandidates(list, 2000);
     const rows = await lookupContacts({ app, accountId }, digits).catch(() => new Map<string, ContactRow>());
+    const phoneLabel = (phone: string, id: string) => (opts.phone ? opts.phone(phone, id) : `+${phone}`);
+    // Lo que sabe la libreta vale para toda la cuenta; la lista guardada de mencionados, solo para su mensaje.
     const labels = new Map<string, string>();
     for (const d of digits) {
       const r = rows.get(d);
-      const label = displayName(r) || (r?.phone ? `+${r.phone}` : '');
+      const label = displayName(r) || (r?.phone ? phoneLabel(r.phone, d) : '');
       if (label) labels.set(d, label);
     }
-    if (labels.size) for (const i of idx) out[i] = replaceMentions(items[i].text, labels);
+    for (const i of idx) {
+      const item = asItem(i);
+      const phones = [...explicitPhones([item])].filter((d) => !labels.has(d));
+      const hidden = opts.someone ? hiddenMentions(item).filter((d) => !labels.has(d)) : [];
+      if (!labels.size && !phones.length && !hidden.length) continue;
+      const own = phones.length || hidden.length ? new Map(labels) : labels;
+      for (const d of phones) {
+        const label = phoneLabel(d, d);
+        if (label) own.set(d, label);
+      }
+      if (hidden.length) {
+        someone ??= typeof opts.someone === 'function' ? await opts.someone().catch(() => mentionSomeone('en')) : opts.someone;
+        for (const d of hidden) own.set(d, someone ?? mentionSomeone('en'));
+      }
+      out[i] = replaceMentions(items[i].text, own);
+    }
   }
   return out;
 }

@@ -139,6 +139,7 @@
   "pin": "Fijar",
   "unpin": "Desfijar",
   "mention": "Mencionar a alguien",
+  "mentionSomeone": "alguien",
   "styleUseZerosoft": "Estilo de chats: zerosoft",
   "styleUseWhatsapp": "Estilo de chats: WhatsApp",
   "chatStyle": {

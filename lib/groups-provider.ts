@@ -105,6 +105,8 @@ export interface Participant {
   phone: string;
   role: MemberRole;
   name?: string;
+  /** Lid (dígitos) del participante, si el servidor lo da: sirve para nombrar las menciones "@<lid>". */
+  lid?: string;
 }
 
 export interface GroupInfo {
