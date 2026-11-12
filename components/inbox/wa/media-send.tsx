@@ -7,6 +7,7 @@ import type { TrayItem } from '@/components/groups/wa/attachments';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
 import { duration } from '@/components/groups/wa/format';
+import LiveWaveform from '@/components/groups/wa/LiveWaveform';
 
 /** Lo que entra en un pedido (como lib/inbox/wa-media.ts); más grande va directo a Blob. */
 const INLINE_MAX = 4 * 1024 * 1024;
@@ -267,7 +268,8 @@ export function VoiceBar({ threadId, replyTo, onSent, onError, onDone, onStart }
       <span className="wa-rec-time" aria-live="off">
         {duration(secs)}
       </span>
-      <span className="wa-rec-label">{busy ? w('sendingVoice') : w('recording')}</span>
+      {busy ? <span className="wa-rec-label">{w('sendingVoice')}</span> : <span className="sr-only">{w('recording')}</span>}
+      {!busy && <LiveWaveform stream={rec.current?.stream} />}
       <button type="button" className="wa-send" onClick={() => stop(true)} aria-label={w('sendVoice')} title={w('sendVoice')} disabled={busy}>
         <SendIcon size={20} />
       </button>

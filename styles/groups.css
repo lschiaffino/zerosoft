@@ -834,7 +834,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-reimport .select { width: auto; height: 28px; font-size: 0.8125rem; }
 
 /* Lines: selector de línea, etiqueta de línea y carpetas compartidas */
-.gr-line-select { max-width: 170px; min-width: 0; }
+.gr-line-select { max-width: 200px; min-width: 0; }
 .gr-line-badge { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 0 6px; border: 1px solid var(--ui-border); }
 .gr-folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
 .gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
@@ -886,3 +886,23 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 @media (max-width: 420px) {
   .gr-hs-search-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Bandeja: "Chat nuevo" (components/groups/NewChatDialog.tsx). */
+/* El título a la izquierda; la línea, la disponibilidad y el "+" juntos a la derecha. */
+.gr-list-titlebar:has(.gr-newchat-open) .gr-list-title { margin-right: auto; }
+.gr-list-titlebar .gr-newchat-open { width: 32px; height: 32px; border-radius: var(--radius-1); color: var(--ink); }
+.gr-newchat-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-newchat-list li + li { border-top: 1px solid var(--line); }
+.gr-newchat-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 8px 10px;
+  font: inherit; font-size: 0.875rem; color: var(--ink); text-align: left; background: transparent; border: 0; cursor: pointer;
+}
+.gr-newchat-row:hover:not(:disabled) { background: var(--ui-hover); }
+.gr-newchat-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.gr-newchat-row:disabled { color: var(--ink-3); cursor: default; }
+.gr-newchat-direct { border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-newchat-plus { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; }
+.gr-newchat-text { display: flex; flex-direction: column; min-width: 0; }
+.gr-newchat-name, .gr-newchat-phone { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-newchat-phone { font-size: 0.8125rem; color: var(--ink-3); }
+.ui-modal-foot .gr-newchat-group { gap: 6px; margin-right: auto; }

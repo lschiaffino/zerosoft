@@ -72,6 +72,11 @@ describe('calls: meeting links and scheduling rules', () => {
     expect(platformOf('https://meet.google.com.evil.test/abc-defg-hij')).toBeNull();
     expect(platformOf('javascript:alert(1)')).toBeNull();
     expect(normalizeMeetUrl('https://meet.google.com/ABC-DEFG-HIJ?pli=1#x')).toBe('https://meet.google.com/abc-defg-hij');
+    expect(normalizeMeetUrl('https://meet.google.com/meet/rdn-fcin-tkn')).toBe('https://meet.google.com/rdn-fcin-tkn');
+    expect(normalizeMeetUrl('meet.google.com/rdn-fcin-tkn')).toBe('https://meet.google.com/rdn-fcin-tkn');
+    expect(normalizeMeetUrl('https://www.meet.google.com/lookup/rdn-fcin-tkn')).toBe('https://meet.google.com/rdn-fcin-tkn');
+    expect(normalizeMeetUrl('https://meet.google.com.evil.com/rdn-fcin-tkn')).toBeNull();
+    expect(platformOf('https://meet.google.com/meet/rdn-fcin-tkn')).toBe('meet');
     expect(botSupports('meet')).toBe(true);
     expect(botSupports('zoom')).toBe(false);
   });

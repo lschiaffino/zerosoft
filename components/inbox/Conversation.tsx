@@ -8,6 +8,7 @@ import Avatar from '@/components/groups/wa/Avatar';
 import { chatName } from './wa/util';
 import ScheduledList from './ScheduledList';
 import Composer, { type ComposerHandle } from './Composer';
+import { useInboxThreadCommands } from './slash-commands';
 
 export interface ThreadDetail {
   thread: ThreadDto;
@@ -195,6 +196,9 @@ const Conversation = forwardRef<
     setNotesState('');
   }, [thread.id, thread.title]);
 
+  // Comandos "/" del campo: las mismas acciones de esta cabecera y de "Más acciones".
+  const slashCommands = useInboxThreadCommands({ thread, onAction, openNotes: () => void openNotes(), rename: () => setRenaming(true) });
+
   const openNotes = async () => {
     if (notesOpen) {
       setNotesOpen(false);
@@ -224,7 +228,7 @@ const Conversation = forwardRef<
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <Avatar name={displayName} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={40} />
+        <Avatar name={displayName} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
         <div className="ib-convo-title">
           {renaming ? (
             <form
@@ -340,7 +344,7 @@ const Conversation = forwardRef<
         })}
       </div>
       <ScheduledList thread={thread} scheduled={scheduled} connected={connected} onChange={onScheduledChange} onError={onError} />
-      <Composer key={thread.id} ref={composerRef} thread={thread} snippets={snippets} disabled={!connected} paused={paused} onSent={onSent} onSendLater={onSendLater} onError={onError} />
+      <Composer key={thread.id} ref={composerRef} thread={thread} snippets={snippets} disabled={!connected} paused={paused} onSent={onSent} onSendLater={onSendLater} onError={onError} commands={slashCommands} />
     </section>
   );
 });

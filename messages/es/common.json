@@ -1186,5 +1186,55 @@
       "gone": "Esta conversación ya no está disponible. Recargá la página.",
       "failed": "La IA no pudo escribir esto. Probá de nuevo."
     }
+  },
+  "slash": {
+    "label": "Comandos",
+    "actions": "Acciones",
+    "inserts": "Respuestas guardadas",
+    "ai": "Escribir con IA",
+    "empty": "Nada coincide. Apretá Esc para dejarlo como texto.",
+    "foot": "↑↓ mover · Enter elegir · Esc dejar como texto",
+    "count": "{n, plural, =0 {Sin resultados} one {# resultado} other {# resultados}}",
+    "checked": "puesto",
+    "placeholder": "{base} o / para comandos",
+    "menuItem": "Comandos",
+    "aiCommands": {
+      "write": {
+        "name": "escribir",
+        "desc": "Describí el mensaje y recibí un borrador",
+        "keys": "ia borrador ayuda redactar"
+      },
+      "suggest": {
+        "name": "sugerir",
+        "desc": "Borrador de respuesta al último mensaje",
+        "keys": "ia respuesta contestar"
+      },
+      "polish": {
+        "name": "pulir",
+        "desc": "Corrige y aclara lo que escribiste",
+        "keys": "ia mejorar reescribir"
+      },
+      "shorter": {
+        "name": "acortar",
+        "desc": "Deja más corto lo que escribiste",
+        "keys": "ia corto breve"
+      },
+      "formal": {
+        "name": "formal",
+        "desc": "Deja más formal lo que escribiste",
+        "keys": "ia tono"
+      },
+      "fix": {
+        "name": "corregir",
+        "desc": "Corrige ortografía y gramática, nada más",
+        "keys": "ia gramática ortografía errores"
+      },
+      "translate": {
+        "name": "traducir",
+        "desc": "Traduce lo que escribiste a otro idioma",
+        "keys": "ia idioma",
+        "empty": "Ningún idioma coincide. Apretá Esc para dejarlo como texto."
+      }
+    }
   }
 }

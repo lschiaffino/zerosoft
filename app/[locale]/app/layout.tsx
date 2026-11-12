@@ -18,6 +18,7 @@ import { chosenApps, parseProfile } from '@/lib/onboarding';
 import DesktopSeen from '@/components/desktop/DesktopSeen';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
+import AppAccent from '@/components/app/AppAccent';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
 import MenuLayerGuard from '@/components/app/MenuLayerGuard';
@@ -224,6 +225,7 @@ export default async function AppLayout(
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
+        <AppAccent />
         {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
         <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />

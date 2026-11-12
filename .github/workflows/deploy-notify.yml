@@ -1,0 +1,37 @@
+name: Deploy notify
+
+# Después de cada deploy de producción que termina bien (Vercel publica el
+# estado del deployment en GitHub), manda un mail con lo que entró desde el
+# deploy anterior. Destinatarios en el secreto DEPLOY_NOTIFY_TO (separados por coma).
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+  deployments: read
+  pull-requests: read
+
+concurrency:
+  group: deploy-notify-${{ github.event.deployment.id }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          sparse-checkout: .github/scripts
+      - name: Send summary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEPLOY_NOTIFY_TO: ${{ secrets.DEPLOY_NOTIFY_TO }}
+          DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+        run: node .github/scripts/deploy-notify.mjs

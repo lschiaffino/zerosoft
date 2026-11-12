@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   DATE_PRESETS,
   bestField,
@@ -509,6 +509,8 @@ function MultiEditor({ field, value, onChange }: { field: Extract<FilterField, {
 
 function DateEditor({ label, value, onChange }: { label: string; value: FilterValue | undefined; onChange: (v: DateValue | undefined) => void }) {
   const t = useTranslations('common.ui.filter');
+  // Que el calendario del navegador use el idioma de la app (Safari y Firefox lo respetan; Chrome usa el del sistema).
+  const lang = useLocale();
   const v = cleanDateValue(value);
   const preset = v && 'preset' in v ? v.preset : null;
   const range = v && !('preset' in v) ? v : {};
@@ -531,11 +533,11 @@ function DateEditor({ label, value, onChange }: { label: string; value: FilterVa
       <div className="ui-filter-range">
         <label className="ui-field">
           <span className="label">{t('startDate')}</span>
-          <input className="input" type="date" value={range.from ?? ''} max={range.to} onChange={(e) => setRange({ from: e.target.value || undefined })} />
+          <input className="input" type="date" lang={lang} value={range.from ?? ''} max={range.to} onChange={(e) => setRange({ from: e.target.value || undefined })} />
         </label>
         <label className="ui-field">
           <span className="label">{t('endDate')}</span>
-          <input className="input" type="date" value={range.to ?? ''} min={range.from} onChange={(e) => setRange({ to: e.target.value || undefined })} />
+          <input className="input" type="date" lang={lang} value={range.to ?? ''} min={range.from} onChange={(e) => setRange({ to: e.target.value || undefined })} />
         </label>
       </div>
     </div>

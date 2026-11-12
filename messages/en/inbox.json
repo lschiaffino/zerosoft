@@ -39,8 +39,8 @@
     "laterHint": "Send later (⌘⇧Enter). You can also right-click Send.",
     "sending": "Sending…",
     "send": "Send",
-    "hint": "Enter sends · Shift+Enter new line · ⌘J help me write · ; snippets",
-    "hintEmail": "⌘Enter sends · ⌘J help me write · ; snippets"
+    "hint": "Enter sends · Shift+Enter new line · ⌘J help me write · ; snippets · / commands",
+    "hintEmail": "⌘Enter sends · ⌘J help me write · ; snippets · / commands"
   },
   "message": {
     "media": { "image": "Photo", "video": "Video", "audio": "Voice note", "document": "Document", "sticker": "Sticker" },
@@ -197,6 +197,7 @@
       "goto": "Go to inbox, done, snoozed",
       "ai": "Help me write",
       "snippet": "Insert a snippet",
+      "commands": "Commands, while you write a message",
       "send": "Send",
       "undo": "Undo the last action",
       "help": "Show shortcuts"
@@ -490,5 +491,122 @@
     "save": "Save",
     "edit": "Edit",
     "count": "{n, plural, one {# message} other {# messages}}"
+  },
+  "slash": {
+    "done": {
+      "name": "done",
+      "desc": "Mark this chat as done",
+      "keys": "finish complete resolve"
+    },
+    "undone": {
+      "name": "undone",
+      "desc": "Move this chat back to the inbox",
+      "keys": "inbox reopen"
+    },
+    "snooze": {
+      "name": "snooze",
+      "desc": "Hide this chat until a time you pick",
+      "keys": "later postpone"
+    },
+    "unsnooze": {
+      "name": "unsnooze",
+      "desc": "Bring this chat back now",
+      "keys": "wake"
+    },
+    "remind": {
+      "name": "remind",
+      "desc": "Remind me if there is no reply",
+      "keys": "follow up reminder"
+    },
+    "clearReminder": {
+      "name": "clear-reminder",
+      "desc": "Remove the reminder from this chat",
+      "keys": "follow up"
+    },
+    "folder": {
+      "name": "folder",
+      "desc": "Add this chat to a folder",
+      "keys": "move file"
+    },
+    "notes": {
+      "name": "notes",
+      "desc": "Open your notes about this chat",
+      "keys": "private"
+    },
+    "unread": {
+      "name": "unread",
+      "desc": "Mark this chat as unread",
+      "keys": "mark"
+    },
+    "read": {
+      "name": "read",
+      "desc": "Mark this chat as read",
+      "keys": "mark"
+    },
+    "pin": {
+      "name": "pin",
+      "desc": "Pin this chat to the top of the list",
+      "keys": "top keep"
+    },
+    "unpin": {
+      "name": "unpin",
+      "desc": "Unpin this chat",
+      "keys": "top"
+    },
+    "archive": {
+      "name": "archive",
+      "desc": "Archive this chat",
+      "keys": "hide"
+    },
+    "unarchive": {
+      "name": "unarchive",
+      "desc": "Move this chat back to the main list",
+      "keys": "restore"
+    },
+    "mute": {
+      "name": "mute",
+      "desc": "Stop notifications for this chat for a while",
+      "keys": "silence notifications",
+      "empty": "Pick 8 hours or a week. Press Esc to keep it as text.",
+      "hours8": "8 hours",
+      "week": "A week",
+      "hours8Keys": "8h hours day",
+      "weekKeys": "7 days week"
+    },
+    "unmute": {
+      "name": "unmute",
+      "desc": "Turn notifications back on for this chat",
+      "keys": "notifications sound"
+    },
+    "info": {
+      "name": "info",
+      "desc": "Show the contact or group info",
+      "keys": "details contact group"
+    },
+    "rename": {
+      "name": "rename",
+      "desc": "Rename this chat",
+      "keys": "name title"
+    },
+    "later": {
+      "name": "later",
+      "desc": "Send this message later",
+      "keys": "schedule time tomorrow"
+    },
+    "attach": {
+      "name": "attach",
+      "desc": "Attach a photo, video or document",
+      "keys": "file upload"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Open the emoji picker",
+      "keys": "smiley emoticon"
+    },
+    "dictate": {
+      "name": "dictate",
+      "desc": "Dictate the message with your voice",
+      "keys": "voice speak microphone"
+    }
   }
 }

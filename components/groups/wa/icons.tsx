@@ -294,3 +294,40 @@ export const ArrowLeft = (p: P) => (
     <path d="M19 12H5M11 6l-6 6 6 6" />
   </Svg>
 );
+
+/* Íconos de línea para los menús (⋯ del chat y clic derecho), como los de WhatsApp. */
+export const InfoIcon = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Svg>
+);
+export const TranslateIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 6h9M8.5 4v2M6 6c.8 3.4 3 6 6 7.5M11 6c-.8 3.4-3 6-6 7.5" />
+    <path d="m13 20 4-9 4 9M14.4 17h5.2" />
+  </Svg>
+);
+export const UnreadIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M20 12.5V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8" />
+    <circle cx="19" cy="6" r="2.5" />
+  </Svg>
+);
+export const ReadIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+    <path d="m8.5 12 2.5 2.5 4.5-5" />
+  </Svg>
+);
+export const WindowIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5" width="13" height="11" rx="2" />
+    <path d="M8 19h10.5a2 2 0 0 0 2-2V9" />
+  </Svg>
+);
+export const MoreLinesIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M5 7h14M5 12h14M5 17h9" />
+  </Svg>
+);
