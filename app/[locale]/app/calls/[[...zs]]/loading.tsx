@@ -1,9 +1,12 @@
 import { getTranslations } from 'next-intl/server';
+import AnalyticsSkeleton from '@/components/analytics-kit/Skeleton';
+import LoadingSwitch from '@/components/analytics-kit/LoadingSwitch';
+import '@/styles/analytics-kit.css';
 
 /** Carga de /app/calls: la cabecera y las filas como placas. */
 export default async function CallsLoading() {
-  const t = await getTranslations('common.appSoon');
-  return (
+  const [t, tk] = await Promise.all([getTranslations('common.appSoon'), getTranslations('analyticsKit')]);
+  const fallback = (
     <div className="app-page ui-page" aria-busy="true">
       <span className="sr-only" role="status">
         {t('loading', { app: 'Calls' })}
@@ -21,4 +24,6 @@ export default async function CallsLoading() {
       </div>
     </div>
   );
+  // En /analytics, las placas del tablero.
+  return <LoadingSwitch analytics={<AnalyticsSkeleton label={tk('loading')} />} fallback={fallback} />;
 }

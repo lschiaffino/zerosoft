@@ -14,6 +14,7 @@
  * groups-analytics-shared.ts.
  */
 import { getDb } from './db';
+import { idxDay, num, rangeInfo } from './analytics-kit/period';
 import { listPeople } from './groups';
 import { chatAccessSql, maskedChatName, numberAccessSql, type GroupsViewer } from './groups-access';
 import {
@@ -145,11 +146,6 @@ function chatScopeIn(ctx: Ctx, col: string, opts: { number: boolean; kind?: 'dm'
   return { sql: `${col} IN (SELECT zc.id FROM groups_chats zc WHERE zc.user_id = ? AND ${c.sql.join(' AND ')})`, args: [ctx.ws, ...c.args] };
 }
 
-const num = (v: unknown): number => {
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
-};
-const idxDay = (idx: unknown): string => new Date(num(idx) * 86_400_000).toISOString().slice(0, 10);
 
 // ======================================================================
 // Mensajes: una pasada, varias series
@@ -550,7 +546,6 @@ async function taskFacts(ctx: Ctx): Promise<{ created: Kpi; open: Kpi; overdue: 
 // Pestañas
 // ======================================================================
 
-const rangeInfo = (r: AnalyticsRange): RangeInfo => ({ from: r.from, to: r.to, days: r.days, tz: r.tz, prevFrom: r.prevFrom, prevTo: r.prevTo, custom: r.custom, clipped: r.clipped });
 
 async function overview(ctx: Ctx, options: FilterOptions): Promise<OverviewData> {
   const [rows, chats, tickets] = await Promise.all([messageFacts(ctx, ['d', 'c', 'n', 'r', 'pc'], { pcLimit: 8 }), chatFacts(ctx, []), ticketFacts(ctx, [])]);

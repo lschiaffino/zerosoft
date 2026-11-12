@@ -23,7 +23,8 @@
     "forecast": "Previsão",
     "documents": "Documentos",
     "videos": "Vídeos",
-    "crmSettings": "Configurações do CRM"
+    "crmSettings": "Configurações do CRM",
+    "analytics": "Análise"
   },
   "switcher": {
     "product": "Produto",
@@ -3721,5 +3722,45 @@
       "inboundHint": "Configure isto como Voice URL do número na Twilio:"
     },
     "callBrowserShort": "Chamada web"
+  },
+  "analytics": {
+    "title": "Análise do CRM",
+    "desc": "Negócios criados, ganhos e perdidos, o pipeline aberto por etapa e a atividade da equipe.",
+    "scopeNote": "Conta só os negócios e a atividade dos responsáveis que você pode ver.",
+    "created": "Negócios criados",
+    "won": "Negócios ganhos",
+    "lost": "Negócios perdidos",
+    "wonAmount": "Receita ganha",
+    "winRate": "Taxa de fechamento",
+    "cycle": "Ciclo de venda (mediana)",
+    "activities": "Atividades registradas",
+    "openAmount": "Pipeline aberto",
+    "weighted": "Pipeline ponderado",
+    "openDeals": "Negócios abertos",
+    "perDay": "Negócios por dia",
+    "wonPerDay": "Receita ganha por dia",
+    "byStage": "Pipeline aberto por etapa",
+    "noOpen": "Nenhum negócio aberto agora.",
+    "dealsN": "{n, plural, one {# negócio} other {# negócios}}",
+    "weightedSub": "Ponderado: {value}",
+    "activityTypes": "Atividade por tipo",
+    "types": {
+      "call": "Ligações",
+      "meeting": "Reuniões",
+      "email": "Emails",
+      "task": "Tarefas",
+      "note": "Notas"
+    },
+    "noActivity": "Nenhuma atividade registrada neste período.",
+    "lostReasons": "Por que foram perdidos",
+    "noReason": "Sem motivo",
+    "noLost": "Nenhum negócio perdido neste período.",
+    "byOwner": "Por responsável",
+    "owner": "Responsável",
+    "removedOwner": "Ex-membro",
+    "pipeline": "Pipeline",
+    "allPipelines": "Todos os pipelines",
+    "emptyTitle": "Nenhum negócio nem atividade neste período",
+    "emptyBody": "Crie um negócio ou registre uma atividade e os números aparecem aqui."
   }
 }
