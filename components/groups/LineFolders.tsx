@@ -58,15 +58,14 @@ export function FolderSelect({ folders, value, onChange }: { folders: LineFolder
   const rows = useMemo(() => flattenTree(folders), [folders]);
   if (folders.length === 0) return null;
   return (
-    <select className="select gr-folder-select" value={value} onChange={(e) => onChange(e.target.value)} aria-label={t('folders')} data-testid="lines-folder-select">
-      <option value="">{t('allChats')}</option>
-      {rows.map(({ folder: f, depth }) => (
-        <option key={f.id} value={f.id}>
-          {'\u00a0\u00a0'.repeat(depth) + f.name}
-        </option>
-      ))}
-      <option value="none">{t('unfiled')}</option>
-    </select>
+    <MenuSelect
+      className="gr-folder-select"
+      testId="lines-folder-select"
+      label={t('folders')}
+      value={value}
+      onChange={onChange}
+      options={[{ value: '', label: t('allChats') }, ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth })), { value: 'none', label: t('unfiled') }]}
+    />
   );
 }
 

@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-quiet-pickers',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: quieter folder and settings pickers',
+      es: 'Lines: selectores de carpeta y ajustes más sutiles',
+      pt: 'Lines: seletores de pasta e ajustes mais discretos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Without the sidebar, the folder picker sits next to the line picker instead of filling a full row, and the owner filter and “Messages per chat” in Settings use the same light picker.',
+        es: 'Sin el lateral, el selector de carpeta va al lado del de línea en vez de ocupar una fila entera, y el filtro de dueño y “Mensajes por chat” de Ajustes usan el mismo selector liviano.',
+        pt: 'Sem a barra lateral, o seletor de pasta fica ao lado do de linha em vez de ocupar uma linha inteira, e o filtro de dono e “Mensagens por chat” nos Ajustes usam o mesmo seletor leve.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {

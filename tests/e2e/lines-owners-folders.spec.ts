@@ -101,8 +101,9 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   await expect(page.getByText(`Beta ${tag}`)).toHaveCount(0);
   // En el teléfono no hay sidebar a la vista: la bandeja ofrece un selector con la misma carpeta.
   await page.setViewportSize({ width: 390, height: 800 });
-  await expect(page.getByTestId('lines-folder-select')).toHaveValue(folder.id);
-  await page.getByTestId('lines-folder-select').selectOption('');
+  await expect(page.getByTestId('lines-folder-select')).toContainText(`Clientes ${tag}`);
+  await page.getByTestId('lines-folder-select').click();
+  await page.getByRole('listbox', { name: 'Folders' }).getByRole('option', { name: 'All chats' }).click();
   await expect(page.getByText(`Beta ${tag}`).first()).toBeVisible();
   const w = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
