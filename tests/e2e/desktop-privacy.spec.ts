@@ -18,12 +18,12 @@ const STRINGS = JSON.parse(fs.readFileSync(path.join(ROOT, 'desktop/strings.json
 // Las páginas locales se sirven transpiladas, como módulos, desde un origen de mentira; el IPC de
 // Tauri se reemplaza por lo mínimo: invoke va a window.__TAURI_INTERNALS__.
 const ORIGIN = 'http://zs-desktop.test';
-const module = (file: string) => ts.transpileModule(fs.readFileSync(path.join(UI, file), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext } }).outputText;
+const transpiled = (file: string) => ts.transpileModule(fs.readFileSync(path.join(UI, file), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext } }).outputText;
 const FILES: Record<string, string> = {
-  '/settings.js': module('settings.ts'),
-  '/api': module('api.ts'),
-  '/settings-privacy': module('settings-privacy.ts'),
-  '/settings-tabs': module('settings-tabs.ts'),
+  '/settings.js': transpiled('settings.ts'),
+  '/api': transpiled('api.ts'),
+  '/settings-privacy': transpiled('settings-privacy.ts'),
+  '/settings-tabs': transpiled('settings-tabs.ts'),
   '/tauri-core.js': 'export const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);',
   '/tauri-event.js': 'export const listen = () => Promise.resolve(() => {});',
 };
