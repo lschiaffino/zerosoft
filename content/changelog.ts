@@ -196,6 +196,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-ai-polish',
+    date: '2026-11-11',
+    title: {
+      en: 'Polish what you wrote, in one click',
+      es: 'Pulir lo que escribiste, con un clic',
+      pt: 'Polir o que você escreveu, com um clique',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When you type a long message by hand in Lines or Inbox (chats and email), a "Polish" button appears above the message box. It fixes and clarifies the text without changing what you say, shows you the result first and never sends anything.',
+        es: 'Cuando escribís a mano un mensaje largo en Lines o en Inbox (chats y correo), aparece un botón "Pulir" arriba del cuadro de mensaje. Corrige y aclara el texto sin cambiar lo que decís, te muestra el resultado antes y nunca manda nada.',
+        pt: 'Quando você digita uma mensagem longa à mão no Lines ou no Inbox (chats e email), aparece um botão "Polir" acima da caixa de mensagem. Corrige e deixa o texto mais claro sem mudar o que você diz, mostra o resultado antes e nunca envia nada.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {

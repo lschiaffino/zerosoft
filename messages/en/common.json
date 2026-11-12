@@ -1149,9 +1149,11 @@
     "writing": "Writing…",
     "stop": "Stop",
     "close": "Close",
+    "polishHint": "Polish what you wrote: fixes and clarifies it without changing what you say",
     "preview": "Draft",
     "changesLabel": "Refine",
     "changes": {
+      "polish": "Polish",
       "shorter": "Shorter",
       "longer": "Longer",
       "formal": "More formal",

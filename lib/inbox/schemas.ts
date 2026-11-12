@@ -113,7 +113,7 @@ export const aiSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('rewrite'),
     text: z.string().min(1).max(6000),
-    mode: z.enum(['shorter', 'longer', 'friendlier', 'formal', 'casual', 'fix', 'custom']),
+    mode: z.enum(['polish', 'shorter', 'longer', 'friendlier', 'formal', 'casual', 'fix', 'custom']),
     instruction: z.string().max(1000).optional(),
     threadId: id.optional(),
     channel: z.enum(['whatsapp', 'gmail']).optional(),

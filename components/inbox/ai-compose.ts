@@ -5,7 +5,7 @@ import type { ComposeResult } from '@/components/ai/useAiCompose';
 const ERROR_MARK = '\u0000error:';
 
 type Channel = 'whatsapp' | 'gmail';
-type Mode = 'shorter' | 'longer' | 'formal' | 'casual' | 'fix' | 'custom';
+type Mode = 'polish' | 'shorter' | 'longer' | 'formal' | 'casual' | 'fix' | 'custom';
 
 /** Lo que entiende POST /api/inbox/ai (lib/inbox/schemas.ts, aiSchema). */
 export type InboxAiAsk =

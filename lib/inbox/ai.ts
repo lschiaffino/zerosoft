@@ -27,7 +27,7 @@ import { getThreadRow, type ThreadRow } from './core';
 import { inboxFakeAllowed } from './gmail';
 import { InboxError } from './types';
 
-export const REWRITE_MODES = ['shorter', 'longer', 'friendlier', 'formal', 'casual', 'fix', 'custom'] as const;
+export const REWRITE_MODES = ['polish', 'shorter', 'longer', 'friendlier', 'formal', 'casual', 'fix', 'custom'] as const;
 export type RewriteMode = (typeof REWRITE_MODES)[number];
 export type InboxChannel = 'whatsapp' | 'gmail';
 

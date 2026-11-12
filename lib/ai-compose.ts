@@ -11,7 +11,15 @@
  * - El código de error de la API → qué frase mostrar (nunca el código crudo).
  */
 
-export const COMPOSE_CHANGES = ['shorter', 'longer', 'formal', 'casual', 'fix'] as const;
+export const COMPOSE_CHANGES = ['polish', 'shorter', 'longer', 'formal', 'casual', 'fix'] as const;
+
+/** Desde cuántas palabras escritas a mano se ofrece "Pulir" al lado del composer. */
+export const POLISH_MIN_WORDS = 15;
+
+/** ¿El texto es lo bastante largo como para ofrecer pulirlo? */
+export function worthPolishing(text: string): boolean {
+  return text.trim().split(/\s+/).filter(Boolean).length >= POLISH_MIN_WORDS;
+}
 export type ComposeChange = (typeof COMPOSE_CHANGES)[number];
 
 export function isComposeChange(v: unknown): v is ComposeChange {
@@ -20,6 +28,7 @@ export function isComposeChange(v: unknown): v is ComposeChange {
 
 /** Lo que se le pide al modelo por cada cambio. */
 export const CHANGE_RULE: Record<ComposeChange, string> = {
+  polish: 'Polish it: fix spelling, grammar and punctuation, and make the sentences clearer and smoother to read. Keep the meaning, every fact, name, number and link, the language, the tone and roughly the same length. Do not add greetings, sign-offs or anything that is not already there.',
   shorter: 'Make it shorter and more direct. Keep every fact.',
   longer: 'Make it a little longer and more complete, with the courtesy the situation calls for. Do not add facts, dates, amounts or promises that are not already there.',
   formal: 'Make it more formal and polished, for a client or someone you do not know well.',
