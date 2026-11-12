@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
   "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Concluídos", "compose": "Nova mensagem" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",
@@ -13,7 +13,7 @@
     "pinned": "Fixados",
     "snoozed": "Adiados",
     "scheduled": "Agendados",
-    "done": "Concluídos",
+    "done": "Arquivados",
     "archived": "Arquivadas"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
@@ -60,7 +60,7 @@
     "rename": "Renomear conversa",
     "save": "Salvar",
     "undone": "Voltar para a caixa",
-    "done": "Concluir",
+    "done": "Arquivar",
     "archive": "Arquivar",
     "unarchive": "Desarquivar",
     "snooze": "Adiar",
@@ -157,7 +157,7 @@
     "otherAccounts": "Conectar Gmail",
     "importLink": "ou importe do inbox-zero",
     "searchTitle": "Nada encontrado",
-    "searchBody": "A busca olha nomes, números, e-mails, o texto das mensagens, áudios transcritos e nomes de arquivos, inclusive em Concluídos. Filtros: from:ana, from:me, in:\"Família\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
+    "searchBody": "A busca olha nomes, números, e-mails, o texto das mensagens, áudios transcritos e nomes de arquivos, inclusive em Arquivados. Filtros: from:ana, from:me, in:\"Família\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
     "zeroBody": "Tudo resolvido. O que chegar aparece aqui.",
     "view": {
       "inbox": "Caixa zerada",
@@ -170,7 +170,7 @@
       "pinned": "Nada fixado. Aperte P em uma conversa para fixar.",
       "snoozed": "Nada adiado. Aperte H em uma conversa para adiar.",
       "scheduled": "Nada agendado. Use Mais tarde ao lado de Enviar.",
-      "done": "Nada concluído ainda",
+      "done": "Nada arquivado ainda",
       "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
       "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
     }
@@ -184,7 +184,7 @@
       "navigate": "Conversa seguinte ou anterior",
       "open": "Abrir a conversa",
       "back": "Fechar a conversa ou limpar a busca",
-      "done": "Concluir (ou voltar para a caixa)",
+      "done": "Arquivar (ou voltar para a caixa)",
       "undone": "Voltar para a caixa",
       "snooze": "Adiar",
       "followUp": "Lembrar se não responder",
@@ -194,7 +194,7 @@
       "pin": "Fixar ou desafixar",
       "moveFolder": "Adicionar a uma pasta",
       "search": "Buscar",
-      "goto": "Ir para caixa, concluídos, adiados",
+      "goto": "Ir para caixa, arquivados, adiados",
       "ai": "Ajude-me a escrever",
       "snippet": "Inserir um snippet",
       "commands": "Comandos, enquanto você escreve uma mensagem",
@@ -207,11 +207,11 @@
     "pick": "Escolha uma conversa para ler aqui.",
     "pickNoAccount": "Conecte uma conta para começar.",
     "keysMove": "mover",
-    "keysDone": "concluir",
+    "keysDone": "arquivar",
     "keysSnooze": "adiar"
   },
   "toast": {
-    "done": "{n, plural, one {Concluída} other {# conversas concluídas}}",
+    "done": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
     "undone": "{n, plural, one {De volta na caixa} other {# conversas de volta na caixa}}",
     "read": "{n, plural, one {Marcada como lida} other {# conversas marcadas como lidas}}",
     "unread": "{n, plural, one {Marcada como não lida} other {# conversas marcadas como não lidas}}",
@@ -420,7 +420,7 @@
       "waNeedsLink": "Primeiro vincule o WhatsApp acima.",
       "waLimit": "Até onde chega quem decide é o WhatsApp: um dispositivo vinculado só recebe o histórico que o celular envia ao vincular. O que é anterior fica no celular; para trazer, use a exportação do inbox-zero aqui embaixo.",
       "gmailTitle": "Todo o seu Gmail",
-      "gmailHelp": "Ao conectar o Gmail, o Inbox mostra na hora as conversas recentes da sua caixa de entrada e depois traz o resto do seu e-mail em segundo plano, do mais novo ao mais antigo (sem spam, lixeira nem rascunhos). O que no Gmail não está na caixa de entrada fica em Feito. Pode ser pausada e não duplica nada.",
+      "gmailHelp": "Ao conectar o Gmail, o Inbox mostra na hora as conversas recentes da sua caixa de entrada e depois traz o resto do seu e-mail em segundo plano, do mais novo ao mais antigo (sem spam, lixeira nem rascunhos). O que no Gmail não está na caixa de entrada fica em Arquivados. Pode ser pausada e não duplica nada.",
       "gmailStart": "Trazer todo o meu e-mail",
       "gmailNeedsLink": "Primeiro conecte o Gmail acima.",
       "gmailJobName": "Gmail: {address}",

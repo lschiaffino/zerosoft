@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-inbox-archive',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox: “Done” is now Archive',
+      es: 'Inbox: “Hecho” ahora es Archivar',
+      pt: 'Inbox: “Concluir” agora é Arquivar',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'E archives a chat, and Archived shows everything you archived or marked done before, in one place. Moving a chat back to the inbox works from either.',
+        es: 'E archiva un chat, y Archivados muestra todo lo que archivaste o marcaste como hecho antes, en un solo lugar. Volver a la bandeja funciona desde cualquiera de los dos.',
+        pt: 'E arquiva um chat, e Arquivados mostra tudo o que você arquivou ou concluiu antes, num só lugar. Voltar para a caixa funciona a partir de qualquer um.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {

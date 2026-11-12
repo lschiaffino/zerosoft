@@ -998,7 +998,7 @@ export function buildNav(
             { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
             { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
-            { href: '/app/inbox/v/done', label: l.done, active: view('done'), icon: 'check' },
+            { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived'), icon: 'archive' },
           ],
         },
         appSettingsGroup('/app/inbox/settings'),
