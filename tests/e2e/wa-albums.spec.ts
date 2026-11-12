@@ -47,40 +47,44 @@ const videoThumb = (hue: number) =>
   `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40"><rect width="64" height="40" fill="hsl(${hue} 40% 45%)"/></svg>`).toString('base64')}`;
 
 /**
- * El grupo: un texto, un álbum de 2 fotos (Beto), un texto, un álbum de 3
+ * El grupo: un texto (Dani), un álbum de 2 fotos (Beto), un texto, un álbum de 3
  * (Carla: foto, video, foto), un texto y un álbum de 5 (Beto: con un video y
  * texto en la última). 10 fotos y videos en total, en ese orden.
  */
-function albumEvents(gid: string, title: string): { events: Ev[]; tag: string } {
+function albumEvents(gid: string, title: string, app: 'inbox' | 'lines'): { events: Ev[]; tag: string } {
+  // Lines guarda el archivo como "evo:<id>" y lo baja del proveedor al abrirlo; Inbox lo baja con fetchRef.
+  const src = (id: string) => (app === 'lines' ? `evo:${id}` : '');
   const tag = uid();
   const t0 = Date.now() - 2 * 3_600_000;
   const at = (sec: number) => new Date(t0 + sec * 1000).toISOString();
   const beto = { senderPhone: '15550002002', senderName: 'Beto Álbum' };
   const carla = { senderPhone: '15550002003', senderName: 'Carla Álbum' };
+  // Los textos entre álbumes los manda otra persona: así cada álbum empieza una tanda y lleva su nombre.
+  const dani = { senderPhone: '15550002004', senderName: 'Dani Álbum' };
   const ref = (id: string) => ({ providerMessageId: id, chatId: gid, fromMe: false });
   const base = { type: 'message', chatId: gid, isGroup: true, fromMe: false };
   const text = (id: string, who: typeof beto, body: string, sec: number): Ev => ({ ...base, ...who, chatName: title, providerMessageId: `t${id}-${tag}`, body, timestamp: at(sec) });
   // El largo del id cambia el color de la foto falsa: así se distinguen en la grilla.
   const photo = (id: string, who: typeof beto, sec: number, body = ''): Ev => {
     const pid = `img${'x'.repeat(id.length % 5)}-${id}-${tag}`;
-    return { ...base, ...who, providerMessageId: pid, body, media: { url: '', type: 'image/png', name: '', fetchRef: ref(pid), info: { kind: 'image', width: 480, height: 320 } }, timestamp: at(sec) };
+    return { ...base, ...who, providerMessageId: pid, body, media: { url: src(pid), type: 'image/png', name: '', fetchRef: ref(pid), info: { kind: 'image', width: 480, height: 320 } }, timestamp: at(sec) };
   };
   const video = (id: string, who: typeof beto, sec: number, seconds: number, hue: number): Ev => {
     // Sin "vid-": el falso manda un PDF para esos ids; así baja una imagen y el tipo queda de video.
     const pid = `mov-${id}-${tag}`;
-    return { ...base, ...who, providerMessageId: pid, body: '', media: { url: '', type: 'video/mp4', name: '', fetchRef: ref(pid), info: { kind: 'video', duration: seconds, width: 640, height: 360, thumbnail: videoThumb(hue) } }, timestamp: at(sec) };
+    return { ...base, ...who, providerMessageId: pid, body: '', media: { url: src(pid), type: 'video/mp4', name: '', fetchRef: ref(pid), info: { kind: 'video', duration: seconds, width: 640, height: 360, thumbnail: videoThumb(hue) } }, timestamp: at(sec) };
   };
   return {
     tag,
     events: [
-      text('0', beto, 'Fotos del sábado', 0),
+      text('0', dani, '¿Fotos del sábado?', 0),
       photo('a1', beto, 10),
       photo('a22', beto, 11),
-      text('1', carla, 'Las mías', 100),
+      text('1', dani, '¿Y las de Carla?', 100),
       photo('b1', carla, 110),
       video('b2', carla, 111, 7, 200),
       photo('b333', carla, 112),
-      text('2', beto, 'Y estas', 200),
+      text('2', dani, '¿Alguna más?', 200),
       photo('c1', beto, 210),
       photo('c22', beto, 211),
       video('c3', beto, 212, 75, 30),
@@ -105,13 +109,13 @@ async function checkAlbums(page: Page, thread: Locator) {
   await expect(five).toHaveAttribute('data-count', '5');
 
   // Una burbuja por álbum, un solo nombre arriba, una sola hora abajo; el texto de la última, debajo de la grilla.
-  for (const a of [two, three, five]) {
-    const bubble = thread.locator('.gr-msg', { has: a });
-    await expect(bubble).toHaveCount(1);
-    await expect(bubble.locator('.gr-msg-author')).toHaveCount(1);
-    await expect(bubble.locator('.gr-msg-foot time')).toHaveCount(1);
+  const bubbles = thread.locator('.gr-msg:has(.wa-album)');
+  await expect(bubbles).toHaveCount(3);
+  for (const i of [0, 1, 2]) {
+    await expect(bubbles.nth(i).locator('.gr-msg-author')).toHaveCount(1);
+    await expect(bubbles.nth(i).locator('.gr-msg-foot time')).toHaveCount(1);
   }
-  await expect(thread.locator('.gr-msg', { has: five }).locator('.wa-text')).toContainText('La terraza al final');
+  await expect(bubbles.nth(2).locator('.wa-text')).toContainText('La terraza al final');
   // Ninguna foto del álbum quedó sola en su burbuja.
   await expect(thread.locator('.wa-image')).toHaveCount(0);
 
@@ -161,7 +165,7 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const gid = `1203631${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;
   const title = `Álbum Inbox ${uid()}`;
-  const { events } = albumEvents(gid, title);
+  const { events } = albumEvents(gid, title, 'inbox');
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
   expect(res.ok(), await res.text()).toBe(true);
 
@@ -169,12 +173,14 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
   const thread = page.locator('.ib-wa-thread');
   await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible();
-  const { two, five } = await checkAlbums(page, thread);
+  const { five } = await checkAlbums(page, thread);
   await five.scrollIntoViewIfNeeded();
   await shot(page, 'inbox-1280');
 
   // Clic derecho en una foto: su propio menú; responder cita esa foto.
-  await two.locator('.wa-album-tile').nth(1).click({ button: 'right' });
+  // El álbum de abajo ya está a la vista: sin scroll (el menú se cierra si lo de atrás se mueve).
+  await page.waitForTimeout(300);
+  await five.locator('.wa-album-tile').nth(1).click({ button: 'right' });
   const menu = page.getByRole('menu');
   await expect(menu).toBeVisible();
   await menu.getByRole('menuitem', { name: 'Reply' }).click();
@@ -202,7 +208,7 @@ test('Lines: fotos y videos mandados juntos van en un álbum; cada foto con su m
     const info = (await (await request.get(`/api/groups/numbers/${numberId}`)).json()) as { webhookUrl: string };
     const gid = `1203632${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;
     const title = `Álbum Lines ${uid()}`;
-    const { events } = albumEvents(gid, title);
+    const { events } = albumEvents(gid, title, 'lines');
     const res = await request.post(new URL(info.webhookUrl).pathname, { data: { events } });
     expect(res.ok(), await res.text()).toBe(true);
     let chatId = '';
@@ -216,19 +222,20 @@ test('Lines: fotos y videos mandados juntos van en un álbum; cada foto con su m
     await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
     const thread = page.locator('.wa-thread');
     await expect(thread.locator('.wa-album').first()).toBeVisible({ timeout: 20_000 });
-    const { two, three, five } = await checkAlbums(page, thread);
+    const { five } = await checkAlbums(page, thread);
     await five.scrollIntoViewIfNeeded();
     await shot(page, 'lines-1280');
 
     // Clic derecho en una foto: su menú. "Select" entra en selección con esa foto sola; otra se suma tocándola.
-    await three.locator('.wa-album-tile').nth(0).click({ button: 'right' });
+    await page.waitForTimeout(300);
+    await five.locator('.wa-album-tile').nth(0).click({ button: 'right' });
     const menu = page.getByRole('menu');
     await expect(menu).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Download' })).toBeVisible();
     await menu.getByRole('menuitem', { name: 'Select', exact: true }).click();
-    await expect(three.locator('.wa-album-tile.is-selected')).toHaveCount(1);
-    await expect(three.locator('.wa-album-tile').nth(0)).toHaveClass(/is-selected/);
-    await two.locator('.wa-album-open').nth(1).click();
+    await expect(five.locator('.wa-album-tile.is-selected')).toHaveCount(1);
+    await expect(five.locator('.wa-album-tile').nth(0)).toHaveClass(/is-selected/);
+    await five.locator('.wa-album-open').nth(1).click();
     await expect(thread.locator('.wa-album-tile.is-selected')).toHaveCount(2);
     await expect(page.getByRole('toolbar', { name: '2 selected' })).toBeVisible();
     // En selección, tocar una foto no abre el visor.
