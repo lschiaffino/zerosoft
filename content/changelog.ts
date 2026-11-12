@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-focus-composer-on-open',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: opening a chat with a click puts the cursor in the message box',
+      es: 'Lines e Inbox: abrir un chat con un clic deja el cursor en el campo de mensaje',
+      pt: 'Lines e Inbox: abrir uma conversa com um clique deixa o cursor no campo de mensagem',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp: click a chat and start typing. Moving with the keyboard (j/k) keeps focus on the list, and on the phone the keyboard does not pop up.',
+        es: 'Como WhatsApp: clic en un chat y a escribir. Con el teclado (j/k) el foco sigue en la lista, y en el teléfono no se abre el teclado.',
+        pt: 'Como o WhatsApp: clique numa conversa e comece a digitar. Com o teclado (j/k) o foco fica na lista, e no celular o teclado não abre.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {

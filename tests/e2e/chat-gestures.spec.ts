@@ -723,3 +723,36 @@ test.describe('Deslizar de vuelta', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
+
+// ---------- Abrir un chat con un clic deja el cursor en el campo (como WhatsApp) ----------
+
+test.describe('foco al abrir', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await request.put('/api/groups/prefs', { data: { line: 'all' } });
+  });
+
+  test('Lines: clic en un chat enfoca el campo; con el teclado el foco sigue en la lista', async ({ page, request }) => {
+    const tag = uid();
+    const n = await fakeNumber(request, `Foco ${tag}`);
+    await linesInbound(request, n.webhookUrl, `Uno ${tag}`);
+    await linesInbound(request, n.webhookUrl, `Dos ${tag}`);
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await page.locator('[data-chat-row]', { hasText: `Uno ${tag}` }).click();
+    await expect(page.locator('textarea.gr-input')).toBeFocused();
+    // Con el teclado (Esc saca el foco del campo, después j): el chat cambia y el campo no se lleva el foco.
+    await page.keyboard.press('Escape');
+    await page.locator('body').focus();
+    await page.keyboard.press('j');
+    await expect(page.locator('textarea.gr-input')).not.toBeFocused();
+  });
+
+  test('Inbox: clic en un chat de WhatsApp enfoca el campo', async ({ page, request }) => {
+    const acc = await linkWhatsapp(request);
+    const name = `Foco ${uid()}`;
+    await inboxInbound(request, acc, name);
+    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+    await page.locator('.ib-item', { hasText: name }).click();
+    await expect(page.locator('textarea.wa-input')).toBeFocused();
+  });
+});
