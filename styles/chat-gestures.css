@@ -130,3 +130,43 @@ body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hove
 .zs-ctx-item.has-divider::before { left: 2px; right: 2px; top: -4px; }
 .zs-ctx-icon { display: inline-flex; flex: none; width: 20px; justify-content: center; color: var(--dim); }
 .zs-ctx-item.is-danger .zs-ctx-icon { color: inherit; }
+
+/* Selector sutil (components/ui/MenuSelect.tsx): botón sin caja y lista chica que abre abajo. */
+.zs-msel {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 220px; height: 30px; padding: 0 8px;
+  font: inherit; font-size: 0.875rem; font-weight: 500; color: var(--ink); background: transparent;
+  border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.zs-msel:hover, .zs-msel.is-open { background: var(--ui-hover); }
+.zs-msel:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.zs-msel-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zs-msel-chevron { flex: none; color: var(--dim); transition: transform 0.12s ease; }
+.zs-msel.is-open .zs-msel-chevron { transform: rotate(180deg); }
+.zs-msel-list {
+  position: fixed; z-index: var(--z-menu); max-width: min(320px, calc(100vw - 16px)); padding: 4px; overflow-y: auto; overscroll-behavior: contain;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.1); outline: none;
+  animation: zs-msel-in 0.12s ease-out;
+}
+.zs-msel-opt {
+  display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 0 8px 0 10px; font-size: 0.8125rem; border-radius: 5px; cursor: pointer;
+  user-select: none;
+}
+.zs-msel-opt.is-active { background: var(--ui-hover); }
+.zs-msel-opt[aria-selected='true'] { font-weight: 500; }
+.zs-msel-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zs-msel-hint { flex: none; font-size: 0.75rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.zs-msel-check { flex: none; color: var(--ink); }
+@keyframes zs-msel-in { from { opacity: 0; transform: translateY(-2px); } }
+@media (max-width: 1023px) { .zs-msel { height: 40px; } .zs-msel-opt { min-height: 40px; } }
+@media (prefers-reduced-motion: reduce) { .zs-msel-list { animation: none; } .zs-msel, .zs-msel-chevron { transition: none; } }
+
+/* En Lines e Inbox (estilo WhatsApp) el panel de filtros es una tarjeta como los menús del chat:
+   esquinas suaves y sombra liviana. La base de ui.css queda recta para el resto de la suite. */
+dialog.ui-filter-panel {
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 12px 32px rgb(11 20 26 / 0.14);
+  overflow: hidden;
+}
+dialog.ui-filter-panel .ui-filter-search { border-radius: 8px; }
