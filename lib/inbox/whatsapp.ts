@@ -32,6 +32,7 @@ import { messageMeta, storePresence, storeReaction } from './wa-meta';
 import { inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
 import { lookupContacts, displayName, phoneForLid } from '../wa-contacts';
 import { pokeLive } from '../wa-live';
+import { transientError } from '../transient-error';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -190,7 +191,7 @@ function threadInput(e: { chatId: string; isGroup?: boolean; chatName?: string; 
   return { externalId: e.chatId, kind, title, handle: kind === 'dm' ? phoneDigits(e.chatId) : '' } as const;
 }
 
-async function ingestMessage(account: AccountRow, e: MessageEvent, history: boolean): Promise<boolean> {
+async function ingestMessage(account: AccountRow, e: MessageEvent, history: boolean, onSaved: () => void = () => {}): Promise<boolean> {
   const input = threadInput(e);
   // Quien manda solo con su lid: el teléfono, si la libreta ya lo conoce.
   const senderPhone = e.fromMe ? '' : await senderPhoneFor(account, e).catch(() => e.senderPhone);
@@ -218,14 +219,21 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     sentAt: e.timestamp,
     history: history || e.history,
   });
+  onSaved();
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
-  // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta.
+  // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta. Si falla, el
+  // mensaje ya está guardado: se loguea y se sigue.
   if (input.kind === 'dm' && thread.handle && (!thread.title || thread.title === thread.handle)) {
-    const known = displayName((await lookupContacts(inboxScope(account), [thread.handle])).get(thread.handle));
-    if (known) {
-      await getDb().prepare("UPDATE inbox_threads SET title = ? WHERE id = ? AND (title = '' OR title = handle)").run(known.slice(0, 200), thread.id);
-      thread.title = known;
+    try {
+      const known = displayName((await lookupContacts(inboxScope(account), [thread.handle])).get(thread.handle));
+      if (known) {
+        await getDb().prepare("UPDATE inbox_threads SET title = ? WHERE id = ? AND (title = '' OR title = handle)").run(known.slice(0, 200), thread.id);
+        thread.title = known;
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[inbox] chat name failed', (err as Error)?.name ?? 'error');
     }
   }
   return added;
@@ -271,11 +279,13 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) await learnFromEvents(account, slice).catch(() => null);
   else learning = learnFromEvents(account, slice).catch(() => null);
+  // Mensajes ya guardados: lo que falle después de guardarlos (el nombre del chat) no pide reintento.
+  const stored = new Set<string>();
   for (const e of slice) {
     try {
       switch (e.type) {
         case 'message':
-          if (await ingestMessage(account, e, !!opts.history)) messages++;
+          if (await ingestMessage(account, e, !!opts.history, () => stored.add(e.providerMessageId))) messages++;
           break;
         case 'contact': {
           const t = await findThread(account.id, e.chatId);
@@ -331,12 +341,12 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           break;
       }
     } catch (err) {
-      // Un evento roto no frena el resto.
-      if (e.type === 'message') {
-        failed++;
-        // eslint-disable-next-line no-console
-        console.error('[inbox] webhook message failed', (err as Error)?.name ?? 'error');
-      }
+      // Un evento roto no frena el resto. Pide reintento (500) solo un mensaje EN VIVO que no se pudo guardar por algo
+      // pasajero (la base, la red): un mensaje roto del historial (messages.set, hasta 2000 por tanda) o con una forma
+      // inesperada se loguea y se sigue; si no, el servidor reenviaría la tanda entera una y otra vez.
+      if (e.type === 'message' && !opts.history && !e.history && !stored.has(e.providerMessageId) && transientError(err)) failed++;
+      // eslint-disable-next-line no-console
+      console.error('[inbox] webhook event failed', e.type, (err as Error)?.name ?? 'error');
     }
   }
   if (learning) await learning;
@@ -424,7 +434,7 @@ export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, t
     body: text,
     status: 'sent',
     replyTo: opts.replyTo ?? '',
-    ...(opts.clientId ? { meta: JSON.stringify({ cid: opts.clientId }) } : {}),
+    ...(opts.clientId ? { meta: JSON.stringify({ cid: opts.clientId }), clientId: opts.clientId } : {}),
   });
   // Quien tenga Inbox abierto en esta instancia (otra pestaña) lo ve ya.
   pokeLive('inbox', account.owner_id);

@@ -11,10 +11,10 @@ import type { ProviderCaps } from '@/lib/groups-provider';
 import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
-import { fetchIfChanged } from '@/lib/conditional-fetch';
+import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
 import { isTempId, TEMP_PREFIX } from '@/lib/optimistic-send';
-import { byArrival, cidOf, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
+import { SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
@@ -267,7 +267,7 @@ export default function ChatThread(props: ThreadProps) {
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
   const recordedSecs = useRef(0);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
-  const draftKey = `gr-draft:${props.chat.id}`;
+  const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
   const leaving = useLeavingChat(props.chat.id);
 
@@ -615,7 +615,8 @@ export default function ChatThread(props: ThreadProps) {
 
   async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
     // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
-    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body }));
+    // Con tiempo máximo: un envío que no responde no traba la cola del chat (queda como error, se reintenta).
+    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body, signal: withTimeout(undefined, SEND_TIMEOUT_MS) }));
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -692,6 +693,8 @@ export default function ChatThread(props: ThreadProps) {
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
+    // Lo pendiente es de esta persona: lo que quedó de otra en la misma pestaña no se ve ni se manda.
+    unsentLines.setOwner(props.me);
     const show = () =>
       setMessages((prev) => {
         const next = withUnsent(prev, unsentLines.list(props.chat.id), props.me);

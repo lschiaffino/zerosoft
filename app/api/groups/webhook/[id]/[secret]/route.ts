@@ -69,9 +69,11 @@ export async function POST(req: Request, ctx: Ctx) {
   // Historial que WhatsApp manda al vincular (Evolution MESSAGES_SET): se guarda sin avisos, reglas ni SLA.
   const history = /^messages[._]set$/i.test(String((body as { event?: unknown } | null)?.event ?? ''));
   const result = await ingestEvents(row, events, { history });
-  // Un mensaje que no se pudo guardar (un error, no un repetido): 500 para que el proveedor reintente. Evolution
-  // reintenta lo que no es 2xx hasta 10 veces con espera creciente (5 s a 5 min) y lo ya guardado no se duplica
-  // (índice único por id del proveedor), así que el reintento solo recupera lo que faltó.
+  // Un mensaje en vivo que no se pudo guardar por algo pasajero (la base, la red): 500 para que el proveedor
+  // reintente. Evolution reintenta lo que no es 2xx (hasta 10 veces, de 5 s a 5 min); la Cloud API de Meta reintenta
+  // la tanda por más tiempo (horas). Reintentar es seguro: lo ya guardado no se duplica (índice único por id del
+  // proveedor), un voto o una reacción repetidos no cambian nada ni vuelven a avisar, y una edición o reacción más
+  // vieja no pisa una nueva. El historial y lo que falla por un evento mal formado nunca dan 500.
   if (result.failed) return NextResponse.json({ ok: false, ...result }, { status: 500 });
   return NextResponse.json({ ok: true, ...result });
 }

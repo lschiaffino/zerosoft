@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { delegatedIdentity } from '@/lib/mcp/identity';
 import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream } from '@/lib/wa-live';
-import { liveSessionValid } from '@/lib/wa-live-auth';
+import { liveAccessNow } from '@/lib/wa-live-auth';
 import { requestCursor } from '@/lib/realtime';
 
 export const runtime = 'nodejs';
@@ -31,15 +31,16 @@ export async function GET(req: Request) {
   if (want === 'off') return new NextResponse(null, { status: 204, headers: NO_STORE });
   if (want === 'poll') return NextResponse.json({ ...(await livePoll(viewer, cursor)), stream: liveStreamAllowed(req, [owner]) }, { headers: NO_STORE });
   // Lo que hace falta para revalidar se toma ahora: más tarde no se leen cookies ni headers (lib/wa-live-auth.ts).
-  const session = { userId: owner, sid: user.sid ?? null };
+  const session = { userId: owner, sid: user.sid ?? null, workspaceId: user.workspace?.id ?? null };
   const res = liveStream({
     key: `inbox:${owner}`,
     tab: new URL(req.url).searchParams.get('tab')?.slice(0, 40) || undefined,
     cursor,
     signal: req.signal,
     viewer,
-    // Cada minuto: la sesión de la persona sigue valiendo.
-    check: async () => ((await liveSessionValid(session)) ? viewer : null),
+    // Cada minuto: la sesión de la persona sigue valiendo, en el mismo workspace, sin dos pasos pendientes y con
+    // Inbox abierta para ella.
+    check: async () => ((await liveAccessNow(session, 'inbox')) ? viewer : null),
   });
   return res ?? NextResponse.json({ error: 'too_many_streams' }, { status: 429, headers: NO_STORE });
 }

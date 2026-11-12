@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { groupsSession, sessionViewer } from '@/lib/groups-http';
 import { chatFilterFor, type GroupsViewer } from '@/lib/groups-access';
 import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream, type LiveViewer } from '@/lib/wa-live';
-import { liveSessionValid, linesViewerNow } from '@/lib/wa-live-auth';
+import { liveAccessNow, linesViewerNow } from '@/lib/wa-live-auth';
 import { requestCursor } from '@/lib/realtime';
 
 export const runtime = 'nodejs';
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ...res, stream: liveStreamAllowed(req, [s.ws]) }, { headers: NO_STORE });
   }
   // Lo que hace falta para revalidar se toma ahora: más tarde no se leen cookies ni headers (lib/wa-live-auth.ts).
-  const session = { userId: s.me, sid: s.user.sid ?? null };
+  const session = { userId: s.me, sid: s.user.sid ?? null, workspaceId: s.user.workspace?.id ?? null };
   const role = s.user.role;
   const res = liveStream({
     key: `lines:${s.me}`,
@@ -44,10 +44,12 @@ export async function GET(req: Request) {
     cursor,
     signal: req.signal,
     viewer,
-    // Cada minuto: la sesión sigue valiendo, sigue en el workspace, y con el acceso de hoy.
+    // Cada minuto: la sesión sigue valiendo, en el mismo workspace, sin dos pasos pendientes, con Lines abierta para
+    // la persona, y con el acceso de hoy.
     check: async () => {
-      if (!(await liveSessionValid(session))) return null;
-      const now = await linesViewerNow(s.ws, s.me, role);
+      const access = await liveAccessNow(session, 'groups');
+      if (!access || access.ws !== s.ws) return null;
+      const now = await linesViewerNow(s.ws, s.me, role, access.role);
       return now ? liveViewer(s.ws, now) : null;
     },
   });

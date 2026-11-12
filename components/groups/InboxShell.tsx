@@ -33,7 +33,7 @@ import PanelSplitters from './PanelSplitters';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
-import { unsentLines } from './optimistic';
+import { linesDraftKey, unsentLines } from './optimistic';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -58,9 +58,9 @@ function Highlight({ text, q }: { text: string; q: string }) {
   return <>{parts}</>;
 }
 
-function readDraft(chatId: string): string {
+function readDraft(me: string, chatId: string): string {
   try {
-    return window.sessionStorage.getItem(`gr-draft:${chatId}`) ?? '';
+    return window.sessionStorage.getItem(linesDraftKey(me, chatId)) ?? '';
   } catch {
     return '';
   }
@@ -515,6 +515,7 @@ export default function InboxShell({
   // cuando algo cambió.
   // Un texto que no salió de un chat que ya no está abierto: se avisa acá (la lista siempre está) y el texto queda
   // en ese chat como no enviado, con reintentar (./optimistic.ts).
+  useEffect(() => unsentLines.setOwner(me), [me]);
   useEffect(
     () =>
       unsentLines.subscribe((e) => {
@@ -811,7 +812,7 @@ export default function InboxShell({
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
     // El chat que se deja muestra su borrador ya, desde el clic (sin esperar a que el otro termine de abrir).
-    const draft = c.id !== (switchingTo ?? current) ? readDraft(c.id) : '';
+    const draft = c.id !== (switchingTo ?? current) ? readDraft(me, c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
     return (
       <li

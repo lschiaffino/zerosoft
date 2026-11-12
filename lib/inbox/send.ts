@@ -20,8 +20,8 @@ async function deliver(account: AccountRow, thread: ThreadRow, text: string, cli
  * El chat y su cuenta, los dos de la persona, en una sola ida a la base (en
  * vez de una consulta detrás de la otra). 404 si alguno no es suyo.
  */
-export async function threadWithAccount(owner: string, threadId: string): Promise<{ thread: ThreadRow; account: AccountRow }> {
-  const [thread, account] = await Promise.all([
+export async function threadWithAccount(owner: string, threadId: string, clientId?: string): Promise<{ thread: ThreadRow; account: AccountRow; sent: boolean }> {
+  const [thread, account, sent] = await Promise.all([
     getThreadRow(owner, threadId),
     getDb()
       .prepare(
@@ -29,17 +29,22 @@ export async function threadWithAccount(owner: string, threadId: string): Promis
          WHERE a.owner_id = ? AND a.id = (SELECT t.account_id FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?)`,
       )
       .get(owner, threadId, owner) as Promise<AccountRow | undefined>,
+    // Un reintento del mismo envío (mismo clientId): ¿ya está guardado? En la misma vuelta, sin esperar más.
+    clientId
+      ? getDb().prepare('SELECT 1 AS ok FROM inbox_messages WHERE thread_id = ? AND client_id = ? AND owner_id = ?').get(threadId, clientId, owner)
+      : Promise.resolve(undefined),
   ]);
   if (!account || account.id !== thread.account_id) throw new InboxError('not_found', 404);
-  return { thread, account };
+  return { thread, account, sent: !!sent };
 }
 
-/** Manda ya. Si lo mandado es el borrador guardado, el borrador se limpia. */
+/** Manda ya. Si lo mandado es el borrador guardado, el borrador se limpia. Un reintento con el mismo clientId no sale dos veces. */
 export async function sendToThread(owner: string, threadId: string, body: string, clientId?: string): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
-  const { thread, account } = await threadWithAccount(owner, threadId);
+  const { thread, account, sent } = await threadWithAccount(owner, threadId, clientId);
+  if (sent) return;
   await deliver(account, thread, text, clientId);
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }

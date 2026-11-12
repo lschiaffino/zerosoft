@@ -7,6 +7,7 @@ import type { TrayItem } from '@/components/groups/wa/attachments';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
 import { inboxQueue } from './pending';
+import { withTimeout } from '@/lib/conditional-fetch';
 import { duration } from '@/components/groups/wa/format';
 
 /** Lo que entra en un pedido (como lib/inbox/wa-media.ts); más grande va directo a Blob. */
@@ -62,6 +63,8 @@ async function sendOne(threadId: string, f: { file: Blob; name: string; caption?
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo }),
+      // Un envío que no responde no traba la cola del chat: a los 60 s queda como no enviado (se reintenta).
+      signal: withTimeout(undefined, 60_000),
     }).catch(() => null),
   );
   const data = ((await res?.json().catch(() => ({}))) ?? {}) as Partial<Sent> & { error?: string };

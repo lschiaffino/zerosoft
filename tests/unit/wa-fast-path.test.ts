@@ -243,8 +243,10 @@ describe('mandar', () => {
     // Antes: 6 idas hasta el proveedor y 12 en total, en fila. Hoy: 4 consultas antes del proveedor en 2 idas
     // (tope de escrituras + quién mira + chat; línea + tope de envíos) y una tanda después.
     const beforeProvider = seen.sql.findIndex((q) => /INTO groups_messages/.test(q));
-    expect(beforeProvider).toBeLessThanOrEqual(5);
-    expect(seen.trips).toBeLessThanOrEqual(6);
+    // 5 consultas antes del proveedor (la quinta, en la misma vuelta que el chat: ¿este clientId ya se mandó?).
+    expect(beforeProvider).toBeLessThanOrEqual(6);
+    // Consultas en total (la del clientId va en paralelo con otras: no suma espera).
+    expect(seen.trips).toBeLessThanOrEqual(7);
     expect((body.meta as Record<string, unknown>).cid).toBe('cid-12345678');
     expect(body.status).toBe('sent');
     // Un clientId raro no se guarda.
@@ -294,8 +296,10 @@ describe('mandar', () => {
     });
     // Antes: 3 idas hasta el proveedor. Hoy: el límite por IP y, juntos, el chat y su cuenta.
     const insert = seen.sql.findIndex((q) => /INTO inbox_messages/.test(q));
-    expect(insert).toBeLessThanOrEqual(3);
-    expect(seen.trips).toBeLessThanOrEqual(6);
+    // Más, en la misma vuelta que el chat y su cuenta: ¿este clientId ya se mandó?
+    expect(insert).toBeLessThanOrEqual(4);
+    // Consultas en total (la del clientId va en paralelo con otras: no suma espera).
+    expect(seen.trips).toBeLessThanOrEqual(7);
     const mine = body.messages[body.messages.length - 1];
     expect(mine.body).toBe('respuesta');
     expect(mine.meta?.cid).toBe('cid-abcdefgh');
@@ -312,6 +316,9 @@ describe('mandar', () => {
   });
 });
 
+/** Lo que tira la base cuando no responde (algo pasajero: el proveedor tiene que reintentar). */
+const dbDown = () => Object.assign(new Error('SERVER_ERROR: la base no responde'), { name: 'LibsqlError', code: 'SERVER_ERROR' });
+
 describe('lo que no se puede perder', () => {
   it('un mensaje que no se pudo guardar: el webhook responde 500 (el proveedor reintenta) y el reintento lo recupera sin duplicar', async () => {
     const { ws, number } = await linesSetup('fail-lines');
@@ -321,7 +328,7 @@ describe('lo que no se puede perder', () => {
       POST(new Request('http://zerosoft.test/api/groups/webhook/x/y', { method: 'POST', body: JSON.stringify({ events }) }), { params: Promise.resolve({ id: number.id, secret: number.webhook_secret }) });
     const db = await import('@/lib/db');
     // La base falla una vez justo al guardar (la tanda del mensaje).
-    const spy = vi.spyOn(db, 'dbBatch').mockRejectedValueOnce(new Error('la base no responde'));
+    const spy = vi.spyOn(db, 'dbBatch').mockRejectedValueOnce(dbDown());
     const bad = await post([message(jid, 'fl-1', { body: 'no te pierdas' }), { type: 'presence', chatId: jid, state: 'composing', who: '5491100097001' }]);
     expect(bad.status).toBe(500);
     expect(await bad.json()).toMatchObject({ ok: false, failed: 1, messages: 0 });
@@ -342,7 +349,7 @@ describe('lo que no se puede perder', () => {
     const inbox = await import('@/app/api/inbox/webhook/[id]/[secret]/route');
     const ipost = (events: unknown[]) =>
       inbox.POST(new Request('http://zerosoft.test/api/inbox/webhook/x/y', { method: 'POST', body: JSON.stringify({ events }) }), { params: Promise.resolve({ id: account.id, secret: account.webhook_secret! }) });
-    const spy2 = vi.spyOn(db, 'dbBatch').mockRejectedValueOnce(new Error('la base no responde'));
+    const spy2 = vi.spyOn(db, 'dbBatch').mockRejectedValueOnce(dbDown());
     const ibad = await ipost([message(jid, 'fi-1', { body: 'tampoco este' })]);
     expect(ibad.status).toBe(500);
     spy2.mockRestore();

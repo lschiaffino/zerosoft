@@ -185,8 +185,10 @@ export function chatFilterFor(viewer: GroupsViewer): ((chatIds: string[]) => Pro
     const ids = [...new Set(chatIds)].slice(0, 500);
     if (!ids.length) return new Set();
     const rows = (await getDb()
-      .prepare(`SELECT c.id FROM groups_chats c WHERE c.user_id = ? AND c.id IN (${ids.map(() => '?').join(',')}) AND ${access.sql}`)
-      .all(viewer.ws, ...ids, ...access.args)) as Array<{ id: string }>;
+      // `+c.user_id`: que el planificador busque cada chat por su clave (id) y no recorra todos los chats del
+      // workspace por el índice de user_id (tests/unit/wa-live-stream.test.ts mira el plan).
+      .prepare(`SELECT c.id FROM groups_chats c WHERE c.id IN (${ids.map(() => '?').join(',')}) AND +c.user_id = ? AND ${access.sql}`)
+      .all(...ids, viewer.ws, ...access.args)) as Array<{ id: string }>;
     return new Set(rows.map((r) => r.id));
   };
 }

@@ -282,6 +282,8 @@ export interface NewMessage {
   sentAt?: string;
   /** Mensaje viejo (historial o importación): no cuenta como no leído ni saca el chat de Hecho. */
   history?: boolean;
+  /** Id que puso la pantalla al mandar (único por chat): un reintento del mismo envío encuentra este mensaje. */
+  clientId?: string;
   /** Ya leído en el proveedor (Gmail sin UNREAD). */
   read?: boolean;
   /** WhatsApp: datos de la media, ubicación, contactos o encuesta (JSON de WaMessageMeta). */
@@ -298,7 +300,7 @@ export interface NewMessage {
  * "recordame si no contesta" (contestó). Devuelve false si ya estaba.
  */
 const NEW_MESSAGE_COLS = `id, owner_id, thread_id, external_id, from_me, sender_name, sender_handle, subject, body, email_to, email_cc,
-         email_message_id, media_type, media_name, media_ref, reply_to, status, sent_at, created_at, meta, forwarded`;
+         email_message_id, media_type, media_name, media_ref, reply_to, status, sent_at, created_at, meta, forwarded, client_id`;
 
 /** Los valores de un mensaje nuevo después de thread_id, en el orden de NEW_MESSAGE_COLS. */
 function messageTail(m: NewMessage, sentAt: string): Array<string | number> {
@@ -321,10 +323,11 @@ function messageTail(m: NewMessage, sentAt: string): Array<string | number> {
     nowIso(),
     (m.meta ?? '').slice(0, 40_000),
     m.forwarded ? 1 : 0,
-  ];
+    m.clientId ?? null,
+  ] as Array<string | number>;
 }
 
-const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
 
 /**
  * Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el

@@ -13,6 +13,10 @@
 
 export const TEMP_PREFIX = 'tmp-';
 
+/** Dónde quedan, en la pestaña, los textos de Lines que no salieron y los borradores de Lines (se borran al salir). */
+export const UNSENT_LINES_KEY = 'zs:lines-unsent';
+export const LINES_DRAFT_PREFIX = 'gr-draft:';
+
 export const isTempId = (id: string): boolean => id.startsWith(TEMP_PREFIX);
 
 /** Un id para el envío: único en esta pestaña y fácil de validar en el servidor. */
@@ -112,6 +116,8 @@ export function sendQueueFor(key: string): <T>(job: () => Promise<T>) => Promise
 /** Un texto que se mandó y todavía no está guardado en el servidor: saliendo, o no salió. */
 export interface Unsent {
   clientId: string;
+  /** Quién lo escribió: otra persona que entre en la misma pestaña no lo ve ni lo puede mandar. */
+  owner: string;
   chatId: string;
   body: string;
   replyToId: string | null;
@@ -132,6 +138,8 @@ export type UnsentEvent<S> = { chatId: string; entry: Unsent; type: 'added' | 'p
  */
 export function unsentStore<S>(storageKey: string) {
   let items: Unsent[] | null = null;
+  /** La persona de la sesión. Lo de otra persona no se muestra y se descarta. '' = todavía no se sabe: no se muestra nada. */
+  let owner = '';
   const listeners = new Set<(e: UnsentEvent<S>) => void>();
   const load = (): Unsent[] => {
     if (items) return items;
@@ -141,7 +149,10 @@ export function unsentStore<S>(storageKey: string) {
       const parsed = raw ? (JSON.parse(raw) as unknown) : [];
       if (Array.isArray(parsed)) {
         items = parsed
-          .filter((x): x is Unsent => !!x && typeof x === 'object' && !!cleanClientId((x as Unsent).clientId) && typeof (x as Unsent).chatId === 'string' && typeof (x as Unsent).body === 'string')
+          .filter(
+            (x): x is Unsent =>
+              !!x && typeof x === 'object' && !!cleanClientId((x as Unsent).clientId) && typeof (x as Unsent).owner === 'string' && typeof (x as Unsent).chatId === 'string' && typeof (x as Unsent).body === 'string',
+          )
           .slice(-200)
           // Lo que estaba saliendo cuando se recargó la página: ya nadie lo está mandando.
           .map((x) => ({ ...x, replyToId: x.replyToId ?? null, createdAt: x.createdAt || new Date().toISOString(), ...(x.status === 'failed' ? { error: x.error || 'send_failed' } : { status: 'failed' as const, error: 'interrupted' }) }));
@@ -160,28 +171,44 @@ export function unsentStore<S>(storageKey: string) {
       /* cuota o modo privado: queda en memoria */
     }
   };
+  /** Los que tienen un pedido en curso en esta pestaña (no se mandan otra vez hasta que termine). */
+  const inFlightIds = new Set<string>();
   const emit = (e: UnsentEvent<S>) => {
     for (const fn of [...listeners]) fn(e);
   };
-  const find = (clientId: string) => load().find((x) => x.clientId === clientId);
+  const find = (clientId: string) => load().find((x) => x.clientId === clientId && !!owner && x.owner === owner);
   const drop = (clientId: string) => {
     items = load().filter((x) => x.clientId !== clientId);
     save();
   };
   return {
-    list: (chatId: string): Unsent[] => load().filter((x) => x.chatId === chatId),
+    /**
+     * Quién usa la pestaña ahora (la persona de la sesión). Lo que quedó de otra persona se descarta: nunca se
+     * muestra ni se manda a nombre de otro.
+     */
+    setOwner(id: string): void {
+      owner = id;
+      const before = load().length;
+      items = load().filter((x) => x.owner === id);
+      if (items.length !== before) save();
+    },
+    list: (chatId: string): Unsent[] => (owner ? load().filter((x) => x.chatId === chatId && x.owner === owner) : []),
     get: find,
     add(input: { chatId: string; body: string; replyToId: string | null }): Unsent {
-      const entry: Unsent = { ...input, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
+      const entry: Unsent = { ...input, owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
       load().push(entry);
       save();
       emit({ chatId: entry.chatId, entry, type: 'added' });
       return entry;
     },
-    /** Vuelve a salir (reintento): la misma burbuja, otra vez "enviando". */
+    /**
+     * Vuelve a salir (reintento): la misma burbuja, otra vez "enviando". undefined si ya está saliendo (dos clics en
+     * reintentar no mandan dos pedidos) o no es de esta persona.
+     */
     pending(clientId: string): Unsent | undefined {
       const entry = find(clientId);
-      if (!entry) return undefined;
+      if (!entry || inFlightIds.has(clientId)) return undefined;
+      inFlightIds.add(clientId);
       entry.status = 'pending';
       entry.error = '';
       save();
@@ -189,6 +216,7 @@ export function unsentStore<S>(storageKey: string) {
       return entry;
     },
     fail(clientId: string, error: string): void {
+      inFlightIds.delete(clientId);
       const entry = find(clientId);
       if (!entry) return;
       entry.status = 'failed';
@@ -198,6 +226,7 @@ export function unsentStore<S>(storageKey: string) {
     },
     /** El servidor lo guardó: sale de acá y quien mira recibe el mensaje guardado. */
     saved(clientId: string, saved: S): void {
+      inFlightIds.delete(clientId);
       const entry = find(clientId);
       if (!entry) return;
       drop(clientId);
@@ -205,6 +234,7 @@ export function unsentStore<S>(storageKey: string) {
     },
     /** Se quita (la persona lo descartó, o el chat ya trae su mensaje guardado). */
     remove(clientId: string): void {
+      inFlightIds.delete(clientId);
       const entry = find(clientId);
       if (!entry) return;
       drop(clientId);

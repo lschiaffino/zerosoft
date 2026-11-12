@@ -6,7 +6,8 @@
  * persona abrió otro chat, al volver está como no enviado, con reintentar.
  */
 import type { MessageDto } from '@/lib/groups';
-import { isTempId, sendQueueFor, tempIdFor, unsentStore, type Unsent } from '@/lib/optimistic-send';
+import { withTimeout } from '@/lib/conditional-fetch';
+import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY, isTempId, sendQueueFor, tempIdFor, unsentStore, type Unsent } from '@/lib/optimistic-send';
 
 /** Con qué clientId se mandó un mensaje (provisorio o ya guardado: viene en meta.cid). */
 export function cidOf(m: Pick<MessageDto, 'meta'>): string | undefined {
@@ -14,8 +15,17 @@ export function cidOf(m: Pick<MessageDto, 'meta'>): string | undefined {
   return typeof cid === 'string' ? cid : undefined;
 }
 
-/** Lo que no salió de cada chat de Lines en esta pestaña. */
-export const unsentLines = unsentStore<MessageDto>('zs:lines-unsent');
+/** Lo que no salió de cada chat de Lines en esta pestaña (de la persona que lo escribió: ver `setOwner`). */
+export const unsentLines = unsentStore<MessageDto>(UNSENT_LINES_KEY);
+
+/**
+ * El borrador de un chat de Lines en esta pestaña, de esta persona. Otra persona que entre en la misma pestaña (o el
+ * mismo navegador) no ve ni manda lo que escribió la anterior; además se borran al cerrar sesión (clearOfflineData).
+ */
+export const linesDraftKey = (me: string, chatId: string) => `${LINES_DRAFT_PREFIX}${me}:${chatId}`;
+
+/** Cuánto se espera la respuesta de un envío antes de darlo por no enviado (se puede reintentar sin duplicar). */
+export const SEND_TIMEOUT_MS = 30_000;
 
 /** La cola de envíos de un chat de Lines: textos, archivos, notas de voz y notas salen en el orden en que se mandaron. */
 export const linesQueue = (chatId: string) => sendQueueFor(`lines:${chatId}`);
@@ -84,6 +94,9 @@ export function sendLinesText(clientId: string): void {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ note: false, replyToId: entry.replyToId, body: entry.body, media: null, clientId: entry.clientId }),
+        // Sin respuesta en 30 s: queda como no enviado, con reintentar (el mismo clientId: si sí había salido, el
+        // servidor devuelve el que ya guardó y no lo manda otra vez). La cola del chat no se traba.
+        signal: withTimeout(undefined, SEND_TIMEOUT_MS),
       });
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.ok && typeof json.id === 'string') saved = json as unknown as MessageDto;

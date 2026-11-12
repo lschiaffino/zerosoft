@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GroupsError, cleanContacts, getChatRow, getNumberRow, listMessages, presenceWithName, sendGate, sendMessage } from '@/lib/groups';
+import { GroupsError, cleanContacts, getChatRow, getNumberRow, listMessages, messageByClientId, presenceWithName, sendGate, sendMessage, toMessageDto } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 import { canSeeChat, chatAccessSql, maskMessage } from '@/lib/groups-access';
 import { limitWrites } from '@/lib/write-limit';
@@ -46,13 +46,20 @@ export async function POST(req: Request, ctx: Ctx) {
   const id = (await ctx.params).id;
   // Lo que no depende entre sí va junto (en Turso cada consulta es una ida y vuelta): el tope de escrituras de la
   // persona, quién mira y el chat; después, si puede verlo, la línea. Nada sale ni se manda sin pasar el acceso.
-  const [limited, viewer, chat] = await Promise.all([limitWrites('groups', s.me), sessionViewer(s), getChatRow(s.ws, id)]);
+  const b = await readJson(req);
+  const clientId = cleanClientId(b.clientId);
+  // Si es un reintento del mismo envío (mismo clientId), el mensaje ya guardado viene en la misma vuelta.
+  const [limited, viewer, chat, existing] = await Promise.all([
+    limitWrites('groups', s.me),
+    sessionViewer(s),
+    getChatRow(s.ws, id),
+    clientId ? messageByClientId(id, clientId) : Promise.resolve(null),
+  ]);
   if (limited) return limited;
   if (!chat) return groupsError(404, 'not_found');
   // Sin restricciones (dueño y admins) el chat del workspace ya es visible: no hace falta otra consulta, y el tope
   // de envíos de la línea se cuenta junto con leer la línea. Con restricciones, primero el acceso.
   const open = chatAccessSql(viewer) === null;
-  const b = await readJson(req);
   const note = b.note === true;
   // Lo que se pide mandar se valida antes de contar el envío contra el tope de la línea: un pedido mal armado
   // (vacío, archivo que no se acepta, encuesta inválida) no le gasta envíos a nadie.
@@ -79,6 +86,12 @@ export async function POST(req: Request, ctx: Ctx) {
   let number: Awaited<ReturnType<typeof getNumberRow>>;
   let gated = false;
   try {
+    // Ya mandado (reintento): no cuenta otra vez contra el tope de la línea.
+    if (existing && existing.chat_id === id && existing.user_id === s.ws) {
+      visible = open || (await canSeeChat(viewer, id));
+      if (!visible) return groupsError(404, 'not_found');
+      return NextResponse.json(maskMessage(viewer, toMessageDto(existing)), { status: 201 });
+    }
     if (open && !note) {
       [number] = await Promise.all([getNumberRow(s.ws, chat.number_id), sendGate(chat.number_id)]);
       visible = true;
@@ -104,10 +117,10 @@ export async function POST(req: Request, ctx: Ctx) {
         replyToId: str(b.replyToId, 100) || null,
         note,
         media,
-        clientId: cleanClientId(b.clientId),
+        clientId,
         ...(contacts ? { contacts } : {}),
       },
-      { chat, number, gated },
+      { chat, number, gated, existing: null },
     );
     return NextResponse.json(maskMessage(viewer, msg), { status: 201 });
   } catch (err) {

@@ -111,7 +111,7 @@ function openHub(app: WaLiveApp): Hub {
     hub.boot = null;
     if (hub.closed) return;
     try {
-      const res = await fetch(`/api/${app}/live?cursor=0`, { cache: 'no-store' });
+      const res = await fetch(`/api/${app}/live?cursor=0`, { cache: 'no-store', ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15_000) } : {}) });
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as { cursor?: number; stream?: boolean };
       if (hub.closed) return;

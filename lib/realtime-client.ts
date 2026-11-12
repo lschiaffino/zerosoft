@@ -288,7 +288,8 @@ export class RealtimeClient<E> {
     if (this.stopped || this.mode !== 'poll') return;
     try {
       const sep = this.opts.pollUrl.includes('?') ? '&' : '?';
-      const res = await fetch(`${this.opts.pollUrl}${sep}cursor=${this.cursor}`, { cache: 'no-store' });
+      // Con tiempo máximo: una consulta colgada no frena las siguientes.
+      const res = await fetch(`${this.opts.pollUrl}${sep}cursor=${this.cursor}`, { cache: 'no-store', ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15_000) } : {}) });
       if (!res.ok) throw new Error(String(res.status));
       const wasOffline = this.status === 'offline';
       this.deliver(await res.json());
