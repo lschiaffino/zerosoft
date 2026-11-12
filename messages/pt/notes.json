@@ -202,6 +202,20 @@
     "notification": "Lembrete: {title}",
     "untitled": "Sem título"
   },
+  "info": {
+    "open": "Info da nota",
+    "title": "Info da nota",
+    "close": "Fechar",
+    "words": "Palavras",
+    "characters": "Caracteres",
+    "reading": "Tempo de leitura",
+    "minutes": "{count, plural, one {# minuto} other {# minutos}}",
+    "tasks": "Tarefas feitas",
+    "tasksOf": "{done} de {total}",
+    "attachments": "Anexos",
+    "created": "Criada",
+    "updated": "Última edição"
+  },
   "history": {
     "open": "Histórico de versões",
     "title": "Histórico de versões",

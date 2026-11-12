@@ -2635,7 +2635,9 @@
     "title": "Notes: Add a Note info panel with word count, dates and links",
     "description": "Evernote has a Note info command (Ctrl+Shift+I) that shows created and updated dates, size and word count (https://help.evernote.com/hc/en-us/articles/34296687388307). Our editor in components/notes/NoteEditorPane.tsx shows only the save status and has no word or character count. Writers and people drafting posts need the count while typing. First scope: a menu entry and a shortcut that open a small popover with words, characters, reading time, created and updated dates, notebook and source URL.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-12-notes-info"
   },
   {
     "title": "Notes: Add a keyboard shortcuts drawer opened with Cmd+/",
@@ -2856,5 +2858,35 @@
     "kind": "idea",
     "status": "done",
     "changelog": "2026-11-08-chat-inbox-sort"
+  },
+  {
+    "title": "Notes: Add highlighter colors to the text toolbar",
+    "description": "Evernote 11.25 added highlighter color options (https://releasebot.io/updates/evernote). The Notes editor is the Docs block editor and Notes has no color highlight in its toolbar; the only highlight today is the search-term mark in components/notes/NoteEditorPane.tsx. Highlighting key lines is a core habit when a small team uses notes for meeting minutes and research. First scope: five token-based highlight colors on selected text that work in light and dark mode, kept in Markdown and ENEX export as plain text.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Show the length of audio recordings and uploaded audio files",
+    "description": "Evernote 11.25 shows the recording length on audio and added automatic transcription of uploaded audio in 11.23 (https://releasebot.io/updates/evernote). Notes records and transcribes audio (AudioRecordButton in components/notes/NoteEditorPane.tsx) but the audio block gives no total duration before playing it, and the transcript heading carries no timestamps. Knowing that a clip is 42 minutes before spending AI quota on it matters for a small team. First scope: read the duration from the audio metadata, show it on the block and in the transcribe confirmation.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Transcribe uploaded video files with speaker labels",
+    "description": "Evernote 11.26 added video transcription with speaker recognition (https://releasebot.io/updates/evernote). Notes transcribes recorded or uploaded audio through POST /api/notes/[id]/transcribe and already labels speakers, but a video file attached to a note cannot be transcribed. Teams paste screen recordings of calls into notes, so this closes the gap. First scope: accept video/mp4 and video/webm in the transcribe route by extracting the audio track, keeping the current size limit and AI quota check.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Parse natural-language dates like 'next Friday' when inserting a date",
+    "description": "Evernote 11.26 added natural-language date insertion in the editor (https://releasebot.io/updates/evernote). Notes inherits the Docs date mention with today, tomorrow and a calendar picker (components/docs/DocsEditor.tsx), but typing a phrase such as 'next friday' or 'en 3 dias' does not resolve to a date. Dates in meeting notes and checklists are written fast, and the same helper could feed checklist due dates and reminders. First scope: a pure parser for en, es and pt with unit tests, used by the date mention input.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Let a public link expire on a date and require a password",
+    "description": "Evernote public links stay open until revoked, and its help center documents no expiry (https://help.evernote.com/hc/articles/208313588). Notes has a public read link (share_token in lib/notes-shares.ts) that works until someone turns it off. For a small team sharing client notes, a link that expires after a week and an optional password is a safer default than remembering to revoke. First scope: optional expires_at on the share, checked on the public route, with a picker in the share popover; password protection as a second step.",
+    "product": "notes",
+    "kind": "idea"
   }
 ]

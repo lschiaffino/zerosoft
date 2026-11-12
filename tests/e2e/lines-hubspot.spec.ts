@@ -197,15 +197,24 @@ test('HubSpot: conectar, vincular un grupo y un chat, registrar, filtrar y desco
   await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(tag);
   await expect(page.locator('.gr-row', { hasText: looseName })).toBeVisible();
   await expect(page.locator('.gr-row', { hasText: groupName }).locator('.gr-row-hubspot')).toHaveText('Acme Logistics');
-  await page.getByRole('button', { name: 'Filters and lists' }).click();
-  await page.getByRole('combobox', { name: 'HubSpot link' }).selectOption('linked');
+  // En el panel de filtros: vinculados a HubSpot, sí o no.
+  const linkedFilter = async (choice: 'Yes' | 'No') => {
+    await page.getByTestId('lines-filter-button').click();
+    const filters = page.getByRole('dialog', { name: 'Filters' });
+    await filters.getByRole('navigation', { name: 'Filter fields' }).getByRole('button', { name: /^Linked to HubSpot/ }).click();
+    await filters.getByRole('group', { name: 'Linked to HubSpot' }).getByRole('button', { name: choice, exact: true }).click();
+    await filters.getByRole('button', { name: 'Apply' }).click();
+  };
+  await linkedFilter('Yes');
+  await expect(page.getByTestId('filter-chips').locator('[data-chip="hubspot"]')).toContainText('Linked to HubSpot: Yes');
   await expect(page.locator('.gr-row', { hasText: looseName })).toHaveCount(0);
   await expect(page.locator('.gr-row', { hasText: groupName })).toBeVisible();
   await expect(page.locator('.gr-row', { hasText: danaName })).toBeVisible();
-  await page.getByRole('combobox', { name: 'HubSpot link' }).selectOption('unlinked');
+  await linkedFilter('No');
   await expect(page.locator('.gr-row', { hasText: groupName })).toHaveCount(0);
   await expect(page.locator('.gr-row', { hasText: looseName })).toBeVisible();
-  await page.getByRole('combobox', { name: 'HubSpot link' }).selectOption('');
+  await page.getByTestId('filter-chips').getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.locator('.gr-row', { hasText: groupName })).toBeVisible();
 
   // ---------- Teléfono (390px, táctil), claro y oscuro ----------
   const phone = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });

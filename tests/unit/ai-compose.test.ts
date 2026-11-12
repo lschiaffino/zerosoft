@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHANGE_RULE, COMPOSE_CHANGES, composeErrorKey, defuse, fence, isComposeChange, splitSubject } from '@/lib/ai-compose';
+import { worthPolishing, CHANGE_RULE, COMPOSE_CHANGES, composeErrorKey, defuse, fence, isComposeChange, splitSubject } from '@/lib/ai-compose';
 import { composeReducer, initialCompose, requestFromPrompt, shownDraft, type ComposeEvent, type ComposeRequest, type ComposeState } from '@/components/ai/compose-machine';
 import en from '@/messages/en/common.json';
 import es from '@/messages/es/common.json';
@@ -143,5 +143,17 @@ describe('"Ayudame a escribir": errores en palabras', () => {
       // Los cambios que ofrece la barra tienen nombre en cada idioma.
       expect(Object.keys(d.aiCompose.changes).sort(), lang).toEqual([...COMPOSE_CHANGES].sort());
     }
+  });
+});
+
+describe('pulir', () => {
+  it('se ofrece desde un mensaje largo, no en uno corto', () => {
+    expect(worthPolishing('hola, ¿cómo va?')).toBe(false);
+    expect(worthPolishing('quiero decirle a mi equipo que la semana que viene no voy a estar disponible por las tardes')).toBe(true);
+  });
+
+  it('la regla pide no agregar nada', () => {
+    expect(isComposeChange('polish')).toBe(true);
+    expect(CHANGE_RULE.polish).toContain('Do not add');
   });
 });

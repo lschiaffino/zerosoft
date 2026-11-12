@@ -79,7 +79,18 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
 }
 
 /** Mensajes fijados, arriba del hilo: clic va al mensaje, × lo desfija. */
-export function PinnedBar({ pinned, onJump, onUnpin }: { pinned: MessageDto[]; onJump: (m: MessageDto) => void; onUnpin: (m: MessageDto) => void }) {
+export function PinnedBar({
+  pinned,
+  onJump,
+  onUnpin,
+  textOf = (m) => m.body,
+}: {
+  pinned: MessageDto[];
+  onJump: (m: MessageDto) => void;
+  onUnpin: (m: MessageDto) => void;
+  /** El texto con las menciones nombradas ("@Nombre" en lugar de "@<dígitos>"). */
+  textOf?: (m: MessageDto) => string;
+}) {
   const t = useTranslations('groups.thread');
   const mediaText = useMediaText();
   if (pinned.length === 0) return null;
@@ -89,7 +100,7 @@ export function PinnedBar({ pinned, onJump, onUnpin }: { pinned: MessageDto[]; o
         <div key={m.id} className="gr-pinned-row">
           <button type="button" className="gr-pinned-jump" onClick={() => onJump(m)}>
             <span className="gr-pinned-tag">{t('pinned')}</span>
-            <span className="gr-pinned-text">{m.body.slice(0, 120) || mediaText({ media: m.media })}</span>
+            <span className="gr-pinned-text">{textOf(m).slice(0, 120) || mediaText({ media: m.media })}</span>
           </button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onUnpin(m)} aria-label={t('unpinLabel')}>
             ×
@@ -106,8 +117,11 @@ export function ForwardModal({
   fromChatId,
   onClose,
   onDone,
+  textOf = (m) => m.body,
 }: {
   message: MessageDto | null;
+  /** El texto con las menciones nombradas ("@Nombre" en lugar de "@<dígitos>"). */
+  textOf?: (m: MessageDto) => string;
   fromChatId: string;
   onClose: () => void;
   onDone: (results: Array<{ chatId: string; name: string; ok: boolean; error?: string }>) => void;
@@ -173,7 +187,7 @@ export function ForwardModal({
       }
     >
       <div className="ui-fields">
-        {message && <p className="gr-quote">{message.body.slice(0, 200) || mediaText({ media: message.media })}</p>}
+        {message && <p className="gr-quote">{textOf(message).slice(0, 200) || mediaText({ media: message.media })}</p>}
         <label className="ui-field">
           <span className="label">{t('forward.search')}</span>
           <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />

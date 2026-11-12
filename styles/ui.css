@@ -1226,3 +1226,181 @@ tr:hover .badge:not(.badge-ok, .badge-warn, .badge-bad, .badge-info, .badge-ink)
 /* Mientras se arrastra: el cursor no cambia al pasar por otros elementos y no se selecciona texto. */
 html.ui-resizing, html.ui-resizing * { cursor: col-resize !important; user-select: none !important; }
 @media (prefers-reduced-motion: reduce) { .ui-splitter::after { transition: none; } }
+
+/* ---------- Panel de filtros (components/ui/FilterPanel.tsx) ---------- */
+/* Caja flotante de dos paneles debajo de la barra que la abre; en el teléfono, hoja a pantalla completa.
+   Es un <dialog> modal (arriba de todo, lo de atrás inerte) con el telón transparente: un clic afuera lo cierra. */
+dialog.ui-filter-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  outline: none;
+  animation: ui-filter-in 140ms var(--ease);
+}
+dialog.ui-filter-panel[open] { display: flex; }
+dialog.ui-filter-panel::backdrop { background: transparent; }
+@keyframes ui-filter-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.ui-filter-panel .btn-sm { --btn-h: 30px; --btn-px: 12px; --btn-fs: 0.8125rem; }
+.ui-filter-panel .input { min-height: 34px; padding: 6px 10px; font-size: 0.875rem; }
+.ui-filter-panel :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui-filter-panel .input:focus-visible { outline: none; }
+
+/* El título está para lectores de pantalla; a la vista solo en la hoja del teléfono. */
+.ui-filter-panel:not(.is-sheet) .ui-filter-head {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.ui-filter-head { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.ui-filter-title { flex: 1; min-width: 0; margin: 0; font-family: var(--font-signage); font-weight: var(--signage-weight); letter-spacing: var(--signage-tracking); font-size: 1.125rem; line-height: 1.2; }
+.ui-filter-total { flex: none; font-size: 0.8125rem; color: var(--ink-3); }
+.ui-filter-back { flex: none; margin-left: -8px; }
+
+.ui-filter-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+.ui-filter-fields { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); background: var(--bg-soft); }
+.ui-filter-search { flex: none; width: auto; margin: 12px 12px 8px; }
+.ui-filter-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 12px; }
+.ui-filter-group + .ui-filter-group { margin-top: 6px; }
+.ui-filter-cat {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 28px; padding: 0 6px; text-align: left;
+  font: inherit; font-size: 0.75rem; font-weight: 600; color: var(--ink-3); background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+@media (hover: hover) { .ui-filter-cat:hover:not(:disabled) { color: var(--ink); background: var(--ui-hover); } }
+.ui-filter-cat:disabled { cursor: default; }
+.ui-filter-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-filter-chevron { flex: none; transition: transform var(--ui-dur) var(--ease); }
+.ui-filter-cat[aria-expanded='true'] .ui-filter-chevron { transform: rotate(90deg); }
+.ui-filter-items { list-style: none; margin: 0; padding: 0; }
+.ui-filter-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 8px 0 24px; text-align: left;
+  font: inherit; color: var(--ink); background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+@media (hover: hover) { .ui-filter-item:hover { background: var(--ui-hover); } }
+.ui-filter-item.is-on { font-weight: 600; background: var(--ui-selected); }
+@media (hover: hover) { .ui-filter-item.is-on:hover { background: var(--ui-selected-hover); } }
+.ui-filter-panel .ui-filter-item:focus-visible { outline-offset: -2px; }
+.ui-filter-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-filter-mark {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+  font-family: var(--font-data); font-size: 0.6875rem; font-weight: 600; line-height: 1; color: var(--bg); background: var(--ink); border-radius: var(--radius-1);
+}
+.ui-filter-go { display: none; flex: none; color: var(--ink-3); }
+
+.ui-filter-editor { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; padding: 14px 18px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.ui-filter-editor-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; min-height: 44px; }
+.ui-filter-editor-names { min-width: 0; }
+.ui-filter-crumb { margin: 0 0 2px; font-size: 0.75rem; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-filter-field-title { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-filter-help { margin: 0; }
+.ui-filter-empty { margin: 0; padding: 14px 8px; font-size: 0.875rem; color: var(--ink-3); }
+
+.ui-filter-multi { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.ui-filter-all { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.ui-filter-all .ui-check { font-weight: 600; }
+.ui-filter-count { flex: none; font-size: 0.8125rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ui-filter-options { flex: 1; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; margin: -4px 0 0; }
+.ui-check.ui-filter-option { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: var(--radius-1); }
+.ui-check.ui-filter-option input[type='checkbox'] { margin: 0; }
+@media (hover: hover) { .ui-filter-option:hover { background: var(--ui-hover); } }
+.ui-filter-option-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* La cursiva se sale un poco de su caja: aire a la derecha para que no se corte la última letra. */
+.ui-filter-option.is-special .ui-filter-option-name { padding-right: 3px; color: var(--ink-2); font-style: italic; }
+.ui-filter-option-hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--ink-3); }
+.ui-filter-avatar {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-2); background: var(--ui-selected); border-radius: var(--radius-1);
+}
+.ui-filter-dot { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+
+.ui-filter-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ui-filter-presets .btn { justify-content: flex-start; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.ui-filter-presets .btn[aria-pressed='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); --btn-bd-hover: var(--ink); }
+.ui-filter-presets .btn[aria-pressed='true']:hover { color: var(--bg); }
+.ui-filter-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.ui-filter-date { max-width: 520px; }
+.ui-filter-tri { align-self: flex-start; max-width: 100%; flex-wrap: wrap; row-gap: 6px; }
+.ui-filter-tri .btn { min-width: 64px; font-weight: 500; }
+.ui-filter-text { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.ui-filter-custom { min-width: 0; }
+
+.ui-filter-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.ui-filter-foot-gap { flex: 1; }
+
+/* Teléfono: hoja a pantalla completa, en dos pasos. */
+dialog.ui-filter-panel.is-sheet { inset: 0; width: 100%; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; animation: none; }
+/* En el editor, "volver" ya dice dónde se está: el título queda para lectores de pantalla. */
+.ui-filter-panel.is-sheet[data-step='editor'] .ui-filter-title { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ui-filter-panel.is-sheet .ui-filter-total { margin-left: auto; }
+.ui-filter-panel.is-sheet .ui-filter-body { grid-template-columns: minmax(0, 1fr); }
+.ui-filter-panel.is-sheet .ui-filter-fields { border-right: 0; background: var(--bg); }
+.ui-filter-panel.is-sheet[data-step='fields'] .ui-filter-editor,
+.ui-filter-panel.is-sheet[data-step='editor'] .ui-filter-fields { display: none; }
+.ui-filter-panel.is-sheet .ui-filter-go { display: block; }
+/* En la hoja no hay un editor al lado: ningún campo queda marcado como abierto. */
+.ui-filter-panel.is-sheet .ui-filter-item.is-on { font-weight: 400; background: transparent; }
+.ui-filter-panel.is-sheet .ui-filter-item { min-height: 44px; }
+.ui-filter-panel.is-sheet .ui-filter-cat { min-height: 40px; }
+.ui-filter-panel.is-sheet .ui-check.ui-filter-option { min-height: 44px; }
+.ui-filter-panel.is-sheet .ui-filter-all .ui-check { align-items: center; min-height: 40px; }
+.ui-filter-panel.is-sheet .btn-sm { --btn-h: 40px; }
+.ui-filter-panel.is-sheet .input { min-height: 40px; font-size: 1rem; }
+/* Con el dedo (también en una tablet, donde el panel flota): objetivos de 40px y letra de 16px en los campos. */
+@media (pointer: coarse) {
+  .ui-filter-panel .ui-filter-item { min-height: 44px; }
+  .ui-filter-panel .ui-filter-cat { min-height: 40px; }
+  .ui-filter-panel .ui-check.ui-filter-option { min-height: 44px; }
+  .ui-filter-panel .ui-filter-all .ui-check { align-items: center; min-height: 40px; }
+  .ui-filter-panel .input { min-height: 40px; font-size: 1rem; }
+}
+.ui-filter-panel.is-sheet .ui-filter-foot { flex-wrap: wrap; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+.ui-filter-panel.is-sheet .ui-filter-editor { padding: 14px 16px 16px; }
+/* Si el pie no entra en una fila, "Aplicar" ocupa lo que queda de la suya. */
+.ui-filter-panel.is-sheet .ui-filter-foot .btn-primary { flex: 1 0 auto; }
+.ui-filter-panel.is-sheet .ui-filter-search { margin: 12px 16px 8px; }
+.ui-filter-panel.is-sheet .ui-filter-list { padding: 0 8px 12px; }
+.ui-filter-panel.is-sheet .ui-filter-range { grid-template-columns: minmax(0, 1fr); }
+@media (prefers-reduced-motion: reduce) {
+  .ui-filter-panel { animation: none; }
+  .ui-filter-chevron { transition: none; }
+}
+
+/* Filtros aplicados: un chip recto por campo; "Limpiar" y las acciones siguen en la misma fila. */
+.ui-filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.ui-filter-chip-list { display: contents; list-style: none; margin: 0; padding: 0; }
+.ui-filter-chip {
+  display: inline-flex; align-items: stretch; max-width: 100%; min-width: 0; height: 26px; font-size: 0.78rem; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--ui-field); border-radius: var(--radius-1);
+}
+.ui-filter-chip-text {
+  display: block; flex: 0 1 auto; min-width: 0; padding: 0 2px 0 8px; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: inherit; color: inherit; text-align: left; background: transparent; border: 0;
+}
+.ui-filter-chip-text b { font-weight: 600; }
+button.ui-filter-chip-text { cursor: pointer; }
+button.ui-filter-chip-text:hover { text-decoration: underline; text-underline-offset: 2px; }
+.ui-filter-chip-x {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; padding: 0; color: var(--ink-3); background: transparent; border: 0;
+  border-radius: 0 var(--radius-1) var(--radius-1) 0; cursor: pointer;
+}
+.ui-filter-chip-x:hover { color: var(--ink); background: var(--ui-hover); }
+.ui-filter-chip :focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.ui-filter-chip-actions { display: inline-flex; align-items: center; gap: 2px; }
+.ui-filter-chips .ui-filter-chip-actions .btn { --btn-h: 26px; --btn-px: 8px; --btn-fs: 0.78rem; }
+@media (pointer: coarse) {
+  .ui-filter-chip { height: 40px; }
+  .ui-filter-chip-text { line-height: 38px; }
+  .ui-filter-chip-x { width: 40px; }
+}

@@ -47,12 +47,91 @@ export function mentionCandidates(items: Array<{ body: string; mentions?: unknow
   return [...out].slice(0, max);
 }
 
-/** Etiqueta de la mención: el nombre o, si solo se sabe el teléfono, el teléfono con formato. '' si no se sabe nada. */
-export function mentionLabel(target: MentionTarget | undefined, formatPhone: (digits: string) => string): string {
+/** Dígitos más largos que un teléfono habitual: un lid. */
+const LID_SHAPED = /^\d{14,20}$/;
+
+/**
+ * Ids de un mensaje que son menciones seguro y nunca se muestran como dígitos:
+ * los guardados como "<dígitos>@lid" en la lista de mencionados. Sin lista
+ * guardada (mensajes viejos, vistas previas que solo tienen el texto), los
+ * "@<dígitos>" del texto con forma de lid. Un "@12345" escrito a mano, o un
+ * número que la lista guardada no trae, no entra: queda como se escribió.
+ */
+export function hiddenMentions(item: { body: string; mentions?: unknown }): string[] {
+  const out: string[] = [];
+  if (Array.isArray(item.mentions) && item.mentions.length) {
+    for (const raw of item.mentions) {
+      const d = typeof raw === 'string' && /@lid$/i.test(raw) ? raw.replace(/@lid$/i, '') : '';
+      if (/^\d{5,20}$/.test(d) && !out.includes(d)) out.push(d);
+    }
+    return out;
+  }
+  return mentionDigits(item.body).filter((d) => LID_SHAPED.test(d));
+}
+
+/**
+ * Las menciones de un mensaje dentro de lo resuelto para toda la tanda. Una
+ * entrada sin nombre ni teléfono ("alguien") solo vale para el mensaje que la
+ * trae como mención.
+ */
+export function ownMentions(map: MentionMap, item: { body: string; mentions?: unknown }): MentionMap {
+  const own: MentionMap = {};
+  let hidden: string[] | null = null;
+  const stored = Array.isArray(item.mentions) && item.mentions.length ? (item.mentions as unknown[]) : null;
+  for (const d of mentionCandidates([item])) {
+    const t = map[d];
+    if (!t) continue;
+    if (!t.name && !t.phone) {
+      hidden ??= hiddenMentions(item);
+      if (!hidden.includes(d)) continue;
+    }
+    // Un teléfono sin nombre que otro mensaje mencionó y la lista guardada de este no trae: acá es texto.
+    if (!t.name && t.phone === d && stored && !stored.includes(d)) continue;
+    own[d] = t;
+  }
+  return own;
+}
+
+/** "Alguien" para una mención que no se sabe de quién es, donde el texto lo arma el servidor (vistas previas, avisos, export). */
+const SOMEONE: Record<string, string> = { en: 'someone', es: 'alguien', pt: 'alguém' };
+
+export function mentionSomeone(locale: string | null | undefined): string {
+  return SOMEONE[String(locale ?? '').slice(0, 2).toLowerCase()] ?? SOMEONE.en;
+}
+
+/**
+ * Etiqueta de la mención: el nombre o, si solo se sabe el teléfono, el
+ * teléfono con formato. Una mención de la que no se sabe nada (un lid sin
+ * resolver) lleva `someone` ("alguien"), nunca los dígitos. '' si no hay nada.
+ */
+export function mentionLabel(target: MentionTarget | undefined, formatPhone: (digits: string) => string, someone = ''): string {
   if (!target) return '';
   const name = (target.name ?? '').trim();
   if (name) return name;
-  return target.phone ? formatPhone(target.phone) : '';
+  return target.phone ? formatPhone(target.phone) : someone;
+}
+
+/**
+ * Etiquetas para mostrar las menciones de un mensaje: primero `base` (los
+ * participantes del chat, por teléfono) y después lo que resolvió el servidor
+ * (también lids). Si el servidor solo sabe el teléfono y ese teléfono es de
+ * un participante con nombre, va el nombre.
+ */
+export function mentionLabels(
+  base: Record<string, string>,
+  names: MentionMap | undefined,
+  formatPhone: (digits: string) => string,
+  someone = '',
+): Record<string, string> {
+  if (!names) return base;
+  const out: Record<string, string> = { ...base };
+  for (const [d, target] of Object.entries(names)) {
+    if (out[d]) continue;
+    // Solo un teléfono entero: uno enmascarado ("54 ••• 00") no identifica a nadie.
+    const label = (!target.name?.trim() && /^\d{8,15}$/.test(target.phone ?? '') && base[target.phone]) || mentionLabel(target, formatPhone, someone);
+    if (label) out[d] = label;
+  }
+  return out;
 }
 
 export type MentionPart = string | { mention: string; label: string };

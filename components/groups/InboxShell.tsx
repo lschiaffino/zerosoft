@@ -6,9 +6,32 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@/lib/groups';
+import type { ChatDto, GroupsPerson, LabelDto, PropertyDef } from '@/lib/groups';
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
 import { cleanHubspotFilters, type HubspotPropFilter } from '@/lib/groups-hubspot-shared';
+import FilterPanel, { FilterChips } from '@/components/ui/FilterPanel';
+import { filterChips, type ChipStrings, type FilterCategory, type FilterField, type FilterOption, type FilterValues } from '@/lib/filter-panel';
+import {
+  LINES_TABS,
+  ME,
+  NONE,
+  PROP_SET,
+  PROP_UNSET,
+  activeTabs,
+  applyTab,
+  countFilters,
+  filtersToValues,
+  isEmptyFilters,
+  linesFiltersFromParam,
+  parseLinesFilters,
+  propFieldId,
+  serializeLinesFilters,
+  valuesToFilters,
+  withoutSearch,
+  type LinesFilters,
+  type LinesTab,
+  type PropKinds,
+} from '@/lib/groups-filters';
 import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
@@ -17,7 +40,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, Close, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -30,15 +53,36 @@ import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
+import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
 
-const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
-/** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
-const CHIPS: Array<ChatFilter | 'groups'> = ['all', 'unread', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'];
+/** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
+const LABEL_HEX: Record<string, string> = {
+  gray: 'var(--dim)',
+  red: '#d93a40',
+  orange: '#f2611d',
+  yellow: '#e6b400',
+  green: '#12a150',
+  teal: '#00b8a9',
+  blue: '#2f6bff',
+  purple: '#7b4dff',
+  pink: '#e23d7f',
+};
+
+/** El campo del panel que cada pestaña pone: su chip no se repite debajo de la búsqueda. */
+const TAB_FIELD: Record<Exclude<LinesTab, 'all'>, string> = {
+  unread: 'unread',
+  groups: 'kind',
+  unanswered: 'waiting',
+  mine: 'assignee',
+  unassigned: 'assignee',
+  flagged: 'flagged',
+  closed: 'status',
+};
 
 /** Texto con lo buscado en negrita (sin HTML). */
 function Highlight({ text, q }: { text: string; q: string }) {
@@ -64,6 +108,7 @@ function readDraft(chatId: string): string {
   }
 }
 const STORE = 'zs-groups-inbox';
+const NO_HS: HubspotPropFilter[] = [];
 /** Chats por página de la lista (se piden más al llegar al final). */
 const PAGE = 60;
 /** Tope de filas que se refrescan de una vez (lo que la API devuelve como máximo). */
@@ -103,71 +148,14 @@ interface DroppedNumber {
 }
 export const useGroupsInbox = () => useContext(Ctx);
 
-interface Controls {
-  filter: ChatFilter;
-  label: string;
-  kind: string;
-  assignee: string;
-  /** Equipo asignado (filtro de la bandeja; no se guarda en las listas). */
-  team: string;
-  propKey: string;
-  propValue: string;
-  /** Vinculados (o no) a HubSpot. */
-  hubspot: '' | 'linked' | 'unlinked';
-  /** Condiciones sobre propiedades de la empresa de HubSpot. */
-  hsProps: HubspotPropFilter[];
-  q: string;
-}
-
-const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [], q: '' };
-
-function readSaved(): Partial<Controls> | null {
+/** Los filtros que quedaron puestos en esta pestaña del navegador (también los guardados con el formato anterior). */
+function readSaved(): LinesFilters | null {
   try {
     const raw = window.sessionStorage.getItem(STORE);
-    if (!raw) return null;
-    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string; hsProps?: unknown };
-    return {
-      filter: FILTERS.includes(v.filter as ChatFilter) ? (v.filter as ChatFilter) : 'all',
-      label: typeof v.label === 'string' ? v.label : '',
-      kind: v.kind === 'group' || v.kind === 'dm' ? v.kind : '',
-      assignee: typeof v.assignee === 'string' ? v.assignee : '',
-      team: typeof v.team === 'string' ? v.team : '',
-      hubspot: v.hubspot === 'linked' || v.hubspot === 'unlinked' ? v.hubspot : '',
-      hsProps: cleanHubspotFilters(v.hsProps),
-    };
+    return raw ? withoutSearch(linesFiltersFromParam(raw)) : null;
   } catch {
     return null;
   }
-}
-
-/** Los controles de la bandeja ↔ los filtros de una lista guardada. */
-export function controlsToFilters(c: Controls): SavedListFilters {
-  const f: SavedListFilters = {};
-  if (c.filter !== 'all') f.filter = c.filter;
-  if (c.q.trim()) f.q = c.q.trim();
-  if (c.label) f.labelIds = [c.label];
-  if (c.assignee) f.assignee = c.assignee;
-  if (c.kind === 'dm' || c.kind === 'group') f.kind = c.kind;
-  if (c.propKey) f.props = [c.propValue ? { key: c.propKey, op: 'is', value: c.propValue } : { key: c.propKey, op: 'set' }];
-  if (c.hubspot) f.hubspot = c.hubspot;
-  if (c.hsProps.length) f.hsProps = c.hsProps;
-  return f;
-}
-
-export function filtersToControls(f: SavedListFilters): Controls {
-  const p = f.props?.[0];
-  return {
-    filter: f.filter ?? 'all',
-    label: f.labelIds?.[0] ?? '',
-    kind: f.kind ?? '',
-    assignee: f.assignee ?? '',
-    team: '',
-    propKey: p?.key ?? '',
-    propValue: p?.op === 'is' ? (p.value ?? '') : '',
-    hubspot: f.hubspot ?? '',
-    hsProps: f.hsProps ?? [],
-    q: f.q ?? '',
-  };
 }
 
 function chatIdFromPath(pathname: string): string | null {
@@ -192,6 +180,10 @@ function inboxQuery(listId: string | null, folder: string): string {
   const q = p.toString();
   return q ? `?${q}` : '';
 }
+
+const IMPORTS_CLOSED_KEY = 'zs-lines-imports-closed';
+/** Una importación terminada: otra importación del mismo número (otros totales) vuelve a avisar. */
+const importKey = (im: { numberId: string; chatsTotal: number; messages: number }) => `${im.numberId}:${im.chatsTotal}:${im.messages}`;
 
 export default function InboxShell({
   labels,
@@ -220,6 +212,7 @@ export default function InboxShell({
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
+  const tf = useTranslations('common.ui.filter');
   const { style: chatStyle } = useChatStyle();
   const errText = useErrorText();
   const [toast, showToast] = useToast();
@@ -250,11 +243,16 @@ export default function InboxShell({
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
-  const [controls, setControls] = useState<Controls>(EMPTY);
-  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, q } = controls;
+  // Los filtros de la lista (pestañas y panel) y, aparte, lo escrito en la búsqueda.
+  const [filters, setFilters] = useState<LinesFilters>({});
+  const [q, setQ] = useState('');
+  const [panelOpen, setPanelOpen] = useState(false);
+  // El campo con el que se abre el panel (al tocar un chip).
+  const [panelField, setPanelField] = useState<string | null>(null);
+  const filterBtn = useRef<HTMLButtonElement>(null);
+  const searchRow = useRef<HTMLDivElement>(null);
   // HubSpot conectado en el workspace: la bandeja ofrece el filtro de vinculados.
   const [hubspotOn, setHubspotOn] = useState(false);
-  const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
   const [debounced, setDebounced] = useState('');
   const [rows, setRows] = useState<ChatDto[]>([]);
   // Las filas a la vista, para los gestos (deslizar, arrastrar) que corren fuera del render.
@@ -270,13 +268,47 @@ export default function InboxShell({
   const [error, setError] = useState(false);
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
   const [saving, setSaving] = useState<'new' | 'rename' | null>(null);
+  const { hidden: detailsHidden } = useDetailsHidden();
+  // "Importación terminada" se puede cerrar y queda cerrado (por navegador) hasta la próxima importación.
+  const [importsClosed, setImportsClosed] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(IMPORTS_CLOSED_KEY) ?? '[]') as unknown;
+      if (Array.isArray(raw)) setImportsClosed(raw.filter((x): x is string => typeof x === 'string').slice(-50));
+    } catch {
+      /* sin almacenamiento: vale para esta vista */
+    }
+  }, []);
+  // Una línea que se reconecta saca su aviso cerrado de la lista: si se vuelve a caer, avisa de nuevo.
+  useEffect(() => {
+    if (!loaded) return;
+    const down = new Set(dropped.map((n) => `drop:${n.id}`));
+    setImportsClosed((cur) => {
+      const next = cur.filter((k) => !k.startsWith('drop:') || down.has(k));
+      if (next.length === cur.length) return cur;
+      try {
+        window.localStorage.setItem(IMPORTS_CLOSED_KEY, JSON.stringify(next));
+      } catch {
+        /* vale para esta vista */
+      }
+      return next;
+    });
+  }, [dropped, loaded]);
+  const closeImport = (key: string) => {
+    const next = [...importsClosed.filter((k) => k !== key), key].slice(-50);
+    setImportsClosed(next);
+    try {
+      window.localStorage.setItem(IMPORTS_CLOSED_KEY, JSON.stringify(next));
+    } catch {
+      /* igual queda cerrado en esta vista */
+    }
+  };
   const [removing, setRemoving] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
   const listCache = useRef(new ListCache<CachedList>(30)).current;
-  const live = useRef({ want: '', shown: '', rows: [] as ChatDto[], next: null as string | null, pinned: 0, kept: 0, etag: '', etagUrl: '', more: false, filter: 'all' as ChatFilter, current: null as string | null });
+  const live = useRef({ want: '', shown: '', rows: [] as ChatDto[], next: null as string | null, pinned: 0, kept: 0, etag: '', etagUrl: '', more: false, unreadOnly: false, current: null as string | null });
   const listAbort = useRef<AbortController | null>(null);
   const moreAbort = useRef<AbortController | null>(null);
   const activeList = lists.find((l) => l.id === listId) ?? null;
@@ -286,8 +318,9 @@ export default function InboxShell({
     if (listId) return;
     const saved = readSaved();
     if (saved) {
-      setControls((c) => ({ ...c, ...saved }));
-      if (saved.assignee || saved.team || saved.hubspot || saved.hsProps?.length) setMoreOpen(true);
+      setFilters(saved);
+      // Con líneas elegidas en los filtros, el selector de línea no las recorta.
+      if (saved.lines?.length) setLine('all');
     }
     // Solo al entrar: una lista abierta manda sobre lo guardado en la pestaña.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,20 +328,23 @@ export default function InboxShell({
   // Abrir una lista carga sus filtros (también al volver a la misma desde el sidebar).
   useEffect(() => {
     if (!activeList) return;
-    const c = filtersToControls(activeList.filters);
-    setControls(c);
-    setDebounced(c.q.trim());
-    if (c.assignee || c.propKey || c.hubspot || c.hsProps.length) setMoreOpen(true);
+    const f = parseLinesFilters(activeList.filters);
+    setFilters(withoutSearch(f));
+    setQ(f.q ?? '');
+    setDebounced(f.q ?? '');
+    // Una lista con líneas elegidas se ve entera: el selector de línea no la recorta.
+    if (f.lines?.length) setLine('all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeList?.id, activeList?.updatedAt]);
+  const filtersKey = serializeLinesFilters(filters);
   useEffect(() => {
     if (listId) return;
     try {
-      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot, hsProps }));
+      window.sessionStorage.setItem(STORE, filtersKey || '{}');
     } catch {
       // Sin storage: los filtros duran lo que dura la página.
     }
-  }, [filter, label, kind, assignee, team, hubspot, hsProps, listId]);
+  }, [filtersKey, listId]);
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(id);
@@ -326,23 +362,18 @@ export default function InboxShell({
 
   // La lista: una entrada de caché por carpeta, línea, filtros y búsqueda; páginas con cursor; pedidos que se cortan.
   const query = useMemo(() => {
-    const p = new URLSearchParams({ filter });
+    const p = new URLSearchParams();
+    if (filtersKey) p.set('f', filtersKey);
+    // "Hoy" y "esta semana" empiezan a la medianoche de quien mira.
+    if (filters.lastMessage || filters.created) p.set('tz', String(-new Date().getTimezoneOffset()));
     if (archivedView) p.set('archived', '1');
     if (line !== 'all') p.set('number', line);
     if (folderSel) p.set('folder', folderSel);
     if (debounced) p.set('q', debounced);
-    if (label) p.set('label', label);
-    if (kind) p.set('kind', kind);
-    if (assignee) p.set('assignee', assignee);
-    if (team) p.set('team', team);
-    if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
-    if (hubspot) p.set('hubspot', hubspot);
-    // Solo las condiciones completas: una a medio armar no vuelve a pedir la lista.
-    const hs = cleanHubspotFilters(hsProps);
-    if (hs.length) p.set('hs', JSON.stringify(hs));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, archivedView, line, folderSel]);
-  live.current.filter = filter;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey, debounced, archivedView, line, folderSel]);
+  live.current.unreadOnly = filters.unread === 'yes';
   live.current.current = current;
   const switching = loaded && shownKey !== query;
 
@@ -392,7 +423,7 @@ export default function InboxShell({
       const prev = L.shown === key ? L.rows : [];
       // En "no leídos", el chat abierto sigue en la lista aunque ya se haya leído.
       let kept = 0;
-      if (L.filter === 'unread' && L.shown === key && L.current && !data.rows.some((x) => x.id === L.current)) {
+      if (L.unreadOnly && L.shown === key && L.current && !data.rows.some((x) => x.id === L.current)) {
         const prevIdx = prev.findIndex((x) => x.id === L.current);
         if (prevIdx >= 0) {
           data.rows.splice(Math.min(prevIdx, data.rows.length), 0, { ...prev[prevIdx], unread: 0, markedUnread: false });
@@ -526,6 +557,8 @@ export default function InboxShell({
 
   function pickLine(v: string) {
     setLine(v);
+    // Una línea elegida acá reemplaza a las del panel de filtros: no quedan dos elecciones de línea a la vez.
+    if (v !== 'all') setFilters((f) => (f.lines ? parseLinesFilters({ ...f, lines: [] }) : f));
     void api('/api/groups/prefs', { method: 'PUT', body: { line: v } });
   }
 
@@ -876,7 +909,7 @@ export default function InboxShell({
   }
   // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común.
   const archivedRow =
-    !archivedView && !debounced && !activeList && filter === 'all' && archivedInfo.total > 0 ? (
+    !archivedView && !debounced && !activeList && isEmptyFilters(filters) && archivedInfo.total > 0 ? (
       <button type="button" className="wa-archived-row" onClick={() => setArchivedView(true)}>
         <span className="wa-archived-icon">
           <ArchiveIcon size={20} />
@@ -885,18 +918,196 @@ export default function InboxShell({
         {archivedInfo.unread > 0 && <span className="wa-archived-count">{archivedInfo.unread}</span>}
       </button>
     ) : null;
-  const filters = controlsToFilters({ ...controls, q: debounced });
-  const dirty = activeList ? JSON.stringify(filters) !== JSON.stringify(activeList.filters) : false;
+  // Lo que guarda una lista: los filtros puestos más la búsqueda.
+  const listFilters: SavedListFilters = parseLinesFilters({ ...filters, q: debounced });
+  const dirty = activeList ? serializeLinesFilters(listFilters) !== serializeLinesFilters(activeList.filters) : false;
   const canEditList = activeList ? activeList.ownerId === me || activeList.shared : false;
-  const propDef = properties.find((p) => p.key === propKey) ?? null;
-  const propOpts = propDef ? filterOptions(propDef) : [];
   const listSuffix = inboxQuery(listId, folderSel);
-  // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
-  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length + hsProps.length;
+
+  // ---------- Filtros: pestañas (atajos) y panel ----------
+  const tabsOn = activeTabs(filters);
+  const onlyClosed = filters.status?.length === 1 && filters.status[0] === 'closed';
+  const propKinds = useMemo<PropKinds>(() => Object.fromEntries(properties.map((d) => [d.key, filterOptions(d).length > 0 ? 'multi' : 'text'])), [properties]);
+  const categories = useMemo<FilterCategory[]>(
+    () => (['status', 'assignment', 'dates', 'channel', 'labels', 'links'] as const).map((id) => ({ id, label: t(`fp.cats.${id}`) })),
+    [t],
+  );
+  // Los campos del panel salen de lo que la página ya cargó para esta persona (sus líneas, sus etiquetas, la gente del workspace): no se pide nada más.
+  const fields = useMemo<FilterField[]>(() => {
+    const meName = people.find((p) => p.id === me)?.name ?? '';
+    const person = (p: GroupsPerson): FilterOption => ({ id: p.id, label: p.name || p.email, hint: p.name ? p.email : undefined, avatar: true });
+    const out: FilterField[] = [
+      {
+        id: 'status',
+        type: 'multi',
+        category: 'status',
+        label: t('fp.status'),
+        help: t('fp.help.status'),
+        keywords: t('fp.kw.status'),
+        options: [
+          { id: 'open', label: t('fp.statusOpen') },
+          { id: 'closed', label: t('fp.statusClosed') },
+        ],
+      },
+      { id: 'unread', type: 'bool', category: 'status', label: t('fp.unread'), keywords: t('fp.kw.unread') },
+      { id: 'waiting', type: 'bool', category: 'status', label: t('fp.waiting'), help: t('fp.help.waiting'), keywords: t('fp.kw.waiting') },
+      { id: 'flagged', type: 'bool', category: 'status', label: t('fp.flagged'), help: t('fp.help.flagged'), keywords: t('fp.kw.flagged') },
+      { id: 'pinned', type: 'bool', category: 'status', label: t('fp.pinned'), keywords: t('fp.kw.pinned') },
+      { id: 'muted', type: 'bool', category: 'status', label: t('fp.muted'), keywords: t('fp.kw.muted') },
+      {
+        id: 'assignee',
+        type: 'multi',
+        category: 'assignment',
+        label: t('fp.assignee'),
+        keywords: t('fp.kw.assignee'),
+        options: [
+          { id: ME, label: meName ? t('fp.meNamed', { name: meName }) : t('fp.me'), avatar: meName || true },
+          { id: NONE, label: t('fp.unassigned'), special: true },
+          ...people.filter((p) => p.id !== me).map(person),
+        ],
+      },
+    ];
+    if (teams.length > 0 || filters.teams?.length) {
+      out.push({
+        id: 'team',
+        type: 'multi',
+        category: 'assignment',
+        label: t('fp.team'),
+        keywords: t('fp.kw.team'),
+        options: [{ id: NONE, label: t('fp.noTeam'), special: true }, ...teams.map((tm) => ({ id: tm.id, label: tm.name }))],
+      });
+    }
+    out.push(
+      { id: 'lastMessage', type: 'date', category: 'dates', label: t('fp.lastMessage'), keywords: t('fp.kw.lastMessage') },
+      { id: 'created', type: 'date', category: 'dates', label: t('fp.created'), help: t('fp.help.created'), keywords: t('fp.kw.created') },
+    );
+    if (numbers.length > 1 || filters.lines?.length) {
+      out.push({
+        id: 'lines',
+        type: 'multi',
+        category: 'channel',
+        label: t('fp.lines'),
+        keywords: t('fp.kw.lines'),
+        options: numbers.map((n) => ({ id: n.id, label: n.name, hint: n.ownerName || undefined })),
+      });
+    }
+    out.push(
+      {
+        id: 'kind',
+        type: 'multi',
+        category: 'channel',
+        label: t('fp.kind'),
+        keywords: t('fp.kw.kind'),
+        options: [
+          { id: 'dm', label: t('fp.kindDm') },
+          { id: 'group', label: t('fp.kindGroup') },
+        ],
+      },
+      {
+        id: 'labels',
+        type: 'multi',
+        category: 'labels',
+        label: t('fp.labels'),
+        keywords: t('fp.kw.labels'),
+        options: [{ id: NONE, label: t('fp.noLabel'), special: true }, ...labels.map((l) => ({ id: l.id, label: l.name, color: LABEL_HEX[l.color] ?? LABEL_HEX.gray }))],
+      },
+    );
+    for (const d of properties) {
+      const opts = filterOptions(d);
+      if (opts.length > 0) {
+        out.push({
+          id: propFieldId(d.key),
+          type: 'multi',
+          category: 'labels',
+          label: d.label,
+          options: [
+            { id: PROP_SET, label: t('fp.propSet'), special: true },
+            { id: PROP_UNSET, label: t('fp.propUnset'), special: true },
+            ...opts.map((o) => ({ id: o, label: o === 'true' && d.type === 'checkbox' ? t('fp.propYes') : o })),
+          ],
+        });
+      } else out.push({ id: propFieldId(d.key), type: 'text', category: 'labels', label: d.label });
+    }
+    // Una lista guardada puede filtrar por una propiedad que ya se borró: se ve (y se puede sacar) con su clave.
+    for (const pf of filters.props ?? []) {
+      if (!properties.some((d) => d.key === pf.key)) out.push({ id: propFieldId(pf.key), type: 'text', category: 'labels', label: pf.key });
+    }
+    out.push(
+      { id: 'ticket', type: 'bool', category: 'links', label: t('fp.ticket'), help: t('fp.help.ticket'), keywords: t('fp.kw.ticket') },
+      { id: 'agent', type: 'bool', category: 'links', label: t('fp.agent'), help: t('fp.help.agent'), keywords: t('fp.kw.agent') },
+      { id: 'crm', type: 'bool', category: 'links', label: t('fp.crm'), keywords: t('fp.kw.crm') },
+    );
+    if (hubspotOn || filters.hubspot) out.push({ id: 'hubspot', type: 'bool', category: 'links', label: t('fp.hubspot'), keywords: t('fp.kw.hubspot') });
+    if (hubspotOn || filters.hsProps?.length) {
+      out.push({
+        id: 'hsProps',
+        type: 'custom',
+        category: 'links',
+        label: t('fp.hsProps'),
+        help: t('fp.help.hsProps'),
+        keywords: t('fp.kw.hubspot'),
+        count: (v) => cleanHubspotFilters(v).length,
+        summary: (v) => t('fp.hsSummary', { n: cleanHubspotFilters(v).length }),
+      });
+    }
+    return out;
+  }, [t, people, me, teams, numbers, labels, properties, hubspotOn, filters.teams, filters.lines, filters.props, filters.hubspot, filters.hsProps]);
+  const values = useMemo(() => filtersToValues(filters, propKinds), [filters, propKinds]);
+  const chipStrings = useMemo<ChipStrings>(() => {
+    const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return {
+      yes: tf('yes'),
+      no: tf('no'),
+      presets: { today: tf('presets.today'), yesterday: tf('presets.yesterday'), last7: tf('presets.last7'), last30: tf('presets.last30'), thisWeek: tf('presets.thisWeek'), thisMonth: tf('presets.thisMonth'), lastMonth: tf('presets.lastMonth') },
+      from: (d) => tf('from', { day: d }),
+      until: (d) => tf('until', { day: d }),
+      range: (from, to) => tf('range', { from, to }),
+      more: (n) => tf('more', { n }),
+      unavailable: (n) => tf('unavailableShort', { n }),
+      hasValue: tf('hasValue'),
+      noValue: tf('noValue'),
+      day: (d) => day.format(new Date(`${d}T00:00:00Z`)),
+    };
+  }, [tf, locale]);
+  // Debajo de la búsqueda, un chip por campo con algo puesto. Lo que ya dice una pestaña marcada no se repite.
+  const chips = useMemo(() => {
+    const viaTab = new Set(tabsOn.flatMap((tab) => (tab === 'all' ? [] : [TAB_FIELD[tab]])));
+    return filterChips(fields, values, chipStrings).filter((c) => !viaTab.has(c.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, values, chipStrings, tabsOn.join(',')]);
+
+  function applyFilters(next: LinesFilters) {
+    setFilters(withoutSearch(next));
+    // Líneas elegidas en el panel: el selector de línea vuelve a "todas" (si no, las dos elecciones se cruzarían).
+    if (next.lines?.length && line !== 'all') {
+      setLine('all');
+      void api('/api/groups/prefs', { method: 'PUT', body: { line: 'all' } });
+    }
+  }
+  function openPanel(fieldId: string | null = null) {
+    setPanelField(fieldId);
+    setPanelOpen(true);
+  }
+  function removeChip(id: string) {
+    const next: FilterValues = { ...values };
+    delete next[id];
+    applyFilters(valuesToFilters(next));
+  }
+  const emptyText = debounced
+    ? t('inbox.noResults')
+    : archivedView
+      ? t('wa.archivedEmpty')
+      : activeList
+        ? t('lists.empty')
+        : countFilters(filters) === 0
+          ? t('inbox.empty.all')
+          : countFilters(filters) === 1 && tabsOn[0] !== 'all' && tabsOn[0] !== 'groups'
+            ? t(`inbox.empty.${tabsOn[0]}`)
+            : t('fp.empty');
 
   async function saveChanges() {
     if (!activeList) return;
-    const r = await api<SavedListDto>(`/api/groups/lists/${activeList.id}`, { method: 'PATCH', body: { filters } });
+    const r = await api<SavedListDto>(`/api/groups/lists/${activeList.id}`, { method: 'PATCH', body: { filters: listFilters } });
     if (r.data) {
       setLists((ls) => ls.map((l) => (l.id === r.data!.id ? r.data! : l)));
       notifyListsChanged();
@@ -916,7 +1127,7 @@ export default function InboxShell({
 
   return (
     <Ctx.Provider value={value}>
-      <div className={`gr-inbox${current ? ' has-chat' : ''}`} data-chat-style={chatStyle}>
+      <div className={`gr-inbox${current ? ' has-chat' : ''}${detailsHidden ? ' is-details-hidden' : ''}`} data-chat-style={chatStyle}>
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}
@@ -943,7 +1154,11 @@ export default function InboxShell({
                   prefetch={false}
                   className={`gr-view${!listId ? ' is-on' : ''}`}
                   aria-current={!listId ? 'page' : undefined}
-                  onClick={() => setControls(EMPTY)}
+                  onClick={() => {
+                    setFilters({});
+                    setQ('');
+                    setDebounced('');
+                  }}
                 >
                   {t('lists.allChats')}
                 </Link>
@@ -992,7 +1207,7 @@ export default function InboxShell({
                 </button>
               </p>
             )}
-            <div className="wa-search-row">
+            <div className="wa-search-row" ref={searchRow}>
             <span className="wa-search">
               <Search size={18} />
             <DebouncedInput
@@ -1003,7 +1218,7 @@ export default function InboxShell({
               delay={250}
               clearOnEscape={false}
               onCommit={(v) => {
-                set({ q: v });
+                setQ(v);
                 setDebounced(v.trim());
               }}
               onKeyDown={(e) => {
@@ -1014,16 +1229,22 @@ export default function InboxShell({
             />
             </span>
             <button
+              ref={filterBtn}
               type="button"
-              className={`wa-icon-btn wa-filter-btn${moreOpen ? ' is-on' : ''}`}
-              aria-expanded={moreOpen}
-              aria-controls="wa-filter-panel"
-              aria-label={t('wa.filtersMenu')}
-              title={t('wa.filtersMenu')}
-              onClick={() => setMoreOpen((v) => !v)}
+              className={`wa-icon-btn wa-filter-btn${panelOpen || chips.length > 0 ? ' is-on' : ''}`}
+              aria-haspopup="dialog"
+              aria-expanded={panelOpen}
+              aria-label={chips.length > 0 ? t('fp.openCount', { n: chips.length }) : t('fp.open')}
+              title={t('fp.open')}
+              data-testid="lines-filter-button"
+              onClick={() => (panelOpen ? setPanelOpen(false) : openPanel())}
             >
               <FilterIcon size={20} />
-              {extraFilters > 0 && <span className="wa-filter-dot" aria-hidden="true" />}
+              {chips.length > 0 && (
+                <span className="wa-filter-count" aria-hidden="true">
+                  {chips.length}
+                </span>
+              )}
             </button>
             <ScheduledAllButton />
             <button
@@ -1040,116 +1261,27 @@ export default function InboxShell({
               <CheckIcon size={20} />
             </button>
             </div>
-            <div className="gr-filters" role="tablist" aria-label={t('inbox.filters')}>
-              {CHIPS.map((f) => {
-                const on = f === 'groups' ? filter === 'all' && kind === 'group' : f === 'all' ? filter === 'all' && kind !== 'group' : filter === f;
+            <FilterChips chips={chips} onRemove={removeChip} onClear={() => applyFilters({})} onOpen={(id) => openPanel(id)}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
+                {t('lists.save')}
+              </button>
+            </FilterChips>
+            {/* Cada pestaña es un atajo de un campo del panel: marcada cuando ese filtro está puesto, también si se puso desde el panel. */}
+            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')}>
+              {LINES_TABS.map((tab) => {
+                const on = tabsOn.includes(tab);
                 return (
-                  <button
-                    key={f}
-                    type="button"
-                    role="tab"
-                    aria-selected={on}
-                    className={`gr-filter${on ? ' is-on' : ''}`}
-                    onClick={() => (f === 'groups' ? set({ filter: 'all', kind: 'group' }) : set({ filter: f, kind: kind === 'group' ? '' : kind }))}
-                  >
-                    {t(`filters.${f}`)}
+                  <button key={tab} type="button" role="tab" aria-selected={on} className={`gr-filter${on ? ' is-on' : ''}`} onClick={() => setFilters((f) => applyTab(f, tab))}>
+                    {t(`filters.${tab}`)}
                   </button>
                 );
               })}
             </div>
-            {moreOpen && (
-            <div className="wa-filter-panel" id="wa-filter-panel">
-            <div className="gr-list-selects">
-              <select className="select" value={kind} onChange={(e) => set({ kind: e.target.value })} aria-label={t('inbox.kind')}>
-                <option value="">{t('inbox.kindAll')}</option>
-                <option value="group">{t('inbox.kindGroups')}</option>
-                <option value="dm">{t('inbox.kindDms')}</option>
-              </select>
-              <select className="select" value={label} onChange={(e) => set({ label: e.target.value })} aria-label={t('inbox.label')}>
-                <option value="">{t('inbox.labelAll')}</option>
-                {labels.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-              <div className="gr-list-selects">
-                <select className="select" value={assignee} onChange={(e) => set({ assignee: e.target.value })} aria-label={t('lists.assignee')}>
-                  <option value="">{t('tickets.anyone')}</option>
-                  <option value="me">{t('tickets.mine')}</option>
-                  <option value="none">{t('thread.unassigned')}</option>
-                  {people
-                    .filter((p) => p.id !== me)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name || p.email}
-                      </option>
-                    ))}
-                </select>
-                {teams.length > 0 && (
-                  <select className="select" value={team} onChange={(e) => set({ team: e.target.value })} aria-label={t('inbox.team')}>
-                    <option value="">{t('inbox.teamAll')}</option>
-                    {teams.map((tm) => (
-                      <option key={tm.id} value={tm.id}>
-                        {tm.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {(hubspotOn || hubspot) && (
-                  <select className="select" value={hubspot} onChange={(e) => set({ hubspot: e.target.value as Controls['hubspot'] })} aria-label={t('hubspot.filter')}>
-                    <option value="">{t('hubspot.filterAll')}</option>
-                    <option value="linked">{t('hubspot.filterLinked')}</option>
-                    <option value="unlinked">{t('hubspot.filterUnlinked')}</option>
-                  </select>
-                )}
-                {properties.length > 0 && (
-                  <select className="select" value={propKey} onChange={(e) => set({ propKey: e.target.value, propValue: '' })} aria-label={t('lists.property')}>
-                    <option value="">{t('lists.anyProperty')}</option>
-                    {properties.map((p) => (
-                      <option key={p.id} value={p.key}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {propDef &&
-                  (propOpts.length > 0 ? (
-                    <select className="select" value={propValue} onChange={(e) => set({ propValue: e.target.value })} aria-label={t('lists.propertyValue')}>
-                      <option value="">{t('lists.hasValue')}</option>
-                      {propOpts.map((o) => (
-                        <option key={o} value={o}>
-                          {o === 'true' && propDef.type === 'checkbox' ? t('props.yes') : o}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="input"
-                      value={propValue}
-                      onChange={(e) => set({ propValue: e.target.value })}
-                      placeholder={t('lists.hasValue')}
-                      aria-label={t('lists.propertyValue')}
-                    />
-                  ))}
-              </div>
-            {(hubspotOn || hsProps.length > 0) && <HubspotFilter value={hsProps} onChange={(next) => set({ hsProps: next })} />}
-            <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [] })} disabled={extraFilters === 0}>
-                {t('wa.clearFilters')}
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
-                {t('lists.save')}
-              </button>
-            </div>
-            </div>
-            )}
           </div>
           {visibleSelected.length > 0 && (
             <div className="gr-bulkbar" role="toolbar" aria-label={t('bulkInbox.label')}>
               <span className="gr-bulkbar-count">{t('bulkInbox.selected', { n: visibleSelected.length })}</span>
-              {filter === 'closed' ? (
+              {onlyClosed ? (
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => void bulk('reopen')} disabled={bulkBusy}>
                   {t('bulkInbox.reopen')}
                 </button>
@@ -1195,12 +1327,16 @@ export default function InboxShell({
               </button>
             </div>
           )}
-          {dropped.map((n) => (
+          {/* Con una línea elegida, solo sus avisos: los de otra línea no son de esta vista. */}
+          {dropped.filter((n) => (line === 'all' || n.id === line) && !importsClosed.includes(`drop:${n.id}`)).map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
               <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
                 {n.qr ? t('wa.rescan') : t('wa.reconnect')}
               </Link>
+              <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(`drop:${n.id}`)} aria-label={t('common.close')} title={t('common.close')}>
+                <Close size={16} />
+              </button>
             </div>
           ))}
           {archivedView && (
@@ -1211,7 +1347,7 @@ export default function InboxShell({
               <h3>{t('wa.archivedTitle')}</h3>
             </div>
           )}
-          {imports.map((im) => (
+          {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
                 {im.status === 'done'
@@ -1230,6 +1366,11 @@ export default function InboxShell({
                 <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
                   <i style={{ width: `${im.chatsTotal ? Math.max(3, (im.chatsDone / im.chatsTotal) * 100) : 3}%` }} />
                 </span>
+              )}
+              {im.status === 'done' && (
+                <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(importKey(im))} aria-label={t('common.close')} title={t('common.close')}>
+                  <Close size={16} />
+                </button>
               )}
             </div>
           ))}
@@ -1250,7 +1391,7 @@ export default function InboxShell({
           ) : rows.length === 0 && !error ? (
             <>
               {archivedRow}
-              <p className="gr-list-empty">{debounced ? t('inbox.noResults') : archivedView ? t('wa.archivedEmpty') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
+              <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
             <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
@@ -1274,12 +1415,38 @@ export default function InboxShell({
           )}
         </section>
         {children}
-        <PanelSplitters me={me} labels={{ list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') }} />
+        <PanelSplitters me={me} hasDetails={!detailsHidden} labels={{ list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') }} />
       </div>
+      <FilterPanel
+        open={panelOpen}
+        title={t('fp.title')}
+        anchorRef={searchRow}
+        returnFocusRef={filterBtn}
+        categories={categories}
+        fields={fields}
+        values={values}
+        initialField={panelField}
+        onClose={() => setPanelOpen(false)}
+        onApply={(next) => {
+          setPanelOpen(false);
+          applyFilters(valuesToFilters(next));
+        }}
+        renderCustom={(field, value, onChange) =>
+          field.id === 'hsProps' ? <HubspotFilter immediate value={Array.isArray(value) ? (value as HubspotPropFilter[]) : NO_HS} onChange={(next) => onChange(next.length ? next : undefined)} /> : null
+        }
+        extraAction={{
+          label: t('lists.save'),
+          onClick: (next) => {
+            setPanelOpen(false);
+            applyFilters(valuesToFilters(next));
+            setSaving('new');
+          },
+        }}
+      />
       <SaveListModal
         mode={saving}
         list={activeList}
-        filters={filters}
+        filters={listFilters}
         onClose={() => setSaving(null)}
         onSaved={(l) => {
           setSaving(null);

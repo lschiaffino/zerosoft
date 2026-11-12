@@ -50,6 +50,7 @@
     "no_tab_audio": "La pantalla compartida no trae audio. En Chrome elegí una pestaña y activá \"Compartir audio de la pestaña\" (en Windows también sirve toda la pantalla con \"Compartir audio del sistema\").",
     "tab_skipped": "Se graba solo tu micrófono: no se compartió el audio de la reunión. Cortá y empezá de nuevo para compartir una pestaña o el audio del sistema.",
     "screen_denied": "zerosoft necesita permiso para grabar el audio de la compu. Activá zerosoft en Ajustes del Sistema > Privacidad y seguridad > Grabación de pantalla y audio del sistema, reabrí la app y empezá de nuevo. Por ahora se graba solo tu micrófono.",
+    "system_silent": "No está llegando el audio de la compu: se graba solo tu micrófono. En Ajustes del Sistema > Privacidad y seguridad > Grabación de pantalla y audio del sistema, sacá zerosoft de la lista, volvé a agregarlo, reabrí la app y empezá de nuevo. Si nadie habló todavía del otro lado, este aviso se va solo cuando suene algo.",
     "too_short": "Fue muy corto. Mantené la tecla mientras hablás.",
     "nothing_heard": "No se escuchó nada.",
     "not_found": "Esa reunión no existe o se borró.",
@@ -433,6 +434,9 @@
       "commandMode": "Command Mode: con texto seleccionado, decí qué hacer con él",
       "commandModeHelp": "Seleccioná texto en un campo, mantené {shortcut} y decí \"hacelo más corto\" o \"traducilo al inglés\". La selección se reemplaza. Apagado por defecto.",
       "learnCorrections": "Aprender de mis correcciones: corregir un dictado en el historial suma los nombres y términos corregidos al diccionario",
+      "cleanupDepth": "Cuánto limpia",
+      "cleanupDepthHelp": "Vale cuando la limpieza con IA está prendida. En ningún nivel se agregan palabras que no dijiste.",
+      "cleanupDepths": {"light": "Poco: puntuación y muletillas", "standard": "Normal: saca titubeos y arma listas", "thorough": "Mucho: también saca repeticiones y vueltas"},
       "cleanupMode": "Limpieza",
       "cleanupModeHelp": "Vale acá y en la app de escritorio. Sin limpieza deja lo que dijiste palabra por palabra, solo con los reemplazos del diccionario.",
       "cleanupModes": {

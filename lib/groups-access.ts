@@ -208,16 +208,31 @@ export async function visibleChatIds(viewer: GroupsViewer | null | undefined): P
 /** Para los campos `phone` de los DTO: la interfaz les antepone "+", así que van sin él. */
 const maskField = (phone: string) => maskPhone(phone).replace(/^\+/, '');
 
-export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string }>(viewer: GroupsViewer | null | undefined, chat: T): T {
+export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string }>(viewer: GroupsViewer | null | undefined, chat: T): T {
   if (!viewer?.mask) return chat;
   const phone = chat.phone;
   const name = phone && chat.name === `+${phone}` ? maskPhone(phone) : chat.name;
-  return { ...chat, phone: phone ? maskField(phone) : '', name, ...(chat.match ? { match: maskPhoneText(chat.match) } : {}) };
+  return {
+    ...chat,
+    phone: phone ? maskField(phone) : '',
+    name,
+    ...(chat.match ? { match: maskPhoneText(chat.match) } : {}),
+    // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
+    ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
+  };
 }
 
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
   if (!viewer?.mask) return m;
-  return { ...m, senderPhone: m.senderPhone ? maskField(m.senderPhone) : '', reactions: m.reactions.map((r) => ({ ...r, by: /^\d{6,}$/.test(r.by) ? maskPhone(r.by) : r.by })) };
+  return {
+    ...m,
+    senderPhone: m.senderPhone ? maskField(m.senderPhone) : '',
+    reactions: m.reactions.map((r) => ({ ...r, by: /^\d{6,}$/.test(r.by) ? maskPhone(r.by) : r.by })),
+    // El teléfono de una persona mencionada también va oculto (la mención se muestra con el nombre o con el teléfono enmascarado).
+    ...(m.mentionNames
+      ? { mentionNames: Object.fromEntries(Object.entries(m.mentionNames).map(([d, t]) => [d, { ...t, phone: t.phone ? maskField(t.phone) : '' }])) }
+      : {}),
+  };
 }
 
 export function maskMember(viewer: GroupsViewer | null | undefined, m: MemberDto): MemberDto & { masked?: boolean } {

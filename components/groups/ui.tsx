@@ -1,10 +1,11 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { mediaKind, previewToken } from '@/lib/groups-rules';
 import { parseDbUtc } from '@/lib/utils';
+import { mentionLabels, replaceMentions, type MentionMap } from '@/lib/wa-mentions';
 
 /** fetch con JSON: devuelve { data } o { error: código }. Nunca tira. */
 export async function api<T = Record<string, unknown>>(
@@ -299,4 +300,25 @@ export function useLeavingChat(chatId: string): boolean {
     return () => window.removeEventListener(SWITCH_EVENT, sync);
   }, [chatId]);
   return leaving;
+}
+
+/**
+ * Menciones de WhatsApp de un chat de Lines ("@<dígitos>" → "@Nombre"): los
+ * miembros por teléfono y, por mensaje, lo que resolvió el servidor (también
+ * lids). Solo el teléfono: "@+teléfono"; nada: "@alguien", nunca los dígitos.
+ * `labelsFor` es para RichText; `textOf`, para texto plano (citas, fijados, copiar).
+ */
+export function useLinesMentions(members: ReadonlyArray<{ phone: string; name: string }>) {
+  const tw = useTranslations('inboxWa');
+  const someone = tw('mentionSomeone');
+  const base = useMemo<Record<string, string>>(() => Object.fromEntries(members.filter((m) => m.name && /^\d+$/.test(m.phone)).map((m) => [m.phone, m.name])), [members]);
+  const labelsFor = useCallback(
+    (m: { body: string; mentionNames?: MentionMap }): Record<string, string> | undefined => {
+      if (!m.body || !m.body.includes('@')) return undefined;
+      return mentionLabels(base, m.mentionNames, (p) => `+${p}`, someone);
+    },
+    [base, someone],
+  );
+  const textOf = useCallback((m: { body: string; mentionNames?: MentionMap }, text: string = m.body) => replaceMentions(text, labelsFor({ ...m, body: text })), [labelsFor]);
+  return { labelsFor, textOf };
 }
