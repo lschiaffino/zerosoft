@@ -67,9 +67,20 @@ const prs = [];
 for (const n of [...new Set(prNums)]) {
   try {
     const pr = await gh(`/pulls/${n}`);
-    prs.push({ n, title: pr.title, url: pr.html_url, gist: gist(pr.body) });
+    // Una tanda (varias PRs juntas en una) lista cada PR que trae, con su título.
+    const refs = [...new Set([...String(pr.body || '').matchAll(/#(\d{2,6})\b/g)].map((m) => Number(m[1])).filter((x) => x !== n))];
+    const parts = [];
+    if (refs.length >= 2) {
+      for (const r of refs.slice(0, 40)) {
+        try {
+          const sub = await gh(`/pulls/${r}`);
+          parts.push({ n: r, title: sub.title, url: sub.html_url });
+        } catch {}
+      }
+    }
+    prs.push({ n, title: pr.title, url: pr.html_url, gist: parts.length ? '' : gist(pr.body), parts });
   } catch {
-    prs.push({ n, title: `PR #${n}`, url: `https://github.com/${GITHUB_REPOSITORY}/pull/${n}`, gist: '' });
+    prs.push({ n, title: `PR #${n}`, url: `https://github.com/${GITHUB_REPOSITORY}/pull/${n}`, gist: '', parts: [] });
   }
 }
 // Commits que entraron por PR no se repiten como sueltos.
@@ -82,11 +93,16 @@ for (const n of prNums) {
 const direct = loose.filter((c) => !prShas.has(c.sha));
 
 const short = DEPLOY_SHA.slice(0, 8);
-const count = prs.length + direct.length;
-const subject = prs.length === 1 && !direct.length ? `Deploy: ${prs[0].title}` : `Deploy ${short}: ${count} ${count === 1 ? 'cambio' : 'cambios'}`;
+const count = prs.reduce((a, p) => a + (p.parts.length || 1), 0) + direct.length;
+const subject = prs.length === 1 && !prs[0].parts.length && !direct.length ? `Deploy: ${prs[0].title}` : `Deploy ${short}: ${count} ${count === 1 ? 'cambio' : 'cambios'}`;
 
 const items = [
-  ...prs.map((p) => `<li style="margin:0 0 14px"><a href="${esc(p.url)}" style="color:#111;font-weight:600">#${p.n} ${esc(p.title)}</a>${p.gist ? `<div style="color:#555;margin-top:4px">${esc(p.gist)}</div>` : ''}</li>`),
+  ...prs.map(
+    (p) =>
+      `<li style="margin:0 0 14px"><a href="${esc(p.url)}" style="color:#111;font-weight:600">#${p.n} ${esc(p.title)}</a>${p.gist ? `<div style="color:#555;margin-top:4px">${esc(p.gist)}</div>` : ''}${
+        p.parts.length ? `<ul style="padding-left:18px;margin:6px 0 0;color:#333">${p.parts.map((x) => `<li style="margin:0 0 4px"><a href="${esc(x.url)}" style="color:#333">#${x.n}</a> ${esc(x.title)}</li>`).join('')}</ul>` : ''
+      }</li>`,
+  ),
   ...direct.map((c) => `<li style="margin:0 0 10px"><a href="https://github.com/${GITHUB_REPOSITORY}/commit/${c.sha}" style="color:#111">${esc(c.subject)}</a> <span style="color:#888">${c.sha.slice(0, 8)}</span></li>`),
 ];
 const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111;max-width:640px">
@@ -97,7 +113,7 @@ ${items.length ? `<ul style="padding-left:18px;margin:0 0 16px">${items.join('')
 const text = [
   `Ya está en producción zerosoft.ai (versión ${short}).`,
   '',
-  ...prs.map((p) => `- #${p.n} ${p.title}${p.gist ? `\n  ${p.gist}` : ''}`),
+  ...prs.map((p) => `- #${p.n} ${p.title}${p.gist ? `\n  ${p.gist}` : ''}${p.parts.map((x) => `\n  · #${x.n} ${x.title}`).join('')}`),
   ...direct.map((c) => `- ${c.subject} (${c.sha.slice(0, 8)})`),
 ].join('\n');
 
