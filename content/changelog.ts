@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-dm-pictures-fallback',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: more contacts show their profile photo',
+      es: 'Inbox y Lines: más contactos muestran su foto de perfil',
+      pt: 'Inbox e Lines: mais contatos mostram a foto de perfil',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'When WhatsApp sends a profile without the photo, we now ask for the photo on its own. Chats left without a photo are fetched again once. Someone who hides their photo from you still shows initials, like on the phone.',
+        es: 'Cuando WhatsApp manda un perfil sin la foto, ahora se la pide aparte. Los chats que quedaron sin foto se vuelven a pedir una vez. Quien te oculta la foto sigue con sus iniciales, como en el teléfono.',
+        pt: 'Quando o WhatsApp manda um perfil sem a foto, agora ela é pedida à parte. As conversas que ficaram sem foto são pedidas de novo uma vez. Quem oculta a foto de você continua com as iniciais, como no celular.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {
