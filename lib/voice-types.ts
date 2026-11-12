@@ -23,6 +23,14 @@ export type VoiceCapture = (typeof VOICE_CAPTURES)[number];
 export const VOICE_CLEANUP_MODES = ['raw', 'clean', 'formal', 'per_app'] as const;
 export type VoiceCleanupMode = (typeof VOICE_CLEANUP_MODES)[number];
 
+/**
+ * Cuánto limpia la IA un dictado: 'light' solo puntúa y saca muletillas; 'standard' además saca
+ * los titubeos y arma listas y párrafos; 'thorough' también saca repeticiones y vueltas. Ninguno
+ * agrega contenido.
+ */
+export const VOICE_CLEANUP_DEPTHS = ['light', 'standard', 'thorough'] as const;
+export type VoiceCleanupDepth = (typeof VOICE_CLEANUP_DEPTHS)[number];
+
 export const VOICE_DICTIONARY_KINDS = ['word', 'replace', 'snippet'] as const;
 export type VoiceDictionaryKind = (typeof VOICE_DICTIONARY_KINDS)[number];
 
@@ -77,6 +85,8 @@ export interface VoiceSettings {
   showBar: boolean;
   /** Modo de limpieza del dictado (web y escritorio). */
   cleanupMode: VoiceCleanupMode;
+  /** Cuánto limpia la IA (VOICE_CLEANUP_DEPTHS). */
+  cleanupDepth: VoiceCleanupDepth;
   /** Limpieza con IA (si está apagada, solo reglas: diccionario, muletillas y puntuación). */
   aiCleanup: boolean;
   /** Command Mode: con texto seleccionado, lo que se dice es una instrucción para reescribirlo (apagado por defecto, como Wispr Flow). */
@@ -101,6 +111,7 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   shortcut: 'Alt+Space',
   showBar: true,
   cleanupMode: 'per_app',
+  cleanupDepth: 'standard',
   aiCleanup: true,
   commandMode: false,
   learnCorrections: true,

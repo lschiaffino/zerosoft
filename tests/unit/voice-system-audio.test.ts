@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { AiError, recordAiUsage } from '@/lib/ai';
 import { assertTranscribeQuota, transcribeFreeMinutes, TOKENS_PER_AUDIO_SECOND } from '@/lib/voice-transcribe';
-import { pcm16Base64ToFloat } from '@/components/voice/audio';
+import { pcm16Base64ToFloat, hasSound, systemAudioSilent } from '@/components/voice/audio';
 import { makeUser } from './helpers';
 
 afterEach(() => {
@@ -47,5 +47,21 @@ describe('audio del sistema de la app de escritorio', () => {
   it('una lectura vacía o con un byte suelto no rompe', () => {
     expect(pcm16Base64ToFloat('').length).toBe(0);
     expect(pcm16Base64ToFloat(Buffer.from([1]).toString('base64')).length).toBe(0);
+  });
+});
+
+describe('audio del sistema mudo', () => {
+  it('ceros no cuentan como sonido', () => {
+    expect(hasSound(new Float32Array(1600))).toBe(false);
+    expect(hasSound(Float32Array.from([0, 0.0005, 0.3]))).toBe(true);
+  });
+
+  it('sin muestras o sin reproducir avisa a los 8 s; solo silencio, a los 45 s', () => {
+    expect(systemAudioSilent({ received: 0, heard: false, running: true }, 5_000)).toBe(false);
+    expect(systemAudioSilent({ received: 0, heard: false, running: true }, 8_000)).toBe(true);
+    expect(systemAudioSilent({ received: 16_000, heard: true, running: false }, 9_000)).toBe(true);
+    expect(systemAudioSilent({ received: 320_000, heard: false, running: true }, 20_000)).toBe(false);
+    expect(systemAudioSilent({ received: 720_000, heard: false, running: true }, 45_000)).toBe(true);
+    expect(systemAudioSilent({ received: 720_000, heard: true, running: true }, 600_000)).toBe(false);
   });
 });

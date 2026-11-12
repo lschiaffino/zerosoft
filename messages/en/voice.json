@@ -50,6 +50,7 @@
     "no_tab_audio": "The shared screen has no audio. In Chrome pick a tab and turn on \"Share tab audio\" (on Windows, entire screen with \"Share system audio\" also works).",
     "tab_skipped": "Only your microphone is being recorded: the meeting audio was not shared. Stop and start again to share a tab or the system audio.",
     "screen_denied": "zerosoft needs permission to record the computer audio. Turn on zerosoft in System Settings > Privacy & Security > Screen & System Audio Recording, reopen the app and start again. Only your microphone is being recorded.",
+    "system_silent": "The computer audio is not coming through: only your microphone is being recorded. In System Settings > Privacy & Security > Screen & System Audio Recording, remove zerosoft from the list, add it again, reopen the app and start again. If nobody on the other side has spoken yet, this notice goes away as soon as something plays.",
     "too_short": "That was too short. Hold the key while you talk.",
     "nothing_heard": "Nothing was heard.",
     "not_found": "That meeting does not exist or was deleted.",
@@ -433,6 +434,9 @@
       "commandMode": "Command Mode: with text selected, say what to do with it",
       "commandModeHelp": "Select text in a field, hold {shortcut} and say \"make it shorter\" or \"translate it to English\". The selection is replaced. Off by default.",
       "learnCorrections": "Learn from my corrections: fixing a dictation in the history adds the corrected names and terms to the dictionary",
+      "cleanupDepth": "How much to clean",
+      "cleanupDepthHelp": "Applies when AI cleanup is on. No level adds words you did not say.",
+      "cleanupDepths": {"light": "A little: punctuation and filler words", "standard": "Normal: removes hesitations and builds lists", "thorough": "A lot: also removes repetitions and detours"},
       "cleanupMode": "Cleanup",
       "cleanupModeHelp": "Applies here and in the desktop app. Raw keeps what you said word for word, with only your dictionary replacements.",
       "cleanupModes": {

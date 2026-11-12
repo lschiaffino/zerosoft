@@ -156,6 +156,64 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-voice-dictation-layout',
+    date: '2026-11-11',
+    title: {
+      en: 'Voice: dictation lays out lists and emails',
+      es: 'Voice: el dictado arma listas y mails',
+      pt: 'Voice: o ditado monta listas e emails',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'When you dictate three or more items, they come out as a bulleted list; steps come out numbered. In an email, the greeting and the sign-off you say go on their own lines and the body in paragraphs. It only arranges what you said: it does not add words.',
+        es: 'Cuando dictás tres o más cosas, salen como una lista con viñetas; los pasos salen numerados. En un mail, el saludo y la despedida que digas van en su propia línea y el cuerpo en párrafos. Solo ordena lo que dijiste: no agrega palabras.',
+        pt: 'Quando você dita três ou mais itens, eles saem como uma lista com marcadores; os passos saem numerados. Em um email, a saudação e a despedida que você disser vão em linhas próprias e o corpo em parágrafos. Só organiza o que você disse: não acrescenta palavras.',
+      },
+      {
+        product: 'voice',
+        en: 'New setting "How much to clean" (Voice › Settings, and in the desktop app after its next update): a little (punctuation and filler words), normal (also removes hesitations like "let me think" and builds lists) or a lot (also removes repetitions and detours).',
+        es: 'Ajuste nuevo "Cuánto limpia" (Voice › Ajustes, y en la app de escritorio con su próxima actualización): poco (puntuación y muletillas), normal (además saca titubeos como "déjame pensar" y arma listas) o mucho (también saca repeticiones y vueltas).',
+        pt: 'Ajuste novo "Quanto limpar" (Voice › Ajustes, e no app de desktop com a próxima atualização): pouco (pontuação e vícios de linguagem), normal (também tira hesitações como "deixa eu pensar" e monta listas) ou muito (também tira repetições e voltas).',
+      },
+      {
+        product: 'voice',
+        en: 'Phrases the transcription makes up during silence (subtitle credits, a newsreader greeting in another language) are removed.',
+        es: 'Las frases que la transcripción inventa en el silencio (créditos de subtítulos, un saludo de noticiero en otro idioma) se sacan.',
+        pt: 'As frases que a transcrição inventa no silêncio (créditos de legendas, uma saudação de telejornal em outro idioma) são removidas.',
+      },
+      {
+        product: 'voice',
+        en: 'Desktop app: if the computer audio is not coming through during a meeting, a notice says so and how to fix the permission, instead of recording only your microphone without telling you.',
+        es: 'App de escritorio: si el audio de la compu no llega durante una reunión, un aviso lo dice y cómo arreglar el permiso, en lugar de grabar solo tu micrófono sin avisar.',
+        pt: 'App de desktop: se o áudio do computador não chega durante uma reunião, um aviso diz isso e como corrigir a permissão, em vez de gravar só o seu microfone sem avisar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-desktop-new-tab',
+    date: '2026-11-11',
+    title: {
+      en: 'Desktop 0.3.6: a new tab opens on Home, without the search',
+      es: 'Escritorio 0.3.6: la pestaña nueva abre en Inicio, sin el buscador',
+      pt: 'Desktop 0.3.6: a aba nova abre no Início, sem a busca',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'A new tab in the desktop app used to open with the search on top. It now opens on Home; the search is still one ⌘K away.',
+        es: 'Una pestaña nueva en la app de escritorio abría con el buscador encima. Ahora abre en Inicio; el buscador sigue a un ⌘K.',
+        pt: 'Uma aba nova no app de desktop abria com a busca por cima. Agora abre no Início; a busca continua a um ⌘K.',
+      },
+      {
+        product: 'platform',
+        en: 'In the desktop settings, "Done" at the end of the dictation setup now closes the window, and the account shown is yours even when you are working in someone else\'s workspace (it used to show the workspace owner\'s email).',
+        es: 'En los ajustes del escritorio, "Listo" al final de la configuración del dictado ahora cierra la ventana, y la cuenta que se muestra es la tuya aunque estés trabajando en el workspace de otra persona (antes mostraba el email del dueño del workspace).',
+        pt: 'Nos ajustes do desktop, "Pronto" no fim da configuração do ditado agora fecha a janela, e a conta mostrada é a sua mesmo trabalhando no workspace de outra pessoa (antes mostrava o email do dono do workspace).',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
