@@ -1370,7 +1370,8 @@
       "members": "Membros",
       "ticket_created": "Ticket criado",
       "ticket_updated": "Ticket atualizado",
-      "ticket_deleted": "Ticket apagado"
+      "ticket_deleted": "Ticket apagado",
+      "hubspot_company": "Empresa do HubSpot"
     },
     "actions": {
       "assigned": "atribuiu o chat a {to}",
@@ -1391,7 +1392,8 @@
       "ticket_deleted": "apagou o ticket #{n}",
       "labelsAdded": "adicionou etiquetas: {added}",
       "labelsRemoved": "removeu etiquetas: {removed}",
-      "assignedSelf": "atribuiu o chat a si"
+      "assignedSelf": "atribuiu o chat a si",
+      "hubspot_company": "substituiu a empresa do HubSpot {previous} por {company}, a que este grupo tem nas outras linhas"
     },
     "memberActions": {
       "add": "adicionou",
@@ -2286,5 +2288,39 @@
       "desc": "Adicionar ou editar as suas respostas rápidas",
       "keys": "rápidas salvas atalhos ajustes"
     }
+  },
+  "gt": {
+    "lines": "Linhas",
+    "allLines": "Todas as linhas",
+    "nLines": "{n, plural, one {# linha} other {# linhas}}",
+    "linesLabel": "Filtrar por linha",
+    "colLines": "Linhas",
+    "colCompany": "Empresa no HubSpot",
+    "colCreated": "No Lines desde",
+    "colStatus": "Status",
+    "open": "Aberto",
+    "closed": "Fechado",
+    "notLinked": "Sem vínculo",
+    "openInHubspot": "Abrir {name} no HubSpot",
+    "broken": "Excluída ou mesclada no HubSpot",
+    "openInLine": "Abrir em {line}",
+    "secGroup": "Grupo",
+    "secProps": "Propriedades do zerosoft",
+    "secHubspot": "Propriedades da empresa no HubSpot",
+    "searchColumns": "Buscar colunas",
+    "noColumns": "Nenhuma coluna corresponde.",
+    "sortBy": "Ordenar por",
+    "sortNone": "Atividade mais recente",
+    "sortAsc": "Crescente",
+    "sortDesc": "Decrescente",
+    "sortDir": "Sentido",
+    "sortHeader": "Ordenar por {col}",
+    "reset": "Voltar à visualização inicial",
+    "truncated": "Mostrando os {n} grupos com atividade mais recente. Refine os filtros para ver o resto.",
+    "count": "{n, plural, one {# grupo} other {# grupos}}",
+    "statusField": "Status do grupo",
+    "filterEmpty": "Nenhum grupo corresponde a estes filtros.",
+    "more": "Mais ações",
+    "moreLines": "{n, plural, one {# linha a mais} other {# linhas a mais}}"
   }
 }

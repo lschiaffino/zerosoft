@@ -1,16 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import GetStarted from './GetStarted';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
-import { PropertyValueText, filterOptions } from './PropertyInput';
-import { ChatPlate, LabelTag, Modal, NumberOptions, api, defaultNumberId, useErrorText, useRelativeTime, useToast } from './ui';
-
-const COLUMNS_STORE = 'zs-groups-columns';
+import type { GroupTableRow, GroupsTableDto } from '@/lib/groups-table';
+import GroupsTable, { ToolbarPopover } from './GroupsTable';
+import { LabelTag, Modal, NumberOptions, api, defaultNumberId, useErrorText, useToast } from './ui';
 
 type BulkAction = 'add' | 'remove' | 'promote' | 'demote';
 
@@ -31,9 +30,10 @@ interface BulkResult {
 }
 
 /**
- * Lista de grupos: búsqueda, etiquetas, selección para acciones en lote
- * (agregar, quitar, promover o degradar miembros; envío masivo) y crear
- * grupos, uno o muchos desde un CSV.
+ * Lista de grupos: la tabla (components/groups/GroupsTable.tsx: columnas,
+ * orden, filtros y un grupo por fila aunque esté en varias líneas),
+ * selección para acciones en lote (agregar, quitar, promover o degradar
+ * miembros; envío masivo) y crear grupos, uno o muchos desde un CSV.
  */
 export default function GroupsList({
   numbers,
@@ -43,8 +43,11 @@ export default function GroupsList({
   initial,
   managed = false,
   canEdit = true,
+  hubspotBulk = false,
 }: {
-  initial: ChatDto[];
+  /** HubSpot conectado y la persona puede vincular: "Vincular grupos a HubSpot" en el menú "⋯". */
+  hubspotBulk?: boolean;
+  initial: GroupsTableDto;
   /** QR administrado disponible y si la persona puede agregar números (estado vacío). */
   managed?: boolean;
   canEdit?: boolean;
@@ -54,85 +57,21 @@ export default function GroupsList({
   openNew: boolean;
 }) {
   const t = useTranslations('groups');
-  const rel = useRelativeTime();
   const router = useRouter();
   const [toast, showToast] = useToast();
   const groupNumbers = useMemo(() => numbers.filter((n) => n.caps.groups), [numbers]);
-  const [rows, setRows] = useState<ChatDto[] | null>(initial);
-  const [error, setError] = useState(false);
-  const [q, setQ] = useState('');
-  const [label, setLabel] = useState('');
+  const [rows, setRows] = useState<GroupTableRow[]>(initial.rows);
+  const [reload, setReload] = useState(0);
+  const load = useCallback(() => setReload((n) => n + 1), []);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [createOpen, setCreateOpen] = useState(openNew);
   const [csvOpen, setCsvOpen] = useState(false);
   const [bulk, setBulk] = useState<BulkAction | null>(null);
   const [joinOpen, setJoinOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [propKey, setPropKey] = useState('');
-  const [propValue, setPropValue] = useState('');
-  const [columnsOpen, setColumnsOpen] = useState(false);
-  // Columnas de propiedades visibles (por persona, en este navegador). Por defecto, las dos primeras.
-  const [columns, setColumns] = useState<string[]>(() => properties.slice(0, 2).map((p) => p.key));
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(COLUMNS_STORE);
-      if (raw) setColumns((JSON.parse(raw) as string[]).filter((k) => properties.some((p) => p.key === k)));
-    } catch {
-      // Sin storage: las columnas por defecto.
-    }
-  }, [properties]);
-  const toggleColumn = (key: string) =>
-    setColumns((prev) => {
-      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-      try {
-        window.localStorage.setItem(COLUMNS_STORE, JSON.stringify(next));
-      } catch {
-        // Sin storage: dura lo que la página.
-      }
-      return next;
-    });
-  const shownProps = properties.filter((p) => columns.includes(p.key));
-  const propDef = properties.find((p) => p.key === propKey) ?? null;
-
-  const load = useCallback(async () => {
-    const p = new URLSearchParams({ kind: 'group', limit: '200' });
-    if (q.trim()) p.set('q', q.trim());
-    if (label) p.set('label', label);
-    if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
-    const [open, closed] = await Promise.all([
-      api<{ rows: ChatDto[] }>(`/api/groups/chats?${p}`),
-      api<{ rows: ChatDto[] }>(`/api/groups/chats?${p}&filter=closed`),
-    ]);
-    if (!open.data) {
-      setError(true);
-      setRows((r) => r ?? []);
-      return;
-    }
-    setError(false);
-    setRows([...open.data.rows, ...(closed.data?.rows ?? [])]);
-  }, [q, label, propKey, propValue]);
-
-  // La primera página viene del servidor; se vuelve a pedir al buscar o filtrar.
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    const id = setTimeout(() => void load(), 200);
-    return () => clearTimeout(id);
-  }, [load]);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useKeyShortcut('c', () => setCreateOpen(true));
-
-  const allSelected = rows !== null && rows.length > 0 && rows.every((r) => selected.has(r.id));
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   if (numbers.length === 0) {
     return (
@@ -147,85 +86,69 @@ export default function GroupsList({
 
   return (
     <>
-      <div className="gr-toolbar">
-        <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('list.search')} aria-label={t('list.search')} />
-        <select className="select" value={label} onChange={(e) => setLabel(e.target.value)} aria-label={t('inbox.label')}>
-          <option value="">{t('inbox.labelAll')}</option>
-          {labels.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        {properties.length > 0 && (
-          <select
-            className="select"
-            value={propKey}
-            onChange={(e) => {
-              setPropKey(e.target.value);
-              setPropValue('');
-            }}
-            aria-label={t('lists.property')}
-          >
-            <option value="">{t('lists.anyProperty')}</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.key}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {propDef &&
-          (filterOptions(propDef).length > 0 ? (
-            <select className="select" value={propValue} onChange={(e) => setPropValue(e.target.value)} aria-label={t('lists.propertyValue')}>
-              <option value="">{t('lists.hasValue')}</option>
-              {filterOptions(propDef).map((o) => (
-                <option key={o} value={o}>
-                  {o === 'true' && propDef.type === 'checkbox' ? t('props.yes') : o}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input className="input" value={propValue} onChange={(e) => setPropValue(e.target.value)} placeholder={t('lists.hasValue')} aria-label={t('lists.propertyValue')} />
-          ))}
-        {properties.length > 0 && (
-          <div className="gr-columns">
-            <button type="button" className="btn btn-ghost" aria-haspopup="true" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((v) => !v)}>
-              {t('list.columns')}
+      <GroupsTable
+        initial={initial}
+        numbers={numbers}
+        labels={labels}
+        properties={properties}
+        selected={selected}
+        onSelectedChange={setSelected}
+        onRowsChange={setRows}
+        reloadSignal={reload}
+        emptyAction={
+          groupNumbers.length === 0 ? undefined : (
+            <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+              {t('list.new')}
             </button>
-            {columnsOpen && (
-              <div
-                className="gr-columns-menu"
-                role="group"
-                aria-label={t('list.columns')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setColumnsOpen(false);
-                }}
-              >
-                {properties.map((p) => (
-                  <label key={p.id} className="gr-check-label">
-                    <input type="checkbox" className="ui-check" checked={columns.includes(p.key)} onChange={() => toggleColumn(p.key)} />
-                    {p.label}
-                  </label>
-                ))}
+          )
+        }
+        toolbarEnd={
+          <>
+            <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)} disabled={groupNumbers.length === 0}>
+              {t('list.new')} <kbd className="kbd">C</kbd>
+            </button>
+            {/* Lo que se usa menos va en "⋯", como en Linear: la barra entra en una fila. */}
+            <ToolbarPopover
+              open={moreOpen}
+              onOpenChange={setMoreOpen}
+              align="end"
+              buttonClass="btn btn-ghost gr-gt-more-btn"
+              buttonLabel={t('gt.more')}
+              testId="groups-more-button"
+              button={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="19" cy="12" r="1.8" />
+                </svg>
+              }
+            >
+              <div className="gr-gt-menuitems" role="group" aria-label={t('gt.more')}>
+                <Link href="/app/lines/templates" className="gr-gt-menuitem">
+                  {t('templates.title')}
+                </Link>
+                <button type="button" className="gr-gt-menuitem" onClick={() => {
+                    setMoreOpen(false);
+                    setJoinOpen(true);
+                  }} disabled={groupNumbers.length === 0}>
+                  {t('join.button')}
+                </button>
+                <button type="button" className="gr-gt-menuitem" onClick={() => {
+                    setMoreOpen(false);
+                    setCsvOpen(true);
+                  }} disabled={groupNumbers.length === 0}>
+                  {t('list.importCsv')}
+                </button>
+                {hubspotBulk && (
+                  <Link href="/app/lines/list/unlinked" className="gr-gt-menuitem">
+                    {t('hubspot.bulk.open')}
+                  </Link>
+                )}
               </div>
-            )}
-          </div>
-        )}
-        <span className="gr-toolbar-spacer" />
-        <Link href="/app/lines/templates" className="btn btn-secondary">
-          {t('templates.title')}
-        </Link>
-        <button type="button" className="btn btn-secondary" onClick={() => setJoinOpen(true)} disabled={groupNumbers.length === 0}>
-          {t('join.button')}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={() => setCsvOpen(true)} disabled={groupNumbers.length === 0}>
-          {t('list.importCsv')}
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)} disabled={groupNumbers.length === 0}>
-          {t('list.new')} <kbd className="kbd">C</kbd>
-        </button>
-      </div>
+            </ToolbarPopover>
+          </>
+        }
+      />
       {groupNumbers.length === 0 && <p className="gr-banner">{t('list.needsBridge')}</p>}
 
       {selected.size > 0 && (
@@ -259,104 +182,6 @@ export default function GroupsList({
         </div>
       )}
 
-      {error && (
-        <div className="gr-error" role="alert">
-          {t('list.loadError')}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void load()}>
-            {t('common.retry')}
-          </button>
-        </div>
-      )}
-
-      {rows === null ? (
-        <div className="ui-loading-stack" aria-busy="true" aria-label={t('common.loading')}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="ui-skeleton ui-skeleton-row" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <EmptyState
-          quiet
-          title={q || label || propKey ? t('list.noResults') : t('list.emptyTitle')}
-          body={q || label || propKey ? undefined : t('list.emptyBody')}
-          action={
-            q || label || propKey || groupNumbers.length === 0 ? undefined : (
-              <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-                {t('list.new')}
-              </button>
-            )
-          }
-          product="groups"
-        />
-      ) : (
-        <div className="table-wrap table-stack">
-          <table className="table gr-table">
-            <thead>
-              <tr>
-                <th className="gr-check-col">
-                  <label className="tap-cell">
-                    <input
-                      type="checkbox"
-                      className="ui-check"
-                      checked={allSelected}
-                      onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
-                      aria-label={t('list.selectAll')}
-                    />
-                  </label>
-                </th>
-                <th>{t('list.colName')}</th>
-                <th className="num">{t('list.colMembers')}</th>
-                <th>{t('list.colLabels')}</th>
-                {shownProps.map((p) => (
-                  <th key={p.id} className="gr-hide-sm">
-                    {p.label}
-                  </th>
-                ))}
-                <th className="gr-hide-sm">{t('list.colActivity')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => (
-                <tr key={c.id}>
-                  <td className="gr-check-col">
-                    {/* El label es el área táctil (40px): la casilla sola es chica para el dedo. */}
-                    <label className="tap-cell">
-                      <input type="checkbox" className="ui-check" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={t('list.select', { name: c.name })} />
-                    </label>
-                  </td>
-                  <td>
-                    <Link href={`/app/lines/list/${c.id}`} className="gr-table-name">
-                      <ChatPlate name={c.name} kind="group" />
-                      <span>{c.name}</span>
-                      {c.leftAt ? (
-                        <span className="badge badge-outline">{t('groupSettings.leftTag')}</span>
-                      ) : (
-                        c.status === 'closed' && <span className="badge badge-outline">{t('list.closed')}</span>
-                      )}
-                      {c.flagged && <span className="badge badge-bad">{t('inbox.flagged')}</span>}
-                    </Link>
-                  </td>
-                  <td className="num" data-label={t('list.colMembers')}>{c.memberCount}</td>
-                  <td className={c.labels.length ? undefined : 'gr-empty-cell'} data-label={c.labels.length ? t('list.colLabels') : undefined}>
-                    <span className="gr-label-row">
-                      {c.labels.map((l) => (
-                        <LabelTag key={l.id} name={l.name} color={l.color} />
-                      ))}
-                    </span>
-                  </td>
-                  {shownProps.map((p) => (
-                    <td key={p.id} className="gr-hide-sm" data-label={p.label}>
-                      <PropertyValueText def={p} value={c.properties[p.key]} />
-                    </td>
-                  ))}
-                  <td className="gr-hide-sm ui-help" data-label={t('list.colActivity')}>{rel(c.lastMessageAt ?? c.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       <CreateGroupModal
         open={createOpen}
         numbers={groupNumbers}
@@ -371,12 +196,12 @@ export default function GroupsList({
           router.push(`/app/lines/list/${id}`);
         }}
       />
-      <CsvModal open={csvOpen} numbers={groupNumbers} onClose={() => setCsvOpen(false)} onDone={() => void load()} />
+      <CsvModal open={csvOpen} numbers={groupNumbers} onClose={() => setCsvOpen(false)} onDone={load} />
       <BulkSettingsModal
         open={settingsOpen}
-        chats={(rows ?? []).filter((r) => selected.has(r.id))}
+        chats={rows.filter((r) => selected.has(r.chatId)).map((r) => ({ id: r.chatId, name: r.name }))}
         onClose={() => setSettingsOpen(false)}
-        onDone={() => void load()}
+        onDone={load}
       />
       <JoinModal
         open={joinOpen}
@@ -388,18 +213,12 @@ export default function GroupsList({
           router.push(`/app/lines/list/${id}`);
         }}
       />
-      <BulkModal
-        action={bulk}
-        chatIds={[...selected]}
-        onClose={() => setBulk(null)}
-        onDone={() => {
-          void load();
-        }}
-      />
+      <BulkModal action={bulk} chatIds={[...selected]} onClose={() => setBulk(null)} onDone={load} />
       {toast}
     </>
   );
 }
+
 
 function CreateGroupModal({
   open,
@@ -852,7 +671,7 @@ function JoinModal({ open, numbers, onClose, onJoined }: { open: boolean; number
 const BULK_EPHEMERAL = [0, 86_400, 604_800, 7_776_000] as const;
 
 /** Solo admins escriben o editan y mensajes temporales, en varios grupos a la vez (con resultado por grupo). */
-function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; chats: ChatDto[]; onClose: () => void; onDone: () => void }) {
+function BulkSettingsModal({ open, chats, onClose, onDone }: { open: boolean; chats: Array<Pick<ChatDto, 'id' | 'name'>>; onClose: () => void; onDone: () => void }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const [announce, setAnnounce] = useState('');

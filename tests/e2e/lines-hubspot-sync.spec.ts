@@ -520,6 +520,8 @@ test('grupos sin empresa: sugerencia por nombre, buscador por fila y nada se vin
 
   // ---------- Se llega desde la lista de grupos ----------
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
+  // Va en el menú "⋯" de la barra de Grupos.
+  await page.getByTestId('groups-more-button').click();
   await page.getByRole('link', { name: 'Link groups to HubSpot' }).click();
   await expect(page.getByRole('heading', { name: 'Groups without a company' })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Filter groups by name' }).fill(tag);
@@ -578,6 +580,8 @@ test('grupos sin empresa: sugerencia por nombre, buscador por fila y nada se vin
   await page.goto('/en/app/lines/list/unlinked', { waitUntil: 'networkidle' });
   await expect(page.getByText('Connect HubSpot to link groups to companies.')).toBeVisible();
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
+  await page.getByTestId('groups-more-button').click();
+  await expect(page.getByRole('link', { name: 'Join with link' }).or(page.getByRole('button', { name: 'Join with link' }))).toBeVisible();
   await expect(page.getByRole('link', { name: 'Link groups to HubSpot' })).toHaveCount(0);
 
   expect(errors, errors.join('\n')).toEqual([]);
