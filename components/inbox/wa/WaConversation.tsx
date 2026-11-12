@@ -192,11 +192,23 @@ const WaConversation = forwardRef<
   }, [messages, thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
+  // La fecha fija arriba ("Hoy", "Ayer") se ve solo mientras se desplaza, como en WhatsApp y en Lines (styles/groups-wa.css).
+  const scrollIdle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+  }, []);
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
     anchor.capture();
     setAtBottom(isAtBottom(el));
+    const top = el.getBoundingClientRect().top;
+    el.querySelectorAll<HTMLElement>('.wa-dayblock').forEach((b) => {
+      (b.firstElementChild as HTMLElement | null)?.classList.toggle('is-stuck', b.getBoundingClientRect().top < top - 4);
+    });
+    el.classList.add('is-scrolling');
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+    scrollIdle.current = setTimeout(() => el.classList.remove('is-scrolling'), 1200);
   };
 
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).

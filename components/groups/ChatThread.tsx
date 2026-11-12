@@ -1671,12 +1671,14 @@ export default function ChatThread(props: ThreadProps) {
         </div>
         {reactions.size > 0 && (
           <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {[...reactions].map(([emoji, n]) => (
-              <span key={emoji}>
-                {emoji}
-                {n > 1 && <b>{n}</b>}
-              </span>
-            ))}
+            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
+            {[...reactions]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([emoji]) => (
+                <span key={emoji}>{emoji}</span>
+              ))}
+            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
           </p>
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (

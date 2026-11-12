@@ -72,13 +72,15 @@ export default function LinkPreview({ url, given }: { url: string; given?: LinkP
             {data.description}
           </span>
         )}
+        {/* El pie: el ícono del sitio (o el de link si no tiene) y el dominio, como WhatsApp. */}
         <span className="wa-linkcard-foot">
-          <LinkIcon size={12} />
-          <span className="wa-linkcard-domain">{site ? `${site} · ${host}` : host}</span>
-          {favicon && (
+          {favicon ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img className="wa-linkcard-fav" src={favicon} alt="" width={16} height={16} onError={fail(favicon)} />
+            <img className="wa-linkcard-fav" src={favicon} alt="" width={14} height={14} onError={fail(favicon)} />
+          ) : (
+            <LinkIcon size={12} />
           )}
+          <span className="wa-linkcard-domain">{site ? `${site} · ${host}` : host}</span>
         </span>
       </span>
     </a>
