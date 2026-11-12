@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-folders-collapsed-sidebar',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: folders in the collapsed sidebar',
+      es: 'Lines e Inbox: carpetas en el lateral colapsado',
+      pt: 'Lines e Inbox: pastas na barra lateral recolhida',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With the sidebar collapsed, folders show as small squares with their initials on the left (name on hover, a dot when there are unread chats) instead of a dropdown above the list.',
+        es: 'Con el lateral colapsado, las carpetas aparecen a la izquierda como cuadraditos con sus iniciales (el nombre al pasar el mouse y un punto si hay chats sin leer), en vez de un desplegable arriba de la lista.',
+        pt: 'Com a barra lateral recolhida, as pastas aparecem à esquerda como quadradinhos com as iniciais (o nome ao passar o mouse e um ponto se houver chats não lidos), em vez de um menu acima da lista.',
+      },
+      {
+        product: 'inbox',
+        en: 'Inbox folders do the same, in their own color.',
+        es: 'Las carpetas de Inbox hacen lo mismo, con su color.',
+        pt: 'As pastas do Inbox fazem o mesmo, com sua cor.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-calls-cost-tier',
     date: '2026-11-12',
     title: {

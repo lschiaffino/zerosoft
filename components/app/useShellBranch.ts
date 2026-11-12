@@ -34,3 +34,28 @@ export function useShellBranch(): HTMLElement | null {
   }, []);
   return el;
 }
+
+/**
+ * El mismo hueco #side-branch, pero solo con el sidebar colapsado (≥1024px): ahí
+ * un producto cuelga una versión angosta de su lista (las carpetas como íconos).
+ */
+export function useCollapsedBranch(): HTMLElement | null {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP);
+    const frame = document.querySelector('.app-frame');
+    const update = () => {
+      const collapsed = frame?.classList.contains('sidebar-collapsed') ?? false;
+      setEl(mq.matches && collapsed ? document.getElementById('side-branch') : null);
+    };
+    update();
+    mq.addEventListener('change', update);
+    const mo = frame ? new MutationObserver(update) : null;
+    mo?.observe(frame!, { attributes: true, attributeFilter: ['class'] });
+    return () => {
+      mq.removeEventListener('change', update);
+      mo?.disconnect();
+    };
+  }, []);
+  return el;
+}

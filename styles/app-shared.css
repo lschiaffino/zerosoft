@@ -345,6 +345,28 @@
 .docs-branch { padding: 2px 0 6px 8px; }
 .docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 12px; }
 .sidebar-collapsed .side-branch { display: none; }
+/* Carpetas como íconos en el sidebar colapsado (components/ui/FolderRail.tsx). */
+.sidebar-collapsed .side-branch:has(.folder-rail) { display: block; }
+.folder-rail { padding: 6px 0 4px; margin: 2px 8px 0; border-top: 1px solid var(--line); max-height: 40vh; overflow-y: auto; scrollbar-width: none; }
+.folder-rail::-webkit-scrollbar { display: none; }
+.folder-rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.folder-rail-btn {
+  --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 55% 45%));
+  position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
+  background: color-mix(in srgb, var(--fr-bg) 14%, transparent); color: var(--fr-bg);
+  font-size: 11.5px; font-weight: 650; letter-spacing: 0.02em; text-decoration: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.folder-rail li.is-sub .folder-rail-btn { width: 26px; height: 26px; font-size: 10.5px; border-radius: 7px; }
+.folder-rail-btn:hover { background: color-mix(in srgb, var(--fr-bg) 24%, transparent); }
+.folder-rail-btn.is-active { background: var(--fr-bg); color: #fff; }
+.folder-rail-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.folder-rail-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #d4504f); box-shadow: 0 0 0 2px var(--bg); }
+@media (prefers-reduced-motion: reduce) { .folder-rail-btn { transition: none; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .folder-rail-btn { --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 60% 68%)); } }
+:root[data-theme="dark"] .folder-rail-btn { --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 60% 68%)); }
+:root[data-theme="dark"] .folder-rail-btn.is-active, :root:not([data-theme="light"]) .folder-rail-btn.is-active { color: var(--bg); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .folder-rail-btn.is-active { color: #fff; } }
 @media (max-width: 1023px) {
   .docs-tree { --row-h: 36px; --indent: 16px; }
 }
