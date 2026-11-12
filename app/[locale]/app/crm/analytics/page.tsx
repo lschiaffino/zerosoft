@@ -89,9 +89,11 @@ export default async function CrmAnalyticsPage(props: { params: Promise<{ locale
 function CrmAnalyticsView({ f, d, multiPipeline }: { f: Fmt; d: CrmAnalytics; multiPipeline: boolean }) {
   const k = d.kpis;
   const labels = d.perDay.map((p) => f.day(p.day));
-  const maxStage = Math.max(1, ...d.stages.map((s) => s.amount));
-  const maxStageDeals = Math.max(1, ...d.stages.map((s) => s.deals));
-  const useAmount = d.stages.some((s) => s.amount > 0);
+  // Con todos los pipelines, las etapas vacías de otros pipelines solo agregan ruido.
+  const stages = multiPipeline ? d.stages.filter((s) => s.deals > 0) : d.stages;
+  const maxStage = Math.max(1, ...stages.map((s) => s.amount));
+  const maxStageDeals = Math.max(1, ...stages.map((s) => s.deals));
+  const useAmount = stages.some((s) => s.amount > 0);
   const totalActs = d.activityTypes.reduce((a, x) => a + x.value, 0);
   const maxAct = Math.max(1, ...d.activityTypes.map((x) => x.value));
   const totalLost = d.lostReasons.reduce((a, x) => a + x.deals, 0);
@@ -126,25 +128,28 @@ function CrmAnalyticsView({ f, d, multiPipeline }: { f: Fmt; d: CrmAnalytics; mu
         <Panel title={f.t('analytics.byStage')} note={useAmount ? f.t('analytics.weightedSub', { value: f.money(k.weighted.value ?? 0) }) : undefined}>
           <BarList
             empty={f.t('analytics.noOpen')}
-            rows={d.stages.map((s) => ({
+            rows={stages.map((s) => ({
               key: s.id,
-              label: multiPipeline ? `${s.pipelineName} · ${s.name}` : s.name,
+              label: s.name,
               value: useAmount ? f.money(s.amount) : dealsN(s.deals),
-              extra: useAmount ? dealsN(s.deals) : undefined,
-              sub: useAmount && s.amount > 0 ? f.t('analytics.weightedSub', { value: f.money(Math.round(s.weighted)) }) : undefined,
+              // El pipeline, la cantidad y el ponderado van abajo: en angosto, el nombre de la etapa entra entero.
+              sub: [multiPipeline ? s.pipelineName : '', useAmount ? dealsN(s.deals) : '', useAmount && s.amount > 0 ? f.t('analytics.weightedSub', { value: f.money(Math.round(s.weighted)) }) : '']
+                .filter(Boolean)
+                .join(' · '),
               share: useAmount ? s.amount / maxStage : s.deals / maxStageDeals,
             }))}
           />
         </Panel>
         <Panel title={f.t('analytics.wonPerDay')}>
+          {/* Barras: lo ganado cae en pocos días, y una línea entre ceros se lee como picos. */}
           <TrendChart
+            kind="bars"
             labels={labels}
-            series={[{ name: f.t('analytics.wonAmount'), values: d.perDay.map((p) => p.wonAmount), compare: d.prevPerDay.map((p) => p.wonAmount) }]}
+            series={[{ name: f.t('analytics.wonAmount'), values: d.perDay.map((p) => p.wonAmount) }]}
             height={220}
             summary={chartAria(f, f.t('analytics.wonPerDay'), d.range)}
             locale={f.locale}
             unit={d.currency}
-            compareLabel={f.k('previous')}
           />
         </Panel>
       </PanelGrid>

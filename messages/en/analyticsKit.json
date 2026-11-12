@@ -39,5 +39,6 @@
     "b3": "1 to 4 h",
     "b4": "4 to 24 h",
     "b5": "Over a day"
-  }
+  },
+  "hourUnit": "h"
 }

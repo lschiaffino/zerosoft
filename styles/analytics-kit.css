@@ -81,6 +81,8 @@
 
 /* ---------- Paneles ---------- */
 .la-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+/* Dos paneles uno debajo del otro dentro de una columna de la grilla. */
+.la-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .la-panel {
   display: flex;
   flex-direction: column;
@@ -106,6 +108,7 @@
 .la-table a { color: var(--ink); font-weight: 500; text-decoration: none; }
 .la-table a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .la-muted { color: var(--dim); }
+.la-cell-sub { display: block; margin-top: 2px; font-size: 0.75rem; font-weight: 400; color: var(--dim); }
 .la-foot { margin: 0; font-size: 0.8125rem; color: var(--dim); }
 
 /* ---------- Gráfico de líneas y barras ---------- */

@@ -97,22 +97,24 @@ function CallsAnalyticsView({ f, d }: { f: Fmt; d: Data }) {
             rows={d.topics.map((x) => ({ key: x.name.toLowerCase(), label: x.name, value: callsN(x.calls), extra: pctOf(f, x.calls, k.calls.value ?? 0), share: x.calls / maxTopic }))}
           />
         </Panel>
-        <Panel title={f.t('analytics.competitors')}>
-          <BarList
-            tone="ink"
-            empty={f.t('analytics.noCompetitors')}
-            rows={d.competitors.map((x) => ({ key: x.name.toLowerCase(), label: x.name, value: callsN(x.calls), extra: pctOf(f, x.calls, k.calls.value ?? 0), share: x.calls / maxComp }))}
-          />
-        </Panel>
+        <div className="la-stack">
+          <Panel title={f.t('analytics.competitors')}>
+            <BarList
+              tone="ink"
+              empty={f.t('analytics.noCompetitors')}
+              rows={d.competitors.map((x) => ({ key: x.name.toLowerCase(), label: x.name, value: callsN(x.calls), extra: pctOf(f, x.calls, k.calls.value ?? 0), share: x.calls / maxComp }))}
+            />
+          </Panel>
+          <Panel title={f.t('analytics.talkBands')}>
+            <BarList
+              empty={f.t('analytics.noTalk')}
+              rows={banded === 0 ? [] : d.talkBands.map((n, i) => ({ key: String(i), label: f.t(`analytics.bands.b${i}`), value: callsN(n), extra: pctOf(f, n, banded), share: n / maxBand }))}
+            />
+          </Panel>
+        </div>
       </PanelGrid>
-      <PanelGrid>
-        <Panel title={f.t('analytics.talkBands')}>
-          <BarList
-            empty={f.t('analytics.noTalk')}
-            rows={banded === 0 ? [] : d.talkBands.map((n, i) => ({ key: String(i), label: f.t(`analytics.bands.b${i}`), value: callsN(n), extra: pctOf(f, n, banded), share: n / maxBand }))}
-          />
-        </Panel>
-        <Panel title={f.t('analytics.byRep')}>
+      {/* Seis columnas: la tabla por rep va a lo ancho. */}
+      <Panel title={f.t('analytics.byRep')}>
           <DataTable
             rows={d.reps}
             rowKey={(r) => r.id}
@@ -126,8 +128,7 @@ function CallsAnalyticsView({ f, d }: { f: Fmt; d: Data }) {
               { key: 'score', label: f.t('analytics.score'), num: true, cell: (r) => (r.score == null ? '—' : f.num(r.score)) },
             ]}
           />
-        </Panel>
-      </PanelGrid>
+      </Panel>
     </>
   );
 }

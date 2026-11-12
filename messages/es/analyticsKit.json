@@ -39,5 +39,6 @@
     "b3": "De 1 a 4 h",
     "b4": "De 4 a 24 h",
     "b5": "Más de un día"
-  }
+  },
+  "hourUnit": "h"
 }

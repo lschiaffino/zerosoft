@@ -49,6 +49,9 @@ function InboxAnalyticsView({ f, d }: { f: Fmt; d: Data }) {
   const responses = d.buckets.reduce((a, b) => a + b, 0);
   const maxBucket = Math.max(1, ...d.buckets);
   const frTitle = f.t('analytics.frPerDay');
+  // Con medianas de horas, el eje en minutos (0 a 2000) no se lee: pasa a horas.
+  const frHours = Math.max(0, ...d.responsePerDay.map((p) => p.medianMin ?? 0)) > 180;
+  const frValues = d.responsePerDay.map((p) => (p.medianMin == null ? null : frHours ? Math.round((p.medianMin / 60) * 10) / 10 : p.medianMin));
   return (
     <>
       <Kpis>
@@ -107,10 +110,10 @@ function InboxAnalyticsView({ f, d }: { f: Fmt; d: Data }) {
           ) : (
             <TrendChart
               labels={labels}
-              series={[{ name: f.t('analytics.firstResponse'), values: d.responsePerDay.map((p) => p.medianMin) }]}
+              series={[{ name: f.t('analytics.firstResponse'), values: frValues }]}
               summary={chartAria(f, frTitle, d.range)}
               locale={f.locale}
-              unit={f.k('minUnit')}
+              unit={frHours ? f.k('hourUnit') : f.k('minUnit')}
               height={220}
             />
           )}
@@ -132,8 +135,17 @@ function InboxAnalyticsView({ f, d }: { f: Fmt; d: Data }) {
             rowKey={(r) => r.id}
             empty={f.k('noneInPeriod')}
             columns={[
-              { key: 'chat', label: f.t('analytics.chat'), cell: (r) => <Link href={`/app/inbox?t=${r.id}`}>{r.title}</Link> },
-              { key: 'channel', label: f.t('analytics.channel'), cell: (r) => channelName(r.channel), className: () => 'la-muted' },
+              {
+                key: 'chat',
+                label: f.t('analytics.chat'),
+                // El canal debajo del nombre, no en una columna: a 390 px la tabla entra sin scroll.
+                cell: (r) => (
+                  <>
+                    <Link href={`/app/inbox?t=${r.id}`}>{r.title}</Link>
+                    <small className="la-cell-sub">{channelName(r.channel)}</small>
+                  </>
+                ),
+              },
               { key: 'in', label: f.t('analytics.received'), num: true, cell: (r) => f.num(r.received) },
               { key: 'out', label: f.t('analytics.sent'), num: true, cell: (r) => f.num(r.sent) },
             ]}
