@@ -132,9 +132,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'groups',
-        en: 'The "Import finished" notice in the inbox can be closed, and it stays closed.',
-        es: 'El aviso de "Importación terminada" en la bandeja se puede cerrar, y queda cerrado.',
-        pt: 'O aviso de "Importação concluída" na caixa de entrada pode ser fechado, e continua fechado.',
+        en: 'The "Import finished" and "lost its WhatsApp connection" notices in the inbox can be closed, and they stay closed. If a line reconnects and drops again, the notice comes back.',
+        es: 'Los avisos de "Importación terminada" y de "perdió la conexión con WhatsApp" en la bandeja se pueden cerrar, y quedan cerrados. Si una línea se reconecta y se vuelve a caer, el aviso vuelve.',
+        pt: 'Os avisos de "Importação concluída" e de "perdeu a conexão com o WhatsApp" na caixa de entrada podem ser fechados, e continuam fechados. Se uma linha reconecta e cai de novo, o aviso volta.',
       },
     ],
   },

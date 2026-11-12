@@ -170,6 +170,7 @@
 .wa-import.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
 .wa-dropped { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-dropped .btn { flex: none; }
+.wa-dropped .wa-import-close { margin-left: -4px; }
 /* "Archivados": la fila arriba de la lista y el encabezado de su vista (como WhatsApp). */
 .wa-archived-row { display: grid; grid-template-columns: 49px minmax(0, 1fr) auto; gap: 15px; align-items: center; width: 100%; min-height: 49px; padding: 0 15px 0 13px; font: inherit; text-align: left; color: var(--wa-text); background: var(--wa-panel); border: 0; cursor: pointer; }
 .wa-archived-row:hover { background: var(--wa-row-hover); }

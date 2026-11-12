@@ -286,6 +286,21 @@ export default function InboxShell({
       /* sin almacenamiento: vale para esta vista */
     }
   }, []);
+  // Una línea que se reconecta saca su aviso cerrado de la lista: si se vuelve a caer, avisa de nuevo.
+  useEffect(() => {
+    if (!loaded) return;
+    const down = new Set(dropped.map((n) => `drop:${n.id}`));
+    setImportsClosed((cur) => {
+      const next = cur.filter((k) => !k.startsWith('drop:') || down.has(k));
+      if (next.length === cur.length) return cur;
+      try {
+        window.localStorage.setItem(IMPORTS_CLOSED_KEY, JSON.stringify(next));
+      } catch {
+        /* vale para esta vista */
+      }
+      return next;
+    });
+  }, [dropped, loaded]);
   const closeImport = (key: string) => {
     const next = [...importsClosed.filter((k) => k !== key), key].slice(-50);
     setImportsClosed(next);
@@ -1221,12 +1236,15 @@ export default function InboxShell({
             </div>
           )}
           {/* Con una línea elegida, solo sus avisos: los de otra línea no son de esta vista. */}
-          {dropped.filter((n) => line === 'all' || n.id === line).map((n) => (
+          {dropped.filter((n) => (line === 'all' || n.id === line) && !importsClosed.includes(`drop:${n.id}`)).map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
               <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
                 {n.qr ? t('wa.rescan') : t('wa.reconnect')}
               </Link>
+              <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(`drop:${n.id}`)} aria-label={t('common.close')} title={t('common.close')}>
+                <Close size={16} />
+              </button>
             </div>
           ))}
           {archivedView && (
