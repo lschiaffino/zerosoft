@@ -122,6 +122,29 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-desktop-new-tab',
+    date: '2026-11-11',
+    title: {
+      en: 'Desktop 0.3.6: a new tab opens on Home, without the search',
+      es: 'Escritorio 0.3.6: la pestaña nueva abre en Inicio, sin el buscador',
+      pt: 'Desktop 0.3.6: a aba nova abre no Início, sem a busca',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'A new tab in the desktop app used to open with the search on top. It now opens on Home; the search is still one ⌘K away.',
+        es: 'Una pestaña nueva en la app de escritorio abría con el buscador encima. Ahora abre en Inicio; el buscador sigue a un ⌘K.',
+        pt: 'Uma aba nova no app de desktop abria com a busca por cima. Agora abre no Início; a busca continua a um ⌘K.',
+      },
+      {
+        product: 'platform',
+        en: 'In the desktop settings, "Done" at the end of the dictation setup now closes the window, and the account shown is yours even when you are working in someone else\'s workspace (it used to show the workspace owner\'s email).',
+        es: 'En los ajustes del escritorio, "Listo" al final de la configuración del dictado ahora cierra la ventana, y la cuenta que se muestra es la tuya aunque estés trabajando en el workspace de otra persona (antes mostraba el email del dueño del workspace).',
+        pt: 'Nos ajustes do desktop, "Pronto" no fim da configuração do ditado agora fecha a janela, e a conta mostrada é a sua mesmo trabalhando no workspace de outra pessoa (antes mostrava o email do dono do workspace).',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
