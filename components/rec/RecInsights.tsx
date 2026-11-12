@@ -46,7 +46,7 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
   if (stats.views === 0) {
     return (
       <div className="rec-insights" data-testid="rec-insights-empty">
-        <EmptyState compact title={t('noViewsTitle')} body={t('noViewsBody')} />
+        <EmptyState quiet product="rec" title={t('noViewsTitle')} body={t('noViewsBody')} />
       </div>
     );
   }

@@ -503,14 +503,14 @@ test('analítica: vistas, únicos, % visto, ubicación, dispositivo y CSV', asyn
   expect((await page.getByTestId('rec-export-csv').boundingBox())!.height).toBeGreaterThanOrEqual(40);
 });
 
-test('analítica: sin sesión no se lee la ubicación de nadie', async ({ page, playwright, baseURL }) => {
+// Quién puede leer la analítica (solo quien administra el video) lo cubre tests/unit/rec.test.ts:
+// acá corre en DEMO_MODE, donde todo visitante es el usuario demo.
+test('analítica: la respuesta con ubicaciones no se guarda en cachés compartidas', async ({ page }) => {
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const v = await uploadVideo(page.request, await makeWebm(page), `Private stats ${uid()}`, 100);
-  const anon = await playwright.request.newContext({ baseURL });
-  const res = await anon.get(`/api/rec/videos/${v.id}/analytics`);
-  expect([401, 403, 404]).toContain(res.status());
-  expect(await res.text()).not.toContain('country');
-  await anon.dispose();
+  const res = await page.request.get(`/api/rec/videos/${v.id}/analytics`);
+  expect(res.status()).toBe(200);
+  expect(res.headers()['cache-control']).toContain('no-store');
 });
 
 test('CRM: el video 1:1 se graba con el grabador de Rec', async ({ page }) => {
