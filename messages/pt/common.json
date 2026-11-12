@@ -230,7 +230,12 @@
     "groupBiQuestions": "Perguntas do Analytics",
     "groupBiDashboards": "Painéis do Analytics",
     "groupBiCollections": "Coleções do Analytics",
-    "downloadDesktop": "App para computador"
+    "downloadDesktop": "App para computador",
+    "presenceAvailable": "Disponível",
+    "presenceAway": "Ausente",
+    "presenceSetAway": "Ficar ausente",
+    "presenceSetAvailable": "Ficar disponível",
+    "presenceHelp": "Lines: a atribuição automática só envia chats novos para quem está disponível."
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

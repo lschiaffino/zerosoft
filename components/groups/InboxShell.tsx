@@ -230,7 +230,6 @@ export default function InboxShell({
   const [selectMode, setSelectMode] = useState(false);
   const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [available, setAvailable] = useState<boolean | null>(null);
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name || p.email])), [people]);
   const pathname = usePathname();
   const router = useRouter();
@@ -319,7 +318,6 @@ export default function InboxShell({
   const activeList = lists.find((l) => l.id === listId) ?? null;
 
   useEffect(() => {
-    void api<{ me: boolean }>('/api/groups/availability').then((r) => setAvailable(r.data ? r.data.me : true));
     if (listId) return;
     const saved = readSaved();
     if (saved) {
@@ -670,15 +668,14 @@ export default function InboxShell({
     void load(true);
   }
 
-  async function toggleAvailable() {
-    const next = !(available ?? true);
-    setAvailable(next);
-    const res = await api('/api/groups/availability', { method: 'PUT', body: { available: next } });
-    if (!res.data) {
-      setAvailable(!next);
-      showToast(errText(res.error), true);
-    } else void load(true);
-  }
+
+  // Disponible/ausente se cambia en el menú de la cuenta: al cambiar, la lista se recarga (puede haber asignaciones nuevas).
+  useEffect(() => {
+    const on = () => void load(true);
+    window.addEventListener('zs:lines-presence-changed', on);
+    return () => window.removeEventListener('zs:lines-presence-changed', on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value = useMemo(() => ({ rows, refresh }), [rows, refresh]);
   const unreadChats = unreadTotal ?? rows.filter((r) => r.unread > 0 && !r.muted).length;
@@ -1152,18 +1149,6 @@ export default function InboxShell({
             <div className="gr-list-titlebar">
               <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
               <LineSelector numbers={numbers} value={line} onChange={pickLine} />
-              {available !== null && (
-                <button
-                  type="button"
-                  className={`btn btn-ghost btn-sm gr-presence${available ? ' is-on' : ''}`}
-                  aria-pressed={available}
-                  onClick={() => void toggleAvailable()}
-                  title={t('inbox.availabilityHelp')}
-                >
-                  <i aria-hidden="true" />
-                  {available ? t('inbox.available') : t('inbox.away')}
-                </button>
-              )}
               <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
                 <Plus size={20} />
               </button>
