@@ -1285,7 +1285,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
       return [
-        ...(labels.newChat ? [item('/app/lines/inbox?new=chat', labels.newChat, 'chat')] : []),
+        ...(labels.newChat ? [item('/app/lines/inbox?new=1', labels.newChat, 'chat')] : []),
         item('/app/lines/list?new=1', labels.newGroup, 'groups'),
       ];
     case 'social':

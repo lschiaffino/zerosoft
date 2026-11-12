@@ -319,8 +319,8 @@ export default function InboxShell({
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
   }, []);
-  // "Nuevo › Chat nuevo" del lateral llega con ?new=chat: abre el diálogo y saca el parámetro de la URL.
-  const wantsNewChat = params.get('new') === 'chat';
+  // "Nuevo › Chat nuevo" del lateral llega con ?new=1: abre el diálogo y saca el parámetro de la URL.
+  const wantsNewChat = params.get('new') === '1';
   useEffect(() => {
     if (!wantsNewChat) return;
     setNewChat(true);
