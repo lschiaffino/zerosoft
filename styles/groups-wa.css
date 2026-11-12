@@ -967,3 +967,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-emoji-suggest-item.is-active { border-color: var(--wa-primary); background: var(--wa-hover, rgba(0, 0, 0, 0.04)); }
 @keyframes wa-emoji-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .wa-emoji-suggest { animation: none; } }
+
+/* Onda en vivo al grabar una nota de voz (components/groups/wa/LiveWaveform.tsx). */
+.wa-live-wave { flex: 1; min-width: 0; height: 28px; margin: 0 8px; color: var(--wa-text-2); }
+.wa-live-wave.is-paused { opacity: 0.5; }

@@ -70,6 +70,7 @@ import {
   Person,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import LiveWaveform from './wa/LiveWaveform';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -1882,7 +1883,8 @@ export default function ChatThread(props: ThreadProps) {
               <span className="wa-rec-time" aria-live="off">
                 {Math.floor(recording.elapsed / 60)}:{String(recording.elapsed % 60).padStart(2, '0')}
               </span>
-              <span className="wa-rec-label">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
+              <span className="sr-only">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
+              <LiveWaveform stream={recorder.current?.stream} paused={recording.paused} />
               <button type="button" className="wa-icon-btn" onClick={togglePause} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
                 {recording.paused ? <Mic size={22} /> : <Pause size={22} />}
               </button>

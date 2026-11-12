@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-voice-note-waveform',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: live waveform while recording',
+      es: 'Lines e Inbox: onda en vivo al grabar',
+      pt: 'Lines e Inbox: onda ao vivo ao gravar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'While you record a voice note, a waveform moves with your voice, so you can see the microphone is hearing you.',
+        es: 'Mientras grabás una nota de voz, una onda se mueve con tu voz: se ve que el micrófono te está escuchando.',
+        pt: 'Enquanto você grava uma nota de voz, uma onda se move com a sua voz: dá para ver que o microfone está ouvindo.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox voice notes.',
+        es: 'Lo mismo en las notas de voz de Inbox.',
+        pt: 'O mesmo nas notas de voz do Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {
