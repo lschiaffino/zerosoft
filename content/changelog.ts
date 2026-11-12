@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-filter-chips-row',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: applied filters in one row',
+      es: 'Lines: los filtros aplicados en una sola fila',
+      pt: 'Lines: os filtros aplicados em uma só linha',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With several filters applied, their chips stay in one row you can scroll sideways, so the chat list no longer moves down. Each chip shows its full text when you hover it.',
+        es: 'Con varios filtros aplicados, los chips quedan en una sola fila que se desplaza de costado, así la lista de chats ya no baja. Cada chip muestra su texto completo al pasar el mouse.',
+        pt: 'Com vários filtros aplicados, os chips ficam em uma só linha que rola para o lado, então a lista de chats não desce mais. Cada chip mostra o texto completo ao passar o mouse.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {
