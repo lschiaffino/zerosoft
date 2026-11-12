@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { getDb } from '../db';
-import { AUTO_JOIN_RULES, CallsError, DEFAULT_SETTINGS, METHODOLOGIES, nowIso, parseJson, type AutoJoinRule, type CallsActor, type CallsSettings } from './types';
+import { AUTO_JOIN_RULES, CALLS_COST_TIERS, CallsError, DEFAULT_SETTINGS, METHODOLOGIES, nowIso, parseJson, type AutoJoinRule, type CallsActor, type CallsSettings } from './types';
 
 export const settingsSchema = z.object({
   methodology: z.enum(METHODOLOGIES as unknown as [string, ...string[]]).optional(),
@@ -15,6 +15,7 @@ export const settingsSchema = z.object({
   consentMessage: z.string().trim().max(500).optional(),
   logToCrm: z.boolean().optional(),
   talkChannel: z.string().trim().max(80).optional(),
+  costTier: z.enum(CALLS_COST_TIERS).optional(),
 });
 
 export async function getSettings(ws: string): Promise<CallsSettings> {
@@ -45,6 +46,7 @@ export async function updateSettings(actor: CallsActor, patch: z.infer<typeof se
     ...(patch.botName !== undefined ? { botName: botDisplayName(patch.botName) } : {}),
     ...(patch.consentMessage !== undefined ? { consentMessage: patch.consentMessage } : {}),
     ...(patch.logToCrm !== undefined ? { logToCrm: patch.logToCrm } : {}),
+    ...(patch.costTier ? { costTier: patch.costTier } : {}),
   };
   if (patch.talkChannel !== undefined) {
     const name = patch.talkChannel.replace(/^#/, '').trim();

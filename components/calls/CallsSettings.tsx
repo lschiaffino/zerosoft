@@ -46,6 +46,7 @@ export default function CallsSettings({ initial, autoJoin, admin, botConfigured,
         botName: s.botName,
         consentMessage: s.consentMessage,
         logToCrm: s.logToCrm,
+        costTier: s.costTier,
         talkChannel: s.talkChannel,
       },
     });
@@ -140,6 +141,14 @@ export default function CallsSettings({ initial, autoJoin, admin, botConfigured,
               <label htmlFor="cl-consent">{t('consent')}</label>
               <textarea id="cl-consent" className="textarea" rows={3} maxLength={500} value={s.consentMessage} onChange={(e) => setS({ ...s, consentMessage: e.target.value })} placeholder={t('consentPlaceholder')} />
               <p className="ui-help">{t('consentHelp')}</p>
+            </div>
+            <div className="ui-field">
+              <label htmlFor="cl-cost">{t('costTier')}</label>
+              <select id="cl-cost" className="select" value={s.costTier} onChange={(e) => setS({ ...s, costTier: e.target.value as Settings['costTier'] })}>
+                <option value="economy">{t('costEconomy')}</option>
+                <option value="premium">{t('costPremium')}</option>
+              </select>
+              <p className="ui-help">{s.costTier === 'economy' ? t('costEconomyHelp') : t('costPremiumHelp')}</p>
             </div>
             <label className="ui-check">
               <input type="checkbox" checked={s.logToCrm} onChange={(e) => setS({ ...s, logToCrm: e.target.checked })} />
