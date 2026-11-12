@@ -666,6 +666,7 @@
     "sampled": "A retenção, os detalhamentos e a lista de espectadores usam as últimas {n} visualizações. Os totais contam todas.",
     "geoNote": "A localização é aproximada e vem da rede de quem assiste. Não guardamos endereços IP.",
     "noViewsTitle": "Ainda não há visualizações",
-    "noViewsBody": "Compartilhe o link e você vai ver quem assistiu, de onde, em qual dispositivo e quanto. Suas próprias visualizações não contam."
+    "noViewsBody": "Compartilhe o link e você vai ver quem assistiu, de onde, em qual dispositivo e quanto. Suas próprias visualizações não contam.",
+    "viewsCount": "{n, plural, one {# visualização} other {# visualizações}}"
   }
 }

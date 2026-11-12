@@ -666,6 +666,7 @@
     "sampled": "Retention, breakdowns and the viewer list use the latest {n} views. The totals count all of them.",
     "geoNote": "Location is approximate and comes from the viewer's network. IP addresses are not stored.",
     "noViewsTitle": "No views yet",
-    "noViewsBody": "Share the link and you will see who watched, from where, on what device and how much. Your own views don't count."
+    "noViewsBody": "Share the link and you will see who watched, from where, on what device and how much. Your own views don't count.",
+    "viewsCount": "{n, plural, one {# view} other {# views}}"
   }
 }

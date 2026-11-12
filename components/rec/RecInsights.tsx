@@ -154,17 +154,8 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
               <tr>
                 <th scope="col">{td('viewer')}</th>
                 <th scope="col">{t('location')}</th>
-                <th scope="col" className="rec-col-wide">
-                  {t('device')}
-                </th>
-                <th scope="col" className="rec-col-wide">
-                  {t('source')}
-                </th>
                 <th scope="col" className="num">
                   {td('watched')}
-                </th>
-                <th scope="col" className="num rec-col-wide">
-                  {td('views')}
                 </th>
                 <th scope="col" className="rec-col-wide">
                   {td('lastView')}
@@ -175,17 +166,21 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
               {stats.viewers.map((r) => {
                 const where = place(r);
                 const flag = flagEmoji(r.country);
+                const last = dateFmt.format(parseDbUtc(r.lastAt));
                 return (
                   <tr key={r.viewerKey} data-testid="rec-viewer-row">
                     <td className="rec-vw-name">
-                      <span>{viewerName(r)}</span>
-                      {r.signedIn && <span className="muted"> · {td('signedIn')}</span>}
-                      {r.email && r.email !== r.name && <span className="rec-vw-sub muted">{r.email}</span>}
-                      <span className="rec-vw-sub rec-vw-narrow muted">
-                        {[deviceText(r), r.referrer ? labels.plain(r.referrer) : '', dateFmt.format(parseDbUtc(r.lastAt))].filter(Boolean).join(' · ')}
+                      <span className="rec-vw-title">
+                        {viewerName(r)}
+                        {r.signedIn && <span className="muted"> · {td('signedIn')}</span>}
                       </span>
+                      {r.email && r.email !== r.name && <span className="rec-vw-sub muted">{r.email}</span>}
+                      <span className="rec-vw-sub muted">
+                        {[deviceText(r) || t('unknown'), r.referrer ? labels.plain(r.referrer) : t('direct')].join(' · ')}
+                      </span>
+                      <span className="rec-vw-sub rec-vw-narrow muted">{last}</span>
                     </td>
-                    <td title={r.region && where ? `${where} (${r.region})` : undefined}>
+                    <td className="rec-vw-loc" title={r.region && where ? `${where} (${r.region})` : undefined}>
                       {where ? (
                         <>
                           {flag && (
@@ -199,14 +194,14 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
                         <span className="muted">{t('unknown')}</span>
                       )}
                     </td>
-                    <td className="rec-col-wide">{deviceText(r) || <span className="muted">{t('unknown')}</span>}</td>
-                    <td className="rec-col-wide">{r.referrer ? labels.plain(r.referrer) : <span className="muted">{t('direct')}</span>}</td>
                     <td className="num data">
                       <span className="rec-vw-pct">{r.pct}%</span>
                       <span className="rec-vw-time muted">{fmtWatch(r.watchedSec)}</span>
                     </td>
-                    <td className="num data rec-col-wide">{r.views}</td>
-                    <td className="data rec-col-wide">{dateFmt.format(parseDbUtc(r.lastAt))}</td>
+                    <td className="data rec-col-wide">
+                      <span className="rec-vw-pct">{last}</span>
+                      <span className="rec-vw-time muted">{t('viewsCount', { n: r.views })}</span>
+                    </td>
                   </tr>
                 );
               })}

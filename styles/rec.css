@@ -560,13 +560,16 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 
 /* Tabla de espectadores: en el teléfono se esconden columnas y van debajo del nombre. */
 .rec-viewers td { vertical-align: top; }
-.rec-vw-name { min-width: 140px; }
+.rec-vw-name { min-width: 150px; }
+.rec-vw-title { display: block; }
+.rec-vw-loc { min-width: 120px; }
+.rec-viewers td.rec-col-wide { white-space: nowrap; }
 .rec-vw-sub { display: block; font-size: 0.75rem; overflow-wrap: anywhere; }
 .rec-vw-narrow { display: none; }
 .rec-vw-pct, .rec-vw-time { display: block; }
 .rec-vw-time { font-size: 0.75rem; }
 .rec-flag { margin-right: 6px; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
-@media (max-width: 700px) {
+@media (max-width: 600px) {
   .rec-viewers .rec-col-wide { display: none; }
   .rec-vw-narrow { display: block; }
 }
