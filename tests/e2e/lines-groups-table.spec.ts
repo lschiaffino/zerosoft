@@ -14,6 +14,8 @@ import { PHONE, check, setTheme, settle } from './responsive-audit';
 const uid = () => Math.random().toString(36).slice(2, 8);
 const TOKEN = 'pat-na1-e2e-lines-groups-table';
 const VIEW_STORE = 'zs-groups-view-v1';
+/** Con SHOTS=<carpeta>, capturas para revisar a ojo. */
+const SHOTS = process.env.SHOTS;
 
 test.describe.configure({ mode: 'serial' });
 test.setTimeout(180_000);
@@ -116,6 +118,7 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   await expect(company).toHaveAttribute('href', /^https:\/\/app\.hubspot\.com\/contacts\/\d+\/record\/0-2\/9001$/);
   await expect(company).toHaveAttribute('target', '_blank');
   await expect(groupRow(page, onlyVentas)).toContainText('Not linked');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-table.png` });
 
   // ---------- Filtro por línea: una, varias, todas ----------
   const linesButton = page.getByTestId('groups-lines-button');
@@ -131,6 +134,7 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   await expect(groupRow(page, shared).locator('.gr-gt-line')).toHaveCount(2);
   await linesMenu.getByLabel(`Ventas ${tag}`).check();
   await expect(linesButton).toContainText('2 lines');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-lines.png` });
   await expect(page.locator('tbody tr')).toHaveCount(3);
   await linesMenu.getByLabel('All lines').check();
   await expect(linesButton).toContainText('All lines');
@@ -143,6 +147,7 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   const columns = page.getByRole('group', { name: 'Columns' });
   await page.getByRole('searchbox', { name: 'Search columns' }).fill('plan');
   await columns.getByLabel('Plan', { exact: true }).check();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-columns.png` });
   await page.keyboard.press('Escape');
   await expect(page.getByRole('columnheader', { name: 'Plan' })).toBeVisible();
   await expect(groupRow(page, shared).getByRole('cell', { name: 'Growth' })).toBeVisible();
@@ -187,6 +192,7 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
       await mobile.getByRole('searchbox', { name: 'Search by name' }).fill(tag);
       await expect(mobile.locator(`tr[data-group="${shared}"]`)).toBeVisible();
       await check(mobile, `lines grupos tabla 390 ${theme}`);
+      if (SHOTS) await mobile.screenshot({ path: `${SHOTS}/gt-390-${theme}.png`, fullPage: true });
       await mobile.getByTestId('groups-columns-button').click();
       await expect(mobile.getByRole('group', { name: 'Columns' })).toBeVisible();
       await check(mobile, `lines grupos columnas 390 ${theme}`);

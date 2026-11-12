@@ -39,6 +39,8 @@
 .gr-gt-option-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-gt-columns { display: flex; flex-direction: column; gap: 10px; }
 .gr-gt-columns > .btn { align-self: flex-start; }
+/* El buscador del menú no toma el ancho de la búsqueda de la barra (.gr-toolbar .input). */
+.gr-gt-columns > .input { flex: none; width: 100%; }
 .gr-gt-sortrow { display: flex; gap: 8px; }
 .gr-gt-sortrow .ui-field { flex: 1; min-width: 0; margin: 0; }
 .gr-gt-sortrow .select { width: 100%; }
@@ -96,6 +98,8 @@ th[aria-sort] .gr-gt-sort { color: var(--ink); }
 @media (max-width: 640px) {
   /* En el teléfono cada fila es una tarjeta: los valores se cortan en varias líneas. */
   .gr-gt-table td { white-space: normal; max-width: none; }
+  /* La cabecera queda solo para lectores de pantalla: en el teléfono se ordena desde Columnas. */
+  .gr-gt-table thead .gr-gt-sort { pointer-events: none; }
   .gr-gt-toolbar > .input { flex: 1 1 100%; }
   .gr-gt-menu-btn { max-width: 100%; }
   /* Los menús se anclan a la barra entera (no al botón) y ocupan su ancho. */
