@@ -508,11 +508,68 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-badge { display: inline-block; padding: 0 6px; font-size: 0.6875rem; line-height: 18px; border: 1px solid var(--line); border-radius: var(--radius-1); color: var(--dim); }
 .rec-badge.author { border-color: var(--c-rec); color: var(--ink); }
 
-/* Curva de retención: barras por tramo, alto = % de espectadores que lo vio. */
-.rec-retention { margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.rec-retention-bars { display: flex; align-items: flex-end; gap: 2px; height: 80px; padding: 4px 0; border-bottom: 1px solid var(--line); }
-.rec-retention-bar { flex: 1; min-width: 2px; background: var(--c-rec); opacity: 0.85; }
-.rec-retention-axis { display: flex; justify-content: space-between; font-size: 0.75rem; }
+/* Analítica (RecInsights): bloques apilados; desgloses en dos columnas, una en el teléfono. */
+.rec-insights { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.rec-insights .rec-stats { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.rec-ins-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rec-ins-block .ui-help { margin: 0; }
+.rec-ins-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 28px; }
+.rec-ins-grid .breakdown-row { grid-template-columns: minmax(90px, 1.2fr) minmax(0, 1fr) 36px; }
+.rec-ins-days .link-chart-wrap { height: 180px; }
+.rec-ins-days .chart-area { fill: color-mix(in srgb, var(--c-rec) 10%, transparent); }
+.rec-ins-days .chart-line { stroke: var(--c-rec); }
+@media (max-width: 600px) {
+  .rec-ins-grid { grid-template-columns: minmax(0, 1fr); }
+  .rec-ins-days .link-chart-wrap { height: 160px; }
+}
+
+/* Curva de retención: área = % de espectadores; punteada = reproducciones con re-vistas. */
+.rec-ret { display: flex; flex-direction: column; gap: 6px; }
+.rec-ret-wrap { position: relative; width: 100%; min-width: 0; touch-action: pan-y; }
+.rec-ret-wrap:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.rec-ret-svg { display: block; width: 100%; font-family: var(--font-data); cursor: crosshair; }
+.rec-ret-area { fill: color-mix(in srgb, var(--c-rec) 16%, transparent); }
+.rec-ret-line { stroke: var(--c-rec); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rec-ret-plays { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linejoin: round; opacity: 0.7; }
+.rec-ret-peak { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; }
+.rec-ret-guide { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 2 2; }
+.rec-ret-dot { fill: var(--bg); stroke: var(--c-rec); stroke-width: 2.5; }
+.rec-ret-tip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 128px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.rec-ret-tip-flag { color: var(--c-rec-ink); font-weight: 600; }
+.rec-ret-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.75rem; }
+.rec-ret-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.rec-ret-key { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--c-rec); }
+.rec-ret-key.plays { border-top: 2px dashed var(--ink); opacity: 0.7; }
+
+/* Tabla de espectadores: en el teléfono se esconden columnas y van debajo del nombre. */
+.rec-viewers td { vertical-align: top; }
+.rec-vw-name { min-width: 140px; }
+.rec-vw-sub { display: block; font-size: 0.75rem; overflow-wrap: anywhere; }
+.rec-vw-narrow { display: none; }
+.rec-vw-pct, .rec-vw-time { display: block; }
+.rec-vw-time { font-size: 0.75rem; }
+.rec-flag { margin-right: 6px; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+@media (max-width: 700px) {
+  .rec-viewers .rec-col-wide { display: none; }
+  .rec-vw-narrow { display: block; }
+}
 
 /* Overlays sobre el video (los dibuja el reproductor; no reciben clics) */
 .rec-overlay-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }

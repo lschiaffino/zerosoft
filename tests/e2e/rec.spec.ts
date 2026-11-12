@@ -446,30 +446,71 @@ test('IA apagada: el detalle explica ai_disabled y deja reintentar', async ({ pa
   await expect(page.getByTestId('rec-transcript')).toContainText('walkthrough', { timeout: 20_000 });
 });
 
-test('analítica: vistas, únicos, % visto y CSV', async ({ page }) => {
+test('analítica: vistas, únicos, % visto, ubicación, dispositivo y CSV', async ({ page }) => {
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const v = await uploadVideo(page.request, await makeWebm(page), `Stats ${uid()}`, 100);
-  const c = db();
-  const ins = (key: string, user: string | null, name: string, pos: number, cta = 0) =>
-    c.execute({
-      sql: `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_id, viewer_name, watched_sec, max_position, duration_sec, cta_clicks, started_at, last_ping_at)
-            VALUES (?, ?, 'x', ?, ?, ?, ?, ?, 100, ?, datetime('now'), datetime('now'))`,
-      args: [crypto.randomUUID(), v.id, key, user, name, pos, pos, cta],
-    });
-  await ins('u:lu', 'lu', 'Lucía', 100, 1);
-  await ins('a:x', null, '', 50);
-  await ins('a:x', null, '', 20);
-  c.close();
+  // Recién subido: sin vistas, el estado vacío explica qué se va a ver.
   await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('rec-tab-insights').click();
+  await expect(page.getByTestId('rec-insights-empty')).toContainText('No views yet');
+
+  const c = db();
+  const ins = (key: string, no: number, user: string | null, name: string, pos: number, cta: number, place: [string, string, string, string, string, string, string]) =>
+    c.execute({
+      sql: `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, viewer_no, user_id, viewer_name, watched_sec, max_position, duration_sec, cta_clicks, started_at, last_ping_at,
+              country, region, city, device, browser, os, referrer)
+            VALUES (?, ?, 'x', ?, ?, ?, ?, ?, ?, 100, ?, datetime('now'), datetime('now'), ?, ?, ?, ?, ?, ?, ?)`,
+      args: [crypto.randomUUID(), v.id, key, no, user, name, pos, pos, cta, ...place],
+    });
+  await ins('u:lu', 1, 'lu', 'Lucía', 100, 1, ['UY', 'MO', 'Montevideo', 'desktop', 'Chrome', 'Mac OS', '']);
+  await ins('a:x', 2, null, '', 50, 0, ['AR', 'X', 'Córdoba', 'mobile', 'Mobile Safari', 'iOS', 'news.example.com']);
+  await ins('a:x', 2, null, '', 20, 0, ['AR', 'X', 'Córdoba', 'mobile', 'Mobile Safari', 'iOS', 'news.example.com']);
+  c.close();
+  await page.reload({ waitUntil: 'networkidle' });
   await page.getByTestId('rec-tab-insights').click();
   const insights = page.getByTestId('rec-insights');
   await expect(insights).toContainText('Unique viewers2');
   await expect(insights).toContainText('Average watched75%');
   await expect(insights.getByRole('row').filter({ hasText: 'Lucía' })).toContainText('100%');
-  await expect(insights.getByRole('row').filter({ hasText: 'Anonymous' })).toContainText('50%');
+  await expect(insights.getByRole('row').filter({ hasText: 'Lucía' })).toContainText('Montevideo, Uruguay');
+  // Sin nombre: un número estable en vez de "Anonymous", con su ciudad, dispositivo y origen.
+  const anon = insights.getByRole('row').filter({ hasText: 'Viewer 2' });
+  await expect(anon).toContainText('50%');
+  await expect(anon).toContainText('Córdoba, Argentina');
+  await expect(anon).toContainText('Mobile · Mobile Safari · iOS');
+  await expect(anon).toContainText('news.example.com');
+  await expect(page.getByTestId('rec-countries')).toContainText('Argentina');
+  await expect(page.getByTestId('rec-devices')).toContainText('Mobile');
+  await expect(page.getByTestId('rec-sources')).toContainText('news.example.com');
+  await expect(page.getByTestId('rec-days')).toBeVisible();
+  // La curva muestra el momento y el % al pasar el mouse.
+  const chart = page.getByTestId('rec-retention-chart');
+  const box = (await chart.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+  await expect(page.getByTestId('rec-retention-tip')).toContainText('% of viewers');
   const csv = await page.request.get(`/api/rec/videos/${v.id}/analytics?format=csv`);
   expect(csv.headers()['content-type']).toContain('text/csv');
-  expect(await csv.text()).toContain('Lucía,yes,1,1:40,100,1');
+  const text = await csv.text();
+  expect(text).toContain('Lucía,yes,1,1:40,100,1');
+  expect(text.split('\n')[0]).toContain('country,region,city,device,browser,os,source');
+  expect(text).toContain('Viewer 2,no,2,');
+  expect(text).toContain(',AR,X,Córdoba,mobile,Mobile Safari,iOS,news.example.com');
+
+  // Teléfono: sin scroll de costado, columnas secundarias debajo del nombre, botón de 40 px.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(anon).toContainText('Córdoba, Argentina');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect((await page.getByTestId('rec-export-csv').boundingBox())!.height).toBeGreaterThanOrEqual(40);
+});
+
+test('analítica: sin sesión no se lee la ubicación de nadie', async ({ page, playwright, baseURL }) => {
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const v = await uploadVideo(page.request, await makeWebm(page), `Private stats ${uid()}`, 100);
+  const anon = await playwright.request.newContext({ baseURL });
+  const res = await anon.get(`/api/rec/videos/${v.id}/analytics`);
+  expect([401, 403, 404]).toContain(res.status());
+  expect(await res.text()).not.toContain('country');
+  await anon.dispose();
 });
 
 test('CRM: el video 1:1 se graba con el grabador de Rec', async ({ page }) => {

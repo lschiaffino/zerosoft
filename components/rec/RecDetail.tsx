@@ -14,6 +14,7 @@ import { fetchInParts } from './download';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments from './RecComments';
+import RecInsights from './RecInsights';
 import RecCopy from './RecCopy';
 import RecActions from './RecActions';
 import RecEditTools from './RecEditTools';
@@ -66,7 +67,7 @@ export default function RecDetail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [stats, setStats] = useState<RecAnalytics | null>(null);
+  const [stats, setStats] = useState<RecAnalytics | 'error' | null>(null);
   const [summary, setSummary] = useState(initial.summary);
   const [description, setDescription] = useState(initial.description);
   const [chaptersText, setChaptersText] = useState(initial.chaptersText);
@@ -132,8 +133,8 @@ export default function RecDetail({
     if (tab !== 'insights') return;
     void fetch(`/api/rec/videos/${video.id}/analytics`)
       .then((r) => (r.ok ? (r.json() as Promise<RecAnalytics>) : null))
-      .then((d) => setStats(d ?? null))
-      .catch(() => setStats(null));
+      .then((d) => setStats(d ?? 'error'))
+      .catch(() => setStats('error'));
   }, [tab, video.id]);
 
   const fail = async (res: Response | null) => {
@@ -479,84 +480,14 @@ export default function RecDetail({
 
           {tab === 'insights' && video.canManage && (
             <div className="rec-pane" role="tabpanel" data-testid="rec-insights">
-              {!stats ? (
+              {stats === 'error' ? (
+                <p className="ui-error" role="alert">
+                  {tc('errors.generic')}
+                </p>
+              ) : !stats ? (
                 <div className="ui-skeleton-text" aria-busy="true" />
               ) : (
-                <>
-                  <dl className="rec-stats">
-                    <div>
-                      <dt>{t('views')}</dt>
-                      <dd className="data">{stats.views}</dd>
-                    </div>
-                    <div>
-                      <dt>{t('unique')}</dt>
-                      <dd className="data">{stats.unique}</dd>
-                    </div>
-                    <div>
-                      <dt>{t('avgWatched')}</dt>
-                      <dd className="data">{stats.avgPct}%</dd>
-                    </div>
-                    <div>
-                      <dt>{t('completed')}</dt>
-                      <dd className="data">{stats.completed}</dd>
-                    </div>
-                    <div>
-                      <dt>{t('ctaClicks')}</dt>
-                      <dd className="data">{stats.ctaClicks}</dd>
-                    </div>
-                  </dl>
-                  {stats.viewers.length > 0 && (
-                    <figure className="rec-retention" data-testid="rec-retention">
-                      <figcaption className="label">{t('retention')}</figcaption>
-                      <div className="rec-retention-bars" role="img" aria-label={t('retentionLabel', { start: stats.retention[0] ?? 0, end: stats.retention[stats.retention.length - 1] ?? 0 })}>
-                        {stats.retention.map((v, i) => (
-                          <span key={i} className="rec-retention-bar" style={{ height: `${Math.max(2, v)}%` }} title={`${fmtClock((visible * i) / stats.retention.length)} · ${v}%`} />
-                        ))}
-                      </div>
-                      <div className="rec-retention-axis data muted">
-                        <span>0:00</span>
-                        <span>{fmtClock(visible)}</span>
-                      </div>
-                    </figure>
-                  )}
-                  {stats.viewers.length === 0 ? (
-                    <p className="ui-help">{t('noViews')}</p>
-                  ) : (
-                    <div className="table-wrap">
-                      <table className="table table-compact">
-                        <caption className="sr-only">{t('viewers')}</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">{t('viewer')}</th>
-                            <th scope="col" className="num">
-                              {t('views')}
-                            </th>
-                            <th scope="col" className="num">
-                              {t('watched')}
-                            </th>
-                            <th scope="col">{t('lastView')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats.viewers.map((r) => (
-                            <tr key={r.viewerKey}>
-                              <td>
-                                {r.name || t('anonymous')}
-                                {r.signedIn && <span className="muted"> · {t('signedIn')}</span>}
-                              </td>
-                              <td className="num data">{r.views}</td>
-                              <td className="num data">{r.pct}%</td>
-                              <td className="data">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(r.lastAt))}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  <a className="btn btn-secondary btn-sm" href={`/api/rec/videos/${video.id}/analytics?format=csv`} download>
-                    {t('exportCsv')}
-                  </a>
-                </>
+                <RecInsights stats={stats} videoId={video.id} duration={visible} />
               )}
             </div>
           )}
