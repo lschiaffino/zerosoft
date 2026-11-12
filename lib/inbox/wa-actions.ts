@@ -8,7 +8,8 @@ import { ProviderError } from '../groups-provider';
 import { getDb } from '../db';
 import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { onceInFlight } from '../send-once';
-import { InboxError, LIMITS } from './types';
+import { InboxError, LIMITS, type WaMessageMeta } from './types';
+import { forwardWhatsappMedia } from './wa-media';
 import { fetchWhatsappMedia, sendWhatsappText, waProviderFor } from './whatsapp';
 import { readTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
 import { storeReaction } from './wa-meta';
@@ -128,26 +129,55 @@ export async function starMessage(owner: string, messageId: string, on: boolean,
   await getDb().prepare('UPDATE inbox_messages SET starred_at = ? WHERE id = ? AND owner_id = ?').run(on ? nowIso(now) : null, msg.id, owner);
 }
 
+/** Lo que salió y lo que no al reenviar (cada chat por su lado, como WhatsApp). */
+export interface ForwardOutcome {
+  sent: string[];
+  failed: Array<{ id: string; error: string }>;
+}
+
 /**
- * Reenviar a otros chats de WhatsApp de la persona (hasta 5, como WhatsApp).
- * El servidor no tiene reenvío nativo: sale una copia del texto. Devuelve los
- * chats a los que salió.
+ * Reenviar a otros chats de WhatsApp de la persona (hasta 5, como WhatsApp):
+ * texto, fotos, videos, documentos, stickers y audios (una nota de voz sale
+ * como nota de voz, con su duración y su onda). El servidor no tiene reenvío
+ * nativo: sale una copia, que acá queda marcada "Reenviado" (en el teléfono
+ * de quien la recibe llega sin esa marca). El archivo se baja una sola vez.
+ * "Ver una vez" no se reenvía. Un chat que falla no frena a los demás.
  */
-export async function forwardMessage(owner: string, messageId: string, targetIds: string[]): Promise<string[]> {
-  const { msg } = await context(owner, messageId);
+export async function forwardMessage(owner: string, messageId: string, targetIds: string[]): Promise<ForwardOutcome> {
+  const { msg, account } = await context(owner, messageId);
   if (msg.revoked_at) throw new InboxError('invalid_input', 400);
-  if (msg.media_type) throw new InboxError('unsupported', 400);
-  const text = msg.body.trim();
-  if (!text) throw new InboxError('invalid_input', 400);
-  const done: string[] = [];
-  for (const id of [...new Set(targetIds)].slice(0, 5)) {
-    const thread = await getThreadRow(owner, id);
-    if (thread.channel !== 'whatsapp') continue;
-    const account = await getAccount(owner, thread.account_id);
-    await sendWhatsappText(account, thread, text);
-    done.push(thread.id);
+  let meta: WaMessageMeta = {};
+  try {
+    meta = msg.meta ? (JSON.parse(msg.meta) as WaMessageMeta) : {};
+  } catch {
+    meta = {};
   }
-  return done;
+  if (meta.viewOnce) throw new InboxError('unsupported', 400);
+  const text = msg.body.trim();
+  if (!msg.media_type && !text) throw new InboxError('invalid_input', 400);
+  if (msg.media_type && !msg.media_ref) throw new InboxError('media_unavailable', 400);
+  let file: ReturnType<typeof fetchWhatsappMedia> | null = null;
+  const out: ForwardOutcome = { sent: [], failed: [] };
+  for (const id of [...new Set(targetIds)].slice(0, 5)) {
+    try {
+      const thread = await getThreadRow(owner, id);
+      if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
+      const target = thread.account_id === account.id ? account : await getAccount(owner, thread.account_id);
+      if (!msg.media_type) {
+        await sendWhatsappText(target, thread, text, { forwarded: true });
+      } else {
+        file ??= fetchWhatsappMedia(account, msg.media_ref);
+        const src = { mediaType: msg.media_type, mediaName: msg.media_name, body: msg.body, meta };
+        await forwardWhatsappMedia(target, thread, src, await file);
+        // WhatsApp no muestra texto en un audio o un sticker: va aparte, como lo manda Lines.
+        if (text && !['image', 'video', 'document'].includes(msg.media_type)) await sendWhatsappText(target, thread, text, { forwarded: true });
+      }
+      out.sent.push(thread.id);
+    } catch (err) {
+      out.failed.push({ id, error: err instanceof InboxError ? err.code : 'send_failed' });
+    }
+  }
+  return out;
 }
 
 /**
