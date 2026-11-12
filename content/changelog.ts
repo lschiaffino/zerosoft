@@ -29,24 +29,87 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-12-swipe-sideways-only',
-    date: '2026-11-12',
-    title: {
-      en: 'Lines and Inbox: sideways swipes never move a chat to a folder',
-      es: 'Lines e Inbox: deslizar de costado nunca lleva un chat a una carpeta',
-      pt: 'Lines e Inbox: deslizar de lado nunca leva um chat a uma pasta',
     id: '2026-11-12-lines-overdue-clock',
     date: '2026-11-12',
     title: {
       en: 'Lines: overdue chats no longer make rows taller',
       es: 'Lines: los chats vencidos ya no agrandan la fila',
       pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
+        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
+        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-folder-rail-polish',
     date: '2026-11-12',
     title: {
       en: 'Lines and Inbox: folder icons in the collapsed sidebar, polished',
       es: 'Lines e Inbox: carpetas del lateral colapsado más prolijas',
       pt: 'Lines e Inbox: pastas da barra recolhida mais caprichadas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The unread dot is no longer cut off, hovering a folder shows its name right away, and with many folders the strip stays short and scrolls.',
+        es: 'El punto de no leídos ya no se corta, al pasar el mouse por una carpeta aparece su nombre al instante y con muchas carpetas la tira queda corta y se desplaza.',
+        pt: 'O ponto de não lidos não é mais cortado, ao passar o mouse numa pasta o nome aparece na hora e com muitas pastas a faixa fica curta e rola.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-analytics-inbox-calls-crm',
+    date: '2026-11-12',
+    title: {
+      en: 'Analytics for Inbox, Calls and CRM',
+      es: 'Analítica para Inbox, Calls y CRM',
+      pt: 'Análise para Inbox, Calls e CRM',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Inbox has an Analytics page: messages received and sent per day by channel, your first response time, chats to reply and waiting, and what you marked done or archived. It is private: only you see it.',
+        es: 'Inbox tiene una página de Analítica: mensajes recibidos y enviados por día y canal, tu tiempo de primera respuesta, chats por responder y esperando, y lo que marcaste como hecho o archivaste. Es privada: solo la ves vos.',
+        pt: 'O Inbox tem uma página de Análise: mensagens recebidas e enviadas por dia e canal, seu tempo de primeira resposta, conversas para responder e aguardando, e o que você marcou como feito ou arquivou. É privada: só você vê.',
+      },
+      {
+        product: 'calls',
+        en: 'Calls has an Analytics page: calls and minutes recorded per day, how much your team talks, customer questions, methodology score, top topics, competitors mentioned and a table by rep. When calls are private, members only count their own.',
+        es: 'Calls tiene una página de Analítica: llamadas y minutos grabados por día, cuánto habla tu equipo, preguntas del cliente, puntaje de la metodología, temas, competidores mencionados y una tabla por rep. Con las llamadas en privado, cada member cuenta solo las suyas.',
+        pt: 'O Calls tem uma página de Análise: chamadas e minutos gravados por dia, quanto sua equipe fala, perguntas do cliente, nota da metodologia, temas, concorrentes mencionados e uma tabela por rep. Com as chamadas privadas, cada membro conta só as suas.',
+      },
+      {
+        product: 'crm',
+        en: 'CRM has an Analytics page under Insights: deals created, won and lost per day, won revenue, win rate, sales cycle, open pipeline by stage, why deals were lost, activity by type and a table by owner. Members see only the owners they have access to.',
+        es: 'El CRM tiene una página de Analítica en Métricas: deals creados, ganados y perdidos por día, ingresos ganados, tasa de cierre, ciclo de venta, pipeline abierto por etapa, por qué se perdieron, actividad por tipo y una tabla por owner. Cada member ve solo los owners a los que tiene acceso.',
+        pt: 'O CRM tem uma página de Análise em Métricas: negócios criados, ganhos e perdidos por dia, receita ganha, taxa de fechamento, ciclo de venda, pipeline aberto por etapa, por que foram perdidos, atividade por tipo e uma tabela por responsável. Cada membro vê só os responsáveis a que tem acesso.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-app-button-tones',
+    date: '2026-11-12',
+    title: {
+      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
+      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
+      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
+        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
+        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-groups-table',
     date: '2026-11-12',
     title: {
@@ -57,12 +120,32 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'groups',
+        en: 'In Groups you choose which columns to see, including any property of the linked HubSpot company, sort by any column and filter by one, several or all lines. Each row shows the HubSpot company with a link to open it there.',
+        es: 'En Grupos elegís qué columnas ver, también cualquier propiedad de la empresa de HubSpot vinculada, ordenás por cualquier columna y filtrás por una, varias o todas las líneas. Cada fila muestra la empresa de HubSpot con un link para abrirla allá.',
+        pt: 'Em Grupos você escolhe quais colunas ver, inclusive qualquer propriedade da empresa do HubSpot vinculada, ordena por qualquer coluna e filtra por uma, várias ou todas as linhas. Cada linha mostra a empresa do HubSpot com um link para abri-la lá.',
+      },
+      {
+        product: 'groups',
+        en: 'A WhatsApp group that several of your lines are in is now one row that says which lines it is in. It has one HubSpot company: linking or unlinking it from any line changes it for all of them, and a line that joins later gets it too.',
+        es: 'Un grupo de WhatsApp en el que están varias de tus líneas ahora es una sola fila que dice en qué líneas está. Tiene una sola empresa de HubSpot: vincularla o quitarla desde cualquier línea la cambia en todas, y una línea que entra después también la recibe.',
+        pt: 'Um grupo de WhatsApp em que estão várias das suas linhas agora é uma só linha da tabela que mostra em quais linhas está. Ele tem uma só empresa do HubSpot: vincular ou remover a partir de qualquer linha muda em todas, e uma linha que entra depois também a recebe.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-swipe-sideways-only',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: sideways swipes never move a chat to a folder',
+      es: 'Lines e Inbox: deslizar de costado nunca lleva un chat a una carpeta',
+      pt: 'Lines e Inbox: deslizar de lado nunca leva um chat a uma pasta',
+    },
+    items: [
+      {
+        product: 'groups',
         en: 'A fast swipe to either side stays a swipe even if the mouse leaves the list. To file a chat, lift it up or down (or press and hold) and drop it on a folder.',
         es: 'Un deslizado rápido a cualquier costado sigue siendo deslizado aunque el mouse salga de la lista. Para llevar un chat a una carpeta, levantalo hacia arriba o abajo (o mantenelo apretado) y soltalo en la carpeta.',
         pt: 'Um deslize rápido para qualquer lado continua sendo deslize mesmo se o mouse sair da lista. Para levar um chat a uma pasta, levante-o para cima ou para baixo (ou segure) e solte na pasta.',
-        en: 'The unread dot is no longer cut off, hovering a folder shows its name right away, and with many folders the strip stays short and scrolls.',
-        es: 'El punto de no leídos ya no se corta, al pasar el mouse por una carpeta aparece su nombre al instante y con muchas carpetas la tira queda corta y se desplaza.',
-        pt: 'O ponto de não lidos não é mais cortado, ao passar o mouse numa pasta o nome aparece na hora e com muitas pastas a faixa fica curta e rola.',
       },
       { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
     ],
@@ -74,12 +157,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Inbox: “Done” is now Archive',
       es: 'Inbox: “Hecho” ahora es Archivar',
       pt: 'Inbox: “Concluir” agora é Arquivar',
-    id: '2026-11-12-analytics-inbox-calls-crm',
-    date: '2026-11-12',
-    title: {
-      en: 'Analytics for Inbox, Calls and CRM',
-      es: 'Analítica para Inbox, Calls y CRM',
-      pt: 'Análise para Inbox, Calls e CRM',
     },
     items: [
       {
@@ -121,24 +198,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The filter panel uses the same light border, rounded corners and soft shadow as the chat menus, and its search box no longer has a heavy outline.',
         es: 'El panel de filtros usa el mismo borde fino, las esquinas redondeadas y la sombra suave de los menús del chat, y su buscador ya no tiene un borde grueso.',
         pt: 'O painel de filtros usa a mesma borda fina, os cantos arredondados e a sombra suave dos menus do chat, e a busca não tem mais uma borda grossa.',
-        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
-        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
-        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
-        en: 'Inbox has an Analytics page: messages received and sent per day by channel, your first response time, chats to reply and waiting, and what you marked done or archived. It is private: only you see it.',
-        es: 'Inbox tiene una página de Analítica: mensajes recibidos y enviados por día y canal, tu tiempo de primera respuesta, chats por responder y esperando, y lo que marcaste como hecho o archivaste. Es privada: solo la ves vos.',
-        pt: 'O Inbox tem uma página de Análise: mensagens recebidas e enviadas por dia e canal, seu tempo de primeira resposta, conversas para responder e aguardando, e o que você marcou como feito ou arquivou. É privada: só você vê.',
-      },
-      {
-        product: 'calls',
-        en: 'Calls has an Analytics page: calls and minutes recorded per day, how much your team talks, customer questions, methodology score, top topics, competitors mentioned and a table by rep. When calls are private, members only count their own.',
-        es: 'Calls tiene una página de Analítica: llamadas y minutos grabados por día, cuánto habla tu equipo, preguntas del cliente, puntaje de la metodología, temas, competidores mencionados y una tabla por rep. Con las llamadas en privado, cada member cuenta solo las suyas.',
-        pt: 'O Calls tem uma página de Análise: chamadas e minutos gravados por dia, quanto sua equipe fala, perguntas do cliente, nota da metodologia, temas, concorrentes mencionados e uma tabela por rep. Com as chamadas privadas, cada membro conta só as suas.',
-      },
-      {
-        product: 'crm',
-        en: 'CRM has an Analytics page under Insights: deals created, won and lost per day, won revenue, win rate, sales cycle, open pipeline by stage, why deals were lost, activity by type and a table by owner. Members see only the owners they have access to.',
-        es: 'El CRM tiene una página de Analítica en Métricas: deals creados, ganados y perdidos por día, ingresos ganados, tasa de cierre, ciclo de venta, pipeline abierto por etapa, por qué se perdieron, actividad por tipo y una tabla por owner. Cada member ve solo los owners a los que tiene acceso.',
-        pt: 'O CRM tem uma página de Análise em Métricas: negócios criados, ganhos e perdidos por dia, receita ganha, taxa de fechamento, ciclo de venda, pipeline aberto por etapa, por que foram perdidos, atividade por tipo e uma tabela por responsável. Cada membro vê só os responsáveis a que tem acesso.',
       },
     ],
   },
@@ -166,12 +225,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Desktop app: see what it accesses, stores and sends',
       es: 'App de escritorio: mirá a qué accede, qué guarda y qué manda',
       pt: 'App de desktop: veja o que acessa, guarda e envia',
-    id: '2026-11-12-app-button-tones',
-    date: '2026-11-12',
-    title: {
-      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
-      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
-      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
     },
     items: [
       {
@@ -226,18 +279,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Saving a message that arrives takes 4 database queries instead of 11 in Lines and 4 instead of 7 in Inbox, and the chat list is told in the same step. Sending a text from Lines reaches WhatsApp after 2 waits on the database instead of 6.',
         es: 'Guardar un mensaje que llega lleva 4 consultas a la base en vez de 11 en Lines y 4 en vez de 7 en Inbox, y la lista de chats se entera en el mismo paso. Mandar un texto desde Lines llega a WhatsApp después de 2 esperas a la base en vez de 6.',
         pt: 'Salvar uma mensagem que chega leva 4 consultas ao banco em vez de 11 no Lines e 4 em vez de 7 no Inbox, e a lista de conversas fica sabendo no mesmo passo. Enviar um texto pelo Lines chega ao WhatsApp depois de 2 esperas pelo banco em vez de 6.',
-        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
-        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
-        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
-        en: 'In Groups you choose which columns to see, including any property of the linked HubSpot company, sort by any column and filter by one, several or all lines. Each row shows the HubSpot company with a link to open it there.',
-        es: 'En Grupos elegís qué columnas ver, también cualquier propiedad de la empresa de HubSpot vinculada, ordenás por cualquier columna y filtrás por una, varias o todas las líneas. Cada fila muestra la empresa de HubSpot con un link para abrirla allá.',
-        pt: 'Em Grupos você escolhe quais colunas ver, inclusive qualquer propriedade da empresa do HubSpot vinculada, ordena por qualquer coluna e filtra por uma, várias ou todas as linhas. Cada linha mostra a empresa do HubSpot com um link para abri-la lá.',
-      },
-      {
-        product: 'groups',
-        en: 'A WhatsApp group that several of your lines are in is now one row that says which lines it is in. It has one HubSpot company: linking or unlinking it from any line changes it for all of them, and a line that joins later gets it too.',
-        es: 'Un grupo de WhatsApp en el que están varias de tus líneas ahora es una sola fila que dice en qué líneas está. Tiene una sola empresa de HubSpot: vincularla o quitarla desde cualquier línea la cambia en todas, y una línea que entra después también la recibe.',
-        pt: 'Um grupo de WhatsApp em que estão várias das suas linhas agora é uma só linha da tabela que mostra em quais linhas está. Ele tem uma só empresa do HubSpot: vincular ou remover a partir de qualquer linha muda em todas, e uma linha que entra depois também a recebe.',
       },
     ],
   },
