@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-menus',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: chat menus like WhatsApp',
+      es: 'Lines: menús del chat como los de WhatsApp',
+      pt: 'Lines: menus do chat como os do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The ⋯ menu of a chat and the right-click menu on the list are now rounded cards with an icon for each action. The ⋯ menu follows WhatsApp’s order (info, select messages, mute, pin, read) and adds “Select messages”; the chat style switch moved to Settings › Appearance.',
+        es: 'El menú ⋯ de un chat y el del clic derecho en la lista ahora son tarjetas redondeadas con un ícono por acción. El ⋯ sigue el orden de WhatsApp (info, seleccionar mensajes, silenciar, fijar, leído) y suma “Seleccionar mensajes”; el cambio de estilo de chats quedó en Ajustes › Apariencia.',
+        pt: 'O menu ⋯ de um chat e o do clique direito na lista agora são cartões arredondados com um ícone por ação. O ⋯ segue a ordem do WhatsApp (info, selecionar mensagens, silenciar, fixar, lido) e ganha “Selecionar mensagens”; a troca de estilo dos chats foi para Ajustes › Aparência.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {

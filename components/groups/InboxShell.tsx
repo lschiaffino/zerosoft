@@ -40,7 +40,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, Close, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -695,14 +695,14 @@ export default function InboxShell({
 
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
-      { key: 'archive', label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
-      { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
-      { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
-      { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
-      { key: 'unread', label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
-      { key: 'assign', label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
-      { key: 'folder', label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
-      { key: 'hide', label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
+      { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
+      { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
+      { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
+      { key: 'pin', glyph: <PinIcon size={18} />, label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      { key: 'unread', glyph: c.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
+      { key: 'assign', glyph: <UserPlus size={18} />, label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
+      { key: 'folder', glyph: <FolderIcon size={18} />, label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
+      { key: 'hide', glyph: <Trash size={18} />, label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
     ];
   }
 
@@ -716,9 +716,9 @@ export default function InboxShell({
     const c = rowsRef.current.find((r) => r.id === id);
     if (!c) return [];
     const by = Object.fromEntries(rowMenu(c).map((it) => [it.key, it]));
-    const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
+    const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, icon: by[key].glyph, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
     return [
-      { key: 'newWindow', label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
+      { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
       ...from('unread'),
       ...from('archive'),
       ...from('pin'),
@@ -728,6 +728,7 @@ export default function InboxShell({
       ...from('folder'),
       {
         key: 'info',
+        icon: <InfoIcon size={18} />,
         label: c.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'),
         divider: true,
         onSelect: () => {
@@ -735,7 +736,7 @@ export default function InboxShell({
           if (current !== c.id) router.push(`/app/lines/inbox/${c.id}${listSuffix}`);
         },
       },
-      { key: 'export', label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
+      { key: 'export', icon: <Download size={18} />, label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
       ...from('hide', { divider: true }),
     ];
   }

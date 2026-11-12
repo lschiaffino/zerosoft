@@ -118,3 +118,14 @@ body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hove
   body[data-chat-dragging] [data-chat-drop] { transition: none; }
   .zs-drag-tray { animation: none; }
 }
+
+/* Clic derecho sobre un chat: la misma tarjeta que el ⋯ (redondeada, sombra suave, íconos grises). */
+.zs-ctx-menu {
+  min-width: 220px; padding: 6px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 12px;
+  box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 12px 32px rgb(11 20 26 / 0.14);
+}
+.zs-ctx-item { gap: 12px; min-height: 36px; padding: 0 14px 0 10px; font-size: 0.9rem; border-radius: 8px; }
+.zs-ctx-item.has-divider { margin-top: 7px; }
+.zs-ctx-item.has-divider::before { left: 2px; right: 2px; top: -4px; }
+.zs-ctx-icon { display: inline-flex; flex: none; width: 20px; justify-content: center; color: var(--dim); }
+.zs-ctx-item.is-danger .zs-ctx-icon { color: inherit; }

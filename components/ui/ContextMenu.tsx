@@ -21,6 +21,8 @@ export interface ContextMenuItem {
   label: string;
   onSelect?: () => void;
   danger?: boolean;
+  /** Ícono de línea a la izquierda. */
+  icon?: import('react').ReactNode;
   /** Separa este ítem de los anteriores. */
   divider?: boolean;
   /** Abre un submenú (Silenciar ›). */
@@ -91,6 +93,7 @@ function List({
             openSub?.(it.submenu ? it.key : null, e.currentTarget);
           }}
         >
+          {it.icon && <span className="zs-ctx-icon">{it.icon}</span>}
           <span className="zs-ctx-label">{it.label}</span>
           {it.submenu && (
             <svg className="zs-ctx-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
