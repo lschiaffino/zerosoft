@@ -38,7 +38,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
-        product: 'lines',
+        product: 'groups',
         en: 'With the sidebar collapsed, folders show as small squares with their initials on the left (name on hover, a dot when there are unread chats) instead of a dropdown above the list.',
         es: 'Con el lateral colapsado, las carpetas aparecen a la izquierda como cuadraditos con sus iniciales (el nombre al pasar el mouse y un punto si hay chats sin leer), en vez de un desplegable arriba de la lista.',
         pt: 'Com a barra lateral recolhida, as pastas aparecem à esquerda como quadradinhos com as iniciais (o nome ao passar o mouse e um ponto se houver chats não lidos), em vez de um menu acima da lista.',
