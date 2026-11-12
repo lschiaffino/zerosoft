@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-overdue-clock',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: overdue chats no longer make rows taller',
+      es: 'Lines: los chats vencidos ya no agrandan la fila',
+      pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
+        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
+        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {

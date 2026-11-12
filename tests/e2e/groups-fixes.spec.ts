@@ -156,14 +156,14 @@ test('ticket desde un mensaje: la fila deja de decir Overdue sin recargar; audit
   await sql('UPDATE groups_chats SET awaiting_since = ?, flagged_at = ? WHERE id = ?', [past, past, chat.id]);
   await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const row = page.locator('.gr-row', { hasText: name });
-  await expect(row.locator('.badge', { hasText: 'Overdue' })).toBeVisible();
+  await expect(row.locator('.gr-row-time.is-overdue')).toBeVisible();
   const msg = page.locator('.gr-msg-in', { hasText: 'The export is broken' });
   await msg.hover();
   await msg.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Create ticket' }).click();
   await page.getByRole('dialog', { name: 'New ticket' }).getByRole('button', { name: 'Create ticket' }).click();
   await expect(msg.getByRole('link', { name: 'Ticket' })).toBeVisible();
-  await expect(row.locator('.badge', { hasText: 'Overdue' })).toHaveCount(0);
+  await expect(row.locator('.gr-row-time.is-overdue')).toHaveCount(0);
 
   // Asignarse el chat (A) y sumar una etiqueta: el log dice "to themselves" y no muestra "removed: " vacío.
   await page.locator('body').click({ position: { x: 5, y: 5 } });
