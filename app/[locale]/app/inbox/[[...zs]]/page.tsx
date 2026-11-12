@@ -8,6 +8,7 @@ import { isInboxView, type InboxView } from '@/lib/inbox/types';
 import { whatsappAvailable } from '@/lib/inbox/whatsapp';
 import InboxApp from '@/components/inbox/InboxApp';
 import InboxSettings from '@/components/inbox/InboxSettings';
+import InboxAnalytics from '@/components/inbox/InboxAnalytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +17,13 @@ type Props = { params: Promise<{ locale: string; zs?: string[] }>; searchParams:
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale, zs = [] } = await props.params;
   const t = await getTranslations({ locale, namespace: 'inbox' });
-  const title = zs[0] === 'settings' ? t('settings.title') : zs[0] === 'v' && isInboxView(zs[1]) ? t(`views.${zs[1]}`) : t('views.inbox');
+  const title = zs[0] === 'settings' ? t('settings.title') : zs[0] === 'analytics' ? t('analytics.title') : zs[0] === 'v' && isInboxView(zs[1]) ? t(`views.${zs[1]}`) : t('views.inbox');
   return { title: `${title} · Inbox` };
 }
 
 /**
  * Inbox en una sola ruta: /app/inbox (?t=<chat>&new=1), /app/inbox/v/<vista>,
- * /app/inbox/f/<carpeta> y /app/inbox/settings. Todo es de la persona de la
+ * /app/inbox/f/<carpeta>, /app/inbox/analytics y /app/inbox/settings. Todo es de la persona de la
  * sesión (su id real), sin importar el workspace activo.
  *
  * Esta página arma la primera pantalla. Después, pasar de una vista o carpeta
@@ -35,6 +36,8 @@ export default async function InboxPage(props: Props) {
   setRequestLocale(locale);
   const owner = realUserId(await requireUser(locale));
   const [section, id] = zs;
+  // Analítica: solo las filas de la persona (su id real); no carga la bandeja.
+  if (section === 'analytics') return <InboxAnalytics locale={locale} owner={owner} search={{ days: sp.days, from: sp.from, to: sp.to }} />;
   const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner), listSnippets(owner)]);
   const state = { accounts: accounts.map(accountDto), folders, counts, snippets, available: { whatsapp: whatsappAvailable(), gmail: gmailAvailable() } };
 

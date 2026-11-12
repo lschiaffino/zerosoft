@@ -80,6 +80,7 @@ export interface SidebarLabels {
     reports: string;
     forecast: string;
     dashboards: string;
+    analytics: string;
     workflows: string;
     settings: string;
     sequences: string;
@@ -264,9 +265,9 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string };
+  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
-  calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string };
+  calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -576,6 +577,7 @@ export function buildNav(
         {
           section: labels.insights,
           items: [
+            { href: '/app/crm/analytics', label: labels.crm.analytics, active: at('/app/crm/analytics'), icon: 'insights' },
             { href: '/app/crm/dashboards', label: labels.crm.dashboards, active: at('/app/crm/dashboards'), icon: 'dashboards' },
             { href: '/app/crm/reports', label: labels.crm.reports, active: at('/app/crm/reports'), icon: 'reports' },
             { href: '/app/crm/forecast', label: labels.crm.forecast, active: at('/app/crm/forecast'), icon: 'forecast' },
@@ -1001,6 +1003,10 @@ export function buildNav(
             { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived'), icon: 'archive' },
           ],
         },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/inbox/analytics', label: l.analytics, active: at('/app/inbox/analytics'), icon: 'reports' }],
+        },
         appSettingsGroup('/app/inbox/settings'),
       ];
     }
@@ -1013,6 +1019,10 @@ export function buildNav(
             { href: '/app/calls/deals', label: labels.calls.deals, active: at('/app/calls/deals'), icon: 'deals' },
             { href: '/app/calls/ask', label: labels.calls.ask, active: at('/app/calls/ask'), icon: 'assistant' },
           ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/calls/analytics', label: labels.calls.analytics, active: at('/app/calls/analytics'), icon: 'reports' }],
         },
         appSettingsGroup('/app/calls/settings'),
       ];

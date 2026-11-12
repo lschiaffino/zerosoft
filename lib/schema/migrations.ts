@@ -9887,6 +9887,15 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Analítica de Inbox y CRM (kit de analítica): los mensajes de una persona por fecha y los
+    // deals cerrados por fecha, para leer un período por rango con índice.
+    id: '396_analytics_kit_indexes',
+    up: async (c) => {
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_inbox_messages_owner_sent ON inbox_messages(owner_id, sent_at)');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_crm_deals_closed ON crm_deals(user_id, closed_at) WHERE closed_at IS NOT NULL');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
