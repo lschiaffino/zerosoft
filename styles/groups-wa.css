@@ -1046,3 +1046,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-menu-item.gr-danger .gr-menu-glyph { color: inherit; }
 @keyframes gr-menu-in { from { opacity: 0; transform: translateY(-3px) scale(0.99); } }
 @media (prefers-reduced-motion: reduce) { .gr-menu-list.is-portal { animation: none; } }
+
+/* Onda en vivo al grabar una nota de voz (components/groups/wa/LiveWaveform.tsx). */
+.wa-live-wave { flex: 1; min-width: 0; height: 28px; margin: 0 8px; color: var(--wa-text-2); }
+.wa-live-wave.is-paused { opacity: 0.5; }
