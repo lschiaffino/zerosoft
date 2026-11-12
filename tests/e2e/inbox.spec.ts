@@ -128,7 +128,7 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   // E: hecho, sale de la bandeja; Z: vuelve.
   await field.press('Escape');
   await page.keyboard.press('e');
-  await expect(page.locator('.ib-toast', { hasText: 'Marked done' })).toBeVisible();
+  await expect(page.locator('.ib-toast', { hasText: 'Archived' })).toBeVisible();
   await expect(row).toHaveCount(0);
   await page.keyboard.press('z');
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible({ timeout: 10_000 });
