@@ -16,6 +16,7 @@ import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { fewerReadsUp } from './fewer-reads-migration';
+import { recViewContextUp } from './rec-view-context-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -9861,6 +9862,13 @@ export const MIGRATIONS: Migration[] = [
     // de WhatsApp, y la versión de los avisos de cada persona (lib/schema/fewer-reads-migration.ts).
     id: '393_fewer_reads',
     up: fewerReadsUp,
+  },
+  {
+    // Rec: país, región, ciudad, dispositivo, navegador, sistema y origen de cada vista, re-vistas
+    // por tramo y número de espectador. Borra el user agent y el hash de IP ya guardados
+    // (lib/schema/rec-view-context-migration.ts).
+    id: '396_rec_view_context',
+    up: recViewContextUp,
   },
 ];
 

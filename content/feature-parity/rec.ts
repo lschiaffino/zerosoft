@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-10',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -270,16 +270,16 @@ const parity: ProductParity = {
     row('viewer-insights', 'analytics', ['Who watched', 'Quién vio el video', 'Quem assistiu'], 'have', {
       weight: 2,
       detail: [
-        'Views, unique viewers and the names of signed-in viewers; your own views do not count',
-        'Vistas, espectadores únicos y el nombre de quien entró con sesión; tus propias vistas no cuentan',
-        'Visualizações, espectadores únicos e o nome de quem entrou com sessão; suas próprias visualizações não contam',
+        'Views, unique viewers and the names of signed-in viewers (the rest numbered as Viewer 1, 2, 3), with approximate city and country, device and the site they came from; your own views do not count',
+        'Vistas, espectadores únicos y el nombre de quien entró con sesión (el resto numerado como Espectador 1, 2, 3), con ciudad y país aproximados, dispositivo y el sitio de donde vino; tus propias vistas no cuentan',
+        'Visualizações, espectadores únicos e o nome de quem entrou com sessão (o resto numerado como Espectador 1, 2, 3), com cidade e país aproximados, dispositivo e o site de onde veio; suas próprias visualizações não contam',
       ],
     }),
     row('engagement-insights', 'analytics', ['Watch time, CTA clicks and export', 'Cuánto vio cada uno, clics y export', 'Quanto cada um assistiu, cliques e exportação'], 'have', {
       detail: [
-        'Time really watched per viewer (the union of the parts played: skipping ahead does not count), average, watched to the end, a retention curve and CTA clicks, with CSV export. Only whoever manages the video sees it',
-        'Tiempo realmente visto por espectador (la unión de lo reproducido: adelantar no cuenta), promedio, quienes lo vieron hasta el final, curva de retención y clics en la CTA, con export a CSV. Solo la ve quien administra el video',
-        'Tempo realmente assistido por espectador (a união do que foi reproduzido: avançar não conta), média, quem assistiu até o fim, curva de retenção e cliques na CTA, com exportação CSV. Só quem administra o vídeo vê',
+        'Time really watched per viewer (the union of the parts played: skipping ahead does not count), average, watched to the end, a retention curve with rewatched parts, views per day, breakdowns by country, city, device and source, and CTA clicks, with CSV export. Only whoever manages the video sees it',
+        'Tiempo realmente visto por espectador (la unión de lo reproducido: adelantar no cuenta), promedio, quienes lo vieron hasta el final, curva de retención con las partes re-vistas, vistas por día, desgloses por país, ciudad, dispositivo y origen, y clics en la CTA, con export a CSV. Solo la ve quien administra el video',
+        'Tempo realmente assistido por espectador (a união do que foi reproduzido: avançar não conta), média, quem assistiu até o fim, curva de retenção com as partes revistas, visualizações por dia, detalhamento por país, cidade, dispositivo e origem, e cliques na CTA, com exportação CSV. Só quem administra o vídeo vê',
       ],
     }),
 

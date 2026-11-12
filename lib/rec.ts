@@ -16,7 +16,7 @@
  * - Comentarios y reacciones con el segundo del video; avisan al autor.
  * - Transcripción, título, resumen y capítulos: lib/rec-ai.ts (cron/after).
  */
-import { createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import { ensureMigrated, getClient, getDb, txDb } from './db';
 import { deleteUploads } from './uploads';
@@ -31,10 +31,8 @@ import {
   remapSegments,
   type RecEditPiece,
   type RecOverlay,
-  coveredPct,
   isTrimmed,
   mergeRanges,
-  retentionCurve,
   segmentsInTrim,
   trimKey,
   type Range,
@@ -56,6 +54,20 @@ import {
   type RecSpace,
   type RecTranscriptStatus,
 } from './rec-schema';
+import {
+  buildInsights,
+  cleanHeat,
+  daysStart,
+  EMPTY_CONTEXT,
+  fillDays,
+  INSIGHTS_SAMPLE,
+  mergeHeat,
+  type RecAnalytics,
+  type RecDevice,
+  type RecViewContext,
+} from './rec-insights';
+
+export type { RecAnalytics, RecViewerRow } from './rec-insights';
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: string, len: number) => Promise<Buffer>;
 
@@ -123,10 +135,6 @@ function dbTime(d: string): number {
 
 function newShareId(): string {
   return randomBytes(12).toString('base64url');
-}
-
-export function hashIp(ip: string): string {
-  return ip ? createHash('sha256').update(`${process.env.NEXTAUTH_SECRET ?? ''}:rec:${ip}`).digest('hex').slice(0, 32) : '';
 }
 
 // ============================================================
@@ -1352,15 +1360,17 @@ async function notifyCommentGrouped(v: RecVideoRow, name: string, kind: 'comment
 export async function trackRecView(
   v: RecVideoRow,
   viewer: RecViewer,
-  input: { viewId?: string; watched?: number; position?: number; duration?: number; cta?: boolean; ranges?: Range[]; ip?: string; userAgent?: string },
+  input: { viewId?: string; watched?: number; position?: number; duration?: number; cta?: boolean; ranges?: Range[]; heat?: number[]; context?: RecViewContext },
 ): Promise<{ viewId: string | null }> {
   if (viewer.isAuthor) return { viewId: null };
   const db = getDb();
   const visible = trimmedDuration(v.duration_sec, v.trim_start, v.trim_end);
   const duration = Math.max(0, Math.min(Number(input.duration) || visible, 12 * 3600));
   if (input.viewId) {
-    const view = (await db.prepare('SELECT * FROM rec_views WHERE id = ? AND video_id = ? AND viewer_key = ?').get(input.viewId, v.id, viewer.key)) as
-      | { id: string; watched_sec: number; max_position: number; last_ping_at: string; cta_clicks: number; ranges: string }
+    const view = (await db
+      .prepare('SELECT id, watched_sec, max_position, last_ping_at, cta_clicks, ranges, heat FROM rec_views WHERE id = ? AND video_id = ? AND viewer_key = ?')
+      .get(input.viewId, v.id, viewer.key)) as
+      | { id: string; watched_sec: number; max_position: number; last_ping_at: string; cta_clicks: number; ranges: string; heat: string | null }
       | undefined;
     if (!view) return { viewId: null };
     const elapsed = (Date.now() - dbTime(view.last_ping_at)) / 1000;
@@ -1369,18 +1379,27 @@ export async function trackRecView(
     const maxPos = Math.max(view.max_position, Math.min(Number(input.position) || 0, duration || Number.MAX_SAFE_INTEGER));
     // Intervalos realmente reproducidos: se unen con lo que ya había (los pings mandan todo lo visto).
     const ranges = mergeRanges([...parseJson<Range[]>(view.ranges, []), ...(input.ranges ?? [])], duration || Infinity);
+    // Segundos por tramo (re-vistas): acumulado de la vista, se queda el mayor de cada tramo.
+    const heat = mergeHeat(view.heat ? cleanHeat(parseJson<unknown>(view.heat, null), duration) : null, cleanHeat(input.heat, duration));
     await db
-      .prepare('UPDATE rec_views SET watched_sec = ?, max_position = ?, duration_sec = ?, cta_clicks = cta_clicks + ?, ranges = ?, last_ping_at = ? WHERE id = ?')
-      .run(watched, maxPos, duration, input.cta ? 1 : 0, JSON.stringify(ranges), nowDb(), view.id);
+      .prepare('UPDATE rec_views SET watched_sec = ?, max_position = ?, duration_sec = ?, cta_clicks = cta_clicks + ?, ranges = ?, heat = ?, last_ping_at = ? WHERE id = ?')
+      .run(watched, maxPos, duration, input.cta ? 1 : 0, JSON.stringify(ranges), heat ? JSON.stringify(heat) : null, nowDb(), view.id);
     return { viewId: view.id };
   }
-  const first = !(await db.prepare('SELECT 1 FROM rec_views WHERE video_id = ? AND viewer_key = ? LIMIT 1').get(v.id, viewer.key));
+  const prior = (await db.prepare('SELECT viewer_no FROM rec_views WHERE video_id = ? AND viewer_key = ? LIMIT 1').get(v.id, viewer.key)) as { viewer_no: number | null } | undefined;
+  const first = !prior;
   const id = crypto.randomUUID();
   const ts = nowDb();
+  const ctx = input.context ?? EMPTY_CONTEXT;
+  const heat = cleanHeat(input.heat, duration);
+  // Sin IP ni user agent: solo el lugar aproximado, el tipo de dispositivo y el dominio de origen.
+  // El número de espectador: el suyo si ya vino, si no el siguiente del video (en el mismo INSERT).
   await db
     .prepare(
-      `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_id, viewer_name, duration_sec, cta_clicks, ranges, ip_hash, user_agent, started_at, last_ping_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_id, viewer_name, duration_sec, cta_clicks, ranges, heat, started_at, last_ping_at,
+         country, region, city, device, browser, os, referrer, viewer_no)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         COALESCE(?, (SELECT COALESCE(MAX(viewer_no), 0) + 1 FROM rec_views WHERE video_id = ?)))`,
     )
     .run(
       id,
@@ -1392,117 +1411,117 @@ export async function trackRecView(
       duration,
       input.cta ? 1 : 0,
       JSON.stringify(mergeRanges(input.ranges ?? [], duration || Infinity)),
-      hashIp(input.ip ?? ''),
-      (input.userAgent ?? '').slice(0, 300),
+      heat ? JSON.stringify(heat) : null,
       ts,
       ts,
+      ctx.country,
+      ctx.region,
+      ctx.city,
+      ctx.device,
+      ctx.browser,
+      ctx.os,
+      ctx.referrer,
+      prior?.viewer_no ?? null,
+      v.id,
     );
   await db.prepare('UPDATE rec_videos SET views = views + 1, last_viewed_at = ? WHERE id = ?').run(ts, v.id);
   if (first) await notifyAuthor(v, 'rec_view', `${viewer.name || 'Someone'} watched "${v.title}"`, viewer.name ? { actorName: viewer.name } : {});
   return { viewId: id };
 }
 
-export interface RecViewerRow {
-  viewerKey: string;
-  name: string;
-  /** El que dejó en el pedido de email (sin verificar). */
-  email: string;
-  signedIn: boolean;
-  views: number;
-  watchedSec: number;
-  pct: number;
-  ctaClicks: number;
-  lastAt: string;
-}
-
-export interface RecAnalytics {
-  views: number;
-  unique: number;
-  avgPct: number;
-  completed: number;
-  ctaClicks: number;
-  /** Qué parte de los espectadores vio cada 5 % del video. */
-  retention: number[];
-  viewers: RecViewerRow[];
+interface AnalyticsRow {
+  viewer_key: string;
+  viewer_no: number | null;
+  user_id: string | null;
+  viewer_name: string;
+  user_name: string | null;
+  gate_email: string | null;
+  user_email: string | null;
+  watched_sec: number;
+  max_position: number;
+  duration_sec: number;
+  cta_clicks: number;
+  ranges: string;
+  heat: string | null;
+  started_at: string;
+  country: string;
+  region: string;
+  city: string;
+  device: string;
+  browser: string;
+  os: string;
+  referrer: string;
 }
 
 /**
- * Analítica (solo para quien administra el video). El % visto es tiempo
- * distinto realmente reproducido (unión de intervalos, adelantar no cuenta);
- * para vistas viejas sin intervalos, la posición máxima.
+ * Analítica (solo para quien administra el video: el lugar de cada espectador
+ * no sale de acá). Los totales y las vistas por día cuentan todas las vistas
+ * con consultas agregadas; la curva, los desgloses y la tabla se arman con las
+ * INSIGHTS_SAMPLE más nuevas (avisa `sampled` si hay más).
  */
 export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytics> {
   const v = await getVideoRow(a, id);
   if (!v) throw new RecError('not_found', 404);
   if (!canManage(a, v)) throw new RecError('forbidden', 403);
-  const rows = (await getDb()
+  const db = getDb();
+  const totals = (await db
     .prepare(
-      `SELECT w.viewer_key, w.user_id, w.viewer_name, w.watched_sec, w.max_position, w.duration_sec, w.cta_clicks, w.ranges, w.started_at, e.email AS gate_email, lower(u.email) AS user_email
+      `SELECT COUNT(*) AS views, COUNT(DISTINCT viewer_key) AS uniq, COALESCE(SUM(cta_clicks), 0) AS cta, COALESCE(SUM(watched_sec), 0) AS watched, MIN(started_at) AS first
+       FROM rec_views WHERE video_id = ?`,
+    )
+    .get(id)) as { views: number; uniq: number; cta: number; watched: number; first: string | null };
+  const today = nowDb().slice(0, 10);
+  const start = daysStart(totals.first, today);
+  const dayRows = (await db
+    .prepare('SELECT substr(started_at, 1, 10) AS name, COUNT(*) AS count FROM rec_views WHERE video_id = ? AND started_at >= ? GROUP BY 1')
+    .all(id, `${start} 00:00:00`)) as Array<{ name: string; count: number }>;
+  const rows = (await db
+    .prepare(
+      `SELECT w.viewer_key, w.viewer_no, w.user_id, w.viewer_name, u.name AS user_name, w.watched_sec, w.max_position, w.duration_sec, w.cta_clicks, w.ranges, w.heat, w.started_at,
+              w.country, w.region, w.city, w.device, w.browser, w.os, w.referrer, e.email AS gate_email, lower(u.email) AS user_email
        FROM rec_views w LEFT JOIN rec_viewer_emails e ON e.video_id = w.video_id AND e.viewer_key = w.viewer_key
        LEFT JOIN users u ON u.id = w.user_id
-       WHERE w.video_id = ? ORDER BY w.started_at DESC LIMIT 5000`,
+       WHERE w.video_id = ? ORDER BY w.started_at DESC LIMIT ${INSIGHTS_SAMPLE}`,
     )
-    .all(id)) as Array<{
-    gate_email: string | null;
-    user_email: string | null;
-    viewer_key: string;
-    user_id: string | null;
-    viewer_name: string;
-    watched_sec: number;
-    max_position: number;
-    duration_sec: number;
-    cta_clicks: number;
-    ranges: string;
-    started_at: string;
-  }>;
+    .all(id)) as AnalyticsRow[];
   const visible = trimmedDuration(v.duration_sec, v.trim_start, v.trim_end);
   // Quién miró: el email que dejó en el pedido, el de su link mágico, o el de su cuenta si es una persona invitada.
   const invited = new Set(parseJson<string[]>(v.allowed_emails, []));
-  const emailOf = (r: { gate_email: string | null; user_email: string | null; viewer_key: string }) =>
+  const emailOf = (r: AnalyticsRow) =>
     r.gate_email ?? (r.viewer_key.startsWith('i:') ? r.viewer_key.slice(2) : r.user_email && invited.has(r.user_email) ? r.user_email : '');
-  const by = new Map<string, RecViewerRow & { ranges: Range[] }>();
-  let ctaClicks = 0;
-  for (const r of rows) {
-    const d = r.duration_sec > 0 ? r.duration_sec : visible;
-    const own = parseJson<Range[]>(r.ranges, []);
-    const ranges = own.length ? own : r.max_position > 0 ? ([[0, Math.min(r.max_position, r.watched_sec || r.max_position)]] as Range[]) : [];
-    ctaClicks += r.cta_clicks;
-    const cur = by.get(r.viewer_key);
-    if (!cur) {
-      by.set(r.viewer_key, {
-        viewerKey: r.viewer_key,
-        name: r.viewer_name,
-        email: emailOf(r),
-        signedIn: !!r.user_id,
-        views: 1,
-        watchedSec: r.watched_sec,
-        pct: 0,
-        ctaClicks: r.cta_clicks,
-        lastAt: r.started_at,
-        ranges: mergeRanges(ranges, d),
-      });
-    } else {
-      cur.views++;
-      cur.watchedSec += r.watched_sec;
-      cur.ctaClicks += r.cta_clicks;
-      cur.ranges = mergeRanges([...cur.ranges, ...ranges], d);
-      if (!cur.name && r.viewer_name) cur.name = r.viewer_name;
-    }
-  }
-  const viewers = [...by.values()].map((x) => ({ ...x, pct: coveredPct(x.ranges, visible) }));
-  const pcts = viewers.map((x) => x.pct);
-  return {
-    views: rows.length,
-    unique: viewers.length,
-    avgPct: pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0,
-    completed: pcts.filter((p) => p >= 95).length,
-    ctaClicks,
-    retention: retentionCurve(
-      viewers.map((x) => x.ranges),
-      visible,
-    ),
-    viewers: viewers.map(({ ranges: _r, ...rest }) => rest),
-  };
+  const device = (d: string): RecDevice | '' => (d === 'desktop' || d === 'mobile' || d === 'tablet' ? d : '');
+  return buildInsights(
+    rows.map((r) => ({
+      viewerKey: r.viewer_key,
+      viewerNo: Number(r.viewer_no) || 0,
+      signedIn: !!r.user_id,
+      // Con cuenta: el nombre de la cuenta si la vista no lo trae.
+      name: r.viewer_name || (r.user_id ? (r.user_name ?? '') : ''),
+      email: emailOf(r),
+      watchedSec: r.watched_sec,
+      maxPosition: r.max_position,
+      durationSec: r.duration_sec,
+      ctaClicks: r.cta_clicks,
+      ranges: parseJson<Range[]>(r.ranges, []),
+      heat: r.heat ? cleanHeat(parseJson<unknown>(r.heat, null), r.duration_sec > 0 ? r.duration_sec : visible) : null,
+      startedAt: r.started_at,
+      context: {
+        country: r.country ?? '',
+        region: r.region ?? '',
+        city: r.city ?? '',
+        device: device(r.device ?? ''),
+        browser: r.browser ?? '',
+        os: r.os ?? '',
+        referrer: r.referrer ?? '',
+      },
+    })),
+    visible,
+    {
+      totals: { views: Number(totals.views) || 0, unique: Number(totals.uniq) || 0, ctaClicks: Number(totals.cta) || 0, watchSec: Number(totals.watched) || 0 },
+      days: fillDays(dayRows, start, today),
+      sampled: Number(totals.views) > rows.length ? rows.length : null,
+    },
+  );
 }
 
 // ============================================================
