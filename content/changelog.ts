@@ -160,6 +160,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Desktop app: see what it accesses, stores and sends',
       es: 'App de escritorio: mirá a qué accede, qué guarda y qué manda',
       pt: 'App de desktop: veja o que acessa, guarda e envia',
+    id: '2026-11-12-app-button-tones',
+    date: '2026-11-12',
+    title: {
+      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
+      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
+      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
     },
     items: [
       {
@@ -214,6 +220,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Saving a message that arrives takes 4 database queries instead of 11 in Lines and 4 instead of 7 in Inbox, and the chat list is told in the same step. Sending a text from Lines reaches WhatsApp after 2 waits on the database instead of 6.',
         es: 'Guardar un mensaje que llega lleva 4 consultas a la base en vez de 11 en Lines y 4 en vez de 7 en Inbox, y la lista de chats se entera en el mismo paso. Mandar un texto desde Lines llega a WhatsApp después de 2 esperas a la base en vez de 6.',
         pt: 'Salvar uma mensagem que chega leva 4 consultas ao banco em vez de 11 no Lines e 4 em vez de 7 no Inbox, e a lista de conversas fica sabendo no mesmo passo. Enviar um texto pelo Lines chega ao WhatsApp depois de 2 esperas pelo banco em vez de 6.',
+        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
+        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
+        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
       },
     ],
   },
