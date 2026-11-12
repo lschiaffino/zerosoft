@@ -316,7 +316,7 @@ describe('listas guardadas', () => {
     await updateChat(user.id, grp, { labelIds: [label.id], assignedTo: mate.id });
 
     const mine = await createSavedList(user.id, user.id, { name: 'Mis grupos', filters: { kind: 'group', filter: 'all', junk: 1 } });
-    expect(mine.filters).toEqual({ kind: 'group' });
+    expect(mine.filters).toEqual({ kinds: ['group'] });
     const shared = await createSavedList(user.id, user.id, { name: 'Pro de Mate', shared: true, filters: { labelIds: [label.id], assignee: mate.id, filter: 'unanswered' } });
     // La otra persona ve solo la compartida.
     expect((await listSavedLists(user.id, mate.id)).map((l) => l.name)).toEqual(['Pro de Mate']);
