@@ -406,7 +406,9 @@ impl Session {
     }
 
     pub fn to_json(&self) -> Value {
-        serde_json::json!({ "version": 1, "windows": self.windows, "prefs": self.prefs })
+        // Sin "restaurar al abrir" no se guarda qué había abierto (rutas y títulos), solo las preferencias.
+        let windows: &[Win] = if self.prefs.restore { &self.windows } else { &[] };
+        serde_json::json!({ "version": 1, "windows": windows, "prefs": self.prefs })
     }
 
     /// session.json (o lo que sea) → sesión válida. Sin `restore`, solo las preferencias.
@@ -480,6 +482,9 @@ pub fn load(dir: &Path) -> Session {
 }
 
 pub fn save(dir: &Path, s: &Session) -> std::io::Result<()> {
+    if crate::privacy::wiped() {
+        return Ok(());
+    }
     std::fs::create_dir_all(dir)?;
     let tmp = dir.join("session.json.tmp");
     std::fs::write(&tmp, serde_json::to_vec_pretty(&s.to_json()).unwrap_or_default())?;
@@ -674,5 +679,12 @@ mod tests {
         let s4 = Session::from_json(&json!({ "windows": s.to_json()["windows"], "prefs": { "restore": false } }));
         assert!(s4.windows.is_empty() && !s4.prefs.restore);
         assert!(Session::from_json(&Value::Null).windows.is_empty());
+        // Sin restaurar tampoco se escribe qué había abierto.
+        let mut s5 = s.clone();
+        s5.prefs.restore = false;
+        let saved = s5.to_json();
+        assert_eq!(saved["windows"], json!([]));
+        assert!(!saved.to_string().contains("Deals"));
+        assert_eq!(saved["prefs"]["restore"], false);
     }
 }

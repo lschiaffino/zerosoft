@@ -29,6 +29,15 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     };
     let recording_meeting = st.recording.lock().unwrap().is_some() && !rec_off;
     let mut b = MenuBuilder::new(app).item(&MenuItem::with_id(app, "open", t(l, "open"), true, None::<&str>)?);
+    // Qué está capturando ahora (lo mismo que marca el ícono), y cortar el audio de la computadora
+    // desde acá, sin depender de la página.
+    if let Some(key) = capture_key(app) {
+        b = b.separator().item(&MenuItem::with_id(app, "capture-now", t(l, key), false, None::<&str>)?);
+        if crate::system_audio::running() {
+            b = b.item(&MenuItem::with_id(app, "sysaudio-stop", t(l, "traySystemAudioStop"), true, None::<&str>)?);
+        }
+        b = b.item(&MenuItem::with_id(app, "privacy", t(l, "trayPrivacy"), true, None::<&str>)?);
+    }
     if recording_meeting {
         b = b
             .item(&MenuItem::with_id(app, "rec-open", t(l, "recOpenItem"), true, None::<&str>)?)
@@ -68,7 +77,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
             if dictation::is_recording(app) {
                 dictation::stop(app);
             } else {
-                dictation::start(app, true);
+                dictation::start(app, true, crate::privacy::Tag::Menu);
             }
         }
         "paste-last" => {
@@ -80,6 +89,8 @@ pub fn on_menu(app: &AppHandle, id: &str) {
             tauri::async_runtime::spawn(async move { dictation::retry_all(&app).await });
         }
         "history" => crate::commands::open_settings_window(app, Some("history")),
+        "privacy" => crate::commands::open_settings_window(app, Some("privacy")),
+        "sysaudio-stop" => crate::system_audio::stop_because(crate::system_audio::Why::User),
         "settings" => crate::commands::open_settings_window(app, None),
         "check-updates" => {
             let app = app.clone();
@@ -89,7 +100,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
         "sign-out" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                crate::auth::sign_out(&app).await;
+                crate::auth::sign_out(&app, crate::privacy::Tag::Menu).await;
                 crate::load_app_path(&app, "/app");
                 crate::tabs::reload_all(&app);
             });
@@ -124,12 +135,34 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Qué captura la app ahora (clave del texto), o None. Sale del estado nativo: el dictado y el
+/// audio de la computadora los abre la app; la reunión y la pantalla son lo que avisó la página.
+pub(crate) fn capture_key(app: &AppHandle) -> Option<&'static str> {
+    let st = app.state::<AppState>();
+    let meeting = st.recording.lock().unwrap().is_some();
+    crate::privacy::capture_marker(dictation::is_recording(app), crate::system_audio::running(), meeting, crate::rec_overlay::active())
+}
+
 pub fn rebuild(app: &AppHandle) {
     let app2 = app.clone();
     // El menú se arma en el hilo principal.
     let _ = app.run_on_main_thread(move || {
-        if let (Some(tray), Ok(m)) = (app2.tray_by_id(TRAY_ID), menu(&app2)) {
+        let Some(tray) = app2.tray_by_id(TRAY_ID) else { return };
+        if let Ok(m) = menu(&app2) {
             let _ = tray.set_menu(Some(m));
+        }
+        // Indicador que no se apaga: un punto al lado del ícono (Mac) y el texto del globo, mientras
+        // el micrófono, el audio de la computadora o una grabación estén activos.
+        let l = app2.state::<AppState>().locale;
+        match capture_key(&app2) {
+            Some(key) => {
+                let _ = tray.set_title(Some("●"));
+                let _ = tray.set_tooltip(Some(format!("zerosoft: {}", t(l, key))));
+            }
+            None => {
+                let _ = tray.set_title(None::<&str>);
+                let _ = tray.set_tooltip(Some("zerosoft"));
+            }
         }
     });
 }

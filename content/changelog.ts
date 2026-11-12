@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-desktop-privacy-and-data',
+    date: '2026-11-12',
+    title: {
+      en: 'Desktop app: see what it accesses, stores and sends',
+      es: 'App de escritorio: mirá a qué accede, qué guarda y qué manda',
+      pt: 'App de desktop: veja o que acessa, guarda e envia',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings has a new section, Privacy and data. It lists each permission with what it is for and when it was last used, every file the app keeps on your computer with its size and a button to show or delete it, each request the app sends and where, and a local activity log (microphone, computer audio, uploads, pastes) with no audio or text in it. You can export or clear the log, and delete all local data and sign out, which also ends the session on the server and removes what the first desktop version (0.1.x) left behind.',
+        es: 'Ajustes tiene una sección nueva, Privacidad y datos. Lista cada permiso con para qué sirve y cuándo se usó por última vez, cada archivo que la app guarda en tu computadora con su tamaño y un botón para mostrarlo o borrarlo, cada pedido que manda la app y a dónde, y un registro de actividad local (micrófono, audio de la computadora, envíos, pegados) sin audio ni texto. Podés exportar o vaciar el registro, y borrar todos los datos locales y cerrar la sesión, que también termina la sesión en el servidor y borra lo que dejó la primera versión de escritorio (0.1.x).',
+        pt: 'Ajustes tem uma seção nova, Privacidade e dados. Lista cada permissão com para que serve e quando foi usada pela última vez, cada arquivo que o app guarda no seu computador com o tamanho e um botão para mostrar ou apagar, cada pedido que o app envia e para onde, e um registro de atividade local (microfone, áudio do computador, envios, colagens) sem áudio nem texto. Você pode exportar ou limpar o registro, e apagar todos os dados locais e sair, o que também encerra a sessão no servidor e remove o que a primeira versão de desktop (0.1.x) deixou.',
+      },
+      {
+        product: 'platform',
+        en: 'While the app dictates or captures computer audio, a dot shows next to its menu bar icon on Mac and the icon says what is active. Computer audio capture can only start from the tab you are looking at, and you can stop it from the icon. New switches: do not send the name of the app in front with dictations, do not keep dictations that failed to send, and do not allow computer audio capture. The same list, with a link to the code behind each line, is public at /download/privacy.',
+        es: 'Mientras la app dicta o captura el audio de la computadora, aparece un punto al lado de su ícono en la barra de menú de Mac y el ícono dice qué está activo. La captura del audio de la computadora solo puede empezar desde la pestaña que estás mirando, y la podés cortar desde el ícono. Llaves nuevas: no mandar el nombre de la app de adelante con los dictados, no guardar los dictados que no se pudieron enviar y no permitir la captura del audio de la computadora. La misma lista, con un link al código detrás de cada línea, es pública en /download/privacy.',
+        pt: 'Enquanto o app dita ou captura o áudio do computador, aparece um ponto ao lado do ícone dele na barra de menus do Mac e o ícone diz o que está ativo. A captura do áudio do computador só pode começar na aba que você está olhando, e você pode parar pelo ícone. Chaves novas: não enviar o nome do app da frente com os ditados, não guardar os ditados que não puderam ser enviados e não permitir a captura do áudio do computador. A mesma lista, com um link para o código por trás de cada linha, é pública em /download/privacy.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-whatsapp-realtime-speed',
     date: '2026-11-11',
     title: {

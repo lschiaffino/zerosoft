@@ -48,7 +48,7 @@ export type SettingsSectionKey = (typeof SETTINGS_SECTION_KEYS)[number] | 'admin
  * viven en la app, no en la web. En la ventana, la nav embebida las lista y cada link
  * (/app/settings/desktop/<sección>) lo intercepta la app y abre la sección nativa.
  */
-export const DESKTOP_NATIVE_SECTIONS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'updates', 'account'] as const;
+export const DESKTOP_NATIVE_SECTIONS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'privacy', 'updates', 'account'] as const;
 export type DesktopNativeSection = (typeof DESKTOP_NATIVE_SECTIONS)[number];
 
 export function desktopNativeHref(tab: DesktopNativeSection): string {

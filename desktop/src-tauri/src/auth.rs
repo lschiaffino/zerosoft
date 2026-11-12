@@ -104,11 +104,20 @@ pub async fn complete_login(app: &AppHandle, code: &str, state: &str) -> bool {
     std::thread::spawn(move || {
         let _ = tx.send(win.set_cookie(cookie).is_ok());
     });
-    rx.await.unwrap_or(false)
+    let ok = rx.await.unwrap_or(false);
+    if ok {
+        use crate::privacy::{Event, Kind, Tag};
+        crate::privacy::record(app, Event::new(Kind::SignIn).trigger(Tag::Browser).host_of(&pending.server));
+    }
+    ok
 }
 
-/// Cierra la sesión: borra las cookies de next-auth del webview.
-pub async fn sign_out(app: &AppHandle) {
+/// Cierra la sesión: borra las cookies de next-auth del webview. `from`: Ajustes o el menú.
+pub async fn sign_out(app: &AppHandle, from: crate::privacy::Tag) {
+    crate::privacy::record(app, crate::privacy::Event::new(crate::privacy::Kind::SignOut).trigger(from));
+    // Primero se le avisa al servidor (cierra la sesión de su lado); pase lo que pase, después se
+    // borran las cookies de acá.
+    server_sign_out(app).await;
     let Some(win) = crate::tabs::any_webview(app) else { return };
     let Ok(url) = url::Url::parse(&api::server(app)) else { return };
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
@@ -123,9 +132,50 @@ pub async fn sign_out(app: &AppHandle) {
     let _ = rx.await;
 }
 
+/// "nombre=valor" de un Set-Cookie (sin atributos).
+pub fn cookie_pair(set_cookie: &str) -> Option<&str> {
+    let pair = set_cookie.split(';').next()?.trim();
+    (pair.contains('=') && !pair.starts_with('=')).then_some(pair)
+}
+
+/// El cierre de sesión de next-auth, como lo hace la página: pide el token CSRF y lo manda a
+/// /api/auth/signout con las cookies de la sesión. Si algo falla no pasa nada: las cookies locales
+/// se borran igual.
+pub(crate) async fn server_sign_out(app: &AppHandle) {
+    let server = api::server(app);
+    let cookies = api::cookie_header(app).await;
+    if !cookies.contains("next-auth.session-token") {
+        return;
+    }
+    let http = app.state::<AppState>().http.clone();
+    let wait = Duration::from_secs(6);
+    let Ok(res) = http.get(format!("{server}/api/auth/csrf")).header("cookie", &cookies).timeout(wait).send().await else { return };
+    // Si la cookie del token no estaba, viene en esta respuesta: va con el pedido que sigue.
+    let fresh: Vec<String> = res.headers().get_all("set-cookie").iter().filter_map(|v| v.to_str().ok()).filter_map(cookie_pair).map(String::from).collect();
+    let Ok(body) = res.json::<Value>().await else { return };
+    let Some(token) = body.get("csrfToken").and_then(Value::as_str).filter(|t| !t.is_empty() && t.len() <= 200) else { return };
+    let all = std::iter::once(cookies).chain(fresh).collect::<Vec<_>>().join("; ");
+    let _ = http
+        .post(format!("{server}/api/auth/signout"))
+        .header("cookie", all)
+        .header("origin", &server)
+        .form(&[("csrfToken", token), ("json", "true")])
+        .timeout(wait)
+        .send()
+        .await;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn set_cookie_pairs() {
+        assert_eq!(cookie_pair("next-auth.csrf-token=abc%7Cdef; Path=/; HttpOnly; SameSite=Lax"), Some("next-auth.csrf-token=abc%7Cdef"));
+        assert_eq!(cookie_pair("__Host-next-auth.csrf-token=a|b"), Some("__Host-next-auth.csrf-token=a|b"));
+        assert_eq!(cookie_pair("; Path=/"), None);
+        assert_eq!(cookie_pair("=x"), None);
+    }
 
     #[test]
     fn pkce_challenge_is_s256() {

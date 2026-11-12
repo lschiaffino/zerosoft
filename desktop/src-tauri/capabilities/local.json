@@ -31,6 +31,7 @@
     "allow-settings-nav",
     "allow-settings-open-web",
     "allow-update-check",
-    "allow-update-restart"
+    "allow-update-restart",
+    "allow-privacy"
   ]
 }

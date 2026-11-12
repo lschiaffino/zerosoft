@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -17,6 +17,8 @@ pub enum Failure {
     TooLarge,
     Empty,
     Rejected,
+    /// Se grabó para otro servidor: queda acá y no se manda al de ahora.
+    OtherServer,
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,6 +70,15 @@ pub struct PendingMeta {
     pub context: String,
     pub failure: Failure,
     pub attempts: u32,
+    /// Origen del servidor para el que se grabó. Solo se manda a ese (vacío: grabado con una
+    /// versión anterior, que no lo anotaba).
+    #[serde(default)]
+    pub server: String,
+}
+
+/// Se puede mandar a `current`: se grabó para ese servidor (o con una versión que no lo anotaba).
+pub fn same_server(meta: &PendingMeta, current: &str) -> bool {
+    meta.server.is_empty() || meta.server == current
 }
 
 pub const PENDING_MAX: usize = 20;
@@ -147,11 +158,11 @@ impl PendingStore {
     }
 
     pub fn save(&self, meta: &PendingMeta, audio: &[u8]) -> bool {
-        if fs::create_dir_all(&self.dir).is_err() {
+        if crate::privacy::wiped() || fs::create_dir_all(&self.dir).is_err() {
             return false;
         }
         let (a, j) = self.paths(&meta.id);
-        write_private(&a, audio) && write_private(&j, &serde_json::to_vec(meta).unwrap_or_default())
+        crate::privacy::write_private(&a, audio) && crate::privacy::write_private(&j, &serde_json::to_vec(meta).unwrap_or_default())
     }
 
     pub fn read(&self, id: &str, now: u64) -> Option<(PendingMeta, Vec<u8>)> {
@@ -167,7 +178,7 @@ impl PendingStore {
         if let Some(mut m) = self.list(now).into_iter().find(|m| m.id == id) {
             m.failure = failure;
             m.attempts += 1;
-            let _ = write_private(&self.paths(id).1, &serde_json::to_vec(&m).unwrap_or_default());
+            let _ = crate::privacy::write_private(&self.paths(id).1, &serde_json::to_vec(&m).unwrap_or_default());
         }
     }
 
@@ -180,18 +191,6 @@ impl PendingStore {
         let _ = fs::remove_file(j);
         true
     }
-}
-
-fn write_private(p: &Path, data: &[u8]) -> bool {
-    if fs::write(p, data).is_err() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(p, fs::Permissions::from_mode(0o600));
-    }
-    true
 }
 
 #[cfg(test)]
@@ -228,7 +227,7 @@ mod tests {
     }
 
     fn meta(id: &str, created_at: u64) -> PendingMeta {
-        PendingMeta { id: id.into(), created_at, mime: "audio/wav".into(), duration_ms: 1000, source_app: String::new(), context: "other".into(), failure: Failure::Offline, attempts: 0 }
+        PendingMeta { id: id.into(), created_at, mime: "audio/wav".into(), duration_ms: 1000, source_app: String::new(), context: "other".into(), failure: Failure::Offline, attempts: 0, server: String::new() }
     }
 
     #[test]
@@ -255,6 +254,11 @@ mod tests {
         store.mark_attempt(&m.id, Failure::Server, now);
         assert_eq!(store.list(now)[0].attempts, 1);
         assert!(store.remove(&m.id));
+        // Solo al servidor para el que se grabó.
+        let mut other = m.clone();
+        other.server = "https://zerosoft.ai".into();
+        assert!(same_server(&other, "https://zerosoft.ai") && !same_server(&other, "https://intra.example.com"));
+        assert!(same_server(&m, "https://intra.example.com"), "sin servidor anotado: el de ahora");
         assert!(store.list(now).is_empty());
         let _ = fs::remove_dir_all(dir);
     }
