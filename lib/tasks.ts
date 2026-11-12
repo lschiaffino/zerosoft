@@ -181,17 +181,30 @@ export async function taskLinks(ws: string, taskIds: string[]): Promise<Map<stri
       detail: '',
     }),
   );
+  // Texto de los mensajes de Lines, para nombrar después sus menciones ("@<dígitos>" → "@Nombre").
+  const lineMessages: Array<{ id: string; body: string; meta: string | null; number_id: string }> = [];
   await load(
     'lines_message',
-    `SELECT m.id, m.chat_id, m.body, c.name, c.phone, c.provider_chat_id FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
+    `SELECT m.id, m.chat_id, m.body, m.meta, m.number_id, c.name, c.phone, c.provider_chat_id FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
      WHERE m.id IN (?*) AND m.user_id = ?`,
-    (r) => ({
-      id: String(r.id),
-      label: chatDisplayName({ name: String(r.name ?? ''), phone: String(r.phone ?? ''), provider_chat_id: String(r.provider_chat_id ?? '') }),
-      detail: String(r.body ?? '').slice(0, 280),
-      chatId: String(r.chat_id),
-    }),
+    (r) => {
+      lineMessages.push({ id: String(r.id), body: String(r.body ?? ''), meta: (r.meta as string | null) ?? null, number_id: String(r.number_id ?? '') });
+      return {
+        id: String(r.id),
+        label: chatDisplayName({ name: String(r.name ?? ''), phone: String(r.phone ?? ''), provider_chat_id: String(r.provider_chat_id ?? '') }),
+        detail: String(r.body ?? '').slice(0, 280),
+        chatId: String(r.chat_id),
+      };
+    },
   );
+  if (lineMessages.some((m) => m.body.includes('@'))) {
+    const { linesRowTexts } = await import('./groups-wa-names');
+    const named = await linesRowTexts(ws, lineMessages, { shared: true });
+    lineMessages.forEach((m, i) => {
+      const item = info.get(key('lines_message', m.id));
+      if (item) item.detail = named[i].slice(0, 280);
+    });
+  }
   await load(
     'chat_conversation',
     `SELECT c.id, c.subject, v.name, v.email FROM chat_conversations c JOIN chat_widgets w ON w.id = c.widget_id

@@ -74,7 +74,8 @@ describe('ids @lid', () => {
       );
     const p = evolutionProvider({ baseUrl: 'https://evo.example.com', apiKey: 'k', session: 's' }, { fetch: f });
     expect(await p.participants('120363000000000001@g.us')).toEqual([
-      { phone: '5491155550006', role: 'superadmin', name: undefined },
+      // El lid viaja con el teléfono: con eso una mención "@<lid>" se muestra con el nombre.
+      { phone: '5491155550006', role: 'superadmin', name: undefined, lid: '1' },
       { phone: '5491155550007', role: 'admin', name: undefined },
     ]);
   });

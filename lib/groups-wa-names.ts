@@ -8,8 +8,9 @@
  */
 import { getDb } from './db';
 import { isGroupJid, lidDigits, phoneDigits, type ChatInfo, type HistoryContact, type InboundEvent } from './groups-provider';
-import { contactsFromMessage, mentionTargets, rememberContacts, resolveLidSenders, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
-import { mentionCandidates, type MentionMap } from './wa-mentions';
+import { contactsFromMessage, mentionTargets, rememberContacts, resolveLidSenders, resolveTextMentions, someoneWord, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
+import { ownMentions, type MentionMap } from './wa-mentions';
+import { maskPhone } from './groups-mask';
 
 /** Nombres genéricos de un chat que solo tiene lid (lib/groups.ts → lidChatName). */
 const LID_NAMES = ['Contacto de WhatsApp', 'WhatsApp contact', 'Contato do WhatsApp'];
@@ -141,16 +142,102 @@ export async function learnLinesChatInfo(number: { id: string; user_id: string }
   await remember(number, items);
 }
 
-/** "@<dígitos>" → nombre y teléfono para una página de mensajes de un número; cada mensaje lleva los suyos. */
-export async function withLinesMentions<M extends { body: string; meta: Record<string, unknown>; mentionNames?: MentionMap }>(numberId: string, messages: M[]): Promise<void> {
+/**
+ * "@<dígitos>" → nombre y teléfono para una página de mensajes de un número;
+ * cada mensaje lleva los suyos. `chatId`: el chat de la página, para tomar el
+ * nombre de un participante cuando la libreta solo sabe su teléfono.
+ */
+export async function withLinesMentions<M extends { body: string; meta: Record<string, unknown>; mentionNames?: MentionMap }>(
+  numberId: string,
+  messages: M[],
+  chatId?: string,
+): Promise<void> {
   const items = messages.filter((m) => m.body && m.body.includes('@')).map((m) => ({ body: m.body, mentions: m.meta?.mentions }));
   if (!items.length) return;
   const map = await mentionTargets({ app: 'lines', accountId: numberId }, items);
   if (!Object.keys(map).length) return;
+  await nameByPhone(numberId, chatId, map).catch(() => null);
   for (const m of messages) {
     if (!m.body || !m.body.includes('@')) continue;
-    const own: MentionMap = {};
-    for (const d of mentionCandidates([{ body: m.body, mentions: m.meta?.mentions }])) if (map[d]) own[d] = map[d];
+    const own = ownMentions(map, { body: m.body, mentions: m.meta?.mentions });
     if (Object.keys(own).length) m.mentionNames = own;
+  }
+}
+
+/**
+ * Menciones de las que solo se sabe el teléfono: el nombre del participante
+ * del grupo con ese teléfono o, si es la línea misma, el nombre de la línea.
+ */
+async function nameByPhone(numberId: string, chatId: string | undefined, map: MentionMap): Promise<void> {
+  const nameless = () => Object.values(map).filter((t) => !t.name && t.phone);
+  if (!nameless().length) return;
+  const db = getDb();
+  if (chatId) {
+    const phones = [...new Set(nameless().map((t) => t.phone))].slice(0, 400);
+    const rows = (await db
+      .prepare(`SELECT phone, name FROM groups_members WHERE chat_id = ? AND name <> '' AND phone IN (${phones.map(() => '?').join(',')})`)
+      .all(chatId, ...phones)) as Array<{ phone: string; name: string }>;
+    const names = new Map(rows.map((r) => [r.phone, r.name]));
+    for (const t of nameless()) t.name = names.get(t.phone) ?? '';
+  }
+  if (!nameless().length) return;
+  const row = (await db.prepare('SELECT name, phone FROM groups_numbers WHERE id = ?').get(numberId)) as { name?: string; phone?: string } | undefined;
+  const name = (row?.name ?? '').trim();
+  if (!name || !row?.phone) return;
+  for (const t of nameless()) if (t.phone === row.phone) t.name = name;
+}
+
+export interface LinesTextOptions {
+  /** Quien lee tiene los teléfonos ocultos: el teléfono de una mención sin nombre va enmascarado. */
+  mask?: boolean;
+  /**
+   * El texto queda guardado o sale del producto (título de un ticket, tarea,
+   * aviso) y lo puede leer alguien con los teléfonos ocultos: un lid del que
+   * solo se sabe el teléfono va como "alguien" (el texto original no traía ese teléfono).
+   */
+  shared?: boolean;
+}
+
+/**
+ * Textos de mensajes de Lines para leer fuera de la conversación (tickets,
+ * tareas, resumen, export): "@<dígitos>" → "@Nombre", "@+teléfono" o
+ * "@alguien". `ws`: el workspace, para el idioma de "alguien".
+ */
+export async function linesMentionTexts(
+  ws: string,
+  items: Array<{ numberId: string; text: string; mentions?: unknown }>,
+  opts: LinesTextOptions = {},
+): Promise<string[]> {
+  if (!items.some((it) => it.text && it.text.includes('@'))) return items.map((it) => it.text);
+  return resolveTextMentions(
+    'lines',
+    items.map((it) => ({ accountId: it.text && it.text.includes('@') ? it.numberId : '', text: it.text, mentions: it.mentions })),
+    {
+      someone: () => someoneWord(ws),
+      phone: (phone, id) => (opts.shared && phone !== id ? '' : opts.mask ? maskPhone(phone) : `+${phone}`),
+    },
+  ).catch(() => items.map((it) => it.text));
+}
+
+/** Lo mismo para filas de groups_messages (body, meta en JSON y number_id). */
+export async function linesRowTexts(
+  ws: string,
+  rows: Array<{ body?: string | null; meta?: string | null; number_id?: string | null }>,
+  opts: LinesTextOptions = {},
+): Promise<string[]> {
+  return linesMentionTexts(
+    ws,
+    rows.map((r) => ({ numberId: r.number_id ?? '', text: r.body ?? '', mentions: storedMentions(r.meta) })),
+    opts,
+  );
+}
+
+/** La lista guardada de mencionados de una fila de mensaje (meta en JSON). */
+export function storedMentions(meta: string | null | undefined): unknown {
+  if (!meta || !meta.includes('"mentions"')) return undefined;
+  try {
+    return (JSON.parse(meta) as { mentions?: unknown }).mentions;
+  } catch {
+    return undefined;
   }
 }

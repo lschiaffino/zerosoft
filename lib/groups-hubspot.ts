@@ -1047,10 +1047,14 @@ async function syncNote(conn: Conn, chatId: string, day: string, opts: { force?:
   try {
     const messages = (await db
       .prepare(
-        `SELECT m.direction, m.sender_phone, m.sender_name, m.author_id, m.body, m.media_type, m.media_name, m.created_at FROM groups_messages m
+        `SELECT m.direction, m.sender_phone, m.sender_name, m.author_id, m.body, m.media_type, m.media_name, m.created_at, m.meta, m.number_id FROM groups_messages m
          WHERE m.chat_id = ? AND m.user_id = ? AND substr(m.created_at, 1, 10) = ? AND ${MESSAGE_FILTER} ORDER BY m.created_at, m.rowid LIMIT ?`,
       )
-      .all(chatId, conn.ws, day, NOTE_MAX_MESSAGES)) as DigestMessage[];
+      .all(chatId, conn.ws, day, NOTE_MAX_MESSAGES)) as Array<DigestMessage & { meta?: string | null; number_id?: string | null }>;
+    // "@<dígitos>" → "@Nombre" también en la nota (sale del producto: un lid del que solo se sabe el teléfono va como "alguien").
+    const { linesRowTexts } = await import('./groups-wa-names');
+    const named = await linesRowTexts(conn.ws, messages, { shared: true });
+    messages.forEach((m, i) => (m.body = named[i]));
     const { getSettings, groupsBaseUrl, listPeople } = await import('./groups');
     const people = new Map((await listPeople(conn.ws)).map((p) => [p.id, p.name || p.email]));
     const locale = (await getSettings(conn.ws)).locale;

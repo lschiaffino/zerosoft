@@ -378,7 +378,9 @@ const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 export async function sharedContent(owner: string, threadId: string, kind: SharedKind): Promise<
   Array<{ id: string; mediaType: string; mediaName: string; body: string; sentAt: string; fromMe: boolean; senderName: string; senderHandle: string; size?: number; urls?: string[] }>
 > {
-  const thread = (await getDb().prepare('SELECT id FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as { id: string } | undefined;
+  const thread = (await getDb().prepare('SELECT id, account_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as
+    | { id: string; account_id: string; channel: string }
+    | undefined;
   if (!thread) throw new InboxError('not_found', 404);
   const where =
     kind === 'media'
@@ -394,18 +396,30 @@ export async function sharedContent(owner: string, threadId: string, kind: Share
        WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND ${where} ORDER BY ${kind === 'starred' ? 'starred_at' : 'sent_at'} DESC LIMIT 120`,
     )
     .all(threadId, owner)) as Array<{ id: string; media_type: string; media_name: string; body: string; sent_at: string; from_me: number; sender_name: string; sender_handle: string; meta: string }>;
-  return rows.map((r) => {
-    let size: number | undefined;
+  const metas = rows.map((r) => {
     try {
-      size = r.meta ? (JSON.parse(r.meta) as { size?: number }).size : undefined;
+      return r.meta ? (JSON.parse(r.meta) as { size?: number; mentions?: unknown }) : {};
     } catch {
-      size = undefined;
+      return {};
     }
+  });
+  // "@<dígitos>" → "@Nombre" (destacados, pies de foto), antes de cortar el texto.
+  let bodies = rows.map((r) => r.body);
+  if (thread.channel === 'whatsapp' && bodies.some((b) => b.includes('@'))) {
+    const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
+    bodies = await resolveTextMentions(
+      'inbox',
+      rows.map((r, i) => ({ accountId: r.body.includes('@') ? thread.account_id : '', text: r.body, mentions: metas[i].mentions })),
+      { someone: () => someoneWord(owner) },
+    ).catch(() => bodies);
+  }
+  return rows.map((r, i) => {
+    const size = metas[i].size;
     return {
       id: r.id,
       mediaType: r.media_type,
       mediaName: r.media_name,
-      body: r.body.slice(0, 500),
+      body: bodies[i].slice(0, 500),
       sentAt: r.sent_at,
       fromMe: r.from_me === 1,
       senderName: r.sender_name,

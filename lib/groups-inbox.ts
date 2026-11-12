@@ -289,7 +289,13 @@ export async function listPinned(ws: string, chatId: string): Promise<MessageDto
   const rows = (await getDb()
     .prepare('SELECT * FROM groups_messages WHERE chat_id = ? AND user_id = ? AND pinned_at IS NOT NULL ORDER BY pinned_at DESC LIMIT ?')
     .all(chatId, ws, MAX_PINNED)) as MessageRow[];
-  return rows.map(toMessageDto);
+  const out = rows.map(toMessageDto);
+  // Como en la conversación: "@<dígitos>" → "@Nombre".
+  if (rows.length) {
+    const { withLinesMentions } = await import('./groups-wa-names');
+    await withLinesMentions(rows[0].number_id, out, chatId).catch(() => null);
+  }
+  return out;
 }
 
 export interface ForwardResult {

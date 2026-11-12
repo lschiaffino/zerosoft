@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { ThreadProps } from './ChatThread';
 import ChatDetails from './ChatDetails';
-import { useMediaText } from './ui';
+import { useLinesMentions, useMediaText } from './ui';
 import { parseDbUtc } from '@/lib/utils';
 
 /** Página del grupo: los detalles a lo ancho y los últimos mensajes. */
@@ -14,6 +14,8 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const mediaText = useMediaText();
+  // "@<dígitos>" → "@Nombre", como en la conversación.
+  const { textOf } = useLinesMentions(data.members);
   const [chat, setChat] = useState(data.chat);
   const recent = data.messages.filter((m) => m.direction === 'in' || m.direction === 'out').slice(-10);
   return (
@@ -41,7 +43,7 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
               <li key={m.id}>
                 <span>
                   <strong>{m.direction === 'in' ? m.senderName || (m.senderPhone ? `+${m.senderPhone}` : '') : t('detail.team')}</strong>{' '}
-                  {m.body.slice(0, 160) || mediaText({ media: m.media })}
+                  {textOf(m).slice(0, 160) || mediaText({ media: m.media })}
                 </span>
                 <time className="ui-help" dateTime={m.createdAt}>
                   <LocalText>{parseDbUtc(m.createdAt).toLocaleString(locale)}</LocalText>
