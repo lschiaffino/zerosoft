@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-desktop-dictation-meter',
+    date: '2026-11-12',
+    title: {
+      en: 'Desktop dictation: the sound meter reacts to your voice',
+      es: 'Dictado del escritorio: el medidor de sonido reacciona a tu voz',
+      pt: 'Ditado do desktop: o medidor de som reage à sua voz',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'The bars barely moved with a normal voice. They now follow how loud you sound (in decibels) and adjust to your microphone, so you can see it is listening; background noise stays still.',
+        es: 'Las barras casi no se movían con una voz normal. Ahora siguen cuán fuerte suena tu voz (en decibeles) y se ajustan a tu micrófono, así se ve que está escuchando; el ruido de fondo queda quieto.',
+        pt: 'As barras quase não se mexiam com uma voz normal. Agora seguem o volume da sua voz (em decibéis) e se ajustam ao seu microfone, então dá para ver que está ouvindo; o ruído de fundo fica parado.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {
