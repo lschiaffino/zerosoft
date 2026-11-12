@@ -137,7 +137,12 @@ describe('libreta de contactos', () => {
     const s = await scope('wac2');
     await rememberContacts(s, [{ phone: '5491155550000', lid: LID, push: 'Ana Ejemplo' }]);
     const map = await mentionTargets(s, [{ body: `@${LID} y @5491199990000 y @900000000000009`, mentions: [`${LID}@lid`, '5491199990000', '900000000000009@lid'] }]);
-    expect(map).toEqual({ [LID]: { name: 'Ana Ejemplo', phone: '5491155550000' }, '5491199990000': { name: '', phone: '5491199990000' } });
+    // El lid que nadie conoce queda como mención sin nombre ni teléfono: se muestra "@alguien", nunca sus dígitos.
+    expect(map).toEqual({
+      [LID]: { name: 'Ana Ejemplo', phone: '5491155550000' },
+      '5491199990000': { name: '', phone: '5491199990000' },
+      '900000000000009': { name: '', phone: '' },
+    });
   });
 });
 

@@ -2,6 +2,9 @@
  * Lógica pura de la UI de Notes (sin React), testeada en tests/unit/notes-ui.test.ts.
  */
 
+import type { DocsBlock } from '@/lib/docs-types';
+import { blocksToText } from '@/lib/notes-types';
+
 export type NotesFilter =
   | { kind: 'all' }
   /** Inicio con widgets. */
@@ -161,5 +164,33 @@ export function duplicateBody(
     content: note.content.map((b) => ({ ...b, id: newId() })),
     tags: note.tags,
     notebook_id: note.notebook_id,
+  };
+}
+
+export interface NoteStats {
+  words: number;
+  characters: number;
+  readingMinutes: number;
+  tasksDone: number;
+  tasksTotal: number;
+  attachments: number;
+}
+
+/** Cifras del panel "Info de la nota": palabras, caracteres, lectura (200 palabras por minuto), tareas y adjuntos. */
+export function noteStats(title: string, content: DocsBlock[]): NoteStats {
+  const text = `${title}\n${blocksToText(content)}`
+    .split('\n')
+    .map((l) => l.replace(/^(?:- |\[[ x]\] )/, ''))
+    .join('\n')
+    .trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  const todos = content.filter((b) => b.type === 'todo');
+  return {
+    words,
+    characters: text.replace(/\s/g, '').length,
+    readingMinutes: words === 0 ? 0 : Math.max(1, Math.round(words / 200)),
+    tasksDone: todos.filter((b) => b.checked).length,
+    tasksTotal: todos.length,
+    attachments: content.filter((b) => b.type === 'image' || b.type === 'file').length,
   };
 }

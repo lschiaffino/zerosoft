@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
-import { cleanHubspotFilters, type HubspotPropFilter } from './groups-hubspot-shared';
+import { parseLinesFilters, type LinesFilters } from './groups-filters';
 import {
   CHAT_FILTERS,
   GroupsError,
@@ -437,18 +437,8 @@ export async function createFromTemplate(
 // Listas guardadas
 // ======================================================================
 
-export interface SavedListFilters {
-  filter?: ChatFilter;
-  q?: string;
-  labelIds?: string[];
-  assignee?: string;
-  kind?: 'dm' | 'group';
-  numberId?: string;
-  props?: PropertyFilter[];
-  hubspot?: 'linked' | 'unlinked';
-  /** Condiciones sobre propiedades de la empresa de HubSpot. */
-  hsProps?: HubspotPropFilter[];
-}
+/** Los filtros de una lista: los mismos de la bandeja (lib/groups-filters.ts). */
+export type SavedListFilters = LinesFilters;
 
 export interface SavedListDto {
   id: string;
@@ -473,33 +463,15 @@ interface SavedListRow {
   updated_at: string;
 }
 
+/** Filtros válidos para guardar. Acepta también el formato de las listas guardadas antes del panel de filtros. */
 export function cleanListFilters(raw: unknown): SavedListFilters {
-  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const out: SavedListFilters = {};
-  if ((CHAT_FILTERS as readonly string[]).includes(String(r.filter)) && r.filter !== 'all') out.filter = r.filter as ChatFilter;
-  if (typeof r.q === 'string' && r.q.trim()) out.q = r.q.trim().slice(0, 200);
-  if (Array.isArray(r.labelIds)) {
-    const ids = [...new Set(r.labelIds.filter((x): x is string => typeof x === 'string' && x.length <= 100))].slice(0, 20);
-    if (ids.length) out.labelIds = ids;
-  }
-  if (typeof r.assignee === 'string' && r.assignee && r.assignee.length <= 100) out.assignee = r.assignee;
-  if (r.kind === 'dm' || r.kind === 'group') out.kind = r.kind;
-  if (typeof r.numberId === 'string' && r.numberId && r.numberId.length <= 100) out.numberId = r.numberId;
-  if (r.hubspot === 'linked' || r.hubspot === 'unlinked') out.hubspot = r.hubspot;
-  const hsProps = cleanHubspotFilters(r.hsProps);
-  if (hsProps.length) out.hsProps = hsProps;
-  if (Array.isArray(r.props)) {
-    const props = (r.props as Array<Record<string, unknown>>)
-      .map((p) => ({ key: String(p?.key ?? ''), op: (['is', 'set', 'unset'].includes(String(p?.op)) ? p.op : 'is') as PropertyFilter['op'], value: p?.value == null ? undefined : String(p.value).slice(0, 200) }))
-      .filter((p) => /^[a-z0-9_]{1,40}$/.test(p.key) && (p.op !== 'is' || (p.value ?? '') !== ''))
-      .slice(0, 10);
-    if (props.length) out.props = props;
-  }
-  return out;
+  return parseLinesFilters(raw);
 }
 
+/** La consulta de una lista. HubSpot va aparte: sus condiciones necesitan la base. */
 export function listQuery(f: SavedListFilters): ChatQuery {
-  return { filter: f.filter ?? 'all', q: f.q, labelIds: f.labelIds, assignee: f.assignee, kind: f.kind, numberId: f.numberId, props: f.props, hubspot: f.hubspot, hsProps: f.hsProps };
+  const filters = parseLinesFilters(f);
+  return { q: filters.q, filters, hubspot: filters.hubspot, hsProps: filters.hsProps };
 }
 
 function toListDto(r: SavedListRow): SavedListDto {

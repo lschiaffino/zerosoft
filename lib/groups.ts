@@ -686,8 +686,10 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   if (!row) return null;
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
-    const { resolveTextMentions } = await import('./wa-contacts');
-    dto.lastMessagePreview = (await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }]).catch(() => [dto.lastMessagePreview]))[0];
+    const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+    dto.lastMessagePreview = (
+      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws) }).catch(() => [dto.lastMessagePreview])
+    )[0];
   }
   if (row.kind === 'dm') {
     // La "info" del contacto: la trae el repaso diario a la libreta del número.
@@ -744,6 +746,13 @@ export interface ChatQuery {
   count?: boolean;
   /** Condiciones sobre propiedades de la empresa de HubSpot vinculada (lib/groups-hubspot-filter.ts). */
   hsProps?: import('./groups-hubspot-shared').HubspotPropFilter[];
+  /**
+   * Los filtros del panel de la bandeja y de las listas guardadas (lib/groups-filters.ts): varias opciones por
+   * campo, sí o no, fechas. Se cruzan con lo demás de esta consulta. Con esto, el estado (abiertos, cerrados) sale de acá.
+   */
+  filters?: import('./groups-filters').LinesFilters;
+  /** Minutos al este de UTC de quien mira: dónde empieza "hoy" en los filtros por fecha. */
+  tzOffsetMin?: number;
 }
 
 /** Cursor de la bandeja: (orden, id) del último chat de la página. */
@@ -830,7 +839,13 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra.
   if (query.archived) where.push('c.archived_at IS NOT NULL');
   else if (!(query.q ?? '').trim()) where.push('c.archived_at IS NULL');
-  if (filter === 'closed') where.push("c.status = 'closed'");
+  if (query.filters) {
+    // Estado, tipo, líneas, asignación, etiquetas, sí o no, fechas y propiedades. El acceso de quien mira va aparte, más abajo.
+    const { linesFiltersSql } = await import('./groups-filters');
+    const fx = linesFiltersSql(filter === 'closed' ? { ...query.filters, status: ['closed'] } : query.filters, { me, tzOffsetMin: query.tzOffsetMin });
+    where.push(...fx.where);
+    args.push(...fx.args);
+  } else if (filter === 'closed') where.push("c.status = 'closed'");
   else where.push("c.status = 'open'");
   if (filter === 'unread') where.push('c.unread_count > 0');
   if (filter === 'unanswered') where.push('c.awaiting_since IS NOT NULL');
@@ -989,11 +1004,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
-  const { resolveTextMentions } = await import('./wa-contacts');
+  const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
   const named = await resolveTextMentions(
     'lines',
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
+    { someone: () => someoneWord(ws) },
   ).catch(() => texts);
   return {
     rows: rows.map((r, i) => {
@@ -1482,7 +1498,7 @@ export async function listMessages(
     .all(...args, limit)) as Array<MessageRow & { ticket_id: string | null; rn: number }>;
   const out = rows.map(toMessageDto);
   // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
-  if (rows.length) await withLinesMentions(rows[0].number_id, out).catch(() => null);
+  if (rows.length) await withLinesMentions(rows[0].number_id, out, rows[0].chat_id).catch(() => null);
   return out;
 }
 
@@ -2395,7 +2411,13 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known
       body:
         (msg.sender_name ? `${msg.sender_name}: ` : '') +
         (await import('./wa-contacts')
-          .then((m) => m.resolveTextMentions('lines', [{ accountId: msg.number_id, text: previewOf(msg.body, msg.media_type, msg.media_name) }]))
+          .then((m) =>
+            m.resolveTextMentions(
+              'lines',
+              [{ accountId: msg.number_id, text: previewOf(msg.body, msg.media_type, msg.media_name), mentions: parseJson<StoredMeta>(msg.meta ?? '', {}).mentions }],
+              { someone: () => m.someoneWord(ws) },
+            ),
+          )
           .then((t) => t[0])
           .catch(() => previewOf(msg.body, msg.media_type, msg.media_name))),
     }).catch(() => null);
@@ -2518,6 +2540,11 @@ export async function syncMembers(ws: string, chatId: string): Promise<MemberDto
     throw new GroupsError(providerErrorCode(err), 502);
   }
   await storeMembers(chatId, list);
+  // El lid de cada participante (y su nombre, si vino) va a la libreta: con eso las menciones "@<lid>" llevan nombre.
+  if (list.some((p) => p.lid)) {
+    const { learnLinesChatInfo } = await import('./groups-wa-names');
+    await learnLinesChatInfo({ id: chat.number_id, user_id: chat.user_id }, chat.provider_chat_id, { name: '', about: '', pictureUrl: '', participants: list }).catch(() => null);
+  }
   return listMembers(ws, chatId);
 }
 
@@ -3209,7 +3236,10 @@ export async function chatsForCrmRecord(
     const open = (await getDb()
       .prepare("SELECT COUNT(*) AS c FROM groups_tickets WHERE chat_id = ? AND status IN ('open', 'in_progress')")
       .get(r.id)) as { c: number };
-    out.push({ chat: toChatDto(r, labels.get(r.id) ?? []), messages: msgs.reverse().map(toMessageDto), openTickets: Number(open.c) });
+    const messages = msgs.reverse().map(toMessageDto);
+    // "@<dígitos>" → "@Nombre", como en la conversación.
+    await withLinesMentions(r.number_id, messages, r.id).catch(() => null);
+    out.push({ chat: toChatDto(r, labels.get(r.id) ?? []), messages, openTickets: Number(open.c) });
   }
   return out;
 }

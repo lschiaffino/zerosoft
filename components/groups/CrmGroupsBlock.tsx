@@ -3,6 +3,8 @@ import { Link } from '@/i18n/navigation';
 import { chatsForCrmRecord, mediaKind } from '@/lib/groups';
 import LocalDate from '@/components/ui/LocalDate';
 import { groupsViewer } from '@/lib/groups-access';
+import { maskPhone } from '@/lib/groups-mask';
+import { mentionLabels, replaceMentions, type MentionMap } from '@/lib/wa-mentions';
 import type { TeamRole } from '@/lib/teams';
 
 /**
@@ -30,6 +32,10 @@ export default async function CrmGroupsBlock({
   const t = await getTranslations({ locale, namespace: 'groups' });
   const viewer = await groupsViewer(ws, me, role);
   const chats = await chatsForCrmRecord(ws, kind, recordId, 5, viewer).catch(() => []);
+  // "@<dígitos>" → "@Nombre"; solo el teléfono: "@+teléfono" (oculto si a quien mira se le ocultan); nada: "@alguien".
+  const someone = (await getTranslations({ locale, namespace: 'inboxWa' }))('mentionSomeone');
+  const mentionText = (m: { body: string; mentionNames?: MentionMap }) =>
+    replaceMentions(m.body, mentionLabels({}, m.mentionNames, (p) => (viewer.mask ? maskPhone(p) : `+${p}`), someone));
   return (
     <div className="record-summary-block gr-crm-block" data-testid="crm-groups">
       <h2 className="record-summary-title">
@@ -57,7 +63,7 @@ export default async function CrmGroupsBlock({
                         <LocalDate value={m.createdAt} locale={locale} />
                       </time>{' '}
                       <strong>{m.direction === 'out' ? t('detail.team') : m.senderName || (m.senderPhone ? `+${m.senderPhone}` : '')}</strong>{' '}
-                      <span>{m.body.slice(0, 140) || (m.media ? m.media.name || t(`media.${mediaKind(m.media.type)}`) : '')}</span>
+                      <span>{mentionText(m).slice(0, 140) || (m.media ? m.media.name || t(`media.${mediaKind(m.media.type)}`) : '')}</span>
                     </li>
                   ))}
                 </ol>
