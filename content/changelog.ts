@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-notes-even',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: internal notes line up',
+      es: 'Lines: las notas internas quedan parejas',
+      pt: 'Lines: as notas internas ficam alinhadas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Internal notes in a chat now share one width with a thin accent on the left, and consecutive notes stack as one block instead of bubbles of different sizes.',
+        es: 'Las notas internas de un chat ahora tienen todas el mismo ancho, con una línea fina a la izquierda, y las seguidas se apilan como un solo bloque en vez de globos de tamaños distintos.',
+        pt: 'As notas internas de um chat agora têm a mesma largura, com uma linha fina à esquerda, e notas seguidas se empilham como um bloco só em vez de balões de tamanhos diferentes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {

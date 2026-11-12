@@ -246,7 +246,9 @@
 .gr-inbox .gr-msg.has-tail { margin-top: 10px; }
 .gr-inbox .gr-msg-in { align-self: flex-start; }
 .gr-inbox .gr-msg-out { align-self: flex-end; align-items: flex-end; }
-.gr-inbox .gr-msg-note { align-self: center; align-items: stretch; max-width: min(560px, 82%); margin-top: 10px; }
+.gr-inbox .gr-msg-note { align-self: center; align-items: stretch; width: min(520px, 82%); max-width: min(520px, 82%); margin-top: 10px; }
+/* Notas seguidas: un mismo bloque del mismo ancho, no una pila de globos de tamaños distintos. */
+.gr-inbox .gr-msg-note.is-cont { margin-top: 3px; }
 .gr-inbox .gr-msg.has-reactions { margin-bottom: 14px; }
 
 .gr-inbox .gr-bubble {
@@ -262,8 +264,11 @@
 .gr-inbox .gr-msg-out.has-tail .gr-bubble::before { right: -8px; background: var(--wa-bubble-out); clip-path: polygon(0 0, 100% 0, 0 100%); }
 
 /* Notas internas: la capa del equipo, en amarillo y al centro (no salen a WhatsApp). */
-.gr-inbox .gr-msg-note .gr-bubble { background: var(--wa-note); border-radius: 7.5px; }
-.gr-inbox .gr-msg-note .gr-msg-author { display: inline-flex; align-items: center; gap: 4px; color: var(--wa-text-2); }
+.gr-inbox .gr-msg-note .gr-bubble {
+  width: 100%; box-sizing: border-box; padding-left: 12px; background: var(--wa-note); border-radius: 6px;
+  box-shadow: inset 3px 0 0 var(--wa-note-line), var(--wa-shadow-bubble);
+}
+.gr-inbox .gr-msg-note .gr-msg-author { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; line-height: 18px; font-weight: 500; color: var(--wa-text-2); }
 
 .gr-inbox .gr-msg-author { display: flex; align-items: baseline; gap: 8px; margin: 0 0 1px; font-size: 0.8rem; line-height: 20px; font-weight: 500; color: var(--wa-primary-ink); }
 .gr-inbox .gr-msg-out .gr-msg-author { color: var(--wa-text-2); font-weight: 400; font-size: 0.75rem; line-height: 16px; }
