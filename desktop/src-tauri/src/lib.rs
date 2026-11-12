@@ -289,7 +289,9 @@ pub fn run() {
         // Primero: una segunda instancia (y en Windows, el deep link) vuelve a la primera.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_main(app)))
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_window_state::Builder::new().with_filter(|l| l == session::MAIN).build())
+        // Después de "borrar todo" (privacy::after_wipe) la ventana no recupera la posición que el
+        // plugin leyó de disco antes del borrado (el filtro se mira al crear la ventana).
+        .plugin(tauri_plugin_window_state::Builder::new().with_filter(|l| privacy::keep_window_state(l, session::MAIN, privacy::after_wipe())).build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -489,6 +491,15 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             if let RunEvent::Reopen { .. } = ev {
                 show_main(app);
+            }
+            // El plugin window-state guarda al salir lo que leyó al arrancar (corre antes que esto):
+            // si este arranque terminó un "borrar todo", ese archivo se vuelve a borrar.
+            if let RunEvent::Exit = ev {
+                if privacy::after_wipe() {
+                    if let Some(p) = privacy::Paths::of(app) {
+                        privacy::delete_store(&p, "window_state");
+                    }
+                }
             }
             let _ = (app, &ev);
         });

@@ -522,7 +522,7 @@ pub fn is_update_temp(name: &str) -> bool {
 }
 
 /// Ids de `stores` en privacy-facts.json, en el orden en que se muestran.
-pub const STORE_IDS: [&str; 13] = [
+pub const STORE_IDS: [&str; 14] = [
     "settings",
     "session",
     "window_state",
@@ -535,19 +535,24 @@ pub const STORE_IDS: [&str; 13] = [
     "update_temp",
     "electron_data",
     "electron_keychain",
+    "link_handler",
     "autostart",
 ];
+
+/// Dónde registra Windows el esquema zerosoft:// (tauri-plugin-deep-link, register_all en lib.rs).
+pub const LINK_HANDLER_KEY: &str = "HKEY_CURRENT_USER\\Software\\Classes\\zerosoft";
 
 /// Lo que se puede borrar por separado desde Ajustes (lo demás, con "Borrar todo").
 pub const DELETABLE: [&str; 6] = ["pending", "activity", "web_data", "update_temp", "electron_data", "electron_keychain"];
 
 /// Lo que "Borrar todo" borra (además del ítem de inicio). `os_prefs` es del sistema.
-pub const WIPED_BY_DELETE_ALL: [&str; 11] = ["settings", "session", "window_state", "pending", "activity", "web_data", "web_cookies", "web_cache", "update_temp", "electron_data", "electron_keychain"];
+pub const WIPED_BY_DELETE_ALL: [&str; 12] = ["settings", "session", "window_state", "pending", "activity", "web_data", "web_cookies", "web_cache", "update_temp", "electron_data", "electron_keychain", "autostart"];
 
 /// Lo propio de la app: si no se puede borrar, "borrar todo" no sigue.
 const OWN: [&str; 5] = ["settings", "session", "window_state", "pending", "activity"];
-/// Lo que dejaron versiones anteriores: se intenta, y lo que quede se informa sin frenar el resto.
-const LEFTOVERS: [&str; 3] = ["update_temp", "electron_data", "electron_keychain"];
+/// Lo que dejaron versiones anteriores, y el ítem de inicio: se intenta, y lo que quede se informa
+/// sin frenar el resto.
+const LEFTOVERS: [&str; 4] = ["update_temp", "electron_data", "electron_keychain", "autostart"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -597,6 +602,8 @@ pub fn stores(paths: &Paths, autostart: bool, keychain: bool) -> Vec<Store> {
             match *id {
                 "autostart" => return Some(Store { id, path: String::new(), exists: autostart, bytes: 0, files: 0, deletable }),
                 "electron_keychain" => return paths.mac.then(|| Store { id, path: String::new(), exists: keychain, bytes: 0, files: 0, deletable }),
+                // Windows: el manejador de links zerosoft:// que la app registra al arrancar (lib.rs).
+                "link_handler" => return (!paths.mac).then(|| Store { id, path: LINK_HANDLER_KEY.into(), exists: true, bytes: 0, files: 0, deletable }),
                 _ => {}
             }
             let shown = paths.shown_path(id)?;
@@ -636,18 +643,17 @@ pub fn delete_pending(paths: &Paths) -> bool {
 
 /// Lo que se borra al arrancar con el pedido pendiente: los datos del webview y, de nuevo, los
 /// archivos que se pudieron escribir al cerrar (la posición de la ventana).
-const FINISH_WIPE: [&str; 6] = ["web_data", "web_cookies", "web_cache", "window_state", "settings", "session"];
-
-/// Nombres de lo que el pedido puede pedir borrar al arrancar (validación del archivo).
-fn finish_names(identifier: &str) -> [String; 6] {
-    [identifier.to_string(), format!("{identifier}.binarycookies"), "EBWebView".into(), ".window-state.json".into(), "settings.json".into(), "session.json".into()]
-}
+/// También los dictados sin enviar y el registro: un dictado que terminaba justo mientras se
+/// borraba pudo escribirse después.
+const FINISH_WIPE: [&str; 8] = ["web_data", "web_cookies", "web_cache", "window_state", "settings", "session", "pending", "activity"];
 
 /// El pedido de "borrar todo" que queda en disco para el próximo arranque.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WipeMarker {
     pub version: u32,
+    /// La carpeta personal cuando se pidió (para reconocer las mismas rutas si cambió).
+    pub home: PathBuf,
     /// Rutas absolutas a borrar, resueltas por la app cuando se pidió.
     pub targets: Vec<PathBuf>,
     /// Lo de versiones anteriores que no se pudo borrar (ids de stores).
@@ -676,7 +682,7 @@ pub struct WipeResult {
 ///   ninguna ventana (con el webview abierto, su borrado no avisa cuándo terminó).
 ///
 /// Desde acá nada se vuelve a escribir (WIPED) hasta que la app reinicia.
-pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> Option<WipeMarker> {
+pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool, autostart_off: bool) -> Option<WipeMarker> {
     set_wiped(true);
     let own = OWN.iter().all(|id| delete_store(paths, id));
     if !own {
@@ -689,13 +695,14 @@ pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> Option<Wipe
         .filter(|id| {
             let gone = match **id {
                 "electron_keychain" => keychain.take().is_some_and(|k| k()),
+                "autostart" => autostart_off,
                 _ => delete_store(paths, id),
             };
             !gone
         })
         .map(|id| id.to_string())
         .collect();
-    let marker = WipeMarker { version: 1, targets: FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect(), leftovers };
+    let marker = WipeMarker { version: 1, home: paths.home.clone(), targets: FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect(), leftovers };
     let file = paths.wipe_marker();
     if let Some(dir) = file.parent() {
         let _ = fs::create_dir_all(dir);
@@ -707,15 +714,17 @@ pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> Option<Wipe
     Some(marker)
 }
 
-/// Una ruta del pedido que se puede borrar: absoluta, con uno de los nombres fijos y dentro de
-/// la carpeta personal o de las de la app. Nada de "..".
-fn valid_target(paths: &Paths, t: &Path) -> bool {
-    let names = finish_names(&paths.identifier);
-    let named = t.file_name().and_then(|n| n.to_str()).is_some_and(|n| names.iter().any(|x| x == n));
-    let clean = t.components().all(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir));
-    let bases = [Some(paths.home.as_path()), paths.config.parent(), paths.local_data.parent()];
-    let inside = bases.iter().flatten().any(|b| b.is_absolute() && b.components().count() > 1 && t.starts_with(b) && t != *b);
-    t.is_absolute() && named && clean && inside
+/// Una ruta del pedido que se puede borrar: una de las que la app resuelve ahora, o la misma ruta
+/// dentro de la carpeta personal que anotó el pedido (si cambió la carpeta personal). Nada más.
+fn valid_target(paths: &Paths, expected: &[PathBuf], marker_home: &Path, t: &Path) -> bool {
+    if expected.iter().any(|e| e == t) {
+        return true;
+    }
+    let clean = |p: &Path| p.is_absolute() && p.components().all(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir));
+    if !clean(t) || !clean(marker_home) || marker_home.components().count() < 2 {
+        return false;
+    }
+    expected.iter().filter_map(|e| e.strip_prefix(&paths.home).ok()).any(|rel| !rel.as_os_str().is_empty() && marker_home.join(rel) == t)
 }
 
 /// Al arrancar, antes de crear ninguna ventana: si quedó pedido "borrar todo", borra las rutas
@@ -725,15 +734,15 @@ fn valid_target(paths: &Paths, t: &Path) -> bool {
 pub fn finish_wipe(paths: &Paths, attempts: u32, wait: std::time::Duration) -> Option<WipeResult> {
     let file = paths.wipe_marker();
     let raw = fs::read(&file).ok()?;
-    let _ = fs::remove_file(&file);
     let parsed: Option<WipeMarker> = serde_json::from_slice(&raw).ok().filter(|m: &WipeMarker| m.version == 1);
     let mut error = None;
-    let mut targets: Vec<PathBuf> = FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect();
+    let expected: Vec<PathBuf> = FINISH_WIPE.iter().flat_map(|id| paths.paths_of(id)).collect();
+    let mut targets = expected.clone();
     match &parsed {
         None => error = Some("marker"),
         Some(m) => {
             for t in &m.targets {
-                if valid_target(paths, t) {
+                if valid_target(paths, &expected, &m.home, t) {
                     if !targets.contains(t) {
                         targets.push(t.clone());
                     }
@@ -756,10 +765,27 @@ pub fn finish_wipe(paths: &Paths, attempts: u32, wait: std::time::Duration) -> O
             break;
         }
     }
+    // El pedido se borra recién al terminar: si la app se cierra en el medio, el próximo arranque
+    // lo vuelve a intentar.
+    let _ = fs::remove_file(&file);
+    AFTER_WIPE.store(true, Ordering::Relaxed);
     if !gone && error.is_none() {
         error = Some("locked");
     }
     Some(WipeResult { ok: gone && error.is_none(), leftovers: parsed.map(|m| m.leftovers).unwrap_or_default(), error })
+}
+
+/// Este arranque terminó un "borrar todo": la posición de la ventana no se restaura ni se guarda
+/// (el plugin window-state ya la había leído de disco antes de que se borrara; lib.rs).
+static AFTER_WIPE: AtomicBool = AtomicBool::new(false);
+
+pub fn after_wipe() -> bool {
+    AFTER_WIPE.load(Ordering::Relaxed)
+}
+
+/// El plugin window-state puede restaurar y seguir esta ventana.
+pub fn keep_window_state(label: &str, main: &str, after_wipe: bool) -> bool {
+    label == main && !after_wipe
 }
 
 /// Resultado del borrado terminado al arrancar (lo lee Ajustes).
@@ -1009,7 +1035,7 @@ mod tests {
         fs::write(local.join("session.json"), b"{}").unwrap();
         fs::write(p.config.join(".window-state.json"), b"{}").unwrap();
         let list = stores(&p, false, true);
-        assert_eq!(list.iter().map(|s| s.id).collect::<Vec<_>>(), STORE_IDS.iter().filter(|id| **id != "update_temp").copied().collect::<Vec<_>>());
+        assert_eq!(list.iter().map(|s| s.id).collect::<Vec<_>>(), STORE_IDS.iter().filter(|id| !["update_temp", "link_handler"].contains(*id)).copied().collect::<Vec<_>>());
         let by = |id: &str| list.iter().find(|s| s.id == id).unwrap().clone();
         assert_eq!((by("pending").bytes, by("pending").files, by("pending").deletable), (3002, 2, true));
         assert!(by("settings").exists && !by("settings").deletable);
@@ -1087,6 +1113,7 @@ mod tests {
         fs::create_dir_all(w.temp.join("zerosoft-cache-updater-x")).unwrap();
         let win = stores(&w, true, false);
         let wby = |id: &str| win.iter().find(|s| s.id == id).unwrap().clone();
+        assert_eq!((wby("link_handler").path.as_str(), wby("link_handler").deletable), (LINK_HANDLER_KEY, false));
         assert!(wby("web_data").path.ends_with("EBWebView") && wby("web_data").path.contains("local"));
         assert!(wby("session").path.contains("local") && wby("settings").path.contains("roaming"));
         assert!(wby("session").exists, "el session.json viejo de Roaming cuenta");
@@ -1095,8 +1122,9 @@ mod tests {
         let log = Log::open(&w.local_data.join("privacy"));
         log.record(Event::new(Kind::MicStart));
         // La clave del llavero no se pudo borrar: igual se borra lo propio y queda el pedido.
-        let marker = wipe_files(&w, || false).expect("lo propio se borró");
-        assert_eq!(marker.leftovers, ["electron_keychain"]);
+        // Además, el ítem de inicio no se pudo sacar: se informa igual.
+        let marker = wipe_files(&w, || false, false).expect("lo propio se borró");
+        assert_eq!(marker.leftovers, ["electron_keychain", "autostart"]);
         for id in OWN {
             assert!(w.paths_of(id).iter().all(|p| !p.exists()), "{id}");
         }
@@ -1109,13 +1137,18 @@ mod tests {
         assert!(crate::config::save(&w.config, &crate::config::normalize(&Value::Null, "windows", crate::config::DEFAULT_SERVER.into())).is_ok());
         assert!(!w.config.join("settings.json").exists());
 
-        // Al arrancar: los datos del webview (y la posición de la ventana, escrita al cerrar).
+        // Al arrancar: los datos del webview, la posición de la ventana (escrita al cerrar) y un
+        // dictado que llegó a escribirse mientras se borraba.
         set_wiped(false);
         fs::create_dir_all(w.local_data.join("EBWebView/Default/IndexedDB")).unwrap();
         fs::write(w.config.join(".window-state.json"), b"{}").unwrap();
+        fs::create_dir_all(w.local_data.join("pending")).unwrap();
+        fs::write(w.local_data.join("pending/tarde.audio"), b"RIFF").unwrap();
         let r = finish_wipe(&w, 3, std::time::Duration::from_millis(1)).unwrap();
-        assert_eq!(r, WipeResult { ok: true, leftovers: vec!["electron_keychain".into()], error: None });
+        assert_eq!(r, WipeResult { ok: true, leftovers: vec!["electron_keychain".into(), "autostart".into()], error: None });
+        assert!(after_wipe());
         assert!(!w.local_data.join("EBWebView").exists() && !w.config.join(".window-state.json").exists());
+        assert!(!w.local_data.join("pending").exists());
         assert!(!w.wipe_marker().exists());
         assert_eq!(finish_wipe(&w, 3, std::time::Duration::from_millis(1)), None, "sin pedido no borra nada");
 
@@ -1128,7 +1161,7 @@ mod tests {
             fs::write(w.local_data.join("pending/b.json"), b"{}").unwrap();
             fs::set_permissions(w.local_data.join("pending"), fs::Permissions::from_mode(0o500)).unwrap();
             fs::set_permissions(&w.local_data, fs::Permissions::from_mode(0o500)).unwrap();
-            assert!(wipe_files(&w, || true).is_none());
+            assert!(wipe_files(&w, || true, true).is_none());
             assert!(!wiped() && !w.wipe_marker().exists());
             fs::set_permissions(&w.local_data, fs::Permissions::from_mode(0o700)).unwrap();
             fs::set_permissions(w.local_data.join("pending"), fs::Permissions::from_mode(0o700)).unwrap();
@@ -1139,34 +1172,44 @@ mod tests {
     #[test]
     fn the_wipe_request_is_validated_before_deleting_anything() {
         let root = tmp("marker");
-        let w = paths(&root, false);
+        let w = paths(&root, true);
         fs::create_dir_all(&w.local_data).unwrap();
-        let outside = root.join("ajeno");
-        fs::create_dir_all(outside.join("EBWebView")).unwrap();
-        let victim = w.home.join("Documentos");
-        fs::create_dir_all(&victim).unwrap();
+        // Archivos con nombres "permitidos" que no son de la app: nunca se tocan.
+        let other_app = w.home.join("Library/Application Support/OtraApp/settings.json");
+        fs::create_dir_all(other_app.parent().unwrap()).unwrap();
+        fs::write(&other_app, b"{}").unwrap();
+        let outside = root.join("ajeno/EBWebView");
+        fs::create_dir_all(&outside).unwrap();
         let bad = WipeMarker {
             version: 1,
-            targets: vec!["relative/EBWebView".into(), outside.join("EBWebView"), victim.clone(), w.home.clone(), w.home.join("../x/settings.json"), w.local_data.join("EBWebView")],
+            home: w.home.clone(),
+            targets: vec!["relative/EBWebView".into(), outside.clone(), other_app.clone(), w.home.clone(), w.home.join("Library/../x/settings.json")],
             leftovers: vec![],
         };
         fs::write(w.wipe_marker(), serde_json::to_vec(&bad).unwrap()).unwrap();
         let r = finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap();
-        assert_eq!(r.error, Some("marker"));
-        assert!(!r.ok);
-        assert!(outside.join("EBWebView").exists() && victim.exists() && w.home.exists(), "nada fuera de lo de la app");
+        assert_eq!((r.ok, r.error), (false, Some("marker")));
+        assert!(outside.exists() && other_app.exists() && w.home.exists(), "nada fuera de lo de la app");
         // Un pedido ilegible: igual se borra lo que la app resuelve, y se avisa.
         fs::write(w.wipe_marker(), b"no es json").unwrap();
-        fs::create_dir_all(w.local_data.join("EBWebView")).unwrap();
+        fs::create_dir_all(w.home.join("Library/WebKit").join(IDENTIFIER)).unwrap();
         let r = finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap();
         assert_eq!((r.ok, r.error), (false, Some("marker")));
-        assert!(!w.local_data.join("EBWebView").exists());
-        // Una ruta de la app resuelta distinto (otra carpeta personal, mismos nombres): vale.
-        let moved = w.home.join("AppData/Local/ai.zerosoft.desktop/EBWebView");
+        assert!(!w.home.join("Library/WebKit").join(IDENTIFIER).exists());
+        assert!(!w.wipe_marker().exists(), "el pedido se borra al terminar");
+        // La misma ruta bajo otra carpeta personal (la que anotó el pedido): vale, y solo esa.
+        let old_home = root.join("home-anterior");
+        let moved = old_home.join("Library/WebKit").join(IDENTIFIER);
         fs::create_dir_all(&moved).unwrap();
-        fs::write(w.wipe_marker(), serde_json::to_vec(&WipeMarker { version: 1, targets: vec![moved.clone()], leftovers: vec![] }).unwrap()).unwrap();
-        assert_eq!(finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap().error, None);
-        assert!(!moved.exists());
+        let elsewhere = old_home.join("Library/WebKit/otra.app");
+        fs::create_dir_all(&elsewhere).unwrap();
+        let m = WipeMarker { version: 1, home: old_home.clone(), targets: vec![moved.clone(), elsewhere.clone()], leftovers: vec![] };
+        fs::write(w.wipe_marker(), serde_json::to_vec(&m).unwrap()).unwrap();
+        assert_eq!(finish_wipe(&w, 1, std::time::Duration::from_millis(1)).unwrap().error, Some("marker"));
+        assert!(!moved.exists() && elsewhere.exists());
+        // Después de borrar todo, la ventana no recupera ni guarda su posición vieja.
+        assert!(keep_window_state("main", "main", false));
+        assert!(!keep_window_state("main", "main", true) && !keep_window_state("settings", "main", false));
         let _ = fs::remove_dir_all(root);
     }
 

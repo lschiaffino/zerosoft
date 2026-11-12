@@ -382,10 +382,11 @@ pub fn write_text_private(cb: &mut arboard::Clipboard, text: &str) -> bool {
 /// La clave que la app de Electron (0.1.x) dejó en el llavero ("zerosoft Safe Storage", cuenta
 /// "zerosoft Key"), si es de ella: la carpeta de esa app está (`owned_folder`) o el ítem tiene
 /// exactamente los atributos con que lo crea Chromium (etiqueta igual al servicio, sin creador ni
-/// descripción). Se mira sin leer el secreto (no pide permiso). Si no, se deja como está.
+/// descripción). Se busca también por etiqueta, así un ítem de otra app con el mismo servicio y
+/// cuenta pero otra etiqueta no entra. Se mira sin leer el secreto (no pide permiso).
 pub fn electron_keychain_exists(owned_folder: bool) -> bool {
     #[cfg(target_os = "macos")]
-    return keychain_item().is_some_and(|attrs| owned_folder || chromium_item(&attrs));
+    return keychain(&["find-generic-password"]).is_some_and(|attrs| owned_folder || chromium_item(&attrs));
     #[cfg(not(target_os = "macos"))]
     {
         let _ = owned_folder;
@@ -393,8 +394,9 @@ pub fn electron_keychain_exists(owned_folder: bool) -> bool {
     }
 }
 
-/// La borra si es de la app vieja. `security` borra el primer ítem que coincide: se repite hasta
-/// que no quede ninguno (como mucho 5). true si ya no está.
+/// La borra si es de la app vieja. `security` borra el primer ítem que coincide: se repite (como
+/// mucho 5) mientras quede uno que sea de la app vieja. Al final se vuelve a mirar: true si ya no
+/// queda ninguno con esa forma.
 pub fn delete_electron_keychain(owned_folder: bool) -> bool {
     #[cfg(target_os = "macos")]
     {
@@ -402,7 +404,9 @@ pub fn delete_electron_keychain(owned_folder: bool) -> bool {
             if !electron_keychain_exists(owned_folder) {
                 return true;
             }
-            let _ = keychain(&["delete-generic-password"]);
+            if keychain(&["delete-generic-password"]).is_none() {
+                break;
+            }
         }
         return !electron_keychain_exists(owned_folder);
     }
@@ -425,19 +429,13 @@ pub fn chromium_item(attrs: &str) -> bool {
         && has("\"desc\"<blob>=<NULL>")
 }
 
-#[cfg(target_os = "macos")]
-fn keychain_item() -> Option<String> {
-    let out = keychain(&["find-generic-password"])?;
-    Some(out)
-}
-
-/// `security <acción> -s <servicio> -a <cuenta>`: la salida si terminó bien.
+/// `security <acción> -s <servicio> -a <cuenta> -l <etiqueta>`: la salida si terminó bien.
 #[cfg(target_os = "macos")]
 fn keychain(action: &[&str]) -> Option<String> {
     use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
     let out = std::process::Command::new("/usr/bin/security")
         .args(action)
-        .args(["-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT])
+        .args(["-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT, "-l", ELECTRON_KEYCHAIN_SERVICE])
         .stderr(std::process::Stdio::null())
         .output()
         .ok()?;

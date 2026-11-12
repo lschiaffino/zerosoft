@@ -347,17 +347,17 @@
    "en": {
     "name": "Main window position",
     "what": "Size and position of the main window, written by the window-state plugin. On Windows it is in Roaming (%APPDATA%), which can travel with a roaming profile.",
-    "kept": "Removed when you delete all local data. The plugin writes it again when the app quits."
+    "kept": "Removed when you delete all local data. On the first launch after that, the window does not get its old position back, and the file the plugin writes when the app quits is removed again."
    },
    "es": {
     "name": "Posición de la ventana principal",
     "what": "Tamaño y posición de la ventana principal, escritos por el plugin window-state. En Windows está en Roaming (%APPDATA%), que puede viajar con un perfil itinerante.",
-    "kept": "Se borra con \"borrar todos los datos locales\". El plugin lo vuelve a escribir cuando la app se cierra."
+    "kept": "Se borra con \"borrar todos los datos locales\". En el primer arranque después de eso, la ventana no recupera su posición vieja, y el archivo que el plugin escribe al cerrar la app se vuelve a borrar."
    },
    "pt": {
     "name": "Posição da janela principal",
     "what": "Tamanho e posição da janela principal, gravados pelo plugin window-state. No Windows fica em Roaming (%APPDATA%), que pode viajar com um perfil móvel.",
-    "kept": "Apagado com \"apagar todos os dados locais\". O plugin grava de novo quando o app fecha."
+    "kept": "Apagado com \"apagar todos os dados locais\". Na primeira abertura depois disso, a janela não recupera a posição antiga, e o arquivo que o plugin grava ao fechar o app é apagado de novo."
    },
    "all": true
   },
@@ -373,18 +373,18 @@
    "delete": true,
    "en": {
     "name": "Dictations that were not sent",
-    "what": "The audio of a dictation that could not be sent (no connection, signed out, server error), as a WAV file, plus when it was recorded, how long it is, why it failed and, if that switch is on, the name of the app in front. Not encrypted. On macOS only your user can read the files (mode 600). Audio that was sent is not kept. On Windows, versions before 0.3.7 kept them in Roaming; they are moved once, and anything left there is listed, pruned and deleted with the rest.",
-    "kept": "At most 20, each for 7 days (also checked at launch) or until it is sent. It is only sent to the server it was recorded for (dictations saved by this version or later; older ones go to the current server). Turn off \"Keep dictations that could not be sent\" and none is written."
+    "what": "The audio of a dictation that could not be sent (no connection, signed out, server error), as a WAV file, plus a small metadata file: when it was recorded, how long it is, the file type, why it failed, how many times it was retried, the server it is for, the category (email, chat, note or other) and, if that switch is on, the name of the app in front. Not encrypted. On macOS only your user can read the files (mode 600). Audio that was sent is not kept. On Windows, versions before 0.3.7 kept them in Roaming; they are moved once, and anything left there is listed, pruned and deleted with the rest.",
+    "kept": "At most 20, each for 7 days (also checked at launch) or until it is sent. It is only sent to the server it was recorded for (dictations saved by this version or later; older ones go to the current server). Turn off \"Keep dictations that could not be sent\" and none is written. \"Delete all local data\" removes them, and again at the next launch in case one was being saved at that moment."
    },
    "es": {
     "name": "Dictados que no se enviaron",
-    "what": "El audio de un dictado que no se pudo enviar (sin conexión, sin sesión, error del servidor), como archivo WAV, más cuándo se grabó, cuánto dura, por qué falló y, si esa llave está prendida, el nombre de la app de adelante. Sin cifrar. En macOS solo tu usuario puede leer los archivos (modo 600). El audio que sí se envió no se guarda. En Windows, las versiones anteriores a la 0.3.7 los dejaban en Roaming; se mueven una vez, y lo que quede ahí se lista, se poda y se borra con el resto.",
-    "kept": "Como mucho 20, cada uno 7 días (también se revisa al abrir) o hasta que se envía. Solo se manda al servidor para el que se grabó (los guardados por esta versión o una posterior; los anteriores van al servidor de ahora). Apagá \"guardar los dictados que no se pudieron enviar\" y no se escribe ninguno."
+    "what": "El audio de un dictado que no se pudo enviar (sin conexión, sin sesión, error del servidor), como archivo WAV, más un archivo chico de metadatos: cuándo se grabó, cuánto dura, el tipo de archivo, por qué falló, cuántas veces se reintentó, el servidor para el que es, la categoría (email, chat, nota u otro) y, si esa llave está prendida, el nombre de la app de adelante. Sin cifrar. En macOS solo tu usuario puede leer los archivos (modo 600). El audio que sí se envió no se guarda. En Windows, las versiones anteriores a la 0.3.7 los dejaban en Roaming; se mueven una vez, y lo que quede ahí se lista, se poda y se borra con el resto.",
+    "kept": "Como mucho 20, cada uno 7 días (también se revisa al abrir) o hasta que se envía. Solo se manda al servidor para el que se grabó (los guardados por esta versión o una posterior; los anteriores van al servidor de ahora). Apagá \"guardar los dictados que no se pudieron enviar\" y no se escribe ninguno. \"Borrar todos los datos locales\" los borra, y de nuevo al abrir la app por si justo se estaba guardando uno."
    },
    "pt": {
     "name": "Ditados que não foram enviados",
-    "what": "O áudio de um ditado que não pôde ser enviado (sem conexão, sem sessão, erro do servidor), como arquivo WAV, mais quando foi gravado, a duração, por que falhou e, se essa chave estiver ligada, o nome do app da frente. Sem criptografia. No macOS só o seu usuário pode ler os arquivos (modo 600). O áudio que foi enviado não é guardado. No Windows, versões anteriores à 0.3.7 os deixavam em Roaming; eles são movidos uma vez, e o que sobrar lá é listado, podado e apagado com o resto.",
-    "kept": "No máximo 20, cada um por 7 dias (também conferido ao abrir) ou até ser enviado. Só é enviado ao servidor para o qual foi gravado (os guardados por esta versão ou posterior; os anteriores vão para o servidor atual). Desligue \"guardar os ditados que não puderam ser enviados\" e nenhum é gravado."
+    "what": "O áudio de um ditado que não pôde ser enviado (sem conexão, sem sessão, erro do servidor), como arquivo WAV, mais um arquivo pequeno de metadados: quando foi gravado, a duração, o tipo de arquivo, por que falhou, quantas vezes foi reenviado, o servidor para o qual é, a categoria (email, chat, nota ou outro) e, se essa chave estiver ligada, o nome do app da frente. Sem criptografia. No macOS só o seu usuário pode ler os arquivos (modo 600). O áudio que foi enviado não é guardado. No Windows, versões anteriores à 0.3.7 os deixavam em Roaming; eles são movidos uma vez, e o que sobrar lá é listado, podado e apagado com o resto.",
+    "kept": "No máximo 20, cada um por 7 dias (também conferido ao abrir) ou até ser enviado. Só é enviado ao servidor para o qual foi gravado (os guardados por esta versão ou posterior; os anteriores vão para o servidor atual). Desligue \"guardar os ditados que não puderam ser enviados\" e nenhum é gravado. \"Apagar todos os dados locais\" os apaga, e de novo ao abrir o app caso um estivesse sendo salvo naquele momento."
    },
    "all": true
   },
@@ -400,17 +400,17 @@
    "en": {
     "name": "Activity log and last use",
     "what": "The log on this page and when each permission was last used. Event type, time, duration, size, host and, if that switch is on, the name of the app in front. It holds no audio, text or clipboard contents.",
-    "kept": "The last 500 events or 30 days. Clearing deletes the file."
+    "kept": "The last 500 events or 30 days. Clearing deletes the file. \"Export\" saves a copy in your Downloads folder (zerosoft-activity-<time>.json, readable only by your user on macOS); the app does not keep track of exported copies or delete them."
    },
    "es": {
     "name": "Registro de actividad y último uso",
     "what": "El registro de esta página y cuándo se usó cada permiso por última vez. Tipo de evento, hora, duración, tamaño, host y, si esa llave está prendida, el nombre de la app de adelante. No guarda audio, texto ni contenido del portapapeles.",
-    "kept": "Los últimos 500 eventos o 30 días. Vaciarlo borra el archivo."
+    "kept": "Los últimos 500 eventos o 30 días. Vaciarlo borra el archivo. \"Exportar\" guarda una copia en tu carpeta de Descargas (zerosoft-activity-<hora>.json, que en macOS solo lee tu usuario); la app no lleva cuenta de las copias exportadas ni las borra."
    },
    "pt": {
     "name": "Registro de atividade e último uso",
     "what": "O registro desta página e quando cada permissão foi usada pela última vez. Tipo de evento, hora, duração, tamanho, host e, se essa chave estiver ligada, o nome do app da frente. Não guarda áudio, texto nem conteúdo da área de transferência.",
-    "kept": "Os últimos 500 eventos ou 30 dias. Limpar apaga o arquivo."
+    "kept": "Os últimos 500 eventos ou 30 dias. Limpar apaga o arquivo. \"Exportar\" salva uma cópia na pasta Downloads (zerosoft-activity-<hora>.json, que no macOS só o seu usuário lê); o app não acompanha as cópias exportadas nem as apaga."
    },
    "all": true
   },
@@ -601,6 +601,33 @@
    "all": true
   },
   {
+   "id": "link_handler",
+   "code": [
+    "desktop/src-tauri/src/lib.rs",
+    "desktop/src-tauri/src/privacy.rs"
+   ],
+   "en": {
+    "name": "zerosoft:// link handler",
+    "what": "On Windows, every time it starts the app registers itself in your user registry (HKEY_CURRENT_USER\\Software\\Classes\\zerosoft) as the program that opens zerosoft:// links, which is how signing in through the browser comes back to it. It holds the path of the app. On macOS the system reads this from the app itself.",
+    "kept": "While the app is installed. \"Delete all local data\" does not remove it, because the app registers it again when it restarts."
+   },
+   "es": {
+    "name": "Manejador de links zerosoft://",
+    "what": "En Windows, cada vez que arranca la app se registra en el registro de tu usuario (HKEY_CURRENT_USER\\Software\\Classes\\zerosoft) como el programa que abre los links zerosoft://, que es como vuelve a ella el inicio de sesión desde el navegador. Tiene la ruta de la app. En macOS el sistema lo lee de la app misma.",
+    "kept": "Mientras la app está instalada. \"Borrar todos los datos locales\" no lo saca, porque la app lo vuelve a registrar al reiniciar."
+   },
+   "pt": {
+    "name": "Manipulador de links zerosoft://",
+    "what": "No Windows, toda vez que abre o app se registra no registro do seu usuário (HKEY_CURRENT_USER\\Software\\Classes\\zerosoft) como o programa que abre os links zerosoft://, que é como a entrada pelo navegador volta para ele. Tem o caminho do app. No macOS o sistema lê isso do próprio app.",
+    "kept": "Enquanto o app estiver instalado. \"Apagar todos os dados locais\" não o remove, porque o app o registra de novo ao reiniciar."
+   },
+   "mac": "",
+   "win": "HKEY_CURRENT_USER\\Software\\Classes\\zerosoft",
+   "content": false,
+   "delete": false,
+   "all": false
+  },
+  {
    "id": "autostart",
    "code": [
     "desktop/src-tauri/src/lib.rs",
@@ -613,19 +640,19 @@
    "en": {
     "name": "Open at login",
     "what": "Only if you turned on \"Open zerosoft when I log in\": a login item kept by the system (a LaunchAgent on macOS, a Run entry in the registry on Windows). It holds the path of the app.",
-    "kept": "Until you turn the switch off or delete all local data."
+    "kept": "Until you turn the switch off or delete all local data. If the system does not let the app remove it, Settings says so after \"Delete all\"."
    },
    "es": {
     "name": "Abrir al iniciar sesión",
     "what": "Solo si prendiste \"abrir zerosoft al iniciar sesión\": un ítem de inicio que guarda el sistema (un LaunchAgent en macOS, una entrada Run del registro en Windows). Tiene la ruta de la app.",
-    "kept": "Hasta que apagues la llave o borres todos los datos locales."
+    "kept": "Hasta que apagues la llave o borres todos los datos locales. Si el sistema no deja sacarlo, Ajustes lo dice después de \"borrar todo\"."
    },
    "pt": {
     "name": "Abrir ao entrar",
     "what": "Só se você ligou \"abrir o zerosoft ao entrar no computador\": um item de início mantido pelo sistema (um LaunchAgent no macOS, uma entrada Run do registro no Windows). Tem o caminho do app.",
-    "kept": "Até você desligar a chave ou apagar todos os dados locais."
+    "kept": "Até você desligar a chave ou apagar todos os dados locais. Se o sistema não deixar remover, Ajustes avisa depois de \"apagar tudo\"."
    },
-   "all": false
+   "all": true
   }
  ],
  "network": [

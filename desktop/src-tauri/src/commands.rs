@@ -875,12 +875,14 @@ pub async fn privacy(app: AppHandle, window: WebviewWindow, action: String, targ
             // se terminan de borrar al arrancar, antes de crear ninguna ventana (privacy::finish_wipe).
             "all" => {
                 crate::auth::server_sign_out(&app).await;
-                let _ = app.autolaunch().disable();
+                // Si el ítem de inicio no se pudo sacar, se informa como lo demás que queda.
+                let autolaunch = app.autolaunch();
+                let autostart_off = autolaunch.disable().is_ok() || !autolaunch.is_enabled().unwrap_or(true);
                 crate::system_audio::stop_because(crate::system_audio::Why::User);
                 blank_tabs(&app).await;
                 app.state::<AppState>().privacy.clear();
                 let ours = paths.electron_profile().is_some();
-                if crate::privacy::wipe_files(&paths, || platform::delete_electron_keychain(ours)).is_none() {
+                if crate::privacy::wipe_files(&paths, || platform::delete_electron_keychain(ours), autostart_off).is_none() {
                     reload_tabs(&app);
                     return Ok(json!({ "ok": false, "view": privacy_view(&app) }));
                 }

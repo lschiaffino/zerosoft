@@ -309,7 +309,8 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
     stores.replaceChildren(
       ...facts.stores.map((f) => {
         const st = data!.stores.find((x) => x.id === f.id);
-        const isSwitch = f.id === 'autostart';
+        // Sin archivo: el ítem de inicio y el registro del esquema zerosoft:// (Windows).
+        const isSwitch = f.id === 'autostart' || f.id === 'link_handler';
         const size = !st
           ? s('privNotOnThisSystem')
           : isSwitch
@@ -341,7 +342,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
             st?.path ? el('code', { class: 'priv-path' }, st.path) : null,
             source(f.code),
           ),
-          el('div', { class: 'item-actions' }, st?.path ? el('button', { class: 'btn link', type: 'button', onclick: () => void call('reveal', f.id) }, s('privShow')) : null, del),
+          el('div', { class: 'item-actions' }, st?.path && !isSwitch ? el('button', { class: 'btn link', type: 'button', onclick: () => void call('reveal', f.id) }, s('privShow')) : null, del),
         );
       }),
     );
