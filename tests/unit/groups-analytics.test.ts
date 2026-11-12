@@ -399,7 +399,9 @@ describe('acceso: nadie ve números de lo que no puede ver', () => {
     await put(privChat, 'out', '2026-11-10T13:00:00.000Z', { by: beto.id });
     await put(privGroup, 'in', '2026-11-10T14:00:00.000Z');
     await getDb().prepare('UPDATE groups_chats SET awaiting_since = ? WHERE id = ?').run('2026-11-10T14:00:00.000Z', privGroup.id);
-    await createTicket(ws.id, ws.id, { chatId: privChat.id, title: 'Reclamo reservado' });
+    const reserved = (await createTicket(ws.id, ws.id, { chatId: privChat.id, title: 'Reclamo reservado' })).ticket;
+    // Dentro del período que mira el tablero (NOW es fijo; la hora real no).
+    await getDb().prepare('UPDATE groups_tickets SET created_at = ? WHERE id = ?').run('2026-11-10T15:00:00.000Z', reserved.id);
     // La línea privada: solo Beto.
     await setLineAccess(ws.id, priv.id, { ownerId: beto.id, visibility: 'restricted', personIds: [], teamIds: [] });
     return { ws, ana, beto, pub, priv, pubChat, privChat, privGroup };
@@ -526,7 +528,8 @@ describe('líneas borradas y filtros', () => {
     const n = await line(u.id, 'Vieja');
     const c = await chat(n, 'Tito');
     await put(c, 'in', '2026-11-10T10:00:00.000Z');
-    await createTicket(u.id, u.id, { chatId: c.id, title: 'Queda sin chat' });
+    const orphan = (await createTicket(u.id, u.id, { chatId: c.id, title: 'Queda sin chat' })).ticket;
+    await getDb().prepare('UPDATE groups_tickets SET created_at = ? WHERE id = ?').run('2026-11-10T15:00:00.000Z', orphan.id);
     const v = await owner(u.id);
     expect((await tab<OverviewData>(u.id, v, 'overview')).kpis.inbound.value).toBe(1);
     await deleteNumber(u.id, n.id);
