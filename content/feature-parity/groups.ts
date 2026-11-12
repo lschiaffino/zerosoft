@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-11',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -113,6 +113,13 @@ const parity: ProductParity = {
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
       detail: ['No link previews or message search inside a chat yet', 'Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Ainda sem prévia de links nem busca dentro de uma conversa'],
+    }),
+    row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
+      detail: [
+        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Not in file captions or scheduled messages yet. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Todavía no en los comentarios de archivos ni en los mensajes programados. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
+      ],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
