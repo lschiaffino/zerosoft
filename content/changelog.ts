@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-who-is-typing',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: groups say who is typing',
+      es: 'Inbox y Lines: los grupos dicen quién está escribiendo',
+      pt: 'Inbox e Lines: os grupos dizem quem está digitando',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like WhatsApp, the chat list and the chat header show "Andrés is typing…" or "Andrés is recording audio…" in groups, also when WhatsApp identifies the person only by their private id.',
+        es: 'Como WhatsApp, la lista y la cabecera del chat muestran "Andrés está escribiendo…" o "Andrés está grabando un audio…" en los grupos, también cuando WhatsApp identifica a la persona solo por su id privado.',
+        pt: 'Como no WhatsApp, a lista e o cabeçalho da conversa mostram "Andrés está digitando…" ou "Andrés está gravando um áudio…" nos grupos, também quando o WhatsApp identifica a pessoa só pelo id privado.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {

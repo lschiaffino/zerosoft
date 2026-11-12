@@ -600,12 +600,11 @@ export function chatPresence(row: Pick<ChatRow, 'presence' | 'presence_who' | 'p
   return { state, name: '', at: row.presence_at };
 }
 
-/** Presencia con el nombre de quien escribe en un grupo (de los miembros guardados). */
+/** Presencia con el nombre de quien escribe en un grupo (miembros guardados, libreta de la línea o teléfono). */
 export async function presenceWithName(row: ChatRow): Promise<ChatPresence | null> {
   const p = chatPresence(row);
   if (!p || row.kind !== 'group' || !row.presence_who) return p;
-  const m = (await getDb().prepare('SELECT name FROM groups_members WHERE chat_id = ? AND phone = ?').get(row.id, row.presence_who)) as { name: string } | undefined;
-  return { ...p, name: m?.name ?? '' };
+  return (await presenceNames([row])).get(row.id) ?? p;
 }
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -1060,6 +1059,26 @@ async function presenceNames(rows: ChatRow[]): Promise<Map<string, ChatPresence 
   for (const r of live) {
     const p = out.get(r.id);
     if (p) out.set(r.id, { ...p, name: byKey.get(`${r.id}|${r.presence_who}`) ?? '' });
+  }
+  // Sin nombre entre los miembros (casi siempre: en los grupos escriben por lid, "<dígitos>@lid"): la libreta de la
+  // línea por teléfono o lid; si tampoco, el teléfono. Un lid desconocido queda sin nombre ("escribiendo…").
+  const missing = live.filter((r) => !out.get(r.id)?.name);
+  if (missing.length) {
+    const { displayName, lookupContacts } = await import('./wa-contacts');
+    const key = (who: string) => who.replace(/@lid$/, '');
+    const byNumber = new Map<string, ChatRow[]>();
+    for (const r of missing) byNumber.set(r.number_id, [...(byNumber.get(r.number_id) ?? []), r]);
+    for (const [numberId, list] of byNumber) {
+      const known = await lookupContacts({ app: 'lines', accountId: numberId }, list.map((r) => key(r.presence_who as string))).catch(() => new Map());
+      for (const r of list) {
+        const who = r.presence_who as string;
+        const c = known.get(key(who));
+        const phone = c?.phone || (who.endsWith('@lid') ? '' : who);
+        const name = displayName(c) || (phone ? `+${phone}` : '');
+        const p = out.get(r.id);
+        if (p && name) out.set(r.id, { ...p, name });
+      }
+    }
   }
   return out;
 }

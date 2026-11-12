@@ -92,7 +92,7 @@ describe('Archivados y "Eliminar chat"', () => {
 });
 
 describe('Presencia (escribiendo, grabando, en línea)', () => {
-  it('Evolution: PRESENCE_UPDATE de un 1 a 1 y de un grupo (gana quien escribe, sin lids)', () => {
+  it('Evolution: PRESENCE_UPDATE de un 1 a 1 y de un grupo (gana quien escribe; un lid queda como lid)', () => {
     expect(parseEvolutionWebhook({ event: 'presence.update', data: { id: '5491100000001@s.whatsapp.net', presences: { '5491100000001@s.whatsapp.net': { lastKnownPresence: 'composing' } } } })).toEqual([
       { type: 'presence', chatId: '5491100000001@s.whatsapp.net', who: '', state: 'composing' },
     ]);
@@ -102,6 +102,10 @@ describe('Presencia (escribiendo, grabando, en línea)', () => {
         presences: { '5491100000009@s.whatsapp.net': { lastKnownPresence: 'available' }, '5491100000008@s.whatsapp.net': { lastKnownPresence: 'recording' } },
       }),
     ).toEqual([{ type: 'presence', chatId: '120363000000000001@g.us', who: '5491100000008', state: 'recording' }]);
+    // En los grupos casi todos escriben por lid: se conserva quién es ("<dígitos>@lid"), la libreta lo resuelve.
+    expect(evolutionPresence({ id: '120363000000000001@g.us', presences: { '100000000000077@lid': { lastKnownPresence: 'composing' } } })).toEqual([
+      { type: 'presence', chatId: '120363000000000001@g.us', who: '100000000000077@lid', state: 'composing' },
+    ]);
     expect(evolutionPresence({ id: 'status@broadcast', presences: {} })).toEqual([]);
     expect(evolutionPresence({ id: '5491100000001@s.whatsapp.net', presences: { x: { lastKnownPresence: 'weird' } } })).toEqual([]);
   });
