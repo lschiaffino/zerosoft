@@ -13,6 +13,7 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged } from '@/lib/conditional-fetch';
 import ChatDetails from './ChatDetails';
+import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
@@ -196,15 +197,22 @@ export default function ChatThread(props: ThreadProps) {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Pantalla ancha: el panel va al lado y el botón lo esconde o lo muestra (queda guardado).
+  // Más angosta: es un cajón que se abre encima.
+  const side = useDetailsHidden();
+  const detailsShown = side.wide ? !side.hidden : detailsOpen;
+  const toggleDetails = () => (side.wide ? side.setHidden(!side.hidden) : setDetailsOpen((v) => !v));
+  const setDetailsHidden = side.setHidden;
   // "Info del contacto" desde el menú de la fila (clic derecho en la lista): abre los detalles.
   useEffect(() => {
-    if (takeChatInfo(chat.id)) setDetailsOpen(true);
+    const showDetails = () => (window.matchMedia('(min-width: 1440px)').matches ? setDetailsHidden(false) : setDetailsOpen(true));
+    if (takeChatInfo(chat.id)) showDetails();
     const onInfo = (e: Event) => {
-      if ((e as CustomEvent<string>).detail === chat.id && takeChatInfo(chat.id)) setDetailsOpen(true);
+      if ((e as CustomEvent<string>).detail === chat.id && takeChatInfo(chat.id)) showDetails();
     };
     window.addEventListener(CHAT_INFO_EVENT, onInfo);
     return () => window.removeEventListener(CHAT_INFO_EVENT, onInfo);
-  }, [chat.id]);
+  }, [chat.id, setDetailsHidden]);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
   // Enviar más tarde: el selector de "cuándo" (el mismo de Inbox).
@@ -1621,10 +1629,10 @@ export default function ChatThread(props: ThreadProps) {
           </Link>
           {/* El avatar abre la info del chat (como en WhatsApp); el nombre también, con el mouse. El título queda como encabezado. */}
           <div className="wa-head-who">
-            <button type="button" className="wa-head-avatar" onClick={() => setDetailsOpen((v) => !v)} aria-label={t('wa.openInfo', { name: chat.name })} aria-expanded={detailsOpen}>
+            <button type="button" className="wa-head-avatar" onClick={toggleDetails} aria-label={t('wa.openInfo', { name: chat.name })} aria-expanded={detailsShown}>
               <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={40} seed={chat.id} />
             </button>
-            <div className="gr-thread-title" onClick={() => setDetailsOpen((v) => !v)}>
+            <div className="gr-thread-title" onClick={toggleDetails}>
               <h2>{chat.name}</h2>
               <span className={`wa-head-sub${presenceText && presence?.state !== 'available' ? ' is-typing' : ''}`} aria-live="polite">
                 {presenceText || subtitle}
@@ -1683,7 +1691,7 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
                 { key: 'mute', label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
-                { key: 'details', label: t('thread.details'), onSelect: () => setDetailsOpen((v) => !v) },
+                { key: 'details', label: t('thread.details'), onSelect: toggleDetails },
                 {
                   key: 'chatStyle',
                   label: chatStyle === 'whatsapp' ? tw('styleUseZerosoft') : tw('styleUseWhatsapp'),
@@ -1692,7 +1700,7 @@ export default function ChatThread(props: ThreadProps) {
                 },
               ]}
             />
-            <button type="button" className={`wa-icon-btn gr-details-toggle${detailsOpen ? ' is-on' : ''}`} onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} aria-label={t('thread.details')} title={t('thread.details')}>
+            <button type="button" className={`wa-icon-btn gr-details-toggle${detailsShown ? ' is-on' : ''}`} onClick={toggleDetails} aria-expanded={detailsShown} aria-label={t('thread.details')} title={t('thread.details')}>
               <Panel />
             </button>
           </div>
@@ -1768,6 +1776,28 @@ export default function ChatThread(props: ThreadProps) {
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
+          {!editing && (
+            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')}>
+              {(['reply', 'note'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  className={`wa-mode-tab wa-mode-${m}`}
+                  aria-selected={mode === m}
+                  title={m === 'note' ? t('wa.writeNote') : t('wa.backToWhatsApp')}
+                  onClick={() => {
+                    setMode(m);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {m === 'note' && <Lock size={13} />}
+                  {m === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
+                </button>
+              ))}
+            </div>
+          )}
           {mode === 'note' && (
             <p className="wa-note-strip">
               {t('thread.noteHint')}
@@ -1957,19 +1987,6 @@ export default function ChatThread(props: ThreadProps) {
                   }
                 }}
               />
-              <button
-                type="button"
-                className={`wa-icon-btn wa-note-toggle${mode === 'note' ? ' is-on' : ''}`}
-                onClick={() => {
-                  setMode(mode === 'note' ? 'reply' : 'note');
-                  inputRef.current?.focus();
-                }}
-                aria-pressed={mode === 'note'}
-                aria-label={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
-                title={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
-              >
-                <Lock size={20} />
-              </button>
               {aiAllowed && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" />}
               {mode === 'reply' && !editing && canSend && (
                 <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={openLater} aria-label={t('later.button')} title={t('later.hint')}>

@@ -1109,7 +1109,7 @@ async function evolutionMedia(
   return { data, mimetype: String(r.mimetype ?? 'application/octet-stream'), filename: String(r.fileName ?? '') };
 }
 
-export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider {
+export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider & { start(): Promise<ConnectState> } {
   const f = opts.fetch ?? defaultBridgeFetch;
   const fMedia = opts.fetch ?? mediaBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
@@ -1137,6 +1137,17 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (owner) out.phone = phoneDigits(String(owner));
     }
     return out;
+  }
+
+  /**
+   * Estado al conectar. Una sesión cerrada (se desvinculó desde el teléfono, o venció el QR) no
+   * vuelve a pedir QR sola: hay que arrancarla con /instance/connect, que además lo devuelve.
+   */
+  async function start(): Promise<ConnectState> {
+    const s = await state();
+    if (s.status !== 'disconnected') return s;
+    const code = await qr();
+    return code ? { status: 'qr', qr: code } : state();
   }
 
   const history: HistorySource = {
@@ -1238,9 +1249,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         if (!(err instanceof ProviderError) || ![400, 403, 409].includes(err.httpStatus ?? 0)) throw err;
         await api(`/webhook/set/${instance}`, 'POST', { webhook });
       }
-      return state();
+      return start();
     },
     state,
+    start,
     /**
      * Grupo: /group/findGroupInfos (rápido, uno por vez; fetchAllGroups tarda
      * minutos con muchos grupos). Persona: /chat/fetchProfile (nombre, "info" y foto).

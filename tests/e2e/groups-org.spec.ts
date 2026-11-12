@@ -237,9 +237,12 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
   await inbound(request, n, `120363${Date.now()}3@g.us`, 'hola', `Cliente ${who}`);
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Waiting' }).click();
-  await page.getByRole('button', { name: 'Filters and lists' }).click();
-  await page.getByLabel('Type').selectOption('group');
-  await page.getByRole('button', { name: 'Save as list' }).click();
+  // En el panel de filtros: solo grupos, y "Guardar como lista" aplica lo elegido.
+  await page.getByTestId('lines-filter-button').click();
+  const filters = page.getByRole('dialog', { name: 'Filters' });
+  await filters.getByRole('button', { name: 'Chat type', exact: true }).click();
+  await filters.getByLabel('Groups', { exact: true }).check();
+  await filters.getByRole('button', { name: 'Save as list' }).click();
   const save = page.getByRole('dialog', { name: 'Save as list' });
   const list = `Waiting groups ${uid()}`;
   await save.getByLabel('List name').fill(list);
@@ -256,6 +259,7 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
   await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
   await branch.getByRole('link', { name: new RegExp(list) }).click();
   await expect(page.getByRole('tab', { name: 'Waiting' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Groups', exact: true })).toHaveAttribute('aria-selected', 'true');
 
   await page.getByRole('button', { name: 'Rename' }).click();
   const rename = page.getByRole('dialog', { name: 'Rename list' });

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { ChunkRecorder, getDesktopSystemAudio, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
+import { ChunkRecorder, getDesktopSystemAudio, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk, desktopAudioStats, systemAudioSilent } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
 import { chunkKey, deleteFailedChunk, loadFailedChunks, saveFailedChunk } from './failedStore';
 import { desktopBridge, DESKTOP_STOP_RECORDING_EVENT } from '@/lib/desktop-bridge';
@@ -487,12 +487,21 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
           // Si se deja de compartir la pestaña, se sigue con el micrófono.
           tab.getAudioTracks()[0]?.addEventListener('ended', () => setTabLive(false));
         }
+        const sysAudio = tab;
+        const startedAt = Date.now();
         recsRef.current.forEach((r) => r.rec.start());
         t0Ref.current = Date.now();
         setElapsed(base);
         tickRef.current = setInterval(() => {
           setElapsed(base + Date.now() - t0Ref.current);
           setLevel(Math.max(...recsRef.current.map((r) => r.rec.level())));
+          // App de escritorio: la captura del audio de la compu puede arrancar y llegar muda
+          // (permiso de macOS viejo después de actualizar la app). Se avisa, y se saca al oír algo.
+          const st = desktopAudioStats(sysAudio);
+          if (st) {
+            const silent = systemAudioSilent(st, Date.now() - startedAt);
+            setError((cur) => (silent ? (cur ?? 'system_silent') : cur === 'system_silent' ? null : cur));
+          }
         }, 200);
         // Latido: mantiene el claim y le avisa al cron que la reunión sigue viva aunque haya silencio.
         const beatMs = Number((window as unknown as { __zsVoiceHeartbeatMs?: number }).__zsVoiceHeartbeatMs) || HEARTBEAT_MS;
