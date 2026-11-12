@@ -52,6 +52,292 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-12-transcript-paragraphs',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: voice note transcripts in paragraphs',
+      es: 'Lines e Inbox: transcripciones de audios en párrafos',
+      pt: 'Lines e Inbox: transcrições de áudios em parágrafos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The full transcript of a voice note is split into short paragraphs (a few sentences each) instead of one long block.',
+        es: 'La transcripción completa de una nota de voz se separa en párrafos cortos (unas pocas oraciones cada uno) en vez de un solo bloque.',
+        pt: 'A transcrição completa de uma nota de voz é separada em parágrafos curtos (algumas frases cada) em vez de um bloco só.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox.',
+        es: 'Lo mismo en Inbox.',
+        pt: 'O mesmo no Inbox.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-voice-note-player',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: voice notes look like WhatsApp',
+      es: 'Lines e Inbox: las notas de voz se ven como en WhatsApp',
+      pt: 'Lines e Inbox: as notas de voz parecem as do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A voice note shows who recorded it (photo with a microphone), a waveform with a dot that moves as it plays and the length below. Once it starts, the speed button (1×, 1.5×, 2×) takes the photo’s place.',
+        es: 'Una nota de voz muestra quién la grabó (foto con un micrófono), una onda con un punto que avanza mientras suena y la duración debajo. Al darle play, el botón de velocidad (1×, 1,5×, 2×) ocupa el lugar de la foto.',
+        pt: 'Uma nota de voz mostra quem gravou (foto com um microfone), uma onda com um ponto que avança enquanto toca e a duração embaixo. Ao dar play, o botão de velocidade (1×, 1,5×, 2×) fica no lugar da foto.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox.',
+        es: 'Lo mismo en Inbox.',
+        pt: 'O mesmo no Inbox.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-voice-note-waveform',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: live waveform while recording',
+      es: 'Lines e Inbox: onda en vivo al grabar',
+      pt: 'Lines e Inbox: onda ao vivo ao gravar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'While you record a voice note, a waveform moves with your voice, so you can see the microphone is hearing you.',
+        es: 'Mientras grabás una nota de voz, una onda se mueve con tu voz: se ve que el micrófono te está escuchando.',
+        pt: 'Enquanto você grava uma nota de voz, uma onda se move com a sua voz: dá para ver que o microfone está ouvindo.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox voice notes.',
+        es: 'Lo mismo en las notas de voz de Inbox.',
+        pt: 'O mesmo nas notas de voz do Inbox.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-menus',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: chat menus like WhatsApp',
+      es: 'Lines: menús del chat como los de WhatsApp',
+      pt: 'Lines: menus do chat como os do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The ⋯ menu of a chat and the right-click menu on the list are now rounded cards with an icon for each action. The ⋯ menu follows WhatsApp’s order (info, select messages, mute, pin, read) and adds “Select messages”; the chat style switch moved to Settings › Appearance.',
+        es: 'El menú ⋯ de un chat y el del clic derecho en la lista ahora son tarjetas redondeadas con un ícono por acción. El ⋯ sigue el orden de WhatsApp (info, seleccionar mensajes, silenciar, fijar, leído) y suma “Seleccionar mensajes”; el cambio de estilo de chats quedó en Ajustes › Apariencia.',
+        pt: 'O menu ⋯ de um chat e o do clique direito na lista agora são cartões arredondados com um ícone por ação. O ⋯ segue a ordem do WhatsApp (info, selecionar mensagens, silenciar, fixar, lido) e ganha “Selecionar mensagens”; a troca de estilo dos chats foi para Ajustes › Aparência.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-mention-picker',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: a WhatsApp-style @mention picker',
+      es: 'Lines: el selector de @menciones como el de WhatsApp',
+      pt: 'Lines: o seletor de @menções como o do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Typing @ in an internal note opens a floating card over the chat with each teammate’s avatar and name, instead of a list with names and emails above the composer.',
+        es: 'Escribir @ en una nota interna abre una tarjeta flotante sobre el chat con el avatar y el nombre de cada compañero, en vez de una lista con nombres y mails arriba del campo.',
+        pt: 'Digitar @ em uma nota interna abre um cartão flutuante sobre o chat com o avatar e o nome de cada colega, em vez de uma lista com nomes e e-mails acima do campo.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-notes-even',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: internal notes line up',
+      es: 'Lines: las notas internas quedan parejas',
+      pt: 'Lines: as notas internas ficam alinhadas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Internal notes in a chat now share one width with a thin accent on the left, and consecutive notes stack as one block instead of bubbles of different sizes.',
+        es: 'Las notas internas de un chat ahora tienen todas el mismo ancho, con una línea fina a la izquierda, y las seguidas se apilan como un solo bloque en vez de globos de tamaños distintos.',
+        pt: 'As notas internas de um chat agora têm a mesma largura, com uma linha fina à esquerda, e notas seguidas se empilham como um bloco só em vez de balões de tamanhos diferentes.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-line-picker',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: a quieter line picker',
+      es: 'Lines: un selector de línea más sutil',
+      pt: 'Lines: um seletor de linha mais discreto',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The line picker next to the inbox title is now a light button that opens a small list below it, with the selected line checked and the last digits of each number.',
+        es: 'El selector de línea al lado del título de la bandeja ahora es un botón liviano que abre una lista chica debajo, con la línea elegida tildada y los últimos dígitos de cada número.',
+        pt: 'O seletor de linha ao lado do título da caixa agora é um botão leve que abre uma lista pequena abaixo, com a linha escolhida marcada e os últimos dígitos de cada número.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-folders-collapsed-sidebar',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: folders in the collapsed sidebar',
+      es: 'Lines e Inbox: carpetas en el lateral colapsado',
+      pt: 'Lines e Inbox: pastas na barra lateral recolhida',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With the sidebar collapsed, folders show as small squares with their initials on the left (name on hover, a dot when there are unread chats) instead of a dropdown above the list.',
+        es: 'Con el lateral colapsado, las carpetas aparecen a la izquierda como cuadraditos con sus iniciales (el nombre al pasar el mouse y un punto si hay chats sin leer), en vez de un desplegable arriba de la lista.',
+        pt: 'Com a barra lateral recolhida, as pastas aparecem à esquerda como quadradinhos com as iniciais (o nome ao passar o mouse e um ponto se houver chats não lidos), em vez de um menu acima da lista.',
+      },
+      {
+        product: 'inbox',
+        en: 'Inbox folders do the same, in their own color.',
+        es: 'Las carpetas de Inbox hacen lo mismo, con su color.',
+        pt: 'As pastas do Inbox fazem o mesmo, com sua cor.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-calls-cost-tier',
+    date: '2026-11-12',
+    title: {
+      en: 'Calls: choose between economy and best quality',
+      es: 'Calls: elegir entre económico y mejor calidad',
+      pt: 'Calls: escolher entre econômico e melhor qualidade',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'Admins pick how each recorded call is processed in Calls settings. Economy (the default) uses a fast transcription and a smaller model for the summary and scorecard; best quality uses the main ones.',
+        es: 'En los ajustes de Calls, los admins eligen cómo se procesa cada llamada grabada. Económico (el default) usa una transcripción rápida y un modelo más chico para el resumen y el scorecard; mejor calidad usa los principales.',
+        pt: 'Nos ajustes do Calls, os admins escolhem como cada chamada gravada é processada. Econômico (o padrão) usa uma transcrição rápida e um modelo menor para o resumo e o scorecard; melhor qualidade usa os principais.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-calls-meet-links',
+    date: '2026-11-12',
+    title: {
+      en: 'Calls: more Google Meet links accepted',
+      es: 'Calls: acepta más formas del link de Google Meet',
+      pt: 'Calls: aceita mais formatos de link do Google Meet',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'Links copied as meet.google.com/meet/…, without https:// or with www. now work when sending the bot.',
+        es: 'Los links copiados como meet.google.com/meet/…, sin https:// o con www. ahora sirven para mandar el bot.',
+        pt: 'Links copiados como meet.google.com/meet/…, sem https:// ou com www. agora funcionam para enviar o bot.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-filter-chips-row',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: applied filters in one row',
+      es: 'Lines: los filtros aplicados en una sola fila',
+      pt: 'Lines: os filtros aplicados em uma só linha',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With several filters applied, their chips stay in one row you can scroll sideways, so the chat list no longer moves down. Each chip shows its full text when you hover it.',
+        es: 'Con varios filtros aplicados, los chips quedan en una sola fila que se desplaza de costado, así la lista de chats ya no baja. Cada chip muestra su texto completo al pasar el mouse.',
+        pt: 'Com vários filtros aplicados, os chips ficam em uma só linha que rola para o lado, então a lista de chats não desce mais. Cada chip mostra o texto completo ao passar o mouse.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-slash-commands',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: type / for commands',
+      es: 'Lines e Inbox: escribí / para los comandos',
+      pt: 'Lines e Inbox: digite / para os comandos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'In a Lines chat, type / in the message box to see what you can do without leaving the keyboard: assign the chat to a person or a team, close or reopen it, add or remove a label, switch to an internal note, create a ticket or a task, send later, attach a file, send a poll, mute, pin, archive, mark unread, summarize or translate. Keep typing to filter, in your language or in English, and press Enter. "/assign ana" picks the person in one go. Your quick replies are in the same list and still expand with /shortcut.',
+        es: 'En un chat de Lines, escribí / en el cuadro de mensaje para ver lo que podés hacer sin soltar el teclado: asignar el chat a una persona o a un equipo, cerrarlo o reabrirlo, poner o sacar una etiqueta, pasar a una nota interna, crear un ticket o una tarea, enviar más tarde, adjuntar un archivo, enviar una encuesta, silenciar, fijar, archivar, marcar como no leído, resumir o traducir. Seguí escribiendo para filtrar, en tu idioma o en inglés, y apretá Enter. "/asignar ana" elige a la persona de una. Tus respuestas rápidas están en la misma lista y se siguen insertando con /atajo.',
+        pt: 'Em uma conversa do Lines, digite / na caixa de mensagem para ver o que dá para fazer sem tirar as mãos do teclado: atribuir a conversa a uma pessoa ou a uma equipe, fechar ou reabrir, colocar ou tirar uma etiqueta, passar para uma nota interna, criar um ticket ou uma tarefa, enviar mais tarde, anexar um arquivo, enviar uma enquete, silenciar, fixar, arquivar, marcar como não lida, resumir ou traduzir. Continue digitando para filtrar, no seu idioma ou em inglês, e pressione Enter. "/atribuir ana" escolhe a pessoa de uma vez. As suas respostas rápidas estão na mesma lista e continuam entrando com /atalho.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox, / in the message box of a WhatsApp chat or an email lists the actions of that chat: done, snooze, remind me, folder, notes, mark unread, pin, archive, mute for 8 hours or a week, send later and dictate. Your snippets are in the list too, and ; still opens them.',
+        es: 'En Inbox, / en el cuadro de mensaje de un chat de WhatsApp o de un correo muestra las acciones de ese chat: hecho, posponer, recordarme, carpeta, notas, marcar como no leído, fijar, archivar, silenciar por 8 horas o una semana, enviar más tarde y dictar. Tus snippets también están en la lista, y ; los sigue abriendo.',
+        pt: 'No Inbox, / na caixa de mensagem de uma conversa de WhatsApp ou de um email mostra as ações dessa conversa: concluir, adiar, lembrar, pasta, notas, marcar como não lida, fixar, arquivar, silenciar por 8 horas ou uma semana, enviar mais tarde e ditar. Os seus snippets também estão na lista, e ; continua abrindo.',
+      },
+      {
+        product: 'platform',
+        en: 'The same list has "Help me write": suggest a reply, polish, shorten, make it formal, fix the grammar or translate what you wrote. A command never sends a message: it removes the /command from the box and leaves the rest of your text as it was. To send a message that really starts with /, press Esc and then Enter. You can also open the list from the + menu.',
+        es: 'La misma lista trae "Ayudame a escribir": sugerir una respuesta, pulir, acortar, pasar a formal, corregir la gramática o traducir lo que escribiste. Un comando nunca manda un mensaje: saca el /comando del cuadro y deja el resto de tu texto como estaba. Para mandar un mensaje que de verdad empieza con /, apretá Esc y después Enter. También podés abrir la lista desde el menú +.',
+        pt: 'A mesma lista traz "Ajude-me a escrever": sugerir uma resposta, polir, encurtar, deixar formal, corrigir a gramática ou traduzir o que você escreveu. Um comando nunca envia uma mensagem: tira o /comando da caixa e deixa o resto do seu texto como estava. Para enviar uma mensagem que realmente começa com /, pressione Esc e depois Enter. Você também pode abrir a lista pelo menu +.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-chat-density',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: a denser chat view',
+      es: 'Lines e Inbox: chats más compactos',
+      pt: 'Lines e Inbox: chats mais compactos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The chat list and the conversation are one step smaller: names, previews, message text, photos, avatars, the header and the message box take less room, so more chats and more messages fit on screen. On the phone, buttons keep the size of a finger.',
+        es: 'La lista de chats y la conversación bajaron un paso: nombres, vistas previas, texto de los mensajes, fotos, avatares, el encabezado y el campo de escribir ocupan menos lugar, así entran más chats y más mensajes en la pantalla. En el teléfono los botones siguen con el tamaño del dedo.',
+        pt: 'A lista de chats e a conversa ficaram um passo menores: nomes, prévias, texto das mensagens, fotos, avatares, o cabeçalho e o campo de escrever ocupam menos espaço, então cabem mais chats e mais mensagens na tela. No celular os botões continuam do tamanho do dedo.',
+      },
+      {
+        product: 'inbox',
+        en: 'Inbox gets the same tighter sizes in the list, WhatsApp chats, email threads and the reply box.',
+        es: 'Inbox usa los mismos tamaños más compactos en la lista, los chats de WhatsApp, los hilos de correo y el campo de respuesta.',
+        pt: 'O Inbox usa os mesmos tamanhos mais compactos na lista, nos chats de WhatsApp, nos fios de e-mail e no campo de resposta.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-lines-new-chat',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: start a new chat from the inbox',
+      es: 'Lines: empezar un chat nuevo desde la bandeja',
+      pt: 'Lines: iniciar uma nova conversa pela caixa de entrada',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The inbox has a "+" button for a new chat. Pick the line, search a contact or a chat of that line by name or phone, or type a number that is not in the contact book. If the line already has a chat with that number, it opens that one.',
+        es: 'La bandeja tiene un botón "+" para un chat nuevo. Elegís la línea, buscás un contacto o un chat de esa línea por nombre o teléfono, o escribís un número que no está en la libreta. Si la línea ya tiene un chat con ese número, abre ese.',
+        pt: 'A caixa de entrada tem um botão "+" para uma nova conversa. Escolha a linha, busque um contato ou uma conversa dessa linha por nome ou telefone, ou digite um número que não está na agenda. Se a linha já tem uma conversa com esse número, ela abre essa.',
+      },
+      {
+        product: 'groups',
+        en: 'Nothing is sent to WhatsApp until you write: the chat enters the inbox with its first message. On QR lines, Lines first checks that the number is on WhatsApp and tells you if it is not.',
+        es: 'No se manda nada a WhatsApp hasta que escribas: el chat entra a la bandeja con su primer mensaje. En las líneas por QR, Lines primero comprueba que el número tenga WhatsApp y te avisa si no tiene.',
+        pt: 'Nada é enviado ao WhatsApp até você escrever: a conversa entra na caixa de entrada com a primeira mensagem. Nas linhas por QR, o Lines primeiro confere se o número tem WhatsApp e avisa se não tiver.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {
@@ -232,6 +518,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'When you type a long message by hand in Lines or Inbox (chats and email), a "Polish" button appears above the message box. It fixes and clarifies the text without changing what you say, shows you the result first and never sends anything.',
         es: 'Cuando escribís a mano un mensaje largo en Lines o en Inbox (chats y correo), aparece un botón "Pulir" arriba del cuadro de mensaje. Corrige y aclara el texto sin cambiar lo que decís, te muestra el resultado antes y nunca manda nada.',
         pt: 'Quando você digita uma mensagem longa à mão no Lines ou no Inbox (chats e email), aparece um botão "Polir" acima da caixa de mensagem. Corrige e deixa o texto mais claro sem mudar o que você diz, mostra o resultado antes e nunca envia nada.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-app-color-buttons',
+    date: '2026-11-11',
+    title: {
+      en: 'The main button of each app takes the app\'s colour',
+      es: 'El botón principal de cada app toma el color de la app',
+      pt: 'O botão principal de cada app usa a cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Inside an app, the highlighted button (the one that used to be black) now has that app\'s colour, with the text in white or dark, whichever reads better. Home and Settings keep the black button.',
+        es: 'Dentro de una app, el botón resaltado (el que antes era negro) ahora tiene el color de esa app, con el texto en blanco o en oscuro, el que mejor se lea. Inicio y Ajustes siguen con el botón negro.',
+        pt: 'Dentro de um app, o botão em destaque (o que antes era preto) agora tem a cor desse app, com o texto em branco ou escuro, o que ficar mais legível. Início e Ajustes continuam com o botão preto.',
       },
     ],
   },

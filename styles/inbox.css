@@ -34,7 +34,7 @@ body:has(.ib-composer) #zs-chat-root { display: none !important; }
 .ib-danger { color: var(--bad-ink); }
 .ib-link-btn { background: none; border: 0; padding: 0 0 0 8px; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
 .ib-h1 { margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.ib-h2 { margin: 0; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.ib-h2 { margin: 0; font-size: 0.9375rem; font-weight: 700; overflow-wrap: anywhere; }
 .ib-h3 { margin: 0; font-size: 0.9375rem; font-weight: 700; }
 .ib-tag { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; margin-right: 4px; border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.6875rem; line-height: 1.5; color: var(--ink-2); white-space: nowrap; }
 .ib-tag-strong { border-color: var(--ib-ink); color: var(--ib-ink); font-weight: 600; }
@@ -108,7 +108,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-convo-blank, .ib-convo-msg { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
 .ib-convo-msg { align-items: stretch; justify-content: flex-start; text-align: left; }
 .ib-keys-inline { font-size: 0.8125rem; }
-.ib-convo-head { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); min-width: 0; }
+.ib-convo-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--bg); border-bottom: 1px solid var(--line); min-width: 0; }
 .ib-back { display: none; }
 .ib-convo-title { flex: 1; min-width: 0; }
 .ib-title-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: text; max-width: 100%; text-align: left; }
@@ -133,7 +133,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-bubble {
   position: relative; max-width: min(72%, 560px); padding: 6px 8px 4px 9px;
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1);
-  font-size: 0.9063rem; line-height: 1.4; overflow-wrap: anywhere; min-width: 0;
+  font-size: 0.84375rem; line-height: 1.4; overflow-wrap: anywhere; min-width: 0;
 }
 .ib-msg.is-me .ib-bubble { background: var(--ib-mine); border-color: color-mix(in srgb, var(--c-inbox) 22%, var(--line)); }
 .ib-msg.is-revoked .ib-bubble { border-style: dashed; }
@@ -150,12 +150,12 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-media-video { display: block; max-width: 100%; max-height: 320px; }
 .ib-media-doc, .ib-media-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.8125rem; color: inherit; }
 
-.ib-mail { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px 14px; margin: 4px 0 8px; min-width: 0; }
+.ib-mail { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1); padding: 10px 12px; margin: 4px 0 6px; min-width: 0; }
 .ib-mail.is-me { background: var(--ib-mine); }
-.ib-mail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 0.875rem; }
-.ib-mail-time { margin-left: auto; font-size: 0.75rem; }
-.ib-mail-subject { margin: 4px 0 8px; font-weight: 600; font-size: 0.875rem; }
-.ib-mail-body { white-space: pre-wrap; font-size: 0.9063rem; line-height: 1.5; overflow-wrap: anywhere; max-width: 72ch; }
+.ib-mail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 0.8125rem; }
+.ib-mail-time { margin-left: auto; font-size: 0.6875rem; }
+.ib-mail-subject { margin: 3px 0 6px; font-weight: 600; font-size: 0.8125rem; }
+.ib-mail-body { white-space: pre-wrap; font-size: 0.84375rem; line-height: 1.5; overflow-wrap: anywhere; max-width: 72ch; }
 .ib-quoted { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--line); color: var(--brand-gray-2); }
 .ib-quote-toggle { margin-top: 6px; }
 
@@ -167,7 +167,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 
 /* ---------- Campo ---------- */
 
-.ib-composer { position: relative; display: grid; gap: 6px; padding: 10px 16px 8px; background: var(--bg); border-top: 1px solid var(--line); }
+.ib-composer { position: relative; display: grid; gap: 5px; padding: 8px 14px 6px; background: var(--bg); border-top: 1px solid var(--line); }
 .ib-textarea { width: 100%; min-height: 40px; max-height: 240px; resize: none; line-height: 1.45; }
 .ib-composer-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
 .ib-composer-tools, .ib-composer-send { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }

@@ -88,6 +88,24 @@
     "pendingBanner": "Seu número ainda não está conectado.",
     "finishConnect": "Terminar de conectar"
   },
+  "newChat": {
+    "open": "Nova conversa",
+    "title": "Nova conversa",
+    "from": "Da linha",
+    "search": "Nome ou telefone",
+    "placeholder": "Busque um contato ou digite um número",
+    "message": "Escrever para {phone}",
+    "messageHelp": "Abre a conversa. Nada é enviado até você escrever.",
+    "newGroup": "Novo grupo",
+    "results": "Contatos e conversas",
+    "recent": "Conversas recentes",
+    "empty": "Busque um contato desta linha ou digite um número com o código do país.",
+    "noResults": "Nenhum contato ou conversa corresponde. Para escrever para um número novo, digite-o com o código do país.",
+    "tooShort": "Esse número é curto demais. Digite-o completo, com o código do país (de 8 a 15 dígitos).",
+    "tooLong": "Esse número é longo demais. Um telefone tem no máximo 15 dígitos.",
+    "lineOff": "Esta linha não pode iniciar conversas agora ({status}). As conversas que ela já tem podem ser abertas.",
+    "loadError": "Não foi possível carregar os contatos. Tente de novo."
+  },
   "filters": {
     "all": "Todas",
     "unread": "Não lidas",
@@ -1006,7 +1024,10 @@
     "hubspot_validation": "O HubSpot não aceitou esse valor.",
     "hubspot_invalid_value": "Esse valor não corresponde a este tipo de propriedade.",
     "hubspot_read_only": "O HubSpot não permite editar essa propriedade.",
-    "hubspot_company_gone": "Essa empresa não está mais no HubSpot. Vincule esta conversa a outra empresa."
+    "hubspot_company_gone": "Essa empresa não está mais no HubSpot. Vincule esta conversa a outra empresa.",
+    "own_number": "Esse é o número desta mesma linha.",
+    "not_on_whatsapp": "Esse número não tem WhatsApp. Confira, com o código do país.",
+    "chat_no_access": "Esta linha já tem uma conversa com esse número e você não tem acesso. Peça a um admin."
   },
   "media": {
     "image": "Imagem",
@@ -1800,7 +1821,8 @@
     "openNewWindow": "Abrir em outra janela",
     "contactInfo": "Dados do contato",
     "groupInfo": "Dados do grupo",
-    "exportChat": "Exportar conversa"
+    "exportChat": "Exportar conversa",
+    "selectMessages": "Selecionar mensagens"
   },
   "swipe": {
     "read": "Lida",
@@ -2120,6 +2142,149 @@
       "hubspot": "crm empresa negocio",
       "muted": "silencio avisos",
       "pinned": "fixo topo"
+    }
+  },
+  "slash": {
+    "assign": {
+      "name": "atribuir",
+      "desc": "Atribuir esta conversa a alguém",
+      "keys": "responsável pessoa agente",
+      "empty": "Ninguém corresponde. Pressione Esc para deixar como texto.",
+      "you": "Você",
+      "meKeys": "eu mim",
+      "nobodyKeys": "ninguém nenhum"
+    },
+    "team": {
+      "name": "equipe",
+      "desc": "Atribuir esta conversa a uma equipe",
+      "keys": "grupo",
+      "empty": "Nenhuma equipe corresponde. Pressione Esc para deixar como texto.",
+      "noneKeys": "nenhuma"
+    },
+    "close": {
+      "name": "fechar",
+      "desc": "Fechar esta conversa",
+      "keys": "resolver concluir pronto"
+    },
+    "reopen": {
+      "name": "reabrir",
+      "desc": "Reabrir esta conversa",
+      "keys": "abrir"
+    },
+    "label": {
+      "name": "etiqueta",
+      "desc": "Colocar ou tirar uma etiqueta",
+      "keys": "etiquetas tag",
+      "empty": "Nenhuma etiqueta corresponde. Pressione Esc para deixar como texto."
+    },
+    "note": {
+      "name": "nota",
+      "desc": "Escrever uma nota interna. Só a sua equipe vê",
+      "keys": "interna privada comentário"
+    },
+    "reply": {
+      "name": "responder",
+      "desc": "Voltar a escrever pelo WhatsApp",
+      "keys": "whatsapp mensagem"
+    },
+    "ticket": {
+      "name": "ticket",
+      "desc": "Criar um ticket com a última mensagem do cliente",
+      "keys": "caso chamado"
+    },
+    "task": {
+      "name": "tarefa",
+      "desc": "Adicionar uma tarefa com a última mensagem",
+      "keys": "pendência lembrete"
+    },
+    "later": {
+      "name": "depois",
+      "desc": "Enviar esta mensagem mais tarde",
+      "keys": "agendar hora amanhã tarde"
+    },
+    "attach": {
+      "name": "anexar",
+      "desc": "Anexar um documento",
+      "keys": "arquivo enviar"
+    },
+    "poll": {
+      "name": "enquete",
+      "desc": "Enviar uma enquete",
+      "keys": "votar votação"
+    },
+    "contact": {
+      "name": "contato",
+      "desc": "Compartilhar um contato",
+      "keys": "cartão telefone"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Abrir os emojis",
+      "keys": "emoticon carinha"
+    },
+    "mute": {
+      "name": "silenciar",
+      "desc": "Parar de receber avisos desta conversa",
+      "keys": "avisos notificações"
+    },
+    "unmute": {
+      "name": "ativar-avisos",
+      "desc": "Voltar a receber avisos desta conversa",
+      "keys": "notificações som"
+    },
+    "pin": {
+      "name": "fixar",
+      "desc": "Fixar esta conversa no topo da lista",
+      "keys": "topo"
+    },
+    "unpin": {
+      "name": "desafixar",
+      "desc": "Desafixar esta conversa",
+      "keys": "soltar"
+    },
+    "archive": {
+      "name": "arquivar",
+      "desc": "Arquivar esta conversa",
+      "keys": "esconder"
+    },
+    "unarchive": {
+      "name": "desarquivar",
+      "desc": "Devolver esta conversa à lista principal",
+      "keys": "restaurar"
+    },
+    "unread": {
+      "name": "não-lida",
+      "desc": "Marcar esta conversa como não lida",
+      "keys": "marcar"
+    },
+    "read": {
+      "name": "lida",
+      "desc": "Marcar esta conversa como lida",
+      "keys": "marcar"
+    },
+    "summary": {
+      "name": "resumo",
+      "desc": "Resumir esta conversa com IA",
+      "keys": "ia resumir"
+    },
+    "translate": {
+      "name": "traduzir",
+      "desc": "Traduzir as mensagens do cliente ou o que você escreveu",
+      "keys": "idioma",
+      "empty": "Nada corresponde. Pressione Esc para deixar como texto.",
+      "chat": "As mensagens do cliente, para o seu idioma",
+      "chatKeys": "chat cliente mensagens recebidas",
+      "yours": "Sua mensagem"
+    },
+    "details": {
+      "name": "detalhes",
+      "desc": "Mostrar ou ocultar os detalhes da conversa",
+      "keys": "info painel contato"
+    },
+    "quick": {
+      "name": "respostas",
+      "desc": "Adicionar ou editar as suas respostas rápidas",
+      "keys": "rápidas salvas atalhos ajustes"
     }
   },
   "gt": {

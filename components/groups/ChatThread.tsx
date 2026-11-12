@@ -15,10 +15,12 @@ import { fetchIfChanged } from '@/lib/conditional-fetch';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
-import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
+import { useSlashMenu } from '@/components/ui/useSlashMenu';
+import { SlashIcon } from '@/components/ui/SlashMenu';
+import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
@@ -68,8 +70,16 @@ import {
   ViewOnce,
   Retry,
   Person,
+  InfoIcon,
+  TranslateIcon,
+  UnreadIcon,
+  ReadIcon,
+  MuteIcon,
+  Bell,
+  Sparkle,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import LiveWaveform from './wa/LiveWaveform';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -150,7 +160,7 @@ export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
   const tw = useTranslations('inboxWa');
   const tc = useTranslations('common.aiCompose');
-  const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
+  const ts = useTranslations('common.slash');
   const locale = useLocale();
   const errText = useErrorText();
   const mediaText = useMediaText();
@@ -535,9 +545,7 @@ export default function ChatThread(props: ThreadProps) {
     [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "/" al principio abre las respuestas rápidas; "@" en una nota, las personas.
-  const slash = mode === 'reply' ? /^\/([a-z0-9_-]*)$/i.exec(text.trim()) : null;
-  const quickMatches = slash ? props.quickReplies.filter((q) => q.shortcut.startsWith(slash[1].toLowerCase())).slice(0, 6) : [];
+  // "@" en una nota abre las personas ("/" abre los comandos y las respuestas rápidas, más abajo).
   const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
   const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
 
@@ -573,6 +581,49 @@ export default function ChatThread(props: ThreadProps) {
     resetKey: chat.id,
   });
   const aiAllowed = mode === 'reply' && !editing && !leaving;
+
+  // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
+  // Con el menú abierto no se muestran las menciones ni los emojis de ":".
+  const slash = useSlashMenu({
+    text,
+    caret,
+    inputRef,
+    disabled: !!editing || leaving,
+    apply: (next, at) => {
+      setText(next);
+      setCaret(at);
+    },
+    inserts: mode === 'reply' ? props.quickReplies : [],
+    insertsLabel: t('thread.quickReplies'),
+    commands: useLinesSlashCommands({
+      chat,
+      me: props.me,
+      people: props.people,
+      teams: props.teams,
+      labels: props.labels,
+      caps: props.caps,
+      mode,
+      messages,
+      translateOn,
+      ai: aiAllowed ? ai : null,
+      patchChat,
+      setMode,
+      openTicket,
+      openTask: setTaskFor,
+      openLater,
+      attach: () => fileRef.current?.click(),
+      openPoll: () => (setPollError(''), setPollOpen(true)),
+      openContact: () => setContactOpen(true),
+      openEmoji: () => setEmojiOpen(true),
+      toggleMute: () => void toggleMute(),
+      toggleUnread: () => void toggleUnread(),
+      toggleArchived: () => void patchChat({ archived: !chat.archived }).then((res) => res && showToast(res.archived ? t('wa.archived') : t('wa.unarchived'))),
+      summarize: () => void summarize(),
+      toggleTranslate,
+      toggleDetails,
+      manageQuickReplies: () => router.push('/app/lines/settings?tab=quick'),
+    }),
+  });
 
   function pickMention(i: number) {
     const p = mentionMatches[i];
@@ -686,7 +737,7 @@ export default function ChatThread(props: ThreadProps) {
   const emojiSuggest = useEmojiSuggest({
     text,
     caret,
-    disabled: !!editing,
+    disabled: !!editing || slash.open,
     apply: (start, end, emoji) => {
       const next = text.slice(0, start) + emoji + text.slice(end);
       setText(next);
@@ -700,8 +751,9 @@ export default function ChatThread(props: ThreadProps) {
   });
 
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (slash.onKeyDown(e)) return;
     if (!editing && emojiSuggest.onKeyDown(e)) return;
-    if (mentionMatches.length > 0) {
+    if (mentionMatches.length > 0 && !slash.open) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         setMentionIndex((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + mentionMatches.length) % mentionMatches.length);
@@ -712,11 +764,6 @@ export default function ChatThread(props: ThreadProps) {
         pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
         return;
       }
-    }
-    if (quickMatches.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
-      e.preventDefault();
-      setText(quickMatches[0].body);
-      return;
     }
     // ⌘J (Ctrl+J) en el campo: "Ayudame a escribir", como en Inbox.
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j' && aiAllowed) {
@@ -1360,7 +1407,7 @@ export default function ChatThread(props: ThreadProps) {
         {selecting && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={inName(m)} kind="dm" size={28} seed={m.senderPhone || m.senderName} />}
+            {!cont && <Avatar name={inName(m)} kind="dm" size={26} seed={m.senderPhone || m.senderName} />}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -1435,7 +1482,16 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
-                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined} waveform={media.waveform} />
+                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
+                  waveform={media.waveform}
+                  avatar={
+                    m.direction === 'in'
+                      ? chat.kind === 'dm'
+                        ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
+                        : { name: inName(m), seed: m.senderPhone || m.senderName }
+                      : { name: author || '', seed: m.authorId || 'me' }
+                  }
+                />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
               )}
@@ -1630,7 +1686,7 @@ export default function ChatThread(props: ThreadProps) {
           {/* El avatar abre la info del chat (como en WhatsApp); el nombre también, con el mouse. El título queda como encabezado. */}
           <div className="wa-head-who">
             <button type="button" className="wa-head-avatar" onClick={toggleDetails} aria-label={t('wa.openInfo', { name: chat.name })} aria-expanded={detailsShown}>
-              <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={40} seed={chat.id} />
+              <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={36} seed={chat.id} />
             </button>
             <div className="gr-thread-title" onClick={toggleDetails}>
               <h2>{chat.name}</h2>
@@ -1642,7 +1698,7 @@ export default function ChatThread(props: ThreadProps) {
           <div className="gr-thread-actions">
             {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
             <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
-              {assignee ? <Avatar name={assignee} kind="dm" size={30} seed={chat.assignedTo ?? ''} /> : <UserPlus size={22} />}
+              {assignee ? <Avatar name={assignee} kind="dm" size={28} seed={chat.assignedTo ?? ''} /> : <UserPlus size={20} />}
               <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
                 <option value="">{t('thread.unassigned')}</option>
                 {props.people.map((p) => (
@@ -1679,25 +1735,20 @@ export default function ChatThread(props: ThreadProps) {
               className="wa-icon-btn"
               align="right"
               items={[
-                // En el teléfono el encabezado deja solo el nombre: asignar, cerrar y la info van acá.
+                // Como el ⋯ de WhatsApp: info, seleccionar, silenciar, fijar, leído; después lo del equipo (IA) y, en el teléfono, asignar y cerrar.
+                { key: 'details', glyph: <InfoIcon size={18} />, label: chat.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'), onSelect: toggleDetails },
+                { key: 'select', glyph: <CheckCircle size={18} />, label: t('wa.selectMessages'), onSelect: () => setSelecting(new Set()) },
+                { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
+                { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
+                { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
+                { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
+                { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
                 ...(narrow
                   ? [
-                      { key: 'assign', label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
-                      { key: 'close', label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
+                      { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
+                      { key: 'close', glyph: chat.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
                     ]
                   : []),
-                { key: 'summary', label: t('thread.summary'), onSelect: () => void summarize() },
-                { key: 'translate', label: `${translateOn ? t('thread.translateOff') : t('thread.translate')} (L)`, onSelect: toggleTranslate },
-                { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
-                { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
-                { key: 'mute', label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
-                { key: 'details', label: t('thread.details'), onSelect: toggleDetails },
-                {
-                  key: 'chatStyle',
-                  label: chatStyle === 'whatsapp' ? tw('styleUseZerosoft') : tw('styleUseWhatsapp'),
-                  divider: true,
-                  onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp'),
-                },
               ]}
             />
             <button type="button" className={`wa-icon-btn gr-details-toggle${detailsShown ? ' is-on' : ''}`} onClick={toggleDetails} aria-expanded={detailsShown} aria-label={t('thread.details')} title={t('thread.details')}>
@@ -1826,30 +1877,21 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
-          {quickMatches.length > 0 && (
-            <ul className="gr-quick" role="listbox" aria-label={t('thread.quickReplies')}>
-              {quickMatches.map((q, i) => (
-                <li key={q.id} role="option" aria-selected={i === 0}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setText(q.body);
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    <strong>/{q.shortcut}</strong> {q.body.slice(0, 80)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {slash.menu}
           {emojiSuggest.strip}
-          {mentionMatches.length > 0 && (
-            <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
+          {mentionMatches.length > 0 && !slash.open && (
+            <ul className="wa-mention-pop" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
-                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(i)}>
-                    <strong>{p.name || p.email}</strong> {p.name ? p.email : ''}
+                  <button
+                    type="button"
+                    title={p.email}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                    onClick={() => pickMention(i)}
+                  >
+                    <Avatar name={p.name || p.email} kind="dm" size={32} seed={p.id} />
+                    <span className="wa-mention-name">{p.name || p.email}</span>
                   </button>
                 </li>
               ))}
@@ -1882,7 +1924,8 @@ export default function ChatThread(props: ThreadProps) {
               <span className="wa-rec-time" aria-live="off">
                 {Math.floor(recording.elapsed / 60)}:{String(recording.elapsed % 60).padStart(2, '0')}
               </span>
-              <span className="wa-rec-label">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
+              <span className="sr-only">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
+              <LiveWaveform stream={recorder.current?.stream} paused={recording.paused} />
               <button type="button" className="wa-icon-btn" onClick={togglePause} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
                 {recording.paused ? <Mic size={22} /> : <Pause size={22} />}
               </button>
@@ -1956,6 +1999,7 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
                       { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
                       { key: 'ai', icon: <PencilSparkle size={17} />, label: tc('open'), onSelect: ai.openBar },
+                      { key: 'commands', icon: <SlashIcon size={17} />, label: ts('menuItem'), onSelect: slash.openFromButton },
                     ]}
                   />
                 </>
@@ -1977,7 +2021,8 @@ export default function ChatThread(props: ThreadProps) {
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}
-                placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : t('wa.typeMessage')}
+                placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : slash.placeholder(t('wa.typeMessage'))}
+                {...slash.inputProps}
                 aria-label={editing ? t('thread.editLabel') : mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
                 onPaste={(e) => {
                   const files = filesFrom(e.clipboardData);
@@ -2053,7 +2098,7 @@ export default function ChatThread(props: ThreadProps) {
 
       <aside className={`gr-details${detailsOpen ? ' is-open' : ''}`} aria-label={t('thread.details')}>
         <div className="wa-details-head">
-          <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={96} seed={chat.id} />
+          <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={84} seed={chat.id} />
           <strong>{chat.name}</strong>
           <span>{chat.kind === 'group' ? t('thread.groupMeta', { n: chat.memberCount }) : chat.phone ? `+${chat.phone}` : t('wa.whatsappContact')}</span>
           <button type="button" className="wa-icon-btn wa-details-close" onClick={() => setDetailsOpen(false)} aria-label={t('common.close')} title={t('common.close')}>

@@ -88,6 +88,24 @@
     "pendingBanner": "Your number is not connected yet.",
     "finishConnect": "Finish connecting"
   },
+  "newChat": {
+    "open": "New chat",
+    "title": "New chat",
+    "from": "From line",
+    "search": "Name or phone number",
+    "placeholder": "Search a contact or type a number",
+    "message": "Message {phone}",
+    "messageHelp": "Opens the chat. Nothing is sent until you write.",
+    "newGroup": "New group",
+    "results": "Contacts and chats",
+    "recent": "Recent chats",
+    "empty": "Search a contact of this line, or type a number with its country code.",
+    "noResults": "No contact or chat matches. To write to a new number, type it with its country code.",
+    "tooShort": "That number is too short. Write it in full, with the country code (8 to 15 digits).",
+    "tooLong": "That number is too long. A phone number has at most 15 digits.",
+    "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has.",
+    "loadError": "Could not load the contacts. Try again."
+  },
   "filters": {
     "all": "All",
     "unread": "Unread",
@@ -1006,7 +1024,10 @@
     "hubspot_validation": "HubSpot did not accept that value.",
     "hubspot_invalid_value": "That value does not fit this type of property.",
     "hubspot_read_only": "HubSpot does not allow editing that property.",
-    "hubspot_company_gone": "That company is no longer in HubSpot. Link this chat to another company."
+    "hubspot_company_gone": "That company is no longer in HubSpot. Link this chat to another company.",
+    "own_number": "That is this line’s own number.",
+    "not_on_whatsapp": "That number is not on WhatsApp. Check it, including the country code.",
+    "chat_no_access": "This line already has a chat with that number and you don’t have access to it. Ask an admin."
   },
   "media": {
     "image": "Image",
@@ -1800,7 +1821,8 @@
     "openNewWindow": "Open in new window",
     "contactInfo": "Contact info",
     "groupInfo": "Group info",
-    "exportChat": "Export chat"
+    "exportChat": "Export chat",
+    "selectMessages": "Select messages"
   },
   "swipe": {
     "read": "Read",
@@ -2120,6 +2142,149 @@
       "hubspot": "crm company deal",
       "muted": "silent notifications",
       "pinned": "fixed top"
+    }
+  },
+  "slash": {
+    "assign": {
+      "name": "assign",
+      "desc": "Assign this chat to someone",
+      "keys": "owner person agent",
+      "empty": "Nobody matches. Press Esc to keep it as text.",
+      "you": "You",
+      "meKeys": "me myself",
+      "nobodyKeys": "nobody unassigned"
+    },
+    "team": {
+      "name": "team",
+      "desc": "Assign this chat to a team",
+      "keys": "group",
+      "empty": "No team matches. Press Esc to keep it as text.",
+      "noneKeys": "none"
+    },
+    "close": {
+      "name": "close",
+      "desc": "Close this chat",
+      "keys": "done resolve finish"
+    },
+    "reopen": {
+      "name": "reopen",
+      "desc": "Reopen this chat",
+      "keys": "open"
+    },
+    "label": {
+      "name": "label",
+      "desc": "Add or remove a label",
+      "keys": "tag labels",
+      "empty": "No label matches. Press Esc to keep it as text."
+    },
+    "note": {
+      "name": "note",
+      "desc": "Write an internal note. Only your team sees it",
+      "keys": "internal private comment"
+    },
+    "reply": {
+      "name": "reply",
+      "desc": "Go back to writing on WhatsApp",
+      "keys": "whatsapp message answer"
+    },
+    "ticket": {
+      "name": "ticket",
+      "desc": "Create a ticket from the last customer message",
+      "keys": "issue case"
+    },
+    "task": {
+      "name": "task",
+      "desc": "Add a task from the last message",
+      "keys": "todo reminder"
+    },
+    "later": {
+      "name": "later",
+      "desc": "Send this message later",
+      "keys": "schedule time tomorrow"
+    },
+    "attach": {
+      "name": "attach",
+      "desc": "Attach a document",
+      "keys": "file upload"
+    },
+    "poll": {
+      "name": "poll",
+      "desc": "Send a poll",
+      "keys": "vote survey"
+    },
+    "contact": {
+      "name": "contact",
+      "desc": "Share a contact",
+      "keys": "card phone"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Open the emoji picker",
+      "keys": "smiley emoticon"
+    },
+    "mute": {
+      "name": "mute",
+      "desc": "Stop notifications for this chat",
+      "keys": "silence notifications"
+    },
+    "unmute": {
+      "name": "unmute",
+      "desc": "Turn notifications back on for this chat",
+      "keys": "notifications sound"
+    },
+    "pin": {
+      "name": "pin",
+      "desc": "Pin this chat to the top of the list",
+      "keys": "top keep"
+    },
+    "unpin": {
+      "name": "unpin",
+      "desc": "Unpin this chat",
+      "keys": "top"
+    },
+    "archive": {
+      "name": "archive",
+      "desc": "Archive this chat",
+      "keys": "hide"
+    },
+    "unarchive": {
+      "name": "unarchive",
+      "desc": "Move this chat back to the main list",
+      "keys": "restore"
+    },
+    "unread": {
+      "name": "unread",
+      "desc": "Mark this chat as unread",
+      "keys": "mark"
+    },
+    "read": {
+      "name": "read",
+      "desc": "Mark this chat as read",
+      "keys": "mark"
+    },
+    "summary": {
+      "name": "summary",
+      "desc": "Summarize this chat with AI",
+      "keys": "ai recap summarize"
+    },
+    "translate": {
+      "name": "translate",
+      "desc": "Translate the customer's messages or what you wrote",
+      "keys": "language",
+      "empty": "Nothing matches. Press Esc to keep it as text.",
+      "chat": "The customer's messages, into your language",
+      "chatKeys": "chat customer messages incoming",
+      "yours": "Your message"
+    },
+    "details": {
+      "name": "details",
+      "desc": "Show or hide the chat details",
+      "keys": "info panel contact"
+    },
+    "quick": {
+      "name": "quick-replies",
+      "desc": "Add or edit your quick replies",
+      "keys": "saved replies shortcuts settings"
     }
   },
   "gt": {

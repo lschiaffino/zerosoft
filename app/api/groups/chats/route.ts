@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { CHAT_FILTERS, listChats, type ChatFilter, type ChatQuery, type PropertyFilter } from '@/lib/groups';
 import { getSavedList, listQuery } from '@/lib/groups-org';
-import { groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
+import { z } from 'zod';
+import { groupsError, groupsSession, handleGroupsError, lineGuard, sessionViewer } from '@/lib/groups-http';
+import { invalidInput, limitWrites } from '@/lib/write-limit';
 import { conditionalJson } from '@/lib/etag';
 import { parseHubspotFilterParam } from '@/lib/groups-hubspot-shared';
 import { linesFiltersFromParam, parseLinesFilters } from '@/lib/groups-filters';
@@ -115,4 +117,40 @@ export async function GET(req: Request) {
     return conditionalJson(req, withMeta ? { ...page, imports, unreadChats, archived, dropped, hubspot: hubspotOn } : page);
   }
   return conditionalJson(req, withMeta ? { ...res, imports, unreadChats, archived, dropped, hubspot: hubspotOn } : res);
+}
+
+const startSchema = z
+  .object({
+    numberId: z.string().min(1).max(100),
+    phone: z.string().min(1).max(40).optional(),
+    contactId: z.string().min(1).max(100).optional(),
+  })
+  .refine((v) => Boolean(v.phone) !== Boolean(v.contactId));
+
+/**
+ * Chat nuevo: abre el chat 1:1 de una línea con un teléfono. { numberId, phone }
+ * (con o sin "+", espacios, guiones o paréntesis) o { numberId, contactId }
+ * (un contacto de GET /api/groups/contacts). Si el chat ya existe en esa línea
+ * devuelve ese (200, created: false); si no, lo crea (201). No manda nada a
+ * WhatsApp: el chat entra a la bandeja con su primer mensaje. Errores:
+ * invalid_phone, own_number, not_connected (409), not_on_whatsapp (422),
+ * chat_no_access (403).
+ */
+export async function POST(req: Request) {
+  const s = await groupsSession({ write: true });
+  if (s instanceof NextResponse) return s;
+  const parsed = startSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return invalidInput(parsed.error);
+  const line = await lineGuard(s, parsed.data.numberId);
+  if (line instanceof NextResponse) return line;
+  // Abrir chats consulta al proveedor: un tope propio, más bajo que el de las escrituras.
+  const limited = await limitWrites('groups-new-chat', s.me, 30, 60);
+  if (limited) return limited;
+  try {
+    const { startChat } = await import('@/lib/groups-new-chat');
+    const res = await startChat(line.viewer, parsed.data);
+    return NextResponse.json(res, { status: res.created ? 201 : 200 });
+  } catch (err) {
+    return handleGroupsError(err);
+  }
 }

@@ -40,7 +40,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, Close, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -51,8 +51,9 @@ import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem }
 import { requestChatInfo } from '@/lib/chat-info-request';
 import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
-import { useShellBranch } from '@/components/app/useShellBranch';
+import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
+import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
@@ -240,6 +241,8 @@ export default function InboxShell({
   // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
   const folderSel = params.get('folder') ?? '';
   const sideBranch = useShellBranch();
+  // Con el sidebar colapsado las carpetas van como íconos en el lateral (GroupsFoldersBranch).
+  const railBranch = useCollapsedBranch();
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
@@ -304,6 +307,7 @@ export default function InboxShell({
     }
   };
   const [removing, setRemoving] = useState(false);
+  const [newChat, setNewChat] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
@@ -695,14 +699,14 @@ export default function InboxShell({
 
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
-      { key: 'archive', label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
-      { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
-      { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
-      { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
-      { key: 'unread', label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
-      { key: 'assign', label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
-      { key: 'folder', label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
-      { key: 'hide', label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
+      { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
+      { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
+      { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
+      { key: 'pin', glyph: <PinIcon size={18} />, label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      { key: 'unread', glyph: c.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
+      { key: 'assign', glyph: <UserPlus size={18} />, label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
+      { key: 'folder', glyph: <FolderIcon size={18} />, label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
+      { key: 'hide', glyph: <Trash size={18} />, label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
     ];
   }
 
@@ -716,9 +720,9 @@ export default function InboxShell({
     const c = rowsRef.current.find((r) => r.id === id);
     if (!c) return [];
     const by = Object.fromEntries(rowMenu(c).map((it) => [it.key, it]));
-    const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
+    const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, icon: by[key].glyph, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
     return [
-      { key: 'newWindow', label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
+      { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
       ...from('unread'),
       ...from('archive'),
       ...from('pin'),
@@ -728,6 +732,7 @@ export default function InboxShell({
       ...from('folder'),
       {
         key: 'info',
+        icon: <InfoIcon size={18} />,
         label: c.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'),
         divider: true,
         onSelect: () => {
@@ -735,7 +740,7 @@ export default function InboxShell({
           if (current !== c.id) router.push(`/app/lines/inbox/${c.id}${listSuffix}`);
         },
       },
-      { key: 'export', label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
+      { key: 'export', icon: <Download size={18} />, label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
       ...from('hide', { divider: true }),
     ];
   }
@@ -1146,6 +1151,9 @@ export default function InboxShell({
                   {available ? t('inbox.available') : t('inbox.away')}
                 </button>
               )}
+              <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
+                <Plus size={20} />
+              </button>
             </div>
             {lists.length > 0 && (
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
@@ -1198,8 +1206,8 @@ export default function InboxShell({
                 )}
               </p>
             )}
-            {!archivedView && !sideBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
-            {!archivedView && sideBranch && folderSel && folderName && (
+            {!archivedView && !sideBranch && !railBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
+            {!archivedView && (sideBranch || railBranch) && folderSel && folderName && (
               <p className="gr-folder-current" data-testid="lines-folder-current">
                 <span className="gr-folder-name">{folderName}</span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickFolder('')}>
@@ -1483,6 +1491,7 @@ export default function InboxShell({
         onConfirm={() => void removeList()}
         onCancel={() => setRemoving(false)}
       />
+      <NewChatDialog open={newChat} onClose={() => setNewChat(false)} line={line} suffix={listSuffix} />
       <MoveToFolderModal
         open={!!moveIds}
         folders={folderData.folders}

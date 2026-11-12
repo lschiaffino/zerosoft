@@ -13,7 +13,8 @@ export default function Avatar({
   name,
   kind,
   src,
-  size = 49,
+  // Igual a --wa-avatar (styles/groups-wa.css): la columna de la fila en la lista.
+  size = 44,
   seed,
 }: {
   name: string;

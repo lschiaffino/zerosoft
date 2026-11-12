@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { useShellBranch } from '@/components/app/useShellBranch';
+import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
+import FolderRail from '@/components/ui/FolderRail';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { Modal, api, useErrorText } from './ui';
@@ -52,6 +53,7 @@ export default function GroupsFoldersBranch() {
   const params = useSearchParams();
   const router = useRouter();
   const slot = useShellBranch();
+  const rail = useCollapsedBranch();
   const [data, setData] = useState<FolderData | null>(null);
   const folders = data?.folders ?? null;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -156,6 +158,23 @@ export default function GroupsFoldersBranch() {
     router.push(hrefOf(r.data.id));
   };
 
+  if (!slot && rail && folders) {
+    return createPortal(
+      <FolderRail
+        label={tl('folders')}
+        unreadLabel={(n, name) => `${name}: ${tl('folderUnread', { n })}`}
+        folders={flattenTree(folders).map(({ folder: f, depth }) => ({
+          id: f.id,
+          name: f.name,
+          href: selected === f.id ? base : hrefOf(f.id),
+          active: selected === f.id,
+          unread: f.unread,
+          depth,
+        }))}
+      />,
+      rail,
+    );
+  }
   if (!slot || !data || !folders) return null;
 
   const kids = childrenMap(folders);

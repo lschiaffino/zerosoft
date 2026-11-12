@@ -415,6 +415,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
+    // Para probar "Chat nuevo": un teléfono que termina en 0000000 no tiene WhatsApp; el resto sí.
+    checkNumber: async (phone) => {
+      requireConnected();
+      const digits = phone.replace(/\D/g, '');
+      return /0{7}$/.test(digits) ? { exists: false } : { exists: true, jid: `${digits}@s.whatsapp.net` };
+    },
     archiveChat: async (chatId, archive, last) => {
       requireConnected();
       if (s.failArchives) {
