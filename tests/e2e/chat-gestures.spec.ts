@@ -112,6 +112,19 @@ test.describe('Lines', () => {
     await expect(actions).toHaveCount(0);
     await expect(page).toHaveURL(/\/app\/lines\/inbox(\?|$)/);
 
+    // Deslizar de costado y salir de la lista con el mouse sigue siendo deslizar: nunca levanta la conversación hacia una carpeta.
+    {
+      const b = (await row.boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i++) await page.mouse.move(b.x + b.width / 2 - i * 40, b.y + b.height / 2 + 2);
+      await expect(page.getByTestId('drag-chip')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      await page.keyboard.press('Escape');
+      await expect(actions).toHaveCount(0);
+    }
+
     // A la derecha, a mitad de camino: leído y fijar quedan a la vista. Esc las cierra.
     await swipe(page, row, 'right', 130);
     await expect(actions.locator('[data-action="unread"]')).toBeVisible();
