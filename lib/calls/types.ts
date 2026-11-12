@@ -197,7 +197,8 @@ export function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 
 // ---------- Links de reunión ----------
 
-const MEET_RE = /^https:\/\/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})(?:[/?#].*)?$/i;
+// Acepta sin https://, www., y los prefijos /meet/ o /lookup/ que a veces trae el link copiado.
+const MEET_RE = /^(?:https:\/\/)?(?:www\.)?meet\.google\.com\/(?:(?:meet|lookup)\/)?([a-z]{3}-[a-z]{4}-[a-z]{3})(?:[/?#].*)?$/i;
 const ZOOM_RE = /^https:\/\/([a-z0-9-]+\.)?zoom\.(us|com)\/(j|my|w)\//i;
 const TEAMS_RE = /^https:\/\/teams\.(microsoft|live)\.com\//i;
 

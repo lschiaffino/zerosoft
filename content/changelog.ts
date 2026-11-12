@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-calls-meet-links',
+    date: '2026-11-12',
+    title: {
+      en: 'Calls: more Google Meet links accepted',
+      es: 'Calls: acepta más formas del link de Google Meet',
+      pt: 'Calls: aceita mais formatos de link do Google Meet',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'Links copied as meet.google.com/meet/…, without https:// or with www. now work when sending the bot.',
+        es: 'Los links copiados como meet.google.com/meet/…, sin https:// o con www. ahora sirven para mandar el bot.',
+        pt: 'Links copiados como meet.google.com/meet/…, sem https:// ou com www. agora funcionam para enviar o bot.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-filter-chips-row',
     date: '2026-11-12',
     title: {
