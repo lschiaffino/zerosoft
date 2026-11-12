@@ -3,6 +3,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
+import { newClientId } from '@/lib/optimistic-send';
+import { withTimeout } from '@/lib/conditional-fetch';
+import { inboxQueue, pendingSends, tempInboxMessage } from './pending';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
@@ -108,6 +111,18 @@ const WaComposer = forwardRef<
   }, [replyToId]);
 
   // Borrador: la fila de la lista lo muestra al instante y se guarda solo (no mientras se edita un mensaje).
+  // Textos que no salieron → su clientId, para que reintentarlos no los duplique si en verdad habían salido.
+  const retryIds = useRef(new Map<string, string>());
+  // Lo último que se sabe de este composer, para cuando la respuesta de un envío llega tarde (incluso desmontado).
+  const latest = useRef({ text, mounted: true });
+  latest.current.text = text;
+  useEffect(() => {
+    const l = latest.current;
+    l.mounted = true;
+    return () => {
+      l.mounted = false;
+    };
+  }, []);
   const draft = useDraftAutosave({ scope: 'inbox', id: thread.id, text, saved, paused: !!editing, save: async (id, value) => (await api(`/api/inbox/threads/${id}`, { method: 'PATCH', json: { draft: value }, keepalive: true })).ok });
 
   useEffect(() => {
@@ -159,8 +174,6 @@ const WaComposer = forwardRef<
       }
       return;
     }
-    setBusy('send');
-    draft.sending();
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
     let out = body;
     const mentions: string[] = [];
@@ -169,10 +182,54 @@ const WaComposer = forwardRef<
       out = out.split(`@${label}`).join(`@${phone}`);
       mentions.push(phone);
     }
-    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
-      method: 'POST',
-      json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },
-    });
+    // Texto solo (sin responder a otro): la burbuja aparece ya y el envío sigue por detrás, en orden; el campo queda
+    // libre para el próximo. Todo va con el id de ESTE chat: la respuesta puede llegar con otro chat abierto.
+    if (!replyToId) {
+      // El mismo texto que no salió, mandado de nuevo: el mismo clientId (si en verdad había salido, no se duplica).
+      const clientId = retryIds.current.get(out) ?? newClientId();
+      retryIds.current.delete(out);
+      const temp = tempInboxMessage(clientId, body);
+      const threadId = thread.id;
+      pendingSends.emit({ type: 'add', threadId, message: temp });
+      draft.sending();
+      picked.current.clear();
+      setText('');
+      saved.current = '';
+      ai.clearUndo();
+      void inboxQueue(threadId)(async () => {
+        // Sin respuesta en 30 s: no salió (el texto vuelve al campo). Si en verdad salió, mandarlo de nuevo con el mismo
+        // clientId no lo duplica. La cola del chat no se traba.
+        const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${threadId}/messages`, {
+          method: 'POST',
+          json: { body: out, clientId, ...(mentions.length ? { mentions } : {}) },
+          signal: withTimeout(undefined, 30_000),
+        });
+        if (!r.ok) {
+          retryIds.current.set(out, clientId);
+          // No salió: la burbuja se va y el texto no se pierde. Vuelve al campo, delante de lo que se haya escrito
+          // después; si este chat ya no está abierto, queda como su borrador y se avisa igual.
+          pendingSends.emit({ type: 'drop', threadId, id: temp.id });
+          const after = latest.current.text;
+          const back = after.trim() ? `${body}\n${after}` : body;
+          draft.failed(back);
+          if (latest.current.mounted) setText(back);
+          onError(r.data.error ?? 'send_failed');
+          return;
+        }
+        // Salió: la provisoria se va y entra la página del servidor de ese chat, que ya trae el mensaje guardado.
+        pendingSends.emit({ type: 'sent', threadId, messages: r.data.messages, id: temp.id });
+      });
+      return;
+    }
+    setBusy('send');
+    draft.sending();
+    // Por la misma cola del chat: una respuesta no se adelanta a un texto que todavía está saliendo.
+    const r = await inboxQueue(thread.id)(() =>
+      api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
+        method: 'POST',
+        json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },
+      }),
+    );
     setBusy('');
     if (!r.ok) {
       draft.failed(text);

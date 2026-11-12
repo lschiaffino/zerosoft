@@ -9,9 +9,20 @@ export type Conditional<T> =
   | { state: 'aborted' }
   | { state: 'error'; status: number; code: string };
 
+/** Una relectura que no responde no puede quedar colgada para siempre: lo que espera su turno (el aviso en vivo) se trabaría. */
+export const FETCH_TIMEOUT_MS = 15_000;
+
+/** `signal` (si hay) o el tiempo máximo, lo que pase primero. */
+export function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal | undefined {
+  if (typeof AbortSignal === 'undefined' || typeof AbortSignal.timeout !== 'function') return signal;
+  const timeout = AbortSignal.timeout(ms);
+  if (!signal) return timeout;
+  return typeof AbortSignal.any === 'function' ? AbortSignal.any([signal, timeout]) : signal;
+}
+
 export async function fetchIfChanged<T>(url: string, etag?: string | null, signal?: AbortSignal): Promise<Conditional<T>> {
   try {
-    const res = await fetch(url, { signal, headers: etag ? { 'if-none-match': etag } : undefined });
+    const res = await fetch(url, { signal: withTimeout(signal, FETCH_TIMEOUT_MS), headers: etag ? { 'if-none-match': etag } : undefined });
     if (res.status === 304) return { state: 'same' };
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -19,7 +30,8 @@ export async function fetchIfChanged<T>(url: string, etag?: string | null, signa
     }
     return { state: 'fresh', data: (await res.json()) as T, etag: res.headers.get('etag') ?? '' };
   } catch (err) {
-    if ((err as { name?: string })?.name === 'AbortError') return { state: 'aborted' };
+    // Cortada por quien la pidió (otra relectura la reemplazó). Si fue por tiempo (TimeoutError), es un error.
+    if ((err as { name?: string })?.name === 'AbortError' && signal?.aborted) return { state: 'aborted' };
     return { state: 'error', status: 0, code: 'network' };
   }
 }

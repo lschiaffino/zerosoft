@@ -6,7 +6,8 @@
  */
 import { ProviderError } from '../groups-provider';
 import { getDb } from '../db';
-import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, type AccountRow, type ThreadRow } from './core';
+import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
+import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS } from './types';
 import { fetchWhatsappMedia, sendWhatsappText, waProviderFor } from './whatsapp';
 import { readTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
@@ -40,12 +41,14 @@ function providerFail(err: unknown): never {
  * Texto de WhatsApp con cita (respuesta a un mensaje del mismo chat) y/o
  * menciones (teléfonos que van como "@teléfono" en el texto, solo grupos).
  */
-export async function sendWaMessage(owner: string, threadId: string, body: string, opts: { replyTo?: string; mentions?: string[] } = {}): Promise<void> {
+export async function sendWaMessage(owner: string, threadId: string, body: string, opts: { replyTo?: string; mentions?: string[]; clientId?: string } = {}): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
-  const thread = await getThreadRow(owner, threadId);
+  // El chat y, en la misma vuelta, si este envío (mismo clientId) ya está guardado: un reintento no sale dos veces.
+  const [thread, sent] = await Promise.all([getThreadRow(owner, threadId), sentWithClientId(owner, threadId, opts.clientId)]);
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
+  if (sent) return;
   let replyTo: string | undefined;
   if (opts.replyTo) {
     const quoted = await getMessageRow(owner, opts.replyTo);
@@ -55,7 +58,11 @@ export async function sendWaMessage(owner: string, threadId: string, body: strin
   // Solo se mencionan teléfonos que están escritos en el texto, y solo en grupos.
   const mentions = thread.kind === 'group' ? [...new Set((opts.mentions ?? []).filter((p) => /^\d{6,16}$/.test(p) && text.includes(`@${p}`)))].slice(0, 50) : [];
   const account = await getAccount(owner, thread.account_id);
-  await sendWhatsappText(account, thread, text, { replyTo, mentions });
+  await onceInFlight(
+    opts.clientId ? `inbox:${threadId}:${opts.clientId}` : null,
+    () => sendWhatsappText(account, thread, text, { replyTo, mentions, clientId: opts.clientId }),
+    async () => '',
+  );
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }
 

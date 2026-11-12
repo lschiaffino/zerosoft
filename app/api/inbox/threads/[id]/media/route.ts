@@ -3,6 +3,7 @@ import { listMessages } from '@/lib/inbox/core';
 import { limitByIp } from '@/lib/rate-limit';
 import { parseMediaKind } from '@/lib/groups-media';
 import { INLINE_MEDIA_MAX, sendWhatsappMedia } from '@/lib/inbox/wa-media';
+import { cleanClientId } from '@/lib/optimistic-send';
 import { InboxError } from '@/lib/inbox/types';
 
 export const runtime = 'nodejs';
@@ -38,6 +39,7 @@ export async function POST(req: Request, ctx: Ctx) {
         kind: parseMediaKind(form.get('kind')),
         duration: Number(form.get('duration') ?? 0) || undefined,
         replyTo: String(form.get('replyTo') ?? '') || undefined,
+        clientId: cleanClientId(form.get('clientId')),
       });
     } else {
       const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -51,6 +53,7 @@ export async function POST(req: Request, ctx: Ctx) {
         kind: parseMediaKind(b.kind),
         duration: Number(b.duration) || undefined,
         replyTo: typeof b.replyTo === 'string' && b.replyTo ? b.replyTo : undefined,
+        clientId: cleanClientId(b.clientId),
       });
     }
     const page = await listMessages(owner, id);

@@ -174,6 +174,25 @@ export async function visibleNumberIds(viewer: GroupsViewer | null | undefined):
   return new Set(rows.map((r) => r.id));
 }
 
+/**
+ * De una lista de chats, los que la persona puede abrir (mismo criterio que canSeeChat), en una consulta.
+ * null si ve todos: no hay nada que filtrar. Para el aviso en vivo (lib/wa-live.ts).
+ */
+export function chatFilterFor(viewer: GroupsViewer): ((chatIds: string[]) => Promise<Set<string>>) | null {
+  const access = chatAccessSql(viewer);
+  if (!access) return null;
+  return async (chatIds) => {
+    const ids = [...new Set(chatIds)].slice(0, 500);
+    if (!ids.length) return new Set();
+    const rows = (await getDb()
+      // `+c.user_id`: que el planificador busque cada chat por su clave (id) y no recorra todos los chats del
+      // workspace por el índice de user_id (tests/unit/wa-live-stream.test.ts mira el plan).
+      .prepare(`SELECT c.id FROM groups_chats c WHERE c.id IN (${ids.map(() => '?').join(',')}) AND +c.user_id = ? AND ${access.sql}`)
+      .all(...ids, viewer.ws, ...access.args)) as Array<{ id: string }>;
+    return new Set(rows.map((r) => r.id));
+  };
+}
+
 export async function canSeeChat(viewer: GroupsViewer | null | undefined, chatId: string): Promise<boolean> {
   const db = getDb();
   if (!viewer) return false;

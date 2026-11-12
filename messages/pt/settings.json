@@ -1690,6 +1690,7 @@
     "dictionary": "Dicionário",
     "history": "Histórico",
     "permissions": "Permissões",
+    "privacy": "Privacidade e dados",
     "updates": "Atualizações",
     "account": "Sessão e servidor"
   },
@@ -1807,6 +1808,7 @@
       "dictionary": "Palavras e substituições para o ditado",
       "history": "Seus ditados e os que esperam nova tentativa",
       "permissions": "Acessibilidade, microfone, câmera e gravação de tela, com Redefinir permissão",
+      "privacy": "O que o app acessa, guarda e envia, e um registro de atividade local",
       "updates": "Versão, Procurar atualizações e Reiniciar para atualizar",
       "account": "Quem está com a sessão e qual servidor o app usa"
     }

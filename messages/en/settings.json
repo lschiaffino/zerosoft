@@ -1690,6 +1690,7 @@
     "dictionary": "Dictionary",
     "history": "History",
     "permissions": "Permissions",
+    "privacy": "Privacy and data",
     "updates": "Updates",
     "account": "Sign-in and server"
   },
@@ -1807,6 +1808,7 @@
       "dictionary": "Words and replacements for dictation",
       "history": "Your dictations and the ones waiting to be retried",
       "permissions": "Accessibility, microphone, camera and screen recording, with Reset permission",
+      "privacy": "What the app accesses, stores and sends, and a local activity log",
       "updates": "Version, Check for updates and Restart to update",
       "account": "Who is signed in and which server the app uses"
     }

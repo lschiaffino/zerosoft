@@ -4163,7 +4163,10 @@
       "allDownloads": "Todos os downloads",
       "missingTitle": "Não encontramos esse instalador.",
       "missingBody": "Talvez a última versão ainda esteja sendo publicada. A página de download lista todas as disponíveis."
-    }
+    },
+    "privacyTitle": "O que o app vê e guarda",
+    "privacyBody": "Cada permissão, cada arquivo que grava no seu computador e cada pedido que envia, com o arquivo de código que faz isso. A mesma lista está no app, em Ajustes, Privacidade e dados, com um registro de atividade local.",
+    "privacyLink": "App de desktop: privacidade e dados"
   },
   "compare": {
     "crumb": "Comparar",

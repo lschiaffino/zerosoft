@@ -1578,3 +1578,12 @@ td.cell-actions > * + * { margin-left: 4px; }
   .home-tile:hover { transform: none; }
   .home-tile:hover .home-tile-icon svg { transform: none; }
 }
+
+/* Disponible/ausente de Lines: punto en la foto del pie y el ítem del menú de la cuenta. */
+.side-avatar-wrap { position: relative; display: inline-flex; flex: none; }
+.side-presence { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--brand-gray-2); box-shadow: 0 0 0 2px var(--bg-soft, var(--bg)); }
+.side-presence.is-on { background: var(--ok); }
+.side-presence-item { display: flex; align-items: center; gap: 8px; }
+.side-presence-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--brand-gray-2); }
+.side-presence-dot.is-on { background: var(--ok); }
+.side-presence-hint { margin-left: auto; font-size: 0.75rem; color: var(--dim); }
