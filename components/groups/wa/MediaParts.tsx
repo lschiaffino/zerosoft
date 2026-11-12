@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
+import Avatar from './Avatar';
 
 const SPEEDS = [1, 1.5, 2];
 const POS_KEY = 'wa-voice-pos:';
@@ -32,7 +33,24 @@ function writeStore(key: string, value: string | null) {
  * elegida), forma de onda real si WhatsApp la manda, y sigue donde se dejó
  * (la posición queda en este navegador hasta terminarlo).
  */
-export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string; waveform?: number[] }) {
+export function VoicePlayer({
+  id,
+  src,
+  seconds,
+  voice,
+  name,
+  waveform,
+  avatar,
+}: {
+  id: string;
+  src: string;
+  seconds?: number;
+  voice?: boolean;
+  name?: string;
+  waveform?: number[];
+  /** Quién la grabó: su foto (o iniciales) va a la izquierda con el micrófono, como en WhatsApp. */
+  avatar?: { name: string; src?: string; seed?: string };
+}) {
   const tw = useTranslations('groups.wa');
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -40,8 +58,10 @@ export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: s
   const [total, setTotal] = useState(seconds ?? 0);
   const [speed, setSpeed] = useState(1);
   const [failed, setFailed] = useState(false);
-  const shape = waveBars(waveform, id);
+  const shape = waveBars(waveform, id, 40);
   const progress = total > 0 ? Math.min(1, time / total) : 0;
+  // Empezada (sonando o con posición): a la izquierda va la velocidad en vez de la foto, como en WhatsApp.
+  const active = playing || time > 0;
 
   // Velocidad elegida y dónde había quedado este audio.
   useEffect(() => {
@@ -77,8 +97,14 @@ export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: s
     } else a.pause();
   }
 
+  const cycleSpeed = () => {
+    const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+    setSpeed(next);
+    writeStore(SPEED_KEY, String(next));
+  };
+
   return (
-    <div className={`wa-voice${voice ? ' is-ptt' : ''}${failed ? ' is-failed' : ''}`}>
+    <div className={`wa-voice${voice ? ' is-ptt' : ''}${active ? ' is-active' : ''}${failed ? ' is-failed' : ''}`}>
       <audio
         ref={ref}
         className="wa-audio-el"
@@ -99,15 +125,34 @@ export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: s
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
         onError={() => setFailed(true)}
       />
+      <span className="wa-voice-lead">
+        {active ? (
+          <button type="button" className="wa-voice-speed" onClick={cycleSpeed} aria-label={`${tw('speed')}: ${speed}×`}>
+            {speed}×
+          </button>
+        ) : voice ? (
+          <span className="wa-voice-avatar" aria-hidden="true">
+            {avatar ? <Avatar name={avatar.name} src={avatar.src} seed={avatar.seed} kind="dm" size={44} /> : <span className="wa-voice-avatar-blank" />}
+            <span className="wa-voice-mic">
+              <Mic size={16} />
+            </span>
+          </span>
+        ) : (
+          <span className="wa-voice-badge is-audio" aria-hidden="true">
+            <MusicIcon size={18} />
+          </span>
+        )}
+      </span>
       <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? tw('pause') : tw('play')} disabled={failed}>
-        {playing ? <Pause size={24} /> : <Play size={24} />}
+        {playing ? <Pause size={26} /> : <Play size={26} />}
       </button>
-      <div className="wa-voice-track">
+      <div className="wa-voice-track" style={{ ['--p' as string]: progress }}>
         {voice ? (
           <div className="wa-voice-bars" aria-hidden="true">
             {shape.map((v, i) => (
               <i key={i} style={{ height: `${Math.round(v * 100)}%` }} className={i / shape.length < progress ? 'is-on' : ''} />
             ))}
+            <b className="wa-voice-knob" />
           </div>
         ) : (
           <div className="wa-audio-line" aria-hidden="true">
@@ -131,24 +176,8 @@ export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: s
             setTime(v);
           }}
         />
-        <span className="wa-voice-meta">
-          <span>{failed ? tw('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
-          {(playing || time > 0) && (
-            <button type="button" className="wa-voice-speed" onClick={() => {
-                const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
-                setSpeed(next);
-                writeStore(SPEED_KEY, String(next));
-              }}
-              aria-label={tw('speed')}
-            >
-              {speed}×
-            </button>
-          )}
-        </span>
+        <span className="wa-voice-meta">{failed ? tw('audioUnavailable') : duration(active ? time : total)}</span>
       </div>
-      <span className={`wa-voice-badge${voice ? ' is-ptt' : ' is-audio'}`} aria-hidden="true">
-        {voice ? <Mic size={14} /> : <MusicIcon size={18} />}
-      </span>
     </div>
   );
 }

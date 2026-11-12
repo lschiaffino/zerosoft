@@ -473,7 +473,10 @@ const WaConversation = forwardRef<
               ) : kind === 'video' ? (
                 <VideoView url={url} seconds={meta.duration} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (
-                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined} waveform={meta.waveform} />
+                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
+                  waveform={meta.waveform}
+                  avatar={m.fromMe ? undefined : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
               )}
