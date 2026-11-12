@@ -37,13 +37,14 @@ export async function GET(req: Request, ctx: Ctx) {
  * Eventos del proveedor. Valida el secreto de la URL y la firma del
  * proveedor (Meta: X-Hub-Signature-256; WAHA: X-Webhook-Hmac si está), y
  * guarda los mensajes sin duplicar (índice único por id del proveedor).
- * Responde 200 rápido aunque un evento falle: el proveedor no reintenta
- * lo que ya guardamos.
+ * Responde 200 aunque falle un evento que no es un mensaje (un estado, una
+ * presencia); si lo que falló es guardar un mensaje, 500 para que el proveedor
+ * lo reintente (lo ya guardado no se duplica).
  */
 export async function POST(req: Request, ctx: Ctx) {
-  const limited = await limitByIp(req, 'groups-webhook', 600, 60).catch(() => null);
+  // El límite por IP y la fila del número, a la vez: son dos idas a la base que no dependen una de la otra.
+  const [limited, row] = await Promise.all([limitByIp(req, 'groups-webhook', 600, 60).catch(() => null), numberFor(ctx)]);
   if (limited) return limited;
-  const row = await numberFor(ctx);
   if (!row) return new NextResponse('not found', { status: 404 });
   // Tope antes de leer (content-length) y mientras se lee (un cuerpo sin largo declarado tampoco pasa).
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return new NextResponse('too large', { status: 413 });
@@ -68,5 +69,11 @@ export async function POST(req: Request, ctx: Ctx) {
   // Historial que WhatsApp manda al vincular (Evolution MESSAGES_SET): se guarda sin avisos, reglas ni SLA.
   const history = /^messages[._]set$/i.test(String((body as { event?: unknown } | null)?.event ?? ''));
   const result = await ingestEvents(row, events, { history });
+  // Un mensaje en vivo que no se pudo guardar por algo pasajero (la base, la red): 500 para que el proveedor
+  // reintente. Evolution reintenta lo que no es 2xx (hasta 10 veces, de 5 s a 5 min); la Cloud API de Meta reintenta
+  // la tanda por más tiempo (horas). Reintentar es seguro: lo ya guardado no se duplica (índice único por id del
+  // proveedor), un voto o una reacción repetidos no cambian nada ni vuelven a avisar, y una edición o reacción más
+  // vieja no pisa una nueva. El historial y lo que falla por un evento mal formado nunca dan 500.
+  if (result.failed) return NextResponse.json({ ok: false, ...result }, { status: 500 });
   return NextResponse.json({ ok: true, ...result });
 }

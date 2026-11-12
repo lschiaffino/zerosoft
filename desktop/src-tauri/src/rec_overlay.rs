@@ -73,6 +73,31 @@ static PLACES: Mutex<Places> = Mutex::new(Places { bubble: None, bar: None, larg
 
 // ---------- Validación (lo que manda la página) ----------
 
+/// Rec está grabando (lo avisó la página).
+pub fn active() -> bool {
+    SESSION.lock().map(|s| s.is_some()).unwrap_or(false)
+}
+
+/// Anota en el registro cuándo Rec empieza y termina de grabar, y actualiza el indicador nativo.
+fn track(app: &AppHandle, on: bool) {
+    use crate::privacy::{Event, Kind, Tag};
+    let st = app.state::<crate::state::AppState>();
+    let mut since = st.screen_since.lock().unwrap();
+    match (on, *since) {
+        (true, None) => {
+            *since = Some(now_ms());
+            crate::privacy::record(app, Event::new(Kind::ScreenStart).trigger(Tag::Page));
+        }
+        (false, Some(t)) => {
+            *since = None;
+            crate::privacy::record(app, Event::new(Kind::ScreenStop).trigger(Tag::Page).duration(now_ms().saturating_sub(t)));
+        }
+        _ => return,
+    }
+    drop(since);
+    crate::tray::rebuild(app);
+}
+
 pub fn parse_phase(p: &str) -> Option<&'static str> {
     ["countdown", "recording", "paused", "finishing"].into_iter().find(|x| *x == p)
 }
@@ -317,6 +342,7 @@ fn send(app: &AppHandle, control: &'static str) {
         None => {
             *SESSION.lock().unwrap() = None;
             render(app);
+            track(app, false);
         }
     }
 }
@@ -401,6 +427,7 @@ pub fn desktop_rec_overlay(
             *s = None;
             drop(s);
             render(&app);
+            track(&app, false);
         }
         return Ok(());
     }
@@ -426,6 +453,7 @@ pub fn desktop_rec_overlay(
         });
     }
     render(&app);
+    track(&app, true);
     Ok(())
 }
 

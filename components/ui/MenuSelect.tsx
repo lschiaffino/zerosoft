@@ -62,8 +62,10 @@ export default function MenuSelect({
     const down = below >= Math.min(want, 160) || below >= above;
     const maxHeight = Math.max(120, Math.min(320, down ? below : above));
     const height = Math.min(want, maxHeight);
-    const minWidth = Math.max(b.width, 180);
-    const left = Math.min(b.left, window.innerWidth - minWidth - EDGE);
+    const minWidth = Math.min(Math.max(b.width, 180), window.innerWidth - EDGE * 2);
+    // El ancho real de la lista (puede ser más que el mínimo por los nombres): nunca sale de la pantalla.
+    const width = Math.min(Math.max(list.current?.offsetWidth ?? 0, minWidth), window.innerWidth - EDGE * 2);
+    const left = Math.min(b.left, window.innerWidth - width - EDGE);
     setBox({ left: Math.max(EDGE, left), top: down ? b.bottom + GAP : b.top - GAP - height, minWidth, maxHeight });
   }, []);
 

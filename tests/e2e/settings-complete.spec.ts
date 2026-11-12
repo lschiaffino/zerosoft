@@ -125,7 +125,7 @@ test('la nav para la ventana del escritorio sale de /api/settings/nav', async ({
   const { groups } = (await res.json()) as { groups: Array<{ key: string; label: string; items: Array<{ key: string; href: string; native?: string }> }> };
   expect(groups.map((g) => g.key)).toEqual(['device', 'account', 'workspace', 'products']);
   expect(groups[0].label).toBe('Este dispositivo');
-  expect(groups[0].items.filter((i) => i.native).map((i) => i.native)).toEqual(['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'updates', 'account']);
+  expect(groups[0].items.filter((i) => i.native).map((i) => i.native)).toEqual(['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'privacy', 'updates', 'account']);
   expect(groups[0].items.at(-1)?.href).toBe('/app/settings/offline');
 });
 

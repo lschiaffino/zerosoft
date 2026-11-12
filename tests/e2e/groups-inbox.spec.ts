@@ -295,14 +295,20 @@ test('round-robin: equipo y regla en Ajustes, el chat nuevo llega asignado', asy
   await expect(page.locator('.gr-row', { hasText: who }).locator('.gr-row-assignee')).toHaveText('Demo User');
 
   // Ausente: los chats nuevos esperan sin asignar.
-  await page.getByRole('button', { name: 'Available' }).click();
-  await expect(page.getByRole('button', { name: 'Away' })).toBeVisible();
+  // Disponible/ausente vive en el menú de la cuenta (pie del sidebar), con un punto en la foto.
+  await page.getByTestId('workspace-switcher').click();
+  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('side-presence').click();
+  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'false');
+  await page.keyboard.press('Escape');
   const later = `Fran${tag}`;
   await inbound(request, n, dm(), 'Anyone?', later);
   await openChat(page, later);
   await expect(page.getByLabel('Assigned to')).toHaveValue('');
-  await page.getByRole('button', { name: 'Away' }).click();
-  await expect(page.getByRole('button', { name: 'Available' })).toBeVisible();
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('side-presence').click();
+  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
   await expect(page.locator('.gr-row', { hasText: later }).locator('.gr-row-assignee')).toHaveText('Demo User', { timeout: 10_000 });
 
   // Apagar la regla para no afectar a otros tests.

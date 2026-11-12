@@ -1,6 +1,6 @@
-//! Ajustes locales en <config>/settings.json (servidor, atajo, modo, portapapeles). Nada secreto:
-//! la sesión va en el llavero del sistema (auth.rs). Lo de Voice (idioma, limpieza, diccionario)
-//! vive en el servidor.
+//! Ajustes locales en <config>/settings.json (servidor, atajo, modo, portapapeles, privacidad).
+//! Nada secreto: la sesión es la cookie del webview (auth.rs), la app no guarda una copia. Lo de
+//! Voice (idioma, limpieza, diccionario) vive en el servidor.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -50,6 +50,13 @@ pub struct Settings {
     /// arriba a la derecha.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub indicator_pos: Option<(f64, f64)>,
+    /// Mandar con cada dictado el nombre de la app de adelante (el tono según la app). Apagado, la
+    /// app no lo lee.
+    pub send_app_name: bool,
+    /// Guardar el audio de un dictado que no se pudo enviar, para mandarlo de nuevo.
+    pub keep_failed_dictations: bool,
+    /// Dejar que las notas de reunión capturen el audio de la computadora.
+    pub allow_system_audio: bool,
 }
 
 /// Una posición guardada razonable (números finitos, dentro de un rango de pantallas).
@@ -124,6 +131,9 @@ pub fn normalize(raw: &Value, platform: &str, server: String) -> Settings {
             .and_then(Value::as_array)
             .and_then(|a| Some((a.first()?.as_f64()?, a.get(1)?.as_f64()?)))
             .filter(|(x, y)| valid_pos(*x, *y)),
+        send_app_name: raw.get("sendAppName").and_then(Value::as_bool) != Some(false),
+        keep_failed_dictations: raw.get("keepFailedDictations").and_then(Value::as_bool) != Some(false),
+        allow_system_audio: raw.get("allowSystemAudio").and_then(Value::as_bool) != Some(false),
     }
 }
 
@@ -149,6 +159,15 @@ pub fn merge_input(current: &Settings, input: &Value) -> Settings {
     if input.get("onboarded").and_then(Value::as_bool) == Some(true) {
         next.onboarded = true;
     }
+    if let Some(b) = input.get("sendAppName").and_then(Value::as_bool) {
+        next.send_app_name = b;
+    }
+    if let Some(b) = input.get("keepFailedDictations").and_then(Value::as_bool) {
+        next.keep_failed_dictations = b;
+    }
+    if let Some(b) = input.get("allowSystemAudio").and_then(Value::as_bool) {
+        next.allow_system_audio = b;
+    }
     next
 }
 
@@ -166,6 +185,10 @@ pub fn load(dir: &Path, platform: &str, env_server: Option<&str>) -> Settings {
 }
 
 pub fn save(dir: &Path, s: &Settings) -> std::io::Result<()> {
+    // "Borrar todos los datos locales" en curso: no se vuelve a escribir.
+    if crate::privacy::wiped() {
+        return Ok(());
+    }
     fs::create_dir_all(dir)?;
     let tmp = dir.join("settings.json.tmp");
     fs::write(&tmp, serde_json::to_vec_pretty(s).unwrap_or_default())?;
@@ -197,6 +220,10 @@ mod tests {
         assert!(mac.recording_indicator);
         assert_eq!(mac.accessibility_seen_in, "");
         assert_eq!(mac.indicator_pos, None);
+        // Lo opcional de privacidad arranca como venía funcionando.
+        assert!(mac.send_app_name && mac.keep_failed_dictations && mac.allow_system_audio);
+        let off = normalize(&json!({"sendAppName": false, "keepFailedDictations": false, "allowSystemAudio": false}), "macos", DEFAULT_SERVER.into());
+        assert!(!off.send_app_name && !off.keep_failed_dictations && !off.allow_system_audio);
         assert_eq!(normalize(&json!({"indicatorPos": [1e9, 3]}), "macos", DEFAULT_SERVER.into()).indicator_pos, None);
         assert_eq!(normalize(&Value::Null, "windows", DEFAULT_SERVER.into()).shortcut, "Control+Alt+Space");
     }
@@ -222,6 +249,9 @@ mod tests {
         let cur = normalize(&Value::Null, "macos", DEFAULT_SERVER.into());
         let next = merge_input(&cur, &json!({"mode": "toggle", "shortcut": "Control+Shift+Space", "restoreClipboard": false, "recordingIndicator": false}));
         assert_eq!((next.mode.as_str(), next.shortcut.as_str(), next.restore_clipboard, next.recording_indicator), ("toggle", "Control+Shift+Space", false, false));
+        let private = merge_input(&cur, &json!({"sendAppName": false, "keepFailedDictations": false, "allowSystemAudio": false}));
+        assert!(!private.send_app_name && !private.keep_failed_dictations && !private.allow_system_audio);
+        assert_eq!(merge_input(&cur, &json!({"sendAppName": "no"})), cur);
         // La versión de Accesibilidad no se cambia desde Ajustes.
         assert_eq!(merge_input(&cur, &json!({"mode": "x", "shortcut": "Q", "server": "http://evil", "accessibilitySeenIn": "9.9.9", "indicatorPos": [1, 2]})), cur);
     }
@@ -234,6 +264,7 @@ mod tests {
         s.recording_indicator = false;
         s.accessibility_seen_in = "0.3.0".into();
         s.indicator_pos = Some((1200.0, 40.5));
+        s.send_app_name = false;
         save(&dir, &s).unwrap();
         assert_eq!(load(&dir, "macos", None), s);
         assert_eq!(load(&dir, "macos", Some("http://localhost:3210")).server, "http://localhost:3210");

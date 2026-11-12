@@ -61,6 +61,8 @@ export default defineConfig({
       GROUPS_FAKE: '1',
       // Inbox: Gmail de prueba (hilos de ejemplo, envíos en memoria) y la IA de borradores sin modelo real. WhatsApp usa GROUPS_FAKE.
       INBOX_FAKE: '1',
+      // Inbox y Lines: el aviso en vivo va por consulta (sin WA_LIVE_WORKSPACES el stream está apagado, y un stream
+      // abierto no deja llegar a "networkidle"). Las pruebas del stream lo piden con la cookie wa_live=sse (lib/wa-live.ts).
       // Inbox: el WhatsApp falso tiene historial guardado (3 chats, uno con 230 mensajes) para "Traer todo el historial".
       INBOX_FAKE_HISTORY: '1',
       // QR administrado contra un Evolution API simulado que levanta tests/e2e/groups-start.spec.ts en PORT + 31.

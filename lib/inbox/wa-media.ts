@@ -8,7 +8,8 @@
 import { MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
-import { addMessage, getAccount, getMessageRow, getThreadRow } from './core';
+import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId } from './core';
+import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
 
@@ -28,6 +29,8 @@ export interface OutgoingFile {
   duration?: number;
   /** Id (nuestro) del mensaje que se cita. */
   replyTo?: string;
+  /** Id que puso la pantalla al mandar: un reintento del mismo archivo no sale dos veces. */
+  clientId?: string;
 }
 
 /** Solo URLs de nuestro Blob y de la carpeta de Inbox (nada que el servidor de WhatsApp vaya a bajar de otro lado). */
@@ -58,8 +61,25 @@ function storedType(kind: MediaKind): string {
  * volver a bajarlo y mostrarlo). Devuelve el id del mensaje en WhatsApp.
  */
 export async function sendWhatsappMedia(owner: string, threadId: string, f: OutgoingFile): Promise<string> {
-  const thread = await getThreadRow(owner, threadId);
+  // El chat y, en la misma vuelta, si este archivo (mismo clientId) ya está guardado: un reintento no sale dos veces.
+  const [thread, sent] = await Promise.all([getThreadRow(owner, threadId), sentWithClientId(owner, threadId, f.clientId)]);
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
+  if (sent) {
+    // Ya salió: lo que se volvió a subir para este reintento no se usa.
+    if (f.url && isInboxBlobUrl(f.url)) await deleteUploads([f.url]).catch(() => null);
+    return '';
+  }
+  return onceInFlight(
+    f.clientId ? `inbox:${threadId}:${f.clientId}` : null,
+    () => sendMediaNow(owner, thread, f),
+    async () => {
+      if (f.url && isInboxBlobUrl(f.url)) await deleteUploads([f.url]).catch(() => null);
+      return '';
+    },
+  );
+}
+
+async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof getThreadRow>>, f: OutgoingFile): Promise<string> {
   const account = await getAccount(owner, thread.account_id);
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   if (!f.data && !(f.url && isInboxBlobUrl(f.url))) throw new InboxError('invalid_input', 400);
@@ -101,7 +121,7 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
     // El archivo grande ya lo bajó el servidor de WhatsApp (o falló): no queda en Blob.
     if (f.url) await deleteUploads([f.url]).catch(() => null);
   }
-  const meta: WaMessageMeta = { mime: mimetype, size: f.size };
+  const meta: WaMessageMeta = { mime: mimetype, size: f.size, ...(f.clientId ? { cid: f.clientId } : {}) };
   if (kind === 'voice') meta.ptt = true;
   if (f.duration && Number.isFinite(f.duration)) meta.duration = Math.round(f.duration);
   const externalId = id || `local-${Date.now()}`;
@@ -117,6 +137,7 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
     kind: kind === 'voice' ? 'voice' : storedType(kind),
     replyTo: replyExternal ?? '',
     status: 'sent',
+    ...(f.clientId ? { clientId: f.clientId } : {}),
   });
   return id;
 }

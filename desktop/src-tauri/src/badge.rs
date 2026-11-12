@@ -8,6 +8,9 @@ use tauri_plugin_notification::NotificationExt;
 
 use crate::state::AppState;
 
+/// Cada cuánto se consulta el contador.
+pub const POLL_SECS: u64 = 30;
+
 pub async fn poll(app: &AppHandle) {
     let since = app.state::<AppState>().badge_since.lock().unwrap().clone();
     let path = match &since {
@@ -62,7 +65,7 @@ pub fn start(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         loop {
             poll(&app).await;
-            tokio::time::sleep(Duration::from_secs(30)).await;
+            tokio::time::sleep(Duration::from_secs(POLL_SECS)).await;
         }
     });
 }

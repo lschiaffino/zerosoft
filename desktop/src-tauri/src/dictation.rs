@@ -19,6 +19,7 @@ use crate::clipboard::{paste_via_clipboard, ClipboardPort, How};
 use crate::config::paste_last_shortcut;
 use crate::hud::{self, HudState};
 use crate::platform;
+use crate::privacy::{self, Event, Kind, Tag};
 use crate::retry::{classify, keep_for_retry, new_pending_id, Failure, Outcome, PendingMeta};
 use crate::state::{now_ms, AppState, Phase};
 use crate::strings::{fill, t};
@@ -75,7 +76,16 @@ fn set_escape(app: &AppHandle, on: bool) {
     }
 }
 
-pub fn start(app: &AppHandle, hands_free: bool) {
+/// El micrófono del dictado se cerró: se anota cuánto estuvo abierto.
+fn mic_closed(app: &AppHandle, result: Option<Tag>) {
+    let Some(since) = app.state::<AppState>().mic_since.lock().unwrap().take() else { return };
+    let mut e = Event::new(Kind::MicStop).duration(now_ms().saturating_sub(since));
+    e.result = result;
+    privacy::record(app, e);
+}
+
+/// `trigger`: el atajo o el menú de la bandeja.
+pub fn start(app: &AppHandle, hands_free: bool, trigger: Tag) {
     let st = app.state::<AppState>();
     let generation = {
         let mut d = st.dictation.lock().unwrap();
@@ -99,13 +109,19 @@ pub fn start(app: &AppHandle, hands_free: bool) {
     set_escape(app, true);
     tauri::async_runtime::spawn(crate::api::warm(app.clone()));
     crate::tray::rebuild(app);
-    // La app de adelante y el micrófono, fuera del hilo de eventos.
-    let app2 = app.clone();
-    std::thread::spawn(move || {
-        let name = platform::frontmost_app();
-        let st = app2.state::<AppState>();
-        st.dictation.lock().unwrap().source_app = name;
-    });
+    // La app de adelante y el micrófono, fuera del hilo de eventos. El nombre de la app solo se
+    // lee si la persona deja mandarlo (Ajustes › Privacidad y datos).
+    if st.settings.lock().unwrap().send_app_name {
+        let app2 = app.clone();
+        std::thread::spawn(move || {
+            let name = platform::frontmost_app();
+            let st = app2.state::<AppState>();
+            let mut d = st.dictation.lock().unwrap();
+            if d.generation == generation {
+                d.source_app = name;
+            }
+        });
+    }
     let app3 = app.clone();
     std::thread::spawn(move || {
         let res = audio::start();
@@ -116,6 +132,9 @@ pub fn start(app: &AppHandle, hands_free: bool) {
             drop(d);
             if let Ok(c) = res {
                 let _ = c.finish();
+                // El micrófono llegó a abrirse un instante: también queda anotado.
+                privacy::record(&app3, Event::new(Kind::MicStart).trigger(trigger));
+                privacy::record(&app3, Event::new(Kind::MicStop).duration(0).result(Tag::Cancelled));
             }
             return;
         }
@@ -124,6 +143,8 @@ pub fn start(app: &AppHandle, hands_free: bool) {
                 let level = capture.level.clone();
                 d.capture = Some(capture);
                 drop(d);
+                *st.mic_since.lock().unwrap() = Some(now_ms());
+                privacy::record(&app3, Event::new(Kind::MicStart).trigger(trigger));
                 pump_level(&app3, generation, level);
             }
             Err(e) => {
@@ -194,6 +215,7 @@ pub fn cancel(app: &AppHandle) {
     if let Some(c) = capture {
         std::thread::spawn(move || drop(c.finish()));
     }
+    mic_closed(app, Some(Tag::Cancelled));
     hud::show(app, hud_state(app, "hidden", String::new()));
     crate::tray::rebuild(app);
 }
@@ -229,6 +251,7 @@ pub fn stop(app: &AppHandle) {
             return;
         };
         let rec = tauri::async_runtime::spawn_blocking(move || capture.finish()).await.ok().flatten();
+        mic_closed(&app, None);
         let Some(rec) = rec else {
             finish_idle(&app, generation);
             show_then_hide(&app, "error", s(&app, "errFailed"));
@@ -251,10 +274,12 @@ pub fn stop(app: &AppHandle) {
         let context = platform::context_for_app(&source_app);
         let res = crate::api::dictate(&app, wav.clone(), &source_app, context, duration_ms).await;
         let server_at = Instant::now();
+        let upload = Event::new(Kind::AudioUpload).trigger(Tag::Dictation).duration(duration_ms).bytes(wav.len() as u64).host_of(&crate::api::server(&app)).app(&source_app);
         match classify(res.status, res.body.as_ref()) {
             Outcome::Ok(text) => {
+                privacy::record(&app, upload.result(Tag::Ok));
                 wait_keys_released(&app).await;
-                let how = insert_text(&app, &text).await;
+                let how = insert_text(&app, &text, Tag::Dictation).await;
                 let timing = Latency {
                     total_ms: released_at.elapsed().as_millis() as u64,
                     audio_ms: (audio_at - released_at).as_millis() as u64,
@@ -271,7 +296,10 @@ pub fn stop(app: &AppHandle) {
                 show_then_hide(&app, "done", pasted_label(&app, how));
             }
             Outcome::Failed(f) => {
-                let saved = keep_for_retry(f) && save_pending(&app, &wav, duration_ms, &source_app, context, f);
+                // El audio solo se guarda para reintentar si la persona lo dejó prendido.
+                let keep = app.state::<AppState>().settings.lock().unwrap().keep_failed_dictations;
+                let saved = keep && keep_for_retry(f) && save_pending(&app, &wav, duration_ms, &source_app, context, f);
+                privacy::record(&app, upload.result(if saved { Tag::Saved } else { Tag::Failed }));
                 finish_idle(&app, generation);
                 show_then_hide(&app, "error", failure_label(&app, f, saved));
             }
@@ -322,6 +350,7 @@ fn save_pending(app: &AppHandle, wav: &[u8], duration_ms: u64, source_app: &str,
         context: context.into(),
         failure,
         attempts: 0,
+        server: crate::api::server(app),
     };
     let ok = st.pending.save(&meta, wav);
     st.pending.list(now); // poda
@@ -338,6 +367,7 @@ pub fn failure_label(app: &AppHandle, f: Failure, saved: bool) -> String {
         Failure::TooLarge => "errTooLarge",
         Failure::Empty => "errEmpty",
         Failure::Rejected => "errFailed",
+        Failure::OtherServer => "errOtherServer",
     };
     if saved {
         format!("{}. {}", s(app, key), s(app, "savedToRetry"))
@@ -387,8 +417,10 @@ impl ClipboardPort for SystemClipboard {
     fn is_empty(s: &Snap) -> bool {
         matches!(s, Snap::Empty)
     }
+    /// El texto que la app pone para pegar va marcado para que no quede en el historial del
+    /// portapapeles ni se sincronice (platform.rs).
     fn write_text(&mut self, text: &str) -> bool {
-        self.0.set_text(text).is_ok()
+        platform::write_text_private(&mut self.0, text)
     }
     fn read_text(&mut self) -> Option<String> {
         self.0.get_text().ok()
@@ -421,13 +453,14 @@ async fn paste_keycode(app: &AppHandle) -> u16 {
 }
 
 /// Pega en la app con el foco (o deja copiado si no hay permiso). Corre en un hilo aparte.
-pub async fn insert_text(app: &AppHandle, text: &str) -> How {
+/// `trigger`: de dónde viene el texto (un dictado, "pegar el último" o el historial).
+pub async fn insert_text(app: &AppHandle, text: &str, trigger: Tag) -> How {
     *app.state::<AppState>().last_text.lock().unwrap() = text.to_string();
     let restore = app.state::<AppState>().settings.lock().unwrap().restore_clipboard;
     let can_paste = platform::can_simulate_paste();
     let keycode = if can_paste { paste_keycode(app).await } else { 0 };
     let text = text.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
+    let how = tauri::async_runtime::spawn_blocking(move || {
         let Ok(cb) = arboard::Clipboard::new() else { return How::Copied };
         let mut port = SystemClipboard(cb);
         let mut tap = move || platform::tap_paste(keycode);
@@ -435,7 +468,10 @@ pub async fn insert_text(app: &AppHandle, text: &str) -> How {
         paste_via_clipboard(&mut port, &text, tap, restore, &mut |d| std::thread::sleep(d)).0
     })
     .await
-    .unwrap_or(How::Copied)
+    .unwrap_or(How::Copied);
+    // Se anota que se usó el portapapeles (y la tecla de pegar), nunca qué texto.
+    privacy::record(app, Event::new(Kind::Paste).trigger(trigger).result(if how == How::Pasted { Tag::Pasted } else { Tag::Copied }));
+    how
 }
 
 /// Manda de nuevo un dictado guardado. El texto queda copiado (no se pega solo: la persona ya
@@ -443,20 +479,31 @@ pub async fn insert_text(app: &AppHandle, text: &str) -> How {
 pub async fn retry_pending(app: &AppHandle, id: &str) -> Result<String, Failure> {
     let st = app.state::<AppState>();
     let Some((meta, audio)) = st.pending.read(id, now_ms()) else { return Err(Failure::Rejected) };
+    // Solo al servidor para el que se grabó (si cambió, queda guardado acá).
+    let server = crate::api::server(app);
+    if !crate::retry::same_server(&meta, &server) {
+        return Err(Failure::OtherServer);
+    }
+    // Con "mandar el nombre de la app" apagado ahora, no se manda el que quedó guardado.
+    let (source_app, context) = if st.settings.lock().unwrap().send_app_name { (meta.source_app.clone(), meta.context.clone()) } else { (String::new(), "other".to_string()) };
     hud::show(app, hud_state(app, "working", s(app, "sending")));
-    let res = crate::api::dictate(app, audio, &meta.source_app, &meta.context, meta.duration_ms).await;
+    let upload = Event::new(Kind::AudioUpload).trigger(Tag::Retry).duration(meta.duration_ms).bytes(audio.len() as u64).host_of(&server).app(&source_app);
+    let res = crate::api::dictate(app, audio, &source_app, &context, meta.duration_ms).await;
     match classify(res.status, res.body.as_ref()) {
         Outcome::Ok(text) => {
+            privacy::record(app, upload.result(Tag::Ok));
             st.pending.remove(&meta.id);
             if let Ok(mut cb) = arboard::Clipboard::new() {
-                let _ = cb.set_text(text.clone());
+                let _ = platform::write_text_private(&mut cb, &text);
             }
+            privacy::record(app, Event::new(Kind::Paste).trigger(Tag::Retry).result(Tag::Copied));
             *st.last_text.lock().unwrap() = text.clone();
             crate::tray::rebuild(app);
             show_then_hide(app, "done", pasted_label(app, How::Copied));
             Ok(text)
         }
         Outcome::Failed(f) => {
+            privacy::record(app, upload.result(if keep_for_retry(f) { Tag::Saved } else { Tag::Failed }));
             if keep_for_retry(f) {
                 st.pending.mark_attempt(&meta.id, f, now_ms());
             } else {
@@ -470,7 +517,8 @@ pub async fn retry_pending(app: &AppHandle, id: &str) -> Result<String, Failure>
 }
 
 pub async fn retry_all(app: &AppHandle) {
-    let ids: Vec<String> = app.state::<AppState>().pending.list(now_ms()).into_iter().map(|m| m.id).collect();
+    let server = crate::api::server(app);
+    let ids: Vec<String> = app.state::<AppState>().pending.list(now_ms()).into_iter().filter(|m| crate::retry::same_server(m, &server)).map(|m| m.id).collect();
     for id in ids {
         if retry_pending(app, &id).await == Err(Failure::Offline) {
             break;
@@ -490,7 +538,7 @@ pub async fn paste_last(app: &AppHandle) {
         return;
     }
     wait_keys_released(app).await;
-    let how = insert_text(app, &text).await;
+    let how = insert_text(app, &text, Tag::PasteLast).await;
     show_then_hide(app, "done", pasted_label(app, how));
 }
 
@@ -507,7 +555,7 @@ fn on_main_shortcut(app: &AppHandle, state: ShortcutState) {
     };
     match state {
         ShortcutState::Pressed => match phase {
-            Phase::Idle => start(app, mode == "toggle"),
+            Phase::Idle => start(app, mode == "toggle", Tag::Shortcut),
             // Manos libres: el próximo toque termina.
             Phase::Recording if hands_free => stop(app),
             _ => {}

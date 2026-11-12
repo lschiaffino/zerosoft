@@ -9,7 +9,9 @@
  */
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
-import { getDb } from './db';
+import { dbBatch, getDb, type BatchStatement } from './db';
+import { pokeLive } from './wa-live';
+import { transientError } from './transient-error';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -1102,16 +1104,29 @@ export async function upsertChat(
   opts: { silent?: boolean; hiddenAt?: string; assignedTo?: string } = {},
 ): Promise<ChatRow> {
   const db = getDb();
-  const now = nowIso();
-  const inserted = await db
-    .prepare(
-      `INSERT OR IGNORE INTO groups_chats (id, user_id, number_id, provider_chat_id, kind, name, phone, hidden_at, assigned_to, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(newId(), number.user_id, number.id, input.providerChatId, input.kind, (input.name ?? '').slice(0, 200), input.phone ?? '', opts.hiddenAt ?? null, opts.assignedTo ?? null, now, now);
+  const insert = chatInsert(number, input, opts);
+  const inserted = await db.prepare(insert.sql).run(...insert.args);
   const row = (await db
     .prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?')
     .get(number.id, input.providerChatId)) as ChatRow;
+  return finishChat(number, row, input, inserted.changes > 0, opts);
+}
+
+type ChatInput = { providerChatId: string; kind: 'dm' | 'group'; name?: string; phone?: string };
+
+/** El INSERT de un chat que puede existir (no pisa nada si ya está). */
+function chatInsert(number: Pick<NumberRow, 'id' | 'user_id'>, input: ChatInput, opts: { hiddenAt?: string; assignedTo?: string } = {}): BatchStatement {
+  const now = nowIso();
+  return {
+    sql: `INSERT OR IGNORE INTO groups_chats (id, user_id, number_id, provider_chat_id, kind, name, phone, hidden_at, assigned_to, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [newId(), number.user_id, number.id, input.providerChatId, input.kind, (input.name ?? '').slice(0, 200), input.phone ?? '', opts.hiddenAt ?? null, opts.assignedTo ?? null, now, now],
+  };
+}
+
+/** Lo que sigue a tener la fila del chat: completar el nombre y avisar si es nuevo. */
+async function finishChat(number: Pick<NumberRow, 'id' | 'user_id'>, row: ChatRow, input: ChatInput, created: boolean, opts: { silent?: boolean } = {}): Promise<ChatRow> {
+  const db = getDb();
   // El nombre de un 1:1 viene del perfil del contacto: se completa si faltaba.
   if (input.name && !row.name) {
     await db.prepare('UPDATE groups_chats SET name = ? WHERE id = ?').run(input.name.slice(0, 200), row.id);
@@ -1130,7 +1145,7 @@ export async function upsertChat(
     }
   }
   // Importados del historial: no disparan flujos ni webhooks de "chat nuevo".
-  if (inserted.changes > 0 && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
+  if (created && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
   return row;
 }
 
@@ -1354,6 +1369,8 @@ export interface Reaction {
   emoji: string;
   by: string;
   fromMe: boolean;
+  /** Cuándo (si el proveedor lo dijo): una más vieja no pisa una más nueva. */
+  at?: string;
 }
 
 export interface MessageDto {
@@ -1552,21 +1569,18 @@ export interface InsertMessage {
   forwarded?: boolean;
   meta?: Record<string, unknown>;
   poll?: PollInput | null;
+  /** Id que puso la pantalla al mandar (único por chat): un reintento del mismo envío devuelve este mensaje. */
+  clientId?: string | null;
 }
 
-/** Inserta un mensaje. null si ya existía (mismo id del proveedor en el número). */
-export async function insertMessage(m: InsertMessage): Promise<MessageRow | null> {
-  const id = newId();
-  const r = await getDb()
-    .prepare(
-      `INSERT OR IGNORE INTO groups_messages (id, user_id, chat_id, number_id, provider_message_id, direction, sender_phone, sender_name,
-         author_id, author_kind, body, media_url, media_type, media_name, reply_to_id, status, error, created_at, forwarded, meta, poll)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      id,
-      m.ws,
-      m.chatId,
+const MESSAGE_COLS = `id, user_id, chat_id, number_id, provider_message_id, direction, sender_phone, sender_name,
+         author_id, author_kind, body, media_url, media_type, media_name, reply_to_id, status, error, created_at, forwarded, meta, poll, client_id`;
+
+/** Los valores de un mensaje nuevo, en el orden de MESSAGE_COLS menos chat_id y reply_to_id (que pueden salir de una subconsulta). */
+function messageValues(id: string, m: Omit<InsertMessage, 'chatId' | 'replyToId'>) {
+  return {
+    head: [id, m.ws] as Array<string | number | null>,
+    mid: [
       m.numberId,
       m.providerMessageId,
       m.direction,
@@ -1578,43 +1592,109 @@ export async function insertMessage(m: InsertMessage): Promise<MessageRow | null
       m.media?.url ?? '',
       m.media?.type ?? '',
       (m.media?.name ?? '').slice(0, 200),
-      m.replyToId ?? null,
-      m.status,
-      m.error ?? '',
-      m.createdAt ?? nowIso(),
-      m.forwarded ? 1 : 0,
-      JSON.stringify(m.meta ?? {}),
-      m.poll ? JSON.stringify(m.poll) : '',
-    );
-  if (r.changes === 0) return null;
-  return (await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(id)) as MessageRow;
+    ] as Array<string | number | null>,
+    tail: [m.status, m.error ?? '', m.createdAt ?? nowIso(), m.forwarded ? 1 : 0, JSON.stringify(m.meta ?? {}), m.poll ? JSON.stringify(m.poll) : '', m.clientId ?? null] as Array<string | number | null>,
+  };
+}
+
+/** El INSERT de un mensaje (devuelve la fila; ninguna si ya existía ese id del proveedor en el número). */
+function messageInsert(id: string, m: InsertMessage): BatchStatement {
+  const v = messageValues(id, m);
+  return {
+    sql: `INSERT OR IGNORE INTO groups_messages (${MESSAGE_COLS})
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+    args: [...v.head, m.chatId, ...v.mid, m.replyToId ?? null, ...v.tail],
+  };
+}
+
+/** El mensaje que se mandó a este chat con este clientId, si ya está guardado (índice único por chat y clientId). */
+export async function messageByClientId(chatId: string, clientId: string): Promise<MessageRow | null> {
+  return ((await getDb().prepare('SELECT * FROM groups_messages WHERE chat_id = ? AND client_id = ?').get(chatId, clientId)) as MessageRow | undefined) ?? null;
+}
+
+/** Inserta un mensaje. null si ya existía (mismo id del proveedor en el número). Una sola ida a la base. */
+export async function insertMessage(m: InsertMessage): Promise<MessageRow | null> {
+  const stmt = messageInsert(newId(), m);
+  const row = (await getDb()
+    .prepare(stmt.sql)
+    .get(...stmt.args)) as MessageRow | undefined;
+  return row ?? null;
 }
 
 /** Después de responder: el chat deja de esperar y los tickets abiertos toman su primera respuesta. */
 export async function markAnswered(chatId: string, at: string): Promise<void> {
-  const db = getDb();
-  await db.prepare('UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL, updated_at = ? WHERE id = ?').run(at, chatId);
-  await db
-    .prepare(
-      "UPDATE groups_tickets SET first_response_at = ?, updated_at = ? WHERE chat_id = ? AND first_response_at IS NULL AND status IN ('open', 'in_progress')",
-    )
-    .run(at, at, chatId);
+  await dbBatch(answeredStatements(chatId, at));
+}
+
+function answeredStatements(chatId: string, at: string): BatchStatement[] {
+  return [
+    { sql: 'UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL, updated_at = ? WHERE id = ?', args: [at, chatId] },
+    {
+      sql: "UPDATE groups_tickets SET first_response_at = ?, updated_at = ? WHERE chat_id = ? AND first_response_at IS NULL AND status IN ('open', 'in_progress')",
+      args: [at, at, chatId],
+    },
+  ];
+}
+
+/** Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). */
+function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[]): BatchStatement {
+  return incoming
+    ? {
+        sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
+           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL, updated_at = ? WHERE ${where}`,
+        args: [at, preview, at, at, ...whereArgs],
+      }
+    : {
+        sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE ${where}`,
+        args: [at, preview, at, ...whereArgs],
+      };
 }
 
 export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean): Promise<void> {
-  const db = getDb();
-  if (incoming) {
-    await db
-      .prepare(
-        `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
-           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL, updated_at = ? WHERE id = ?`,
-      )
-      .run(at, preview, at, at, chatId);
-  } else {
-    await db
-      .prepare('UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE id = ?')
-      .run(at, preview, at, chatId);
-  }
+  const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId]);
+  await getDb()
+    .prepare(stmt.sql)
+    .run(...stmt.args);
+}
+
+/**
+ * Un mensaje que llega por webhook, en una sola ida a la base: el chat (se
+ * crea si no estaba), el mensaje y lo que le cambia al chat en la lista (que
+ * es lo que avisa a las pantallas abiertas). Todo o nada. Un mensaje repetido
+ * (mismo id del proveedor) no toca el chat. `withSettings` trae en la misma
+ * ida los ajustes del workspace.
+ */
+async function saveInbound(
+  number: Pick<NumberRow, 'id' | 'user_id'>,
+  chat: ChatInput,
+  m: Omit<InsertMessage, 'chatId' | 'replyToId'> & { replyToProviderId?: string },
+  preview: string,
+  withSettings: boolean,
+): Promise<{ chat: ChatRow; created: boolean; row: MessageRow | null; settings: GroupsSettings | null }> {
+  const id = newId();
+  const v = messageValues(id, m);
+  const at = m.createdAt ?? nowIso();
+  const stmts: BatchStatement[] = [
+    chatInsert(number, chat),
+    { sql: 'SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', args: [number.id, chat.providerChatId] },
+    {
+      sql: `INSERT OR IGNORE INTO groups_messages (${MESSAGE_COLS})
+       VALUES (?, ?, (SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         ${m.replyToProviderId ? '(SELECT id FROM groups_messages WHERE number_id = ? AND provider_message_id = ?)' : 'NULL'}, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      args: [...v.head, number.id, chat.providerChatId, ...v.mid, ...(m.replyToProviderId ? [number.id, m.replyToProviderId] : []), ...v.tail],
+    },
+    // Solo si el mensaje entró: uno repetido no existe con este id.
+    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id]),
+  ];
+  if (withSettings) stmts.push({ sql: 'SELECT data FROM groups_settings WHERE user_id = ?', args: [number.user_id] });
+  const res = await dbBatch(stmts);
+  const data = withSettings ? (res[4].rows[0] as { data: string } | undefined) : undefined;
+  return {
+    chat: res[1].rows[0] as unknown as ChatRow,
+    created: res[0].changes > 0,
+    row: (res[2].rows[0] as unknown as MessageRow | undefined) ?? null,
+    settings: withSettings ? (data ? normalizeSettings(parseJson(data.data, {})) : { ...DEFAULT_SETTINGS }) : null,
+  };
 }
 
 /**
@@ -1662,12 +1742,14 @@ export interface SendInput {
   poll?: PollInput | null;
   /** Tarjetas de contacto (vCard) para mandar. */
   contacts?: Array<{ name: string; phone: string }> | null;
+  /** Id que puso la pantalla al mandar: vuelve en meta.cid y reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
+  clientId?: string;
 }
 
 /** Tope de envíos por número: WhatsApp bloquea líneas que mandan en ráfaga. Los envíos masivos llevan su propio ritmo. */
 export const SEND_RATE = { limit: 40, windowSec: 60 };
 
-async function sendGate(numberId: string, authorKind?: string): Promise<void> {
+export async function sendGate(numberId: string, authorKind?: string): Promise<void> {
   if (authorKind === 'broadcast' || process.env.RATE_LIMIT_DISABLED === 'true') return;
   const { rateLimit } = await import('./rate-limit');
   const r = await rateLimit(`groups-send:${numberId}`, SEND_RATE.limit, SEND_RATE.windowSec);
@@ -1687,9 +1769,23 @@ export function cleanContacts(raw: unknown): Array<{ name: string; phone: string
   return out;
 }
 
-export async function sendMessage(ws: string, actor: string | null, chatId: string, input: SendInput): Promise<MessageDto> {
-  const chat = await getChatRow(ws, chatId);
-  if (!chat) throw new GroupsError('not_found', 404);
+/**
+ * `known`: lo que quien llama ya leyó (la ruta del composer lee el chat y la línea junto con el chequeo de acceso,
+ * en vez de una ida a la base por cada cosa) y si ya pasó el tope de envíos de la línea.
+ */
+export async function sendMessage(
+  ws: string,
+  actor: string | null,
+  chatId: string,
+  input: SendInput,
+  known: { chat?: ChatRow | null; number?: NumberRow | null; gated?: boolean; existing?: MessageRow | null } = {},
+): Promise<MessageDto> {
+  const chat = known.chat !== undefined ? known.chat : await getChatRow(ws, chatId);
+  if (!chat || chat.id !== chatId || chat.user_id !== ws) throw new GroupsError('not_found', 404);
+  // El mismo envío otra vez (se perdió la respuesta y la pantalla reintenta con el mismo clientId): es el que ya está
+  // guardado. No sale dos veces a WhatsApp.
+  const existing = known.existing !== undefined ? known.existing : input.clientId ? await messageByClientId(chatId, input.clientId) : null;
+  if (existing && existing.chat_id === chatId) return toMessageDto(existing);
   const poll = input.poll ?? null;
   const contacts = input.contacts ? cleanContacts(input.contacts) : [];
   if (input.contacts && contacts.length === 0) throw new GroupsError('invalid_contact_card');
@@ -1713,8 +1809,8 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     return toMessageDto(saved);
   }
 
-  const number = await getNumberRow(ws, chat.number_id);
-  if (!number) throw new GroupsError('not_found', 404);
+  const number = known.number !== undefined && known.number?.id === chat.number_id ? known.number : await getNumberRow(ws, chat.number_id);
+  if (!number || number.user_id !== ws) throw new GroupsError('not_found', 404);
   let replyProviderId: string | undefined;
   if (input.replyToId) {
     const target = await getMessageRow(ws, input.replyToId);
@@ -1724,7 +1820,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
   const provider = providerFor(number);
   if (poll && (!provider.caps.polls || !provider.sendPoll)) throw new GroupsError('polls_unsupported');
   if (contacts.length && !provider.sendContact) throw new GroupsError('contacts_unsupported');
-  await sendGate(number.id, input.authorKind);
+  if (!known.gated) await sendGate(number.id, input.authorKind);
   if (input.media && !poll && !contacts.length) return sendMediaMessage(ws, actor, chat, provider, input, body, replyProviderId);
   let providerId: string | null = null;
   let status = 'sent';
@@ -1741,38 +1837,62 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     error = providerErrorCode(err);
   }
   const at = nowIso();
-  const row = await insertMessage({
-    ws,
-    chatId,
-    numberId: chat.number_id,
-    providerMessageId: providerId,
-    direction: 'out',
-    authorId: actor,
-    authorKind: input.authorKind ?? 'person',
-    body,
-    replyToId: input.replyToId ?? null,
-    status,
-    error,
-    createdAt: at,
-    forwarded: input.forwarded,
-    poll,
-    ...(contacts.length ? { meta: { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } } : {}),
-  });
+  const meta: Record<string, unknown> = {
+    ...(contacts.length ? { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } : {}),
+    ...(input.clientId ? { cid: input.clientId } : {}),
+  };
   const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
-  if (status === 'failed') await touchChat(chatId, at, preview, false);
-  if (status === 'sent') {
-    await touchChat(chatId, at, preview, false);
+  // Una sola ida a la base: el mensaje, el chat al tope de la lista y, si salió, el chat deja de esperar.
+  const stmts: BatchStatement[] = [
+    messageInsert(newId(), {
+      ws,
+      chatId,
+      numberId: chat.number_id,
+      providerMessageId: providerId,
+      direction: 'out',
+      authorId: actor,
+      authorKind: input.authorKind ?? 'person',
+      body,
+      replyToId: input.replyToId ?? null,
+      status,
+      error,
+      createdAt: at,
+      forwarded: input.forwarded,
+      poll,
+      clientId: input.clientId || null,
+      ...(Object.keys(meta).length ? { meta } : {}),
+    }),
+    // Si el eco del webhook (el mismo id del proveedor) llegó antes, ya guardó este mensaje como mandado "desde el
+    // teléfono" y el INSERT de arriba no entró: esa fila pasa a ser de quien lo mandó desde acá (autor y clientId).
+    // Si el INSERT entró, la fila no es 'phone' y esto no toca nada.
+    ...(providerId
+      ? [
+          {
+            sql: `UPDATE groups_messages SET author_id = ?, author_kind = ?, client_id = COALESCE(client_id, ?),
+                    meta = CASE WHEN ? = '' THEN meta ELSE json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.cid', ?) END
+                  WHERE number_id = ? AND provider_message_id = ? AND direction = 'out' AND author_kind = 'phone' RETURNING *`,
+            args: [actor, input.authorKind ?? 'person', input.clientId || null, input.clientId ?? '', input.clientId ?? '', chat.number_id, providerId],
+          },
+        ]
+      : []),
+    chatTouch(at, preview, false, 'id = ?', [chatId]),
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
-    if (input.authorKind !== 'broadcast') await markAnswered(chatId, at);
-    if (row) {
-      await emitEventSoon(ws, 'groups.message.sent', {
-        message: { id: row.id, body: row.body, authorId: actor, authorKind: input.authorKind ?? 'person', status, createdAt: at, ...(poll ? { poll } : {}) },
-        chat: chatEventInfo(chat),
-      });
-    }
+    ...(status === 'sent' && input.authorKind !== 'broadcast' ? answeredStatements(chatId, at) : []),
+  ];
+  const res = await dbBatch(stmts);
+  const inserted = (res[0].rows[0] as unknown as MessageRow | undefined) ?? null;
+  // Ganó el eco: la fila es la que guardó el webhook, ya con su autor (y él ya emitió el evento de "enviado").
+  const row = inserted ?? (providerId ? ((res[1].rows[0] as unknown as MessageRow | undefined) ?? null) : null);
+  if (!row) throw new GroupsError('send_failed', 502);
+  // Quien tenga el chat abierto en esta instancia (otra pestaña, otra persona) lo ve ya.
+  pokeLive('lines', ws);
+  if (status === 'sent' && inserted) {
+    await emitEventSoon(ws, 'groups.message.sent', {
+      message: { id: row.id, body: row.body, authorId: actor, authorKind: input.authorKind ?? 'person', status, createdAt: at, ...(poll ? { poll } : {}) },
+      chat: chatEventInfo(chat),
+    });
   }
-  // Un webhook con el mismo id del proveedor (eco de lo que mandamos) no duplica: lo frena el índice único.
-  return toMessageDto(row as MessageRow);
+  return toMessageDto(row);
 }
 
 /**
@@ -1855,7 +1975,9 @@ async function sendMediaMessage(
   });
   const authorKind = input.authorKind ?? 'person';
   const at = nowIso();
-  const row = (await insertMessage({
+  // La fila se guarda antes de mandar ("enviando"), con el clientId: si otro pedido con el mismo clientId ya la
+  // guardó (un reintento, aun desde otra instancia), el INSERT no entra y no se manda el archivo otra vez.
+  const reserved = await insertMessage({
     ws,
     chatId: chat.id,
     numberId: chat.number_id,
@@ -1869,8 +1991,15 @@ async function sendMediaMessage(
     status: 'pending',
     createdAt: at,
     forwarded: input.forwarded,
-    meta: { media: info },
-  })) as MessageRow;
+    clientId: input.clientId || null,
+    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}) },
+  });
+  if (!reserved) {
+    const already = input.clientId ? await messageByClientId(chat.id, input.clientId) : null;
+    if (already) return toMessageDto(already);
+    throw new GroupsError('send_failed', 502);
+  }
+  const row = reserved;
 
   let providerId: string | null = null;
   let status = 'sent';
@@ -2017,10 +2146,17 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
   return toMessageDto((await getMessageRow(ws, messageId)) as MessageRow);
 }
 
-export async function applyReaction(msg: MessageRow, r: Reaction): Promise<void> {
-  const list = parseJson<Reaction[]>(msg.reactions, []).filter((x) => x.by !== r.by);
+/** Aplica una reacción. false si no cambió nada: la misma otra vez, o una más vieja que la que ya hay de esa persona. */
+export async function applyReaction(msg: MessageRow, r: Reaction): Promise<boolean> {
+  const current = parseJson<Reaction[]>(msg.reactions, []);
+  const prev = current.find((x) => x.by === r.by);
+  if (prev && r.at && prev.at && prev.at > r.at) return false;
+  // La misma reacción otra vez, o sacar una que no está.
+  if ((prev?.emoji ?? '') === r.emoji) return false;
+  const list = current.filter((x) => x.by !== r.by);
   if (r.emoji) list.push(r);
   await getDb().prepare('UPDATE groups_messages SET reactions = ? WHERE id = ?').run(JSON.stringify(list.slice(-50)), msg.id);
+  return true;
 }
 
 async function maybeTicketFromReaction(ws: string, msg: MessageRow, emoji: string, actor: string | null): Promise<void> {
@@ -2060,10 +2196,17 @@ export const INBOUND_MEDIA_BUDGET = 25 * 1024 * 1024;
 /** Corre el trabajo después de la respuesta (next/server after); fuera de un request, acá mismo. */
 async function runAfter(job: () => Promise<unknown>): Promise<void> {
   try {
-    after(() => job().catch(() => null));
+    after(() => job().catch(logAfterError));
   } catch {
-    await job().catch(() => null);
+    await job().catch(logAfterError);
   }
+}
+
+/** Lo que corre después de responder no puede fallar en silencio: queda el nombre del error (nunca el contenido). */
+function logAfterError(err: unknown): null {
+  // eslint-disable-next-line no-console
+  console.error('[groups] after-response job failed', (err as Error)?.name ?? 'error');
+  return null;
 }
 
 /** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
@@ -2162,6 +2305,8 @@ export interface IngestResult {
   messages: number;
   duplicates: number;
   ignored: number;
+  /** Mensajes que no se pudieron guardar (un error, no un repetido): el webhook responde 500 y el proveedor reintenta. */
+  failed?: number;
 }
 
 export async function ingestEvents(number: NumberRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<IngestResult> {
@@ -2173,99 +2318,129 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
     const h = await ingestHistory(number, past);
     if (live.length === 0) return h;
     const r = await ingestEvents(number, live);
-    return { messages: h.messages + r.messages, duplicates: h.duplicates + r.duplicates, ignored: h.ignored + r.ignored };
+    // Solo lo en vivo puede pedir un reintento: el historial nunca (un mensaje roto del historial no hace que el
+    // proveedor reenvíe la tanda entera una y otra vez).
+    return { messages: h.messages + r.messages, duplicates: h.duplicates + r.duplicates, ignored: h.ignored + r.ignored, ...(r.failed ? { failed: r.failed } : {}) };
   }
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
   const later: Array<{ messageId: string; ref: MediaRef }> = [];
-  // Los ajustes del workspace se leen una vez por tanda (antes: dos veces por cada mensaje entrante).
-  let settingsOnce: ReturnType<typeof getSettings> | null = null;
-  const batchSettings = () => (settingsOnce ??= getSettings(ws));
-  // La libreta del número primero (nombres de perfil, lid ↔ teléfono): quien vino solo con su lid ya sale con teléfono.
-  const batch = await learnLinesEvents(number, events.slice(0, 200));
+  // Lo que sigue a guardar un mensaje (miembros del grupo, asignación, avisos, eventos, agente) corre después de
+  // responder el webhook, en orden: el mensaje ya está guardado y a la vista, y el que sigue no espera.
+  const post: Array<() => Promise<unknown>> = [];
+  // Los ajustes del workspace llegan con el primer mensaje de la tanda (en la misma ida a la base).
+  let settings: GroupsSettings | null = null;
+  const batchSettings = async () => (settings ??= await getSettings(ws));
+  const slice = events.slice(0, 200);
+  // La libreta del número (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero:
+  // así sale con teléfono. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
+  let batch = slice;
+  let learning: Promise<unknown> | null = null;
+  if (slice.some(needsBookFirst)) batch = await learnLinesEvents(number, slice);
+  else learning = learnLinesEvents(number, slice).catch(() => null);
   for (const ev of batch) {
+    // El mensaje ya quedó guardado: lo que falle después se loguea, no pide reintento (el reintento no lo rehace).
+    let saved = false;
     try {
       if (ev.type === 'message') {
         const isGroup = ev.isGroup || isGroupJid(ev.chatId);
         let dmName = isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || ev.chatName;
         // 1:1 con id "@lid" y sin nombre de perfil: un nombre legible en el idioma del workspace (nunca el lid).
         if (!isGroup && !dmName && isLidJid(ev.chatId)) dmName = await lidChatName(ws);
-        const chat = await upsertChat(number, {
-          providerChatId: ev.chatId,
-          kind: isGroup ? 'group' : 'dm',
-          name: dmName,
-          phone: isGroup ? '' : phoneDigits(ev.chatId),
-        });
-        let replyToId: string | null = null;
-        if (ev.replyToProviderId) {
-          const target = (await getDb()
-            .prepare('SELECT id FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
-            .get(number.id, ev.replyToProviderId)) as { id: string } | undefined;
-          replyToId = target?.id ?? null;
-        }
         const at = ev.timestamp && Number.isFinite(Date.parse(ev.timestamp)) ? new Date(ev.timestamp).toISOString() : nowIso();
-        const row = await insertMessage({
-          ws,
-          chatId: chat.id,
-          numberId: number.id,
-          providerMessageId: ev.providerMessageId,
-          direction: ev.fromMe ? 'out' : 'in',
-          senderPhone: ev.senderPhone,
-          senderName: ev.senderName,
-          authorKind: ev.fromMe ? 'phone' : 'person',
-          body: ev.body,
-          media: ev.media && (ev.media.type || ev.media.url) ? ev.media : null,
-          replyToId,
-          status: ev.fromMe ? (ev.status ?? 'sent') : 'received',
-          createdAt: at,
-          forwarded: ev.forwarded,
-          meta: inboundMeta(ev),
-          poll: ev.poll && ev.poll.options.length >= 2 ? ev.poll : null,
-        });
+        const meta = inboundMeta(ev);
+        const media = ev.media && (ev.media.type || ev.media.url) ? ev.media : null;
+        const chatInput: ChatInput = { providerChatId: ev.chatId, kind: isGroup ? 'group' : 'dm', name: dmName, phone: isGroup ? '' : phoneDigits(ev.chatId) };
+        // Una sola ida a la base: el chat, el mensaje y el chat al tope de la lista (lo que avisa a las pantallas).
+        const stored = await saveInbound(
+          number,
+          chatInput,
+          {
+            ws,
+            numberId: number.id,
+            providerMessageId: ev.providerMessageId,
+            direction: ev.fromMe ? 'out' : 'in',
+            senderPhone: ev.senderPhone,
+            senderName: ev.senderName,
+            authorKind: ev.fromMe ? 'phone' : 'person',
+            body: ev.body,
+            media,
+            replyToProviderId: ev.replyToProviderId || undefined,
+            status: ev.fromMe ? (ev.status ?? 'sent') : 'received',
+            createdAt: at,
+            forwarded: ev.forwarded,
+            meta,
+            poll: ev.poll && ev.poll.options.length >= 2 ? ev.poll : null,
+          },
+          previewOf(ev.body.slice(0, 8000), media?.type ?? '', (media?.name ?? '').slice(0, 200), meta ?? {}),
+          settings === null,
+        );
+        saved = true;
+        settings ??= stored.settings;
+        const row = stored.row;
+        // Quien tenga el chat abierto en esta instancia se entera ya (lib/wa-live.ts).
+        if (row) pokeLive('lines', ws);
         if (!row) {
           res.duplicates++;
+          // Repetido (un reintento del proveedor): lo de antes de responder se vuelve a aplicar, porque todo es
+          // idempotente; lo de después (asignación, avisos) ya corrió la primera vez.
+          await finishChat(number, stored.chat, chatInput, false).catch(logAfterError);
           continue;
         }
         res.messages++;
+        const chat = await finishChat(number, stored.chat, chatInput, stored.created).catch((err) => {
+          logAfterError(err);
+          return stored.chat;
+        });
         // Archivo que el gateway baja aparte (Evolution): se guarda después de responder el webhook.
         if (ev.media?.fetchRef && row.media_url.startsWith('evo:')) {
           const ref = ev.media.fetchRef;
           later.push({ messageId: row.id, ref });
         }
-        await touchChat(chat.id, at, previewOfRow(row), !ev.fromMe);
-        if (!ev.fromMe) {
-          const st = await batchSettings();
-          // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
-          if (st.flagMode === 'questions') {
-            await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
+        // Lo de antes de responder. Si algo de esto falla, el mensaje ya está guardado: se loguea y se sigue.
+        await (async () => {
+          if (!ev.fromMe) {
+            const st = await batchSettings();
+            // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
+            if (st.flagMode === 'questions') {
+              await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
+            }
+            // Archivado: vuelve a la lista con un mensaje nuevo solo si el workspace lo pidió.
+            if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
+            // Ticket por palabra clave: antes de responder.
+            if (matchKeyword(st.ticketKeywords, row.body)) {
+              const { createTicket } = await import('./groups-tickets');
+              await createTicket(ws, null, { chatId: chat.id, messageId: row.id, source: 'keyword' });
+            }
+          } else {
+            // Respondido desde el teléfono: el chat deja de esperar. Antes de responder, por lo mismo.
+            await markAnswered(chat.id, at);
           }
-          // Archivado: vuelve a la lista con un mensaje nuevo solo si el workspace lo pidió.
-          if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
-        }
-        // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
-        if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
-          await syncMembers(ws, chat.id).catch(() => null);
-        }
-        // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
-        if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
-          const r = await getDb()
-            .prepare(
-              `INSERT INTO groups_members (chat_id, phone, name, role, created_at) VALUES (?, ?, ?, 'member', ?)
+        })().catch(logAfterError);
+        post.push(async () => {
+          // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
+          if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
+            await syncMembers(ws, chat.id).catch(() => null);
+          }
+          // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
+          if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
+            const r = await getDb()
+              .prepare(
+                `INSERT INTO groups_members (chat_id, phone, name, role, created_at) VALUES (?, ?, ?, 'member', ?)
                ON CONFLICT(chat_id, phone) DO UPDATE SET name = excluded.name WHERE excluded.name != '' AND groups_members.name != excluded.name`,
-            )
-            .run(chat.id, phoneDigits(ev.senderPhone), (ev.senderName ?? '').slice(0, 120), at);
-          if (r.changes > 0) await refreshMemberCount(chat.id);
-        }
-        if (ev.fromMe) {
-          // Respondido desde el teléfono: también cuenta como respuesta.
-          await markAnswered(chat.id, at);
-          await emitEventSoon(ws, 'groups.message.sent', {
-            message: { id: row.id, body: row.body, authorId: null, authorKind: 'phone', status: row.status, createdAt: at },
-            chat: chatEventInfo(chat),
-          });
-          continue;
-        }
-        await afterInbound(ws, chat, row, await batchSettings());
+              )
+              .run(chat.id, phoneDigits(ev.senderPhone), (ev.senderName ?? '').slice(0, 120), at);
+            if (r.changes > 0) await refreshMemberCount(chat.id);
+          }
+          if (ev.fromMe) {
+            await emitEventSoon(ws, 'groups.message.sent', {
+              message: { id: row.id, body: row.body, authorId: null, authorKind: 'phone', status: row.status, createdAt: at },
+              chat: chatEventInfo(chat),
+            });
+            return;
+          }
+          await afterInbound(ws, chat, row, await batchSettings(), true);
+        });
       } else if (ev.type === 'reaction') {
         const msg = (await getDb()
           .prepare('SELECT * FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
@@ -2274,7 +2449,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           res.ignored++;
           continue;
         }
-        await applyReaction(msg, { emoji: ev.emoji, by: ev.fromMe ? 'phone' : ev.senderPhone, fromMe: ev.fromMe });
+        // Una reacción más vieja que la que ya está (un reintento que llega tarde) no la pisa.
+        if (!(await applyReaction(msg, { emoji: ev.emoji, by: ev.fromMe ? 'phone' : ev.senderPhone, fromMe: ev.fromMe, ...(ev.at ? { at: ev.at } : {}) }))) {
+          res.ignored++;
+          continue;
+        }
         if (ev.emoji) await maybeTicketFromReaction(ws, msg, ev.emoji, null);
       } else if (ev.type === 'poll_vote') {
         const msg = (await getDb()
@@ -2286,13 +2465,19 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           continue;
         }
         const options = voteOptions(poll, ev.options);
-        await getDb()
+        // El mismo voto otra vez (un reintento del proveedor) no cambia nada ni vuelve a avisar.
+        const vote = await getDb()
           .prepare(
             `INSERT INTO groups_poll_votes (message_id, voter, voter_name, options, updated_at) VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(message_id, voter) DO UPDATE SET options = excluded.options, updated_at = excluded.updated_at,
-               voter_name = CASE WHEN excluded.voter_name != '' THEN excluded.voter_name ELSE groups_poll_votes.voter_name END`,
+               voter_name = CASE WHEN excluded.voter_name != '' THEN excluded.voter_name ELSE groups_poll_votes.voter_name END
+             WHERE groups_poll_votes.options IS NOT excluded.options`,
           )
           .run(msg.id, phoneDigits(ev.voterPhone), (ev.voterName ?? '').slice(0, 120), JSON.stringify(options), nowIso());
+        if (vote.changes === 0) {
+          res.duplicates++;
+          continue;
+        }
         const chat = await getChatRow(ws, msg.chat_id);
         const dto = (await listMessages(ws, msg.chat_id, { limit: 500 })).find((m) => m.id === msg.id);
         if (chat && dto?.poll) {
@@ -2324,7 +2509,15 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           continue;
         }
         if (ev.type === 'edit') {
-          await getDb().prepare('UPDATE groups_messages SET body = ?, edited_at = ? WHERE id = ?').run(ev.body.slice(0, 8000), nowIso(), msg.id);
+          // Con la hora de la edición: una más vieja que la que ya está (un reintento que llega tarde) no la pisa.
+          const when = ev.at && Number.isFinite(Date.parse(ev.at)) ? new Date(ev.at).toISOString() : nowIso();
+          const r = await getDb()
+            .prepare('UPDATE groups_messages SET body = ?, edited_at = ? WHERE id = ? AND (edited_at IS NULL OR edited_at <= ?) AND body IS NOT ?')
+            .run(ev.body.slice(0, 8000), when, msg.id, when, ev.body.slice(0, 8000));
+          if (r.changes === 0) {
+            res.ignored++;
+            continue;
+          }
         } else {
           await getDb().prepare('UPDATE groups_messages SET deleted_at = COALESCE(deleted_at, ?), pinned_at = NULL WHERE id = ?').run(nowIso(), msg.id);
         }
@@ -2358,12 +2551,31 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       }
     } catch (err) {
       res.ignored++;
+      // Un mensaje que no se pudo guardar por algo pasajero (la base, la red): el webhook responde 500 y el proveedor
+      // lo reintenta. Si es algo permanente (un evento con forma inesperada), reintentar no lo arregla: se loguea.
+      if (ev.type === 'message' && !saved && transientError(err)) res.failed = (res.failed ?? 0) + 1;
       // eslint-disable-next-line no-console
-      console.error('[groups] webhook event failed', (err as Error)?.name ?? 'error');
+      console.error('[groups] webhook event failed', ev.type, (err as Error)?.name ?? 'error');
     }
+  }
+  // Estados, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
+  pokeLive('lines', ws);
+  if (learning) await learning;
+  if (post.length) {
+    await runAfter(async () => {
+      for (const job of post) await job().catch(logAfterError);
+      pokeLive('lines', ws);
+    });
   }
   if (later.length) await runAfter(() => storeInboundBatch(number, later));
   return res;
+}
+
+/** ¿La tanda trae a alguien solo con su lid? Entonces la libreta va antes: el mensaje se guarda con el teléfono si ya se conoce. */
+function needsBookFirst(ev: InboundEvent): boolean {
+  if (ev.type !== 'message') return ev.type === 'contact' || ev.type === 'archive';
+  const m = ev as { chatId: string; senderPhone?: string; senderLid?: string; chatLid?: string };
+  return isLidJid(m.chatId) || Boolean(m.chatLid) || (Boolean(m.senderLid) && !m.senderPhone);
 }
 
 /**
@@ -2395,10 +2607,10 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */
-async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>): Promise<void> {
+async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>, ticketDone = false): Promise<void> {
   let chat = chatRow;
   const settings = known ?? (await getSettings(ws));
-  const keyword = matchKeyword(settings.ticketKeywords, msg.body);
+  const keyword = !ticketDone && matchKeyword(settings.ticketKeywords, msg.body);
   if (keyword) {
     const { createTicket } = await import('./groups-tickets');
     await createTicket(ws, null, { chatId: chat.id, messageId: msg.id, source: 'keyword' }).catch(() => null);

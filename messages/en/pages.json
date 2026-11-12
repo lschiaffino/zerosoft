@@ -4163,7 +4163,10 @@
       "allDownloads": "All downloads",
       "missingTitle": "We couldn’t find that installer.",
       "missingBody": "The latest version may still be publishing. The download page lists everything available."
-    }
+    },
+    "privacyTitle": "What the app sees and stores",
+    "privacyBody": "Every permission, every file it writes on your computer and every request it sends, each with the source file that does it. The same list is in the app, in Settings, Privacy and data, with a local activity log.",
+    "privacyLink": "Desktop app: privacy and data"
   },
   "compare": {
     "crumb": "Compare",

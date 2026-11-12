@@ -26,5 +26,13 @@
       "path": "/api/cron/robots",
       "schedule": "*/5 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/groups/live/route.ts": {
+      "supportsCancellation": true
+    },
+    "app/api/inbox/live/route.ts": {
+      "supportsCancellation": true
+    }
+  }
 }

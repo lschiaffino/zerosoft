@@ -29,6 +29,87 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-presence-sidebar',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: available or away from your account menu',
+      es: 'Lines: disponible o ausente desde el menú de tu cuenta',
+      pt: 'Lines: disponível ou ausente pelo menu da sua conta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Available and away moved from the inbox header to the account menu at the bottom of the sidebar, with a green or gray dot on your photo.',
+        es: 'Disponible y ausente pasaron de la cabecera de la bandeja al menú de la cuenta, abajo en el lateral, con un punto verde o gris en tu foto.',
+        pt: 'Disponível e ausente saíram do cabeçalho da caixa para o menu da conta, embaixo na barra lateral, com um ponto verde ou cinza na sua foto.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-desktop-privacy-and-data',
+    date: '2026-11-12',
+    title: {
+      en: 'Desktop app: see what it accesses, stores and sends',
+      es: 'App de escritorio: mirá a qué accede, qué guarda y qué manda',
+      pt: 'App de desktop: veja o que acessa, guarda e envia',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings has a new section, Privacy and data. It lists each permission with what it is for and when it was last used, every file the app keeps on your computer with its size and a button to show or delete it, each request the app sends and where, and a local activity log (microphone, computer audio, uploads, pastes) with no audio or text in it. You can export or clear the log, and delete all local data and sign out, which also ends the session on the server and removes what the first desktop version (0.1.x) left behind.',
+        es: 'Ajustes tiene una sección nueva, Privacidad y datos. Lista cada permiso con para qué sirve y cuándo se usó por última vez, cada archivo que la app guarda en tu computadora con su tamaño y un botón para mostrarlo o borrarlo, cada pedido que manda la app y a dónde, y un registro de actividad local (micrófono, audio de la computadora, envíos, pegados) sin audio ni texto. Podés exportar o vaciar el registro, y borrar todos los datos locales y cerrar la sesión, que también termina la sesión en el servidor y borra lo que dejó la primera versión de escritorio (0.1.x).',
+        pt: 'Ajustes tem uma seção nova, Privacidade e dados. Lista cada permissão com para que serve e quando foi usada pela última vez, cada arquivo que o app guarda no seu computador com o tamanho e um botão para mostrar ou apagar, cada pedido que o app envia e para onde, e um registro de atividade local (microfone, áudio do computador, envios, colagens) sem áudio nem texto. Você pode exportar ou limpar o registro, e apagar todos os dados locais e sair, o que também encerra a sessão no servidor e remove o que a primeira versão de desktop (0.1.x) deixou.',
+      },
+      {
+        product: 'platform',
+        en: 'While the app dictates or captures computer audio, a dot shows next to its menu bar icon on Mac and the icon says what is active. Computer audio capture can only start from the tab you are looking at, and you can stop it from the icon. New switches: do not send the name of the app in front with dictations, do not keep dictations that failed to send, and do not allow computer audio capture. The same list, with a link to the code behind each line, is public at /download/privacy.',
+        es: 'Mientras la app dicta o captura el audio de la computadora, aparece un punto al lado de su ícono en la barra de menú de Mac y el ícono dice qué está activo. La captura del audio de la computadora solo puede empezar desde la pestaña que estás mirando, y la podés cortar desde el ícono. Llaves nuevas: no mandar el nombre de la app de adelante con los dictados, no guardar los dictados que no se pudieron enviar y no permitir la captura del audio de la computadora. La misma lista, con un link al código detrás de cada línea, es pública en /download/privacy.',
+        pt: 'Enquanto o app dita ou captura o áudio do computador, aparece um ponto ao lado do ícone dele na barra de menus do Mac e o ícone diz o que está ativo. A captura do áudio do computador só pode começar na aba que você está olhando, e você pode parar pelo ícone. Chaves novas: não enviar o nome do app da frente com os ditados, não guardar os ditados que não puderam ser enviados e não permitir a captura do áudio do computador. A mesma lista, com um link para o código por trás de cada linha, é pública em /download/privacy.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-whatsapp-realtime-speed',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: WhatsApp messages arrive and go out without waiting',
+      es: 'Lines e Inbox: los mensajes de WhatsApp llegan y salen sin esperar',
+      pt: 'Lines e Inbox: as mensagens do WhatsApp chegam e saem sem esperar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The open chat no longer reloads its last 60 messages every 4 seconds: it reloads when something changes in that chat (a new message, ticks, reactions, edits, a note from a teammate, "typing"), which it learns from the same check the chat list uses, every 3 seconds. A live connection that delivers each change the moment it is saved is ready, and is turned on per workspace.',
+        es: 'El chat abierto ya no relee sus últimos 60 mensajes cada 4 segundos: los relee cuando algo cambia en ese chat (un mensaje nuevo, las tildes, las reacciones, una edición, una nota de un compañero, "escribiendo"), y se entera por la misma consulta que usa la lista de chats, cada 3 segundos. Una conexión en vivo que avisa cada cambio en el momento en que se guarda está lista, y se prende por workspace.',
+        pt: 'A conversa aberta não relê mais as últimas 60 mensagens a cada 4 segundos: relê quando algo muda nessa conversa (uma mensagem nova, os tiques, as reações, uma edição, uma nota de um colega, "digitando"), e fica sabendo pela mesma consulta que a lista de conversas usa, a cada 3 segundos. Uma conexão ao vivo que avisa cada mudança no momento em que é salva está pronta, e é ligada por workspace.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox, the open WhatsApp chat reloads as soon as the check sees a change in it, without waiting for the chat list. Ticks and reactions on any message now count as a change, not only on the last one.',
+        es: 'En Inbox, el chat de WhatsApp abierto se relee apenas la consulta ve un cambio en él, sin esperar a la lista de chats. Las tildes y las reacciones de cualquier mensaje ahora cuentan como cambio, no solo las del último.',
+        pt: 'No Inbox, a conversa do WhatsApp aberta se relê assim que a consulta vê uma mudança nela, sem esperar a lista de conversas. Os tiques e as reações de qualquer mensagem agora contam como mudança, não só os da última.',
+      },
+      {
+        product: 'groups',
+        en: 'A text you send appears in the chat when you press Enter, with a clock while it goes out, and the field is free for the next one right away. Texts written one after another go out in order, and a file sent right after a text waits for it. If one does not go out, its bubble stays marked as not sent and you can retry it or remove it, also after opening another chat or reloading the page.',
+        es: 'Un texto que mandás aparece en el chat al apretar Enter, con un reloj mientras sale, y el campo queda libre para el próximo enseguida. Los textos escritos uno atrás del otro salen en orden, y un archivo mandado justo después de un texto lo espera. Si uno no sale, su burbuja queda marcada como no enviada y se puede reintentar o quitar, también después de abrir otro chat o de recargar la página.',
+        pt: 'Um texto que você envia aparece na conversa ao apertar Enter, com um relógio enquanto sai, e o campo fica livre para o próximo na hora. Textos escritos um atrás do outro saem em ordem, e um arquivo enviado logo depois de um texto espera por ele. Se um não sair, o balão fica marcado como não enviado e dá para tentar de novo ou remover, também depois de abrir outra conversa ou recarregar a página.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox too: a WhatsApp text appears when you press Enter and you can keep writing. If it does not go out, the text goes back to the field with the error, so nothing is lost.',
+        es: 'En Inbox también: un texto de WhatsApp aparece al apretar Enter y podés seguir escribiendo. Si no sale, el texto vuelve al campo con el error, así no se pierde nada.',
+        pt: 'No Inbox também: um texto do WhatsApp aparece ao apertar Enter e você pode continuar escrevendo. Se não sair, o texto volta para o campo com o erro, então nada se perde.',
+      },
+      {
+        product: 'groups',
+        en: 'Saving a message that arrives takes 4 database queries instead of 11 in Lines and 4 instead of 7 in Inbox, and the chat list is told in the same step. Sending a text from Lines reaches WhatsApp after 2 waits on the database instead of 6.',
+        es: 'Guardar un mensaje que llega lleva 4 consultas a la base en vez de 11 en Lines y 4 en vez de 7 en Inbox, y la lista de chats se entera en el mismo paso. Mandar un texto desde Lines llega a WhatsApp después de 2 esperas a la base en vez de 6.',
+        pt: 'Salvar uma mensagem que chega leva 4 consultas ao banco em vez de 11 no Lines e 4 em vez de 7 no Inbox, e a lista de conversas fica sabendo no mesmo passo. Enviar um texto pelo Lines chega ao WhatsApp depois de 2 esperas pelo banco em vez de 6.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {
