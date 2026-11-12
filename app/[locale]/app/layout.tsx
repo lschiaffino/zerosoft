@@ -473,6 +473,8 @@ export default async function AppLayout(
             soon: tSide('soon'),
             preview: tSide('preview'),
             comingSoon: tSide('comingSoon'),
+            disabledApps: tSide('disabledApps'),
+            disabledAppsHint: tSide('disabledAppsHint'),
             signOut: tSide('signOut'),
             records: tSide('records'),
             activity: tSide('activity'),

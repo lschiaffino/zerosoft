@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-switcher-disabled-apps',
+    date: '2026-11-12',
+    title: {
+      en: 'App switcher: apps turned off for your account have their own group',
+      es: 'Selector de apps: las apagadas para tu cuenta tienen su propio grupo',
+      pt: 'Seletor de apps: os desativados para sua conta têm seu próprio grupo',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Apps turned off in Settings › Apps no longer vanish: they sit in a collapsed "Turned off for this account" group, apart from Coming soon, and lead to Settings › Apps, where an admin turns them on. Same on the home sidebar.',
+        es: 'Las apps apagadas en Ajustes › Apps ya no desaparecen: quedan en un grupo plegado, "Desactivadas para esta cuenta", aparte de Próximamente, y llevan a Ajustes › Apps, donde un admin las prende. Lo mismo en el lateral del inicio.',
+        pt: 'Os apps desativados em Ajustes › Apps não somem mais: ficam num grupo recolhido, "Desativados para esta conta", separado de Em breve, e levam a Ajustes › Apps, onde um admin os ativa. O mesmo na barra lateral do início.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {
