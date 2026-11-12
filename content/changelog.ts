@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-lines-new-chat',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: start a new chat from the inbox',
+      es: 'Lines: empezar un chat nuevo desde la bandeja',
+      pt: 'Lines: iniciar uma nova conversa pela caixa de entrada',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The inbox has a "+" button for a new chat. Pick the line, search a contact or a chat of that line by name or phone, or type a number that is not in the contact book. If the line already has a chat with that number, it opens that one.',
+        es: 'La bandeja tiene un botón "+" para un chat nuevo. Elegís la línea, buscás un contacto o un chat de esa línea por nombre o teléfono, o escribís un número que no está en la libreta. Si la línea ya tiene un chat con ese número, abre ese.',
+        pt: 'A caixa de entrada tem um botão "+" para uma nova conversa. Escolha a linha, busque um contato ou uma conversa dessa linha por nome ou telefone, ou digite um número que não está na agenda. Se a linha já tem uma conversa com esse número, ela abre essa.',
+      },
+      {
+        product: 'groups',
+        en: 'Nothing is sent to WhatsApp until you write: the chat enters the inbox with its first message. On QR lines, Lines first checks that the number is on WhatsApp and tells you if it is not.',
+        es: 'No se manda nada a WhatsApp hasta que escribas: el chat entra a la bandeja con su primer mensaje. En las líneas por QR, Lines primero comprueba que el número tenga WhatsApp y te avisa si no tiene.',
+        pt: 'Nada é enviado ao WhatsApp até você escrever: a conversa entra na caixa de entrada com a primeira mensagem. Nas linhas por QR, o Lines primeiro confere se o número tem WhatsApp e avisa se não tiver.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {
