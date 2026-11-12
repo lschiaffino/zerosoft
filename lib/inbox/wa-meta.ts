@@ -37,6 +37,8 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     if (info.thumbnail && info.thumbnail.length < 24_000) out.thumb = info.thumbnail;
     if (info.viewOnce) out.viewOnce = true;
     if (info.animated) out.animated = true;
+    if (info.lottie) out.lottie = true;
+    if (info.sha && /^[0-9a-f]{64}$/.test(info.sha)) out.sha = info.sha;
     if (info.waveform?.length) out.waveform = info.waveform.slice(0, 64);
     kind = out.ptt ? 'voice' : info.kind === 'sticker' ? 'sticker' : '';
   }

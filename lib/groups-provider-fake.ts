@@ -27,6 +27,7 @@
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
+import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -244,6 +245,8 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
+  if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
   if (id.startsWith('doc-') || id.startsWith('vid-')) return { data: Buffer.from('%PDF-1.4\n% archivo de prueba\n'), mimetype: 'application/pdf', filename: 'documento.pdf' };
   return { data: fakePng(480, 320, id.length % 5), mimetype: 'image/png', filename: 'foto.png' };
@@ -431,7 +434,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       void send(chatId, archive ? 'archive' : 'unarchive', 'archive');
     },
     sendPresence: async () => undefined,
-    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },

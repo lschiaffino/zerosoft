@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EmojiCategory } from './emoji-data';
+import StickerPanel, { type StickerTab } from './StickerPanel';
 
 export const RECENT_KEY = 'zs-groups-emoji-recent';
+/** Última pestaña del panel (Emoji o Stickers), como WhatsApp Web la recuerda. */
+const PANEL_KEY = 'zs-wa-expression-tab';
 const CATS: Array<{ key: 'recent' | EmojiCategory; icon: string }> = [
   { key: 'recent', icon: '🕘' },
   { key: 'smileys', icon: '😀' },
@@ -46,14 +49,32 @@ export function saveRecent(list: string[]) {
   }
 }
 
+function readPanel(): 'emoji' | 'stickers' {
+  try {
+    return window.localStorage.getItem(PANEL_KEY) === 'stickers' ? 'stickers' : 'emoji';
+  } catch {
+    return 'emoji';
+  }
+}
+
 /**
  * Panel de emojis del composer, como el de WhatsApp Web: búsqueda,
  * pestañas por categoría (con los recientes) y la grilla. Los datos se cargan
  * aparte la primera vez que se abre. Esc cierra; flechas recorren la grilla.
+ * Con `stickers`, arriba van las pestañas Emoji | Stickers (StickerPanel).
  */
-export default function EmojiPicker({ onPick, onClose }: { onPick: (emoji: string) => void; onClose: () => void }) {
+export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (emoji: string) => void; onClose: () => void; stickers?: StickerTab }) {
   const t = useTranslations('groups.wa');
   const ref = useRef<HTMLDivElement>(null);
+  const [panel, setPanel] = useState<'emoji' | 'stickers'>(() => (stickers ? readPanel() : 'emoji'));
+  const choosePanel = (p: 'emoji' | 'stickers') => {
+    setPanel(p);
+    try {
+      window.localStorage.setItem(PANEL_KEY, p);
+    } catch {
+      // Sin storage: abre en Emoji.
+    }
+  };
   const searchRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<Record<EmojiCategory, Array<[string, string]>> | null>(null);
@@ -111,8 +132,28 @@ export default function EmojiPicker({ onPick, onClose }: { onPick: (emoji: strin
 
   const list: Array<[string, string]> = results ?? (active === 'recent' ? recent.map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
 
+  const panelTabs = stickers ? (
+    <div className="wa-xp-tabs" role="tablist" aria-label={t('stickers.panels')}>
+      {(['emoji', 'stickers'] as const).map((p) => (
+        <button key={p} type="button" role="tab" aria-selected={panel === p} onClick={() => choosePanel(p)}>
+          {p === 'emoji' ? t('emoji') : t('stickers.tab')}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  if (stickers && panel === 'stickers') {
+    return (
+      <div className="wa-emoji is-stickers" data-voice-off role="dialog" aria-label={t('stickers.tab')} ref={ref} onKeyDown={onKey}>
+        {panelTabs}
+        <StickerPanel api={stickers.api} onSend={stickers.onSend} />
+      </div>
+    );
+  }
+
   return (
     <div className="wa-emoji" data-voice-off role="dialog" aria-label={t('emoji')} ref={ref} onKeyDown={onKey}>
+      {panelTabs}
       <div className="wa-emoji-tabs" role="tablist" aria-label={t('emojiCategories')}>
         {CATS.filter((c) => c.key !== 'recent' || recent.length > 0).map((c) => (
           <button
