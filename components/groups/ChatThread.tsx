@@ -15,7 +15,6 @@ import { fetchIfChanged } from '@/lib/conditional-fetch';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
-import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
@@ -71,6 +70,14 @@ import {
   ViewOnce,
   Retry,
   Person,
+  InfoIcon,
+  TranslateIcon,
+  UnreadIcon,
+  ReadIcon,
+  PinIcon,
+  MuteIcon,
+  Bell,
+  Sparkle,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
@@ -154,7 +161,6 @@ export default function ChatThread(props: ThreadProps) {
   const tw = useTranslations('inboxWa');
   const tc = useTranslations('common.aiCompose');
   const ts = useTranslations('common.slash');
-  const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const errText = useErrorText();
   const mediaText = useMediaText();
@@ -1720,25 +1726,20 @@ export default function ChatThread(props: ThreadProps) {
               className="wa-icon-btn"
               align="right"
               items={[
-                // En el teléfono el encabezado deja solo el nombre: asignar, cerrar y la info van acá.
+                // Como el ⋯ de WhatsApp: info, seleccionar, silenciar, fijar, leído; después lo del equipo (IA) y, en el teléfono, asignar y cerrar.
+                { key: 'details', glyph: <InfoIcon size={18} />, label: chat.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'), onSelect: toggleDetails },
+                { key: 'select', glyph: <CheckCircle size={18} />, label: t('wa.selectMessages'), onSelect: () => setSelecting(new Set()) },
+                { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
+                { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
+                { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
+                { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
+                { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
                 ...(narrow
                   ? [
-                      { key: 'assign', label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
-                      { key: 'close', label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
+                      { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
+                      { key: 'close', glyph: chat.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
                     ]
                   : []),
-                { key: 'summary', label: t('thread.summary'), onSelect: () => void summarize() },
-                { key: 'translate', label: `${translateOn ? t('thread.translateOff') : t('thread.translate')} (L)`, onSelect: toggleTranslate },
-                { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
-                { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
-                { key: 'mute', label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
-                { key: 'details', label: t('thread.details'), onSelect: toggleDetails },
-                {
-                  key: 'chatStyle',
-                  label: chatStyle === 'whatsapp' ? tw('styleUseZerosoft') : tw('styleUseWhatsapp'),
-                  divider: true,
-                  onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp'),
-                },
               ]}
             />
             <button type="button" className={`wa-icon-btn gr-details-toggle${detailsShown ? ' is-on' : ''}`} onClick={toggleDetails} aria-expanded={detailsShown} aria-label={t('thread.details')} title={t('thread.details')}>

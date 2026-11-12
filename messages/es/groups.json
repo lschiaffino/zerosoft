@@ -1821,7 +1821,8 @@
     "openNewWindow": "Abrir en otra ventana",
     "contactInfo": "Info del contacto",
     "groupInfo": "Info del grupo",
-    "exportChat": "Exportar chat"
+    "exportChat": "Exportar chat",
+    "selectMessages": "Seleccionar mensajes"
   },
   "swipe": {
     "read": "Leído",

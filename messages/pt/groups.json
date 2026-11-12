@@ -1821,7 +1821,8 @@
     "openNewWindow": "Abrir em outra janela",
     "contactInfo": "Dados do contato",
     "groupInfo": "Dados do grupo",
-    "exportChat": "Exportar conversa"
+    "exportChat": "Exportar conversa",
+    "selectMessages": "Selecionar mensagens"
   },
   "swipe": {
     "read": "Lida",

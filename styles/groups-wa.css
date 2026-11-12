@@ -1029,3 +1029,20 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 @keyframes wa-mention-in { from { opacity: 0; transform: translateY(4px); } }
 @media (max-width: 1023px) { .wa-mention-pop { left: 8px; width: calc(100% - 16px); } }
 @media (prefers-reduced-motion: reduce) { .wa-mention-pop { animation: none; } }
+
+/*
+ * Menús de acciones (⋯ del chat, flecha de la fila): tarjeta redondeada con sombra suave
+ * e íconos de línea grises, como los de WhatsApp. El menú de adjuntar (círculos de color) no cambia.
+ */
+.gr-menu-list.is-portal {
+  min-width: 220px; padding: 6px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 12px;
+  box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 12px 32px rgb(11 20 26 / 0.14);
+  animation: gr-menu-in 0.12s ease-out;
+}
+.gr-menu-list.is-portal .gr-menu-item { min-height: 36px; padding: 0 14px 0 10px; font-size: 0.9rem; border-radius: 8px; }
+.gr-menu-list.is-portal .gr-menu-item.has-divider { margin-top: 7px; padding-top: 0; border-top: 0; position: relative; border-radius: 8px; }
+.gr-menu-list.is-portal .gr-menu-item.has-divider::before { content: ''; position: absolute; left: 8px; right: 8px; top: -4px; border-top: 1px solid var(--line); }
+.gr-menu-glyph { display: inline-flex; flex: none; width: 20px; justify-content: center; color: var(--dim); }
+.gr-menu-item.gr-danger .gr-menu-glyph { color: inherit; }
+@keyframes gr-menu-in { from { opacity: 0; transform: translateY(-3px) scale(0.99); } }
+@media (prefers-reduced-motion: reduce) { .gr-menu-list.is-portal { animation: none; } }
