@@ -272,8 +272,19 @@ test('Inbox: vista previa al escribir; con la X sale sin vista previa y la burbu
     const sent = thread.locator('.gr-msg-out', { hasText: `shop.test/inbox-${tag}` });
     await expect(sent).toBeVisible();
     await expect(sent.locator('.wa-linkcard')).toHaveCount(0);
-    const [row] = (await db.execute({ sql: 'SELECT meta FROM inbox_messages WHERE body LIKE ? AND from_me = 1', args: [`%inbox-${tag}%`] })).rows;
-    expect(JSON.parse(String(row.meta || '{}')).noPreview).toBe(true);
+    // La burbuja aparece antes de que el servidor lo guarde (envío optimista): se espera la fila.
+    await expect
+      .poll(
+        async () => {
+          const [row] = (await db.execute({ sql: 'SELECT meta FROM inbox_messages WHERE body LIKE ? AND from_me = 1', args: [`%inbox-${tag}%`] })).rows;
+          return row ? JSON.parse(String(row.meta || '{}')).noPreview : undefined;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
+    // Ya guardado, la burbuja sigue sin vista previa.
+    await expect(sent).toHaveCount(1);
+    await expect(sent.locator('.wa-linkcard')).toHaveCount(0);
   } finally {
     db.close();
   }
