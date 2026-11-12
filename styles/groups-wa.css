@@ -298,8 +298,8 @@
 
 /* Notas internas: la capa del equipo, en amarillo y al centro (no salen a WhatsApp). */
 .gr-inbox .gr-msg-note .gr-bubble {
-  width: 100%; box-sizing: border-box; padding-left: 12px; background: var(--wa-note); border-radius: 6px;
-  box-shadow: inset 3px 0 0 var(--wa-note-line), var(--wa-shadow-bubble);
+  width: 100%; box-sizing: border-box; background: var(--wa-note); border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wa-note-line) 45%, transparent); box-shadow: var(--wa-shadow-bubble);
 }
 .gr-inbox .gr-msg-note .gr-msg-author { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; line-height: 18px; font-weight: 500; color: var(--wa-text-2); }
 
