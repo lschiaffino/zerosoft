@@ -319,6 +319,9 @@ export default function ChatThread(props: ThreadProps) {
 
   const peopleById = useMemo(() => new Map(props.people.map((p) => [p.id, p.name || p.email])), [props.people]);
   const nameOf = useCallback((id: string | null | undefined) => (id ? peopleById.get(id) ?? '' : ''), [peopleById]);
+  // Foto de quien manda un audio desde acá (como WhatsApp, que pone la tuya); sin autor (salió del teléfono), la de quien mira.
+  const imageOf = useMemo(() => new Map(props.people.map((p) => [p.id, p.image || ''])), [props.people]);
+  const outImage = useCallback((id: string | null | undefined) => (id && imageOf.get(id)) || imageOf.get(props.me) || undefined, [imageOf, props.me]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -1563,7 +1566,7 @@ export default function ChatThread(props: ThreadProps) {
                       ? chat.kind === 'dm'
                         ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
                         : { name: inName(m), seed: m.senderPhone || m.senderName }
-                      : { name: author || '', seed: m.authorId || 'me' }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
                   }
                 />
               ) : (

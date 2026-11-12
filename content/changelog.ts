@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-own-voice-photo',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: your voice messages show your photo',
+      es: 'Inbox y Lines: tus audios muestran tu foto',
+      pt: 'Inbox e Lines: seus áudios mostram sua foto',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like WhatsApp, a voice message you send shows your profile photo next to the player instead of an empty circle.',
+        es: 'Como WhatsApp, un audio que mandás muestra tu foto de perfil al lado del reproductor en lugar de un círculo vacío.',
+        pt: 'Como no WhatsApp, um áudio que você envia mostra sua foto de perfil ao lado do player em vez de um círculo vazio.',
+      },
+      { product: 'groups', en: 'In Lines, each teammate’s voice messages show their own photo.', es: 'En Lines, los audios de cada persona del equipo muestran su propia foto.', pt: 'No Lines, os áudios de cada pessoa da equipe mostram a própria foto.' },
+    ],
+  },
+  {
     id: '2026-11-12-focus-composer-on-open',
     date: '2026-11-12',
     title: {

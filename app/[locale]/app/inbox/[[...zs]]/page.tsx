@@ -33,7 +33,8 @@ export default async function InboxPage(props: Props) {
   const { locale, zs = [] } = await props.params;
   const sp = await props.searchParams;
   setRequestLocale(locale);
-  const owner = realUserId(await requireUser(locale));
+  const user = await requireUser(locale);
+  const owner = realUserId(user);
   const [section, id] = zs;
   const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner), listSnippets(owner)]);
   const state = { accounts: accounts.map(accountDto), folders, counts, snippets, available: { whatsapp: whatsappAvailable(), gmail: gmailAvailable() } };
@@ -70,6 +71,7 @@ export default async function InboxPage(props: Props) {
       initialOpenId={openId}
       initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
       composeOnLoad={sp.new === '1'}
+      meImage={user.image ?? ''}
     />
   );
 }

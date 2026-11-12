@@ -3396,6 +3396,8 @@ export interface GroupsPerson {
   id: string;
   name: string;
   email: string;
+  /** Foto de la cuenta (la de Google); va en los audios que manda esa persona. */
+  image?: string | null;
 }
 
 /**
@@ -3406,10 +3408,10 @@ export interface GroupsPerson {
  */
 export async function listPeople(ws: string): Promise<GroupsPerson[]> {
   const db = getDb();
-  const owner = (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
+  const owner = (await db.prepare('SELECT id, name, email, image FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
   const rows = (await db
     .prepare(
-      `SELECT DISTINCT u.id, u.name, u.email FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
+      `SELECT DISTINCT u.id, u.name, u.email, u.image FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
        WHERE t.owner_id = ? AND m.role != 'guest' ORDER BY COALESCE(u.name, u.email)`,
     )
     .all(ws)) as GroupsPerson[];
