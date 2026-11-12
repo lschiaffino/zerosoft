@@ -1111,3 +1111,21 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 @media (max-width: 720px) { .wa-album { width: min(var(--wa-album-w, 300px), 70vw); } }
 @media (prefers-reduced-motion: reduce) { .wa-album-open > img.is-pending { transition: none; } .wa-album-tile.is-target::after { animation: none; } }
 .gr-inbox[data-chat-style='zerosoft'] .wa-album { border-radius: var(--radius-1); }
+
+/* ---------- Foto o video con texto, como WhatsApp: la foto define el ancho de la burbuja ----------
+   El texto, el nombre y la cita no ensanchan la burbuja (contain: inline-size): ocupan el ancho de la
+   foto y se acomodan debajo. La foto va al ras de los bordes, con las esquinas de la burbuja. */
+.gr-inbox .gr-bubble.is-media { padding: 0; }
+.gr-inbox .gr-bubble.is-media > :is(.gr-msg-author, .gr-forwarded, .gr-quote, .wa-text, .gr-translation, .wa-tags, .wa-deleted) { contain: inline-size; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 7px 3px 8px; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author .wa-author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 4px 7px 2px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-quote { margin: 3px; width: auto; }
+.gr-inbox .gr-bubble.is-media > .wa-text { padding: 5px 7px 7px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 7px 6px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: inherit; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-media:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
+.gr-inbox .gr-bubble.is-media > .gr-media:has(~ :is(.wa-text, .gr-translation, .wa-tags)) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album) { border-radius: 0; }
+.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { right: 0; bottom: 0; left: 0; border-radius: 0 0 7.5px 7.5px; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0 0 var(--radius-1) var(--radius-1); }

@@ -62,12 +62,12 @@ function albumEvents(gid: string, title: string, app: 'inbox' | 'lines'): { even
   // Los textos entre álbumes los manda otra persona: así cada álbum empieza una tanda y lleva su nombre.
   const dani = { senderPhone: '15550002004', senderName: 'Dani Álbum' };
   const ref = (id: string) => ({ providerMessageId: id, chatId: gid, fromMe: false });
-  const base = { type: 'message', chatId: gid, isGroup: true, fromMe: false };
+  const base = { type: 'message', chatId: gid, chatName: title, isGroup: true, fromMe: false };
   const text = (id: string, who: typeof beto, body: string, sec: number): Ev => ({ ...base, ...who, chatName: title, providerMessageId: `t${id}-${tag}`, body, timestamp: at(sec) });
   // El largo del id cambia el color de la foto falsa: así se distinguen en la grilla.
-  const photo = (id: string, who: typeof beto, sec: number, body = ''): Ev => {
+  const photo = (id: string, who: typeof beto, sec: number, body = '', size = { width: 480, height: 320 }): Ev => {
     const pid = `img${'x'.repeat(id.length % 5)}-${id}-${tag}`;
-    return { ...base, ...who, providerMessageId: pid, body, media: { url: src(pid), type: 'image/png', name: '', fetchRef: ref(pid), info: { kind: 'image', width: 480, height: 320 } }, timestamp: at(sec) };
+    return { ...base, ...who, providerMessageId: pid, body, media: { url: src(pid), type: 'image/png', name: '', fetchRef: ref(pid), info: { kind: 'image', ...size } }, timestamp: at(sec) };
   };
   const video = (id: string, who: typeof beto, sec: number, seconds: number, hue: number): Ev => {
     // Sin "vid-": el falso manda un PDF para esos ids; así baja una imagen y el tipo queda de video.
@@ -77,6 +77,8 @@ function albumEvents(gid: string, title: string, app: 'inbox' | 'lines'): { even
   return {
     tag,
     events: [
+      // Una foto sola, vertical, con un texto largo: la foto define el ancho de la burbuja.
+      photo('s1', carla, -60, LONG_CAPTION, { width: 600, height: 900 }),
       text('0', dani, '¿Fotos del sábado?', 0),
       photo('a1', beto, 10),
       photo('a22', beto, 11),
@@ -94,8 +96,12 @@ function albumEvents(gid: string, title: string, app: 'inbox' | 'lines'): { even
   };
 }
 
+const LONG_CAPTION =
+  'Así quedó la terraza después de toda la semana de trabajo: pintamos las paredes, cambiamos las luces, armamos la mesa grande y pusimos las plantas nuevas al lado de la parrilla para el sábado';
+
 /** Lo que se ve igual en las dos apps: la grilla de cada álbum, el nombre, el video y el "+2". */
 async function checkAlbums(page: Page, thread: Locator) {
+  const box = async (l: Locator) => (await l.boundingBox())!;
   const albums = thread.locator('.wa-album');
   await expect(albums).toHaveCount(3);
   const [two, three, five] = [albums.nth(0), albums.nth(1), albums.nth(2)];
@@ -116,8 +122,22 @@ async function checkAlbums(page: Page, thread: Locator) {
     await expect(bubbles.nth(i).locator('.gr-msg-foot time')).toHaveCount(1);
   }
   await expect(bubbles.nth(2).locator('.wa-text')).toContainText('La terraza al final');
-  // Ninguna foto del álbum quedó sola en su burbuja.
-  await expect(thread.locator('.wa-image')).toHaveCount(0);
+  // Ninguna foto del álbum quedó sola en su burbuja: la única suelta es la vertical con texto.
+  await expect(thread.locator('.wa-image')).toHaveCount(1);
+
+  // Foto con texto largo, como WhatsApp: la foto define el ancho, el texto se acomoda debajo a ese ancho
+  // y la foto va al ras de los bordes de la burbuja (sin margen adentro).
+  const single = thread.locator('.gr-msg:has(.wa-image)');
+  const [img, cap, bub] = [await box(single.locator('.wa-image')), await box(single.locator('.wa-text')), await box(single.locator('.gr-bubble'))];
+  expect(img.width).toBeGreaterThan(150);
+  expect(img.height).toBeGreaterThan(img.width);
+  expect(cap.width).toBeLessThanOrEqual(img.width + 2);
+  expect(Math.abs(bub.width - img.width)).toBeLessThan(2);
+  expect(Math.abs(bub.x - img.x)).toBeLessThan(1.5);
+  expect(cap.height).toBeGreaterThan(60);
+  // En el álbum, igual: el texto no ensancha la burbuja más que la grilla.
+  const [grid, gridCap] = [await box(five), await box(bubbles.nth(2).locator('.wa-text'))];
+  expect(gridCap.width).toBeLessThanOrEqual(grid.width + 2);
 
   // Video: cámara y duración abajo a la izquierda, y el botón de reproducir.
   const vid = three.locator('.wa-album-tile').nth(1);
@@ -126,7 +146,6 @@ async function checkAlbums(page: Page, thread: Locator) {
   await expect(five.locator('.wa-album-tile').nth(2).locator('.wa-album-video')).toHaveText('1:15');
 
   // La grilla: 2 lado a lado; 3 con la primera alta y dos apiladas; 2×2.
-  const box = async (l: Locator) => (await l.boundingBox())!;
   const [t0, t1] = [await box(two.locator('.wa-album-tile').nth(0)), await box(two.locator('.wa-album-tile').nth(1))];
   expect(Math.abs(t0.y - t1.y)).toBeLessThan(2);
   expect(t1.x).toBeGreaterThan(t0.x + t0.width - 4);
@@ -143,14 +162,14 @@ async function checkAlbums(page: Page, thread: Locator) {
   const viewer = page.locator('.wa-viewer');
   await three.locator('.wa-album-open').nth(2).click();
   await expect(viewer).toBeVisible();
-  await expect(viewer.locator('.wa-viewer-count')).toHaveText('5 / 10');
+  await expect(viewer.locator('.wa-viewer-count')).toHaveText('6 / 11');
   await page.keyboard.press('Escape');
   await expect(viewer).toBeHidden();
   // El "+2" abre la cuarta del álbum y de ahí se sigue a la quinta.
   await five.locator('.wa-album-open').nth(3).click();
-  await expect(viewer.locator('.wa-viewer-count')).toHaveText('9 / 10');
+  await expect(viewer.locator('.wa-viewer-count')).toHaveText('10 / 11');
   await page.keyboard.press('ArrowRight');
-  await expect(viewer.locator('.wa-viewer-count')).toHaveText('10 / 10');
+  await expect(viewer.locator('.wa-viewer-count')).toHaveText('11 / 11');
   await expect(viewer.locator('.wa-viewer-caption')).toHaveText('La terraza al final');
   await page.keyboard.press('Escape');
   await expect(viewer).toBeHidden();
@@ -174,6 +193,8 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   const thread = page.locator('.ib-wa-thread');
   await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible();
   const { five } = await checkAlbums(page, thread);
+  await thread.locator('.gr-msg:has(.wa-image)').scrollIntoViewIfNeeded();
+  await shot(page, 'inbox-caption-1280');
   await five.scrollIntoViewIfNeeded();
   await shot(page, 'inbox-1280');
 
@@ -191,6 +212,8 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   await five.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await shot(page, 'inbox-390');
+  await thread.locator('.gr-msg:has(.wa-image)').scrollIntoViewIfNeeded();
+  await shot(page, 'inbox-caption-390');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -223,6 +246,8 @@ test('Lines: fotos y videos mandados juntos van en un álbum; cada foto con su m
     const thread = page.locator('.wa-thread');
     await expect(thread.locator('.wa-album').first()).toBeVisible({ timeout: 20_000 });
     const { five } = await checkAlbums(page, thread);
+    await thread.locator('.gr-msg:has(.wa-image)').scrollIntoViewIfNeeded();
+    await shot(page, 'lines-caption-1280');
     await five.scrollIntoViewIfNeeded();
     await shot(page, 'lines-1280');
 
@@ -248,6 +273,8 @@ test('Lines: fotos y videos mandados juntos van en un álbum; cada foto con su m
     await five.scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
     await shot(page, 'lines-390');
+    await thread.locator('.gr-msg:has(.wa-image)').scrollIntoViewIfNeeded();
+    await shot(page, 'lines-caption-390');
     expect(errors, errors.join('\n')).toEqual([]);
   } finally {
     await request.delete(`/api/groups/numbers/${numberId}`).catch(() => null);
