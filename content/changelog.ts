@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-mention-picker',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: a WhatsApp-style @mention picker',
+      es: 'Lines: el selector de @menciones como el de WhatsApp',
+      pt: 'Lines: o seletor de @menções como o do WhatsApp',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Typing @ in an internal note opens a floating card over the chat with each teammate’s avatar and name, instead of a list with names and emails above the composer.',
+        es: 'Escribir @ en una nota interna abre una tarjeta flotante sobre el chat con el avatar y el nombre de cada compañero, en vez de una lista con nombres y mails arriba del campo.',
+        pt: 'Digitar @ em uma nota interna abre um cartão flutuante sobre o chat com o avatar e o nome de cada colega, em vez de uma lista com nomes e e-mails acima do campo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-notes-even',
     date: '2026-11-12',
     title: {

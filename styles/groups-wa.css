@@ -1012,3 +1012,20 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-emoji-suggest-item.is-active { border-color: var(--wa-primary); background: var(--wa-hover, rgba(0, 0, 0, 0.04)); }
 @keyframes wa-emoji-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .wa-emoji-suggest { animation: none; } }
+
+/* @menciones en las notas: tarjeta flotante sobre el chat, como la de WhatsApp (avatar y nombre). */
+.gr-inbox .wa-composer { position: relative; }
+.wa-mention-pop {
+  position: absolute; left: 56px; bottom: calc(100% + 6px); z-index: 20; width: min(320px, calc(100% - 72px)); max-height: 264px; overflow-y: auto;
+  list-style: none; margin: 0; padding: 6px; background: var(--wa-menu, var(--bg)); border-radius: 12px;
+  box-shadow: 0 2px 5px rgb(11 20 26 / 0.12), 0 8px 24px rgb(11 20 26 / 0.14); animation: wa-mention-in 0.12s ease-out;
+}
+.wa-mention-pop button {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 6px 10px; text-align: left; font: inherit;
+  font-size: 0.9375rem; color: var(--wa-text); background: transparent; border: 0; border-radius: 8px; cursor: pointer;
+}
+.wa-mention-pop li[aria-selected='true'] button { background: var(--wa-hover, var(--ui-hover)); }
+.wa-mention-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes wa-mention-in { from { opacity: 0; transform: translateY(4px); } }
+@media (max-width: 1023px) { .wa-mention-pop { left: 8px; width: calc(100% - 16px); } }
+@media (prefers-reduced-motion: reduce) { .wa-mention-pop { animation: none; } }
