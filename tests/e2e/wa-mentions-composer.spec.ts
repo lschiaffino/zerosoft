@@ -93,7 +93,7 @@ async function fakeLinesNumber(request: APIRequestContext) {
 }
 
 test('Lines: @ en un grupo de WhatsApp elige a la persona, la pinta en verde y la manda como mención', async ({ page, request }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(300_000);
   const errors = watchErrors(page);
   const n = await fakeLinesNumber(request);
   const tag = uid();
@@ -106,8 +106,8 @@ test('Lines: @ en un grupo de WhatsApp elige a la persona, la pinta en verde y l
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.gr-row', { hasText: title }).click({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 30_000 });
+  await page.locator('.gr-row', { hasText: title }).click({ timeout: 90_000 });
+  await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('.wa-head-sub')).toContainText(`Ezequiel Sculli ${tag}`, { timeout: 20_000 });
 
   const input = page.getByRole('textbox', { name: 'WhatsApp' });
@@ -175,7 +175,7 @@ test('Lines: @ en un grupo de WhatsApp elige a la persona, la pinta en verde y l
 });
 
 test('Lines: en una nota interna la mención al equipo también se pinta, y en el teléfono la lista entra en la pantalla', async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   const errors = watchErrors(page);
   const n = await fakeLinesNumber(request);
   const tag = uid();
@@ -184,7 +184,7 @@ test('Lines: en una nota interna la mención al equipo también se pinta, y en e
   await n.post([message(gid, { chatName: title, senderPhone: phone(), senderName: `Lu ${tag}`, body: 'hola' })]);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.gr-row', { hasText: title }).click({ timeout: 30_000 });
+  await page.locator('.gr-row', { hasText: title }).click({ timeout: 90_000 });
   await page.getByRole('tab', { name: 'Internal note' }).click();
   const input = page.getByRole('textbox', { name: 'Internal note' });
   await input.click();
@@ -203,7 +203,7 @@ test('Lines: en una nota interna la mención al equipo también se pinta, y en e
 });
 
 test('Inbox: la mención se pinta en el campo y sale como mención de WhatsApp', async ({ page, request }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(300_000);
   const errors = watchErrors(page);
   await request.post('/api/inbox/whatsapp');
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
@@ -221,8 +221,14 @@ test('Inbox: la mención se pinta en el campo y sale como mención de WhatsApp',
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click({ timeout: 30_000 });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click({ timeout: 90_000 });
   const input = page.locator('.ib-wa-composer textarea.wa-input');
+  // Con `next dev` la primera vez que se abre la conversación compila: si el pedido se corta, "Try again".
+  await expect(async () => {
+    const retry = page.getByRole('button', { name: 'Try again' });
+    if (await retry.isVisible()) await retry.click();
+    await expect(input).toBeVisible({ timeout: 15_000 });
+  }).toPass({ timeout: 180_000 });
   await input.click();
   await input.pressSequentially('Gracias @ezeq');
   const pop = page.locator('.ib-wa-mentions');

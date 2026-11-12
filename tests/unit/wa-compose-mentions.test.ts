@@ -6,6 +6,9 @@ import { evolutionProvider, wahaProvider } from '@/lib/groups-provider-bridge';
 import { fakeSent, resetFakeProvider } from '@/lib/groups-provider-fake';
 import { cleanMentions, connectNumber, createNumber, getNumberRowById, ingestEvents, listChats, listMessages, retryMessage, sendMessage } from '@/lib/groups';
 import { getDb } from '@/lib/db';
+import { mentionYou } from '@/lib/wa-mentions';
+import { mentionSelf, rememberContacts, resolveTextMentions } from '@/lib/wa-contacts';
+import { createAccount } from '@/lib/inbox/core';
 import { makeUser } from './helpers';
 
 const members = [
@@ -130,5 +133,66 @@ describe('menciones: lo que sale a WhatsApp', () => {
     await getDb().prepare("UPDATE groups_messages SET status = 'failed' WHERE id = ?").run(sent.id);
     await retryMessage(user.id, user.id, sent.id);
     expect(fakeSent(n.id).filter((s) => s.kind === 'text').at(-1)).toMatchObject({ mentions: ['5491155550001'] });
+  });
+});
+
+describe('vista previa de la lista: una mención a la cuenta misma', () => {
+  beforeEach(() => {
+    vi.stubEnv('GROUPS_FAKE', '1');
+    vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
+    resetFakeProvider();
+  });
+
+  it('"Vos" en el idioma de la persona', () => {
+    expect(mentionYou('es-AR')).toBe('Vos');
+    expect(mentionYou('pt-BR')).toBe('Você');
+    expect(mentionYou(null)).toBe('You');
+  });
+
+  it('Inbox: "@Vos" para el teléfono de la cuenta y para un lid de ese teléfono, como la burbuja', async () => {
+    const user = await makeUser('wa-self-inbox');
+    await getDb().prepare("UPDATE users SET locale = 'es' WHERE id = ?").run(user.id);
+    const acc = await createAccount(user.id, { kind: 'whatsapp', provider: 'fake', address: '+54 9 11 4928-7832' });
+    const lid = '700000000000777';
+    await rememberContacts({ app: 'inbox', accountId: acc.id, userId: user.id }, [{ phone: '5491149287832', lid }, { phone: '5491155550001', push: 'Mari' }]);
+    const [own, viaLid, other] = await resolveTextMentions(
+      'inbox',
+      [
+        { accountId: acc.id, text: 'Mari: @5491149287832 quiero hablar' },
+        { accountId: acc.id, text: `@${lid} mirá` },
+        { accountId: acc.id, text: '@5491155550001 dale' },
+      ],
+      { self: mentionSelf('inbox', user.id) },
+    );
+    expect(own).toBe('Mari: @Vos quiero hablar');
+    expect(viaLid).toBe('@Vos mirá');
+    expect(other).toBe('@Mari dale');
+  });
+
+  it('Lines: la lista muestra el nombre de la línea (como la burbuja), no el teléfono', async () => {
+    const user = await makeUser('wa-self-lines');
+    const n = await createNumber(user.id, user.id, { provider: 'fake' });
+    await connectNumber(user.id, n.id);
+    await getDb().prepare("UPDATE groups_numbers SET phone = '5491149287832', name = 'Soporte' WHERE id = ?").run(n.id);
+    const row = (await getNumberRowById(n.id))!;
+    await ingestEvents(row, [
+      {
+        type: 'message',
+        chatId: '120363000000000777@g.us',
+        isGroup: true,
+        fromMe: false,
+        senderPhone: '5491155550001',
+        senderName: 'Mari',
+        providerMessageId: 'S-1',
+        body: '@5491149287832 quiero hablar',
+        mentions: ['5491149287832'],
+      },
+    ]);
+    const preview = async () => (await listChats(user.id, user.id)).rows.find((c) => c.kind === 'group')!.lastMessagePreview;
+    expect(await preview()).toContain('@Soporte quiero hablar');
+    expect(await preview()).not.toContain('5491149287832');
+    // Sin nombre de línea: "@Vos" en el idioma de la persona (acá, inglés).
+    await getDb().prepare("UPDATE groups_numbers SET name = '' WHERE id = ?").run(n.id);
+    expect(await preview()).toContain('@You quiero hablar');
   });
 });

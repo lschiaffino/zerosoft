@@ -688,9 +688,11 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   if (!row) return null;
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
-    const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+    const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
     dto.lastMessagePreview = (
-      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws) }).catch(() => [dto.lastMessagePreview])
+      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) }).catch(() => [
+        dto.lastMessagePreview,
+      ])
     )[0];
   }
   if (row.kind === 'dm') {
@@ -1006,12 +1008,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
-  const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+  const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
   const named = await resolveTextMentions(
     'lines',
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
-    { someone: () => someoneWord(ws) },
+    { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
   return {
     rows: rows.map((r, i) => {
