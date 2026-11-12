@@ -834,7 +834,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-reimport .select { width: auto; height: 28px; font-size: 0.8125rem; }
 
 /* Lines: selector de línea, etiqueta de línea y carpetas compartidas */
-.gr-line-select { max-width: 170px; min-width: 0; }
+.gr-line-select { max-width: 200px; min-width: 0; }
 .gr-line-badge { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 0 6px; border: 1px solid var(--ui-border); }
 .gr-folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
 .gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }

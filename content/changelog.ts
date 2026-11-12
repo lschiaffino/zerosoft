@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-line-picker',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: a quieter line picker',
+      es: 'Lines: un selector de línea más sutil',
+      pt: 'Lines: um seletor de linha mais discreto',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The line picker next to the inbox title is now a light button that opens a small list below it, with the selected line checked and the last digits of each number.',
+        es: 'El selector de línea al lado del título de la bandeja ahora es un botón liviano que abre una lista chica debajo, con la línea elegida tildada y los últimos dígitos de cada número.',
+        pt: 'O seletor de linha ao lado do título da caixa agora é um botão leve que abre uma lista pequena abaixo, com a linha escolhida marcada e os últimos dígitos de cada número.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-folders-collapsed-sidebar',
     date: '2026-11-12',
     title: {
