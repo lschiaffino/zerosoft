@@ -224,7 +224,7 @@ const Conversation = forwardRef<
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <Avatar name={displayName} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={40} />
+        <Avatar name={displayName} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
         <div className="ib-convo-title">
           {renaming ? (
             <form

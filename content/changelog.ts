@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-chat-density',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: a denser chat view',
+      es: 'Lines e Inbox: chats más compactos',
+      pt: 'Lines e Inbox: chats mais compactos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The chat list and the conversation are one step smaller: names, previews, message text, photos, avatars, the header and the message box take less room, so more chats and more messages fit on screen. On the phone, buttons keep the size of a finger.',
+        es: 'La lista de chats y la conversación bajaron un paso: nombres, vistas previas, texto de los mensajes, fotos, avatares, el encabezado y el campo de escribir ocupan menos lugar, así entran más chats y más mensajes en la pantalla. En el teléfono los botones siguen con el tamaño del dedo.',
+        pt: 'A lista de chats e a conversa ficaram um passo menores: nomes, prévias, texto das mensagens, fotos, avatares, o cabeçalho e o campo de escrever ocupam menos espaço, então cabem mais chats e mais mensagens na tela. No celular os botões continuam do tamanho do dedo.',
+      },
+      {
+        product: 'inbox',
+        en: 'Inbox gets the same tighter sizes in the list, WhatsApp chats, email threads and the reply box.',
+        es: 'Inbox usa los mismos tamaños más compactos en la lista, los chats de WhatsApp, los hilos de correo y el campo de respuesta.',
+        pt: 'O Inbox usa os mesmos tamanhos mais compactos na lista, nos chats de WhatsApp, nos fios de e-mail e no campo de resposta.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-filter-panel',
     date: '2026-11-11',
     title: {

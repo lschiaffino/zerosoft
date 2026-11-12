@@ -1369,7 +1369,7 @@ export default function ChatThread(props: ThreadProps) {
         {selecting && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={inName(m)} kind="dm" size={28} seed={m.senderPhone || m.senderName} />}
+            {!cont && <Avatar name={inName(m)} kind="dm" size={26} seed={m.senderPhone || m.senderName} />}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -1639,7 +1639,7 @@ export default function ChatThread(props: ThreadProps) {
           {/* El avatar abre la info del chat (como en WhatsApp); el nombre también, con el mouse. El título queda como encabezado. */}
           <div className="wa-head-who">
             <button type="button" className="wa-head-avatar" onClick={toggleDetails} aria-label={t('wa.openInfo', { name: chat.name })} aria-expanded={detailsShown}>
-              <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={40} seed={chat.id} />
+              <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={36} seed={chat.id} />
             </button>
             <div className="gr-thread-title" onClick={toggleDetails}>
               <h2>{chat.name}</h2>
@@ -1651,7 +1651,7 @@ export default function ChatThread(props: ThreadProps) {
           <div className="gr-thread-actions">
             {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
             <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
-              {assignee ? <Avatar name={assignee} kind="dm" size={30} seed={chat.assignedTo ?? ''} /> : <UserPlus size={22} />}
+              {assignee ? <Avatar name={assignee} kind="dm" size={28} seed={chat.assignedTo ?? ''} /> : <UserPlus size={20} />}
               <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
                 <option value="">{t('thread.unassigned')}</option>
                 {props.people.map((p) => (
@@ -2053,7 +2053,7 @@ export default function ChatThread(props: ThreadProps) {
 
       <aside className={`gr-details${detailsOpen ? ' is-open' : ''}`} aria-label={t('thread.details')}>
         <div className="wa-details-head">
-          <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={96} seed={chat.id} />
+          <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={84} seed={chat.id} />
           <strong>{chat.name}</strong>
           <span>{chat.kind === 'group' ? t('thread.groupMeta', { n: chat.memberCount }) : chat.phone ? `+${chat.phone}` : t('wa.whatsappContact')}</span>
           <button type="button" className="wa-icon-btn wa-details-close" onClick={() => setDetailsOpen(false)} aria-label={t('common.close')} title={t('common.close')}>

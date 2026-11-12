@@ -191,10 +191,10 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   );
 }
 
-/** Caja de la foto desde su ancho y alto (como WhatsApp: hasta 330 de ancho y 338 de alto). */
+/** Caja de la foto desde su ancho y alto (hasta 300 de ancho y alto, igual que .wa-image en styles/groups-wa.css). */
 function boxFor(width?: number, height?: number): { width: number; height: number } | null {
   if (!width || !height) return null;
-  const scale = Math.min(330 / width, 338 / height, 1);
+  const scale = Math.min(300 / width, 300 / height, 1);
   return { width: Math.max(100, Math.round(width * scale)), height: Math.max(60, Math.round(height * scale)) };
 }
 
