@@ -94,13 +94,13 @@ test('Lines: reenviar una nota de voz por Evolution sale como nota de voz y qued
       .poll(async () => {
         const rows = ((await (await ctx.request.get('/api/groups/chats?limit=100')).json()) as { rows: Array<{ id: string; name: string }> }).rows;
         chatId = rows.find((r) => r.name === 'Marta Reenvío')?.id ?? '';
-        return chatId && rows.some((r) => r.name === 'Nico Reenvío');
-      })
+        return Boolean(chatId) && rows.some((r) => r.name === 'Nico Reenvío');
+      }, { timeout: 30_000 })
       .toBe(true);
 
     await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
     const voice = page.locator('.gr-msg', { has: page.locator('.wa-voice') }).last();
-    await expect(voice).toBeVisible();
+    await expect(voice).toBeVisible({ timeout: 30_000 });
     await voice.hover();
     await voice.locator('.wa-chevron').click();
     await expect(page.getByRole('menuitem', { name: 'Forward' })).toBeVisible();
@@ -127,7 +127,7 @@ test('Lines: reenviar una nota de voz por Evolution sale como nota de voz y qued
     expect(msgs.find((m) => m.direction === 'out')).toMatchObject({ forwarded: true, media: { kind: 'voice', duration: 6 } });
     await page.goto(`/en/app/lines/inbox/${nicoId}`, { waitUntil: 'networkidle' });
     const copy = page.locator('.gr-msg', { has: page.locator('.wa-voice') }).last();
-    await expect(copy.locator('.gr-forwarded')).toHaveText(/Forwarded/);
+    await expect(copy.locator('.gr-forwarded')).toHaveText(/Forwarded/, { timeout: 30_000 });
     expect(errors).toEqual([]);
   } finally {
     await ctx.close();

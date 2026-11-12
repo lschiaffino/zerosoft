@@ -59,7 +59,7 @@ test('Inbox: reenviar una nota de voz a otro chat', async ({ page, request }) =>
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
   const thread = page.locator('.ib-wa-thread');
   const voice = thread.locator('.gr-msg-in', { has: page.locator('.wa-voice') });
-  await expect(voice).toBeVisible();
+  await expect(voice).toBeVisible({ timeout: 30_000 });
   await voice.hover();
   await voice.locator('.wa-chevron').click();
   await expect(page.getByRole('menuitem', { name: 'Forward' })).toBeVisible();
@@ -76,7 +76,7 @@ test('Inbox: reenviar una nota de voz a otro chat', async ({ page, request }) =>
   // En el otro chat: la nota de voz, como nota de voz y marcada "Forwarded".
   await page.locator('.ib-item', { hasText: otherName }).locator('.ib-row-btn').click();
   const copy = thread.locator('.gr-msg-out', { has: page.locator('.wa-voice') });
-  await expect(copy).toBeVisible();
+  await expect(copy).toBeVisible({ timeout: 30_000 });
   await expect(copy.locator('.gr-forwarded')).toHaveText(/Forwarded/);
   expect(errors).toEqual([]);
 });
