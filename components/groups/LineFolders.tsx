@@ -4,7 +4,14 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { flattenTree } from '@/lib/inbox/folder-tree';
+import MenuSelect from '@/components/ui/MenuSelect';
 import { Modal } from './ui';
+
+/** Últimos 4 dígitos del teléfono, para distinguir líneas con nombres parecidos. */
+function phoneTail(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return d.length > 4 ? `···${d.slice(-4)}` : d;
+}
 
 export interface LineOption {
   id: string;
@@ -19,14 +26,14 @@ export function LineSelector({ numbers, value, onChange }: { numbers: LineOption
   const t = useTranslations('groups.lines');
   if (numbers.length < 2) return null;
   return (
-    <select className="select gr-line-select" value={value} onChange={(e) => onChange(e.target.value)} aria-label={t('selectorLabel')}>
-      <option value="all">{t('all')}</option>
-      {numbers.map((n) => (
-        <option key={n.id} value={n.id}>
-          {n.name}
-        </option>
-      ))}
-    </select>
+    <MenuSelect
+      className="gr-line-select"
+      testId="lines-line-select"
+      label={t('selectorLabel')}
+      value={value}
+      onChange={onChange}
+      options={[{ value: 'all', label: t('all') }, ...numbers.map((n) => ({ value: n.id, label: n.name, hint: n.phone ? phoneTail(n.phone) : undefined }))]}
+    />
   );
 }
 
