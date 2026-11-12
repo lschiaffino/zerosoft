@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-transcript-paragraphs',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: voice note transcripts in paragraphs',
+      es: 'Lines e Inbox: transcripciones de audios en párrafos',
+      pt: 'Lines e Inbox: transcrições de áudios em parágrafos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The full transcript of a voice note is split into short paragraphs (a few sentences each) instead of one long block.',
+        es: 'La transcripción completa de una nota de voz se separa en párrafos cortos (unas pocas oraciones cada uno) en vez de un solo bloque.',
+        pt: 'A transcrição completa de uma nota de voz é separada em parágrafos curtos (algumas frases cada) em vez de um bloco só.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox.',
+        es: 'Lo mismo en Inbox.',
+        pt: 'O mesmo no Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-voice-note-player',
     date: '2026-11-12',
     title: {
