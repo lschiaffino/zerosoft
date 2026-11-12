@@ -15,8 +15,8 @@ jobs:
     # 45: instalar ffmpeg por apt puede tardar más de 10 minutos y el build quedaba cortado a los 30.
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -35,7 +35,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
       # En un tar: .next es una carpeta oculta y lleva symlinks, que el artifact no conserva sueltos.
       - run: tar -cf next-build.tar --exclude=.next/cache .next
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: next-build
           path: next-build.tar
@@ -51,13 +51,13 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: next-build
       - run: tar -xf next-build.tar && rm next-build.tar
@@ -68,7 +68,7 @@ jobs:
       - run: npx playwright test --shard=${{ matrix.shard }}/4
         env:
           CI: 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -83,19 +83,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: next-build
       - run: tar -xf next-build.tar && rm next-build.tar
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:real
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: playwright-report-real
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build self-host image
         run: docker build -t zerosoft:ci .
       - name: Smoke test
