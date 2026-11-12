@@ -636,11 +636,10 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
       case 'scheduled':
         where.push("EXISTS (SELECT 1 FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed'))");
         break;
+      // "Hecho" y "Archivado" son una sola cosa para quien usa Inbox: la vista Archivados muestra los dos.
       case 'done':
-        where.push('t.done_at IS NOT NULL', 't.archived_at IS NULL');
-        break;
       case 'archived':
-        where.push('t.archived_at IS NOT NULL');
+        where.push('(t.archived_at IS NOT NULL OR t.done_at IS NOT NULL)');
         break;
     }
   }
@@ -649,9 +648,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const mode: { key: string; dir: 'ASC' | 'DESC'; pinnedFirst: boolean } =
     plain && view === 'snoozed'
       ? { key: 't.snoozed_until', dir: 'ASC', pinnedFirst: false }
-      : plain && view === 'done'
-        ? { key: 't.done_at', dir: 'DESC', pinnedFirst: false }
-        : plain && view === 'archived'
+      : plain && (view === 'done' || view === 'archived')
           ? { key: SORT_KEY, dir: 'DESC', pinnedFirst: false }
           : // Los chats sin mensajes (los que trae el historial de WhatsApp antes que sus mensajes) van al final.
             { key: SORT_KEY, dir: 'DESC', pinnedFirst: true };
@@ -988,7 +985,8 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'undone':
-      sql = 'done_at = NULL';
+      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar".
+      sql = 'done_at = NULL, archived_at = NULL';
       break;
     case 'read':
       sql = 'unread = 0';
@@ -1009,7 +1007,7 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'unarchive':
-      sql = 'archived_at = NULL';
+      sql = 'archived_at = NULL, done_at = NULL';
       break;
     case 'snooze':
       sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
@@ -1102,7 +1100,7 @@ export async function inboxCounts(owner: string, now = new Date()): Promise<Reco
          (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
             AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS reply,
          (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ?) AS snoozed,
-         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND archived_at IS NOT NULL) AS archived,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL)) AS archived,
          (SELECT COUNT(*) FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')) AS scheduled`,
     )
     .get(owner, nowS, owner, nowS, owner, nowS, owner, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null } | undefined;
