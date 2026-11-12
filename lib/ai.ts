@@ -10,6 +10,7 @@ import {
 import type { z } from 'zod';
 import { getDb } from './db';
 import { rateLimit } from './rate-limit';
+import { DEFAULT_ASSISTANT_MODEL, openRouterChatModel } from './assistant/config';
 
 /**
  * Base de AI de la suite. Todas las llamadas a modelos pasan por acá:
@@ -62,6 +63,7 @@ export function aiModelId(): string {
 export function aiEnabled(): boolean {
   if (modelOverride) return true;
   if (process.env.AI_ENABLED === 'false') return false;
+  if (viaOpenRouter()) return true;
   return Boolean(
     process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim() || process.env.VERCEL === '1',
   );
@@ -95,7 +97,17 @@ export function resolveAiModel(preferredId?: string | null): { model: LanguageMo
     return { model: modelOverride, modelId: id };
   }
   const id = preferredId?.trim() || aiModelId();
+  if (viaOpenRouter()) {
+    // El Gateway de Vercel puede quedar sin crédito (403): AI_PROVIDER=openrouter manda todo por OpenRouter.
+    const orId = process.env.AI_MODEL_OPENROUTER?.trim() || DEFAULT_ASSISTANT_MODEL;
+    return { model: openRouterChatModel(orId, 'zerosoft'), modelId: `openrouter:${orId}` };
+  }
   return { model: id, modelId: id };
+}
+
+/** AI_PROVIDER=openrouter (con OPENROUTER_API_KEY): el texto y los objetos van por OpenRouter en vez del Gateway. */
+export function viaOpenRouter(): boolean {
+  return process.env.AI_PROVIDER?.trim().toLowerCase() === 'openrouter' && Boolean(process.env.OPENROUTER_API_KEY?.trim());
 }
 
 // ---------- Consumo ----------
