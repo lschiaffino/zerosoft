@@ -5,11 +5,12 @@
 import { getDb } from '../db';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
-import { addMessage, applyThreadAction, claimScheduled, finishScheduled, getAccount, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
+import { addMessage, applyThreadAction, sentWithClientId, claimScheduled, finishScheduled, getAccount, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
 import { pushGmailLabels, sendGmailReply } from './gmail';
 import { BLOCKED_SQL, readInboxMedia, scheduleNextPart } from './schedule';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS } from './types';
+import { onceInFlight } from '../send-once';
 
 async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string): Promise<void> {
   if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, clientId ? { clientId } : {});
@@ -30,9 +31,7 @@ export async function threadWithAccount(owner: string, threadId: string, clientI
       )
       .get(owner, threadId, owner) as Promise<AccountRow | undefined>,
     // Un reintento del mismo envío (mismo clientId): ¿ya está guardado? En la misma vuelta, sin esperar más.
-    clientId
-      ? getDb().prepare('SELECT 1 AS ok FROM inbox_messages WHERE thread_id = ? AND client_id = ? AND owner_id = ?').get(threadId, clientId, owner)
-      : Promise.resolve(undefined),
+    sentWithClientId(owner, threadId, clientId),
   ]);
   if (!account || account.id !== thread.account_id) throw new InboxError('not_found', 404);
   return { thread, account, sent: !!sent };
@@ -45,7 +44,12 @@ export async function sendToThread(owner: string, threadId: string, body: string
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
   const { thread, account, sent } = await threadWithAccount(owner, threadId, clientId);
   if (sent) return;
-  await deliver(account, thread, text, clientId);
+  // Dos pedidos iguales casi a la vez (en esta instancia): el segundo espera al primero en vez de mandar otro.
+  await onceInFlight(
+    clientId ? `inbox:${threadId}:${clientId}` : null,
+    () => deliver(account, thread, text, clientId),
+    async () => undefined,
+  );
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }
 

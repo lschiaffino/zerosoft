@@ -414,7 +414,7 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
     {
       sql: `INSERT INTO inbox_messages (${NEW_MESSAGE_COLS})
        VALUES (?, ?, ?, ${MESSAGE_TAIL_MARKS})
-       ON CONFLICT (thread_id, external_id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       args: [id, thread.owner_id, thread.id, ...messageTail(m, sentAt)],
     },
     // Solo si el mensaje entró: uno repetido no existe con este id.
@@ -445,7 +445,7 @@ export async function addMessageToChat(
     {
       sql: `INSERT INTO inbox_messages (${NEW_MESSAGE_COLS})
        VALUES (?, ?, (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?), ${MESSAGE_TAIL_MARKS})
-       ON CONFLICT (thread_id, external_id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       args: [id, account.owner_id, account.id, external, ...messageTail(m, sentAt)],
     },
     threadTouch(m, sentAt, 'id = (SELECT thread_id FROM inbox_messages WHERE id = ?)', [id]),
@@ -926,6 +926,12 @@ async function quotesFor(threadId: string, rows: MessageRow[]): Promise<Map<stri
     });
   }
   return out;
+}
+
+/** ¿Ya está guardado el envío con este clientId en este chat? (índice único por chat y clientId). */
+export async function sentWithClientId(owner: string, threadId: string, clientId: string | undefined): Promise<boolean> {
+  if (!clientId) return false;
+  return !!(await getDb().prepare('SELECT 1 AS ok FROM inbox_messages WHERE thread_id = ? AND client_id = ? AND owner_id = ?').get(threadId, clientId, owner));
 }
 
 export async function getMessageRow(owner: string, id: string): Promise<MessageRow & { thread_id: string; external_id: string }> {

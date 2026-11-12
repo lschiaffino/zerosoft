@@ -36,6 +36,13 @@ export const pendingSends = {
   active: (id: string): boolean => inFlight.has(id),
 };
 
+/**
+ * Cuánto se espera la respuesta de un archivo: más que lo que el servidor espera al gateway (90 s, que lo baja, lo
+ * convierte y lo sube a WhatsApp). Si la pantalla cortara antes, el archivo saldría igual y la cola del chat dejaría
+ * pasar lo que sigue antes de tiempo.
+ */
+export const MEDIA_SEND_TIMEOUT_MS = 100_000;
+
 /** La cola de envíos de un chat de Inbox: textos, archivos y notas de voz salen en el orden en que se mandaron. */
 export const inboxQueue = (threadId: string) => sendQueueFor(`inbox:${threadId}`);
 

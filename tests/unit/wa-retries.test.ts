@@ -361,3 +361,119 @@ describe('9. la migración 394 se puede correr de nuevo sobre una base que corri
     expect(MIGRATIONS[MIGRATIONS.length - 1].id).toBe('394_wa_live_kinds');
   });
 });
+
+describe('ronda 4: ningún reintento manda dos veces', () => {
+  it('Inbox, texto con menciones (sendWaMessage): el mismo clientId sale una vez y el reintento no da error', async () => {
+    const { owner, account } = await inboxSetup('r4-mentions');
+    const gid = '120363000000098501@g.us';
+    await inboxHook(account, [message(gid, 'r4m-0', { isGroup: true, chatName: 'Equipo', senderPhone: '5491100098502' })]);
+    const [t] = await listThreads(owner);
+    session.user = { id: owner, email: 'r4@test.local', name: 'x', team: null, role: 'owner' };
+    const { POST } = await import('@/lib/routes/inbox/threads/[id]/messages/route');
+    const send = () =>
+      POST(
+        new Request(`http://zerosoft.test/api/inbox/threads/${t.id}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ body: 'hola @5491100098502', mentions: ['5491100098502'], clientId: 'cid-r4-mention' }),
+        }),
+        { params: Promise.resolve({ id: t.id }) },
+      );
+    const key = `inbox-${account.id}`;
+    const before = fakeSent(key).length;
+    expect((await send()).status).toBe(201);
+    // Reintento (se perdió la respuesta), y otro más: 201 los dos, y a WhatsApp salió una vez.
+    expect((await send()).status).toBe(201);
+    expect((await send()).status).toBe(201);
+    expect(fakeSent(key).length).toBe(before + 1);
+    const rows = (await getDb().prepare("SELECT COUNT(*) AS n FROM inbox_messages WHERE thread_id = ? AND client_id = 'cid-r4-mention'").get(t.id)) as { n: number };
+    expect(Number(rows.n)).toBe(1);
+  });
+
+  it('Inbox: el insert de un mensaje con un clientId ya guardado no tira error (no responde 500)', async () => {
+    const { owner, account } = await inboxSetup('r4-conflict');
+    await inboxHook(account, [message('5491100098511@s.whatsapp.net', 'r4c-0')]);
+    const [t] = await listThreads(owner);
+    const { addMessage, getThreadRow } = await import('@/lib/inbox/core');
+    const row = await getThreadRow(owner, t.id);
+    expect(await addMessage(row, { externalId: 'ext-1', fromMe: true, body: 'uno', status: 'sent', clientId: 'cid-r4-conf' })).toBe(true);
+    // Otro id de WhatsApp, el mismo clientId (el caso de dos envíos que se cruzaron): no entra y no falla.
+    expect(await addMessage(row, { externalId: 'ext-2', fromMe: true, body: 'uno', status: 'sent', clientId: 'cid-r4-conf' })).toBe(false);
+  });
+
+  it('Inbox, archivo: el mismo clientId no lo manda dos veces', async () => {
+    const { owner, account } = await inboxSetup('r4-media-inbox');
+    await inboxHook(account, [message('5491100098521@s.whatsapp.net', 'r4i-0')]);
+    const [t] = await listThreads(owner);
+    const { sendWhatsappMedia } = await import('@/lib/inbox/wa-media');
+    const key = `inbox-${account.id}`;
+    const before = fakeSent(key).length;
+    const file = { data: Buffer.from([0x89, 0x50, 0x4e, 0x47]), mimetype: 'image/png', filename: 'casa.png', size: 4, clientId: 'cid-r4-media1' };
+    await sendWhatsappMedia(owner, t.id, file);
+    await sendWhatsappMedia(owner, t.id, file);
+    // Dos a la vez también.
+    await Promise.all([sendWhatsappMedia(owner, t.id, { ...file, clientId: 'cid-r4-media2' }), sendWhatsappMedia(owner, t.id, { ...file, clientId: 'cid-r4-media2' })]);
+    expect(fakeSent(key).length).toBe(before + 2);
+  });
+
+  it('Lines, archivo: la fila se reserva con el clientId antes de mandar; un reintento o uno a la vez no lo duplica', async () => {
+    const { ws, number } = await linesSetup('r4-media-lines');
+    await ingestEvents(number, [message('5491100098531@s.whatsapp.net', 'r4l-0')]);
+    await flush();
+    const [chat] = (await listChats(ws, ws, {})).rows;
+    const { sendMessage } = await import('@/lib/groups');
+    const media = { url: 'https://example.test/foto.png', mimetype: 'image/png', filename: 'foto.png' };
+    const before = fakeSent(number.id).length;
+    const a = await sendMessage(ws, ws, chat.id, { body: '', media, clientId: 'cid-r4-lmedia' });
+    const b = await sendMessage(ws, ws, chat.id, { body: '', media, clientId: 'cid-r4-lmedia' });
+    expect(b.id).toBe(a.id);
+    expect(a.meta.cid).toBe('cid-r4-lmedia');
+    expect(fakeSent(number.id).length).toBe(before + 1);
+  });
+
+  it('Lines, texto: dos pedidos con el mismo clientId a la vez salen una vez y los dos responden el mismo mensaje', async () => {
+    const { ws, number } = await linesSetup('r4-concurrent');
+    await ingestEvents(number, [message('5491100098541@s.whatsapp.net', 'r4k-0')]);
+    await flush();
+    const [chat] = (await listChats(ws, ws, {})).rows;
+    session.user = { id: ws, email: 'r4k@test.local', name: 'x', team: null, role: 'owner' };
+    const { POST } = await import('@/lib/routes/groups/chats/[id]/messages/route');
+    // El proveedor tarda: el segundo pedido llega mientras el primero está saliendo.
+    const fake = await import('@/lib/groups-provider-fake');
+    const provider = fake.fakeProvider(number.id);
+    const slow = { ...provider, sendText: async (c: string, t: string) => (await new Promise((r) => setTimeout(r, 80)), provider.sendText(c, t)) };
+    vi.spyOn(fake, 'fakeProvider').mockImplementation(() => slow as typeof provider);
+    const send = () =>
+      POST(new Request(`http://zerosoft.test/api/groups/chats/${chat.id}/messages`, { method: 'POST', body: JSON.stringify({ body: 'a la vez', clientId: 'cid-r4-concur' }) }), {
+        params: Promise.resolve({ id: chat.id }),
+      });
+    const before = fakeSent(number.id).length;
+    const [r1, r2] = await Promise.all([send(), send()]);
+    expect([r1.status, r2.status]).toEqual([201, 201]);
+    expect(((await r1.json()) as { id: string }).id).toBe(((await r2.json()) as { id: string }).id);
+    expect(fakeSent(number.id).length).toBe(before + 1);
+  });
+
+  it('pasajero: la causa de red adentro de un TypeError cuenta; un valor demasiado grande, no', () => {
+    const libsqlNet = new TypeError('fetch failed', { cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }) });
+    expect(transientError(libsqlNet)).toBe(true);
+    const deep = Object.assign(new Error('SERVER_ERROR'), { name: 'LibsqlError', cause: new TypeError('fetch failed', { cause: { code: 'UND_ERR_SOCKET' } }) });
+    expect(transientError(deep)).toBe(true);
+    expect(transientError(new TypeError('fetch failed'))).toBe(false);
+    expect(transientError(Object.assign(new Error('SQLITE_TOOBIG: string or blob too big'), { name: 'LibsqlError', code: 'SQLITE_TOOBIG' }))).toBe(false);
+    expect(transientError(Object.assign(new Error('SQLITE_RANGE: column index out of range'), { name: 'LibsqlError', code: 'SQLITE_RANGE' }))).toBe(false);
+  });
+
+  it('la consulta del aviso de Lines no lee quién mira si no hay avisos', async () => {
+    const { ws } = await linesSetup('r4-lazy');
+    session.user = { id: ws, email: 'r4l@test.local', name: 'x', team: null, role: 'owner' };
+    const access = await import('@/lib/groups-access');
+    const spy = vi.spyOn(access, 'getPlatformSettings');
+    const { GET } = await import('@/app/api/groups/live/route');
+    const first = (await (await GET(new Request('http://zerosoft.test/api/groups/live?cursor=0'))).json()) as { cursor: number };
+    spy.mockClear();
+    const res = await GET(new Request(`http://zerosoft.test/api/groups/live?cursor=${first.cursor || 1}`));
+    expect(res.status).toBe(200);
+    expect(spy).not.toHaveBeenCalled();
+  });
+});

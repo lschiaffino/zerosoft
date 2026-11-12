@@ -6,6 +6,7 @@ import { limitWrites } from '@/lib/write-limit';
 import { cleanClientId } from '@/lib/optimistic-send';
 import { normalizePoll } from '@/lib/groups-polls';
 import { mediaFromBody } from '@/lib/groups-media-input';
+import { onceInFlight } from '@/lib/send-once';
 import { conditionalJson } from '@/lib/etag';
 
 export const runtime = 'nodejs';
@@ -82,48 +83,60 @@ export async function POST(req: Request, ctx: Ctx) {
   } catch (err) {
     return handleGroupsError(err);
   }
-  let visible: boolean;
-  let number: Awaited<ReturnType<typeof getNumberRow>>;
-  let gated = false;
-  try {
-    // Ya mandado (reintento): no cuenta otra vez contra el tope de la línea.
-    if (existing && existing.chat_id === id && existing.user_id === s.ws) {
-      visible = open || (await canSeeChat(viewer, id));
+  // Ya mandado (reintento): no cuenta otra vez contra el tope de la línea.
+  if (existing && existing.chat_id === id && existing.user_id === s.ws) {
+    if (!open && !(await canSeeChat(viewer, id).catch(() => false))) return groupsError(404, 'not_found');
+    return NextResponse.json(maskMessage(viewer, toMessageDto(existing)), { status: 201 });
+  }
+  // Todo lo que sigue (acceso, tope de envíos, WhatsApp) corre una sola vez por clientId a la vez en esta instancia:
+  // un segundo pedido igual mientras el primero está saliendo espera a ese y devuelve el mismo mensaje.
+  return onceInFlight(
+    clientId ? `lines:${id}:${clientId}` : null,
+    async () => {
+      let visible: boolean;
+      let number: Awaited<ReturnType<typeof getNumberRow>>;
+      let gated = false;
+      try {
+        if (open && !note) {
+          [number] = await Promise.all([getNumberRow(s.ws, chat.number_id), sendGate(chat.number_id)]);
+          visible = true;
+          gated = true;
+        } else if (open) {
+          number = await getNumberRow(s.ws, chat.number_id);
+          visible = true;
+        } else {
+          [visible, number] = await Promise.all([canSeeChat(viewer, id), getNumberRow(s.ws, chat.number_id)]);
+        }
+      } catch (err) {
+        return handleGroupsError(err);
+      }
       if (!visible) return groupsError(404, 'not_found');
-      return NextResponse.json(maskMessage(viewer, toMessageDto(existing)), { status: 201 });
-    }
-    if (open && !note) {
-      [number] = await Promise.all([getNumberRow(s.ws, chat.number_id), sendGate(chat.number_id)]);
-      visible = true;
-      gated = true;
-    } else if (open) {
-      number = await getNumberRow(s.ws, chat.number_id);
-      visible = true;
-    } else {
-      [visible, number] = await Promise.all([canSeeChat(viewer, id), getNumberRow(s.ws, chat.number_id)]);
-    }
-  } catch (err) {
-    return handleGroupsError(err);
-  }
-  if (!visible) return groupsError(404, 'not_found');
-  try {
-    const msg = await sendMessage(
-      s.ws,
-      s.me,
-      id,
-      {
-        poll,
-        body: str(b.body) ?? '',
-        replyToId: str(b.replyToId, 100) || null,
-        note,
-        media,
-        clientId,
-        ...(contacts ? { contacts } : {}),
-      },
-      { chat, number, gated, existing: null },
-    );
-    return NextResponse.json(maskMessage(viewer, msg), { status: 201 });
-  } catch (err) {
-    return handleGroupsError(err);
-  }
+      try {
+        const msg = await sendMessage(
+          s.ws,
+          s.me,
+          id,
+          {
+            poll,
+            body: str(b.body) ?? '',
+            replyToId: str(b.replyToId, 100) || null,
+            note,
+            media,
+            clientId,
+            ...(contacts ? { contacts } : {}),
+          },
+          { chat, number, gated, existing: null },
+        );
+        return NextResponse.json(maskMessage(viewer, msg), { status: 201 });
+      } catch (err) {
+        return handleGroupsError(err);
+      }
+    },
+    async () => {
+      const saved = clientId ? await messageByClientId(id, clientId) : null;
+      if (!saved) return groupsError(502, 'send_failed');
+      if (!open && !(await canSeeChat(viewer, id).catch(() => false))) return groupsError(404, 'not_found');
+      return NextResponse.json(maskMessage(viewer, toMessageDto(saved)), { status: 201 });
+    },
+  );
 }

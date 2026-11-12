@@ -13,8 +13,8 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, TEMP_PREFIX } from '@/lib/optimistic-send';
-import { SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
+import { isTempId, newClientId, TEMP_PREFIX } from '@/lib/optimistic-send';
+import { MEDIA_SEND_TIMEOUT_MS, SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
@@ -603,10 +603,18 @@ export default function ChatThread(props: ThreadProps) {
     pendingCaret.current = start + e.length;
   }
 
-  async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
+  async function post(body: Record<string, unknown>, sendKey?: string): Promise<MessageDto | null> {
     // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
-    // Con tiempo máximo: un envío que no responde no traba la cola del chat (queda como error, se reintenta).
-    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body, signal: withTimeout(undefined, SEND_TIMEOUT_MS) }));
+    // Con un clientId por archivo (el mismo si se vuelve a mandar desde la bandeja): un reintento no lo duplica. Y un
+    // tiempo máximo más largo que el del servidor para los archivos, así la cola no se libera antes de que termine.
+    const clientId = sendKey ? clientIdFor(sendKey) : undefined;
+    const res = await linesQueue(chat.id)(() =>
+      api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
+        body: clientId ? { ...body, clientId } : body,
+        signal: withTimeout(undefined, body.media ? MEDIA_SEND_TIMEOUT_MS : SEND_TIMEOUT_MS),
+      }),
+    );
+    if (res.data && sendKey) sendKeys.current.delete(sendKey);
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -614,6 +622,14 @@ export default function ChatThread(props: ThreadProps) {
     merge([res.data]);
     return res.data;
   }
+
+  // Un clientId por archivo de la bandeja (o nota de voz): se mantiene si el envío falla y se vuelve a mandar.
+  const sendKeys = useRef(new Map<string, string>());
+  const clientIdFor = (key: string) => {
+    let id = sendKeys.current.get(key);
+    if (!id) sendKeys.current.set(key, (id = newClientId()));
+    return id;
+  };
 
   /**
    * Manda lo del composer: el texto, o los archivos de la bandeja (el texto
@@ -635,7 +651,7 @@ export default function ChatThread(props: ThreadProps) {
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
     let ok = true;
     if (voice) {
-      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }));
+      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }, `voice:${voice.url}`));
     } else if (files.length) {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
@@ -649,7 +665,7 @@ export default function ChatThread(props: ThreadProps) {
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
           media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
-        });
+        }, `file:${f.key}`);
         if (sent && !withCaption && caption) await post({ ...base, replyToId: null, body: caption, media: null });
         // Con burbuja creada (mandada o no), sale de la bandeja: si falló, se reintenta desde la burbuja, sin duplicar.
         if (sent) tray.remove(f.key);

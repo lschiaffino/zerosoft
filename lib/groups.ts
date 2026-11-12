@@ -1970,7 +1970,9 @@ async function sendMediaMessage(
   });
   const authorKind = input.authorKind ?? 'person';
   const at = nowIso();
-  const row = (await insertMessage({
+  // La fila se guarda antes de mandar ("enviando"), con el clientId: si otro pedido con el mismo clientId ya la
+  // guardó (un reintento, aun desde otra instancia), el INSERT no entra y no se manda el archivo otra vez.
+  const reserved = await insertMessage({
     ws,
     chatId: chat.id,
     numberId: chat.number_id,
@@ -1984,8 +1986,15 @@ async function sendMediaMessage(
     status: 'pending',
     createdAt: at,
     forwarded: input.forwarded,
-    meta: { media: info },
-  })) as MessageRow;
+    clientId: input.clientId || null,
+    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}) },
+  });
+  if (!reserved) {
+    const already = input.clientId ? await messageByClientId(chat.id, input.clientId) : null;
+    if (already) return toMessageDto(already);
+    throw new GroupsError('send_failed', 502);
+  }
+  const row = reserved;
 
   let providerId: string | null = null;
   let status = 'sent';

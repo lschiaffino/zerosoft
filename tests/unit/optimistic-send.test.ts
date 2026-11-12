@@ -5,8 +5,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { UNSENT_LINES_KEY, cleanClientId, dropSettled, isTempId, newClientId, sendQueue, sendQueueFor, sendsInFlight, tempIdFor, unsentStore, type Unsent } from '@/lib/optimistic-send';
-import { SEND_TIMEOUT_MS, cidOf, linesDraftKey, linesQueue as linesQueueFor, sendLinesText, tempMessage, unsentLines, withUnsent } from '@/components/groups/optimistic';
+import { MEDIA_SEND_TIMEOUT_MS, SEND_TIMEOUT_MS, cidOf, linesDraftKey, linesQueue as linesQueueFor, sendLinesText, tempMessage, unsentLines, withUnsent } from '@/components/groups/optimistic';
 import { applyPending, keepPending, pendingSends, tempInboxMessage, withoutStale } from '@/components/inbox/wa/pending';
+import { MEDIA_SEND_TIMEOUT_MS as INBOX_MEDIA_SEND_TIMEOUT_MS } from '@/components/inbox/wa/pending';
 import type { MessageDto as LinesMessage } from '@/lib/groups';
 import type { MessageDto as InboxMessage } from '@/lib/inbox/types';
 
@@ -434,5 +435,28 @@ describe('ronda 3: de quién es lo que no salió, reintentos y tiempos', () => {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('ronda 4', () => {
+  it('8: un borrador con la clave vieja (sin la persona) pasa a la nueva la primera vez que se lee', () => {
+    const data = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) });
+    data.set('gr-draft:chat-9', 'lo que estaba escribiendo');
+    const key = linesDraftKey('persona-a', 'chat-9');
+    expect(data.get(key)).toBe('lo que estaba escribiendo');
+    expect(data.has('gr-draft:chat-9')).toBe(false);
+    // Si la clave nueva ya tenía algo, no se pisa (y la vieja se va igual).
+    data.set('gr-draft:chat-8', 'viejo');
+    data.set('gr-draft:persona-a:chat-8', 'nuevo');
+    linesDraftKey('persona-a', 'chat-8');
+    expect(data.get('gr-draft:persona-a:chat-8')).toBe('nuevo');
+    expect(data.has('gr-draft:chat-8')).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('2: un archivo espera más que el servidor (90 s) antes de darse por no enviado', () => {
+    expect(MEDIA_SEND_TIMEOUT_MS).toBeGreaterThanOrEqual(95_000);
+    expect(INBOX_MEDIA_SEND_TIMEOUT_MS).toBeGreaterThanOrEqual(95_000);
   });
 });

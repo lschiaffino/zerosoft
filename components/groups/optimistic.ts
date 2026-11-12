@@ -22,10 +22,38 @@ export const unsentLines = unsentStore<MessageDto>(UNSENT_LINES_KEY);
  * El borrador de un chat de Lines en esta pestaña, de esta persona. Otra persona que entre en la misma pestaña (o el
  * mismo navegador) no ve ni manda lo que escribió la anterior; además se borran al cerrar sesión (clearOfflineData).
  */
-export const linesDraftKey = (me: string, chatId: string) => `${LINES_DRAFT_PREFIX}${me}:${chatId}`;
+export const linesDraftKey = (me: string, chatId: string) => {
+  const key = `${LINES_DRAFT_PREFIX}${me}:${chatId}`;
+  migrateDraft(me, chatId, key);
+  return key;
+};
+
+/**
+ * Un borrador de antes de que la clave llevara a la persona (`gr-draft:<chat>`): pasa a la clave nueva la primera vez
+ * que se lee, para que no se pierda lo que alguien estaba escribiendo cuando se actualizó la app. Solo si la persona
+ * ya está (me) y la clave nueva todavía no tiene nada.
+ */
+function migrateDraft(me: string, chatId: string, key: string): void {
+  if (!me || typeof sessionStorage === 'undefined') return;
+  try {
+    const old = `${LINES_DRAFT_PREFIX}${chatId}`;
+    const text = sessionStorage.getItem(old);
+    if (text === null) return;
+    if (!sessionStorage.getItem(key)) sessionStorage.setItem(key, text);
+    sessionStorage.removeItem(old);
+  } catch {
+    // Sin almacenamiento: nada que mover.
+  }
+}
 
 /** Cuánto se espera la respuesta de un envío antes de darlo por no enviado (se puede reintentar sin duplicar). */
 export const SEND_TIMEOUT_MS = 30_000;
+/**
+ * Un archivo: el servidor espera hasta 90 s a que el gateway lo baje, lo convierta y lo suba a WhatsApp
+ * (lib/groups-provider-bridge.ts). La pantalla espera más que eso: si cortara antes, el archivo saldría igual y la
+ * cola dejaría pasar lo que sigue antes de tiempo.
+ */
+export const MEDIA_SEND_TIMEOUT_MS = 100_000;
 
 /** La cola de envíos de un chat de Lines: textos, archivos, notas de voz y notas salen en el orden en que se mandaron. */
 export const linesQueue = (chatId: string) => sendQueueFor(`lines:${chatId}`);

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { groupsSession, sessionViewer } from '@/lib/groups-http';
 import { chatFilterFor, type GroupsViewer } from '@/lib/groups-access';
-import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream, type LiveViewer } from '@/lib/wa-live';
+import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream, type ChatFilter, type LiveViewer } from '@/lib/wa-live';
 import { liveAccessNow, linesViewerNow } from '@/lib/wa-live-auth';
 import { requestCursor } from '@/lib/realtime';
 
@@ -30,12 +30,23 @@ export async function GET(req: Request) {
   const cursor = requestCursor(req);
   const want = wantsLiveStream(req, [s.ws]);
   if (want === 'off') return new NextResponse(null, { status: 204, headers: NO_STORE });
-  const viewer = liveViewer(s.ws, await sessionViewer(s));
   if (want === 'poll') {
-    const res = await livePoll(viewer, cursor);
+    // Quién mira (con su acceso) se lee solo si hay avisos que filtrar: sin cambios, la consulta no lee nada más.
+    let filter: Promise<ChatFilter | null> | null = null;
+    const lazy: LiveViewer = {
+      app: 'lines',
+      ws: s.ws,
+      visible: async (ids) => {
+        filter ??= sessionViewer(s).then(chatFilterFor);
+        const f = await filter;
+        return f ? f(ids) : new Set(ids);
+      },
+    };
+    const res = await livePoll(lazy, cursor);
     return NextResponse.json({ ...res, stream: liveStreamAllowed(req, [s.ws]) }, { headers: NO_STORE });
   }
   // Lo que hace falta para revalidar se toma ahora: más tarde no se leen cookies ni headers (lib/wa-live-auth.ts).
+  const viewer = liveViewer(s.ws, await sessionViewer(s));
   const session = { userId: s.me, sid: s.user.sid ?? null, workspaceId: s.user.workspace?.id ?? null };
   const role = s.user.role;
   const res = liveStream({
