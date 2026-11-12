@@ -1066,3 +1066,8 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 /* Onda en vivo al grabar una nota de voz (components/groups/wa/LiveWaveform.tsx). */
 .wa-live-wave { flex: 1; min-width: 0; height: 28px; margin: 0 8px; color: var(--wa-text-2); }
 .wa-live-wave.is-paused { opacity: 0.5; }
+
+/* Vencido y esperando, sin agrandar la fila: reloj chico junto a la hora, en rojo o ámbar (el detalle en el tooltip). */
+.gr-row-time.is-overdue, .gr-row-time.is-waiting { display: inline-flex; align-items: center; gap: 3px; }
+.gr-row-time.is-overdue { color: var(--wa-danger, #e5484d); font-weight: 500; }
+.gr-row-time.is-waiting { color: #b7791f; }

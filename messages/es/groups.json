@@ -86,7 +86,8 @@
     "noNumbersBodyQr": "Escaneá un QR con tu teléfono y en un minuto ves tus chats y grupos acá. Si preferís mirar primero, cargá datos de ejemplo.",
     "scanQr": "Escanear QR",
     "pendingBanner": "Tu número todavía no está conectado.",
-    "finishConnect": "Terminar de conectar"
+    "finishConnect": "Terminar de conectar",
+    "flaggedHint": "Vencido: esperando respuesta {time}"
   },
   "newChat": {
     "open": "Chat nuevo",

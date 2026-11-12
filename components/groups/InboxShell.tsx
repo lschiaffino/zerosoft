@@ -40,7 +40,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -843,7 +843,14 @@ export default function InboxShell({
           <span className="gr-row-main">
             <span className="gr-row-top">
               <span className="gr-row-name">{debounced && !opts.snippet ? <Highlight text={c.name} q={debounced} /> : c.name}</span>
-              <span className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}`}>{listTime(c.lastMessageAt ?? c.createdAt, locale)}</span>
+              {/* Vencido o esperando: un reloj chico junto a la hora (rojo o ámbar), con el detalle al pasar el mouse. No suma una fila. */}
+              <span
+                className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}${c.flagged ? ' is-overdue' : c.awaitingSince ? ' is-waiting' : ''}`}
+                title={c.flagged ? t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' }) : c.awaitingSince ? t('inbox.waiting', { time: rel(c.awaitingSince) }) : undefined}
+              >
+                {(c.flagged || c.awaitingSince) && <ClockIcon size={13} label={c.flagged ? t('inbox.flagged') : t('inbox.waiting', { time: rel(c.awaitingSince!) })} />}
+                {listTime(c.lastMessageAt ?? c.createdAt, locale)}
+              </span>
             </span>
             <span className="gr-row-bottom">
               <span className="gr-row-preview">
@@ -893,14 +900,9 @@ export default function InboxShell({
                 {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
               </span>
             </span>
-            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
+            {(c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
               <span className="gr-row-meta">
                 {line === 'all' && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
-                {c.flagged ? (
-                  <span className="badge badge-bad">{t('inbox.flagged')}</span>
-                ) : c.awaitingSince ? (
-                  <span className="badge badge-warn">{t('inbox.waiting', { time: rel(c.awaitingSince) })}</span>
-                ) : null}
                 {c.labels.slice(0, 2).map((l) => (
                   <LabelTag key={l.id} name={l.name} color={l.color} />
                 ))}

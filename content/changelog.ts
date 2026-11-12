@@ -35,6 +35,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Lines and Inbox: sideways swipes never move a chat to a folder',
       es: 'Lines e Inbox: deslizar de costado nunca lleva un chat a una carpeta',
       pt: 'Lines e Inbox: deslizar de lado nunca leva um chat a uma pasta',
+    id: '2026-11-12-lines-overdue-clock',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: overdue chats no longer make rows taller',
+      es: 'Lines: los chats vencidos ya no agrandan la fila',
+      pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
     },
     items: [
       {
@@ -94,6 +100,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The filter panel uses the same light border, rounded corners and soft shadow as the chat menus, and its search box no longer has a heavy outline.',
         es: 'El panel de filtros usa el mismo borde fino, las esquinas redondeadas y la sombra suave de los menús del chat, y su buscador ya no tiene un borde grueso.',
         pt: 'O painel de filtros usa a mesma borda fina, os cantos arredondados e a sombra suave dos menus do chat, e a busca não tem mais uma borda grossa.',
+        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
+        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
+        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
       },
     ],
   },
