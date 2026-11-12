@@ -61,6 +61,18 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Lo mismo en Inbox, con el mismo ajuste de Visualización.',
         pt: 'O mesmo no Inbox, com o mesmo ajuste de Visualização.',
       },
+      {
+        product: 'groups',
+        en: 'Closer to WhatsApp Web: a deleted message keeps its bubble color, reactions show up to three emojis with the total, and poll bars show the share of people who voted.',
+        es: 'Más parecido a WhatsApp Web: un mensaje borrado conserva el color de su burbuja, las reacciones muestran hasta tres emojis con el total y las barras de una encuesta muestran la parte de las personas que votaron.',
+        pt: 'Mais parecido com o WhatsApp Web: uma mensagem apagada mantém a cor do balão, as reações mostram até três emojis com o total e as barras de uma enquete mostram a parte das pessoas que votaram.',
+      },
+      {
+        product: 'inbox',
+        en: 'The date at the top of a chat ("Today", "Yesterday") shows only while you scroll, like in WhatsApp.',
+        es: 'La fecha arriba del chat ("Hoy", "Ayer") se ve solo mientras te desplazás, como en WhatsApp.',
+        pt: 'A data no topo da conversa ("Hoje", "Ontem") aparece só enquanto você rola, como no WhatsApp.',
+      },
     ],
   },
   {
