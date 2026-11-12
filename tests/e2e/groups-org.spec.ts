@@ -133,6 +133,7 @@ test('ajustes del grupo, salir y entrar por link', async ({ page, request }) => 
   // Entrar con un link desde la lista de grupos.
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   await expect(page.locator('tr', { hasText: name }).getByText('Left')).toBeVisible();
+  await page.getByTestId('groups-more-button').click();
   await page.getByRole('button', { name: 'Join with link' }).click();
   const join = page.getByRole('dialog', { name: 'Join a group by invite' });
   await join.getByLabel('From number').selectOption(n.id);
@@ -215,8 +216,12 @@ test('propiedades nuevas: multiselección en el grupo, filtro y columna en la li
     await expect(page.getByText('Saved').first()).toBeVisible();
 
     await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
-    await page.getByLabel('Property').selectOption(def.key);
-    await page.getByLabel('Value').selectOption('Gold');
+    // El filtro por propiedad está en el panel de filtros de la tabla.
+    await page.getByTestId('groups-filter-button').click();
+    const panel = page.getByRole('dialog', { name: 'Filters' });
+    await panel.getByRole('navigation', { name: 'Filter fields' }).getByRole('button', { name: new RegExp(`^${prop}`) }).click();
+    await panel.getByLabel('Gold', { exact: true }).check();
+    await panel.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByRole('link', { name: gold })).toBeVisible();
     await expect(page.getByRole('link', { name: silver })).toHaveCount(0);
     await page.getByRole('button', { name: 'Columns' }).click();

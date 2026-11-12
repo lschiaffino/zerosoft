@@ -1371,7 +1371,8 @@
       "members": "Members",
       "ticket_created": "Ticket created",
       "ticket_updated": "Ticket updated",
-      "ticket_deleted": "Ticket deleted"
+      "ticket_deleted": "Ticket deleted",
+      "hubspot_company": "HubSpot company"
     },
     "actions": {
       "assigned": "assigned the chat to {to}",
@@ -1392,7 +1393,8 @@
       "ticket_deleted": "deleted ticket #{n}",
       "labelsAdded": "added labels: {added}",
       "labelsRemoved": "removed labels: {removed}",
-      "assignedSelf": "assigned the chat to themselves"
+      "assignedSelf": "assigned the chat to themselves",
+      "hubspot_company": "replaced the HubSpot company {previous} with {company}, the one this group has in its other lines"
     },
     "memberActions": {
       "add": "added",
@@ -2288,5 +2290,39 @@
       "desc": "Add or edit your quick replies",
       "keys": "saved replies shortcuts settings"
     }
+  },
+  "gt": {
+    "lines": "Lines",
+    "allLines": "All lines",
+    "nLines": "{n, plural, one {# line} other {# lines}}",
+    "linesLabel": "Filter by line",
+    "colLines": "Lines",
+    "colCompany": "HubSpot company",
+    "colCreated": "In Lines since",
+    "colStatus": "Status",
+    "open": "Open",
+    "closed": "Closed",
+    "notLinked": "Not linked",
+    "openInHubspot": "Open {name} in HubSpot",
+    "broken": "Deleted or merged in HubSpot",
+    "openInLine": "Open in {line}",
+    "secGroup": "Group",
+    "secProps": "zerosoft properties",
+    "secHubspot": "HubSpot company properties",
+    "searchColumns": "Search columns",
+    "noColumns": "No column matches.",
+    "sortBy": "Sort by",
+    "sortNone": "Most recent activity",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "sortDir": "Direction",
+    "sortHeader": "Sort by {col}",
+    "reset": "Reset view",
+    "truncated": "Showing the {n} groups with the most recent activity. Narrow the filters to see the rest.",
+    "count": "{n, plural, one {# group} other {# groups}}",
+    "statusField": "Group status",
+    "filterEmpty": "No group matches these filters.",
+    "more": "More actions",
+    "moreLines": "{n, plural, one {# more line} other {# more lines}}"
   }
 }

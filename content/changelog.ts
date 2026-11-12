@@ -47,6 +47,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Lines and Inbox: folder icons in the collapsed sidebar, polished',
       es: 'Lines e Inbox: carpetas del lateral colapsado más prolijas',
       pt: 'Lines e Inbox: pastas da barra recolhida mais caprichadas',
+    id: '2026-11-12-lines-groups-table',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: a groups table you can shape, with HubSpot columns',
+      es: 'Lines: una tabla de grupos a tu medida, con columnas de HubSpot',
+      pt: 'Lines: uma tabela de grupos do seu jeito, com colunas do HubSpot',
     },
     items: [
       {
@@ -223,6 +229,15 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
         es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
         pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
+        en: 'In Groups you choose which columns to see, including any property of the linked HubSpot company, sort by any column and filter by one, several or all lines. Each row shows the HubSpot company with a link to open it there.',
+        es: 'En Grupos elegís qué columnas ver, también cualquier propiedad de la empresa de HubSpot vinculada, ordenás por cualquier columna y filtrás por una, varias o todas las líneas. Cada fila muestra la empresa de HubSpot con un link para abrirla allá.',
+        pt: 'Em Grupos você escolhe quais colunas ver, inclusive qualquer propriedade da empresa do HubSpot vinculada, ordena por qualquer coluna e filtra por uma, várias ou todas as linhas. Cada linha mostra a empresa do HubSpot com um link para abri-la lá.',
+      },
+      {
+        product: 'groups',
+        en: 'A WhatsApp group that several of your lines are in is now one row that says which lines it is in. It has one HubSpot company: linking or unlinking it from any line changes it for all of them, and a line that joins later gets it too.',
+        es: 'Un grupo de WhatsApp en el que están varias de tus líneas ahora es una sola fila que dice en qué líneas está. Tiene una sola empresa de HubSpot: vincularla o quitarla desde cualquier línea la cambia en todas, y una línea que entra después también la recibe.',
+        pt: 'Um grupo de WhatsApp em que estão várias das suas linhas agora é uma só linha da tabela que mostra em quais linhas está. Ele tem uma só empresa do HubSpot: vincular ou remover a partir de qualquer linha muda em todas, e uma linha que entra depois também a recebe.',
       },
     ],
   },

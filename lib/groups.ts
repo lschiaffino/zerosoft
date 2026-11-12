@@ -661,7 +661,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
   };
 }
 
-async function labelsFor(chatIds: string[]): Promise<Map<string, LabelDto[]>> {
+export async function labelsFor(chatIds: string[]): Promise<Map<string, LabelDto[]>> {
   const out = new Map<string, LabelDto[]>();
   if (chatIds.length === 0) return out;
   const marks = chatIds.map(() => '?').join(',');
@@ -1143,6 +1143,12 @@ async function finishChat(number: Pick<NumberRow, 'id' | 'user_id'>, row: ChatRo
         row.name = known.slice(0, 200);
       }
     }
+  }
+  // Una línea que entra a un grupo: el grupo es uno solo y, si ya tiene empresa de HubSpot, la hereda (lib/groups-identity.ts).
+  if (inserted.changes > 0 && input.kind === 'group') {
+    const { attachGroupIdentity } = await import('./groups-identity');
+    // Que falle la copia de la empresa no frena la llegada del mensaje.
+    await attachGroupIdentity(number.user_id, row.id).catch((err: unknown) => console.error('[groups] identidad del grupo', err instanceof Error ? err.message : 'error'));
   }
   // Importados del historial: no disparan flujos ni webhooks de "chat nuevo".
   if (created && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });

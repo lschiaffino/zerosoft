@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-11',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -180,6 +180,13 @@ const parity: ProductParity = {
       ],
     }),
     row('sync-groups', 'groups', ['Refresh groups and members from WhatsApp', 'Refrescar grupos y miembros desde WhatsApp', 'Atualizar grupos e membros pelo WhatsApp'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('groups-table', 'groups', ['Groups table with columns, filters and sorting', 'Tabla de grupos con columnas, filtros y orden', 'Tabela de grupos com colunas, filtros e ordenação'], 'have', {
+      detail: [
+        'Pick the columns (group, zerosoft properties and HubSpot company properties), sort by any of them and filter by one, several or all numbers. A group that several of your numbers are in is one row that lists those numbers, with one HubSpot company',
+        'Elegís las columnas (del grupo, propiedades de zerosoft y de la empresa en HubSpot), ordenás por cualquiera y filtrás por una, varias o todas las líneas. Un grupo en el que están varias de tus líneas es una sola fila que dice en cuáles está, con una sola empresa de HubSpot',
+        'Escolha as colunas (do grupo, propriedades do zerosoft e da empresa no HubSpot), ordene por qualquer uma e filtre por uma, várias ou todas as linhas. Um grupo em que estão várias das suas linhas é uma só linha da tabela que mostra em quais está, com uma só empresa do HubSpot',
+      ],
+    }),
     row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'partial', {
       detail: [
         'Join with the invite link and the group arrives with its members; leaving keeps the history. Tested against a simulated gateway; not yet tried with real WhatsApp',
