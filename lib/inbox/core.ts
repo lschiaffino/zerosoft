@@ -691,7 +691,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const page = more ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
   return {
-    threads: await withPreviewMentions([...pinned, ...page].map((r) => threadDto(r, now))),
+    threads: await withPreviewMentions(owner, [...pinned, ...page].map((r) => threadDto(r, now))),
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };
@@ -743,18 +743,18 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
-  return (await withPreviewMentions([threadDto(r)]))[0];
+  return (await withPreviewMentions(owner, [threadDto(r)]))[0];
 }
 
 /**
  * La vista previa de los chats de WhatsApp con "@Nombre" en lugar de
  * "@<dígitos>" (teléfono o lid), con la libreta de la cuenta.
  */
-async function withPreviewMentions(threads: ThreadDto[]): Promise<ThreadDto[]> {
+async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise<ThreadDto[]> {
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
-  const { resolveTextMentions } = await import('../wa-contacts');
-  const texts = await resolveTextMentions('inbox', items).catch(() => items.map((i) => i.text));
+  const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
+  const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
 }
@@ -846,14 +846,23 @@ export async function listMessages(owner: string, threadId: string, opts: { befo
  */
 async function withMentionNames(accountId: string, messages: MessageDto[]): Promise<void> {
   const { inboxMentions } = await import('./wa-names');
-  const map = await inboxMentions(accountId, messages);
+  // También el texto citado de una respuesta (con la lista de mencionados del mensaje citado, si está en la página).
+  const byId = new Map(messages.map((m) => [m.id, m]));
+  const quoteOf = (m: MessageDto) => (m.reply?.body.includes('@') ? { body: m.reply.body, meta: { mentions: byId.get(m.reply.id)?.meta?.mentions } } : null);
+  const quotes = messages.map(quoteOf).filter((q): q is NonNullable<typeof q> => !!q);
+  const map = await inboxMentions(accountId, [...messages, ...quotes]);
   if (!Object.keys(map).length) return;
-  const { mentionCandidates } = await import('../wa-mentions');
+  const { ownMentions } = await import('../wa-mentions');
   for (const m of messages) {
-    if (!m.body.includes('@')) continue;
-    const own: MentionNames = {};
-    for (const d of mentionCandidates([{ body: m.body, mentions: m.meta?.mentions }])) if (map[d]) own[d] = map[d];
-    if (Object.keys(own).length) m.mentionNames = own;
+    if (m.body.includes('@')) {
+      const own: MentionNames = ownMentions(map, { body: m.body, mentions: m.meta?.mentions });
+      if (Object.keys(own).length) m.mentionNames = own;
+    }
+    const q = quoteOf(m);
+    if (q && m.reply) {
+      const own: MentionNames = ownMentions(map, { body: q.body, mentions: q.meta.mentions });
+      if (Object.keys(own).length) m.reply = { ...m.reply, mentionNames: own };
+    }
   }
 }
 

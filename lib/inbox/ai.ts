@@ -55,6 +55,29 @@ interface Line {
   body: string;
 }
 
+/**
+ * "@<dígitos>" → "@Nombre" en los mensajes de WhatsApp que lee el asistente
+ * (borradores, resumen): así habla de personas y no de números.
+ */
+export async function nameMentions(owner: string, accountId: string, rows: Array<{ body: string; meta?: string | null }>): Promise<void> {
+  if (!rows.some((r) => r.body && r.body.includes('@'))) return;
+  const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
+  const mentionsOf = (meta: string | null | undefined): unknown => {
+    if (!meta || !meta.includes('"mentions"')) return undefined;
+    try {
+      return (JSON.parse(meta) as { mentions?: unknown }).mentions;
+    } catch {
+      return undefined;
+    }
+  };
+  const named = await resolveTextMentions(
+    'inbox',
+    rows.map((r) => ({ accountId: r.body && r.body.includes('@') ? accountId : '', text: r.body ?? '', mentions: mentionsOf(r.meta) })),
+    { someone: () => someoneWord(owner) },
+  ).catch(() => rows.map((r) => r.body));
+  rows.forEach((r, i) => (r.body = named[i]));
+}
+
 export function transcriptLines(rows: Line[], chatTitle: string, channel: string): string[] {
   return rows.map((r) => {
     const who = r.from_me ? 'Me' : r.sender_name || chatTitle;
@@ -130,8 +153,9 @@ export interface InboxAiContext {
 
 async function threadContext(owner: string, t: ThreadRow): Promise<InboxAiContext> {
   const rows = ((await getDb()
-    .prepare('SELECT from_me, sender_name, subject, body FROM inbox_messages WHERE thread_id = ? AND owner_id = ? ORDER BY sent_at DESC LIMIT 30')
-    .all(t.id, owner)) as unknown as Line[]).reverse();
+    .prepare('SELECT from_me, sender_name, subject, body, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? ORDER BY sent_at DESC LIMIT 30')
+    .all(t.id, owner)) as unknown as Array<Line & { meta?: string | null }>).reverse();
+  if (t.channel === 'whatsapp') await nameMentions(owner, t.account_id, rows);
   return {
     channel: t.channel === 'gmail' ? 'gmail' : 'whatsapp',
     title: t.title || t.handle,

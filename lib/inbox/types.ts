@@ -146,6 +146,8 @@ export interface MessageQuote {
   senderHandle: string;
   body: string;
   mediaType: string;
+  /** A quién son las menciones del texto citado ("@<dígitos>" → nombre y teléfono), si se sabe. */
+  mentionNames?: MentionNames;
 }
 
 export interface MessageDto {

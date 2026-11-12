@@ -25,7 +25,7 @@ import { linesCompose } from './ai-compose';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
-import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
+import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
 import WhenDialog from '@/components/ui/WhenDialog';
 import { longWhen } from '@/lib/when-presets';
 import { ScheduledStrip, notifyScheduledChanged, useWhenLabels } from './Scheduled';
@@ -33,8 +33,7 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
-import RichText, { type MentionLabels } from './wa/RichText';
-import { mentionLabel } from '@/lib/wa-mentions';
+import RichText from './wa/RichText';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
 import { useEmojiSuggest } from './wa/useEmojiSuggest';
@@ -310,20 +309,11 @@ export default function ChatThread(props: ThreadProps) {
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
-  const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(memberNames), [memberNames]);
-  const mentionsFor = useCallback(
-    (m: { body: string; mentionNames?: MessageDto['mentionNames'] }): MentionLabels | undefined => {
-      if (!m.body || !m.body.includes('@')) return undefined;
-      if (!m.mentionNames) return baseMentions;
-      const out: MentionLabels = { ...baseMentions };
-      for (const [d, target] of Object.entries(m.mentionNames)) {
-        const label = mentionLabel(target, (p) => `+${p}`);
-        if (label && !out[d]) out[d] = label;
-      }
-      return out;
-    },
-    [baseMentions],
-  );
+  const { labelsFor: mentionsFor, textOf } = useLinesMentions(props.members);
+  // Texto plano con las menciones nombradas (citas, fijados, copiar, tickets). Las notas internas no llevan menciones de WhatsApp.
+  const waText = useCallback((m: MessageDto, text: string = m.body) => (m.direction === 'note' ? text : textOf(m, text)), [textOf]);
+  // La tarea que sale de un mensaje lleva el texto con las menciones nombradas.
+  const taskMessage = useMemo(() => (taskFor ? { id: taskFor.id, body: waText(taskFor) } : null), [taskFor, waText]);
   const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
   const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
 
@@ -893,7 +883,7 @@ export default function ChatThread(props: ThreadProps) {
 
   function openTicket(m: MessageDto) {
     setTicketFor(m);
-    setTicketTitle((m.body.split('\n').find((l) => l.trim()) ?? '').slice(0, 120));
+    setTicketTitle((waText(m).split('\n').find((l) => l.trim()) ?? '').slice(0, 120));
     setTicketPriority('medium');
   }
 
@@ -975,7 +965,7 @@ export default function ChatThread(props: ThreadProps) {
 
   async function copyText(m: MessageDto) {
     try {
-      await navigator.clipboard.writeText(m.body);
+      await navigator.clipboard.writeText(waText(m));
       showToast(t('common.copied'));
     } catch {
       showToast(errText('generic'), true);
@@ -1247,7 +1237,7 @@ export default function ChatThread(props: ThreadProps) {
     if (!selecting) return;
     const text = messages
       .filter((m) => selecting.has(m.id) && m.body.trim())
-      .map((m) => `[${parseDbUtc(m.createdAt).toLocaleString(locale, { day: 'numeric', month: 'numeric', hour: 'numeric', minute: '2-digit' })}] ${m.direction === 'in' ? inName(m) : m.direction === 'note' ? nameOf(m.authorId) : t('wa.you')}: ${m.body}`)
+      .map((m) => `[${parseDbUtc(m.createdAt).toLocaleString(locale, { day: 'numeric', month: 'numeric', hour: 'numeric', minute: '2-digit' })}] ${m.direction === 'in' ? inName(m) : m.direction === 'note' ? nameOf(m.authorId) : t('wa.you')}: ${waText(m)}`)
       .join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -1291,7 +1281,8 @@ export default function ChatThread(props: ThreadProps) {
     return m.senderName || memberNames.get(m.senderPhone) || (m.senderPhone ? `+${m.senderPhone}` : t('wa.someone'));
   }
 
-  const quoteLine = (q: MessageDto) => q.body.slice(0, 160) || mediaText({ media: q.media });
+  // Las menciones se nombran antes de cortar: un corte en medio de "@<dígitos>" dejaría el número a la vista.
+  const quoteLine = (q: MessageDto) => waText(q).slice(0, 160) || mediaText({ media: q.media });
   /** En el selector de "cuándo": qué va a salir (texto, archivo, cita). */
   const laterPreview = () => {
     const d = laterDraft();
@@ -1455,7 +1446,7 @@ export default function ChatThread(props: ThreadProps) {
             >
               <strong>{quoteAuthor(quoted)}</strong>
               <span>
-                <RichText text={quoteLine(quoted)} inline mentions={mentionsFor({ body: quoteLine(quoted), mentionNames: quoted.mentionNames })} />
+                <RichText text={quoteLine(quoted)} inline />
               </span>
             </button>
           )}
@@ -1530,7 +1521,7 @@ export default function ChatThread(props: ThreadProps) {
             !hidden && (
               <p className={`gr-pre wa-text${bigEmoji ? ' is-emoji' : ''}${isEditing ? ' is-editing' : ''}`}>
                 {showTr
-                  ? tr.text
+                  ? waText(m, tr.text)
                   : isNote
                     ? mentionSegments(m.body, mentionPeople).map((seg, i) =>
                         seg.mention ? (
@@ -1800,7 +1791,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
 
-        <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} />
+        <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">
           <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
@@ -1872,7 +1863,7 @@ export default function ChatThread(props: ThreadProps) {
             <div className="wa-replying wa-editing">
               <span className="gr-quote wa-q-me">
                 <strong>{t('wa.editMessage')}</strong>
-                <span>{messages.find((x) => x.id === editing.id)?.body ?? ''}</span>
+                <span>{((x) => (x ? waText(x) : ''))(messages.find((x) => x.id === editing.id))}</span>
               </span>
               <button type="button" className="wa-icon-btn" onClick={() => setEditing(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>
                 <Close size={18} />
@@ -2143,7 +2134,7 @@ export default function ChatThread(props: ThreadProps) {
       <TaskModal
         open={!!taskFor}
         chatId={chat.id}
-        message={taskFor}
+        message={taskMessage}
         people={props.people}
         me={props.me}
         onClose={() => setTaskFor(null)}
@@ -2171,7 +2162,7 @@ export default function ChatThread(props: ThreadProps) {
         }
       >
         <div className="ui-fields">
-          {ticketFor?.body && <p className="gr-quote gr-quote-plain">{ticketFor.body.slice(0, 280)}</p>}
+          {ticketFor?.body && <p className="gr-quote gr-quote-plain">{waText(ticketFor).slice(0, 280)}</p>}
           <label className="ui-field">
             <span className="label">{t('tickets.title')}</span>
             <input className="input" value={ticketTitle} onChange={(e) => setTicketTitle(e.target.value)} maxLength={200} autoFocus />
@@ -2267,6 +2258,7 @@ export default function ChatThread(props: ThreadProps) {
 
       <ForwardModal
         message={forwarding}
+        textOf={waText}
         fromChatId={chat.id}
         onClose={() => setForwarding(null)}
         onDone={(results) => {

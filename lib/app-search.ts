@@ -283,7 +283,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     // Groups: texto de los mensajes (abre el chat en ese mensaje).
     all(
-      `SELECT m.id, substr(m.body, 1, 120) AS label, m.chat_id || '|' || CASE WHEN c.name != '' THEN c.name ELSE '+' || c.phone END AS meta
+      `SELECT m.id, substr(m.body, 1, 120) AS label, m.chat_id || '|' || CASE WHEN c.name != '' THEN c.name ELSE '+' || c.phone END AS meta, m.number_id AS email
        FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
        WHERE m.user_id = ?${gWhere} AND m.direction IN ('in', 'out', 'note') AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT ?`,
       user.id,
@@ -571,6 +571,18 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
     rows.map((r) => ({ id: r.id, group, label: r.label, meta: r.meta ?? '', href: href(r.id) }));
 
+  // Mensajes de Lines: "@<dígitos>" → "@Nombre" (el número de la línea viaja en `email`, que estas filas no usan).
+  let groupMessageRows: Row[] = groupMessages.map((r) => ({ ...r, email: null }));
+  if (groupMessages.some((r) => r.label.includes('@'))) {
+    const { resolveTextMentions } = await import('@/lib/wa-contacts');
+    const { mentionSomeone } = await import('@/lib/wa-mentions');
+    const labels = await resolveTextMentions(
+      'lines',
+      groupMessages.map((r) => ({ accountId: r.label.includes('@') ? String(r.email ?? '') : '', text: r.label })),
+      { someone: mentionSomeone(locale) },
+    ).catch(() => groupMessages.map((r) => r.label));
+    groupMessageRows = groupMessageRows.map((r, i) => ({ ...r, label: labels[i] }));
+  }
   return [
     // Los teams de Track van bajo "Teams" (los "Projects" son los de planificación).
     ...map(projects, 'teams', (id) => `/app/track/team/${id}`),
@@ -637,7 +649,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(quotes, 'crmQuotes', (id) => `/app/crm/quotes/${id}`),
     ...map(approvals, 'crmApprovals', () => '/app/crm/approvals'),
     ...map(scores, 'crmScores', () => '/app/crm/settings?tab=automation'),
-    ...groupMessages.map(gMask).map((r) => {
+    ...groupMessageRows.map(gMask).map((r) => {
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
       return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/lines/inbox/${chatId}#m-${r.id}` };
     }),

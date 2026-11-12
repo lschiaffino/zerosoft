@@ -202,6 +202,20 @@
     "notification": "Recordatorio: {title}",
     "untitled": "Sin título"
   },
+  "info": {
+    "open": "Info de la nota",
+    "title": "Info de la nota",
+    "close": "Cerrar",
+    "words": "Palabras",
+    "characters": "Caracteres",
+    "reading": "Tiempo de lectura",
+    "minutes": "{count, plural, one {# minuto} other {# minutos}}",
+    "tasks": "Tareas hechas",
+    "tasksOf": "{done} de {total}",
+    "attachments": "Adjuntos",
+    "created": "Creada",
+    "updated": "Última edición"
+  },
   "history": {
     "open": "Historial de versiones",
     "title": "Historial de versiones",

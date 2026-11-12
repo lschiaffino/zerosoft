@@ -18,7 +18,7 @@ import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
 import WaComposer, { ComposerBanner } from './WaComposer';
 import { chatName, formatPhone, groupReactions, senderLabel } from './util';
-import { mentionLabel } from '@/lib/wa-mentions';
+import { mentionLabels, replaceMentions } from '@/lib/wa-mentions';
 import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -168,16 +168,14 @@ const WaConversation = forwardRef<
 
   // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
   const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
+  // Solo el teléfono: "@+teléfono"; nada (un lid sin resolver): "@alguien", nunca los dígitos.
+  const someone = w('mentionSomeone');
   const mentionsFor = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }): MentionLabels | undefined => {
     if (!m.body || !m.body.includes('@')) return undefined;
-    if (!m.mentionNames) return baseMentions;
-    const out: MentionLabels = { ...baseMentions };
-    for (const [d, target] of Object.entries(m.mentionNames)) {
-      const label = mentionLabel(target, formatPhone);
-      if (label && !out[d]) out[d] = label;
-    }
-    return out;
+    return mentionLabels(baseMentions, m.mentionNames, formatPhone, someone);
   };
+  /** Texto plano con las menciones nombradas (copiar, editar, info). */
+  const mentionText = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }) => replaceMentions(m.body, mentionsFor(m));
 
   // Leyendo más arriba, la conversación no se mueve sola (fotos que cargan, reacciones o
   // "editado" que llegan con la consulta, anteriores que se suman arriba); abajo de todo, sigue al final.
@@ -251,7 +249,7 @@ const WaConversation = forwardRef<
 
   const copy = async (m: MessageDto) => {
     try {
-      await navigator.clipboard.writeText(m.body);
+      await navigator.clipboard.writeText(mentionText(m));
       props.onToast(w('copied'));
     } catch {
       onError('generic');
@@ -444,7 +442,7 @@ const WaConversation = forwardRef<
             >
               <strong>{quoteAuthor(m.reply)}</strong>
               <span>
-                <RichText text={quoteText(m.reply)} inline mentions={mentionsFor({ body: quoteText(m.reply) })} />
+                <RichText text={quoteText(m.reply)} inline mentions={mentionsFor({ body: quoteText(m.reply), mentionNames: m.reply.mentionNames })} />
               </span>
             </button>
           )}
@@ -577,7 +575,7 @@ const WaConversation = forwardRef<
     <ComposerBanner label={w('cancelEdit')} onClose={() => setEditing(null)}>
       <span className="gr-quote wa-q-me gr-quote-plain wa-editing">
         <strong>{w('editing')}</strong>
-        <span>{editing.body}</span>
+        <span>{mentionText(editing)}</span>
       </span>
     </ComposerBanner>
   ) : replyTo ? (
@@ -585,7 +583,7 @@ const WaConversation = forwardRef<
       <span className={`gr-quote gr-quote-plain ${replyTo.fromMe ? 'wa-q-me' : group ? `wa-q${colorIndex(replyTo.senderHandle || replyTo.senderName)}` : 'wa-q-them'}`}>
         <strong>{quoteAuthor(replyTo)}</strong>
         <span>
-          <RichText text={quoteText(replyTo)} inline mentions={mentionsFor({ body: quoteText(replyTo) })} />
+          <RichText text={quoteText(replyTo)} inline mentions={mentionsFor({ body: quoteText(replyTo), mentionNames: replyTo.mentionNames })} />
         </span>
       </span>
     </ComposerBanner>
@@ -789,7 +787,7 @@ const WaConversation = forwardRef<
         {infoFor && (
           <>
             <div className="ui-modal-body">
-              <p className="ib-wa-info-body">{infoFor.body || quoteText({ body: '', mediaType: infoFor.mediaType })}</p>
+              <p className="ib-wa-info-body">{mentionText(infoFor) || quoteText({ body: '', mediaType: infoFor.mediaType })}</p>
               <dl className="wa-info">
                 <div>
                   <dt>

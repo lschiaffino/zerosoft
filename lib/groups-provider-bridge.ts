@@ -1425,7 +1425,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       const rows = Array.isArray(r.participants) ? (r.participants as Json[]) : [];
       // Los que solo tienen un lid (sin teléfono a la vista) no se pueden listar como teléfono.
       return rows
-        .map((p) => ({ phone: participantPhone(p), role: roleOf(p.admin), name: typeof p.name === 'string' ? p.name : undefined }))
+        .map((p) => {
+          const lid = participantLid(p);
+          return { phone: participantPhone(p), role: roleOf(p.admin), name: typeof p.name === 'string' ? p.name : undefined, ...(lid ? { lid } : {}) };
+        })
         .filter((p) => p.phone);
     },
     updateParticipants: update,

@@ -149,6 +149,11 @@ export async function createTicket(
     const existing = (await db.prepare('SELECT id FROM groups_tickets WHERE message_id = ?').get(msg.id)) as { id: string } | undefined;
     if (existing) return { ticket: (await getTicket(ws, existing.id)) as TicketDto, created: false };
     body = msg.body;
+    // El título que sale del mensaje lleva "@Nombre", no "@<dígitos>".
+    if (!(input.title ?? '').trim() && body.includes('@')) {
+      const { linesRowTexts } = await import('./groups-wa-names');
+      body = (await linesRowTexts(ws, [msg], { shared: true }))[0];
+    }
   }
   const settings = await getSettings(ws);
   const priority = (TICKET_PRIORITIES as readonly string[]).includes(String(input.priority))

@@ -70,6 +70,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-12-notes-info',
+    date: '2026-11-12',
+    title: {
+      en: 'Notes: note info with word count',
+      es: 'Notes: info de la nota con conteo de palabras',
+      pt: 'Notes: info da nota com contagem de palavras',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'The note menu has a new Note info option. It shows words, characters, reading time, finished checklist items, attachments, and when the note was created and last edited.',
+        es: 'El menú de la nota tiene una opción nueva, Info de la nota. Muestra palabras, caracteres, tiempo de lectura, tareas hechas, adjuntos, y cuándo se creó y se editó por última vez.',
+        pt: 'O menu da nota tem uma opção nova, Info da nota. Mostra palavras, caracteres, tempo de leitura, tarefas feitas, anexos e quando a nota foi criada e editada pela última vez.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-voice-dictation-layout',
     date: '2026-11-11',
     title: {
@@ -187,6 +204,35 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'When a number was unlinked from the phone, "Ask for a new QR" kept showing the session as disconnected. It now shows the QR so you can link the number again.',
         es: 'Cuando un número se desvinculaba desde el teléfono, "Pedir un QR nuevo" seguía mostrando la sesión desconectada. Ahora muestra el QR para volver a vincular el número.',
         pt: 'Quando um número era desvinculado pelo telefone, "Pedir um QR novo" continuava mostrando a sessão desconectada. Agora mostra o QR para vincular o número de novo.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-whatsapp-mentions-names',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: mentions show the name everywhere',
+      es: 'Lines e Inbox: las menciones muestran el nombre en todos lados',
+      pt: 'Lines e Inbox: as menções mostram o nome em todo lugar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A WhatsApp mention now shows the name of the person in every place that shows a message: the recent messages on a group page, quoted replies, pinned messages, tickets and tasks made from a message, the copied text, the CSV export, the chat summary, search with Cmd+K and the notes sent to HubSpot. Before, some of them showed a long number.',
+        es: 'Una mención de WhatsApp ahora muestra el nombre de la persona en cada lugar que muestra un mensaje: los mensajes recientes en la página de un grupo, las respuestas citadas, los mensajes fijados, los tickets y las tareas que salen de un mensaje, el texto copiado, el export a CSV, el resumen del chat, la búsqueda con Cmd+K y las notas que van a HubSpot. Antes, algunos mostraban un número largo.',
+        pt: 'Uma menção do WhatsApp agora mostra o nome da pessoa em cada lugar que mostra uma mensagem: as mensagens recentes na página de um grupo, as respostas citadas, as mensagens fixadas, os tickets e as tarefas criados a partir de uma mensagem, o texto copiado, a exportação em CSV, o resumo do chat, a busca com Cmd+K e as notas enviadas ao HubSpot. Antes, alguns mostravam um número longo.',
+      },
+      {
+        product: 'groups',
+        en: 'When only the phone of the mentioned person is known, the mention shows the phone (hidden for people who have phones hidden). When WhatsApp gives no way to tell who it is, it reads "@someone". Syncing the members of a group now also teaches Lines who is behind each mention, and a mention of your own line shows the name of the line.',
+        es: 'Cuando de la persona mencionada solo se sabe el teléfono, la mención muestra el teléfono (oculto para quienes tienen los teléfonos ocultos). Cuando WhatsApp no da forma de saber quién es, dice "@alguien". Sincronizar los miembros de un grupo ahora también le enseña a Lines quién está detrás de cada mención, y una mención a tu propia línea muestra el nombre de la línea.',
+        pt: 'Quando só se sabe o telefone da pessoa mencionada, a menção mostra o telefone (oculto para quem tem os telefones ocultos). Quando o WhatsApp não dá como saber quem é, aparece "@alguém". Sincronizar os membros de um grupo agora também ensina ao Lines quem está por trás de cada menção, e uma menção à sua própria linha mostra o nome da linha.',
+      },
+      {
+        product: 'inbox',
+        en: 'In WhatsApp chats in Inbox, mentions show the name in quoted replies, starred messages, photo captions, the copied text and the chat summary too. A mention nobody can be matched to reads "@someone".',
+        es: 'En los chats de WhatsApp de Inbox, las menciones muestran el nombre también en las respuestas citadas, los mensajes destacados, los pies de foto, el texto copiado y el resumen del chat. Una mención que no se puede asociar a nadie dice "@alguien".',
+        pt: 'Nas conversas de WhatsApp do Inbox, as menções mostram o nome também nas respostas citadas, nas mensagens com estrela, nas legendas das fotos, no texto copiado e no resumo da conversa. Uma menção que não dá para associar a ninguém aparece como "@alguém".',
       },
     ],
   },
