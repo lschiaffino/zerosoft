@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -308,6 +309,25 @@ export default function InboxShell({
   };
   const [removing, setRemoving] = useState(false);
   const [newChat, setNewChat] = useState(false);
+  // En escritorio la miga de arriba ya dice "Bandeja" y el lateral tiene "Nuevo": la cabecera de la lista se va
+  // y el filtro de línea sube a la banda (#band-app-slot). En el teléfono, sin miga ni lateral, queda como estaba.
+  const [bandSlot, setBandSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setBandSlot(mq.matches ? document.getElementById('band-app-slot') : null);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+  // "Nuevo › Chat nuevo" del lateral llega con ?new=chat: abre el diálogo y saca el parámetro de la URL.
+  const wantsNewChat = params.get('new') === 'chat';
+  useEffect(() => {
+    if (!wantsNewChat) return;
+    setNewChat(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('new');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [wantsNewChat]);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
@@ -1146,14 +1166,25 @@ export default function InboxShell({
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}
-            <div className="gr-list-titlebar">
-              <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
-              <LineSelector numbers={numbers} value={line} onChange={pickLine} />
-              {/* Sin sidebar a la vista: la carpeta se elige acá, al lado de la línea (no una caja a todo el ancho). */}
+            {bandSlot ? (
+              <>
+                {createPortal(<LineSelector numbers={numbers} value={line} onChange={pickLine} />, bandSlot)}
+                {/* Una lista guardada sí conserva su nombre: la miga dice solo "Bandeja". */}
+                {activeList && (
+                  <div className="gr-list-titlebar">
+                    <h1 className="gr-list-title">{activeList.name}</h1>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="gr-list-titlebar">
+                <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
+                <LineSelector numbers={numbers} value={line} onChange={pickLine} />
                 <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
-                <Plus size={20} />
-              </button>
-            </div>
+                  <Plus size={20} />
+                </button>
+              </div>
+            )}
             {lists.length > 0 && (
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
                 <Link

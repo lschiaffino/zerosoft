@@ -551,6 +551,8 @@ export default function AppSidebar({
         </div>
 
         {crumb && <div className="band-crumb">{crumb}</div>}
+        {/* Controles de la app junto a la miga (Lines pone acá el filtro de línea, en escritorio). */}
+        <div id="band-app-slot" className="band-app-slot" />
 
         <div className="band-right">
           {/* Indicador de Voice cuando hay una reunión grabando (lo llena components/voice/RecorderProvider). */}
