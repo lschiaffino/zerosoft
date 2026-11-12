@@ -8,6 +8,7 @@ import type { GroupsPerson, NumberDto } from '@/lib/groups';
 import LineAccess from './LineAccess';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
+import MenuSelect from '@/components/ui/MenuSelect';
 
 const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeholder?: string; optional?: boolean }>> = {
   cloud: [
@@ -136,14 +137,13 @@ export default function NumbersSettings({
         )}
       </div>
       {owners.length > 0 && (
-        <select className="select" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)} aria-label={t('lines.filterOwner')} data-testid="lines-owner-filter">
-          <option value="">{t('lines.allOwners')}</option>
-          {owners.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name || p.email}
-            </option>
-          ))}
-        </select>
+        <MenuSelect
+          testId="lines-owner-filter"
+          label={t('lines.filterOwner')}
+          value={ownerFilter}
+          onChange={setOwnerFilter}
+          options={[{ value: '', label: t('lines.allOwners') }, ...owners.map((p) => ({ value: p.id, label: p.name || p.email }))]}
+        />
       )}
       {numbers.length === 0 ? (
         <p className="ui-help">{t('numbers.empty')}</p>
@@ -207,16 +207,15 @@ export default function NumbersSettings({
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
                         {t('wa.reimport')}
                       </button>
-                      <label className="gr-reimport-label" htmlFor={`per-chat-${n.id}`}>
+                      <span className="gr-reimport-label" aria-hidden="true">
                         {t('wa.perChat')}
-                      </label>
-                      <select id={`per-chat-${n.id}`} className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))}>
-                        {[0, 20, 50, 100, 200].map((v) => (
-                          <option key={v} value={v}>
-                            {v === 0 ? t('wa.perChatAll') : v}
-                          </option>
-                        ))}
-                      </select>
+                      </span>
+                      <MenuSelect
+                        label={t('wa.perChat')}
+                        value={String(perChat)}
+                        onChange={(v) => setPerChat(Number(v))}
+                        options={[0, 20, 50, 100, 200].map((v) => ({ value: String(v), label: v === 0 ? t('wa.perChatAll') : String(v) }))}
+                      />
                     </span>
                   )}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>

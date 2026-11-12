@@ -6,7 +6,6 @@ import {
   autoScrollSpeed,
   chipPosition,
   commitAt,
-  escapedList,
   EXPAND_MS,
   HOLD_MS,
   holdBroken,
@@ -585,8 +584,13 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
           if (holdBroken(dx, dy)) window.clearTimeout(L.hold);
           if (!tr?.axis) return;
           L.list = (row.closest<HTMLElement>('[data-chat-list]') ?? row.parentElement ?? row).getBoundingClientRect();
-          const gone = !L.touch && escapedList({ x: ev.clientX, y: ev.clientY }, L.list);
-          if (tr.axis === 'x' && swipeCount(tr) > 0 && !gone) {
+          // Deslizar de costado es siempre deslizar (archivar, más…), aunque el mouse salga de la lista:
+          // a una carpeta se lleva levantando la conversación hacia arriba o abajo, o manteniéndola apretada.
+          if (tr.axis === 'x' && swipeCount(tr) === 0) {
+            L.phase = 'dead';
+            return;
+          }
+          if (tr.axis === 'x') {
             L.phase = 'swipe';
             if (L.wasOpen) {
               // La fila abierta pasa a ser de este gesto: sigue desde donde estaba, del mismo lado.
@@ -617,12 +621,6 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
           return;
         }
         if (L.phase === 'swipe' && tr?.side) {
-          if (!L.touch && L.list && escapedList({ x: ev.clientX, y: ev.clientY }, L.list)) {
-            // El mouse salió de la lista: iba a una carpeta. Pasa a ser un arrastre.
-            beginDrag();
-            L.moved = true;
-            return;
-          }
           paint(row, tr.offset, tr.side);
           const ready = Math.abs(tr.offset) >= commitAt(tr.width, swipeCount(tr));
           if (ready !== L.ready) {

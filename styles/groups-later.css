@@ -3,9 +3,12 @@
    groups.css y groups-wa.css; la carga app/[locale]/app/lines/layout.tsx. */
 
 .gr-later-strip {
-  flex: none; max-height: 30vh; overflow-y: auto; padding: 4px 16px;
-  color: var(--wa-text, inherit); background: var(--wa-panel-header, var(--bg)); border-top: 1px solid var(--wa-border, var(--line));
+  /* Tarjeta propia arriba del campo (no del mismo gris que el composer): se distingue sin gritar. */
+  flex: none; max-height: 30vh; overflow-y: auto; margin: 8px 12px 0; padding: 4px 14px;
+  color: var(--wa-text, inherit); background: var(--wa-bubble-in, var(--bg));
+  border: 1px solid var(--wa-border, var(--line)); border-radius: 10px; box-shadow: 0 1px 3px rgb(11 20 26 / 0.08);
 }
+.gr-later-strip .gr-later-when svg { color: var(--wa-primary, var(--ink)); }
 .gr-later-list { list-style: none; margin: 0; padding: 0; display: grid; }
 .gr-later-item { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; font-size: 0.8125rem; }
 .gr-later-item + .gr-later-item { border-top: 1px solid var(--wa-border, var(--line)); }
@@ -36,7 +39,7 @@
 .gr-later-all .gr-later-item { padding: 10px 0; font-size: 0.875rem; }
 
 @media (max-width: 720px) {
-  .gr-later-strip { max-height: 38vh; padding: 4px 12px; }
+  .gr-later-strip { max-height: 38vh; margin: 6px 8px 0; padding: 4px 12px; }
   .gr-later-actions { width: 100%; margin-left: 0; }
   .gr-later-actions .btn, .gr-later-all .btn { min-height: 40px; }
   .gr-later-chat, .gr-later-all .gr-check-label { display: inline-flex; align-items: center; min-height: 40px; }

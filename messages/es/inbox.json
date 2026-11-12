@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
-  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Hechos", "compose": "Mensaje nuevo" },
+  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo" },
   "views": {
     "inbox": "Bandeja",
     "unread": "No leídos",
@@ -13,7 +13,7 @@
     "pinned": "Fijados",
     "snoozed": "Pospuestos",
     "scheduled": "Programados",
-    "done": "Hechos",
+    "done": "Archivados",
     "archived": "Archivados"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "Correo", "groups": "Grupos", "unread": "No leídos" },
@@ -60,7 +60,7 @@
     "rename": "Renombrar chat",
     "save": "Guardar",
     "undone": "Volver a la bandeja",
-    "done": "Hecho",
+    "done": "Archivar",
     "archive": "Archivar",
     "unarchive": "Desarchivar",
     "snooze": "Posponer",
@@ -157,7 +157,7 @@
     "otherAccounts": "Conectar Gmail",
     "importLink": "o importá desde inbox-zero",
     "searchTitle": "No se encontró nada",
-    "searchBody": "La búsqueda mira nombres, números, emails, el texto de los mensajes, audios transcriptos y nombres de archivos, también en Hechos. Filtros: from:ana, from:me, in:\"Familia\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
+    "searchBody": "La búsqueda mira nombres, números, emails, el texto de los mensajes, audios transcriptos y nombres de archivos, también en Archivados. Filtros: from:ana, from:me, in:\"Familia\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
     "zeroBody": "Está todo resuelto. Lo nuevo llega acá.",
     "view": {
       "inbox": "Bandeja en cero",
@@ -170,7 +170,7 @@
       "pinned": "No hay nada fijado. Apretá P en un chat para fijarlo.",
       "snoozed": "No hay nada pospuesto. Apretá H en un chat para posponerlo.",
       "scheduled": "No hay nada programado. Usá Más tarde al lado de Enviar.",
-      "done": "Todavía no marcaste nada como hecho",
+      "done": "Todavía no archivaste nada",
       "archived": "No hay nada archivado. Archivá un chat desde su menú.",
       "folder": "Esta carpeta está vacía. Apretá V en un chat para sumarlo."
     }
@@ -184,7 +184,7 @@
       "navigate": "Chat siguiente o anterior",
       "open": "Abrir el chat",
       "back": "Cerrar el chat o limpiar la búsqueda",
-      "done": "Marcar hecho (o volver a la bandeja)",
+      "done": "Archivar (o volver a la bandeja)",
       "undone": "Volver a la bandeja",
       "snooze": "Posponer",
       "followUp": "Recordame si no contesta",
@@ -194,7 +194,7 @@
       "pin": "Fijar o soltar",
       "moveFolder": "Sumar a una carpeta",
       "search": "Buscar",
-      "goto": "Ir a bandeja, hechos, pospuestos",
+      "goto": "Ir a bandeja, archivados, pospuestos",
       "ai": "Ayudame a escribir",
       "snippet": "Insertar un snippet",
       "commands": "Comandos, mientras escribís un mensaje",
@@ -207,11 +207,11 @@
     "pick": "Elegí un chat para leerlo acá.",
     "pickNoAccount": "Conectá una cuenta para empezar.",
     "keysMove": "moverse",
-    "keysDone": "hecho",
+    "keysDone": "archivar",
     "keysSnooze": "posponer"
   },
   "toast": {
-    "done": "{n, plural, one {Marcado como hecho} other {# chats marcados como hechos}}",
+    "done": "{n, plural, one {Archivado} other {# chats archivados}}",
     "undone": "{n, plural, one {De vuelta en la bandeja} other {# chats de vuelta en la bandeja}}",
     "read": "{n, plural, one {Marcado como leído} other {# chats marcados como leídos}}",
     "unread": "{n, plural, one {Marcado como no leído} other {# chats marcados como no leídos}}",
@@ -367,7 +367,7 @@
       "resyncYes": "Mostrar QR nuevo"
     },
     "gmail": {
-      "intro": "Conectá Gmail con Google. Hecho también archiva en Gmail y lo leído queda sincronizado.",
+      "intro": "Conectá Gmail con Google. Archivar también archiva en Gmail y lo leído queda sincronizado.",
       "synced": "Sincronizado {when}",
       "syncPending": "Primer sync en curso",
       "reconnect": "Hay que conectarlo de nuevo",
@@ -420,7 +420,7 @@
       "waNeedsLink": "Primero vinculá WhatsApp arriba.",
       "waLimit": "Hasta dónde llega lo decide WhatsApp: un dispositivo vinculado solo recibe el historial que el teléfono manda al vincular. Lo anterior queda en el teléfono; para traerlo, usá la exportación de inbox-zero de acá abajo.",
       "gmailTitle": "Todo tu Gmail",
-      "gmailHelp": "Al conectar Gmail, Inbox muestra enseguida los hilos recientes de tu bandeja y después trae el resto de tu correo en segundo plano, de lo más nuevo a lo más viejo (sin spam, papelera ni borradores). Lo que en Gmail no está en la bandeja queda en Hecho. La podés pausar y no duplica nada.",
+      "gmailHelp": "Al conectar Gmail, Inbox muestra enseguida los hilos recientes de tu bandeja y después trae el resto de tu correo en segundo plano, de lo más nuevo a lo más viejo (sin spam, papelera ni borradores). Lo que en Gmail no está en la bandeja queda en Archivados. La podés pausar y no duplica nada.",
       "gmailStart": "Traer todo mi correo",
       "gmailNeedsLink": "Primero conectá Gmail arriba.",
       "gmailJobName": "Gmail: {address}",

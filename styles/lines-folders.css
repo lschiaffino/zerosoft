@@ -37,4 +37,4 @@
 .grf-pick[aria-pressed='true'] { font-weight: 600; }
 /* Carpeta abierta, arriba de la lista de chats; y el selector cuando el sidebar no está a la vista. */
 .gr-folder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-width: 0; font-weight: 600; }
-.gr-folder-select { width: 100%; }
+.gr-folder-select { max-width: 160px; }

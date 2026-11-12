@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 export type IconName =
+  | 'archive'
   | 'overview'
   | 'help'
   | 'contacts'
@@ -479,6 +480,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M4 17a8 8 0 1 1 16 0" />
       <path d="M12 17l4-5" />
       <path d="M3 21h18" />
+    </>
+  ),
+  archive: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
+      <path d="M5 8.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18V8.5" />
+      <path d="M10 12.5h4" />
     </>
   ),
   trash: (

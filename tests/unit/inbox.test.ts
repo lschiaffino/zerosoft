@@ -144,6 +144,9 @@ describe('Inbox: chats y mensajes', () => {
     expect(await ids({ view: 'inbox' })).toEqual(['Grupo']);
     expect(await ids({ view: 'snoozed' })).toEqual(['Por responder']);
     expect(await ids({ view: 'done' })).toEqual(['Esperando']);
+    // Hecho y archivado son lo mismo para la persona: Archivados muestra los dos.
+    expect(await ids({ view: 'archived' })).toEqual(['Esperando']);
+    expect((await inboxCounts(u.id)).archived).toBe(1);
     // La búsqueda mira también Hechos y el texto de los mensajes.
     expect(await ids({ q: 'propuesta' })).toEqual(['Esperando']);
     expect((await inboxCounts(u.id)).snoozed).toBe(1);

@@ -29,6 +29,75 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-swipe-sideways-only',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: sideways swipes never move a chat to a folder',
+      es: 'Lines e Inbox: deslizar de costado nunca lleva un chat a una carpeta',
+      pt: 'Lines e Inbox: deslizar de lado nunca leva um chat a uma pasta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A fast swipe to either side stays a swipe even if the mouse leaves the list. To file a chat, lift it up or down (or press and hold) and drop it on a folder.',
+        es: 'Un deslizado rápido a cualquier costado sigue siendo deslizado aunque el mouse salga de la lista. Para llevar un chat a una carpeta, levantalo hacia arriba o abajo (o mantenelo apretado) y soltalo en la carpeta.',
+        pt: 'Um deslize rápido para qualquer lado continua sendo deslize mesmo se o mouse sair da lista. Para levar um chat a uma pasta, levante-o para cima ou para baixo (ou segure) e solte na pasta.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-inbox-archive',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox: “Done” is now Archive',
+      es: 'Inbox: “Hecho” ahora es Archivar',
+      pt: 'Inbox: “Concluir” agora é Arquivar',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'E archives a chat, and Archived shows everything you archived or marked done before, in one place. Moving a chat back to the inbox works from either.',
+        es: 'E archiva un chat, y Archivados muestra todo lo que archivaste o marcaste como hecho antes, en un solo lugar. Volver a la bandeja funciona desde cualquiera de los dos.',
+        pt: 'E arquiva um chat, e Arquivados mostra tudo o que você arquivou ou concluiu antes, num só lugar. Voltar para a caixa funciona a partir de qualquer um.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-quiet-pickers',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: quieter folder and settings pickers',
+      es: 'Lines: selectores de carpeta y ajustes más sutiles',
+      pt: 'Lines: seletores de pasta e ajustes mais discretos',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Without the sidebar, the folder picker sits next to the line picker instead of filling a full row, and the owner filter and “Messages per chat” in Settings use the same light picker.',
+        es: 'Sin el lateral, el selector de carpeta va al lado del de línea en vez de ocupar una fila entera, y el filtro de dueño y “Mensajes por chat” de Ajustes usan el mismo selector liviano.',
+        pt: 'Sem a barra lateral, o seletor de pasta fica ao lado do de linha em vez de ocupar uma linha inteira, e o filtro de dono e “Mensagens por chat” nos Ajustes usam o mesmo seletor leve.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-filter-panel-soft',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: a softer filter panel',
+      es: 'Lines e Inbox: un panel de filtros más suave',
+      pt: 'Lines e Inbox: um painel de filtros mais suave',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The filter panel uses the same light border, rounded corners and soft shadow as the chat menus, and its search box no longer has a heavy outline.',
+        es: 'El panel de filtros usa el mismo borde fino, las esquinas redondeadas y la sombra suave de los menús del chat, y su buscador ya no tiene un borde grueso.',
+        pt: 'O painel de filtros usa a mesma borda fina, os cantos arredondados e a sombra suave dos menus do chat, e a busca não tem mais uma borda grossa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {

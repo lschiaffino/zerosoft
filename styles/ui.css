@@ -1241,7 +1241,7 @@ dialog.ui-filter-panel {
   min-width: 0;
   color: var(--ink);
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--line);
   border-radius: var(--radius-1);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
   font-family: var(--font-ui);
@@ -1272,6 +1272,8 @@ dialog.ui-filter-panel::backdrop { background: transparent; }
 .ui-filter-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
 .ui-filter-fields { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); background: var(--bg-soft); }
 .ui-filter-search { flex: none; width: auto; margin: 12px 12px 8px; }
+.ui-filter-panel .ui-filter-search { border: 1px solid var(--line); background: var(--bg-soft, var(--bg)); box-shadow: none; }
+.ui-filter-panel .ui-filter-search:focus { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); background: var(--bg); box-shadow: none; }
 .ui-filter-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 12px; }
 .ui-filter-group + .ui-filter-group { margin-top: 6px; }
 .ui-filter-cat {
@@ -1404,3 +1406,4 @@ button.ui-filter-chip-text:hover { text-decoration: underline; text-underline-of
   .ui-filter-chip-text { line-height: 38px; }
   .ui-filter-chip-x { width: 40px; }
 }
+

@@ -119,6 +119,18 @@ body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hove
   .zs-drag-tray { animation: none; }
 }
 
+
+/* Clic derecho sobre un chat: la misma tarjeta que el ⋯ (redondeada, sombra suave, íconos grises). */
+.zs-ctx-menu {
+  min-width: 220px; padding: 6px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 12px;
+  box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 12px 32px rgb(11 20 26 / 0.14);
+}
+.zs-ctx-item { gap: 12px; min-height: 36px; padding: 0 14px 0 10px; font-size: 0.9rem; border-radius: 8px; }
+.zs-ctx-item.has-divider { margin-top: 7px; }
+.zs-ctx-item.has-divider::before { left: 2px; right: 2px; top: -4px; }
+.zs-ctx-icon { display: inline-flex; flex: none; width: 20px; justify-content: center; color: var(--dim); }
+.zs-ctx-item.is-danger .zs-ctx-icon { color: inherit; }
+
 /* Selector sutil (components/ui/MenuSelect.tsx): botón sin caja y lista chica que abre abajo. */
 .zs-msel {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 220px; height: 30px; padding: 0 8px;
@@ -149,13 +161,12 @@ body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hove
 @media (max-width: 1023px) { .zs-msel { height: 40px; } .zs-msel-opt { min-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .zs-msel-list { animation: none; } .zs-msel, .zs-msel-chevron { transition: none; } }
 
-/* Clic derecho sobre un chat: la misma tarjeta que el ⋯ (redondeada, sombra suave, íconos grises). */
-.zs-ctx-menu {
-  min-width: 220px; padding: 6px; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 12px;
+/* En Lines e Inbox (estilo WhatsApp) el panel de filtros es una tarjeta como los menús del chat:
+   esquinas suaves y sombra liviana. La base de ui.css queda recta para el resto de la suite. */
+dialog.ui-filter-panel {
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 12px;
   box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 12px 32px rgb(11 20 26 / 0.14);
+  overflow: hidden;
 }
-.zs-ctx-item { gap: 12px; min-height: 36px; padding: 0 14px 0 10px; font-size: 0.9rem; border-radius: 8px; }
-.zs-ctx-item.has-divider { margin-top: 7px; }
-.zs-ctx-item.has-divider::before { left: 2px; right: 2px; top: -4px; }
-.zs-ctx-icon { display: inline-flex; flex: none; width: 20px; justify-content: center; color: var(--dim); }
-.zs-ctx-item.is-danger .zs-ctx-icon { color: inherit; }
+dialog.ui-filter-panel .ui-filter-search { border-radius: 8px; }

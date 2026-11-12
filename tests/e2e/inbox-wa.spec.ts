@@ -411,8 +411,8 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   const thread = page.locator('.ib-wa-thread');
   const actions = thread.locator('.gr-thread-actions');
 
-  // Íconos de la cabecera: Hecho, Posponer, Recordarme, Carpeta y Notas.
-  for (const name of ['Done', 'Snooze', 'Remind me', 'Folder', 'Notes', 'More actions']) {
+  // Íconos de la cabecera: Archivar, Posponer, Recordarme, Carpeta y Notas.
+  for (const name of ['Archive', 'Snooze', 'Remind me', 'Folder', 'Notes', 'More actions']) {
     await expect(actions.getByRole('button', { name })).toBeVisible();
   }
   await actions.getByRole('button', { name: 'Notes' }).click();

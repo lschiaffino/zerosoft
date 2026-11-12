@@ -67,9 +67,9 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   reply: ['done', 'snooze', 'archive'],
   waiting: ['done', 'snooze', 'archive'],
   pinned: ['unpin', 'archive'],
-  archived: ['unarchive'],
+  archived: ['unarchive', 'undone'],
   snoozed: ['unsnooze', 'done'],
-  done: ['undone', 'snooze', 'archive'],
+  done: ['undone', 'unarchive', 'snooze'],
 };
 
 interface Toast {
@@ -752,7 +752,7 @@ export default function InboxApp(props: {
       const k = e.key;
       if (gPending.current && Date.now() - gPending.current < 1200) {
         gPending.current = 0;
-        const jump: Record<string, InboxView> = { i: 'inbox', d: 'done', s: 'snoozed', r: 'reply', w: 'waiting', l: 'scheduled', u: 'unread' };
+        const jump: Record<string, InboxView> = { i: 'inbox', d: 'archived', s: 'snoozed', r: 'reply', w: 'waiting', l: 'scheduled', u: 'unread' };
         if (jump[k]) {
           e.preventDefault();
           go({ view: jump[k], folderId: null });
@@ -1124,7 +1124,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'archived'] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>
@@ -1140,7 +1140,7 @@ export default function InboxApp(props: {
             <div className="ib-bulk" role="toolbar" aria-label={t('list.bulk', { n: selected.size })}>
               <span>{t('list.bulk', { n: selected.size })}</span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('toggleDone')}>
-                {view === 'done' ? t('actions.undone') : t('actions.done')}
+                {view === 'done' || view === 'archived' ? t('actions.undone') : t('actions.done')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('snooze')}>
                 {t('actions.snooze')}

@@ -1,5 +1,5 @@
 import { e2eDb } from './helpers/db';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 /**
  * Inbox de punta a punta con los proveedores falsos (GROUPS_FAKE=1 para
@@ -7,6 +7,20 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  * mensajes por el webhook, se ordena todo con el teclado, se responde,
  * se programa, se pospone, snippets, carpetas, Gmail e importación.
  */
+
+/** Lleva un chat a una carpeta como una persona: lo levanta hacia abajo y recién después va al lateral.
+ *  Un movimiento de costado desde la fila es deslizar, no arrastrar. */
+async function liftTo(page: Page, from: Locator, to: Locator) {
+  const a = (await from.boundingBox())!;
+  const b = (await to.boundingBox())!;
+  const x = a.x + a.width / 2;
+  const y = a.y + a.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 4; i++) await page.mouse.move(x, y + i * 8);
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
+  await page.mouse.up();
+}
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -128,7 +142,7 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   // E: hecho, sale de la bandeja; Z: vuelve.
   await field.press('Escape');
   await page.keyboard.press('e');
-  await expect(page.locator('.ib-toast', { hasText: 'Marked done' })).toBeVisible();
+  await expect(page.locator('.ib-toast', { hasText: 'Archived' })).toBeVisible();
   await expect(row).toHaveCount(0);
   await page.keyboard.press('z');
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible({ timeout: 10_000 });
@@ -366,7 +380,7 @@ test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos qu
 
   // Arrastrar un chat a la subcarpeta: se resalta, se suma y se puede deshacer.
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.ib-item', { hasText: lu }).dragTo(childRow);
+  await liftTo(page, page.locator('.ib-item', { hasText: lu }), childRow);
   await expect(page.locator('.ib-toast', { hasText: `Added to ${child}` })).toBeVisible();
   await page.locator('.ib-toast', { hasText: `Added to ${child}` }).getByRole('button', { name: 'Undo' }).click();
   await expect.poll(async () => (await sql('SELECT COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id WHERE f.name = ?', [child]))[0].n).toBe(0);
@@ -375,7 +389,7 @@ test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos qu
   await page.locator('.ib-item', { hasText: lu }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
   await page.locator('.ib-item', { hasText: mati }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
   await expect(page.locator('.ib-item.is-selected')).toHaveCount(2);
-  await page.locator('.ib-item', { hasText: mati }).dragTo(childRow);
+  await liftTo(page, page.locator('.ib-item', { hasText: mati }), childRow);
   await expect(page.locator('.ib-toast', { hasText: `2 chats added to ${child}` })).toBeVisible();
 
   // Los no leídos de la subcarpeta suben al padre cuando está plegado; el padre muestra los chats de sus subcarpetas.

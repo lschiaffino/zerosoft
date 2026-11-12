@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
   "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Done", "compose": "New message" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -13,7 +13,7 @@
     "pinned": "Pinned",
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
-    "done": "Done",
+    "done": "Archived",
     "archived": "Archived"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
@@ -60,7 +60,7 @@
     "rename": "Rename chat",
     "save": "Save",
     "undone": "Move to inbox",
-    "done": "Done",
+    "done": "Archive",
     "archive": "Archive",
     "unarchive": "Unarchive",
     "snooze": "Snooze",
@@ -157,7 +157,7 @@
     "otherAccounts": "Connect Gmail",
     "importLink": "or import from inbox-zero",
     "searchTitle": "Nothing found",
-    "searchBody": "Search looks in names, numbers, emails, message text, transcribed audio and file names, including Done. Filters: from:ana, from:me, in:\"Family\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
+    "searchBody": "Search looks in names, numbers, emails, message text, transcribed audio and file names, including Archived. Filters: from:ana, from:me, in:\"Family\", has:media, has:link, before:2026-01-31, after:2025-12-01.",
     "zeroBody": "Everything is handled. New messages land here.",
     "view": {
       "inbox": "Inbox zero",
@@ -170,7 +170,7 @@
       "pinned": "Nothing pinned. Press P on a chat to pin it.",
       "snoozed": "Nothing snoozed. Press H on a chat to snooze it.",
       "scheduled": "Nothing scheduled. Use Later next to Send.",
-      "done": "Nothing marked done yet",
+      "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
       "folder": "This folder is empty. Press V on a chat to add it."
     }
@@ -184,7 +184,7 @@
       "navigate": "Next or previous chat",
       "open": "Open the chat",
       "back": "Close the chat or clear the search",
-      "done": "Mark done (or back to inbox)",
+      "done": "Archive (or back to inbox)",
       "undone": "Move back to inbox",
       "snooze": "Snooze",
       "followUp": "Remind me if there is no reply",
@@ -194,7 +194,7 @@
       "pin": "Pin or unpin",
       "moveFolder": "Add to a folder",
       "search": "Search",
-      "goto": "Go to inbox, done, snoozed",
+      "goto": "Go to inbox, archived, snoozed",
       "ai": "Help me write",
       "snippet": "Insert a snippet",
       "commands": "Commands, while you write a message",
@@ -207,11 +207,11 @@
     "pick": "Pick a chat to read it here.",
     "pickNoAccount": "Connect an account to start.",
     "keysMove": "move",
-    "keysDone": "done",
+    "keysDone": "archive",
     "keysSnooze": "snooze"
   },
   "toast": {
-    "done": "{n, plural, one {Marked done} other {# chats marked done}}",
+    "done": "{n, plural, one {Archived} other {# chats archived}}",
     "undone": "{n, plural, one {Back in the inbox} other {# chats back in the inbox}}",
     "read": "{n, plural, one {Marked read} other {# chats marked read}}",
     "unread": "{n, plural, one {Marked unread} other {# chats marked unread}}",
@@ -367,7 +367,7 @@
       "resyncYes": "Show new QR"
     },
     "gmail": {
-      "intro": "Connect Gmail with Google. Done archives in Gmail too, and read state stays in sync.",
+      "intro": "Connect Gmail with Google. Archive also archives in Gmail, and read state stays in sync.",
       "synced": "Synced {when}",
       "syncPending": "First sync in progress",
       "reconnect": "Needs to be connected again",
@@ -420,7 +420,7 @@
       "waNeedsLink": "Link WhatsApp above first.",
       "waLimit": "WhatsApp decides how far back this goes: a linked device only receives the history the phone sends when linking. Anything older stays on the phone; to bring it in, use the inbox-zero export below.",
       "gmailTitle": "All your Gmail",
-      "gmailHelp": "When you connect Gmail, Inbox shows the recent threads of your inbox right away and then brings the rest of your mail in the background, newest first (no spam, trash or drafts). What is not in your Gmail inbox lands in Done. It can be paused and never duplicates anything.",
+      "gmailHelp": "When you connect Gmail, Inbox shows the recent threads of your inbox right away and then brings the rest of your mail in the background, newest first (no spam, trash or drafts). What is not in your Gmail inbox lands in Archived. It can be paused and never duplicates anything.",
       "gmailStart": "Bring all my mail",
       "gmailNeedsLink": "Connect Gmail above first.",
       "gmailJobName": "Gmail: {address}",
