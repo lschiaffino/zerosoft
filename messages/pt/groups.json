@@ -1370,7 +1370,8 @@
       "members": "Membros",
       "ticket_created": "Ticket criado",
       "ticket_updated": "Ticket atualizado",
-      "ticket_deleted": "Ticket apagado"
+      "ticket_deleted": "Ticket apagado",
+      "hubspot_company": "Empresa do HubSpot"
     },
     "actions": {
       "assigned": "atribuiu o chat a {to}",
@@ -1391,7 +1392,8 @@
       "ticket_deleted": "apagou o ticket #{n}",
       "labelsAdded": "adicionou etiquetas: {added}",
       "labelsRemoved": "removeu etiquetas: {removed}",
-      "assignedSelf": "atribuiu o chat a si"
+      "assignedSelf": "atribuiu o chat a si",
+      "hubspot_company": "substituiu a empresa do HubSpot {previous} por {company}, a que este grupo tem nas outras linhas"
     },
     "memberActions": {
       "add": "adicionou",
@@ -2317,6 +2319,8 @@
     "truncated": "Mostrando os {n} grupos com atividade mais recente. Refine os filtros para ver o resto.",
     "count": "{n, plural, one {# grupo} other {# grupos}}",
     "statusField": "Status do grupo",
-    "filterEmpty": "Nenhum grupo corresponde a estes filtros."
+    "filterEmpty": "Nenhum grupo corresponde a estes filtros.",
+    "more": "Mais ações",
+    "moreLines": "{n, plural, one {# linha a mais} other {# linhas a mais}}"
   }
 }

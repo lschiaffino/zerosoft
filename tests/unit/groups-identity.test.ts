@@ -215,6 +215,15 @@ describe('empresa de HubSpot única por grupo', () => {
 
     await linkHubspot(w.owner.id, w.owner.id, w.b, 'company', '9002');
     expect(await companyLink(w.owner.id, w.a)).toBe('9002');
+    // La otra línea tenía otra empresa: queda en su actividad, con quién la cambió.
+    const audit = (await getDb().prepare("SELECT chat_id, actor_id, detail FROM groups_audit WHERE user_id = ? AND action = 'hubspot_company'").all(w.owner.id)) as Array<{
+      chat_id: string;
+      actor_id: string;
+      detail: string;
+    }>;
+    expect(audit.map((a) => a.chat_id)).toEqual([w.a]);
+    expect(audit[0].actor_id).toBe(w.owner.id);
+    expect(JSON.parse(audit[0].detail)).toMatchObject({ previousId: '9001', companyId: '9002' });
     expect(await companyLink(w.owner.id, w.b)).toBe('9002');
     expect((await ident()).company_id).toBe('9002');
     // Una sola fila de vínculo por chat (nunca dos empresas).
@@ -302,5 +311,15 @@ describe('empresa de HubSpot única por grupo', () => {
     await groupIdentityUp(getClient());
     expect(await companyLink(w.owner.id, w.a)).toBe('9003');
     expect(await companyLink(w.owner.id, w.b)).toBe('9003');
+    // Lo reemplazado queda en la actividad del chat, una sola vez aunque la migración corra dos.
+    const audit = (await db.prepare("SELECT chat_id, actor_kind, detail FROM groups_audit WHERE user_id = ? AND action = 'hubspot_company'").all(w.owner.id)) as Array<{
+      chat_id: string;
+      actor_kind: string;
+      detail: string;
+    }>;
+    expect(audit).toHaveLength(1);
+    expect(audit[0].chat_id).toBe(w.a);
+    expect(audit[0].actor_kind).toBe('system');
+    expect(JSON.parse(audit[0].detail)).toMatchObject({ previousId: '9001', previousName: 'Acme Logistics', companyId: '9003', companyName: 'Initech Foods' });
   });
 });

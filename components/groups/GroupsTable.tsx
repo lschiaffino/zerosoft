@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import MenuSelect from '@/components/ui/MenuSelect';
 import FilterPanel, { FilterChips } from '@/components/ui/FilterPanel';
 import { filterChips, fold, type ChipStrings, type FilterCategory, type FilterField, type FilterValues } from '@/lib/filter-panel';
 import type { LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
@@ -349,7 +350,7 @@ export default function GroupsTable({
       <div className="gr-toolbar gr-gt-toolbar" ref={toolbarRef}>
         <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('list.search')} aria-label={t('list.search')} />
         {numbers.length > 1 && (
-          <Popover
+          <ToolbarPopover
             open={menu === 'lines'}
             onOpenChange={(o) => setMenu(o ? 'lines' : null)}
             button={
@@ -378,7 +379,7 @@ export default function GroupsTable({
                 </label>
               ))}
             </div>
-          </Popover>
+          </ToolbarPopover>
         )}
         <button
           ref={filterBtn}
@@ -397,7 +398,7 @@ export default function GroupsTable({
           <span>{t('fp.open')}</span>
           {chips.length > 0 && <span className="gr-gt-count">{chips.length}</span>}
         </button>
-        <Popover open={menu === 'columns'} onOpenChange={(o) => setMenu(o ? 'columns' : null)} button={t('list.columns')} testId="groups-columns-button" align="end">
+        <ToolbarPopover open={menu === 'columns'} onOpenChange={(o) => setMenu(o ? 'columns' : null)} button={t('list.columns')} testId="groups-columns-button" align="end">
           <ColumnsMenu
             view={view}
             hubspotOn={hubspotOn}
@@ -411,7 +412,7 @@ export default function GroupsTable({
             onSort={(sort) => updateView((v) => ({ ...v, sort }))}
             onReset={() => updateView(() => defaultView(propKeys))}
           />
-        </Popover>
+        </ToolbarPopover>
         <span className="gr-toolbar-spacer" />
         {toolbarEnd}
       </div>
@@ -551,17 +552,27 @@ function Cell({
 }) {
   const t = useTranslations('groups');
   if (col === 'lines') {
+    // Una sola fila: la línea principal y "+N" con las demás en el tooltip.
+    const [first, ...rest] = row.lines;
+    const name = first ? (lineName.get(first.numberId) ?? '') : '';
+    const others = rest.map((l) => lineName.get(l.numberId) ?? '').join(', ');
     return (
       <td data-label={label}>
         <span className="gr-gt-lines">
-          {row.lines.map((l) => {
-            const name = lineName.get(l.numberId) ?? '';
-            return (
-              <Link key={l.numberId} href={`/app/lines/list/${l.chatId}`} className="gr-gt-line" title={t('gt.openInLine', { line: name })}>
-                {name}
-              </Link>
-            );
-          })}
+          {first && (
+            <Link href={`/app/lines/list/${first.chatId}`} className="gr-gt-line" title={t('gt.openInLine', { line: name })}>
+              {name}
+            </Link>
+          )}
+          {rest.length > 0 && (
+            <span className="gr-gt-more" title={others} data-testid="groups-more-lines">
+              +{rest.length}
+              <span className="sr-only">
+                {' '}
+                {t('gt.moreLines', { n: rest.length })}: {others}
+              </span>
+            </span>
+          )}
         </span>
       </td>
     );
@@ -636,18 +647,20 @@ function Cell({
 }
 
 /** Un botón con un menú que se abre debajo; Esc o un clic afuera lo cierran y el foco vuelve al botón. */
-function Popover({
+export function ToolbarPopover({
   open,
   onOpenChange,
   button,
   buttonLabel,
   testId,
   align = 'start',
+  buttonClass = 'btn btn-ghost gr-gt-menu-btn',
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   button: ReactNode;
+  buttonClass?: string;
   buttonLabel?: string;
   testId?: string;
   align?: 'start' | 'end';
@@ -658,7 +671,10 @@ function Popover({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent | TouchEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) onOpenChange(false);
+      const target = e.target as Element;
+      // La lista de un MenuSelect de adentro vive en un portal: elegir ahí no cierra este menú.
+      if (target.closest?.('.zs-msel-list')) return;
+      if (box.current && !box.current.contains(target)) onOpenChange(false);
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('touchstart', onDown);
@@ -672,14 +688,15 @@ function Popover({
       className="gr-columns"
       ref={box}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' && open) {
+        // Un Esc que ya usó un control de adentro (cerrar un MenuSelect) no cierra el menú.
+        if (e.key === 'Escape' && open && !e.defaultPrevented) {
           e.stopPropagation();
           onOpenChange(false);
           btn.current?.focus();
         }
       }}
     >
-      <button ref={btn} type="button" className="btn btn-ghost gr-gt-menu-btn" aria-haspopup="true" aria-expanded={open} aria-label={buttonLabel} data-testid={testId} onClick={() => onOpenChange(!open)}>
+      <button ref={btn} type="button" className={buttonClass} aria-haspopup="true" aria-expanded={open} aria-label={buttonLabel} data-testid={testId} onClick={() => onOpenChange(!open)}>
         {button}
       </button>
       {open && <div className={`gr-columns-menu gr-gt-popover${align === 'end' ? ' is-end' : ''}`}>{children}</div>}
@@ -720,30 +737,30 @@ function ColumnsMenu({
   return (
     <div className="gr-gt-columns">
       <div className="gr-gt-sortrow">
-        <label className="ui-field">
-          <span className="label">{t('gt.sortBy')}</span>
-          <select
-            className="select"
+        <span className="label" aria-hidden="true">
+          {t('gt.sortBy')}
+        </span>
+        <div className="gr-gt-sortctl">
+          <MenuSelect
+            label={t('gt.sortBy')}
             value={view.sort?.col ?? ''}
-            onChange={(e) => onSort(e.target.value ? { col: e.target.value, dir: view.sort?.dir ?? 'asc' } : null)}
-          >
-            <option value="">{t('gt.sortNone')}</option>
-            {sortable.map((c) => (
-              <option key={c} value={c}>
-                {columnLabel(c)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {view.sort && (
-          <label className="ui-field">
-            <span className="label">{t('gt.sortDir')}</span>
-            <select className="select" value={view.sort.dir} onChange={(e) => onSort({ col: view.sort!.col, dir: e.target.value === 'desc' ? 'desc' : 'asc' })}>
-              <option value="asc">{t('gt.sortAsc')}</option>
-              <option value="desc">{t('gt.sortDesc')}</option>
-            </select>
-          </label>
-        )}
+            options={[{ value: '', label: t('gt.sortNone') }, ...sortable.map((c) => ({ value: c, label: columnLabel(c) }))]}
+            onChange={(v) => onSort(v ? { col: v, dir: view.sort?.dir ?? 'asc' } : null)}
+            testId="groups-sort-by"
+          />
+          {view.sort && (
+            <MenuSelect
+              label={t('gt.sortDir')}
+              value={view.sort.dir}
+              options={[
+                { value: 'asc', label: t('gt.sortAsc') },
+                { value: 'desc', label: t('gt.sortDesc') },
+              ]}
+              onChange={(v) => onSort({ col: view.sort!.col, dir: v === 'desc' ? 'desc' : 'asc' })}
+              testId="groups-sort-dir"
+            />
+          )}
+        </div>
       </div>
       {total > 10 && <input className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('gt.searchColumns')} aria-label={t('gt.searchColumns')} />}
       <div className="gr-gt-colsections" role="group" aria-label={t('list.columns')}>

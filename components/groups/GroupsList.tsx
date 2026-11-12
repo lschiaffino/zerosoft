@@ -8,7 +8,7 @@ import GetStarted from './GetStarted';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import type { GroupTableRow, GroupsTableDto } from '@/lib/groups-table';
-import GroupsTable from './GroupsTable';
+import GroupsTable, { ToolbarPopover } from './GroupsTable';
 import { LabelTag, Modal, NumberOptions, api, defaultNumberId, useErrorText, useToast } from './ui';
 
 type BulkAction = 'add' | 'remove' | 'promote' | 'demote';
@@ -43,7 +43,10 @@ export default function GroupsList({
   initial,
   managed = false,
   canEdit = true,
+  hubspotBulk = false,
 }: {
+  /** HubSpot conectado y la persona puede vincular: "Vincular grupos a HubSpot" en el menú "⋯". */
+  hubspotBulk?: boolean;
   initial: GroupsTableDto;
   /** QR administrado disponible y si la persona puede agregar números (estado vacío). */
   managed?: boolean;
@@ -66,6 +69,7 @@ export default function GroupsList({
   const [bulk, setBulk] = useState<BulkAction | null>(null);
   const [joinOpen, setJoinOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useKeyShortcut('c', () => setCreateOpen(true));
 
@@ -100,18 +104,48 @@ export default function GroupsList({
         }
         toolbarEnd={
           <>
-            <Link href="/app/lines/templates" className="btn btn-secondary">
-              {t('templates.title')}
-            </Link>
-            <button type="button" className="btn btn-secondary" onClick={() => setJoinOpen(true)} disabled={groupNumbers.length === 0}>
-              {t('join.button')}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setCsvOpen(true)} disabled={groupNumbers.length === 0}>
-              {t('list.importCsv')}
-            </button>
             <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)} disabled={groupNumbers.length === 0}>
               {t('list.new')} <kbd className="kbd">C</kbd>
             </button>
+            {/* Lo que se usa menos va en "⋯", como en Linear: la barra entra en una fila. */}
+            <ToolbarPopover
+              open={moreOpen}
+              onOpenChange={setMoreOpen}
+              align="end"
+              buttonClass="btn btn-ghost gr-gt-more-btn"
+              buttonLabel={t('gt.more')}
+              testId="groups-more-button"
+              button={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="19" cy="12" r="1.8" />
+                </svg>
+              }
+            >
+              <div className="gr-gt-menuitems" role="group" aria-label={t('gt.more')}>
+                <Link href="/app/lines/templates" className="gr-gt-menuitem">
+                  {t('templates.title')}
+                </Link>
+                <button type="button" className="gr-gt-menuitem" onClick={() => {
+                    setMoreOpen(false);
+                    setJoinOpen(true);
+                  }} disabled={groupNumbers.length === 0}>
+                  {t('join.button')}
+                </button>
+                <button type="button" className="gr-gt-menuitem" onClick={() => {
+                    setMoreOpen(false);
+                    setCsvOpen(true);
+                  }} disabled={groupNumbers.length === 0}>
+                  {t('list.importCsv')}
+                </button>
+                {hubspotBulk && (
+                  <Link href="/app/lines/list/unlinked" className="gr-gt-menuitem">
+                    {t('hubspot.bulk.open')}
+                  </Link>
+                )}
+              </div>
+            </ToolbarPopover>
           </>
         }
       />

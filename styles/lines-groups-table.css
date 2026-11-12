@@ -2,6 +2,33 @@
    Barra con búsqueda, líneas, filtros y columnas; encabezados que ordenan; líneas y empresa por fila. */
 
 .gr-gt-toolbar { position: relative; margin-bottom: 8px; }
+/* Una sola fila como en Linear: la búsqueda cede lugar antes que la barra se parta. */
+.gr-gt-toolbar > .input { flex: 0 1 240px; min-width: 140px; }
+@media (min-width: 900px) {
+  .gr-gt-toolbar { flex-wrap: nowrap; }
+  .gr-gt-toolbar > * { flex-shrink: 0; }
+  .gr-gt-toolbar > .input { flex-shrink: 1; }
+}
+.gr-gt-more-btn { --btn-px: 10px; }
+.gr-gt-menuitems { display: flex; flex-direction: column; gap: 2px; min-width: 200px; }
+.gr-gt-menuitem {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.gr-gt-menuitem:hover:not(:disabled) { background: var(--bg-soft); }
+.gr-gt-menuitem:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.gr-gt-menuitem:disabled { color: var(--dim); cursor: default; }
 .gr-gt-toolbar + .ui-filter-chips { margin-bottom: 12px; }
 .gr-gt-menu-btn { gap: 4px; max-width: 280px; }
 .gr-gt-menu-btn > * { min-width: 0; }
@@ -41,9 +68,9 @@
 .gr-gt-columns > .btn { align-self: flex-start; }
 /* El buscador del menú no toma el ancho de la búsqueda de la barra (.gr-toolbar .input). */
 .gr-gt-columns > .input { flex: none; width: 100%; }
-.gr-gt-sortrow { display: flex; gap: 8px; }
-.gr-gt-sortrow .ui-field { flex: 1; min-width: 0; margin: 0; }
-.gr-gt-sortrow .select { width: 100%; }
+.gr-gt-sortrow { display: flex; flex-direction: column; gap: 4px; }
+.gr-gt-sortrow > .label { font-size: 0.75rem; color: var(--dim); padding: 0 4px; }
+.gr-gt-sortctl { display: flex; flex-wrap: wrap; gap: 4px; }
 .gr-gt-colsection { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .gr-gt-colsection + .gr-gt-colsection { padding-top: 8px; border-top: 1px solid var(--line); }
 .gr-gt-colsection > legend { padding: 0 4px; margin-bottom: 4px; font-size: 0.75rem; color: var(--dim); }
@@ -68,7 +95,9 @@
 .gr-gt-sort:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 th[aria-sort] .gr-gt-sort { color: var(--ink); }
 .gr-gt-arrow { display: inline-block; min-width: 0.75em; }
-.gr-gt-lines { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.gr-gt-lines { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px; max-width: 100%; }
+.gr-gt-lines > .gr-gt-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 22px; }
+.gr-gt-more { flex: none; padding: 0 4px; font-size: 0.8125rem; color: var(--dim); cursor: default; }
 .gr-gt-line {
   display: inline-flex;
   align-items: center;
@@ -93,7 +122,11 @@ th[aria-sort] .gr-gt-sort { color: var(--ink); }
   .gr-gt-sort { min-height: 40px; }
   .gr-gt-line,
   .gr-gt-company-link { min-height: 40px; }
-  .gr-gt-menu-btn { --btn-h: 40px; }
+  .gr-gt-menu-btn,
+  .gr-gt-more-btn { --btn-h: 40px; }
+  .gr-gt-menuitem { min-height: 40px; }
+  .gr-gt-table .gr-table-name { min-height: 40px; }
+  .gr-gt-lines > .gr-gt-line { line-height: 38px; }
 }
 @media (max-width: 640px) {
   /* En el teléfono cada fila es una tarjeta: los valores se cortan en varias líneas. */

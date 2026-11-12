@@ -229,6 +229,8 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       count: String(d.count ?? ''),
       action: d.action ? t(`audit.memberActions.${String(d.action)}`) : '',
       status: d.status ? t(`ticketStatus.${String(d.status)}`) : '',
+      previous: String(d.previousName || d.previousId || ''),
+      company: String(d.companyName || d.companyId || ''),
     };
     // Sin "sacó: " vacío ni "asignó el chat a <sí mismo>".
     if (e.action === 'labels' && (!v.added || !v.removed)) {

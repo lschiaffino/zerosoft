@@ -98,27 +98,58 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   await groupIn(request, soporte, onlySoporte, soporteName);
 
   // HubSpot conectado; la empresa se vincula desde una sola línea y vale para el grupo.
+  // Una empresa propia del test en el HubSpot falso, con un valor de Plan que se busca en la tabla.
+  const companyId = `97${String(Date.now()).slice(-7)}`;
+  const companyName = `Orbit Freight ${tag}`;
+  const created = await request.post('/api/groups/hubspot/fake', { data: { create: { id: companyId, properties: { name: companyName, plan_tier: 'scale', numberofemployees: '120' } } } });
+  expect(created.ok(), await created.text()).toBe(true);
   await request.delete('/api/groups/hubspot');
   const connected = await request.post('/api/groups/hubspot', { data: { token: TOKEN } });
   expect(connected.ok(), await connected.text()).toBe(true);
-  const linked = await request.post('/api/groups/hubspot/links', { data: { chatId: sharedInVentas, type: 'company', objectId: '9001' } });
+  const linked = await request.post('/api/groups/hubspot/links', { data: { chatId: sharedInVentas, type: 'company', objectId: companyId } });
   expect(linked.ok(), await linked.text()).toBe(true);
   const other = (await (await request.get(`/api/groups/hubspot/links?chat=${sharedInSoporte}`)).json()) as { links: Array<{ type: string; id: string }> };
-  expect(other.links).toMatchObject([{ type: 'company', id: '9001' }]);
+  expect(other.links).toMatchObject([{ type: 'company', id: companyId }]);
 
   await openList(page, tag);
 
   // ---------- Una fila por grupo, con sus dos líneas y su empresa ----------
   await expect(page.locator('tbody tr')).toHaveCount(3);
   await expect(groupRow(page, shared)).toHaveCount(1);
+  // Las líneas en una sola fila: la principal como link y "+1" con la otra en el tooltip.
   const lines = groupRow(page, shared).locator('.gr-gt-lines');
-  await expect(lines.getByRole('link', { name: `Ventas ${tag}` })).toHaveAttribute('href', new RegExp(`/app/lines/list/${sharedInVentas}$`));
-  await expect(lines.getByRole('link', { name: `Soporte ${tag}` })).toHaveAttribute('href', new RegExp(`/app/lines/list/${sharedInSoporte}$`));
-  const company = groupRow(page, shared).getByRole('link', { name: 'Open Acme Logistics in HubSpot' });
-  await expect(company).toHaveAttribute('href', /^https:\/\/app\.hubspot\.com\/contacts\/\d+\/record\/0-2\/9001$/);
+  await expect(lines.getByRole('link')).toHaveCount(1);
+  const firstLine = (await lines.getByRole('link').innerText()).trim();
+  const [mainChat, otherLine] = firstLine === `Ventas ${tag}` ? [sharedInVentas, `Soporte ${tag}`] : [sharedInSoporte, `Ventas ${tag}`];
+  expect([`Ventas ${tag}`, `Soporte ${tag}`]).toContain(firstLine);
+  await expect(lines.getByRole('link')).toHaveAttribute('href', new RegExp(`/app/lines/list/${mainChat}$`));
+  const more = lines.getByTestId('groups-more-lines');
+  await expect(more).toHaveAttribute('title', otherLine);
+  await expect(more).toContainText('+1');
+  const box = (await lines.boundingBox())!;
+  expect(box.height).toBeLessThan(40);
+  const company = groupRow(page, shared).getByRole('link', { name: `Open ${companyName} in HubSpot` });
+  await expect(company).toHaveAttribute('href', new RegExp(`^https://app\\.hubspot\\.com/contacts/\\d+/record/0-2/${companyId}$`));
   await expect(company).toHaveAttribute('target', '_blank');
   await expect(groupRow(page, onlyVentas)).toContainText('Not linked');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-table.png` });
+
+  // ---------- La barra entra en una fila; lo que se usa menos va en "⋯" ----------
+  // Todos los controles comparten la misma franja vertical (el separador vacío no cuenta).
+  const boxes = await page
+    .locator('.gr-gt-toolbar > *')
+    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => [Math.round(r.top), Math.round(r.bottom)]));
+  expect(Math.max(...boxes.map((b) => b[0])), `toolbar en una fila: ${JSON.stringify(boxes)}`).toBeLessThan(Math.min(...boxes.map((b) => b[1])));
+  await expect(page.getByRole('button', { name: 'Import CSV' })).toHaveCount(0);
+  await page.getByTestId('groups-more-button').click();
+  const moreMenu = page.getByRole('group', { name: 'More actions' });
+  await expect(moreMenu.getByRole('link', { name: 'Group templates' })).toBeVisible();
+  await expect(moreMenu.getByRole('button', { name: 'Join with link' })).toBeVisible();
+  await expect(moreMenu.getByRole('button', { name: 'Import CSV' })).toBeVisible();
+  await expect(moreMenu.getByRole('link', { name: 'Link groups to HubSpot' })).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-more.png` });
+  await page.keyboard.press('Escape');
+  await expect(moreMenu).toHaveCount(0);
 
   // ---------- Filtro por línea: una, varias, todas ----------
   const linesButton = page.getByTestId('groups-lines-button');
@@ -131,11 +162,11 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   await expect(groupRow(page, onlySoporte)).toHaveCount(1);
   // El grupo compartido sigue, una vez y con las dos líneas.
   await expect(groupRow(page, shared)).toHaveCount(1);
-  await expect(groupRow(page, shared).locator('.gr-gt-line')).toHaveCount(2);
+  await expect(groupRow(page, shared).getByTestId('groups-more-lines')).toContainText('+1');
   await linesMenu.getByLabel(`Ventas ${tag}`).check();
   await expect(linesButton).toContainText('2 lines');
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-lines.png` });
   await expect(page.locator('tbody tr')).toHaveCount(3);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-lines.png` });
   await linesMenu.getByLabel('All lines').check();
   await expect(linesButton).toContainText('All lines');
   await page.keyboard.press('Escape');
@@ -147,10 +178,20 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   const columns = page.getByRole('group', { name: 'Columns' });
   await page.getByRole('searchbox', { name: 'Search columns' }).fill('plan');
   await columns.getByLabel('Plan', { exact: true }).check();
+  // El valor de la empresa se ve (la etiqueta de la opción, no el valor interno).
+  await expect(page.getByRole('columnheader', { name: 'Plan' })).toBeVisible();
+  await expect(groupRow(page, shared).getByRole('cell', { name: 'Scale', exact: true })).toBeVisible();
+  await expect(groupRow(page, onlyVentas).getByRole('cell', { name: 'Scale', exact: true })).toHaveCount(0);
+  // Orden desde el menú, con el selector sutil y el teclado.
+  await page.getByTestId('groups-sort-by').click();
+  await expect(page.getByRole('listbox', { name: 'Sort by' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox', { name: 'Sort by' })).toHaveCount(0);
+  // El Esc del selector no cierra el menú de columnas.
+  await expect(columns).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/gt-columns.png` });
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('columnheader', { name: 'Plan' })).toBeVisible();
-  await expect(groupRow(page, shared).getByRole('cell', { name: 'Growth' })).toBeVisible();
+  await expect(columns).toHaveCount(0);
   // Ocultar una columna del grupo.
   await page.getByTestId('groups-columns-button').click();
   await columns.getByLabel('Members', { exact: true }).uncheck();

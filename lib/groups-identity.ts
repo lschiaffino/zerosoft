@@ -194,7 +194,27 @@ export async function propagateGroupCompany(ws: string, chatId: string, actor: s
   await getDb()
     .prepare('UPDATE groups_identities SET company_id = ?, linked_by = ?, linked_at = ?, updated_at = ? WHERE user_id = ? AND jid = ?')
     .run(link.object_id, actor, now, now, ws, chat.jid);
+  // Las otras líneas que tenían otra empresa: el cambio queda en la actividad de cada chat.
+  const replaced = (await getDb()
+    .prepare(
+      `SELECT ch.id, ch.name, l.object_id, l.name AS company_name FROM groups_hubspot_links l JOIN groups_chats ch ON ch.id = l.chat_id
+       WHERE ch.user_id = ? AND ch.provider_chat_id = ? AND ch.kind = 'group' AND ch.id != ? AND l.object_type = 'company' AND l.object_id != ?`,
+    )
+    .all(ws, chat.jid, chatId, link.object_id)) as Array<{ id: string; name: string; object_id: string; company_name: string }>;
   await mirrorCompany(ws, chat.jid, link, actor);
+  if (replaced.length) {
+    const { recordAudit } = await import('./groups-audit');
+    for (const x of replaced) {
+      await recordAudit(ws, {
+        chatId: x.id,
+        chatName: x.name,
+        actorId: actor,
+        actorKind: actor ? 'person' : 'system',
+        action: 'hubspot_company',
+        detail: { previousId: x.object_id, previousName: x.company_name, companyId: link.object_id, companyName: link.name, reason: 'group_identity' },
+      });
+    }
+  }
 }
 
 /** Se quitó la empresa del chat: el grupo queda sin empresa en todas sus líneas. */

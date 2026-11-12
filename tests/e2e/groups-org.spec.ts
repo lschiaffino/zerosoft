@@ -133,6 +133,7 @@ test('ajustes del grupo, salir y entrar por link', async ({ page, request }) => 
   // Entrar con un link desde la lista de grupos.
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   await expect(page.locator('tr', { hasText: name }).getByText('Left')).toBeVisible();
+  await page.getByTestId('groups-more-button').click();
   await page.getByRole('button', { name: 'Join with link' }).click();
   const join = page.getByRole('dialog', { name: 'Join a group by invite' });
   await join.getByLabel('From number').selectOption(n.id);

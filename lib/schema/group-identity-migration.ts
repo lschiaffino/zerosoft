@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { Client } from '@libsql/client';
 
 /**
@@ -13,7 +14,10 @@ import type { Client } from '@libsql/client';
  *
  * Al migrar: una identidad por grupo y, si las líneas tenían empresas
  * distintas, gana la vinculada más recientemente y se copia a las demás.
- * Se puede correr dos veces: lo que ya está no cambia.
+ * Cada vínculo reemplazado queda en la actividad del chat (groups_audit,
+ * acción 'hubspot_company', con la empresa anterior y la nueva): nada se
+ * pierde sin rastro. Se puede correr dos veces: lo que ya está no cambia
+ * (y no se vuelve a registrar).
  */
 export async function groupIdentityUp(c: Client): Promise<void> {
   await c.executeMultiple(`
@@ -54,6 +58,26 @@ export async function groupIdentityUp(c: Client): Promise<void> {
     const id = await c.execute({ sql: 'SELECT company_id FROM groups_identities WHERE user_id = ? AND jid = ?', args: [ws, jid] });
     const companyId = String(id.rows[0]?.company_id ?? '');
     if (companyId !== String(r.object_id)) continue;
+    // Lo que se va a reemplazar queda registrado en la actividad de cada chat.
+    const replaced = await c.execute({
+      sql: `SELECT ch.id, ch.name, l.object_id, l.name AS company_name FROM groups_hubspot_links l JOIN groups_chats ch ON ch.id = l.chat_id
+            WHERE ch.user_id = ? AND ch.provider_chat_id = ? AND ch.kind = 'group' AND l.object_type = 'company' AND l.object_id != ?`,
+      args: [ws, jid, companyId],
+    });
+    for (const x of replaced.rows) {
+      await c.execute({
+        sql: `INSERT INTO groups_audit (id, user_id, chat_id, chat_name, actor_id, actor_kind, action, detail, created_at)
+              VALUES (?, ?, ?, ?, NULL, 'system', 'hubspot_company', ?, ?)`,
+        args: [
+          randomUUID(),
+          ws,
+          String(x.id),
+          String(x.name ?? ''),
+          JSON.stringify({ previousId: String(x.object_id), previousName: String(x.company_name ?? ''), companyId, companyName: String(r.name ?? ''), reason: 'group_identity' }),
+          new Date().toISOString(),
+        ],
+      });
+    }
     // Las demás líneas del grupo quedan con la misma empresa.
     await c.execute({
       sql: `INSERT INTO groups_hubspot_links (chat_id, user_id, object_type, object_id, name, props, fetched_at, missing, linked_by, created_at)
