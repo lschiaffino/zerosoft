@@ -147,6 +147,33 @@ mod mac {
         }
     }
 
+    /// Texto en el portapapeles general, marcado como de paso y solo para esta Mac (macOS 12+).
+    pub fn set_private_text(text: &str) -> bool {
+        use objc2::sel;
+        unsafe {
+            let pb: *mut AnyObject = msg_send![class!(NSPasteboard), generalPasteboard];
+            if pb.is_null() {
+                return false;
+            }
+            let host_only: bool = msg_send![pb, respondsToSelector: sel!(prepareForNewContentsWithOptions:)];
+            if host_only {
+                // NSPasteboardContentsCurrentHostOnly = 1 << 0.
+                let _: isize = msg_send![pb, prepareForNewContentsWithOptions: 1usize];
+            } else {
+                let _: isize = msg_send![pb, clearContents];
+            }
+            let plain = NSString::from_str("public.utf8-plain-text");
+            let value = NSString::from_str(text);
+            let ok: bool = msg_send![pb, setString: &*value, forType: &*plain];
+            let empty = NSString::from_str("");
+            for t in ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"] {
+                let kind = NSString::from_str(t);
+                let _: bool = msg_send![pb, setString: &*empty, forType: &*kind];
+            }
+            ok
+        }
+    }
+
     #[link(name = "CoreGraphics", kind = "framework")]
     extern "C" {
         fn CGPreflightScreenCaptureAccess() -> bool;
@@ -328,6 +355,61 @@ pub fn frontmost_app() -> String {
     }
     #[cfg(not(target_os = "macos"))]
     String::new()
+}
+
+/// Pone en el portapapeles el texto de un dictado (para pegarlo) marcado como de paso:
+/// - Mac: con `org.nspasteboard.TransientType` y `org.nspasteboard.ConcealedType` (los gestores de
+///   historial que siguen nspasteboard.org no lo guardan) y, en macOS 12 o más, solo en esta Mac
+///   (`NSPasteboardContentsCurrentHostOnly`: no va al Portapapeles universal).
+/// - Windows: con `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`=0 y
+///   `CanUploadToCloudClipboard`=0 (no va al historial de Windows ni a la nube).
+pub fn write_text_private(cb: &mut arboard::Clipboard, text: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &cb;
+        return mac::set_private_text(text);
+    }
+    #[cfg(windows)]
+    {
+        use arboard::SetExtWindows;
+        return cb.set().exclude_from_monitoring().exclude_from_history().exclude_from_cloud().text(text).is_ok();
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    cb.set_text(text).is_ok()
+}
+
+/// La clave que la app de Electron (0.1.x) dejó en el llavero ("zerosoft Safe Storage", cuenta
+/// "zerosoft Key"). Se mira sin leer el secreto (no pide permiso).
+pub fn electron_keychain_exists() -> bool {
+    #[cfg(target_os = "macos")]
+    return keychain("find-generic-password");
+    #[cfg(not(target_os = "macos"))]
+    false
+}
+
+/// La borra (solo ese servicio y esa cuenta). true si ya no está.
+pub fn delete_electron_keychain() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        if !electron_keychain_exists() {
+            return true;
+        }
+        let _ = keychain("delete-generic-password");
+        return !electron_keychain_exists();
+    }
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
+#[cfg(target_os = "macos")]
+fn keychain(action: &str) -> bool {
+    use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
+    std::process::Command::new("/usr/bin/security")
+        .args([action, "-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
 }
 
 /// La tecla de la "v" para `tap_paste` (Mac; en Windows no se usa). Llamar en el hilo principal.

@@ -9,7 +9,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 export type PermissionKind = 'microphone' | 'accessibility' | 'camera' | 'screen';
 export type PermissionAsk = PermissionKind | 'accessibility-reset' | `reset-${PermissionKind}`;
 export type PermissionStatus = 'granted' | 'denied' | 'not-determined' | 'restricted' | 'not-needed';
-export type Failure = 'offline' | 'signed_out' | 'rate_limited' | 'server' | 'too_large' | 'empty' | 'rejected';
+export type Failure = 'offline' | 'signed_out' | 'rate_limited' | 'server' | 'too_large' | 'empty' | 'rejected' | 'other_server';
 export type Mode = 'both' | 'hold' | 'toggle';
 
 export interface PendingMeta {
@@ -21,6 +21,8 @@ export interface PendingMeta {
   context: string;
   failure: Failure;
   attempts: number;
+  /** Servidor para el que se grabó ("" en versiones anteriores). Solo se manda a ese. */
+  server: string;
 }
 
 export interface AccountView {

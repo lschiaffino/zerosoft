@@ -214,6 +214,9 @@ fn content_webview(app: &AppHandle, id: u64, path: &str) -> WebviewBuilder<Wry> 
         .on_navigation(move |u| crate::route(&nav_app, u))
         .on_permission_request(|webview, kind| {
             use tauri::webview::{PermissionKind, PermissionResponse};
+            // wry no dice qué frame pide: se mira la URL de arriba de la pestaña. Con la página del
+            // servidor arriba, un iframe de otro origen dentro de ella también recibiría el permiso;
+            // con cualquier otra página arriba, se niega.
             let server = crate::api::server(webview.app_handle());
             let ours = webview.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
             // Registro de actividad: la app le dio el micrófono o la cámara a la página.
@@ -714,9 +717,10 @@ pub fn recording_in_front(app: &AppHandle) -> bool {
     w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && w.is_focused().unwrap_or(false) && st(app).s.lock().unwrap().active_of(&label) == Some(id)
 }
 
-/// La pestaña está a la vista: es la de adelante de su ventana, y la ventana no está escondida ni
-/// minimizada (para empezar a capturar el audio de la computadora, commands.rs).
-pub fn tab_visible(app: &AppHandle, id: u64) -> bool {
+/// La pestaña es la que la persona está usando: la de adelante de su ventana, y esa ventana es la
+/// que tiene el foco, visible y sin minimizar (para empezar a capturar el audio de la computadora,
+/// commands.rs). Una ventana tapada por otra app o en otro escritorio no tiene el foco.
+pub fn tab_in_use(app: &AppHandle, id: u64) -> bool {
     let label = {
         let s = st(app);
         let s = s.s.lock().unwrap();
@@ -727,7 +731,7 @@ pub fn tab_visible(app: &AppHandle, id: u64) -> bool {
         label
     };
     let Some(w) = app.get_window(&label) else { return false };
-    w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false)
+    w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && w.is_focused().unwrap_or(false)
 }
 
 pub fn recording_webview(app: &AppHandle) -> Option<Webview> {

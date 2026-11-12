@@ -713,7 +713,7 @@ async function renderDictionary(panel: HTMLElement) {
 // ---------- Historial ----------
 
 function failureText(f: PendingMeta['failure']): string {
-  const map: Record<string, string> = { offline: 'errOffline', signed_out: 'errSignedOut', rate_limited: 'errRateLimited', server: 'errServer' };
+  const map: Record<string, string> = { offline: 'errOffline', signed_out: 'errSignedOut', rate_limited: 'errRateLimited', server: 'errServer', other_server: 'errOtherServer' };
   return s(map[f] ?? 'errFailed');
 }
 
@@ -743,16 +743,18 @@ async function renderHistory(panel: HTMLElement) {
   if (v.pending.length) {
     const plist = h('ul', { class: 'list', id: 'pending' });
     for (const m of v.pending) {
+      // Grabado para otro servidor: queda acá, no se manda al de ahora.
+      const other = Boolean(m.server) && m.server !== v.server;
       plist.append(
         h(
           'li',
-          {},
-          h('div', {}, failureText(m.failure), m.attempts ? ` (${m.attempts})` : ''),
+          { 'data-other-server': other ? 'true' : undefined },
+          h('div', {}, other ? s('pendingOtherServer', { server: m.server }) : failureText(m.failure), !other && m.attempts ? ` (${m.attempts})` : ''),
           h('div', { class: 'item-meta' }, [timeAgo(m.createdAt), formatClock(m.durationMs), m.sourceApp].filter(Boolean).join(' · ')),
           h(
             'div',
             { class: 'item-actions' },
-            h(
+            other ? null : h(
               'button',
               {
                 class: 'btn',

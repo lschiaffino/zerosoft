@@ -68,11 +68,11 @@ pub(crate) fn first_load_timing() {
     }
 }
 
-/// El servidor configurado puede usar el puente (zerosoft.ai y localhost ya están en
-/// capabilities/remote.json; un servidor propio se suma acá).
+/// El servidor configurado puede usar el puente (zerosoft.ai ya está en capabilities/remote.json;
+/// otro servidor, incluido uno en localhost, se suma acá con su origen exacto).
 pub fn allow_server(app: &AppHandle) {
     let server = api::server(app);
-    if server == config::DEFAULT_SERVER || server.starts_with("http://localhost") {
+    if server == config::DEFAULT_SERVER {
         return;
     }
     let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).webview("tab-*");
@@ -285,6 +285,11 @@ fn handle_deep_link(app: &AppHandle, raw: &str) {
 
 pub fn run() {
     START.get_or_init(Instant::now);
+    // "Borrar todos los datos locales" pide terminar acá: los datos del webview se borran antes de
+    // crear ninguna ventana (y antes de que el plugin de la ventana lea su posición).
+    if let Some(ok) = privacy::Paths::current_env().and_then(|p| privacy::finish_wipe(&p, 6, std::time::Duration::from_millis(700))) {
+        let _ = privacy::LAST_WIPE.set(ok);
+    }
     tauri::Builder::default()
         // Primero: una segunda instancia (y en Windows, el deep link) vuelve a la primera.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_main(app)))
@@ -342,15 +347,22 @@ pub fn run() {
             let handle = app.handle().clone();
             let platform = if cfg!(target_os = "macos") { "macos" } else { "windows" };
             let config_dir = app.path().app_config_dir()?;
-            let data_dir = app.path().app_data_dir()?;
+            // Sesión, dictados sin enviar y registro en la carpeta local (en Windows, %LOCALAPPDATA%:
+            // no viaja con un perfil itinerante). Lo que versiones anteriores dejaron en Roaming se
+            // mueve una vez. settings.json queda en la de configuración.
+            let local_dir = app.path().app_local_data_dir()?;
+            let roaming_data = app.path().app_data_dir()?;
+            privacy::migrate(&config_dir.join("session.json"), &local_dir.join("session.json"));
+            privacy::migrate(&roaming_data.join("pending"), &local_dir.join("pending"));
+            privacy::migrate(&roaming_data.join("privacy"), &local_dir.join("privacy"));
             // ZEROSOFT_SERVER solo en desarrollo (la app publicada siempre usa lo guardado).
             let env_server = if cfg!(debug_assertions) { std::env::var("ZEROSOFT_SERVER").ok() } else { None };
             let settings = config::load(&config_dir, platform, env_server.as_deref());
-            let tabs_dir = config_dir.clone();
+            let tabs_dir = local_dir.clone();
             app.manage(AppState {
                 settings: Mutex::new(settings),
                 config_dir,
-                pending: retry::PendingStore::new(data_dir.join("pending")),
+                pending: retry::PendingStore::new(local_dir.join("pending")),
                 dictation: Mutex::new(Dictation { phase: Phase::Idle, capture: None, hands_free: false, pressed_at: None, source_app: String::new(), generation: 0 }),
                 locale: strings::system_locale(),
                 last_text: Mutex::new(String::new()),
@@ -364,7 +376,7 @@ pub fn run() {
                 disabled_apps: Mutex::new(Vec::new()),
                 update_ready: Mutex::new(None),
                 update: Mutex::new(state::UpdateInfo::default()),
-                privacy: privacy::Log::open(&data_dir.join("privacy")),
+                privacy: privacy::Log::open(&local_dir.join("privacy")),
                 meeting_since: Mutex::new(None),
                 screen_since: Mutex::new(None),
                 mic_since: Mutex::new(None),
@@ -383,11 +395,15 @@ pub fn run() {
                     indicator::undismiss();
                     privacy::record(&sa, Event::new(Kind::SystemAudioStart).trigger(by));
                 } else {
+                    commands::clear_system_audio_owner();
                     privacy::record(&sa, Event::new(Kind::SystemAudioStop).trigger(by).duration(ms));
                 }
                 tray::rebuild(&sa);
                 indicator::update(&sa);
             });
+            // Los dictados sin enviar de más de una semana se borran ya al arrancar.
+            handle.state::<AppState>().pending.list(state::now_ms());
+            privacy::note_finished_wipe(&handle);
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;
             app.on_menu_event(|app, ev| tray::on_app_menu(app, ev.id().as_ref()));

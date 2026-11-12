@@ -15,9 +15,10 @@ type Localized<T> = { id: string; code: string[] } & Record<Locale, T>;
 interface Facts {
   limits: Record<string, number>;
   permissions: Array<Localized<Text> & { os: string[]; pane?: PermissionKind }>;
-  stores: Array<Localized<Text> & { content: boolean; delete: boolean }>;
-  network: Array<Localized<Text> & { host: 'server' | 'update' | 'browser'; endpoint?: string }>;
+  stores: Array<Localized<Text> & { content: boolean; delete: boolean; all: boolean }>;
+  network: Array<Localized<Text> & { host: 'server' | 'update' | 'browser'; endpoints: string[] }>;
   never: Array<Localized<string>>;
+  system: Array<Localized<string>>;
   indicators: Array<Localized<string>>;
   open: Array<Localized<string>>;
   events: Array<Localized<string>>;
@@ -52,9 +53,11 @@ export interface PrivacyView {
   facts: Facts;
   /** Clave del texto de lo que se captura ahora (trayMic…), o null. */
   capturing: string | null;
+  /** Este arranque terminó un "borrar todo": true si se borró todo, false si algo quedó. */
+  lastWipe: boolean | null;
 }
 
-type Result = { ok: boolean; view?: PrivacyView; file?: string; restart?: boolean };
+type Result = { ok: boolean; view?: PrivacyView; file?: string; restart?: boolean; requested?: boolean };
 const call = (action: string, target?: string) => invoke<Result>('privacy', { action, target: target ?? null });
 
 type Str = (key: string, vars?: Record<string, string | number>) => string;
@@ -180,9 +183,22 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
     try {
       const r = await call(action, target);
       if (r.view) data = r.view;
-      if (r.restart) return say(r.ok ? done : s('privDeleteAllPartial'), r.ok ? 'ok' : 'error');
-      say(r.file ? s('privExported', { file: r.file }) : done);
+      if (r.restart) return say(done);
+      if (!r.ok) {
+        say(target === 'all' ? s('privDeleteAllPartial') : s('privDeleteFailed'), 'error');
+        return paint();
+      }
+      say(r.file ? s('privExported', { file: r.file }) : r.requested ? s('privRequested') : done);
       paint();
+      // El webview no avisa cuándo terminó: se vuelve a medir un rato después.
+      if (r.requested)
+        window.setTimeout(async () => {
+          const again = await call('get').catch(() => null);
+          if (again?.view && deps.alive()) {
+            data = again.view;
+            paint();
+          }
+        }, 3000);
     } catch {
       say(s('privDeleteFailed'), 'error');
     }
@@ -190,6 +206,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
 
   // ---------- Ahora ----------
   const now = el('p', { id: 'priv-now', role: 'status' });
+  const wipe = el('p', { id: 'priv-last-wipe', role: 'status', hidden: true });
 
   // ---------- Permisos ----------
   const perms = el('ul', { class: 'list perms', id: 'priv-permissions' });
@@ -247,6 +264,9 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
     const cur = deps.view();
     now.className = data.capturing ? 'notice info' : 'help';
     now.textContent = data.capturing ? s('privCapturing', { what: s(data.capturing) }) : s('privNotCapturing');
+    wipe.hidden = data.lastWipe === null || data.lastWipe === undefined;
+    wipe.className = data.lastWipe === false ? 'notice error' : 'notice info';
+    wipe.textContent = data.lastWipe === false ? s('privLastWipeFailed') : data.lastWipe ? s('privLastWipeOk') : '';
 
     perms.replaceChildren(
       ...facts.permissions.map((p) => {
@@ -312,6 +332,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
             f[locale].what,
             el('span', { class: 'priv-used' }, f[locale].kept),
             el('span', { class: 'priv-used' }, f.content ? s('privContent') : s('privMetadata')),
+            f.all ? el('span', { class: 'priv-used' }, s('privAll')) : null,
             st?.path ? el('code', { class: 'priv-path' }, st.path) : null,
             source(f.code),
           ),
@@ -385,7 +406,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
           n[locale].sent,
           el('span', { class: 'priv-used' }, `${s('privWhen')}: ${n[locale].when}`),
           el('span', { class: 'priv-used' }, `${s('privTo')}: ${hostText(n.host)}`),
-          n.endpoint ? el('code', { class: 'priv-path' }, n.endpoint) : null,
+          n.endpoints.length ? el('code', { class: 'priv-path' }, n.endpoints.join(', ')) : null,
           source(n.code),
         ),
       ),
@@ -393,6 +414,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
   );
 
   body.append(
+    wipe,
     now,
     el('section', {}, el('h2', {}, s('privPermissions')), perms),
     el('section', {}, el('h2', {}, s('privControls')), controls),
@@ -408,6 +430,7 @@ export async function renderPrivacy(panel: HTMLElement, deps: PrivacyDeps) {
     el('section', {}, el('h2', {}, s('privNetwork')), el('p', { class: 'help', style: 'margin:0 0 10px' }, s('privNetworkHelp', { server: v.server })), network),
     el('section', {}, el('h2', {}, s('privIndicators')), plain(facts.indicators, 'priv-indicators')),
     el('section', {}, el('h2', {}, s('privNever')), plain(facts.never, 'priv-never')),
+    el('section', {}, el('h2', {}, s('privSystem')), plain(facts.system, 'priv-system')),
     el('section', {}, el('h2', {}, s('privOpen')), plain(facts.open, 'priv-open')),
     el(
       'section',

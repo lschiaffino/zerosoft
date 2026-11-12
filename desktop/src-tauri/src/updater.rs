@@ -61,7 +61,9 @@ pub async fn check(app: &AppHandle, interactive: bool) {
     };
     let feed = format!("{}/api/desktop/update/latest.json", crate::api::server(app));
     let Ok(url) = url::Url::parse(&feed) else { return finish(app, true) };
-    let Ok(builder) = app.updater_builder().endpoints(vec![url]) else { return finish(app, true) };
+    // El plugin se presenta como tauri-plugin-updater/<versión>; acá va el de la app, como sus
+    // otros pedidos (api.rs). Un encabezado del pedido pisa el del cliente (reqwest).
+    let Ok(builder) = app.updater_builder().endpoints(vec![url]).and_then(|b| b.header("user-agent", crate::api::USER_AGENT)) else { return finish(app, true) };
     let Ok(updater) = builder.timeout(Duration::from_secs(30)).build() else { return finish(app, true) };
     let update = match updater.check().await {
         Ok(Some(u)) => u,

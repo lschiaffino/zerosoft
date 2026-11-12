@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import { DESKTOP_PRIVACY as F, factsLocale, sourceUrl } from '@/lib/desktop-privacy';
@@ -12,7 +12,52 @@ import { DESKTOP_PRIVACY as F, factsLocale, sourceUrl } from '@/lib/desktop-priv
 const root = join(__dirname, '..', '..');
 const rust = (file: string) => readFileSync(join(root, 'desktop', 'src-tauri', 'src', file), 'utf8');
 const LOCALES = ['en', 'es', 'pt'] as const;
-const SECTIONS = ['permissions', 'stores', 'network', 'never', 'indicators', 'events', 'controls', 'security', 'open'] as const;
+const SECTIONS = ['permissions', 'stores', 'network', 'never', 'system', 'indicators', 'events', 'controls', 'security', 'open'] as const;
+
+/** Código de Rust sin los módulos de test ni los comentarios. Respeta strings y raw strings. */
+export function productionRust(src: string): string {
+  let out = '';
+  let i = 0;
+  while (i < src.length) {
+    const test = src.indexOf('#[cfg(test)]', i);
+    if (test < 0) {
+      out += src.slice(i);
+      break;
+    }
+    out += src.slice(i, test);
+    const open = src.indexOf('{', test);
+    let depth = 0;
+    let j = open;
+    for (; j < src.length; j++) {
+      const c = src[j];
+      if (c === '"' || (c === 'r' && /^r#*"/.test(src.slice(j, j + 4)))) {
+        const raw = c === 'r';
+        const hashes = raw ? (/^r(#*)"/.exec(src.slice(j))?.[1] ?? '') : '';
+        const end = raw ? `"${hashes}` : '"';
+        j += raw ? hashes.length + 2 : 1;
+        while (j < src.length && src.slice(j, j + end.length) !== end) j += !raw && src[j] === '\\' ? 2 : 1;
+        j += end.length - 1;
+        continue;
+      }
+      if (c === '{') depth++;
+      if (c === '}' && --depth === 0) break;
+    }
+    i = j + 1;
+  }
+  return out
+    .split('\n')
+    .filter((l) => !l.trim().startsWith('//'))
+    .join('\n');
+}
+
+/** Rutas del servidor que la parte nativa nombra en un string: /api/... y /robots.txt, sin query. */
+export function nativeEndpoints(src: string): string[] {
+  const found = new Set<string>();
+  for (const m of productionRust(src).matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
+    for (const e of m[1].matchAll(/\/(?:api\/[A-Za-z0-9_.{}/-]*|robots\.txt)/g)) found.add(e[0]);
+  }
+  return [...found];
+}
 
 function texts(value: unknown): string[] {
   if (typeof value === 'string') return [value];
@@ -75,6 +120,19 @@ describe('hechos de privacidad del escritorio', () => {
     // La página que abre la app es esta.
     expect(privacy).toContain(`DOCS_PATH: &str = "${F.path}"`);
     expect(existsSync(join(root, 'app', '[locale]', ...F.path.split('/').filter(Boolean), 'page.tsx'))).toBe(true);
+  });
+
+  it('la lista de lo que sale es completa: cada dirección que llama el código está en los hechos, y al revés', () => {
+    const dir = join(root, 'desktop', 'src-tauri', 'src');
+    const inCode = new Set(readdirSync(dir).filter((f) => f.endsWith('.rs')).flatMap((f) => nativeEndpoints(readFileSync(join(dir, f), 'utf8'))));
+    // Strings con /api/ que no son pedidos: prefijos que nav.rs compara y el callback del login de
+    // Google al que vuelve el navegador (nav.rs).
+    for (const notARequest of ['/api/', '/api/auth/', '/api/auth/callback/google']) inCode.delete(notARequest);
+    const inFacts = new Set(F.network.flatMap((n) => n.endpoints.map((e) => e.replace(/^[A-Z]+ /, ''))));
+    expect([...inCode].sort()).toEqual([...inFacts].sort());
+    // Sanidad: el extractor encuentra lo que tiene que encontrar.
+    expect(inCode.has('/api/voice/dictate') && inCode.has('/api/auth/signout') && inCode.has('/api/desktop/update/latest.json')).toBe(true);
+    expect(nativeEndpoints('// GET /api/nope\nfn a() { get("/api/si?x=1"); }\n#[cfg(test)]\nmod tests { fn b() { get("/api/test"); let r = r#"}"#; } }\nfn c() { get(format!("{}/api/otra/{id}", s)); }')).toEqual(['/api/si', '/api/otra/{id}']);
   });
 
   it('los números que se dicen son los del código', () => {

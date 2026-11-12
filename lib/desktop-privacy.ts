@@ -20,9 +20,12 @@ export interface DesktopPrivacyFacts {
   limits: Record<string, number>;
   page: Record<FactsLocale, Text>;
   permissions: Array<Item<{ name: string; why: string }> & { os: string[]; pane?: string }>;
-  stores: Array<Item<{ name: string; what: string; kept: string }> & { mac: string; win: string; content: boolean; delete: boolean }>;
-  network: Array<Item<{ feature: string; sent: string; when: string }> & { host: 'server' | 'update' | 'browser'; endpoint?: string }>;
+  stores: Array<Item<{ name: string; what: string; kept: string }> & { mac: string; win: string; content: boolean; delete: boolean; all: boolean }>;
+  /** `endpoints`: "MÉTODO /ruta" de cada pedido de la parte nativa (un test los compara con el código). */
+  network: Array<Item<{ feature: string; sent: string; when: string }> & { host: 'server' | 'update' | 'browser'; endpoints: string[] }>;
   never: Array<Item<string>>;
+  /** Lo que hace el sistema por su cuenta (webview, centro de avisos, portapapeles). */
+  system: Array<Item<string>>;
   indicators: Array<Item<string>>;
   events: Array<Item<string>>;
   tags: Record<string, Record<FactsLocale, string>>;

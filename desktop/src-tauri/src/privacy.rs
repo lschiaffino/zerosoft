@@ -123,11 +123,14 @@ pub enum Tag {
     Microphone,
     Camera,
     Pending,
+    All,
+    /// Lo que dejaron versiones anteriores (instaladores, la app de Electron).
+    Old,
     WebData,
 }
 
 #[allow(dead_code)]
-pub const TAGS: [Tag; 24] = [
+pub const TAGS: [Tag; 26] = [
     Tag::Shortcut,
     Tag::Menu,
     Tag::Settings,
@@ -151,6 +154,8 @@ pub const TAGS: [Tag; 24] = [
     Tag::Microphone,
     Tag::Camera,
     Tag::Pending,
+    Tag::All,
+    Tag::Old,
     Tag::WebData,
 ];
 
@@ -251,7 +256,7 @@ pub const CAPABILITIES: [&str; 5] = ["microphone", "accessibility", "screen", "c
 pub fn capabilities_of(e: &Event) -> Vec<&'static str> {
     match (e.kind, e.result) {
         (Kind::MicStart, _) => vec!["microphone"],
-        (Kind::SystemAudioStart, _) => vec!["screen"],
+        (Kind::SystemAudioStart, _) | (Kind::ScreenStart, _) => vec!["screen"],
         (Kind::PageMedia, Some(Tag::Camera)) => vec!["camera"],
         (Kind::PageMedia, _) => vec!["microphone"],
         (Kind::Paste, Some(Tag::Pasted)) => vec!["clipboard", "accessibility"],
@@ -358,16 +363,27 @@ impl Log {
     }
 }
 
+/// Escribe un archivo que solo lee tu usuario: en Mac nace con modo 600 (sin un instante con
+/// permisos más abiertos) y, si ya existía con otros, se corrigen. En Windows hereda los permisos de
+/// la carpeta del perfil.
 pub(crate) fn write_private(p: &Path, data: &[u8]) -> bool {
-    if fs::write(p, data).is_err() {
-        return false;
+    use std::io::Write;
+    let mut o = fs::OpenOptions::new();
+    o.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        o.mode(0o600);
     }
+    let Ok(mut f) = o.open(p) else { return false };
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(p, fs::Permissions::from_mode(0o600));
+        if f.set_permissions(fs::Permissions::from_mode(0o600)).is_err() {
+            return false;
+        }
     }
-    true
+    f.write_all(data).is_ok() && f.sync_all().is_ok()
 }
 
 /// Anota un evento (desde cualquier hilo).
@@ -380,14 +396,24 @@ pub fn record(app: &AppHandle, e: Event) {
 
 // ---------- Inventario de lo guardado en esta computadora ----------
 
+/// Identificador de la app (tauri.conf.json): nombre de sus carpetas. Un test lo compara.
+pub const IDENTIFIER: &str = "ai.zerosoft.desktop";
+/// La app de Electron (0.1.0 a 0.1.2) guardaba en <carpeta de datos>/zerosoft y su clave de
+/// safeStorage en el llavero con este servicio y esta cuenta.
+pub const ELECTRON_FOLDER: &str = "zerosoft";
+pub const ELECTRON_KEYCHAIN_SERVICE: &str = "zerosoft Safe Storage";
+pub const ELECTRON_KEYCHAIN_ACCOUNT: &str = "zerosoft Key";
+
 /// Carpetas de la app en este sistema.
 #[derive(Debug, Clone)]
 pub struct Paths {
+    /// Roaming en Windows (%APPDATA%): solo settings.json y el plugin de la ventana.
     pub config: PathBuf,
-    pub data: PathBuf,
-    pub cache: PathBuf,
+    /// Local (%LOCALAPPDATA% en Windows): sesión, dictados, registro y el webview.
     pub local_data: PathBuf,
+    pub cache: PathBuf,
     pub home: PathBuf,
+    pub temp: PathBuf,
     pub identifier: String,
     pub mac: bool,
 }
@@ -397,44 +423,110 @@ impl Paths {
         let p = app.path();
         Some(Paths {
             config: p.app_config_dir().ok()?,
-            data: p.app_data_dir().ok()?,
-            cache: p.app_cache_dir().ok()?,
             local_data: p.app_local_data_dir().ok()?,
+            cache: p.app_cache_dir().ok()?,
             home: p.home_dir().ok()?,
+            temp: std::env::temp_dir(),
             identifier: app.config().identifier.clone(),
             mac: cfg!(target_os = "macos"),
         })
     }
 
-    /// Dónde está cada cosa. None = no existe en este sistema (o no es un archivo: `autostart`).
-    pub fn of_store(&self, id: &str) -> Option<PathBuf> {
+    /// Las mismas carpetas sin la app (antes de crearla: el borrado pendiente al arrancar). Como
+    /// las resuelve Tauri: Mac ~/Library/…/<id>; Windows %APPDATA%\<id> y %LOCALAPPDATA%\<id>.
+    pub fn from_env(home: Option<PathBuf>, appdata: Option<PathBuf>, local_appdata: Option<PathBuf>, mac: bool) -> Option<Paths> {
+        let home = home?;
+        let (config, local_data, cache) = if mac {
+            let support = home.join("Library").join("Application Support").join(IDENTIFIER);
+            (support.clone(), support, home.join("Library").join("Caches").join(IDENTIFIER))
+        } else {
+            let local = local_appdata?.join(IDENTIFIER);
+            (appdata?.join(IDENTIFIER), local.clone(), local)
+        };
+        Some(Paths { config, local_data, cache, home, temp: std::env::temp_dir(), identifier: IDENTIFIER.into(), mac })
+    }
+
+    pub fn current_env() -> Option<Paths> {
+        let var = |k: &str| std::env::var_os(k).map(PathBuf::from);
+        let mac = cfg!(target_os = "macos");
+        Paths::from_env(if mac { var("HOME") } else { var("USERPROFILE") }, var("APPDATA"), var("LOCALAPPDATA"), mac)
+    }
+
+    /// El archivo que pide terminar "borrar todo" en el próximo arranque.
+    pub fn wipe_marker(&self) -> PathBuf {
+        self.local_data.join(".wipe-pending")
+    }
+
+    /// Dónde está cada cosa (vacío = no existe en este sistema, o no es un archivo).
+    pub fn paths_of(&self, id: &str) -> Vec<PathBuf> {
         let lib = self.home.join("Library");
+        let one = |p: PathBuf| vec![p];
         match id {
-            "settings" => Some(self.config.join("settings.json")),
-            "session" => Some(self.config.join("session.json")),
-            "window_state" => Some(self.config.join(".window-state.json")),
-            "pending" => Some(self.data.join("pending")),
-            "activity" => Some(self.data.join("privacy")),
+            "settings" => one(self.config.join("settings.json")),
+            "session" => one(self.local_data.join("session.json")),
+            "window_state" => one(self.config.join(".window-state.json")),
+            "pending" => one(self.local_data.join("pending")),
+            "activity" => one(self.local_data.join("privacy")),
             // WKWebView guarda con el identificador de la app; WebView2, en EBWebView.
-            "web_data" => Some(if self.mac { lib.join("WebKit").join(&self.identifier) } else { self.local_data.join("EBWebView") }),
-            "web_cookies" if self.mac => Some(lib.join("HTTPStorages").join(format!("{}.binarycookies", self.identifier))),
-            "web_cache" if self.mac => Some(self.cache.clone()),
-            _ => None,
+            "web_data" => one(if self.mac { lib.join("WebKit").join(&self.identifier) } else { self.local_data.join("EBWebView") }),
+            "web_cookies" if self.mac => one(lib.join("HTTPStorages").join(format!("{}.binarycookies", self.identifier))),
+            "web_cache" if self.mac => one(self.cache.clone()),
+            "os_prefs" if self.mac => one(lib.join("Preferences").join(format!("{}.plist", self.identifier))),
+            // Windows: el instalador de cada actualización queda en una carpeta temporal.
+            "update_temp" if !self.mac => fs::read_dir(&self.temp)
+                .map(|rd| rd.flatten().map(|e| e.path()).filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(is_update_temp)).collect())
+                .unwrap_or_default(),
+            "electron_data" => {
+                let base = self.config.parent().map(|p| p.join(ELECTRON_FOLDER));
+                let updater = (!self.mac).then(|| self.local_data.parent().map(|p| p.join("zerosoft-desktop-updater"))).flatten();
+                base.into_iter().chain(updater).collect()
+            }
+            _ => vec![],
+        }
+    }
+
+    /// Lo que se muestra como ruta de un dato (la carpeta temporal para los instaladores).
+    pub fn shown_path(&self, id: &str) -> Option<PathBuf> {
+        match id {
+            "update_temp" if !self.mac => Some(self.temp.clone()),
+            _ => self.paths_of(id).into_iter().next(),
         }
     }
 }
 
+/// Carpeta temporal de un instalador de la app (tauri-plugin-updater: "<app>-<versión>-updater-").
+pub fn is_update_temp(name: &str) -> bool {
+    name.starts_with("zerosoft-") && name.contains("-updater-")
+}
+
 /// Ids de `stores` en privacy-facts.json, en el orden en que se muestran.
-pub const STORE_IDS: [&str; 9] = ["settings", "session", "window_state", "pending", "activity", "web_data", "web_cookies", "web_cache", "autostart"];
+pub const STORE_IDS: [&str; 13] = [
+    "settings",
+    "session",
+    "window_state",
+    "pending",
+    "activity",
+    "web_data",
+    "web_cookies",
+    "web_cache",
+    "os_prefs",
+    "update_temp",
+    "electron_data",
+    "electron_keychain",
+    "autostart",
+];
 
 /// Lo que se puede borrar por separado desde Ajustes (lo demás, con "Borrar todo").
-pub const DELETABLE: [&str; 3] = ["pending", "activity", "web_data"];
+pub const DELETABLE: [&str; 6] = ["pending", "activity", "web_data", "update_temp", "electron_data", "electron_keychain"];
+
+/// Lo que "Borrar todo" borra (además del ítem de inicio). `os_prefs` es del sistema.
+pub const WIPED_BY_DELETE_ALL: [&str; 11] = ["settings", "session", "window_state", "pending", "activity", "web_data", "web_cookies", "web_cache", "update_temp", "electron_data", "electron_keychain"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Store {
     pub id: &'static str,
-    /// "" = no es un archivo (abrir al iniciar sesión) o no existe en este sistema.
+    /// "" = no es un archivo (abrir al iniciar sesión, el llavero).
     pub path: String,
     pub exists: bool,
     pub bytes: u64,
@@ -468,43 +560,128 @@ pub fn measure(p: &Path) -> (u64, u64) {
     total
 }
 
-pub fn stores(paths: &Paths, autostart: bool) -> Vec<Store> {
+/// El inventario. `autostart` y `keychain`: si existen el ítem de inicio y la clave de Electron.
+pub fn stores(paths: &Paths, autostart: bool, keychain: bool) -> Vec<Store> {
     STORE_IDS
         .iter()
         .filter_map(|id| {
-            if *id == "autostart" {
-                return Some(Store { id, path: String::new(), exists: autostart, bytes: 0, files: 0, deletable: false });
+            let deletable = DELETABLE.contains(id);
+            match *id {
+                "autostart" => return Some(Store { id, path: String::new(), exists: autostart, bytes: 0, files: 0, deletable }),
+                "electron_keychain" => return paths.mac.then(|| Store { id, path: String::new(), exists: keychain, bytes: 0, files: 0, deletable }),
+                _ => {}
             }
-            let p = paths.of_store(id)?;
-            let (bytes, files) = measure(&p);
-            Some(Store { id, path: p.to_string_lossy().into_owned(), exists: p.exists(), bytes, files, deletable: DELETABLE.contains(id) })
+            let shown = paths.shown_path(id)?;
+            let all = paths.paths_of(id);
+            let (bytes, files) = all.iter().map(|p| measure(p)).fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+            Some(Store { id, path: shown.to_string_lossy().into_owned(), exists: all.iter().any(|p| p.exists()), bytes, files, deletable })
         })
         .collect()
+}
+
+/// Borra un archivo o una carpeta. true si ya no está.
+pub fn remove(p: &Path) -> bool {
+    match fs::symlink_metadata(p) {
+        Err(_) => true,
+        Ok(m) if m.is_dir() => fs::remove_dir_all(p).is_ok() || !p.exists(),
+        Ok(_) => fs::remove_file(p).is_ok() || !p.exists(),
+    }
+}
+
+/// Borra lo que hay en disco de un dato (no el llavero ni el webview en uso: commands.rs).
+pub fn delete_store(paths: &Paths, id: &str) -> bool {
+    let mut ok = true;
+    for p in paths.paths_of(id) {
+        ok &= remove(&p);
+        if p.extension().is_some_and(|e| e == "json") {
+            let _ = fs::remove_file(p.with_extension("json.tmp"));
+        }
+    }
+    ok
 }
 
 /// Borra los dictados sin enviar (audio y metadatos). La carpeta vuelve a crearse solo si otro
 /// dictado falla.
 pub fn delete_pending(paths: &Paths) -> bool {
-    let Some(dir) = paths.of_store("pending") else { return false };
-    !dir.exists() || fs::remove_dir_all(dir).is_ok()
+    delete_store(paths, "pending")
 }
 
-/// "Borrar todos los datos locales": los archivos propios de la app. Los datos del sitio (cookies,
-/// almacenamiento y caché del webview) los borra el webview (commands.rs). Desde acá nada se
-/// vuelve a escribir (WIPED) hasta que la app reinicia.
-pub fn wipe_files(paths: &Paths) -> bool {
+/// "Borrar todos los datos locales", la parte que se hace con la app abierta: los archivos
+/// propios, los instaladores viejos, lo que dejó la app de Electron y su clave del llavero
+/// (`keychain`). Desde acá nada se vuelve a escribir (WIPED). Los datos del webview se borran al
+/// próximo arranque, antes de crear ninguna ventana (`finish_wipe`): con el webview abierto, su
+/// borrado no avisa cuándo terminó. Si algo no se pudo borrar, WIPED se apaga y no hay reinicio.
+pub fn wipe_files(paths: &Paths, keychain: impl FnOnce() -> bool) -> bool {
     set_wiped(true);
-    let mut ok = delete_pending(paths);
-    if let Some(dir) = paths.of_store("activity") {
-        ok &= !dir.exists() || fs::remove_dir_all(dir).is_ok();
+    let mut ok = true;
+    let mut keychain = Some(keychain);
+    for id in WIPED_BY_DELETE_ALL {
+        ok &= match id {
+            // Con el webview abierto no se borran sus carpetas: al arrancar (FINISH_WIPE).
+            "web_data" | "web_cookies" | "web_cache" => FINISH_WIPE.contains(&id),
+            "electron_keychain" => keychain.take().is_some_and(|k| k()),
+            _ => delete_store(paths, id),
+        };
     }
-    for id in ["settings", "session", "window_state"] {
-        if let Some(f) = paths.of_store(id) {
-            ok &= !f.exists() || fs::remove_file(&f).is_ok();
-            let _ = fs::remove_file(f.with_extension("json.tmp"));
+    if ok {
+        let marker = paths.wipe_marker();
+        if let Some(dir) = marker.parent() {
+            let _ = fs::create_dir_all(dir);
         }
+        ok = fs::write(&marker, b"1").is_ok();
+    }
+    if !ok {
+        set_wiped(false);
     }
     ok
+}
+
+/// Lo que se borra al arrancar con el pedido pendiente: los datos del webview y, de nuevo, los
+/// archivos que se pudieron escribir al cerrar (la posición de la ventana).
+const FINISH_WIPE: [&str; 6] = ["web_data", "web_cookies", "web_cache", "window_state", "settings", "session"];
+
+/// Al arrancar, antes de crear la app: si quedó pedido "borrar todo", borra los datos del webview
+/// (nada los tiene abiertos todavía). Reintenta un rato: los procesos del webview anterior pueden
+/// tardar en cerrar. None = no había nada pendiente; Some(ok).
+pub fn finish_wipe(paths: &Paths, attempts: u32, wait: std::time::Duration) -> Option<bool> {
+    let marker = paths.wipe_marker();
+    if !marker.exists() {
+        return None;
+    }
+    let mut ok = false;
+    for i in 0..attempts.max(1) {
+        if i > 0 {
+            std::thread::sleep(wait);
+        }
+        ok = FINISH_WIPE.iter().all(|id| delete_store(paths, id)) && FINISH_WIPE.iter().all(|id| paths.paths_of(id).iter().all(|p| !p.exists()));
+        if ok {
+            break;
+        }
+    }
+    let _ = fs::remove_file(&marker);
+    Some(ok)
+}
+
+/// Resultado del borrado terminado al arrancar (lo lee Ajustes).
+pub static LAST_WIPE: OnceLock<bool> = OnceLock::new();
+
+/// Después de crear la app: si el arranque terminó un "borrar todo", queda anotado.
+pub fn note_finished_wipe(app: &AppHandle) {
+    if let Some(ok) = LAST_WIPE.get() {
+        record(app, Event::new(Kind::DataDeleted).trigger(Tag::Settings).result(if *ok { Tag::All } else { Tag::Failed }));
+    }
+}
+
+/// Mueve un archivo o carpeta de lugar una vez (Windows: de Roaming a Local). Si el destino ya
+/// existe, no pisa nada.
+pub fn migrate(from: &Path, to: &Path) -> bool {
+    if from == to || !from.exists() || to.exists() {
+        return true;
+    }
+    if let Some(dir) = to.parent() {
+        let _ = fs::create_dir_all(dir);
+    }
+    fs::rename(from, to).is_ok()
 }
 
 // ---------- Hechos (desktop/privacy-facts.json) ----------
@@ -517,15 +694,20 @@ pub fn facts() -> &'static Value {
 /// La página pública con estos mismos hechos (en el servidor configurado).
 pub const DOCS_PATH: &str = "/download/privacy";
 
-/// Base de los links al código (el repositorio público).
-pub fn repo() -> String {
-    facts().get("repo").and_then(Value::as_str).unwrap_or("https://github.com/lschiaffino/zerosoft/blob/main/").to_string()
+/// Links al código desde la app: el tag de la versión que corre (desktop-v<versión>), así lo que
+/// se lee es lo que está instalado. La página pública enlaza a main ("el código actual").
+pub fn repo_for(version: &str) -> String {
+    let v: String = version.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-').take(40).collect();
+    format!("https://github.com/lschiaffino/zerosoft/blob/desktop-v{v}/")
 }
+
+/// Secciones de privacy-facts.json con hechos (cada uno con su código).
+pub const FACT_SECTIONS: [&str; 10] = ["permissions", "stores", "network", "never", "system", "indicators", "events", "controls", "security", "open"];
 
 /// Un archivo del repositorio que los hechos nombran como fuente (lo único que "ver el código" abre).
 pub fn is_source(file: &str) -> bool {
     let f = facts();
-    ["permissions", "stores", "network", "never", "indicators", "events", "controls", "security", "open"].iter().any(|section| {
+    FACT_SECTIONS.iter().any(|section| {
         f.get(*section).and_then(Value::as_array).is_some_and(|items| items.iter().any(|i| i.get("code").and_then(Value::as_array).is_some_and(|c| c.iter().any(|x| x.as_str() == Some(file)))))
     })
 }
@@ -558,8 +740,18 @@ mod tests {
         d
     }
 
+    /// Como en Windows: config (Roaming) y local separados; en Mac son la misma carpeta.
     fn paths(root: &Path, mac: bool) -> Paths {
-        Paths { config: root.join("config"), data: root.join("data"), cache: root.join("cache"), local_data: root.join("local"), home: root.join("home"), identifier: "ai.zerosoft.desktop".into(), mac }
+        let base = root.join("appdata");
+        Paths {
+            config: base.join("roaming").join(IDENTIFIER),
+            local_data: base.join("local").join(IDENTIFIER),
+            cache: root.join("cache"),
+            home: root.join("home"),
+            temp: root.join("temp"),
+            identifier: IDENTIFIER.into(),
+            mac,
+        }
     }
 
     #[test]
@@ -644,6 +836,9 @@ mod tests {
         assert_eq!(u["clipboard"].count, 2);
         assert_eq!(u["accessibility"].count, 1);
         assert_eq!(u["screen"].count, 1);
+        // Una grabación de Rec que avisó la página también cuenta para pantalla.
+        log.record(Event::new(Kind::ScreenStart).trigger(Tag::Page));
+        assert_eq!(log.snapshot().usage["screen"].count, 2);
         assert_eq!(u["camera"].count, 1);
         assert!(u.keys().all(|k| CAPABILITIES.contains(&k.as_str())));
         let _ = fs::remove_dir_all(dir);
@@ -670,43 +865,129 @@ mod tests {
     fn inventory_lists_sizes_and_deletes() {
         let root = tmp("stores");
         let p = paths(&root, true);
-        fs::create_dir_all(p.data.join("pending")).unwrap();
+        let local = p.local_data.clone();
+        fs::create_dir_all(local.join("pending")).unwrap();
         fs::create_dir_all(&p.config).unwrap();
-        fs::write(p.data.join("pending/a1b2c3.audio"), vec![0u8; 3000]).unwrap();
-        fs::write(p.data.join("pending/a1b2c3.json"), b"{}").unwrap();
+        fs::write(local.join("pending/a1b2c3.audio"), vec![0u8; 3000]).unwrap();
+        fs::write(local.join("pending/a1b2c3.json"), b"{}").unwrap();
         fs::write(p.config.join("settings.json"), b"{\"mode\":\"both\"}").unwrap();
-        fs::write(p.config.join("session.json"), b"{}").unwrap();
+        fs::write(local.join("session.json"), b"{}").unwrap();
         fs::write(p.config.join(".window-state.json"), b"{}").unwrap();
-        let list = stores(&p, false);
-        assert_eq!(list.iter().map(|s| s.id).collect::<Vec<_>>(), STORE_IDS);
+        let list = stores(&p, false, true);
+        assert_eq!(list.iter().map(|s| s.id).collect::<Vec<_>>(), STORE_IDS.iter().filter(|id| **id != "update_temp").copied().collect::<Vec<_>>());
         let by = |id: &str| list.iter().find(|s| s.id == id).unwrap().clone();
         assert_eq!((by("pending").bytes, by("pending").files, by("pending").deletable), (3002, 2, true));
         assert!(by("settings").exists && !by("settings").deletable);
         assert!(!by("web_data").exists && by("web_data").path.ends_with("Library/WebKit/ai.zerosoft.desktop"));
         assert!(by("web_cookies").path.ends_with("HTTPStorages/ai.zerosoft.desktop.binarycookies"));
+        assert!(by("os_prefs").path.ends_with("Library/Preferences/ai.zerosoft.desktop.plist") && !by("os_prefs").deletable);
+        assert!(by("electron_keychain").exists && by("electron_keychain").deletable);
         assert_eq!((by("autostart").path.as_str(), by("autostart").exists), ("", false));
-        // Windows: cookies y caché van dentro de la carpeta de WebView2.
-        let win: Vec<&str> = stores(&paths(&root, false), true).iter().map(|s| s.id).collect();
-        assert_eq!(win, ["settings", "session", "window_state", "pending", "activity", "web_data", "autostart"]);
+
+        // Windows: cookies y caché van dentro de la carpeta de WebView2; no hay llavero; los
+        // instaladores viejos y la carpeta de Electron se listan.
+        let w = paths(&root, false);
+        fs::create_dir_all(w.temp.join("zerosoft-0.3.5-updater-ab12")).unwrap();
+        fs::write(w.temp.join("zerosoft-0.3.5-updater-ab12/zerosoft-0.3.5-installer.exe"), vec![0u8; 50]).unwrap();
+        fs::create_dir_all(w.temp.join("otra-app-updater-x")).unwrap();
+        let electron = w.config.parent().unwrap().join(ELECTRON_FOLDER);
+        fs::create_dir_all(&electron).unwrap();
+        fs::write(electron.join("session.bin"), b"cifrado").unwrap();
+        let win = stores(&w, true, true);
+        assert_eq!(
+            win.iter().map(|s| s.id).collect::<Vec<_>>(),
+            ["settings", "session", "window_state", "pending", "activity", "web_data", "update_temp", "electron_data", "autostart"]
+        );
+        let wby = |id: &str| win.iter().find(|s| s.id == id).unwrap().clone();
+        assert!(wby("web_data").path.ends_with("EBWebView") && wby("web_data").path.contains("local"));
+        assert!(wby("session").path.contains("local") && wby("settings").path.contains("roaming"));
+        assert_eq!((wby("update_temp").bytes, wby("update_temp").files), (50, 1));
+        assert!(wby("electron_data").exists);
 
         assert!(delete_pending(&p));
-        assert!(!p.data.join("pending").exists());
+        assert!(!local.join("pending").exists());
         assert!(delete_pending(&p), "borrar lo que no está también es ok");
-        assert_eq!(stores(&p, false).iter().find(|s| s.id == "pending").unwrap().bytes, 0);
+        assert_eq!(stores(&p, false, false).iter().find(|s| s.id == "pending").unwrap().bytes, 0);
 
-        // Borrar todo: nada propio queda y nada se vuelve a escribir.
-        let log = Log::open(&p.data.join("privacy"));
+        // Borrar todo con la app abierta: lo propio, los instaladores, Electron y su clave; queda
+        // pedido terminar al arrancar. Mientras tanto nada se vuelve a escribir.
+        let log = Log::open(&w.local_data.join("privacy"));
         log.record(Event::new(Kind::MicStart));
-        assert!(wipe_files(&p));
-        for id in ["settings", "session", "window_state", "pending", "activity"] {
-            assert!(!p.of_store(id).unwrap().exists(), "{id}");
+        let mut keychain_asked = false;
+        assert!(wipe_files(&w, || {
+            keychain_asked = true;
+            true
+        }));
+        assert!(keychain_asked);
+        for id in ["settings", "session", "window_state", "pending", "activity", "update_temp", "electron_data"] {
+            assert!(w.paths_of(id).iter().all(|p| !p.exists()), "{id}");
         }
+        assert!(w.temp.join("otra-app-updater-x").exists(), "solo lo de zerosoft");
+        assert!(w.wipe_marker().exists());
         log.record(Event::new(Kind::MicStop));
         assert!(!log.path().exists(), "después de borrar todo no se escribe nada");
-        assert!(crate::config::save(&p.config, &crate::config::normalize(&Value::Null, "macos", crate::config::DEFAULT_SERVER.into())).is_ok());
-        assert!(!p.config.join("settings.json").exists());
+        assert!(crate::config::save(&w.config, &crate::config::normalize(&Value::Null, "windows", crate::config::DEFAULT_SERVER.into())).is_ok());
+        assert!(!w.config.join("settings.json").exists());
+
+        // Al arrancar: los datos del webview (y la posición de la ventana, escrita al cerrar).
         set_wiped(false);
+        fs::create_dir_all(w.local_data.join("EBWebView/Default/IndexedDB")).unwrap();
+        fs::write(w.local_data.join("EBWebView/Default/Cookies"), b"x").unwrap();
+        fs::write(w.config.join(".window-state.json"), b"{}").unwrap();
+        assert_eq!(finish_wipe(&w, 3, std::time::Duration::from_millis(1)), Some(true));
+        assert!(!w.local_data.join("EBWebView").exists() && !w.config.join(".window-state.json").exists());
+        assert!(!w.wipe_marker().exists());
+        assert_eq!(finish_wipe(&w, 3, std::time::Duration::from_millis(1)), None, "sin pedido no borra nada");
+
+        // Si la clave del llavero no se pudo borrar: no queda pedido, se puede volver a escribir.
+        assert!(!wipe_files(&w, || false));
+        assert!(!wiped() && !w.wipe_marker().exists());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn paths_match_tauri_and_migrate_once() {
+        let conf: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(conf["identifier"], IDENTIFIER);
+        let mac = Paths::from_env(Some("/Users/ana".into()), None, None, true).unwrap();
+        assert_eq!(mac.config, PathBuf::from("/Users/ana/Library/Application Support/ai.zerosoft.desktop"));
+        assert_eq!(mac.local_data, mac.config);
+        assert_eq!(mac.cache, PathBuf::from("/Users/ana/Library/Caches/ai.zerosoft.desktop"));
+        let win = Paths::from_env(Some("C:/Users/ana".into()), Some("C:/Users/ana/AppData/Roaming".into()), Some("C:/Users/ana/AppData/Local".into()), false).unwrap();
+        assert_eq!(win.config, PathBuf::from("C:/Users/ana/AppData/Roaming/ai.zerosoft.desktop"));
+        assert_eq!(win.local_data, PathBuf::from("C:/Users/ana/AppData/Local/ai.zerosoft.desktop"));
+        assert!(Paths::from_env(Some("x".into()), None, None, false).is_none());
+        assert!(is_update_temp("zerosoft-0.3.6-updater-Ab3x") && !is_update_temp("zerosoft-cache") && !is_update_temp("other-0.1-updater-x"));
+
+        let root = tmp("migrate");
+        let (from, to) = (root.join("roaming/pending"), root.join("local/pending"));
+        fs::create_dir_all(&from).unwrap();
+        fs::write(from.join("a.json"), b"{}").unwrap();
+        assert!(migrate(&from, &to));
+        assert!(to.join("a.json").exists() && !from.exists());
+        fs::create_dir_all(&from).unwrap();
+        fs::write(from.join("b.json"), b"{}").unwrap();
+        assert!(migrate(&from, &to));
+        assert!(from.join("b.json").exists() && !to.join("b.json").exists(), "no pisa lo que ya está");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn private_files_are_born_0600() {
+        let dir = tmp("private");
+        let f = dir.join("x.json");
+        assert!(write_private(&f, b"{}"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&f, fs::Permissions::from_mode(0o644)).unwrap();
+            assert!(write_private(&f, b"{\"a\":1}"));
+            assert_eq!(fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        assert_eq!(fs::read(&f).unwrap(), b"{\"a\":1}");
+        assert_eq!(repo_for("0.3.7"), "https://github.com/lschiaffino/zerosoft/blob/desktop-v0.3.7/");
+        assert_eq!(repo_for("1.0/../x"), "https://github.com/lschiaffino/zerosoft/blob/desktop-v1.0..x/");
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -757,11 +1038,14 @@ mod tests {
             let s = f["stores"].as_array().unwrap().iter().find(|s| s["id"] == d).unwrap();
             assert_eq!(s["delete"], true, "{d}");
         }
+        // "Borrar todo" borra exactamente lo que los hechos marcan con "all".
+        let marked: Vec<String> = f["stores"].as_array().unwrap().iter().filter(|s| s["all"] == true).map(|s| s["id"].as_str().unwrap().to_string()).collect();
+        assert_eq!(marked, WIPED_BY_DELETE_ALL);
         assert_eq!(f["path"], DOCS_PATH);
         assert!(is_source("desktop/src-tauri/src/privacy.rs") && !is_source("../../etc/passwd") && !is_source(""));
         // Cada archivo que se nombra como fuente existe en el repositorio.
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        for section in ["permissions", "stores", "network", "never", "indicators", "events", "controls", "security", "open"] {
+        for section in FACT_SECTIONS {
             for item in f[section].as_array().unwrap() {
                 for c in item["code"].as_array().unwrap() {
                     assert!(root.join(c.as_str().unwrap()).is_file(), "{section} {}: {c}", item["id"]);
@@ -769,7 +1053,7 @@ mod tests {
             }
         }
         // Cada texto está en los tres idiomas.
-        for section in ["permissions", "stores", "network", "never", "indicators", "events", "controls", "security", "open"] {
+        for section in FACT_SECTIONS {
             for item in f[section].as_array().unwrap() {
                 for l in ["en", "es", "pt"] {
                     assert!(item.get(l).is_some(), "{section} {} {l}", item["id"]);

@@ -146,9 +146,17 @@ opcionales y un registro de actividad.
   guardar el audio de los dictados que no se pudieron enviar, y dejar capturar el audio de la
   computadora. Con "volver a abrir mis ventanas y pestañas" apagado, `session.json` no guarda
   rutas ni títulos.
-- **Borrar todo:** borra los archivos propios, los datos del sitio (cookies, almacenamiento y
-  caché del webview), saca el ítem de inicio y reinicia la app. Mientras tanto nada se vuelve a
-  escribir (`privacy::wiped`).
+- **Borrar todo:** cierra la sesión en el servidor, borra los archivos propios, los instaladores
+  viejos y lo que dejó la app de Electron (carpeta `zerosoft` y la clave "zerosoft Safe Storage" del
+  llavero), saca el ítem de inicio, deja un pedido (`.wipe-pending`) y reinicia. Al arrancar, antes
+  de crear ninguna ventana, se borran las carpetas del webview (`privacy::finish_wipe`): con el
+  webview abierto su borrado no avisa cuándo terminó. Mientras tanto nada se vuelve a escribir
+  (`privacy::wiped`).
+- **Dónde:** sesión, dictados sin enviar y registro van en la carpeta local (`app_local_data_dir`;
+  en Windows `%LOCALAPPDATA%`, que no viaja con un perfil itinerante). `settings.json` y la
+  posición de la ventana quedan en la de configuración (Roaming en Windows).
+- **Red:** `tests/unit/desktop-privacy.test.ts` saca de `src/*.rs` cada ruta del servidor que
+  nombra el código y la compara con `network[].endpoints` de los hechos.
 
 ### Lo que la versión de Electron hacía y esta todavía no
 

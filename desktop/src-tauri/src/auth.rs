@@ -141,7 +141,7 @@ pub fn cookie_pair(set_cookie: &str) -> Option<&str> {
 /// El cierre de sesión de next-auth, como lo hace la página: pide el token CSRF y lo manda a
 /// /api/auth/signout con las cookies de la sesión. Si algo falla no pasa nada: las cookies locales
 /// se borran igual.
-async fn server_sign_out(app: &AppHandle) {
+pub(crate) async fn server_sign_out(app: &AppHandle) {
     let server = api::server(app);
     let cookies = api::cookie_header(app).await;
     if !cookies.contains("next-auth.session-token") {

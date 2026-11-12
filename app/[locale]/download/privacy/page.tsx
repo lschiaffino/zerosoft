@@ -52,6 +52,7 @@ export default async function DesktopPrivacyPage(props: { params: Promise<{ loca
         <h1 className="read-title">{t.title}</h1>
         <p className="read-meta">{t.updated}</p>
         <p className="read-intro">{t.intro}</p>
+        <p className="read-meta">{t.sourceNote}</p>
       </header>
 
       <div className="read-body dl-body dp-body">
@@ -87,6 +88,7 @@ export default async function DesktopPrivacyPage(props: { params: Promise<{ loca
                     {t.kept}: {s[l].kept}
                   </span>
                   <span className="dp-line">{s.content ? t.content : t.metadata}</span>
+                  {s.all && <span className="dp-line">{t.all}</span>}
                   {s.mac && (
                     <span className="dp-line">
                       {t.mac}: <code className="dp-code">{s.mac}</code>
@@ -121,12 +123,11 @@ export default async function DesktopPrivacyPage(props: { params: Promise<{ loca
                   {host(n.host) && (
                     <span className="dp-line">
                       {t.to}: {host(n.host)}
-                      {n.endpoint && (
-                        <>
-                          {' '}
-                          <code className="dp-code">{n.endpoint}</code>
-                        </>
-                      )}
+                    </span>
+                  )}
+                  {n.endpoints.length > 0 && (
+                    <span className="dp-line">
+                      {t.endpoints}: <code className="dp-code">{n.endpoints.join(', ')}</code>
                     </span>
                   )}
                   <Source code={n.code} label={t.source} />
@@ -134,6 +135,13 @@ export default async function DesktopPrivacyPage(props: { params: Promise<{ loca
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="dl-section" aria-labelledby="dp-system">
+          <h2 id="dp-system" className="dl-h2">
+            {t.system}
+          </h2>
+          {plain(F.system)}
         </section>
 
         <section className="dl-section" aria-labelledby="dp-indicators">

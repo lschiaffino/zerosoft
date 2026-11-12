@@ -350,6 +350,7 @@ fn save_pending(app: &AppHandle, wav: &[u8], duration_ms: u64, source_app: &str,
         context: context.into(),
         failure,
         attempts: 0,
+        server: crate::api::server(app),
     };
     let ok = st.pending.save(&meta, wav);
     st.pending.list(now); // poda
@@ -366,6 +367,7 @@ pub fn failure_label(app: &AppHandle, f: Failure, saved: bool) -> String {
         Failure::TooLarge => "errTooLarge",
         Failure::Empty => "errEmpty",
         Failure::Rejected => "errFailed",
+        Failure::OtherServer => "errOtherServer",
     };
     if saved {
         format!("{}. {}", s(app, key), s(app, "savedToRetry"))
@@ -415,8 +417,10 @@ impl ClipboardPort for SystemClipboard {
     fn is_empty(s: &Snap) -> bool {
         matches!(s, Snap::Empty)
     }
+    /// El texto que la app pone para pegar va marcado para que no quede en el historial del
+    /// portapapeles ni se sincronice (platform.rs).
     fn write_text(&mut self, text: &str) -> bool {
-        self.0.set_text(text).is_ok()
+        platform::write_text_private(&mut self.0, text)
     }
     fn read_text(&mut self) -> Option<String> {
         self.0.get_text().ok()
@@ -475,15 +479,22 @@ pub async fn insert_text(app: &AppHandle, text: &str, trigger: Tag) -> How {
 pub async fn retry_pending(app: &AppHandle, id: &str) -> Result<String, Failure> {
     let st = app.state::<AppState>();
     let Some((meta, audio)) = st.pending.read(id, now_ms()) else { return Err(Failure::Rejected) };
+    // Solo al servidor para el que se grabó (si cambió, queda guardado acá).
+    let server = crate::api::server(app);
+    if !crate::retry::same_server(&meta, &server) {
+        return Err(Failure::OtherServer);
+    }
+    // Con "mandar el nombre de la app" apagado ahora, no se manda el que quedó guardado.
+    let (source_app, context) = if st.settings.lock().unwrap().send_app_name { (meta.source_app.clone(), meta.context.clone()) } else { (String::new(), "other".to_string()) };
     hud::show(app, hud_state(app, "working", s(app, "sending")));
-    let upload = Event::new(Kind::AudioUpload).trigger(Tag::Retry).duration(meta.duration_ms).bytes(audio.len() as u64).host_of(&crate::api::server(app)).app(&meta.source_app);
-    let res = crate::api::dictate(app, audio, &meta.source_app, &meta.context, meta.duration_ms).await;
+    let upload = Event::new(Kind::AudioUpload).trigger(Tag::Retry).duration(meta.duration_ms).bytes(audio.len() as u64).host_of(&server).app(&source_app);
+    let res = crate::api::dictate(app, audio, &source_app, &context, meta.duration_ms).await;
     match classify(res.status, res.body.as_ref()) {
         Outcome::Ok(text) => {
             privacy::record(app, upload.result(Tag::Ok));
             st.pending.remove(&meta.id);
             if let Ok(mut cb) = arboard::Clipboard::new() {
-                let _ = cb.set_text(text.clone());
+                let _ = platform::write_text_private(&mut cb, &text);
             }
             privacy::record(app, Event::new(Kind::Paste).trigger(Tag::Retry).result(Tag::Copied));
             *st.last_text.lock().unwrap() = text.clone();
@@ -506,7 +517,8 @@ pub async fn retry_pending(app: &AppHandle, id: &str) -> Result<String, Failure>
 }
 
 pub async fn retry_all(app: &AppHandle) {
-    let ids: Vec<String> = app.state::<AppState>().pending.list(now_ms()).into_iter().map(|m| m.id).collect();
+    let server = crate::api::server(app);
+    let ids: Vec<String> = app.state::<AppState>().pending.list(now_ms()).into_iter().filter(|m| crate::retry::same_server(m, &server)).map(|m| m.id).collect();
     for id in ids {
         if retry_pending(app, &id).await == Err(Failure::Offline) {
             break;

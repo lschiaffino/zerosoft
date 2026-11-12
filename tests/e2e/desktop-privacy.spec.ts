@@ -71,6 +71,7 @@ function state(platform: 'darwin' | 'win32') {
     privacy: {
       facts: FACTS,
       capturing: null as string | null,
+      lastWipe: null as boolean | null,
       usage: { microphone: { last: NOW - 60_000, count: 12 }, clipboard: { last: NOW - 50_000, count: 12 } },
       stores: [
         store('settings', `${dir}/settings.json`, 412, 1),
@@ -79,7 +80,15 @@ function state(platform: 'darwin' | 'win32') {
         store('pending', `${dir}/pending`, 1_254_000, 4, true),
         store('activity', `${dir}/privacy`, 5210, 1, true),
         store('web_data', mac ? '/Users/ana/Library/WebKit/ai.zerosoft.desktop' : 'C:\\Users\\ana\\AppData\\Local\\ai.zerosoft.desktop\\EBWebView', 48_300_000, 212, true),
-        ...(mac ? [store('web_cookies', '/Users/ana/Library/HTTPStorages/ai.zerosoft.desktop.binarycookies', 2900, 1), store('web_cache', '/Users/ana/Library/Caches/ai.zerosoft.desktop', 96_000_000, 840)] : []),
+        ...(mac
+          ? [
+              store('web_cookies', '/Users/ana/Library/HTTPStorages/ai.zerosoft.desktop.binarycookies', 2900, 1),
+              store('web_cache', '/Users/ana/Library/Caches/ai.zerosoft.desktop', 96_000_000, 840),
+              store('os_prefs', '/Users/ana/Library/Preferences/ai.zerosoft.desktop.plist', 120, 1),
+            ]
+          : [store('update_temp', 'C:\\Users\\ana\\AppData\\Local\\Temp', 2_600_000, 1, true)]),
+        store('electron_data', mac ? '/Users/ana/Library/Application Support/zerosoft' : 'C:\\Users\\ana\\AppData\\Roaming\\zerosoft', 36_000, 9, true),
+        ...(mac ? [{ id: 'electron_keychain', path: '', exists: true, bytes: 0, files: 0, deletable: true }] : []),
         { id: 'autostart', path: '', exists: false, bytes: 0, files: 0, deletable: false },
       ],
       events: [
@@ -95,9 +104,10 @@ function state(platform: 'darwin' | 'win32') {
 
 type Call = { cmd: string; args: Record<string, unknown> };
 
-async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: number; capturing?: string } = {}) {
+async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: number; capturing?: string; lastWipe?: boolean } = {}) {
   const st = state(opts.platform ?? 'darwin');
   st.privacy.capturing = opts.capturing ?? null;
+  st.privacy.lastWipe = opts.lastWipe ?? null;
   await page.setViewportSize({ width: opts.width ?? 860, height: 720 });
   await page.addInitScript(
     ({ st }) => {
@@ -130,6 +140,7 @@ async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: n
               if (s) Object.assign(s, { exists: false, bytes: 0, files: 0 });
             }
             if (args.action === 'export') return Promise.resolve({ ok: true, file: '/Users/ana/Downloads/zerosoft-activity-1.json', view: p });
+            if (args.action === 'delete' && args.target === 'web_data') return Promise.resolve({ ok: true, requested: true, view: p });
             return Promise.resolve({ ok: true, view: p });
           }
           return Promise.resolve(null);
@@ -185,6 +196,29 @@ test.describe('desktop settings: privacy and data', () => {
     await page.locator('#priv-docs').click();
     await pending.locator('.priv-src button').first().click();
     expect((await calls(page, 'privacy')).filter((c) => c.action === 'open').map((c) => c.target)).toEqual(['docs', 'source:desktop/src-tauri/src/retry.rs']);
+  });
+
+  test('says when the last launch finished deleting everything, and old-version leftovers can be deleted', async ({ page }) => {
+    await open(page, { lastWipe: true });
+    await expect(page.locator('#priv-last-wipe')).toHaveText('zerosoft borró todos sus datos locales al abrirse.');
+    const old = page.locator('#priv-stores li[data-store="electron_data"]');
+    await expect(old).toContainText('session.bin');
+    await old.getByRole('button', { name: 'Borrar' }).click();
+    await old.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(old.locator('[data-size]')).toHaveText('Nada guardado');
+    // La clave del llavero no tiene ruta: no hay "Mostrar en la carpeta".
+    const key = page.locator('#priv-stores li[data-store="electron_keychain"]');
+    await expect(key.getByRole('button', { name: 'Mostrar en la carpeta' })).toHaveCount(0);
+    await expect(key.getByRole('button', { name: 'Borrar' })).toBeVisible();
+    // Borrar los datos del sitio: dice que cierra la sesión también en el servidor y que es un pedido.
+    const web = page.locator('#priv-stores li[data-store="web_data"]');
+    await web.getByRole('button', { name: 'Borrar y cerrar sesión' }).click();
+    await expect(web.getByRole('alert')).toContainText('en esta computadora y en el servidor');
+    await web.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page.getByRole('status').first()).toContainText('Borrado pedido');
+    // Cada pedido de la red lleva sus direcciones.
+    await expect(page.locator('#priv-network li[data-net="signout"] .priv-path')).toHaveText('GET /api/auth/csrf, POST /api/auth/signout');
+    await expect(page.locator('#priv-system li')).toHaveCount(FACTS.system.length);
   });
 
   test('shows what is being captured right now', async ({ page }) => {
