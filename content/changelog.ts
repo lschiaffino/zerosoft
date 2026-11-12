@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-wa-stickers',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: stickers like WhatsApp, and a Stickers tab to send them',
+      es: 'Lines e Inbox: stickers como en WhatsApp y una pestaña Stickers para mandarlos',
+      pt: 'Lines e Inbox: figurinhas como no WhatsApp e uma aba Figurinhas para enviá-las',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'A sticker someone sends shows small and without a bubble, animated if it is, with the time below. Before, Inbox showed it as a big photo. GIFs play on their own inside the bubble, muted and on a loop, with a GIF mark.',
+        es: 'Un sticker que te mandan se ve chico y sin burbuja, animado si lo es, con la hora abajo. Antes Inbox lo mostraba como una foto grande. Los GIF se reproducen solos en la burbuja, sin sonido y en bucle, con la marca GIF.',
+        pt: 'Uma figurinha que te enviam aparece pequena e sem balão, animada se for, com a hora embaixo. Antes o Inbox mostrava como uma foto grande. Os GIFs tocam sozinhos no balão, sem som e em loop, com a marca GIF.',
+      },
+      {
+        product: 'inbox',
+        en: 'The emoji panel has a Stickers tab with your recent ones, favorites and your collection: click one to send it. WhatsApp does not let linked devices read the stickers saved on your phone, so “Import stickers from my chats” builds the collection from the stickers you sent and received, and new ones are added as they arrive. You can also add one to favorites from its menu in a chat, or turn an image into a sticker.',
+        es: 'El panel de emojis tiene una pestaña Stickers con tus recientes, favoritos y tu colección: un clic lo manda. WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en tu teléfono, así que “Importar stickers de mis chats” arma la colección con los que mandaste y recibiste, y los nuevos se suman cuando llegan. También podés agregar uno a favoritos desde su menú en un chat, o convertir una imagen en sticker.',
+        pt: 'O painel de emojis tem uma aba Figurinhas com as recentes, as favoritas e a sua coleção: um clique envia. O WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no seu celular, então “Importar figurinhas das minhas conversas” monta a coleção com as que você enviou e recebeu, e as novas entram quando chegam. Também dá para adicionar uma às favoritas pelo menu dela numa conversa, ou transformar uma imagem em figurinha.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines, with the stickers of the chats you can see.',
+        es: 'Lo mismo en Lines, con los stickers de los chats que podés ver.',
+        pt: 'O mesmo no Lines, com as figurinhas das conversas que você pode ver.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {

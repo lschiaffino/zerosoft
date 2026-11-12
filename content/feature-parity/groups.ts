@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-11',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -113,6 +113,13 @@ const parity: ProductParity = {
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
       detail: ['No link previews or message search inside a chat yet', 'Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Ainda sem prévia de links nem busca dentro de uma conversa'],
+    }),
+    row('wa-stickers', 'inbox', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {
+      detail: [
+        'Received stickers show small and without a bubble (animated ones move), GIFs play inside the bubble. The Stickers tab of the emoji panel has recent ones, favorites and your collection; WhatsApp does not let linked devices read the stickers saved on the phone, so the collection is built from the stickers in your chats (one click to import, then it stays up to date) and from images you turn into stickers. Lottie stickers show as a placeholder. Tested with the fake provider',
+        'Los stickers que llegan se ven chicos y sin burbuja (los animados se mueven) y los GIF se reproducen en la burbuja. La pestaña Stickers del panel de emojis tiene recientes, favoritos y tu colección; WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en el teléfono, así que la colección se arma con los stickers de tus chats (un clic para importarlos y después se mantiene sola) y con imágenes que convertís en sticker. Los stickers Lottie se ven como un lugar vacío. Probado con el proveedor falso',
+        'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (um clique para importar e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
+      ],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
