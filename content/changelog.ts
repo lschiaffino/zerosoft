@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-swipe-sideways-only',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: sideways swipes never move a chat to a folder',
+      es: 'Lines e Inbox: deslizar de costado nunca lleva un chat a una carpeta',
+      pt: 'Lines e Inbox: deslizar de lado nunca leva um chat a uma pasta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A fast swipe to either side stays a swipe even if the mouse leaves the list. To file a chat, lift it up or down (or press and hold) and drop it on a folder.',
+        es: 'Un deslizado rápido a cualquier costado sigue siendo deslizado aunque el mouse salga de la lista. Para llevar un chat a una carpeta, levantalo hacia arriba o abajo (o mantenelo apretado) y soltalo en la carpeta.',
+        pt: 'Um deslize rápido para qualquer lado continua sendo deslize mesmo se o mouse sair da lista. Para levar um chat a uma pasta, levante-o para cima ou para baixo (ou segure) e solte na pasta.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {
