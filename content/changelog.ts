@@ -70,23 +70,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
-    id: '2026-11-11-lines-qr-reconnect',
-    date: '2026-11-11',
-    title: {
-      en: 'Lines and Inbox: a new QR after the number was unlinked',
-      es: 'Lines e Inbox: un QR nuevo después de desvincular el número',
-      pt: 'Lines e Inbox: um QR novo depois de desvincular o número',
-    },
-    items: [
-      {
-        product: 'groups',
-        en: 'When a number was unlinked from the phone, "Ask for a new QR" kept showing the session as disconnected. It now shows the QR so you can link the number again.',
-        es: 'Cuando un número se desvinculaba desde el teléfono, "Pedir un QR nuevo" seguía mostrando la sesión desconectada. Ahora muestra el QR para volver a vincular el número.',
-        pt: 'Quando um número era desvinculado pelo telefone, "Pedir um QR novo" continuava mostrando a sessão desconectada. Agora mostra o QR para vincular o número de novo.',
-      },
-    ],
-  },
-  {
     id: '2026-11-11-voice-dictation-layout',
     date: '2026-11-11',
     title: {
@@ -145,6 +128,29 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-lines-filter-panel',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: a filter panel for the inbox',
+      es: 'Lines: un panel de filtros para la bandeja',
+      pt: 'Lines: um painel de filtros para a caixa de entrada',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The filter button in the inbox now opens a wide panel: the filters on the left, grouped and searchable, and the choices for each one on the right. Pick several people, labels or lines at once, a period for the last message, or yes or no for unread, pinned, muted, with an open ticket and more. Nothing changes until you press Apply.',
+        es: 'El botón de filtros de la bandeja ahora abre un panel amplio: a la izquierda los filtros, agrupados y con buscador, y a la derecha las opciones de cada uno. Se pueden elegir varias personas, etiquetas o líneas a la vez, un período para el último mensaje, o sí o no para no leídos, fijados, silenciados, con ticket abierto y más. Nada cambia hasta tocar Aplicar.',
+        pt: 'O botão de filtros da caixa de entrada agora abre um painel amplo: à esquerda os filtros, agrupados e com busca, e à direita as opções de cada um. Dá para escolher várias pessoas, etiquetas ou linhas de uma vez, um período para a última mensagem, ou sim ou não para não lidas, fixadas, silenciadas, com ticket aberto e mais. Nada muda até tocar em Aplicar.',
+      },
+      {
+        product: 'groups',
+        en: 'The filters that are on show under the search box, each with an × to remove it, and the button shows how many there are. The tabs (Unread, Waiting, Mine and the rest) are shortcuts for the same filters, and saved lists keep every filter. Lists you saved before open as they did.',
+        es: 'Los filtros puestos se ven debajo de la búsqueda, cada uno con una × para sacarlo, y el botón muestra cuántos hay. Las pestañas (No leídos, Esperando, Míos y las demás) son atajos de esos mismos filtros, y las listas guardadas conservan todos los filtros. Las listas que ya tenías se abren como antes.',
+        pt: 'Os filtros ativos aparecem embaixo da busca, cada um com um × para tirar, e o botão mostra quantos são. As abas (Não lidas, Aguardando, Minhas e as outras) são atalhos desses mesmos filtros, e as listas salvas guardam todos os filtros. As listas que você já tinha abrem como antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-details-collapse',
     date: '2026-11-11',
     title: {
@@ -165,17 +171,22 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Con una línea elegida en la bandeja, los avisos de conexión perdida o de historial en importación son solo los de esa línea.',
         pt: 'Com uma linha escolhida na caixa de entrada, os avisos de conexão perdida ou de importação do histórico são só os dessa linha.',
       },
+    ],
+  },
+  {
+    id: '2026-11-11-lines-qr-reconnect',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: a new QR after the number was unlinked',
+      es: 'Lines e Inbox: un QR nuevo después de desvincular el número',
+      pt: 'Lines e Inbox: um QR novo depois de desvincular o número',
+    },
+    items: [
       {
         product: 'groups',
-        en: 'Writing an internal note is now a tab above the message box, next to WhatsApp, so you always see where what you type is going. N and R still switch between them.',
-        es: 'Escribir una nota interna ahora es una pestaña arriba del cuadro de mensaje, al lado de WhatsApp, así siempre ves a dónde va lo que escribís. N y R siguen cambiando entre una y otra.',
-        pt: 'Escrever uma nota interna agora é uma aba acima da caixa de mensagem, ao lado de WhatsApp, então você sempre vê para onde vai o que digita. N e R continuam alternando entre uma e outra.',
-      },
-      {
-        product: 'groups',
-        en: 'The "Import finished" and "lost its WhatsApp connection" notices in the inbox can be closed, and they stay closed. If a line reconnects and drops again, the notice comes back.',
-        es: 'Los avisos de "Importación terminada" y de "perdió la conexión con WhatsApp" en la bandeja se pueden cerrar, y quedan cerrados. Si una línea se reconecta y se vuelve a caer, el aviso vuelve.',
-        pt: 'Os avisos de "Importação concluída" e de "perdeu a conexão com o WhatsApp" na caixa de entrada podem ser fechados, e continuam fechados. Se uma linha reconecta e cai de novo, o aviso volta.',
+        en: 'When a number was unlinked from the phone, "Ask for a new QR" kept showing the session as disconnected. It now shows the QR so you can link the number again.',
+        es: 'Cuando un número se desvinculaba desde el teléfono, "Pedir un QR nuevo" seguía mostrando la sesión desconectada. Ahora muestra el QR para volver a vincular el número.',
+        pt: 'Quando um número era desvinculado pelo telefone, "Pedir um QR novo" continuava mostrando a sessão desconectada. Agora mostra o QR para vincular o número de novo.',
       },
     ],
   },

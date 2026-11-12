@@ -4,6 +4,7 @@ import { getSavedList, listQuery } from '@/lib/groups-org';
 import { groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
 import { conditionalJson } from '@/lib/etag';
 import { parseHubspotFilterParam } from '@/lib/groups-hubspot-shared';
+import { linesFiltersFromParam, parseLinesFilters } from '@/lib/groups-filters';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,10 @@ function parseProps(raw: string | null): PropertyFilter[] {
  * ?hs=[{"name":"industry","op":"any_of","values":["RETAIL"]}]; operadores is,
  * is_not, contains, gt, lt, any_of, none_of, empty, not_empty) y búsqueda en mensajes. Los fijados
  * van primero. ?list=<id> aplica
- * una lista guardada (los demás parámetros se suman encima).
+ * una lista guardada (los demás parámetros se suman encima). ?f=<JSON> son
+ * los filtros del panel de la bandeja (lib/groups-filters.ts): varias opciones
+ * por campo (se suman) y campos que se cruzan; ?tz= (minutos al este de UTC)
+ * dice dónde empieza "hoy" para los filtros por fecha.
  * Paginado: con ?cursor= (vacío para la primera página) responde
  * { rows, next, pinned }: `next` es el cursor de la página que sigue (null si
  * no hay más) y `pinned`, cuántos fijados vienen adelante en la primera página
@@ -60,6 +64,10 @@ export async function GET(req: Request) {
   const props = parseProps(p.get('props'));
   const labels = (p.get('labels') ?? '').split(',').filter(Boolean);
   const hubspot = p.get('hubspot') === 'linked' || p.get('hubspot') === 'unlinked' ? (p.get('hubspot') as 'linked' | 'unlinked') : undefined;
+  // Los filtros del panel de la bandeja (?f=) se suman a los de la lista guardada; los parámetros sueltos de siempre siguen valiendo.
+  const panel = p.get('f') ? linesFiltersFromParam(p.get('f')) : null;
+  const filters = panel || base.filters ? parseLinesFilters({ ...base.filters, ...panel }) : undefined;
+  const tz = Number(p.get('tz'));
   const paged = p.has('cursor');
   const viewer = await sessionViewer(s);
   const withMeta = p.get('meta') !== '0';
@@ -71,7 +79,9 @@ export async function GET(req: Request) {
     listChats(s.ws, s.me, {
       ...base,
       filter: filter && filter !== 'all' ? filter : (base.filter ?? 'all'),
-      q: p.get('q') || base.q || '',
+      q: p.get('q') || panel?.q || base.q || '',
+      filters,
+      tzOffsetMin: Number.isFinite(tz) ? tz : 0,
       labelId: p.get('label') || undefined,
       labelIds: labels.length ? labels : base.labelIds,
       assignee: p.get('assignee') || base.assignee,
@@ -81,8 +91,8 @@ export async function GET(req: Request) {
       folderId: p.get('folder') || base.folderId,
       ownerId: p.get('owner') || base.ownerId,
       kind: kind ?? base.kind,
-      hubspot: hubspot ?? base.hubspot,
-      hsProps: [...(base.hsProps ?? []), ...parseHubspotFilterParam(p.get('hs'))],
+      hubspot: hubspot ?? panel?.hubspot ?? base.hubspot,
+      hsProps: [...(panel?.hsProps ?? base.hsProps ?? []), ...parseHubspotFilterParam(p.get('hs'))],
       limit: Number(p.get('limit')) || 50,
       offset: Number(p.get('offset')) || 0,
       viewer,
