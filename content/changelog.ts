@@ -49,6 +49,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Las menciones se ven en verde dentro del campo mientras escribís, en Lines e Inbox y también en las notas internas. Borrar contra una mención saca el nombre entero.',
         pt: 'As menções aparecem em verde dentro do campo enquanto você escreve, no Lines e no Inbox e também nas notas internas. Apagar contra uma menção tira o nome inteiro.',
       },
+      {
+        product: 'groups',
+        en: 'In the chat list, a mention of your own number shows as in the conversation: @You in Inbox and the line name in Lines, instead of the phone number.',
+        es: 'En la lista de chats, una mención a tu propio número se ve como en la conversación: @Vos en Inbox y el nombre de la línea en Lines, en lugar del teléfono.',
+        pt: 'Na lista de conversas, uma menção ao seu próprio número aparece como na conversa: @Você no Inbox e o nome da linha no Lines, em vez do telefone.',
+      },
     ],
   },
   {
