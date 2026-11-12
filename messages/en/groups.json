@@ -1696,6 +1696,8 @@
     "closeViewer": "Close",
     "previous": "Previous",
     "next": "Next",
+    "album": "Album, {n} photos and videos",
+    "albumMore": "{n} more, open the album",
     "openMedia": "Open {name}",
     "playVideo": "Play video",
     "micDenied": "The browser did not allow the microphone.",

@@ -44,6 +44,8 @@ import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
+import MediaAlbum from './wa/MediaAlbum';
+import { groupAlbums } from '@/lib/wa-albums';
 import {
   ArrowDown,
   Ban,
@@ -1390,7 +1392,16 @@ export default function ChatThread(props: ThreadProps) {
   // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
-  for (const m of messages) {
+  // Fotos y videos mandados juntos van en un álbum (lib/wa-albums.ts): una tanda, una burbuja.
+  const runs = groupAlbums(messages, (m) => ({
+    media: (m.media?.kind === 'image' || m.media?.kind === 'video') && Boolean(m.media.url) && !m.media.viewOnce && !m.deletedAt && !m.replyToId && !m.poll && m.status !== 'failed' && (m.direction === 'in' || m.direction === 'out'),
+    key: `${senderKey(m)}|${localDayKey(m.createdAt)}|${m.forwarded ? 'f' : ''}`,
+    at: parseDbUtc(m.createdAt).getTime(),
+    caption: Boolean(m.body.trim()),
+    start: unreadMark?.id === m.id,
+  }));
+  for (const run of runs) {
+    const m = run[0];
     const day = localDayKey(m.createdAt);
     if (days.at(-1)?.key !== day) {
       days.push({ key: day, at: m.createdAt, items: [] });
@@ -1411,8 +1422,8 @@ export default function ChatThread(props: ThreadProps) {
       prev = null;
     }
     const cont = Boolean(prev && senderKey(prev) === senderKey(m));
-    prev = m;
-    rows.push(renderMessage(m, cont));
+    prev = run[run.length - 1];
+    rows.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
   }
   const rows = days.map((d) => (
     <section key={`d-${d.key}`} className="wa-dayblock">
@@ -1425,7 +1436,8 @@ export default function ChatThread(props: ThreadProps) {
     </section>
   ));
 
-  function renderMessage(m: MessageDto, cont: boolean) {
+  /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
+  function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
@@ -1443,7 +1455,7 @@ export default function ChatThread(props: ThreadProps) {
     const caption = Boolean(m.body);
     const color = m.direction === 'in' && chat.kind === 'group' ? `wa-n${colorIndex(m.senderPhone || m.senderName)}` : '';
     const reactions = new Map<string, number>();
-    for (const r of m.reactions) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
+    for (const r of (album ?? [m]).flatMap((x) => x.reactions)) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
     const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
     const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url) && !(m.deletedAt && !revealed.has(m.id));
@@ -1451,7 +1463,17 @@ export default function ChatThread(props: ThreadProps) {
     const starred = (m.meta as Record<string, unknown>).starred === true;
     // Borrado: "Se eliminó este mensaje"; un admin puede ver el original.
     const hidden = Boolean(m.deletedAt) && !revealed.has(m.id);
-    const selected = selecting?.has(m.id) ?? false;
+    // En un álbum cada foto se elige sola (su casilla va en la foto).
+    const selected = !album && (selecting?.has(m.id) ?? false);
+    const toggleSelected = (id: string) =>
+      setSelecting((prevSel) => {
+        const next = new Set(prevSel ?? []);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
+    const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
     return (
       <article
         key={m.id}
@@ -1463,19 +1485,9 @@ export default function ChatThread(props: ThreadProps) {
           openMenuIn(e.currentTarget);
         }}
         {...longPress((el) => openMenuIn(el))}
-        onClick={
-          selecting
-            ? () =>
-                setSelecting((prevSel) => {
-                  const next = new Set(prevSel ?? []);
-                  if (next.has(m.id)) next.delete(m.id);
-                  else next.add(m.id);
-                  return next;
-                })
-            : undefined
-        }
+        onClick={selecting ? () => toggleSelected(m.id) : undefined}
       >
-        {selecting && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
+        {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
             {!cont && <Avatar name={inName(m)} kind="dm" size={26} seed={m.senderPhone || m.senderName} />}
@@ -1533,7 +1545,26 @@ export default function ChatThread(props: ThreadProps) {
           ) : null}
           {media && !hidden && (
             <div className="gr-media">
-              {media.viewOnce ? (
+              {album ? (
+                <MediaAlbum
+                  tiles={album.map((x) => ({
+                    id: x.id,
+                    kind: x.media?.kind === 'video' ? 'video' : 'image',
+                    url: x.media?.url ?? '',
+                    alt: x.media?.name || t('thread.image'),
+                    thumbnail: x.media?.thumbnail,
+                    seconds: x.media?.duration,
+                    menu: menuItems(x),
+                    selected: selecting?.has(x.id) ?? false,
+                  }))}
+                  onOpen={setViewerAt}
+                  selecting={Boolean(selecting)}
+                  onSelect={toggleSelected}
+                  menuLabel={t('thread.moreActions')}
+                  align={m.direction === 'out' ? 'right' : 'left'}
+                  onLoad={keepAtEnd}
+                />
+              ) : media.viewOnce ? (
                 <span className="wa-viewonce">
                   <ViewOnce size={20} /> {t('wa.viewOnce')}
                 </span>
@@ -1685,10 +1716,10 @@ export default function ChatThread(props: ThreadProps) {
             >
               <Smiley size={18} />
             </button>
-            {pickerFor === m.id && (
+            {reactTo && (
               <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
                 {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
-                  <button key={e} type="button" onClick={() => void react(m, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
+                  <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
                     {e}
                   </button>
                 ))}
