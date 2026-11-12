@@ -1149,7 +1149,8 @@ export default function InboxShell({
             <div className="gr-list-titlebar">
               <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
               <LineSelector numbers={numbers} value={line} onChange={pickLine} />
-              <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
+              {/* Sin sidebar a la vista: la carpeta se elige acá, al lado de la línea (no una caja a todo el ancho). */}
+                <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
                 <Plus size={20} />
               </button>
             </div>
