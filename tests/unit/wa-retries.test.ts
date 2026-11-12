@@ -357,8 +357,8 @@ describe('9. la migración 394 se puede correr de nuevo sobre una base que corri
     for (const [n] of WA_LIVE_MESSAGE_TRIGGERS) expect(names).toContain(n);
     const idx = (await c.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('idx_groups_messages_client', 'idx_inbox_messages_client', 'idx_groups_team_members_person')")).rows;
     expect(idx).toHaveLength(3);
-    // Y el último de la lista es este.
-    expect(MIGRATIONS[MIGRATIONS.length - 1].id).toBe('394_wa_live_kinds');
+    // Y está en la lista (después vienen otras: no tiene que ser la última).
+    expect(MIGRATIONS.map((m) => m.id)).toContain('394_wa_live_kinds');
   });
 });
 
