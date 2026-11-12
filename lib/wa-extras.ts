@@ -43,7 +43,9 @@ const PREVIEW_TTL_MS = 7 * 86_400_000;
 const PREVIEW_VERSION = 2;
 /** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB). */
 export const IMAGE_MAX = 700 * 1024;
-const FAVICON_MAX = 12 * 1024;
+const FAVICON_MAX = 24 * 1024;
+/** Tope de píxeles (ancho × alto) de una imagen de vista previa: 40 megapíxeles. */
+const MAX_PIXELS = 40_000_000;
 const IMAGE_TYPES = /^image\/(jpeg|png|webp|gif)$/;
 const ICON_TYPES = /^image\/(jpeg|png|webp|gif|x-icon|vnd\.microsoft\.icon)$/;
 
@@ -69,18 +71,21 @@ interface FetchedImage {
 const NO_IMAGE: FetchedImage = { data: '', width: 0, height: 0 };
 
 /**
- * Baja una imagen con safeFetch (solo hosts públicos, redirecciones
- * validadas, timeout) y la guarda como data URL si es de un tipo permitido,
- * la cabecera dice que es una imagen y no pasa `max` bytes (se corta
- * leyendo, sin confiar en content-length).
+ * Baja una imagen con safeFetch (solo hosts públicos, también al conectar y
+ * en cada redirección; timeout de 5 s) y la guarda como data URL si los bytes
+ * son de un tipo permitido (no lo que diga la cabecera; nunca SVG), no pasa
+ * `max` bytes (se corta leyendo, sin confiar en content-length) ni
+ * MAX_PIXELS.
  */
 async function fetchImage(url: string | undefined, max: number, types: RegExp): Promise<FetchedImage> {
   if (!url) return NO_IMAGE;
   if (process.env.DOCS_UNFURL_FAKE === '1') return fakeImage(url);
   try {
-    const res = await safeFetch(url, { headers: { accept: 'image/*' } }, 5000, { maxRedirects: 3 });
+    const res = await safeFetch(url, { headers: { accept: 'image/*', 'user-agent': 'zerosoft-docs-bot/1.0 (+link preview)' } }, 5000, { maxRedirects: 3, pinDns: true });
     const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    if (!res.ok || !res.body || !types.test(type)) {
+    // La cabecera tiene que decir imagen (o nada útil): lo que dice HTML, JSON o texto no se lee. El tipo que vale
+    // es el de los bytes (abajo).
+    if (!res.ok || !res.body || !/^(image\/[\w.+-]+|application\/octet-stream|)$/.test(type)) {
       await res.body?.cancel().catch(() => null);
       return NO_IMAGE;
     }
@@ -98,9 +103,13 @@ async function fetchImage(url: string | undefined, max: number, types: RegExp): 
       chunks.push(value);
     }
     const buf = Buffer.concat(chunks);
+    // El tipo sale de los bytes, no de la cabecera: lo que no es una imagen de verdad (un HTML con content-type de
+    // imagen, un SVG) no se guarda, y lo que se sirve después lleva el tipo real.
     const size = imageSize(buf);
-    if (!size) return NO_IMAGE;
-    return { data: `data:${type};base64,${buf.toString('base64')}`, width: size.width, height: size.height };
+    if (!size || !types.test(size.type)) return NO_IMAGE;
+    // Una imagen chica en bytes pero enorme en píxeles (una "bomba") cuelga el navegador al dibujarla.
+    if (size.width * size.height > MAX_PIXELS) return NO_IMAGE;
+    return { data: `data:${size.type};base64,${buf.toString('base64')}`, width: size.width, height: size.height };
   } catch {
     return NO_IMAGE;
   }

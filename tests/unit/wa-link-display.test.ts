@@ -32,20 +32,20 @@ function pngHeader(w: number, h: number): Uint8Array {
 
 describe('medidas de una imagen por su cabecera', () => {
   it('PNG, GIF, JPEG, WebP e ICO; null con basura o cortado', () => {
-    expect(imageSize(pngHeader(1200, 630))).toEqual({ width: 1200, height: 630 });
+    expect(imageSize(pngHeader(1200, 630))).toEqual({ width: 1200, height: 630 , type: 'image/png' });
     const gif = Buffer.from('GIF89a\x40\x01\xf0\x00', 'latin1');
-    expect(imageSize(gif)).toEqual({ width: 320, height: 240 });
+    expect(imageSize(gif)).toEqual({ width: 320, height: 240 , type: 'image/gif' });
     // JPEG: SOI, un APP0 de 16 bytes y un SOF0 con alto 480 y ancho 640.
     const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, ...Array(14).fill(0), 0xff, 0xc0, 0x00, 0x11, 0x08, 0x01, 0xe0, 0x02, 0x80, 0x03, 0, 0, 0, 0, 0, 0]);
-    expect(imageSize(jpeg)).toEqual({ width: 640, height: 480 });
+    expect(imageSize(jpeg)).toEqual({ width: 640, height: 480 , type: 'image/jpeg' });
     // WebP VP8X: ancho-1 y alto-1 en 24 bits.
     const webp = Buffer.alloc(30);
     webp.write('RIFF', 0, 'ascii');
     webp.write('WEBPVP8X', 8, 'ascii');
     webp.writeUIntLE(999, 24, 3);
     webp.writeUIntLE(499, 27, 3);
-    expect(imageSize(webp)).toEqual({ width: 1000, height: 500 });
-    expect(imageSize(Buffer.from([0, 0, 1, 0, 1, 0, 32, 32]))).toEqual({ width: 32, height: 32 });
+    expect(imageSize(webp)).toEqual({ width: 1000, height: 500 , type: 'image/webp' });
+    expect(imageSize(Buffer.from([0, 0, 1, 0, 1, 0, 32, 32]))).toEqual({ width: 32, height: 32 , type: 'image/x-icon' });
     expect(imageSize(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull();
     expect(imageSize(pngHeader(1200, 630).subarray(0, 20))).toBeNull();
     expect(imageSize(Buffer.from([0xff, 0xd8, 0x00]))).toBeNull();
@@ -78,7 +78,7 @@ describe('tarjeta grande o compacta', () => {
 
   it('WhatsApp manda una miniatura chica: se pide la grande al servidor solo si hace falta', () => {
     const thumb = `data:image/png;base64,${Buffer.from(pngHeader(140, 74)).toString('base64')}`;
-    expect(dataUrlSize(thumb)).toEqual({ width: 140, height: 74 });
+    expect(dataUrlSize(thumb)).toMatchObject({ width: 140, height: 74 });
     const given = fromGiven({ url: 'https://example.test/a', title: 'A', image: thumb })!;
     expect(given.imageWidth).toBe(140);
     expect(needsFetch(given, 'large')).toBe(true);
@@ -119,7 +119,7 @@ describe('lector de vistas previas', () => {
     expect(linkLayout(big)).toBe('large');
     const img = (await linkPreviewImage(`https://example.test/p/${id}`, 0))!;
     expect(img.type).toBe('image/png');
-    expect(imageSize(img.bytes)).toEqual({ width: 1200, height: 630 });
+    expect(imageSize(img.bytes)).toEqual({ width: 1200, height: 630 , type: 'image/png' });
 
     const logo = (await linkPreview(`https://example.test/logo/${id}`))!;
     expect([logo.imageWidth, logo.imageHeight]).toEqual([96, 96]);

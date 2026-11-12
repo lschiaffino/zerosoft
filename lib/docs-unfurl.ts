@@ -119,7 +119,7 @@ async function fetchHtml(url: string): Promise<string | null> {
       url,
       { headers: { 'User-Agent': 'zerosoft-docs-bot/1.0 (+link preview)', Accept: 'text/html,application/xhtml+xml' } },
       6000,
-      { maxRedirects: 4 },
+      { maxRedirects: 4, pinDns: true },
     );
     const type = res.headers.get('content-type') ?? '';
     if (!res.ok || !/html|xml/i.test(type) || !res.body) {
