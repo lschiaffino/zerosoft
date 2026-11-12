@@ -1145,7 +1145,7 @@ async function finishChat(number: Pick<NumberRow, 'id' | 'user_id'>, row: ChatRo
     }
   }
   // Una línea que entra a un grupo: el grupo es uno solo y, si ya tiene empresa de HubSpot, la hereda (lib/groups-identity.ts).
-  if (inserted.changes > 0 && input.kind === 'group') {
+  if (created && input.kind === 'group') {
     const { attachGroupIdentity } = await import('./groups-identity');
     // Que falle la copia de la empresa no frena la llegada del mensaje.
     await attachGroupIdentity(number.user_id, row.id).catch((err: unknown) => console.error('[groups] identidad del grupo', err instanceof Error ? err.message : 'error'));
