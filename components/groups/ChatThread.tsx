@@ -1845,11 +1845,18 @@ export default function ChatThread(props: ThreadProps) {
           )}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && (
-            <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
+            <ul className="wa-mention-pop" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
-                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(i)}>
-                    <strong>{p.name || p.email}</strong> {p.name ? p.email : ''}
+                  <button
+                    type="button"
+                    title={p.email}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                    onClick={() => pickMention(i)}
+                  >
+                    <Avatar name={p.name || p.email} kind="dm" size={32} seed={p.id} />
+                    <span className="wa-mention-name">{p.name || p.email}</span>
                   </button>
                 </li>
               ))}
