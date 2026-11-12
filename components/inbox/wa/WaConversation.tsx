@@ -28,6 +28,7 @@ import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
+import { useInboxThreadCommands } from '../slash-commands';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -331,6 +332,16 @@ const WaConversation = forwardRef<
     setNotes(r.ok ? String(r.data.notes ?? '') : '');
     setNotesOpen(true);
   };
+
+  // Comandos "/" del campo: las mismas acciones de esta cabecera y de su menú.
+  const slashCommands = useInboxThreadCommands({
+    thread,
+    onAction,
+    openNotes: () => void openNotes(),
+    openInfo: props.onToggleInfo,
+    rename: () => setRenaming(thread.title),
+    attach: connected ? () => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click() : undefined,
+  });
 
   const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
@@ -742,6 +753,7 @@ const WaConversation = forwardRef<
           onPasteFiles={connected ? tray.add : undefined}
           mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
           onTyping={() => presence('composing')}
+          commands={slashCommands}
           onCancelBanner={() => {
             setEditing(null);
             setReplyTo(null);

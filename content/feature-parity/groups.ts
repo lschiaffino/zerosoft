@@ -121,7 +121,13 @@ const parity: ProductParity = {
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
     row('line-health', 'numbers', ['Warning when a line disconnects, with QR re-scan', 'Aviso cuando una línea se desconecta, con QR de nuevo', 'Aviso quando uma linha desconecta, com QR de novo'], 'have'),
-    row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have'),
+    row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have', {
+      detail: [
+        'In the / menu of the message field, next to the commands of the chat (assign, close, label, note, ticket, send later and more)',
+        'En el menú / del campo de mensaje, junto a los comandos del chat (asignar, cerrar, etiqueta, nota, ticket, enviar más tarde y más)',
+        'No menu / do campo de mensagem, junto aos comandos da conversa (atribuir, fechar, etiqueta, nota, ticket, enviar mais tarde e mais)',
+      ],
+    }),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
     row('message-search', 'inbox', ['Search chats and message text', 'Buscar chats y texto de mensajes', 'Buscar chats e texto das mensagens'], 'have'),
     row('close-reopen', 'inbox', ['Close, reopen and mark as read', 'Cerrar, reabrir y marcar leído', 'Fechar, reabrir e marcar como lida'], 'have', {
