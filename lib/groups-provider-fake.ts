@@ -61,6 +61,8 @@ export interface FakeSent {
   text: string;
   kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
+  /** Teléfonos mencionados (textos en grupos). */
+  mentions?: string[];
 }
 
 interface FakeState {
@@ -403,7 +405,11 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     async disconnect() {
       s.connectedAt = null;
     },
-    sendText: async (chatId, text) => send(chatId, text, 'text'),
+    sendText: async (chatId, text, o) => {
+      const r = send(chatId, text, 'text');
+      if (o?.mentions?.length) s.sent[s.sent.length - 1].mentions = [...o.mentions];
+      return r;
+    },
     sendMedia: async (chatId, media) => send(chatId, media.caption ?? media.filename, 'media'),
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');

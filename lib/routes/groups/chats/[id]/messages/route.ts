@@ -124,6 +124,7 @@ export async function POST(req: Request, ctx: Ctx) {
             media,
             clientId,
             ...(contacts ? { contacts } : {}),
+            ...(Array.isArray(b.mentions) ? { mentions: (b.mentions as unknown[]).filter((m): m is string => typeof m === 'string').slice(0, 50) } : {}),
           },
           { chat, number, gated, existing: null },
         );

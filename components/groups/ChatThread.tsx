@@ -8,7 +8,8 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
-import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -35,6 +36,7 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
@@ -256,6 +258,11 @@ export default function ChatThread(props: ThreadProps) {
   const [translateError, setTranslateError] = useState('');
   const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
   const [mentionIndex, setMentionIndex] = useState(0);
+  // Esc cierra la lista de "@" para esa mención (dónde empieza); se vuelve a abrir con otro "@".
+  const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  // Menciones de WhatsApp elegidas de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
+  const pickedWa = useRef(new Map<string, string>());
+  const [pickedVersion, setPickedVersion] = useState(0);
   const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const [hasOlder, setHasOlder] = useState(props.messages.length >= 200);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -553,9 +560,15 @@ export default function ChatThread(props: ThreadProps) {
     [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "@" en una nota abre las personas ("/" abre los comandos y las respuestas rápidas, más abajo).
-  const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
-  const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
+  // "@" en una nota abre las personas del equipo; en un grupo de WhatsApp, los participantes (como WhatsApp). La
+  // mención sale como mención de verdad (avisa a la persona). "/" abre los comandos y las respuestas rápidas, más abajo.
+  const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
+  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current), [props.members, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
+  const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
+  const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
+  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const mentionMatches = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6) : [];
 
   // Idioma del cliente: el detectado en su último mensaje traducido.
   const customerLang = useMemo(() => {
@@ -636,6 +649,10 @@ export default function ChatThread(props: ThreadProps) {
   function pickMention(i: number) {
     const p = mentionMatches[i];
     if (!p || !mentionQuery) return;
+    if (waMentions && p.name) {
+      pickedWa.current.set(p.name, p.id);
+      setPickedVersion((v) => v + 1);
+    }
     const insert = `${mentionText(p)} `;
     const next = text.slice(0, mentionQuery.start) + insert + text.slice(caret);
     setText(next);
@@ -727,7 +744,10 @@ export default function ChatThread(props: ThreadProps) {
       ok = Boolean(await post({ ...base, body: text, media: null }));
     } else {
       // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
-      sendTextNow(text, base.replyToId);
+      // En un grupo, "@Nombre" sale como "@<teléfono>" con la lista de mencionados: WhatsApp avisa y muestra el nombre.
+      const out = chat.kind === 'group' ? serializeWaMentions(text, waPeople) : { body: text, mentions: [] };
+      sendTextNow(out.body, base.replyToId, out.mentions);
+      pickedWa.current.clear();
     }
     setSending(false);
     if (!ok) return;
@@ -745,8 +765,8 @@ export default function ChatThread(props: ThreadProps) {
    * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
-  function sendTextNow(body: string, replyToId: string | null) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId }).clientId);
+  function sendTextNow(body: string, replyToId: string | null, mentions: string[] = []) {
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -825,6 +845,24 @@ export default function ChatThread(props: ThreadProps) {
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (mentionQuery) setMentionClosedAt(mentionQuery.start);
+        return;
+      }
+    }
+    // Borrar contra una mención la saca entera (como WhatsApp): no queda medio nombre que ya no menciona a nadie.
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !editing && mentionHits.length && !e.altKey && !e.metaKey && !e.ctrlKey) {
+      const el = e.currentTarget;
+      const cut = deleteMentionToken(text, el.selectionStart, el.selectionEnd, e.key, mentionHits);
+      if (cut) {
+        e.preventDefault();
+        setText(cut.text);
+        setCaret(cut.caret);
+        pendingCaret.current = cut.caret;
         return;
       }
     }
@@ -1956,13 +1994,16 @@ export default function ChatThread(props: ThreadProps) {
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
                   <button
                     type="button"
-                    title={p.email}
+                    title={waMentions ? `+${p.id}` : p.email}
                     onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
                     onClick={() => pickMention(i)}
                   >
                     <Avatar name={p.name || p.email} kind="dm" size={32} seed={p.id} />
-                    <span className="wa-mention-name">{p.name || p.email}</span>
+                    <span className="wa-mention-who">
+                      <span className="wa-mention-name">{p.name || p.email}</span>
+                      {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -2075,10 +2116,11 @@ export default function ChatThread(props: ThreadProps) {
                   />
                 </>
               )}
-              <textarea
+              <MentionTextarea
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 rows={1}
+                highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
                 disabled={leaving}
                 onChange={(e) => {
@@ -2089,6 +2131,7 @@ export default function ChatThread(props: ThreadProps) {
                   setText(e.target.value);
                   setCaret(e.target.selectionStart ?? e.target.value.length);
                   setMentionIndex(0);
+                  if (mentionClosedAt !== null && !e.target.value.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}

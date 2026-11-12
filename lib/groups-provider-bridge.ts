@@ -454,6 +454,8 @@ export function wahaProvider(
         chatId,
         text,
         ...(o?.replyTo ? { reply_to: o.replyTo } : {}),
+        // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
+        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => `${p}@c.us`) } : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
