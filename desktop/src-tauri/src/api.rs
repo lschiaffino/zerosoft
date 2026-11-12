@@ -32,9 +32,12 @@ pub async fn cookie_header(app: &AppHandle) -> String {
     rx.await.unwrap_or_default()
 }
 
+/// Cómo se presentan los pedidos de la app (los suyos y los del updater).
+pub const USER_AGENT: &str = concat!("zerosoft-desktop/", env!("CARGO_PKG_VERSION"));
+
 pub fn client() -> reqwest::Client {
     reqwest::Client::builder()
-        .user_agent(concat!("zerosoft-desktop/", env!("CARGO_PKG_VERSION")))
+        .user_agent(USER_AGENT)
         .connect_timeout(Duration::from_secs(8))
         .timeout(Duration::from_secs(75))
         .build()

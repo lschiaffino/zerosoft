@@ -348,8 +348,11 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
       } else if (ev.type === 'contact') {
         await applyContact(number, ev);
       } else res.ignored++;
-    } catch {
+    } catch (err) {
+      // Historial: se cuenta y se loguea, nunca pide un reintento (no se reenvía la tanda entera por un mensaje).
       res.ignored++;
+      // eslint-disable-next-line no-console
+      console.error('[groups] history event failed', ev.type, (err as Error)?.name ?? 'error');
     }
   }
   // Cada chat queda con su último mensaje (si lo importado es más nuevo que lo que tenía). Sin no leídos ni espera.

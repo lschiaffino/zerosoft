@@ -147,6 +147,33 @@ mod mac {
         }
     }
 
+    /// Texto en el portapapeles general, marcado como de paso y solo para esta Mac (macOS 10.12+).
+    pub fn set_private_text(text: &str) -> bool {
+        use objc2::sel;
+        unsafe {
+            let pb: *mut AnyObject = msg_send![class!(NSPasteboard), generalPasteboard];
+            if pb.is_null() {
+                return false;
+            }
+            let host_only: bool = msg_send![pb, respondsToSelector: sel!(prepareForNewContentsWithOptions:)];
+            if host_only {
+                // NSPasteboardContentsCurrentHostOnly = 1 << 0.
+                let _: isize = msg_send![pb, prepareForNewContentsWithOptions: 1usize];
+            } else {
+                let _: isize = msg_send![pb, clearContents];
+            }
+            let plain = NSString::from_str("public.utf8-plain-text");
+            let value = NSString::from_str(text);
+            let ok: bool = msg_send![pb, setString: &*value, forType: &*plain];
+            let empty = NSString::from_str("");
+            for t in ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"] {
+                let kind = NSString::from_str(t);
+                let _: bool = msg_send![pb, setString: &*empty, forType: &*kind];
+            }
+            ok
+        }
+    }
+
     #[link(name = "CoreGraphics", kind = "framework")]
     extern "C" {
         fn CGPreflightScreenCaptureAccess() -> bool;
@@ -318,16 +345,101 @@ pub fn frontmost_app() -> String {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        let asn = Command::new("lsappinfo").arg("front").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+        let asn = Command::new("/usr/bin/lsappinfo").arg("front").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
         if !asn.starts_with("ASN:") || asn.len() > 40 {
             return String::new();
         }
-        let out = Command::new("lsappinfo").args(["info", "-only", "name", &asn]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+        let out = Command::new("/usr/bin/lsappinfo").args(["info", "-only", "name", &asn]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
         // "LSDisplayName"="Slack"
         return out.split("=\"").nth(1).and_then(|r| r.split('"').next()).unwrap_or("").chars().take(100).collect();
     }
     #[cfg(not(target_os = "macos"))]
     String::new()
+}
+
+/// Pone en el portapapeles el texto de un dictado (para pegarlo) marcado como de paso:
+/// - Mac: con `org.nspasteboard.TransientType` y `org.nspasteboard.ConcealedType` (los gestores de
+///   historial que siguen nspasteboard.org no lo guardan) y solo en esta Mac
+///   (`NSPasteboardContentsCurrentHostOnly`, macOS 10.12 o más: todas las que soporta la app; no va
+///   al Portapapeles universal).
+/// - Windows: con `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`=0 y
+///   `CanUploadToCloudClipboard`=0 (no va al historial de Windows ni a la nube).
+pub fn write_text_private(cb: &mut arboard::Clipboard, text: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &cb;
+        return mac::set_private_text(text);
+    }
+    #[cfg(windows)]
+    {
+        use arboard::SetExtWindows;
+        return cb.set().exclude_from_monitoring().exclude_from_history().exclude_from_cloud().text(text).is_ok();
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    cb.set_text(text).is_ok()
+}
+
+/// La clave que la app de Electron (0.1.x) dejó en el llavero ("zerosoft Safe Storage", cuenta
+/// "zerosoft Key"), si es de ella: la carpeta de esa app está (`owned_folder`) o el ítem tiene
+/// exactamente los atributos con que lo crea Chromium (etiqueta igual al servicio, sin creador ni
+/// descripción). Se busca también por etiqueta, así un ítem de otra app con el mismo servicio y
+/// cuenta pero otra etiqueta no entra. Se mira sin leer el secreto (no pide permiso).
+pub fn electron_keychain_exists(owned_folder: bool) -> bool {
+    #[cfg(target_os = "macos")]
+    return keychain(&["find-generic-password"]).is_some_and(|attrs| owned_folder || chromium_item(&attrs));
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = owned_folder;
+        false
+    }
+}
+
+/// La borra si es de la app vieja. `security` borra el primer ítem que coincide: se repite (como
+/// mucho 5) mientras quede uno que sea de la app vieja. Al final se vuelve a mirar: true si ya no
+/// queda ninguno con esa forma.
+pub fn delete_electron_keychain(owned_folder: bool) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        for _ in 0..5 {
+            if !electron_keychain_exists(owned_folder) {
+                return true;
+            }
+            if keychain(&["delete-generic-password"]).is_none() {
+                break;
+            }
+        }
+        return !electron_keychain_exists(owned_folder);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = owned_folder;
+        true
+    }
+}
+
+/// Los atributos que imprime `security find-generic-password` (sin -g ni -w: sin el secreto).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn chromium_item(attrs: &str) -> bool {
+    use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
+    let has = |line: &str| attrs.lines().any(|l| l.trim() == line);
+    has(&format!("0x00000007 <blob>=\"{ELECTRON_KEYCHAIN_SERVICE}\""))
+        && has(&format!("\"svce\"<blob>=\"{ELECTRON_KEYCHAIN_SERVICE}\""))
+        && has(&format!("\"acct\"<blob>=\"{ELECTRON_KEYCHAIN_ACCOUNT}\""))
+        && has("\"crtr\"<uint32>=<NULL>")
+        && has("\"desc\"<blob>=<NULL>")
+}
+
+/// `security <acción> -s <servicio> -a <cuenta> -l <etiqueta>`: la salida si terminó bien.
+#[cfg(target_os = "macos")]
+fn keychain(action: &[&str]) -> Option<String> {
+    use crate::privacy::{ELECTRON_KEYCHAIN_ACCOUNT, ELECTRON_KEYCHAIN_SERVICE};
+    let out = std::process::Command::new("/usr/bin/security")
+        .args(action)
+        .args(["-s", ELECTRON_KEYCHAIN_SERVICE, "-a", ELECTRON_KEYCHAIN_ACCOUNT, "-l", ELECTRON_KEYCHAIN_SERVICE])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 /// La tecla de la "v" para `tap_paste` (Mac; en Windows no se usa). Llamar en el hilo principal.
@@ -382,6 +494,15 @@ mod tests {
         assert_eq!(context_for_app("Figma"), "other");
         assert_eq!(context_for_app(""), "other");
         assert_eq!(context_for_app("Mailchimp Desktop"), "other");
+    }
+
+    #[test]
+    fn keychain_item_must_look_like_chromiums() {
+        let real = "keychain: \"/Users/x/Library/Keychains/login.keychain-db\"\nattributes:\n    0x00000007 <blob>=\"zerosoft Safe Storage\"\n    \"acct\"<blob>=\"zerosoft Key\"\n    \"crtr\"<uint32>=<NULL>\n    \"desc\"<blob>=<NULL>\n    \"svce\"<blob>=\"zerosoft Safe Storage\"\n";
+        assert!(chromium_item(real));
+        assert!(!chromium_item(&real.replace("0x00000007 <blob>=\"zerosoft Safe Storage\"", "0x00000007 <blob>=\"Otra app\"")));
+        assert!(!chromium_item(&real.replace("\"crtr\"<uint32>=<NULL>", "\"crtr\"<uint32>=\"abcd\"")));
+        assert!(!chromium_item(""));
     }
 
     #[test]

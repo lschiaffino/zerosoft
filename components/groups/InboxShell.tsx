@@ -57,6 +57,7 @@ import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
+import { linesDraftKey, unsentLines } from './optimistic';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -101,9 +102,9 @@ function Highlight({ text, q }: { text: string; q: string }) {
   return <>{parts}</>;
 }
 
-function readDraft(chatId: string): string {
+function readDraft(me: string, chatId: string): string {
   try {
-    return window.sessionStorage.getItem(`gr-draft:${chatId}`) ?? '';
+    return window.sessionStorage.getItem(linesDraftKey(me, chatId)) ?? '';
   } catch {
     return '';
   }
@@ -229,7 +230,6 @@ export default function InboxShell({
   const [selectMode, setSelectMode] = useState(false);
   const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [available, setAvailable] = useState<boolean | null>(null);
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name || p.email])), [people]);
   const pathname = usePathname();
   const router = useRouter();
@@ -318,7 +318,6 @@ export default function InboxShell({
   const activeList = lists.find((l) => l.id === listId) ?? null;
 
   useEffect(() => {
-    void api<{ me: boolean }>('/api/groups/availability').then((r) => setAvailable(r.data ? r.data.me : true));
     if (listId) return;
     const saved = readSaved();
     if (saved) {
@@ -507,7 +506,19 @@ export default function InboxShell({
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, lo que hace
   // otra persona. Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista cada 5 s: se relee solo
   // cuando algo cambió.
-  const { live: liveOn } = useWaLive('groups', () => void load(true));
+  // Un texto que no salió de un chat que ya no está abierto: se avisa acá (la lista siempre está) y el texto queda
+  // en ese chat como no enviado, con reintentar (./optimistic.ts).
+  useEffect(() => unsentLines.setOwner(me), [me]);
+  useEffect(
+    () =>
+      unsentLines.subscribe((e) => {
+        if (e.type !== 'failed' || e.chatId === live.current.current) return;
+        showToast(t('wa.unsent', { name: live.current.rows.find((r) => r.id === e.chatId)?.name || '…' }), true);
+      }),
+    [showToast, t],
+  );
+  // Devuelve la carga: el aviso espera a que termine antes de pedir otra (nunca corta una en curso; lib/wa-live-client.ts).
+  const { live: liveOn } = useWaLive('groups', () => load(true));
   useEffect(() => {
     // Red de seguridad (escribiendo…, importaciones, líneas caídas): cada 5 s si el aviso no anda, cada minuto si anda.
     const id = setInterval(() => {
@@ -657,15 +668,14 @@ export default function InboxShell({
     void load(true);
   }
 
-  async function toggleAvailable() {
-    const next = !(available ?? true);
-    setAvailable(next);
-    const res = await api('/api/groups/availability', { method: 'PUT', body: { available: next } });
-    if (!res.data) {
-      setAvailable(!next);
-      showToast(errText(res.error), true);
-    } else void load(true);
-  }
+
+  // Disponible/ausente se cambia en el menú de la cuenta: al cambiar, la lista se recarga (puede haber asignaciones nuevas).
+  useEffect(() => {
+    const on = () => void load(true);
+    window.addEventListener('zs:lines-presence-changed', on);
+    return () => window.removeEventListener('zs:lines-presence-changed', on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value = useMemo(() => ({ rows, refresh }), [rows, refresh]);
   const unreadChats = unreadTotal ?? rows.filter((r) => r.unread > 0 && !r.muted).length;
@@ -797,7 +807,7 @@ export default function InboxShell({
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
     // El chat que se deja muestra su borrador ya, desde el clic (sin esperar a que el otro termine de abrir).
-    const draft = c.id !== (switchingTo ?? current) ? readDraft(c.id) : '';
+    const draft = c.id !== (switchingTo ?? current) ? readDraft(me, c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
     return (
       <li
@@ -1139,18 +1149,6 @@ export default function InboxShell({
             <div className="gr-list-titlebar">
               <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
               <LineSelector numbers={numbers} value={line} onChange={pickLine} />
-              {available !== null && (
-                <button
-                  type="button"
-                  className={`btn btn-ghost btn-sm gr-presence${available ? ' is-on' : ''}`}
-                  aria-pressed={available}
-                  onClick={() => void toggleAvailable()}
-                  title={t('inbox.availabilityHelp')}
-                >
-                  <i aria-hidden="true" />
-                  {available ? t('inbox.available') : t('inbox.away')}
-                </button>
-              )}
               <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
                 <Plus size={20} />
               </button>

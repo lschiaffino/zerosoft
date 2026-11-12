@@ -97,7 +97,7 @@ pub enum SettingsNav {
 
 /// Secciones nativas de desktop/ui/settings.ts (TABS), las mismas que DESKTOP_NATIVE_SECTIONS de
 /// lib/settings-nav.ts.
-pub const NATIVE_SECTIONS: [&str; 9] = ["start", "general", "meetings", "voice", "dictionary", "history", "permissions", "updates", "account"];
+pub const NATIVE_SECTIONS: [&str; 10] = ["start", "general", "meetings", "voice", "dictionary", "history", "permissions", "privacy", "updates", "account"];
 
 pub fn is_local(u: &url::Url) -> bool {
     match u.scheme() {

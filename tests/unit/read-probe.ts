@@ -3,7 +3,7 @@
  * base y mira su plan (EXPLAIN QUERY PLAN) para saber si alguna recorre una
  * tabla entera.
  */
-import type { InValue } from '@libsql/client';
+import { createClient, type Client, type InValue } from '@libsql/client';
 import { ensureMigrated, getClient } from '@/lib/db';
 
 export interface Seen {
@@ -50,8 +50,18 @@ export async function recording(fn: () => Promise<unknown>): Promise<Seen[]> {
   return seen;
 }
 
+let planner: Client | null = null;
+
+/**
+ * El plan de una consulta. Se pide por una conexión aparte: en SQLite local, el EXPLAIN de una escritura deja
+ * su sentencia abierta en la conexión, y con una sentencia de escritura abierta nada de lo que esa conexión
+ * escribe después se confirma (queda a merced del próximo ROLLBACK). Los tests no tienen que ensuciar la
+ * conexión de la app.
+ */
 export async function planOf(sql: string, args: InValue[] = []): Promise<string[]> {
-  const r = await getClient().execute({ sql: `EXPLAIN QUERY PLAN ${sql}`, args });
+  await ensureMigrated();
+  planner ??= createClient({ url: process.env.TURSO_DATABASE_URL! });
+  const r = await planner.execute({ sql: `EXPLAIN QUERY PLAN ${sql}`, args });
   return r.rows.map((x) => String(x.detail));
 }
 
@@ -66,6 +76,43 @@ export async function scansOf(seen: Seen[], allow: RegExp[] = []): Promise<strin
     if (allow.some((re) => re.test(s.sql))) continue;
     const bad = tableScans(await planOf(s.sql, s.args));
     if (bad.length) out.push(`${bad.join(' | ')} <= ${s.sql.replace(/\s+/g, ' ').slice(0, 160)}`);
+  }
+  return out;
+}
+
+/**
+ * Corre `fn` contando las idas a la base: una consulta suelta es una ida, una
+ * tanda (batch) es una sola por más sentencias que lleve. En Turso cada ida es
+ * una vuelta de red, así que esto es lo que se nota en el tiempo.
+ */
+export async function roundTrips(fn: () => Promise<unknown>): Promise<{ trips: number; statements: number; sql: string[]; seen: Seen[] }> {
+  await ensureMigrated();
+  const client = getClient() as unknown as Record<string, (...a: unknown[]) => unknown>;
+  const sqlOf = (s: unknown) => (typeof s === 'string' ? s : String((s as { sql?: string })?.sql ?? ''));
+  const out = { trips: 0, statements: 0, sql: [] as string[], seen: [] as Seen[] };
+  const note = (stmt: unknown, args?: unknown) => {
+    out.sql.push(sqlOf(stmt));
+    out.seen.push({ sql: sqlOf(stmt), args: typeof stmt === 'string' ? ((args as InValue[]) ?? []) : ((stmt as Seen).args ?? []) });
+  };
+  const execute = client.execute;
+  const batch = client.batch;
+  client.execute = (stmt: unknown, args?: unknown) => {
+    out.trips++;
+    out.statements++;
+    note(stmt, args);
+    return execute.call(client, stmt, args);
+  };
+  client.batch = (stmts: unknown, mode: unknown) => {
+    out.trips++;
+    out.statements += (stmts as unknown[]).length;
+    for (const st of stmts as unknown[]) note(st);
+    return batch.call(client, stmts, mode);
+  };
+  try {
+    await fn();
+  } finally {
+    client.execute = execute;
+    client.batch = batch;
   }
   return out;
 }

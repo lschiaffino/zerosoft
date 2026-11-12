@@ -203,6 +203,41 @@ export function getDb(): Db {
   return _db;
 }
 
+export interface BatchStatement {
+  sql: string;
+  args: InValue[];
+}
+
+export interface BatchResult {
+  rows: Record<string, unknown>[];
+  changes: number;
+}
+
+/**
+ * Varias sentencias en una sola ida a la base, en una transacción (todas o
+ * ninguna) y en orden: en Turso cada consulta suelta es una ida y vuelta, y lo
+ * que corre por cada mensaje de WhatsApp las junta acá. Una sentencia puede
+ * depender de la anterior por lo que quedó escrito (p. ej. un UPDATE con
+ * EXISTS sobre la fila que insertó la anterior).
+ */
+export async function dbBatch(stmts: BatchStatement[]): Promise<BatchResult[]> {
+  await ensureMigrated();
+  const client = getClient();
+  if (QUERY_STATS) queryCount++;
+  const run = () => client.batch(stmts, 'write');
+  // SQLite local: si otra escritura tiene tomada la base se reintenta cediendo el turno, como las consultas sueltas.
+  const res = IS_REMOTE
+    ? await run()
+    : await retryBusy(run, async () => {
+        try {
+          await client.reconnect();
+        } catch {
+          // Sin conexión nueva se sigue reintentando con la que hay.
+        }
+      });
+  return res.map((r) => ({ rows: plainRows(r), changes: Number(r.rowsAffected) }));
+}
+
 const NOOP_READY = (): Promise<void> => Promise.resolve();
 
 /**

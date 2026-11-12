@@ -19,10 +19,10 @@ const MAX_BODY = 2 * 1024 * 1024;
  * coincide) y que el cuerpo venga de la instancia de esa cuenta.
  */
 export async function POST(req: Request, ctx: Ctx) {
-  const limited = await limitByIp(req, 'inbox-webhook', 600, 60).catch(() => null);
-  if (limited) return limited;
   const { id, secret } = await ctx.params;
-  const account = await getAccountById(id);
+  // El límite por IP y la fila de la cuenta, a la vez: son dos idas a la base que no dependen una de la otra.
+  const [limited, account] = await Promise.all([limitByIp(req, 'inbox-webhook', 600, 60).catch(() => null), getAccountById(id)]);
+  if (limited) return limited;
   if (!account || account.kind !== 'whatsapp' || !account.webhook_secret || !safeEqual(secret, account.webhook_secret)) {
     return new NextResponse('not found', { status: 404 });
   }
@@ -53,5 +53,7 @@ export async function POST(req: Request, ctx: Ctx) {
   const result = await ingestWhatsappEvents(account, provider.parseWebhook(body), { history });
   // Llegó una tanda del historial: la importación desde el servidor corre cuando termine de llegar.
   if (history || event === 'chats.set') await scheduleWhatsappBackfill(account.id).catch(() => null);
+  // Un mensaje que no se pudo guardar: 500 para que el servidor de WhatsApp lo reintente (lo ya guardado no se duplica).
+  if (result.failed) return NextResponse.json({ ok: false, chats, ...result }, { status: 500 });
   return NextResponse.json({ ok: true, chats, ...result });
 }

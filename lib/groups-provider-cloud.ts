@@ -125,6 +125,7 @@ export function parseCloudWebhook(body: unknown): InboundEvent[] {
             senderPhone: from,
             senderName: nameOf(from),
             fromMe: false,
+            ...(timestamp ? { at: timestamp } : {}),
           });
           continue;
         }

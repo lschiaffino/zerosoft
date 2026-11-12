@@ -67,6 +67,13 @@ pub struct AppState {
     pub update_ready: Mutex<Option<String>>,
     /// Lo último que se supo del feed de actualizaciones (Ajustes › General y Actualizaciones).
     pub update: Mutex<UpdateInfo>,
+    /// Registro de actividad y últimos usos (privacy.rs).
+    pub privacy: crate::privacy::Log,
+    /// Cuándo empezó lo que la página avisó que graba (reunión, pantalla), para anotar cuánto duró.
+    pub meeting_since: Mutex<Option<u64>>,
+    pub screen_since: Mutex<Option<u64>>,
+    /// Cuándo abrió el micrófono el dictado en curso.
+    pub mic_since: Mutex<Option<u64>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]

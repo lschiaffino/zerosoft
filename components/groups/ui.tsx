@@ -10,13 +10,14 @@ import { mentionLabels, replaceMentions, type MentionMap } from '@/lib/wa-mentio
 /** fetch con JSON: devuelve { data } o { error: código }. Nunca tira. */
 export async function api<T = Record<string, unknown>>(
   url: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<{ data: T; error: null } | { data: null; error: string }> {
   try {
     const res = await fetch(url, {
       method: init.method ?? (init.body !== undefined ? 'POST' : 'GET'),
       headers: init.body !== undefined ? { 'content-type': 'application/json' } : undefined,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: init.signal,
     });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {

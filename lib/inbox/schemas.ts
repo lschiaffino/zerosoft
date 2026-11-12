@@ -30,6 +30,11 @@ export const sendSchema = z.object({
   mentions: z.array(z.string().regex(/^\d{6,16}$/)).max(50).optional(),
   /** false: WhatsApp sin vista previa del link (la persona la sacó en el composer). */
   linkPreview: z.boolean().optional(),
+  /** Id que puso la pantalla al mandar: vuelve en meta.cid y reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
+  clientId: z
+    .string()
+    .regex(/^[\w-]{8,40}$/)
+    .optional(),
 });
 
 /** Acciones sobre un mensaje de WhatsApp (reaccionar, editar, destacar, borrar para mí, reenviar). */

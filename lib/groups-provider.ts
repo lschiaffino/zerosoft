@@ -242,10 +242,12 @@ export type InboundEvent =
       senderPhone: string;
       senderName: string;
       fromMe: boolean;
+      /** Cuándo reaccionó (si el proveedor lo dice): una reacción vieja que llega tarde (un reintento) no pisa una nueva. */
+      at?: string;
     }
   | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed' }
-  /** Alguien editó un mensaje (texto nuevo). */
-  | { type: 'edit'; chatId: string; providerMessageId: string; body: string }
+  /** Alguien editó un mensaje (texto nuevo). `at`: cuándo, si el proveedor lo dice (una edición vieja no pisa una nueva). */
+  | { type: 'edit'; chatId: string; providerMessageId: string; body: string; at?: string }
   /** Alguien borró un mensaje para todos. */
   | { type: 'revoke'; chatId: string; providerMessageId: string }
   | {

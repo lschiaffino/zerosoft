@@ -6,6 +6,9 @@ import type { MessageDto } from '@/lib/inbox/types';
 import type { TrayItem } from '@/components/groups/wa/attachments';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
+import { MEDIA_SEND_TIMEOUT_MS, inboxQueue } from './pending';
+import { withTimeout } from '@/lib/conditional-fetch';
+import { newClientId } from '@/lib/optimistic-send';
 import { duration } from '@/components/groups/wa/format';
 import LiveWaveform from '@/components/groups/wa/LiveWaveform';
 
@@ -16,18 +19,28 @@ let seq = 0;
 
 type Sent = { messages: MessageDto[] };
 
-/** Manda un archivo: chico por el pedido (con avance), grande por Blob y después la URL. */
-async function sendOne(threadId: string, f: { file: Blob; name: string; caption?: string; kind?: string; duration?: number; replyTo?: string }, onProgress: (p: number) => void): Promise<Sent> {
+/**
+ * Manda un archivo: chico por el pedido (con avance), grande por Blob y después la URL. Siempre por la cola del chat
+ * y con su clientId (el mismo si se vuelve a mandar desde la bandeja: un reintento no lo duplica).
+ */
+async function sendOne(
+  threadId: string,
+  f: { file: Blob; name: string; caption?: string; kind?: string; duration?: number; replyTo?: string; clientId?: string },
+  onProgress: (p: number) => void,
+): Promise<Sent> {
   if (f.file.size <= INLINE_MAX) {
-    return new Promise<Sent>((resolve, reject) => {
+    return inboxQueue(threadId)(() => new Promise<Sent>((resolve, reject) => {
       const form = new FormData();
       form.append('file', f.file, f.name);
       if (f.caption) form.append('caption', f.caption);
       if (f.kind) form.append('kind', f.kind);
       if (f.duration) form.append('duration', String(f.duration));
       if (f.replyTo) form.append('replyTo', f.replyTo);
+      if (f.clientId) form.append('clientId', f.clientId);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/api/inbox/threads/${threadId}/media`);
+      xhr.timeout = MEDIA_SEND_TIMEOUT_MS;
+      xhr.ontimeout = () => reject(new Error('network'));
       xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
       xhr.onload = () => {
         let data: Partial<Sent> & { error?: string } = {};
@@ -41,7 +54,7 @@ async function sendOne(threadId: string, f: { file: Blob; name: string; caption?
       };
       xhr.onerror = () => reject(new Error('network'));
       xhr.send(form);
-    });
+    }));
   }
   const { upload } = await import('@vercel/blob/client');
   const safe = (f.name || 'file').replace(/[^\w.-]+/g, '_').slice(-120) || 'file';
@@ -56,11 +69,15 @@ async function sendOne(threadId: string, f: { file: Blob; name: string; caption?
   } catch {
     throw new Error('file_too_large');
   }
-  const res = await fetch(`/api/inbox/threads/${threadId}/media`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo }),
-  }).catch(() => null);
+  // Por la cola del chat (./pending.ts): un archivo o una nota de voz no se adelanta a un texto que todavía está saliendo.
+  const res = await inboxQueue(threadId)(() =>
+    fetch(`/api/inbox/threads/${threadId}/media`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo, clientId: f.clientId }),
+      signal: withTimeout(undefined, MEDIA_SEND_TIMEOUT_MS),
+    }).catch(() => null),
+  );
   const data = ((await res?.json().catch(() => ({}))) ?? {}) as Partial<Sent> & { error?: string };
   if (!res?.ok || !data.messages) throw new Error(data.error || 'send_failed');
   return data as Sent;
@@ -72,6 +89,13 @@ async function sendOne(threadId: string, f: { file: Blob; name: string; caption?
  * Lo que falla queda en la bandeja para reintentar o sacar.
  */
 export function useSendTray(threadId: string, onSent: (messages: MessageDto[]) => void) {
+  // Un clientId por archivo de la bandeja: se mantiene si el envío falla y se vuelve a mandar.
+  const sendKeys = useRef(new Map<string, string>());
+  const clientIdFor = useCallback((key: string) => {
+    let id = sendKeys.current.get(key);
+    if (!id) sendKeys.current.set(key, (id = newClientId()));
+    return id;
+  }, []);
   const [items, setItems] = useState<TrayItem[]>([]);
   const [sending, setSending] = useState(false);
   const itemsRef = useRef(items);
@@ -117,7 +141,8 @@ export function useSendTray(threadId: string, onSent: (messages: MessageDto[]) =
       for (const it of itemsRef.current.filter((x) => x.status !== 'error' || x.error === 'network' || x.error === 'send_failed')) {
         patch(it.key, { status: 'uploading', progress: 0, error: undefined });
         try {
-          const r = await sendOne(threadId, { file: it.file, name: it.name, caption: it.caption, replyTo }, (p) => patch(it.key, { progress: p }));
+          const r = await sendOne(threadId, { file: it.file, name: it.name, caption: it.caption, replyTo, clientId: clientIdFor(it.key) }, (p) => patch(it.key, { progress: p }));
+          sendKeys.current.delete(it.key);
           last = r.messages;
           remove(it.key);
         } catch (err) {
@@ -128,7 +153,7 @@ export function useSendTray(threadId: string, onSent: (messages: MessageDto[]) =
       if (last) onSent(last);
       return itemsRef.current.length === 0;
     },
-    [sending, threadId, onSent, remove],
+    [sending, threadId, onSent, remove, clientIdFor],
   );
 
   const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), []);
@@ -223,7 +248,7 @@ export function VoiceBar({ threadId, replyTo, onSent, onError, onDone, onStart }
         const seconds = Math.max(1, Math.round((Date.now() - state.started) / 1000));
         setBusy(true);
         try {
-          const res = await sendOne(threadId, { file: blob, name: `voice.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'webm'}`, kind: 'voice', duration: seconds, replyTo }, () => {});
+          const res = await sendOne(threadId, { file: blob, name: `voice.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'webm'}`, kind: 'voice', duration: seconds, replyTo, clientId: newClientId() }, () => {});
           onSent(res.messages);
         } catch (err) {
           onError((err as Error).message || 'send_failed');

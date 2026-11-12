@@ -306,6 +306,7 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
           senderPhone: phoneDigits(String(p.participant ?? (isGroupJid(chatId) ? '' : chatId))),
           senderName: String(data.notifyName ?? ''),
           fromMe,
+          ...(Number(p.timestamp) > 0 ? { at: new Date(Number(p.timestamp) * 1000).toISOString() } : {}),
         },
       ];
     }
@@ -313,7 +314,8 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
       const target = String(p.editedMessageId ?? '');
       const chatId = String(p.fromMe === true ? p.to ?? '' : p.from ?? '');
       if (!target || !chatId) return [];
-      return [{ type: 'edit', chatId, providerMessageId: target, body: String(p.body ?? '') }];
+      const ets = Number(p.timestamp);
+      return [{ type: 'edit', chatId, providerMessageId: target, body: String(p.body ?? ''), ...(Number.isFinite(ets) && ets > 0 ? { at: new Date(ets * 1000).toISOString() } : {}) }];
     }
     case 'message.revoked': {
       const ref = ((p.after ?? p.before ?? {}) as Json) ?? {};
@@ -824,10 +826,13 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
   }
   const content = baileysContent((m.message ?? {}) as Json, m.contextInfo);
   const sender = isGroup ? participant : fromMe ? '' : chatId;
+  // Cuándo pasó (segundos): las ediciones y reacciones lo llevan para no pisar una más nueva con una vieja.
+  const evTs = Number(m.messageTimestamp);
+  const at = Number.isFinite(evTs) && evTs > 0 ? { at: new Date((evTs > 1e12 ? evTs : evTs * 1000)).toISOString() } : {};
   if (content.protocol) {
     return [
       content.protocol.kind === 'edit'
-        ? { type: 'edit', chatId, providerMessageId: content.protocol.target, body: content.protocol.body }
+        ? { type: 'edit', chatId, providerMessageId: content.protocol.target, body: content.protocol.body, ...at }
         : { type: 'revoke', chatId, providerMessageId: content.protocol.target },
     ];
   }
@@ -843,6 +848,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
         senderPhone: phoneDigits(sender),
         senderName: pushName,
         fromMe,
+        ...at,
       },
     ];
   }

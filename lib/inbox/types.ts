@@ -103,6 +103,8 @@ export interface WaMessageMeta {
   noPreview?: boolean;
   /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
   mentions?: string[];
+  /** Id que puso la pantalla al mandar: reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
+  cid?: string;
 }
 
 export interface ParticipantDto {

@@ -1,0 +1,295 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import ts from 'typescript';
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Ajustes › Privacidad y datos de la app de escritorio (desktop/ui/settings-privacy.ts) en
+ * Chromium con el IPC de Tauri simulado: lo que pinta con el estado que manda Rust (permisos,
+ * lo guardado, el registro) y lo que le pide (borrar, exportar, las llaves). Los hechos son los de
+ * desktop/privacy-facts.json; la lógica nativa tiene sus tests en Rust (src-tauri/src/privacy.rs).
+ */
+
+const ROOT = process.cwd();
+const UI = path.join(ROOT, 'desktop/ui');
+const FACTS = JSON.parse(fs.readFileSync(path.join(ROOT, 'desktop/privacy-facts.json'), 'utf8'));
+const STRINGS = JSON.parse(fs.readFileSync(path.join(ROOT, 'desktop/strings.json'), 'utf8'));
+
+// Las páginas locales se sirven transpiladas, como módulos, desde un origen de mentira; el IPC de
+// Tauri se reemplaza por lo mínimo: invoke va a window.__TAURI_INTERNALS__.
+const ORIGIN = 'http://zs-desktop.test';
+const transpiled = (file: string) => ts.transpileModule(fs.readFileSync(path.join(UI, file), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext } }).outputText;
+const FILES: Record<string, string> = {
+  '/settings.js': transpiled('settings.ts'),
+  '/api': transpiled('api.ts'),
+  '/settings-privacy': transpiled('settings-privacy.ts'),
+  '/settings-tabs': transpiled('settings-tabs.ts'),
+  '/tauri-core.js': 'export const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);',
+  '/tauri-event.js': 'export const listen = () => Promise.resolve(() => {});',
+  '/tauri-window.js': 'export const getCurrentWindow = () => ({ close: () => Promise.resolve() });',
+};
+const IMPORT_MAP = JSON.stringify({ imports: { '@tauri-apps/api/core': '/tauri-core.js', '@tauri-apps/api/event': '/tauri-event.js', '@tauri-apps/api/window': '/tauri-window.js' } });
+const html = fs
+  .readFileSync(path.join(UI, 'settings.html'), 'utf8')
+  .replace('<script src="settings.js"></script>', () => `<script type="importmap">${IMPORT_MAP}</script><script type="module" src="/settings.js"></script>`);
+
+const NOW = Date.UTC(2026, 10, 11, 15, 0, 0);
+
+function state(platform: 'darwin' | 'win32') {
+  const mac = platform === 'darwin';
+  const dir = mac ? '/Users/ana/Library/Application Support/ai.zerosoft.desktop' : 'C:\\Users\\ana\\AppData\\Roaming\\ai.zerosoft.desktop';
+  const store = (id: string, p: string, bytes: number, files: number, deletable = false) => ({ id, path: p, exists: bytes > 0, bytes, files, deletable });
+  return {
+    settings: {
+      locale: 'es',
+      platform,
+      version: '0.3.7',
+      server: 'https://zerosoft.ai',
+      mode: 'both',
+      shortcut: 'Alt+Space',
+      shortcuts: [{ id: 'Alt+Space', label: 'Option + Space' }],
+      shortcutTaken: false,
+      pasteLastShortcut: 'Control + Command + V',
+      restoreClipboard: true,
+      openAtLogin: false,
+      onboarded: true,
+      recordingIndicator: true,
+      sendAppName: true,
+      keepFailedDictations: true,
+      allowSystemAudio: true,
+      permissions: mac ? { microphone: 'granted', accessibility: 'denied', camera: 'not-determined', screen: 'granted' } : { microphone: 'not-needed', accessibility: 'not-needed', camera: 'not-needed', screen: 'not-needed' },
+      accessibilityHint: 'off',
+      signature: 'adhoc',
+      account: { signedIn: true, email: 'ana@example.com', name: 'Ana', offline: false },
+      pending: [],
+      lastLatency: null,
+      updates: 'auto',
+      update: { available: null, checking: false, checkedAt: null, failed: false },
+      updateReady: null,
+      strings: STRINGS.es,
+    },
+    privacy: {
+      facts: FACTS,
+      capturing: null as string | null,
+      lastWipe: null as { ok: boolean; leftovers: string[]; error: string | null } | null,
+      usage: { microphone: { last: NOW - 60_000, count: 12 }, clipboard: { last: NOW - 50_000, count: 12 } },
+      stores: [
+        store('settings', `${dir}/settings.json`, 412, 1),
+        store('session', `${dir}/session.json`, 1380, 1),
+        store('window_state', `${dir}/.window-state.json`, 96, 1),
+        store('pending', `${dir}/pending`, 1_254_000, 4, true),
+        store('activity', `${dir}/privacy`, 5210, 1, true),
+        store('web_data', mac ? '/Users/ana/Library/WebKit/ai.zerosoft.desktop' : 'C:\\Users\\ana\\AppData\\Local\\ai.zerosoft.desktop\\EBWebView', 48_300_000, 212, true),
+        ...(mac
+          ? [
+              store('web_cookies', '/Users/ana/Library/HTTPStorages/ai.zerosoft.desktop.binarycookies', 2900, 1),
+              store('web_cache', '/Users/ana/Library/Caches/ai.zerosoft.desktop', 96_000_000, 840),
+              store('os_prefs', '/Users/ana/Library/Preferences/ai.zerosoft.desktop.plist', 120, 1),
+            ]
+          : [store('update_temp', 'C:\\Users\\ana\\AppData\\Local\\Temp', 2_600_000, 1, true)]),
+        store('electron_data', mac ? '/Users/ana/Library/Application Support/zerosoft' : 'C:\\Users\\ana\\AppData\\Roaming\\zerosoft', 36_000, 9, true),
+        ...(mac ? [{ id: 'electron_keychain', path: '', exists: true, bytes: 0, files: 0, deletable: true }] : []),
+        { id: 'autostart', path: '', exists: false, bytes: 0, files: 0, deletable: false },
+      ],
+      events: [
+        { at: NOW - 50_000, kind: 'paste', trigger: 'dictation', result: 'pasted' },
+        { at: NOW - 51_000, kind: 'audio_upload', trigger: 'dictation', result: 'ok', durationMs: 4200, bytes: 134_444, host: 'zerosoft.ai', app: 'Slack' },
+        { at: NOW - 52_000, kind: 'mic_stop', durationMs: 4200 },
+        { at: NOW - 60_000, kind: 'mic_start', trigger: 'shortcut' },
+        ...Array.from({ length: 45 }, (_, i) => ({ at: NOW - 3_600_000 - i * 1000, kind: 'update_check', trigger: 'auto', result: 'ok', host: 'zerosoft.ai' })),
+      ],
+    },
+  };
+}
+
+type Call = { cmd: string; args: Record<string, unknown> };
+
+async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: number; capturing?: string; lastWipe?: { ok: boolean; leftovers: string[]; error: string | null } } = {}) {
+  const st = state(opts.platform ?? 'darwin');
+  st.privacy.capturing = opts.capturing ?? null;
+  st.privacy.lastWipe = opts.lastWipe ?? null;
+  await page.setViewportSize({ width: opts.width ?? 860, height: 720 });
+  await page.addInitScript(
+    ({ st }) => {
+      const w = window as unknown as { __calls: Call[]; __TAURI_INTERNALS__: unknown };
+      type Call = { cmd: string; args: Record<string, unknown> };
+      w.__calls = [];
+      let tabs = { suspend: true, suspendMinutes: 30, restore: true, links: 'tab' };
+      w.__TAURI_INTERNALS__ = {
+        invoke: (cmd: string, args: Record<string, unknown> = {}) => {
+          w.__calls.push({ cmd, args });
+          if (cmd === 'settings_get') return Promise.resolve(st.settings);
+          if (cmd === 'settings_save') {
+            Object.assign(st.settings, args.input);
+            return Promise.resolve({ ok: true, view: st.settings });
+          }
+          if (cmd === 'settings_nav') return Promise.resolve({ ok: false, error: 'offline' });
+          if (cmd === 'tabs_prefs_get') return Promise.resolve(tabs);
+          if (cmd === 'tabs_prefs_save') {
+            tabs = { ...tabs, ...(args.input as object) };
+            return Promise.resolve(tabs);
+          }
+          if (cmd === 'privacy') {
+            const p = st.privacy;
+            if (args.action === 'delete' && args.target === 'all') return Promise.resolve({ ok: true, restart: true });
+            if (args.action === 'delete' && args.target === 'activity') {
+              p.events = [];
+              p.usage = {} as typeof p.usage;
+            } else if (args.action === 'delete') {
+              const s = p.stores.find((x) => x.id === args.target);
+              if (s) Object.assign(s, { exists: false, bytes: 0, files: 0 });
+            }
+            if (args.action === 'export') return Promise.resolve({ ok: true, file: '/Users/ana/Downloads/zerosoft-activity-1.json', view: p });
+            if (args.action === 'delete' && args.target === 'web_data') return Promise.resolve({ ok: true, requested: true, view: p });
+            return Promise.resolve({ ok: true, view: p });
+          }
+          return Promise.resolve(null);
+        },
+      };
+    },
+    { st },
+  );
+  await page.route(`${ORIGIN}/**`, (route) => {
+    const file = new URL(route.request().url()).pathname;
+    if (file === '/') return route.fulfill({ contentType: 'text/html', body: html });
+    return file in FILES ? route.fulfill({ contentType: 'text/javascript', body: FILES[file] }) : route.fulfill({ status: 404, body: '' });
+  });
+  await page.goto(`${ORIGIN}/#privacy`);
+  // Cada dato de los hechos tiene su fila (los que no existen en este sistema lo dicen).
+  await expect(page.locator('#priv-stores li')).toHaveCount(FACTS.stores.length);
+  return st;
+}
+
+const calls = (page: Page, cmd: string) => page.evaluate((c) => (window as unknown as { __calls: Call[] }).__calls.filter((x) => x.cmd === c).map((x) => x.args), cmd);
+
+test.describe('desktop settings: privacy and data', () => {
+  test('lists permissions, local data, what is sent and the activity log from the real state', async ({ page }) => {
+    await open(page);
+    await expect(page.getByRole('heading', { level: 1, name: 'Privacidad y datos' })).toBeVisible();
+    await expect(page.locator('#tab-privacy')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('#priv-now')).toHaveText('Ahora no se está capturando nada.');
+    // Permisos: estado real y último uso.
+    const mic = page.locator('#priv-permissions li[data-perm="microphone"]');
+    await expect(mic).toContainText('Permitido');
+    await expect(mic).toContainText('(12 veces)');
+    await expect(page.locator('#priv-permissions li[data-perm="accessibility"]')).toContainText('Todavía no se usó');
+    await expect(page.locator('#priv-permissions li[data-perm="clipboard"]')).toContainText('No pide permiso del sistema');
+    await expect(page.locator('#priv-permissions li')).toHaveCount(FACTS.permissions.length);
+    // Lo guardado: ruta, tamaño y borrar solo donde se puede.
+    const pending = page.locator('#priv-stores li[data-store="pending"]');
+    await expect(pending.locator('.priv-path')).toHaveText('/Users/ana/Library/Application Support/ai.zerosoft.desktop/pending');
+    await expect(pending.locator('[data-size]')).toContainText('1,3 MB');
+    await expect(pending.locator('[data-size]')).toContainText('4 archivos');
+    await expect(pending.getByRole('button', { name: 'Borrar' })).toBeVisible();
+    await expect(page.locator('#priv-stores li[data-store="settings"]').getByRole('button', { name: 'Borrar' })).toHaveCount(0);
+    await expect(page.locator('#priv-stores li[data-store="autostart"] [data-size]')).toHaveText('Apagado');
+    // Qué sale, lo que no hace y el registro.
+    await expect(page.locator('#priv-network li')).toHaveCount(FACTS.network.length);
+    await expect(page.locator('#priv-network li[data-net="dictation"]')).toContainText('tu servidor (zerosoft.ai)');
+    await expect(page.locator('#priv-never li')).toHaveCount(FACTS.never.length);
+    await expect(page.locator('#priv-events li')).toHaveCount(40);
+    await expect(page.locator('#priv-events li').nth(1)).toContainText('134 KB');
+    await expect(page.locator('#priv-events li').nth(1)).toContainText('Slack');
+    await page.locator('#priv-show-all').click();
+    await expect(page.locator('#priv-events li')).toHaveCount(49);
+    // "Leé cómo funciona" abre la página pública; el código, el archivo del repositorio.
+    await page.locator('#priv-docs').click();
+    await pending.locator('.priv-src button').first().click();
+    expect((await calls(page, 'privacy')).filter((c) => c.action === 'open').map((c) => c.target)).toEqual(['docs', 'source:desktop/src-tauri/src/retry.rs']);
+  });
+
+  test('says when the last launch finished deleting everything, and old-version leftovers can be deleted', async ({ page }) => {
+    await open(page, { lastWipe: { ok: true, leftovers: ['electron_keychain'], error: null } });
+    // Lo que quedó de versiones anteriores se nombra.
+    await expect(page.locator('#priv-last-wipe')).toHaveText('zerosoft borró todos sus datos locales al abrirse. Esto no se pudo borrar y sigue en la lista de abajo: Clave del llavero de la app vieja (0.1.x).');
+    const old = page.locator('#priv-stores li[data-store="electron_data"]');
+    await expect(old).toContainText('session.bin');
+    await old.getByRole('button', { name: 'Borrar' }).click();
+    await old.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(old.locator('[data-size]')).toHaveText('Nada guardado');
+    // La clave del llavero no tiene ruta: no hay "Mostrar en la carpeta".
+    const key = page.locator('#priv-stores li[data-store="electron_keychain"]');
+    await expect(key.getByRole('button', { name: 'Mostrar en la carpeta' })).toHaveCount(0);
+    await expect(key.getByRole('button', { name: 'Borrar' })).toBeVisible();
+    // Borrar los datos del sitio: dice que cierra la sesión también en el servidor y que es un pedido.
+    const web = page.locator('#priv-stores li[data-store="web_data"]');
+    await web.getByRole('button', { name: 'Borrar y cerrar sesión' }).click();
+    await expect(web.getByRole('alert')).toContainText('en esta computadora y en el servidor');
+    await web.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page.getByRole('status').first()).toContainText('Borrado pedido');
+    // Cada pedido de la red lleva sus direcciones.
+    await expect(page.locator('#priv-network li[data-net="signout"] .priv-path')).toHaveText('GET /api/auth/csrf, POST /api/auth/signout');
+    await expect(page.locator('#priv-system li')).toHaveCount(FACTS.system.length);
+  });
+
+  test('shows what is being captured right now', async ({ page }) => {
+    await open(page, { capturing: 'traySystemAudio' });
+    await expect(page.locator('#priv-now')).toHaveText('Capturando ahora: capturando el audio de la computadora');
+  });
+
+  test('switches save right away and deleting asks first', async ({ page }) => {
+    await open(page);
+    await page.locator('#priv-sendAppName').uncheck();
+    await page.locator('#priv-keepFailedDictations').uncheck();
+    await page.locator('#priv-restoreTabs').uncheck();
+    expect(await calls(page, 'settings_save')).toEqual([{ input: { sendAppName: false } }, { input: { keepFailedDictations: false } }]);
+    expect(await calls(page, 'tabs_prefs_save')).toEqual([{ input: { restore: false } }]);
+    await expect(page.locator('#priv-sendAppName')).not.toBeChecked();
+
+    // Borrar pide confirmar en el lugar; Cancelar no borra nada.
+    const pending = page.locator('#priv-stores li[data-store="pending"]');
+    await pending.getByRole('button', { name: 'Borrar' }).click();
+    await expect(pending.getByRole('alert')).toBeVisible();
+    await pending.getByRole('button', { name: 'Cancelar' }).click();
+    expect((await calls(page, 'privacy')).filter((c) => c.action === 'delete')).toEqual([]);
+    await pending.getByRole('button', { name: 'Borrar' }).click();
+    await pending.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(pending.locator('[data-size]')).toHaveText('Nada guardado');
+    await expect(pending.getByRole('button', { name: 'Borrar' })).toHaveCount(0);
+
+    // Exportar y vaciar el registro.
+    await page.locator('#priv-export').click();
+    await expect(page.getByRole('status').first()).toContainText('zerosoft-activity-1.json');
+    await page.locator('#priv-log').locator('xpath=..').getByRole('button', { name: 'Vaciar' }).click();
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(page.locator('#priv-log')).toContainText('Todavía nada.');
+
+    // Borrar todo: también con confirmación.
+    await page.locator('#priv-delete-all').getByRole('button').click();
+    await expect(page.locator('#priv-delete-all').getByRole('alert')).toContainText('¿Borrar todo lo que zerosoft guardó');
+    await page.locator('#priv-delete-all').getByRole('button', { name: 'Confirmar' }).click();
+    expect((await calls(page, 'privacy')).filter((c) => c.action === 'delete').map((c) => c.target)).toEqual(['pending', 'activity', 'all']);
+  });
+
+  test('on Windows it hides what only exists on Mac, and fits a narrow window', async ({ page }) => {
+    await open(page, { platform: 'win32', width: 390 });
+    await expect(page.locator('#priv-sendAppName')).toHaveCount(0);
+    await expect(page.locator('#priv-allowSystemAudio')).toHaveCount(0);
+    await expect(page.locator('#priv-keepFailedDictations')).toBeVisible();
+    await expect(page.locator('#priv-stores li[data-store="web_cookies"] [data-size]')).toHaveText('No se usa en este sistema');
+    await expect(page.locator('#priv-permissions li[data-perm="microphone"]')).toContainText('No pide permiso del sistema');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(
+      await page.evaluate(() => {
+        const m = document.getElementById('main')!;
+        return m.scrollWidth <= m.clientWidth;
+      }),
+    ).toBe(true);
+  });
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`reads well in ${scheme}`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await open(page, { capturing: scheme === 'dark' ? 'trayMic' : undefined });
+      await expect(page.locator('#priv-permissions li[data-perm="microphone"] .perm-title')).toBeVisible();
+      if (process.env.ZS_SHOTS) await page.screenshot({ path: `${process.env.ZS_SHOTS}/privacy-${scheme}.png`, fullPage: false });
+      if (process.env.ZS_SHOTS) {
+        await page.locator('#priv-stores').scrollIntoViewIfNeeded();
+        await page.locator('#priv-stores li[data-store="pending"]').getByRole('button', { name: 'Borrar' }).click();
+        await page.screenshot({ path: `${process.env.ZS_SHOTS}/privacy-${scheme}-stores.png` });
+        await page.locator('#priv-events').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${process.env.ZS_SHOTS}/privacy-${scheme}-log.png` });
+      }
+    });
+  }
+});

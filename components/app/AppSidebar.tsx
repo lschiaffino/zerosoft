@@ -31,6 +31,7 @@ import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isComingSoon, type Prod
 import { DEFAULT_WORKSPACE_MODE, appsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
+import { useLinesPresence } from './usePresence';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
@@ -158,6 +159,8 @@ export default function AppSidebar({
   const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
   useEffect(() => setDesktop(desktopBridge()), []);
   const pathname = usePathname();
+  // En Lines: disponible o ausente para recibir chats, en el menú de la cuenta (con un punto en la foto).
+  const presence = useLinesPresence(/^\/app\/lines(\/|$)/.test(pathname));
   const product = appProductFromPath(pathname);
   // En la plataforma (Ajustes) no hay app activa: el shell va en tinta, sin color de producto.
   const app = SWITCHER_PRODUCTS.find((p) => p.key === product);
@@ -704,16 +707,37 @@ export default function AppSidebar({
               person={user.name ?? user.email}
               email={user.email}
               avatar={
-                user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.image} alt="" referrerPolicy="no-referrer" />
-                ) : (
-                  <span className="side-avatar" aria-hidden="true">
-                    {(user.name ?? user.email).slice(0, 1).toUpperCase()}
-                  </span>
-                )
+                <span className="side-avatar-wrap">
+                  {user.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.image} alt="" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="side-avatar" aria-hidden="true">
+                      {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  {presence.available !== null && <span className={`side-presence${presence.available ? ' is-on' : ''}`} aria-hidden="true" />}
+                </span>
               }
             >
+              {presence.available !== null && (
+                <>
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={presence.available}
+                    className="side-menu-item ws-switcher-item side-presence-item"
+                    onClick={() => void presence.toggle()}
+                    title={t('presenceHelp')}
+                    data-testid="side-presence"
+                  >
+                    <span className={`side-presence-dot${presence.available ? ' is-on' : ''}`} aria-hidden="true" />
+                    {presence.available ? t('presenceAvailable') : t('presenceAway')}
+                    <span className="side-presence-hint">{presence.available ? t('presenceSetAway') : t('presenceSetAvailable')}</span>
+                  </button>
+                  <div className="ws-switcher-sep" role="separator" />
+                </>
+              )}
               <Link
                 href={settingsItem.href}
                 role="menuitem"

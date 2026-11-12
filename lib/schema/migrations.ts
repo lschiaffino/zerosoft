@@ -14,7 +14,7 @@ import { sendUp } from './send-migration';
 import { callsUp } from './calls-migration';
 import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
-import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
+import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { fewerReadsUp } from './fewer-reads-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
@@ -9863,10 +9863,35 @@ export const MIGRATIONS: Migration[] = [
     up: fewerReadsUp,
   },
   {
+    // Inbox y Lines: el chat abierto se entera al momento de lo que cambia en un mensaje (tildes, reacciones,
+    // ediciones, notas) por el mismo aviso de las listas (lib/wa-live.ts), con su tipo ('chat' mueve la lista,
+    // 'msg' es de adentro del chat), y un envío reintentado no sale dos veces (client_id único por chat).
+    // OJO: un trigger vive con su tabla (ver 391_wa_archive_sync). Se puede correr más de una vez: columnas con
+    // addColumn, índices IF NOT EXISTS, y los triggers se borran y se vuelven a crear (una base de desarrollo que
+    // corrió una versión anterior de esta migración, que nunca salió a producción, queda igual que una nueva).
+    id: '394_wa_live_kinds',
+    up: async (c) => {
+      // Qué cambió: 'chat' mueve la lista; 'msg' es de adentro del chat y la lista no se relee por eso.
+      await addColumn(c, "ALTER TABLE wa_live_events ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'");
+      // Los equipos de una persona (el acceso a una línea por equipo, en cada consulta con acceso): sin esto se
+      // recorría la tabla de miembros de equipos.
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_groups_team_members_person ON groups_team_members(person_id)');
+      // El id que pone la pantalla al mandar: un reintento del mismo envío encuentra el mensaje ya guardado.
+      await addColumn(c, 'ALTER TABLE groups_messages ADD COLUMN client_id TEXT');
+      await addColumn(c, 'ALTER TABLE inbox_messages ADD COLUMN client_id TEXT');
+      await c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_messages_client ON groups_messages(chat_id, client_id) WHERE client_id IS NOT NULL');
+      await c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_inbox_messages_client ON inbox_messages(thread_id, client_id) WHERE client_id IS NOT NULL');
+      for (const [name, body] of WA_LIVE_MESSAGE_TRIGGERS) {
+        await c.execute(`DROP TRIGGER IF EXISTS ${name}`);
+        await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
+      }
+    },
+  },
+  {
     // Chats de WhatsApp: la visualización de cada persona (lib/chat-display.ts) y, en la caché de
     // vistas previas de links, las medidas de la imagen (tarjeta grande o compacta), una segunda
     // imagen, el ícono del sitio y la versión del lector (las filas viejas se vuelven a leer).
-    id: '394_wa_link_preview_display',
+    id: '397_wa_link_preview_display',
     async up(c) {
       await addColumn(c, "ALTER TABLE users ADD COLUMN chat_display TEXT NOT NULL DEFAULT ''");
       await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN image_w INTEGER NOT NULL DEFAULT 0');

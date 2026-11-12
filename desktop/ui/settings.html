@@ -104,6 +104,24 @@
       .ind-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff453a; flex: none; }
       .ind-clock { font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #d6d6d6; font-variant-numeric: tabular-nums; }
       #latency { margin: 0 0 14px; }
+      /* Privacidad y datos */
+      .priv-used, .priv-src { display: block; margin-top: 4px; }
+      .priv-src { font-size: 11px; }
+      .priv-src button.btn.link.inline { font-size: 11px; color: var(--muted); }
+      .priv-path { display: block; margin-top: 4px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg); overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+      .priv-stores .item-text, .priv-network .item-text, .priv-events .item-text { -webkit-line-clamp: unset; display: block; }
+      .priv-stores .item-actions, .perms .item-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 220px; }
+      .priv-events li { padding: 6px 12px; }
+      .priv-plain { margin: 0; padding-left: 18px; }
+      .priv-plain li { margin: 6px 0; }
+      .priv-plain .priv-src { display: inline; }
+      .priv-control { margin: 2px 0 10px; }
+      .priv-confirm { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+      .priv-question { font-size: 12px; color: var(--err); flex-basis: 100%; text-align: right; }
+      button.btn.danger { background: var(--err); border-color: var(--err); color: #fff; }
+      button.btn.danger-outline { border-color: color-mix(in srgb, var(--err) 45%, var(--line)); color: var(--err); }
+      #priv-delete-all .priv-confirm { justify-content: flex-start; }
+      #priv-delete-all .priv-question { text-align: left; }
       /* Listas */
       .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 4px; }
       .list li { padding: 10px 12px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; }

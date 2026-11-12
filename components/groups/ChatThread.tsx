@@ -11,7 +11,10 @@ import type { ProviderCaps } from '@/lib/groups-provider';
 import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
-import { fetchIfChanged } from '@/lib/conditional-fetch';
+import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
+import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
+import { isTempId, newClientId, TEMP_PREFIX } from '@/lib/optimistic-send';
+import { MEDIA_SEND_TIMEOUT_MS, SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
@@ -232,6 +235,8 @@ export default function ChatThread(props: ThreadProps) {
   const [pollOpen, setPollOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
+  // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
+  useExpiry(presence?.state === 'composing' || presence?.state === 'recording', presence?.at, PRESENCE_EXPIRY_MS, () => setPresence(null));
   const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
   const [pollBusy, setPollBusy] = useState(false);
   const [pollError, setPollError] = useState('');
@@ -272,7 +277,7 @@ export default function ChatThread(props: ThreadProps) {
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
   const recordedSecs = useRef(0);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
-  const draftKey = `gr-draft:${props.chat.id}`;
+  const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
   const leaving = useLeavingChat(props.chat.id);
 
@@ -392,10 +397,13 @@ export default function ChatThread(props: ThreadProps) {
     setMessages((prev) => {
       const map = new Map(prev.map((m) => [m.id, m]));
       for (const m of incoming) map.set(m.id, m);
-      // Misma hora: por orden de llegada (lo recién mandado, que todavía no lo trae, va al final).
-      return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER));
+      // Con lo que todavía no salió de este chat (./optimistic.ts): la burbuja provisoria se va cuando llega su mensaje
+      // guardado, por la respuesta o por el aviso en vivo. Misma hora: por orden de llegada.
+      const next = withUnsent([...map.values()], unsentLines.list(props.chat.id), props.me);
+      for (const cid of next.settled) queueMicrotask(() => unsentLines.remove(cid));
+      return [...next.messages].sort(byArrival);
     });
-  }, []);
+  }, [props.chat.id, props.me]);
 
   /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
   const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
@@ -458,18 +466,17 @@ export default function ChatThread(props: ThreadProps) {
     if (box.scrollTop < 240) void loadOlder();
   }
 
-  // Cada 4 s, los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ediciones, llamadas).
+  // Los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ediciones, llamadas). Con el aviso en
+  // vivo andando (lib/wa-live-client.ts) se releen apenas algo cambia en este chat, y cada 20 s como red de seguridad;
+  // sin el aviso, cada 4 s como antes.
+  const pollNow = useRef<() => void>(() => {});
+  const { live: liveOn } = useWaLiveChat('groups', chat.id, () => pollNow.current());
   useEffect(() => {
-    let busy = false;
-    const poll = async () => {
-      if (document.visibilityState !== 'visible' || busy) return;
-      busy = true;
-      try {
-        await pollOnce();
-      } finally {
-        busy = false;
-      }
-    };
+    // Una relectura a la vez; un pedido que llega mientras corre otra no se pierde: corre una más al terminar.
+    const poll = coalesced(async () => {
+      if (document.visibilityState === 'visible') await pollOnce();
+    });
+    pollNow.current = poll;
     let etag = '';
     const pollOnce = async () => {
       // Con ETag: si no cambió nada desde la última consulta, no se vuelve a armar ni a dibujar el hilo.
@@ -485,17 +492,18 @@ export default function ChatThread(props: ThreadProps) {
         void api(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
       }
     };
-    const id = setInterval(() => void poll(), 4000);
+    const id = setInterval(poll, liveOn ? 20_000 : 4000);
     // Al volver a la pestaña o a la ventana: lo nuevo en el acto (y queda leído si llegó algo).
-    const onBack = () => void poll();
+    const onBack = () => poll();
     document.addEventListener('visibilitychange', onBack);
     window.addEventListener('focus', onBack);
     return () => {
       clearInterval(id);
+      pollNow.current = () => {};
       document.removeEventListener('visibilitychange', onBack);
       window.removeEventListener('focus', onBack);
     };
-  }, [chat.id, merge, refresh]);
+  }, [chat.id, merge, refresh, liveOn]);
 
   // Traducción: lo que ya está en caché viene con el mensaje; lo demás se pide (una vez por mensaje).
   useEffect(() => {
@@ -647,8 +655,18 @@ export default function ChatThread(props: ThreadProps) {
     pendingCaret.current = start + e.length;
   }
 
-  async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body });
+  async function post(body: Record<string, unknown>, sendKey?: string): Promise<MessageDto | null> {
+    // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
+    // Con un clientId por archivo (el mismo si se vuelve a mandar desde la bandeja): un reintento no lo duplica. Y un
+    // tiempo máximo más largo que el del servidor para los archivos, así la cola no se libera antes de que termine.
+    const clientId = sendKey ? clientIdFor(sendKey) : undefined;
+    const res = await linesQueue(chat.id)(() =>
+      api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
+        body: clientId ? { ...body, clientId } : body,
+        signal: withTimeout(undefined, body.media ? MEDIA_SEND_TIMEOUT_MS : SEND_TIMEOUT_MS),
+      }),
+    );
+    if (res.data && sendKey) sendKeys.current.delete(sendKey);
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -656,6 +674,14 @@ export default function ChatThread(props: ThreadProps) {
     merge([res.data]);
     return res.data;
   }
+
+  // Un clientId por archivo de la bandeja (o nota de voz): se mantiene si el envío falla y se vuelve a mandar.
+  const sendKeys = useRef(new Map<string, string>());
+  const clientIdFor = (key: string) => {
+    let id = sendKeys.current.get(key);
+    if (!id) sendKeys.current.set(key, (id = newClientId()));
+    return id;
+  };
 
   /**
    * Manda lo del composer: el texto, o los archivos de la bandeja (el texto
@@ -677,7 +703,7 @@ export default function ChatThread(props: ThreadProps) {
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
     let ok = true;
     if (voice) {
-      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }));
+      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }, `voice:${voice.url}`));
     } else if (files.length) {
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
@@ -691,15 +717,18 @@ export default function ChatThread(props: ThreadProps) {
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
           media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
-        });
+        }, `file:${f.key}`);
         if (sent && !withCaption && caption) await post({ ...base, replyToId: null, body: caption, media: null });
         // Con burbuja creada (mandada o no), sale de la bandeja: si falló, se reintenta desde la burbuja, sin duplicar.
         if (sent) tray.remove(f.key);
         else ok = false;
       }
       if (ok && text.trim() && !previewOpen) ok = Boolean(await post({ ...base, replyToId: null, body: text, media: null }));
+    } else if (mode === 'note') {
+      ok = Boolean(await post({ ...base, body: text, media: null }));
     } else {
-      ok = Boolean(await post({ ...base, body: text, media: null, ...(mode !== 'note' && !linkPv.linkPreview ? { linkPreview: false } : {}) }));
+      // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
+      sendTextNow(text, base.replyToId, !linkPv.linkPreview);
     }
     setSending(false);
     if (!ok) return;
@@ -715,9 +744,43 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
+  /**
+   * Manda un texto con la burbuja ya a la vista: "enviando" hasta que el servidor responde; después el mensaje
+   * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
+   * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
+   */
+  function sendTextNow(body: string, replyToId: string | null, noPreview = false) {
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(noPreview ? { noPreview: true } : {}) }).clientId);
+  }
+  // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
+  useEffect(() => {
+    // Lo pendiente es de esta persona: lo que quedó de otra en la misma pestaña no se ve ni se manda.
+    unsentLines.setOwner(props.me);
+    const show = () =>
+      setMessages((prev) => {
+        const next = withUnsent(prev, unsentLines.list(props.chat.id), props.me);
+        for (const cid of next.settled) queueMicrotask(() => unsentLines.remove(cid));
+        return next.messages;
+      });
+    show();
+    return unsentLines.subscribe((e) => {
+      if (e.chatId !== props.chat.id) return;
+      if (e.type === 'saved') {
+        merge([e.saved]);
+        if (e.saved.status === 'failed') setSendError(errText(e.saved.error || 'send_failed'));
+        else refresh();
+        return;
+      }
+      show();
+      if (e.type === 'failed') setSendError(errText(e.entry.error));
+    });
+  }, [props.chat.id, props.me, merge, refresh, errText]);
+
   /** Vuelve a mandar el MISMO mensaje que no salió (misma burbuja: enviando, después enviado o no enviado). */
   async function retrySend(m: MessageDto) {
     setSendError('');
+    // Una burbuja que nunca llegó al servidor: se manda de nuevo como recién escrita.
+    if (isTempId(m.id)) return sendLinesText(m.id.slice(TEMP_PREFIX.length));
     merge([{ ...m, status: 'pending', error: '' }]);
     const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: 'retry' } });
     if (!res.data) {
@@ -1159,6 +1222,14 @@ export default function ChatThread(props: ThreadProps) {
     const live = m.direction !== 'note' && !m.deletedAt;
     const starred = (m.meta as Record<string, unknown>).starred === true;
     const mayRetry = props.isAdmin || m.authorId === props.me;
+    // Una burbuja que todavía no está guardada: solo reintentar o quitar, y solo si no salió.
+    if (isTempId(m.id)) {
+      if (m.status !== 'failed') return [];
+      return [
+        { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
+        { key: 'remove', label: t('common.remove'), onSelect: () => unsentLines.remove(m.id.slice(TEMP_PREFIX.length)) },
+      ];
+    }
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
     if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
     if (live)

@@ -5,25 +5,51 @@
 import { getDb } from '../db';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
-import { addMessage, applyThreadAction, claimScheduled, finishScheduled, getAccount, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
+import { addMessage, applyThreadAction, sentWithClientId, claimScheduled, finishScheduled, getAccount, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
 import { pushGmailLabels, sendGmailReply } from './gmail';
 import { BLOCKED_SQL, readInboxMedia, scheduleNextPart } from './schedule';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS } from './types';
+import { onceInFlight } from '../send-once';
 
-async function deliver(account: AccountRow, thread: ThreadRow, text: string): Promise<void> {
-  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text);
+async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string): Promise<void> {
+  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, clientId ? { clientId } : {});
   else await sendGmailReply(account, thread, text);
 }
 
-/** Manda ya. Si lo mandado es el borrador guardado, el borrador se limpia. */
-export async function sendToThread(owner: string, threadId: string, body: string): Promise<void> {
+/**
+ * El chat y su cuenta, los dos de la persona, en una sola ida a la base (en
+ * vez de una consulta detrás de la otra). 404 si alguno no es suyo.
+ */
+export async function threadWithAccount(owner: string, threadId: string, clientId?: string): Promise<{ thread: ThreadRow; account: AccountRow; sent: boolean }> {
+  const [thread, account, sent] = await Promise.all([
+    getThreadRow(owner, threadId),
+    getDb()
+      .prepare(
+        `SELECT a.* FROM inbox_accounts a
+         WHERE a.owner_id = ? AND a.id = (SELECT t.account_id FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?)`,
+      )
+      .get(owner, threadId, owner) as Promise<AccountRow | undefined>,
+    // Un reintento del mismo envío (mismo clientId): ¿ya está guardado? En la misma vuelta, sin esperar más.
+    sentWithClientId(owner, threadId, clientId),
+  ]);
+  if (!account || account.id !== thread.account_id) throw new InboxError('not_found', 404);
+  return { thread, account, sent: !!sent };
+}
+
+/** Manda ya. Si lo mandado es el borrador guardado, el borrador se limpia. Un reintento con el mismo clientId no sale dos veces. */
+export async function sendToThread(owner: string, threadId: string, body: string, clientId?: string): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
-  const thread = await getThreadRow(owner, threadId);
-  const account = await getAccount(owner, thread.account_id);
-  await deliver(account, thread, text);
+  const { thread, account, sent } = await threadWithAccount(owner, threadId, clientId);
+  if (sent) return;
+  // Dos pedidos iguales casi a la vez (en esta instancia): el segundo espera al primero en vez de mandar otro.
+  await onceInFlight(
+    clientId ? `inbox:${threadId}:${clientId}` : null,
+    () => deliver(account, thread, text, clientId),
+    async () => undefined,
+  );
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }
 
