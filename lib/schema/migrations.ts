@@ -9866,7 +9866,7 @@ export const MIGRATIONS: Migration[] = [
   {
     // Lines: el mismo grupo de WhatsApp en varias líneas es un solo grupo (workspace + JID), con una
     // sola empresa de HubSpot (lib/schema/group-identity-migration.ts, lib/groups-identity.ts).
-    id: '394_lines_group_identity',
+    id: '395_lines_group_identity',
     up: groupIdentityUp,
   },
 ];
