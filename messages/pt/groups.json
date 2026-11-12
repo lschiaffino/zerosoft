@@ -2121,5 +2121,37 @@
       "muted": "silencio avisos",
       "pinned": "fixo topo"
     }
+  },
+  "gt": {
+    "lines": "Linhas",
+    "allLines": "Todas as linhas",
+    "nLines": "{n, plural, one {# linha} other {# linhas}}",
+    "linesLabel": "Filtrar por linha",
+    "colLines": "Linhas",
+    "colCompany": "Empresa no HubSpot",
+    "colCreated": "No Lines desde",
+    "colStatus": "Status",
+    "open": "Aberto",
+    "closed": "Fechado",
+    "notLinked": "Sem vínculo",
+    "openInHubspot": "Abrir {name} no HubSpot",
+    "broken": "Excluída ou mesclada no HubSpot",
+    "openInLine": "Abrir em {line}",
+    "secGroup": "Grupo",
+    "secProps": "Propriedades do zerosoft",
+    "secHubspot": "Propriedades da empresa no HubSpot",
+    "searchColumns": "Buscar colunas",
+    "noColumns": "Nenhuma coluna corresponde.",
+    "sortBy": "Ordenar por",
+    "sortNone": "Atividade mais recente",
+    "sortAsc": "Crescente",
+    "sortDesc": "Decrescente",
+    "sortDir": "Sentido",
+    "sortHeader": "Ordenar por {col}",
+    "reset": "Voltar à visualização inicial",
+    "truncated": "Mostrando os {n} grupos com atividade mais recente. Refine os filtros para ver o resto.",
+    "count": "{n, plural, one {# grupo} other {# grupos}}",
+    "statusField": "Status do grupo",
+    "filterEmpty": "Nenhum grupo corresponde a estes filtros."
   }
 }

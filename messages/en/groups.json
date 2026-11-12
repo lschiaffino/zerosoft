@@ -2121,5 +2121,37 @@
       "muted": "silent notifications",
       "pinned": "fixed top"
     }
+  },
+  "gt": {
+    "lines": "Lines",
+    "allLines": "All lines",
+    "nLines": "{n, plural, one {# line} other {# lines}}",
+    "linesLabel": "Filter by line",
+    "colLines": "Lines",
+    "colCompany": "HubSpot company",
+    "colCreated": "In Lines since",
+    "colStatus": "Status",
+    "open": "Open",
+    "closed": "Closed",
+    "notLinked": "Not linked",
+    "openInHubspot": "Open {name} in HubSpot",
+    "broken": "Deleted or merged in HubSpot",
+    "openInLine": "Open in {line}",
+    "secGroup": "Group",
+    "secProps": "zerosoft properties",
+    "secHubspot": "HubSpot company properties",
+    "searchColumns": "Search columns",
+    "noColumns": "No column matches.",
+    "sortBy": "Sort by",
+    "sortNone": "Most recent activity",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "sortDir": "Direction",
+    "sortHeader": "Sort by {col}",
+    "reset": "Reset view",
+    "truncated": "Showing the {n} groups with the most recent activity. Narrow the filters to see the rest.",
+    "count": "{n, plural, one {# group} other {# groups}}",
+    "statusField": "Group status",
+    "filterEmpty": "No group matches these filters."
   }
 }

@@ -16,6 +16,7 @@ import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { fewerReadsUp } from './fewer-reads-migration';
+import { groupIdentityUp } from './group-identity-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -9861,6 +9862,12 @@ export const MIGRATIONS: Migration[] = [
     // de WhatsApp, y la versión de los avisos de cada persona (lib/schema/fewer-reads-migration.ts).
     id: '393_fewer_reads',
     up: fewerReadsUp,
+  },
+  {
+    // Lines: el mismo grupo de WhatsApp en varias líneas es un solo grupo (workspace + JID), con una
+    // sola empresa de HubSpot (lib/schema/group-identity-migration.ts, lib/groups-identity.ts).
+    id: '394_lines_group_identity',
+    up: groupIdentityUp,
   },
 ];
 

@@ -1,0 +1,105 @@
+/* Lines › Grupos: la tabla como una vista de Linear (components/groups/GroupsTable.tsx).
+   Barra con búsqueda, líneas, filtros y columnas; encabezados que ordenan; líneas y empresa por fila. */
+
+.gr-gt-toolbar { position: relative; margin-bottom: 8px; }
+.gr-gt-toolbar + .ui-filter-chips { margin-bottom: 12px; }
+.gr-gt-menu-btn { gap: 4px; max-width: 280px; }
+.gr-gt-menu-btn > * { min-width: 0; }
+.gr-gt-btn-key { color: var(--dim); }
+.gr-gt-filter { gap: 6px; }
+.gr-gt-filter.is-on { border-color: var(--ink); }
+.gr-gt-count {
+  min-width: 18px;
+  padding: 0 4px;
+  font-size: 0.75rem;
+  line-height: 18px;
+  text-align: center;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+}
+
+/* Menús de la barra: anclados al botón, con su propio scroll y dentro de la pantalla. */
+.gr-gt-popover {
+  left: 0;
+  right: auto;
+  width: max-content;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.gr-gt-popover.is-end { left: auto; right: 0; }
+.gr-gt-menu,
+.gr-gt-colsections { display: flex; flex-direction: column; gap: 2px; }
+.gr-gt-option { min-height: 32px; padding: 0 4px; border-radius: var(--radius-1); }
+.gr-gt-option:hover { background: var(--bg-soft); }
+.gr-gt-option-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-gt-columns { display: flex; flex-direction: column; gap: 10px; }
+.gr-gt-columns > .btn { align-self: flex-start; }
+.gr-gt-sortrow { display: flex; gap: 8px; }
+.gr-gt-sortrow .ui-field { flex: 1; min-width: 0; margin: 0; }
+.gr-gt-sortrow .select { width: 100%; }
+.gr-gt-colsection { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.gr-gt-colsection + .gr-gt-colsection { padding-top: 8px; border-top: 1px solid var(--line); }
+.gr-gt-colsection > legend { padding: 0 4px; margin-bottom: 4px; font-size: 0.75rem; color: var(--dim); }
+
+/* Tabla: muchas columnas caben con scroll dentro de la tabla, nunca en la página. */
+.gr-gt-table th { white-space: nowrap; }
+.gr-gt-table td { white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.gr-gt-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.gr-gt-sort:hover { color: var(--ink); }
+.gr-gt-sort:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+th[aria-sort] .gr-gt-sort { color: var(--ink); }
+.gr-gt-arrow { display: inline-block; min-width: 0.75em; }
+.gr-gt-lines { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.gr-gt-line {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.gr-gt-line:hover { border-color: var(--ink); }
+.gr-gt-line:focus-visible,
+.gr-gt-company-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-gt-company { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.gr-gt-company-link { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--ink); text-underline-offset: 3px; }
+.gr-gt-company-link > span { overflow: hidden; text-overflow: ellipsis; }
+.gr-gt-company-link svg { flex: none; color: var(--dim); }
+
+@media (max-width: 1023px) {
+  .gr-gt-option { min-height: 40px; }
+  .gr-gt-sort { min-height: 40px; }
+  .gr-gt-line,
+  .gr-gt-company-link { min-height: 40px; }
+  .gr-gt-menu-btn { --btn-h: 40px; }
+}
+@media (max-width: 640px) {
+  /* En el teléfono cada fila es una tarjeta: los valores se cortan en varias líneas. */
+  .gr-gt-table td { white-space: normal; max-width: none; }
+  .gr-gt-toolbar > .input { flex: 1 1 100%; }
+  .gr-gt-menu-btn { max-width: 100%; }
+  /* Los menús se anclan a la barra entera (no al botón) y ocupan su ancho. */
+  .gr-gt-toolbar .gr-columns { position: static; }
+  .gr-gt-popover,
+  .gr-gt-popover.is-end { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
+}

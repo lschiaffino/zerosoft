@@ -1,7 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { managedAvailable } from '@/lib/groups-provider-managed';
-import { listChats, listLabels, listNumbers, listPropertyDefs } from '@/lib/groups';
+import { listLabels, listNumbers, listPropertyDefs } from '@/lib/groups';
+import { listGroupsTable } from '@/lib/groups-table';
 import { pageViewer } from '@/lib/groups-page';
 import { hubspotConnected } from '@/lib/groups-hubspot';
 import { Link } from '@/i18n/navigation';
@@ -17,12 +18,12 @@ export default async function GroupsListPage(props: { params: Promise<{ locale: 
   const t = await getTranslations({ locale, namespace: 'groups' });
   const me = user.actingUser?.id ?? user.id;
   const viewer = await pageViewer(user);
-  const [numbers, labels, properties, open, closed] = await Promise.all([
+  const [numbers, labels, properties, table] = await Promise.all([
     listNumbers(user.id, viewer),
     listLabels(user.id, viewer),
     listPropertyDefs(user.id),
-    listChats(user.id, me, { kind: 'group', limit: 200, viewer }),
-    listChats(user.id, me, { kind: 'group', filter: 'closed', limit: 200, viewer }),
+    // Una fila por grupo aunque esté en varias líneas (la vista guardada en el navegador se aplica al cargar).
+    listGroupsTable(user.id, me, viewer),
   ]);
   return (
     <div className="ui-page">
@@ -39,7 +40,7 @@ export default async function GroupsListPage(props: { params: Promise<{ locale: 
         }
       />
       <GroupsList
-        initial={[...open.rows, ...closed.rows]}
+        initial={table}
         numbers={numbers}
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         properties={properties}
