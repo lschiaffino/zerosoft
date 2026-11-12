@@ -29,6 +29,87 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-overdue-clock',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: overdue chats no longer make rows taller',
+      es: 'Lines: los chats vencidos ya no agrandan la fila',
+      pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
+        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
+        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-folder-rail-polish',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: folder icons in the collapsed sidebar, polished',
+      es: 'Lines e Inbox: carpetas del lateral colapsado más prolijas',
+      pt: 'Lines e Inbox: pastas da barra recolhida mais caprichadas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The unread dot is no longer cut off, hovering a folder shows its name right away, and with many folders the strip stays short and scrolls.',
+        es: 'El punto de no leídos ya no se corta, al pasar el mouse por una carpeta aparece su nombre al instante y con muchas carpetas la tira queda corta y se desplaza.',
+        pt: 'O ponto de não lidos não é mais cortado, ao passar o mouse numa pasta o nome aparece na hora e com muitas pastas a faixa fica curta e rola.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-analytics-inbox-calls-crm',
+    date: '2026-11-12',
+    title: {
+      en: 'Analytics for Inbox, Calls and CRM',
+      es: 'Analítica para Inbox, Calls y CRM',
+      pt: 'Análise para Inbox, Calls e CRM',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Inbox has an Analytics page: messages received and sent per day by channel, your first response time, chats to reply and waiting, and what you marked done or archived. It is private: only you see it.',
+        es: 'Inbox tiene una página de Analítica: mensajes recibidos y enviados por día y canal, tu tiempo de primera respuesta, chats por responder y esperando, y lo que marcaste como hecho o archivaste. Es privada: solo la ves vos.',
+        pt: 'O Inbox tem uma página de Análise: mensagens recebidas e enviadas por dia e canal, seu tempo de primeira resposta, conversas para responder e aguardando, e o que você marcou como feito ou arquivou. É privada: só você vê.',
+      },
+      {
+        product: 'calls',
+        en: 'Calls has an Analytics page: calls and minutes recorded per day, how much your team talks, customer questions, methodology score, top topics, competitors mentioned and a table by rep. When calls are private, members only count their own.',
+        es: 'Calls tiene una página de Analítica: llamadas y minutos grabados por día, cuánto habla tu equipo, preguntas del cliente, puntaje de la metodología, temas, competidores mencionados y una tabla por rep. Con las llamadas en privado, cada member cuenta solo las suyas.',
+        pt: 'O Calls tem uma página de Análise: chamadas e minutos gravados por dia, quanto sua equipe fala, perguntas do cliente, nota da metodologia, temas, concorrentes mencionados e uma tabela por rep. Com as chamadas privadas, cada membro conta só as suas.',
+      },
+      {
+        product: 'crm',
+        en: 'CRM has an Analytics page under Insights: deals created, won and lost per day, won revenue, win rate, sales cycle, open pipeline by stage, why deals were lost, activity by type and a table by owner. Members see only the owners they have access to.',
+        es: 'El CRM tiene una página de Analítica en Métricas: deals creados, ganados y perdidos por día, ingresos ganados, tasa de cierre, ciclo de venta, pipeline abierto por etapa, por qué se perdieron, actividad por tipo y una tabla por owner. Cada member ve solo los owners a los que tiene acceso.',
+        pt: 'O CRM tem uma página de Análise em Métricas: negócios criados, ganhos e perdidos por dia, receita ganha, taxa de fechamento, ciclo de venda, pipeline aberto por etapa, por que foram perdidos, atividade por tipo e uma tabela por responsável. Cada membro vê só os responsáveis a que tem acesso.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-app-button-tones',
+    date: '2026-11-12',
+    title: {
+      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
+      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
+      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
+        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
+        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {
