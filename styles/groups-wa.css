@@ -459,6 +459,8 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-mode-note[aria-selected='true'] { color: var(--wa-text); background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); border-color: var(--wa-note-line); }
 .wa-composer.is-note .wa-mode { border-bottom-color: var(--wa-note-line); }
 .wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+/* Teléfono y tableta: las pestañas son blancos de 40 px para el dedo. */
+@media (max-width: 1023px) { .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; } }
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
 .wa-team-tools .btn { gap: 5px; }
