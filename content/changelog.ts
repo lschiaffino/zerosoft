@@ -104,6 +104,41 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-lines-details-collapse',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: hide the details panel on wide screens',
+      es: 'Lines: esconder el panel de detalles en pantallas anchas',
+      pt: 'Lines: esconder o painel de detalhes em telas largas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'On wide screens the button at the top right of a chat did nothing. It now hides and shows the details panel, and Lines remembers your choice.',
+        es: 'En pantallas anchas, el botón de arriba a la derecha del chat no hacía nada. Ahora esconde y muestra el panel de detalles, y Lines recuerda cómo lo dejaste.',
+        pt: 'Em telas largas, o botão no canto superior direito do chat não fazia nada. Agora esconde e mostra o painel de detalhes, e o Lines lembra a sua escolha.',
+      },
+      {
+        product: 'groups',
+        en: 'With one line selected in the inbox, the notices about a lost connection or a history import are only the ones for that line.',
+        es: 'Con una línea elegida en la bandeja, los avisos de conexión perdida o de historial en importación son solo los de esa línea.',
+        pt: 'Com uma linha escolhida na caixa de entrada, os avisos de conexão perdida ou de importação do histórico são só os dessa linha.',
+      },
+      {
+        product: 'groups',
+        en: 'Writing an internal note is now a tab above the message box, next to WhatsApp, so you always see where what you type is going. N and R still switch between them.',
+        es: 'Escribir una nota interna ahora es una pestaña arriba del cuadro de mensaje, al lado de WhatsApp, así siempre ves a dónde va lo que escribís. N y R siguen cambiando entre una y otra.',
+        pt: 'Escrever uma nota interna agora é uma aba acima da caixa de mensagem, ao lado de WhatsApp, então você sempre vê para onde vai o que digita. N e R continuam alternando entre uma e outra.',
+      },
+      {
+        product: 'groups',
+        en: 'The "Import finished" and "lost its WhatsApp connection" notices in the inbox can be closed, and they stay closed. If a line reconnects and drops again, the notice comes back.',
+        es: 'Los avisos de "Importación terminada" y de "perdió la conexión con WhatsApp" en la bandeja se pueden cerrar, y quedan cerrados. Si una línea se reconecta y se vuelve a caer, el aviso vuelve.',
+        pt: 'Os avisos de "Importação concluída" e de "perdeu a conexão com o WhatsApp" na caixa de entrada podem ser fechados, e continuam fechados. Se uma linha reconecta e cai de novo, o aviso volta.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
