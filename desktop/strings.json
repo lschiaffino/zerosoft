@@ -267,7 +267,11 @@
     "recBigger": "Make bigger",
     "recSmaller": "Make smaller",
     "recBubble": "Your camera. Drag it anywhere: it is recorded where you leave it",
-    "recOpen": "Open zerosoft"
+    "recOpen": "Open zerosoft",
+    "cleanupDepth": "How much to clean",
+    "depthLight": "A little: punctuation and filler words",
+    "depthStandard": "Normal: removes hesitations and builds lists",
+    "depthThorough": "A lot: also removes repetitions and detours"
   },
   "es": {
     "open": "Abrir zerosoft",
@@ -537,7 +541,11 @@
     "recBigger": "Agrandar",
     "recSmaller": "Achicar",
     "recBubble": "Tu cámara. Arrastrala a donde quieras: se graba donde la dejes",
-    "recOpen": "Abrir zerosoft"
+    "recOpen": "Abrir zerosoft",
+    "cleanupDepth": "Cuánto limpia",
+    "depthLight": "Poco: puntuación y muletillas",
+    "depthStandard": "Normal: saca titubeos y arma listas",
+    "depthThorough": "Mucho: también saca repeticiones y vueltas"
   },
   "pt": {
     "open": "Abrir zerosoft",
@@ -807,6 +815,10 @@
     "recBigger": "Aumentar",
     "recSmaller": "Diminuir",
     "recBubble": "Sua câmera. Arraste para onde quiser: ela é gravada onde você deixar",
-    "recOpen": "Abrir o zerosoft"
+    "recOpen": "Abrir o zerosoft",
+    "cleanupDepth": "Quanto limpar",
+    "depthLight": "Pouco: pontuação e vícios de linguagem",
+    "depthStandard": "Normal: tira hesitações e monta listas",
+    "depthThorough": "Muito: também tira repetições e voltas"
   }
 }

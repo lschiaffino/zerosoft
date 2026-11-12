@@ -1785,6 +1785,28 @@ export default function ChatThread(props: ThreadProps) {
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
+          {!editing && (
+            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')}>
+              {(['reply', 'note'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  className={`wa-mode-tab wa-mode-${m}`}
+                  aria-selected={mode === m}
+                  title={m === 'note' ? t('wa.writeNote') : t('wa.backToWhatsApp')}
+                  onClick={() => {
+                    setMode(m);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {m === 'note' && <Lock size={13} />}
+                  {m === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
+                </button>
+              ))}
+            </div>
+          )}
           {mode === 'note' && (
             <p className="wa-note-strip">
               {t('thread.noteHint')}
@@ -1974,19 +1996,6 @@ export default function ChatThread(props: ThreadProps) {
                   }
                 }}
               />
-              <button
-                type="button"
-                className={`wa-icon-btn wa-note-toggle${mode === 'note' ? ' is-on' : ''}`}
-                onClick={() => {
-                  setMode(mode === 'note' ? 'reply' : 'note');
-                  inputRef.current?.focus();
-                }}
-                aria-pressed={mode === 'note'}
-                aria-label={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
-                title={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
-              >
-                <Lock size={20} />
-              </button>
               {aiAllowed && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" />}
               {mode === 'reply' && !editing && canSend && (
                 <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={openLater} aria-label={t('later.button')} title={t('later.hint')}>

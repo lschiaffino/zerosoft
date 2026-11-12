@@ -198,9 +198,12 @@
 
 .wa-import { display: flex; flex-direction: column; gap: 6px; margin: 0 var(--wa-pad-x) 8px; padding: 8px 12px; font-size: var(--wa-fs-preview); color: var(--wa-text); background: var(--wa-chip-bg); border-radius: var(--radius-1); }
 .wa-import.is-done { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); }
+.wa-import.is-done { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.wa-import-close { flex: none; width: 28px; height: 28px; color: inherit; }
 .wa-import.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
 .wa-dropped { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-dropped .btn { flex: none; }
+.wa-dropped .wa-import-close { margin-left: -4px; }
 /* "Archivados": la fila arriba de la lista y el encabezado de su vista (como WhatsApp). */
 .wa-archived-row { display: grid; grid-template-columns: var(--wa-avatar) minmax(0, 1fr) auto; gap: var(--wa-row-gap); align-items: center; width: 100%; min-height: 44px; padding: 0 var(--wa-pad-x) 0 var(--wa-row-pad); font: inherit; text-align: left; color: var(--wa-text); background: var(--wa-panel); border: 0; cursor: pointer; }
 .wa-archived-row:hover { background: var(--wa-row-hover); }
@@ -482,11 +485,15 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .wa-composer { padding: 5px var(--wa-pad-x) 8px; background: var(--wa-panel-header); border-top: 0; }
 .gr-inbox .wa-composer.is-note { background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); }
 .wa-team-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 5px; }
-.wa-mode { display: inline-flex; gap: 0; padding: 2px; margin: 0; background: var(--wa-panel); border-radius: var(--radius-1); }
-.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer; }
-.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); background: var(--wa-row-active); font-weight: 500; }
-.wa-composer.is-note .wa-mode-tab[aria-selected='true'] { background: var(--wa-note); }
-.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); }
+.wa-mode { display: flex; align-items: flex-end; gap: 2px; margin: -5px 0 5px; padding: 0; border-bottom: 1px solid var(--wa-border); }
+.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 28px; margin-bottom: -1px; padding: 0 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer; }
+.wa-mode-tab:hover { color: var(--wa-text); }
+.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); font-weight: 500; background: var(--wa-panel-header); border-color: var(--wa-border); }
+.wa-mode-note[aria-selected='true'] { color: var(--wa-text); background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); border-color: var(--wa-note-line); }
+.wa-composer.is-note .wa-mode { border-bottom-color: var(--wa-note-line); }
+.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+/* Teléfono y tableta: las pestañas son blancos de 40 px para el dedo. */
+@media (max-width: 1023px) { .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; } }
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
 .wa-team-tools .btn { gap: 5px; }
@@ -673,7 +680,6 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 
 /* Composer: una sola fila como WhatsApp; nota y AI son íconos. */
 .wa-note-strip { display: flex; align-items: center; gap: 6px; margin: 0 0 5px; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
-.wa-bar .wa-note-toggle.is-on { color: #b7791f; background: color-mix(in srgb, #e8c46a 25%, transparent); }
 
 /* Remitente en grupos: nombre en color y teléfono gris, en una línea. */
 .gr-inbox .gr-msg-author { min-width: 0; white-space: nowrap; }

@@ -125,6 +125,7 @@
     "react": "React",
     "ticket": "Ticket",
     "reactTicket": "{emoji} creates a ticket",
+    "modeLabel": "Where to write",
     "modeReply": "WhatsApp",
     "modeNote": "Internal note",
     "replyingTo": "Replying to",

@@ -40,7 +40,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, Close, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -181,6 +181,10 @@ function inboxQuery(listId: string | null, folder: string): string {
   return q ? `?${q}` : '';
 }
 
+const IMPORTS_CLOSED_KEY = 'zs-lines-imports-closed';
+/** Una importación terminada: otra importación del mismo número (otros totales) vuelve a avisar. */
+const importKey = (im: { numberId: string; chatsTotal: number; messages: number }) => `${im.numberId}:${im.chatsTotal}:${im.messages}`;
+
 export default function InboxShell({
   labels,
   people = [],
@@ -265,6 +269,40 @@ export default function InboxShell({
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
   const [saving, setSaving] = useState<'new' | 'rename' | null>(null);
   const { hidden: detailsHidden } = useDetailsHidden();
+  // "Importación terminada" se puede cerrar y queda cerrado (por navegador) hasta la próxima importación.
+  const [importsClosed, setImportsClosed] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(IMPORTS_CLOSED_KEY) ?? '[]') as unknown;
+      if (Array.isArray(raw)) setImportsClosed(raw.filter((x): x is string => typeof x === 'string').slice(-50));
+    } catch {
+      /* sin almacenamiento: vale para esta vista */
+    }
+  }, []);
+  // Una línea que se reconecta saca su aviso cerrado de la lista: si se vuelve a caer, avisa de nuevo.
+  useEffect(() => {
+    if (!loaded) return;
+    const down = new Set(dropped.map((n) => `drop:${n.id}`));
+    setImportsClosed((cur) => {
+      const next = cur.filter((k) => !k.startsWith('drop:') || down.has(k));
+      if (next.length === cur.length) return cur;
+      try {
+        window.localStorage.setItem(IMPORTS_CLOSED_KEY, JSON.stringify(next));
+      } catch {
+        /* vale para esta vista */
+      }
+      return next;
+    });
+  }, [dropped, loaded]);
+  const closeImport = (key: string) => {
+    const next = [...importsClosed.filter((k) => k !== key), key].slice(-50);
+    setImportsClosed(next);
+    try {
+      window.localStorage.setItem(IMPORTS_CLOSED_KEY, JSON.stringify(next));
+    } catch {
+      /* igual queda cerrado en esta vista */
+    }
+  };
   const [removing, setRemoving] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
@@ -1290,12 +1328,15 @@ export default function InboxShell({
             </div>
           )}
           {/* Con una línea elegida, solo sus avisos: los de otra línea no son de esta vista. */}
-          {dropped.filter((n) => line === 'all' || n.id === line).map((n) => (
+          {dropped.filter((n) => (line === 'all' || n.id === line) && !importsClosed.includes(`drop:${n.id}`)).map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
               <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
                 {n.qr ? t('wa.rescan') : t('wa.reconnect')}
               </Link>
+              <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(`drop:${n.id}`)} aria-label={t('common.close')} title={t('common.close')}>
+                <Close size={16} />
+              </button>
             </div>
           ))}
           {archivedView && (
@@ -1306,7 +1347,7 @@ export default function InboxShell({
               <h3>{t('wa.archivedTitle')}</h3>
             </div>
           )}
-          {imports.filter((im) => line === 'all' || im.numberId === line).map((im) => (
+          {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
                 {im.status === 'done'
@@ -1325,6 +1366,11 @@ export default function InboxShell({
                 <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
                   <i style={{ width: `${im.chatsTotal ? Math.max(3, (im.chatsDone / im.chatsTotal) * 100) : 3}%` }} />
                 </span>
+              )}
+              {im.status === 'done' && (
+                <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(importKey(im))} aria-label={t('common.close')} title={t('common.close')}>
+                  <Close size={16} />
+                </button>
               )}
             </div>
           ))}

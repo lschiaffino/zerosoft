@@ -16,6 +16,7 @@
  * transcripción.
  */
 import { experimental_transcribe as transcribe, gateway } from 'ai';
+import { stripHallucinations } from './voice-cleanup';
 import { aiEnabled, AiError, aiWorkspaceUnlimited, recordAiUsage } from './ai';
 import { getDb } from './db';
 import { rateLimit } from './rate-limit';
@@ -339,5 +340,7 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrip
     inputTokens: Math.ceil((result.durationMs || 1000) / 1000) * TOKENS_PER_AUDIO_SECOND,
     outputTokens: 0,
   }).catch(() => {});
-  return { ...result, pieces: result.pieces.filter((p) => p.text), provider };
+  // Lo que el modelo inventa en el silencio (créditos de subtítulos, saludos de noticiero) no es del hablante.
+  const pieces = result.pieces.map((p) => ({ ...p, text: stripHallucinations(p.text) })).filter((p) => p.text);
+  return { ...result, text: stripHallucinations(result.text), pieces, provider };
 }
