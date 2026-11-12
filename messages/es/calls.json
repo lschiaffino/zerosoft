@@ -5,7 +5,8 @@
     "deals": "Deals",
     "ask": "Preguntale a tus llamadas",
     "settings": "Ajustes",
-    "new": "Llamada nueva"
+    "new": "Llamada nueva",
+    "analytics": "Analítica"
   },
   "status": {
     "scheduled": "Agendada",
@@ -384,5 +385,37 @@
     "kicker": "Llamada grabada",
     "foot": "Compartido desde zerosoft Calls.",
     "metaTitle": "Llamada compartida"
+  },
+  "analytics": {
+    "title": "Analítica de Calls",
+    "desc": "Llamadas y minutos grabados, cuánto habla tu equipo, qué temas salen y cómo le va a cada rep.",
+    "privateScope": "El workspace tiene las llamadas en privado: estos números cuentan solo tus llamadas.",
+    "calls": "Llamadas grabadas",
+    "minutes": "Minutos grabados",
+    "avgMinutes": "Duración promedio (min)",
+    "talkRatio": "Habla el equipo",
+    "questions": "Preguntas del cliente",
+    "teamQuestions": "Preguntas del equipo",
+    "score": "Puntaje de la metodología",
+    "reps": "Reps con llamadas",
+    "perDay": "Llamadas por día",
+    "minutesPerDay": "Minutos por día",
+    "topics": "Temas más frecuentes",
+    "competitors": "Competidores mencionados",
+    "noTopics": "No hay temas en este período.",
+    "noCompetitors": "No se mencionaron competidores en este período.",
+    "callsN": "{n, plural, one {# llamada} other {# llamadas}}",
+    "talkBands": "Cuánto habla el equipo por llamada",
+    "bands": {
+      "b0": "Menos de 40 %",
+      "b1": "De 40 a 60 %",
+      "b2": "Más de 60 %"
+    },
+    "noTalk": "No hay llamadas con hablantes en este período.",
+    "byRep": "Por rep",
+    "rep": "Rep",
+    "removedRep": "Ex miembro",
+    "emptyTitle": "No hay llamadas grabadas en este período",
+    "emptyBody": "Mandá el bot a una reunión o subí una grabación y los números aparecen acá."
   }
 }

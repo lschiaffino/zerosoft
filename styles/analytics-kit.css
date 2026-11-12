@@ -1,12 +1,14 @@
 /* =====================================================================
-   Lines, reportes: el tablero. Filetes de 1px, sin pastillas ni sombras.
-   El verde del producto (--c-groups) es "recibidos" y lo activo; la tinta
-   apagada es "enviados". Lo que se mueve (líneas que se dibujan, barras
-   que crecen, números que cuentan) se apaga con prefers-reduced-motion.
+   Analítica, el kit: el tablero de cada producto (nació en los reportes
+   de Lines). Filetes de 1px, sin pastillas ni sombras. El color del
+   producto (--la-accent, por defecto el verde de Lines) es la primera
+   serie y lo activo; la tinta apagada es la segunda. Lo que se mueve
+   (líneas que se dibujan, barras que crecen, números que cuentan) se
+   apaga con prefers-reduced-motion.
    ===================================================================== */
 
 .la {
-  --la-in: var(--c-groups);
+  --la-in: var(--la-accent, var(--c-groups));
   --la-out: color-mix(in srgb, var(--ink) 46%, var(--bg));
   --la-third: color-mix(in srgb, var(--ink) 80%, var(--bg));
   display: flex;
@@ -16,7 +18,16 @@
 }
 
 /* ---------- Encabezado, filtros y pestañas ---------- */
+/* El color de cada producto (la página pone data-product). */
+.la[data-product='inbox'] { --la-accent: var(--c-inbox); }
+.la[data-product='calls'] { --la-accent: var(--c-calls); }
+.la[data-product='crm'] { --la-accent: var(--c-crm); }
+
 .la-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.la-periods { display: flex; gap: 4px; }
+.la-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.la-filters .ui-field { flex: 1 1 150px; min-width: 0; max-width: 220px; }
+.la-filters-actions { display: flex; gap: 6px; align-items: center; }
 .la-range { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; font-size: 0.8125rem; color: var(--dim); }
 .la-range strong { font-weight: 500; color: var(--ink-2); }
 .la .ui-tabs { overflow-x: auto; display: flex; flex-wrap: nowrap; scrollbar-width: none; margin: 0; }
@@ -174,6 +185,14 @@
 /* ---------- Vacío ---------- */
 .la-empty { padding: 8px 0 24px; animation: la-rise 420ms var(--ease) backwards; }
 
+/* ---------- Cargando ---------- */
+.la-skel { display: block; background: var(--bg-soft); border-radius: 1px; animation: la-pulse 1.2s ease-in-out infinite alternate; }
+.la-skel-head { height: 56px; max-width: 420px; }
+.la-skel-line { height: 10px; width: 60%; }
+.la-skel-num { height: 24px; width: 40%; }
+.la-skel-chart { height: 240px; }
+
+@keyframes la-pulse { from { opacity: 0.55; } to { opacity: 1; } }
 @keyframes la-draw { to { stroke-dashoffset: 0; } }
 @keyframes la-fade { from { opacity: 0; } }
 @keyframes la-fade-area { to { opacity: 0.12; } }
@@ -184,7 +203,7 @@
 @keyframes la-rise { from { opacity: 0; transform: translateY(6px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .la-kpi, .la-panel, .la-empty, .la-dot, .la-bar, .la-bars-fill, .la-heat-cell, .la-spark { animation: none; }
+  .la-kpi, .la-panel, .la-empty, .la-dot, .la-bar, .la-bars-fill, .la-heat-cell, .la-spark, .la-skel { animation: none; }
   .la-line { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
   .la-area { animation: none; opacity: 0.12; }
   .la-line-compare { animation: none; opacity: 0.6; }
@@ -192,6 +211,9 @@
 
 @media (max-width: 900px) {
   .la-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .la-filters .ui-field { max-width: none; flex-basis: calc(50% - 6px); }
 }
 @media (max-width: 520px) {
   .la-kpi { flex-basis: 50%; min-width: 0; max-width: 100%; padding: 12px 12px 10px; }

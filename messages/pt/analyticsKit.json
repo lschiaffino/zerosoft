@@ -1,0 +1,43 @@
+{
+  "rightNow": "Agora",
+  "before": "Antes: {value}",
+  "points": "{n} pts",
+  "days": "{n} dias",
+  "period": "Período",
+  "previous": "Período anterior",
+  "chartAria": "{title}, de {from} a {to}",
+  "noneInPeriod": "Nada neste período.",
+  "showing": "De {from} a {to}",
+  "compare": "Comparado com {n, plural, one {o dia anterior} other {os # dias anteriores}}, de {from} a {to}.",
+  "tz": "Dias e horas no horário de {tz}.",
+  "clipped": "Um intervalo cobre até um ano.",
+  "from": "De",
+  "to": "Até",
+  "apply": "Aplicar",
+  "clear": "Limpar",
+  "rangeInverted": "A data final é anterior à inicial. Escolha uma data final igual ou posterior para aplicar o período.",
+  "filters": "Filtros do relatório",
+  "emptyFilteredTitle": "Nada neste período",
+  "emptyFilteredBody": "Tente outras datas ou outros filtros.",
+  "exportCsv": "Exportar CSV",
+  "minUnit": "min",
+  "share": "Parte",
+  "heatLess": "Menos",
+  "heatMore": "Mais",
+  "loading": "Carregando a análise",
+  "removed": "Removido",
+  "other": "Outro",
+  "time": {
+    "minLong": "{n} min",
+    "hoursLong": "{n} h",
+    "daysLong": "{n} dias"
+  },
+  "buckets": {
+    "b0": "Menos de 5 min",
+    "b1": "De 5 a 15 min",
+    "b2": "De 15 min a 1 h",
+    "b3": "De 1 a 4 h",
+    "b4": "De 4 a 24 h",
+    "b5": "Mais de um dia"
+  }
+}

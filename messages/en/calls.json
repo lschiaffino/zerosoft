@@ -5,7 +5,8 @@
     "deals": "Deals",
     "ask": "Ask your calls",
     "settings": "Settings",
-    "new": "New call"
+    "new": "New call",
+    "analytics": "Analytics"
   },
   "status": {
     "scheduled": "Scheduled",
@@ -384,5 +385,37 @@
     "kicker": "Recorded call",
     "foot": "Shared from zerosoft Calls.",
     "metaTitle": "Shared call"
+  },
+  "analytics": {
+    "title": "Calls analytics",
+    "desc": "Recorded calls and minutes, how much your team talks, what comes up and how each rep does.",
+    "privateScope": "The workspace keeps calls private: these numbers count only your calls.",
+    "calls": "Calls recorded",
+    "minutes": "Minutes recorded",
+    "avgMinutes": "Average length (min)",
+    "talkRatio": "Team talk time",
+    "questions": "Customer questions",
+    "teamQuestions": "Team questions",
+    "score": "Methodology score",
+    "reps": "Reps with calls",
+    "perDay": "Calls per day",
+    "minutesPerDay": "Minutes per day",
+    "topics": "Top topics",
+    "competitors": "Competitors mentioned",
+    "noTopics": "No topics in this period.",
+    "noCompetitors": "No competitors came up in this period.",
+    "callsN": "{n, plural, one {# call} other {# calls}}",
+    "talkBands": "Team talk time per call",
+    "bands": {
+      "b0": "Under 40%",
+      "b1": "40 to 60%",
+      "b2": "Over 60%"
+    },
+    "noTalk": "No calls with speakers in this period.",
+    "byRep": "By rep",
+    "rep": "Rep",
+    "removedRep": "Former member",
+    "emptyTitle": "No recorded calls in this period",
+    "emptyBody": "Send the bot to a meeting or upload a recording and the numbers show up here."
   }
 }
