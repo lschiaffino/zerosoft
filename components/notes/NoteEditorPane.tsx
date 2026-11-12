@@ -11,6 +11,7 @@ import { noteFileHref, noteHref, normalizeTag, type NoteDetail, type NoteLockEnv
 import { fileBlocksOnly, newNoteKey, openNoteWithKey, sealNote, type LockedPayload, type NoteKey } from '@/lib/notes-crypto';
 import NoteBlocksView from './NoteBlocksView';
 import NoteHistoryDrawer from './NoteHistoryDrawer';
+import NoteInfoDialog from './NoteInfoDialog';
 import NoteReminderButton from './NoteReminderButton';
 import { NoteSharePeople } from './NoteSharePeople';
 import NoteTrackDrawer from './NoteTrackDrawer';
@@ -198,6 +199,7 @@ export default function NoteEditorPane({
   const [reminder, setReminder] = useState(note.reminder ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [trackOpen, setTrackOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
@@ -693,6 +695,7 @@ export default function NoteEditorPane({
       },
     });
   if (!locked && !offline && !note.trashed) item(t('editor.duplicate'), () => void duplicate());
+  if (!locked) item(t('info.open'), () => setInfoOpen(true));
   if (!locked && !offline) item(t('history.open'), () => setHistoryOpen(true));
   if (!locked && !offline) item(t('annotate.open'), () => void openAnnotate());
   if (!locked && !offline) item(t('transcribe.open'), () => void transcribe());
@@ -845,6 +848,7 @@ export default function NoteEditorPane({
         </div>
       </div>
       {trackDrawer}
+      {infoOpen && <NoteInfoDialog note={note} onClose={() => setInfoOpen(false)} />}
       {historyOpen && (
         <NoteHistoryDrawer noteId={note.id} onClose={() => setHistoryOpen(false)} onRestored={() => onReload(note.id)} />
       )}
