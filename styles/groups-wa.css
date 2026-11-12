@@ -848,6 +848,9 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-msg-out .wa-transcript { background: var(--wa-quote-out); }
 .wa-transcript.is-busy, .wa-transcript.is-off { display: block; color: var(--wa-text-2); font-style: italic; }
 .wa-transcript-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+div.wa-transcript-text { white-space: normal; }
+div.wa-transcript-text p { margin: 0; }
+div.wa-transcript-text p + p { margin-top: 0.6em; }
 .wa-transcript-text.is-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .wa-transcript-summary { margin: 0; color: var(--wa-text); }
 .wa-transcript-summary b { font-weight: 600; }

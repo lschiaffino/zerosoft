@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toParagraphs } from '@/lib/paragraphs';
 
 export interface TranscriptData {
   status: 'pending' | 'done' | 'failed';
@@ -68,9 +69,18 @@ export default function Transcript({ endpoint, labels, auto = true }: { endpoint
           <b>{labels.summary}</b> {data.summary}
         </p>
       )}
-      <p className={`wa-transcript-text${long && !open ? ' is-clamped' : ''}`} dir="auto">
-        {data.text}
-      </p>
+      {long && !open ? (
+        <p className="wa-transcript-text is-clamped" dir="auto">
+          {data.text}
+        </p>
+      ) : (
+        // Entera, en párrafos: más fácil de leer que un bloque corrido.
+        <div className="wa-transcript-text" dir="auto">
+          {toParagraphs(data.text).map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+      )}
       {long && (
         <button type="button" className="wa-transcript-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? labels.less : labels.more}
