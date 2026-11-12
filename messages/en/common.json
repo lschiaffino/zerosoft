@@ -230,7 +230,12 @@
     "groupBiQuestions": "Analytics questions",
     "groupBiDashboards": "Analytics dashboards",
     "groupBiCollections": "Analytics collections",
-    "downloadDesktop": "Desktop app"
+    "downloadDesktop": "Desktop app",
+    "presenceAvailable": "Available",
+    "presenceAway": "Away",
+    "presenceSetAway": "Set away",
+    "presenceSetAvailable": "Set available",
+    "presenceHelp": "Lines: automatic assignment only sends new chats to people who are available."
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

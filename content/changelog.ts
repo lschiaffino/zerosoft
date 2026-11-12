@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-lines-presence-sidebar',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: available or away from your account menu',
+      es: 'Lines: disponible o ausente desde el menú de tu cuenta',
+      pt: 'Lines: disponível ou ausente pelo menu da sua conta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Available and away moved from the inbox header to the account menu at the bottom of the sidebar, with a green or gray dot on your photo.',
+        es: 'Disponible y ausente pasaron de la cabecera de la bandeja al menú de la cuenta, abajo en el lateral, con un punto verde o gris en tu foto.',
+        pt: 'Disponível e ausente saíram do cabeçalho da caixa para o menu da conta, embaixo na barra lateral, com um ponto verde ou cinza na sua foto.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {
