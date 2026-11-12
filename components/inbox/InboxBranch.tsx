@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type Keyboard
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
-import { useShellBranch } from '@/components/app/useShellBranch';
+import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
+import FolderRail from '@/components/ui/FolderRail';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import type { FolderDto } from '@/lib/inbox/types';
 import { api, INBOX_CHANGED, notifyInboxChanged } from './api';
@@ -39,6 +40,7 @@ export default function InboxBranch() {
   const pathname = usePathname();
   const router = useRouter();
   const slot = useShellBranch();
+  const rail = useCollapsedBranch();
   const [folders, setFolders] = useState<FolderDto[] | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState<{ parentId: string | null } | null>(null);
@@ -124,6 +126,24 @@ export default function InboxBranch() {
     if (pathname === `/app/inbox/f/${f.id}`) router.push('/app/inbox');
   };
 
+  if (!slot && rail && folders) {
+    return createPortal(
+      <FolderRail
+        label={t('title')}
+        unreadLabel={(n, name) => `${name}: ${t('unreadCount', { n })}`}
+        folders={flattenTree(folders).map(({ folder: f, depth }) => ({
+          id: f.id,
+          name: f.name,
+          href: `/app/inbox/f/${f.id}`,
+          active: pathname === `/app/inbox/f/${f.id}`,
+          unread: f.count,
+          color: f.color || undefined,
+          depth,
+        }))}
+      />,
+      rail,
+    );
+  }
   if (!slot || !folders) return null;
 
   const kids = childrenMap(folders);

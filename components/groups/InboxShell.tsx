@@ -51,7 +51,7 @@ import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem }
 import { requestChatInfo } from '@/lib/chat-info-request';
 import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
-import { useShellBranch } from '@/components/app/useShellBranch';
+import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
@@ -240,6 +240,8 @@ export default function InboxShell({
   // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
   const folderSel = params.get('folder') ?? '';
   const sideBranch = useShellBranch();
+  // Con el sidebar colapsado las carpetas van como íconos en el lateral (GroupsFoldersBranch).
+  const railBranch = useCollapsedBranch();
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
@@ -1198,8 +1200,8 @@ export default function InboxShell({
                 )}
               </p>
             )}
-            {!archivedView && !sideBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
-            {!archivedView && sideBranch && folderSel && folderName && (
+            {!archivedView && !sideBranch && !railBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
+            {!archivedView && (sideBranch || railBranch) && folderSel && folderName && (
               <p className="gr-folder-current" data-testid="lines-folder-current">
                 <span className="gr-folder-name">{folderName}</span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickFolder('')}>
