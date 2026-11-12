@@ -150,7 +150,7 @@ export default function ContactPanel({
       <div className="ib-wa-details-body">
         <section className="ib-wa-card ib-wa-hero">
           <button type="button" className="ib-wa-hero-photo" onClick={() => thread.avatar && setPhotoOpen(true)} aria-label={w('viewPhoto')} disabled={!thread.avatar}>
-            <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={200} />
+            <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={176} />
           </button>
           <p className="ib-wa-hero-name" dir="auto">
             {name}

@@ -65,11 +65,22 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
 
   // Pantalla: selector, solo la línea B, carpetas en el sidebar, sin scroll horizontal a 390px.
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-  const select = page.getByLabel('Line', { exact: true });
-  await expect(select).toHaveValue(b.id);
+  const select = page.getByTestId('lines-line-select');
+  await expect(select).toContainText(`Linea B ${tag}`);
   await expect(page.getByText(`Beta ${tag}`).first()).toBeVisible();
   await expect(page.getByText(`Alfa ${tag}`)).toHaveCount(0);
-  await select.selectOption('all');
+  // Selector propio (no un <select> nativo): abre una lista debajo, con teclado.
+  await select.click();
+  const list = page.getByRole('listbox', { name: 'Line' });
+  await expect(list).toBeVisible();
+  const btn = await select.boundingBox();
+  const box = await list.boundingBox();
+  expect(box!.y).toBeGreaterThan(btn!.y);
+  await expect(list.getByRole('option', { name: `Linea B ${tag}` })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  await select.click();
+  await list.getByRole('option', { name: 'All lines' }).click();
   await expect(page.getByText(`Alfa ${tag}`).first()).toBeVisible();
   // Las carpetas cuelgan de "Inbox" en el sidebar; abrir una filtra la bandeja y queda en la URL.
   const side = page.locator('#side-branch').getByTestId('lines-folders');

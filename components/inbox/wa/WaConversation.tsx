@@ -28,6 +28,7 @@ import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
+import { useInboxThreadCommands } from '../slash-commands';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -332,6 +333,16 @@ const WaConversation = forwardRef<
     setNotesOpen(true);
   };
 
+  // Comandos "/" del campo: las mismas acciones de esta cabecera y de su menú.
+  const slashCommands = useInboxThreadCommands({
+    thread,
+    onAction,
+    openNotes: () => void openNotes(),
+    openInfo: props.onToggleInfo,
+    rename: () => setRenaming(thread.title),
+    attach: connected ? () => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click() : undefined,
+  });
+
   const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
     { key: 'info', label: group ? w('groupInfo') : w('contactInfo'), onSelect: props.onToggleInfo },
@@ -413,7 +424,7 @@ const WaConversation = forwardRef<
         </span>
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={author} kind="dm" size={28} seed={m.senderHandle || m.senderName} />}
+            {!cont && <Avatar name={author} kind="dm" size={26} seed={m.senderHandle || m.senderName} />}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -462,7 +473,10 @@ const WaConversation = forwardRef<
               ) : kind === 'video' ? (
                 <VideoView url={url} seconds={meta.duration} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (
-                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined} waveform={meta.waveform} />
+                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
+                  waveform={meta.waveform}
+                  avatar={m.fromMe ? undefined : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
               )}
@@ -617,7 +631,7 @@ const WaConversation = forwardRef<
           <ArrowLeft size={22} />
         </button>
         <button type="button" className="wa-head-who" onClick={props.onToggleInfo} aria-expanded={props.infoOpen} aria-label={group ? w('groupInfo') : w('contactInfo')}>
-          <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={40} />
+          <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
           <span className="gr-thread-title">
             <h2 dir="auto">{name}</h2>
             <span className={`wa-head-sub${live ? ' is-typing' : ''}`}>{subtitle}</span>
@@ -742,6 +756,7 @@ const WaConversation = forwardRef<
           onPasteFiles={connected ? tray.add : undefined}
           mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
           onTyping={() => presence('composing')}
+          commands={slashCommands}
           onCancelBanner={() => {
             setEditing(null);
             setReplyTo(null);

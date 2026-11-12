@@ -314,6 +314,8 @@ export interface AiObjectOptions<T> extends Omit<AiCallOptions, 'workspaceId'> {
   schema: z.ZodType<T>;
   /** Nombre del objeto para el modelo (opcional). */
   schemaName?: string;
+  /** "proveedor/modelo" para esta llamada (p. ej. el modo económico de Calls); default AI_MODEL. */
+  model?: string | null;
 }
 
 export interface AiObjectResult<T> {
@@ -337,7 +339,7 @@ export async function aiGenerateObject<T>(opts: AiObjectOptions<T>): Promise<AiO
       if (!res.ok) throw new AiError('rate_limited');
     }
   }
-  const { model, modelId } = resolveModel();
+  const { model, modelId } = resolveAiModel(opts.model);
   const result = await generateText({
     model,
     ...callSettings({ ...opts, workspaceId: opts.workspaceId ?? '' }),

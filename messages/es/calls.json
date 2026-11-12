@@ -379,7 +379,12 @@
     "webhooksHelp": "Para mandar las llamadas a otra herramienta, suscribí un webhook a \"Llamada grabada y analizada\".",
     "webhooksLink": "Webhooks",
     "save": "Guardar",
-    "saving": "Guardando…"
+    "saving": "Guardando…",
+    "costTier": "Costo del procesamiento",
+    "costEconomy": "Económico",
+    "costPremium": "Mejor calidad",
+    "costEconomyHelp": "Unos US$0,13 por hora grabada: transcripción rápida y un modelo más chico para el resumen y el scorecard. Alcanza para la mayoría de las llamadas.",
+    "costPremiumHelp": "Unos US$0,50 por hora grabada: la transcripción de la suite y su modelo de IA principal. Resúmenes y scorecards más precisos."
   },
   "share": {
     "kicker": "Llamada grabada",

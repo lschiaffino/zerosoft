@@ -10,6 +10,8 @@ export interface MenuItem {
   danger?: boolean;
   /** Ícono a la izquierda (el menú de adjuntar los muestra en círculos de color). */
   icon?: ReactNode;
+  /** Ícono de línea, chico y gris (menús de acciones, como los de WhatsApp). */
+  glyph?: ReactNode;
   /** Separa este ítem de los anteriores (acciones del equipo debajo de las de WhatsApp). */
   divider?: boolean;
 }
@@ -117,7 +119,7 @@ export function MessageMenu({
   if (items.length === 0) return null;
   const listEl = open ? (
     <div
-      className={`gr-menu-list is-portal${items.some((it) => it.icon) ? ' has-icons' : ''}`}
+      className={`gr-menu-list is-portal${items.some((it) => it.icon) ? ' has-icons' : ''}${items.some((it) => it.glyph) ? ' has-glyphs' : ''}`}
       role="menu"
       aria-label={label}
       ref={list}
@@ -136,6 +138,7 @@ export function MessageMenu({
           }}
         >
           {it.icon && <span className={`gr-menu-icon is-${it.key}`}>{it.icon}</span>}
+          {it.glyph && <span className="gr-menu-glyph">{it.glyph}</span>}
           <span>{it.label}</span>
         </button>
       ))}

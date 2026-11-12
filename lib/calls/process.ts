@@ -28,7 +28,7 @@ import { MAX_DIRECT_TRANSCRIBE_BYTES, nowIso, parseJson, type CallAnalysis, type
 const db = () => getDb();
 const CLAIM_MS = 10 * 60_000;
 
-async function transcribeBytes(ws: string, bytes: Buffer, mime: string, durationHintMs: number): Promise<{ pieces: RawPiece[]; language: string }> {
+async function transcribeBytes(ws: string, bytes: Buffer, mime: string, durationHintMs: number, tier: 'economy' | 'premium'): Promise<{ pieces: RawPiece[]; language: string }> {
   const { transcribeAudio } = await import('../voice-transcribe');
   const res = await transcribeAudio({
     workspaceId: ws,
@@ -38,12 +38,13 @@ async function transcribeBytes(ws: string, bytes: Buffer, mime: string, duration
     durationHintMs,
     fakeText: CALLS_FAKE_TEXT,
     fakeSpeakers: true,
+    tier,
   });
   return { pieces: res.pieces, language: res.language };
 }
 
 /** Transcribe los segmentos que faltan. Devuelve los tramos de toda la llamada. */
-async function transcribeAll(row: CallRow, deadline: number): Promise<{ pieces: RawPiece[]; language: string; done: boolean }> {
+async function transcribeAll(row: CallRow, deadline: number, tier: 'economy' | 'premium' = 'premium'): Promise<{ pieces: RawPiece[]; language: string; done: boolean }> {
   const segs = (await db()
     .prepare("SELECT n, ref, size, mime, start_ms, transcript FROM calls_parts WHERE call_id = ? AND kind = 'audio' ORDER BY n")
     .all(row.id)) as Array<{ n: number; ref: string; size: number; mime: string; start_ms: number; transcript: string | null }>;
@@ -59,7 +60,7 @@ async function transcribeAll(row: CallRow, deadline: number): Promise<{ pieces: 
         if (!bytes) throw new Error('segment_unreadable');
         const next = segs[i + 1];
         const hint = next ? Number(next.start_ms) - Number(s.start_ms) : Math.max(1000, Number(row.duration_ms) - Number(s.start_ms));
-        got = await transcribeBytes(row.workspace_id, bytes, s.mime || row.audio_mime || 'audio/ogg', hint);
+        got = await transcribeBytes(row.workspace_id, bytes, s.mime || row.audio_mime || 'audio/ogg', hint, tier);
         await db().prepare("UPDATE calls_parts SET transcript = ? WHERE call_id = ? AND kind = 'audio' AND n = ?").run(JSON.stringify(got), row.id, s.n);
       }
       language ||= got.language;
@@ -78,7 +79,7 @@ async function transcribeAll(row: CallRow, deadline: number): Promise<{ pieces: 
       chunks.push(b);
     }
     if (chunks.length !== parts.length) throw new Error('part_unreadable');
-    const got = await transcribeBytes(row.workspace_id, Buffer.concat(chunks), row.video_mime || 'audio/webm', Number(row.duration_ms) || 0);
+    const got = await transcribeBytes(row.workspace_id, Buffer.concat(chunks), row.video_mime || 'audio/webm', Number(row.duration_ms) || 0, tier);
     return { pieces: got.pieces, language: got.language, done: true };
   }
   return { pieces: [], language, done: true };
@@ -103,7 +104,7 @@ export async function processCall(callId: string, opts: { budgetMs?: number; now
     const settings = await getSettings(row.workspace_id);
     let tr: Awaited<ReturnType<typeof transcribeAll>>;
     try {
-      tr = await transcribeAll(row, deadline);
+      tr = await transcribeAll(row, deadline, settings.costTier);
     } catch (err) {
       // Sin transcripción (proveedor caído, cuota) igual hay subtítulos de Meet.
       console.error('[calls] transcribe failed', err instanceof Error ? err.message : 'error');

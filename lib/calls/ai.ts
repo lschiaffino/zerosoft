@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { aiGenerateObject, aiGenerateText } from '../ai';
 import { criteriaFor } from './methodology';
 import { findMentions, transcriptLines } from './metrics';
-import { CallsError, nowIso, type CallAnalysis, type CallsSettings, type Speaker, type Utterance } from './types';
+import { CallsError, economyAnalysisModel, nowIso, type CallAnalysis, type CallsSettings, type Speaker, type Utterance } from './types';
 
 export function callsAiFake(): boolean {
   return process.env.CALLS_AI_FAKE === '1' && process.env.VERCEL_ENV !== 'production';
@@ -80,6 +80,7 @@ export async function analyzeCall(opts: {
     prompt: `Call title: ${opts.title || '(none)'}\n\nTranscript:\n${transcriptForModel(opts.utterances, opts.speakers)}`,
     schema: analysisSchema,
     schemaName: 'call_analysis',
+    model: opts.settings.costTier === 'economy' ? economyAnalysisModel() : null,
     maxOutputTokens: 4000,
     timeoutMs: 120_000,
   });

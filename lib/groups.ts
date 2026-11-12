@@ -1094,16 +1094,21 @@ export async function countArchivedChats(ws: string, viewer?: GroupsViewer): Pro
 export async function upsertChat(
   number: Pick<NumberRow, 'id' | 'user_id'>,
   input: { providerChatId: string; kind: 'dm' | 'group'; name?: string; phone?: string },
-  opts: { silent?: boolean } = {},
+  /**
+   * `silent`: sin evento de "chat nuevo". `hiddenAt` y `assignedTo` valen solo
+   * si el chat se crea acá (uno que ya existía no se toca): un chat que abre
+   * una persona nace fuera de la lista hasta su primer mensaje (lib/groups-new-chat.ts).
+   */
+  opts: { silent?: boolean; hiddenAt?: string; assignedTo?: string } = {},
 ): Promise<ChatRow> {
   const db = getDb();
   const now = nowIso();
   const inserted = await db
     .prepare(
-      `INSERT OR IGNORE INTO groups_chats (id, user_id, number_id, provider_chat_id, kind, name, phone, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO groups_chats (id, user_id, number_id, provider_chat_id, kind, name, phone, hidden_at, assigned_to, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(newId(), number.user_id, number.id, input.providerChatId, input.kind, (input.name ?? '').slice(0, 200), input.phone ?? '', now, now);
+    .run(newId(), number.user_id, number.id, input.providerChatId, input.kind, (input.name ?? '').slice(0, 200), input.phone ?? '', opts.hiddenAt ?? null, opts.assignedTo ?? null, now, now);
   const row = (await db
     .prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?')
     .get(number.id, input.providerChatId)) as ChatRow;

@@ -39,8 +39,8 @@
     "laterHint": "Enviar más tarde (⌘⇧Enter). También con clic derecho en Enviar.",
     "sending": "Enviando…",
     "send": "Enviar",
-    "hint": "Enter envía · Shift+Enter baja de línea · ⌘J ayudame a escribir · ; snippets",
-    "hintEmail": "⌘Enter envía · ⌘J ayudame a escribir · ; snippets"
+    "hint": "Enter envía · Shift+Enter baja de línea · ⌘J ayudame a escribir · ; snippets · / comandos",
+    "hintEmail": "⌘Enter envía · ⌘J ayudame a escribir · ; snippets · / comandos"
   },
   "message": {
     "media": { "image": "Foto", "video": "Video", "audio": "Nota de voz", "document": "Documento", "sticker": "Sticker" },
@@ -197,6 +197,7 @@
       "goto": "Ir a bandeja, hechos, pospuestos",
       "ai": "Ayudame a escribir",
       "snippet": "Insertar un snippet",
+      "commands": "Comandos, mientras escribís un mensaje",
       "send": "Enviar",
       "undo": "Deshacer lo último",
       "help": "Ver atajos"
@@ -490,6 +491,123 @@
     "save": "Guardar",
     "edit": "Editar",
     "count": "{n, plural, one {# mensaje} other {# mensajes}}"
+  },
+  "slash": {
+    "done": {
+      "name": "hecho",
+      "desc": "Marcar este chat como hecho",
+      "keys": "terminar listo resolver"
+    },
+    "undone": {
+      "name": "bandeja",
+      "desc": "Devolver este chat a la bandeja",
+      "keys": "reabrir pendiente"
+    },
+    "snooze": {
+      "name": "posponer",
+      "desc": "Esconder este chat hasta la hora que elijas",
+      "keys": "después más tarde"
+    },
+    "unsnooze": {
+      "name": "traer",
+      "desc": "Traer este chat de vuelta ahora",
+      "keys": "despertar pospuesto"
+    },
+    "remind": {
+      "name": "recordar",
+      "desc": "Recordarme si no contesta",
+      "keys": "seguimiento recordatorio"
+    },
+    "clearReminder": {
+      "name": "sin-recordatorio",
+      "desc": "Sacar el recordatorio de este chat",
+      "keys": "seguimiento recordar"
+    },
+    "folder": {
+      "name": "carpeta",
+      "desc": "Agregar este chat a una carpeta",
+      "keys": "mover"
+    },
+    "notes": {
+      "name": "notas",
+      "desc": "Abrir tus notas sobre este chat",
+      "keys": "privadas"
+    },
+    "unread": {
+      "name": "no-leído",
+      "desc": "Marcar este chat como no leído",
+      "keys": "marcar"
+    },
+    "read": {
+      "name": "leído",
+      "desc": "Marcar este chat como leído",
+      "keys": "marcar"
+    },
+    "pin": {
+      "name": "fijar",
+      "desc": "Fijar este chat arriba de la lista",
+      "keys": "arriba"
+    },
+    "unpin": {
+      "name": "soltar",
+      "desc": "Dejar de fijar este chat",
+      "keys": "desfijar"
+    },
+    "archive": {
+      "name": "archivar",
+      "desc": "Archivar este chat",
+      "keys": "esconder"
+    },
+    "unarchive": {
+      "name": "desarchivar",
+      "desc": "Devolver este chat a la lista principal",
+      "keys": "restaurar"
+    },
+    "mute": {
+      "name": "silenciar",
+      "desc": "Dejar de recibir avisos de este chat por un rato",
+      "keys": "avisos notificaciones",
+      "empty": "Elegí 8 horas o una semana. Apretá Esc para dejarlo como texto.",
+      "hours8": "8 horas",
+      "week": "Una semana",
+      "hours8Keys": "8h horas día",
+      "weekKeys": "7 días semana"
+    },
+    "unmute": {
+      "name": "activar-avisos",
+      "desc": "Volver a recibir avisos de este chat",
+      "keys": "notificaciones sonido"
+    },
+    "info": {
+      "name": "info",
+      "desc": "Ver la info del contacto o del grupo",
+      "keys": "detalles contacto grupo"
+    },
+    "rename": {
+      "name": "renombrar",
+      "desc": "Cambiar el nombre de este chat",
+      "keys": "nombre título"
+    },
+    "later": {
+      "name": "después",
+      "desc": "Enviar este mensaje más tarde",
+      "keys": "programar hora mañana tarde"
+    },
+    "attach": {
+      "name": "adjuntar",
+      "desc": "Adjuntar una foto, un video o un documento",
+      "keys": "archivo subir"
+    },
+    "emoji": {
+      "name": "emoji",
+      "desc": "Abrir los emojis",
+      "keys": "emoticón carita"
+    },
+    "dictate": {
+      "name": "dictar",
+      "desc": "Dictar el mensaje con tu voz",
+      "keys": "voz hablar micrófono"
+    }
   },
   "analytics": {
     "title": "Analítica del Inbox",

@@ -379,7 +379,12 @@
     "webhooksHelp": "To send calls to another tool, subscribe a webhook to \"Call recorded and analyzed\".",
     "webhooksLink": "Webhooks",
     "save": "Save",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "costTier": "Processing cost",
+    "costEconomy": "Economy",
+    "costPremium": "Best quality",
+    "costEconomyHelp": "About US$0.13 per recorded hour: fast transcription and a smaller model for the summary and scorecard. Good for most calls.",
+    "costPremiumHelp": "About US$0.50 per recorded hour: the suite's transcription and its main AI model. More precise summaries and scorecards."
   },
   "share": {
     "kicker": "Recorded call",

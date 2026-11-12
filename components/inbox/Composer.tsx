@@ -8,6 +8,10 @@ import { api } from './api';
 import AiComposeBar, { AiComposeButton } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from './ai-compose';
+import { useSlashMenu } from '@/components/ui/useSlashMenu';
+import type { SlashCommand } from '@/lib/slash-commands';
+import { useAiSlashCommands } from '@/components/ai/slash-commands';
+import { useInboxComposerCommands } from './slash-commands';
 
 export interface ComposerHandle {
   focus: () => void;
@@ -19,7 +23,8 @@ export interface ComposerHandle {
 
 /**
  * Campo de respuesta. WhatsApp: Enter manda y Shift+Enter baja de línea (como
- * WhatsApp Web); correo: ⌘Enter manda. ";" abre los snippets, ⌘J abre
+ * WhatsApp Web); correo: ⌘Enter manda. ";" abre los snippets, "/" los
+ * comandos (las acciones del chat, los snippets y la AI), ⌘J abre
  * "Ayudame a escribir" (components/ai/AiComposeBar), el micrófono dicta con
  * Voice y "Más tarde" programa el envío. El borrador se guarda solo.
  */
@@ -34,15 +39,19 @@ const Composer = forwardRef<
     onSent: (messages: MessageDto[]) => void;
     onSendLater: (text: string) => void;
     onError: (code: string) => void;
+    /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
+    commands?: SlashCommand[];
   }
->(function Composer({ thread, snippets, disabled, paused, onSent, onError, onSendLater }, ref) {
+>(function Composer({ thread, snippets, disabled, paused, onSent, onError, onSendLater, commands }, ref) {
   const t = useTranslations('inbox.composer');
   // Un composer por chat (Conversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
   const [text, setText] = useState(() => initialDraft('inbox', thread.id, thread.draft));
   const tc = useTranslations('common.aiCompose');
+  const ts = useTranslations('common.slash');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [snipQ, setSnipQ] = useState<string | null>(null);
   const [snipIdx, setSnipIdx] = useState(0);
+  const [caret, setCaret] = useState(0);
   const area = useRef<HTMLTextAreaElement>(null);
   const saved = useRef(thread.draft);
   const email = thread.channel === 'gmail';
@@ -121,8 +130,32 @@ const Composer = forwardRef<
     });
   };
 
+  // Comandos con "/": las acciones del chat (las pasa la conversación), las del campo, los snippets y la AI.
+  const fieldCommands = useInboxComposerCommands({
+    onLater: () => busy === '' && text.trim() && onSendLater(text.trim()),
+    dictate: () => {
+      area.current?.focus();
+      window.dispatchEvent(new Event('zs:voice-dictate'));
+    },
+  });
+  const aiCommands = useAiSlashCommands(ai);
+  const slash = useSlashMenu({
+    text,
+    caret,
+    inputRef: area,
+    disabled: !!disabled || !!paused,
+    apply: (next, at) => {
+      setText(next);
+      setCaret(at);
+    },
+    commands: [...(commands ?? []), ...fieldCommands, ...aiCommands],
+    inserts: snippets.map((sn) => ({ id: sn.id, shortcut: sn.shortcut, title: sn.title, body: fillSnippet(sn.body, thread.title) })),
+    insertsLabel: t('snippets'),
+  });
+
   const onChange = (v: string, caret: number) => {
     setText(v);
+    setCaret(caret);
     const m = /(?:^|\s);([\w-]*)$/.exec(v.slice(0, caret));
     setSnipQ(m && snippets.length ? m[1] : null);
     setSnipIdx(0);
@@ -131,7 +164,8 @@ const Composer = forwardRef<
   return (
     <div className="ib-composer" aria-busy={busy !== '' || undefined}>
       <AiComposeBar ai={ai} tone="app" />
-      {snipQ !== null && matches.length > 0 && (
+      {slash.menu}
+      {!slash.open && snipQ !== null && matches.length > 0 && (
         <ul className="ib-snippets" role="listbox" aria-label={t('snippets')}>
           {matches.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === snipIdx}>
@@ -158,7 +192,10 @@ const Composer = forwardRef<
         disabled={disabled}
         placeholder={disabled ? t('disconnected') : email ? t('placeholderEmail') : t('placeholder')}
         onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
+        onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+        {...slash.inputProps}
         onKeyDown={(e) => {
+          if (slash.onKeyDown(e)) return;
           if (snipQ !== null && matches.length) {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
               e.preventDefault();
@@ -241,6 +278,9 @@ const Composer = forwardRef<
               {t('snippets')}
             </button>
           )}
+          <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={slash.openFromButton}>
+            {ts('menuItem')}
+          </button>
         </div>
         <div className="ib-composer-send">
           <button type="button" className="btn btn-secondary btn-sm" disabled={disabled || !text.trim() || busy !== ''} onClick={() => onSendLater(text.trim())}>
