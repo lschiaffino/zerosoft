@@ -162,5 +162,59 @@
   "showLess": "Ver menos",
   "audioSummary": "Resumo:",
   "transcript": "Transcrição",
-  "moreTools": "Mais: escrever com IA, ditar, snippets"
+  "moreTools": "Mais: escrever com IA, ditar, snippets",
+  "display": {
+    "title": "Visualização",
+    "help": "Como você vê as conversas no Inbox e no Lines. As mudanças aparecem na hora e são só para você.",
+    "reset": "Voltar ao padrão",
+    "saved": "Salvo. Vale para o Inbox e o Lines.",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "textSize": {
+      "label": "Texto das mensagens",
+      "small": "Pequeno",
+      "default": "Normal",
+      "large": "Grande"
+    },
+    "linkPreviews": {
+      "label": "Prévia de links",
+      "large": "Imagem grande",
+      "compact": "Compacta",
+      "off": "Sem prévia"
+    },
+    "mediaSize": {
+      "label": "Fotos e vídeos",
+      "small": "Pequenos",
+      "default": "Normal",
+      "large": "Grandes"
+    },
+    "density": {
+      "label": "Lista de conversas",
+      "comfortable": "Confortável",
+      "compact": "Compacta"
+    },
+    "bubbleWidth": {
+      "label": "Largura das mensagens",
+      "default": "Normal",
+      "wide": "Larga"
+    },
+    "wallpaper": {
+      "label": "Fundo da conversa",
+      "pattern": "Com desenho",
+      "plain": "Liso"
+    },
+    "groupAvatars": "Mostrar as fotos ao lado das mensagens nos grupos",
+    "sample": {
+      "author": "Ana",
+      "in": "Você viu a nova página de preços?",
+      "out": "Sim, está aqui:",
+      "linkTitle": "Preços",
+      "linkDesc": "Planos para equipes de qualquer tamanho, por mês ou por ano."
+    },
+    "tab": "Aparência"
+  },
+  "linkPreview": {
+    "composerLabel": "Prévia do link",
+    "loading": "Carregando a prévia…",
+    "remove": "Enviar sem prévia"
+  }
 }

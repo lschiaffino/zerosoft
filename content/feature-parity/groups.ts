@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-11',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -112,7 +112,11 @@ const parity: ProductParity = {
       ],
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
-      detail: ['No link previews or message search inside a chat yet', 'Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Ainda sem prévia de links nem busca dentro de uma conversa'],
+      detail: [
+        'Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews). No message search inside a chat yet',
+        'Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas). Todavía sin búsqueda dentro de un chat',
+        'Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias). Ainda sem busca dentro de uma conversa',
+      ],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {

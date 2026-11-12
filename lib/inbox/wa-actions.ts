@@ -40,7 +40,7 @@ function providerFail(err: unknown): never {
  * Texto de WhatsApp con cita (respuesta a un mensaje del mismo chat) y/o
  * menciones (teléfonos que van como "@teléfono" en el texto, solo grupos).
  */
-export async function sendWaMessage(owner: string, threadId: string, body: string, opts: { replyTo?: string; mentions?: string[] } = {}): Promise<void> {
+export async function sendWaMessage(owner: string, threadId: string, body: string, opts: { replyTo?: string; mentions?: string[]; linkPreview?: boolean } = {}): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
@@ -55,7 +55,7 @@ export async function sendWaMessage(owner: string, threadId: string, body: strin
   // Solo se mencionan teléfonos que están escritos en el texto, y solo en grupos.
   const mentions = thread.kind === 'group' ? [...new Set((opts.mentions ?? []).filter((p) => /^\d{6,16}$/.test(p) && text.includes(`@${p}`)))].slice(0, 50) : [];
   const account = await getAccount(owner, thread.account_id);
-  await sendWhatsappText(account, thread, text, { replyTo, mentions });
+  await sendWhatsappText(account, thread, text, { replyTo, mentions, ...(opts.linkPreview === false ? { linkPreview: false } : {}) });
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }
 

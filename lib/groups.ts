@@ -1662,6 +1662,8 @@ export interface SendInput {
   poll?: PollInput | null;
   /** Tarjetas de contacto (vCard) para mandar. */
   contacts?: Array<{ name: string; phone: string }> | null;
+  /** false: el texto sale sin vista previa del link (la persona la sacó en el composer). */
+  linkPreview?: boolean;
 }
 
 /** Tope de envíos por número: WhatsApp bloquea líneas que mandan en ráfaga. Los envíos masivos llevan su propio ritmo. */
@@ -1734,7 +1736,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
       : contacts.length
         ? await provider.sendContact!(chat.provider_chat_id, contacts)
-        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId });
+        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId, ...(input.linkPreview === false ? { linkPreview: false } : {}) });
     providerId = res.id || null;
   } catch (err) {
     status = 'failed';
@@ -1756,7 +1758,11 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     createdAt: at,
     forwarded: input.forwarded,
     poll,
-    ...(contacts.length ? { meta: { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } } : {}),
+    ...(contacts.length
+      ? { meta: { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } }
+      : input.linkPreview === false && !poll
+        ? { meta: { noPreview: true } }
+        : {}),
   });
   const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
   if (status === 'failed') await touchChat(chatId, at, preview, false);
@@ -1964,7 +1970,10 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
           })
         ).id || null;
-    } else providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId })).id || null;
+    } else {
+      const noPreview = parseJson<{ noPreview?: boolean }>(row.meta ?? '', {}).noPreview === true;
+      providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId, ...(noPreview ? { linkPreview: false } : {}) })).id || null;
+    }
   } catch (err) {
     status = 'failed';
     error = providerErrorCode(err);

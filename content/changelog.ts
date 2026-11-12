@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-wa-link-previews-display',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: link previews like WhatsApp and a Display setting',
+      es: 'Lines e Inbox: vista previa de links como WhatsApp y ajuste de Visualización',
+      pt: 'Lines e Inbox: prévia de links como no WhatsApp e ajuste de Visualização',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A link with a large image shows it on top of the bubble, with the title, the description and the domain with the site icon. Logos and small images keep the thumbnail on the side; pages with two images show both.',
+        es: 'Un link con una imagen grande la muestra arriba de la burbuja, con el título, la descripción y el dominio con el ícono del sitio. Los logos y las imágenes chicas quedan con la miniatura al costado; las páginas con dos imágenes muestran las dos.',
+        pt: 'Um link com uma imagem grande mostra ela em cima do balão, com o título, a descrição e o domínio com o ícone do site. Logos e imagens pequenas ficam com a miniatura ao lado; páginas com duas imagens mostram as duas.',
+      },
+      {
+        product: 'groups',
+        en: 'While you type a link, its preview shows above the field. Remove it with the X to send the message without a preview.',
+        es: 'Mientras escribís un link, su vista previa aparece arriba del campo. Con la X se saca y el mensaje sale sin vista previa.',
+        pt: 'Enquanto você digita um link, a prévia aparece acima do campo. Com o X ela sai e a mensagem vai sem prévia.',
+      },
+      {
+        product: 'groups',
+        en: 'Display, in Settings: message text size, link previews (large, compact or off), photo and video size, chat list density, message width, chat background and photos in groups. Only for you, and it applies right away.',
+        es: 'Visualización, en Ajustes: tamaño del texto, vista previa de links (grande, compacta o ninguna), tamaño de fotos y videos, densidad de la lista, ancho de los mensajes, fondo del chat y fotos en grupos. Solo para vos, y se aplica al instante.',
+        pt: 'Visualização, nos Ajustes: tamanho do texto, prévia de links (grande, compacta ou nenhuma), tamanho de fotos e vídeos, densidade da lista, largura das mensagens, fundo da conversa e fotos nos grupos. Só para você, e vale na hora.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox, with the same Display setting.',
+        es: 'Lo mismo en Inbox, con el mismo ajuste de Visualización.',
+        pt: 'O mesmo no Inbox, com o mesmo ajuste de Visualização.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-transcript-paragraphs',
     date: '2026-11-12',
     title: {

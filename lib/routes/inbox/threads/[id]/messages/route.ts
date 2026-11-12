@@ -27,7 +27,9 @@ export async function POST(req: Request, ctx: Ctx) {
   return withOwner(async (owner) => {
     const body = await parseBody(req, sendSchema);
     if (body.sendAt) return iJson({ scheduled: await createScheduled(owner, id, body.body, body.sendAt) }, 201);
-    if (body.replyTo || body.mentions?.length) await sendWaMessage(owner, id, body.body, { replyTo: body.replyTo, mentions: body.mentions });
+    if (body.replyTo || body.mentions?.length || body.linkPreview === false) {
+      await sendWaMessage(owner, id, body.body, { replyTo: body.replyTo, mentions: body.mentions, ...(body.linkPreview === false ? { linkPreview: false } : {}) });
+    }
     else await sendToThread(owner, id, body.body);
     const page = await listMessages(owner, id);
     return iJson({ messages: page.messages, more: page.more, cursor: page.cursor }, 201);

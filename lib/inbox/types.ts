@@ -99,6 +99,8 @@ export interface WaMessageMeta {
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
   link?: { url: string; title: string; description?: string; thumb?: string };
+  /** Se mandó sin vista previa del link (la persona la sacó en el composer). */
+  noPreview?: boolean;
   /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
   mentions?: string[];
 }

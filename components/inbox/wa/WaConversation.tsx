@@ -490,7 +490,7 @@ const WaConversation = forwardRef<
           )}
           {meta.location && !hidden && <LocationCard lat={meta.location.lat} lng={meta.location.lng} name={meta.location.name ?? ''} address={meta.location.address} url={meta.location.url} live={meta.location.live} />}
           {!hidden && meta.contacts?.map((c, i) => <ContactCard key={i} name={c.name} phone={(c.phones[0] ?? '').replace(/\D/g, '')} />)}
-          {!hidden && !kind && !poll && (meta.link || firstUrl(m.body)) && (
+          {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
               url={meta.link?.url ?? firstUrl(m.body)}
               given={meta.link ? { url: meta.link.url, title: meta.link.title, description: meta.link.description, image: meta.link.thumb } : null}

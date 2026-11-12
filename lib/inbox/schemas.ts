@@ -28,6 +28,8 @@ export const sendSchema = z.object({
   sendAt: iso.optional(),
   replyTo: id.optional(),
   mentions: z.array(z.string().regex(/^\d{6,16}$/)).max(50).optional(),
+  /** false: WhatsApp sin vista previa del link (la persona la sacó en el composer). */
+  linkPreview: z.boolean().optional(),
 });
 
 /** Acciones sobre un mensaje de WhatsApp (reaccionar, editar, destacar, borrar para mí, reenviar). */

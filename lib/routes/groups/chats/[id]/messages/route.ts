@@ -62,6 +62,8 @@ export async function POST(req: Request, ctx: Ctx) {
       note: b.note === true,
       media,
       ...(Array.isArray(b.contacts) ? { contacts: b.contacts as Array<{ name: string; phone: string }> } : {}),
+      // { linkPreview: false }: el texto sale sin la vista previa del link.
+      ...(b.linkPreview === false ? { linkPreview: false } : {}),
     });
     return NextResponse.json(maskMessage(guard.viewer, msg), { status: 201 });
   } catch (err) {

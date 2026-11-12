@@ -17,6 +17,7 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { useAiSlashCommands } from '@/components/ai/slash-commands';
+import { useComposerLinkPreview } from '@/components/groups/wa/ComposerLinkPreview';
 import { useInboxComposerCommands } from '../slash-commands';
 
 /**
@@ -75,6 +76,9 @@ const WaComposer = forwardRef<
   const [mentionIdx, setMentionIdx] = useState(0);
   const picked = useRef(new Map<string, string>());
 
+
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: !!editing || !!disabled });
 
   // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
   const aiAdapter = useMemo<ComposeAdapter>(
@@ -171,7 +175,7 @@ const WaComposer = forwardRef<
     }
     const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
       method: 'POST',
-      json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },
+      json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(linkPv.linkPreview ? {} : { linkPreview: false }) },
     });
     setBusy('');
     if (!r.ok) {
@@ -181,11 +185,12 @@ const WaComposer = forwardRef<
     }
     picked.current.clear();
     setText('');
+    linkPv.reset();
     saved.current = '';
     ai.clearUndo();
     if (replyToId) onCancelBanner();
     onSent(r.data.messages);
-  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Dicta con Voice: el texto entra en el campo. */
   const dictate = () => {
@@ -291,6 +296,7 @@ const WaComposer = forwardRef<
   return (
     <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
       {banner}
+      {linkPv.card}
       {slash.menu}
       {!slash.open && mentionQ !== null && people.length > 0 && (
         <ul className="ib-snippets ib-wa-mentions" role="listbox" aria-label={w('mention')}>

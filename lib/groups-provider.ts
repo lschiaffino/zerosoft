@@ -400,7 +400,8 @@ export interface GroupsProvider {
   state(): Promise<ConnectState>;
   disconnect(): Promise<void>;
   /** `mentions`: teléfonos mencionados con "@teléfono" en el texto (grupos). */
-  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[] }): Promise<SendResult>;
+  /** `linkPreview: false`: sin vista previa del link (la persona la sacó en el composer). */
+  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[]; linkPreview?: boolean }): Promise<SendResult>;
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;

@@ -80,6 +80,7 @@ import {
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
+import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -698,13 +699,16 @@ export default function ChatThread(props: ThreadProps) {
       }
       if (ok && text.trim() && !previewOpen) ok = Boolean(await post({ ...base, replyToId: null, body: text, media: null }));
     } else {
-      ok = Boolean(await post({ ...base, body: text, media: null }));
+      ok = Boolean(await post({ ...base, body: text, media: null, ...(mode !== 'note' && !linkPv.linkPreview ? { linkPreview: false } : {}) }));
     }
     setSending(false);
     if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!voice && !files.length) setText('');
+    if (!voice && !files.length) {
+      setText('');
+      linkPv.reset();
+    }
     setReplyTo(null);
     ai.clearUndo();
     refresh();
@@ -733,6 +737,9 @@ export default function ChatThread(props: ThreadProps) {
     if (text.trim() && tray.items.length === 0) setText('');
     inputRef.current?.focus();
   }
+
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: mode === 'note' || !!editing || tray.items.length > 0 || recording != null });
 
   const emojiSuggest = useEmojiSuggest({
     text,
@@ -1503,7 +1510,7 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (
@@ -1877,6 +1884,7 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
+          {!selecting && linkPv.card}
           {slash.menu}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && !slash.open && (
