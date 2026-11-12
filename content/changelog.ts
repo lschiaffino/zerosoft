@@ -41,6 +41,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       en: 'Lines: overdue chats no longer make rows taller',
       es: 'Lines: los chats vencidos ya no agrandan la fila',
       pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
+    id: '2026-11-12-folder-rail-polish',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: folder icons in the collapsed sidebar, polished',
+      es: 'Lines e Inbox: carpetas del lateral colapsado más prolijas',
+      pt: 'Lines e Inbox: pastas da barra recolhida mais caprichadas',
     },
     items: [
       {
@@ -48,6 +54,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'A fast swipe to either side stays a swipe even if the mouse leaves the list. To file a chat, lift it up or down (or press and hold) and drop it on a folder.',
         es: 'Un deslizado rápido a cualquier costado sigue siendo deslizado aunque el mouse salga de la lista. Para llevar un chat a una carpeta, levantalo hacia arriba o abajo (o mantenelo apretado) y soltalo en la carpeta.',
         pt: 'Um deslize rápido para qualquer lado continua sendo deslize mesmo se o mouse sair da lista. Para levar um chat a uma pasta, levante-o para cima ou para baixo (ou segure) e solte na pasta.',
+        en: 'The unread dot is no longer cut off, hovering a folder shows its name right away, and with many folders the strip stays short and scrolls.',
+        es: 'El punto de no leídos ya no se corta, al pasar el mouse por una carpeta aparece su nombre al instante y con muchas carpetas la tira queda corta y se desplaza.',
+        pt: 'O ponto de não lidos não é mais cortado, ao passar o mouse numa pasta o nome aparece na hora e com muitas pastas a faixa fica curta e rola.',
       },
       { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
     ],
