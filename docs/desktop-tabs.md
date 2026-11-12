@@ -31,7 +31,7 @@ pausar sola.
   (`tabs.html`, local); debajo, una webview por pestaña. En Mac la tira va en la barra de título.
 - **Una sola sesión**: todas las webviews comparten el almacén de cookies; entrar o salir en una
   vale para todas (las demás se recargan).
-- **Atajos**: ⌘T pestaña nueva con el buscador (⌘K) abierto; ⌘N ventana; ⌘W cierra la pestaña
+- **Atajos**: ⌘T pestaña nueva en Inicio; ⌘N ventana; ⌘W cierra la pestaña
   (la última cierra la ventana, y la última ventana se esconde como antes); ⌘⇧W ventana;
   ⌘⇧T vuelve a abrir la última cerrada en su lugar; ⌘1-8, ⌘9 la última; ⌃Tab / ⌃⇧Tab y
   ⌘⇧[ ]. En Windows, Ctrl en vez de ⌘.
