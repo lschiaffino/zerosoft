@@ -656,6 +656,13 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 /* Con muchos filtros puestos, los chips no empujan la lista hacia abajo sin límite. */
 .gr-list-head .ui-filter-chips { max-height: 176px; overflow-y: auto; overscroll-behavior: contain; }
 @media (pointer: coarse) { .gr-list-head .ui-filter-chips { max-height: 272px; } }
+/* Con mouse, los filtros aplicados van en una sola fila que se desplaza de costado: con muchos, la lista
+   de chats no baja. Cada chip se corta con "…" y el texto entero queda en el title. */
+@media (pointer: fine) {
+  .gr-list-head .ui-filter-chips { flex-wrap: nowrap; max-height: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; padding-bottom: 2px; }
+  .gr-list-head .ui-filter-chip { flex: none; max-width: 220px; }
+  .gr-list-head .ui-filter-chip-actions { flex: none; }
+}
 /* Cuántos filtros hay puestos (además de las pestañas), sobre el botón que abre el panel. */
 .wa-filter-count {
   position: absolute; top: 1px; right: 0; display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
