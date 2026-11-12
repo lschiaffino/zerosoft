@@ -10,6 +10,10 @@
  * - assemblyai: ASSEMBLYAI_API_KEY, con separación de hablantes.
  * - fake: texto fijo para tests (nunca en un deploy de producción).
  *
+ * Aparte, `tier: 'economy'` (Calls en modo económico) usa Groq con GROQ_API_KEY
+ * (whisper-large-v3-turbo, GROQ_TRANSCRIBE_MODEL lo cambia): unas diez veces más
+ * barato que whisper-1. Sin la clave sigue con el proveedor de arriba.
+ *
  * Todas pasan por la cuota y el registro de lib/ai.ts (feature
  * voice_transcribe): cada segundo de audio cuenta como 10 tokens, un
  * equivalente aproximado para que la cuota del workspace también frene la
@@ -21,7 +25,7 @@ import { aiEnabled, AiError, aiWorkspaceUnlimited, recordAiUsage } from './ai';
 import { getDb } from './db';
 import { rateLimit } from './rate-limit';
 
-export type TranscribeProvider = 'gateway' | 'openai' | 'deepgram' | 'assemblyai' | 'fake';
+export type TranscribeProvider = 'gateway' | 'openai' | 'deepgram' | 'assemblyai' | 'groq' | 'fake';
 
 export interface TranscriptPiece {
   text: string;
@@ -95,6 +99,7 @@ export function transcribeModel(provider = transcribeProvider()): string {
   if (provider === 'openai') return 'whisper-1';
   if (provider === 'deepgram') return 'nova-3';
   if (provider === 'assemblyai') return 'universal';
+  if (provider === 'groq') return process.env.GROQ_TRANSCRIBE_MODEL?.trim() || 'whisper-large-v3-turbo';
   return 'fake';
 }
 
@@ -111,6 +116,8 @@ export function transcriptionConfigured(provider = transcribeProvider()): boolea
       return Boolean(process.env.DEEPGRAM_API_KEY?.trim());
     case 'assemblyai':
       return Boolean(process.env.ASSEMBLYAI_API_KEY?.trim());
+    case 'groq':
+      return Boolean(process.env.GROQ_API_KEY?.trim());
   }
 }
 
@@ -132,6 +139,14 @@ export interface TranscribeInput {
   /** Solo para el modo fake: qué devolver. */
   fakeText?: string;
   fakeSpeakers?: boolean;
+  /** 'economy': Groq si hay GROQ_API_KEY (Calls en modo económico). */
+  tier?: 'economy' | 'premium';
+}
+
+/** Proveedor de este pedido: el económico solo si está configurado y no estamos en modo fake. */
+export function providerFor(tier: TranscribeInput['tier'], base = transcribeProvider()): TranscribeProvider {
+  if (tier === 'economy' && base !== 'fake' && transcriptionConfigured('groq')) return 'groq';
+  return base;
 }
 
 function lang(input: TranscribeInput): string | undefined {
@@ -192,7 +207,7 @@ function extFor(mime: string): string {
   return 'webm';
 }
 
-async function viaOpenAi(input: TranscribeInput, model: string): Promise<Omit<TranscriptResult, 'provider'>> {
+async function viaOpenAi(input: TranscribeInput, model: string, api = { url: 'https://api.openai.com/v1/audio/transcriptions', key: process.env.OPENAI_API_KEY }): Promise<Omit<TranscriptResult, 'provider'>> {
   const form = new FormData();
   const type = input.mimeType.split(';')[0];
   form.append('file', new Blob([input.audio as BlobPart], { type }), `audio.${extFor(type)}`);
@@ -200,11 +215,11 @@ async function viaOpenAi(input: TranscribeInput, model: string): Promise<Omit<Tr
   const language = lang(input);
   if (language) form.append('language', language);
   if (input.vocabulary?.length) form.append('prompt', input.vocabulary.join(', ').slice(0, 800));
-  const verbose = model.startsWith('whisper');
+  const verbose = model.startsWith('whisper') || model.includes('whisper-large');
   form.append('response_format', verbose ? 'verbose_json' : 'json');
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const res = await fetch(api.url, {
     method: 'POST',
-    headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    headers: { authorization: `Bearer ${api.key}` },
     body: form,
     signal: AbortSignal.timeout(120_000),
   });
@@ -309,7 +324,7 @@ async function viaAssembly(input: TranscribeInput, model: string): Promise<Omit<
  */
 export async function transcribeAudio(input: TranscribeInput): Promise<TranscriptResult> {
   if (!input.audio.byteLength) throw new VoiceTranscribeError('empty_audio');
-  const provider = transcribeProvider();
+  const provider = providerFor(input.tier);
   if (!transcriptionConfigured(provider)) {
     throw provider === 'gateway' ? new AiError('ai_disabled') : new VoiceTranscribeError('transcribe_disabled');
   }
@@ -327,6 +342,7 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrip
     else if (provider === 'openai') result = await viaOpenAi(input, model);
     else if (provider === 'deepgram') result = await viaDeepgram(input, model);
     else if (provider === 'assemblyai') result = await viaAssembly(input, model);
+    else if (provider === 'groq') result = await viaOpenAi(input, model, { url: 'https://api.groq.com/openai/v1/audio/transcriptions', key: process.env.GROQ_API_KEY });
     else result = await viaGateway(input, model);
   } catch (err) {
     if (err instanceof VoiceTranscribeError || err instanceof AiError) throw err;

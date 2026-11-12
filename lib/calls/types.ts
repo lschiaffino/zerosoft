@@ -155,6 +155,18 @@ export interface CallsSettings {
   logToCrm: boolean;
   talkChannel: string;
   talkChannelSetBy: string | null;
+  /**
+   * Costo del procesamiento. 'economy': transcripción con Groq (Whisper large v3 turbo) si hay
+   * GROQ_API_KEY y análisis con un modelo chico; 'premium': el proveedor de Voice y el modelo de la suite.
+   */
+  costTier: CallsCostTier;
+}
+
+export const CALLS_COST_TIERS = ['economy', 'premium'] as const;
+export type CallsCostTier = (typeof CALLS_COST_TIERS)[number];
+/** Modelo del análisis en modo económico (AI_MODEL_ECONOMY lo cambia). */
+export function economyAnalysisModel(): string {
+  return process.env.AI_MODEL_ECONOMY?.trim() || 'anthropic/claude-haiku-5-5';
 }
 
 export const DEFAULT_SETTINGS: CallsSettings = {
@@ -167,6 +179,7 @@ export const DEFAULT_SETTINGS: CallsSettings = {
   logToCrm: true,
   talkChannel: '',
   talkChannelSetBy: null,
+  costTier: 'economy',
 };
 
 export function nowIso(): string {

@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-calls-cost-tier',
+    date: '2026-11-12',
+    title: {
+      en: 'Calls: choose between economy and best quality',
+      es: 'Calls: elegir entre económico y mejor calidad',
+      pt: 'Calls: escolher entre econômico e melhor qualidade',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'Admins pick how each recorded call is processed in Calls settings. Economy (the default) uses a fast transcription and a smaller model for the summary and scorecard; best quality uses the main ones.',
+        es: 'En los ajustes de Calls, los admins eligen cómo se procesa cada llamada grabada. Económico (el default) usa una transcripción rápida y un modelo más chico para el resumen y el scorecard; mejor calidad usa los principales.',
+        pt: 'Nos ajustes do Calls, os admins escolhem como cada chamada gravada é processada. Econômico (o padrão) usa uma transcrição rápida e um modelo menor para o resumo e o scorecard; melhor qualidade usa os principais.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-notes-info',
     date: '2026-11-12',
     title: {
