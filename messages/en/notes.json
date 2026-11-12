@@ -202,6 +202,20 @@
     "notification": "Reminder: {title}",
     "untitled": "Untitled"
   },
+  "info": {
+    "open": "Note info",
+    "title": "Note info",
+    "close": "Close",
+    "words": "Words",
+    "characters": "Characters",
+    "reading": "Reading time",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "tasks": "Tasks done",
+    "tasksOf": "{done} of {total}",
+    "attachments": "Attachments",
+    "created": "Created",
+    "updated": "Last edited"
+  },
   "history": {
     "open": "Version history",
     "title": "Version history",

@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-notes-info',
+    date: '2026-11-12',
+    title: {
+      en: 'Notes: note info with word count',
+      es: 'Notes: info de la nota con conteo de palabras',
+      pt: 'Notes: info da nota com contagem de palavras',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'The note menu has a new Note info option. It shows words, characters, reading time, finished checklist items, attachments, and when the note was created and last edited.',
+        es: 'El menú de la nota tiene una opción nueva, Info de la nota. Muestra palabras, caracteres, tiempo de lectura, tareas hechas, adjuntos, y cuándo se creó y se editó por última vez.',
+        pt: 'O menu da nota tem uma opção nova, Info da nota. Mostra palavras, caracteres, tempo de leitura, tarefas feitas, anexos e quando a nota foi criada e editada pela última vez.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-voice-dictation-layout',
     date: '2026-11-11',
     title: {
