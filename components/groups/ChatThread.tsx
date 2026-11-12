@@ -12,9 +12,9 @@ import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged } from '@/lib/conditional-fetch';
-import { coalesced, useWaLiveChat } from '@/lib/wa-live-client';
-import { dropSettled, isTempId, newClientId, sendQueue } from '@/lib/optimistic-send';
-import { cidOf, tempMessage } from './optimistic';
+import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
+import { isTempId, TEMP_PREFIX } from '@/lib/optimistic-send';
+import { byArrival, cidOf, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -217,6 +217,8 @@ export default function ChatThread(props: ThreadProps) {
   const [pollOpen, setPollOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
+  // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
+  useExpiry(presence?.state === 'composing' || presence?.state === 'recording', presence?.at, PRESENCE_EXPIRY_MS, () => setPresence(null));
   const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
   const [pollBusy, setPollBusy] = useState(false);
   const [pollError, setPollError] = useState('');
@@ -386,11 +388,13 @@ export default function ChatThread(props: ThreadProps) {
     setMessages((prev) => {
       const map = new Map(prev.map((m) => [m.id, m]));
       for (const m of incoming) map.set(m.id, m);
-      // La burbuja provisoria de un envío se va cuando llega su mensaje guardado (por la respuesta o por el aviso en vivo).
-      // Misma hora: por orden de llegada (lo recién mandado, que todavía no lo trae, va al final).
-      return dropSettled([...map.values()], incoming, cidOf).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER));
+      // Con lo que todavía no salió de este chat (./optimistic.ts): la burbuja provisoria se va cuando llega su mensaje
+      // guardado, por la respuesta o por el aviso en vivo. Misma hora: por orden de llegada.
+      const next = withUnsent([...map.values()], unsentLines.list(props.chat.id), props.me);
+      for (const cid of next.settled) queueMicrotask(() => unsentLines.remove(cid));
+      return [...next.messages].sort(byArrival);
     });
-  }, []);
+  }, [props.chat.id, props.me]);
 
   /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
   const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
@@ -602,7 +606,8 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body });
+    // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
+    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body }));
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -669,40 +674,41 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
-  // Los textos de este chat salen de a uno y en orden, aunque se escriban seguidos.
-  const sendInOrder = useRef(sendQueue()).current;
   /**
-   * Manda un texto con la burbuja ya a la vista (lib/optimistic-send.ts): "enviando" hasta que el servidor responde;
-   * después el mensaje guardado la reemplaza, o queda como no enviada con reintentar.
+   * Manda un texto con la burbuja ya a la vista: "enviando" hasta que el servidor responde; después el mensaje
+   * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
+   * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
   function sendTextNow(body: string, replyToId: string | null) {
-    const clientId = newClientId();
-    const temp = tempMessage({ clientId, chatId: chat.id, me: props.me, body, replyToId });
-    merge([temp]);
-    void sendInOrder(async () => {
-      const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { note: false, replyToId, body, media: null, clientId } });
-      if (!res.data) {
-        // No salió (sin red, límite, línea caída): la burbuja queda como no enviada, con reintentar y quitar.
-        merge([{ ...temp, status: 'failed', error: res.error ?? 'send_failed' }]);
-        setSendError(errText(res.error));
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId }).clientId);
+  }
+  // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
+  useEffect(() => {
+    const show = () =>
+      setMessages((prev) => {
+        const next = withUnsent(prev, unsentLines.list(props.chat.id), props.me);
+        for (const cid of next.settled) queueMicrotask(() => unsentLines.remove(cid));
+        return next.messages;
+      });
+    show();
+    return unsentLines.subscribe((e) => {
+      if (e.chatId !== props.chat.id) return;
+      if (e.type === 'saved') {
+        merge([e.saved]);
+        if (e.saved.status === 'failed') setSendError(errText(e.saved.error || 'send_failed'));
+        else refresh();
         return;
       }
-      const saved = res.data;
-      setMessages((prev) => prev.filter((x) => x.id !== temp.id));
-      merge([saved]);
-      if (saved.status === 'failed') setSendError(errText(saved.error || 'send_failed'));
-      else refresh();
+      show();
+      if (e.type === 'failed') setSendError(errText(e.entry.error));
     });
-  }
+  }, [props.chat.id, props.me, merge, refresh, errText]);
 
   /** Vuelve a mandar el MISMO mensaje que no salió (misma burbuja: enviando, después enviado o no enviado). */
   async function retrySend(m: MessageDto) {
     setSendError('');
     // Una burbuja que nunca llegó al servidor: se manda de nuevo como recién escrita.
-    if (isTempId(m.id)) {
-      setMessages((prev) => prev.filter((x) => x.id !== m.id));
-      return sendTextNow(m.body, m.replyToId);
-    }
+    if (isTempId(m.id)) return sendLinesText(m.id.slice(TEMP_PREFIX.length));
     merge([{ ...m, status: 'pending', error: '' }]);
     const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: 'retry' } });
     if (!res.data) {
@@ -1150,7 +1156,7 @@ export default function ChatThread(props: ThreadProps) {
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
-        { key: 'remove', label: t('common.remove'), onSelect: () => setMessages((prev) => prev.filter((x) => x.id !== m.id)) },
+        { key: 'remove', label: t('common.remove'), onSelect: () => unsentLines.remove(m.id.slice(TEMP_PREFIX.length)) },
       ];
     }
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });

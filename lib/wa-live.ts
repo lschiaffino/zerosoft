@@ -29,20 +29,32 @@ const PAGE = 200;
 
 export type LiveApp = 'inbox' | 'lines';
 
+/** 'chat': cambió algo que la lista muestra. 'msg': algo de adentro del chat (tildes, reacciones…) que la lista no. */
+export type LiveKind = 'chat' | 'msg';
+
 export interface LiveRaw {
   id: number;
   chat_id: string;
   number_id: string;
+  kind: LiveKind;
 }
 
 export interface LiveEvent {
   id: number;
   /** '' = releer toda la lista. */
   chatId: string;
+  kind: LiveKind;
 }
 
-/** Quién mira: Inbox (la persona) o Lines (el workspace, con las líneas que ve; null = todas). */
-export type LiveViewer = { app: 'inbox'; owner: string } | { app: 'lines'; ws: string; numbers: Set<string> | null };
+/** De una lista de chats, los que esta persona puede abrir (con el mismo criterio que las rutas del chat). */
+export type ChatFilter = (chatIds: string[]) => Promise<Set<string>>;
+
+/**
+ * Quién mira: Inbox (la persona) o Lines (el workspace). En Lines, `visible`
+ * filtra los chats que la persona puede abrir (líneas restringidas, acceso por
+ * etiqueta, invitados); null = ve todos (dueño y admins) y no cuesta nada.
+ */
+export type LiveViewer = { app: 'inbox'; owner: string } | { app: 'lines'; ws: string; visible: ChatFilter | null };
 
 function scopeOf(viewer: LiveViewer): [LiveApp, string] {
   return viewer.app === 'inbox' ? ['inbox', viewer.owner] : ['lines', viewer.ws];
@@ -59,36 +71,38 @@ export async function latestLiveId(viewer: LiveViewer): Promise<number> {
 export async function fetchLive(viewer: LiveViewer, cursor: number, limit = PAGE): Promise<LiveRaw[]> {
   const [app, scope] = scopeOf(viewer);
   const rows = (await getDb()
-    .prepare('SELECT id, chat_id, number_id FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
+    .prepare('SELECT id, chat_id, number_id, kind FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
     .all(app, scope, cursor, limit)) as LiveRaw[];
-  return rows.map((r) => ({ ...r, id: Number(r.id) }));
+  return rows.map((r) => ({ ...r, id: Number(r.id), kind: r.kind === 'msg' ? 'msg' : 'chat' }));
 }
 
-/** Pura: lo de un lote que ve esta persona, una vez por chat (el último aviso). */
-export function liveBatch(rows: LiveRaw[], viewer: LiveViewer): LiveEvent[] {
-  const last = new Map<string, number>();
+/**
+ * Lo de un lote que ve esta persona, una vez por chat (el último aviso; 'chat'
+ * si alguno del lote mueve la lista). Quien no ve todo (Lines con acceso
+ * restringido) recibe solo los chats que puede abrir: una consulta por lote
+ * con el mismo criterio que las rutas del chat. Nunca sale el id, ni el
+ * momento de actividad, de un chat que la persona no puede abrir.
+ */
+export async function liveBatch(rows: LiveRaw[], viewer: LiveViewer): Promise<LiveEvent[]> {
+  const last = new Map<string, LiveEvent>();
   for (const r of rows) {
-    if (viewer.app === 'lines' && viewer.numbers && !viewer.numbers.has(r.number_id)) continue;
-    last.set(r.chat_id, r.id);
+    const prev = last.get(r.chat_id);
+    last.set(r.chat_id, { id: r.id, chatId: r.chat_id, kind: prev?.kind === 'chat' || r.kind === 'chat' ? 'chat' : 'msg' });
   }
-  return [...last.entries()].map(([chatId, id]) => ({ id, chatId }));
+  if (viewer.app !== 'lines' || !viewer.visible || !last.size) return [...last.values()];
+  const allowed = await viewer.visible([...last.keys()]);
+  return [...last.values()].filter((e) => allowed.has(e.chatId));
 }
 
-/** La consulta de la pantalla: lo nuevo desde `cursor`; sin cursor, solo el cursor actual. */
-export async function livePoll(
-  viewer: LiveViewer,
-  cursor: number,
-  /** Lines: las líneas que ve la persona, pedidas solo si hay avisos (null = todas). */
-  numbers?: () => Promise<Set<string> | null>,
-): Promise<{ events: LiveEvent[]; cursor: number }> {
+/** La consulta de la pantalla: lo nuevo desde `cursor`; sin cursor, solo el cursor actual. Sin avisos no consulta el acceso. */
+export async function livePoll(viewer: LiveViewer, cursor: number): Promise<{ events: LiveEvent[]; cursor: number }> {
   if (cursor <= 0) return { events: [], cursor: await latestLiveId(viewer) };
   const rows = await fetchLive(viewer, cursor);
   if (!rows.length) return { events: [], cursor };
   const next = rows[rows.length - 1].id;
   // Mucho atraso: un aviso sin chat pide releer la lista entera.
-  if (rows.length >= PAGE) return { events: [{ id: next, chatId: '' }], cursor: next };
-  const v = viewer.app === 'lines' && numbers ? { ...viewer, numbers: await numbers() } : viewer;
-  return { events: liveBatch(rows, v), cursor: next };
+  if (rows.length >= PAGE) return { events: [{ id: next, chatId: '', kind: 'chat' }], cursor: next };
+  return { events: await liveBatch(rows, viewer), cursor: next };
 }
 
 /** Limpia el feed: lo de más de una hora ya no sirve (por el índice de created_at: lee solo lo que borra). */
@@ -144,7 +158,7 @@ async function turn(h: Hub): Promise<void> {
   try {
     await h.ready;
     // Solo lo de este dueño: el mismo WHERE que el polling.
-    const viewer: LiveViewer = h.app === 'inbox' ? { app: 'inbox', owner: h.scope } : { app: 'lines', ws: h.scope, numbers: null };
+    const viewer: LiveViewer = h.app === 'inbox' ? { app: 'inbox', owner: h.scope } : { app: 'lines', ws: h.scope, visible: null };
     for (;;) {
       const rows = await fetchLive(viewer, h.cursor);
       if (!rows.length) break;
@@ -182,7 +196,7 @@ export function subscribeLive(app: LiveApp, scope: string, fn: Listener): { off:
   let h = hubs().get(key);
   if (!h) {
     const hub: Hub = { app, scope, listeners: new Set(), cursor: 0, ready: null, timer: null, running: false, again: false, hotUntil: Date.now() + LIVE_HOT_FOR_MS };
-    const viewer: LiveViewer = app === 'inbox' ? { app: 'inbox', owner: scope } : { app: 'lines', ws: scope, numbers: null };
+    const viewer: LiveViewer = app === 'inbox' ? { app: 'inbox', owner: scope } : { app: 'lines', ws: scope, visible: null };
     hub.ready = latestLiveId(viewer)
       .then((id) => {
         hub.cursor = id;
@@ -226,31 +240,26 @@ export function liveHubCount(): number {
   return hubs().size;
 }
 
-const open = new Map<string, number>();
-
-function takeSlot(key: string): boolean {
-  const n = open.get(key) ?? 0;
-  if (n >= LIVE_MAX_PER_PERSON) return false;
-  open.set(key, n + 1);
-  return true;
-}
-
-function freeSlot(key: string) {
-  const n = (open.get(key) ?? 1) - 1;
-  if (n <= 0) open.delete(key);
-  else open.set(key, n);
-}
+/** Conexiones abiertas en esta instancia: persona y app → pestaña → cómo cerrarla. */
+const open = new Map<string, Map<string, (reason?: string) => void>>();
+let anon = 0;
 
 /**
  * Stream SSE de los avisos de esta persona. null si ya tiene demasiadas
- * conexiones abiertas. `check` revalida el acceso cada minuto y devuelve quién
- * mira al día (Lines: las líneas que ve); null corta la conexión para siempre
- * (perdió el acceso) y un error la corta para que el navegador reconecte
- * pasando otra vez por la sesión.
+ * conexiones abiertas en esta instancia.
+ *
+ * - `tab`: un id por pestaña. Una conexión nueva de la misma pestaña reemplaza
+ *   a la anterior: si el servidor no se enteró de que el navegador se fue (una
+ *   recarga), esa conexión vieja no le ocupa el lugar a la nueva.
+ * - `check` revalida el acceso cada minuto y devuelve quién mira al día; null
+ *   corta la conexión para siempre (perdió el acceso) y un error la corta para
+ *   que el navegador reconecte pasando otra vez por la sesión. La primera
+ *   revalidación es al minuto: quien llama acaba de resolver la sesión.
  */
 export function liveStream(opts: {
   /** Persona y app, para el tope de conexiones. */
   key: string;
+  tab?: string;
   cursor: number;
   signal?: AbortSignal;
   viewer: LiveViewer;
@@ -258,18 +267,31 @@ export function liveStream(opts: {
   maxMs?: number;
   checkMs?: number;
 }): Response | null {
-  if (!takeSlot(opts.key)) return null;
+  const mine = open.get(opts.key) ?? new Map<string, (reason?: string) => void>();
+  const tab = opts.tab || `anon-${++anon}`;
+  // La misma pestaña otra vez: la anterior se cierra y deja su lugar.
+  mine.get(tab)?.('replaced');
+  if (mine.size >= LIVE_MAX_PER_PERSON) return null;
+  open.set(opts.key, mine);
   let viewer = opts.viewer;
   const [app, scope] = scopeOf(viewer);
   let close: ((reason?: string) => void) | null = null;
   let sub: ReturnType<typeof subscribeLive> | null = null;
-  return sseLiveResponse<LiveEvent>({
+  let first = true;
+  // Los lotes salen en orden aunque filtrar por acceso sea una consulta.
+  let chain: Promise<unknown> = Promise.resolve();
+  const res = sseLiveResponse<LiveEvent>({
     cursor: opts.cursor,
     maxMs: opts.maxMs ?? LIVE_MAX_MS,
     heartbeatMs: 15_000,
     checkMs: opts.checkMs ?? LIVE_CHECK_MS,
     signal: opts.signal,
+    byeCursor: true,
     check: async () => {
+      if (first) {
+        first = false;
+        return true;
+      }
       let v: LiveViewer | null;
       try {
         v = await opts.check();
@@ -290,35 +312,53 @@ export function liveStream(opts: {
       if (cursor <= 0) return { events: [], cursor: from };
       const rows = await fetchLive(viewer, cursor);
       if (rows.length >= PAGE) return { events: [], cursor: rows[rows.length - 1].id, gap: true };
-      return { events: liveBatch(rows, viewer), cursor: rows.length ? rows[rows.length - 1].id : cursor };
+      return { events: await liveBatch(rows, viewer), cursor: rows.length ? rows[rows.length - 1].id : cursor };
     },
     subscribe: (push, revoke) => {
       close = revoke;
-      sub = subscribeLive(app, scope, (rows) => push({ events: liveBatch(rows, viewer), cursor: rows[rows.length - 1].id }));
+      mine.set(tab, revoke);
+      sub = subscribeLive(app, scope, (rows) => {
+        chain = chain
+          .then(async () => push({ events: await liveBatch(rows, viewer), cursor: rows[rows.length - 1].id }))
+          // Si no se pudo filtrar por acceso, no sale nada sin filtrar: se corta y el navegador reconecta.
+          .catch(() => revoke('error'));
+      });
       const off = sub.off;
       let freed = false;
       return () => {
         off();
         if (!freed) {
           freed = true;
-          freeSlot(opts.key);
+          if (mine.get(tab) === revoke) mine.delete(tab);
+          if (!mine.size && open.get(opts.key) === mine) open.delete(opts.key);
         }
       };
     },
   });
+  // Nada de esto se guarda en ningún caché intermedio.
+  res.headers.set('Cache-Control', 'private, no-store, no-transform');
+  return res;
 }
 
 /**
- * ¿Este pedido quiere (y puede) el stream? EventSource manda
- * `Accept: text/event-stream`. Con WA_LIVE=poll el servidor no sostiene
- * streams (un proxy que los corta, o para apagarlos sin un deploy): responde
- * 204, el navegador no reintenta y la pantalla consulta el aviso por pedido.
- * En modo demo y pruebas, la cookie wa_live=sse lo pide igual (así las pruebas
- * del stream corren con el resto en polling).
+ * ¿Este dueño tiene el stream habilitado? Apagado si no se dice otra cosa: la
+ * pantalla consulta el aviso por pedido, como antes. WA_LIVE_WORKSPACES lo
+ * prende: `all` para todos, o una lista de ids separados por coma (el id del
+ * workspace para Lines; el de la persona para Inbox, que para el dueño de un
+ * workspace es el mismo id). En modo demo y pruebas, la cookie wa_live=sse lo
+ * pide para ese navegador. Cambiar la variable en Vercel pide un deploy nuevo.
  */
-export function wantsLiveStream(req: Request): 'stream' | 'off' | 'poll' {
+export function liveStreamAllowed(req: Request, ids: string[]): boolean {
+  const list = (process.env.WA_LIVE_WORKSPACES ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (list.includes('all') || ids.some((id) => list.includes(id))) return true;
+  return process.env.DEMO_MODE === 'true' && /(?:^|;\s*)wa_live=sse(?:;|$)/.test(req.headers.get('cookie') ?? '');
+}
+
+/** Qué quiere este pedido: el stream (EventSource manda `Accept: text/event-stream`), o la consulta. 'off': pidió stream y no lo tiene habilitado. */
+export function wantsLiveStream(req: Request, ids: string[]): 'stream' | 'off' | 'poll' {
   if (!(req.headers.get('accept') ?? '').includes('text/event-stream')) return 'poll';
-  if (process.env.WA_LIVE !== 'poll') return 'stream';
-  const optIn = process.env.DEMO_MODE === 'true' && /(?:^|;\s*)wa_live=sse(?:;|$)/.test(req.headers.get('cookie') ?? '');
-  return optIn ? 'stream' : 'off';
+  return liveStreamAllowed(req, ids) ? 'stream' : 'off';
 }

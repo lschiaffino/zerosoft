@@ -16,9 +16,9 @@ import ContactPanel from './wa/ContactPanel';
 import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
-import { useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
+import { PRESENCE_EXPIRY_MS, useExpiry, useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
 import { isTempId } from '@/lib/optimistic-send';
-import { applyPending, keepPending, pendingSends } from './wa/pending';
+import { applyPending, keepPending, pendingSends, withoutStale } from './wa/pending';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -384,8 +384,29 @@ export default function InboxApp(props: {
       return keepPending(d, { ...data, messages: [...older, ...data.messages], more: d.more, cursor: d.cursor, extended: true });
     });
   }, []);
-  // El texto que se acaba de mandar aparece ya en la conversación (components/inbox/wa/pending.ts).
-  useEffect(() => pendingSends.subscribe((e) => setDetail((d) => applyPending(d, e))), []);
+  // El texto que se acaba de mandar aparece ya en la conversación, y lo que vuelve del servidor al terminar un envío
+  // entra SOLO en la conversación de ese chat (components/inbox/wa/pending.ts): si ya hay otro abierto, va a la copia
+  // guardada del suyo y lo que está a la vista no se toca.
+  useEffect(
+    () =>
+      pendingSends.subscribe((e) => {
+        const kept = detailCache.get(e.threadId);
+        if (kept) detailCache.set(e.threadId, applyPending(kept, e) ?? kept);
+        setDetail((d) => applyPending(d, e));
+        if (e.type === 'sent') void reloadList();
+      }),
+    [detailCache, reloadList],
+  );
+  /**
+   * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El
+   * envío pudo haber empezado con ese chat abierto y terminar con otro a la vista, así que va con su id.
+   */
+  const sentTo = (threadId: string) => (messages: MessageDto[]) => pendingSends.emit({ type: 'sent', threadId, messages });
+  // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
+  const typing = detail?.thread.presence === 'typing' || detail?.thread.presence === 'recording';
+  useExpiry(typing, detail?.thread, PRESENCE_EXPIRY_MS, () =>
+    setDetail((d) => (d && (d.thread.presence === 'typing' || d.thread.presence === 'recording') ? { ...d, thread: { ...d.thread, presence: '' } } : d)),
+  );
   useEffect(() => {
     if (!detail) return;
     const { focus: _focus, ...rest } = detail;
@@ -448,7 +469,9 @@ export default function InboxApp(props: {
       return;
     }
     // Ya se abrió antes: se ve al instante y se pone al día sin esqueleto.
-    const cached = focusRef.current?.threadId === openId ? undefined : detailCache.get(openId);
+    const kept = focusRef.current?.threadId === openId ? undefined : detailCache.get(openId);
+    // Sin burbujas de envíos que ya terminaron: nunca vuelve un "enviando" que nadie está mandando.
+    const cached = kept ? withoutStale(kept) : undefined;
     if (cached) setDetail(cached);
     void loadDetail(openId, !!cached);
     const url = new URL(window.location.href);
@@ -466,10 +489,9 @@ export default function InboxApp(props: {
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, otra pestaña.
   // Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista y el estado cada pocos segundos:
   // se releen solo cuando algo cambió.
-  const { live: liveOn } = useWaLive('inbox', () => {
-    void reloadList();
-    void reloadState();
-  });
+  // Devuelve las cargas: el aviso espera a que terminen antes de pedir otras (nunca corta una en curso, a lo sumo una
+  // por segundo; lib/wa-live-client.ts).
+  const { live: liveOn } = useWaLive('inbox', () => Promise.all([reloadList(), reloadState()]));
   // El chat abierto no espera a que se junten los avisos de la lista: se relee apenas llega el suyo (un mensaje, las
   // tildes, una reacción, escribiendo…).
   useWaLiveChat('inbox', openId, () => {
@@ -1271,11 +1293,7 @@ export default function InboxApp(props: {
             infoOpen={infoOpen}
             onBack={closeConvo}
             onAction={act}
-            onSent={(messages: MessageDto[]) => {
-              // Lo que todavía se está mandando (otro texto escrito enseguida) sigue a la vista.
-              setDetail((d) => (d ? keepPending(d, { ...d, messages }) : d));
-              void reloadList();
-            }}
+            onSent={sentTo(detail.thread.id)}
             onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);
@@ -1307,10 +1325,7 @@ export default function InboxApp(props: {
             paused={!!openId && detail.thread.id !== openId}
             onBack={closeConvo}
             onAction={act}
-            onSent={(messages: MessageDto[]) => {
-              setDetail((d) => (d ? { ...d, messages } : d));
-              void reloadList();
-            }}
+            onSent={sentTo(detail.thread.id)}
             onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);

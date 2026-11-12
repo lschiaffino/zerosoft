@@ -85,23 +85,27 @@ export async function scansOf(seen: Seen[], allow: RegExp[] = []): Promise<strin
  * tanda (batch) es una sola por más sentencias que lleve. En Turso cada ida es
  * una vuelta de red, así que esto es lo que se nota en el tiempo.
  */
-export async function roundTrips(fn: () => Promise<unknown>): Promise<{ trips: number; statements: number; sql: string[] }> {
+export async function roundTrips(fn: () => Promise<unknown>): Promise<{ trips: number; statements: number; sql: string[]; seen: Seen[] }> {
   await ensureMigrated();
   const client = getClient() as unknown as Record<string, (...a: unknown[]) => unknown>;
-  const out = { trips: 0, statements: 0, sql: [] as string[] };
   const sqlOf = (s: unknown) => (typeof s === 'string' ? s : String((s as { sql?: string })?.sql ?? ''));
+  const out = { trips: 0, statements: 0, sql: [] as string[], seen: [] as Seen[] };
+  const note = (stmt: unknown, args?: unknown) => {
+    out.sql.push(sqlOf(stmt));
+    out.seen.push({ sql: sqlOf(stmt), args: typeof stmt === 'string' ? ((args as InValue[]) ?? []) : ((stmt as Seen).args ?? []) });
+  };
   const execute = client.execute;
   const batch = client.batch;
   client.execute = (stmt: unknown, args?: unknown) => {
     out.trips++;
     out.statements++;
-    out.sql.push(sqlOf(stmt));
+    note(stmt, args);
     return execute.call(client, stmt, args);
   };
   client.batch = (stmts: unknown, mode: unknown) => {
     out.trips++;
     out.statements += (stmts as unknown[]).length;
-    out.sql.push(...(stmts as unknown[]).map(sqlOf));
+    for (const st of stmts as unknown[]) note(st);
     return batch.call(client, stmts, mode);
   };
   try {

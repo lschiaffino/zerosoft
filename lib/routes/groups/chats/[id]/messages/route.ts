@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GroupsError, getChatRow, getNumberRow, listMessages, presenceWithName, sendGate, sendMessage } from '@/lib/groups';
+import { GroupsError, cleanContacts, getChatRow, getNumberRow, listMessages, presenceWithName, sendGate, sendMessage } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 import { canSeeChat, chatAccessSql, maskMessage } from '@/lib/groups-access';
 import { limitWrites } from '@/lib/write-limit';
@@ -54,6 +54,27 @@ export async function POST(req: Request, ctx: Ctx) {
   const open = chatAccessSql(viewer) === null;
   const b = await readJson(req);
   const note = b.note === true;
+  // Lo que se pide mandar se valida antes de contar el envío contra el tope de la línea: un pedido mal armado
+  // (vacío, archivo que no se acepta, encuesta inválida) no le gasta envíos a nadie.
+  // { url, mimetype, filename, size?, kind?: 'voice' | 'sticker' | 'document' | ..., width?, height?, duration? }
+  let media: ReturnType<typeof mediaFromBody>;
+  let poll: ReturnType<typeof normalizePoll> | null = null;
+  const contacts = Array.isArray(b.contacts) ? (b.contacts as Array<{ name: string; phone: string }>) : null;
+  try {
+    media = mediaFromBody(b.media, req);
+    if (b.poll != null) {
+      try {
+        poll = normalizePoll(b.poll);
+      } catch (err) {
+        throw new GroupsError((err as Error).message);
+      }
+    }
+    if (contacts && cleanContacts(contacts).length === 0) throw new GroupsError('invalid_contact_card');
+    if (!poll && !contacts && !media && !(str(b.body) ?? '').trim()) throw new GroupsError('empty_message');
+    if ((poll || contacts) && note) throw new GroupsError('invalid_poll');
+  } catch (err) {
+    return handleGroupsError(err);
+  }
   let visible: boolean;
   let number: Awaited<ReturnType<typeof getNumberRow>>;
   let gated = false;
@@ -72,17 +93,7 @@ export async function POST(req: Request, ctx: Ctx) {
     return handleGroupsError(err);
   }
   if (!visible) return groupsError(404, 'not_found');
-  // { url, mimetype, filename, size?, kind?: 'voice' | 'sticker' | 'document' | ..., width?, height?, duration? }
   try {
-    const media = mediaFromBody(b.media, req);
-    let poll = null;
-    if (b.poll != null) {
-      try {
-        poll = normalizePoll(b.poll);
-      } catch (err) {
-        throw new GroupsError((err as Error).message);
-      }
-    }
     const msg = await sendMessage(
       s.ws,
       s.me,
@@ -94,7 +105,7 @@ export async function POST(req: Request, ctx: Ctx) {
         note,
         media,
         clientId: cleanClientId(b.clientId),
-        ...(Array.isArray(b.contacts) ? { contacts: b.contacts as Array<{ name: string; phone: string }> } : {}),
+        ...(contacts ? { contacts } : {}),
       },
       { chat, number, gated },
     );

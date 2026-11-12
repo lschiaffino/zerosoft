@@ -1826,21 +1826,31 @@ export async function sendMessage(
       poll,
       ...(Object.keys(meta).length ? { meta } : {}),
     }),
+    // Si el eco del webhook (el mismo id del proveedor) llegó antes, ya guardó este mensaje como mandado "desde el
+    // teléfono" y el INSERT de arriba no entró: esa fila pasa a ser de quien lo mandó desde acá (autor y clientId).
+    // Si el INSERT entró, la fila no es 'phone' y esto no toca nada.
+    ...(providerId
+      ? [
+          {
+            sql: `UPDATE groups_messages SET author_id = ?, author_kind = ?,
+                    meta = CASE WHEN ? = '' THEN meta ELSE json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.cid', ?) END
+                  WHERE number_id = ? AND provider_message_id = ? AND direction = 'out' AND author_kind = 'phone' RETURNING *`,
+            args: [actor, input.authorKind ?? 'person', input.clientId ?? '', input.clientId ?? '', chat.number_id, providerId],
+          },
+        ]
+      : []),
     chatTouch(at, preview, false, 'id = ?', [chatId]),
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
     ...(status === 'sent' && input.authorKind !== 'broadcast' ? answeredStatements(chatId, at) : []),
   ];
   const res = await dbBatch(stmts);
-  let row = (res[0].rows[0] as unknown as MessageRow | undefined) ?? null;
-  // El eco del webhook (el mismo id del proveedor) llegó antes y ya guardó el mensaje: es ese.
-  if (!row && providerId) {
-    row =
-      ((await getDb().prepare('SELECT * FROM groups_messages WHERE number_id = ? AND provider_message_id = ?').get(chat.number_id, providerId)) as MessageRow | undefined) ?? null;
-  }
+  const inserted = (res[0].rows[0] as unknown as MessageRow | undefined) ?? null;
+  // Ganó el eco: la fila es la que guardó el webhook, ya con su autor (y él ya emitió el evento de "enviado").
+  const row = inserted ?? (providerId ? ((res[1].rows[0] as unknown as MessageRow | undefined) ?? null) : null);
   if (!row) throw new GroupsError('send_failed', 502);
   // Quien tenga el chat abierto en esta instancia (otra pestaña, otra persona) lo ve ya.
   pokeLive('lines', ws);
-  if (status === 'sent') {
+  if (status === 'sent' && inserted) {
     await emitEventSoon(ws, 'groups.message.sent', {
       message: { id: row.id, body: row.body, authorId: actor, authorKind: input.authorKind ?? 'person', status, createdAt: at, ...(poll ? { poll } : {}) },
       chat: chatEventInfo(chat),
@@ -2134,10 +2144,17 @@ export const INBOUND_MEDIA_BUDGET = 25 * 1024 * 1024;
 /** Corre el trabajo después de la respuesta (next/server after); fuera de un request, acá mismo. */
 async function runAfter(job: () => Promise<unknown>): Promise<void> {
   try {
-    after(() => job().catch(() => null));
+    after(() => job().catch(logAfterError));
   } catch {
-    await job().catch(() => null);
+    await job().catch(logAfterError);
   }
+}
+
+/** Lo que corre después de responder no puede fallar en silencio: queda el nombre del error (nunca el contenido). */
+function logAfterError(err: unknown): null {
+  // eslint-disable-next-line no-console
+  console.error('[groups] after-response job failed', (err as Error)?.name ?? 'error');
+  return null;
 }
 
 /** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
@@ -2236,6 +2253,8 @@ export interface IngestResult {
   messages: number;
   duplicates: number;
   ignored: number;
+  /** Mensajes que no se pudieron guardar (un error, no un repetido): el webhook responde 500 y el proveedor reintenta. */
+  failed?: number;
 }
 
 export async function ingestEvents(number: NumberRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<IngestResult> {
@@ -2323,6 +2342,14 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           }
           // Archivado: vuelve a la lista con un mensaje nuevo solo si el workspace lo pidió.
           if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
+          // Ticket por palabra clave: antes de responder. No tiene otro momento en que se rehaga si se perdiera.
+          if (matchKeyword(st.ticketKeywords, row.body)) {
+            const { createTicket } = await import('./groups-tickets');
+            await createTicket(ws, null, { chatId: chat.id, messageId: row.id, source: 'keyword' }).catch(() => null);
+          }
+        } else {
+          // Respondido desde el teléfono: el chat deja de esperar. Antes de responder, por lo mismo.
+          await markAnswered(chat.id, at);
         }
         post.push(async () => {
           // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
@@ -2340,15 +2367,13 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
             if (r.changes > 0) await refreshMemberCount(chat.id);
           }
           if (ev.fromMe) {
-            // Respondido desde el teléfono: también cuenta como respuesta.
-            await markAnswered(chat.id, at);
             await emitEventSoon(ws, 'groups.message.sent', {
               message: { id: row.id, body: row.body, authorId: null, authorKind: 'phone', status: row.status, createdAt: at },
               chat: chatEventInfo(chat),
             });
             return;
           }
-          await afterInbound(ws, chat, row, await batchSettings());
+          await afterInbound(ws, chat, row, await batchSettings(), true);
         });
       } else if (ev.type === 'reaction') {
         const msg = (await getDb()
@@ -2442,6 +2467,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       }
     } catch (err) {
       res.ignored++;
+      if (ev.type === 'message') res.failed = (res.failed ?? 0) + 1;
       // eslint-disable-next-line no-console
       console.error('[groups] webhook event failed', (err as Error)?.name ?? 'error');
     }
@@ -2451,7 +2477,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   if (learning) await learning;
   if (post.length) {
     await runAfter(async () => {
-      for (const job of post) await job().catch(() => null);
+      for (const job of post) await job().catch(logAfterError);
       pokeLive('lines', ws);
     });
   }
@@ -2495,10 +2521,10 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */
-async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>): Promise<void> {
+async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>, ticketDone = false): Promise<void> {
   let chat = chatRow;
   const settings = known ?? (await getSettings(ws));
-  const keyword = matchKeyword(settings.ticketKeywords, msg.body);
+  const keyword = !ticketDone && matchKeyword(settings.ticketKeywords, msg.body);
   if (keyword) {
     const { createTicket } = await import('./groups-tickets');
     await createTicket(ws, null, { chatId: chat.id, messageId: msg.id, source: 'keyword' }).catch(() => null);

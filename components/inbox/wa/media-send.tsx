@@ -6,6 +6,7 @@ import type { MessageDto } from '@/lib/inbox/types';
 import type { TrayItem } from '@/components/groups/wa/attachments';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
+import { inboxQueue } from './pending';
 import { duration } from '@/components/groups/wa/format';
 
 /** Lo que entra en un pedido (como lib/inbox/wa-media.ts); más grande va directo a Blob. */
@@ -55,11 +56,14 @@ async function sendOne(threadId: string, f: { file: Blob; name: string; caption?
   } catch {
     throw new Error('file_too_large');
   }
-  const res = await fetch(`/api/inbox/threads/${threadId}/media`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo }),
-  }).catch(() => null);
+  // Por la cola del chat (./pending.ts): un archivo o una nota de voz no se adelanta a un texto que todavía está saliendo.
+  const res = await inboxQueue(threadId)(() =>
+    fetch(`/api/inbox/threads/${threadId}/media`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo }),
+    }).catch(() => null),
+  );
   const data = ((await res?.json().catch(() => ({}))) ?? {}) as Partial<Sent> & { error?: string };
   if (!res?.ok || !data.messages) throw new Error(data.error || 'send_failed');
   return data as Sent;

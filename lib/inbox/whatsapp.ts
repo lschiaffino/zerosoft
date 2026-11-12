@@ -260,9 +260,11 @@ export async function applyPhoneArchive(account: AccountRow, chatId: string, arc
 }
 
 /** Guarda lo que manda el servidor de WhatsApp (webhook o historial). Devuelve cuántos mensajes nuevos entraron. */
-export async function ingestWhatsappEvents(account: AccountRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<{ messages: number }> {
+export async function ingestWhatsappEvents(account: AccountRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<{ messages: number; failed?: number }> {
   const db = getDb();
   let messages = 0;
+  /** Mensajes que no se pudieron guardar (un error, no un repetido): el webhook responde 500 y el servidor reintenta. */
+  let failed = 0;
   // La libreta (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero: los mensajes
   // ya la usan. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
   const slice = events.slice(0, 2000);
@@ -328,14 +330,19 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
         default:
           break;
       }
-    } catch {
-      // Un evento roto no frena el resto (el proveedor no reintenta lo ya guardado).
+    } catch (err) {
+      // Un evento roto no frena el resto.
+      if (e.type === 'message') {
+        failed++;
+        // eslint-disable-next-line no-console
+        console.error('[inbox] webhook message failed', (err as Error)?.name ?? 'error');
+      }
     }
   }
   if (learning) await learning;
   // Tildes, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   if (slice.length) pokeLive('inbox', account.owner_id);
-  return { messages };
+  return failed ? { messages, failed } : { messages };
 }
 
 /**

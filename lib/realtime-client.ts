@@ -42,6 +42,11 @@ export interface RealtimeOptions<E> {
   hiddenPollMs?: number;
   /** Cada cuánto manda ping el servidor (el watchdog espera el doble). */
   heartbeatMs?: number;
+  /**
+   * El servidor cierra cada pocos minutos y avisa con `bye` hasta dónde mandó. Con esto, la pantalla reabre ahí
+   * mismo desde ese cursor y NO avisa `onConnect`: no se perdió nada, no hace falta releer todo.
+   */
+  resumeOnBye?: boolean;
 }
 
 const SSE_RETRY_MIN = 30_000;
@@ -66,6 +71,8 @@ export class RealtimeClient<E> {
   private hiddenTimer: ReturnType<typeof setTimeout> | null = null;
   /** El stream está cerrado porque la pestaña quedó oculta: se reabre al volver. */
   private paused = false;
+  /** La próxima conexión sigue a un cierre ordenado del servidor, desde su cursor: no hay hueco. */
+  private resumed = false;
 
   constructor(private opts: RealtimeOptions<E>) {
     this.cursor = opts.cursor;
@@ -146,7 +153,8 @@ export class RealtimeClient<E> {
         this.timer = null;
       }
       this.setStatus('live');
-      if (this.connectedOnce) this.opts.onConnect?.();
+      if (this.connectedOnce && !this.resumed) this.opts.onConnect?.();
+      this.resumed = false;
       this.connectedOnce = true;
     });
     es.addEventListener('ping', seen);
@@ -171,8 +179,11 @@ export class RealtimeClient<E> {
     es.addEventListener('bye', (ev) => {
       seen();
       let reason = '';
+      let upTo: number | undefined;
       try {
-        reason = (JSON.parse((ev as MessageEvent).data) as { reason?: string }).reason ?? '';
+        const data = JSON.parse((ev as MessageEvent).data) as { reason?: string; cursor?: number };
+        reason = data.reason ?? '';
+        upTo = typeof data.cursor === 'number' ? data.cursor : undefined;
       } catch {
         /* sin motivo */
       }
@@ -181,6 +192,14 @@ export class RealtimeClient<E> {
         this.stop();
         this.setStatus('offline');
         this.opts.onRevoked?.();
+        return;
+      }
+      // Cierre ordenado con el cursor hasta donde mandó: se reabre ya desde ahí, sin pasar por "desconectado" y sin
+      // pedir que se relea todo (no hubo hueco).
+      if (this.opts.resumeOnBye && !reason && upTo !== undefined && upTo > 0 && !this.stopped) {
+        this.cursor = Math.max(this.cursor, upTo);
+        this.resumed = true;
+        this.openStream();
         return;
       }
       // El servidor cierra a los pocos minutos: EventSource reconecta solo con Last-Event-ID.
@@ -312,6 +331,7 @@ export function useRealtime<E>(
       pollMs,
       hiddenPollMs,
       heartbeatMs,
+      resumeOnBye: opts.resumeOnBye,
       onEvents: (events) => handlers.current.onEvents(events),
       onConnect: () => handlers.current.onConnect?.(),
       onReset: () => handlers.current.onReset?.(),

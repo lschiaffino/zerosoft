@@ -1,38 +1,45 @@
-import { iJson, inboxOwner } from '@/lib/inbox/http';
-import { livePoll, liveStream, wantsLiveStream } from '@/lib/wa-live';
+import { NextResponse } from 'next/server';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { delegatedIdentity } from '@/lib/mcp/identity';
+import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream } from '@/lib/wa-live';
+import { liveSessionValid } from '@/lib/wa-live-auth';
 import { requestCursor } from '@/lib/realtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// La conexión SSE queda abierta unos minutos y el navegador se reconecta. El mismo valor que el webhook
-// (app/api/inbox/webhook): con la misma configuración pueden compartir instancia y el aviso sale en el acto.
+// La conexión SSE queda abierta unos minutos y el navegador se reconecta.
 export const maxDuration = 250;
 
+const NO_STORE = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer' };
+
 /**
- * Aviso en vivo de Inbox: qué chats de la persona cambiaron (solo ids). Solo
- * con la sesión de la persona (inboxOwner: ni API keys ni el MCP). Con
- * `Accept: text/event-stream` (EventSource) es un stream SSE desde ?cursor= o
- * Last-Event-ID; si no, lo mismo por pedido: { events, cursor } (por índice:
- * sin cambios no lee filas).
+ * Aviso en vivo de Inbox: qué chats de la persona cambiaron (solo ids y si
+ * mueve la lista). Solo con la sesión de la persona, como inboxOwner(): ni API
+ * keys ni el MCP. Con `Accept: text/event-stream` (EventSource) y el stream
+ * habilitado para la persona (WA_LIVE_WORKSPACES) es un stream SSE desde
+ * ?cursor= o Last-Event-ID; si no, lo mismo por pedido:
+ * { events, cursor, stream } (por índice: sin cambios no lee filas).
  */
 export async function GET(req: Request) {
-  const a = await inboxOwner();
-  if ('res' in a) return a.res;
-  const viewer = { app: 'inbox' as const, owner: a.owner };
+  // Lo mismo que inboxOwner() (lib/inbox/http.ts), quedándose además con la sesión para revalidar el stream.
+  const user = delegatedIdentity() ? null : await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: NO_STORE });
+  const owner = realUserId(user);
+  const viewer = { app: 'inbox' as const, owner };
   const cursor = requestCursor(req);
-  const want = wantsLiveStream(req);
-  if (want === 'off') return new Response(null, { status: 204 });
-  if (want === 'poll') return iJson(await livePoll(viewer, cursor));
+  const want = wantsLiveStream(req, [owner]);
+  if (want === 'off') return new NextResponse(null, { status: 204, headers: NO_STORE });
+  if (want === 'poll') return NextResponse.json({ ...(await livePoll(viewer, cursor)), stream: liveStreamAllowed(req, [owner]) }, { headers: NO_STORE });
+  // Lo que hace falta para revalidar se toma ahora: más tarde no se leen cookies ni headers (lib/wa-live-auth.ts).
+  const session = { userId: owner, sid: user.sid ?? null };
   const res = liveStream({
-    key: `inbox:${a.owner}`,
+    key: `inbox:${owner}`,
+    tab: new URL(req.url).searchParams.get('tab')?.slice(0, 40) || undefined,
     cursor,
     signal: req.signal,
     viewer,
-    // Cada minuto: la sesión sigue siendo de la misma persona.
-    check: async () => {
-      const again = await inboxOwner();
-      return 'res' in again || again.owner !== a.owner ? null : viewer;
-    },
+    // Cada minuto: la sesión de la persona sigue valiendo.
+    check: async () => ((await liveSessionValid(session)) ? viewer : null),
   });
-  return res ?? iJson({ error: 'too_many_streams' }, 429);
+  return res ?? NextResponse.json({ error: 'too_many_streams' }, { status: 429, headers: NO_STORE });
 }

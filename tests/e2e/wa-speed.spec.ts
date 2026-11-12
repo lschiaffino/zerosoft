@@ -7,7 +7,7 @@ import { expect, test, type APIRequestContext, type BrowserContext, type Page } 
  * el aviso en vivo (stream, o consulta de respaldo), y el que se manda aparece
  * al apretar Enter, sin esperar al servidor. Nombres y números inventados.
  *
- * La suite corre con WA_LIVE=poll (un stream abierto no deja llegar a
+ * El stream está apagado salvo que WA_LIVE_WORKSPACES lo prenda (un stream abierto no deja llegar a
  * "networkidle"); las pruebas del stream lo piden con la cookie wa_live=sse.
  */
 
@@ -369,5 +369,169 @@ test.describe('Inbox', () => {
     expect(Math.max(...samples)).toBeLessThan(STREAM_BOUND_MS);
     await expect(page.locator('.ib-item', { hasText: name })).toContainText('llega 2');
     expect(errors).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------- Con el stream prendido, varias pestañas y personas
+
+/** Anota en la página cada lote que llega por el stream (solo ids y tipo): así la prueba ve lo que el servidor manda. */
+async function recordFrames(context: BrowserContext) {
+  await context.addInitScript(() => {
+    const w = window as unknown as { __frames: Array<{ chatId: string; kind?: string }>; EventSource: typeof EventSource };
+    w.__frames = [];
+    const Native = w.EventSource;
+    class Recording extends Native {
+      constructor(url: string | URL, init?: EventSourceInit) {
+        super(url, init);
+        this.addEventListener('events', (ev) => {
+          try {
+            for (const e of (JSON.parse((ev as MessageEvent).data) as { events: Array<{ chatId: string; kind?: string }> }).events) w.__frames.push(e);
+          } catch {
+            /* frame roto */
+          }
+        });
+      }
+    }
+    w.EventSource = Recording as unknown as typeof EventSource;
+  });
+}
+const framesOf = (page: Page) => page.evaluate(() => (window as unknown as { __frames: Array<{ chatId: string; kind?: string }> }).__frames.slice());
+
+test.describe('con el stream prendido', () => {
+  test('Lines, dos pestañas: lo que mando en una aparece en la otra en menos de 2 s', async ({ browser, request, baseURL }) => {
+    const context = await browser.newContext({ baseURL });
+    await useStream(context, baseURL);
+    const n = await fakeNumber(request);
+    const name = `Vera${uid()}`;
+    await linesInbound(request, n, linesDm(), 'hola', name);
+    const a = await context.newPage();
+    const b = await context.newPage();
+    const openA = streamOpen(a, 'groups');
+    await openLinesChat(a, name, 'domcontentloaded');
+    await openA;
+    const openB = streamOpen(b, 'groups');
+    await openLinesChat(b, name, 'domcontentloaded');
+    await openB;
+    const errors = watchErrors(b);
+    // Uno de calentamiento (compilar en dev, la primera relectura).
+    const composer = a.getByLabel('WhatsApp', { exact: true });
+    await composer.fill('calentamiento');
+    await composer.press('Enter');
+    await expect(b.locator('.gr-msg-out', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const text = `de la otra pestaña ${i} ${uid()}`;
+      await composer.fill(text);
+      const t0 = Date.now();
+      await composer.press('Enter');
+      await expect(b.locator('.gr-msg-out', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
+      samples.push(Date.now() - t0);
+      // Una vez en cada pestaña, sin burbujas repetidas.
+      await expect(a.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
+      await expect(b.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
+    }
+    note('Enter en una pestaña→burbuja en la otra (stream) ms', samples.join(', '));
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+
+  test('Lines, un miembro: por el stream le llegan solo los chats de las líneas que ve; el de una línea restringida, ni el id', async ({ browser, request, baseURL }) => {
+    const seen = await fakeNumber(request);
+    const hidden = await fakeNumber(request);
+    await sql("UPDATE groups_numbers SET visibility = 'restricted' WHERE id = ?", [hidden.id]);
+    const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
+    const email = `lines-live-${uid()}@darwin-e2e.io`;
+    const context = await browser.newContext({ baseURL });
+    await context.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL! }]);
+    await useStream(context, baseURL);
+    await recordFrames(context);
+    const page = await context.newPage();
+    await page.goto('/en/app', { waitUntil: 'domcontentloaded', timeout: OPEN_MS });
+    const me = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
+    await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
+    await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '*')`, [demoTeam, me]);
+    await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, me]);
+    const open = streamOpen(page, 'groups');
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'domcontentloaded', timeout: OPEN_MS });
+    await open;
+    await sleep(800);
+    const visibleName = `Visible${uid()}`;
+    const hiddenName = `Oculto${uid()}`;
+    // Primero el chat de la línea que no ve, después el de la que sí.
+    await linesInbound(request, hidden, linesDm(), 'no lo tenés que ver', hiddenName);
+    await linesInbound(request, seen, linesDm(), 'este sí', visibleName);
+    await expect(page.locator('.gr-row', { hasText: visibleName })).toBeVisible({ timeout: 5000 });
+    const ids = Object.fromEntries((await sql("SELECT name, id FROM groups_chats WHERE name IN (?, ?)", [visibleName, hiddenName])).map((r) => [String(r.name), String(r.id)]));
+    await sleep(1500);
+    const frames = await framesOf(page);
+    expect(frames.map((f) => f.chatId)).toContain(ids[visibleName]);
+    expect(frames.map((f) => f.chatId)).not.toContain(ids[hiddenName]);
+    await expect(page.locator('.gr-row', { hasText: hiddenName })).toHaveCount(0);
+    // Solo ids y tipo: nada del texto, el nombre ni el teléfono viaja por el stream.
+    for (const f of frames) expect(Object.keys(f).sort()).toEqual(['chatId', 'id', 'kind']);
+    await context.close();
+  });
+
+  test('Inbox, dos pestañas: lo que mando en una aparece en la otra en menos de 2 s', async ({ browser, request, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
+    await useStream(context, baseURL);
+    const acc = await linkWhatsapp(request);
+    const name = `Ana ${uid()}`;
+    await inboxInbound(request, acc, inboxDm(), 'hola', name);
+    const a = await context.newPage();
+    const b = await context.newPage();
+    const openA = streamOpen(a, 'inbox');
+    await openInboxChat(a, name, 'domcontentloaded');
+    await openA;
+    const openB = streamOpen(b, 'inbox');
+    await openInboxChat(b, name, 'domcontentloaded');
+    await openB;
+    const field = a.getByRole('textbox', { name: 'Message' });
+    await field.fill('calentamiento');
+    await field.press('Enter');
+    await expect(b.locator('.gr-msg-out', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const text = `de la otra pestaña ${i} ${uid()}`;
+      await field.fill(text);
+      const t0 = Date.now();
+      await field.press('Enter');
+      await expect(b.locator('.gr-msg-out', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
+      samples.push(Date.now() - t0);
+      await expect(a.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
+      await expect(b.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
+    }
+    note('Enter en una pestaña→burbuja en la otra (stream) ms', samples.join(', '));
+    await context.close();
+  });
+
+  test('Inbox: Enter y enseguida otro chat: la respuesta del envío no se pinta en el chat que está a la vista', async ({ page, request, context, baseURL }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await useStream(context, baseURL);
+    const acc = await linkWhatsapp(request);
+    const nameA = `Ana ${uid()}`;
+    const nameB = `Beto ${uid()}`;
+    await inboxInbound(request, acc, inboxDm(), 'hola de A', nameA);
+    await inboxInbound(request, acc, inboxDm(), 'hola de B', nameB);
+    await openInboxChat(page, nameA, 'domcontentloaded');
+    // El envío tarda: la persona ya abrió otro chat cuando vuelve la respuesta.
+    await page.route('**/api/inbox/threads/*/messages', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await sleep(SERVER_DELAY_MS);
+      await route.continue();
+    });
+    const text = `para A ${uid()}`;
+    const field = page.getByRole('textbox', { name: 'Message' });
+    await field.fill(text);
+    await field.press('Enter');
+    await page.locator('.ib-item', { hasText: nameB }).locator('.ib-row-btn').click();
+    await expect(page.locator('.gr-msg-in', { hasText: 'hola de B' })).toBeVisible({ timeout: OPEN_MS });
+    await sleep(SERVER_DELAY_MS + 1500);
+    // En B, nada de A.
+    await expect(page.locator('.gr-msg-in', { hasText: 'hola de A' })).toHaveCount(0);
+    await expect(page.locator('.gr-msg-out', { hasText: text })).toHaveCount(0);
+    // Y en A está, una vez.
+    await page.locator('.ib-item', { hasText: nameA }).locator('.ib-row-btn').click();
+    await expect(page.locator('.gr-msg-out', { hasText: text })).toHaveCount(1, { timeout: 10_000 });
   });
 });

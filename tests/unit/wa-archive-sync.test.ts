@@ -352,31 +352,38 @@ describe('aviso en vivo de las listas', () => {
     expect(await livePoll(viewer, 0)).toEqual({ events: [], cursor: poll.cursor });
   });
 
-  it('Lines: avisa al workspace y solo de las líneas que la persona ve (pedidas solo si hay avisos)', async () => {
+  it('Lines: avisa al workspace y solo de los chats que la persona puede abrir (el acceso se consulta solo si hay avisos)', async () => {
     const { ws, number } = await linesSetup('wa-live-b');
-    const viewer = { app: 'lines' as const, ws, numbers: null };
+    const viewer = { app: 'lines' as const, ws, visible: null };
     const before = await latestLiveId(viewer);
     let asked = 0;
-    const lines = (set: Set<string> | null) => async () => {
-      asked++;
-      return set;
-    };
-    expect((await livePoll(viewer, before || 1, lines(null))).events).toEqual([]);
+    const only = (set: Set<string> | null) => ({
+      app: 'lines' as const,
+      ws,
+      visible: async (ids: string[]) => {
+        asked++;
+        return set ?? new Set(ids);
+      },
+    });
+    expect((await livePoll(only(null), before || 1)).events).toEqual([]);
     expect(asked).toBe(0);
     await ingestEvents(number, [inbound('5491100004402@s.whatsapp.net')]);
     const from = before || 1;
-    expect((await livePoll(viewer, from, lines(null))).events).toHaveLength(1);
-    expect((await livePoll(viewer, from, lines(new Set(['otra-linea'])))).events).toEqual([]);
-    expect((await livePoll({ app: 'lines', ws: 'otro-ws', numbers: null }, from)).events).toEqual([]);
+    expect((await livePoll(viewer, from)).events).toHaveLength(1);
+    expect((await livePoll(only(null), from)).events).toHaveLength(1);
+    expect(asked).toBe(1);
+    expect((await livePoll(only(new Set(['otro-chat'])), from)).events).toEqual([]);
+    expect((await livePoll({ app: 'lines', ws: 'otro-ws', visible: null }, from)).events).toEqual([]);
     expect((await livePoll({ app: 'inbox', owner: ws }, from)).events).toEqual([]);
   });
 
-  it('una tanda de avisos del mismo chat sale una vez', () => {
-    const e = (id: number, chat: string) => ({ id, chat_id: chat, number_id: 'n1' });
-    expect(liveBatch([e(1, 'a'), e(2, 'b'), e(3, 'a')], { app: 'inbox', owner: 'p' })).toEqual([
-      { id: 3, chatId: 'a' },
-      { id: 2, chatId: 'b' },
+  it('una tanda de avisos del mismo chat sale una vez, y dice si mueve la lista', async () => {
+    const e = (id: number, chat: string, kind: 'chat' | 'msg' = 'chat') => ({ id, chat_id: chat, number_id: 'n1', kind });
+    expect(await liveBatch([e(1, 'a'), e(2, 'b', 'msg'), e(3, 'a', 'msg')], { app: 'inbox', owner: 'p' })).toEqual([
+      // 'a' tuvo un cambio de lista y uno de adentro: cuenta como de lista. 'b' solo de adentro.
+      { id: 3, chatId: 'a', kind: 'chat' },
+      { id: 2, chatId: 'b', kind: 'msg' },
     ]);
-    expect(liveBatch([e(1, 'a')], { app: 'lines', ws: 'w', numbers: new Set(['n2']) })).toEqual([]);
+    expect(await liveBatch([e(1, 'a')], { app: 'lines', ws: 'w', visible: async () => new Set(['z']) })).toEqual([]);
   });
 });

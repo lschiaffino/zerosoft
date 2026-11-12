@@ -7,9 +7,7 @@ import { readTextCapped } from '@/lib/safe-fetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// El mismo valor que el stream de avisos (app/api/inbox/live): con la misma configuración pueden compartir
-// instancia, y entonces el aviso a la pantalla abierta sale en el acto (lib/wa-live.ts).
-export const maxDuration = 250;
+export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string; secret: string }> };
 
@@ -55,5 +53,7 @@ export async function POST(req: Request, ctx: Ctx) {
   const result = await ingestWhatsappEvents(account, provider.parseWebhook(body), { history });
   // Llegó una tanda del historial: la importación desde el servidor corre cuando termine de llegar.
   if (history || event === 'chats.set') await scheduleWhatsappBackfill(account.id).catch(() => null);
+  // Un mensaje que no se pudo guardar: 500 para que el servidor de WhatsApp lo reintente (lo ya guardado no se duplica).
+  if (result.failed) return NextResponse.json({ ok: false, chats, ...result }, { status: 500 });
   return NextResponse.json({ ok: true, chats, ...result });
 }

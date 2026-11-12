@@ -9868,6 +9868,8 @@ export const MIGRATIONS: Migration[] = [
     // releerse cada pocos segundos. OJO: un trigger vive con su tabla (ver 391_wa_archive_sync).
     id: '394_wa_live_messages',
     up: async (c) => {
+      // Qué cambió: 'chat' mueve la lista; 'msg' es de adentro del chat y la lista no se relee por eso.
+      await addColumn(c, "ALTER TABLE wa_live_events ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'");
       for (const [name, body] of WA_LIVE_MESSAGE_TRIGGERS) await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
   },

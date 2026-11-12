@@ -6,9 +6,7 @@ import { readTextCapped } from '@/lib/safe-fetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// El mismo valor que el stream de avisos (app/api/groups/live): con la misma configuración pueden compartir
-// instancia, y entonces el aviso a las pantallas abiertas sale en el acto (lib/wa-live.ts).
-export const maxDuration = 250;
+export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string; secret: string }> };
 
@@ -39,8 +37,9 @@ export async function GET(req: Request, ctx: Ctx) {
  * Eventos del proveedor. Valida el secreto de la URL y la firma del
  * proveedor (Meta: X-Hub-Signature-256; WAHA: X-Webhook-Hmac si está), y
  * guarda los mensajes sin duplicar (índice único por id del proveedor).
- * Responde 200 rápido aunque un evento falle: el proveedor no reintenta
- * lo que ya guardamos.
+ * Responde 200 aunque falle un evento que no es un mensaje (un estado, una
+ * presencia); si lo que falló es guardar un mensaje, 500 para que el proveedor
+ * lo reintente (lo ya guardado no se duplica).
  */
 export async function POST(req: Request, ctx: Ctx) {
   // El límite por IP y la fila del número, a la vez: son dos idas a la base que no dependen una de la otra.
@@ -70,5 +69,9 @@ export async function POST(req: Request, ctx: Ctx) {
   // Historial que WhatsApp manda al vincular (Evolution MESSAGES_SET): se guarda sin avisos, reglas ni SLA.
   const history = /^messages[._]set$/i.test(String((body as { event?: unknown } | null)?.event ?? ''));
   const result = await ingestEvents(row, events, { history });
+  // Un mensaje que no se pudo guardar (un error, no un repetido): 500 para que el proveedor reintente. Evolution
+  // reintenta lo que no es 2xx hasta 10 veces con espera creciente (5 s a 5 min) y lo ya guardado no se duplica
+  // (índice único por id del proveedor), así que el reintento solo recupera lo que faltó.
+  if (result.failed) return NextResponse.json({ ok: false, ...result }, { status: 500 });
   return NextResponse.json({ ok: true, ...result });
 }
