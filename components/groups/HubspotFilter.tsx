@@ -21,7 +21,16 @@ const MAX_ROWS = 3;
  * de su tipo y el valor. Lo escrito se aplica cuando la condición está
  * completa; el texto, un momento después de dejar de escribir.
  */
-export default function HubspotFilter({ value, onChange }: { value: HubspotPropFilter[]; onChange: (next: HubspotPropFilter[]) => void }) {
+export default function HubspotFilter({
+  value,
+  onChange,
+  immediate = false,
+}: {
+  value: HubspotPropFilter[];
+  onChange: (next: HubspotPropFilter[]) => void;
+  /** Dentro del panel de filtros (un borrador hasta "Aplicar"): lo escrito pasa al momento, sin esperar. */
+  immediate?: boolean;
+}) {
   const t = useTranslations('groups');
   const { schema } = useHubspotSchema(true);
   const [rows, setRows] = useState<HubspotPropFilter[]>(value);
@@ -49,7 +58,7 @@ export default function HubspotFilter({ value, onChange }: { value: HubspotPropF
       sent.current = JSON.stringify(next);
       onChange(next);
     };
-    if (wait > 0) timer.current = setTimeout(apply, wait);
+    if (wait > 0 && !immediate) timer.current = setTimeout(apply, wait);
     else apply();
   }
 

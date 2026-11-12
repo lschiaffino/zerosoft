@@ -77,3 +77,26 @@ describe('notes ui: duplicar', () => {
     expect(body).not.toHaveProperty('pinned');
   });
 });
+
+describe('notes ui: info de la nota', () => {
+  it('cuenta palabras, caracteres, lectura, tareas y adjuntos', async () => {
+    const { noteStats } = await import('@/components/notes/notes-ui');
+    const s = noteStats('Plan de viaje', [
+      { id: 'a', type: 'paragraph', content: 'Reservar <strong>hotel</strong> en Lima' },
+      { id: 'b', type: 'todo', content: 'Pasajes', checked: true },
+      { id: 'c', type: 'todo', content: 'Seguro', checked: false },
+      { id: 'd', type: 'image', content: '', name: 'mapa.png' },
+    ] as never);
+    expect(s.tasksDone).toBe(1);
+    expect(s.tasksTotal).toBe(2);
+    expect(s.attachments).toBe(1);
+    expect(s.words).toBe(10);
+    expect(s.readingMinutes).toBe(1);
+  });
+
+  it('una nota vacía no tiene tiempo de lectura', async () => {
+    const { noteStats } = await import('@/components/notes/notes-ui');
+    const s = noteStats('', []);
+    expect(s).toMatchObject({ words: 0, characters: 0, readingMinutes: 0, tasksTotal: 0 });
+  });
+});

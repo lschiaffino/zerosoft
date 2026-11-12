@@ -140,7 +140,7 @@ test('abrir una carpeta solo cambia la lista: el chat abierto y lo escrito sigue
 
   // Un filtro (pestaña "Unread") tampoco toca el chat abierto; "All chats" saca la carpeta.
   await page.getByRole('tab', { name: 'Unread', exact: true }).click();
-  await expect(rows).toHaveAttribute('data-list', /filter=unread/);
+  await expect(rows).toHaveAttribute('data-list', /unread/);
   await untouched();
   await page.getByRole('tab', { name: 'All', exact: true }).click();
   await page.getByTestId('lines-folder-current').getByRole('button', { name: 'All chats' }).click();

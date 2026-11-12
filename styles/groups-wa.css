@@ -620,9 +620,15 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-search-row .wa-search { flex: 1; min-width: 0; }
 .wa-filter-btn { position: relative; width: 36px; height: 36px; }
 .wa-filter-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; background: var(--wa-badge); border-radius: 50%; }
-.wa-filter-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--wa-chip-bg); border-radius: var(--radius-1); }
+/* Con muchos filtros puestos, los chips no empujan la lista hacia abajo sin límite. */
+.gr-list-head .ui-filter-chips { max-height: 176px; overflow-y: auto; overscroll-behavior: contain; }
+@media (pointer: coarse) { .gr-list-head .ui-filter-chips { max-height: 272px; } }
+/* Cuántos filtros hay puestos (además de las pestañas), sobre el botón que abre el panel. */
+.wa-filter-count {
+  position: absolute; top: 1px; right: 0; display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
+  font-family: var(--font-data); font-size: 0.625rem; font-weight: 600; line-height: 1; color: var(--bg); background: var(--ink); border-radius: var(--radius-1);
+}
 .gr-inbox .gr-list-head { gap: 8px; }
-.gr-inbox .gr-list-save { margin: 0; }
 .gr-inbox .gr-sample-banner.is-warn { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 6px 10px; font-size: 0.8125rem; }
 .gr-inbox .gr-sample-banner.is-warn > span:first-child { flex: 0 1 auto; }
 .gr-inbox .gr-sample-banner.is-warn .gr-start { flex: none; margin: 0; }

@@ -744,6 +744,13 @@ export interface ChatQuery {
   count?: boolean;
   /** Condiciones sobre propiedades de la empresa de HubSpot vinculada (lib/groups-hubspot-filter.ts). */
   hsProps?: import('./groups-hubspot-shared').HubspotPropFilter[];
+  /**
+   * Los filtros del panel de la bandeja y de las listas guardadas (lib/groups-filters.ts): varias opciones por
+   * campo, sí o no, fechas. Se cruzan con lo demás de esta consulta. Con esto, el estado (abiertos, cerrados) sale de acá.
+   */
+  filters?: import('./groups-filters').LinesFilters;
+  /** Minutos al este de UTC de quien mira: dónde empieza "hoy" en los filtros por fecha. */
+  tzOffsetMin?: number;
 }
 
 /** Cursor de la bandeja: (orden, id) del último chat de la página. */
@@ -830,7 +837,13 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra.
   if (query.archived) where.push('c.archived_at IS NOT NULL');
   else if (!(query.q ?? '').trim()) where.push('c.archived_at IS NULL');
-  if (filter === 'closed') where.push("c.status = 'closed'");
+  if (query.filters) {
+    // Estado, tipo, líneas, asignación, etiquetas, sí o no, fechas y propiedades. El acceso de quien mira va aparte, más abajo.
+    const { linesFiltersSql } = await import('./groups-filters');
+    const fx = linesFiltersSql(filter === 'closed' ? { ...query.filters, status: ['closed'] } : query.filters, { me, tzOffsetMin: query.tzOffsetMin });
+    where.push(...fx.where);
+    args.push(...fx.args);
+  } else if (filter === 'closed') where.push("c.status = 'closed'");
   else where.push("c.status = 'open'");
   if (filter === 'unread') where.push('c.unread_count > 0');
   if (filter === 'unanswered') where.push('c.awaiting_since IS NOT NULL');

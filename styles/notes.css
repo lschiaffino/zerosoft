@@ -791,3 +791,9 @@
 .note-annotate-color { outline: 1px solid var(--brand-gray-2); }
 .note-file-failed p { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .note-file-failed { display: block; }
+
+.note-info-list { margin: 0; display: grid; gap: 0; }
+.note-info-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.note-info-row:last-child { border-bottom: 0; }
+.note-info-row dt { color: var(--ink-2); }
+.note-info-row dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }

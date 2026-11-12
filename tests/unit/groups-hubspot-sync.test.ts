@@ -606,7 +606,7 @@ describe('HubSpot: filtro de la bandeja por propiedades', () => {
   it('se combina con los demás filtros, se guarda en las listas y llega por la URL', async () => {
     const w = await filterWorld('hs-filter-lists');
     const filters = cleanListFilters({ kind: 'group', hsProps: [{ name: 'plan_tier', op: 'any_of', values: ['starter', 'starter', ''] }, { name: 'bad name!', op: 'is', value: 'x' }, { name: 'city', op: 'is' }, { name: 'city', op: 'wat', value: 'x' }] });
-    expect(filters).toEqual({ kind: 'group', hsProps: [{ name: 'plan_tier', op: 'any_of', values: ['starter'] }] });
+    expect(filters).toEqual({ kinds: ['group'], hsProps: [{ name: 'plan_tier', op: 'any_of', values: ['starter'] }] });
     expect((await listChats(w.owner.id, w.owner.id, listQuery(filters))).rows.map((r) => r.id)).toEqual([w.globex.id]);
     expect(parseHubspotFilterParam('not json')).toEqual([]);
     expect(cleanHubspotFilters(Array.from({ length: 9 }, () => ({ name: 'city', op: 'empty' })))).toHaveLength(5);
