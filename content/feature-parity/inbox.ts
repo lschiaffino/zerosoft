@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-11',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -208,9 +208,9 @@ const parity: ProductParity = {
     }),
     row('wa-message-actions', 'whatsapp', ['Reply, react, forward, copy, edit, delete, star', 'Responder, reaccionar, reenviar, copiar, editar, borrar, destacar', 'Responder, reagir, encaminhar, copiar, editar, apagar, favoritar'], 'partial', {
       detail: [
-        'From the arrow menu, right click or a long press. Forwarding sends a copy of the text (no "Forwarded" mark on the other side, no media). Message info shows delivered and read, not the time',
-        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia del texto (sin la marca "Reenviado" del otro lado ni archivos). La info del mensaje muestra entregado y leído, sin la hora',
-        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia do texto (sem a marca "Encaminhada" do outro lado nem arquivos). Os dados da mensagem mostram entregue e lida, sem a hora',
+        'From the arrow menu, right click or a long press. Forwarding sends a copy of any message (text, photo, video, document, sticker, audio; a voice note goes as a voice note) to up to 5 chats, marked "Forwarded" here but not on the other phone, because our WhatsApp server has no native forward. View once messages are not forwarded. Message info shows delivered and read, not the time',
+        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia de cualquier mensaje (texto, foto, video, documento, sticker, audio; una nota de voz sale como nota de voz) a hasta 5 chats, marcada "Reenviado" acá pero no en el teléfono de quien la recibe, porque nuestro servidor de WhatsApp no tiene reenvío nativo. Los de ver una vez no se reenvían. La info del mensaje muestra entregado y leído, sin la hora',
+        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia de qualquer mensagem (texto, foto, vídeo, documento, figurinha, áudio; uma nota de voz sai como nota de voz) para até 5 conversas, marcada "Encaminhada" aqui mas não no telefone de quem recebe, porque nosso servidor de WhatsApp não tem encaminhamento nativo. As de visualização única não são encaminhadas. Os dados da mensagem mostram entregue e lida, sem a hora',
       ],
     }),
     row('wa-media-view', 'whatsapp', ['Photos, video, voice notes, documents, stickers, locations, contacts, polls', 'Fotos, video, notas de voz, documentos, stickers, ubicaciones, contactos, encuestas', 'Fotos, vídeo, notas de voz, documentos, figurinhas, localizações, contatos, enquetes'], 'partial', {

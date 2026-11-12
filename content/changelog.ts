@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-wa-forward-media',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: forward voice notes, photos and files',
+      es: 'Inbox y Lines: reenviar notas de voz, fotos y archivos',
+      pt: 'Inbox e Lines: encaminhar notas de voz, fotos e arquivos',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Forward is now in the menu of every WhatsApp message, not only text: voice notes, audio, photos, video, documents and stickers. A voice note arrives as a voice note with its length. If one chat fails, the others still get it and a notice says which part went out. View once messages cannot be forwarded.',
+        es: 'Reenviar ahora está en el menú de todos los mensajes de WhatsApp, no solo en los de texto: notas de voz, audios, fotos, videos, documentos y stickers. Una nota de voz llega como nota de voz, con su duración. Si un chat falla, los demás lo reciben igual y un aviso dice cuántos salieron. Los mensajes de ver una vez no se reenvían.',
+        pt: 'Encaminhar agora está no menu de todas as mensagens do WhatsApp, não só nas de texto: notas de voz, áudios, fotos, vídeos, documentos e figurinhas. Uma nota de voz chega como nota de voz, com sua duração. Se uma conversa falhar, as outras recebem mesmo assim e um aviso diz quantas saíram. Mensagens de visualização única não são encaminhadas.',
+      },
+      {
+        product: 'groups',
+        en: 'On Evolution and managed QR numbers, a forwarded voice note now goes as a voice note with its length and waveform, not as a plain audio file, and a file not yet downloaded from the gateway is fetched first instead of failing. The copy is marked Forwarded in Lines; WhatsApp on the other phone does not show that label.',
+        es: 'En números Evolution y por QR administrado, una nota de voz reenviada ahora sale como nota de voz, con su duración y su onda, y no como un archivo de audio, y un archivo que todavía no se bajó del gateway se baja antes en vez de fallar. La copia queda marcada Reenviado en Lines; en el otro teléfono WhatsApp no muestra esa marca.',
+        pt: 'Em números Evolution e por QR gerenciado, uma nota de voz encaminhada agora sai como nota de voz, com sua duração e sua onda, e não como um arquivo de áudio, e um arquivo que ainda não foi baixado do gateway é baixado antes em vez de falhar. A cópia fica marcada Encaminhada no Lines; no outro telefone o WhatsApp não mostra essa marca.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-presence-sidebar',
     date: '2026-11-12',
     title: {
