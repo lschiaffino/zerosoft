@@ -124,6 +124,8 @@ export async function POST(req: Request, ctx: Ctx) {
             media,
             clientId,
             ...(contacts ? { contacts } : {}),
+            // { linkPreview: false }: el texto sale sin la vista previa del link (la persona la sacó al escribir).
+            ...(b.linkPreview === false ? { linkPreview: false } : {}),
           },
           { chat, number, gated, existing: null },
         );

@@ -454,6 +454,8 @@ export function wahaProvider(
         chatId,
         text,
         ...(o?.replyTo ? { reply_to: o.replyTo } : {}),
+        // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
+        linkPreview: o?.linkPreview !== false,
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
@@ -1350,6 +1352,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
         ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
+        // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
+        linkPreview: o?.linkPreview !== false,
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },

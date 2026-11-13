@@ -420,11 +420,15 @@ export async function resyncWhatsapp(owner: string): Promise<{ account: AccountR
 }
 
 /** Manda un texto al chat y lo guarda como enviado. */
-export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string; mentions?: string[]; clientId?: string } = {}): Promise<string> {
+export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean } = {}): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
   try {
-    const o = { ...(opts.replyTo ? { replyTo: opts.replyTo } : {}), ...(opts.mentions?.length ? { mentions: opts.mentions } : {}) };
+    const o = {
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.mentions?.length ? { mentions: opts.mentions } : {}),
+      ...(opts.linkPreview === false ? { linkPreview: false } : {}),
+    };
     id = (await waProviderFor(account).sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
   } catch (err) {
     if (err instanceof InboxError) throw err;
@@ -436,7 +440,13 @@ export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, t
     body: text,
     status: 'sent',
     replyTo: opts.replyTo ?? '',
-    ...(opts.clientId ? { meta: JSON.stringify({ cid: opts.clientId }), clientId: opts.clientId } : {}),
+    // clientId: un reintento del mismo envío no lo guarda dos veces. noPreview: la persona sacó la vista previa del link.
+    ...(opts.clientId || opts.linkPreview === false
+      ? {
+          meta: JSON.stringify({ ...(opts.clientId ? { cid: opts.clientId } : {}), ...(opts.linkPreview === false ? { noPreview: true } : {}) }),
+          ...(opts.clientId ? { clientId: opts.clientId } : {}),
+        }
+      : {}),
   });
   // Quien tenga Inbox abierto en esta instancia (otra pestaña) lo ve ya.
   pokeLive('inbox', account.owner_id);

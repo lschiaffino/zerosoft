@@ -163,5 +163,59 @@
   "showLess": "Show less",
   "audioSummary": "Summary:",
   "transcript": "Transcript",
-  "moreTools": "More: write with AI, dictate, snippets"
+  "moreTools": "More: write with AI, dictate, snippets",
+  "display": {
+    "title": "Display",
+    "help": "How chats look for you in Inbox and Lines. Changes show right away and only for you.",
+    "reset": "Reset to default",
+    "saved": "Saved. It applies to Inbox and Lines.",
+    "error": "It could not be saved. Try again.",
+    "textSize": {
+      "label": "Message text",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large"
+    },
+    "linkPreviews": {
+      "label": "Link previews",
+      "large": "Large image",
+      "compact": "Compact",
+      "off": "Off"
+    },
+    "mediaSize": {
+      "label": "Photos and videos",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large"
+    },
+    "density": {
+      "label": "Chat list",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "bubbleWidth": {
+      "label": "Message width",
+      "default": "Default",
+      "wide": "Wide"
+    },
+    "wallpaper": {
+      "label": "Chat background",
+      "pattern": "Pattern",
+      "plain": "Plain"
+    },
+    "groupAvatars": "Show photos next to messages in groups",
+    "sample": {
+      "author": "Ana",
+      "in": "Did you see the new pricing page?",
+      "out": "Yes, here it is:",
+      "linkTitle": "Pricing",
+      "linkDesc": "Plans for teams of any size, billed monthly or yearly."
+    },
+    "tab": "Appearance"
+  },
+  "linkPreview": {
+    "composerLabel": "Link preview",
+    "loading": "Loading preview…",
+    "remove": "Send without preview"
+  }
 }

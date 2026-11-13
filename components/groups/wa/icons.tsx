@@ -72,6 +72,13 @@ export const Chevron = (p: P) => (
     <path d="m7 10 5 5 5-5" />
   </Svg>
 );
+/** Eslabón: el pie de la vista previa de un link. */
+export const LinkIcon = (p: P) => (
+  <Svg strokeWidth={2.1} {...p}>
+    <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4l-1.1 1.1" />
+    <path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.1-1.1" />
+  </Svg>
+);
 export const Smiley = (p: P) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="9" />

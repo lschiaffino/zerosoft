@@ -334,6 +334,9 @@
 .gr-inbox .gr-forwarded { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 2px; font-size: var(--wa-fs-small); font-style: italic; color: var(--wa-text-2); }
 .wa-deleted { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-style: italic; color: var(--wa-text-2); }
 .gr-inbox .gr-msg.is-deleted .gr-bubble { border: 0; }
+/* Borrado: la burbuja de siempre, como WhatsApp (styles/groups.css la pinta con el fondo de la app y la cola no coincidía). */
+.gr-inbox .gr-msg-in.is-deleted .gr-bubble { background: var(--wa-bubble-in); }
+.gr-inbox .gr-msg-out.is-deleted .gr-bubble { background: var(--wa-bubble-out); }
 .gr-inbox .gr-msg.is-deleted .wa-text { color: var(--wa-text-2); font-style: italic; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--wa-text-2) 50%, transparent); }
 .wa-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 0; font-size: var(--wa-fs-small); }
 .gr-inbox .gr-ticket-tag { color: var(--wa-primary-ink); }
@@ -410,20 +413,20 @@
 .gr-inbox .gr-bubble.is-media .gr-msg-author, .gr-inbox .gr-bubble.is-media .gr-quote, .gr-inbox .gr-bubble.is-media .gr-forwarded { margin-left: 6px; margin-right: 6px; width: auto; }
 .gr-inbox .gr-bubble.is-media .wa-text { padding: 4px 4px 4px 6px; }
 .gr-inbox .gr-media { margin: 0; }
-.wa-image { display: block; padding: 0; background: var(--wa-row-active); border: 0; border-radius: 6px; overflow: hidden; cursor: zoom-in; max-width: 300px; }
-.wa-image img { display: block; width: 100%; max-width: 300px; min-width: 100px; max-height: 300px; object-fit: cover; }
+.wa-image { display: block; padding: 0; background: var(--wa-row-active); border: 0; border-radius: 6px; overflow: hidden; cursor: zoom-in; max-width: var(--wa-media-w, 300px); }
+.wa-image img { display: block; width: 100%; max-width: var(--wa-media-w, 300px); min-width: 100px; max-height: var(--wa-media-w, 300px); object-fit: cover; }
 .wa-image.is-sticker { max-width: 190px; background: none; cursor: default; }
 .wa-image.is-sticker img { width: 190px; height: 190px; object-fit: contain; min-width: 0; }
 .gr-msg.is-bare .gr-bubble { background: none !important; box-shadow: none; padding: 0; }
 .gr-msg.is-bare .gr-bubble::before { display: none; }
 .gr-msg.is-bare .gr-msg-foot { position: static; align-self: flex-end; margin-left: auto; width: max-content; padding: 0 5px; background: var(--wa-bubble-in); border-radius: 7.5px; }
 .wa-image:focus-visible, .wa-video-thumb:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
-.wa-video-thumb { position: relative; display: block; width: 300px; max-width: 100%; aspect-ratio: 16 / 10; padding: 0; background: #0b141a; border: 0; border-radius: 6px; overflow: hidden; cursor: pointer; }
+.wa-video-thumb { position: relative; display: block; width: var(--wa-media-w, 300px); max-width: 100%; aspect-ratio: 16 / 10; padding: 0; background: #0b141a; border: 0; border-radius: 6px; overflow: hidden; cursor: pointer; }
 .wa-video-thumb video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .wa-video-thumb.is-round { width: 220px; aspect-ratio: 1; border-radius: 50%; }
 .wa-video-play { position: absolute; inset: 0; margin: auto; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; color: #fff; background: rgba(11, 20, 26, 0.45); border-radius: 50%; }
 .wa-video-len { position: absolute; left: 8px; bottom: 6px; font-size: 0.6875rem; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
-.wa-video { display: block; max-width: 300px; width: 100%; border-radius: 6px; background: #000; }
+.wa-video { display: block; max-width: var(--wa-media-w, 300px); width: 100%; border-radius: 6px; background: #000; }
 .wa-media-off { display: inline-block; padding: 8px 10px; font-size: var(--wa-fs-preview); color: var(--wa-text-2); }
 
 /* Nota de voz como en WhatsApp: [foto con micrófono | velocidad] [play] [onda con perilla]; la duración debajo de la onda. */
@@ -633,7 +636,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 }
 @media (max-width: 720px) {
   .gr-inbox .gr-msg { max-width: 88%; }
-  .wa-image, .wa-image img, .wa-video-thumb, .wa-video { max-width: min(300px, 70vw); }
+  .wa-image, .wa-image img, .wa-video-thumb, .wa-video { max-width: min(var(--wa-media-w, 300px), 70vw); }
   .wa-viewer-stage { padding: 8px; }
   .wa-team-row .gr-composer-hint { display: none; }
 }
@@ -928,16 +931,67 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 @media (prefers-reduced-motion: reduce) { .wa-viewer-stage img { transition: none; } }
 
 /* Vista previa de link arriba del texto (la del teléfono o la que lee el servidor). */
-.wa-linkcard { display: flex; margin: 0 0 6px; max-width: 360px; overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+/* Vista previa de un link (components/groups/wa/LinkPreview.tsx), como en WhatsApp:
+   - grande: la imagen arriba a todo el ancho (dos en grilla), título, descripción y pie con el dominio;
+   - compacta: logo o imagen chica al costado;
+   - solo texto: sin imagen.
+   El ancho de la grande lo pone --wa-link-w; la imagen no pasa de 4:5 de alto (se recorta, cover). */
+.wa-linkcard { --wa-link-w: 330px; display: flex; margin: 0 0 6px; max-width: min(var(--wa-link-w), 100%); overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
 .gr-msg-out .wa-linkcard { background: var(--wa-quote-out); }
-.wa-linkcard img { flex: none; width: 74px; height: 74px; object-fit: cover; }
-.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 10px; }
-.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--wa-fs-preview); font-weight: 500; }
-.wa-linkcard-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
-.wa-linkcard-text small { font-size: var(--wa-fs-meta); color: var(--wa-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-linkcard.is-large { flex-direction: column; width: var(--wa-link-w); }
+.wa-linkcard-media { display: block; width: 100%; max-height: 360px; overflow: hidden; background: var(--wa-row-active); }
+.wa-linkcard-media img { display: block; width: 100%; height: 100%; max-height: 360px; object-fit: cover; }
+.wa-linkcard-media.is-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; aspect-ratio: 2 / 1; }
+.wa-linkcard-media.is-grid img { aspect-ratio: 1; }
+.wa-linkcard-thumb { flex: none; align-self: stretch; width: 82px; min-height: 82px; object-fit: cover; background: var(--wa-row-active); }
+.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 10px 8px; }
+.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; }
+.wa-linkcard-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-small); line-height: 1.4; color: var(--wa-text-2); }
+.wa-linkcard.is-large .wa-linkcard-desc { -webkit-line-clamp: 3; }
+.wa-linkcard.is-text .wa-linkcard-desc { -webkit-line-clamp: 4; }
+.wa-linkcard-foot { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 3px; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.wa-linkcard-foot svg { flex: none; }
+.wa-linkcard-domain { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-linkcard-fav { flex: none; width: 14px; height: 14px; object-fit: contain; border-radius: 3px; }
 .wa-linkcard:hover strong { text-decoration: underline; }
 .wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
-@media (max-width: 480px) { .wa-linkcard img { width: 64px; height: 64px; } }
+/* La burbuja con una tarjeta grande toma su ancho (el texto del link va abajo, como en WhatsApp). */
+.gr-inbox .gr-bubble:has(> .wa-linkcard.is-large) { max-width: min(calc(var(--wa-link-w, 330px) + 16px), 100%); }
+@media (max-width: 480px) {
+  .wa-linkcard, .gr-inbox .gr-bubble { --wa-link-w: min(300px, 70vw); }
+  .wa-linkcard-thumb { width: 68px; min-height: 68px; }
+}
+
+/* Vista previa del link mientras se escribe (components/groups/wa/ComposerLinkPreview.tsx), arriba del campo. */
+.wa-compose-link { display: flex; align-items: center; gap: 10px; margin: 0 0 5px; padding: 6px 6px 6px 6px; background: var(--wa-panel); border-radius: 8px; min-width: 0; }
+.wa-compose-link-img { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: var(--wa-row-active); }
+.wa-compose-link-img.is-empty { display: flex; align-items: center; justify-content: center; color: var(--wa-text-2); }
+.wa-compose-link-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; color: var(--wa-text); }
+.wa-compose-link-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-preview); font-weight: 600; }
+.wa-compose-link-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.wa-compose-link-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.wa-compose-link-text.is-loading { min-height: 32px; justify-content: center; padding-left: 4px; }
+.wa-compose-link > .wa-icon-btn { flex: none; align-self: flex-start; }
+@media (max-width: 480px) { .wa-compose-link-img { width: 52px; height: 52px; } }
+
+/* Ajuste "Visualización" (components/chat-style/DisplaySection.tsx): opciones a la izquierda, un chat de ejemplo a la derecha. */
+.wa-contents { display: contents; }
+.wa-display-head { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.wa-display-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 24px; align-items: start; }
+.wa-display-options { display: grid; gap: 14px; min-width: 0; }
+.wa-display-row { display: grid; gap: 6px; min-width: 0; }
+.wa-display-label { font-size: 0.875rem; color: var(--ink); }
+.wa-display-seg { flex-wrap: wrap; }
+.wa-display-check { margin-top: 2px; }
+.wa-display-sample.gr-inbox { display: block; height: auto; min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.wa-display-sample .wa-messages { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
+.wa-display-sample .gr-msg-out .wa-text { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .wa-display-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1023px) {
+  .wa-display-seg > .btn { min-height: 40px; }
+}
 
 /* Transcripción de un audio debajo del reproductor (plegada en tres líneas). */
 .wa-transcript { display: flex; flex-direction: column; gap: 3px; max-width: min(300px, 62vw); margin: 0 0 14px; padding: 6px 8px; font-size: var(--wa-fs-preview); line-height: 17px; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }

@@ -9945,6 +9945,20 @@ export const MIGRATIONS: Migration[] = [
       await c.execute("UPDATE inbox_threads SET info_at = NULL WHERE channel = 'whatsapp' AND kind = 'dm' AND COALESCE(avatar_url, '') = ''");
     },
   },
+  {
+    // Chats de WhatsApp: la visualización de cada persona (lib/chat-display.ts) y, en la caché de
+    // vistas previas de links, las medidas de la imagen (tarjeta grande o compacta), una segunda
+    // imagen, el ícono del sitio y la versión del lector (las filas viejas se vuelven a leer).
+    id: '397_wa_link_preview_display',
+    async up(c) {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_display TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN image_w INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN image_h INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE wa_link_previews ADD COLUMN image2 TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE wa_link_previews ADD COLUMN favicon TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN version INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

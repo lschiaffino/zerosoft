@@ -85,6 +85,7 @@ import {
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
+import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
@@ -738,13 +739,16 @@ export default function ChatThread(props: ThreadProps) {
       ok = Boolean(await post({ ...base, body: text, media: null }));
     } else {
       // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
-      sendTextNow(text, base.replyToId);
+      sendTextNow(text, base.replyToId, !linkPv.linkPreview);
     }
     setSending(false);
     if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!voice && !files.length) setText('');
+    if (!voice && !files.length) {
+      setText('');
+      linkPv.reset();
+    }
     setReplyTo(null);
     ai.clearUndo();
     refresh();
@@ -756,8 +760,8 @@ export default function ChatThread(props: ThreadProps) {
    * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
-  function sendTextNow(body: string, replyToId: string | null) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId }).clientId);
+  function sendTextNow(body: string, replyToId: string | null, noPreview = false) {
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -807,6 +811,9 @@ export default function ChatThread(props: ThreadProps) {
     if (text.trim() && tray.items.length === 0) setText('');
     inputRef.current?.focus();
   }
+
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: mode === 'note' || !!editing || tray.items.length > 0 || recording != null });
 
   const emojiSuggest = useEmojiSuggest({
     text,
@@ -1636,7 +1643,7 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (
@@ -1726,12 +1733,14 @@ export default function ChatThread(props: ThreadProps) {
         </div>
         {reactions.size > 0 && (
           <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {[...reactions].map(([emoji, n]) => (
-              <span key={emoji}>
-                {emoji}
-                {n > 1 && <b>{n}</b>}
-              </span>
-            ))}
+            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
+            {[...reactions]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([emoji]) => (
+                <span key={emoji}>{emoji}</span>
+              ))}
+            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
           </p>
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (
@@ -2010,6 +2019,7 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
+          {!selecting && linkPv.card}
           {slash.menu}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && !slash.open && (

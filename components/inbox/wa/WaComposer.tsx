@@ -20,6 +20,7 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { useAiSlashCommands } from '@/components/ai/slash-commands';
+import { useComposerLinkPreview } from '@/components/groups/wa/ComposerLinkPreview';
 import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
@@ -82,6 +83,9 @@ const WaComposer = forwardRef<
   const [mentionIdx, setMentionIdx] = useState(0);
   const picked = useRef(new Map<string, string>());
 
+
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: !!editing || !!disabled });
 
   // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
   const aiAdapter = useMemo<ComposeAdapter>(
@@ -188,18 +192,21 @@ const WaComposer = forwardRef<
       out = out.split(`@${label}`).join(`@${phone}`);
       mentions.push(phone);
     }
+    // La vista previa del link que la persona sacó antes de mandar no sale.
+    const noPreview = !linkPv.linkPreview;
     // Texto solo (sin responder a otro): la burbuja aparece ya y el envío sigue por detrás, en orden; el campo queda
     // libre para el próximo. Todo va con el id de ESTE chat: la respuesta puede llegar con otro chat abierto.
     if (!replyToId) {
       // El mismo texto que no salió, mandado de nuevo: el mismo clientId (si en verdad había salido, no se duplica).
       const clientId = retryIds.current.get(out) ?? newClientId();
       retryIds.current.delete(out);
-      const temp = tempInboxMessage(clientId, body);
+      const temp = tempInboxMessage(clientId, body, noPreview);
       const threadId = thread.id;
       pendingSends.emit({ type: 'add', threadId, message: temp });
       draft.sending();
       picked.current.clear();
       setText('');
+      linkPv.reset();
       saved.current = '';
       ai.clearUndo();
       void inboxQueue(threadId)(async () => {
@@ -207,7 +214,7 @@ const WaComposer = forwardRef<
         // clientId no lo duplica. La cola del chat no se traba.
         const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${threadId}/messages`, {
           method: 'POST',
-          json: { body: out, clientId, ...(mentions.length ? { mentions } : {}) },
+          json: { body: out, clientId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
           signal: withTimeout(undefined, 30_000),
         });
         if (!r.ok) {
@@ -233,7 +240,7 @@ const WaComposer = forwardRef<
     const r = await inboxQueue(thread.id)(() =>
       api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
         method: 'POST',
-        json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },
+        json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
       }),
     );
     setBusy('');
@@ -244,11 +251,12 @@ const WaComposer = forwardRef<
     }
     picked.current.clear();
     setText('');
+    linkPv.reset();
     saved.current = '';
     ai.clearUndo();
     if (replyToId) onCancelBanner();
     onSent(r.data.messages);
-  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Un sticker del panel de emojis (pestaña Stickers): sale por la cola del chat, como respuesta si hay una cita. */
   const sendSticker = async (stickerId: string): Promise<boolean> => {
@@ -373,6 +381,7 @@ const WaComposer = forwardRef<
   return (
     <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
       {banner}
+      {linkPv.card}
       {slash.menu}
       {!slash.open && mentionQ !== null && people.length > 0 && (
         <ul className="ib-snippets ib-wa-mentions" role="listbox" aria-label={w('mention')}>

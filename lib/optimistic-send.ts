@@ -124,6 +124,8 @@ export interface Unsent {
   status: 'pending' | 'failed';
   error: string;
   createdAt: string;
+  /** La persona sacó la vista previa del link antes de mandar: sale sin ella (también al reintentar). */
+  noPreview?: boolean;
 }
 
 export type UnsentEvent<S> = { chatId: string; entry: Unsent; type: 'added' | 'pending' | 'failed' | 'removed' } | { chatId: string; entry: Unsent; type: 'saved'; saved: S };
@@ -194,7 +196,7 @@ export function unsentStore<S>(storageKey: string) {
     },
     list: (chatId: string): Unsent[] => (owner ? load().filter((x) => x.chatId === chatId && x.owner === owner) : []),
     get: find,
-    add(input: { chatId: string; body: string; replyToId: string | null }): Unsent {
+    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean }): Unsent {
       const entry: Unsent = { ...input, owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
       load().push(entry);
       save();

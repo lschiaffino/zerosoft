@@ -250,9 +250,9 @@ const parity: ProductParity = {
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
       detail: [
-        'Title, description, image and domain: the one WhatsApp sends, or read on our server (never from the browser) and cached for a week. The other person does not get a preview of what you send from here',
-        'Título, descripción, imagen y dominio: la que manda WhatsApp, o leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Del otro lado, lo que mandás desde acá llega sin vista previa',
-        'Título, descrição, imagem e domínio: a que o WhatsApp envia, ou lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Do outro lado, o que você envia daqui chega sem prévia',
+        'Like WhatsApp: a large image on top for pages with a big image, a small thumbnail for logos, text only without an image, with the domain and the site icon. Read on our server (never from the browser) and cached for a week. While typing, the preview shows above the field and can be removed before sending. Large, compact or off in Display. Tested with the fake reader and provider; not yet tried with real WhatsApp',
+        'Como WhatsApp: la imagen grande arriba en páginas con una imagen grande, miniatura chica con logos, solo texto sin imagen, con el dominio y el ícono del sitio. Leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Al escribir, la vista previa aparece arriba del campo y se puede sacar antes de mandar. Grande, compacta o ninguna en Visualización. Probado con el lector y el proveedor falsos; falta probarlo con WhatsApp real',
+        'Como no WhatsApp: a imagem grande em cima em páginas com uma imagem grande, miniatura pequena com logos, só texto sem imagem, com o domínio e o ícone do site. Lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Ao digitar, a prévia aparece acima do campo e pode ser tirada antes de enviar. Grande, compacta ou nenhuma em Visualização. Testado com o leitor e o provedor falsos; falta testar com WhatsApp real',
       ],
     }),
     row('wa-voice-notes', 'whatsapp', ['Voice notes: speed, waveform, resume', 'Notas de voz: velocidad, forma de onda, seguir', 'Notas de voz: velocidade, forma de onda, continuar'], 'have', {
