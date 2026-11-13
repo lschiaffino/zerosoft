@@ -125,6 +125,13 @@ const parity: ProductParity = {
         'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (um clique para importar e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
       ],
     }),
+    row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
+      detail: [
+        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Not in file captions or scheduled messages yet. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Todavía no en los comentarios de archivos ni en los mensajes programados. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
+      ],
+    }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
       detail: ['QR lines (Evolution); 1:1 chats that WhatsApp identifies only by a hidden id do not show it', 'Líneas por QR (Evolution); los 1 a 1 que WhatsApp identifica solo con un id oculto no lo muestran', 'Linhas por QR (Evolution); conversas 1 a 1 que o WhatsApp identifica só por um id oculto não mostram'],

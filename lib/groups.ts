@@ -687,9 +687,11 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   if (!row) return null;
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
-    const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+    const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
     dto.lastMessagePreview = (
-      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws) }).catch(() => [dto.lastMessagePreview])
+      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) }).catch(() => [
+        dto.lastMessagePreview,
+      ])
     )[0];
   }
   if (row.kind === 'dm') {
@@ -1005,12 +1007,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
-  const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+  const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
   const named = await resolveTextMentions(
     'lines',
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
-    { someone: () => someoneWord(ws) },
+    { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
   return {
     rows: rows.map((r, i) => {
@@ -1768,6 +1770,25 @@ export interface SendInput {
   linkPreview?: boolean;
   /** Id que puso la pantalla al mandar: vuelve en meta.cid y reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
   clientId?: string;
+  /** Grupos: teléfonos mencionados como "@<teléfono>" en el texto (WhatsApp avisa a esas personas). */
+  mentions?: string[] | null;
+}
+
+/**
+ * Menciones a mandar: teléfonos que de verdad aparecen como "@<teléfono>" en
+ * el texto, sin repetir y hasta 50. Solo en grupos: en un 1 a 1 no hay a
+ * quién mencionar.
+ */
+export function cleanMentions(raw: unknown, body: string, kind: 'dm' | 'group' | string): string[] {
+  if (kind !== 'group' || !Array.isArray(raw) || !body.includes('@')) return [];
+  const out: string[] = [];
+  for (const m of raw) {
+    if (typeof m !== 'string' || !/^\d{6,16}$/.test(m) || out.includes(m)) continue;
+    if (!new RegExp(`(^|[^\\w@])@${m}(?!\\d)`).test(body)) continue;
+    out.push(m);
+    if (out.length >= 50) break;
+  }
+  return out;
 }
 
 /** Tope de envíos por número: WhatsApp bloquea líneas que mandan en ráfaga. Los envíos masivos llevan su propio ritmo. */
@@ -1849,12 +1870,13 @@ export async function sendMessage(
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
+  const mentions = poll || contacts.length ? [] : cleanMentions(input.mentions, body, chat.kind);
   try {
     const res = poll
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
       : contacts.length
         ? await provider.sendContact!(chat.provider_chat_id, contacts)
-        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId, ...(input.linkPreview === false ? { linkPreview: false } : {}) });
+        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId, ...(input.linkPreview === false ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) });
     providerId = res.id || null;
   } catch (err) {
     status = 'failed';
@@ -1866,6 +1888,8 @@ export async function sendMessage(
     ...(input.clientId ? { cid: input.clientId } : {}),
     // Sin vista previa: la conversación tampoco la muestra.
     ...(input.linkPreview === false && !poll && !contacts.length ? { noPreview: true } : {}),
+    // Como las que llegan (contextInfo.mentionedJid): el hilo muestra "@Nombre" y los reintentos vuelven a mencionar.
+    ...(mentions.length ? { mentions } : {}),
   };
   const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
   // Una sola ida a la base: el mensaje, el chat al tope de la lista y, si salió, el chat deja de esperar.
@@ -2121,8 +2145,10 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
           })
         ).id || null;
     } else {
-      const noPreview = parseJson<{ noPreview?: boolean }>(row.meta ?? '', {}).noPreview === true;
-      providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId, ...(noPreview ? { linkPreview: false } : {}) })).id || null;
+      const stored = parseJson<StoredMeta & { noPreview?: boolean }>(row.meta ?? '', {});
+      const noPreview = stored.noPreview === true;
+      const mentions = cleanMentions(stored.mentions, row.body, chat.kind);
+      providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId, ...(noPreview ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) })).id || null;
     }
   } catch (err) {
     status = 'failed';

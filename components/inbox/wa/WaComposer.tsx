@@ -8,6 +8,10 @@ import { withTimeout } from '@/lib/conditional-fetch';
 import { inboxQueue, pendingSends, tempInboxMessage } from './pending';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
+import Avatar from '@/components/groups/wa/Avatar';
+import MentionTextarea from '@/components/groups/wa/MentionTextarea';
+import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
@@ -79,9 +83,12 @@ const WaComposer = forwardRef<
   useFocusOnOpen(area, thread.id);
   const saved = useRef(thread.draft);
   const beforeEdit = useRef<string | null>(null);
-  const [mentionQ, setMentionQ] = useState<string | null>(null);
   const [mentionIdx, setMentionIdx] = useState(0);
+  // Esc cierra la lista de "@" para esa mención (dónde empieza).
+  const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  // Lo elegido de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
   const picked = useRef(new Map<string, string>());
+  const [pickedVersion, setPickedVersion] = useState(0);
 
 
   // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
@@ -146,25 +153,30 @@ const WaComposer = forwardRef<
     return snippets.filter((s) => !q || s.shortcut.startsWith(q) || s.title.toLowerCase().includes(q)).slice(0, 8);
   }, [snipQ, snippets]);
 
-  const people = useMemo(() => {
-    if (mentionQ === null || !mentionables?.length) return [];
-    const q = mentionQ.toLowerCase();
-    return mentionables.filter((p) => !q || p.name.toLowerCase().includes(q) || p.phone.includes(q)).slice(0, 8);
-  }, [mentionQ, mentionables]);
+  // Menciones (grupos): "@" abre los participantes; en el campo la mención se ve en verde y al mandar sale como
+  // mención de WhatsApp ("@<teléfono>" con la lista de mencionados), que le avisa a la persona.
+  const mentionPool = useMemo(() => (mentionables?.length ? waMentionables(mentionables, picked.current) : null), [mentionables, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mentionHits = useMemo(() => (mentionPool && !editing ? findMentionHits(text, mentionPool) : []), [text, mentionPool, editing]);
+  const mentionQuery = mentionPool && !editing ? mentionQueryAt(text, caret) : null;
+  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const people = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, 50) : [];
 
   /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
-  const insertMention = (p: { phone: string; name: string }) => {
+  const insertMention = (p: (typeof people)[number]) => {
     const el = area.current;
-    const caret = el?.selectionStart ?? text.length;
-    const before = text.slice(0, caret).replace(/@[^\s@]*$/, '');
-    const label = (p.name || p.phone).replace(/\s+/g, ' ').trim();
-    picked.current.set(label, p.phone);
-    const ins = `@${label} `;
+    if (!mentionQuery) return;
+    if (p.name) {
+      picked.current.set(p.name, p.id);
+      setPickedVersion((v) => v + 1);
+    }
+    const before = text.slice(0, mentionQuery.start);
+    const ins = `${mentionText(p)} `;
+    const pos = before.length + ins.length;
     setText(before + ins + text.slice(caret));
-    setMentionQ(null);
+    setCaret(pos);
+    setMentionIdx(0);
     requestAnimationFrame(() => {
       el?.focus();
-      const pos = before.length + ins.length;
       el?.setSelectionRange(pos, pos);
     });
   };
@@ -185,13 +197,7 @@ const WaComposer = forwardRef<
     // Mandado: la lista sale de la búsqueda, como WhatsApp (lib/ui/chat-sent.ts).
     notifyChatSent(thread.id);
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
-    let out = body;
-    const mentions: string[] = [];
-    for (const [label, phone] of picked.current) {
-      if (!out.includes(`@${label}`)) continue;
-      out = out.split(`@${label}`).join(`@${phone}`);
-      mentions.push(phone);
-    }
+    const { body: out, mentions } = mentionPool ? serializeWaMentions(body, mentionPool) : { body, mentions: [] as string[] };
     // La vista previa del link que la persona sacó antes de mandar no sale.
     const noPreview = !linkPv.linkPreview;
     // Texto solo (sin responder a otro): la burbuja aparece ya y el envío sigue por detrás, en orden; el campo queda
@@ -256,7 +262,7 @@ const WaComposer = forwardRef<
     ai.clearUndo();
     if (replyToId) onCancelBanner();
     onSent(r.data.messages);
-  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset, mentionPool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Un sticker del panel de emojis (pestaña Stickers): sale por la cola del chat, como respuesta si hay una cita. */
   const sendSticker = async (stickerId: string): Promise<boolean> => {
@@ -383,13 +389,22 @@ const WaComposer = forwardRef<
       {banner}
       {linkPv.card}
       {slash.menu}
-      {!slash.open && mentionQ !== null && people.length > 0 && (
-        <ul className="ib-snippets ib-wa-mentions" role="listbox" aria-label={w('mention')}>
+      {!slash.open && people.length > 0 && (
+        <ul className="wa-mention-pop ib-wa-mentions" role="listbox" aria-label={w('mention')}>
           {people.map((p, i) => (
-            <li key={p.phone} role="option" aria-selected={i === mentionIdx}>
-              <button type="button" className={`ib-snippet${i === mentionIdx ? ' is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => insertMention(p)}>
-                <span className="ib-snippet-title">{p.name || p.phone}</span>
-                <span className="ib-snippet-key">+{p.phone}</span>
+            <li key={`${p.id}:${p.name}`} role="option" aria-selected={i === mentionIdx}>
+              <button
+                type="button"
+                title={`+${p.id}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                onClick={() => insertMention(p)}
+              >
+                <Avatar name={p.name || p.id} kind="dm" size={32} seed={p.id} />
+                <span className="wa-mention-who">
+                  <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
+                  {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                </span>
               </button>
             </li>
           ))}
@@ -430,9 +445,10 @@ const WaComposer = forwardRef<
         <label className="sr-only" htmlFor={`ib-compose-${thread.id}`}>
           {t('label')}
         </label>
-        <textarea
+        <MentionTextarea
           id={`ib-compose-${thread.id}`}
           ref={area}
+          highlights={mentionHits}
           readOnly={paused}
           aria-busy={paused || undefined}
           className="wa-input"
@@ -457,14 +473,13 @@ const WaComposer = forwardRef<
             const m = /(?:^|\s);([\w-]*)$/.exec(v.slice(0, e.target.selectionStart));
             setSnipQ(m && snippets.length ? m[1] : null);
             setSnipIdx(0);
-            const at = mentionables?.length ? /(?:^|\s)@([^\s@]{0,30})$/.exec(v.slice(0, e.target.selectionStart)) : null;
-            setMentionQ(at ? at[1] : null);
             setMentionIdx(0);
+            if (mentionClosedAt !== null && !v.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
           }}
           onKeyDown={(e) => {
             if (slash.onKeyDown(e)) return;
             if (emojiSuggest.onKeyDown(e)) return;
-            if (!slash.open && mentionQ !== null && people.length) {
+            if (!slash.open && people.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 setMentionIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : people.length - 1)) % people.length);
@@ -472,13 +487,25 @@ const WaComposer = forwardRef<
               }
               if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
-                insertMention(people[mentionIdx]);
+                insertMention(people[Math.min(mentionIdx, people.length - 1)]);
                 return;
               }
               if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
-                setMentionQ(null);
+                if (mentionQuery) setMentionClosedAt(mentionQuery.start);
+                return;
+              }
+            }
+            // Borrar contra una mención la saca entera (como WhatsApp).
+            if ((e.key === 'Backspace' || e.key === 'Delete') && mentionHits.length && !e.altKey && !e.metaKey && !e.ctrlKey) {
+              const el = e.currentTarget;
+              const cut = deleteMentionToken(text, el.selectionStart, el.selectionEnd, e.key, mentionHits);
+              if (cut) {
+                e.preventDefault();
+                setText(cut.text);
+                setCaret(cut.caret);
+                requestAnimationFrame(() => el.setSelectionRange(cut.caret, cut.caret));
                 return;
               }
             }

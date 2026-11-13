@@ -456,6 +456,8 @@ export function wahaProvider(
         ...(o?.replyTo ? { reply_to: o.replyTo } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
+        // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
+        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => `${p}@c.us`) } : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },

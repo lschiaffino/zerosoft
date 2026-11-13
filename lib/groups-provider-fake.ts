@@ -64,6 +64,8 @@ export interface FakeSent {
   at: number;
   /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
   media?: { kind: string; mimetype: string; base64: boolean };
+  /** Teléfonos mencionados (textos en grupos). */
+  mentions?: string[];
 }
 
 interface FakeState {
@@ -408,8 +410,11 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     async disconnect() {
       s.connectedAt = null;
     },
-    sendText: async (chatId, text) => send(chatId, text, 'text'),
-    // Un sticker mandado vuelve a bajarse como sticker (id "stk-…", ver fakeMedia).
+    sendText: async (chatId, text, o) => {
+      const r = send(chatId, text, 'text');
+      if (o?.mentions?.length) s.sent[s.sent.length - 1].mentions = [...o.mentions];
+      return r;
+    },
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64) });
       return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;

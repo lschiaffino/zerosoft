@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-wa-mentions-composer',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: @mentions in WhatsApp groups that notify',
+      es: 'Lines e Inbox: @menciones en grupos de WhatsApp que avisan',
+      pt: 'Lines e Inbox: @menções em grupos do WhatsApp que avisam',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'In a WhatsApp group, typing @ opens the list of members with their initial, name and number, like WhatsApp. It filters as you type and you pick with the arrows and Enter or Tab; Esc closes it. The message goes out as a real WhatsApp mention, so the person gets notified, and the chat shows @Name.',
+        es: 'En un grupo de WhatsApp, al escribir @ se abre la lista de integrantes con su inicial, nombre y número, como en WhatsApp. Se filtra mientras escribís y se elige con las flechas y Enter o Tab; Esc la cierra. El mensaje sale como mención real de WhatsApp, así a la persona le llega el aviso, y en el chat se ve @Nombre.',
+        pt: 'Em um grupo do WhatsApp, ao digitar @ abre a lista de participantes com a inicial, o nome e o número, como no WhatsApp. Ela filtra enquanto você digita e se escolhe com as setas e Enter ou Tab; Esc fecha. A mensagem sai como menção real do WhatsApp, a pessoa recebe o aviso, e na conversa aparece @Nome.',
+      },
+      {
+        product: 'groups',
+        en: 'Mentions show in green inside the message field while you write, in Lines and Inbox and also in internal notes. Backspace against a mention removes the whole name.',
+        es: 'Las menciones se ven en verde dentro del campo mientras escribís, en Lines e Inbox y también en las notas internas. Borrar contra una mención saca el nombre entero.',
+        pt: 'As menções aparecem em verde dentro do campo enquanto você escreve, no Lines e no Inbox e também nas notas internas. Apagar contra uma menção tira o nome inteiro.',
+      },
+      {
+        product: 'groups',
+        en: 'In the chat list, a mention of your own number shows as in the conversation: @You in Inbox and the line name in Lines, instead of the phone number.',
+        es: 'En la lista de chats, una mención a tu propio número se ve como en la conversación: @Vos en Inbox y el nombre de la línea en Lines, en lugar del teléfono.',
+        pt: 'Na lista de conversas, uma menção ao seu próprio número aparece como na conversa: @Você no Inbox e o nome da linha no Lines, em vez do telefone.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-lines-overdue-clock',
     date: '2026-11-12',
     title: {

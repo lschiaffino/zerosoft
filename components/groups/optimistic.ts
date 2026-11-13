@@ -121,7 +121,7 @@ export function sendLinesText(clientId: string): void {
       const res = await fetch(`/api/groups/chats/${entry.chatId}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ note: false, replyToId: entry.replyToId, body: entry.body, media: null, clientId: entry.clientId, ...(entry.noPreview ? { linkPreview: false } : {}) }),
+        body: JSON.stringify({ note: false, replyToId: entry.replyToId, body: entry.body, media: null, clientId: entry.clientId, ...(entry.noPreview ? { linkPreview: false } : {}), ...(entry.mentions?.length ? { mentions: entry.mentions } : {}) }),
         // Sin respuesta en 30 s: queda como no enviado, con reintentar (el mismo clientId: si sí había salido, el
         // servidor devuelve el que ya guardó y no lo manda otra vez). La cola del chat no se traba.
         signal: withTimeout(undefined, SEND_TIMEOUT_MS),

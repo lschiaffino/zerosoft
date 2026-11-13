@@ -751,8 +751,8 @@ async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise
   await withPresenceNames(threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
-  const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
-  const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner) }).catch(() => items.map((i) => i.text));
+  const { mentionSelf, resolveTextMentions, someoneWord } = await import('../wa-contacts');
+  const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
 }

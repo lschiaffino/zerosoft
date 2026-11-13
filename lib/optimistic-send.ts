@@ -121,6 +121,8 @@ export interface Unsent {
   chatId: string;
   body: string;
   replyToId: string | null;
+  /** Grupos de WhatsApp: teléfonos mencionados con "@<teléfono>" en el texto. */
+  mentions?: string[];
   status: 'pending' | 'failed';
   error: string;
   createdAt: string;
@@ -196,7 +198,7 @@ export function unsentStore<S>(storageKey: string) {
     },
     list: (chatId: string): Unsent[] => (owner ? load().filter((x) => x.chatId === chatId && x.owner === owner) : []),
     get: find,
-    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean }): Unsent {
+    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[] }): Unsent {
       const entry: Unsent = { ...input, owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
       load().push(entry);
       save();

@@ -32,6 +32,7 @@
   --wa-chip-bg: #f0f2f5;
   --wa-chip-on-bg: #d9fdd3;
   --wa-chip-on-ink: #008069;
+  --wa-mention-ink: #008069;
   --wa-system-chip: #ffffff;
   --wa-quote-bg: rgba(11, 20, 26, 0.05);
   --wa-quote-out: rgba(11, 20, 26, 0.05);
@@ -89,7 +90,7 @@
     --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
     --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
     --wa-row-hover: #202c33; --wa-row-active: #2a3942; --wa-search-bg: #202c33; --wa-chip-bg: #202c33; --wa-chip-on-bg: #0a332c;
-    --wa-chip-on-ink: #00a884; --wa-system-chip: #182229; --wa-quote-bg: rgba(0, 0, 0, 0.18); --wa-quote-out: rgba(0, 0, 0, 0.16);
+    --wa-chip-on-ink: #00a884; --wa-mention-ink: #00a884; --wa-system-chip: #182229; --wa-quote-bg: rgba(0, 0, 0, 0.18); --wa-quote-out: rgba(0, 0, 0, 0.16);
     --wa-danger: #f15c6d; --wa-link: #53bdeb; --wa-input: #2a3942; --wa-menu: #233138; --wa-note: #3a3220; --wa-note-line: #a9852e;
     --wa-viewer-bg: rgba(11, 20, 26, 0.97); --wa-drop: rgba(11, 20, 26, 0.95);
     --wa-n0: #ff72a1; --wa-n1: #06cf9c; --wa-n2: #ffa97a; --wa-n3: #a791ff; --wa-n4: #53bdeb; --wa-n5: #ff8f8f;
@@ -103,7 +104,7 @@
   --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
   --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
   --wa-row-hover: #202c33; --wa-row-active: #2a3942; --wa-search-bg: #202c33; --wa-chip-bg: #202c33; --wa-chip-on-bg: #0a332c;
-  --wa-chip-on-ink: #00a884; --wa-system-chip: #182229; --wa-quote-bg: rgba(0, 0, 0, 0.18); --wa-quote-out: rgba(0, 0, 0, 0.16);
+  --wa-chip-on-ink: #00a884; --wa-mention-ink: #00a884; --wa-system-chip: #182229; --wa-quote-bg: rgba(0, 0, 0, 0.18); --wa-quote-out: rgba(0, 0, 0, 0.16);
   --wa-danger: #f15c6d; --wa-link: #53bdeb; --wa-input: #2a3942; --wa-menu: #233138; --wa-note: #3a3220; --wa-note-line: #a9852e;
   --wa-viewer-bg: rgba(11, 20, 26, 0.97); --wa-drop: rgba(11, 20, 26, 0.95);
   --wa-n0: #ff72a1; --wa-n1: #06cf9c; --wa-n2: #ffa97a; --wa-n3: #a791ff; --wa-n4: #53bdeb; --wa-n5: #ff8f8f;
@@ -528,6 +529,19 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .wa-input::placeholder { color: var(--wa-text-2); }
 .gr-inbox .wa-input:focus-visible { outline: 2px solid color-mix(in srgb, var(--wa-primary) 60%, transparent); outline-offset: 0; }
 .wa-composer.is-note .wa-input { background: var(--wa-note); }
+/*
+ * @menciones en el campo (components/groups/wa/MentionTextarea.tsx): una capa encima con el mismo texto pinta la
+ * mención en verde, como WhatsApp Web; el texto del textarea queda transparente y el cursor y la selección son los suyos.
+ */
+.wa-input-box { position: relative; display: flex; flex: 1; min-width: 0; }
+.wa-input-box > textarea { flex: 1; min-width: 0; }
+.wa-input-box.has-mentions > textarea { color: transparent; caret-color: var(--wa-text); }
+.wa-input-box.has-mentions > textarea::selection { color: transparent; }
+.wa-input-mirror {
+  position: absolute; z-index: 1; box-sizing: border-box; margin: 0; overflow: hidden; pointer-events: none;
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; color: var(--wa-text);
+}
+.wa-input-mention { color: var(--wa-mention-ink); }
 .wa-bar .wa-icon-btn { width: var(--wa-bar-btn); height: var(--wa-bar-btn); }
 .wa-send {
   display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--wa-bar-btn); height: var(--wa-bar-btn); padding: 0;
@@ -1136,6 +1150,8 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 }
 .wa-mention-pop li[aria-selected='true'] button { background: var(--wa-hover, var(--ui-hover)); }
 .wa-mention-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-mention-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.wa-mention-phone { font-size: var(--wa-fs-meta, 0.75rem); color: var(--wa-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes wa-mention-in { from { opacity: 0; transform: translateY(4px); } }
 @media (max-width: 1023px) { .wa-mention-pop { left: 8px; width: calc(100% - 16px); } }
 @media (prefers-reduced-motion: reduce) { .wa-mention-pop { animation: none; } }
