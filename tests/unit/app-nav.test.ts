@@ -118,6 +118,7 @@ describe('sidebar de la app', () => {
       'components/flow/FlowsHome.tsx',
       'components/agents/AgentsHome.tsx',
       'components/robots/RobotsHome.tsx',
+      'components/groups/InboxShell.tsx',
     ];
     for (const f of files) expect(readFileSync(join(root, f), 'utf8'), f).toMatch(/get\('new'\) === '1'/);
     expect(readFileSync(join(appDir, 'app', 'docs', '(home)', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);

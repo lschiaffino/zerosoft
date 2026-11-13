@@ -66,6 +66,8 @@ export interface SidebarLabels {
   newAgent: string;
   newRobot: string;
   newGroup: string;
+  /** Lines: chat nuevo con un número (abre el diálogo de la bandeja). */
+  newChat?: string;
   team: string;
   link: { overview: string; links: string; new: string; bio: string; analytics: string; bulk: string; domains: string };
   crm: {
@@ -1292,7 +1294,10 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
-      return [item('/app/lines/list?new=1', labels.newGroup, 'groups')];
+      return [
+        ...(labels.newChat ? [item('/app/lines/inbox?new=1', labels.newChat, 'chat')] : []),
+        item('/app/lines/list?new=1', labels.newGroup, 'groups'),
+      ];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
     case 'people':

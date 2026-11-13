@@ -516,6 +516,7 @@ export default async function AppLayout(
             newAgent: tSide('newAgent'),
             newRobot: tSide('newRobot'),
             newGroup: tSide('newGroup'),
+            newChat: tSide('newChat'),
             team: tSide('team'),
             link: {
               overview: tLink('tabs.overview'),
