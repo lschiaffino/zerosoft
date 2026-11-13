@@ -13,6 +13,8 @@ export interface MediaBody {
   height?: number;
   /** Segundos. */
   duration?: number;
+  /** Video que sale como GIF (gifPlayback): lo que se elige en la pestaña GIFs. */
+  gif?: boolean;
 }
 
 /**
@@ -81,5 +83,6 @@ export function mediaFromBody(raw: unknown, req: Request): MediaBody | null {
   if (width && height) Object.assign(out, { width: Math.round(width), height: Math.round(height) });
   const duration = num(m.duration, 86_400);
   if (duration) out.duration = Math.round(duration);
+  if (m.gif === true && out.mimetype.startsWith('video/')) out.gif = true;
   return out;
 }

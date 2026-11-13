@@ -1752,6 +1752,8 @@ export interface SendMedia {
   duration?: number;
   /** Forma de onda de una nota de voz (al reenviarla, para que se vea igual). */
   waveform?: number[];
+  /** Video que WhatsApp reproduce como GIF (gifPlayback); se guarda como animated. */
+  gif?: boolean;
 }
 
 export interface SendInput {
@@ -2022,6 +2024,7 @@ async function sendMediaMessage(
     height: visual ? posNum(media.height, 20_000) : undefined,
     duration: kind === 'audio' || kind === 'voice' || kind === 'video' ? posNum(media.duration, 86_400) : undefined,
     ptt: kind === 'voice' || undefined,
+    animated: (kind === 'video' && media.gif === true) || undefined,
     waveform: kind === 'voice' && Array.isArray(media.waveform) ? media.waveform.slice(0, 64).map((v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)))) : undefined,
   });
   const authorKind = input.authorKind ?? 'person';
@@ -2065,6 +2068,7 @@ async function sendMediaMessage(
       kind,
       ...(base64 ? { base64 } : {}),
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+      ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2142,6 +2146,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             kind,
             ...(base64 ? { base64 } : {}),
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+            ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
           })
         ).id || null;
     } else {

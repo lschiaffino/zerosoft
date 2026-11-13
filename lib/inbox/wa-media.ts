@@ -31,6 +31,10 @@ export interface OutgoingFile {
   replyTo?: string;
   /** Id que puso la pantalla al mandar: un reintento del mismo archivo no sale dos veces. */
   clientId?: string;
+  /** Video que sale como GIF (gifPlayback), de la pestaña GIFs; con sus medidas para la burbuja. */
+  gif?: boolean;
+  width?: number;
+  height?: number;
 }
 
 /** Solo URLs de nuestro Blob y de la carpeta de Inbox (nada que el servidor de WhatsApp vaya a bajar de otro lado). */
@@ -100,6 +104,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     if (q.thread_id !== thread.id) throw new InboxError('not_found', 404);
     replyExternal = q.external_id;
   }
+  const gif = kind === 'video' && f.gif === true;
   let id = '';
   try {
     const p = waProviderFor(account);
@@ -112,6 +117,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
         kind,
         ...(f.data ? { base64: f.data.toString('base64') } : {}),
         ...(replyExternal ? { replyTo: replyExternal } : {}),
+        ...(gif ? { gifPlayback: true } : {}),
       })
     ).id;
   } catch (err) {
@@ -124,6 +130,8 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
   const meta: WaMessageMeta = { mime: mimetype, size: f.size, ...(f.clientId ? { cid: f.clientId } : {}) };
   if (kind === 'voice') meta.ptt = true;
   if (f.duration && Number.isFinite(f.duration)) meta.duration = Math.round(f.duration);
+  if (gif) meta.animated = true;
+  if ((kind === 'video' || kind === 'image') && f.width && f.height) Object.assign(meta, { width: Math.round(f.width), height: Math.round(f.height) });
   const externalId = id || `local-${Date.now()}`;
   await addMessage(thread, {
     externalId,
@@ -198,6 +206,8 @@ export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRo
         ...(caption ? { caption } : {}),
         kind,
         base64: file.data.toString('base64'),
+        // Un GIF reenviado sigue siendo GIF.
+        ...(kind === 'video' && src.meta.animated ? { gifPlayback: true } : {}),
       })
     ).id;
   } catch (err) {
