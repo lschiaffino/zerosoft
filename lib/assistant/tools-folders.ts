@@ -535,6 +535,19 @@ const proposeInput = z.object({
     .describe('Inbox only, and only if the person asked: chats of the JSON with a WhatsApp id or phone that are not in Inbox are added as new (empty) chats.'),
 });
 
+/**
+ * JID de WhatsApp para un chat nuevo a partir de un teléfono. Solo con código
+ * de país (11 a 15 dígitos): un número local crearía un chat que nunca recibe
+ * nada. En Argentina WhatsApp usa el 9 de los celulares (54 9 11…).
+ */
+export function newChatJid(phone: string | undefined): string | null {
+  let d = (phone ?? '').replace(/\D+/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length < 11 || d.length > 15) return null;
+  if (/^54(?!9)\d{10}$/.test(d)) d = `549${d.slice(2)}`;
+  return `${d}@s.whatsapp.net`;
+}
+
 export const folderTools: AssistantTool[] = [
   readTool({
     name: 'inbox_folders',
@@ -632,7 +645,7 @@ export const folderTools: AssistantTool[] = [
         } else {
           const seen = new Set<string>();
           for (const u of plan.unmatched) {
-            const jid = u.ref?.jid ?? (u.ref?.phone && u.ref.phone.length >= 10 ? `${u.ref.phone}@s.whatsapp.net` : null);
+            const jid = u.ref?.jid ?? newChatJid(u.ref?.phone);
             if (!jid || !u.path || /@(lid|broadcast|newsletter)$/.test(jid)) continue;
             const k = `${pathKey(u.path)}|${jid}`;
             if (seen.has(k)) continue;

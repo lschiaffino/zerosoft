@@ -23,6 +23,7 @@ import {
   phoneKeys,
   type ChatCandidate,
 } from '@/lib/assistant/folders-json';
+import { newChatJid } from '@/lib/assistant/tools-folders';
 import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 
@@ -459,5 +460,15 @@ describe('carpetas desde JSON: volumen', () => {
     expect(Date.now() - t0).toBeLessThan(8000);
     expect(plan.assign).toBe(3000);
     expect(plan.unmatched).toHaveLength(2000);
+  });
+});
+
+describe('carpetas desde JSON: chats nuevos', () => {
+  it('solo con código de país; en Argentina con el 9 de los celulares', () => {
+    expect(newChatJid('+54 11 5555 0001')).toBe('5491155550001@s.whatsapp.net');
+    expect(newChatJid('+54 9 11 5555 0001')).toBe('5491155550001@s.whatsapp.net');
+    expect(newChatJid('+1 415 555 1234')).toBe('14155551234@s.whatsapp.net');
+    expect(newChatJid('11 5555 0001')).toBeNull();
+    expect(newChatJid(undefined)).toBeNull();
   });
 });
