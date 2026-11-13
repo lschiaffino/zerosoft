@@ -1830,7 +1830,7 @@
     "selectMessages": "Select messages",
     "stickers": {
       "tab": "Stickers",
-      "panels": "Emoji and stickers",
+      "panels": "Emoji, GIFs and stickers",
       "recent": "Recent",
       "favorites": "Favorites",
       "all": "Your stickers",
@@ -1857,6 +1857,45 @@
       "favoriteFailed": "Couldn't add the sticker to favorites.",
       "sendFailed": "Couldn't send the sticker.",
       "missing": "Sticker"
+    },
+    "gifs": {
+      "tab": "GIFs",
+      "search": "Search GIFs",
+      "searchGiphy": "Search GIPHY",
+      "searchTenor": "Search Tenor",
+      "categories": "GIF categories",
+      "cats": {
+        "trending": "Trending",
+        "haha": "Haha",
+        "sad": "Sad",
+        "love": "Love",
+        "reaction": "Reaction",
+        "sports": "Sports",
+        "tv": "TV"
+      },
+      "terms": {
+        "haha": "haha",
+        "sad": "sad",
+        "love": "love",
+        "reaction": "reaction",
+        "sports": "sports",
+        "tv": "tv"
+      },
+      "results": "Results",
+      "loading": "Loading GIFs",
+      "send": "Send GIF: {title}",
+      "sendUntitled": "Send GIF",
+      "none": "No GIFs found for \"{q}\".",
+      "loadFailed": "Couldn't load GIFs.",
+      "rateLimited": "Too many searches. Wait a moment and try again.",
+      "retry": "Try again",
+      "sendFailed": "Couldn't send the GIF.",
+      "tooLarge": "That GIF is too large to send. Pick another one.",
+      "poweredGiphy": "Powered by GIPHY",
+      "poweredTenor": "Powered by Tenor",
+      "poweredFake": "Sample GIFs (demo mode)",
+      "notSetupTitle": "GIF search isn't set up",
+      "notSetupBody": "An admin adds a GIPHY or Tenor key to the server (GIPHY_API_KEY or TENOR_API_KEY). Emoji and stickers work as usual."
     },
     "openGif": "Open GIF"
   },
