@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-display-settings',
+    date: '2026-11-13',
+    title: {
+      en: 'Inbox and Lines: a Display preview that shows every option',
+      es: 'Inbox y Lines: una vista previa de Visualización que muestra cada opción',
+      pt: 'Inbox e Lines: uma prévia de Visualização que mostra cada opção',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The Display preview now has a chat list and a group chat with a photo, so you see the list density, photo size, message width, text size, background, sender photos and link previews change as you pick them. On a wide screen it stays in view while you scroll the options. Open it from the menu of any chat.',
+        es: 'La vista previa de Visualización ahora tiene una lista de chats y un chat de grupo con una foto: ves cambiar la densidad de la lista, el tamaño de las fotos, el ancho de los mensajes, el texto, el fondo, las fotos de quien escribe y las vistas previas de links al elegirlos. En pantallas anchas queda a la vista mientras recorrés las opciones. Se abre desde el menú de cualquier chat.',
+        pt: 'A prévia de Visualização agora tem uma lista de conversas e uma conversa de grupo com uma foto: você vê mudar a densidade da lista, o tamanho das fotos, a largura das mensagens, o texto, o fundo, as fotos de quem escreve e as prévias de links ao escolher. Em telas largas fica à vista enquanto você percorre as opções. Abre pelo menu de qualquer conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines: Display is in the chat menu, and opens the Appearance tab of settings.',
+        es: 'Lo mismo en Lines: Visualización está en el menú del chat y abre la pestaña Apariencia de los ajustes.',
+        pt: 'O mesmo no Lines: Visualização está no menu da conversa e abre a aba Aparência das configurações.',
+      },
+      {
+        product: 'groups',
+        en: 'Inside every app, the selected option of a segmented control now takes the app color, like the main button.',
+        es: 'Dentro de cada app, la opción elegida de un control segmentado ahora lleva el color de la app, como el botón principal.',
+        pt: 'Dentro de cada app, a opção escolhida de um controle segmentado agora leva a cor do app, como o botão principal.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-wa-new-chat',
     date: '2026-11-13',
     title: {

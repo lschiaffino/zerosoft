@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import { useScrollAnchor } from '@/components/ui/useScrollAnchor';
 import { atBottom as isAtBottom } from '@/lib/scroll-anchor';
@@ -103,6 +104,7 @@ const WaConversation = forwardRef<
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const ws = useTranslations('groups.wa.stickers');
+  const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const { thread, messages, scheduled } = detail;
@@ -409,6 +411,8 @@ const WaConversation = forwardRef<
       divider: true,
       onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp').then((ok) => !ok && onError('generic')),
     },
+    // Visualización (texto, fotos, lista, fondo): vale para Inbox y Lines; abre Ajustes en esa sección.
+    { key: 'display', label: w('display.title'), onSelect: () => router.push('/app/inbox/settings#chat-display') },
     { key: 'delete', label: mo('delete'), divider: true, onSelect: () => onAction('delete') },
   ];
 

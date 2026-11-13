@@ -3126,7 +3126,6 @@ dialog.ui-drawer.pb-drawer { width: min(560px, 100vw); }
 .split-pct { width: 76px; flex: 0 0 auto; }
 .split-total { margin: 0; font-size: 0.8125rem; color: var(--dim); }
 .split-total.is-off { color: var(--bad-ink); }
-.pb-body-head .btn-group > .btn[aria-pressed='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); }
 section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 .quote-pay-setting { margin-top: 8px; }
 .quote-pay-setting .ui-help { margin: 2px 0 0; }
