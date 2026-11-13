@@ -28,7 +28,7 @@ import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
-import { isTempId, TEMP_PREFIX } from '@/lib/optimistic-send';
+import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
 import UploadRing from '@/components/groups/wa/UploadRing';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
@@ -131,6 +131,8 @@ const WaConversation = forwardRef<
     props.onSent(msgs);
   };
   const tray = useSendTray(thread.id, onError);
+  // Al dejar el chat, lo ya guardado que se mandó desde acá suelta su copia local (lo que sigue saliendo la conserva).
+  useEffect(() => () => localPreviews.releaseScope(`inbox:${thread.id}`), [thread.id]);
   // El texto que se acaba de mandar aparece ya (burbuja provisoria, ./pending.ts): la conversación va abajo de todo.
   useEffect(() => pendingSends.subscribe((e) => void (e.type === 'add' && e.threadId === thread.id && anchor.toBottom())), [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
