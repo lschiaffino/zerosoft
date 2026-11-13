@@ -577,5 +577,10 @@
     "removeCol": "Sacar esta columna",
     "removeLastRow": "Sacar la última fila",
     "removeLastCol": "Sacar la última columna"
+  },
+  "star": {
+    "add": "Destacar",
+    "remove": "Quitar destacado",
+    "badge": "Destacada"
   }
 }

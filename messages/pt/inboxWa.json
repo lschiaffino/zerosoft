@@ -11,6 +11,7 @@
     "audio": "Áudio",
     "document": "Documento",
     "sticker": "Figurinha",
+    "gif": "GIF",
     "location": "Localização",
     "contact": "Contato",
     "poll": "Enquete"
@@ -64,6 +65,7 @@
   "close": "Fechar",
   "forwardTo": "Encaminhar para",
   "forwardedTo": "{n, plural, one {Encaminhada para # conversa} other {Encaminhada para # conversas}}",
+  "forwardPartial": "Encaminhado para {ok} de {total}. {error}",
   "search": "Buscar",
   "noChats": "Nenhuma conversa",
   "cancel": "Cancelar",
@@ -162,5 +164,96 @@
   "showLess": "Ver menos",
   "audioSummary": "Resumo:",
   "transcript": "Transcrição",
-  "moreTools": "Mais: escrever com IA, ditar, snippets"
+  "moreTools": "Mais: escrever com IA, ditar, snippets",
+  "display": {
+    "title": "Visualização",
+    "help": "Como você vê as conversas no Inbox e no Lines. As mudanças aparecem na hora e são só para você.",
+    "reset": "Voltar ao padrão",
+    "saved": "Salvo. Vale para o Inbox e o Lines.",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "textSize": {
+      "label": "Texto das mensagens",
+      "small": "Pequeno",
+      "default": "Normal",
+      "large": "Grande"
+    },
+    "linkPreviews": {
+      "label": "Prévia de links",
+      "large": "Imagem grande",
+      "compact": "Compacta",
+      "off": "Sem prévia"
+    },
+    "mediaSize": {
+      "label": "Fotos e vídeos",
+      "small": "Pequenos",
+      "default": "Normal",
+      "large": "Grandes"
+    },
+    "density": {
+      "label": "Lista de conversas",
+      "comfortable": "Confortável",
+      "compact": "Compacta"
+    },
+    "bubbleWidth": {
+      "label": "Largura das mensagens",
+      "default": "Normal",
+      "wide": "Larga"
+    },
+    "wallpaper": {
+      "label": "Fundo da conversa",
+      "pattern": "Com desenho",
+      "plain": "Liso"
+    },
+    "groupAvatars": "Mostrar as fotos ao lado das mensagens nos grupos",
+    "sample": {
+      "author": "Ana",
+      "in": "Você viu a nova página de preços?",
+      "out": "Sim, está aqui:",
+      "linkTitle": "Preços",
+      "linkDesc": "Planos para equipes de qualquer tamanho, por mês ou por ano."
+    },
+    "tab": "Aparência"
+  },
+  "linkPreview": {
+    "composerLabel": "Prévia do link",
+    "loading": "Carregando a prévia…",
+    "remove": "Enviar sem prévia"
+  },
+  "retry": "Tentar de novo",
+  "removeUnsent": "Remover",
+  "uploading": "Enviando {name}",
+  "newChat": {
+    "title": "Nova conversa",
+    "close": "Fechar",
+    "back": "Voltar",
+    "search": "Pesquise um nome ou número",
+    "placeholder": "Pesquise um nome ou número",
+    "actions": "Começar",
+    "newGroup": "Novo grupo",
+    "newEmail": "Novo e-mail",
+    "selfSection": "Você",
+    "selfName": "{name} (Você)",
+    "selfHelp": "Envie uma mensagem para você",
+    "frequent": "Contatos frequentes",
+    "contacts": "Contatos no WhatsApp",
+    "results": "Contatos e conversas",
+    "message": "Enviar mensagem para {phone}",
+    "messageHelp": "Abre a conversa. Nada é enviado até você escrever.",
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar os contatos.",
+    "retry": "Tentar de novo",
+    "empty": "Ainda não há contatos. Digite um número com o código do país para começar uma conversa.",
+    "noResults": "Nenhum contato ou conversa corresponde. Para escrever a um número novo, digite-o com o código do país.",
+    "tooShort": "Esse número é curto demais. Digite-o completo, com o código do país (de 8 a 15 dígitos).",
+    "tooLong": "Esse número é longo demais. Um telefone tem no máximo 15 dígitos.",
+    "accountOff": "Seu WhatsApp não está conectado: você só pode abrir as conversas que já tem. Conecte de novo em Configurações.",
+    "addMembers": "Adicionar participantes",
+    "picked": "Participantes escolhidos",
+    "unpick": "Remover {name}",
+    "next": "Avançar",
+    "groupTitle": "Novo grupo",
+    "groupName": "Nome do grupo",
+    "groupMembers": "{n, plural, one {# participante} other {# participantes}}",
+    "createGroup": "Criar grupo"
+  }
 }

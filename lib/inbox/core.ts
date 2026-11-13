@@ -192,7 +192,7 @@ export interface ThreadRow {
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
-function avatarVersion(url: string): string {
+export function avatarVersion(url: string): string {
   return createHash('sha256').update(url).digest('hex').slice(0, 10);
 }
 
@@ -748,12 +748,36 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
  * "@<dígitos>" (teléfono o lid), con la libreta de la cuenta.
  */
 async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise<ThreadDto[]> {
+  await withPresenceNames(threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
-  const { resolveTextMentions, someoneWord } = await import('../wa-contacts');
-  const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner) }).catch(() => items.map((i) => i.text));
+  const { mentionSelf, resolveTextMentions, someoneWord } = await import('../wa-contacts');
+  const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
+}
+
+/**
+ * Quién escribe o graba en un grupo, como WhatsApp ("Andrés está escribiendo…"): el nombre de la
+ * libreta de la cuenta, por teléfono o por lid ("<dígitos>@lid"). Sin nombre queda vacío y la pantalla
+ * muestra el teléfono si lo hay. Solo los grupos con alguien escribiendo ahora (pocos): una consulta por cuenta.
+ */
+async function withPresenceNames(threads: ThreadDto[]): Promise<void> {
+  const key = (who: string) => who.replace(/@lid$/, '');
+  const live = threads.filter((t) => t.kind === 'group' && (t.presence === 'typing' || t.presence === 'recording') && /^\d{5,20}$/.test(key(t.presenceWho)));
+  if (!live.length) return;
+  const { displayName, lookupContacts } = await import('../wa-contacts');
+  const byAccount = new Map<string, ThreadDto[]>();
+  for (const t of live) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
+  for (const [accountId, list] of byAccount) {
+    const rows = await lookupContacts({ app: 'inbox', accountId }, list.map((t) => key(t.presenceWho)));
+    for (const t of list) {
+      const r = rows.get(key(t.presenceWho));
+      t.presenceName = displayName(r);
+      // Un lid que la libreta conoce con teléfono: la pantalla muestra ese teléfono si no hay nombre.
+      if (!t.presenceName && r?.phone && t.presenceWho.endsWith('@lid')) t.presenceWho = r.phone;
+    }
+  }
 }
 
 interface MessageRow {
@@ -1050,12 +1074,14 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   const marks = unique.map(() => '?').join(',');
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
-  if (a.action === 'archive' || a.action === 'unarchive') {
+  // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
+  // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.
+  if (a.action === 'archive' || a.action === 'unarchive' || a.action === 'done' || a.action === 'undone') {
     const wa = (await db
       .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND id IN (${marks})`)
       .all(owner, ...unique)) as Array<{ id: string }>;
     const { requestArchivePush } = await import('../wa-archive-sync');
-    await requestArchivePush('inbox', owner, wa.map((r) => r.id), a.action === 'archive');
+    await requestArchivePush('inbox', owner, wa.map((r) => r.id), a.action === 'archive' || a.action === 'done');
   }
   return unique;
 }

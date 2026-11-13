@@ -8,13 +8,14 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
-import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, newClientId, TEMP_PREFIX } from '@/lib/optimistic-send';
-import { MEDIA_SEND_TIMEOUT_MS, SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
+import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
+import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
@@ -35,6 +36,7 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
@@ -43,8 +45,9 @@ import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
 import MediaAlbum from './wa/MediaAlbum';
+import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
 import {
   ArrowDown,
@@ -85,6 +88,7 @@ import {
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
+import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
@@ -260,6 +264,11 @@ export default function ChatThread(props: ThreadProps) {
   const [translateError, setTranslateError] = useState('');
   const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
   const [mentionIndex, setMentionIndex] = useState(0);
+  // Esc cierra la lista de "@" para esa mención (dónde empieza); se vuelve a abrir con otro "@".
+  const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  // Menciones de WhatsApp elegidas de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
+  const pickedWa = useRef(new Map<string, string>());
+  const [pickedVersion, setPickedVersion] = useState(0);
   const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const [hasOlder, setHasOlder] = useState(props.messages.length >= 200);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -280,7 +289,9 @@ export default function ChatThread(props: ThreadProps) {
   const latestAt = useRef(props.messages[props.messages.length - 1]?.createdAt ?? '');
   const knownIds = useRef(new Set(props.messages.map((m) => m.id)));
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
-  const recordedSecs = useRef(0);
+  // La respuesta a la vista cuando termina una grabación (el cierre de la grabadora es de cuando empezó).
+  const replyToRef = useRef(replyTo);
+  replyToRef.current = replyTo;
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
   const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
@@ -322,6 +333,9 @@ export default function ChatThread(props: ThreadProps) {
 
   const peopleById = useMemo(() => new Map(props.people.map((p) => [p.id, p.name || p.email])), [props.people]);
   const nameOf = useCallback((id: string | null | undefined) => (id ? peopleById.get(id) ?? '' : ''), [peopleById]);
+  // Foto de quien manda un audio desde acá (como WhatsApp, que pone la tuya); sin autor (salió del teléfono), la de quien mira.
+  const imageOf = useMemo(() => new Map(props.people.map((p) => [p.id, p.image || ''])), [props.people]);
+  const outImage = useCallback((id: string | null | undefined) => (id && imageOf.get(id)) || imageOf.get(props.me) || undefined, [imageOf, props.me]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -559,9 +573,15 @@ export default function ChatThread(props: ThreadProps) {
     [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "@" en una nota abre las personas ("/" abre los comandos y las respuestas rápidas, más abajo).
-  const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
-  const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
+  // "@" en una nota abre las personas del equipo; en un grupo de WhatsApp, los participantes (como WhatsApp). La
+  // mención sale como mención de verdad (avisa a la persona). "/" abre los comandos y las respuestas rápidas, más abajo.
+  const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
+  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current), [props.members, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
+  const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
+  const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
+  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const mentionMatches = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6) : [];
 
   // Idioma del cliente: el detectado en su último mensaje traducido.
   const customerLang = useMemo(() => {
@@ -642,6 +662,10 @@ export default function ChatThread(props: ThreadProps) {
   function pickMention(i: number) {
     const p = mentionMatches[i];
     if (!p || !mentionQuery) return;
+    if (waMentions && p.name) {
+      pickedWa.current.set(p.name, p.id);
+      setPickedVersion((v) => v + 1);
+    }
     const insert = `${mentionText(p)} `;
     const next = text.slice(0, mentionQuery.start) + insert + text.slice(caret);
     setText(next);
@@ -660,18 +684,9 @@ export default function ChatThread(props: ThreadProps) {
     pendingCaret.current = start + e.length;
   }
 
-  async function post(body: Record<string, unknown>, sendKey?: string): Promise<MessageDto | null> {
-    // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
-    // Con un clientId por archivo (el mismo si se vuelve a mandar desde la bandeja): un reintento no lo duplica. Y un
-    // tiempo máximo más largo que el del servidor para los archivos, así la cola no se libera antes de que termine.
-    const clientId = sendKey ? clientIdFor(sendKey) : undefined;
-    const res = await linesQueue(chat.id)(() =>
-      api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
-        body: clientId ? { ...body, clientId } : body,
-        signal: withTimeout(undefined, body.media ? MEDIA_SEND_TIMEOUT_MS : SEND_TIMEOUT_MS),
-      }),
-    );
-    if (res.data && sendKey) sendKeys.current.delete(sendKey);
+  async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
+    // Por la misma cola que los textos y los archivos: una nota no se adelanta a lo que todavía está saliendo.
+    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body, signal: withTimeout(undefined, SEND_TIMEOUT_MS) }));
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -680,68 +695,65 @@ export default function ChatThread(props: ThreadProps) {
     return res.data;
   }
 
-  // Un clientId por archivo de la bandeja (o nota de voz): se mantiene si el envío falla y se vuelve a mandar.
-  const sendKeys = useRef(new Map<string, string>());
-  const clientIdFor = (key: string) => {
-    let id = sendKeys.current.get(key);
-    if (!id) sendKeys.current.set(key, (id = newClientId()));
-    return id;
-  };
-
   /**
    * Manda lo del composer: el texto, o los archivos de la bandeja (el texto
-   * va como pie del primero, como en WhatsApp), o una nota de voz.
+   * va como pie del primero, como en WhatsApp). Textos y archivos aparecen ya
+   * en el chat con el reloj y salen por detrás, en orden (./optimistic.ts):
+   * un archivo que todavía se está subiendo se manda igual y sigue subiendo
+   * desde su burbuja. El composer queda libre para lo próximo.
    */
-  async function send(voice?: { url: string; mimetype: string; filename: string }) {
+  async function send() {
     const pending = mode === 'note' ? [] : tray.items;
-    const files = pending.filter((f) => f.status === 'ready');
+    // Lo que falló al subirse queda en la bandeja (reintentar o sacar); lo demás sale, subido o subiéndose.
+    const files = pending.filter((f) => f.status !== 'error');
     if (sending) return;
-    if (!voice && !text.trim() && files.length === 0) return;
-    if (pending.some((f) => f.status === 'uploading')) {
-      setSendError(t('wa.waitUploads'));
-      return;
-    }
+    if (!text.trim() && files.length === 0) return;
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
-    setSending(true);
     setSendError('');
     // Mandado a WhatsApp (no una nota interna): la lista sale de la búsqueda, como WhatsApp.
     if (mode !== 'note') notifyChatSent(chat.id);
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
-    let ok = true;
-    if (voice) {
-      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }, `voice:${voice.url}`));
-    } else if (files.length) {
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
+    if (files.length) {
+      files.forEach((f, i) => {
+        const taken = tray.take(f.key);
+        if (!taken) return;
         const caption = (f.caption ?? '').trim();
-        const up = f.uploaded;
-        const kind = f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'document';
+        const kind = mediaKindOf(f.type);
         // Audio no lleva pie: el texto va aparte, después.
         const withCaption = kind !== 'audio';
-        const sent = await post({
-          ...base,
+        const cid = sendLinesMedia({
+          chatId: chat.id,
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
-          media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
-        }, `file:${f.key}`);
-        if (sent && !withCaption && caption) await post({ ...base, replyToId: null, body: caption, media: null });
-        // Con burbuja creada (mandada o no), sale de la bandeja: si falló, se reintenta desde la burbuja, sin duplicar.
-        if (sent) tray.remove(f.key);
-        else ok = false;
-      }
-      if (ok && text.trim() && !previewOpen) ok = Boolean(await post({ ...base, replyToId: null, body: text, media: null }));
+          file: f.file,
+          preview: f.preview,
+          upload: taken.done,
+          media: { kind, name: f.uploaded?.filename ?? f.name, type: f.type, size: f.uploaded?.size ?? f.size, width: f.uploaded?.width ?? f.width, height: f.uploaded?.height ?? f.height, duration: f.uploaded?.duration, url: f.uploaded?.url },
+        });
+        taken.onProgress((p) => uploadProgress.set(cid, p));
+        if (f.progress) uploadProgress.set(cid, f.progress);
+        if (!withCaption && caption) sendTextNow(caption, null);
+      });
+      if (text.trim() && !previewOpen) sendTextNow(text, null);
     } else if (mode === 'note') {
-      ok = Boolean(await post({ ...base, body: text, media: null }));
+      setSending(true);
+      const ok = Boolean(await post({ ...base, body: text, media: null }));
+      setSending(false);
+      if (!ok) return;
     } else {
       // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
-      sendTextNow(text, base.replyToId);
+      // En un grupo, "@Nombre" sale como "@<teléfono>" con la lista de mencionados: WhatsApp avisa y muestra el nombre.
+      const out = chat.kind === 'group' ? serializeWaMentions(text, waPeople) : { body: text, mentions: [] };
+      sendTextNow(out.body, base.replyToId, out.mentions, !linkPv.linkPreview);
+      pickedWa.current.clear();
     }
-    setSending(false);
-    if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!voice && !files.length) setText('');
+    if (!files.length) {
+      setText('');
+      linkPv.reset();
+    }
     setReplyTo(null);
     ai.clearUndo();
     refresh();
@@ -753,8 +765,8 @@ export default function ChatThread(props: ThreadProps) {
    * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
-  function sendTextNow(body: string, replyToId: string | null) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId }).clientId);
+  function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -767,7 +779,7 @@ export default function ChatThread(props: ThreadProps) {
         return next.messages;
       });
     show();
-    return unsentLines.subscribe((e) => {
+    const stop = unsentLines.subscribe((e) => {
       if (e.chatId !== props.chat.id) return;
       if (e.type === 'saved') {
         merge([e.saved]);
@@ -778,6 +790,12 @@ export default function ChatThread(props: ThreadProps) {
       show();
       if (e.type === 'failed') setSendError(errText(e.entry.error));
     });
+    const chatId = props.chat.id;
+    return () => {
+      stop();
+      // Al cerrar el chat, lo ya guardado suelta su copia local (lo que sigue saliendo la conserva).
+      localPreviews.releaseScope(`lines:${chatId}`);
+    };
   }, [props.chat.id, props.me, merge, refresh, errText]);
 
   /** Vuelve a mandar el MISMO mensaje que no salió (misma burbuja: enviando, después enviado o no enviado). */
@@ -804,6 +822,9 @@ export default function ChatThread(props: ThreadProps) {
     if (text.trim() && tray.items.length === 0) setText('');
     inputRef.current?.focus();
   }
+
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: mode === 'note' || !!editing || tray.items.length > 0 || recording != null });
 
   const emojiSuggest = useEmojiSuggest({
     text,
@@ -835,6 +856,24 @@ export default function ChatThread(props: ThreadProps) {
         pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
         return;
       }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (mentionQuery) setMentionClosedAt(mentionQuery.start);
+        return;
+      }
+    }
+    // Borrar contra una mención la saca entera (como WhatsApp): no queda medio nombre que ya no menciona a nadie.
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !editing && mentionHits.length && !e.altKey && !e.metaKey && !e.ctrlKey) {
+      const el = e.currentTarget;
+      const cut = deleteMentionToken(text, el.selectionStart, el.selectionEnd, e.key, mentionHits);
+      if (cut) {
+        e.preventDefault();
+        setText(cut.text);
+        setCaret(cut.caret);
+        pendingCaret.current = cut.caret;
+        return;
+      }
     }
     // ⌘J (Ctrl+J) en el campo: "Ayudame a escribir", como en Inbox.
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j' && aiAllowed) {
@@ -863,18 +902,6 @@ export default function ChatThread(props: ThreadProps) {
     }
   }
 
-  async function uploadFile(file: File | Blob, name: string): Promise<{ url: string; mimetype: string; filename: string } | null> {
-    const form = new FormData();
-    form.append('file', file, name);
-    const res = await fetch('/api/groups/upload', { method: 'POST', body: form }).catch(() => null);
-    const data = (await res?.json().catch(() => ({}))) as { url?: string; mimetype?: string; filename?: string; error?: string } | undefined;
-    if (!res?.ok || !data?.url) {
-      setSendError(errText(data?.error ?? 'upload_failed'));
-      return null;
-    }
-    return { url: data.url, mimetype: data.mimetype ?? file.type, filename: data.filename ?? name };
-  }
-
   // Nota de voz: grabar con el micrófono, ver el tiempo, cancelar o mandar.
   // Se sabe recién en el navegador (el servidor no tiene micrófono): después de montar, para no romper la hidratación.
   const [voiceSupported, setVoiceSupported] = useState(false);
@@ -893,16 +920,23 @@ export default function ChatThread(props: ThreadProps) {
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     const state = { rec, chunks: [] as Blob[], stream, cancel: false };
     rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
-    rec.onstop = async () => {
-      recordedSecs.current = Math.max(1, Math.round(recSecs() || 1));
+    // El chat y la respuesta de cuando se grabó: la nota va ahí aunque se cambie de chat mientras se sube.
+    const chatId = chat.id;
+    rec.onstop = () => {
+      const seconds = Math.max(1, Math.round(recSecs() || 1));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
       if (state.cancel || state.chunks.length === 0) return;
       const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
-      const blob = new Blob(state.chunks, { type });
-      const up = await uploadFile(blob, `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`);
-      if (up) await send(up);
+      const name = `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`;
+      const file = new File(state.chunks, name, { type });
+      // La burbuja aparece ya, con el reloj y el audio que se puede escuchar; la subida y el envío siguen por detrás.
+      notifyChatSent(chatId);
+      sendLinesMedia({ chatId, body: '', replyToId: replyToRef.current?.id ?? null, file, media: { kind: 'voice', name, type, size: file.size, duration: seconds } });
+      setReplyTo(null);
+      setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
+      refresh();
     };
     recorder.current = state;
     rec.start(250);
@@ -1228,7 +1262,7 @@ export default function ChatThread(props: ThreadProps) {
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
-        { key: 'remove', label: t('common.remove'), onSelect: () => unsentLines.remove(m.id.slice(TEMP_PREFIX.length)) },
+        { key: 'remove', label: t('common.remove'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) },
       ];
     }
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
@@ -1245,6 +1279,7 @@ export default function ChatThread(props: ThreadProps) {
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
+    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
     if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
@@ -1264,6 +1299,33 @@ export default function ChatThread(props: ThreadProps) {
     team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (team.length) team[0] = { ...team[0], divider: true };
     return [...items, ...team];
+  }
+
+  async function favoriteSticker(messageId: string) {
+    const res = await api('/api/groups/stickers', { body: { action: 'favoriteMessage', messageId } });
+    showToast(res.data ? t('wa.stickers.favorited') : t('wa.stickers.favoriteFailed'), !res.data);
+  }
+
+  /** Un sticker del panel: la media para mandarlo (lib/wa-stickers.ts) y sale como cualquier archivo del chat. */
+  async function sendSticker(id: string): Promise<boolean> {
+    const res = await api<{ media: Record<string, unknown> }>('/api/groups/stickers', { body: { action: 'use', id } });
+    if (!res.data) {
+      setSendError(t('wa.stickers.sendFailed'));
+      return false;
+    }
+    // Ya está subido: sale por la cola del chat como cualquier archivo (burbuja al instante, reintentar si no sale).
+    const m = res.data.media as { url: string; mimetype?: string; filename?: string; size?: number; width?: number; height?: number };
+    notifyChatSent(chat.id);
+    sendLinesText(
+      unsentLines.add({
+        chatId: chat.id,
+        body: '',
+        replyToId: replyTo?.id ?? null,
+        media: { kind: 'sticker', url: m.url, type: m.mimetype || 'image/webp', name: m.filename || 'sticker.webp', size: m.size ?? 0, width: m.width, height: m.height },
+      }).clientId,
+    );
+    setReplyTo(null);
+    return true;
   }
 
   function downloadMedia(m: MessageDto) {
@@ -1452,7 +1514,8 @@ export default function ChatThread(props: ThreadProps) {
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
-    const media = m.media;
+    // Lo que se mandó desde esta pestaña sigue con su copia local (sin volver a bajarse al guardarse).
+    const media = withLocalMedia(m);
     const kind = media?.kind ?? '';
     const sticker = kind === 'sticker';
     const bigEmoji = !media && !m.poll && !quoted && !m.deletedAt && onlyEmoji(m.body);
@@ -1556,7 +1619,7 @@ export default function ChatThread(props: ThreadProps) {
                   tiles={album.map((x) => ({
                     id: x.id,
                     kind: x.media?.kind === 'video' ? 'video' : 'image',
-                    url: x.media?.url ?? '',
+                    url: withLocalMedia(x)?.url ?? '',
                     alt: x.media?.name || t('thread.image'),
                     thumbnail: x.media?.thumbnail,
                     seconds: x.media?.duration,
@@ -1574,6 +1637,8 @@ export default function ChatThread(props: ThreadProps) {
                 <span className="wa-viewonce">
                   <ViewOnce size={20} /> {t('wa.viewOnce')}
                 </span>
+              ) : sticker && !media.url ? (
+                <StickerMissing label={t('wa.stickers.missing')} />
               ) : !media.url ? (
                 <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
               ) : kind === 'image' || kind === 'sticker' ? (
@@ -1587,6 +1652,8 @@ export default function ChatThread(props: ThreadProps) {
                   onLoad={keepAtEnd}
                   onOpen={() => setViewerAt(m.id)}
                 />
+              ) : kind === 'video' && media.animated ? (
+                <GifView url={media.url} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
@@ -1597,11 +1664,18 @@ export default function ChatThread(props: ThreadProps) {
                       ? chat.kind === 'dm'
                         ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
                         : { name: inName(m), seed: m.senderPhone || m.senderName }
-                      : { name: author || '', seed: m.authorId || 'me' }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
                   }
                 />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
+              )}
+              {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
+                <UploadRing
+                  ids={(album ?? [m]).filter((x) => isTempId(x.id) && x.status === 'pending').map((x) => x.id.slice(TEMP_PREFIX.length))}
+                  label={t('wa.uploading', { name: media.name || t('thread.image') })}
+                  overlay={Boolean(album) || kind === 'image' || kind === 'video' || kind === 'sticker'}
+                />
               )}
             </div>
           )}
@@ -1611,7 +1685,7 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (
@@ -1701,12 +1775,14 @@ export default function ChatThread(props: ThreadProps) {
         </div>
         {reactions.size > 0 && (
           <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {[...reactions].map(([emoji, n]) => (
-              <span key={emoji}>
-                {emoji}
-                {n > 1 && <b>{n}</b>}
-              </span>
-            ))}
+            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
+            {[...reactions]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([emoji]) => (
+                <span key={emoji}>{emoji}</span>
+              ))}
+            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
           </p>
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (
@@ -1740,7 +1816,7 @@ export default function ChatThread(props: ThreadProps) {
   const canSend = Boolean(text.trim() || (mode === 'reply' && tray.items.length > 0));
   const unseen = atBottom ? 0 : messages.filter((m) => m.direction === 'in' && m.createdAt > bottomAt).length;
   const viewerItems = messages
-    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
+    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && m.media.kind !== 'sticker')
     .map((m) => {
       const author = m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you');
       // En un 1 a 1 lo recibido lleva la foto del chat; en un grupo, iniciales de quien lo mandó.
@@ -1985,6 +2061,7 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
+          {!selecting && linkPv.card}
           {slash.menu}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && !slash.open && (
@@ -1993,13 +2070,16 @@ export default function ChatThread(props: ThreadProps) {
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
                   <button
                     type="button"
-                    title={p.email}
+                    title={waMentions ? `+${p.id}` : p.email}
                     onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
                     onClick={() => pickMention(i)}
                   >
                     <Avatar name={p.name || p.email} kind="dm" size={32} seed={p.id} />
-                    <span className="wa-mention-name">{p.name || p.email}</span>
+                    <span className="wa-mention-who">
+                      <span className="wa-mention-name">{p.name || p.email}</span>
+                      {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -2058,6 +2138,7 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
                 {emojiOpen && (
                   <EmojiPicker
+                    stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
                     }}
@@ -2112,10 +2193,11 @@ export default function ChatThread(props: ThreadProps) {
                   />
                 </>
               )}
-              <textarea
+              <MentionTextarea
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 rows={1}
+                highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
                 disabled={leaving}
                 onChange={(e) => {
@@ -2126,6 +2208,7 @@ export default function ChatThread(props: ThreadProps) {
                   setText(e.target.value);
                   setCaret(e.target.selectionStart ?? e.target.value.length);
                   setMentionIndex(0);
+                  if (mentionClosedAt !== null && !e.target.value.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}
@@ -2199,6 +2282,7 @@ export default function ChatThread(props: ThreadProps) {
             onAdd={() => fileRef.current?.click()}
             onSend={() => void send()}
             onClose={tray.clear}
+            onFiles={addFiles}
             sending={sending}
           />
         )}

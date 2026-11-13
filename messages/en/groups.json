@@ -86,25 +86,13 @@
     "noNumbersBodyQr": "Scan a QR code with your phone and your chats and groups show up here in about a minute. If you want to look around first, load sample data.",
     "scanQr": "Scan QR code",
     "pendingBanner": "Your number is not connected yet.",
-    "finishConnect": "Finish connecting"
+    "finishConnect": "Finish connecting",
+    "flaggedHint": "Overdue: waiting for a reply {time}"
   },
   "newChat": {
     "open": "New chat",
-    "title": "New chat",
     "from": "From line",
-    "search": "Name or phone number",
-    "placeholder": "Search a contact or type a number",
-    "message": "Message {phone}",
-    "messageHelp": "Opens the chat. Nothing is sent until you write.",
-    "newGroup": "New group",
-    "results": "Contacts and chats",
-    "recent": "Recent chats",
-    "empty": "Search a contact of this line, or type a number with its country code.",
-    "noResults": "No contact or chat matches. To write to a new number, type it with its country code.",
-    "tooShort": "That number is too short. Write it in full, with the country code (8 to 15 digits).",
-    "tooLong": "That number is too long. A phone number has at most 15 digits.",
-    "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has.",
-    "loadError": "Could not load the contacts. Try again."
+    "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has."
   },
   "filters": {
     "all": "All",
@@ -1038,6 +1026,7 @@
     "deleted": "Message deleted",
     "voice": "Voice message",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Location",
     "contact": "Contact",
     "viewOnce": "View once message"
@@ -1825,7 +1814,38 @@
     "contactInfo": "Contact info",
     "groupInfo": "Group info",
     "exportChat": "Export chat",
-    "selectMessages": "Select messages"
+    "selectMessages": "Select messages",
+    "stickers": {
+      "tab": "Stickers",
+      "panels": "Emoji and stickers",
+      "recent": "Recent",
+      "favorites": "Favorites",
+      "all": "Your stickers",
+      "send": "Send sticker",
+      "options": "Sticker options",
+      "addFavorite": "Add to favorites",
+      "removeFavorite": "Remove from favorites",
+      "remove": "Remove from my stickers",
+      "create": "Create sticker",
+      "creating": "Creating…",
+      "import": "Import stickers from my chats",
+      "importing": "Importing… {n} found",
+      "loading": "Loading stickers",
+      "emptyTitle": "No stickers yet",
+      "emptyBody": "WhatsApp doesn't let linked apps read the stickers saved on your phone. Import the ones you sent and received in your chats, or create one from an image.",
+      "noneFound": "No stickers in your chats yet. New ones are added as they arrive.",
+      "loadFailed": "Couldn't load your stickers.",
+      "importFailed": "Couldn't import stickers. Try again.",
+      "createFailed": "Couldn't create the sticker. Use a PNG, JPEG, GIF or WebP image.",
+      "tooLarge": "The image is too large for a sticker.",
+      "convertUnavailable": "Creating stickers isn't available on this server.",
+      "saveFailed": "Couldn't save the change.",
+      "favorited": "Added to favorite stickers",
+      "favoriteFailed": "Couldn't add the sticker to favorites.",
+      "sendFailed": "Couldn't send the sticker.",
+      "missing": "Sticker"
+    },
+    "openGif": "Open GIF"
   },
   "swipe": {
     "read": "Read",

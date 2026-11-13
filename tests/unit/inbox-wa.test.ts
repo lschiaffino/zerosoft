@@ -182,6 +182,24 @@ describe('datos del chat por Evolution', () => {
     expect(calls.some((c) => c.includes('fetchAllGroups'))).toBe(false);
   });
 
+  it('chatInfo: un 1:1 cuyo perfil viene sin foto la pide aparte (fetchProfilePictureUrl)', async () => {
+    const calls: string[] = [];
+    const fetcher = async (input: string | URL | Request, init: RequestInit = {}) => {
+      const url = new URL(String(input instanceof Request ? input.url : input));
+      calls.push(`${init.method ?? 'GET'} ${url.pathname}`);
+      const out = url.pathname.startsWith('/chat/fetchProfilePictureUrl/')
+        ? { wuid: '100000000000009@lid', profilePictureUrl: 'https://pps.whatsapp.net/v/t61/aline.jpg' }
+        : url.pathname.startsWith('/chat/fetchProfile/')
+          ? { wuid: '100000000000009@lid', name: 'Aline', numberExists: true, picture: null, status: '' }
+          : [];
+      return new Response(JSON.stringify(out), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const p = evolutionProvider({ baseUrl: BRIDGE, apiKey: 'k', session: 'inst' }, { fetch: fetcher });
+    const d = await p.chatInfo!('100000000000009@lid');
+    expect(d).toMatchObject({ name: 'Aline', pictureUrl: 'https://pps.whatsapp.net/v/t61/aline.jpg' });
+    expect(calls).toContain('POST /chat/fetchProfilePictureUrl/inst');
+  });
+
   it('un grupo sin asunto toma el nombre real y la foto; el 1:1 conserva el nombre propio', async () => {
     const { u, account } = await connected('ibwa-info');
     const calls: string[] = [];

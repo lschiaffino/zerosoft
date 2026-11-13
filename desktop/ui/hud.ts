@@ -5,6 +5,7 @@
  */
 import { listen } from '@tauri-apps/api/event';
 import { formatClock, type HudState } from './api';
+import { barHeights, initialMeter, stepMeter } from './meter';
 
 const label = document.getElementById('label')!;
 const clock = document.getElementById('clock')!;
@@ -44,12 +45,14 @@ void listen<HudState>('hud://state', (e) => {
   }
 });
 
+// Escala en decibeles con ganancia automática (desktop/ui/meter.ts): una voz normal mueve bien las barras.
+let meter = initialMeter();
 void listen<number>('hud://level', (e) => {
-  if (document.body.dataset.phase !== 'recording') return;
-  const peak = Number(e.payload) || 0;
-  const now = Date.now();
-  bars.forEach((b, i) => {
-    const wave = 0.55 + 0.45 * Math.sin(now / 120 + i * 1.3);
-    b.style.height = `${Math.max(3, Math.min(18, 3 + peak * 44 * wave))}px`;
-  });
+  if (document.body.dataset.phase !== 'recording') {
+    meter = initialMeter();
+    return;
+  }
+  meter = stepMeter(meter, Number(e.payload) || 0);
+  const heights = barHeights(meter.value, bars.length, Date.now());
+  bars.forEach((b, i) => (b.style.height = `${heights[i]}px`));
 });

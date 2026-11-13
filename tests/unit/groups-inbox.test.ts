@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { type FetchLike } from '@/lib/groups-provider';
+import { PROVIDER_CAPS, type FetchLike } from '@/lib/groups-provider';
 import { parseCloudCall, parseCloudWebhook } from '@/lib/groups-provider-cloud';
 import { evolutionProvider, parseEvolutionWebhook, parseWahaWebhook, wahaProvider } from '@/lib/groups-provider-bridge';
 import { fakeSent, resetFakeProvider } from '@/lib/groups-provider-fake';
@@ -230,6 +230,49 @@ describe('acciones sobre mensajes (proveedor falso)', () => {
     expect(del.message?.deletedAt).toBeTruthy();
     expect(await listPinned(user.id, a.id)).toEqual([]);
     await expect(editMessage(user.id, viewer, sent.id, 'otra')).rejects.toThrow();
+  });
+
+  it('reenvía una nota de voz por copia (Evolution no reenvía): sale como nota de voz, con duración y onda', async () => {
+    const { user, row } = await setup('inbox-forward-voice');
+    const waveform = Array.from({ length: 64 }, (_, i) => (i * 3) % 100);
+    await ingestEvents(row, [
+      { ...inbound('5491100000011@c.us', 'V-1', ''), media: { url: 'https://cdn.example.com/voz.ogg', type: 'audio/ogg', name: '', info: { kind: 'voice', ptt: true, duration: 7, waveform } } },
+      { ...inbound('5491100000012@c.us', 'V-2', ''), media: { url: 'https://cdn.example.com/foto.jpg', type: 'image/jpeg', name: '', info: { kind: 'image', viewOnce: true } } },
+      inbound('5491100000013@c.us', 'V-3', 'hola'),
+    ]);
+    const chats = (await listChats(user.id, user.id)).rows;
+    const from = chats.find((c) => c.phone === '5491100000011')!;
+    const to = chats.find((c) => c.phone === '5491100000013')!;
+    const voice = (await listMessages(user.id, from.id))[0];
+    // Como Evolution y el número gestionado: sin reenvío nativo.
+    const caps = PROVIDER_CAPS.fake;
+    const prev = caps.forward;
+    caps.forward = false;
+    try {
+      const fw = await forwardMessage(user.id, user.id, voice.id, [to.id, 'no-existe']);
+      expect(fw).toEqual([
+        { chatId: to.id, name: expect.any(String), ok: true },
+        { chatId: 'no-existe', name: 'no-existe', ok: false, error: 'not_found' },
+      ]);
+    } finally {
+      caps.forward = prev;
+    }
+    expect(fakeSent(row.id).at(-1)).toMatchObject({ kind: 'media', chatId: '5491100000013@c.us', media: { kind: 'voice', mimetype: 'audio/ogg' } });
+    const copy = (await listMessages(user.id, to.id)).find((m) => m.direction === 'out')!;
+    expect(copy).toMatchObject({ forwarded: true, body: '', media: { kind: 'voice', ptt: true, duration: 7, waveform } });
+    // "Ver una vez" no se reenvía.
+    const once = (await listMessages(user.id, chats.find((c) => c.phone === '5491100000012')!.id))[0];
+    expect(messageActions(once, PROVIDER_CAPS.fake, { me: user.id, isAdmin: true }).forward).toBe(false);
+    await expect(forwardMessage(user.id, user.id, once.id, [to.id])).rejects.toThrow('not_forwardable');
+  });
+
+  it('Evolution: una nota de voz reenviada sale por sendWhatsAppAudio y una foto por sendMedia con comentario', async () => {
+    const { f, calls } = mockFetch(() => ({ key: { id: 'EVO-1' } }));
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.com', apiKey: 'k', session: 'acme' }, { fetch: f });
+    await p.sendMedia('549@s.whatsapp.net', { url: 'https://cdn.example.com/voz.ogg', mimetype: 'audio/ogg', filename: 'voz.ogg', kind: 'voice', base64: 'T2dnUw==' });
+    await p.sendMedia('549@s.whatsapp.net', { url: 'https://cdn.example.com/f.jpg', mimetype: 'image/jpeg', filename: 'f.jpg', caption: 'La terraza', kind: 'image' });
+    expect(calls[0]).toMatchObject({ url: 'https://evo.example.com/message/sendWhatsAppAudio/acme', body: { number: '549@s.whatsapp.net', audio: 'T2dnUw==', encoding: true } });
+    expect(calls[1]).toMatchObject({ url: 'https://evo.example.com/message/sendMedia/acme', body: { mediatype: 'image', media: 'https://cdn.example.com/f.jpg', caption: 'La terraza' } });
   });
 
   it('una edición o un borrado que llega por webhook cambia el mensaje', async () => {

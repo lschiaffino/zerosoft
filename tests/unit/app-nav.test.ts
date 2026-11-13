@@ -5,6 +5,7 @@ import {
   appProductFromPath,
   buildNav,
   buildNewItems,
+  directNewItem,
   homeAppGroups,
   HOME_APPS_LIMIT,
   settingsNavItem,
@@ -112,12 +113,22 @@ describe('sidebar de la app', () => {
     expect(buildNewItems('agents', labels)[0].href).toBe('/app/agents?new=1');
   });
 
+  it('"+ Nuevo" en Lines e Inbox abre el chat nuevo sin menú; el resto de las apps muestra el menú', () => {
+    expect(directNewItem('groups', labels)?.href).toBe('/app/lines/inbox?new=1');
+    expect(directNewItem('inbox', labels)?.href).toBe('/app/inbox?new=1');
+    for (const product of PRODUCTS) {
+      if (product === 'groups' || product === 'inbox') continue;
+      expect(directNewItem(product, labels), product).toBeNull();
+    }
+  });
+
   it('las páginas destino de ?new=1 leen el parámetro', () => {
     const files = [
       'components/crm/TasksView.tsx',
       'components/flow/FlowsHome.tsx',
       'components/agents/AgentsHome.tsx',
       'components/robots/RobotsHome.tsx',
+      'components/groups/InboxShell.tsx',
     ];
     for (const f of files) expect(readFileSync(join(root, f), 'utf8'), f).toMatch(/get\('new'\) === '1'/);
     expect(readFileSync(join(appDir, 'app', 'docs', '(home)', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);

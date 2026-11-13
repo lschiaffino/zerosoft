@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
   "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem", "analytics": "Análise" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",
@@ -147,7 +147,8 @@
     "storage_unavailable": "Este servidor não tem onde guardar arquivos.",
     "upload_failed": "Não foi possível enviar o arquivo. Tente de novo.",
     "invalid_file": "Esse arquivo não é uma exportação do inbox-zero.",
-    "media_unavailable": "Este arquivo não está mais disponível no WhatsApp."
+    "media_unavailable": "Este arquivo não está mais disponível no WhatsApp.",
+    "group_failed": "O WhatsApp não conseguiu criar o grupo. Tente de novo daqui a pouco."
   },
   "empty": {
     "connectTitle": "Conecte o WhatsApp ou o Gmail",
@@ -608,5 +609,39 @@
       "desc": "Ditar a mensagem com a sua voz",
       "keys": "voz falar microfone"
     }
+  },
+  "analytics": {
+    "title": "Análise do Inbox",
+    "desc": "O que chegou, com que rapidez você respondeu e o que fechou, no WhatsApp, email e grupos.",
+    "private": "Só você vê estes números: seu Inbox é privado, inclusive para os admins do workspace.",
+    "received": "Recebidas",
+    "sent": "Enviadas",
+    "threads": "Conversas ativas",
+    "firstResponse": "Primeira resposta (mediana)",
+    "toReply": "Para responder",
+    "waiting": "Esperando outros",
+    "done": "Marcadas como feitas",
+    "archived": "Arquivadas",
+    "perChannel": "Mensagens por dia e canal",
+    "volume": "Recebidas e enviadas por dia",
+    "channels": {
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "groups": "Grupos"
+    },
+    "byChannel": "Por canal",
+    "inOut": "{inbound} recebidas, {outbound} enviadas",
+    "frPerDay": "Sua primeira resposta por dia",
+    "frBuckets": "Com que rapidez você respondeu",
+    "frNote": "A primeira resposta conta as conversas com uma pessoa e o email. Os grupos ficam de fora.",
+    "noResponses": "Não há respostas para medir neste período.",
+    "heatmap": "Quando as mensagens chegam",
+    "heatNone": "Nenhuma mensagem recebida neste período.",
+    "heatPeak": "A hora com mais mensagens: {day} às {hour}, {n} recebidas.",
+    "topThreads": "Conversas mais ativas",
+    "chat": "Conversa",
+    "channel": "Canal",
+    "emptyTitle": "Nenhuma mensagem neste período",
+    "emptyBody": "Conecte o WhatsApp ou o Gmail nos ajustes do Inbox e seus números aparecem aqui."
   }
 }

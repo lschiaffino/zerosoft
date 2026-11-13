@@ -1,9 +1,12 @@
 import { getTranslations } from 'next-intl/server';
+import AnalyticsSkeleton from '@/components/analytics-kit/Skeleton';
+import LoadingSwitch from '@/components/analytics-kit/LoadingSwitch';
+import '@/styles/analytics-kit.css';
 
 /** Carga de /app/inbox: la lista y la conversación como placas. */
 export default async function InboxLoading() {
-  const t = await getTranslations('common.appSoon');
-  return (
+  const [t, tk] = await Promise.all([getTranslations('common.appSoon'), getTranslations('analyticsKit')]);
+  const fallback = (
     <div className="ib-app" aria-busy="true">
       <span className="sr-only" role="status">
         {t('loading', { app: 'Inbox' })}
@@ -22,4 +25,6 @@ export default async function InboxLoading() {
       <div className="ib-convo-pane" />
     </div>
   );
+  // En /analytics, las placas del tablero.
+  return <LoadingSwitch analytics={<AnalyticsSkeleton label={tk('loading')} />} fallback={fallback} />;
 }

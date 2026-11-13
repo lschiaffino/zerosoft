@@ -454,6 +454,10 @@ export function wahaProvider(
         chatId,
         text,
         ...(o?.replyTo ? { reply_to: o.replyTo } : {}),
+        // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
+        linkPreview: o?.linkPreview !== false,
+        // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
+        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => `${p}@c.us`) } : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
@@ -577,6 +581,10 @@ export const EVOLUTION_EVENTS = [
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
   'CALL',
+  // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
+  // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
+  'CHATS_UPDATE',
+  'CHATS_UPSERT',
 ];
 
 /** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */
@@ -611,7 +619,7 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
 };
 
 /** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). */
-const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage'];
+const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage'];
 
 /** Saca los envoltorios (mensajes temporales, "ver una vez", documento con texto). */
 function unwrapBaileys(message: Json): { message: Json; viewOnce: boolean } {
@@ -767,7 +775,8 @@ function inboundEvolutionMedia(
   remoteJid: string,
   fromMe: boolean,
 ): NonNullable<Extract<InboundEvent, { type: 'message' }>['media']> {
-  const fetchable = media.size <= MAX_INBOUND_MEDIA && !media.info.viewOnce;
+  // Un sticker Lottie (application/was) no se puede dibujar en el navegador: queda el lugar del sticker, sin bajarlo.
+  const fetchable = media.size <= MAX_INBOUND_MEDIA && !media.info.viewOnce && !media.info.lottie;
   return {
     url: fetchable ? `evo:${id}` : '',
     type: media.type,
@@ -934,7 +943,8 @@ export function evolutionPresence(d: Json): InboundEvent[] {
   for (const [jid, p] of Object.entries(presences)) {
     const state = String((p ?? {}).lastKnownPresence ?? '');
     if (!PRESENCE_STATES.has(state)) continue;
-    const who = /@lid$/.test(jid) ? '' : phoneDigits(jid);
+    // En los grupos casi todos llegan por lid: se guarda "<dígitos>@lid" (la libreta lo resuelve a nombre o teléfono).
+    const who = /@lid$/.test(jid) ? `${lidDigits(jid)}@lid` : phoneDigits(jid);
     if (!best || ((state === 'composing' || state === 'recording') && best.state !== 'composing' && best.state !== 'recording')) best = { who, state };
   }
   if (!best) return [];
@@ -1307,7 +1317,13 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         const first = Array.isArray(rows) ? ((rows as Json[]).find((c) => c.remoteJid === chatId) ?? null) : null;
         name = cleanPushName(first?.pushName);
       }
-      return { name, about: about.trim().slice(0, 1000), pictureUrl: https(r.picture), isBusiness: r.isBusiness === true };
+      // La foto: la del perfil; si no viene (pasa seguido, sobre todo con chats por lid), se pide aparte.
+      let pictureUrl = https(r.picture);
+      if (!pictureUrl) {
+        const pic = (await api(`/chat/fetchProfilePictureUrl/${instance}`, 'POST', { number: chatId }).catch(() => null)) as Json | null;
+        pictureUrl = https(pic?.profilePictureUrl);
+      }
+      return { name, about: about.trim().slice(0, 1000), pictureUrl, isBusiness: r.isBusiness === true };
     },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
@@ -1334,7 +1350,16 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {
-      await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
+      // Primero con el último mensaje que Evolution tiene guardado: lleva la clave exacta que conoce WhatsApp (en los
+      // grupos, quien escribió va como "<lid>@lid"). Con la nuestra (el teléfono) Evolution respondía bien pero el
+      // teléfono no encontraba el mensaje y descartaba el archivado sin avisar. Si Evolution no tiene mensajes de ese
+      // chat, se manda la referencia nuestra, como antes.
+      try {
+        await api(`/chat/archiveChat/${instance}`, 'POST', { chat: chatId, archive });
+      } catch (err) {
+        if (!last) throw err;
+        await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
+      }
     },
     async sendText(chatId, text, o) {
       const r = (await api(`/message/sendText/${instance}`, 'POST', {
@@ -1342,6 +1367,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
         ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
+        // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
+        linkPreview: o?.linkPreview !== false,
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },

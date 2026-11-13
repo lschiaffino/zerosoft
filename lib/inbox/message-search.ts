@@ -175,11 +175,14 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
   const db = getDb();
   if (text && (await hasFts())) {
     const expr = ftsExpression(p);
+    // CROSS JOIN fija el orden: primero el índice de texto y después cada mensaje por rowid. Con un JOIN
+    // común, el índice (owner_id, sent_at) de la analítica tienta al planificador a recorrer todos los
+    // mensajes de la persona por fecha y probar el texto en cada uno.
     try {
       rows = (await db
         .prepare(
           `SELECT ${cols}, snippet(inbox_messages_fts, -1, '${HIT_START}', '${HIT_END}', '…', 16) AS snip
-           FROM inbox_messages_fts f JOIN inbox_messages m ON m.rowid = f.rowid JOIN inbox_threads t ON t.id = m.thread_id
+           FROM inbox_messages_fts f CROSS JOIN inbox_messages m ON m.rowid = f.rowid JOIN inbox_threads t ON t.id = m.thread_id
            WHERE inbox_messages_fts MATCH ? AND ${where.join(' AND ')} ORDER BY m.sent_at DESC LIMIT ?`,
         )
         .all(expr, ...args, limit + 1)) as Row[];
@@ -254,7 +257,7 @@ export async function threadIdsMatching(owner: string, raw: string, limit = 300)
   try {
     const rows = (await getDb()
       .prepare(
-        `SELECT DISTINCT m.thread_id FROM inbox_messages_fts f JOIN inbox_messages m ON m.rowid = f.rowid
+        `SELECT DISTINCT m.thread_id FROM inbox_messages_fts f CROSS JOIN inbox_messages m ON m.rowid = f.rowid
          WHERE inbox_messages_fts MATCH ? AND m.owner_id = ? AND m.hidden_at IS NULL LIMIT ?`,
       )
       .all(ftsExpression(p), owner, limit)) as Array<{ thread_id: string }>;

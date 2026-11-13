@@ -600,12 +600,11 @@ export function chatPresence(row: Pick<ChatRow, 'presence' | 'presence_who' | 'p
   return { state, name: '', at: row.presence_at };
 }
 
-/** Presencia con el nombre de quien escribe en un grupo (de los miembros guardados). */
+/** Presencia con el nombre de quien escribe en un grupo (miembros guardados, libreta de la línea o teléfono). */
 export async function presenceWithName(row: ChatRow): Promise<ChatPresence | null> {
   const p = chatPresence(row);
   if (!p || row.kind !== 'group' || !row.presence_who) return p;
-  const m = (await getDb().prepare('SELECT name FROM groups_members WHERE chat_id = ? AND phone = ?').get(row.id, row.presence_who)) as { name: string } | undefined;
-  return { ...p, name: m?.name ?? '' };
+  return (await presenceNames([row])).get(row.id) ?? p;
 }
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -688,9 +687,11 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   if (!row) return null;
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
-    const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+    const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
     dto.lastMessagePreview = (
-      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws) }).catch(() => [dto.lastMessagePreview])
+      await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }], { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) }).catch(() => [
+        dto.lastMessagePreview,
+      ])
     )[0];
   }
   if (row.kind === 'dm') {
@@ -1006,12 +1007,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
-  const { resolveTextMentions, someoneWord } = await import('./wa-contacts');
+  const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
   const named = await resolveTextMentions(
     'lines',
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
-    { someone: () => someoneWord(ws) },
+    { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
   return {
     rows: rows.map((r, i) => {
@@ -1060,6 +1061,26 @@ async function presenceNames(rows: ChatRow[]): Promise<Map<string, ChatPresence 
   for (const r of live) {
     const p = out.get(r.id);
     if (p) out.set(r.id, { ...p, name: byKey.get(`${r.id}|${r.presence_who}`) ?? '' });
+  }
+  // Sin nombre entre los miembros (casi siempre: en los grupos escriben por lid, "<dígitos>@lid"): la libreta de la
+  // línea por teléfono o lid; si tampoco, el teléfono. Un lid desconocido queda sin nombre ("escribiendo…").
+  const missing = live.filter((r) => !out.get(r.id)?.name);
+  if (missing.length) {
+    const { displayName, lookupContacts } = await import('./wa-contacts');
+    const key = (who: string) => who.replace(/@lid$/, '');
+    const byNumber = new Map<string, ChatRow[]>();
+    for (const r of missing) byNumber.set(r.number_id, [...(byNumber.get(r.number_id) ?? []), r]);
+    for (const [numberId, list] of byNumber) {
+      const known = await lookupContacts({ app: 'lines', accountId: numberId }, list.map((r) => key(r.presence_who as string))).catch(() => new Map());
+      for (const r of list) {
+        const who = r.presence_who as string;
+        const c = known.get(key(who));
+        const phone = c?.phone || (who.endsWith('@lid') ? '' : who);
+        const name = displayName(c) || (phone ? `+${phone}` : '');
+        const p = out.get(r.id);
+        if (p && name) out.set(r.id, { ...p, name });
+      }
+    }
   }
   return out;
 }
@@ -1538,6 +1559,7 @@ export function previewOf(body: string, mediaType: string, mediaName = '', meta:
   if (meta.media?.viewOnce) return '[viewOnce]';
   if (meta.media?.kind === 'voice' || meta.media?.ptt) return '[voice]';
   if (meta.media?.kind === 'sticker') return '[sticker]';
+  if (meta.media?.kind === 'video' && meta.media.animated) return '[gif]';
   if (mediaName.trim()) return mediaName.trim().slice(0, 140);
   if (mediaType) return `[${mediaKind(mediaType)}]`;
   if (meta.location) return '[location]';
@@ -1728,6 +1750,8 @@ export interface SendMedia {
   width?: number;
   height?: number;
   duration?: number;
+  /** Forma de onda de una nota de voz (al reenviarla, para que se vea igual). */
+  waveform?: number[];
 }
 
 export interface SendInput {
@@ -1742,8 +1766,29 @@ export interface SendInput {
   poll?: PollInput | null;
   /** Tarjetas de contacto (vCard) para mandar. */
   contacts?: Array<{ name: string; phone: string }> | null;
+  /** false: el texto sale sin vista previa del link (la persona la sacó en el composer). */
+  linkPreview?: boolean;
   /** Id que puso la pantalla al mandar: vuelve en meta.cid y reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
   clientId?: string;
+  /** Grupos: teléfonos mencionados como "@<teléfono>" en el texto (WhatsApp avisa a esas personas). */
+  mentions?: string[] | null;
+}
+
+/**
+ * Menciones a mandar: teléfonos que de verdad aparecen como "@<teléfono>" en
+ * el texto, sin repetir y hasta 50. Solo en grupos: en un 1 a 1 no hay a
+ * quién mencionar.
+ */
+export function cleanMentions(raw: unknown, body: string, kind: 'dm' | 'group' | string): string[] {
+  if (kind !== 'group' || !Array.isArray(raw) || !body.includes('@')) return [];
+  const out: string[] = [];
+  for (const m of raw) {
+    if (typeof m !== 'string' || !/^\d{6,16}$/.test(m) || out.includes(m)) continue;
+    if (!new RegExp(`(^|[^\\w@])@${m}(?!\\d)`).test(body)) continue;
+    out.push(m);
+    if (out.length >= 50) break;
+  }
+  return out;
 }
 
 /** Tope de envíos por número: WhatsApp bloquea líneas que mandan en ráfaga. Los envíos masivos llevan su propio ritmo. */
@@ -1825,12 +1870,13 @@ export async function sendMessage(
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
+  const mentions = poll || contacts.length ? [] : cleanMentions(input.mentions, body, chat.kind);
   try {
     const res = poll
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
       : contacts.length
         ? await provider.sendContact!(chat.provider_chat_id, contacts)
-        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId });
+        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId, ...(input.linkPreview === false ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) });
     providerId = res.id || null;
   } catch (err) {
     status = 'failed';
@@ -1840,6 +1886,10 @@ export async function sendMessage(
   const meta: Record<string, unknown> = {
     ...(contacts.length ? { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } : {}),
     ...(input.clientId ? { cid: input.clientId } : {}),
+    // Sin vista previa: la conversación tampoco la muestra.
+    ...(input.linkPreview === false && !poll && !contacts.length ? { noPreview: true } : {}),
+    // Como las que llegan (contextInfo.mentionedJid): el hilo muestra "@Nombre" y los reintentos vuelven a mencionar.
+    ...(mentions.length ? { mentions } : {}),
   };
   const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
   // Una sola ida a la base: el mensaje, el chat al tope de la lista y, si salió, el chat deja de esperar.
@@ -1972,6 +2022,7 @@ async function sendMediaMessage(
     height: visual ? posNum(media.height, 20_000) : undefined,
     duration: kind === 'audio' || kind === 'voice' || kind === 'video' ? posNum(media.duration, 86_400) : undefined,
     ptt: kind === 'voice' || undefined,
+    waveform: kind === 'voice' && Array.isArray(media.waveform) ? media.waveform.slice(0, 64).map((v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)))) : undefined,
   });
   const authorKind = input.authorKind ?? 'person';
   const at = nowIso();
@@ -2093,7 +2144,12 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
           })
         ).id || null;
-    } else providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId })).id || null;
+    } else {
+      const stored = parseJson<StoredMeta & { noPreview?: boolean }>(row.meta ?? '', {});
+      const noPreview = stored.noPreview === true;
+      const mentions = cleanMentions(stored.mentions, row.body, chat.kind);
+      providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId, ...(noPreview ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) })).id || null;
+    }
   } catch (err) {
     status = 'failed';
     error = providerErrorCode(err);
@@ -3396,6 +3452,8 @@ export interface GroupsPerson {
   id: string;
   name: string;
   email: string;
+  /** Foto de la cuenta (la de Google); va en los audios que manda esa persona. */
+  image?: string | null;
 }
 
 /**
@@ -3406,10 +3464,10 @@ export interface GroupsPerson {
  */
 export async function listPeople(ws: string): Promise<GroupsPerson[]> {
   const db = getDb();
-  const owner = (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
+  const owner = (await db.prepare('SELECT id, name, email, image FROM users WHERE id = ?').get(ws)) as GroupsPerson | undefined;
   const rows = (await db
     .prepare(
-      `SELECT DISTINCT u.id, u.name, u.email FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
+      `SELECT DISTINCT u.id, u.name, u.email, u.image FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
        WHERE t.owner_id = ? AND m.role != 'guest' ORDER BY COALESCE(u.name, u.email)`,
     )
     .all(ws)) as GroupsPerson[];

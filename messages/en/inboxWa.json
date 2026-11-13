@@ -11,6 +11,7 @@
     "audio": "Audio",
     "document": "Document",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Location",
     "contact": "Contact",
     "poll": "Poll"
@@ -64,6 +65,7 @@
   "close": "Close",
   "forwardTo": "Forward to",
   "forwardedTo": "{n, plural, one {Forwarded to # chat} other {Forwarded to # chats}}",
+  "forwardPartial": "Forwarded to {ok} of {total}. {error}",
   "search": "Search",
   "noChats": "No chats",
   "cancel": "Cancel",
@@ -162,5 +164,96 @@
   "showLess": "Show less",
   "audioSummary": "Summary:",
   "transcript": "Transcript",
-  "moreTools": "More: write with AI, dictate, snippets"
+  "moreTools": "More: write with AI, dictate, snippets",
+  "display": {
+    "title": "Display",
+    "help": "How chats look for you in Inbox and Lines. Changes show right away and only for you.",
+    "reset": "Reset to default",
+    "saved": "Saved. It applies to Inbox and Lines.",
+    "error": "It could not be saved. Try again.",
+    "textSize": {
+      "label": "Message text",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large"
+    },
+    "linkPreviews": {
+      "label": "Link previews",
+      "large": "Large image",
+      "compact": "Compact",
+      "off": "Off"
+    },
+    "mediaSize": {
+      "label": "Photos and videos",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large"
+    },
+    "density": {
+      "label": "Chat list",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "bubbleWidth": {
+      "label": "Message width",
+      "default": "Default",
+      "wide": "Wide"
+    },
+    "wallpaper": {
+      "label": "Chat background",
+      "pattern": "Pattern",
+      "plain": "Plain"
+    },
+    "groupAvatars": "Show photos next to messages in groups",
+    "sample": {
+      "author": "Ana",
+      "in": "Did you see the new pricing page?",
+      "out": "Yes, here it is:",
+      "linkTitle": "Pricing",
+      "linkDesc": "Plans for teams of any size, billed monthly or yearly."
+    },
+    "tab": "Appearance"
+  },
+  "linkPreview": {
+    "composerLabel": "Link preview",
+    "loading": "Loading preview…",
+    "remove": "Send without preview"
+  },
+  "retry": "Retry",
+  "removeUnsent": "Remove",
+  "uploading": "Uploading {name}",
+  "newChat": {
+    "title": "New chat",
+    "close": "Close",
+    "back": "Back",
+    "search": "Search name or number",
+    "placeholder": "Search name or number",
+    "actions": "Start",
+    "newGroup": "New group",
+    "newEmail": "New email",
+    "selfSection": "You",
+    "selfName": "{name} (You)",
+    "selfHelp": "Message yourself",
+    "frequent": "Frequently contacted",
+    "contacts": "Contacts on WhatsApp",
+    "results": "Contacts and chats",
+    "message": "Message {phone}",
+    "messageHelp": "Opens the chat. Nothing is sent until you write.",
+    "loading": "Loading…",
+    "loadError": "Could not load the contacts.",
+    "retry": "Try again",
+    "empty": "No contacts yet. Type a number with its country code to start a chat.",
+    "noResults": "No contact or chat matches. To message a new number, type it with its country code.",
+    "tooShort": "That number is too short. Type it in full, with the country code (8 to 15 digits).",
+    "tooLong": "That number is too long. A phone number has 15 digits at most.",
+    "accountOff": "Your WhatsApp is not connected, so you can only open chats you already have. Connect it again in Settings.",
+    "addMembers": "Add group members",
+    "picked": "Selected members",
+    "unpick": "Remove {name}",
+    "next": "Next",
+    "groupTitle": "New group",
+    "groupName": "Group name",
+    "groupMembers": "{n, plural, one {# member} other {# members}}",
+    "createGroup": "Create group"
+  }
 }

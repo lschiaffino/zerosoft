@@ -51,7 +51,7 @@ test('datos de ejemplo: cargar, responder sin salir a WhatsApp y borrar todo', a
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Sample data: nothing you send goes out to WhatsApp.')).toBeVisible();
     await expect(page.locator('.gr-row')).toHaveCount(11);
-    await expect(row.getByText(/Waiting/)).toBeVisible();
+    await expect(row.getByRole('img', { name: /Waiting/ })).toBeVisible();
 
     await row.click();
     await expect(page.getByRole('heading', { level: 2, name: 'Lucía Fernández' })).toBeVisible();
@@ -60,7 +60,7 @@ test('datos de ejemplo: cargar, responder sin salir a WhatsApp y borrar todo', a
     await composer.fill('Hi Lucía, resending the confirmation now.');
     await composer.press('Enter');
     await expect(page.locator('.gr-msg-out', { hasText: 'resending the confirmation' }).getByText('Sent')).toBeVisible();
-    await expect(page.locator('.gr-row', { hasText: 'Lucía Fernández' }).getByText(/Waiting/)).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.gr-row', { hasText: 'Lucía Fernández' }).getByRole('img', { name: /Waiting/ })).toHaveCount(0, { timeout: 10_000 });
 
     // Un grupo del ejemplo con su imagen y nota interna.
     await page.locator('.gr-row', { hasText: 'Acme · Rollout' }).click();

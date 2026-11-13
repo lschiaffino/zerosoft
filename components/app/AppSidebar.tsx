@@ -19,7 +19,9 @@ import {
   appProductOf,
   buildNav,
   buildNewItems,
+  directNewItem,
   comingSoonHref,
+  DISABLED_APPS_HREF,
   settingsNavItem,
   importNavItem,
   productKeyOf,
@@ -169,8 +171,13 @@ export default function AppSidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // "Próximamente" del switcher: plegado hasta que se lo pide, para no llenar el menú de apps que no se pueden usar.
   const [soonOpen, setSoonOpen] = useState(false);
+  // Apagadas para esta cuenta: también plegadas, en su propio grupo.
+  const [offOpen, setOffOpen] = useState(false);
   useEffect(() => {
-    if (!switcherOpen) setSoonOpen(false);
+    if (!switcherOpen) {
+      setSoonOpen(false);
+      setOffOpen(false);
+    }
   }, [switcherOpen]);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -365,6 +372,8 @@ export default function AppSidebar({
 
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps });
   const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
+  // Lines e Inbox: "Nuevo" abre el panel de chat nuevo sin pasar por un menú.
+  const directNew = directNewItem(product, labels);
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
 
@@ -376,6 +385,8 @@ export default function AppSidebar({
   const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
   const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
+  // Apagadas para esta cuenta (Ajustes › Apps): aparte, plegadas, y llevan a esos ajustes.
+  const offApps = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && !allowed(k));
   const more = appsByCategory()
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
     .filter((g) => g.apps.length > 0);
@@ -499,6 +510,42 @@ export default function AppSidebar({
                   ))}
                 </div>
               )}
+              {offApps.length > 0 && labels.disabledApps && (
+                <div className="band-menu-soon band-menu-off" role="group" aria-label={labels.disabledApps}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`band-menu-item band-menu-soon-toggle${offOpen ? ' open' : ''}`}
+                    aria-expanded={offOpen}
+                    onClick={() => setOffOpen((v) => !v)}
+                    data-testid="switcher-off-toggle"
+                  >
+                    <Icon name="chevronRight" size={12} />
+                    <span>{labels.disabledApps}</span>
+                    <span className="band-menu-soon-count">{offApps.length}</span>
+                  </button>
+                  {offOpen && (
+                    <>
+                      <div className="band-menu-soon-list">
+                        {offApps.map((line) => (
+                          <Link
+                            key={line}
+                            href={DISABLED_APPS_HREF}
+                            role="menuitem"
+                            className="band-menu-item band-menu-soon-item"
+                            onClick={() => setSwitcherOpen(false)}
+                            data-testid={`switcher-off-${line}`}
+                          >
+                            <ProductGlyph product={line} size={14} />
+                            <span>{PRODUCT_CONFIG[line].name}</span>
+                          </Link>
+                        ))}
+                      </div>
+                      {labels.disabledAppsHint && <p className="band-menu-off-hint">{labels.disabledAppsHint}</p>}
+                    </>
+                  )}
+                </div>
+              )}
               {soonApps.length > 0 && (
                 <div className="band-menu-soon" role="group" aria-label={labels.comingSoon ?? labels.soon}>
                   <button
@@ -551,6 +598,8 @@ export default function AppSidebar({
         </div>
 
         {crumb && <div className="band-crumb">{crumb}</div>}
+        {/* Controles de la app junto a la miga (Lines pone acá el filtro de línea, en escritorio). */}
+        <div id="band-app-slot" className="band-app-slot" />
 
         <div className="band-right">
           {/* Indicador de Voice cuando hay una reunión grabando (lo llena components/voice/RecorderProvider). */}
@@ -611,21 +660,36 @@ export default function AppSidebar({
 
       <aside id="app-side" className={`side${drawerOpen ? ' open' : ''}`} ref={asideRef} aria-label={current.name}>
         <div className="side-new" ref={newRef}>
-          <button
-            ref={newBtn}
-            type="button"
-            className="btn btn-secondary btn-block side-new-btn"
-            onClick={() => {
-              setNewOpen((v) => !v);
-            }}
-            aria-haspopup="menu"
-            aria-expanded={newOpen}
-            title={labels.new}
-          >
-            <Icon name="plus" size={15} />
-            <span className="side-label">{labels.new}</span>
-          </button>
-          {newOpen && (
+          {directNew ? (
+            <Link
+              href={directNew.href}
+              className="btn btn-primary btn-block side-new-btn"
+              title={directNew.label}
+              aria-haspopup="dialog"
+              onClick={() => setDrawerOpen(false)}
+              data-testid="side-new"
+            >
+              <Icon name="plus" size={15} />
+              <span className="side-label">{labels.new}</span>
+            </Link>
+          ) : (
+            <button
+              ref={newBtn}
+              type="button"
+              className="btn btn-primary btn-block side-new-btn"
+              onClick={() => {
+                setNewOpen((v) => !v);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={newOpen}
+              title={labels.new}
+              data-testid="side-new"
+            >
+              <Icon name="plus" size={15} />
+              <span className="side-label">{labels.new}</span>
+            </button>
+          )}
+          {newOpen && !directNew && (
             <div ref={newPanel} className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
               {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (

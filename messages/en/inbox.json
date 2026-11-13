@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
   "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -147,7 +147,8 @@
     "storage_unavailable": "This server has nowhere to store files.",
     "upload_failed": "The file could not be uploaded. Try again.",
     "invalid_file": "That file is not an inbox-zero export.",
-    "media_unavailable": "This file is no longer available on WhatsApp."
+    "media_unavailable": "This file is no longer available on WhatsApp.",
+    "group_failed": "WhatsApp could not create the group. Try again in a moment."
   },
   "empty": {
     "connectTitle": "Connect WhatsApp or Gmail",
@@ -608,5 +609,39 @@
       "desc": "Dictate the message with your voice",
       "keys": "voice speak microphone"
     }
+  },
+  "analytics": {
+    "title": "Inbox analytics",
+    "desc": "What came in, how fast you replied and what you closed, across WhatsApp, email and groups.",
+    "private": "Only you see these numbers: your Inbox is private, even from workspace admins.",
+    "received": "Received",
+    "sent": "Sent",
+    "threads": "Active chats",
+    "firstResponse": "First response (median)",
+    "toReply": "To reply",
+    "waiting": "Waiting on others",
+    "done": "Marked done",
+    "archived": "Archived",
+    "perChannel": "Messages per day by channel",
+    "volume": "Received and sent per day",
+    "channels": {
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "groups": "Groups"
+    },
+    "byChannel": "By channel",
+    "inOut": "{inbound} received, {outbound} sent",
+    "frPerDay": "Your first response per day",
+    "frBuckets": "How fast you replied",
+    "frNote": "First response counts chats with one person and email. Groups are left out.",
+    "noResponses": "No replies to measure in this period.",
+    "heatmap": "When messages arrive",
+    "heatNone": "No messages received in this period.",
+    "heatPeak": "Busiest hour: {day} at {hour}, {n} received.",
+    "topThreads": "Most active chats",
+    "chat": "Chat",
+    "channel": "Channel",
+    "emptyTitle": "No messages in this period",
+    "emptyBody": "Connect WhatsApp or Gmail in Inbox settings and your numbers show up here."
   }
 }

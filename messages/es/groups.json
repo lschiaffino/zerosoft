@@ -86,25 +86,13 @@
     "noNumbersBodyQr": "Escaneá un QR con tu teléfono y en un minuto ves tus chats y grupos acá. Si preferís mirar primero, cargá datos de ejemplo.",
     "scanQr": "Escanear QR",
     "pendingBanner": "Tu número todavía no está conectado.",
-    "finishConnect": "Terminar de conectar"
+    "finishConnect": "Terminar de conectar",
+    "flaggedHint": "Vencido: esperando respuesta {time}"
   },
   "newChat": {
     "open": "Chat nuevo",
-    "title": "Chat nuevo",
     "from": "Desde la línea",
-    "search": "Nombre o teléfono",
-    "placeholder": "Buscá un contacto o escribí un número",
-    "message": "Escribirle a {phone}",
-    "messageHelp": "Abre el chat. No se manda nada hasta que escribas.",
-    "newGroup": "Grupo nuevo",
-    "results": "Contactos y chats",
-    "recent": "Chats recientes",
-    "empty": "Buscá un contacto de esta línea, o escribí un número con su código de país.",
-    "noResults": "Ningún contacto ni chat coincide. Para escribirle a un número nuevo, ponelo con su código de país.",
-    "tooShort": "Ese número es muy corto. Escribilo completo, con el código de país (de 8 a 15 dígitos).",
-    "tooLong": "Ese número es muy largo. Un teléfono tiene 15 dígitos como máximo.",
-    "lineOff": "Esta línea no puede empezar chats ahora ({status}). Los chats que ya tiene se pueden abrir.",
-    "loadError": "No se pudieron cargar los contactos. Probá de nuevo."
+    "lineOff": "Esta línea no puede empezar chats ahora ({status}). Los chats que ya tiene se pueden abrir."
   },
   "filters": {
     "all": "Todos",
@@ -1038,6 +1026,7 @@
     "deleted": "Mensaje borrado",
     "voice": "Mensaje de voz",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Ubicación",
     "contact": "Contacto",
     "viewOnce": "Mensaje de visualización única"
@@ -1825,7 +1814,38 @@
     "contactInfo": "Info del contacto",
     "groupInfo": "Info del grupo",
     "exportChat": "Exportar chat",
-    "selectMessages": "Seleccionar mensajes"
+    "selectMessages": "Seleccionar mensajes",
+    "stickers": {
+      "tab": "Stickers",
+      "panels": "Emojis y stickers",
+      "recent": "Recientes",
+      "favorites": "Favoritos",
+      "all": "Tus stickers",
+      "send": "Enviar sticker",
+      "options": "Opciones del sticker",
+      "addFavorite": "Agregar a favoritos",
+      "removeFavorite": "Quitar de favoritos",
+      "remove": "Quitar de mis stickers",
+      "create": "Crear sticker",
+      "creating": "Creando…",
+      "import": "Importar stickers de mis chats",
+      "importing": "Importando… {n} encontrados",
+      "loading": "Cargando stickers",
+      "emptyTitle": "Todavía no hay stickers",
+      "emptyBody": "WhatsApp no deja que las apps vinculadas lean los stickers guardados en tu teléfono. Importá los que mandaste y recibiste en tus chats, o creá uno desde una imagen.",
+      "noneFound": "Todavía no hay stickers en tus chats. Los nuevos se suman cuando llegan.",
+      "loadFailed": "No se pudieron cargar tus stickers.",
+      "importFailed": "No se pudieron importar los stickers. Probá de nuevo.",
+      "createFailed": "No se pudo crear el sticker. Usá una imagen PNG, JPEG, GIF o WebP.",
+      "tooLarge": "La imagen es demasiado grande para un sticker.",
+      "convertUnavailable": "Crear stickers no está disponible en este servidor.",
+      "saveFailed": "No se pudo guardar el cambio.",
+      "favorited": "Agregado a tus stickers favoritos",
+      "favoriteFailed": "No se pudo agregar el sticker a favoritos.",
+      "sendFailed": "No se pudo enviar el sticker.",
+      "missing": "Sticker"
+    },
+    "openGif": "Abrir GIF"
   },
   "swipe": {
     "read": "Leído",

@@ -2,7 +2,7 @@
   "name": "zerosoft-desktop",
   "productName": "zerosoft",
   "private": true,
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "zerosoft for Mac and Windows (Tauri): the whole platform in a native window and dictation in any app.",
   "author": "zerosoft <hello@zerosoft.ai>",
   "homepage": "https://zerosoft.ai/download",

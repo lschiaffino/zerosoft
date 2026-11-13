@@ -9,6 +9,7 @@ import { FolderDialog, Modal } from './InboxDialogs';
 import ImportPanel from './ImportPanel';
 import type { InboxStateDto } from './InboxApp';
 import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
+import DisplaySection from '@/components/chat-style/DisplaySection';
 import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 interface ConnectState {
@@ -510,6 +511,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
         </div>
       </section>
       <ChatStyleSection variant="inbox" />
+      <DisplaySection variant="inbox" />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
       <ImportPanel
