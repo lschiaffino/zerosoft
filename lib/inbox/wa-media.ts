@@ -142,7 +142,8 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     // Para volver a bajarlo del servidor y mostrarlo (como lo recibido).
     mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
     meta: JSON.stringify(meta),
-    kind: kind === 'voice' ? 'voice' : storedType(kind),
+    // "gif" como lo recibido (lib/inbox/wa-meta.ts): la lista dice GIF, sin la miniatura de video.
+    kind: kind === 'voice' ? 'voice' : gif ? 'gif' : storedType(kind),
     replyTo: replyExternal ?? '',
     status: 'sent',
     ...(f.clientId ? { clientId: f.clientId } : {}),
@@ -222,7 +223,7 @@ export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRo
     mediaName: kind === 'document' || kind === 'audio' ? filename : '',
     mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
     meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length)),
-    kind: kind === 'voice' ? 'voice' : storedType(kind),
+    kind: kind === 'voice' ? 'voice' : kind === 'video' && src.meta.animated ? 'gif' : storedType(kind),
     status: 'sent',
     forwarded: true,
   });
