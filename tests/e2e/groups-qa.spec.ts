@@ -87,7 +87,7 @@ test('un envío masivo no saca al chat de "Esperando"', async ({ page, request }
     .toBe('done');
   await page.goto(`/es/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.gr-msg-out', { hasText: 'Newsletter de octubre' })).toBeVisible();
-  await expect(page.locator('.gr-row', { hasText: `Cliente ${who}` }).getByText(/Esperando/)).toBeVisible();
+  await expect(page.locator('.gr-row', { hasText: `Cliente ${who}` }).getByRole('img', { name: /Esperando/ })).toBeVisible();
   await expect(page.getByText('Esperando respuesta.')).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/qa2-broadcast-still-waiting.png` });
 });

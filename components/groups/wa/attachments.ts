@@ -18,6 +18,53 @@ export interface TrayItem {
   uploaded?: UploadedFile;
   /** Comentario de este archivo (como en WhatsApp, uno por archivo). */
   caption?: string;
+  /** Huella del contenido (fileFingerprint): el mismo archivo pegado dos veces no entra dos veces. */
+  print?: string;
+  /** Tamaño de una foto, medido acá (la burbuja provisoria ya ocupa su lugar antes de que termine la subida). */
+  width?: number;
+  height?: number;
+}
+
+/** Hasta este tamaño se calcula el SHA-256 del contenido; más grande, la huella es tamaño y tipo. */
+const HASH_MAX = 32 * 1024 * 1024;
+
+/**
+ * La huella de un archivo para no sumarlo dos veces a la bandeja. Las capturas pegadas se llaman todas "image.png":
+ * cuenta el contenido (SHA-256 de los bytes), no el nombre. Sin crypto.subtle (o si falla), tamaño y tipo.
+ */
+export async function fileFingerprint(file: Blob): Promise<string> {
+  const fallback = `${file.size}:${file.type}`;
+  if (file.size > HASH_MAX || typeof crypto === 'undefined' || !crypto.subtle) return fallback;
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return fallback;
+  }
+}
+
+/** Los archivos que no están ya (por huella, ni repetidos entre sí), cada uno con su huella. */
+export async function newFiles(files: File[], have: Array<string | undefined>): Promise<Array<{ file: File; print: string }>> {
+  const prints = await Promise.all(files.map(fileFingerprint));
+  const seen = new Set(have.filter((x): x is string => !!x));
+  const out: Array<{ file: File; print: string }> = [];
+  files.forEach((file, i) => {
+    if (seen.has(prints[i])) return;
+    seen.add(prints[i]);
+    out.push({ file, print: prints[i] });
+  });
+  return out;
+}
+
+/** Ancho y alto de una foto local (para reservar su lugar en la burbuja). */
+export function measureImage(url: string): Promise<{ width: number; height: number } | null> {
+  if (typeof Image === 'undefined' || !url) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > 0 ? { width: img.naturalWidth, height: img.naturalHeight } : null);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 /** Hasta cuántos archivos van juntos (como WhatsApp, que deja 30). */
@@ -104,7 +151,7 @@ function uploadLarge(file: File, onProgress: (p: number) => void): { done: Promi
   return { done, abort: () => (ctrl.abort(), fallback?.abort()) };
 }
 
-function uploadWithProgress(file: File, onProgress: (p: number) => void) {
+export function uploadWithProgress(file: File, onProgress: (p: number) => void) {
   if (file.size > MAX_FILE) return { done: Promise.reject(new Error('file_too_large')), abort: () => {} };
   return file.size > SMALL_UPLOAD ? uploadLarge(file, onProgress) : uploadSmall(file, onProgress);
 }
@@ -116,7 +163,8 @@ function uploadWithProgress(file: File, onProgress: (p: number) => void) {
  */
 export function useAttachTray() {
   const [items, setItems] = useState<TrayItem[]>([]);
-  const aborts = useRef(new Map<string, () => void>());
+  // La subida de cada archivo: su resultado, cortarla y a quién le avisa el avance (la bandeja, o la burbuja si ya se mandó).
+  const uploads = useRef(new Map<string, { done: Promise<UploadedFile>; abort: () => void; progress: (p: number) => void }>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
@@ -124,20 +172,27 @@ export function useAttachTray() {
 
   const start = useCallback(
     (it: TrayItem) => {
-      const up = uploadWithProgress(it.file, (p) => patch(it.key, { progress: p }));
-      aborts.current.set(it.key, up.abort);
+      const entry = { done: Promise.resolve({} as UploadedFile), abort: () => {}, progress: (p: number) => patch(it.key, { progress: p }) };
+      const up = uploadWithProgress(it.file, (p) => entry.progress(p));
+      entry.done = up.done;
+      entry.abort = up.abort;
+      uploads.current.set(it.key, entry);
       up.done
         .then((r) => patch(it.key, { status: 'ready', progress: 1, url: r.url, type: r.mimetype || it.type, name: r.filename || it.name, uploaded: r }))
         .catch((err: Error) => err.message !== 'aborted' && patch(it.key, { status: 'error', error: err.message }))
-        .finally(() => aborts.current.delete(it.key));
+        .finally(() => uploads.current.get(it.key) === entry && uploads.current.delete(it.key));
+      // Que nadie quede esperando un rechazo sin atender (la bandeja ya lo mostró).
+      up.done.catch(() => undefined);
     },
     [patch],
   );
 
   const add = useCallback(
-    (files: File[], firstCaption?: string) => {
+    async (files: File[], firstCaption?: string) => {
+      // Lo que ya está en la bandeja no entra otra vez (pegar la misma captura dos veces).
+      const fresh = await newFiles(files, itemsRef.current.map((x) => x.print));
       const room = MAX_TRAY - itemsRef.current.length;
-      const next = files.slice(0, Math.max(0, room)).map<TrayItem>((file) => ({
+      const next = fresh.slice(0, Math.max(0, room)).map<TrayItem>(({ file, print }) => ({
         key: `a${++seq}`,
         file,
         name: file.name || 'file',
@@ -146,13 +201,15 @@ export function useAttachTray() {
         preview: /^(image|video)\//.test(file.type) ? URL.createObjectURL(file) : '',
         progress: 0,
         status: 'uploading',
+        print,
       }));
       if (firstCaption && next[0]) next[0].caption = firstCaption;
       if (next.length === 0) return;
       setItems((list) => [...list, ...next]);
       next.forEach(start);
+      for (const it of next) if (it.type.startsWith('image/')) void measureImage(it.preview).then((d) => d && patch(it.key, d));
     },
-    [start],
+    [start, patch],
   );
 
   const retry = useCallback(
@@ -166,7 +223,7 @@ export function useAttachTray() {
   );
 
   const remove = useCallback((key: string) => {
-    aborts.current.get(key)?.();
+    uploads.current.get(key)?.abort();
     setItems((list) => {
       const it = list.find((x) => x.key === key);
       if (it?.preview) URL.revokeObjectURL(it.preview);
@@ -174,10 +231,25 @@ export function useAttachTray() {
     });
   }, []);
 
+  /**
+   * Saca un archivo de la bandeja para mandarlo YA, sin cortar su subida ni soltar su vista previa (pasan a la burbuja):
+   * devuelve el ítem, la subida (en curso o terminada) y dónde cambiar a quién le avisa el avance.
+   */
+  const take = useCallback((key: string) => {
+    const it = itemsRef.current.find((x) => x.key === key);
+    if (!it) return null;
+    const up = uploads.current.get(key);
+    uploads.current.delete(key);
+    setItems((list) => list.filter((x) => x.key !== key));
+    const done = it.uploaded ? Promise.resolve(it.uploaded) : up?.done ?? null;
+    return { item: it, done, onProgress: (fn: (p: number) => void) => up && (up.progress = fn) };
+  }, []);
+
   const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), [patch]);
 
   const clear = useCallback(() => {
-    aborts.current.forEach((a) => a());
+    uploads.current.forEach((u) => u.abort());
+    uploads.current.clear();
     setItems((list) => {
       list.forEach((it) => it.preview && URL.revokeObjectURL(it.preview));
       return [];
@@ -186,13 +258,13 @@ export function useAttachTray() {
 
   useEffect(
     () => () => {
-      aborts.current.forEach((a) => a());
+      uploads.current.forEach((u) => u.abort());
       itemsRef.current.forEach((it) => it.preview && URL.revokeObjectURL(it.preview));
     },
     [],
   );
 
-  return { items, add, retry, remove, clear, setCaption };
+  return { items, add, retry, remove, take, clear, setCaption };
 }
 
 /** Archivos de un evento de arrastre o de pegado. */

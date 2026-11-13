@@ -9,12 +9,12 @@ import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -26,13 +26,15 @@ import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
-import { AttachButton, useSendTray, VoiceBar } from './media-send';
-import { pendingSends } from './pending';
-import { isTempId } from '@/lib/optimistic-send';
+import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
+import { inboxMediaUrl, pendingSends } from './pending';
+import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
+import UploadRing from '@/components/groups/wa/UploadRing';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
 import { useInboxThreadCommands } from '../slash-commands';
+import { typingLabel } from './ChatRow';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -75,6 +77,8 @@ const WaConversation = forwardRef<
   ComposerHandle,
   {
     detail: WaThreadDetail;
+    /** Foto de la cuenta, para los audios propios. */
+    meImage?: string;
     folders: FolderDto[];
     snippets: SnippetDto[];
     connected: boolean;
@@ -98,6 +102,7 @@ const WaConversation = forwardRef<
   const { detail, connected, onAction, onError, onRefresh } = props;
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
+  const ws = useTranslations('groups.wa.stickers');
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const { thread, messages, scheduled } = detail;
@@ -129,7 +134,9 @@ const WaConversation = forwardRef<
     anchor.toBottom();
     props.onSent(msgs);
   };
-  const tray = useSendTray(thread.id, sentHere);
+  const tray = useSendTray(thread.id, onError);
+  // Al dejar el chat, lo ya guardado que se mandó desde acá suelta su copia local (lo que sigue saliendo la conserva).
+  useEffect(() => () => localPreviews.releaseScope(`inbox:${thread.id}`), [thread.id]);
   // El texto que se acaba de mandar aparece ya (burbuja provisoria, ./pending.ts): la conversación va abajo de todo.
   useEffect(() => pendingSends.subscribe((e) => void (e.type === 'add' && e.threadId === thread.id && anchor.toBottom())), [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
@@ -194,11 +201,23 @@ const WaConversation = forwardRef<
   }, [messages, thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
+  // La fecha fija arriba ("Hoy", "Ayer") se ve solo mientras se desplaza, como en WhatsApp y en Lines (styles/groups-wa.css).
+  const scrollIdle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+  }, []);
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
     anchor.capture();
     setAtBottom(isAtBottom(el));
+    const top = el.getBoundingClientRect().top;
+    el.querySelectorAll<HTMLElement>('.wa-dayblock').forEach((b) => {
+      (b.firstElementChild as HTMLElement | null)?.classList.toggle('is-stuck', b.getBoundingClientRect().top < top - 4);
+    });
+    el.classList.add('is-scrolling');
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+    scrollIdle.current = setTimeout(() => el.classList.remove('is-scrolling'), 1200);
   };
 
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
@@ -259,6 +278,12 @@ const WaConversation = forwardRef<
     }
   };
 
+  const favoriteSticker = async (m: MessageDto) => {
+    const r = await api('/api/inbox/stickers', { method: 'POST', json: { action: 'favoriteMessage', messageId: m.id } });
+    if (r.ok) props.onToast(ws('favorited'));
+    else onError(r.data.error ?? 'generic');
+  };
+
   const startReply = (m: MessageDto) => {
     setEditing(null);
     setReplyTo(m);
@@ -276,14 +301,23 @@ const WaConversation = forwardRef<
   const canDeleteAll = (m: MessageDto) => m.fromMe && !m.revoked && Date.now() - Date.parse(m.sentAt) < 60 * 3600_000;
 
   const menuFor = (m: MessageDto): MenuItem[] => {
-    // Una burbuja que todavía se está mandando no existe en el servidor: solo se puede copiar.
-    if (isTempId(m.id)) return [{ key: 'copy', label: w('copy'), onSelect: () => void copy(m) }];
+    // Una burbuja que todavía se está mandando no existe en el servidor: copiar el texto; si no salió, reintentar o quitar.
+    if (isTempId(m.id)) {
+      const items: MenuItem[] = m.body ? [{ key: 'copy', label: w('copy'), onSelect: () => void copy(m) }] : [];
+      if (m.status === 'failed' && m.hasMedia) {
+        items.push({ key: 'retry', label: w('retry'), onSelect: () => retryInboxMedia(m.id) });
+        items.push({ key: 'remove', label: w('removeUnsent'), danger: true, onSelect: () => discardInboxMedia(m.id) });
+      }
+      return items;
+    }
     const items: MenuItem[] = [];
     if (!m.revoked) {
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
-      if (m.body && !m.mediaType) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
+      // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
+      if ((m.body || m.mediaType) && !m.meta?.viewOnce) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
+      if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
       if (canEdit(m)) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
       if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
@@ -303,7 +337,7 @@ const WaConversation = forwardRef<
         .filter((m) => m.hasMedia && (m.mediaType === 'image' || m.mediaType === 'video') && !m.revoked)
         .map((m) => ({
           id: m.id,
-          url: `/api/inbox/media/${m.id}`,
+          url: inboxMediaUrl(m),
           type: m.mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
           name: m.mediaName,
           caption: m.body,
@@ -320,8 +354,7 @@ const WaConversation = forwardRef<
   let live = false;
   if (thread.presence === 'typing' || thread.presence === 'recording') {
     live = true;
-    const who = group && thread.presenceWho ? names.get(thread.presenceWho) || formatPhone(thread.presenceWho) : '';
-    subtitle = who ? w(thread.presence === 'recording' ? 'recordingBy' : 'typingBy', { name: who }) : w(thread.presence === 'recording' ? 'recording' : 'typing');
+    subtitle = typingLabel(thread, w, names);
   } else if (!group && thread.presence === 'online') subtitle = w('online');
   else if (!group && thread.lastSeenAt) subtitle = lastSeen(thread.lastSeenAt, locale, w);
   else if (group && wa?.participants.length) {
@@ -419,7 +452,8 @@ const WaConversation = forwardRef<
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
     const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
-    const url = m.hasMedia ? `/api/inbox/media/${m.id}` : '';
+    // Lo que se mandó desde esta pestaña se ve con su copia local (al instante, y sin volver a bajarlo al guardarse).
+    const url = inboxMediaUrl(m);
     const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
     const body = m.body ?? '';
     const poll = meta.poll;
@@ -491,7 +525,7 @@ const WaConversation = forwardRef<
                   tiles={album.map((x) => ({
                     id: x.id,
                     kind: x.mediaType === 'video' ? 'video' : 'image',
-                    url: `/api/inbox/media/${x.id}`,
+                    url: inboxMediaUrl(x),
                     alt: x.mediaName || w('kind.image'),
                     thumbnail: x.meta?.thumb,
                     seconds: x.meta?.duration,
@@ -504,19 +538,30 @@ const WaConversation = forwardRef<
                 />
               ) : meta.viewOnce ? (
                 <span className="wa-viewonce">{w('viewOnce')}</span>
+              ) : sticker && !url ? (
+                <StickerMissing label={ws('missing')} />
               ) : !url ? (
                 <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} />
               ) : kind === 'image' || sticker ? (
                 <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
+              ) : kind === 'video' && meta.animated ? (
+                <GifView url={url} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
                 <VideoView url={url} seconds={meta.duration} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
-                  avatar={m.fromMe ? undefined : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
+              )}
+              {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
+                <UploadRing
+                  ids={(album ?? [m]).filter((x) => isTempId(x.id) && x.status === 'pending').map((x) => x.id.slice(TEMP_PREFIX.length))}
+                  label={w('uploading', { name: m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`) })}
+                  overlay={Boolean(album) || kind === 'image' || kind === 'video' || sticker}
+                />
               )}
             </div>
           )}
@@ -528,7 +573,7 @@ const WaConversation = forwardRef<
           )}
           {meta.location && !hidden && <LocationCard lat={meta.location.lat} lng={meta.location.lng} name={meta.location.name ?? ''} address={meta.location.address} url={meta.location.url} live={meta.location.live} />}
           {!hidden && meta.contacts?.map((c, i) => <ContactCard key={i} name={c.name} phone={(c.phones[0] ?? '').replace(/\D/g, '')} />)}
-          {!hidden && !kind && !poll && (meta.link || firstUrl(m.body)) && (
+          {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
               url={meta.link?.url ?? firstUrl(m.body)}
               given={meta.link ? { url: meta.link.url, title: meta.link.title, description: meta.link.description, image: meta.link.thumb } : null}
@@ -563,6 +608,11 @@ const WaConversation = forwardRef<
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
             {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {isTempId(m.id) && m.status === 'failed' && m.hasMedia && (
+              <button type="button" className="wa-retry" onClick={() => retryInboxMedia(m.id)} aria-label={w('retry')} title={w('retry')}>
+                <Retry size={14} />
+              </button>
+            )}
           </p>
           <span className="wa-hover">
             <MessageMenu label={w('messageMenu')} items={menuFor(m)} trigger={<Chevron size={18} />} className="wa-chevron" align={m.fromMe ? 'right' : 'left'} />
@@ -769,10 +819,7 @@ const WaConversation = forwardRef<
           <VoiceBar
             threadId={thread.id}
             replyTo={replyTo?.id}
-            onSent={(msgs) => {
-              setReplyTo(null);
-              sentHere(msgs);
-            }}
+            onQueued={() => setReplyTo(null)}
             onError={onError}
             onDone={() => setRecording(false)}
             onStart={() => presence('recording')}
@@ -815,10 +862,10 @@ const WaConversation = forwardRef<
           onRetry={tray.retry}
           onAdd={() => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click()}
           onClose={tray.clear}
-          onSend={async () => {
-            const done = await tray.sendAll(replyTo?.id);
-            if (done) setReplyTo(null);
+          onSend={() => {
+            if (tray.sendAll(replyTo?.id)) setReplyTo(null);
           }}
+          onFiles={(files) => void tray.add(files)}
         />
       )}
       {dragging && (
@@ -893,13 +940,20 @@ const WaConversation = forwardRef<
           <ForwardPicker
             targets={targets}
             groupLabel={w('group')}
+            preview={forwardFor.body || w(`kind.${forwardFor.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(forwardFor.mediaType) ? forwardFor.mediaType : 'document'}`)}
             onCancel={() => setForwardFor(null)}
             onSend={async (ids) => {
               const m = forwardFor;
               setForwardFor(null);
-              const r = await api<{ sent: string[] }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
+              const r = await api<{ sent: string[]; failed?: Array<{ id: string; error: string }> }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
+              const failed = r.ok ? (r.data.failed ?? []) : [];
               if (!r.ok) onError(r.data.error ?? 'send_failed');
-              else props.onToast(w('forwardedTo', { n: r.data.sent.length }));
+              else if (r.data.sent.length === 0 && failed.length) onError(failed[0].error);
+              else if (failed.length) {
+                const code = failed[0].error;
+                const why = t.has(`errors.${code}`) ? t(`errors.${code}`) : w.has(`errors.${code}`) ? w(`errors.${code}`) : w('sendFailed');
+                props.onToast(w('forwardPartial', { ok: r.data.sent.length, total: ids.length, error: why }));
+              } else props.onToast(w('forwardedTo', { n: r.data.sent.length }));
               onRefresh();
             }}
           />
@@ -912,7 +966,20 @@ const WaConversation = forwardRef<
 export default WaConversation;
 
 /** Elegir hasta 5 chats para reenviar (como WhatsApp), con búsqueda. */
-function ForwardPicker({ targets, groupLabel, onCancel, onSend }: { targets: ThreadDto[]; groupLabel: string; onCancel: () => void; onSend: (ids: string[]) => void }) {
+function ForwardPicker({
+  targets,
+  groupLabel,
+  preview,
+  onCancel,
+  onSend,
+}: {
+  targets: ThreadDto[];
+  groupLabel: string;
+  /** Lo que se reenvía (el texto o el tipo de archivo), arriba de la lista. */
+  preview: string;
+  onCancel: () => void;
+  onSend: (ids: string[]) => void;
+}) {
   const w = useTranslations('inboxWa');
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
@@ -920,6 +987,7 @@ function ForwardPicker({ targets, groupLabel, onCancel, onSend }: { targets: Thr
   return (
     <>
       <div className="ui-modal-body">
+        <p className="gr-quote ib-wa-fwd-preview">{preview.slice(0, 200)}</p>
         <label className="sr-only" htmlFor="ib-wa-fwd-q">
           {w('search')}
         </label>

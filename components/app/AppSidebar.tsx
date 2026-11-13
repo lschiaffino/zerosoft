@@ -20,6 +20,7 @@ import {
   buildNav,
   buildNewItems,
   comingSoonHref,
+  DISABLED_APPS_HREF,
   settingsNavItem,
   importNavItem,
   productKeyOf,
@@ -169,8 +170,13 @@ export default function AppSidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // "Próximamente" del switcher: plegado hasta que se lo pide, para no llenar el menú de apps que no se pueden usar.
   const [soonOpen, setSoonOpen] = useState(false);
+  // Apagadas para esta cuenta: también plegadas, en su propio grupo.
+  const [offOpen, setOffOpen] = useState(false);
   useEffect(() => {
-    if (!switcherOpen) setSoonOpen(false);
+    if (!switcherOpen) {
+      setSoonOpen(false);
+      setOffOpen(false);
+    }
   }, [switcherOpen]);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -376,6 +382,8 @@ export default function AppSidebar({
   const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
   const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
+  // Apagadas para esta cuenta (Ajustes › Apps): aparte, plegadas, y llevan a esos ajustes.
+  const offApps = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && !allowed(k));
   const more = appsByCategory()
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
     .filter((g) => g.apps.length > 0);
@@ -499,6 +507,42 @@ export default function AppSidebar({
                   ))}
                 </div>
               )}
+              {offApps.length > 0 && labels.disabledApps && (
+                <div className="band-menu-soon band-menu-off" role="group" aria-label={labels.disabledApps}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`band-menu-item band-menu-soon-toggle${offOpen ? ' open' : ''}`}
+                    aria-expanded={offOpen}
+                    onClick={() => setOffOpen((v) => !v)}
+                    data-testid="switcher-off-toggle"
+                  >
+                    <Icon name="chevronRight" size={12} />
+                    <span>{labels.disabledApps}</span>
+                    <span className="band-menu-soon-count">{offApps.length}</span>
+                  </button>
+                  {offOpen && (
+                    <>
+                      <div className="band-menu-soon-list">
+                        {offApps.map((line) => (
+                          <Link
+                            key={line}
+                            href={DISABLED_APPS_HREF}
+                            role="menuitem"
+                            className="band-menu-item band-menu-soon-item"
+                            onClick={() => setSwitcherOpen(false)}
+                            data-testid={`switcher-off-${line}`}
+                          >
+                            <ProductGlyph product={line} size={14} />
+                            <span>{PRODUCT_CONFIG[line].name}</span>
+                          </Link>
+                        ))}
+                      </div>
+                      {labels.disabledAppsHint && <p className="band-menu-off-hint">{labels.disabledAppsHint}</p>}
+                    </>
+                  )}
+                </div>
+              )}
               {soonApps.length > 0 && (
                 <div className="band-menu-soon" role="group" aria-label={labels.comingSoon ?? labels.soon}>
                   <button
@@ -551,6 +595,8 @@ export default function AppSidebar({
         </div>
 
         {crumb && <div className="band-crumb">{crumb}</div>}
+        {/* Controles de la app junto a la miga (Lines pone acá el filtro de línea, en escritorio). */}
+        <div id="band-app-slot" className="band-app-slot" />
 
         <div className="band-right">
           {/* Indicador de Voice cuando hay una reunión grabando (lo llena components/voice/RecorderProvider). */}

@@ -14,7 +14,7 @@
   flex: 1;
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-  height: calc(100dvh - var(--band-h, 0px));
+  height: calc(var(--app-vh, 100dvh) - var(--band-h, 0px));
   min-height: 420px;
   min-width: 0;
   background: var(--bg);
@@ -271,3 +271,6 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   .ib-app * { scroll-behavior: auto; }
 }
+
+/* Teclado abierto en el teléfono (components/app/KeyboardViewport.tsx): el chat entra en lo que se ve. */
+html[data-keyboard="open"] .ib-app { min-height: 0; }

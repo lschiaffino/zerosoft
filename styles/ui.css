@@ -102,8 +102,8 @@
 .btn-solid:hover:not(:disabled):not([aria-disabled='true']) { color: var(--btn-fg-hover); }
 
 /* Dentro de una app, la primaria lleva el color de la app (components/app/AppAccent.tsx pone
-   --app-btn, --app-btn-on y --app-btn-hover). Con color, al pasar se oscurece un poco en vez de
-   invertirse. Sin esas variables (Inicio, Ajustes) queda la placa de tinta de arriba, tal cual. */
+   --app-btn, --app-btn-on, --app-btn-hover y --app-btn-active, por tema; la regla está en
+   lib/app-accent.ts). Con color, al pasar y al apretar se oscurece un poco en vez de invertirse. Sin esas variables (Inicio, Ajustes) queda la placa de tinta de arriba, tal cual. */
 .app-frame .btn-primary:not(:disabled):not([aria-disabled='true']),
 .app-frame .btn-solid:not(:disabled):not([aria-disabled='true']) {
   --btn-bg: var(--app-btn, var(--ink));
@@ -112,6 +112,11 @@
   --btn-bg-hover: var(--app-btn-hover, var(--bg));
   --btn-bd-hover: var(--app-btn-hover, var(--ink));
   --btn-fg-hover: var(--app-btn-on, var(--ink));
+}
+.app-frame .btn-primary:active:not(:disabled):not([aria-disabled='true']),
+.app-frame .btn-solid:active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--app-btn-active, var(--btn-bg-hover));
+  border-color: var(--app-btn-active, var(--btn-bd-hover));
 }
 
 /* Secundaria: blanca con borde (es el .btn sin variante). */

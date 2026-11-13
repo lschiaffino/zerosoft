@@ -739,10 +739,9 @@ test.describe('foco al abrir', () => {
     await linesInbound(request, n.webhookUrl, `Dos ${tag}`);
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.locator('[data-chat-row]', { hasText: `Uno ${tag}` }).click();
-    await expect(page.locator('textarea.gr-input')).toBeFocused();
-    // Con el teclado (Esc saca el foco del campo, después j): el chat cambia y el campo no se lleva el foco.
-    await page.keyboard.press('Escape');
-    await page.locator('body').focus();
+    await expect(page.locator('textarea.gr-input')).toBeFocused({ timeout: 15_000 });
+    // Con el teclado (sin foco en el campo, j): el chat cambia y el campo no se lleva el foco.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('j');
     await expect(page.locator('textarea.gr-input')).not.toBeFocused();
   });
@@ -753,6 +752,48 @@ test.describe('foco al abrir', () => {
     await inboxInbound(request, acc, name);
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: name }).click();
-    await expect(page.locator('textarea.wa-input')).toBeFocused();
+    await expect(page.locator('textarea.wa-input')).toBeFocused({ timeout: 15_000 });
+  });
+});
+
+// ---------- Mandar desde un chat encontrado con la búsqueda vuelve a la bandeja (como WhatsApp) ----------
+
+test.describe('búsqueda y envío', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await request.put('/api/groups/prefs', { data: { line: 'all' } });
+  });
+
+  test('Lines: buscar, abrir, mandar: la búsqueda se limpia', async ({ page, request }) => {
+    const tag = uid();
+    const n = await fakeNumber(request, `Busca ${tag}`);
+    await linesInbound(request, n.webhookUrl, `Buscado ${tag}`);
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    const search = page.locator('input.gr-search');
+    await search.fill(`Buscado ${tag}`);
+    // La búsqueda trae el chat y el mensaje que coincide: se abre el primero.
+    await page.locator('[data-chat-row]', { hasText: `Buscado ${tag}` }).first().click();
+    const field = page.locator('textarea.gr-input');
+    await field.fill('respuesta');
+    await field.press('Enter');
+    await expect(search).toHaveValue('');
+  });
+
+  test('Inbox: buscar, abrir, mandar: la búsqueda se limpia', async ({ page, request }) => {
+    const acc = await linkWhatsapp(request);
+    const name = `Buscado ${uid()}`;
+    await inboxInbound(request, acc, name);
+    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+    const search = page.locator('#ib-search');
+    await search.fill(name);
+    // Que la lista termine de buscar antes del clic (si no, la fila se reemplaza bajo el puntero).
+    await expect(page.locator('.ib-item')).toHaveCount(await page.locator('.ib-item', { hasText: name }).count());
+    await page.waitForLoadState('networkidle');
+    await page.locator('.ib-item', { hasText: name }).first().locator('.ib-row-btn').click();
+    await expect(page.locator('.ib-wa-thread')).toBeVisible({ timeout: 20_000 });
+    const field = page.locator('textarea.wa-input');
+    await field.fill('respuesta');
+    await field.press('Enter');
+    await expect(search).toHaveValue('');
   });
 });

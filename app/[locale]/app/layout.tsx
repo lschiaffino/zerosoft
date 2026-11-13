@@ -22,6 +22,7 @@ import AppAccent from '@/components/app/AppAccent';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
 import MenuLayerGuard from '@/components/app/MenuLayerGuard';
+import KeyboardViewport from '@/components/app/KeyboardViewport';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -304,6 +305,7 @@ export default async function AppLayout(
                 { href: '/app/crm/tasks/queue', label: tCrm('queue.title') },
                 { href: '/app/crm/templates', label: tCrm('tabs.templates') },
                 { href: '/app/crm/dashboards', label: tCrm('tabs.dashboards') },
+                { href: '/app/crm/analytics', label: tCrm('tabs.analytics') },
                 { href: '/app/crm/reports', label: tCrm('tabs.reports') },
                 { href: '/app/crm/reports/custom', label: tCrm('reportBuilder.nav.custom') },
                 { href: '/app/crm/forecast', label: tCrm('tabs.forecast') },
@@ -456,10 +458,12 @@ export default async function AppLayout(
                 { href: '/app/inbox/v/snoozed', label: tInbox('nav.snoozed') },
                 { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
                 { href: '/app/inbox/v/done', label: tInbox('nav.done') },
+                { href: '/app/inbox/analytics', label: tInbox('nav.analytics') },
                 { href: '/app/calls', label: tCalls('nav.library') },
                 { href: '/app/calls/upcoming', label: tCalls('nav.upcoming') },
                 { href: '/app/calls/deals', label: tCalls('nav.deals') },
                 { href: '/app/calls/ask', label: tCalls('nav.ask') },
+                { href: '/app/calls/analytics', label: tCalls('nav.analytics') },
                 { href: '/app/assistant', label: tSide('assistant') },
                 { href: '/app/download', label: tSide('downloadDesktop') },
               ]}
@@ -473,6 +477,8 @@ export default async function AppLayout(
             soon: tSide('soon'),
             preview: tSide('preview'),
             comingSoon: tSide('comingSoon'),
+            disabledApps: tSide('disabledApps'),
+            disabledAppsHint: tSide('disabledAppsHint'),
             signOut: tSide('signOut'),
             records: tSide('records'),
             activity: tSide('activity'),
@@ -513,6 +519,7 @@ export default async function AppLayout(
             newAgent: tSide('newAgent'),
             newRobot: tSide('newRobot'),
             newGroup: tSide('newGroup'),
+            newChat: tSide('newChat'),
             team: tSide('team'),
             link: {
               overview: tLink('tabs.overview'),
@@ -535,6 +542,7 @@ export default async function AppLayout(
               reports: tCrm('tabs.reports'),
               dashboards: tCrm('tabs.dashboards'),
               forecast: tCrm('tabs.forecast'),
+              analytics: tCrm('tabs.analytics'),
               workflows: tCrm('tabs.workflows'),
               settings: tCrm('tabs.crmSettings'),
               sequences: tCrm('tabs.sequences'),
@@ -704,8 +712,9 @@ export default async function AppLayout(
               scheduled: tInbox('nav.scheduled'),
               done: tInbox('nav.done'),
               compose: tInbox('nav.compose'),
+              analytics: tInbox('nav.analytics'),
             },
-            calls: { library: tCalls('nav.library'), upcoming: tCalls('nav.upcoming'), deals: tCalls('nav.deals'), ask: tCalls('nav.ask'), newCall: tCalls('nav.new') },
+            calls: { library: tCalls('nav.library'), upcoming: tCalls('nav.upcoming'), deals: tCalls('nav.deals'), ask: tCalls('nav.ask'), newCall: tCalls('nav.new'), analytics: tCalls('nav.analytics') },
             forms: { forms: tForms('nav.forms'), templates: tForms('nav.templates'), newForm: tForms('list.new') },
             books: {
               overview: tBooks('nav.overview'),
@@ -822,6 +831,7 @@ export default async function AppLayout(
         <AssistantPanel />
         {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
         <MenuLayerGuard />
+        <KeyboardViewport />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>

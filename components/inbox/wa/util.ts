@@ -38,11 +38,11 @@ export function previewText(preview: string): string {
 }
 
 /** Tipo de la vista previa para el ícono ('' = texto). */
-export type PreviewKind = '' | 'image' | 'video' | 'voice' | 'audio' | 'document' | 'sticker' | 'location' | 'contact' | 'poll';
+export type PreviewKind = '' | 'image' | 'video' | 'gif' | 'voice' | 'audio' | 'document' | 'sticker' | 'location' | 'contact' | 'poll';
 
 export function previewKind(kind: string, preview: string): PreviewKind {
   const k = (kind ?? '').toLowerCase();
-  if (['image', 'video', 'voice', 'audio', 'document', 'sticker', 'location', 'contact', 'poll'].includes(k)) return k as PreviewKind;
+  if (['image', 'video', 'gif', 'voice', 'audio', 'document', 'sticker', 'location', 'contact', 'poll'].includes(k)) return k as PreviewKind;
   const m = /^\[([a-z]+)\]$/.exec((preview ?? '').trim());
   if (m && ['image', 'video', 'audio', 'document', 'sticker'].includes(m[1])) return m[1] as PreviewKind;
   return '';

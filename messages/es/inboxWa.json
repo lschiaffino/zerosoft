@@ -11,6 +11,7 @@
     "audio": "Audio",
     "document": "Documento",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Ubicación",
     "contact": "Contacto",
     "poll": "Encuesta"
@@ -64,6 +65,7 @@
   "close": "Cerrar",
   "forwardTo": "Reenviar a",
   "forwardedTo": "{n, plural, one {Reenviado a # chat} other {Reenviado a # chats}}",
+  "forwardPartial": "Reenviado a {ok} de {total}. {error}",
   "search": "Buscar",
   "noChats": "No hay chats",
   "cancel": "Cancelar",
@@ -162,5 +164,62 @@
   "showLess": "Ver menos",
   "audioSummary": "Resumen:",
   "transcript": "Transcripción",
-  "moreTools": "Más: escribir con IA, dictar, snippets"
+  "moreTools": "Más: escribir con IA, dictar, snippets",
+  "display": {
+    "title": "Visualización",
+    "help": "Cómo ves los chats en Inbox y en Lines. Los cambios se ven al instante y son solo para vos.",
+    "reset": "Volver a lo predeterminado",
+    "saved": "Guardado. Vale para Inbox y Lines.",
+    "error": "No se pudo guardar. Probá de nuevo.",
+    "textSize": {
+      "label": "Texto de los mensajes",
+      "small": "Chico",
+      "default": "Normal",
+      "large": "Grande"
+    },
+    "linkPreviews": {
+      "label": "Vista previa de links",
+      "large": "Imagen grande",
+      "compact": "Compacta",
+      "off": "Sin vista previa"
+    },
+    "mediaSize": {
+      "label": "Fotos y videos",
+      "small": "Chicos",
+      "default": "Normal",
+      "large": "Grandes"
+    },
+    "density": {
+      "label": "Lista de chats",
+      "comfortable": "Cómoda",
+      "compact": "Compacta"
+    },
+    "bubbleWidth": {
+      "label": "Ancho de los mensajes",
+      "default": "Normal",
+      "wide": "Ancho"
+    },
+    "wallpaper": {
+      "label": "Fondo del chat",
+      "pattern": "Con dibujo",
+      "plain": "Liso"
+    },
+    "groupAvatars": "Mostrar las fotos al lado de los mensajes en grupos",
+    "sample": {
+      "author": "Ana",
+      "in": "¿Viste la nueva página de precios?",
+      "out": "Sí, acá está:",
+      "linkTitle": "Precios",
+      "linkDesc": "Planes para equipos de cualquier tamaño, por mes o por año."
+    },
+    "tab": "Apariencia"
+  },
+  "linkPreview": {
+    "composerLabel": "Vista previa del link",
+    "loading": "Cargando la vista previa…",
+    "remove": "Mandar sin vista previa"
+  },
+  "retry": "Reintentar",
+  "removeUnsent": "Quitar",
+  "uploading": "Subiendo {name}"
 }

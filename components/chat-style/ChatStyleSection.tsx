@@ -25,32 +25,34 @@ export default function ChatStyleSection({ variant = 'ui' }: { variant?: 'ui' | 
   };
   return (
     <section className={c.section} id="chat-style" aria-labelledby="chat-style-h">
-      <div className={c.head}>
-        <h2 className={c.title} id="chat-style-h">
-          {t('title')}
-        </h2>
+      <div className={variant === 'inbox' ? 'wa-contents' : 'ui-section-body'}>
+        <div className={c.head}>
+          <h2 className={c.title} id="chat-style-h">
+            {t('title')}
+          </h2>
+        </div>
+        <p className={c.help}>{t('help')}</p>
+        <div role="radiogroup" aria-labelledby="chat-style-h" className={c.list}>
+          {(['whatsapp', 'zerosoft'] as const).map((s) => (
+            <label key={s} className="ui-check">
+              <input type="radio" name="chat-style" value={s} checked={style === s} onChange={() => void pick(s)} />
+              <span>
+                <strong>{t(`${s}.label`)}</strong> · <span className={c.help}>{t(`${s}.body`)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {state === 'saved' && (
+          <p className="ui-help" role="status">
+            {t('saved')}
+          </p>
+        )}
+        {state === 'error' && (
+          <p className="ui-error" role="alert">
+            {t('error')}
+          </p>
+        )}
       </div>
-      <p className={c.help}>{t('help')}</p>
-      <div role="radiogroup" aria-labelledby="chat-style-h" className={c.list}>
-        {(['whatsapp', 'zerosoft'] as const).map((s) => (
-          <label key={s} className="ui-check">
-            <input type="radio" name="chat-style" value={s} checked={style === s} onChange={() => void pick(s)} />
-            <span>
-              <strong>{t(`${s}.label`)}</strong> · <span className={c.help}>{t(`${s}.body`)}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      {state === 'saved' && (
-        <p className="ui-help" role="status">
-          {t('saved')}
-        </p>
-      )}
-      {state === 'error' && (
-        <p className="ui-error" role="alert">
-          {t('error')}
-        </p>
-      )}
     </section>
   );
 }

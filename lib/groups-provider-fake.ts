@@ -27,6 +27,7 @@
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
+import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -61,6 +62,10 @@ export interface FakeSent {
   text: string;
   kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
+  /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
+  media?: { kind: string; mimetype: string; base64: boolean };
+  /** Teléfonos mencionados (textos en grupos). */
+  mentions?: string[];
 }
 
 interface FakeState {
@@ -244,6 +249,8 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
+  if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
   if (id.startsWith('doc-') || id.startsWith('vid-')) return { data: Buffer.from('%PDF-1.4\n% archivo de prueba\n'), mimetype: 'application/pdf', filename: 'documento.pdf' };
   return { data: fakePng(480, 320, id.length % 5), mimetype: 'image/png', filename: 'foto.png' };
@@ -347,9 +354,9 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   const requireConnected = () => {
     if (!connected()) throw new ProviderError('not_connected');
   };
-  const send = (chatId: string, text: string, kind: FakeSent['kind']) => {
+  const send = (chatId: string, text: string, kind: FakeSent['kind'], media?: FakeSent['media']) => {
     requireConnected();
-    s.sent.push({ chatId, text, kind, at: Date.now() });
+    s.sent.push({ chatId, text, kind, at: Date.now(), ...(media ? { media } : {}) });
     return { id: `fake-out-${randomUUID()}` };
   };
 
@@ -403,8 +410,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     async disconnect() {
       s.connectedAt = null;
     },
-    sendText: async (chatId, text) => send(chatId, text, 'text'),
-    sendMedia: async (chatId, media) => send(chatId, media.caption ?? media.filename, 'media'),
+    sendText: async (chatId, text, o) => {
+      const r = send(chatId, text, 'text');
+      if (o?.mentions?.length) s.sent[s.sent.length - 1].mentions = [...o.mentions];
+      return r;
+    },
+    sendMedia: async (chatId, media) => {
+      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64) });
+      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;
+    },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
     },
@@ -431,7 +445,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       void send(chatId, archive ? 'archive' : 'unarchive', 'archive');
     },
     sendPresence: async () => undefined,
-    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },

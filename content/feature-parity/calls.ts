@@ -30,7 +30,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Gong',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'transcript', label: loc(['Transcript', 'Transcripción', 'Transcrição']) },
@@ -196,7 +196,14 @@ const parity: ProductParity = {
         'Talk ratio, monólogo mais longo, história mais longa do cliente, interatividade (trocas de quem fala por minuto), paciência (pausa antes de quem vende responder) e perguntas feitas, calculadas a partir da transcrição',
       ],
     }),
-    row('team-trends', 'metrics', ['Team stats and trends over time', 'Métricas del equipo y tendencias en el tiempo', 'Métricas da equipe e tendências no tempo'], 'missing', { weight: 2 }),
+    row('team-trends', 'metrics', ['Team stats and trends over time', 'Métricas del equipo y tendencias en el tiempo', 'Métricas da equipe e tendências no tempo'], 'partial', {
+      weight: 2,
+      detail: [
+        'Analytics page: calls and minutes per day against the previous period, team talk time, customer and team questions, methodology score, top topics, competitors and a table by rep. No per-rep trend lines or benchmarks yet',
+        'Página de analítica: llamadas y minutos por día contra el período anterior, cuánto habla el equipo, preguntas del cliente y del equipo, puntaje de la metodología, temas, competidores y una tabla por rep. Todavía sin líneas por rep ni comparación con referencias',
+        'Página de análise: chamadas e minutos por dia contra o período anterior, quanto a equipe fala, perguntas do cliente e da equipe, nota da metodologia, temas, concorrentes e uma tabela por rep. Ainda sem linhas por rep nem comparação com referências',
+      ],
+    }),
     row('scorecard-library', 'metrics', ['Manager scorecards and coaching programs', 'Scorecards de managers y programas de coaching', 'Scorecards de gestores e programas de coaching'], 'missing'),
 
     // Deals

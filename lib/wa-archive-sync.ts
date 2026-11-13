@@ -141,6 +141,7 @@ export async function flushArchivePush(app: ArchiveApp, chatId: string, now = ()
     const end = now();
     let res: { changes: number };
     if (result.kind === 'sent') {
+      console.info(`[wa-archive] ${app} push sent: ${result.sent.slice(0, 300)}`);
       res = await db
         .prepare(
           `UPDATE wa_archive_push SET done_at = ?, claimed_until = NULL, last_error = '', sent = ?, sent_count = sent_count + 1
@@ -150,6 +151,8 @@ export async function flushArchivePush(app: ArchiveApp, chatId: string, now = ()
       // Llegó otro pedido mientras se mandaba este: se cuenta el envío y se sigue con el nuevo.
       if (res.changes === 0) await db.prepare('UPDATE wa_archive_push SET sent_count = sent_count + 1, sent = ? WHERE app = ? AND chat_id = ?').run(result.sent.slice(0, 2000), app, chatId);
     } else if (result.kind === 'skip') {
+      // Sin esto un pedido que no sale no deja rastro: queda en el log de Vercel con el motivo.
+      console.info(`[wa-archive] ${app} push skipped: ${result.reason}`);
       res = await db
         .prepare('UPDATE wa_archive_push SET done_at = ?, claimed_until = NULL, last_error = ? WHERE app = ? AND chat_id = ? AND version = ?')
         .run(iso(end), result.reason, app, chatId, row.version);
@@ -281,15 +284,16 @@ export function pickRef(rows: Array<{ id: string; fromMe: boolean; at: string; s
 async function inboxTarget(row: PushRow): Promise<Target | null> {
   const db = getDb();
   const t = (await db
-    .prepare("SELECT id, account_id, external_id, archived_at, channel FROM inbox_threads WHERE id = ? AND owner_id = ?")
-    .get(row.chat_id, row.scope_id)) as { id: string; account_id: string; external_id: string; archived_at: string | null; channel: string } | undefined;
+    .prepare("SELECT id, account_id, external_id, archived_at, done_at, channel FROM inbox_threads WHERE id = ? AND owner_id = ?")
+    .get(row.chat_id, row.scope_id)) as { id: string; account_id: string; external_id: string; archived_at: string | null; done_at: string | null; channel: string } | undefined;
   if (!t || t.channel !== 'whatsapp') return null;
   const { getAccount } = await import('./inbox/core');
   const { waProviderFor } = await import('./inbox/whatsapp');
   const account = await getAccount(row.scope_id, t.account_id).catch(() => null);
   if (!account) return null;
   return {
-    archived: !!t.archived_at,
+    // Archivados en Inbox son los archivados y los "hechos" (la misma vista y el mismo botón).
+    archived: !!t.archived_at || !!t.done_at,
     connected: account.status === 'connected',
     provider: () => waProviderFor(account),
     chatJid: t.external_id,

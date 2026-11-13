@@ -23,7 +23,8 @@
     "forecast": "Forecast",
     "documents": "Documents",
     "videos": "Videos",
-    "crmSettings": "CRM settings"
+    "crmSettings": "CRM settings",
+    "analytics": "Analytics"
   },
   "switcher": {
     "product": "Product",
@@ -3721,5 +3722,45 @@
       "inboundHint": "Set this as the Voice URL of the number in Twilio:"
     },
     "callBrowserShort": "Web call"
+  },
+  "analytics": {
+    "title": "CRM analytics",
+    "desc": "Deals created, won and lost, open pipeline by stage and your team's activity.",
+    "scopeNote": "Counts only deals and activity from the owners you can see.",
+    "created": "Deals created",
+    "won": "Deals won",
+    "lost": "Deals lost",
+    "wonAmount": "Won revenue",
+    "winRate": "Win rate",
+    "cycle": "Sales cycle (median)",
+    "activities": "Activities logged",
+    "openAmount": "Open pipeline",
+    "weighted": "Weighted pipeline",
+    "openDeals": "Open deals",
+    "perDay": "Deals per day",
+    "wonPerDay": "Won revenue per day",
+    "byStage": "Open pipeline by stage",
+    "noOpen": "No open deals right now.",
+    "dealsN": "{n, plural, one {# deal} other {# deals}}",
+    "weightedSub": "Weighted: {value}",
+    "activityTypes": "Activity by type",
+    "types": {
+      "call": "Calls",
+      "meeting": "Meetings",
+      "email": "Emails",
+      "task": "Tasks",
+      "note": "Notes"
+    },
+    "noActivity": "No activity logged in this period.",
+    "lostReasons": "Why deals were lost",
+    "noReason": "No reason given",
+    "noLost": "No deals lost in this period.",
+    "byOwner": "By owner",
+    "owner": "Owner",
+    "removedOwner": "Former member",
+    "pipeline": "Pipeline",
+    "allPipelines": "All pipelines",
+    "emptyTitle": "No deals or activity in this period",
+    "emptyBody": "Create a deal or log an activity and the numbers show up here."
   }
 }

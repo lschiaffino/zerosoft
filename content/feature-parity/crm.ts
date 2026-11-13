@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-12',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -481,6 +481,18 @@ const parity: ProductParity = {
       status: 'have',
       competitorHas: true,
       weight: 2,
+    },
+    {
+      id: 'sales-analytics',
+      area: 'reports',
+      label: { en: 'Sales analytics page', es: 'Página de analítica de ventas', pt: 'Página de análise de vendas' },
+      detail: {
+        en: 'Deals created, won and lost per day against the previous period, won revenue, win rate, sales cycle, open and weighted pipeline by stage, lost reasons, activity by type and a table by owner, with the owner visibility of each member',
+        es: 'Deals creados, ganados y perdidos por día contra el período anterior, ingresos ganados, tasa de cierre, ciclo de venta, pipeline abierto y ponderado por etapa, motivos de pérdida, actividad por tipo y una tabla por owner, con la visibilidad por owner de cada member',
+        pt: 'Negócios criados, ganhos e perdidos por dia contra o período anterior, receita ganha, taxa de fechamento, ciclo de venda, pipeline aberto e ponderado por etapa, motivos de perda, atividade por tipo e uma tabela por responsável, com a visibilidade por responsável de cada membro',
+      },
+      status: 'have',
+      competitorHas: true,
     },
     {
       id: 'prebuilt-reports',

@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-12',
+  lastReviewed: '2026-11-13',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -153,6 +153,13 @@ const parity: ProductParity = {
     row('mobile', 'platform', ['Mobile apps', 'Apps móviles', 'Apps móveis'], 'partial', {
       detail: ['The web app works at phone width, one panel at a time. No native app', 'La web funciona en el teléfono, un panel por vez. Sin app nativa', 'A web funciona no celular, um painel por vez. Sem app nativo'],
     }),
+    row('insights', 'platform', ['Inbox analytics', 'Analítica del Inbox', 'Análise do Inbox'], 'have', {
+      detail: [
+        'Received and sent per day by channel (WhatsApp, email, groups), your first response time, chats to reply and waiting, done and archived, when messages arrive. Only you see it',
+        'Recibidos y enviados por día y canal (WhatsApp, email, grupos), tu tiempo de primera respuesta, chats por responder y esperando, hechos y archivados, cuándo llegan los mensajes. Solo lo ves vos',
+        'Recebidas e enviadas por dia e canal (WhatsApp, email, grupos), seu tempo de primeira resposta, conversas para responder e aguardando, feitas e arquivadas, quando as mensagens chegam. Só você vê',
+      ],
+    }),
     row('team', 'platform', ['Share and comment with a team', 'Compartir y comentar con un equipo', 'Compartilhar e comentar com uma equipe'], 'missing'),
     row('privacy', 'platform', ['Private to the person', 'Privado de la persona', 'Privado da pessoa'], 'better', {
       competitorHas: false,
@@ -216,9 +223,9 @@ const parity: ProductParity = {
     }),
     row('wa-message-actions', 'whatsapp', ['Reply, react, forward, copy, edit, delete, star', 'Responder, reaccionar, reenviar, copiar, editar, borrar, destacar', 'Responder, reagir, encaminhar, copiar, editar, apagar, favoritar'], 'partial', {
       detail: [
-        'From the arrow menu, right click or a long press. Forwarding sends a copy of the text (no "Forwarded" mark on the other side, no media). Message info shows delivered and read, not the time',
-        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia del texto (sin la marca "Reenviado" del otro lado ni archivos). La info del mensaje muestra entregado y leído, sin la hora',
-        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia do texto (sem a marca "Encaminhada" do outro lado nem arquivos). Os dados da mensagem mostram entregue e lida, sem a hora',
+        'From the arrow menu, right click or a long press. Forwarding sends a copy of any message (text, photo, video, document, sticker, audio; a voice note goes as a voice note) to up to 5 chats, marked "Forwarded" here but not on the other phone, because our WhatsApp server has no native forward. View once messages are not forwarded. Message info shows delivered and read, not the time',
+        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia de cualquier mensaje (texto, foto, video, documento, sticker, audio; una nota de voz sale como nota de voz) a hasta 5 chats, marcada "Reenviado" acá pero no en el teléfono de quien la recibe, porque nuestro servidor de WhatsApp no tiene reenvío nativo. Los de ver una vez no se reenvían. La info del mensaje muestra entregado y leído, sin la hora',
+        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia de qualquer mensagem (texto, foto, vídeo, documento, figurinha, áudio; uma nota de voz sai como nota de voz) para até 5 conversas, marcada "Encaminhada" aqui mas não no telefone de quem recebe, porque nosso servidor de WhatsApp não tem encaminhamento nativo. As de visualização única não são encaminhadas. Os dados da mensagem mostram entregue e lida, sem a hora',
       ],
     }),
     row('wa-media-view', 'whatsapp', ['Photos, video, voice notes, documents, stickers, locations, contacts, polls', 'Fotos, video, notas de voz, documentos, stickers, ubicaciones, contactos, encuestas', 'Fotos, vídeo, notas de voz, documentos, figurinhas, localizações, contatos, enquetes'], 'partial', {
@@ -228,25 +235,32 @@ const parity: ProductParity = {
         'Visualizador de fotos e vídeos, fotos enviadas juntas num álbum, notas de voz com velocidade. As enquetes aparecem mas se vota no celular. "Visualização única" não chega aos aparelhos vinculados',
       ],
     }),
+    row('wa-stickers', 'whatsapp', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {
+      detail: [
+        'Received stickers show small and without a bubble (animated ones move), GIFs play inside the bubble. The Stickers tab of the emoji panel has recent ones, favorites and your collection; WhatsApp does not let linked devices read the stickers saved on the phone, so the collection is built from the stickers in your chats (one click to import, then it stays up to date) and from images you turn into stickers. Lottie stickers show as a placeholder. Tested with the fake provider',
+        'Los stickers que llegan se ven chicos y sin burbuja (los animados se mueven) y los GIF se reproducen en la burbuja. La pestaña Stickers del panel de emojis tiene recientes, favoritos y tu colección; WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en el teléfono, así que la colección se arma con los stickers de tus chats (un clic para importarlos y después se mantiene sola) y con imágenes que convertís en sticker. Los stickers Lottie se ven como un lugar vacío. Probado con el proveedor falso',
+        'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (um clique para importar e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
+      ],
+    }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {
       detail: [
-        'Several files at once with a caption each and a preview before sending; voice notes from the microphone. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
-        'Varios archivos juntos, con un comentario cada uno y vista previa antes de enviar; notas de voz con el micrófono. Más de 4 MB necesita Blob en el servidor. Probado con el proveedor falso',
-        'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar; notas de voz pelo microfone. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
+        'Several files at once with a caption each and a preview before sending (paste more images into the preview; the same one twice goes in once); voice notes from the microphone. Files and voice notes show in the chat as soon as you send, with the clock, and upload in the background. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
+        'Varios archivos juntos, con un comentario cada uno y vista previa antes de enviar (se pueden pegar más imágenes en la vista previa; la misma dos veces entra una vez); notas de voz con el micrófono. Archivos y notas de voz aparecen en el chat al mandarlos, con el reloj, y se suben por detrás. Más de 4 MB necesita Blob en el servidor. Probado con el proveedor falso',
+        'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar (dá para colar mais imagens na prévia; a mesma duas vezes entra uma vez); notas de voz pelo microfone. Arquivos e notas de voz aparecem na conversa assim que são enviados, com o relógio, e sobem em segundo plano. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
       ],
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
       detail: [
-        'Type @ to mention a member; received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
-        'Con @ se menciona a alguien del grupo; las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
-        'Com @ se menciona alguém do grupo; as menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
+        'Type @ to pick a member (photo initial, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo (inicial, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo (inicial, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
       detail: [
-        'Title, description, image and domain: the one WhatsApp sends, or read on our server (never from the browser) and cached for a week. The other person does not get a preview of what you send from here',
-        'Título, descripción, imagen y dominio: la que manda WhatsApp, o leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Del otro lado, lo que mandás desde acá llega sin vista previa',
-        'Título, descrição, imagem e domínio: a que o WhatsApp envia, ou lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Do outro lado, o que você envia daqui chega sem prévia',
+        'Like WhatsApp: a large image on top for pages with a big image, a small thumbnail for logos, text only without an image, with the domain and the site icon. Read on our server (never from the browser) and cached for a week. While typing, the preview shows above the field and can be removed before sending. Large, compact or off in Display. Tested with the fake reader and provider; not yet tried with real WhatsApp',
+        'Como WhatsApp: la imagen grande arriba en páginas con una imagen grande, miniatura chica con logos, solo texto sin imagen, con el dominio y el ícono del sitio. Leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Al escribir, la vista previa aparece arriba del campo y se puede sacar antes de mandar. Grande, compacta o ninguna en Visualización. Probado con el lector y el proveedor falsos; falta probarlo con WhatsApp real',
+        'Como no WhatsApp: a imagem grande em cima em páginas com uma imagem grande, miniatura pequena com logos, só texto sem imagem, com o domínio e o ícone do site. Lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Ao digitar, a prévia aparece acima do campo e pode ser tirada antes de enviar. Grande, compacta ou nenhuma em Visualização. Testado com o leitor e o provedor falsos; falta testar com WhatsApp real',
       ],
     }),
     row('wa-voice-notes', 'whatsapp', ['Voice notes: speed, waveform, resume', 'Notas de voz: velocidad, forma de onda, seguir', 'Notas de voz: velocidade, forma de onda, continuar'], 'have', {

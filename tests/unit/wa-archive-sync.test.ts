@@ -126,6 +126,16 @@ describe('Inbox → WhatsApp', () => {
     expect(await getArchivePush('inbox', t.id)).toMatchObject({ archived: 0, version: 2, sent_count: 2 });
   });
 
+  it('"Archivar" de la barra (acción done) y volver a la bandeja (undone) también se mandan a WhatsApp', async () => {
+    const { owner, account } = await inboxSetup('wa-arch-done');
+    await ingestWhatsappEvents(account, [inbound('5491100004109@s.whatsapp.net')]);
+    const [t] = await listThreads(owner);
+    await applyThreadAction(owner, [t.id], { action: 'done' });
+    await applyThreadAction(owner, [t.id], { action: 'undone' });
+    expect(fakeArchives(`inbox-${account.id}`).map((a) => a.archive)).toEqual([true, false]);
+    expect(await getArchivePush('inbox', t.id)).toMatchObject({ archived: 0, version: 2, sent_count: 2, last_error: '' });
+  });
+
   it('si WhatsApp falla queda para reintentar con backoff y el cron lo manda', async () => {
     const { owner, account } = await inboxSetup('wa-arch-c');
     await ingestWhatsappEvents(account, [inbound('5491100004103@s.whatsapp.net')]);
