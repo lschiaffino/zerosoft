@@ -157,7 +157,7 @@ describe('Inbox WhatsApp: historial al vincular', () => {
     await connectWhatsapp(u.id);
     const create = mock.calls.find((c) => c.path === '/instance/create')!;
     expect(create.body).toMatchObject({ syncFullHistory: true, integration: 'WHATSAPP-BAILEYS' });
-    expect((create.body!.webhook as { events: string[] }).events).toEqual(expect.arrayContaining(['MESSAGES_SET', 'CHATS_SET', 'CONTACTS_UPSERT', 'MESSAGES_UPSERT']));
+    expect((create.body!.webhook as { events: string[] }).events).toEqual(expect.arrayContaining(['MESSAGES_SET', 'CHATS_SET', 'CONTACTS_UPSERT', 'MESSAGES_UPSERT', 'CHATS_UPDATE', 'CHATS_UPSERT']));
     const settings = mock.calls.find((c) => c.path.startsWith('/settings/set/'))!;
     expect(settings.body).toMatchObject({ syncFullHistory: true });
     expect(settings.apikey).not.toBe(GLOBAL_KEY);
