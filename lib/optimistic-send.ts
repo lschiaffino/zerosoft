@@ -113,7 +113,31 @@ export function sendQueueFor(key: string): <T>(job: () => Promise<T>) => Promise
 
 // ---------- Lo que todavía no salió, por chat ----------
 
-/** Un texto que se mandó y todavía no está guardado en el servidor: saliendo, o no salió. */
+/** Qué tipo de archivo es, por su mimetype (como lo manda la pantalla). */
+export type UnsentMediaKind = 'image' | 'video' | 'audio' | 'voice' | 'document' | 'sticker';
+
+export function mediaKindOf(type: string): UnsentMediaKind {
+  return type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : type.startsWith('audio/') ? 'audio' : 'document';
+}
+
+/**
+ * El archivo de un envío que todavía no está guardado (foto, video, nota de voz, documento, sticker). Mientras se
+ * sube, la burbuja muestra la copia local (`localPreviews`); `url` aparece cuando la subida terminó, y desde ahí un
+ * reintento manda lo ya subido sin volver a subirlo.
+ */
+export interface UnsentMedia {
+  kind: UnsentMediaKind;
+  name: string;
+  type: string;
+  size: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  /** Ya subido: lo que se manda. Sin esto, el archivo está solo en esta pestaña (no sobrevive a una recarga). */
+  url?: string;
+}
+
+/** Un mensaje que se mandó y todavía no está guardado en el servidor: saliendo, o no salió. */
 export interface Unsent {
   clientId: string;
   /** Quién lo escribió: otra persona que entre en la misma pestaña no lo ve ni lo puede mandar. */
@@ -128,6 +152,8 @@ export interface Unsent {
   createdAt: string;
   /** La persona sacó la vista previa del link antes de mandar: sale sin ella (también al reintentar). */
   noPreview?: boolean;
+  /** Un archivo (con `body` como su pie). */
+  media?: UnsentMedia;
 }
 
 export type UnsentEvent<S> = { chatId: string; entry: Unsent; type: 'added' | 'pending' | 'failed' | 'removed' } | { chatId: string; entry: Unsent; type: 'saved'; saved: S };
@@ -158,6 +184,8 @@ export function unsentStore<S>(storageKey: string) {
               !!x && typeof x === 'object' && !!cleanClientId((x as Unsent).clientId) && typeof (x as Unsent).owner === 'string' && typeof (x as Unsent).chatId === 'string' && typeof (x as Unsent).body === 'string',
           )
           .slice(-200)
+          // Un archivo que no terminó de subirse vivía solo en la pestaña: después de recargar no hay nada que mandar.
+          .filter((x) => !x.media || !!x.media.url)
           // Lo que estaba saliendo cuando se recargó la página: ya nadie lo está mandando.
           .map((x) => ({ ...x, replyToId: x.replyToId ?? null, createdAt: x.createdAt || new Date().toISOString(), ...(x.status === 'failed' ? { error: x.error || 'send_failed' } : { status: 'failed' as const, error: 'interrupted' }) }));
       }
@@ -198,8 +226,9 @@ export function unsentStore<S>(storageKey: string) {
     },
     list: (chatId: string): Unsent[] => (owner ? load().filter((x) => x.chatId === chatId && x.owner === owner) : []),
     get: find,
-    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[] }): Unsent {
-      const entry: Unsent = { ...input, owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
+    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[]; media?: UnsentMedia }): Unsent {
+      const { media, ...rest } = input;
+      const entry: Unsent = { ...rest, ...(media ? { media } : {}), owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
       load().push(entry);
       save();
       emit({ chatId: entry.chatId, entry, type: 'added' });
@@ -236,6 +265,13 @@ export function unsentStore<S>(storageKey: string) {
       drop(clientId);
       emit({ chatId: entry.chatId, entry, type: 'saved', saved });
     },
+    /** El archivo de un envío terminó de subirse (o se supo su tamaño): queda guardado para un reintento. */
+    setMedia(clientId: string, patch: Partial<UnsentMedia>): void {
+      const entry = find(clientId);
+      if (!entry?.media) return;
+      entry.media = { ...entry.media, ...patch };
+      save();
+    },
     /** Se quita (la persona lo descartó, o el chat ya trae su mensaje guardado). */
     remove(clientId: string): void {
       inFlightIds.delete(clientId);
@@ -252,3 +288,77 @@ export function unsentStore<S>(storageKey: string) {
     },
   };
 }
+
+// ---------- Archivos: la copia local y el avance de la subida ----------
+
+/**
+ * La copia local (object URL) de cada archivo que se manda, por clientId: la
+ * burbuja la muestra al instante y la sigue mostrando cuando la reemplaza el
+ * mensaje guardado (mismo archivo, sin parpadeo). Se libera cuando ya no hace
+ * falta: una foto, apenas su copia del servidor terminó de cargar; el resto,
+ * al cerrar el chat (un audio que suena no se corta a mitad).
+ */
+const previews = new Map<string, { url: string; scope: string; kind: string; settled: boolean }>();
+
+export const localPreviews = {
+  set(clientId: string, url: string, scope: string, kind: string): void {
+    const old = previews.get(clientId);
+    if (old && old.url !== url) revoke(old.url);
+    previews.set(clientId, { url, scope, kind, settled: false });
+  },
+  get: (clientId: string | undefined): string | undefined => (clientId ? previews.get(clientId)?.url : undefined),
+  /** Ya no hace falta (se descartó el envío). */
+  release(clientId: string): void {
+    const p = previews.get(clientId);
+    if (!p) return;
+    previews.delete(clientId);
+    revoke(p.url);
+  },
+  /**
+   * El mensaje ya está guardado. Una foto o un sticker: se baja la del servidor y, ya en caché, se suelta la local (el
+   * cambio no se nota). Lo demás queda hasta `releaseScope` (cerrar el chat).
+   */
+  settle(clientId: string, remoteUrl: string | undefined): void {
+    const p = previews.get(clientId);
+    if (!p) return;
+    p.settled = true;
+    if ((p.kind !== 'image' && p.kind !== 'sticker') || !remoteUrl || typeof Image === 'undefined') return;
+    const img = new Image();
+    const done = () => previews.get(clientId) === p && localPreviews.release(clientId);
+    img.onload = done;
+    img.onerror = done;
+    img.src = remoteUrl;
+  },
+  /** Se cerró el chat: lo ya guardado de ese chat suelta su copia local. Lo que sigue saliendo la conserva. */
+  releaseScope(scope: string): void {
+    for (const [cid, p] of [...previews]) if (p.scope === scope && p.settled) localPreviews.release(cid);
+  },
+};
+
+function revoke(url: string) {
+  if (url.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url);
+}
+
+const progress = new Map<string, number>();
+const progressListeners = new Set<() => void>();
+
+/** Cuánto se subió de cada archivo que se está mandando (0 a 1), por clientId: el anillo de la burbuja. */
+export const uploadProgress = {
+  get: (clientId: string | undefined): number | undefined => (clientId ? progress.get(clientId) : undefined),
+  set(clientId: string, p: number): void {
+    const v = Math.max(0, Math.min(1, p));
+    if (progress.get(clientId) === v) return;
+    progress.set(clientId, v);
+    for (const fn of [...progressListeners]) fn();
+  },
+  clear(clientId: string): void {
+    if (!progress.delete(clientId)) return;
+    for (const fn of [...progressListeners]) fn();
+  },
+  subscribe(fn: () => void): () => void {
+    progressListeners.add(fn);
+    return () => {
+      progressListeners.delete(fn);
+    };
+  },
+};

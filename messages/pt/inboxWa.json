@@ -218,5 +218,8 @@
     "composerLabel": "Prévia do link",
     "loading": "Carregando a prévia…",
     "remove": "Enviar sem prévia"
-  }
+  },
+  "retry": "Tentar de novo",
+  "removeUnsent": "Remover",
+  "uploading": "Enviando {name}"
 }

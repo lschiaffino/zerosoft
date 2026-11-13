@@ -11,7 +11,7 @@
   --gr-list-default: clamp(340px, 30%, 460px);
   --ib-details-default: clamp(300px, 26%, 400px);
   grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr);
-  height: calc(100dvh - var(--band-h, 0px));
+  height: calc(var(--app-vh, 100dvh) - var(--band-h, 0px));
   background: var(--wa-panel);
   color: var(--wa-text);
   font-family: var(--wa-font);
