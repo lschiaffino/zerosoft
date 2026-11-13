@@ -195,9 +195,21 @@ test('Robots: el botón activo "Table" se lee (también al pasar el mouse)', asy
   await table.hover();
   await page.waitForTimeout(300);
   const hovered = await read();
-  // Al pasar sigue siendo la placa de tinta con texto claro (antes: texto blanco sobre gris claro).
-  expect(hovered.bg).toBe(idle.bg);
+  // Al pasar sigue siendo una placa con texto claro (antes: texto blanco sobre gris claro). Dentro de la app
+  // el segmento elegido lleva el color de la app y al pasar se oscurece un paso (styles/ui.css).
   expect(hovered.color).toBe(idle.color);
+  const contrast = (a: string, b: string) => {
+    const lum = (c: string) => {
+      const [r, g, bl] = (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map((v) => {
+        const x = Number(v) / 255;
+        return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+    };
+    const [x, y] = [lum(a), lum(b)];
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+  expect(contrast(hovered.color, hovered.bg)).toBeGreaterThanOrEqual(4.5);
   await page.screenshot({ path: shot('robots-table-pressed-hover.png') });
 });
 
