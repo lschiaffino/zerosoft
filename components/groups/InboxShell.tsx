@@ -327,7 +327,9 @@ export default function InboxShell({
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
   }, []);
-  // "Nuevo › Chat nuevo" del lateral llega con ?new=1: abre el diálogo y saca el parámetro de la URL.
+  // "Nuevo › Chat nuevo" del lateral llega con ?new=1 desde otra página: abre el diálogo y saca el parámetro de la
+  // barra de direcciones. Con window.history.state (lleva __NA) Next no se entera del cambio: su router sigue en ?new=1,
+  // y por eso un segundo "Chat nuevo" con la bandeja ya abierta no navega (abajo se atiende sin navegar).
   const wantsNewChat = params.get('new') === '1';
   useEffect(() => {
     if (!wantsNewChat) return;
@@ -336,6 +338,22 @@ export default function InboxShell({
     url.searchParams.delete('new');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [wantsNewChat]);
+  // Con la bandeja montada, un link a /app/lines/inbox?new=1 (el del lateral) abre el diálogo acá mismo, sin navegar:
+  // ir a la misma URL no cambia nada para Next, y navegar cerraría el chat abierto. En captura, antes que el Link.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link || (link.target && link.target !== '_self')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.searchParams.get('new') !== '1') return;
+      if (!/^(\/[a-z]{2})?\/app\/lines\/inbox\/?$/.test(url.pathname)) return;
+      e.preventDefault();
+      setNewChat(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);

@@ -156,7 +156,9 @@ export function Modal({
     <dialog
       ref={ref}
       className={`ui-modal${wide ? ' ui-modal-wide' : ''}`}
-      aria-labelledby={titleId}
+      // Solo abierto, cuando el título existe: el <dialog> cerrado viene del servidor con el id del servidor, y si el
+      // de la hidratación sale distinto React no corrige el atributo; así el nombre se pone en el cliente, con el id del título.
+      aria-labelledby={open ? titleId : undefined}
       aria-modal="true"
       onCancel={(e) => {
         e.preventDefault();

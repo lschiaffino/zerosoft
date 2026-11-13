@@ -815,7 +815,9 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 
 /* Emoji: pestañas, búsqueda y grilla (como WhatsApp Web). */
 .wa-emoji { width: min(420px, calc(100vw - 24px)); max-height: none; height: 360px; display: flex; flex-direction: column; padding: 6px 8px 8px; overflow: hidden; }
-.wa-emoji-tabs { display: flex; gap: 2px; padding-bottom: 6px; border-bottom: 1px solid var(--wa-border); }
+/* Con Recientes siempre visible son 9 pestañas: a 360px quedan de ~33px, así que llevan 4px de aire entre sí
+   (y la fila toma 4px del padding a cada lado) para que un dedo no toque la de al lado. */
+.wa-emoji-tabs { display: flex; gap: 4px; margin: 0 -4px; padding-bottom: 6px; border-bottom: 1px solid var(--wa-border); }
 .wa-emoji-tabs button { flex: 1; height: 32px; font-size: 1.125rem; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; filter: grayscale(0.6); }
 .wa-emoji-tabs button[aria-selected='true'] { border-bottom-color: var(--wa-primary); filter: none; }
 .wa-emoji-tabs button:focus-visible { outline: 2px solid var(--wa-primary); }
