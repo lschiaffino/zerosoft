@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-search-clears-on-send',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: sending from a search result goes back to the inbox',
+      es: 'Lines e Inbox: mandar desde un resultado de búsqueda vuelve a la bandeja',
+      pt: 'Lines e Inbox: enviar a partir de um resultado da busca volta para a caixa de entrada',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp: search, open a chat, send a message, and the list clears the search and shows your chats again.',
+        es: 'Como WhatsApp: buscás, abrís un chat, mandás un mensaje y la lista limpia la búsqueda y vuelve a mostrar tus chats.',
+        pt: 'Como no WhatsApp: você busca, abre uma conversa, envia uma mensagem e a lista limpa a busca e volta a mostrar suas conversas.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-wa-media-albums',
     date: '2026-11-12',
     title: {

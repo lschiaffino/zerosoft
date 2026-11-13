@@ -22,6 +22,7 @@ import type { SlashCommand } from '@/lib/slash-commands';
 import { useAiSlashCommands } from '@/components/ai/slash-commands';
 import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
+import { notifyChatSent } from '@/lib/ui/chat-sent';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -177,6 +178,8 @@ const WaComposer = forwardRef<
       }
       return;
     }
+    // Mandado: la lista sale de la búsqueda, como WhatsApp (lib/ui/chat-sent.ts).
+    notifyChatSent(thread.id);
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
     let out = body;
     const mentions: string[] = [];

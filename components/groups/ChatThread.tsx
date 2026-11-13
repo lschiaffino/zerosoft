@@ -87,6 +87,7 @@ import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
+import { notifyChatSent } from '@/lib/ui/chat-sent';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -704,6 +705,8 @@ export default function ChatThread(props: ThreadProps) {
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSending(true);
     setSendError('');
+    // Mandado a WhatsApp (no una nota interna): la lista sale de la búsqueda, como WhatsApp.
+    if (mode !== 'note') notifyChatSent(chat.id);
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
     let ok = true;
     if (voice) {

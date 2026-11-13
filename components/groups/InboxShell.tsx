@@ -63,6 +63,7 @@ import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
+import { useOnChatSent } from '@/lib/ui/chat-sent';
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {
@@ -259,6 +260,11 @@ export default function InboxShell({
   // HubSpot conectado en el workspace: la bandeja ofrece el filtro de vinculados.
   const [hubspotOn, setHubspotOn] = useState(false);
   const [debounced, setDebounced] = useState('');
+  // Mandar un mensaje desde un chat encontrado con la búsqueda vuelve a la bandeja (como WhatsApp).
+  useOnChatSent(() => {
+    setQ('');
+    setDebounced('');
+  });
   const [rows, setRows] = useState<ChatDto[]>([]);
   // Las filas a la vista, para los gestos (deslizar, arrastrar) que corren fuera del render.
   const rowsRef = useRef<ChatDto[]>([]);

@@ -37,6 +37,7 @@ import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type M
 import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
+import { useOnChatSent } from '@/lib/ui/chat-sent';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -404,6 +405,8 @@ export default function InboxApp(props: {
    * envío pudo haber empezado con ese chat abierto y terminar con otro a la vista, así que va con su id.
    */
   const sentTo = (threadId: string) => (messages: MessageDto[]) => pendingSends.emit({ type: 'sent', threadId, messages });
+  // Mandar un mensaje desde un chat encontrado con la búsqueda vuelve a la bandeja (como WhatsApp).
+  useOnChatSent(() => setQ(''));
   // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
   const typing = detail?.thread.presence === 'typing' || detail?.thread.presence === 'recording';
   useExpiry(typing, detail?.thread, PRESENCE_EXPIRY_MS, () =>
