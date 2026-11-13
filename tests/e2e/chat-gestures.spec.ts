@@ -738,12 +738,19 @@ test.describe('foco al abrir', () => {
     await linesInbound(request, n.webhookUrl, `Uno ${tag}`);
     await linesInbound(request, n.webhookUrl, `Dos ${tag}`);
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-    await page.locator('[data-chat-row]', { hasText: `Uno ${tag}` }).click();
-    await expect(page.locator('textarea.gr-input')).toBeFocused({ timeout: 15_000 });
+    const composer = page.getByRole('textbox', { name: 'WhatsApp', exact: true });
+    // "Dos" llegó último: justo debajo está "Uno" (arriba puede haber chats fijados de otros tests, abajo
+    // chats de otras líneas). Con j desde "Dos" se llega a "Uno", un chat de este test con campo de mensaje.
+    const uno = page.getByRole('link', { name: new RegExp(`^Uno ${tag}`) });
+    const unoHref = (await uno.getAttribute('href'))!;
+    await page.getByRole('link', { name: new RegExp(`^Dos ${tag}`) }).click();
+    await expect(composer).toBeFocused({ timeout: 15_000 });
     // Con el teclado (sin foco en el campo, j): el chat cambia y el campo no se lleva el foco.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('j');
-    await expect(page.locator('textarea.gr-input')).not.toBeFocused();
+    await expect(page).toHaveURL(new RegExp(`${unoHref.split('/').pop()}(\\?|$)`));
+    await expect(composer).toBeVisible();
+    await expect(composer).not.toBeFocused();
   });
 
   test('Inbox: clic en un chat de WhatsApp enfoca el campo', async ({ page, request }) => {

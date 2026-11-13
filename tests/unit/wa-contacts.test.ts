@@ -213,7 +213,7 @@ describe('Inbox: nombres en lugar de números', () => {
     await getDb()
       .prepare("INSERT OR REPLACE INTO wa_contact_sync (app, account_id, user_id, phase, cursor, updated_at) VALUES ('inbox', ?, ?, 'contacts', '', ?)")
       .run(acc.id, acc.owner_id, new Date().toISOString());
-    await refreshInboxDaily(new Date(), Date.now() + 15_000, 0);
+    await refreshInboxDaily(new Date(), Date.now() + 15_000, 0, [acc.id]);
     expect((await findThread(acc.id, `${PHONE_A}@s.whatsapp.net`))!.title).toBe('Ana Renombrada');
     expect((await findThread(acc.id, `${PHONE_B}@s.whatsapp.net`))!.title).toBe('Mi Beto');
     const sync = (await getDb().prepare("SELECT phase, finished_at FROM wa_contact_sync WHERE app = 'inbox' AND account_id = ?").get(acc.id)) as { phase: string; finished_at: string | null };
@@ -224,7 +224,7 @@ describe('Inbox: nombres en lugar de números', () => {
     expect(row.about).toBe('De viaje');
     // Hecho hoy: la próxima corrida no lo repite.
     await getDb().prepare("UPDATE inbox_threads SET title = 'otra cosa' WHERE account_id = ? AND handle = ?").run(acc.id, PHONE_A);
-    await refreshInboxDaily(new Date(), Date.now() + 5_000, 0);
+    await refreshInboxDaily(new Date(), Date.now() + 5_000, 0, [acc.id]);
     expect((await findThread(acc.id, `${PHONE_A}@s.whatsapp.net`))!.title).toBe('otra cosa');
   });
 });
@@ -271,7 +271,7 @@ describe('Lines: nombres en lugar de números', () => {
     await getDb()
       .prepare("INSERT OR REPLACE INTO wa_contact_sync (app, account_id, user_id, phase, cursor, updated_at) VALUES ('lines', ?, ?, 'contacts', '', ?)")
       .run(row.id, user.id, new Date().toISOString());
-    await refreshLinesDaily(new Date(), Date.now() + 15_000, 0);
+    await refreshLinesDaily(new Date(), Date.now() + 15_000, 0, [row.id]);
     const chats = (await listChats(user.id, user.id, {})).rows;
     const dm = chats.find((c) => c.phone === PHONE_A)!;
     expect(dm.name).toBe('Ana Renombrada');
