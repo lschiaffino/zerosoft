@@ -54,7 +54,8 @@
     "cancelled": "Cancelled. Nothing changed.",
     "failed": "It did not work: {error}",
     "open": "Open",
-    "showAll": "all {count} characters"
+    "showAll": "all {count} characters",
+    "partial": "Partly done"
   },
   "actionErrors": {
     "forbidden": "You no longer have access to do this.",
@@ -243,7 +244,9 @@
       "attachment_not_found": "An attached file is no longer available. Remove it and attach it again.",
       "rate_limited": "Too many uploads. Try again later."
     },
-    "removeFailed": "Remove the files that could not be attached to send your message."
+    "removeFailed": "Remove the files that could not be attached to send your message.",
+    "pastedName": "pasted-{n}.{ext}",
+    "pasted": "Long text pasted as a file so nothing gets cut."
   },
   "folders": {
     "app": {
@@ -288,5 +291,50 @@
     "resultNew": "Added {count, plural, one {# new chat} other {# new chats}}.",
     "resultFailed": "Could not finish: {list}. Ask me to try again: it only does what is missing.",
     "resultHidden": "{count, plural, one {# chat was} other {# chats were}} skipped because you can no longer see them."
+  },
+  "working": "Working on it",
+  "reasoning": {
+    "thinking": "Thinking",
+    "thought": "Thought for {seconds, plural, one {# second} other {# seconds}}",
+    "show": "Show reasoning"
+  },
+  "code": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Could not copy"
+  },
+  "message": {
+    "showAll": "Show all",
+    "showLess": "Show less"
+  },
+  "toolLabel": {
+    "running": "Using {tool}…",
+    "ok": "Used {tool}",
+    "failed": "{tool} did not work",
+    "proposeRunning": "Preparing the change…",
+    "proposeOk": "Ready to confirm: {summary}",
+    "proposeFailed": "Could not prepare the change",
+    "names": {
+      "search_workspace": "workspace search",
+      "list_members": "the member list",
+      "list_webhooks": "the webhooks",
+      "webhook_deliveries": "webhook deliveries",
+      "find_operations": "the operations catalog",
+      "get_operation": "an operation's details",
+      "run_operation": "an operation",
+      "crm_search": "CRM search",
+      "crm_list_deals": "CRM deals",
+      "inbox_folders": "your Inbox folders",
+      "inbox_find_chats": "your Inbox chats",
+      "lines_folders": "Lines folders",
+      "groups_chats": "Lines chats",
+      "list_import_jobs": "recent imports",
+      "integration_health": "connected accounts",
+      "email_status": "email delivery"
+    },
+    "foldersRunning": "Reading your JSON and matching chats…",
+    "foldersOk": "Plan ready: {summary}",
+    "foldersFailed": "Could not read the folders",
+    "foldersNothing": "Everything in the JSON is already in place"
   }
 }

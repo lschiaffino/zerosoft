@@ -54,40 +54,129 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-msg { display: flex; flex-direction: column; gap: 8px; max-width: 100%; font-size: 0.875rem; }
 .asst-msg-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 .asst-msg-user { align-self: flex-end; max-width: 85%; padding: 8px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--r-xs); }
-.asst-thinking { margin: 0; }
 
-/* Tarjeta de herramienta: colapsada por defecto. */
-.asst-tool { border: 1px solid var(--line); border-radius: var(--r-xs); font-size: 0.8125rem; }
+/* Herramienta: una línea con su estado (girando, ✓ o ✗) y una etiqueta; se abre con los detalles. */
+.asst-tool { font-size: 0.8125rem; }
 .asst-tool > summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 2px 0;
   cursor: pointer;
   list-style: none;
   color: var(--ink-2);
+  border-radius: var(--r-xs);
 }
 .asst-tool > summary::-webkit-details-marker { display: none; }
-.asst-tool > summary::before { content: '›'; display: inline-block; width: 8px; transition: transform var(--ui-dur, 120ms) ease-out; }
-.asst-tool[open] > summary::before { transform: rotate(90deg); }
-.asst-tool > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-.asst-tool-name { font-family: var(--font-data); font-size: 0.75rem; overflow-wrap: anywhere; }
-.asst-tool-status { margin-left: auto; font-size: 0.75rem; }
-.asst-tool-status.is-running { color: var(--ink-2); }
-.asst-tool-status.is-failed { color: var(--bad-ink); }
-.asst-tool-body { padding: 0 10px 10px; border-top: 1px solid var(--line); }
-.asst-tool-label { margin: 8px 0 4px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.asst-tool > summary:hover { color: var(--ink); }
+.asst-tool > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.asst-tool-text { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
+/* Después de la etiqueta, el chevron que dice que se abre. */
+.asst-tool-text::after { content: '›'; display: inline-block; margin-left: 6px; color: var(--brand-gray-3); transition: transform var(--ui-dur, 160ms) ease-out; }
+.asst-tool[open] .asst-tool-text::after { transform: rotate(90deg); }
+.asst-tool-icon {
+  flex: none;
+  width: 16px;
+  height: 1.45em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+.asst-tool-icon[data-state='ok'] { color: var(--ok-ink); }
+.asst-tool-icon[data-state='failed'] { color: var(--bad-ink); }
+/* Girando: la rampa del toroide (·°o0Ø) en el lugar del ícono. */
+.asst-tool-icon[data-state='running']::before { content: '0'; animation: asst-ramp 0.9s steps(1, end) infinite; color: var(--ink); }
+@keyframes asst-ramp {
+  0% { content: '·'; }
+  14% { content: '°'; }
+  28% { content: 'o'; }
+  42% { content: '0'; }
+  57% { content: 'Ø'; }
+  71% { content: '0'; }
+  85% { content: 'o'; }
+}
+.asst-tool-name { font-family: var(--font-data); font-size: 0.6875rem; text-transform: none; letter-spacing: 0; overflow-wrap: anywhere; }
+.asst-tool-body { margin: 4px 0 2px 24px; padding: 0 0 0 10px; border-left: 1px solid var(--line); }
+.asst-tool-label { margin: 8px 0 4px; font-size: 0.6875rem; letter-spacing: 0.02em; color: var(--ink-2); }
 .asst-tool-body pre {
   margin: 0;
   max-height: 220px;
   overflow: auto;
   padding: 8px;
   background: var(--bg-soft);
+  border-radius: var(--r-xs);
   font-family: var(--font-data);
   font-size: 0.75rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Esperando al modelo: tres ceros que laten de a uno. */
+.asst-thinking { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink-2); font-size: 0.8125rem; min-height: 22px; }
+.asst-zeros { display: inline-flex; gap: 3px; font-family: var(--font-data); font-size: 0.8125rem; line-height: 1; }
+.asst-zeros > span::before { content: '0'; }
+.asst-zeros > span { opacity: 0.25; animation: asst-pulse 1.2s ease-in-out infinite; }
+.asst-zeros > span:nth-child(2) { animation-delay: 0.2s; }
+.asst-zeros > span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes asst-pulse {
+  0%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+
+/* Razonamiento: plegado, "Pensó N segundos". */
+.asst-reason { font-size: 0.8125rem; color: var(--ink-2); }
+.asst-reason > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 2px 0; border-radius: var(--r-xs); }
+.asst-reason > summary::-webkit-details-marker { display: none; }
+.asst-reason > summary::after { content: '›'; color: var(--brand-gray-3); transition: transform var(--ui-dur, 160ms) ease-out; }
+.asst-reason[open] > summary::after { transform: rotate(90deg); }
+.asst-reason > summary:hover { color: var(--ink); }
+.asst-reason > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.asst-reason-body { margin: 6px 0 2px; padding: 0 0 0 12px; border-left: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 320px; overflow-y: auto; }
+
+/* Respuesta en Markdown. */
+.asst-md { line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+.asst-md > :first-child { margin-top: 0; }
+.asst-md > :last-child { margin-bottom: 0; }
+.asst-md p { margin: 0 0 10px; }
+.asst-md :is(h1, h2, h3, h4) { margin: 16px 0 6px; font-family: var(--font-signage); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
+.asst-md h1 { font-size: 1.125rem; }
+.asst-md h2 { font-size: 1rem; }
+.asst-md :is(h3, h4) { font-size: 0.9375rem; }
+.asst-md :is(ul, ol) { margin: 0 0 10px; padding-left: 20px; }
+.asst-md li { margin: 2px 0; }
+.asst-md li > p { margin: 0; }
+.asst-md a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.asst-md blockquote { margin: 0 0 10px; padding: 0 0 0 12px; border-left: 1px solid var(--line); color: var(--ink-2); }
+.asst-md hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+.asst-md :not(pre) > code { padding: 1px 4px; background: var(--bg-soft); border-radius: 2px; font-family: var(--font-data); font-size: 0.8125em; }
+.asst-md .asst-table { margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-xs); }
+.asst-md .asst-table .table { font-size: 0.8125rem; }
+.asst-md .asst-table .table th { white-space: normal; }
+.asst-md .asst-table .table :is(th, td) { vertical-align: top; }
+.asst-md .asst-table tbody tr:last-child td { border-bottom: 0; }
+.asst-code { margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-xs); overflow: hidden; }
+.asst-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 30px; padding: 0 4px 0 10px; border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+.asst-code-lang { font-family: var(--font-data); font-size: 0.6875rem; color: var(--ink-2); }
+.asst-code-copy { height: 24px; padding: 0 8px; border: 0; border-radius: 2px; background: none; color: var(--ink-2); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.asst-code-copy:hover { color: var(--ink); background: var(--ui-hover); }
+.asst-code-copy:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.asst-code pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-family: var(--font-data); font-size: 0.75rem; line-height: 1.6; }
+.asst-code .tk-k { color: var(--ink); font-weight: 600; }
+.asst-code .tk-s { color: var(--warn-ink); }
+.asst-code .tk-n { color: var(--bad-ink); }
+.asst-code .tk-c { color: var(--brand-gray-3); font-style: italic; }
+/* Cursor de escritura: un bloque fino que parpadea al final del texto (no ocupa una línea propia). */
+.asst-cursor { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: text-bottom; background: var(--ink); animation: asst-blink 1s steps(1, end) infinite; }
+@keyframes asst-blink {
+  50% { opacity: 0; }
+}
+
+/* Mensaje largo de la persona (un JSON pegado): recortado. */
+.asst-msg-text.is-clamped { max-height: 14.5em; overflow: hidden; }
+.asst-more { align-self: flex-end; height: 26px; min-height: 26px; }
 
 /* Tarjeta de confirmación. */
 .asst-action { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--ink); border-radius: var(--r-xs); }
@@ -104,6 +193,7 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .asst-action-result { margin: 0; font-size: 0.8125rem; }
 .asst-action-result.is-done { color: var(--ok-ink); }
+.asst-action-result.is-partial { color: var(--warn-ink); }
 .asst-action-result.is-failed { color: var(--bad-ink); }
 .asst-action-result.is-cancelled { color: var(--ink-2); }
 
@@ -193,7 +283,11 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-load-earlier { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .asst-tool > summary::before { transition: none; }
+  .asst-tool-text::after, .asst-reason > summary::after { transition: none; }
+  .asst-zeros > span { animation: none; opacity: 0.6; }
+  .asst-zeros > span:nth-child(2) { opacity: 1; }
+  .asst-tool-icon[data-state='running']::before { animation: none; content: '0'; }
+  .asst-cursor { animation: none; }
 }
 
 /* Teléfono: el campo del inicio ocupa el ancho y el botón va abajo. */

@@ -54,7 +54,8 @@
     "cancelled": "Cancelado. Nada mudou.",
     "failed": "Não funcionou: {error}",
     "open": "Abrir",
-    "showAll": "todos os {count} caracteres"
+    "showAll": "todos os {count} caracteres",
+    "partial": "Feito em parte"
   },
   "actionErrors": {
     "forbidden": "Você não tem mais acesso para fazer isso.",
@@ -243,7 +244,9 @@
       "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo.",
       "rate_limited": "Muitos envios. Tente mais tarde."
     },
-    "removeFailed": "Remova os arquivos que não puderam ser anexados para enviar a mensagem."
+    "removeFailed": "Remova os arquivos que não puderam ser anexados para enviar a mensagem.",
+    "pastedName": "colado-{n}.{ext}",
+    "pasted": "Texto longo colado como arquivo para não ser cortado."
   },
   "folders": {
     "app": {
@@ -288,5 +291,50 @@
     "resultNew": "Adicionei {count, plural, one {# chat novo} other {# chats novos}}.",
     "resultFailed": "Não consegui terminar: {list}. Peça para eu tentar de novo: só faz o que falta.",
     "resultHidden": "{count, plural, one {# chat foi pulado} other {# chats foram pulados}} porque você não os vê mais."
+  },
+  "working": "Trabalhando",
+  "reasoning": {
+    "thinking": "Pensando",
+    "thought": "Pensou por {seconds, plural, one {# segundo} other {# segundos}}",
+    "show": "Ver o raciocínio"
+  },
+  "code": {
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copyFailed": "Não foi possível copiar"
+  },
+  "message": {
+    "showAll": "Ver tudo",
+    "showLess": "Ver menos"
+  },
+  "toolLabel": {
+    "running": "Usando {tool}…",
+    "ok": "Usou {tool}",
+    "failed": "{tool} não funcionou",
+    "proposeRunning": "Preparando a mudança…",
+    "proposeOk": "Pronto para confirmar: {summary}",
+    "proposeFailed": "Não foi possível preparar a mudança",
+    "names": {
+      "search_workspace": "a busca do workspace",
+      "list_members": "a lista de membros",
+      "list_webhooks": "os webhooks",
+      "webhook_deliveries": "as entregas do webhook",
+      "find_operations": "o catálogo de operações",
+      "get_operation": "o detalhe de uma operação",
+      "run_operation": "uma operação",
+      "crm_search": "a busca do CRM",
+      "crm_list_deals": "os negócios do CRM",
+      "inbox_folders": "suas pastas do Inbox",
+      "inbox_find_chats": "seus chats do Inbox",
+      "lines_folders": "as pastas do Lines",
+      "groups_chats": "os chats do Lines",
+      "list_import_jobs": "as importações recentes",
+      "integration_health": "as contas conectadas",
+      "email_status": "a entrega de emails"
+    },
+    "foldersRunning": "Lendo seu JSON e procurando os chats…",
+    "foldersOk": "Plano pronto: {summary}",
+    "foldersFailed": "Não foi possível ler as pastas",
+    "foldersNothing": "Tudo do JSON já está no lugar"
   }
 }

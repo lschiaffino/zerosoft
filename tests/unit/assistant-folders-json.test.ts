@@ -284,7 +284,7 @@ describe('carpetas desde JSON en Inbox (con base)', () => {
     expect(JSON.stringify(result?.output)).not.toContain(w.ana.id);
 
     const done = await decideAction({ user: owner(w.u), locale: 'es', id: action!.id, decision: 'confirm' });
-    expect('action' in done && done.action.status).toBe('done');
+    expect(done.action?.status).toBe('done');
     expect(await links(w.u.id)).toEqual(['Familia:Caro', 'VIP:Ana Gómez', 'VIP:Beto Núñez']);
     const vip = (await folderRows(w.u.id)).find((f) => f.name === 'VIP')!;
     expect((await folderRows(w.u.id)).find((f) => f.id === vip.parent_id)?.name).toBe('Clientes');
@@ -358,7 +358,7 @@ describe('carpetas desde JSON en Inbox (con base)', () => {
     expect(move.action!.destructive).toBe(true);
     expect(move.action!.confirmText).toBeNull();
     const r = await decideAction({ user: owner(w.u), locale: 'es', id: move.action!.id, decision: 'confirm' });
-    expect('action' in r && r.action.status).toBe('done');
+    expect(r.action?.status).toBe('done');
     expect(await links(w.u.id)).toEqual(['Clientes:Nuevo', 'Otros:Ana Gómez']);
   });
 
@@ -368,15 +368,15 @@ describe('carpetas desde JSON en Inbox (con base)', () => {
     // Entre el plan y la confirmación alguien borra el chat de Caro: esa carpeta queda vacía y no rompe la otra.
     await getDb().prepare('DELETE FROM inbox_threads WHERE id = ?').run(w.caro.id);
     const r = await decideAction({ user: owner(w.u), locale: 'en', id: action!.id, decision: 'confirm' });
-    expect('action' in r && r.action.status).toBe('done');
+    expect(r.action?.status).toBe('done');
     expect(await links(w.u.id)).toEqual(['Uno:Ana Gómez']);
     // Simulamos una falla real al asignar: la tabla de asignaciones no acepta escrituras por un momento.
     const { action: a2 } = await planTurn(owner(w.u), JSON.stringify({ Tres: ['Beto Núñez'] }));
     await getDb().exec('CREATE TRIGGER fj_block BEFORE INSERT ON inbox_thread_folders BEGIN SELECT RAISE(ABORT, \'blocked\'); END;');
     try {
       const r2 = await decideAction({ user: owner(w.u), locale: 'en', id: a2!.id, decision: 'confirm' });
-      expect('action' in r2 && r2.action.result).toMatchObject({ ok: true, partial: true });
-      expect('action' in r2 && r2.action.result?.message).toMatch(/Could not finish: Tres .*try again/);
+      expect(r2.action?.result).toMatchObject({ ok: true, partial: true });
+      expect(r2.action?.result?.message).toMatch(/Could not finish: Tres .*try again/);
     } finally {
       await getDb().exec('DROP TRIGGER fj_block');
     }
