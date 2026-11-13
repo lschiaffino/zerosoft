@@ -1697,6 +1697,8 @@
     "closeViewer": "Cerrar",
     "previous": "Anterior",
     "next": "Siguiente",
+    "album": "Álbum, {n} fotos y videos",
+    "albumMore": "{n} más, abrir el álbum",
     "openMedia": "Abrir {name}",
     "playVideo": "Reproducir video",
     "micDenied": "El navegador no dio permiso para usar el micrófono.",

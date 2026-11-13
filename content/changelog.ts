@@ -110,6 +110,48 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-12-wa-media-albums',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: photos and videos sent together show as one album',
+      es: 'Lines e Inbox: las fotos y videos mandados juntos se ven en un álbum',
+      pt: 'Lines e Inbox: fotos e vídeos enviados juntos aparecem num álbum',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Several photos or videos sent in a row by the same person show in one bubble with a grid, like WhatsApp: two side by side, three with one tall on the left, four or more in a 2×2 with +N on the last. Click a photo to open the viewer on it, and right-click it to reply, forward, download or delete just that one.',
+        es: 'Varias fotos o videos seguidos de la misma persona se ven en una burbuja con una grilla, como en WhatsApp: dos lado a lado, tres con una alta a la izquierda, cuatro o más en 2×2 con +N en la última. Un clic en una foto abre el visor en esa, y con clic derecho respondés, reenviás, bajás o borrás solo esa.',
+        pt: 'Várias fotos ou vídeos seguidos da mesma pessoa aparecem num balão com uma grade, como no WhatsApp: dois lado a lado, três com um alto à esquerda, quatro ou mais em 2×2 com +N no último. Um clique numa foto abre o visualizador nela, e com o botão direito você responde, encaminha, baixa ou apaga só essa.',
+      },
+      {
+        product: 'groups',
+        en: 'A photo or video with text is as wide as the photo, edge to edge, with the text wrapped underneath, instead of a wide bubble with a small photo inside.',
+        es: 'Una foto o video con texto tiene el ancho de la foto, de borde a borde, con el texto debajo, en vez de una burbuja ancha con la foto chica adentro.',
+        pt: 'Uma foto ou vídeo com texto tem a largura da foto, de borda a borda, com o texto embaixo, em vez de um balão largo com a foto pequena dentro.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-focus-composer-on-open',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: opening a chat with a click puts the cursor in the message box',
+      es: 'Lines e Inbox: abrir un chat con un clic deja el cursor en el campo de mensaje',
+      pt: 'Lines e Inbox: abrir uma conversa com um clique deixa o cursor no campo de mensagem',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp: click a chat and start typing. Moving with the keyboard (j/k) keeps focus on the list, and on the phone the keyboard does not pop up.',
+        es: 'Como WhatsApp: clic en un chat y a escribir. Con el teclado (j/k) el foco sigue en la lista, y en el teléfono no se abre el teclado.',
+        pt: 'Como o WhatsApp: clique numa conversa e comece a digitar. Com o teclado (j/k) o foco fica na lista, e no celular o teclado não abre.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-swipe-sideways-only',
     date: '2026-11-12',
     title: {

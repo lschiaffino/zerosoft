@@ -222,9 +222,9 @@ const parity: ProductParity = {
     }),
     row('wa-media-view', 'whatsapp', ['Photos, video, voice notes, documents, stickers, locations, contacts, polls', 'Fotos, video, notas de voz, documentos, stickers, ubicaciones, contactos, encuestas', 'Fotos, vídeo, notas de voz, documentos, figurinhas, localizações, contatos, enquetes'], 'partial', {
       detail: [
-        'Viewer for photos and videos, voice notes with speed control. Polls are read only (vote on the phone). View once is not delivered to linked devices',
-        'Visor de fotos y videos, notas de voz con velocidad. Las encuestas se ven pero se votan en el teléfono. "Ver una vez" no llega a los dispositivos vinculados',
-        'Visualizador de fotos e vídeos, notas de voz com velocidade. As enquetes aparecem mas se vota no celular. "Visualização única" não chega aos aparelhos vinculados',
+        'Viewer for photos and videos, photos sent together grouped in an album, voice notes with speed control. Polls are read only (vote on the phone). View once is not delivered to linked devices',
+        'Visor de fotos y videos, fotos mandadas juntas en un álbum, notas de voz con velocidad. Las encuestas se ven pero se votan en el teléfono. "Ver una vez" no llega a los dispositivos vinculados',
+        'Visualizador de fotos e vídeos, fotos enviadas juntas num álbum, notas de voz com velocidade. As enquetes aparecem mas se vota no celular. "Visualização única" não chega aos aparelhos vinculados',
       ],
     }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {

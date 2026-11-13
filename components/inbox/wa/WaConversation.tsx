@@ -10,6 +10,8 @@ import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import MediaAlbum from '@/components/groups/wa/MediaAlbum';
+import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
@@ -380,18 +382,27 @@ const WaConversation = forwardRef<
   // Mensajes agrupados por día; cola en el primero de cada tanda del mismo remitente.
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
-  for (const m of messages) {
+  // Fotos y videos mandados juntos van en un álbum (lib/wa-albums.ts): una tanda, una burbuja.
+  const runs = groupAlbums(messages, (m) => ({
+    media: (m.mediaType === 'image' || m.mediaType === 'video') && m.hasMedia && !m.revoked && !m.reply && !m.meta?.viewOnce && !m.meta?.poll && m.status !== 'failed',
+    key: `${senderKey(m)}|${localDayKey(m.sentAt)}|${m.forwarded ? 'f' : ''}`,
+    at: new Date(m.sentAt).getTime(),
+    caption: Boolean(m.body?.trim()),
+  }));
+  for (const run of runs) {
+    const m = run[0];
     const key = localDayKey(m.sentAt);
     if (days.at(-1)?.key !== key) {
       days.push({ key, at: m.sentAt, items: [] });
       prev = null;
     }
     const cont = !!prev && senderKey(prev) === senderKey(m);
-    prev = m;
-    days[days.length - 1].items.push(renderMessage(m, cont));
+    prev = run[run.length - 1];
+    days[days.length - 1].items.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
   }
 
-  function renderMessage(m: MessageDto, cont: boolean) {
+  /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
+  function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const dir = m.fromMe ? 'out' : 'in';
     const hidden = m.revoked && !revealed.has(m.id);
     const meta = m.meta ?? {};
@@ -402,7 +413,12 @@ const WaConversation = forwardRef<
     const author = groupIn ? names.get(m.senderHandle) || senderLabel(m.senderName, m.senderHandle) : '';
     const color = groupIn ? `wa-n${colorIndex(m.senderHandle || m.senderName)}` : '';
     const time = new Date(m.sentAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
-    const reactions = groupReactions(m.reactions ?? []);
+    const allReactions = (album ?? [m]).flatMap((x) => x.reactions ?? []);
+    const reactions = groupReactions(allReactions);
+    const has = (id: string | null) => (album ? album.some((x) => x.id === id) : m.id === id);
+    // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
+    const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
+    const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     const url = m.hasMedia ? `/api/inbox/media/${m.id}` : '';
     const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
     const body = m.body ?? '';
@@ -417,7 +433,7 @@ const WaConversation = forwardRef<
       <article
         key={m.id}
         id={`m-${m.id}`}
-        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${flash === m.id ? ' is-target' : ''}${hitId === m.id ? ' ib-msg-hit' : ''}`}
+        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}`}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
@@ -470,7 +486,23 @@ const WaConversation = forwardRef<
           ) : null}
           {kind && !hidden && (
             <div className="gr-media">
-              {meta.viewOnce ? (
+              {album ? (
+                <MediaAlbum
+                  tiles={album.map((x) => ({
+                    id: x.id,
+                    kind: x.mediaType === 'video' ? 'video' : 'image',
+                    url: `/api/inbox/media/${x.id}`,
+                    alt: x.mediaName || w('kind.image'),
+                    thumbnail: x.meta?.thumb,
+                    seconds: x.meta?.duration,
+                    menu: isTempId(x.id) ? [] : menuFor(x),
+                  }))}
+                  onOpen={setViewerAt}
+                  menuLabel={w('messageMenu')}
+                  align={m.fromMe ? 'right' : 'left'}
+                  onLoad={keepAtEnd}
+                />
+              ) : meta.viewOnce ? (
                 <span className="wa-viewonce">{w('viewOnce')}</span>
               ) : !url ? (
                 <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} />
@@ -547,7 +579,7 @@ const WaConversation = forwardRef<
             {reactions.slice(0, 3).map((r) => (
               <span key={r.emoji}>{r.emoji}</span>
             ))}
-            {(m.reactions?.length ?? 0) > 1 && <b>{m.reactions!.length}</b>}
+            {allReactions.length > 1 && <b>{allReactions.length}</b>}
           </button>
         )}
         {!m.revoked && connected && !isTempId(m.id) && (
@@ -564,21 +596,21 @@ const WaConversation = forwardRef<
             </button>
           </div>
         )}
-        {pickerFor === m.id && (
+        {reactTo && (
           <span className="gr-emoji-picker" role="group" aria-label={w('react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
             {QUICK.map((e) => (
-              <button key={e} type="button" className={(m.reactions ?? []).some((r) => r.by === 'me' && r.emoji === e) ? 'is-mine' : ''} onClick={() => void react(m, e)} aria-label={e}>
+              <button key={e} type="button" className={(reactTo.reactions ?? []).some((r) => r.by === 'me' && r.emoji === e) ? 'is-mine' : ''} onClick={() => void react(reactTo, e)} aria-label={e}>
                 {e}
               </button>
             ))}
-            <button type="button" onClick={() => openFullPicker(m.id)} aria-label={w('moreEmoji')} title={w('moreEmoji')}>
+            <button type="button" onClick={() => openFullPicker(reactTo.id)} aria-label={w('moreEmoji')} title={w('moreEmoji')}>
               <Plus size={20} />
             </button>
           </span>
         )}
-        {fullPickerFor === m.id && (
+        {fullFor && (
           <span className="ib-wa-react-full">
-            <EmojiPicker onPick={(e) => void react(m, e)} onClose={() => setFullPickerFor(null)} />
+            <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
           </span>
         )}
       </article>
