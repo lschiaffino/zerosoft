@@ -227,6 +227,8 @@
     "groupCalls": "Calls",
     "preview": "Preview",
     "comingSoon": "Coming soon",
+    "disabledApps": "Turned off for this account",
+    "disabledAppsHint": "An admin turns apps on in Settings › Apps",
     "soonApp": "{name}: waitlist",
     "groupBiQuestions": "Analytics questions",
     "groupBiDashboards": "Analytics dashboards",

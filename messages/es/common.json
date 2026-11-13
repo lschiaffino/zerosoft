@@ -227,6 +227,8 @@
     "groupCalls": "Llamadas",
     "preview": "Vista previa",
     "comingSoon": "Próximamente",
+    "disabledApps": "Desactivadas para esta cuenta",
+    "disabledAppsHint": "Un admin las prende en Ajustes › Apps",
     "soonApp": "{name}: lista de espera",
     "groupBiQuestions": "Preguntas de Analytics",
     "groupBiDashboards": "Tableros de Analytics",

@@ -24,6 +24,10 @@ export interface SidebarLabels {
   preview?: string;
   /** Grupo de las apps "Próximamente" (sidebar del inicio y switcher). */
   comingSoon?: string;
+  /** Grupo de las apps apagadas para esta cuenta (Ajustes › Apps), plegado. */
+  disabledApps?: string;
+  /** Aviso de ese grupo: dónde se prenden. */
+  disabledAppsHint?: string;
   signOut: string;
   records: string;
   activity: string;
@@ -508,8 +512,20 @@ export function homeAppGroups(
       ),
     });
   }
+  // Las apagadas para esta cuenta, aparte y plegadas: llevan a Ajustes › Apps, donde un admin las prende.
+  const off = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && !can(k));
+  if (off.length && labels.disabledApps) {
+    groups.push({
+      section: labels.disabledApps,
+      collapsible: true,
+      items: off.map((line) => ({ ...item(line), href: DISABLED_APPS_HREF })),
+    });
+  }
   return groups;
 }
+
+/** Adónde lleva una app apagada para la cuenta: Ajustes › Apps, donde se ve para quién está y un admin la prende. */
+export const DISABLED_APPS_HREF = '/app/settings/apps';
 
 export { comingSoonHref };
 

@@ -227,6 +227,8 @@
     "groupCalls": "Chamadas",
     "preview": "Prévia",
     "comingSoon": "Em breve",
+    "disabledApps": "Desativados para esta conta",
+    "disabledAppsHint": "Um admin ativa os apps em Ajustes › Apps",
     "soonApp": "{name}: lista de espera",
     "groupBiQuestions": "Perguntas do Analytics",
     "groupBiDashboards": "Painéis do Analytics",
