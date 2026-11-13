@@ -22,6 +22,7 @@ import AppAccent from '@/components/app/AppAccent';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
 import MenuLayerGuard from '@/components/app/MenuLayerGuard';
+import KeyboardViewport from '@/components/app/KeyboardViewport';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -822,6 +823,7 @@ export default async function AppLayout(
         <AssistantPanel />
         {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
         <MenuLayerGuard />
+        <KeyboardViewport />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>
