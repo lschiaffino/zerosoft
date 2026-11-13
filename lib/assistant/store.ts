@@ -46,7 +46,15 @@ export interface AttachmentPart {
   kind: 'image' | 'pdf' | 'text' | 'file';
 }
 
-export type MessagePart = ToolCardPart | ActionPart | AttachmentPart;
+/** Razonamiento del modelo en el turno (plegado en la UI: "Pensó N s"). */
+export interface ReasoningPart {
+  type: 'reasoning';
+  text: string;
+  /** Cuánto tardó, en milisegundos. */
+  ms: number;
+}
+
+export type MessagePart = ToolCardPart | ActionPart | AttachmentPart | ReasoningPart;
 
 export interface MessageRow {
   id: string;
@@ -70,7 +78,7 @@ export interface ActionRow {
   destructive: boolean;
   confirm_text: string | null;
   status: ActionStatus;
-  result: { ok: boolean; message?: string; href?: string; error?: string } | null;
+  result: { ok: boolean; message?: string; href?: string; error?: string; partial?: boolean } | null;
   created_at: string;
   decided_at: string | null;
 }
