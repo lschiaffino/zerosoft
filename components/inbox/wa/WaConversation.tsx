@@ -33,6 +33,7 @@ import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
 import { useInboxThreadCommands } from '../slash-commands';
+import { typingLabel } from './ChatRow';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -328,8 +329,7 @@ const WaConversation = forwardRef<
   let live = false;
   if (thread.presence === 'typing' || thread.presence === 'recording') {
     live = true;
-    const who = group && thread.presenceWho ? names.get(thread.presenceWho) || formatPhone(thread.presenceWho) : '';
-    subtitle = who ? w(thread.presence === 'recording' ? 'recordingBy' : 'typingBy', { name: who }) : w(thread.presence === 'recording' ? 'recording' : 'typing');
+    subtitle = typingLabel(thread, w, names);
   } else if (!group && thread.presence === 'online') subtitle = w('online');
   else if (!group && thread.lastSeenAt) subtitle = lastSeen(thread.lastSeenAt, locale, w);
   else if (group && wa?.participants.length) {

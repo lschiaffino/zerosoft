@@ -72,6 +72,8 @@ export interface ThreadDto {
   presence: '' | 'typing' | 'recording' | 'online';
   /** En un grupo, quién escribe (teléfono). */
   presenceWho: string;
+  /** En un grupo, el nombre de quien escribe o graba (libreta por teléfono o lid; si no, su teléfono). */
+  presenceName?: string;
   lastSeenAt: string | null;
   /** Último mensaje con foto o video (su miniatura en la fila). */
   lastMediaId?: string | null;

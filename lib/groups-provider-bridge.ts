@@ -935,7 +935,8 @@ export function evolutionPresence(d: Json): InboundEvent[] {
   for (const [jid, p] of Object.entries(presences)) {
     const state = String((p ?? {}).lastKnownPresence ?? '');
     if (!PRESENCE_STATES.has(state)) continue;
-    const who = /@lid$/.test(jid) ? '' : phoneDigits(jid);
+    // En los grupos casi todos llegan por lid: se guarda "<dígitos>@lid" (la libreta lo resuelve a nombre o teléfono).
+    const who = /@lid$/.test(jid) ? `${lidDigits(jid)}@lid` : phoneDigits(jid);
     if (!best || ((state === 'composing' || state === 'recording') && best.state !== 'composing' && best.state !== 'recording')) best = { who, state };
   }
   if (!best) return [];
