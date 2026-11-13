@@ -84,6 +84,7 @@ import {
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
+import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -263,6 +264,8 @@ export default function ChatThread(props: ThreadProps) {
   const [bottomAt, setBottomAt] = useState(props.messages[props.messages.length - 1]?.createdAt ?? '');
   const [recording, setRecording] = useState<{ startedAt: number; elapsed: number; paused: boolean; carried: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Abrir el chat con un clic deja el cursor en el campo, como WhatsApp (no con j/k ni en el teléfono).
+  useFocusOnOpen(inputRef, props.chat.id);
   const boxRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
