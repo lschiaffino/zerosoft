@@ -420,7 +420,12 @@ export async function resyncWhatsapp(owner: string): Promise<{ account: AccountR
 }
 
 /** Manda un texto al chat y lo guarda como enviado. */
-export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean } = {}): Promise<string> {
+export async function sendWhatsappText(
+  account: AccountRow,
+  thread: ThreadRow,
+  text: string,
+  opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean; forwarded?: boolean } = {},
+): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
   try {
@@ -447,6 +452,7 @@ export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, t
           ...(opts.clientId ? { clientId: opts.clientId } : {}),
         }
       : {}),
+    ...(opts.forwarded ? { forwarded: true } : {}),
   });
   // Quien tenga Inbox abierto en esta instancia (otra pestaña) lo ve ya.
   pokeLive('inbox', account.owner_id);

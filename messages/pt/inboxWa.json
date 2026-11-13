@@ -65,6 +65,7 @@
   "close": "Fechar",
   "forwardTo": "Encaminhar para",
   "forwardedTo": "{n, plural, one {Encaminhada para # conversa} other {Encaminhada para # conversas}}",
+  "forwardPartial": "Encaminhado para {ok} de {total}. {error}",
   "search": "Buscar",
   "noChats": "Nenhuma conversa",
   "cancel": "Cancelar",

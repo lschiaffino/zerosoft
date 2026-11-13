@@ -62,6 +62,8 @@ export interface FakeSent {
   text: string;
   kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
+  /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
+  media?: { kind: string; mimetype: string; base64: boolean };
 }
 
 interface FakeState {
@@ -350,9 +352,9 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   const requireConnected = () => {
     if (!connected()) throw new ProviderError('not_connected');
   };
-  const send = (chatId: string, text: string, kind: FakeSent['kind']) => {
+  const send = (chatId: string, text: string, kind: FakeSent['kind'], media?: FakeSent['media']) => {
     requireConnected();
-    s.sent.push({ chatId, text, kind, at: Date.now() });
+    s.sent.push({ chatId, text, kind, at: Date.now(), ...(media ? { media } : {}) });
     return { id: `fake-out-${randomUUID()}` };
   };
 
@@ -409,7 +411,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendText: async (chatId, text) => send(chatId, text, 'text'),
     // Un sticker mandado vuelve a bajarse como sticker (id "stk-…", ver fakeMedia).
     sendMedia: async (chatId, media) => {
-      const r = send(chatId, media.caption ?? media.filename, 'media');
+      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64) });
       return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {

@@ -65,6 +65,7 @@
   "close": "Cerrar",
   "forwardTo": "Reenviar a",
   "forwardedTo": "{n, plural, one {Reenviado a # chat} other {Reenviado a # chats}}",
+  "forwardPartial": "Reenviado a {ok} de {total}. {error}",
   "search": "Buscar",
   "noChats": "No hay chats",
   "cancel": "Cancelar",

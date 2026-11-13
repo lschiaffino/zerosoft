@@ -19,7 +19,7 @@ export interface ActionableMessage {
   authorId: string | null;
   authorKind: string;
   body: string;
-  media: { url: string; type: string; name: string } | null;
+  media: { url: string; type: string; name: string; viewOnce?: boolean } | null;
   status: string;
   createdAt: string;
   deletedAt: string | null;
@@ -47,7 +47,8 @@ export function messageActions(
     return { edit: own, delete: own, pin: true, forward: false };
   }
   const delivered = m.status !== 'failed' && m.status !== 'pending';
-  const forward = delivered && (Boolean(m.body.trim()) || Boolean(m.media));
+  // "Ver una vez" no se reenvía (WhatsApp tampoco deja).
+  const forward = delivered && (Boolean(m.body.trim()) || Boolean(m.media)) && !m.media?.viewOnce;
   if (m.direction === 'in') return { edit: false, delete: false, pin: true, forward };
   // Lo que mandó otra persona del equipo (o el teléfono) solo lo toca un admin.
   const own = viewer.isAdmin || (Boolean(m.authorId) && m.authorId === viewer.me);

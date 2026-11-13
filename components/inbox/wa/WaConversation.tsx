@@ -304,7 +304,8 @@ const WaConversation = forwardRef<
     if (!m.revoked) {
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
-      if (m.body && !m.mediaType) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
+      // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
+      if ((m.body || m.mediaType) && !m.meta?.viewOnce) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
       if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
@@ -919,13 +920,20 @@ const WaConversation = forwardRef<
           <ForwardPicker
             targets={targets}
             groupLabel={w('group')}
+            preview={forwardFor.body || w(`kind.${forwardFor.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(forwardFor.mediaType) ? forwardFor.mediaType : 'document'}`)}
             onCancel={() => setForwardFor(null)}
             onSend={async (ids) => {
               const m = forwardFor;
               setForwardFor(null);
-              const r = await api<{ sent: string[] }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
+              const r = await api<{ sent: string[]; failed?: Array<{ id: string; error: string }> }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
+              const failed = r.ok ? (r.data.failed ?? []) : [];
               if (!r.ok) onError(r.data.error ?? 'send_failed');
-              else props.onToast(w('forwardedTo', { n: r.data.sent.length }));
+              else if (r.data.sent.length === 0 && failed.length) onError(failed[0].error);
+              else if (failed.length) {
+                const code = failed[0].error;
+                const why = t.has(`errors.${code}`) ? t(`errors.${code}`) : w.has(`errors.${code}`) ? w(`errors.${code}`) : w('sendFailed');
+                props.onToast(w('forwardPartial', { ok: r.data.sent.length, total: ids.length, error: why }));
+              } else props.onToast(w('forwardedTo', { n: r.data.sent.length }));
               onRefresh();
             }}
           />
@@ -938,7 +946,20 @@ const WaConversation = forwardRef<
 export default WaConversation;
 
 /** Elegir hasta 5 chats para reenviar (como WhatsApp), con búsqueda. */
-function ForwardPicker({ targets, groupLabel, onCancel, onSend }: { targets: ThreadDto[]; groupLabel: string; onCancel: () => void; onSend: (ids: string[]) => void }) {
+function ForwardPicker({
+  targets,
+  groupLabel,
+  preview,
+  onCancel,
+  onSend,
+}: {
+  targets: ThreadDto[];
+  groupLabel: string;
+  /** Lo que se reenvía (el texto o el tipo de archivo), arriba de la lista. */
+  preview: string;
+  onCancel: () => void;
+  onSend: (ids: string[]) => void;
+}) {
   const w = useTranslations('inboxWa');
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
@@ -946,6 +967,7 @@ function ForwardPicker({ targets, groupLabel, onCancel, onSend }: { targets: Thr
   return (
     <>
       <div className="ui-modal-body">
+        <p className="gr-quote ib-wa-fwd-preview">{preview.slice(0, 200)}</p>
         <label className="sr-only" htmlFor="ib-wa-fwd-q">
           {w('search')}
         </label>

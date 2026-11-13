@@ -73,8 +73,9 @@ export function NumberOptions({ numbers }: { numbers: ReadonlyArray<{ id: string
 export function useMediaText() {
   const t = useTranslations('groups.media');
   return useCallback(
-    (input: { preview?: string; media?: { type: string; name: string } | null }) => {
-      if (input.media) return input.media.name || t(mediaKind(input.media.type));
+    (input: { preview?: string; media?: { type: string; name: string; kind?: string; ptt?: boolean } | null }) => {
+      const m = input.media;
+      if (m) return m.name || t(m.ptt || m.kind === 'voice' ? 'voice' : m.kind === 'sticker' ? 'sticker' : mediaKind(m.type));
       const tok = previewToken(input.preview ?? '');
       return tok ? t(tok) : input.preview ?? '';
     },

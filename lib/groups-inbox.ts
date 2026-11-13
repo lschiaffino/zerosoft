@@ -26,6 +26,7 @@ import {
   providerErrorCode,
   providerFor,
   sendMessage,
+  storeInboundMedia,
   toMessageDto,
   touchChat,
   upsertChat,
@@ -37,6 +38,7 @@ import {
   type NumberRow,
 } from './groups';
 import { PROVIDER_CAPS, phoneDigits, type InboundEvent } from './groups-provider';
+import type { MediaInfo, MediaKind } from './groups-media';
 import { MAX_FORWARD_TARGETS, MAX_PINNED, callStatusRank, messageActions, nextInRotation, ruleMatches } from './groups-inbox-rules';
 
 const nowIso = () => new Date().toISOString();
@@ -308,15 +310,24 @@ export interface ForwardResult {
 /**
  * Reenvía a otros chats. Con el mismo número y un proveedor que reenvía
  * (WAHA, falso) usa el reenvío de WhatsApp; si no, manda una copia del texto
- * y del archivo (si el archivo tiene una URL pública: lo que llegó por la
- * Cloud API o el puente no se puede copiar).
+ * y del archivo, del mismo tipo (una nota de voz sale como nota de voz, con su
+ * duración y su forma de onda). Lo que llegó por Evolution se baja primero a
+ * nuestro storage si todavía no estaba; lo que llegó por la Cloud API o WAHA
+ * sin URL propia no se puede copiar a otro número.
  */
 export async function forwardMessage(ws: string, actor: string, messageId: string, chatIds: string[]): Promise<ForwardResult[]> {
   const { msg, chat: source, number, caps } = await messageContext(ws, messageId);
   if (!actionsFor(msg, caps, { me: actor, isAdmin: true }).forward) throw new GroupsError('not_forwardable');
   const ids = [...new Set(chatIds)].filter((id) => id && id !== source.id).slice(0, MAX_FORWARD_TARGETS);
   if (ids.length === 0) throw new GroupsError('no_recipients');
-  const copyableMedia = msg.media_type && /^(https:\/\/|\/uploads\/)/.test(msg.media_url) ? { url: msg.media_url, mimetype: msg.media_type, filename: msg.media_name || 'file' } : null;
+  const info = parseJson<{ media?: MediaInfo }>(msg.meta, {}).media;
+  let mediaUrl = msg.media_url;
+  if (msg.media_type && mediaUrl.startsWith('evo:')) {
+    // Todavía en el gateway: se baja ahora (como al abrirlo) para poder mandarlo.
+    const saved = await storeInboundMedia(number, msg.id, { providerMessageId: mediaUrl.slice(4), chatId: source.provider_chat_id, fromMe: msg.direction === 'out' }).catch(() => null);
+    mediaUrl = saved?.url ?? (await getMessageRow(ws, msg.id))?.media_url ?? '';
+  }
+  const copyableMedia = msg.media_type && /^(https:\/\/|\/uploads\/)/.test(mediaUrl) ? forwardMedia(mediaUrl, msg, info) : null;
   const out: ForwardResult[] = [];
   for (const id of ids) {
     const target = await getChatRow(ws, id);
@@ -337,10 +348,11 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
           direction: 'out',
           authorId: actor,
           body: msg.body,
-          media: msg.media_type ? { url: msg.media_url, type: msg.media_type, name: msg.media_name } : null,
+          media: msg.media_type ? { url: mediaUrl, type: msg.media_type, name: msg.media_name } : null,
           status: 'sent',
           createdAt: at,
           forwarded: true,
+          ...(info ? { meta: { media: info } } : {}),
         });
         await touchChat(target.id, at, (msg.body || msg.media_name || '').slice(0, 140), false);
         await markAnswered(target.id, at);
@@ -355,6 +367,22 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
     }
   }
   return out;
+}
+
+/** El archivo de un mensaje para mandarlo de nuevo, con su tipo de WhatsApp y lo que se ve (duración, medidas, onda). */
+export function forwardMedia(url: string, msg: Pick<MessageRow, 'media_type' | 'media_name'>, info: MediaInfo | undefined) {
+  const kind: MediaKind | null = info?.ptt || info?.kind === 'voice' ? 'voice' : info?.kind === 'sticker' || info?.kind === 'document' ? info.kind : null;
+  return {
+    url,
+    mimetype: msg.media_type,
+    filename: msg.media_name || 'file',
+    kind,
+    ...(info?.size ? { size: info.size } : {}),
+    ...(info?.width ? { width: info.width } : {}),
+    ...(info?.height ? { height: info.height } : {}),
+    ...(info?.duration ? { duration: info.duration } : {}),
+    ...(info?.waveform?.length ? { waveform: info.waveform } : {}),
+  };
 }
 
 // ======================================================================

@@ -65,6 +65,7 @@
   "close": "Close",
   "forwardTo": "Forward to",
   "forwardedTo": "{n, plural, one {Forwarded to # chat} other {Forwarded to # chats}}",
+  "forwardPartial": "Forwarded to {ok} of {total}. {error}",
   "search": "Search",
   "noChats": "No chats",
   "cancel": "Cancel",
