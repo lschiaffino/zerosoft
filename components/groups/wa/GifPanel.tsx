@@ -62,7 +62,6 @@ export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: ()
   const [width, setWidth] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
   const alive = useRef(true);
 
@@ -124,15 +123,14 @@ export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: ()
     if (r && r !== 'rate_limited') setPage((p) => (p ? { ...r, items: [...p.items, ...r.items.filter((x) => !p.items.some((y) => y.id === x.id))] } : r));
   }, [page, more, loading, fetchPage]);
 
-  // Más resultados al llegar al final de la grilla.
+  // Más resultados al acercarse al final de la grilla (y si la primera página no llena el panel).
+  const nearEnd = useCallback(() => {
+    const el = scrollRef.current;
+    if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 240) void loadMore();
+  }, [loadMore]);
   useEffect(() => {
-    const el = endRef.current;
-    const root = scrollRef.current;
-    if (!el || !root || !page?.next || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && void loadMore(), { root, rootMargin: '200px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [page, loadMore]);
+    nearEnd();
+  }, [page, nearEnd]);
 
   // Columnas del mosaico según el ancho del panel.
   useLayoutEffect(() => {
@@ -218,7 +216,7 @@ export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: ()
           {sendError}
         </p>
       )}
-      <div className="wa-gif-scroll" ref={scrollRef}>
+      <div className="wa-gif-scroll" ref={scrollRef} onScroll={nearEnd}>
         {error ? (
           <div className="wa-stk-empty" role="alert">
             <p>{error}</p>
@@ -257,7 +255,7 @@ export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: ()
             ))}
           </div>
         )}
-        <div ref={endRef} className="wa-gif-end" aria-hidden="true">
+        <div className="wa-gif-end" aria-hidden="true">
           {more ? '…' : ''}
         </div>
       </div>

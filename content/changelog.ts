@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-wa-gifs',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox: search and send GIFs like WhatsApp',
+      es: 'Lines e Inbox: buscar y mandar GIF como en WhatsApp',
+      pt: 'Lines e Inbox: pesquisar e enviar GIFs como no WhatsApp',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The emoji panel has a GIFs tab between Emoji and Stickers. It opens with trending GIFs, has the WhatsApp categories (Haha, Sad, Love, Reaction, Sports, TV) and a search that looks in your language. Click a GIF to send it: it goes out the way WhatsApp sends GIFs, as a short video that plays muted on a loop with a GIF mark.',
+        es: 'El panel de emojis tiene una pestaña GIF entre Emoji y Stickers. Abre con los GIF en tendencia, tiene las categorías de WhatsApp (Jaja, Triste, Amor, Reacción, Deportes, TV) y una búsqueda en tu idioma. Un clic en un GIF lo manda: sale como WhatsApp manda los GIF, un video corto que se reproduce sin sonido y en bucle con la marca GIF.',
+        pt: 'O painel de emojis tem uma aba GIFs entre Emoji e Figurinhas. Ela abre com os GIFs em alta, tem as categorias do WhatsApp (Haha, Triste, Amor, Reação, Esportes, TV) e uma pesquisa no seu idioma. Um clique num GIF envia: ele sai como o WhatsApp envia GIFs, um vídeo curto que toca sem som e em loop com a marca GIF.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines. GIF search uses GIPHY or Tenor with a key the admin sets on the server; without one, the tab says it is not set up and emoji and stickers work as before.',
+        es: 'Lo mismo en Lines. La búsqueda usa GIPHY o Tenor con una clave que el administrador pone en el servidor; sin ella, la pestaña avisa que no está configurada y los emojis y stickers funcionan como antes.',
+        pt: 'O mesmo no Lines. A pesquisa usa o GIPHY ou o Tenor com uma chave que o administrador coloca no servidor; sem ela, a aba avisa que não está configurada e emojis e figurinhas funcionam como antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-wa-mentions-composer',
     date: '2026-11-12',
     title: {

@@ -29,8 +29,8 @@ export async function gifsResponse(req: Request, user: string): Promise<NextResp
   if (await limited(`wa-gifs:${user}`, SEARCH_LIMIT)) return NextResponse.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': '30' } });
   try {
     const page = await listGifs({ q: sp.get('q') ?? '', pos: sp.get('pos') ?? '', locale: sp.get('locale') ?? 'en', fakeOff: fakeOff(req) });
-    // Lo mismo por un minuto en el navegador (volver a abrir el panel); el servidor guarda unos minutos más.
-    return NextResponse.json(page, { headers: { 'cache-control': 'private, max-age=60' } });
+    // La caché es la del servidor (lib/wa-gifs.ts, unos minutos): el navegador no guarda, así una clave nueva se ve al momento.
+    return NextResponse.json(page, { headers: { 'cache-control': 'private, no-store' } });
   } catch (err) {
     return gifError(err);
   }
