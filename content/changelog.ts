@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-board',
+    date: '2026-11-13',
+    title: {
+      en: 'Board: star the boards you use most',
+      es: 'Board: destacá las pizarras que más usás',
+      pt: 'Board: destaque os boards que você mais usa',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Open the menu on a board card and choose Star: it moves to the top of the list. Stars are yours alone, so nobody else on the team sees a change.',
+        es: 'Abrí el menú de una pizarra y elegí Destacar: sube al principio de la lista. Las estrellas son solo tuyas, el resto del equipo no ve ningún cambio.',
+        pt: 'Abra o menu de um board e escolha Destacar: ele sobe para o topo da lista. As estrelas são só suas, o resto do time não vê mudança.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-instant-media-send',
     date: '2026-11-13',
     title: {
