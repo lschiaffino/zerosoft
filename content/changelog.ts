@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-emoji-recents-full',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: Recent emojis are never empty',
+      es: 'Lines e Inbox: los emojis recientes nunca quedan vacíos',
+      pt: 'Lines e Inbox: os emojis recentes nunca ficam vazios',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp, the emoji picker opens on Recent and fills it with the most used emojis until you have your own.',
+        es: 'Como WhatsApp, el selector de emojis abre en Recientes y lo completa con los más usados hasta que tengas los tuyos.',
+        pt: 'Como no WhatsApp, o seletor de emojis abre em Recentes e completa com os mais usados até você ter os seus.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-focus-composer-on-open',
     date: '2026-11-12',
     title: {

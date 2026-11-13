@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EmojiCategory } from './emoji-data';
+import { recentWithDefaults } from './emoji-recent';
 
 export const RECENT_KEY = 'zs-groups-emoji-recent';
 const CATS: Array<{ key: 'recent' | EmojiCategory; icon: string }> = [
@@ -64,9 +65,8 @@ export default function EmojiPicker({ onPick, onClose }: { onPick: (emoji: strin
   useEffect(() => {
     let alive = true;
     void import('./emoji-data').then((m) => alive && setData(m.EMOJI_DATA));
-    const r = readRecent();
-    setRecent(r);
-    if (r.length) setActive('recent');
+    setRecent(readRecent());
+    setActive('recent');
     searchRef.current?.focus();
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-emoji-toggle]')) onClose();
@@ -109,12 +109,12 @@ export default function EmojiPicker({ onPick, onClose }: { onPick: (emoji: strin
     }
   }
 
-  const list: Array<[string, string]> = results ?? (active === 'recent' ? recent.map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
+  const list: Array<[string, string]> = results ?? (active === 'recent' ? recentWithDefaults(recent).map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
 
   return (
     <div className="wa-emoji" data-voice-off role="dialog" aria-label={t('emoji')} ref={ref} onKeyDown={onKey}>
       <div className="wa-emoji-tabs" role="tablist" aria-label={t('emojiCategories')}>
-        {CATS.filter((c) => c.key !== 'recent' || recent.length > 0).map((c) => (
+        {CATS.map((c) => (
           <button
             key={c.key}
             type="button"
