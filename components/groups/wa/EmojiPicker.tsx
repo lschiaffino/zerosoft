@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslations } from 'next-intl';
 import type { EmojiCategory } from './emoji-data';
 import StickerPanel, { type StickerTab } from './StickerPanel';
+import { recentWithDefaults } from './emoji-recent';
 
 export const RECENT_KEY = 'zs-groups-emoji-recent';
 /** Última pestaña del panel (Emoji o Stickers), como WhatsApp Web la recuerda. */
@@ -85,9 +86,8 @@ export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (em
   useEffect(() => {
     let alive = true;
     void import('./emoji-data').then((m) => alive && setData(m.EMOJI_DATA));
-    const r = readRecent();
-    setRecent(r);
-    if (r.length) setActive('recent');
+    setRecent(readRecent());
+    setActive('recent');
     searchRef.current?.focus();
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-emoji-toggle]')) onClose();
@@ -130,7 +130,7 @@ export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (em
     }
   }
 
-  const list: Array<[string, string]> = results ?? (active === 'recent' ? recent.map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
+  const list: Array<[string, string]> = results ?? (active === 'recent' ? recentWithDefaults(recent).map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
 
   const panelTabs = stickers ? (
     <div className="wa-xp-tabs" role="tablist" aria-label={t('stickers.panels')}>
@@ -155,7 +155,7 @@ export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (em
     <div className="wa-emoji" data-voice-off role="dialog" aria-label={t('emoji')} ref={ref} onKeyDown={onKey}>
       {panelTabs}
       <div className="wa-emoji-tabs" role="tablist" aria-label={t('emojiCategories')}>
-        {CATS.filter((c) => c.key !== 'recent' || recent.length > 0).map((c) => (
+        {CATS.map((c) => (
           <button
             key={c.key}
             type="button"
