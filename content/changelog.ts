@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-mobile-keyboard-chat',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox on the phone: the chat makes room for the keyboard',
+      es: 'Lines e Inbox en el teléfono: el chat se acomoda al teclado',
+      pt: 'Lines e Inbox no celular: a conversa se ajusta ao teclado',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp: when the keyboard opens, the message box sits right above it and you keep seeing the latest messages, on Android and iPhone.',
+        es: 'Como WhatsApp: al abrirse el teclado, el campo queda justo arriba y seguís viendo los últimos mensajes, en Android y en iPhone.',
+        pt: 'Como no WhatsApp: quando o teclado abre, o campo fica logo acima e você continua vendo as últimas mensagens, no Android e no iPhone.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-12-search-clears-on-send',
     date: '2026-11-12',
     title: {
