@@ -186,7 +186,7 @@ test('Visualización: se elige en Ajustes de Lines e Inbox y se ve al instante e
   const section = page.locator('#chat-display');
   await expect(section.getByRole('heading', { name: 'Display' })).toBeVisible();
   // Texto grande: el ejemplo cambia al instante y queda guardado.
-  const sampleText = section.locator('.wa-display-sample .gr-msg-in .wa-text');
+  const sampleText = section.getByTestId('display-sample-text');
   const before = await sampleText.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   await section.locator('[data-option="textSize-large"]').click();
   await expect(section.getByRole('status')).toHaveText(/Saved/);

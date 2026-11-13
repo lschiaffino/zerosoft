@@ -207,10 +207,19 @@
     "groupAvatars": "Show photos next to messages in groups",
     "sample": {
       "author": "Ana",
-      "in": "Did you see the new pricing page?",
+      "in": "Did you see the new pricing page? We put it up today with the yearly plans.",
       "out": "Yes, here it is:",
       "linkTitle": "Pricing",
-      "linkDesc": "Plans for teams of any size, billed monthly or yearly."
+      "linkDesc": "Plans for teams of any size, billed monthly or yearly.",
+      "preview": "Preview",
+      "group": "Sales team",
+      "photoAuthor": "Bruno",
+      "photoCaption": "Here is the new office",
+      "dm1": "Bruno Díaz",
+      "dm1Preview": "Photo",
+      "dm2": "Carla Méndez",
+      "dm2Preview": "Great, see you on Thursday.",
+      "yesterday": "Yesterday"
     },
     "tab": "Appearance"
   },

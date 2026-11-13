@@ -207,10 +207,19 @@
     "groupAvatars": "Mostrar las fotos al lado de los mensajes en grupos",
     "sample": {
       "author": "Ana",
-      "in": "¿Viste la nueva página de precios?",
+      "in": "¿Viste la nueva página de precios? La subimos hoy con los planes anuales.",
       "out": "Sí, acá está:",
       "linkTitle": "Precios",
-      "linkDesc": "Planes para equipos de cualquier tamaño, por mes o por año."
+      "linkDesc": "Planes para equipos de cualquier tamaño, por mes o por año.",
+      "preview": "Vista previa",
+      "group": "Equipo de ventas",
+      "photoAuthor": "Bruno",
+      "photoCaption": "Así quedó la oficina nueva",
+      "dm1": "Bruno Díaz",
+      "dm1Preview": "Foto",
+      "dm2": "Carla Méndez",
+      "dm2Preview": "Perfecto, nos vemos el jueves.",
+      "yesterday": "Ayer"
     },
     "tab": "Apariencia"
   },

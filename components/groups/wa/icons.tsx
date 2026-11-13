@@ -290,6 +290,15 @@ export const Panel = (p: P) => (
     <path d="M15 4.5v15" />
   </Svg>
 );
+/** Visualización de los chats (tres reguladores). */
+export const DisplayIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="12" r="2" />
+    <circle cx="17" cy="17" r="2" />
+  </Svg>
+);
 export const ArchiveIcon = (p: P) => (
   <Svg {...p}>
     <rect x="3.5" y="4.5" width="17" height="4" rx="1" />

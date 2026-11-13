@@ -382,7 +382,7 @@ section.lk-block { padding-bottom: 0; }
 .lk-empty-line { font-size: 0.8125rem; color: var(--brand-gray-2); }
 .lk-ok { color: var(--ok-ink); }
 
-/* Rango: grupo de botones; el activo es una placa de tinta. */
+/* Rango: grupo de botones; el activo es una placa de tinta (dentro de la app, el color de Link: styles/ui.css). */
 .btn-group > .btn[aria-current='true'] { --btn-bg: var(--ink); --btn-fg: var(--bg); --btn-bd: var(--ink); --btn-bg-hover: var(--ink); z-index: 1; }
 
 .lk-inline-field { display: inline-flex; align-items: center; gap: 8px; }

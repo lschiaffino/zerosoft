@@ -7,8 +7,10 @@
    Reglas: la fuente de UI del tema para todo lo operable (sentence case),
    la mono solo para datos (.data / .mono / .num), esquinas chicas
    (--radius-1), sin sombras ni gradientes.
-   La tinta es la acción principal; el color de la app (--accent) marca
-   dónde estás: pestaña activa, ítem activo, gráficos.
+   Fuera de las apps (Inicio, Ajustes) la tinta es la acción principal.
+   Dentro de una app, el color de la app marca dónde estás: pestaña activa,
+   ítem activo, gráficos, el botón primario y el segmento elegido de un
+   .btn-group (es un estado "estás acá", no una acción más).
 
    Índice
    1. Botones ............ .btn .btn-primary .btn-secondary .btn-ghost .btn-danger
@@ -212,6 +214,33 @@
   --btn-bd-hover: var(--ink);
   --btn-fg-hover: var(--bg);
   z-index: 1;
+}
+/* Dentro de una app, el segmento elegido lleva el color de la app, igual que la primaria
+   (--app-btn* de components/app/AppAccent.tsx; texto blanco a 4.6:1 o más, o tinta del mismo
+   tono en los colores claros). Al pasar se oscurece un poco; al apretar, un poco más. Sin esas
+   variables (Inicio, Ajustes) queda la tinta de arriba. */
+.app-frame .btn-group > .btn[aria-pressed='true'],
+.app-frame .btn-group > .btn[aria-selected='true'],
+.app-frame .btn-group > .btn[aria-current='page'],
+.app-frame .btn-group > .btn[aria-current='true'] {
+  --btn-bg: var(--app-btn, var(--ink));
+  --btn-fg: var(--app-btn-on, var(--bg));
+  --btn-bd: var(--app-btn, var(--ink));
+  --btn-bg-hover: var(--app-btn-hover, var(--ink));
+  --btn-bd-hover: var(--app-btn-hover, var(--ink));
+  --btn-fg-hover: var(--app-btn-on, var(--bg));
+  z-index: 1;
+}
+.app-frame .btn-group > .btn[aria-pressed='true']:hover:not(:disabled),
+.app-frame .btn-group > .btn[aria-selected='true']:hover:not(:disabled),
+.app-frame .btn-group > .btn[aria-current='page']:hover:not(:disabled),
+.app-frame .btn-group > .btn[aria-current='true']:hover:not(:disabled) { color: var(--btn-fg-hover); }
+.app-frame .btn-group > .btn[aria-pressed='true']:active:not(:disabled),
+.app-frame .btn-group > .btn[aria-selected='true']:active:not(:disabled),
+.app-frame .btn-group > .btn[aria-current='page']:active:not(:disabled),
+.app-frame .btn-group > .btn[aria-current='true']:active:not(:disabled) {
+  background: var(--app-btn-active, var(--btn-bg-hover));
+  border-color: var(--app-btn-active, var(--btn-bd-hover));
 }
 
 /* ---------- 2. Campos ---------- */
