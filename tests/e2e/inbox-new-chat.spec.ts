@@ -20,7 +20,11 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
+const waStatus = async (request: APIRequestContext) => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state?: { status: string } }).state?.status;
+
+/** Vincula el WhatsApp falso solo si hace falta: vincular tiene límite por IP y otros specs lo usan. */
 async function linkWhatsapp(request: APIRequestContext) {
+  if ((await waStatus(request)) === 'connected') return;
   await request.post('/api/inbox/whatsapp');
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
 }
