@@ -218,5 +218,8 @@
     "composerLabel": "Vista previa del link",
     "loading": "Cargando la vista previa…",
     "remove": "Mandar sin vista previa"
-  }
+  },
+  "retry": "Reintentar",
+  "removeUnsent": "Quitar",
+  "uploading": "Subiendo {name}"
 }

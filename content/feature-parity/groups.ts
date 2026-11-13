@@ -113,9 +113,9 @@ const parity: ProductParity = {
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
       detail: [
-        'Photos and videos sent together show as one album. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews). No message search inside a chat yet',
-        'Las fotos y videos mandados juntos se ven en un álbum. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas). Todavía sin búsqueda dentro de un chat',
-        'Fotos e vídeos enviados juntos aparecem num álbum. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias). Ainda sem busca dentro de uma conversa',
+        'Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews). No message search inside a chat yet',
+        'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas). Todavía sin búsqueda dentro de un chat',
+        'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias). Ainda sem busca dentro de uma conversa',
       ],
     }),
     row('wa-stickers', 'inbox', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {

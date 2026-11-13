@@ -6,10 +6,10 @@
  * si no es el suyo.
  */
 import type { MessageDto } from '@/lib/inbox/types';
-import { dropSettled, isTempId, sendQueueFor, tempIdFor } from '@/lib/optimistic-send';
+import { dropSettled, isTempId, localPreviews, sendQueueFor, tempIdFor, type UnsentMedia } from '@/lib/optimistic-send';
 
 export type PendingEvent =
-  /** Se apretó Enter: aparece la burbuja. */
+  /** Se apretó Enter (o se mandó un archivo): aparece la burbuja. Con el id de una que ya está, la cambia en su lugar. */
   | { type: 'add'; threadId: string; message: MessageDto }
   /** El envío no salió: la burbuja se va (el texto vuelve al campo, o queda como borrador del chat). */
   | { type: 'drop'; threadId: string; id: string }
@@ -68,6 +68,40 @@ export function tempInboxMessage(clientId: string, body: string, noPreview = fal
   };
 }
 
+/**
+ * La burbuja de un archivo que se acaba de mandar (foto, video, audio, nota de voz, documento, sticker): con la copia
+ * local para verlo o escucharlo ya, el reloj, y su clientId. `failed`: no salió (reintentar o quitar).
+ */
+export function tempInboxMedia(clientId: string, media: UnsentMedia, caption: string, status: 'pending' | 'failed' = 'pending', sentAt = new Date().toISOString()): MessageDto {
+  const voice = media.kind === 'voice';
+  return {
+    ...tempInboxMessage(clientId, caption),
+    // Inbox guarda la nota de voz como audio con ptt.
+    mediaType: voice ? 'audio' : media.kind,
+    mediaName: media.name,
+    hasMedia: true,
+    status,
+    sentAt,
+    meta: {
+      cid: clientId,
+      mime: media.type,
+      size: media.size,
+      ...(media.width && media.height ? { width: media.width, height: media.height } : {}),
+      ...(media.duration ? { duration: media.duration } : {}),
+      ...(voice ? { ptt: true } : {}),
+    },
+  };
+}
+
+/**
+ * Dónde se ve el archivo de un mensaje: la copia local mientras exista (la burbuja provisoria, y el mensaje guardado
+ * que la reemplaza, sin volver a bajarlo), si no el del servidor. Una provisoria sin copia local no tiene archivo.
+ */
+export function inboxMediaUrl(m: Pick<MessageDto, 'id' | 'hasMedia' | 'meta'>): string {
+  if (!m.hasMedia) return '';
+  return localPreviews.get(m.meta?.cid ?? undefined) ?? (isTempId(m.id) ? '' : `/api/inbox/media/${m.id}`);
+}
+
 const cidOf = (m: MessageDto): string | undefined => m.meta?.cid;
 
 interface WithMessages {
@@ -86,7 +120,12 @@ const liveTemps = (messages: MessageDto[]) => messages.filter((m) => isTempId(m.
 export function applyPending<D extends WithMessages>(detail: D | null, e: PendingEvent): D | null {
   if (!detail || detail.thread.id !== e.threadId) return detail;
   if (e.type === 'drop') return { ...detail, messages: detail.messages.filter((m) => m.id !== e.id) };
-  if (e.type === 'add') return { ...detail, messages: [...detail.messages.filter((m) => m.id !== e.message.id), e.message] };
+  if (e.type === 'add') {
+    // La misma burbuja otra vez (cambió su estado: no salió, o se reintenta): en su lugar, no al final.
+    const at = detail.messages.findIndex((m) => m.id === e.message.id);
+    if (at >= 0) return { ...detail, messages: detail.messages.map((m, i) => (i === at ? e.message : m)) };
+    return { ...detail, messages: [...detail.messages, e.message] };
+  }
   // La página del servidor, más lo que todavía se está mandando a este chat (otro texto escrito enseguida).
   return keepPending(detail, { ...detail, messages: e.messages });
 }

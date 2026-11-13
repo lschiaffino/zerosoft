@@ -243,9 +243,9 @@ const parity: ProductParity = {
     }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {
       detail: [
-        'Several files at once with a caption each and a preview before sending; voice notes from the microphone. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
-        'Varios archivos juntos, con un comentario cada uno y vista previa antes de enviar; notas de voz con el micrófono. Más de 4 MB necesita Blob en el servidor. Probado con el proveedor falso',
-        'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar; notas de voz pelo microfone. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
+        'Several files at once with a caption each and a preview before sending (paste more images into the preview; the same one twice goes in once); voice notes from the microphone. Files and voice notes show in the chat as soon as you send, with the clock, and upload in the background. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
+        'Varios archivos juntos, con un comentario cada uno y vista previa antes de enviar (se pueden pegar más imágenes en la vista previa; la misma dos veces entra una vez); notas de voz con el micrófono. Archivos y notas de voz aparecen en el chat al mandarlos, con el reloj, y se suben por detrás. Más de 4 MB necesita Blob en el servidor. Probado con el proveedor falso',
+        'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar (dá para colar mais imagens na prévia; a mesma duas vezes entra uma vez); notas de voz pelo microfone. Arquivos e notas de voz aparecem na conversa assim que são enviados, com o relógio, e sobem em segundo plano. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
       ],
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {

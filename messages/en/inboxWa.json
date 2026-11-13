@@ -218,5 +218,8 @@
     "composerLabel": "Link preview",
     "loading": "Loading preview…",
     "remove": "Send without preview"
-  }
+  },
+  "retry": "Retry",
+  "removeUnsent": "Remove",
+  "uploading": "Uploading {name}"
 }
