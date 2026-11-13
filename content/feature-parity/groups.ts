@@ -294,6 +294,14 @@ const parity: ProductParity = {
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
     }),
+    row('folders-json', 'automation', ['Folders from a JSON with the assistant', 'Carpetas desde un JSON con el asistente', 'Pastas a partir de um JSON com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste a JSON exported from another tool and the assistant plans the shared folders and which chats go in each, only with chats you can see. Chats already in another folder stay there unless you ask to move them; you confirm before anything changes. It cannot create chats that are not on a line yet. Tested with the fake model',
+        'Pegá un JSON exportado de otra herramienta y el asistente arma el plan de carpetas compartidas y qué chats van en cada una, solo con los chats que ves. Los que ya están en otra carpeta se quedan ahí salvo que pidas moverlos; confirmás antes de que cambie algo. No puede crear chats que todavía no están en una línea. Probado con el modelo falso',
+        'Cole um JSON exportado de outra ferramenta e o assistente monta o plano de pastas compartilhadas e quais conversas vão em cada uma, só com as conversas que você vê. As que já estão em outra pasta ficam lá a menos que você peça para movê-las; você confirma antes de qualquer mudança. Não consegue criar conversas que ainda não estão numa linha. Testado com o modelo falso',
+      ],
+    }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
       detail: [
         "Help me write: describe the message and it is drafted from the chat, quick replies and the chat agent's knowledge or public Docs. Review it before it reaches the message field, refine it (shorter, longer, tone, grammar, your own change), translate it to the customer's language, insert it and undo. Tested with the fake model",

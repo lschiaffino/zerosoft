@@ -119,6 +119,16 @@ describe('carpetas desde JSON: normalizar', () => {
     expect(n.folders[0].chats.map((c) => c.label)).toEqual(['Ana', 'Beto']);
   });
 
+  it('filas envueltas en la raíz y datos del archivo que no son carpetas', () => {
+    expect(paths({ version: 2, exportedAt: '2026-11-01', chats: [{ name: 'Ana', folder: 'Clientes/VIP' }, { phone: '+54 11 5555 0003', folders: ['Amigos'] }] })).toEqual([
+      'Amigos:541155550003',
+      'Clientes/VIP:Ana',
+      'Clientes:',
+    ]);
+    // Un mapa con una fecha suelta: la fecha no es una carpeta.
+    expect(paths({ exportedAt: '2026-11-01', Clientes: ['Ana'] })).toEqual(['Clientes:Ana']);
+  });
+
   it('lo que no entiende queda contado como salteado', () => {
     const n = normalizeFoldersJson({ Clientes: ['Ana', null, { foo: 'bar' }] });
     expect(n.folders[0].chats.map((c) => c.label)).toEqual(['Ana']);

@@ -182,17 +182,21 @@ export function AssistantMarkdown({ text, streaming }: { text: string; streaming
             copy.textContent = t('code.copy');
           }, 1500);
         };
-        void navigator.clipboard?.writeText(code).then(
-          () => done(true),
-          () => done(false),
-        );
+        // Sin portapapeles (http sin TLS, permisos): lo dice en vez de fallar callado.
+        if (!navigator.clipboard?.writeText) done(false);
+        else
+          navigator.clipboard.writeText(code).then(
+            () => done(true),
+            () => done(false),
+          );
         return;
       }
       // Links de la app: se navega dentro (con el idioma), sin recargar.
       const a = el.closest<HTMLAnchorElement>('a[href^="/"]');
       if (a && !a.target && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
         e.preventDefault();
-        router.push(a.getAttribute('href')!);
+        // El router pone el idioma: un link que ya lo trae (/es/app/…) va sin él.
+        router.push(a.getAttribute('href')!.replace(/^\/(?:en|es|pt)(?=\/|$)/, '') || '/');
       }
     },
     [router, t],

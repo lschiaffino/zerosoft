@@ -167,6 +167,14 @@ const parity: ProductParity = {
         'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local, mais o histórico completo do WhatsApp Desktop desse Mac. Arquivos grandes sobem direto e continuam importando em segundo plano; importar duas vezes não duplica',
       ],
     }),
+    row('folders-json', 'platform', ['Folders from another inbox with the assistant', 'Carpetas de otra bandeja con el asistente', 'Pastas de outra caixa com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste or attach the JSON exported from another inbox and ask the assistant (⌘J) to create the folders and subfolders and put the chats in them. It finds chats by name, phone, WhatsApp id or email, shows the plan with the chats it could not find and their closest names, and changes nothing until you click Confirm. Running it again only does what is missing. Tested with the fake model',
+        'Pegá o adjuntá el JSON exportado de otra bandeja y pedile al asistente (⌘J) que cree las carpetas y subcarpetas y ponga los chats. Encuentra los chats por nombre, teléfono, id de WhatsApp o email, muestra el plan con los que no encontró y los nombres más parecidos, y no cambia nada hasta que tocás Confirmar. Repetirlo solo hace lo que falta. Probado con el modelo falso',
+        'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente (⌘J) para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra o plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta. Testado com o modelo falso',
+      ],
+    }),
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [

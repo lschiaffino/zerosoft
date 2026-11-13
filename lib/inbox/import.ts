@@ -213,13 +213,26 @@ export async function upsertInboxFolders(owner: string, list: FolderUpsert[], no
   return res;
 }
 
-/** Suma chats (de esta persona) a una carpeta. Los que ya estaban no cambian. Devuelve cuántos se sumaron. */
-export async function addThreadsToFolder(owner: string, folderId: string, threadIds: string[]): Promise<number> {
+/**
+ * Suma chats (de esta persona) a una carpeta, en tandas de 200. Los que ya
+ * estaban no cambian; los que ya no existen (o no son de esta persona) se
+ * cuentan aparte.
+ */
+export async function addThreadsToFolder(owner: string, folderId: string, threadIds: string[]): Promise<{ added: number; already: number; missing: number }> {
   const db = getDb();
-  let added = 0;
+  const out = { added: 0, already: 0, missing: 0 };
   const ids = [...new Set(threadIds)];
   for (let i = 0; i < ids.length; i += 200) {
     const chunk = ids.slice(i, i + 200);
+    const marks = chunk.map(() => '?').join(', ');
+    const seen = (await db
+      .prepare(
+        `SELECT COUNT(*) AS n, SUM(CASE WHEN EXISTS (SELECT 1 FROM inbox_thread_folders tf WHERE tf.thread_id = t.id AND tf.folder_id = ?) THEN 1 ELSE 0 END) AS here
+         FROM inbox_threads t WHERE t.owner_id = ? AND t.id IN (${marks})`,
+      )
+      .get(folderId, owner, ...chunk)) as { n: number; here: number | null } | undefined;
+    out.missing += chunk.length - Number(seen?.n ?? 0);
+    out.already += Number(seen?.here ?? 0);
     const r = await db
       .prepare(
         `INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id)
@@ -227,9 +240,9 @@ export async function addThreadsToFolder(owner: string, folderId: string, thread
          WHERE t.owner_id = ? AND t.id IN (${chunk.map(() => '?').join(', ')})`,
       )
       .run(folderId, owner, ...chunk);
-    added += r.changes;
+    out.added += r.changes;
   }
-  return added;
+  return out;
 }
 
 export async function importPart(owner: string, part: ImportPart, now = new Date()): Promise<ImportResult> {

@@ -23,9 +23,10 @@ import { z } from 'zod';
 import { createTranslator } from 'next-intl';
 import { getDb } from '../db';
 import { userCanUseApp } from '../workspace';
+import { delegatedIdentity } from '../mcp/identity';
 import { addThreadsToFolder, threadFor, upsertInboxFolders } from '../inbox/import';
 import { ensureWhatsappAccount } from '../inbox/whatsapp';
-import { MAX_FOLDER_DEPTH } from '../inbox/folder-tree';
+import { flattenTree, MAX_FOLDER_DEPTH } from '../inbox/folder-tree';
 import { LIMITS as INBOX_LIMITS, waPhoneOf } from '../inbox/types';
 import { chatAccessSql, canSeeNumber, groupsViewer, type GroupsViewer } from '../groups-access';
 import { createFolder as createLineFolder, listFolders as listLineFolders, moveChatsToFolder } from '../groups-lines';
@@ -253,6 +254,15 @@ export interface PlanExtras {
   source: string;
 }
 
+/** Orden de lectura: cada carpeta seguida de sus subcarpetas. */
+function byPath(a: { path: string[] }, b: { path: string[] }): number {
+  for (let i = 0; i < Math.min(a.path.length, b.path.length); i++) {
+    const c = a.path[i].localeCompare(b.path[i], undefined, { sensitivity: 'base', numeric: true });
+    if (c) return c;
+  }
+  return a.path.length - b.path.length;
+}
+
 /** Plan → resumen y renglones de la tarjeta (en el idioma de la persona). */
 export function planCard(plan: FoldersPlan, extras: PlanExtras, locale: string): Pick<PreparedAction, 'summary' | 'details'> & { working: string } {
   const t = translator(locale);
@@ -260,8 +270,8 @@ export function planCard(plan: FoldersPlan, extras: PlanExtras, locale: string):
   const assign = plan.assign + extras.newChats.length;
   const summary = plan.toCreate && assign ? t('summaryBoth', { create: plan.toCreate, assign, app }) : plan.toCreate ? t('summaryCreate', { create: plan.toCreate, app }) : assign ? t('summaryAssign', { assign, app }) : t('summaryMove', { app });
   const details: PreparedAction['details'] = [];
-  const created = plan.folders.filter((f) => !f.existingId && !f.tooDeep);
-  const reused = plan.folders.filter((f) => f.existingId);
+  const created = plan.folders.filter((f) => !f.existingId && !f.tooDeep).sort(byPath);
+  const reused = plan.folders.filter((f) => f.existingId).sort(byPath);
   const perFolder = (rows: typeof created) => rows.map((f) => t('perFolder', { path: pathLabel(f.path), count: f.add.length + extras.newChats.filter((n) => pathKey(n.path) === pathKey(f.path)).length }));
   if (created.length) details.push({ label: t('create', { count: created.length }), after: listOf(t, perFolder(created)) });
   if (reused.length) details.push({ label: t('reuse', { count: reused.length }), after: listOf(t, perFolder(reused)) });
@@ -303,8 +313,14 @@ function modelView(plan: FoldersPlan, extras: PlanExtras) {
   return {
     target: plan.target,
     shapes: plan.shapes,
-    foldersToCreate: plan.folders.filter((f) => !f.existingId && !f.tooDeep).map((f) => ({ path: pathLabel(f.path), chats: f.add.length })),
-    foldersReused: plan.folders.filter((f) => f.existingId).map((f) => ({ path: pathLabel(f.path), chats: f.add.length, already: f.already })),
+    foldersToCreate: plan.folders
+      .filter((f) => !f.existingId && !f.tooDeep)
+      .sort(byPath)
+      .map((f) => ({ path: pathLabel(f.path), chats: f.add.length })),
+    foldersReused: plan.folders
+      .filter((f) => f.existingId)
+      .sort(byPath)
+      .map((f) => ({ path: pathLabel(f.path), chats: f.add.length, already: f.already })),
     chatsToAssign: plan.assign,
     alreadyAssigned: plan.alreadyAssigned,
     newChats: extras.newChats.length,
@@ -379,9 +395,10 @@ async function applyInbox(owner: string, s: Stored): Promise<Outcome> {
     const ids = [...f.add, ...(extra.get(pathKey(f.path)) ?? [])];
     if (!id || !ids.length) continue;
     try {
-      const added = await addThreadsToFolder(owner, id, ids);
-      out.added += added;
-      out.already += ids.length - added;
+      const r = await addThreadsToFolder(owner, id, ids);
+      out.added += r.added;
+      out.already += r.already;
+      out.hidden += r.missing;
     } catch (err) {
       out.failed.push(`${f.path.join(' / ')} (${String(err instanceof Error ? err.message : err).slice(0, 60)})`);
     }
@@ -526,6 +543,8 @@ export const folderTools: AssistantTool[] = [
     description: "The person's own Inbox folders and subfolders (path and number of chats in each), plus how many chats they have. Personal: never another person's.",
     input: z.object({}),
     run: async (ctx) => {
+      // Como las rutas de Inbox: nunca con un token delegado (API key, MCP).
+      if (delegatedIdentity()) return { error: 'not_available_here' };
       const db = getDb();
       const rows = (await db.prepare('SELECT id, name, parent_id FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(ctx.personId)) as Array<{
         id: string;
@@ -538,7 +557,8 @@ export const folderTools: AssistantTool[] = [
       const total = (await db.prepare('SELECT COUNT(*) AS n FROM inbox_threads WHERE owner_id = ?').get(ctx.personId)) as { n: number } | undefined;
       const n = new Map(counts.map((c) => [c.id, Number(c.n)]));
       const paths = folderPaths(rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parent_id })));
-      return { folders: rows.map((r) => ({ path: paths.get(r.id), chats: n.get(r.id) ?? 0, href: `/app/inbox/f/${r.id}` })), totalChats: Number(total?.n ?? 0), href: '/app/inbox' };
+      const ordered = flattenTree(rows.map((r, i) => ({ id: r.id, parentId: r.parent_id, position: i }))).map((x) => x.folder.id);
+      return { folders: ordered.map((id) => ({ path: paths.get(id), chats: n.get(id) ?? 0, href: `/app/inbox/f/${id}` })), totalChats: Number(total?.n ?? 0), href: '/app/inbox' };
     },
   }),
   readTool({
@@ -548,6 +568,7 @@ export const folderTools: AssistantTool[] = [
     description: "Find chats in the person's own Inbox by name, phone or email (no messages). Use to resolve a chat the folder plan could not match.",
     input: z.object({ query: z.string().trim().min(1).max(120) }),
     run: async (ctx, { query }) => {
+      if (delegatedIdentity()) return { error: 'not_available_here' };
       const snap = await inboxSnapshot(ctx.personId);
       const idx = buildChatIndex(snap.chats);
       const paths = folderPaths(snap.existing);
@@ -566,7 +587,7 @@ export const folderTools: AssistantTool[] = [
       const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
       const res = await listLineFolders(ctx.workspaceId, viewer);
       const paths = folderPaths(res.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId })));
-      return { folders: res.folders.map((f) => ({ path: paths.get(f.id), chats: f.chats })), unfiled: res.unfiled.chats, href: '/app/lines/inbox' };
+      return { folders: flattenTree(res.folders).map(({ folder: f }) => ({ path: paths.get(f.id), chats: f.chats })), unfiled: res.unfiled.chats, href: '/app/lines/inbox' };
     },
   }),
   writeTool({
@@ -579,6 +600,7 @@ export const folderTools: AssistantTool[] = [
       const target = input.target ?? 'inbox';
       // Cada destino exige su app (la herramienta es de la plataforma porque sirve a las dos).
       if (!userCanUseApp(ctx.user, target === 'inbox' ? 'inbox' : 'groups')) return { error: 'app_not_available' };
+      if (target === 'inbox' && delegatedIdentity()) return { error: 'not_available_here' };
       const src = await readFoldersJson(ctx, input);
       if ('error' in src) return src;
       let snap: Snapshot;
@@ -649,6 +671,7 @@ export const folderTools: AssistantTool[] = [
       if (!parsed.success) return { ok: false, error: 'invalid_plan' };
       const s = parsed.data;
       if (!userCanUseApp(ctx.user, s.target === 'inbox' ? 'inbox' : 'groups')) return { ok: false, error: 'forbidden' };
+      if (s.target === 'inbox' && delegatedIdentity()) return { ok: false, error: 'forbidden' };
       let o: Outcome;
       if (s.target === 'inbox') o = await applyInbox(ctx.personId, s);
       else {

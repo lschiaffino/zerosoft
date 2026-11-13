@@ -72,8 +72,9 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-tool > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .asst-tool-text { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
 /* Después de la etiqueta, el chevron que dice que se abre. */
-.asst-tool-text::after { content: '›'; display: inline-block; margin-left: 6px; color: var(--brand-gray-3); transition: transform var(--ui-dur, 160ms) ease-out; }
-.asst-tool[open] .asst-tool-text::after { transform: rotate(90deg); }
+/* El espacio duro deja el chevron pegado a la última palabra (no baja solo a otra línea). */
+.asst-tool-text::after { content: '\00a0\00a0›'; color: var(--brand-gray-3); }
+.asst-tool[open] .asst-tool-text::after { content: '\00a0\00a0⌄'; }
 .asst-tool-icon {
   flex: none;
   width: 16px;
@@ -130,8 +131,8 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-reason { font-size: 0.8125rem; color: var(--ink-2); }
 .asst-reason > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 2px 0; border-radius: var(--r-xs); }
 .asst-reason > summary::-webkit-details-marker { display: none; }
-.asst-reason > summary::after { content: '›'; color: var(--brand-gray-3); transition: transform var(--ui-dur, 160ms) ease-out; }
-.asst-reason[open] > summary::after { transform: rotate(90deg); }
+.asst-reason > summary::after { content: '›'; color: var(--brand-gray-3); }
+.asst-reason[open] > summary::after { content: '⌄'; }
 .asst-reason > summary:hover { color: var(--ink); }
 .asst-reason > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .asst-reason-body { margin: 6px 0 2px; padding: 0 0 0 12px; border-left: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 320px; overflow-y: auto; }
@@ -283,7 +284,6 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-load-earlier { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .asst-tool-text::after, .asst-reason > summary::after { transition: none; }
   .asst-zeros > span { animation: none; opacity: 0.6; }
   .asst-zeros > span:nth-child(2) { opacity: 1; }
   .asst-tool-icon[data-state='running']::before { animation: none; content: '0'; }

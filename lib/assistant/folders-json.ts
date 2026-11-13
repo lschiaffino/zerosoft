@@ -409,17 +409,18 @@ function walkValue(b: Builder, v: unknown, parent: string[], via: string) {
     walkNode(b, v, parent);
     return;
   }
-  // Mapa: cada clave es una carpeta (o una ruta "A/B").
+  // Mapa: cada clave es una carpeta (o una ruta "A/B"). Un valor suelto (una fecha, una versión) no es una carpeta.
   for (const [k, val] of Object.entries(v)) {
     const path = [...parent, ...splitPath(k)];
     if (!splitPath(k).length) continue;
+    if (!Array.isArray(val) && !isObj(val)) {
+      if (!META_KEYS.test(k)) b.skip({ [k]: val });
+      continue;
+    }
     b.shapes.add(splitPath(k).length > 1 ? 'paths' : 'map');
     b.folder(path);
-    if (Array.isArray(val) || isObj(val)) {
-      if (isObj(val) && hasChatIdentity(val) && !isFolderNode(val)) b.chat(path, chatFromObject(val), val);
-      else walkValue(b, val, path, 'map');
-    } else if (typeof val === 'string') b.chat(path, chatFromPrimitive(val), val);
-    else b.skip(val);
+    if (isObj(val) && hasChatIdentity(val) && !isFolderNode(val)) b.chat(path, chatFromObject(val), val);
+    else walkValue(b, val, path, 'map');
   }
 }
 
@@ -535,6 +536,10 @@ function fromInboxZero(b: Builder, root: Record<string, unknown>): boolean {
 }
 
 const WRAPPER_KEYS = ['data', 'export', 'result', 'inbox', 'tree', 'structure', 'estructura', 'estrutura'];
+/** Datos del archivo que no son carpetas ({ version, exportedAt, ... }). */
+const META_KEYS = /^(version|format|exported_?at|created_?at|updated_?at|generated_?at|date|source|app|count|total|schema|\$schema|id|name|title)$/i;
+/** Listas de filas en la raíz: { chats: [{ chat, folder }] }. */
+const ROW_LIST_KEYS = /^(chats|conversations|contacts|threads|rows|assignments|items|contactos|contatos|conversaciones|conversas)$/i;
 
 /** Cualquier JSON razonable → carpetas (ruta) con sus chats. Sin carpetas: FoldersJsonError('no_folders'). */
 export function normalizeFoldersJson(raw: unknown): NormalizedFolders {
@@ -552,10 +557,17 @@ export function normalizeFoldersJson(raw: unknown): NormalizedFolders {
     return finish(b);
   }
   if (isObj(root)) {
+    // { chats: [{ name, folder: "A/B" }], version: 2 }: filas envueltas.
+    const keys0 = Object.keys(root);
+    const lists = keys0.filter((k) => ROW_LIST_KEYS.test(k) && Array.isArray(root[k]));
+    if (lists.length && keys0.every((k) => lists.includes(k) || META_KEYS.test(k))) {
+      for (const k of lists) walkValue(b, root[k], [], 'rows');
+      return finish(b);
+    }
     // { folders: [...] } o { carpetas: {...} }: el contenido es la lista.
     const inner = pickKey(root, ['folders', 'carpetas', 'pastas']);
     const keys = Object.keys(root);
-    if ((Array.isArray(inner) || isObj(inner)) && keys.every((k) => /^(folders|carpetas|pastas|version|format|exported_?at|source|name|title)$/i.test(k))) {
+    if ((Array.isArray(inner) || isObj(inner)) && keys.every((k) => /^(folders|carpetas|pastas)$/i.test(k) || META_KEYS.test(k))) {
       walkValue(b, inner, [], 'tree');
       return finish(b);
     }

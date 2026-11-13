@@ -8,7 +8,7 @@
  * - las imágenes quedan como link (nada se carga de terceros);
  * - las tablas van en .table-wrap (scroll propio, sin estirar la charla);
  * - los bloques de código llevan el lenguaje y un botón Copiar.
- * `cursor` deja el cursor de escritura al final del último bloque (no en una
+ * `cursor` deja el cursor de escritura adentro del último bloque (no en una
  * línea nueva), así el texto que llega no salta.
  */
 import { Marked, type Tokens } from 'marked';
@@ -16,8 +16,6 @@ import { escapeHtml, safeHref, unescapeEntities } from '../track-markdown';
 import { highlightCode } from '../track-highlight';
 
 export const ASSISTANT_MARKDOWN_MAX = 60_000;
-/** Marca del cursor: un carácter de uso privado que el modelo no escribe. */
-const CURSOR = '';
 const CURSOR_HTML = '<span class="asst-cursor" aria-hidden="true"></span>';
 
 let copyLabel = 'Copy';
@@ -48,12 +46,10 @@ const md = new Marked({
     },
     code(token: Tokens.Code) {
       const lang = (token.lang ?? '').split(/\s+/)[0].slice(0, 20);
-      const body = token.text.replace(new RegExp(CURSOR, 'g'), '');
-      const cursor = token.text.includes(CURSOR) ? CURSOR_HTML : '';
       return (
         `<div class="asst-code"><div class="asst-code-head"><span class="asst-code-lang">${escapeHtml(lang || 'text')}</span>` +
         `<button type="button" class="asst-code-copy" data-copy-code>${escapeHtml(copyLabel)}</button></div>` +
-        `<pre><code>${highlightCode(body, lang || 'generic')}${cursor}</code></pre></div>\n`
+        `<pre><code>${highlightCode(token.text, lang || 'generic')}</code></pre></div>\n`
       );
     },
     table(token: Tokens.Table) {
@@ -70,14 +66,11 @@ const md = new Marked({
 
 /** Markdown de una respuesta → HTML seguro para innerHTML. */
 export function renderAssistantMarkdown(markdown: string, opts: { cursor?: boolean; copy?: string } = {}): string {
-  const src = markdown.slice(0, ASSISTANT_MARKDOWN_MAX).replace(new RegExp(CURSOR, 'g'), '');
-  if (!src.trim() && !opts.cursor) return '';
+  const src = markdown.slice(0, ASSISTANT_MARKDOWN_MAX);
   copyLabel = opts.copy ?? 'Copy';
-  // El cursor va pegado al último carácter visible (sin los saltos del final, que abrirían otro párrafo).
-  const text = opts.cursor ? src.replace(/\s+$/, '') + CURSOR : src;
-  const html = (md.parse(text) as string).trim();
+  const html = src.trim() ? (md.parse(src) as string).trim() : '';
   if (!opts.cursor) return html;
-  // Dentro de una etiqueta (el href de un link automático) la marca se quita; en el texto, es el cursor.
-  const clean = html.replace(/<[^>]*>/g, (tag) => tag.split(CURSOR).join(''));
-  return clean.includes(CURSOR) ? clean.split(CURSOR).join(CURSOR_HTML) : clean + CURSOR_HTML;
+  // El cursor va adentro del último bloque (antes de las etiquetas que lo cierran): al final del párrafo,
+  // del ítem, de la celda o del código, nunca en una línea propia ni dentro de una etiqueta.
+  return html.replace(/((?:<\/[a-z0-9]+>\s*)*)$/i, `${CURSOR_HTML}$1`);
 }
