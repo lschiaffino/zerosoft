@@ -158,7 +158,6 @@ export default function HubspotScreen({
   const errText = useErrorText();
   const rel = useRelativeTime();
   const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
   const panelId = useId();
   const { schema, failed: schemaFailed, reload: reloadSchema } = useHubspotSchema(open);
   const [data, setData] = useState<CompanyData | null>(null);
@@ -337,9 +336,10 @@ export default function HubspotScreen({
     <dialog
       ref={ref}
       className="ui-drawer gr-hsx"
-      // Solo abierto, cuando el título existe: el <dialog> cerrado viene del servidor con el id del servidor, y si el
-      // de la hidratación sale distinto React no corrige el atributo; así el nombre se pone en el cliente, con el id del título.
-      aria-labelledby={open ? titleId : undefined}
+      // El nombre va directo y no por aria-labelledby: el <dialog> sale del servidor y el título solo se pinta
+      // abierto, en el cliente. Si el id de useId del servidor y el del cliente no coinciden (en la bandeja pasa),
+      // React deja el del servidor en el <dialog> y el diálogo se queda sin nombre.
+      aria-label={t('hubspot.screen.title')}
       aria-modal="true"
       onCancel={(e) => {
         e.preventDefault();
@@ -355,7 +355,7 @@ export default function HubspotScreen({
         <>
           <div className="ui-drawer-head gr-hsx-head">
             <div className="gr-hsx-heading">
-              <h2 className="ui-drawer-title" id={titleId}>
+              <h2 className="ui-drawer-title">
                 {t('hubspot.screen.title')}
               </h2>
               {company && <p className="gr-hsx-company">{company.name}</p>}
