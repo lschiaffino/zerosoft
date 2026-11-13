@@ -1,3 +1,4 @@
+import type { Viewport } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import { notFound } from 'next/navigation';
@@ -76,6 +77,12 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     // Favicon y apple-icon: app/icon.svg y app/apple-icon.tsx (el cero de lib/zero-mark.ts).
   };
 }
+
+/**
+ * Android (Chrome): con el teclado abierto la página se achica (como WhatsApp, el chat queda arriba
+ * del teclado). iOS lo resuelve components/app/KeyboardViewport.tsx.
+ */
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, interactiveWidget: 'resizes-content' };
 
 export default async function LocaleLayout(
   props: {
