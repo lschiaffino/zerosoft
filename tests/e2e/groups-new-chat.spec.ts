@@ -80,7 +80,9 @@ test('chat nuevo: un contacto que ya tiene chat abre ese chat', async ({ page, r
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const dialog = await openDialog(page, n);
   await dialog.getByRole('combobox', { name: SEARCH }).fill(name);
-  const row = dialog.getByRole('option', { name: new RegExp(name) });
+  // Buscando no hay frecuentes: una sola fila.
+  const row = dialog.getByRole('listbox', { name: 'Contacts and chats' }).getByRole('option', { name: new RegExp(name) });
+  await expect(dialog.getByRole('listbox').getByRole('option')).toHaveCount(1);
   await expect(row).toContainText(`+${from.slice(0, 2)} ${from.slice(2, 3)} `);
   await row.click();
 
@@ -92,6 +94,7 @@ test('chat nuevo: un contacto que ya tiene chat abre ese chat', async ({ page, r
   const url = page.url();
   const again = await openDialog(page, n);
   await again.getByRole('combobox', { name: SEARCH }).fill(`+${from.slice(0, 2)} ${from.slice(2, 5)} ${from.slice(5)}`);
+  await expect(again.getByRole('listbox').getByRole('option')).toHaveCount(1);
   await again.getByRole('option', { name: new RegExp(name) }).click();
   await expect(page).toHaveURL(url);
   expect(errors).toEqual([]);

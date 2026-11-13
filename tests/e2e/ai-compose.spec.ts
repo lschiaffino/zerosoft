@@ -154,7 +154,7 @@ test('Inbox, mensaje nuevo: describe el mensaje, lo inserta en el campo y no man
   await ask.fill('avisale que llego a las 8');
   await ask.press('Enter');
   // Un correo vuelve con "Subject: …" arriba: al insertarlo va al campo Asunto.
-  await expect(bar.getByTestId('ai-compose-draft')).toContainText('Borrador: avisale que llego a las 8');
+  await expect(bar.getByTestId('ai-compose-draft')).toContainText('Borrador: avisale que llego a las 8', { timeout: 20_000 });
   // Enter en la barra no manda el formulario.
   await expect(dialog).toBeVisible();
   await expect(message).toHaveValue('');

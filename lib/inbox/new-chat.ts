@@ -102,7 +102,7 @@ export async function inboxNewChatDirectory(owner: string, opts: { q?: string; c
     const candidate: NewChatEntry = {
       key: 'self',
       ...(selfThread ? { chatId: selfThread.id } : {}),
-      name: (mine && displayName(mine)) || account.label || label(me),
+      name: (mine && displayName(mine)) || label(me),
       phoneLabel: label(me),
       phone: me,
       pictureUrl: selfThread?.avatar_url ? `/api/inbox/avatar/${selfThread.id}?v=${avatarVersion(selfThread.avatar_url)}` : '',

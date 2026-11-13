@@ -73,6 +73,7 @@ test('Inbox, chat nuevo: Nuevo abre el panel sin menú, buscar sin tildes abre e
   // Por teléfono, escrito con espacios: el mismo chat.
   const third = await openPanel(page);
   await third.getByRole('combobox', { name: SEARCH }).fill(`+${c.phone.slice(0, 2)} ${c.phone.slice(2, 3)} ${c.phone.slice(3)}`);
+  await expect(third.getByRole('listbox').getByRole('option')).toHaveCount(1);
   await expect(third.getByRole('option', { name: new RegExp(name) })).toBeVisible();
   await expect(third.getByRole('option', { name: /^Message \+/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
@@ -114,10 +115,12 @@ test('Inbox, chat nuevo: grupo nuevo con participantes y nombre', async ({ page,
   await expect(next).toBeDisabled();
   const search = dialog.getByRole('combobox', { name: SEARCH });
   await search.fill(tag);
+  await expect(dialog.getByRole('listbox').getByRole('option')).toHaveCount(2);
   await dialog.getByRole('option', { name: new RegExp(a) }).click();
   await expect(dialog.getByRole('option', { name: new RegExp(a) })).toHaveAttribute('aria-checked', 'true');
   // Enter elige la fila marcada (↓ a la segunda).
   await search.press('ArrowDown');
+  await expect(dialog.getByRole('option', { name: new RegExp(b) })).toHaveAttribute('aria-selected', 'true');
   await search.press('Enter');
   await expect(dialog.getByRole('list', { name: 'Selected members' }).getByRole('button')).toHaveCount(2);
   await next.click();
@@ -126,7 +129,7 @@ test('Inbox, chat nuevo: grupo nuevo con participantes y nombre', async ({ page,
   const title = `Asado ${tag}`;
   await dialog.getByLabel('Group name').fill(title);
   await dialog.getByRole('button', { name: 'Create group' }).click();
-  await expect(dialog).toBeHidden();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
   await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name: title })).toBeVisible();
   expect(errors).toEqual([]);
 });

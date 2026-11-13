@@ -135,9 +135,15 @@ export default function NewChatPanel(props: NewChatPanelProps) {
     return ctrl;
   }, [load, query]);
 
+  // Al abrir o cambiar de línea, el esqueleto; al buscar, la lista anterior queda hasta que llega la nueva.
+  const shownFor = useRef('');
   useEffect(() => {
+    if (!open) shownFor.current = '';
     if (!open || !sourceKey) return;
-    setDir(null);
+    if (shownFor.current !== sourceKey) {
+      shownFor.current = sourceKey;
+      setDir(null);
+    }
     const ctrl = reload();
     return () => ctrl.abort();
   }, [open, sourceKey, reload]);
