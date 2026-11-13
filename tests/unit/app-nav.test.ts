@@ -5,6 +5,7 @@ import {
   appProductFromPath,
   buildNav,
   buildNewItems,
+  directNewItem,
   homeAppGroups,
   HOME_APPS_LIMIT,
   settingsNavItem,
@@ -110,6 +111,15 @@ describe('sidebar de la app', () => {
     expect(buildNewItems('docs', labels)[0].href).toBe('/app/docs?new=1');
     expect(buildNewItems('flow', labels)[0].href).toBe('/app/flow?new=1');
     expect(buildNewItems('agents', labels)[0].href).toBe('/app/agents?new=1');
+  });
+
+  it('"+ Nuevo" en Lines e Inbox abre el chat nuevo sin menú; el resto de las apps muestra el menú', () => {
+    expect(directNewItem('groups', labels)?.href).toBe('/app/lines/inbox?new=1');
+    expect(directNewItem('inbox', labels)?.href).toBe('/app/inbox?new=1');
+    for (const product of PRODUCTS) {
+      if (product === 'groups' || product === 'inbox') continue;
+      expect(directNewItem(product, labels), product).toBeNull();
+    }
   });
 
   it('las páginas destino de ?new=1 leen el parámetro', () => {

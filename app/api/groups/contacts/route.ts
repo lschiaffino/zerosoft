@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { searchNewChat } from '@/lib/groups-new-chat';
+import { newChatDirectory } from '@/lib/groups-new-chat';
 import { groupsError, groupsSession, handleGroupsError, lineGuard } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * A quién escribirle desde una línea ("Chat nuevo"): ?number=<id de la línea>
- * y ?q= (nombre o teléfono). Devuelve hasta 20 filas entre los chats 1:1 de
- * esa línea que la persona ve y los contactos de su libreta. Sin ?q=, los
- * chats más recientes. Quien solo ve sus chats no recibe la libreta; con los
- * teléfonos ocultos salen enmascarados.
+ * El panel "Chat nuevo" de una línea: ?number=<id de la línea>, ?q= (nombre o
+ * teléfono), ?cursor= (página siguiente) y ?limit=. Devuelve los contactados
+ * con frecuencia (sin ?q=, en la primera página) y una página de contactos y
+ * chats en orden alfabético. Quien solo ve sus chats no recibe la libreta;
+ * con los teléfonos ocultos salen enmascarados.
  */
 export async function GET(req: Request) {
   const s = await groupsSession();
@@ -21,7 +21,8 @@ export async function GET(req: Request) {
   const line = await lineGuard(s, numberId);
   if (line instanceof NextResponse) return line;
   try {
-    return NextResponse.json({ rows: await searchNewChat(line.viewer, numberId, sp.get('q') ?? '') });
+    const dir = await newChatDirectory(line.viewer, numberId, { q: sp.get('q') ?? '', cursor: sp.get('cursor'), limit: Number(sp.get('limit')) || undefined });
+    return NextResponse.json(dir, { headers: { 'cache-control': 'private, no-store' } });
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -147,7 +147,8 @@
     "storage_unavailable": "This server has nowhere to store files.",
     "upload_failed": "The file could not be uploaded. Try again.",
     "invalid_file": "That file is not an inbox-zero export.",
-    "media_unavailable": "This file is no longer available on WhatsApp."
+    "media_unavailable": "This file is no longer available on WhatsApp.",
+    "group_failed": "WhatsApp could not create the group. Try again in a moment."
   },
   "empty": {
     "connectTitle": "Connect WhatsApp or Gmail",

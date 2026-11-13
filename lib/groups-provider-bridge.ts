@@ -581,6 +581,10 @@ export const EVOLUTION_EVENTS = [
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
   'CALL',
+  // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
+  // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
+  'CHATS_UPDATE',
+  'CHATS_UPSERT',
 ];
 
 /** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */

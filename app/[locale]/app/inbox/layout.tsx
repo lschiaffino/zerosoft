@@ -8,6 +8,7 @@ import '@/styles/inbox.css';
 // La cara de WhatsApp Web: la de Groups (fondos, burbujas, media, visor) y lo propio de Inbox encima.
 import '@/styles/groups.css';
 import '@/styles/groups-wa.css';
+import '@/styles/wa-newchat.css';
 import '@/styles/inbox-wa.css';
 import '@/styles/inbox-tools.css';
 import '@/styles/chat-gestures.css';

@@ -147,7 +147,8 @@
     "storage_unavailable": "No hay dónde guardar archivos en este servidor.",
     "upload_failed": "No se pudo subir el archivo. Probá de nuevo.",
     "invalid_file": "Ese archivo no es una exportación de inbox-zero.",
-    "media_unavailable": "Este archivo ya no está disponible en WhatsApp."
+    "media_unavailable": "Este archivo ya no está disponible en WhatsApp.",
+    "group_failed": "WhatsApp no pudo crear el grupo. Probá de nuevo en un rato."
   },
   "empty": {
     "connectTitle": "Conectá WhatsApp o Gmail",
