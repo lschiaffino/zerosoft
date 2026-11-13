@@ -250,6 +250,25 @@ const WaComposer = forwardRef<
     onSent(r.data.messages);
   }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Un sticker del panel de emojis (pestaña Stickers): sale por la cola del chat, como respuesta si hay una cita. */
+  const sendSticker = async (stickerId: string): Promise<boolean> => {
+    if (disabled || paused) return false;
+    const threadId = thread.id;
+    const r = await inboxQueue(threadId)(() =>
+      api<{ messages: MessageDto[] }>('/api/inbox/stickers', {
+        method: 'POST',
+        json: { action: 'send', id: stickerId, threadId, clientId: newClientId(), ...(replyToId ? { replyTo: replyToId } : {}) },
+      }),
+    );
+    if (!r.ok) {
+      onError(r.data.error ?? 'send_failed');
+      return false;
+    }
+    if (replyToId) onCancelBanner();
+    onSent(r.data.messages);
+    return true;
+  };
+
   /** Dicta con Voice: el texto entra en el campo. */
   const dictate = () => {
     area.current?.focus();
@@ -389,6 +408,7 @@ const WaComposer = forwardRef<
           </button>
           {emoji && (
             <EmojiPicker
+              stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
               onPick={(e) => insertAtCaret(e)}
               onClose={() => {
                 setEmoji(false);

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
 
@@ -291,10 +291,54 @@ export function ImageView({
       </button>
     );
   }
+  // Un sticker no abre el visor ni otra pestaña (como en WhatsApp): chico, sin burbuja, animado si lo es.
+  if (sticker) {
+    return (
+      <span className="wa-image is-sticker" role="img" aria-label={alt}>
+        {img}
+      </span>
+    );
+  }
   return (
-    <a className={`wa-image${sticker ? ' is-sticker' : ''}`} style={style} href={url} target="_blank" rel="noreferrer">
+    <a className="wa-image" style={style} href={url} target="_blank" rel="noreferrer">
       {img}
     </a>
+  );
+}
+
+/** Sticker que no se puede dibujar (Lottie, o el archivo no se pudo bajar): el lugar del sticker, como un sticker. */
+export function StickerMissing({ label }: { label: string }) {
+  return (
+    <span className="wa-image is-sticker is-missing" role="img" aria-label={label}>
+      <Smiley size={40} />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+/**
+ * GIF de WhatsApp (un video con gifPlayback): adentro de la burbuja, se
+ * reproduce solo, sin sonido y en bucle, con la marca "GIF"; un clic abre el
+ * visor. Con movimiento reducido queda quieto.
+ */
+export function GifView({ url, thumbnail, width, height, onOpen }: { url: string; thumbnail?: string; width?: number; height?: number; onOpen?: () => void }) {
+  const t = useTranslations('groups');
+  const ref = useRef<HTMLVideoElement>(null);
+  const box = boxFor(width, height);
+  const style = box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) v.pause();
+    else void v.play().catch(() => null);
+  }, [url]);
+  return (
+    <button type="button" className="wa-video-thumb wa-gif" style={style} onClick={onOpen} aria-label={t('wa.openGif')}>
+      <video ref={ref} src={url} poster={thumbnail} muted loop playsInline autoPlay preload="auto" tabIndex={-1} aria-hidden="true" />
+      <span className="wa-gif-badge" aria-hidden="true">
+        GIF
+      </span>
+    </button>
   );
 }
 

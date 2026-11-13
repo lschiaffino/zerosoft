@@ -1538,6 +1538,7 @@ export function previewOf(body: string, mediaType: string, mediaName = '', meta:
   if (meta.media?.viewOnce) return '[viewOnce]';
   if (meta.media?.kind === 'voice' || meta.media?.ptt) return '[voice]';
   if (meta.media?.kind === 'sticker') return '[sticker]';
+  if (meta.media?.kind === 'video' && meta.media.animated) return '[gif]';
   if (mediaName.trim()) return mediaName.trim().slice(0, 140);
   if (mediaType) return `[${mediaKind(mediaType)}]`;
   if (meta.location) return '[location]';

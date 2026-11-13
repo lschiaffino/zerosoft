@@ -22,10 +22,10 @@ export function propertyText(v: unknown, type?: string): string {
 }
 
 /** Marcador de vista previa sin texto ni nombre ([image], [file]...), o null. */
-export type PreviewToken = 'image' | 'audio' | 'video' | 'file' | 'call' | 'deleted' | 'voice' | 'sticker' | 'location' | 'contact' | 'viewOnce';
+export type PreviewToken = 'image' | 'audio' | 'video' | 'file' | 'call' | 'deleted' | 'voice' | 'sticker' | 'gif' | 'location' | 'contact' | 'viewOnce';
 
 export function previewToken(preview: string): PreviewToken | null {
-  const m = /^\[(image|audio|video|file|call|deleted|voice|sticker|location|contact|viewOnce)\]$/.exec(String(preview ?? '').trim());
+  const m = /^\[(image|audio|video|file|call|deleted|voice|sticker|gif|location|contact|viewOnce)\]$/.exec(String(preview ?? '').trim());
   return m ? (m[1] as PreviewToken) : null;
 }
 

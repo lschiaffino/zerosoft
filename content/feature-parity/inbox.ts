@@ -227,6 +227,13 @@ const parity: ProductParity = {
         'Visualizador de fotos e vídeos, fotos enviadas juntas num álbum, notas de voz com velocidade. As enquetes aparecem mas se vota no celular. "Visualização única" não chega aos aparelhos vinculados',
       ],
     }),
+    row('wa-stickers', 'whatsapp', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {
+      detail: [
+        'Received stickers show small and without a bubble (animated ones move), GIFs play inside the bubble. The Stickers tab of the emoji panel has recent ones, favorites and your collection; WhatsApp does not let linked devices read the stickers saved on the phone, so the collection is built from the stickers in your chats (one click to import, then it stays up to date) and from images you turn into stickers. Lottie stickers show as a placeholder. Tested with the fake provider',
+        'Los stickers que llegan se ven chicos y sin burbuja (los animados se mueven) y los GIF se reproducen en la burbuja. La pestaña Stickers del panel de emojis tiene recientes, favoritos y tu colección; WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en el teléfono, así que la colección se arma con los stickers de tus chats (un clic para importarlos y después se mantiene sola) y con imágenes que convertís en sticker. Los stickers Lottie se ven como un lugar vacío. Probado con el proveedor falso',
+        'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (um clique para importar e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
+      ],
+    }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {
       detail: [
         'Several files at once with a caption each and a preview before sending; voice notes from the microphone. Over 4 MB needs Blob storage on the server. Tested with the fake provider',

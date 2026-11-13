@@ -91,7 +91,12 @@ export interface WaMessageMeta {
   /** Miniatura chica (data URL). */
   thumb?: string;
   viewOnce?: boolean;
+  /** Sticker animado, o video que WhatsApp reproduce como GIF (gifPlayback). */
   animated?: boolean;
+  /** Sticker Lottie: no se puede dibujar, se muestra el lugar del sticker. */
+  lottie?: boolean;
+  /** SHA-256 (hex) del sticker: la colección no lo baja de nuevo si ya lo tiene. */
+  sha?: string;
   /** Forma de onda de la nota de voz (0 a 100). */
   waveform?: number[];
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };

@@ -9,7 +9,7 @@ import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
@@ -98,6 +98,7 @@ const WaConversation = forwardRef<
   const { detail, connected, onAction, onError, onRefresh } = props;
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
+  const ws = useTranslations('groups.wa.stickers');
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const { thread, messages, scheduled } = detail;
@@ -259,6 +260,12 @@ const WaConversation = forwardRef<
     }
   };
 
+  const favoriteSticker = async (m: MessageDto) => {
+    const r = await api('/api/inbox/stickers', { method: 'POST', json: { action: 'favoriteMessage', messageId: m.id } });
+    if (r.ok) props.onToast(ws('favorited'));
+    else onError(r.data.error ?? 'generic');
+  };
+
   const startReply = (m: MessageDto) => {
     setEditing(null);
     setReplyTo(m);
@@ -284,6 +291,7 @@ const WaConversation = forwardRef<
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
       if (m.body && !m.mediaType) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
+      if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
       if (canEdit(m)) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
       if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
@@ -504,10 +512,14 @@ const WaConversation = forwardRef<
                 />
               ) : meta.viewOnce ? (
                 <span className="wa-viewonce">{w('viewOnce')}</span>
+              ) : sticker && !url ? (
+                <StickerMissing label={ws('missing')} />
               ) : !url ? (
                 <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} />
               ) : kind === 'image' || sticker ? (
                 <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
+              ) : kind === 'video' && meta.animated ? (
+                <GifView url={url} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
                 <VideoView url={url} seconds={meta.duration} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (

@@ -172,10 +172,12 @@ export async function disconnectWhatsapp(account: AccountRow): Promise<void> {
   await setAccountState(account.id, { status: 'disconnected', provider: '', sync_cursor: '', error: '' });
 }
 
-const MEDIA_LABEL: Record<string, string> = { image: 'image', video: 'video', audio: 'audio', ptt: 'audio', document: 'document', sticker: 'sticker' };
-
-function mediaKind(mime: string, type: string): string {
-  if (MEDIA_LABEL[type]) return MEDIA_LABEL[type];
+/**
+ * Tipo con que se guarda (media_type) un archivo recibido. Un sticker es "sticker" aunque su mimetype sea
+ * image/webp (antes quedaba "image" y la burbuja lo dibujaba como una foto grande); el resto sale del mimetype.
+ */
+export function inboxMediaType(mime: string, kind = ''): string {
+  if (kind === 'sticker') return 'sticker';
   if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
@@ -211,7 +213,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     senderName: e.fromMe ? '' : e.senderName,
     senderHandle: senderPhone,
     body,
-    mediaType: media ? mediaKind(media.type, '') || 'document' : '',
+    mediaType: media ? inboxMediaType(media.type, media.info?.kind) || 'document' : '',
     mediaName: media?.name ?? '',
     mediaRef: media?.fetchRef ? JSON.stringify(media.fetchRef) : '',
     replyTo: e.replyToProviderId ?? '',

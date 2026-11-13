@@ -823,6 +823,44 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-emoji .wa-emoji-grid button { height: 38px; font-size: 1.5rem; }
 .wa-emoji-empty { grid-column: 1 / -1; padding: 16px; text-align: center; font-size: 0.875rem; color: var(--wa-text-2); }
 
+/* Panel: pestañas Emoji | Stickers, y la de stickers (recientes, favoritos, colección), como WhatsApp Web. */
+.wa-xp-tabs { display: flex; gap: 4px; margin: 0 0 6px; }
+.wa-xp-tabs button { flex: 1; height: 30px; font: inherit; font-size: 0.875rem; font-weight: 500; color: var(--wa-text-2); background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; }
+.wa-xp-tabs button[aria-selected='true'] { color: var(--wa-text); border-bottom-color: var(--wa-primary); }
+.wa-xp-tabs button:focus-visible { outline: 2px solid var(--wa-primary); }
+.wa-stk-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.wa-stk-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 6px; }
+.wa-stk-action { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; font: inherit; font-size: 0.8125rem; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 6px; cursor: pointer; }
+.wa-stk-action:hover { background: var(--wa-row-hover); }
+.wa-stk-action:focus-visible, .wa-stk-primary:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-stk-action:disabled, .wa-stk-primary:disabled { opacity: 0.6; cursor: default; }
+.wa-stk-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.wa-stk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 4px; padding: 2px; }
+.wa-stk { position: relative; }
+.wa-stk-send { position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 6px; background: none; border: 0; border-radius: 6px; cursor: pointer; }
+.wa-stk-send img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wa-stk-send:hover, .wa-stk-send:focus-visible { background: var(--wa-row-hover); outline: none; }
+.wa-stk-send:focus-visible { box-shadow: inset 0 0 0 2px var(--wa-primary); }
+.wa-stk-send[aria-busy='true'] { opacity: 0.5; }
+.wa-stk-star { position: absolute; left: 4px; bottom: 2px; font-size: 0.6875rem; line-height: 1; color: #f5a623; }
+.wa-stk-more { position: absolute; top: 2px; right: 2px; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; color: var(--wa-icon); background: var(--wa-menu); border: 0; border-radius: 4px; cursor: pointer; opacity: 0; }
+.wa-stk:hover .wa-stk-more, .wa-stk-more:focus-visible, .wa-stk-more[aria-expanded='true'] { opacity: 1; }
+.wa-stk-more:focus-visible { outline: 2px solid var(--wa-primary); }
+@media (hover: none) { .wa-stk-more { opacity: 1; } }
+.wa-stk-skel { aspect-ratio: 1; margin: 6px; background: var(--wa-row-hover); border-radius: 6px; }
+.wa-stk-empty { padding: 20px 12px; text-align: center; font-size: 0.875rem; line-height: 1.45; color: var(--wa-text-2); }
+.wa-stk-empty p { margin: 0 0 10px; }
+.wa-stk-empty .wa-stk-empty-title { margin-bottom: 4px; font-weight: 600; color: var(--wa-text); }
+.wa-stk-primary { height: 32px; padding: 0 14px; font: inherit; font-size: 0.875rem; font-weight: 500; color: #fff; background: var(--wa-primary); border: 0; border-radius: 6px; cursor: pointer; }
+.wa-stk-note { margin-top: 10px !important; font-size: 0.8125rem; }
+.wa-stk-error { margin: 0 2px 6px; font-size: 0.8125rem; color: var(--wa-danger, #ea0038); }
+
+/* Sticker que no se puede dibujar (Lottie) y GIF de WhatsApp (gifPlayback). */
+.wa-image.is-sticker.is-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 140px; height: 140px; color: var(--wa-text-2); font-size: 0.8125rem; background: color-mix(in srgb, var(--wa-panel) 70%, transparent); border-radius: 12px; }
+.wa-gif { aspect-ratio: auto; min-height: 120px; cursor: zoom-in; }
+.wa-gif video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wa-gif-badge { position: absolute; left: 8px; bottom: 8px; padding: 1px 5px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.02em; color: #fff; background: rgba(11, 20, 26, 0.55); border-radius: 4px; }
+
 /* Audio (no nota de voz): nombre, barra y la nota musical. */
 .wa-audio-line { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 26px; }
 .wa-audio-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--wa-text); }

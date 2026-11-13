@@ -9896,6 +9896,47 @@ export const MIGRATIONS: Migration[] = [
       await c.execute('CREATE INDEX IF NOT EXISTS idx_crm_deals_closed ON crm_deals(user_id, closed_at) WHERE closed_at IS NOT NULL');
     },
   },
+  {
+    // Stickers de WhatsApp de cada persona en Lines e Inbox (lib/wa-stickers.ts): la colección (sin repetir por
+    // SHA-256, favoritos y recientes) y hasta dónde se trajo de los chats. Índices parciales para encontrar los
+    // stickers de los chats sin recorrer los demás mensajes. Y los stickers que Inbox guardó como 'image' (el
+    // mimetype image/webp tapaba que eran stickers y se dibujaban como una foto grande) pasan a 'sticker'.
+    // Se puede correr más de una vez.
+    id: '399_wa_stickers',
+    up: async (c) => {
+      await c.execute(`
+        CREATE TABLE IF NOT EXISTS wa_stickers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          scope_id TEXT NOT NULL DEFAULT '',
+          hash TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          share_url TEXT,
+          animated INTEGER NOT NULL DEFAULT 0,
+          width INTEGER,
+          height INTEGER,
+          size INTEGER NOT NULL DEFAULT 0,
+          favorite INTEGER NOT NULL DEFAULT 0,
+          source TEXT NOT NULL DEFAULT 'chat',
+          last_used_at TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_stickers_hash ON wa_stickers(user_id, app, scope_id, hash)');
+      await c.execute(`
+        CREATE TABLE IF NOT EXISTS wa_sticker_sync (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          scope_id TEXT NOT NULL DEFAULT '',
+          cursor INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, app, scope_id)
+        )`);
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_groups_messages_webp ON groups_messages(user_id) WHERE media_type = 'image/webp'");
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_messages_sticker ON inbox_messages(owner_id) WHERE media_type = 'sticker'");
+      await c.execute(`UPDATE inbox_messages SET media_type = 'sticker' WHERE media_type = 'image' AND meta LIKE '%"mime":"image/webp"%'`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

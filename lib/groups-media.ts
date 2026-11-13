@@ -110,6 +110,10 @@ export interface MediaInfo {
   viewOnce?: boolean;
   /** Sticker animado o video que se reproduce como GIF. */
   animated?: boolean;
+  /** Sticker Lottie (application/was): WhatsApp lo dibuja con su motor; acá se muestra el lugar del sticker. */
+  lottie?: boolean;
+  /** SHA-256 del archivo (hex), el fileSha256 de WhatsApp: el mismo sticker no se guarda dos veces en la colección. */
+  sha?: string;
   /** Forma de onda de la nota de voz (WhatsApp manda 64 valores de 0 a 100). */
   waveform?: number[];
 }
@@ -217,8 +221,16 @@ export function infoFromBaileys(key: string, m: Record<string, unknown>, viewOnc
     thumbnail: kind === 'audio' || kind === 'voice' ? undefined : thumbnailFrom(m.jpegThumbnail),
     viewOnce: viewOnce || m.viewOnce === true || undefined,
     animated: m.isAnimated === true || m.gifPlayback === true || undefined,
+    lottie: kind === 'sticker' && (m.isLottie === true || baseMime(String(m.mimetype ?? '')) === 'application/was') ? true : undefined,
+    sha: kind === 'sticker' ? shaHex(m.fileSha256) : undefined,
     waveform: kind === 'voice' || kind === 'audio' ? waveformFrom(m.waveform) : undefined,
   });
+}
+
+/** fileSha256 de Baileys (base64 o bytes) → hex; solo si son 32 bytes. */
+export function shaHex(raw: unknown): string | undefined {
+  const b = jsonBytes(raw, 64);
+  return b && b.length === 32 ? b.toString('hex') : undefined;
 }
 
 const str = (v: unknown, max: number): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined);

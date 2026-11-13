@@ -43,7 +43,7 @@ import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
 import MediaAlbum from './wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import {
@@ -1245,6 +1245,7 @@ export default function ChatThread(props: ThreadProps) {
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
+    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
     if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
@@ -1264,6 +1265,23 @@ export default function ChatThread(props: ThreadProps) {
     team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (team.length) team[0] = { ...team[0], divider: true };
     return [...items, ...team];
+  }
+
+  async function favoriteSticker(messageId: string) {
+    const res = await api('/api/groups/stickers', { body: { action: 'favoriteMessage', messageId } });
+    showToast(res.data ? t('wa.stickers.favorited') : t('wa.stickers.favoriteFailed'), !res.data);
+  }
+
+  /** Un sticker del panel: la media para mandarlo (lib/wa-stickers.ts) y sale como cualquier archivo del chat. */
+  async function sendSticker(id: string): Promise<boolean> {
+    const res = await api<{ media: Record<string, unknown> }>('/api/groups/stickers', { body: { action: 'use', id } });
+    if (!res.data) {
+      setSendError(t('wa.stickers.sendFailed'));
+      return false;
+    }
+    const sent = await post({ note: false, replyToId: replyTo?.id ?? null, body: '', media: res.data.media }, `sticker:${id}:${Date.now()}`);
+    if (sent) setReplyTo(null);
+    return Boolean(sent);
   }
 
   function downloadMedia(m: MessageDto) {
@@ -1574,6 +1592,8 @@ export default function ChatThread(props: ThreadProps) {
                 <span className="wa-viewonce">
                   <ViewOnce size={20} /> {t('wa.viewOnce')}
                 </span>
+              ) : sticker && !media.url ? (
+                <StickerMissing label={t('wa.stickers.missing')} />
               ) : !media.url ? (
                 <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
               ) : kind === 'image' || kind === 'sticker' ? (
@@ -1587,6 +1607,8 @@ export default function ChatThread(props: ThreadProps) {
                   onLoad={keepAtEnd}
                   onOpen={() => setViewerAt(m.id)}
                 />
+              ) : kind === 'video' && media.animated ? (
+                <GifView url={media.url} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
@@ -1740,7 +1762,7 @@ export default function ChatThread(props: ThreadProps) {
   const canSend = Boolean(text.trim() || (mode === 'reply' && tray.items.length > 0));
   const unseen = atBottom ? 0 : messages.filter((m) => m.direction === 'in' && m.createdAt > bottomAt).length;
   const viewerItems = messages
-    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
+    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && m.media.kind !== 'sticker')
     .map((m) => {
       const author = m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you');
       // En un 1 a 1 lo recibido lleva la foto del chat; en un grupo, iniciales de quien lo mandó.
@@ -2058,6 +2080,7 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
                 {emojiOpen && (
                   <EmojiPicker
+                    stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
                     }}

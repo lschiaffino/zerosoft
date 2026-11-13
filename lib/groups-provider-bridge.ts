@@ -611,7 +611,7 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
 };
 
 /** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). */
-const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage'];
+const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage'];
 
 /** Saca los envoltorios (mensajes temporales, "ver una vez", documento con texto). */
 function unwrapBaileys(message: Json): { message: Json; viewOnce: boolean } {
@@ -767,7 +767,8 @@ function inboundEvolutionMedia(
   remoteJid: string,
   fromMe: boolean,
 ): NonNullable<Extract<InboundEvent, { type: 'message' }>['media']> {
-  const fetchable = media.size <= MAX_INBOUND_MEDIA && !media.info.viewOnce;
+  // Un sticker Lottie (application/was) no se puede dibujar en el navegador: queda el lugar del sticker, sin bajarlo.
+  const fetchable = media.size <= MAX_INBOUND_MEDIA && !media.info.viewOnce && !media.info.lottie;
   return {
     url: fetchable ? `evo:${id}` : '',
     type: media.type,

@@ -11,6 +11,7 @@
     "audio": "Audio",
     "document": "Documento",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Ubicación",
     "contact": "Contacto",
     "poll": "Encuesta"
