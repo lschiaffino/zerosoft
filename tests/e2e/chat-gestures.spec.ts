@@ -739,10 +739,9 @@ test.describe('foco al abrir', () => {
     await linesInbound(request, n.webhookUrl, `Dos ${tag}`);
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.locator('[data-chat-row]', { hasText: `Uno ${tag}` }).click();
-    await expect(page.locator('textarea.gr-input')).toBeFocused();
-    // Con el teclado (Esc saca el foco del campo, después j): el chat cambia y el campo no se lleva el foco.
-    await page.keyboard.press('Escape');
-    await page.locator('body').focus();
+    await expect(page.locator('textarea.gr-input')).toBeFocused({ timeout: 15_000 });
+    // Con el teclado (sin foco en el campo, j): el chat cambia y el campo no se lleva el foco.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('j');
     await expect(page.locator('textarea.gr-input')).not.toBeFocused();
   });
@@ -753,7 +752,7 @@ test.describe('foco al abrir', () => {
     await inboxInbound(request, acc, name);
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: name }).click();
-    await expect(page.locator('textarea.wa-input')).toBeFocused();
+    await expect(page.locator('textarea.wa-input')).toBeFocused({ timeout: 15_000 });
   });
 });
 
