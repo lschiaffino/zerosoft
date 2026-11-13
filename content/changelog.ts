@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-archive-reaches-phone',
+    date: '2026-11-13',
+    title: {
+      en: 'Inbox and Lines: archiving now archives on your phone too',
+      es: 'Inbox y Lines: archivar ahora archiva también en el teléfono',
+      pt: 'Inbox e Lines: arquivar agora arquiva também no celular',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'WhatsApp silently ignored archive requests in groups because the message they pointed to did not match the one on the phone. They now use the exact message WhatsApp knows.',
+        es: 'WhatsApp descartaba en silencio el archivado de los grupos porque el mensaje de referencia no coincidía con el del teléfono. Ahora usa exactamente el mensaje que conoce WhatsApp.',
+        pt: 'O WhatsApp descartava em silêncio o arquivamento dos grupos porque a mensagem de referência não batia com a do celular. Agora usa exatamente a mensagem que o WhatsApp conhece.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
     id: '2026-11-13-board',
     date: '2026-11-13',
     title: {
