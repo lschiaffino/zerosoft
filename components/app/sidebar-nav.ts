@@ -24,6 +24,10 @@ export interface SidebarLabels {
   preview?: string;
   /** Grupo de las apps "Próximamente" (sidebar del inicio y switcher). */
   comingSoon?: string;
+  /** Grupo de las apps apagadas para esta cuenta (Ajustes › Apps), plegado. */
+  disabledApps?: string;
+  /** Aviso de ese grupo: dónde se prenden. */
+  disabledAppsHint?: string;
   signOut: string;
   records: string;
   activity: string;
@@ -66,6 +70,8 @@ export interface SidebarLabels {
   newAgent: string;
   newRobot: string;
   newGroup: string;
+  /** Lines: chat nuevo con un número (abre el diálogo de la bandeja). */
+  newChat?: string;
   team: string;
   link: { overview: string; links: string; new: string; bio: string; analytics: string; bulk: string; domains: string };
   crm: {
@@ -80,6 +86,7 @@ export interface SidebarLabels {
     reports: string;
     forecast: string;
     dashboards: string;
+    analytics: string;
     workflows: string;
     settings: string;
     sequences: string;
@@ -264,9 +271,9 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string };
+  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
-  calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string };
+  calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -505,8 +512,20 @@ export function homeAppGroups(
       ),
     });
   }
+  // Las apagadas para esta cuenta, aparte y plegadas: llevan a Ajustes › Apps, donde un admin las prende.
+  const off = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && !can(k));
+  if (off.length && labels.disabledApps) {
+    groups.push({
+      section: labels.disabledApps,
+      collapsible: true,
+      items: off.map((line) => ({ ...item(line), href: DISABLED_APPS_HREF })),
+    });
+  }
   return groups;
 }
+
+/** Adónde lleva una app apagada para la cuenta: Ajustes › Apps, donde se ve para quién está y un admin la prende. */
+export const DISABLED_APPS_HREF = '/app/settings/apps';
 
 export { comingSoonHref };
 
@@ -576,6 +595,7 @@ export function buildNav(
         {
           section: labels.insights,
           items: [
+            { href: '/app/crm/analytics', label: labels.crm.analytics, active: at('/app/crm/analytics'), icon: 'insights' },
             { href: '/app/crm/dashboards', label: labels.crm.dashboards, active: at('/app/crm/dashboards'), icon: 'dashboards' },
             { href: '/app/crm/reports', label: labels.crm.reports, active: at('/app/crm/reports'), icon: 'reports' },
             { href: '/app/crm/forecast', label: labels.crm.forecast, active: at('/app/crm/forecast'), icon: 'forecast' },
@@ -1001,6 +1021,10 @@ export function buildNav(
             { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived'), icon: 'archive' },
           ],
         },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/inbox/analytics', label: l.analytics, active: at('/app/inbox/analytics'), icon: 'reports' }],
+        },
         appSettingsGroup('/app/inbox/settings'),
       ];
     }
@@ -1013,6 +1037,10 @@ export function buildNav(
             { href: '/app/calls/deals', label: labels.calls.deals, active: at('/app/calls/deals'), icon: 'deals' },
             { href: '/app/calls/ask', label: labels.calls.ask, active: at('/app/calls/ask'), icon: 'assistant' },
           ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/calls/analytics', label: labels.calls.analytics, active: at('/app/calls/analytics'), icon: 'reports' }],
         },
         appSettingsGroup('/app/calls/settings'),
       ];
@@ -1282,7 +1310,10 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
-      return [item('/app/lines/list?new=1', labels.newGroup, 'groups')];
+      return [
+        ...(labels.newChat ? [item('/app/lines/inbox?new=1', labels.newChat, 'chat')] : []),
+        item('/app/lines/list?new=1', labels.newGroup, 'groups'),
+      ];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
     case 'people':

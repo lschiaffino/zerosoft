@@ -233,7 +233,8 @@ export function PollFields({
 /** Resultados de una encuesta (barras con el porcentaje). */
 export function PollResults({ poll }: { poll: PollDto }) {
   const t = useTranslations('groups');
-  const max = Math.max(1, ...poll.results.map((r) => r.votes));
+  // Como WhatsApp: cada barra es la parte de las personas que votaron (la más votada no llena siempre la barra).
+  const max = Math.max(1, poll.voters, ...poll.results.map((r) => r.votes));
   return (
     <div className="gr-poll" role="group" aria-label={t('polls.aria', { question: poll.question })}>
       <p className="gr-poll-q">

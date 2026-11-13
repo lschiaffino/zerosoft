@@ -5,10 +5,10 @@
  * Blob (lib/routes/inbox/upload) y el servidor de WhatsApp lo baja por URL:
  * apenas sale, se borra de Blob. Server-only.
  */
-import { MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
+import { baseMime, MEDIA_KINDS, MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
-import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId } from './core';
+import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
@@ -138,6 +138,83 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     replyTo: replyExternal ?? '',
     status: 'sent',
     ...(f.clientId ? { clientId: f.clientId } : {}),
+  });
+  return id;
+}
+
+/** Un archivo de un mensaje guardado, para reenviarlo. */
+export interface ForwardSource {
+  /** Tipo guardado: image, video, audio, document o sticker. */
+  mediaType: string;
+  mediaName: string;
+  body: string;
+  meta: WaMessageMeta;
+}
+
+/** Tipo de mensaje de WhatsApp con el que sale un reenvío: el mismo que el original (nota de voz como nota de voz). */
+export function forwardKind(src: Pick<ForwardSource, 'mediaType' | 'meta'>, mimetype: string, size: number): MediaKind {
+  if (src.meta.ptt) return 'voice';
+  if ((MEDIA_KINDS as readonly string[]).includes(src.mediaType) && src.mediaType !== 'voice') return src.mediaType as MediaKind;
+  return planOutboundKind(mimetype, size, null);
+}
+
+/** Lo que se ve del archivo (medidas, duración, onda, miniatura) pasa a la copia; nada propio del original (cid, menciones). */
+function forwardMeta(meta: WaMessageMeta, kind: MediaKind, mime: string, size: number): WaMessageMeta {
+  const out: WaMessageMeta = { mime, size };
+  for (const k of ['width', 'height', 'duration', 'pages', 'thumb', 'animated', 'waveform'] as const) {
+    if (meta[k] !== undefined) (out as Record<string, unknown>)[k] = meta[k];
+  }
+  if (kind === 'voice') out.ptt = true;
+  return out;
+}
+
+/**
+ * Reenvía por copia un archivo ya bajado (el servidor de WhatsApp no tiene
+ * reenvío nativo): sale en base64 con el mismo tipo y queda guardado como
+ * "Reenviado". El texto de un audio o sticker (WhatsApp no lo muestra) lo
+ * manda quien llama, aparte. Devuelve el id del mensaje en WhatsApp.
+ */
+export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRow, src: ForwardSource, file: { data: Buffer; mimetype: string; filename: string }): Promise<string> {
+  if (account.status !== 'connected') throw new InboxError('not_connected', 409);
+  const mimetype = (baseMime(file.mimetype || src.meta.mime || '') || 'application/octet-stream').slice(0, 100);
+  let kind: MediaKind;
+  try {
+    kind = forwardKind(src, mimetype, file.data.length);
+  } catch (err) {
+    const big = err instanceof MediaPlanError && err.code === 'media_too_large';
+    throw new InboxError(big ? 'file_too_large' : 'invalid_input', big ? 413 : 400);
+  }
+  if (file.data.length > WA_MEDIA_LIMITS[kind]) throw new InboxError('file_too_large', 413);
+  const filename = safeName(src.mediaName || file.filename, mimetype);
+  const captioned = kind === 'image' || kind === 'video' || kind === 'document';
+  const caption = captioned ? src.body.trim().slice(0, LIMITS.message) : '';
+  let id = '';
+  try {
+    id = (
+      await waProviderFor(account).sendMedia(thread.external_id, {
+        url: '',
+        mimetype,
+        filename,
+        ...(caption ? { caption } : {}),
+        kind,
+        base64: file.data.toString('base64'),
+      })
+    ).id;
+  } catch (err) {
+    if (err instanceof InboxError) throw err;
+    throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
+  }
+  await addMessage(thread, {
+    externalId: id || `local-${Date.now()}`,
+    fromMe: true,
+    body: caption,
+    mediaType: storedType(kind),
+    mediaName: kind === 'document' || kind === 'audio' ? filename : '',
+    mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
+    meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length)),
+    kind: kind === 'voice' ? 'voice' : storedType(kind),
+    status: 'sent',
+    forwarded: true,
   });
   return id;
 }

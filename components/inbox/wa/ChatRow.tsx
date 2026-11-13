@@ -7,12 +7,13 @@ import Avatar from '@/components/groups/wa/Avatar';
 import { listTime } from '@/components/groups/wa/format';
 import { plainWa } from '@/components/groups/wa/rich';
 import { CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
-import { chatName, previewKind, previewText, type PreviewKind } from './util';
+import { chatName, formatPhone, previewKind, previewText, type PreviewKind } from './util';
 import { useDraft } from '@/components/ui/useDraft';
 
 const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => ReactNode> = {
   image: PhotoIcon,
   video: CameraIcon,
+  gif: CameraIcon,
   voice: Mic,
   audio: MusicIcon,
   document: DocIcon,
@@ -65,7 +66,7 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
           <span className="wa-row-preview" dir="auto">
             {extra}
             {typing ? (
-              <span className="wa-row-typing">{w(th.presence === 'recording' ? 'recording' : 'typing')}</span>
+              <span className="wa-row-typing">{typingLabel(th, w)}</span>
             ) : draft ? (
               <>
                 <span className="wa-row-draft">{t('list.draft')}</span>
@@ -99,4 +100,13 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
       </span>
     </>
   );
+}
+
+/** "Andrés está escribiendo…" en un grupo (como WhatsApp); "escribiendo…" en un 1:1 o si no se sabe quién. */
+export function typingLabel(th: Pick<ThreadDto, 'kind' | 'presence' | 'presenceWho' | 'presenceName'>, w: (key: string, values?: Record<string, string>) => string, names?: Map<string, string>): string {
+  const rec = th.presence === 'recording';
+  if (th.kind !== 'group') return w(rec ? 'recording' : 'typing');
+  const phone = /^\d{5,20}$/.test(th.presenceWho) ? th.presenceWho : '';
+  const who = (phone && names?.get(phone)) || th.presenceName || (phone ? formatPhone(phone) : '');
+  return who ? w(rec ? 'recordingBy' : 'typingBy', { name: who }) : w(rec ? 'recording' : 'typing');
 }

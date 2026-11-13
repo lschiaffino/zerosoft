@@ -9887,6 +9887,78 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Analítica de Inbox y CRM (kit de analítica): los mensajes de una persona por fecha y los
+    // deals cerrados por fecha, para leer un período por rango con índice.
+    id: '396_analytics_kit_indexes',
+    up: async (c) => {
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_inbox_messages_owner_sent ON inbox_messages(owner_id, sent_at)');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_crm_deals_closed ON crm_deals(user_id, closed_at) WHERE closed_at IS NOT NULL');
+    },
+  },
+  {
+    // Stickers de WhatsApp de cada persona en Lines e Inbox (lib/wa-stickers.ts): la colección (sin repetir por
+    // SHA-256, favoritos y recientes) y hasta dónde se trajo de los chats. Índices parciales para encontrar los
+    // stickers de los chats sin recorrer los demás mensajes. Y los stickers que Inbox guardó como 'image' (el
+    // mimetype image/webp tapaba que eran stickers y se dibujaban como una foto grande) pasan a 'sticker'.
+    // Se puede correr más de una vez.
+    id: '399_wa_stickers',
+    up: async (c) => {
+      await c.execute(`
+        CREATE TABLE IF NOT EXISTS wa_stickers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          scope_id TEXT NOT NULL DEFAULT '',
+          hash TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          share_url TEXT,
+          animated INTEGER NOT NULL DEFAULT 0,
+          width INTEGER,
+          height INTEGER,
+          size INTEGER NOT NULL DEFAULT 0,
+          favorite INTEGER NOT NULL DEFAULT 0,
+          source TEXT NOT NULL DEFAULT 'chat',
+          last_used_at TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_stickers_hash ON wa_stickers(user_id, app, scope_id, hash)');
+      await c.execute(`
+        CREATE TABLE IF NOT EXISTS wa_sticker_sync (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          app TEXT NOT NULL,
+          scope_id TEXT NOT NULL DEFAULT '',
+          cursor INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, app, scope_id)
+        )`);
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_groups_messages_webp ON groups_messages(user_id) WHERE media_type = 'image/webp'");
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_messages_sticker ON inbox_messages(owner_id) WHERE media_type = 'sticker'");
+      await c.execute(`UPDATE inbox_messages SET media_type = 'sticker' WHERE media_type = 'image' AND meta LIKE '%"mime":"image/webp"%'`);
+    },
+  },
+  {
+    // Inbox: los 1:1 de WhatsApp sin foto se vuelven a pedir una vez: ahora, si el perfil viene sin foto, se pide
+    // aparte (fetchProfilePictureUrl). Sin esto esperaban hasta que vencieran sus datos (INFO_TTL_MS, 3 días).
+    id: '398_inbox_refetch_missing_pictures',
+    up: async (c) => {
+      await c.execute("UPDATE inbox_threads SET info_at = NULL WHERE channel = 'whatsapp' AND kind = 'dm' AND COALESCE(avatar_url, '') = ''");
+    },
+  },
+  {
+    // Chats de WhatsApp: la visualización de cada persona (lib/chat-display.ts) y, en la caché de
+    // vistas previas de links, las medidas de la imagen (tarjeta grande o compacta), una segunda
+    // imagen, el ícono del sitio y la versión del lector (las filas viejas se vuelven a leer).
+    id: '397_wa_link_preview_display',
+    async up(c) {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_display TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN image_w INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN image_h INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE wa_link_previews ADD COLUMN image2 TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE wa_link_previews ADD COLUMN favicon TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN version INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

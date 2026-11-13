@@ -54,7 +54,9 @@ function watchErrors(page: Page): string[] {
 
 /** Abre el diálogo y elige la línea del test (el workspace de los e2e tiene varias). */
 async function openDialog(page: Page, n: NumberInfo) {
-  await page.getByRole('button', { name: 'New chat' }).click();
+  // En escritorio la lista no tiene "+": se entra por Nuevo › Chat nuevo del lateral.
+  await page.locator('.side-new-btn').click();
+  await page.getByRole('menuitem', { name: 'New chat' }).click();
   const dialog = page.getByRole('dialog', { name: 'New chat' });
   await expect(dialog).toBeVisible();
   const from = dialog.getByLabel('From line');

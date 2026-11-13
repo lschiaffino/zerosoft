@@ -84,22 +84,47 @@ function fakeHtml(url: string): string {
   return `<html><head><title>${site} page</title><meta property="og:description" content="Preview of ${site}"><meta property="og:image" content="https://${site}/cover.png"><link rel="icon" href="/favicon.png"></head><body></body></html>`;
 }
 
-/** Metadatos de un link (si el sitio no responde, solo la URL y el dominio). */
-export async function unfurlLink(raw: string): Promise<DocsLinkPreview | null> {
-  const url = cleanExternalUrl(raw);
-  if (!url) return null;
-  if (process.env.DOCS_UNFURL_FAKE === '1') return parseLinkMeta(fakeHtml(url), url);
+/**
+ * Lo que hace falta para elegir la tarjeta de un link en los chats: todas las
+ * og:image (hasta 4, sin repetir) y las medidas que declara la página
+ * (og:image:width/height; 0 si no las dice). Puro.
+ */
+export interface LinkImageHints {
+  images: string[];
+  width: number;
+  height: number;
+}
+
+export function parseImageHints(html: string, url: string): LinkImageHints {
+  const head = html.slice(0, MAX_BYTES);
+  const images: string[] = [];
+  let width = 0;
+  let height = 0;
+  for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
+    const key = (attr(tag, 'property') ?? attr(tag, 'name') ?? '').toLowerCase();
+    const content = attr(tag, 'content');
+    if (content === undefined) continue;
+    if (key === 'og:image' || key === 'og:image:url' || key === 'og:image:secure_url' || key === 'twitter:image') {
+      const abs = absolute(content, url);
+      if (abs && !images.includes(abs) && images.length < 4) images.push(abs);
+    } else if (key === 'og:image:width' && !width) width = Math.max(0, Math.min(20_000, parseInt(content, 10) || 0));
+    else if (key === 'og:image:height' && !height) height = Math.max(0, Math.min(20_000, parseInt(content, 10) || 0));
+  }
+  return { images, width, height };
+}
+
+async function fetchHtml(url: string): Promise<string | null> {
   try {
     const res = await safeFetch(
       url,
       { headers: { 'User-Agent': 'zerosoft-docs-bot/1.0 (+link preview)', Accept: 'text/html,application/xhtml+xml' } },
       6000,
-      { maxRedirects: 4 },
+      { maxRedirects: 4, pinDns: true },
     );
     const type = res.headers.get('content-type') ?? '';
     if (!res.ok || !/html|xml/i.test(type) || !res.body) {
       await res.body?.cancel().catch(() => {});
-      return { url, site: linkSite(url) };
+      return null;
     }
     const reader = res.body.getReader();
     const chunks: Uint8Array[] = [];
@@ -111,9 +136,22 @@ export async function unfurlLink(raw: string): Promise<DocsLinkPreview | null> {
       total += value.length;
     }
     await reader.cancel().catch(() => {});
-    const html = new TextDecoder('utf-8', { fatal: false }).decode(Buffer.concat(chunks.map((c) => Buffer.from(c))));
-    return parseLinkMeta(html, url);
+    return new TextDecoder('utf-8', { fatal: false }).decode(Buffer.concat(chunks.map((c) => Buffer.from(c))));
   } catch {
-    return { url, site: linkSite(url) };
+    return null;
   }
+}
+
+/** Metadatos de un link (si el sitio no responde, solo la URL y el dominio). */
+export async function unfurlLink(raw: string): Promise<DocsLinkPreview | null> {
+  return (await unfurlLinkDetailed(raw))?.meta ?? null;
+}
+
+/** unfurlLink más las pistas de imagen (parseImageHints) del mismo HTML. */
+export async function unfurlLinkDetailed(raw: string, fake: (url: string) => string = fakeHtml): Promise<{ meta: DocsLinkPreview; hints: LinkImageHints } | null> {
+  const url = cleanExternalUrl(raw);
+  if (!url) return null;
+  const html = process.env.DOCS_UNFURL_FAKE === '1' ? fake(url) : await fetchHtml(url);
+  if (html === null) return { meta: { url, site: linkSite(url) }, hints: { images: [], width: 0, height: 0 } };
+  return { meta: parseLinkMeta(html, url), hints: parseImageHints(html, url) };
 }

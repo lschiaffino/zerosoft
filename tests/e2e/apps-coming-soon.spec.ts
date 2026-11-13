@@ -198,7 +198,13 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     await owner.p.goto('/en/app', { waitUntil: 'networkidle' });
     await owner.p.locator('.band-product').click();
     await expect(owner.p.locator('.band-switcher-panel')).not.toContainText('CRM');
-    await owner.p.keyboard.press('Escape');
+    // Aparte, en "Turned off for this account", plegado; abierto, CRM lleva a Ajustes › Apps.
+    await expect(owner.p.getByTestId('switcher-off-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await owner.p.getByTestId('switcher-off-toggle').click();
+    await expect(owner.p.getByTestId('switcher-off-crm')).toHaveAttribute('href', '/en/app/settings/apps');
+    await owner.p.getByTestId('switcher-off-crm').click();
+    await expect(owner.p).toHaveURL(/\/en\/app\/settings\/apps/);
+    await owner.p.goto('/en/app', { waitUntil: 'networkidle' });
     const kept = await sql("SELECT COUNT(*) AS n FROM crm_contacts WHERE user_id = ? AND first_name = 'Keep'", [owner.id]);
     expect(Number(kept[0].n)).toBe(1);
 

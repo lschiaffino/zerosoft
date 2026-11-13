@@ -8,7 +8,8 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
-import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -35,6 +36,7 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
@@ -43,7 +45,7 @@ import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
 import MediaAlbum from './wa/MediaAlbum';
 import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
@@ -86,6 +88,7 @@ import {
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
+import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
@@ -261,6 +264,11 @@ export default function ChatThread(props: ThreadProps) {
   const [translateError, setTranslateError] = useState('');
   const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
   const [mentionIndex, setMentionIndex] = useState(0);
+  // Esc cierra la lista de "@" para esa mención (dónde empieza); se vuelve a abrir con otro "@".
+  const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  // Menciones de WhatsApp elegidas de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
+  const pickedWa = useRef(new Map<string, string>());
+  const [pickedVersion, setPickedVersion] = useState(0);
   const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const [hasOlder, setHasOlder] = useState(props.messages.length >= 200);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -325,6 +333,9 @@ export default function ChatThread(props: ThreadProps) {
 
   const peopleById = useMemo(() => new Map(props.people.map((p) => [p.id, p.name || p.email])), [props.people]);
   const nameOf = useCallback((id: string | null | undefined) => (id ? peopleById.get(id) ?? '' : ''), [peopleById]);
+  // Foto de quien manda un audio desde acá (como WhatsApp, que pone la tuya); sin autor (salió del teléfono), la de quien mira.
+  const imageOf = useMemo(() => new Map(props.people.map((p) => [p.id, p.image || ''])), [props.people]);
+  const outImage = useCallback((id: string | null | undefined) => (id && imageOf.get(id)) || imageOf.get(props.me) || undefined, [imageOf, props.me]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -562,9 +573,15 @@ export default function ChatThread(props: ThreadProps) {
     [chat.id, refresh, showToast, errText, merge],
   );
 
-  // "@" en una nota abre las personas ("/" abre los comandos y las respuestas rápidas, más abajo).
-  const mentionQuery = mode === 'note' ? mentionQueryAt(text, caret) : null;
-  const mentionMatches = mentionQuery ? mentionSuggestions(mentionQuery.query, mentionPeople) : [];
+  // "@" en una nota abre las personas del equipo; en un grupo de WhatsApp, los participantes (como WhatsApp). La
+  // mención sale como mención de verdad (avisa a la persona). "/" abre los comandos y las respuestas rápidas, más abajo.
+  const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
+  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current), [props.members, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
+  const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
+  const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
+  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const mentionMatches = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6) : [];
 
   // Idioma del cliente: el detectado en su último mensaje traducido.
   const customerLang = useMemo(() => {
@@ -645,6 +662,10 @@ export default function ChatThread(props: ThreadProps) {
   function pickMention(i: number) {
     const p = mentionMatches[i];
     if (!p || !mentionQuery) return;
+    if (waMentions && p.name) {
+      pickedWa.current.set(p.name, p.id);
+      setPickedVersion((v) => v + 1);
+    }
     const insert = `${mentionText(p)} `;
     const next = text.slice(0, mentionQuery.start) + insert + text.slice(caret);
     setText(next);
@@ -722,11 +743,17 @@ export default function ChatThread(props: ThreadProps) {
       if (!ok) return;
     } else {
       // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
-      sendTextNow(text, base.replyToId);
+      // En un grupo, "@Nombre" sale como "@<teléfono>" con la lista de mencionados: WhatsApp avisa y muestra el nombre.
+      const out = chat.kind === 'group' ? serializeWaMentions(text, waPeople) : { body: text, mentions: [] };
+      sendTextNow(out.body, base.replyToId, out.mentions, !linkPv.linkPreview);
+      pickedWa.current.clear();
     }
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!files.length) setText('');
+    if (!files.length) {
+      setText('');
+      linkPv.reset();
+    }
     setReplyTo(null);
     ai.clearUndo();
     refresh();
@@ -738,8 +765,8 @@ export default function ChatThread(props: ThreadProps) {
    * guardado la reemplaza, o queda como no enviada con reintentar. El envío y lo pendiente viven fuera de este
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
-  function sendTextNow(body: string, replyToId: string | null) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId }).clientId);
+  function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
+    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -796,6 +823,9 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
+  // Vista previa del link que se está escribiendo (arriba del campo, con X para no mandarla).
+  const linkPv = useComposerLinkPreview(text, { disabled: mode === 'note' || !!editing || tray.items.length > 0 || recording != null });
+
   const emojiSuggest = useEmojiSuggest({
     text,
     caret,
@@ -824,6 +854,24 @@ export default function ChatThread(props: ThreadProps) {
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         pickMention(Math.min(mentionIndex, mentionMatches.length - 1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (mentionQuery) setMentionClosedAt(mentionQuery.start);
+        return;
+      }
+    }
+    // Borrar contra una mención la saca entera (como WhatsApp): no queda medio nombre que ya no menciona a nadie.
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !editing && mentionHits.length && !e.altKey && !e.metaKey && !e.ctrlKey) {
+      const el = e.currentTarget;
+      const cut = deleteMentionToken(text, el.selectionStart, el.selectionEnd, e.key, mentionHits);
+      if (cut) {
+        e.preventDefault();
+        setText(cut.text);
+        setCaret(cut.caret);
+        pendingCaret.current = cut.caret;
         return;
       }
     }
@@ -1231,6 +1279,7 @@ export default function ChatThread(props: ThreadProps) {
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
+    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
     if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
@@ -1250,6 +1299,33 @@ export default function ChatThread(props: ThreadProps) {
     team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (team.length) team[0] = { ...team[0], divider: true };
     return [...items, ...team];
+  }
+
+  async function favoriteSticker(messageId: string) {
+    const res = await api('/api/groups/stickers', { body: { action: 'favoriteMessage', messageId } });
+    showToast(res.data ? t('wa.stickers.favorited') : t('wa.stickers.favoriteFailed'), !res.data);
+  }
+
+  /** Un sticker del panel: la media para mandarlo (lib/wa-stickers.ts) y sale como cualquier archivo del chat. */
+  async function sendSticker(id: string): Promise<boolean> {
+    const res = await api<{ media: Record<string, unknown> }>('/api/groups/stickers', { body: { action: 'use', id } });
+    if (!res.data) {
+      setSendError(t('wa.stickers.sendFailed'));
+      return false;
+    }
+    // Ya está subido: sale por la cola del chat como cualquier archivo (burbuja al instante, reintentar si no sale).
+    const m = res.data.media as { url: string; mimetype?: string; filename?: string; size?: number; width?: number; height?: number };
+    notifyChatSent(chat.id);
+    sendLinesText(
+      unsentLines.add({
+        chatId: chat.id,
+        body: '',
+        replyToId: replyTo?.id ?? null,
+        media: { kind: 'sticker', url: m.url, type: m.mimetype || 'image/webp', name: m.filename || 'sticker.webp', size: m.size ?? 0, width: m.width, height: m.height },
+      }).clientId,
+    );
+    setReplyTo(null);
+    return true;
   }
 
   function downloadMedia(m: MessageDto) {
@@ -1561,6 +1637,8 @@ export default function ChatThread(props: ThreadProps) {
                 <span className="wa-viewonce">
                   <ViewOnce size={20} /> {t('wa.viewOnce')}
                 </span>
+              ) : sticker && !media.url ? (
+                <StickerMissing label={t('wa.stickers.missing')} />
               ) : !media.url ? (
                 <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
               ) : kind === 'image' || kind === 'sticker' ? (
@@ -1574,6 +1652,8 @@ export default function ChatThread(props: ThreadProps) {
                   onLoad={keepAtEnd}
                   onOpen={() => setViewerAt(m.id)}
                 />
+              ) : kind === 'video' && media.animated ? (
+                <GifView url={media.url} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
@@ -1584,7 +1664,7 @@ export default function ChatThread(props: ThreadProps) {
                       ? chat.kind === 'dm'
                         ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
                         : { name: inName(m), seed: m.senderPhone || m.senderName }
-                      : { name: author || '', seed: m.authorId || 'me' }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
                   }
                 />
               ) : (
@@ -1605,7 +1685,7 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (
@@ -1695,12 +1775,14 @@ export default function ChatThread(props: ThreadProps) {
         </div>
         {reactions.size > 0 && (
           <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {[...reactions].map(([emoji, n]) => (
-              <span key={emoji}>
-                {emoji}
-                {n > 1 && <b>{n}</b>}
-              </span>
-            ))}
+            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
+            {[...reactions]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([emoji]) => (
+                <span key={emoji}>{emoji}</span>
+              ))}
+            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
           </p>
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (
@@ -1734,7 +1816,7 @@ export default function ChatThread(props: ThreadProps) {
   const canSend = Boolean(text.trim() || (mode === 'reply' && tray.items.length > 0));
   const unseen = atBottom ? 0 : messages.filter((m) => m.direction === 'in' && m.createdAt > bottomAt).length;
   const viewerItems = messages
-    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
+    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && m.media.kind !== 'sticker')
     .map((m) => {
       const author = m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you');
       // En un 1 a 1 lo recibido lleva la foto del chat; en un grupo, iniciales de quien lo mandó.
@@ -1979,6 +2061,7 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           )}
+          {!selecting && linkPv.card}
           {slash.menu}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && !slash.open && (
@@ -1987,13 +2070,16 @@ export default function ChatThread(props: ThreadProps) {
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
                   <button
                     type="button"
-                    title={p.email}
+                    title={waMentions ? `+${p.id}` : p.email}
                     onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
                     onClick={() => pickMention(i)}
                   >
                     <Avatar name={p.name || p.email} kind="dm" size={32} seed={p.id} />
-                    <span className="wa-mention-name">{p.name || p.email}</span>
+                    <span className="wa-mention-who">
+                      <span className="wa-mention-name">{p.name || p.email}</span>
+                      {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -2052,6 +2138,7 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
                 {emojiOpen && (
                   <EmojiPicker
+                    stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
                     }}
@@ -2106,10 +2193,11 @@ export default function ChatThread(props: ThreadProps) {
                   />
                 </>
               )}
-              <textarea
+              <MentionTextarea
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 rows={1}
+                highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
                 disabled={leaving}
                 onChange={(e) => {
@@ -2120,6 +2208,7 @@ export default function ChatThread(props: ThreadProps) {
                   setText(e.target.value);
                   setCaret(e.target.selectionStart ?? e.target.value.length);
                   setMentionIndex(0);
+                  if (mentionClosedAt !== null && !e.target.value.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}

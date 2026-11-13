@@ -44,7 +44,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         await hideMessage(owner, id);
         break;
       case 'forward':
-        return iJson({ ok: true, sent: await forwardMessage(owner, id, body.to) });
+        return iJson({ ok: true, ...(await forwardMessage(owner, id, body.to)) });
     }
     return iJson({ ok: true });
   });

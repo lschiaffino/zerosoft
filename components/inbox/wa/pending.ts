@@ -46,7 +46,7 @@ export const MEDIA_SEND_TIMEOUT_MS = 100_000;
 /** La cola de envíos de un chat de Inbox: textos, archivos y notas de voz salen en el orden en que se mandaron. */
 export const inboxQueue = (threadId: string) => sendQueueFor(`inbox:${threadId}`);
 
-export function tempInboxMessage(clientId: string, body: string): MessageDto {
+export function tempInboxMessage(clientId: string, body: string, noPreview = false): MessageDto {
   return {
     id: tempIdFor(clientId),
     fromMe: true,
@@ -64,7 +64,7 @@ export function tempInboxMessage(clientId: string, body: string): MessageDto {
     sentAt: new Date().toISOString(),
     reply: null,
     reactions: [],
-    meta: { cid: clientId },
+    meta: { cid: clientId, ...(noPreview ? { noPreview: true } : {}) },
   };
 }
 

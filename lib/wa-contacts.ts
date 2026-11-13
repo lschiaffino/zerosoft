@@ -20,7 +20,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
-import { hiddenMentions, mentionCandidates, mentionSomeone, replaceMentions, type MentionMap } from './wa-mentions';
+import { hiddenMentions, mentionCandidates, mentionSomeone, mentionYou, replaceMentions, type MentionMap } from './wa-mentions';
 
 export type WaApp = 'inbox' | 'lines';
 
@@ -283,7 +283,41 @@ export async function someoneWord(userId: string): Promise<string> {
   }
 }
 
+/** "Vos" en el idioma de la persona (la mención a la cuenta misma). */
+export async function youWord(userId: string): Promise<string> {
+  try {
+    const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale?: string | null } | undefined;
+    return mentionYou(row?.locale);
+  } catch {
+    return mentionYou('en');
+  }
+}
+
+/**
+ * La cuenta misma en las menciones, como la muestra la burbuja: en Inbox
+ * "@Vos" (el teléfono de la cuenta de WhatsApp de la persona); en Lines, el
+ * nombre de la línea (o "@Vos" si no tiene). `userId`: para el idioma.
+ */
+export function mentionSelf(app: WaApp, userId: string): (accountId: string) => Promise<{ phone: string; label: string } | null> {
+  return async (accountId) => {
+    const db = getDb();
+    const row =
+      app === 'inbox'
+        ? ((await db.prepare("SELECT address AS phone, '' AS name FROM inbox_accounts WHERE id = ?").get(accountId)) as { phone?: string; name?: string } | undefined)
+        : ((await db.prepare('SELECT phone, name FROM groups_numbers WHERE id = ?').get(accountId)) as { phone?: string; name?: string } | undefined);
+    const phone = String(row?.phone ?? '').replace(/\D/g, '');
+    if (!/^\d{6,16}$/.test(phone)) return null;
+    return { phone, label: String(row?.name ?? '').trim() || (await youWord(userId)) };
+  };
+}
+
 export interface TextMentionOptions {
+  /**
+   * La cuenta misma (lib/wa-contacts.ts mentionSelf): una mención a su
+   * teléfono, o a un lid de ese teléfono, va con esta etiqueta ("Vos" o el
+   * nombre de la línea), como en la burbuja. Se pide una vez por cuenta.
+   */
+  self?: (accountId: string) => Promise<{ phone: string; label: string } | null>;
   /**
    * Cómo se muestra una mención que no se sabe de quién es ("alguien"): el
    * texto, o cómo conseguirlo (solo se pide si hace falta). Sin esto, esos
@@ -324,9 +358,10 @@ export async function resolveTextMentions(
     const phoneLabel = (phone: string, id: string) => (opts.phone ? opts.phone(phone, id) : `+${phone}`);
     // Lo que sabe la libreta vale para toda la cuenta; la lista guardada de mencionados, solo para su mensaje.
     const labels = new Map<string, string>();
+    const me = opts.self ? await opts.self(accountId).catch(() => null) : null;
     for (const d of digits) {
       const r = rows.get(d);
-      const label = displayName(r) || (r?.phone ? phoneLabel(r.phone, d) : '');
+      const label = me && (d === me.phone || r?.phone === me.phone) ? me.label : displayName(r) || (r?.phone ? phoneLabel(r.phone, d) : '');
       if (label) labels.set(d, label);
     }
     for (const i of idx) {

@@ -531,6 +531,9 @@ describe('QA int-4: tareas en el formato del CRM y gente del workspace', () => {
     const people = await listPeople(owner.id);
     expect(people.map((p) => p.id)).toEqual(expect.arrayContaining([owner.id, mate.id]));
     expect((await workspacePeople(owner.id)).map((p) => p.id)).toEqual(people.map((p) => p.id));
+    // Con la foto de cada uno: va en los audios que manda esa persona.
+    await getDb().prepare('UPDATE users SET image = ? WHERE id = ?').run('https://lh3.example.com/mate.png', mate.id);
+    expect((await listPeople(owner.id)).find((p) => p.id === mate.id)?.image).toBe('https://lh3.example.com/mate.png');
   });
 });
 

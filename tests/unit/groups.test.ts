@@ -208,7 +208,7 @@ describe('Evolution API', () => {
     const p = evolutionProvider(cfg, { fetch: f });
     expect((await p.sendText('123@g.us', 'hola')).id).toBe('BAE5');
     expect(header(calls[0].init, 'apikey')).toBe('evo-key');
-    expect(calls[0].body).toEqual({ number: '123@g.us', text: 'hola' });
+    expect(calls[0].body).toEqual({ number: '123@g.us', text: 'hola', linkPreview: true });
     const res = await p.updateParticipants('123@g.us', 'add', ['15550001001', '15550001099']);
     expect(calls[1].url).toBe('https://evo.example.com/group/updateParticipant/acme?groupJid=123%40g.us');
     expect(res).toEqual([

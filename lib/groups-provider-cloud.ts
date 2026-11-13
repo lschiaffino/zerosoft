@@ -228,7 +228,7 @@ export function cloudProvider(cfg: CloudConfig, fetchImpl: FetchLike = (u, i) =>
       send({
         to: phoneDigits(chatId),
         type: 'text',
-        text: { body: text, preview_url: true },
+        text: { body: text, preview_url: opts?.linkPreview !== false },
         ...(opts?.replyTo ? { context: { message_id: opts.replyTo } } : {}),
       }),
     sendMedia: (chatId, media: MediaInput) => {

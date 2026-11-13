@@ -357,10 +357,9 @@ describe('9. la migración 394 se puede correr de nuevo sobre una base que corri
     for (const [n] of WA_LIVE_MESSAGE_TRIGGERS) expect(names).toContain(n);
     const idx = (await c.execute("SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('idx_groups_messages_client', 'idx_inbox_messages_client', 'idx_groups_team_members_person')")).rows;
     expect(idx).toHaveLength(3);
-    // Y está en la lista después de la 393 (no "es la última": cada PR que suma una migración la dejaría atrás).
-    const at = (id: string) => MIGRATIONS.findIndex((m) => m.id === id);
-    expect(at('394_wa_live_kinds')).toBeGreaterThan(at('393_fewer_reads'));
-    expect(at('393_fewer_reads')).toBeGreaterThan(-1);
+    // Y va después de 393 (las que llegan después se agregan al final).
+    const ids = MIGRATIONS.map((m) => m.id);
+    expect(ids.indexOf('394_wa_live_kinds')).toBeGreaterThan(ids.indexOf('393_fewer_reads'));
   });
 });
 
