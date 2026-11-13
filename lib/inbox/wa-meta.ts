@@ -40,7 +40,7 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     if (info.lottie) out.lottie = true;
     if (info.sha && /^[0-9a-f]{64}$/.test(info.sha)) out.sha = info.sha;
     if (info.waveform?.length) out.waveform = info.waveform.slice(0, 64);
-    kind = out.ptt ? 'voice' : info.kind === 'sticker' ? 'sticker' : '';
+    kind = out.ptt ? 'voice' : info.kind === 'sticker' ? 'sticker' : info.kind === 'video' && info.animated ? 'gif' : '';
   }
   if (e.location) {
     out.location = {

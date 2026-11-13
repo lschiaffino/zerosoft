@@ -13,6 +13,7 @@ import { useDraft } from '@/components/ui/useDraft';
 const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => ReactNode> = {
   image: PhotoIcon,
   video: CameraIcon,
+  gif: CameraIcon,
   voice: Mic,
   audio: MusicIcon,
   document: DocIcon,

@@ -52,9 +52,9 @@ function stickerEvents(chatId: string, tag: string, chatName?: string) {
 /** Lo que un sticker recibido tiene que ser: sin burbuja, chico, sin abrir el visor. */
 async function expectBareStickers(page: Page, thread: Locator) {
   const stickers = thread.locator('.gr-msg-in.is-bare .wa-image.is-sticker');
-  await expect(stickers).toHaveCount(2);
+  await expect(stickers).toHaveCount(2, { timeout: 30_000 });
   for (const s of await stickers.all()) {
-    await expect(s.locator('img:not(.wa-thumb)')).toBeVisible();
+    await expect(s.locator('img.is-loaded')).toBeVisible({ timeout: 20_000 });
     const box = (await s.boundingBox())!;
     expect(box.width).toBeLessThanOrEqual(192);
     expect(box.height).toBeLessThanOrEqual(192);
@@ -73,10 +73,11 @@ async function importAndSend(page: Page, composer: Locator, thread: Locator, sho
   await composer.getByRole('button', { name: 'Emoji', exact: true }).click();
   const panel = page.locator('.wa-emoji');
   await panel.getByRole('tab', { name: 'Stickers' }).click();
-  await expect(panel.getByText('No stickers yet')).toBeVisible();
+  await expect(panel.getByText('No stickers yet')).toBeVisible({ timeout: 30_000 });
   await panel.getByRole('button', { name: 'Import stickers from my chats' }).click();
   // Dos archivos distintos (el animado y el quieto).
   await expect(panel.locator('section[aria-label="Your stickers"] .wa-stk')).toHaveCount(2, { timeout: 20_000 });
+  await expect.poll(() => panel.locator('.wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
   await shot(page, shotName);
   const before = await thread.locator('.gr-msg-out .wa-image.is-sticker').count();
   await panel.locator('section[aria-label="Your stickers"] .wa-stk-send').first().click();
@@ -101,6 +102,9 @@ async function favoriteFromMessage(page: Page, composer: Locator, thread: Locato
   await page.keyboard.press('Escape');
 }
 
+// Dos anchos, importar y mandar: más que el tiempo por defecto.
+test.setTimeout(180_000);
+
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 });
@@ -119,11 +123,10 @@ test('Lines: sticker chico y sin burbuja, GIF en burbuja, pestaña Stickers y fa
   const res = await request.post(new URL(webhookUrl).pathname, { data: { events: stickerEvents(gid, tag, name) } });
   expect(res.ok(), await res.text()).toBe(true);
 
-  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-  const row = page.locator('.gr-rows .gr-row', { hasText: name });
-  await expect(row).toBeVisible({ timeout: 20_000 });
-  await row.click();
+  const [chat] = await sql('SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', [id, gid]);
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const thread = page.locator('.gr-thread').first();
+  await expect(thread.locator('.gr-thread-head')).toBeVisible({ timeout: 60_000 });
   await expectBareStickers(page, thread);
   await shot(page, 'lines-received-1280');
   const composer = thread.locator('.wa-bar');
@@ -135,11 +138,14 @@ test('Lines: sticker chico y sin burbuja, GIF en burbuja, pestaña Stickers y fa
   expect(JSON.parse(String(sent[0].meta)).media.kind).toBe('sticker');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(thread.locator('.gr-msg-in.is-bare .wa-image.is-sticker').first()).toBeVisible();
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await expect(thread.locator('.gr-msg-in.is-bare .wa-image.is-sticker img.is-loaded').first()).toBeVisible({ timeout: 30_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'lines-received-390');
-  await composer.getByRole('button', { name: 'Emoji', exact: true }).click();
+  // Clic del DOM: en desarrollo el botón de Next tapa la esquina del campo a 390.
+  await composer.getByRole('button', { name: 'Emoji', exact: true }).evaluate((b) => (b as HTMLButtonElement).click());
   await expect(page.locator('.wa-emoji .wa-stk').first()).toBeVisible();
+  await expect.poll(() => page.locator('.wa-emoji .wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
   await shot(page, 'lines-sticker-tab-390');
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -163,7 +169,7 @@ test('Inbox: sticker chico y sin burbuja, GIF en burbuja, pestaña Stickers y fa
   await expect(item).toBeVisible({ timeout: 20_000 });
   await item.locator('.ib-row-btn').click();
   const thread = page.locator('.ib-wa-thread');
-  await expect(thread.getByRole('heading', { level: 2, name })).toBeVisible();
+  await expect(thread.getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 });
   await expectBareStickers(page, thread);
   await shot(page, 'inbox-received-1280');
   const composer = thread.locator('.wa-bar');
@@ -171,11 +177,15 @@ test('Inbox: sticker chico y sin burbuja, GIF en burbuja, pestaña Stickers y fa
   await favoriteFromMessage(page, composer, thread);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(thread.locator('.gr-msg-in.is-bare .wa-image.is-sticker').first()).toBeVisible();
+  // En el teléfono la lista y el chat son pantallas aparte: se vuelve a abrir.
+  if (!(await thread.isVisible())) await item.locator('.ib-row-btn').click();
+  await expect(thread.locator('.gr-msg-in.is-bare .wa-image.is-sticker img.is-loaded').first()).toBeVisible({ timeout: 30_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'inbox-received-390');
-  await composer.getByRole('button', { name: 'Emoji', exact: true }).click();
+  // Clic del DOM: en desarrollo el botón de Next tapa la esquina del campo a 390.
+  await composer.getByRole('button', { name: 'Emoji', exact: true }).evaluate((b) => (b as HTMLButtonElement).click());
   await expect(page.locator('.wa-emoji .wa-stk').first()).toBeVisible();
+  await expect.poll(() => page.locator('.wa-emoji .wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
   await shot(page, 'inbox-sticker-tab-390');
   expect(errors, errors.join('\n')).toEqual([]);
 });

@@ -407,7 +407,11 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.connectedAt = null;
     },
     sendText: async (chatId, text) => send(chatId, text, 'text'),
-    sendMedia: async (chatId, media) => send(chatId, media.caption ?? media.filename, 'media'),
+    // Un sticker mandado vuelve a bajarse como sticker (id "stk-…", ver fakeMedia).
+    sendMedia: async (chatId, media) => {
+      const r = send(chatId, media.caption ?? media.filename, 'media');
+      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;
+    },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
     },

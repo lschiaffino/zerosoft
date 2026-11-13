@@ -1038,6 +1038,7 @@
     "deleted": "Message deleted",
     "voice": "Voice message",
     "sticker": "Sticker",
+    "gif": "GIF",
     "location": "Location",
     "contact": "Contact",
     "viewOnce": "View once message"
