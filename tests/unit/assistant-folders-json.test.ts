@@ -449,3 +449,15 @@ describe('carpetas desde JSON en Lines (con base)', () => {
     expect(JSON.stringify(result?.output)).not.toContain(w.uno.id);
   });
 });
+
+describe('carpetas desde JSON: volumen', () => {
+  it('20.000 chats y 2.000 no encontrados arman el plan rápido', () => {
+    const chats: ChatCandidate[] = Array.from({ length: 20_000 }, (_, i) => ({ id: `t${i}`, name: `Contacto ${i}`, phone: `5491100${String(i).padStart(6, '0')}`, folderIds: [] }));
+    const json = { Clientes: [...Array.from({ length: 3000 }, (_, i) => `+54 9 11 00${String(i).padStart(6, '0')}`), ...Array.from({ length: 2000 }, (_, i) => `Nadie ${i}`)] };
+    const t0 = Date.now();
+    const plan = buildFoldersPlan({ target: 'inbox', normalized: normalizeFoldersJson(json), existing: [], chats, removeFromOthers: false, maxDepth: 3, room: 10 });
+    expect(Date.now() - t0).toBeLessThan(8000);
+    expect(plan.assign).toBe(3000);
+    expect(plan.unmatched).toHaveLength(2000);
+  });
+});

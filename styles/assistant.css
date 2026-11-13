@@ -158,6 +158,10 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-md .asst-table .table th { white-space: normal; }
 .asst-md .asst-table .table :is(th, td) { vertical-align: top; }
 .asst-md .asst-table tbody tr:last-child td { border-bottom: 0; }
+/* En el teléfono la primera columna queda fija: con el fondo del panel, no el de la página. */
+@media (max-width: 640px) {
+  .asst-md .asst-table > .table :is(th, td):first-child { background: var(--surface-1); }
+}
 .asst-code { margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-xs); overflow: hidden; }
 .asst-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 30px; padding: 0 4px 0 10px; border-bottom: 1px solid var(--line); background: var(--bg-soft); }
 .asst-code-lang { font-family: var(--font-data); font-size: 0.6875rem; color: var(--ink-2); }

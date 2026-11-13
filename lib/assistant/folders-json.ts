@@ -710,7 +710,7 @@ export function closestByName(name: string, idx: ChatIndex, limit = 3): ChatCand
 }
 
 /** Busca un chat del JSON entre los de la persona: JID, teléfono, email y por último el nombre. */
-export function matchChat(ref: ChatRef, idx: ChatIndex): MatchResult {
+export function matchChat(ref: ChatRef, idx: ChatIndex, opts: { closest?: boolean } = {}): MatchResult {
   if (ref.jid) {
     const hit = one(idx.byJid.get(ref.jid.toLowerCase()));
     if (hit.length === 1) return { status: 'matched', id: hit[0].id, by: 'jid' };
@@ -747,7 +747,7 @@ export function matchChat(ref: ChatRef, idx: ChatIndex): MatchResult {
     if (near.length === 1) return { status: 'matched', id: near[0].id, by: 'name' };
     if (near.length > 1) return { status: 'ambiguous', candidates: near.slice(0, 5) };
   }
-  return { status: 'unmatched', closest: closestByName(name || ref.label, idx) };
+  return { status: 'unmatched', closest: opts.closest === false ? [] : closestByName(name || ref.label, idx) };
 }
 
 // ---------------------------------------------------------------------------
@@ -833,6 +833,9 @@ export function existingPaths(existing: ExistingFolder[]): Map<string, string> {
 
 export const pathKey = (path: string[]) => path.map(folderKey).join('/');
 
+/** Para cuántos chats no encontrados se buscan los nombres parecidos. */
+const CLOSEST_MAX = 60;
+
 export function buildFoldersPlan(opts: {
   target: 'inbox' | 'lines';
   normalized: NormalizedFolders;
@@ -896,7 +899,8 @@ export function buildFoldersPlan(opts: {
   for (const spec of specs) {
     const row = rows.get(pathKey(spec.path))!;
     for (const ref of spec.chats) {
-      const m = matchChat(ref, idx);
+      // Los parecidos se buscan para los primeros no encontrados (cada búsqueda recorre todos los chats).
+      const m = matchChat(ref, idx, { closest: plan.unmatched.length < CLOSEST_MAX });
       const where = pathLabel(spec.path);
       if (m.status === 'unmatched') {
         plan.unmatched.push({ folder: where, chat: ref.label, candidates: m.closest.map((c) => c.name).filter(Boolean), ref, path: spec.path });
