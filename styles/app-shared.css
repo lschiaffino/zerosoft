@@ -347,9 +347,11 @@
 .sidebar-collapsed .side-branch { display: none; }
 /* Carpetas como íconos en el sidebar colapsado (components/ui/FolderRail.tsx). */
 .sidebar-collapsed .side-branch:has(.folder-rail) { display: block; }
-.folder-rail { padding: 6px 0 4px; margin: 2px 8px 0; border-top: 1px solid var(--line); max-height: 40vh; overflow-y: auto; scrollbar-width: none; }
+.folder-rail { padding: 6px 0 4px; margin: 2px 8px 0; border-top: 1px solid var(--line); max-height: min(40vh, 300px); overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; }
+/* Muchas carpetas: la tira no crece más de ~8 y se desplaza; el borde de abajo se desvanece para que se note que hay más. */
+.folder-rail:has(li:nth-child(9)) { mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
 .folder-rail::-webkit-scrollbar { display: none; }
-.folder-rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.folder-rail ul { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .folder-rail-btn {
   --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 55% 45%));
   position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
@@ -361,7 +363,7 @@
 .folder-rail-btn:hover { background: color-mix(in srgb, var(--fr-bg) 24%, transparent); }
 .folder-rail-btn.is-active { background: var(--fr-bg); color: #fff; }
 .folder-rail-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.folder-rail-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #d4504f); box-shadow: 0 0 0 2px var(--bg); }
+.folder-rail-dot { position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #d4504f); box-shadow: 0 0 0 2px var(--bg); }
 @media (prefers-reduced-motion: reduce) { .folder-rail-btn { transition: none; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .folder-rail-btn { --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 60% 68%)); } }
 :root[data-theme="dark"] .folder-rail-btn { --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 60% 68%)); }
@@ -755,3 +757,9 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .track-table-wrap.is-linear .track-col-id a { display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; }
   .lk-dest { display: inline-flex; align-items: center; min-height: 40px; }
 }
+.folder-rail-tip {
+  position: fixed; z-index: var(--z-menu, 1000); transform: translateY(-50%); padding: 4px 8px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+  color: var(--bg); background: var(--ink); border-radius: 4px; pointer-events: none; animation: folder-rail-tip-in 0.1s ease-out;
+}
+@keyframes folder-rail-tip-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .folder-rail-tip { animation: none; } }

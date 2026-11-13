@@ -86,7 +86,8 @@
     "noNumbersBodyQr": "Scan a QR code with your phone and your chats and groups show up here in about a minute. If you want to look around first, load sample data.",
     "scanQr": "Scan QR code",
     "pendingBanner": "Your number is not connected yet.",
-    "finishConnect": "Finish connecting"
+    "finishConnect": "Finish connecting",
+    "flaggedHint": "Overdue: waiting for a reply {time}"
   },
   "newChat": {
     "open": "New chat",

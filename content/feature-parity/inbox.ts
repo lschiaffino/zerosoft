@@ -153,6 +153,13 @@ const parity: ProductParity = {
     row('mobile', 'platform', ['Mobile apps', 'Apps móviles', 'Apps móveis'], 'partial', {
       detail: ['The web app works at phone width, one panel at a time. No native app', 'La web funciona en el teléfono, un panel por vez. Sin app nativa', 'A web funciona no celular, um painel por vez. Sem app nativo'],
     }),
+    row('insights', 'platform', ['Inbox analytics', 'Analítica del Inbox', 'Análise do Inbox'], 'have', {
+      detail: [
+        'Received and sent per day by channel (WhatsApp, email, groups), your first response time, chats to reply and waiting, done and archived, when messages arrive. Only you see it',
+        'Recibidos y enviados por día y canal (WhatsApp, email, grupos), tu tiempo de primera respuesta, chats por responder y esperando, hechos y archivados, cuándo llegan los mensajes. Solo lo ves vos',
+        'Recebidas e enviadas por dia e canal (WhatsApp, email, grupos), seu tempo de primeira resposta, conversas para responder e aguardando, feitas e arquivadas, quando as mensagens chegam. Só você vê',
+      ],
+    }),
     row('team', 'platform', ['Share and comment with a team', 'Compartir y comentar con un equipo', 'Compartilhar e comentar com uma equipe'], 'missing'),
     row('privacy', 'platform', ['Private to the person', 'Privado de la persona', 'Privado da pessoa'], 'better', {
       competitorHas: false,

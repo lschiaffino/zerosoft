@@ -1,15 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import {
-  delta,
-  share,
   type AgentStat,
   type AnalyticsData,
   type BroadcastsData,
   type ConversationsData,
   type DayPoint,
   type GroupsData,
-  type Kpi,
   type LabelsData,
   type LineStat,
   type OverviewData,
@@ -17,135 +13,21 @@ import {
   type TeamData,
   type TicketsData,
 } from '@/lib/groups-analytics-shared';
-import { CountUp, TrendChart } from './charts';
+import { TrendChart } from '@/components/analytics-kit/charts';
+import { BarList, Heatmap, KpiTile, Kpis, Panel, chartAria as kitChartAria, pctOf, type Fmt } from '@/components/analytics-kit/kit';
+
+export type { Fmt };
 
 /**
- * Lines, reportes: las pestañas del tablero. Componentes de servidor: reciben
- * los datos ya agregados y los textos; lo único que corre en el navegador es
- * el número que cuenta y el gráfico con detalle (charts.tsx).
+ * Lines, reportes: las pestañas del tablero, armadas con el kit de analítica
+ * (components/analytics-kit). Componentes de servidor: reciben los datos ya
+ * agregados y los textos; lo único que corre en el navegador es el número que
+ * cuenta y el gráfico con detalle.
  */
-
-export interface Fmt {
-  t: (key: string, values?: Record<string, string | number>) => string;
-  locale: string;
-  num: (v: number) => string;
-  dur: (min: number | null | undefined) => string;
-  day: (day: string) => string;
-  dateTime: (iso: string) => string;
-}
 
 // ---------- Piezas ----------
 
-function Sparkline({ values, tone }: { values: number[]; tone: 'in' | 'out' }) {
-  if (values.length < 2) return null;
-  const max = Math.max(1, ...values);
-  const pts = values.map((v, i) => `${((i / (values.length - 1)) * 100).toFixed(2)},${(28 - (Math.max(0, v) / max) * 26).toFixed(2)}`);
-  return (
-    <svg className="la-spark" data-tone={tone} viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <polygon className="la-spark-area" points={`0,30 ${pts.join(' ')} 100,30`} />
-      <polyline className="la-spark-line" pathLength={1} points={pts.join(' ')} />
-    </svg>
-  );
-}
-
-type Better = 'up' | 'down' | 'none';
-
-function KpiTile({
-  f,
-  i,
-  label,
-  kpi,
-  kind = 'number',
-  better = 'none',
-  spark,
-  sparkTone = 'in',
-  snapshot = false,
-}: {
-  f: Fmt;
-  i: number;
-  label: string;
-  kpi: Kpi;
-  kind?: 'number' | 'decimal' | 'duration';
-  /** Qué dirección es buena: tiñe el cambio. */
-  better?: Better;
-  spark?: number[];
-  sparkTone?: 'in' | 'out';
-  /** Una foto de ahora (no del período): lo dice al pie. */
-  snapshot?: boolean;
-}) {
-  const show = (v: number | null | undefined) => (v == null ? '—' : kind === 'duration' ? f.dur(v) : f.num(v));
-  const d = kpi.prev === undefined ? null : delta(kpi.value, kpi.prev);
-  const tone = d == null || d === 0 || better === 'none' ? 'flat' : d > 0 === (better === 'up') ? 'good' : 'bad';
-  let foot: ReactNode = null;
-  if (snapshot) foot = f.t('analytics.rightNow');
-  else if (kpi.prev === undefined) foot = null;
-  else if (d != null) {
-    foot = (
-      <>
-        <span className="la-delta" data-tone={tone}>
-          {new Intl.NumberFormat(f.locale, { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' }).format(d)}
-        </span>
-        <span>{f.t('analytics.before', { value: show(kpi.prev) })}</span>
-      </>
-    );
-  } else if (kpi.prev != null && kpi.value != null && (kpi.prev !== 0 || kpi.value !== 0)) foot = f.t('analytics.before', { value: show(kpi.prev) });
-  return (
-    <div className="la-kpi" style={{ '--i': i } as CSSProperties} data-kpi={label}>
-      <span className="la-kpi-label">{label}</span>
-      <strong className="la-kpi-value">
-        {kpi.value == null ? '—' : kind === 'duration' ? f.dur(kpi.value) : <CountUp value={kpi.value} locale={f.locale} decimals={kind === 'decimal' ? 1 : 0} />}
-      </strong>
-      <span className="la-kpi-foot">{foot}</span>
-      {spark && <Sparkline values={spark} tone={sparkTone} />}
-    </div>
-  );
-}
-
-/** Las tarjetas en filas parejas: hasta 5 en una fila; 6 en 3 + 3; 7 y 8 en 4 por fila. */
-function Kpis({ children }: { children: ReactNode[] }) {
-  const n = children.length;
-  const cols = n <= 5 ? n : n === 6 ? 3 : 4;
-  return (
-    <div className="la-kpis" style={{ '--cols': cols } as CSSProperties}>
-      {children}
-    </div>
-  );
-}
-
-function Panel({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="la-panel" aria-label={title}>
-      <div className="la-panel-head">
-        <h2 className="la-panel-title">{title}</h2>
-      </div>
-      {children}
-      {note && <p className="la-panel-note">{note}</p>}
-    </section>
-  );
-}
-
-function BarList({ rows, tone, empty }: { rows: Array<{ key: string; label: ReactNode; value: string; extra?: string; sub?: string; share: number }>; tone?: 'ink'; empty: string }) {
-  if (rows.length === 0) return <p className="la-panel-empty">{empty}</p>;
-  return (
-    <ul className="la-bars" data-tone={tone}>
-      {rows.map((r, i) => (
-        <li key={r.key}>
-          <span className="la-bars-label">{r.label}</span>
-          <span className="la-bars-value">
-            {r.value}
-            {r.extra && <small>{r.extra}</small>}
-          </span>
-          <span className="la-bars-track" aria-hidden="true">
-            <i className="la-bars-fill" style={{ '--w': share(r.share, 1).toFixed(4), '--i': Math.min(i, 12) } as CSSProperties} />
-          </span>
-          {r.sub && <span className="la-bars-sub">{r.sub}</span>}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-const pct = (f: Fmt, part: number, total: number) => new Intl.NumberFormat(f.locale, { style: 'percent', maximumFractionDigits: 0 }).format(share(part, total));
+const pct = pctOf;
 
 function volumeSeries(f: Fmt, perDay: DayPoint[], prevPerDay: DayPoint[]) {
   return [
@@ -154,57 +36,10 @@ function volumeSeries(f: Fmt, perDay: DayPoint[], prevPerDay: DayPoint[]) {
   ];
 }
 
-const chartAria = (f: Fmt, title: string, d: AnalyticsData) => f.t('analytics.chartAria', { title, from: d.range.from, to: d.range.to });
+const chartAria = (f: Fmt, title: string, d: AnalyticsData) => kitChartAria(f, title, d.range);
 
 function lineName(f: Fmt, l: LineStat) {
   return l.name ?? f.t('analytics.removedLine');
-}
-
-/** Lunes a domingo, cortos, en el idioma de quien mira (el 1 de enero de 2024 fue lunes). */
-function weekdays(locale: string, style: 'short' | 'long'): string[] {
-  const fmt = new Intl.DateTimeFormat(locale, { weekday: style, timeZone: 'UTC' });
-  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2024, 0, 1 + i))));
-}
-
-const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
-
-function Heatmap({ f, data }: { f: Fmt; data: number[][] }) {
-  const max = Math.max(0, ...data.flat());
-  if (max === 0) return <p className="la-panel-empty">{f.t('analytics.heatNone')}</p>;
-  const short = weekdays(f.locale, 'short');
-  const long = weekdays(f.locale, 'long');
-  let peak = { d: 0, h: 0, v: -1 };
-  data.forEach((row, d) => row.forEach((v, h) => (v > peak.v ? (peak = { d, h, v }) : null)));
-  return (
-    <>
-      <div className="la-heat" role="img" aria-label={f.t('analytics.heatPeak', { day: long[peak.d], hour: hourLabel(peak.h), n: f.num(peak.v) })}>
-        {data.map((row, d) => (
-          <div key={d} style={{ display: 'contents' }}>
-            <span className="la-heat-day">{short[d]}</span>
-            <div className="la-heat-row">
-              {row.map((v, h) => (
-                <span key={h} className="la-heat-cell" style={{ '--v': (v === 0 ? 0 : 0.12 + 0.88 * (v / max)).toFixed(3), '--h': h } as CSSProperties} title={`${long[d]} ${hourLabel(h)} · ${f.num(v)}`} />
-              ))}
-            </div>
-          </div>
-        ))}
-        <span />
-        <div className="la-heat-hours" aria-hidden="true">
-          {[0, 3, 6, 9, 12, 15, 18, 21].map((h) => (
-            <span key={h}>{String(h).padStart(2, '0')}</span>
-          ))}
-        </div>
-      </div>
-      <p className="la-heat-scale">
-        {f.t('analytics.heatLess')}
-        {[0, 0.3, 0.55, 0.8, 1].map((v) => (
-          <i key={v} style={{ '--v': v } as CSSProperties} aria-hidden="true" />
-        ))}
-        {f.t('analytics.heatMore')}
-      </p>
-      <p className="la-panel-note">{f.t('analytics.heatPeak', { day: long[peak.d], hour: hourLabel(peak.h), n: f.num(peak.v) })}</p>
-    </>
-  );
 }
 
 function LinesBars({ f, lines }: { f: Fmt; lines: LineStat[] }) {
@@ -307,7 +142,7 @@ function Conversations({ f, d }: { f: Fmt; d: ConversationsData }) {
       </Panel>
       <div className="la-grid">
         <Panel title={f.t('analytics.heatmap')}>
-          <Heatmap f={f} data={d.heatmap} />
+          <Heatmap f={f} data={d.heatmap} none={f.t('analytics.heatNone')} peak={(p) => f.t('analytics.heatPeak', p)} />
         </Panel>
         <Panel title={f.t('analytics.newPerDay')}>
           <TrendChart labels={d.newPerDay.map((p) => f.day(p.day))} series={[{ name: f.t('analytics.newChats'), values: d.newPerDay.map((p) => p.value) }]} height={200} summary={chartAria(f, f.t('analytics.newPerDay'), d)} locale={f.locale} />

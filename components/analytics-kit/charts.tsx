@@ -3,13 +3,14 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { chartTicks } from '@/lib/chart-ticks';
-import { ANALYTICS_TZ_COOKIE as TZ_COOKIE } from '@/lib/groups-analytics-shared';
+import { ANALYTICS_TZ_COOKIE as TZ_COOKIE, formatMoney } from '@/lib/analytics-kit/period';
 
 /**
- * Lines, reportes: lo que necesita el navegador. El número que cuenta, el
+ * Analítica, el kit (lo que necesita el navegador): el número que cuenta, el
  * gráfico de líneas o barras (SVG a mano, al ancho real del contenedor) y la
- * zona horaria de quien mira. Las animaciones son de CSS
- * (styles/lines-analytics.css) y se apagan con prefers-reduced-motion.
+ * zona horaria de quien mira. Nació en los reportes de Lines; lo usan todos
+ * los productos. Las animaciones son de CSS (styles/analytics-kit.css) y se
+ * apagan con prefers-reduced-motion.
  */
 
 const useBeforePaint = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -19,7 +20,7 @@ function prefersReducedMotion(): boolean {
 }
 
 /** Un número que cuenta desde cero al aparecer. El servidor ya manda el valor final. */
-export function CountUp({ value, locale, decimals = 0 }: { value: number; locale: string; decimals?: number }) {
+export function CountUp({ value, locale, decimals = 0, currency, percent = false }: { value: number; locale: string; decimals?: number; currency?: string; percent?: boolean }) {
   const [shown, setShown] = useState(value);
   useBeforePaint(() => {
     if (!Number.isFinite(value) || value === 0 || prefersReducedMotion()) {
@@ -43,7 +44,12 @@ export function CountUp({ value, locale, decimals = 0 }: { value: number; locale
       window.clearTimeout(done);
     };
   }, [value]);
-  const text = new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: decimals }).format(decimals ? Math.round(shown * 10 ** decimals) / 10 ** decimals : Math.round(shown));
+  const rounded = decimals ? Math.round(shown * 10 ** decimals) / 10 ** decimals : Math.round(shown);
+  const text = percent
+    ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: decimals }).format(Math.round(shown * 10 ** (decimals + 2)) / 10 ** (decimals + 2))
+    : currency
+      ? formatMoney(rounded, locale, currency, decimals)
+      : new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: decimals }).format(rounded);
   return (
     <span className="la-num" data-value={value}>
       {text}

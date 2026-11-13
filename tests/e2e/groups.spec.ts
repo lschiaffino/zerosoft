@@ -96,7 +96,7 @@ test('bandeja: llega un mensaje, se responde, nota interna y ticket desde el men
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const row = page.locator('.gr-row', { hasText: `Cliente ${who}` });
   await expect(row).toBeVisible();
-  await expect(row.getByText(/Waiting/)).toBeVisible();
+  await expect(row.getByRole('img', { name: /Waiting/ })).toBeVisible();
   await row.click();
   await expect(page.getByRole('heading', { level: 2, name: `Cliente ${who}` })).toBeVisible();
   await expect(page.locator('.gr-messages').getByText(invoice)).toBeVisible();
@@ -107,7 +107,7 @@ test('bandeja: llega un mensaje, se responde, nota interna y ticket desde el men
   await composer.press('Enter');
   await expect(page.locator('.gr-msg-out', { hasText: 'Hi Ana, resending it now.' }).getByText('Sent')).toBeVisible();
   // Ya no espera respuesta.
-  await expect(page.locator('.gr-row', { hasText: `Cliente ${who}` }).getByText(/Waiting/)).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.locator('.gr-row', { hasText: `Cliente ${who}` }).getByRole('img', { name: /Waiting/ })).toHaveCount(0, { timeout: 10_000 });
 
   // Nota interna con N.
   await page.locator('.gr-messages').click();
@@ -176,6 +176,7 @@ test('grupos: crear uno, varios desde CSV y agregar miembros en lote', async ({ 
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   const a = `Batch A ${uid()}`;
   const b = `Batch B ${uid()}`;
+  await page.getByTestId('groups-more-button').click();
   await page.getByRole('button', { name: 'Import CSV' }).click();
   const csv = page.getByRole('dialog', { name: 'Create groups from a CSV' });
   await csv.getByLabel('Or paste it').fill(`name,participants\n${a},+15550002001\n${b},+15550002002 +15550002003`);
