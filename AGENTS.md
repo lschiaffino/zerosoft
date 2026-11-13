@@ -112,11 +112,20 @@ it should be here too.
 - **Data scoping.** Every query on user data is scoped to the current
   workspace from the session. Never trust an id from the request without
   checking that it belongs to that workspace.
-- **Migrations.** Append a new entry at the end of the list in
-  `lib/schema/migrations.ts` with the next id (`NNN_short_name`). Never edit,
-  reorder or remove a published migration or `lib/schema/baseline.ts`.
-  Migrations must tolerate running twice and in parallel (`IF NOT EXISTS`,
-  `addColumn`).
+- **Migrations.** One file per migration in `lib/schema/migration-files/`,
+  named and with the id `YYYYMMDD_HHMM_short_name` (UTC, the time you write
+  it), exporting `default { id, up } satisfies Migration`. Don't add to the
+  numbered list in `lib/schema/migrations.ts` any more: two pull requests in
+  parallel picked the same number and clashed on that list.
+  `scripts/gen-fragments.mjs` builds the list. Never edit, reorder or remove a
+  published migration or `lib/schema/baseline.ts`. Migrations must tolerate
+  running twice and in parallel (`IF NOT EXISTS`, `addColumn`).
+- **Changelog.** One file per entry in `content/changelog-entries/`, named
+  `YYYY-MM-DD-short-id.ts`, exporting `default { … } satisfies ChangelogEntry`.
+  Don't add to the list in `content/changelog.ts` any more: every pull request
+  clashed there. The generated lists (`*.generated.ts`) are not committed;
+  `next.config.mjs`, vitest and `npm run typecheck`/`lint` build them (run
+  `npm run gen:fragments` if you call `tsc` directly).
 - **Crons.** Work done from a cron claims each row first (compare-and-set) so
   two overlapping runs never do the same thing twice.
 - **ee/ boundary.** Core code imports from `ee/` only through
@@ -131,7 +140,7 @@ it should be here too.
   part on the site's JSON).
 - **Backlog.** `research/ideas.json` feeds the public roadmap board (see
   `research/README.md`). When you build an idea from it, mark it
-  `"status": "done"` with the id of its entry in `content/changelog.ts`.
+  `"status": "done"` with the id of its changelog entry.
 - **Feature parity.** When you add or remove a capability, update
   `content/feature-parity/<app>.ts` (`status` and `lastReviewed`). The parity
   percentage on each product page comes from there.
@@ -142,5 +151,15 @@ it should be here too.
 ## Pull requests
 
 - One change per pull request, with a description of what you tested.
+- `main` is protected: a pull request merges only when the `CI result` check
+  passes. Turn on auto-merge when you open it (`gh pr merge --auto --merge`)
+  and it lands as soon as CI is green. Don't bundle unrelated pull requests
+  into a batch branch: a failure then can't be traced to one change.
+- Tests find elements by role, label or `data-testid`, not by visible copy
+  that may change (a word on a badge, a heading), and don't depend on the
+  time of day or on rows other tests left in the shared database.
+- CI splits e2e by duration (`scripts/e2e-shard.mjs`, `tests/e2e/timings.json`)
+  and skips e2e when a pull request only touches `desktop/`, `docs/`,
+  `content/blog/` or Markdown.
 - Disclose AI assistance in the template.
 - The author signs the [CLA](CLA.md) once, through the bot comment.

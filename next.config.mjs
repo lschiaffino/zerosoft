@@ -1,4 +1,8 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { genFragments } from './scripts/gen-fragments.mjs';
+
+// Changelog y migraciones de a un archivo por cambio: se arman las listas antes de dev, build y start.
+genFragments();
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 

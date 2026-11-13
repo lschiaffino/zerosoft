@@ -21,6 +21,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
+  // En CI, además del resumen, la duración de cada test (artifact e2e-results-*; scripts/e2e-timings.mjs la usa
+  // para repartir las partes por tiempo con scripts/e2e-shard.mjs).
+  reporter: process.env.CI ? [['dot'], ['json', { outputFile: `e2e-results/results-${process.env.E2E_SHARD ?? '0'}.json` }]] : 'list',
   workers: 1,
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   webServer: {

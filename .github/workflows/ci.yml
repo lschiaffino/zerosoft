@@ -28,6 +28,36 @@ jobs:
       # ffmpeg: Rec arma el MP4 de descarga con él (lib/rec-mp4.ts); los tests lo verifican con ffprobe.
       - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - run: npm test
+
+  # ¿Hace falta e2e? No si el PR solo toca el desktop, el blog, la documentación o archivos .md.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.filter.outputs.skip != 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: every
+          filters: |
+            skip:
+              - 'desktop/**'
+              - 'docs/**'
+              - 'content/blog/**'
+              - '**/*.md'
+
+  # El build va aparte del chequeo: e2e lo necesita y no espera a typecheck, lint ni los unit tests.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm run build
         env:
           NEXTAUTH_SECRET: ci-build-secret
@@ -43,13 +73,14 @@ jobs:
           compression-level: 1
 
   e2e:
-    needs: check
+    needs: [build, changes]
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,9 +96,18 @@ jobs:
       # ffmpeg: Rec arma el MP4 de descarga con él (lib/rec-mp4.ts); los tests lo verifican con ffprobe.
       - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       # Un worker por shard: los tests comparten el workspace demo de la base de cada corrida.
-      - run: npx playwright test --shard=${{ matrix.shard }}/4
+      # Partes repartidas por duración (scripts/e2e-shard.mjs con tests/e2e/timings.json), no por cantidad.
+      - run: npx playwright test $(node scripts/e2e-shard.mjs ${{ matrix.shard }} 6)
         env:
           CI: 'true'
+          E2E_SHARD: ${{ matrix.shard }}
+      # La duración de cada test, para actualizar tests/e2e/timings.json (scripts/e2e-timings.mjs).
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: e2e-results-${{ matrix.shard }}
+          path: e2e-results/
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
@@ -79,7 +119,8 @@ jobs:
 
   # Sesiones reales: sin DEMO_MODE, cada rol entra con su código por email.
   e2e-real:
-    needs: check
+    needs: [build, changes]
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -122,13 +163,16 @@ jobs:
   # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
   ci-result:
     name: CI result
-    needs: [check, e2e, e2e-real, docker]
+    needs: [check, changes, build, e2e, e2e-real, docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "check=${{ needs.check.result }} e2e=${{ needs.e2e.result }} e2e-real=${{ needs.e2e-real.result }} docker=${{ needs.docker.result }}"
+          echo "check=${{ needs.check.result }} build=${{ needs.build.result }} e2e=${{ needs.e2e.result }} e2e-real=${{ needs.e2e-real.result }} docker=${{ needs.docker.result }} e2e-needed=${{ needs.changes.outputs.e2e }}"
           test "${{ needs.check.result }}" = success
-          test "${{ needs.e2e.result }}" = success
-          test "${{ needs.e2e-real.result }}" = success
+          test "${{ needs.build.result }}" = success
           test "${{ needs.docker.result }}" = success
+          if [ "${{ needs.changes.outputs.e2e }}" = "true" ]; then
+            test "${{ needs.e2e.result }}" = success
+            test "${{ needs.e2e-real.result }}" = success
+          fi
