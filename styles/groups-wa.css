@@ -1066,3 +1066,66 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 /* Onda en vivo al grabar una nota de voz (components/groups/wa/LiveWaveform.tsx). */
 .wa-live-wave { flex: 1; min-width: 0; height: 28px; margin: 0 8px; color: var(--wa-text-2); }
 .wa-live-wave.is-paused { opacity: 0.5; }
+
+/* ---------- Álbum: fotos y videos mandados juntos, en una grilla (components/groups/wa/MediaAlbum.tsx) ----------
+   Tamaño en tokens, para que Ajustes > Visualización pueda cambiarlo: --wa-album-w (ancho), --wa-album-gap. */
+.wa-album {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--wa-album-gap, 2px);
+  width: var(--wa-album-w, 300px); max-width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
+}
+.wa-album.is-two { aspect-ratio: 3 / 2; }
+.wa-album.is-three, .wa-album.is-grid { grid-template-rows: 1fr 1fr; }
+.wa-album.is-three > .wa-album-tile:first-child { grid-row: span 2; }
+.wa-album-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--wa-row-active); }
+.wa-album-open { position: relative; display: block; width: 100%; height: 100%; padding: 0; background: none; border: 0; cursor: zoom-in; }
+.wa-album-open:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-album-open > img, .wa-album-open > video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.wa-album-open > .wa-thumb { position: absolute; inset: 0; filter: blur(8px); transform: scale(1.05); }
+.wa-album-open > img.is-pending { opacity: 0; transition: opacity 0.15s; }
+.wa-album-open .wa-video-play { width: 44px; height: 44px; }
+.wa-album-video {
+  position: absolute; left: 6px; bottom: 5px; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6875rem; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.wa-album-video svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
+.wa-album-more {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 1.75rem; font-weight: 500; color: #fff; background: rgba(11, 20, 26, 0.5);
+}
+/* Ir a una foto del álbum (desde una cita o la búsqueda): se marca un momento. */
+.wa-album-tile.is-target::after { content: ''; position: absolute; inset: 0; pointer-events: none; animation: wa-album-flash 1.4s ease-out forwards; }
+@keyframes wa-album-flash { 0%, 40% { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--wa-primary) 70%, transparent); } 100% { box-shadow: none; } }
+/* Selección: cada foto con su casilla; la elegida, teñida. */
+.wa-album-tile .wa-album-check { top: 6px; left: 6px; right: auto; z-index: 2; }
+.wa-album-tile.is-selected .wa-album-open::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--wa-primary) 30%, transparent); }
+/* El menú de cada foto aparece al pasar por esa foto; el de la burbuja no se ve (sigue para el clic derecho fuera de las fotos). */
+.wa-album-hover { position: absolute; top: 0; right: 0; z-index: 2; opacity: 0; transition: opacity 0.1s; }
+.wa-album-tile:hover .wa-album-hover, .wa-album-tile:focus-within .wa-album-hover { opacity: 1; }
+.wa-album-chevron {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 26px; padding: 0; color: #fff;
+  background: radial-gradient(at top right, rgba(11, 20, 26, 0.5) 35%, transparent 75%); border: 0; cursor: pointer;
+}
+.wa-album-chevron:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.gr-bubble:has(> .gr-media > .wa-album) > .wa-hover { visibility: hidden; }
+@media (hover: none) { .wa-album-hover { opacity: 0; pointer-events: none; } }
+@media (max-width: 720px) { .wa-album { width: min(var(--wa-album-w, 300px), 70vw); } }
+@media (prefers-reduced-motion: reduce) { .wa-album-open > img.is-pending { transition: none; } .wa-album-tile.is-target::after { animation: none; } }
+.gr-inbox[data-chat-style='zerosoft'] .wa-album { border-radius: var(--radius-1); }
+
+/* ---------- Foto o video con texto, como WhatsApp: la foto define el ancho de la burbuja ----------
+   El texto, el nombre y la cita no ensanchan la burbuja (contain: inline-size): ocupan el ancho de la
+   foto y se acomodan debajo. La foto va al ras de los bordes, con las esquinas de la burbuja. */
+.gr-inbox .gr-bubble.is-media { padding: 0; }
+.gr-inbox .gr-bubble.is-media > :is(.gr-msg-author, .gr-forwarded, .gr-quote, .wa-text, .gr-translation, .wa-tags, .wa-deleted) { contain: inline-size; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 7px 3px 8px; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author .wa-author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 4px 7px 2px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-quote { margin: 3px; width: auto; }
+.gr-inbox .gr-bubble.is-media > .wa-text { padding: 5px 7px 7px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 7px 6px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: inherit; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-media:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
+.gr-inbox .gr-bubble.is-media > .gr-media:has(~ :is(.wa-text, .gr-translation, .wa-tags)) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album) { border-radius: 0; }
+.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { right: 0; bottom: 0; left: 0; border-radius: 0 0 7.5px 7.5px; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0 0 var(--radius-1) var(--radius-1); }
