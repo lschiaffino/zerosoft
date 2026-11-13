@@ -581,6 +581,10 @@ export const EVOLUTION_EVENTS = [
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
   'CALL',
+  // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
+  // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
+  'CHATS_UPDATE',
+  'CHATS_UPSERT',
 ];
 
 /** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */
@@ -1346,7 +1350,16 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {
-      await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
+      // Primero con el último mensaje que Evolution tiene guardado: lleva la clave exacta que conoce WhatsApp (en los
+      // grupos, quien escribió va como "<lid>@lid"). Con la nuestra (el teléfono) Evolution respondía bien pero el
+      // teléfono no encontraba el mensaje y descartaba el archivado sin avisar. Si Evolution no tiene mensajes de ese
+      // chat, se manda la referencia nuestra, como antes.
+      try {
+        await api(`/chat/archiveChat/${instance}`, 'POST', { chat: chatId, archive });
+      } catch (err) {
+        if (!last) throw err;
+        await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
+      }
     },
     async sendText(chatId, text, o) {
       const r = (await api(`/message/sendText/${instance}`, 'POST', {
