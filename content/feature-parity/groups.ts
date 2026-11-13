@@ -87,6 +87,13 @@ const parity: ProductParity = {
 
     // Bandeja
     row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('new-chat', 'inbox', ['New chat like WhatsApp Web: search, frequently contacted, all contacts A to Z', 'Chat nuevo como WhatsApp Web: buscador, contactados con frecuencia, todos los contactos de la A a la Z', 'Nova conversa como o WhatsApp Web: pesquisa, contatos frequentes, todos os contatos de A a Z'], 'partial', {
+      detail: [
+        'New in the sidebar opens it directly; names without accents and numbers in any format; New group goes to the group form; keyboard and phone layout. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Nuevo del lateral lo abre directo; nombres sin tildes y números escritos como sea; Grupo nuevo lleva a crear el grupo; teclado y teléfono. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Novo da barra lateral abre direto; nomes sem acento e números em qualquer formato; Novo grupo leva ao formulário de grupo; teclado e celular. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {

@@ -10,6 +10,7 @@ import { DEFAULT_DISPLAY } from '@/lib/chat-display';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import '@/styles/groups.css';
 import '@/styles/groups-wa.css';
+import '@/styles/wa-newchat.css';
 import '@/styles/lines-folders.css';
 import '@/styles/chat-gestures.css';
 import '@/styles/groups-later.css';

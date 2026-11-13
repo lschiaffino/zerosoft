@@ -33,6 +33,7 @@ import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
+import InboxNewChat from './InboxNewChat';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
@@ -181,7 +182,40 @@ export default function InboxApp(props: {
     setInfoOpen(!!openId && infoFor.current === openId);
     infoFor.current = null;
   }, [openId]);
-  const [compose, setCompose] = useState(props.composeOnLoad);
+  const [compose, setCompose] = useState<false | 'any' | 'gmail'>(false);
+  // "Chat nuevo" de WhatsApp (el panel de WhatsApp Web, el mismo de Lines).
+  const [newChat, setNewChat] = useState(false);
+  const accountsRef = useRef(props.initialState.accounts);
+  accountsRef.current = state.accounts;
+  /** "Nuevo" (lateral, botón de la lista, C): con WhatsApp vinculado, el panel de chat nuevo; si no, el mensaje nuevo (correo). */
+  const startNew = useCallback(() => {
+    if (accountsRef.current.some((a) => a.kind === 'whatsapp')) setNewChat(true);
+    else setCompose('any');
+  }, []);
+  // ?new=1 (el "Nuevo" del lateral desde otra página): abre y saca el parámetro de la barra de direcciones.
+  useEffect(() => {
+    if (!props.composeOnLoad) return;
+    startNew();
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('new') !== '1') return;
+    url.searchParams.delete('new');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [props.composeOnLoad, startNew]);
+  // Con la bandeja montada, el "Nuevo" del lateral (un link a /app/inbox?new=1) abre acá mismo, sin navegar.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link || (link.target && link.target !== '_self')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.searchParams.get('new') !== '1') return;
+      if (!/^(\/[a-z]{2})?\/app\/inbox\/?$/.test(url.pathname)) return;
+      e.preventDefault();
+      startNew();
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [startNew]);
   const [help, setHelp] = useState(false);
   // Vincular WhatsApp con QR desde la bandeja vacía, sin pasar por Ajustes.
   const [qrOpen, setQrOpen] = useState(false);
@@ -749,7 +783,7 @@ export default function InboxApp(props: {
   };
   moreActionRef.current = moreAction;
 
-  const modalOpen = !!when || !!plan || !!moveIds || moreOpen || compose || help || qrOpen || !!folderEdit;
+  const modalOpen = !!when || !!plan || !!moveIds || moreOpen || !!compose || newChat || help || qrOpen || !!folderEdit;
 
   // Atajos de una letra (fuera de los campos y sin modales abiertos).
   useEffect(() => {
@@ -847,7 +881,7 @@ export default function InboxApp(props: {
           break;
         case 'c':
           handled();
-          setCompose(true);
+          startNew();
           break;
         case '/':
           handled();
@@ -873,7 +907,7 @@ export default function InboxApp(props: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, go, toast, t, infoOpen]);
+  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, go, toast, t, infoOpen, startNew]);
 
   const accounts = state.accounts;
   const noAccounts = accounts.length === 0;
@@ -1077,7 +1111,7 @@ export default function InboxApp(props: {
                 </button>
               </span>
             )}
-            <button type="button" className="btn btn-ghost btn-sm ib-compose-btn" onClick={() => setCompose(true)} title="C">
+            <button type="button" className="btn btn-ghost btn-sm ib-compose-btn" onClick={startNew} title="C">
               {t('actions.compose')}
             </button>
           </div>
@@ -1446,8 +1480,30 @@ export default function InboxApp(props: {
         startConfirm={moreConfirm}
         onAction={(a) => void moreAction(a)}
       />
+      <InboxNewChat
+        open={newChat}
+        accounts={accounts}
+        errText={errText}
+        onClose={() => setNewChat(false)}
+        onOpen={(id) => {
+          setNewChat(false);
+          open(id);
+        }}
+        onCreated={(th) => {
+          setNewChat(false);
+          setThreads((xs) => [th, ...xs.filter((x) => x.id !== th.id)]);
+          setCursor(0);
+          setOpenId(th.id);
+          void reloadState();
+        }}
+        onNewEmail={() => {
+          setNewChat(false);
+          setCompose('gmail');
+        }}
+      />
       <ComposeDialog
-        open={compose}
+        open={!!compose}
+        channel={compose === 'gmail' ? 'gmail' : undefined}
         accounts={accounts}
         onClose={() => setCompose(false)}
         onCreated={(th) => {
