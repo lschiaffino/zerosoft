@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { TrayItem } from './attachments';
+import { filesFrom, type TrayItem } from './attachments';
 import { extensionOf, fileSize, posterFrame } from './format';
 import { Close, DocIcon, Plus, SendIcon } from './icons';
 
@@ -23,6 +23,7 @@ export default function AttachPreview({
   onAdd,
   onSend,
   onClose,
+  onFiles,
   sending,
 }: {
   items: TrayItem[];
@@ -33,6 +34,11 @@ export default function AttachPreview({
   onAdd: () => void;
   onSend: () => void;
   onClose: () => void;
+  /**
+   * Pegar (⌘V) más archivos con la vista previa abierta: se suman a la bandeja (los repetidos no). Soltarlos encima
+   * llega al chat de abajo, que ya los suma igual.
+   */
+  onFiles?: (files: File[]) => void;
   sending: boolean;
 }) {
   const t = useTranslations('groups');
@@ -41,16 +47,34 @@ export default function AttachPreview({
   const captionRef = useRef<HTMLInputElement>(null);
   const it = items.find((x) => x.key === current) ?? items[0];
 
+  // Lo que se suma después de abrir (pegar, soltar, "+") queda elegido, como en WhatsApp Web.
+  const seen = useRef(new Set(items.map((x) => x.key)));
   useEffect(() => {
-    if (!items.some((x) => x.key === current) && items[0]) setCurrent(items[0].key);
+    const added = items.filter((x) => !seen.current.has(x.key));
+    seen.current = new Set(items.map((x) => x.key));
+    if (added.length) setCurrent(added[added.length - 1].key);
+    else if (!items.some((x) => x.key === current) && items[0]) setCurrent(items[0].key);
   }, [items, current]);
   useEffect(() => captionRef.current?.focus(), [current]);
 
   if (!it) return null;
-  const uploading = items.some((x) => x.status === 'uploading');
   const broken = items.filter((x) => x.status === 'error').length;
   return (
-    <div className="wa-attach-pane" data-voice-off role="dialog" aria-label={t('wa.attachments')} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
+    <div
+      className="wa-attach-pane"
+      data-voice-off
+      role="dialog"
+      aria-label={t('wa.attachments')}
+      onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}
+      onPaste={(e) => {
+        // Solo con archivos o imágenes en el portapapeles: pegar texto en el comentario sigue pegando texto.
+        const files = onFiles ? filesFrom(e.clipboardData) : [];
+        if (!files.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onFiles?.(files);
+      }}
+    >
       <header className="wa-attach-head">
         <button type="button" className="wa-icon-btn" onClick={onClose} aria-label={t('common.cancel')} title={t('common.cancel')}>
           <Close />
@@ -138,8 +162,8 @@ export default function AttachPreview({
           type="button"
           className="wa-send wa-attach-send"
           onClick={onSend}
-          disabled={sending || uploading || broken === items.length}
-          aria-busy={sending || uploading || undefined}
+          disabled={sending || broken === items.length}
+          aria-busy={sending || undefined}
           aria-label={t('wa.sendFiles', { n: items.length - broken })}
           title={t('wa.sendFiles', { n: items.length - broken })}
         >

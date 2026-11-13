@@ -7,7 +7,8 @@
  */
 import type { MessageDto } from '@/lib/groups';
 import { withTimeout } from '@/lib/conditional-fetch';
-import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY, isTempId, sendQueueFor, tempIdFor, unsentStore, type Unsent } from '@/lib/optimistic-send';
+import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY, isTempId, localPreviews, sendQueueFor, tempIdFor, unsentStore, uploadProgress, type Unsent, type UnsentMedia } from '@/lib/optimistic-send';
+import { uploadWithProgress, type UploadedFile } from './wa/attachments';
 
 /** Con qué clientId se mandó un mensaje (provisorio o ya guardado: viene en meta.cid). */
 export function cidOf(m: Pick<MessageDto, 'meta'>): string | undefined {
@@ -58,7 +59,32 @@ export const MEDIA_SEND_TIMEOUT_MS = 100_000;
 /** La cola de envíos de un chat de Lines: textos, archivos, notas de voz y notas salen en el orden en que se mandaron. */
 export const linesQueue = (chatId: string) => sendQueueFor(`lines:${chatId}`);
 
-/** La burbuja de un texto que todavía no está guardado. */
+/** El archivo de la burbuja provisoria: la copia local mientras exista, si no lo ya subido. */
+function tempMedia(u: Unsent): MessageDto['media'] {
+  const m = u.media;
+  if (!m) return null;
+  return {
+    url: localPreviews.get(u.clientId) ?? m.url ?? '',
+    type: m.type,
+    name: m.name,
+    kind: m.kind,
+    size: m.size,
+    ...(m.width && m.height ? { width: m.width, height: m.height } : {}),
+    ...(m.duration ? { duration: m.duration } : {}),
+    ...(m.kind === 'voice' ? { ptt: true } : {}),
+  };
+}
+
+/**
+ * El archivo de un mensaje ya guardado que se mandó desde esta pestaña: mientras siga su copia local, esa (el
+ * mensaje real reemplaza a la burbuja sin volver a bajar la foto ni cortar el audio).
+ */
+export function withLocalMedia(m: MessageDto): MessageDto['media'] {
+  const local = m.media ? localPreviews.get(cidOf(m)) : undefined;
+  return local && m.media ? { ...m.media, url: local } : m.media;
+}
+
+/** La burbuja de un mensaje (texto o archivo) que todavía no está guardado. */
 export function tempMessage(u: Unsent, me: string): MessageDto {
   return {
     id: tempIdFor(u.clientId),
@@ -69,7 +95,7 @@ export function tempMessage(u: Unsent, me: string): MessageDto {
     authorId: me,
     authorKind: 'person',
     body: u.body,
-    media: null,
+    media: tempMedia(u),
     replyToId: u.replyToId,
     reactions: [],
     status: u.status,
@@ -105,15 +131,90 @@ export function withUnsent(messages: MessageDto[], unsent: Unsent[], me: string)
   return { messages: [...real, ...temps].sort(byArrival), settled };
 }
 
+// El archivo de cada envío de esta pestaña (para subirlo, o volver a subirlo si falló) y su subida en curso.
+const files = new Map<string, File>();
+const uploads = new Map<string, Promise<UploadedFile>>();
+
+function upload(clientId: string): Promise<UploadedFile> | null {
+  const running = uploads.get(clientId);
+  if (running) return running;
+  const file = files.get(clientId);
+  if (!file) return null;
+  const up = uploadWithProgress(file, (p) => uploadProgress.set(clientId, p)).done;
+  uploads.set(clientId, up);
+  up.catch(() => uploads.get(clientId) === up && uploads.delete(clientId));
+  return up;
+}
+
 /**
- * Manda (o vuelve a mandar) un texto pendiente. Corre fuera del componente:
- * termina aunque el chat ya no esté abierto, y el resultado queda en
- * `unsentLines` (guardado: sale de ahí; no salió: queda como no enviado).
+ * Manda un archivo con la burbuja ya a la vista (foto, video, audio, nota de voz, documento, sticker): aparece con su
+ * copia local y el reloj, se sube por detrás (o sigue la subida que ya había empezado en la bandeja) y sale por la
+ * cola del chat con su clientId. Todo con el chat de cuando se mandó: cambiar de chat no lo pierde ni lo manda a otro.
+ */
+export function sendLinesMedia(input: {
+  chatId: string;
+  body: string;
+  replyToId: string | null;
+  file: File;
+  media: UnsentMedia;
+  /** Vista previa local que ya existe (la de la bandeja); si no, se crea una. */
+  preview?: string;
+  /** La subida que ya está en curso (o terminada) desde la bandeja. */
+  upload?: Promise<UploadedFile> | null;
+}): string {
+  const entry = unsentLines.add({ chatId: input.chatId, body: input.body, replyToId: input.replyToId, media: input.media });
+  const cid = entry.clientId;
+  const preview = input.preview || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(input.file) : '');
+  if (preview) localPreviews.set(cid, preview, `lines:${input.chatId}`, input.media.kind);
+  files.set(cid, input.file);
+  if (input.upload) {
+    uploads.set(cid, input.upload);
+    input.upload.catch(() => uploads.get(cid) === input.upload && uploads.delete(cid));
+  } else if (!input.media.url) upload(cid);
+  sendLinesText(cid);
+  return cid;
+}
+
+/** Se descarta un envío que no salió: su burbuja, su archivo y su copia local. */
+export function discardLinesSend(clientId: string): void {
+  files.delete(clientId);
+  uploads.delete(clientId);
+  uploadProgress.clear(clientId);
+  localPreviews.release(clientId);
+  unsentLines.remove(clientId);
+}
+
+/**
+ * Manda (o vuelve a mandar) un texto o un archivo pendiente. Corre fuera del
+ * componente: termina aunque el chat ya no esté abierto, y el resultado queda
+ * en `unsentLines` (guardado: sale de ahí; no salió: queda como no enviado).
+ * Un archivo que todavía no está subido se sube primero (o se espera la subida
+ * que ya está en curso); un reintento después de una subida que falló la
+ * vuelve a empezar con el mismo archivo.
  */
 export function sendLinesText(clientId: string): void {
   const entry = unsentLines.pending(clientId);
   if (!entry) return;
+  // La subida empieza ya (no espera su turno en la cola); el envío sí sale en orden.
+  const up = entry.media && !entry.media.url ? upload(clientId) : null;
   void linesQueue(entry.chatId)(async () => {
+    let media = entry.media;
+    if (media && !media.url) {
+      let uploaded: UploadedFile | null = null;
+      let error = 'upload_failed';
+      try {
+        if (up) uploaded = await up;
+      } catch (err) {
+        error = (err as Error).message || error;
+      }
+      if (!uploaded?.url) {
+        uploadProgress.clear(clientId);
+        unsentLines.fail(clientId, error);
+        return;
+      }
+      media = { ...media, url: uploaded.url, type: uploaded.mimetype || media.type, name: uploaded.filename || media.name, size: uploaded.size || media.size, ...(uploaded.width ? { width: uploaded.width, height: uploaded.height } : {}), ...(uploaded.duration && !media.duration ? { duration: uploaded.duration } : {}) };
+      unsentLines.setMedia(clientId, media);
+    }
     // fetch directo (no el `api` de ./ui): este módulo no depende de ningún componente.
     let saved: MessageDto | null = null;
     let error = 'network';
@@ -121,10 +222,18 @@ export function sendLinesText(clientId: string): void {
       const res = await fetch(`/api/groups/chats/${entry.chatId}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ note: false, replyToId: entry.replyToId, body: entry.body, media: null, clientId: entry.clientId }),
-        // Sin respuesta en 30 s: queda como no enviado, con reintentar (el mismo clientId: si sí había salido, el
+        body: JSON.stringify({
+          note: false,
+          replyToId: entry.replyToId,
+          body: entry.body,
+          media: media
+            ? { url: media.url, mimetype: media.type, filename: media.name, size: media.size, kind: media.kind, width: media.width, height: media.height, duration: media.duration, ...(media.kind === 'voice' ? { voice: true } : {}) }
+            : null,
+          clientId: entry.clientId,
+        }),
+        // Sin respuesta a tiempo: queda como no enviado, con reintentar (el mismo clientId: si sí había salido, el
         // servidor devuelve el que ya guardó y no lo manda otra vez). La cola del chat no se traba.
-        signal: withTimeout(undefined, SEND_TIMEOUT_MS),
+        signal: withTimeout(undefined, media ? MEDIA_SEND_TIMEOUT_MS : SEND_TIMEOUT_MS),
       });
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.ok && typeof json.id === 'string') saved = json as unknown as MessageDto;
@@ -132,7 +241,12 @@ export function sendLinesText(clientId: string): void {
     } catch {
       /* sin red */
     }
-    if (saved) unsentLines.saved(entry.clientId, saved);
-    else unsentLines.fail(entry.clientId, error);
+    if (saved) {
+      files.delete(clientId);
+      uploads.delete(clientId);
+      uploadProgress.clear(clientId);
+      localPreviews.settle(clientId, saved.media?.url);
+      unsentLines.saved(entry.clientId, saved);
+    } else unsentLines.fail(entry.clientId, error);
   });
 }

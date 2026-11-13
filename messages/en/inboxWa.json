@@ -162,5 +162,8 @@
   "showLess": "Show less",
   "audioSummary": "Summary:",
   "transcript": "Transcript",
-  "moreTools": "More: write with AI, dictate, snippets"
+  "moreTools": "More: write with AI, dictate, snippets",
+  "retry": "Retry",
+  "removeUnsent": "Remove",
+  "uploading": "Uploading {name}"
 }
