@@ -21,6 +21,7 @@ import { SlashIcon } from '@/components/ui/SlashMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { useAiSlashCommands } from '@/components/ai/slash-commands';
 import { useInboxComposerCommands } from '../slash-commands';
+import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -72,6 +73,8 @@ const WaComposer = forwardRef<
   const [snipQ, setSnipQ] = useState<string | null>(null);
   const [snipIdx, setSnipIdx] = useState(0);
   const area = useRef<HTMLTextAreaElement>(null);
+  // Abrir el chat con un clic deja el cursor en el campo, como WhatsApp (no con j/k ni en el teléfono).
+  useFocusOnOpen(area, thread.id);
   const saved = useRef(thread.draft);
   const beforeEdit = useRef<string | null>(null);
   const [mentionQ, setMentionQ] = useState<string | null>(null);
