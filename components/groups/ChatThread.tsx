@@ -13,8 +13,8 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, newClientId, TEMP_PREFIX } from '@/lib/optimistic-send';
-import { MEDIA_SEND_TIMEOUT_MS, SEND_TIMEOUT_MS, byArrival, cidOf, linesDraftKey, linesQueue, sendLinesText, unsentLines, withUnsent } from './optimistic';
+import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
+import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
@@ -45,6 +45,7 @@ import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
 import MediaAlbum from './wa/MediaAlbum';
+import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
 import {
   ArrowDown,
@@ -280,7 +281,9 @@ export default function ChatThread(props: ThreadProps) {
   const latestAt = useRef(props.messages[props.messages.length - 1]?.createdAt ?? '');
   const knownIds = useRef(new Set(props.messages.map((m) => m.id)));
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
-  const recordedSecs = useRef(0);
+  // La respuesta a la vista cuando termina una grabación (el cierre de la grabadora es de cuando empezó).
+  const replyToRef = useRef(replyTo);
+  replyToRef.current = replyTo;
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
   const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
@@ -660,18 +663,9 @@ export default function ChatThread(props: ThreadProps) {
     pendingCaret.current = start + e.length;
   }
 
-  async function post(body: Record<string, unknown>, sendKey?: string): Promise<MessageDto | null> {
-    // Por la misma cola que los textos: un archivo o una nota no se adelanta a un texto que todavía está saliendo.
-    // Con un clientId por archivo (el mismo si se vuelve a mandar desde la bandeja): un reintento no lo duplica. Y un
-    // tiempo máximo más largo que el del servidor para los archivos, así la cola no se libera antes de que termine.
-    const clientId = sendKey ? clientIdFor(sendKey) : undefined;
-    const res = await linesQueue(chat.id)(() =>
-      api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
-        body: clientId ? { ...body, clientId } : body,
-        signal: withTimeout(undefined, body.media ? MEDIA_SEND_TIMEOUT_MS : SEND_TIMEOUT_MS),
-      }),
-    );
-    if (res.data && sendKey) sendKeys.current.delete(sendKey);
+  async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
+    // Por la misma cola que los textos y los archivos: una nota no se adelanta a lo que todavía está saliendo.
+    const res = await linesQueue(chat.id)(() => api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body, signal: withTimeout(undefined, SEND_TIMEOUT_MS) }));
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
@@ -680,68 +674,59 @@ export default function ChatThread(props: ThreadProps) {
     return res.data;
   }
 
-  // Un clientId por archivo de la bandeja (o nota de voz): se mantiene si el envío falla y se vuelve a mandar.
-  const sendKeys = useRef(new Map<string, string>());
-  const clientIdFor = (key: string) => {
-    let id = sendKeys.current.get(key);
-    if (!id) sendKeys.current.set(key, (id = newClientId()));
-    return id;
-  };
-
   /**
    * Manda lo del composer: el texto, o los archivos de la bandeja (el texto
-   * va como pie del primero, como en WhatsApp), o una nota de voz.
+   * va como pie del primero, como en WhatsApp). Textos y archivos aparecen ya
+   * en el chat con el reloj y salen por detrás, en orden (./optimistic.ts):
+   * un archivo que todavía se está subiendo se manda igual y sigue subiendo
+   * desde su burbuja. El composer queda libre para lo próximo.
    */
-  async function send(voice?: { url: string; mimetype: string; filename: string }) {
+  async function send() {
     const pending = mode === 'note' ? [] : tray.items;
-    const files = pending.filter((f) => f.status === 'ready');
+    // Lo que falló al subirse queda en la bandeja (reintentar o sacar); lo demás sale, subido o subiéndose.
+    const files = pending.filter((f) => f.status !== 'error');
     if (sending) return;
-    if (!voice && !text.trim() && files.length === 0) return;
-    if (pending.some((f) => f.status === 'uploading')) {
-      setSendError(t('wa.waitUploads'));
-      return;
-    }
+    if (!text.trim() && files.length === 0) return;
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
-    setSending(true);
     setSendError('');
     // Mandado a WhatsApp (no una nota interna): la lista sale de la búsqueda, como WhatsApp.
     if (mode !== 'note') notifyChatSent(chat.id);
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
-    let ok = true;
-    if (voice) {
-      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }, `voice:${voice.url}`));
-    } else if (files.length) {
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
+    if (files.length) {
+      files.forEach((f, i) => {
+        const taken = tray.take(f.key);
+        if (!taken) return;
         const caption = (f.caption ?? '').trim();
-        const up = f.uploaded;
-        const kind = f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'document';
+        const kind = mediaKindOf(f.type);
         // Audio no lleva pie: el texto va aparte, después.
         const withCaption = kind !== 'audio';
-        const sent = await post({
-          ...base,
+        const cid = sendLinesMedia({
+          chatId: chat.id,
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
-          media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
-        }, `file:${f.key}`);
-        if (sent && !withCaption && caption) await post({ ...base, replyToId: null, body: caption, media: null });
-        // Con burbuja creada (mandada o no), sale de la bandeja: si falló, se reintenta desde la burbuja, sin duplicar.
-        if (sent) tray.remove(f.key);
-        else ok = false;
-      }
-      if (ok && text.trim() && !previewOpen) ok = Boolean(await post({ ...base, replyToId: null, body: text, media: null }));
+          file: f.file,
+          preview: f.preview,
+          upload: taken.done,
+          media: { kind, name: f.uploaded?.filename ?? f.name, type: f.type, size: f.uploaded?.size ?? f.size, width: f.uploaded?.width ?? f.width, height: f.uploaded?.height ?? f.height, duration: f.uploaded?.duration, url: f.uploaded?.url },
+        });
+        taken.onProgress((p) => uploadProgress.set(cid, p));
+        if (f.progress) uploadProgress.set(cid, f.progress);
+        if (!withCaption && caption) sendTextNow(caption, null);
+      });
+      if (text.trim() && !previewOpen) sendTextNow(text, null);
     } else if (mode === 'note') {
-      ok = Boolean(await post({ ...base, body: text, media: null }));
+      setSending(true);
+      const ok = Boolean(await post({ ...base, body: text, media: null }));
+      setSending(false);
+      if (!ok) return;
     } else {
       // Texto solo: la burbuja aparece ya y el envío sigue por detrás (el composer queda libre para el próximo).
       sendTextNow(text, base.replyToId);
     }
-    setSending(false);
-    if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!voice && !files.length) setText('');
+    if (!files.length) setText('');
     setReplyTo(null);
     ai.clearUndo();
     refresh();
@@ -767,7 +752,7 @@ export default function ChatThread(props: ThreadProps) {
         return next.messages;
       });
     show();
-    return unsentLines.subscribe((e) => {
+    const stop = unsentLines.subscribe((e) => {
       if (e.chatId !== props.chat.id) return;
       if (e.type === 'saved') {
         merge([e.saved]);
@@ -778,6 +763,12 @@ export default function ChatThread(props: ThreadProps) {
       show();
       if (e.type === 'failed') setSendError(errText(e.entry.error));
     });
+    const chatId = props.chat.id;
+    return () => {
+      stop();
+      // Al cerrar el chat, lo ya guardado suelta su copia local (lo que sigue saliendo la conserva).
+      localPreviews.releaseScope(`lines:${chatId}`);
+    };
   }, [props.chat.id, props.me, merge, refresh, errText]);
 
   /** Vuelve a mandar el MISMO mensaje que no salió (misma burbuja: enviando, después enviado o no enviado). */
@@ -863,18 +854,6 @@ export default function ChatThread(props: ThreadProps) {
     }
   }
 
-  async function uploadFile(file: File | Blob, name: string): Promise<{ url: string; mimetype: string; filename: string } | null> {
-    const form = new FormData();
-    form.append('file', file, name);
-    const res = await fetch('/api/groups/upload', { method: 'POST', body: form }).catch(() => null);
-    const data = (await res?.json().catch(() => ({}))) as { url?: string; mimetype?: string; filename?: string; error?: string } | undefined;
-    if (!res?.ok || !data?.url) {
-      setSendError(errText(data?.error ?? 'upload_failed'));
-      return null;
-    }
-    return { url: data.url, mimetype: data.mimetype ?? file.type, filename: data.filename ?? name };
-  }
-
   // Nota de voz: grabar con el micrófono, ver el tiempo, cancelar o mandar.
   // Se sabe recién en el navegador (el servidor no tiene micrófono): después de montar, para no romper la hidratación.
   const [voiceSupported, setVoiceSupported] = useState(false);
@@ -893,16 +872,23 @@ export default function ChatThread(props: ThreadProps) {
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     const state = { rec, chunks: [] as Blob[], stream, cancel: false };
     rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
-    rec.onstop = async () => {
-      recordedSecs.current = Math.max(1, Math.round(recSecs() || 1));
+    // El chat y la respuesta de cuando se grabó: la nota va ahí aunque se cambie de chat mientras se sube.
+    const chatId = chat.id;
+    rec.onstop = () => {
+      const seconds = Math.max(1, Math.round(recSecs() || 1));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
       if (state.cancel || state.chunks.length === 0) return;
       const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
-      const blob = new Blob(state.chunks, { type });
-      const up = await uploadFile(blob, `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`);
-      if (up) await send(up);
+      const name = `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`;
+      const file = new File(state.chunks, name, { type });
+      // La burbuja aparece ya, con el reloj y el audio que se puede escuchar; la subida y el envío siguen por detrás.
+      notifyChatSent(chatId);
+      sendLinesMedia({ chatId, body: '', replyToId: replyToRef.current?.id ?? null, file, media: { kind: 'voice', name, type, size: file.size, duration: seconds } });
+      setReplyTo(null);
+      setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
+      refresh();
     };
     recorder.current = state;
     rec.start(250);
@@ -1228,7 +1214,7 @@ export default function ChatThread(props: ThreadProps) {
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
-        { key: 'remove', label: t('common.remove'), onSelect: () => unsentLines.remove(m.id.slice(TEMP_PREFIX.length)) },
+        { key: 'remove', label: t('common.remove'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) },
       ];
     }
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
@@ -1452,7 +1438,8 @@ export default function ChatThread(props: ThreadProps) {
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
-    const media = m.media;
+    // Lo que se mandó desde esta pestaña sigue con su copia local (sin volver a bajarse al guardarse).
+    const media = withLocalMedia(m);
     const kind = media?.kind ?? '';
     const sticker = kind === 'sticker';
     const bigEmoji = !media && !m.poll && !quoted && !m.deletedAt && onlyEmoji(m.body);
@@ -1556,7 +1543,7 @@ export default function ChatThread(props: ThreadProps) {
                   tiles={album.map((x) => ({
                     id: x.id,
                     kind: x.media?.kind === 'video' ? 'video' : 'image',
-                    url: x.media?.url ?? '',
+                    url: withLocalMedia(x)?.url ?? '',
                     alt: x.media?.name || t('thread.image'),
                     thumbnail: x.media?.thumbnail,
                     seconds: x.media?.duration,
@@ -1602,6 +1589,13 @@ export default function ChatThread(props: ThreadProps) {
                 />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
+              )}
+              {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
+                <UploadRing
+                  ids={(album ?? [m]).filter((x) => isTempId(x.id) && x.status === 'pending').map((x) => x.id.slice(TEMP_PREFIX.length))}
+                  label={t('wa.uploading', { name: media.name || t('thread.image') })}
+                  overlay={Boolean(album) || kind === 'image' || kind === 'video' || kind === 'sticker'}
+                />
               )}
             </div>
           )}
@@ -2199,6 +2193,7 @@ export default function ChatThread(props: ThreadProps) {
             onAdd={() => fileRef.current?.click()}
             onSend={() => void send()}
             onClose={tray.clear}
+            onFiles={addFiles}
             sending={sending}
           />
         )}

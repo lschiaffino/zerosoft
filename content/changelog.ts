@@ -29,6 +29,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-instant-media-send',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox: voice notes and files show in the chat as soon as you send them',
+      es: 'Lines e Inbox: las notas de voz y los archivos aparecen en el chat apenas los mandás',
+      pt: 'Lines e Inbox: notas de voz e arquivos aparecem na conversa assim que você envia',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Tap send on a voice note and the recorder closes right away: the note is in the chat with the clock and you can play it while it uploads. Photos, videos and documents work the same way, with a thin ring (or a line under a voice note) showing the upload. The tick appears when it is saved; if it fails, the bubble stays as not sent with Retry, and retrying never sends it twice. Switching chats while it uploads does not lose it.',
+        es: 'Tocás enviar en una nota de voz y la grabadora se cierra enseguida: la nota ya está en el chat con el reloj y se puede escuchar mientras se sube. Las fotos, los videos y los documentos igual, con un anillo fino (o una línea bajo la nota de voz) que muestra la subida. El tilde aparece cuando se guarda; si falla, la burbuja queda como no enviada con Reintentar, y reintentar nunca la manda dos veces. Cambiar de chat mientras se sube no la pierde.',
+        pt: 'Você toca em enviar numa nota de voz e o gravador fecha na hora: a nota já está na conversa com o relógio e dá para ouvir enquanto sobe. Fotos, vídeos e documentos funcionam igual, com um anel fino (ou uma linha sob a nota de voz) mostrando o envio. O tique aparece quando é salvo; se falhar, o balão fica como não enviado com Tentar de novo, e tentar de novo nunca envia duas vezes. Trocar de conversa enquanto sobe não perde o envio.',
+      },
+      {
+        product: 'groups',
+        en: 'With the file preview open, paste more images (⌘V) to add them, like WhatsApp Web. Pasting the same image twice adds it once.',
+        es: 'Con la vista previa de archivos abierta, pegá más imágenes (⌘V) para sumarlas, como en WhatsApp Web. Pegar la misma imagen dos veces la suma una vez.',
+        pt: 'Com a prévia de arquivos aberta, cole mais imagens (⌘V) para adicioná-las, como no WhatsApp Web. Colar a mesma imagem duas vezes adiciona uma vez.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
     id: '2026-11-13-mobile-keyboard-chat',
     date: '2026-11-13',
     title: {

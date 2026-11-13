@@ -162,5 +162,8 @@
   "showLess": "Ver menos",
   "audioSummary": "Resumen:",
   "transcript": "Transcripción",
-  "moreTools": "Más: escribir con IA, dictar, snippets"
+  "moreTools": "Más: escribir con IA, dictar, snippets",
+  "retry": "Reintentar",
+  "removeUnsent": "Quitar",
+  "uploading": "Subiendo {name}"
 }

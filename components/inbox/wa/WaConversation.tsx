@@ -14,7 +14,7 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -26,9 +26,10 @@ import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
-import { AttachButton, useSendTray, VoiceBar } from './media-send';
-import { pendingSends } from './pending';
-import { isTempId } from '@/lib/optimistic-send';
+import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
+import { inboxMediaUrl, pendingSends } from './pending';
+import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
+import UploadRing from '@/components/groups/wa/UploadRing';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
@@ -129,7 +130,9 @@ const WaConversation = forwardRef<
     anchor.toBottom();
     props.onSent(msgs);
   };
-  const tray = useSendTray(thread.id, sentHere);
+  const tray = useSendTray(thread.id, onError);
+  // Al dejar el chat, lo ya guardado que se mandó desde acá suelta su copia local (lo que sigue saliendo la conserva).
+  useEffect(() => () => localPreviews.releaseScope(`inbox:${thread.id}`), [thread.id]);
   // El texto que se acaba de mandar aparece ya (burbuja provisoria, ./pending.ts): la conversación va abajo de todo.
   useEffect(() => pendingSends.subscribe((e) => void (e.type === 'add' && e.threadId === thread.id && anchor.toBottom())), [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
@@ -276,8 +279,15 @@ const WaConversation = forwardRef<
   const canDeleteAll = (m: MessageDto) => m.fromMe && !m.revoked && Date.now() - Date.parse(m.sentAt) < 60 * 3600_000;
 
   const menuFor = (m: MessageDto): MenuItem[] => {
-    // Una burbuja que todavía se está mandando no existe en el servidor: solo se puede copiar.
-    if (isTempId(m.id)) return [{ key: 'copy', label: w('copy'), onSelect: () => void copy(m) }];
+    // Una burbuja que todavía se está mandando no existe en el servidor: copiar el texto; si no salió, reintentar o quitar.
+    if (isTempId(m.id)) {
+      const items: MenuItem[] = m.body ? [{ key: 'copy', label: w('copy'), onSelect: () => void copy(m) }] : [];
+      if (m.status === 'failed' && m.hasMedia) {
+        items.push({ key: 'retry', label: w('retry'), onSelect: () => retryInboxMedia(m.id) });
+        items.push({ key: 'remove', label: w('removeUnsent'), danger: true, onSelect: () => discardInboxMedia(m.id) });
+      }
+      return items;
+    }
     const items: MenuItem[] = [];
     if (!m.revoked) {
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
@@ -303,7 +313,7 @@ const WaConversation = forwardRef<
         .filter((m) => m.hasMedia && (m.mediaType === 'image' || m.mediaType === 'video') && !m.revoked)
         .map((m) => ({
           id: m.id,
-          url: `/api/inbox/media/${m.id}`,
+          url: inboxMediaUrl(m),
           type: m.mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
           name: m.mediaName,
           caption: m.body,
@@ -419,7 +429,8 @@ const WaConversation = forwardRef<
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
     const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
-    const url = m.hasMedia ? `/api/inbox/media/${m.id}` : '';
+    // Lo que se mandó desde esta pestaña se ve con su copia local (al instante, y sin volver a bajarlo al guardarse).
+    const url = inboxMediaUrl(m);
     const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
     const body = m.body ?? '';
     const poll = meta.poll;
@@ -491,7 +502,7 @@ const WaConversation = forwardRef<
                   tiles={album.map((x) => ({
                     id: x.id,
                     kind: x.mediaType === 'video' ? 'video' : 'image',
-                    url: `/api/inbox/media/${x.id}`,
+                    url: inboxMediaUrl(x),
                     alt: x.mediaName || w('kind.image'),
                     thumbnail: x.meta?.thumb,
                     seconds: x.meta?.duration,
@@ -517,6 +528,13 @@ const WaConversation = forwardRef<
                 />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
+              )}
+              {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
+                <UploadRing
+                  ids={(album ?? [m]).filter((x) => isTempId(x.id) && x.status === 'pending').map((x) => x.id.slice(TEMP_PREFIX.length))}
+                  label={w('uploading', { name: m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`) })}
+                  overlay={Boolean(album) || kind === 'image' || kind === 'video' || sticker}
+                />
               )}
             </div>
           )}
@@ -563,6 +581,11 @@ const WaConversation = forwardRef<
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
             {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {isTempId(m.id) && m.status === 'failed' && m.hasMedia && (
+              <button type="button" className="wa-retry" onClick={() => retryInboxMedia(m.id)} aria-label={w('retry')} title={w('retry')}>
+                <Retry size={14} />
+              </button>
+            )}
           </p>
           <span className="wa-hover">
             <MessageMenu label={w('messageMenu')} items={menuFor(m)} trigger={<Chevron size={18} />} className="wa-chevron" align={m.fromMe ? 'right' : 'left'} />
@@ -769,10 +792,7 @@ const WaConversation = forwardRef<
           <VoiceBar
             threadId={thread.id}
             replyTo={replyTo?.id}
-            onSent={(msgs) => {
-              setReplyTo(null);
-              sentHere(msgs);
-            }}
+            onQueued={() => setReplyTo(null)}
             onError={onError}
             onDone={() => setRecording(false)}
             onStart={() => presence('recording')}
@@ -815,10 +835,10 @@ const WaConversation = forwardRef<
           onRetry={tray.retry}
           onAdd={() => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click()}
           onClose={tray.clear}
-          onSend={async () => {
-            const done = await tray.sendAll(replyTo?.id);
-            if (done) setReplyTo(null);
+          onSend={() => {
+            if (tray.sendAll(replyTo?.id)) setReplyTo(null);
           }}
+          onFiles={(files) => void tray.add(files)}
         />
       )}
       {dragging && (

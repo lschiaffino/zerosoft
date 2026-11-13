@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-12',
+  lastReviewed: '2026-11-13',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -112,7 +112,7 @@ const parity: ProductParity = {
       ],
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
-      detail: ['Photos and videos sent together show as one album. No link previews or message search inside a chat yet', 'Las fotos y videos mandados juntos se ven en un álbum. Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Fotos e vídeos enviados juntos aparecem num álbum. Ainda sem prévia de links nem busca dentro de uma conversa'],
+      detail: ['Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. No link previews or message search inside a chat yet', 'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Ainda sem prévia de links nem busca dentro de uma conversa'],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
