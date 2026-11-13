@@ -172,10 +172,12 @@ export async function disconnectWhatsapp(account: AccountRow): Promise<void> {
   await setAccountState(account.id, { status: 'disconnected', provider: '', sync_cursor: '', error: '' });
 }
 
-const MEDIA_LABEL: Record<string, string> = { image: 'image', video: 'video', audio: 'audio', ptt: 'audio', document: 'document', sticker: 'sticker' };
-
-function mediaKind(mime: string, type: string): string {
-  if (MEDIA_LABEL[type]) return MEDIA_LABEL[type];
+/**
+ * Tipo con que se guarda (media_type) un archivo recibido. Un sticker es "sticker" aunque su mimetype sea
+ * image/webp (antes quedaba "image" y la burbuja lo dibujaba como una foto grande); el resto sale del mimetype.
+ */
+export function inboxMediaType(mime: string, kind = ''): string {
+  if (kind === 'sticker') return 'sticker';
   if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
@@ -211,7 +213,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     senderName: e.fromMe ? '' : e.senderName,
     senderHandle: senderPhone,
     body,
-    mediaType: media ? mediaKind(media.type, '') || 'document' : '',
+    mediaType: media ? inboxMediaType(media.type, media.info?.kind) || 'document' : '',
     mediaName: media?.name ?? '',
     mediaRef: media?.fetchRef ? JSON.stringify(media.fetchRef) : '',
     replyTo: e.replyToProviderId ?? '',
@@ -418,11 +420,20 @@ export async function resyncWhatsapp(owner: string): Promise<{ account: AccountR
 }
 
 /** Manda un texto al chat y lo guarda como enviado. */
-export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string; mentions?: string[]; clientId?: string } = {}): Promise<string> {
+export async function sendWhatsappText(
+  account: AccountRow,
+  thread: ThreadRow,
+  text: string,
+  opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean; forwarded?: boolean } = {},
+): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
   try {
-    const o = { ...(opts.replyTo ? { replyTo: opts.replyTo } : {}), ...(opts.mentions?.length ? { mentions: opts.mentions } : {}) };
+    const o = {
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.mentions?.length ? { mentions: opts.mentions } : {}),
+      ...(opts.linkPreview === false ? { linkPreview: false } : {}),
+    };
     id = (await waProviderFor(account).sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
   } catch (err) {
     if (err instanceof InboxError) throw err;
@@ -434,7 +445,14 @@ export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, t
     body: text,
     status: 'sent',
     replyTo: opts.replyTo ?? '',
-    ...(opts.clientId ? { meta: JSON.stringify({ cid: opts.clientId }), clientId: opts.clientId } : {}),
+    // clientId: un reintento del mismo envío no lo guarda dos veces. noPreview: la persona sacó la vista previa del link.
+    ...(opts.clientId || opts.linkPreview === false
+      ? {
+          meta: JSON.stringify({ ...(opts.clientId ? { cid: opts.clientId } : {}), ...(opts.linkPreview === false ? { noPreview: true } : {}) }),
+          ...(opts.clientId ? { clientId: opts.clientId } : {}),
+        }
+      : {}),
+    ...(opts.forwarded ? { forwarded: true } : {}),
   });
   // Quien tenga Inbox abierto en esta instancia (otra pestaña) lo ve ya.
   pokeLive('inbox', account.owner_id);

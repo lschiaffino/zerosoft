@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -40,7 +41,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -316,6 +317,43 @@ export default function InboxShell({
   };
   const [removing, setRemoving] = useState(false);
   const [newChat, setNewChat] = useState(false);
+  // En escritorio la miga de arriba ya dice "Bandeja" y el lateral tiene "Nuevo": la cabecera de la lista se va
+  // y el filtro de línea sube a la banda (#band-app-slot). En el teléfono, sin miga ni lateral, queda como estaba.
+  const [bandSlot, setBandSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setBandSlot(mq.matches ? document.getElementById('band-app-slot') : null);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+  // "Nuevo › Chat nuevo" del lateral llega con ?new=1 desde otra página: abre el diálogo y saca el parámetro de la
+  // barra de direcciones. Con window.history.state (lleva __NA) Next no se entera del cambio: su router sigue en ?new=1,
+  // y por eso un segundo "Chat nuevo" con la bandeja ya abierta no navega (abajo se atiende sin navegar).
+  const wantsNewChat = params.get('new') === '1';
+  useEffect(() => {
+    if (!wantsNewChat) return;
+    setNewChat(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('new');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [wantsNewChat]);
+  // Con la bandeja montada, un link a /app/lines/inbox?new=1 (el del lateral) abre el diálogo acá mismo, sin navegar:
+  // ir a la misma URL no cambia nada para Next, y navegar cerraría el chat abierto. En captura, antes que el Link.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link || (link.target && link.target !== '_self')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.searchParams.get('new') !== '1') return;
+      if (!/^(\/[a-z]{2})?\/app\/lines\/inbox\/?$/.test(url.pathname)) return;
+      e.preventDefault();
+      setNewChat(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
@@ -851,7 +889,14 @@ export default function InboxShell({
           <span className="gr-row-main">
             <span className="gr-row-top">
               <span className="gr-row-name">{debounced && !opts.snippet ? <Highlight text={c.name} q={debounced} /> : c.name}</span>
-              <span className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}`}>{listTime(c.lastMessageAt ?? c.createdAt, locale)}</span>
+              {/* Vencido o esperando: un reloj chico junto a la hora (rojo o ámbar), con el detalle al pasar el mouse. No suma una fila. */}
+              <span
+                className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}${c.flagged ? ' is-overdue' : c.awaitingSince ? ' is-waiting' : ''}`}
+                title={c.flagged ? t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' }) : c.awaitingSince ? t('inbox.waiting', { time: rel(c.awaitingSince) }) : undefined}
+              >
+                {(c.flagged || c.awaitingSince) && <ClockIcon size={13} label={c.flagged ? t('inbox.flagged') : t('inbox.waiting', { time: rel(c.awaitingSince!) })} />}
+                {listTime(c.lastMessageAt ?? c.createdAt, locale)}
+              </span>
             </span>
             <span className="gr-row-bottom">
               <span className="gr-row-preview">
@@ -901,14 +946,9 @@ export default function InboxShell({
                 {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
               </span>
             </span>
-            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
+            {(c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
               <span className="gr-row-meta">
                 {line === 'all' && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
-                {c.flagged ? (
-                  <span className="badge badge-bad">{t('inbox.flagged')}</span>
-                ) : c.awaitingSince ? (
-                  <span className="badge badge-warn">{t('inbox.waiting', { time: rel(c.awaitingSince) })}</span>
-                ) : null}
                 {c.labels.slice(0, 2).map((l) => (
                   <LabelTag key={l.id} name={l.name} color={l.color} />
                 ))}
@@ -1154,14 +1194,25 @@ export default function InboxShell({
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}
-            <div className="gr-list-titlebar">
-              <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
-              <LineSelector numbers={numbers} value={line} onChange={pickLine} />
-              {/* Sin sidebar a la vista: la carpeta se elige acá, al lado de la línea (no una caja a todo el ancho). */}
+            {bandSlot ? (
+              <>
+                {createPortal(<LineSelector numbers={numbers} value={line} onChange={pickLine} />, bandSlot)}
+                {/* Una lista guardada sí conserva su nombre: la miga dice solo "Bandeja". */}
+                {activeList && (
+                  <div className="gr-list-titlebar">
+                    <h1 className="gr-list-title">{activeList.name}</h1>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="gr-list-titlebar">
+                <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
+                <LineSelector numbers={numbers} value={line} onChange={pickLine} />
                 <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
-                <Plus size={20} />
-              </button>
-            </div>
+                  <Plus size={20} />
+                </button>
+              </div>
+            )}
             {lists.length > 0 && (
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
                 <Link

@@ -107,7 +107,7 @@ export function tempMessage(u: Unsent, me: string): MessageDto {
     pinnedAt: null,
     forwarded: false,
     translations: {},
-    meta: { cid: u.clientId },
+    meta: { cid: u.clientId, ...(u.noPreview ? { noPreview: true } : {}) },
     needsReply: null,
   };
 }
@@ -230,6 +230,8 @@ export function sendLinesText(clientId: string): void {
             ? { url: media.url, mimetype: media.type, filename: media.name, size: media.size, kind: media.kind, width: media.width, height: media.height, duration: media.duration, ...(media.kind === 'voice' ? { voice: true } : {}) }
             : null,
           clientId: entry.clientId,
+          ...(entry.noPreview ? { linkPreview: false } : {}),
+          ...(entry.mentions?.length ? { mentions: entry.mentions } : {}),
         }),
         // Sin respuesta a tiempo: queda como no enviado, con reintentar (el mismo clientId: si sí había salido, el
         // servidor devuelve el que ya guardó y no lo manda otra vez). La cola del chat no se traba.

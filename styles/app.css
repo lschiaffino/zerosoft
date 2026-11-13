@@ -208,6 +208,8 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 }
 
 .band-crumb { min-width: 0; }
+.band-app-slot { display: flex; align-items: center; min-width: 0; margin-left: 8px; }
+.band-app-slot:empty { display: none; }
 .band-section {
   display: flex;
   align-items: center;
@@ -571,6 +573,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   }
   .band-menu { display: inline-flex; }
   .band-crumb { display: none; }
+  .band-app-slot { display: none; }
   .band-search { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; color: var(--chrome-fg); }
   .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
@@ -1480,6 +1483,7 @@ td.cell-actions > * + * { margin-left: 4px; }
 .band-menu-soon-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .band-menu-soon-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--switcher-gap); }
 .band-menu-soon-item { color: var(--ink-2); }
+.band-menu-off-hint { margin: 2px 0 4px; padding: 0 10px; font-size: 0.75rem; color: var(--brand-gray-2); }
 @media (max-width: 560px) {
   .band-menu-soon-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -99,6 +99,13 @@ export function mentionSomeone(locale: string | null | undefined): string {
   return SOMEONE[String(locale ?? '').slice(0, 2).toLowerCase()] ?? SOMEONE.en;
 }
 
+/** "Vos" para una mención a la cuenta misma, como la burbuja de Inbox (inboxWa.you). */
+const YOU: Record<string, string> = { en: 'You', es: 'Vos', pt: 'Você' };
+
+export function mentionYou(locale: string | null | undefined): string {
+  return YOU[String(locale ?? '').slice(0, 2).toLowerCase()] ?? YOU.en;
+}
+
 /**
  * Etiqueta de la mención: el nombre o, si solo se sabe el teléfono, el
  * teléfono con formato. Una mención de la que no se sabe nada (un lid sin

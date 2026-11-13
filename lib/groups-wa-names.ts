@@ -8,7 +8,7 @@
  */
 import { getDb } from './db';
 import { isGroupJid, lidDigits, phoneDigits, type ChatInfo, type HistoryContact, type InboundEvent } from './groups-provider';
-import { contactsFromMessage, mentionTargets, rememberContacts, resolveLidSenders, resolveTextMentions, someoneWord, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
+import { contactsFromMessage, mentionSelf, mentionTargets, rememberContacts, resolveLidSenders, resolveTextMentions, someoneWord, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
 import { ownMentions, type MentionMap } from './wa-mentions';
 import { maskPhone } from './groups-mask';
 
@@ -214,6 +214,7 @@ export async function linesMentionTexts(
     items.map((it) => ({ accountId: it.text && it.text.includes('@') ? it.numberId : '', text: it.text, mentions: it.mentions })),
     {
       someone: () => someoneWord(ws),
+      self: mentionSelf('lines', ws),
       phone: (phone, id) => (opts.shared && phone !== id ? '' : opts.mask ? maskPhone(phone) : `+${phone}`),
     },
   ).catch(() => items.map((it) => it.text));

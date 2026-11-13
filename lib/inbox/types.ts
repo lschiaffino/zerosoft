@@ -72,6 +72,8 @@ export interface ThreadDto {
   presence: '' | 'typing' | 'recording' | 'online';
   /** En un grupo, quién escribe (teléfono). */
   presenceWho: string;
+  /** En un grupo, el nombre de quien escribe o graba (libreta por teléfono o lid; si no, su teléfono). */
+  presenceName?: string;
   lastSeenAt: string | null;
   /** Último mensaje con foto o video (su miniatura en la fila). */
   lastMediaId?: string | null;
@@ -91,7 +93,12 @@ export interface WaMessageMeta {
   /** Miniatura chica (data URL). */
   thumb?: string;
   viewOnce?: boolean;
+  /** Sticker animado, o video que WhatsApp reproduce como GIF (gifPlayback). */
   animated?: boolean;
+  /** Sticker Lottie: no se puede dibujar, se muestra el lugar del sticker. */
+  lottie?: boolean;
+  /** SHA-256 (hex) del sticker: la colección no lo baja de nuevo si ya lo tiene. */
+  sha?: string;
   /** Forma de onda de la nota de voz (0 a 100). */
   waveform?: number[];
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
@@ -99,6 +106,8 @@ export interface WaMessageMeta {
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
   link?: { url: string; title: string; description?: string; thumb?: string };
+  /** Se mandó sin vista previa del link (la persona la sacó en el composer). */
+  noPreview?: boolean;
   /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
   mentions?: string[];
   /** Id que puso la pantalla al mandar: reemplaza su burbuja provisoria (lib/optimistic-send.ts). */

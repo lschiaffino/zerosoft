@@ -18,12 +18,13 @@ import CallsUpcoming from '@/components/calls/CallsUpcoming';
 import CallsDeals from '@/components/calls/CallsDeals';
 import CallsAsk from '@/components/calls/CallsAsk';
 import CallsSettings from '@/components/calls/CallsSettings';
+import CallsAnalytics from '@/components/calls/CallsAnalytics';
 
 export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ locale: string; zs?: string[] }>; searchParams: Promise<Record<string, string | undefined>> };
 
-const TITLE_KEY: Record<string, string> = { upcoming: 'nav.upcoming', deals: 'nav.deals', ask: 'nav.ask', settings: 'nav.settings' };
+const TITLE_KEY: Record<string, string> = { upcoming: 'nav.upcoming', deals: 'nav.deals', ask: 'nav.ask', analytics: 'analytics.title', settings: 'nav.settings' };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale, zs = [] } = await props.params;
@@ -34,7 +35,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 /**
  * Calls en una sola ruta (presupuesto de rutas): /app/calls (filtros por query),
  * /app/calls/call/<id> (?t=segundos, ?clip=), /app/calls/upcoming,
- * /app/calls/deals, /app/calls/ask y /app/calls/settings.
+ * /app/calls/deals, /app/calls/ask, /app/calls/analytics y /app/calls/settings.
  */
 export default async function CallsPage(props: Props) {
   const { locale, zs = [] } = await props.params;
@@ -78,6 +79,8 @@ export default async function CallsPage(props: Props) {
       const any = await listCalls(actor, { limit: 50 });
       return <CallsAsk hasCalls={any.some((c) => c.status === 'ready')} />;
     }
+    case 'analytics':
+      return <CallsAnalytics locale={locale} actor={actor} search={{ days: sp.days, from: sp.from, to: sp.to }} />;
     case 'settings': {
       const [settings, autoJoin] = await Promise.all([getSettings(actor.ws), getAutoJoin(actor.ws, actor.person)]);
       return <CallsSettings initial={settings} autoJoin={autoJoin} admin={actor.admin} botConfigured={botConfigured()} storageConfigured={callsStorageConfigured()} />;

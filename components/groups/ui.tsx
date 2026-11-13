@@ -73,8 +73,9 @@ export function NumberOptions({ numbers }: { numbers: ReadonlyArray<{ id: string
 export function useMediaText() {
   const t = useTranslations('groups.media');
   return useCallback(
-    (input: { preview?: string; media?: { type: string; name: string } | null }) => {
-      if (input.media) return input.media.name || t(mediaKind(input.media.type));
+    (input: { preview?: string; media?: { type: string; name: string; kind?: string; ptt?: boolean } | null }) => {
+      const m = input.media;
+      if (m) return m.name || t(m.ptt || m.kind === 'voice' ? 'voice' : m.kind === 'sticker' ? 'sticker' : mediaKind(m.type));
       const tok = previewToken(input.preview ?? '');
       return tok ? t(tok) : input.preview ?? '';
     },
@@ -155,7 +156,9 @@ export function Modal({
     <dialog
       ref={ref}
       className={`ui-modal${wide ? ' ui-modal-wide' : ''}`}
-      aria-labelledby={titleId}
+      // Solo abierto, cuando el título existe: el <dialog> cerrado viene del servidor con el id del servidor, y si el
+      // de la hidratación sale distinto React no corrige el atributo; así el nombre se pone en el cliente, con el id del título.
+      aria-labelledby={open ? titleId : undefined}
       aria-modal="true"
       onCancel={(e) => {
         e.preventDefault();

@@ -18,6 +18,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
+import DisplaySection from '@/components/chat-style/DisplaySection';
 import NumbersSettings from '@/components/groups/NumbersSettings';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
@@ -147,7 +148,13 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
   else if (tab === 'apps') body = <AppsPanel />;
-  else if (tab === 'appearance') body = <ChatStyleSection />;
+  else if (tab === 'appearance')
+    body = (
+      <div className="ui-fields">
+        <ChatStyleSection />
+        <DisplaySection />
+      </div>
+    );
   else
     body = (
       <div className="ui-fields gr-api">
@@ -181,7 +188,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   return (
     <div className="ui-page">
       <PageHeader title={t('settings.title')} description={t('settings.desc')} actions={<PlatformSettingsLink locale={locale} />} />
-      <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: k === 'appearance' ? tw('chatStyle.title') : t(`settings.tabs.${k}`) }))}>
+      <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: k === 'appearance' ? tw('display.tab') : t(`settings.tabs.${k}`) }))}>
         {body}
       </SettingsTabs>
     </div>

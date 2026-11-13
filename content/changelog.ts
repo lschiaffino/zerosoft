@@ -71,6 +71,355 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-12-wa-mentions-composer',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: @mentions in WhatsApp groups that notify',
+      es: 'Lines e Inbox: @menciones en grupos de WhatsApp que avisan',
+      pt: 'Lines e Inbox: @menções em grupos do WhatsApp que avisam',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'In a WhatsApp group, typing @ opens the list of members with their initial, name and number, like WhatsApp. It filters as you type and you pick with the arrows and Enter or Tab; Esc closes it. The message goes out as a real WhatsApp mention, so the person gets notified, and the chat shows @Name.',
+        es: 'En un grupo de WhatsApp, al escribir @ se abre la lista de integrantes con su inicial, nombre y número, como en WhatsApp. Se filtra mientras escribís y se elige con las flechas y Enter o Tab; Esc la cierra. El mensaje sale como mención real de WhatsApp, así a la persona le llega el aviso, y en el chat se ve @Nombre.',
+        pt: 'Em um grupo do WhatsApp, ao digitar @ abre a lista de participantes com a inicial, o nome e o número, como no WhatsApp. Ela filtra enquanto você digita e se escolhe com as setas e Enter ou Tab; Esc fecha. A mensagem sai como menção real do WhatsApp, a pessoa recebe o aviso, e na conversa aparece @Nome.',
+      },
+      {
+        product: 'groups',
+        en: 'Mentions show in green inside the message field while you write, in Lines and Inbox and also in internal notes. Backspace against a mention removes the whole name.',
+        es: 'Las menciones se ven en verde dentro del campo mientras escribís, en Lines e Inbox y también en las notas internas. Borrar contra una mención saca el nombre entero.',
+        pt: 'As menções aparecem em verde dentro do campo enquanto você escreve, no Lines e no Inbox e também nas notas internas. Apagar contra uma menção tira o nome inteiro.',
+      },
+      {
+        product: 'groups',
+        en: 'In the chat list, a mention of your own number shows as in the conversation: @You in Inbox and the line name in Lines, instead of the phone number.',
+        es: 'En la lista de chats, una mención a tu propio número se ve como en la conversación: @Vos en Inbox y el nombre de la línea en Lines, en lugar del teléfono.',
+        pt: 'Na lista de conversas, uma menção ao seu próprio número aparece como na conversa: @Você no Inbox e o nome da linha no Lines, em vez do telefone.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-overdue-clock',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: overdue chats no longer make rows taller',
+      es: 'Lines: los chats vencidos ya no agrandan la fila',
+      pt: 'Lines: chats vencidos não deixam mais a linha mais alta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Overdue and waiting chats show a small clock next to the time (red or amber) instead of a tag on its own line; hover it for how long it has been waiting.',
+        es: 'Los chats vencidos o esperando muestran un reloj chico junto a la hora (rojo o ámbar) en vez de una etiqueta en su propia línea; al pasar el mouse dice cuánto hace que esperan.',
+        pt: 'Chats vencidos ou aguardando mostram um relógio pequeno ao lado da hora (vermelho ou âmbar) em vez de uma etiqueta numa linha própria; ao passar o mouse diz há quanto tempo esperam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-folder-rail-polish',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: folder icons in the collapsed sidebar, polished',
+      es: 'Lines e Inbox: carpetas del lateral colapsado más prolijas',
+      pt: 'Lines e Inbox: pastas da barra recolhida mais caprichadas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The unread dot is no longer cut off, hovering a folder shows its name right away, and with many folders the strip stays short and scrolls.',
+        es: 'El punto de no leídos ya no se corta, al pasar el mouse por una carpeta aparece su nombre al instante y con muchas carpetas la tira queda corta y se desplaza.',
+        pt: 'O ponto de não lidos não é mais cortado, ao passar o mouse numa pasta o nome aparece na hora e com muitas pastas a faixa fica curta e rola.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-analytics-inbox-calls-crm',
+    date: '2026-11-12',
+    title: {
+      en: 'Analytics for Inbox, Calls and CRM',
+      es: 'Analítica para Inbox, Calls y CRM',
+      pt: 'Análise para Inbox, Calls e CRM',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Inbox has an Analytics page: messages received and sent per day by channel, your first response time, chats to reply and waiting, and what you marked done or archived. It is private: only you see it.',
+        es: 'Inbox tiene una página de Analítica: mensajes recibidos y enviados por día y canal, tu tiempo de primera respuesta, chats por responder y esperando, y lo que marcaste como hecho o archivaste. Es privada: solo la ves vos.',
+        pt: 'O Inbox tem uma página de Análise: mensagens recebidas e enviadas por dia e canal, seu tempo de primeira resposta, conversas para responder e aguardando, e o que você marcou como feito ou arquivou. É privada: só você vê.',
+      },
+      {
+        product: 'calls',
+        en: 'Calls has an Analytics page: calls and minutes recorded per day, how much your team talks, customer questions, methodology score, top topics, competitors mentioned and a table by rep. When calls are private, members only count their own.',
+        es: 'Calls tiene una página de Analítica: llamadas y minutos grabados por día, cuánto habla tu equipo, preguntas del cliente, puntaje de la metodología, temas, competidores mencionados y una tabla por rep. Con las llamadas en privado, cada member cuenta solo las suyas.',
+        pt: 'O Calls tem uma página de Análise: chamadas e minutos gravados por dia, quanto sua equipe fala, perguntas do cliente, nota da metodologia, temas, concorrentes mencionados e uma tabela por rep. Com as chamadas privadas, cada membro conta só as suas.',
+      },
+      {
+        product: 'crm',
+        en: 'CRM has an Analytics page under Insights: deals created, won and lost per day, won revenue, win rate, sales cycle, open pipeline by stage, why deals were lost, activity by type and a table by owner. Members see only the owners they have access to.',
+        es: 'El CRM tiene una página de Analítica en Métricas: deals creados, ganados y perdidos por día, ingresos ganados, tasa de cierre, ciclo de venta, pipeline abierto por etapa, por qué se perdieron, actividad por tipo y una tabla por owner. Cada member ve solo los owners a los que tiene acceso.',
+        pt: 'O CRM tem uma página de Análise em Métricas: negócios criados, ganhos e perdidos por dia, receita ganha, taxa de fechamento, ciclo de venda, pipeline aberto por etapa, por que foram perdidos, atividade por tipo e uma tabela por responsável. Cada membro vê só os responsáveis a que tem acesso.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-app-button-tones',
+    date: '2026-11-12',
+    title: {
+      en: 'Primary buttons in each app use white text on a deeper shade of the app color',
+      es: 'Los botones principales de cada app llevan texto blanco sobre un tono más profundo del color de la app',
+      pt: 'Os botões principais de cada app usam texto branco sobre um tom mais profundo da cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Mid-tone colors like the green of Lines or the orange of Track had black text. Now the text is white and the fill is a deeper shade of the same hue, so it reads well and still looks like the app. Notes keeps its yellow with dark text. In dark mode the fills are a little lighter, and hover and press darken the button.',
+        es: 'Los colores de tono medio, como el verde de Lines o el naranja de Track, tenían texto negro. Ahora el texto es blanco y el relleno es un tono más profundo del mismo color, así se lee bien y sigue pareciendo la app. Notes mantiene su amarillo con texto oscuro. En modo oscuro los rellenos son un poco más claros, y al pasar el mouse o apretar el botón se oscurece.',
+        pt: 'As cores de tom médio, como o verde do Lines ou o laranja do Track, tinham texto preto. Agora o texto é branco e o preenchimento é um tom mais profundo da mesma cor, então lê bem e continua parecendo o app. O Notes mantém seu amarelo com texto escuro. No modo escuro os preenchimentos são um pouco mais claros, e ao passar o mouse ou apertar o botão ele escurece.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-wa-stickers',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: stickers like WhatsApp, and a Stickers tab to send them',
+      es: 'Lines e Inbox: stickers como en WhatsApp y una pestaña Stickers para mandarlos',
+      pt: 'Lines e Inbox: figurinhas como no WhatsApp e uma aba Figurinhas para enviá-las',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'A sticker someone sends shows small and without a bubble, animated if it is, with the time below. Before, Inbox showed it as a big photo. GIFs play on their own inside the bubble, muted and on a loop, with a GIF mark.',
+        es: 'Un sticker que te mandan se ve chico y sin burbuja, animado si lo es, con la hora abajo. Antes Inbox lo mostraba como una foto grande. Los GIF se reproducen solos en la burbuja, sin sonido y en bucle, con la marca GIF.',
+        pt: 'Uma figurinha que te enviam aparece pequena e sem balão, animada se for, com a hora embaixo. Antes o Inbox mostrava como uma foto grande. Os GIFs tocam sozinhos no balão, sem som e em loop, com a marca GIF.',
+      },
+      {
+        product: 'inbox',
+        en: 'The emoji panel has a Stickers tab with your recent ones, favorites and your collection: click one to send it. WhatsApp does not let linked devices read the stickers saved on your phone, so “Import stickers from my chats” builds the collection from the stickers you sent and received, and new ones are added as they arrive. You can also add one to favorites from its menu in a chat, or turn an image into a sticker.',
+        es: 'El panel de emojis tiene una pestaña Stickers con tus recientes, favoritos y tu colección: un clic lo manda. WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en tu teléfono, así que “Importar stickers de mis chats” arma la colección con los que mandaste y recibiste, y los nuevos se suman cuando llegan. También podés agregar uno a favoritos desde su menú en un chat, o convertir una imagen en sticker.',
+        pt: 'O painel de emojis tem uma aba Figurinhas com as recentes, as favoritas e a sua coleção: um clique envia. O WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no seu celular, então “Importar figurinhas das minhas conversas” monta a coleção com as que você enviou e recebeu, e as novas entram quando chegam. Também dá para adicionar uma às favoritas pelo menu dela numa conversa, ou transformar uma imagem em figurinha.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines, with the stickers of the chats you can see.',
+        es: 'Lo mismo en Lines, con los stickers de los chats que podés ver.',
+        pt: 'O mesmo no Lines, com as figurinhas das conversas que você pode ver.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-inbox-archive-phone-sync',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox: Archive also archives the chat on your phone',
+      es: 'Inbox: Archivar también archiva el chat en el teléfono',
+      pt: 'Inbox: Arquivar também arquiva a conversa no celular',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The Archive button (E) and moving a chat back to the inbox now sync with WhatsApp, like Archive from the menu already did.',
+        es: 'El botón Archivar (E) y volver un chat a la bandeja ahora se sincronizan con WhatsApp, como ya pasaba con Archivar del menú.',
+        pt: 'O botão Arquivar (E) e voltar uma conversa para a caixa de entrada agora sincronizam com o WhatsApp, como já acontecia com Arquivar do menu.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-dm-pictures-fallback',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: more contacts show their profile photo',
+      es: 'Inbox y Lines: más contactos muestran su foto de perfil',
+      pt: 'Inbox e Lines: mais contatos mostram a foto de perfil',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'When WhatsApp sends a profile without the photo, we now ask for the photo on its own. Chats left without a photo are fetched again once. Someone who hides their photo from you still shows initials, like on the phone.',
+        es: 'Cuando WhatsApp manda un perfil sin la foto, ahora se la pide aparte. Los chats que quedaron sin foto se vuelven a pedir una vez. Quien te oculta la foto sigue con sus iniciales, como en el teléfono.',
+        pt: 'Quando o WhatsApp manda um perfil sem a foto, agora ela é pedida à parte. As conversas que ficaram sem foto são pedidas de novo uma vez. Quem oculta a foto de você continua com as iniciais, como no celular.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
+    id: '2026-11-12-who-is-typing',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: groups say who is typing',
+      es: 'Inbox y Lines: los grupos dicen quién está escribiendo',
+      pt: 'Inbox e Lines: os grupos dizem quem está digitando',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like WhatsApp, the chat list and the chat header show "Andrés is typing…" or "Andrés is recording audio…" in groups, also when WhatsApp identifies the person only by their private id.',
+        es: 'Como WhatsApp, la lista y la cabecera del chat muestran "Andrés está escribiendo…" o "Andrés está grabando un audio…" en los grupos, también cuando WhatsApp identifica a la persona solo por su id privado.',
+        pt: 'Como no WhatsApp, a lista e o cabeçalho da conversa mostram "Andrés está digitando…" ou "Andrés está gravando um áudio…" nos grupos, também quando o WhatsApp identifica a pessoa só pelo id privado.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
+    id: '2026-11-12-desktop-dictation-meter',
+    date: '2026-11-12',
+    title: {
+      en: 'Desktop dictation: the sound meter reacts to your voice',
+      es: 'Dictado del escritorio: el medidor de sonido reacciona a tu voz',
+      pt: 'Ditado do desktop: o medidor de som reage à sua voz',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'The bars barely moved with a normal voice. They now follow how loud you sound (in decibels) and adjust to your microphone, so you can see it is listening; background noise stays still.',
+        es: 'Las barras casi no se movían con una voz normal. Ahora siguen cuán fuerte suena tu voz (en decibeles) y se ajustan a tu micrófono, así se ve que está escuchando; el ruido de fondo queda quieto.',
+        pt: 'As barras quase não se mexiam com uma voz normal. Agora seguem o volume da sua voz (em decibéis) e se ajustam ao seu microfone, então dá para ver que está ouvindo; o ruído de fundo fica parado.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-lines-list-head-band',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines: more room for chats; the line filter moves to the top bar',
+      es: 'Lines: más lugar para los chats; el filtro de línea sube a la barra de arriba',
+      pt: 'Lines: mais espaço para os chats; o filtro de linha sobe para a barra de cima',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'On desktop the list no longer repeats the "Inbox" title (the top bar already says it), the line filter sits next to it in the top bar, and the + goes away: New › New chat in the sidebar opens the same dialog. On the phone nothing changes.',
+        es: 'En la compu la lista ya no repite el título "Bandeja" (lo dice la barra de arriba), el filtro de línea queda al lado, en esa barra, y se va el +: Nuevo › Chat nuevo del lateral abre el mismo diálogo. En el teléfono queda igual.',
+        pt: 'No computador a lista não repete mais o título "Caixa de entrada" (a barra de cima já diz), o filtro de linha fica ao lado, nessa barra, e o + sai: Novo › Nova conversa na lateral abre o mesmo diálogo. No celular fica igual.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-own-voice-photo',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: your voice messages show your photo',
+      es: 'Inbox y Lines: tus audios muestran tu foto',
+      pt: 'Inbox e Lines: seus áudios mostram sua foto',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like WhatsApp, a voice message you send shows your profile photo next to the player instead of an empty circle.',
+        es: 'Como WhatsApp, un audio que mandás muestra tu foto de perfil al lado del reproductor en lugar de un círculo vacío.',
+        pt: 'Como no WhatsApp, um áudio que você envia mostra sua foto de perfil ao lado do player em vez de um círculo vazio.',
+      },
+      { product: 'groups', en: 'In Lines, each teammate’s voice messages show their own photo.', es: 'En Lines, los audios de cada persona del equipo muestran su propia foto.', pt: 'No Lines, os áudios de cada pessoa da equipe mostram a própria foto.' },
+    ],
+  },
+  {
+    id: '2026-11-12-emoji-recents-full',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: Recent emojis are never empty',
+      es: 'Lines e Inbox: los emojis recientes nunca quedan vacíos',
+      pt: 'Lines e Inbox: os emojis recentes nunca ficam vazios',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp, the emoji picker opens on Recent and fills it with the most used emojis until you have your own.',
+        es: 'Como WhatsApp, el selector de emojis abre en Recientes y lo completa con los más usados hasta que tengas los tuyos.',
+        pt: 'Como no WhatsApp, o seletor de emojis abre em Recentes e completa com os mais usados até você ter os seus.',
+      },
+      { product: 'inbox', en: 'Same in Inbox.', es: 'Lo mismo en Inbox.', pt: 'O mesmo no Inbox.' },
+    ],
+  },
+  {
+    id: '2026-11-12-switcher-disabled-apps',
+    date: '2026-11-12',
+    title: {
+      en: 'App switcher: apps turned off for your account have their own group',
+      es: 'Selector de apps: las apagadas para tu cuenta tienen su propio grupo',
+      pt: 'Seletor de apps: os desativados para sua conta têm seu próprio grupo',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Apps turned off in Settings › Apps no longer vanish: they sit in a collapsed "Turned off for this account" group, apart from Coming soon, and lead to Settings › Apps, where an admin turns them on. Same on the home sidebar.',
+        es: 'Las apps apagadas en Ajustes › Apps ya no desaparecen: quedan en un grupo plegado, "Desactivadas para esta cuenta", aparte de Próximamente, y llevan a Ajustes › Apps, donde un admin las prende. Lo mismo en el lateral del inicio.',
+        pt: 'Os apps desativados em Ajustes › Apps não somem mais: ficam num grupo recolhido, "Desativados para esta conta", separado de Em breve, e levam a Ajustes › Apps, onde um admin os ativa. O mesmo na barra lateral do início.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-wa-link-previews-display',
+    date: '2026-11-12',
+    title: {
+      en: 'Lines and Inbox: link previews like WhatsApp and a Display setting',
+      es: 'Lines e Inbox: vista previa de links como WhatsApp y ajuste de Visualización',
+      pt: 'Lines e Inbox: prévia de links como no WhatsApp e ajuste de Visualização',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A link with a large image shows it on top of the bubble, with the title, the description and the domain with the site icon. Logos and small images keep the thumbnail on the side; pages with two images show both.',
+        es: 'Un link con una imagen grande la muestra arriba de la burbuja, con el título, la descripción y el dominio con el ícono del sitio. Los logos y las imágenes chicas quedan con la miniatura al costado; las páginas con dos imágenes muestran las dos.',
+        pt: 'Um link com uma imagem grande mostra ela em cima do balão, com o título, a descrição e o domínio com o ícone do site. Logos e imagens pequenas ficam com a miniatura ao lado; páginas com duas imagens mostram as duas.',
+      },
+      {
+        product: 'groups',
+        en: 'While you type a link, its preview shows above the field. Remove it with the X to send the message without a preview.',
+        es: 'Mientras escribís un link, su vista previa aparece arriba del campo. Con la X se saca y el mensaje sale sin vista previa.',
+        pt: 'Enquanto você digita um link, a prévia aparece acima do campo. Com o X ela sai e a mensagem vai sem prévia.',
+      },
+      {
+        product: 'groups',
+        en: 'Display, in Settings: message text size, link previews (large, compact or off), photo and video size, chat list density, message width, chat background and photos in groups. Only for you, and it applies right away.',
+        es: 'Visualización, en Ajustes: tamaño del texto, vista previa de links (grande, compacta o ninguna), tamaño de fotos y videos, densidad de la lista, ancho de los mensajes, fondo del chat y fotos en grupos. Solo para vos, y se aplica al instante.',
+        pt: 'Visualização, nos Ajustes: tamanho do texto, prévia de links (grande, compacta ou nenhuma), tamanho de fotos e vídeos, densidade da lista, largura das mensagens, fundo da conversa e fotos nos grupos. Só para você, e vale na hora.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same in Inbox, with the same Display setting.',
+        es: 'Lo mismo en Inbox, con el mismo ajuste de Visualización.',
+        pt: 'O mesmo no Inbox, com o mesmo ajuste de Visualização.',
+      },
+      {
+        product: 'groups',
+        en: 'Closer to WhatsApp Web: a deleted message keeps its bubble color, reactions show up to three emojis with the total, and poll bars show the share of people who voted.',
+        es: 'Más parecido a WhatsApp Web: un mensaje borrado conserva el color de su burbuja, las reacciones muestran hasta tres emojis con el total y las barras de una encuesta muestran la parte de las personas que votaron.',
+        pt: 'Mais parecido com o WhatsApp Web: uma mensagem apagada mantém a cor do balão, as reações mostram até três emojis com o total e as barras de uma enquete mostram a parte das pessoas que votaram.',
+      },
+      {
+        product: 'inbox',
+        en: 'The date at the top of a chat ("Today", "Yesterday") shows only while you scroll, like in WhatsApp.',
+        es: 'La fecha arriba del chat ("Hoy", "Ayer") se ve solo mientras te desplazás, como en WhatsApp.',
+        pt: 'A data no topo da conversa ("Hoje", "Ontem") aparece só enquanto você rola, como no WhatsApp.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-12-wa-forward-media',
+    date: '2026-11-12',
+    title: {
+      en: 'Inbox and Lines: forward voice notes, photos and files',
+      es: 'Inbox y Lines: reenviar notas de voz, fotos y archivos',
+      pt: 'Inbox e Lines: encaminhar notas de voz, fotos e arquivos',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Forward is now in the menu of every WhatsApp message, not only text: voice notes, audio, photos, video, documents and stickers. A voice note arrives as a voice note with its length. If one chat fails, the others still get it and a notice says which part went out. View once messages cannot be forwarded.',
+        es: 'Reenviar ahora está en el menú de todos los mensajes de WhatsApp, no solo en los de texto: notas de voz, audios, fotos, videos, documentos y stickers. Una nota de voz llega como nota de voz, con su duración. Si un chat falla, los demás lo reciben igual y un aviso dice cuántos salieron. Los mensajes de ver una vez no se reenvían.',
+        pt: 'Encaminhar agora está no menu de todas as mensagens do WhatsApp, não só nas de texto: notas de voz, áudios, fotos, vídeos, documentos e figurinhas. Uma nota de voz chega como nota de voz, com sua duração. Se uma conversa falhar, as outras recebem mesmo assim e um aviso diz quantas saíram. Mensagens de visualização única não são encaminhadas.',
+      },
+      {
+        product: 'groups',
+        en: 'On Evolution and managed QR numbers, a forwarded voice note now goes as a voice note with its length and waveform, not as a plain audio file, and a file not yet downloaded from the gateway is fetched first instead of failing. The copy is marked Forwarded in Lines; WhatsApp on the other phone does not show that label.',
+        es: 'En números Evolution y por QR administrado, una nota de voz reenviada ahora sale como nota de voz, con su duración y su onda, y no como un archivo de audio, y un archivo que todavía no se bajó del gateway se baja antes en vez de fallar. La copia queda marcada Reenviado en Lines; en el otro teléfono WhatsApp no muestra esa marca.',
+        pt: 'Em números Evolution e por QR gerenciado, uma nota de voz encaminhada agora sai como nota de voz, com sua duração e sua onda, e não como um arquivo de áudio, e um arquivo que ainda não foi baixado do gateway é baixado antes em vez de falhar. A cópia fica marcada Encaminhada no Lines; no outro telefone o WhatsApp não mostra essa marca.',
+      },
+    ],
+  },
+  {
     id: '2026-11-12-search-clears-on-send',
     date: '2026-11-12',
     title: {

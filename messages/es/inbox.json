@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
-  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo" },
+  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo", "analytics": "Analítica" },
   "views": {
     "inbox": "Bandeja",
     "unread": "No leídos",
@@ -608,5 +608,39 @@
       "desc": "Dictar el mensaje con tu voz",
       "keys": "voz hablar micrófono"
     }
+  },
+  "analytics": {
+    "title": "Analítica del Inbox",
+    "desc": "Lo que entró, qué tan rápido respondiste y lo que cerraste, en WhatsApp, email y grupos.",
+    "private": "Estos números los ves solo vos: tu Inbox es privado, también para los admins del workspace.",
+    "received": "Recibidos",
+    "sent": "Enviados",
+    "threads": "Chats activos",
+    "firstResponse": "Primera respuesta (mediana)",
+    "toReply": "Por responder",
+    "waiting": "Esperando a otros",
+    "done": "Marcados como hechos",
+    "archived": "Archivados",
+    "perChannel": "Mensajes por día y canal",
+    "volume": "Recibidos y enviados por día",
+    "channels": {
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "groups": "Grupos"
+    },
+    "byChannel": "Por canal",
+    "inOut": "{inbound} recibidos, {outbound} enviados",
+    "frPerDay": "Tu primera respuesta por día",
+    "frBuckets": "Qué tan rápido respondiste",
+    "frNote": "La primera respuesta cuenta los chats con una persona y el email. Los grupos quedan afuera.",
+    "noResponses": "No hay respuestas para medir en este período.",
+    "heatmap": "Cuándo llegan los mensajes",
+    "heatNone": "No se recibieron mensajes en este período.",
+    "heatPeak": "La hora con más mensajes: {day} a las {hour}, {n} recibidos.",
+    "topThreads": "Chats más activos",
+    "chat": "Chat",
+    "channel": "Canal",
+    "emptyTitle": "No hay mensajes en este período",
+    "emptyBody": "Conectá WhatsApp o Gmail en los ajustes del Inbox y tus números aparecen acá."
   }
 }

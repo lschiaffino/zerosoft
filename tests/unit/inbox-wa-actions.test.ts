@@ -98,14 +98,78 @@ describe('acciones de mensaje', () => {
     expect((await listMessages(owner, th.id)).messages.find((x) => x.id === msg.id)!.starred).toBe(true);
     const target = await chatWith('15550002006', 'hola');
     const done = await forwardMessage(owner, msg.id, [target.th.id, th.id]);
-    expect(done).toEqual([target.th.id, th.id]);
-    expect((await listMessages(owner, target.th.id)).messages.at(-1)).toMatchObject({ fromMe: true, body: 'La clave del wifi es pruebas123' });
+    expect(done).toEqual({ sent: [target.th.id, th.id], failed: [] });
+    expect((await listMessages(owner, target.th.id)).messages.at(-1)).toMatchObject({ fromMe: true, body: 'La clave del wifi es pruebas123', forwarded: true });
     await hideMessage(owner, msg.id);
     expect((await listMessages(owner, th.id)).messages.some((x) => x.id === msg.id)).toBe(false);
     // Una persona no toca mensajes de otra.
     const stranger = await makeUser('ibwa-act-other');
     await expect(starMessage(stranger.id, target.msg.id, true)).rejects.toMatchObject({ code: 'not_found' });
     await expect(reactToMessage(stranger.id, target.msg.id, '👍')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('reenviar una nota de voz: sale como nota de voz (base64), con su duración y su onda, marcada "Reenviado"', async () => {
+    const phone = '15550002031';
+    const src = `aud-fw-${Math.random().toString(36).slice(2)}`;
+    const waveform = Array.from({ length: 64 }, (_, i) => (i * 7) % 100);
+    await ingestWhatsappEvents(account, [
+      {
+        type: 'message',
+        chatId: `${phone}@s.whatsapp.net`,
+        isGroup: false,
+        fromMe: false,
+        senderPhone: phone,
+        senderName: 'Ana Prueba',
+        providerMessageId: src,
+        body: '',
+        media: { url: '', type: 'audio/ogg; codecs=opus', name: '', fetchRef: { providerMessageId: src, chatId: `${phone}@s.whatsapp.net`, fromMe: false }, info: { kind: 'voice', ptt: true, duration: 12, waveform } },
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+    const th = (await listThreads(owner, { view: 'whatsapp' })).find((t) => t.handle === phone)!;
+    const voice = (await listMessages(owner, th.id)).messages.find((m) => m.mediaType === 'audio')!;
+    const a = await chatWith('15550002032', 'hola');
+    const b = await chatWith('15550002033', 'hola');
+    const before = sent().length;
+    const done = await forwardMessage(owner, voice.id, [a.th.id, 'no-existe', b.th.id]);
+    expect(done.sent).toEqual([a.th.id, b.th.id]);
+    expect(done.failed).toEqual([{ id: 'no-existe', error: 'not_found' }]);
+    const out = sent().slice(before);
+    expect(out.map((s) => [s.chatId, s.kind, s.media?.kind, s.media?.base64])).toEqual([
+      ['15550002032@s.whatsapp.net', 'media', 'voice', true],
+      ['15550002033@s.whatsapp.net', 'media', 'voice', true],
+    ]);
+    const copy = (await listMessages(owner, a.th.id)).messages.at(-1)!;
+    expect(copy).toMatchObject({ fromMe: true, forwarded: true, mediaType: 'audio', body: '' });
+    expect(copy.meta).toMatchObject({ ptt: true, duration: 12, waveform });
+  });
+
+  it('reenviar una foto con comentario y un documento; "ver una vez" no se reenvía', async () => {
+    const phone = '15550002034';
+    const tag = Math.random().toString(36).slice(2);
+    const ref = (id: string) => ({ providerMessageId: id, chatId: `${phone}@s.whatsapp.net`, fromMe: false });
+    const base = { type: 'message' as const, chatId: `${phone}@s.whatsapp.net`, isGroup: false, fromMe: false, senderPhone: phone, senderName: 'Ana Prueba', timestamp: new Date().toISOString() };
+    await ingestWhatsappEvents(account, [
+      { ...base, providerMessageId: `img-${tag}`, body: 'La terraza', media: { url: '', type: 'image/jpeg', name: '', fetchRef: ref(`img-${tag}`), info: { kind: 'image', width: 480, height: 320 } } },
+      { ...base, providerMessageId: `doc-${tag}`, body: '', media: { url: '', type: 'application/pdf', name: 'Factura.pdf', fetchRef: ref(`doc-${tag}`), info: { kind: 'document', pages: 2 } } },
+      { ...base, providerMessageId: `vo-${tag}`, body: '', media: { url: '', type: 'image/jpeg', name: '', fetchRef: ref(`vo-${tag}`), info: { kind: 'image', viewOnce: true } } },
+    ]);
+    const th = (await listThreads(owner, { view: 'whatsapp' })).find((t) => t.handle === phone)!;
+    const msgs = (await listMessages(owner, th.id)).messages;
+    const target = await chatWith('15550002035', 'hola');
+    const before = sent().length;
+    await forwardMessage(owner, msgs.find((m) => m.body === 'La terraza')!.id, [target.th.id]);
+    await forwardMessage(owner, msgs.find((m) => m.mediaName === 'Factura.pdf')!.id, [target.th.id]);
+    expect(sent().slice(before).map((s) => [s.kind, s.text, s.media?.kind])).toEqual([
+      ['media', 'La terraza', 'image'],
+      ['media', 'Factura.pdf', 'document'],
+    ]);
+    const copies = (await listMessages(owner, target.th.id)).messages.slice(-2);
+    expect(copies[0]).toMatchObject({ forwarded: true, mediaType: 'image', body: 'La terraza' });
+    expect(copies[0].meta).toMatchObject({ width: 480, height: 320 });
+    expect(copies[1]).toMatchObject({ forwarded: true, mediaType: 'document', mediaName: 'Factura.pdf' });
+    const once = msgs.find((m) => m.meta?.viewOnce)!;
+    await expect(forwardMessage(owner, once.id, [target.th.id])).rejects.toMatchObject({ code: 'unsupported' });
   });
 
   it('abrir el chat manda las tildes azules de lo recibido', async () => {
