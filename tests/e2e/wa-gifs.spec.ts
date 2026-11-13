@@ -71,7 +71,7 @@ async function previewsLoaded(panel: Locator) {
 async function browseAndSend(page: Page, composer: Locator, thread: Locator, app: string) {
   const panel = await openGifs(page, composer);
   // Tendencias: la categoría marcada y una página de GIFs, con la atribución.
-  await expect(panel.getByRole('button', { name: 'Trending' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(panel.getByRole('button', { name: 'Trending', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(panel.locator('.wa-gif-tile')).toHaveCount(24, { timeout: 60_000 });
   await expect(panel.getByText('Sample GIFs (demo mode)')).toBeVisible();
   await expect(panel.getByRole('searchbox')).toBeFocused();
@@ -83,15 +83,15 @@ async function browseAndSend(page: Page, composer: Locator, thread: Locator, app
   await expect(panel.locator('.wa-gif-tile')).toHaveCount(48, { timeout: 20_000 });
 
   // Una categoría busca su término.
-  await panel.getByRole('button', { name: 'Sad' }).click();
+  await panel.getByRole('button', { name: 'Sad', exact: true }).click();
   await expect(panel.getByRole('searchbox')).toHaveValue('sad');
-  await expect(panel.getByRole('button', { name: 'Sad' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(panel.getByRole('button', { name: 'Sad', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(panel.locator('.wa-gif-tile').first()).toHaveAttribute('title', 'sad 1', { timeout: 20_000 });
 
   // Búsqueda escrita.
   await panel.getByRole('searchbox').fill('cats');
   await expect(panel.locator('.wa-gif-tile').first()).toHaveAttribute('title', 'cats 1', { timeout: 20_000 });
-  await expect(panel.getByRole('button', { name: 'Trending' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(panel.getByRole('button', { name: 'Trending', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await previewsLoaded(panel);
   await shot(page, `${app}-gifs-search-1280`);
   await panel.getByRole('searchbox').fill('nothing');
