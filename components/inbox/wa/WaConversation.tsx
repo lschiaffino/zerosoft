@@ -76,6 +76,8 @@ const WaConversation = forwardRef<
   ComposerHandle,
   {
     detail: WaThreadDetail;
+    /** Foto de la cuenta, para los audios propios. */
+    meImage?: string;
     folders: FolderDto[];
     snippets: SnippetDto[];
     connected: boolean;
@@ -525,7 +527,7 @@ const WaConversation = forwardRef<
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
-                  avatar={m.fromMe ? undefined : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />

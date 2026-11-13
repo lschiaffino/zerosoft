@@ -121,6 +121,8 @@ function viewHref(v: InboxView): string {
  * pantallas chicas se ve una cosa a la vez.
  */
 export default function InboxApp(props: {
+  /** Foto de la cuenta: va en los audios propios, como WhatsApp. */
+  meImage?: string;
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
@@ -1289,6 +1291,7 @@ export default function InboxApp(props: {
         ) : detail && openId && detail.thread.channel === 'whatsapp' ? (
           <WaConversation
             ref={composer}
+            meImage={props.meImage}
             detail={detail}
             folders={state.folders}
             snippets={state.snippets}
