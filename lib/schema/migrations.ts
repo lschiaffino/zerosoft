@@ -9937,6 +9937,14 @@ export const MIGRATIONS: Migration[] = [
       await c.execute(`UPDATE inbox_messages SET media_type = 'sticker' WHERE media_type = 'image' AND meta LIKE '%"mime":"image/webp"%'`);
     },
   },
+  {
+    // Inbox: los 1:1 de WhatsApp sin foto se vuelven a pedir una vez: ahora, si el perfil viene sin foto, se pide
+    // aparte (fetchProfilePictureUrl). Sin esto esperaban hasta que vencieran sus datos (INFO_TTL_MS, 3 días).
+    id: '398_inbox_refetch_missing_pictures',
+    up: async (c) => {
+      await c.execute("UPDATE inbox_threads SET info_at = NULL WHERE channel = 'whatsapp' AND kind = 'dm' AND COALESCE(avatar_url, '') = ''");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

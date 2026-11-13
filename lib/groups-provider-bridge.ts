@@ -1308,7 +1308,13 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         const first = Array.isArray(rows) ? ((rows as Json[]).find((c) => c.remoteJid === chatId) ?? null) : null;
         name = cleanPushName(first?.pushName);
       }
-      return { name, about: about.trim().slice(0, 1000), pictureUrl: https(r.picture), isBusiness: r.isBusiness === true };
+      // La foto: la del perfil; si no viene (pasa seguido, sobre todo con chats por lid), se pide aparte.
+      let pictureUrl = https(r.picture);
+      if (!pictureUrl) {
+        const pic = (await api(`/chat/fetchProfilePictureUrl/${instance}`, 'POST', { number: chatId }).catch(() => null)) as Json | null;
+        pictureUrl = https(pic?.profilePictureUrl);
+      }
+      return { name, about: about.trim().slice(0, 1000), pictureUrl, isBusiness: r.isBusiness === true };
     },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
