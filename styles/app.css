@@ -331,6 +331,21 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 
 .side-new { position: relative; flex-shrink: 0; }
 .side-new-btn { justify-content: flex-start; }
+/* "+ Nuevo": placa de tinta en todas las apps (no el color de la app: es la acción principal del lateral, como el
+   "Redactar" de un correo). Al pasar se aclara un poco en vez de invertirse, para no parpadear en el lateral. */
+.app-frame .side-new .side-new-btn.btn-primary:not(:disabled):not([aria-disabled='true']) {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--bg);
+  --btn-bd: var(--ink);
+  --btn-bg-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-fg-hover: var(--bg);
+}
+.app-frame .side-new .side-new-btn.btn-primary:active:not(:disabled):not([aria-disabled='true']) {
+  background: color-mix(in srgb, var(--ink) 72%, var(--bg));
+  border-color: color-mix(in srgb, var(--ink) 72%, var(--bg));
+}
+.side-new .side-new-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 
 /* La lista de ítems del sidebar, cada uno con su ícono. */

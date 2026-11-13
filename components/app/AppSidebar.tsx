@@ -19,6 +19,7 @@ import {
   appProductOf,
   buildNav,
   buildNewItems,
+  directNewItem,
   comingSoonHref,
   DISABLED_APPS_HREF,
   settingsNavItem,
@@ -371,6 +372,8 @@ export default function AppSidebar({
 
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps });
   const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
+  // Lines e Inbox: "Nuevo" abre el panel de chat nuevo sin pasar por un menú.
+  const directNew = directNewItem(product, labels);
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
 
@@ -657,21 +660,36 @@ export default function AppSidebar({
 
       <aside id="app-side" className={`side${drawerOpen ? ' open' : ''}`} ref={asideRef} aria-label={current.name}>
         <div className="side-new" ref={newRef}>
-          <button
-            ref={newBtn}
-            type="button"
-            className="btn btn-secondary btn-block side-new-btn"
-            onClick={() => {
-              setNewOpen((v) => !v);
-            }}
-            aria-haspopup="menu"
-            aria-expanded={newOpen}
-            title={labels.new}
-          >
-            <Icon name="plus" size={15} />
-            <span className="side-label">{labels.new}</span>
-          </button>
-          {newOpen && (
+          {directNew ? (
+            <Link
+              href={directNew.href}
+              className="btn btn-primary btn-block side-new-btn"
+              title={directNew.label}
+              aria-haspopup="dialog"
+              onClick={() => setDrawerOpen(false)}
+              data-testid="side-new"
+            >
+              <Icon name="plus" size={15} />
+              <span className="side-label">{labels.new}</span>
+            </Link>
+          ) : (
+            <button
+              ref={newBtn}
+              type="button"
+              className="btn btn-primary btn-block side-new-btn"
+              onClick={() => {
+                setNewOpen((v) => !v);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={newOpen}
+              title={labels.new}
+              data-testid="side-new"
+            >
+              <Icon name="plus" size={15} />
+              <span className="side-label">{labels.new}</span>
+            </button>
+          )}
+          {newOpen && !directNew && (
             <div ref={newPanel} className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
               {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (

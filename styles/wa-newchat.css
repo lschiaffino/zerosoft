@@ -1,0 +1,151 @@
+/* "Chat nuevo" de WhatsApp (Lines e Inbox): components/groups/wa/NewChatPanel.tsx.
+   Un panel a la izquierda, como el de WhatsApp Web; en el teléfono ocupa la pantalla (ui-drawer). */
+
+dialog.ui-drawer.wa-nc {
+  width: min(420px, 100vw);
+  margin: 0 auto 0 0;
+  border-width: 0 1px 0 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-drawer.wa-nc[open] { animation: wa-nc-in 200ms var(--ease); }
+}
+@keyframes wa-nc-in { from { transform: translateX(-24px); opacity: 0; } }
+
+.wa-nc-head { gap: 8px; justify-content: flex-start; padding: 8px 8px 8px 20px; }
+.wa-nc-head:has(.wa-nc-back) { padding-left: 8px; }
+.wa-nc-title { flex: 1; min-width: 0; font-size: 1.25rem; }
+.wa-nc-back,
+.wa-nc-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.wa-nc-back:hover,
+.wa-nc-close:hover { background: var(--ui-hover); }
+.wa-nc-back:focus-visible,
+.wa-nc-close:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* Selector de línea (Lines con varias líneas): compacto, arriba del buscador. */
+.wa-nc-header { padding: 12px 16px 0; }
+.wa-nc-line { display: flex; align-items: center; gap: 8px; }
+.wa-nc-line-label { flex: none; font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
+.wa-nc-line .select { flex: 1; min-width: 0; min-height: 32px; height: 32px; font-size: 0.875rem; }
+
+.wa-nc-search { position: relative; padding: 12px 16px 8px; }
+.wa-nc-search-icon { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); margin-top: 2px; display: inline-flex; color: var(--brand-gray-2); pointer-events: none; }
+.wa-nc-search .wa-nc-input { width: 100%; padding-left: 38px; background: var(--bg-soft); }
+.wa-nc-search .wa-nc-input:focus { background: var(--bg); }
+
+.wa-nc-msg { margin: 0; padding: 4px 16px 8px; }
+div.wa-nc-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 16px; }
+
+.wa-nc-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+.wa-nc-list:focus-visible { outline: none; }
+
+/* Las acciones arriba (grupo nuevo, correo nuevo, el número escrito): una tarjeta, como en WhatsApp. */
+.wa-nc-card { margin: 4px 12px 4px; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.wa-nc-card .wa-nc-row { min-height: 56px; }
+.wa-nc-card .wa-nc-row + .wa-nc-row { border-top: 1px solid var(--line); }
+
+.wa-nc-section {
+  margin: 0;
+  padding: 18px 20px 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brand-gray-2);
+}
+.wa-nc-letter {
+  margin: 0;
+  padding: 10px 20px 4px;
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.wa-nc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 20px;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
+}
+.wa-nc-row.is-active { background: var(--ui-hover); }
+.wa-nc-row[aria-disabled='true'] { color: var(--ink-3); cursor: default; }
+.wa-nc-row[aria-busy='true'] { opacity: 0.6; }
+.wa-nc-row.is-picked.is-active { background: var(--ui-selected-hover); }
+.wa-nc-row.is-picked { background: var(--ui-selected); }
+
+.wa-nc-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: 50%;
+}
+.wa-nc-avatar { position: relative; flex: none; display: inline-flex; }
+.wa-nc-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--bg);
+  background: var(--ink);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+.wa-nc-text { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.wa-nc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; }
+.wa-nc-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--ink-3); }
+
+.wa-nc-more { min-height: 24px; padding: 8px 20px; font-size: 0.8125rem; color: var(--ink-3); }
+
+.wa-nc-skeleton .wa-nc-row { cursor: default; }
+.wa-nc-sk-avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; }
+.wa-nc-sk-line { flex: 1; max-width: 220px; height: 12px; }
+
+/* Grupo nuevo (Inbox): los elegidos arriba, y abajo Siguiente / Crear. */
+.wa-nc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0 16px 8px; list-style: none; max-height: 96px; overflow-y: auto; }
+.wa-nc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  max-width: 200px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.wa-nc-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-nc-chip:hover { border-color: var(--ink); }
+.wa-nc-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.wa-nc-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.wa-nc-name-step { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 16px 16px 0; }
+.wa-nc-name-step .wa-nc-foot { margin: auto -16px 0; }

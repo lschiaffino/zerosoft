@@ -18,41 +18,48 @@ import { GroupsError, getNumberRow, providerFor, upsertChat, type ChatRow, type 
 import { canSeeChat, chatAccessSql, maskPhone, type GroupsViewer } from './groups-access';
 import { parseNewChatPhone } from './groups-new-chat-shared';
 import { displayName, lookupContacts } from './wa-contacts';
+import {
+  NEW_CHAT_FREQUENT,
+  NEW_CHAT_FREQUENT_DAYS,
+  NEW_CHAT_FREQUENT_SCAN,
+  NEW_CHAT_MAX_ROWS,
+  compareNewChat,
+  matchesNewChat,
+  mergeNewChat,
+  pageNewChat,
+  parseNewChatQuery,
+  type NewChatDirectory,
+  type NewChatEntry,
+} from './wa-new-chat';
 
-export const NEW_CHAT_SEARCH_LIMIT = 20;
-const CHAT_ROWS = 12;
-
-export interface NewChatResult {
-  /** Clave de la fila. */
-  key: string;
-  /** Chat que ya existe en la línea: se abre directo. */
-  chatId?: string;
-  /** Contacto de la libreta sin chat a la vista: se abre con POST { contactId }. */
-  contactId?: string;
-  name: string;
-  /** Teléfono para mostrar ("+549…", o enmascarado para quien no los ve). */
-  phoneLabel: string;
-  /** Dígitos del teléfono; vacío para quien tiene los teléfonos ocultos. */
-  phone: string;
-  pictureUrl: string;
-}
-
-const likeArg = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+export type { NewChatDirectory, NewChatEntry } from './wa-new-chat';
 
 /**
- * A quién escribirle desde una línea: chats 1:1 que la persona ve y contactos
- * de la libreta de esa línea, por nombre o teléfono. Sin texto, los chats más
- * recientes. Hasta 20 filas; las dos consultas quedan dentro de la línea.
+ * El panel "Chat nuevo" de una línea, como el de WhatsApp Web: los chats con
+ * más mensajes de los últimos 30 días ("con frecuencia") y todos los
+ * contactos en orden alfabético, de a una página, o lo que coincide con lo
+ * escrito (nombre sin tildes o teléfono en cualquier formato).
+ *
+ * Contactos: los chats 1:1 de la línea que la persona ve y, para quien ve
+ * todos los chats de la línea, la libreta de la línea (una fila por teléfono).
+ * Quien solo ve sus chats (acceso por etiqueta, invitados) recibe solo esos
+ * chats; con los teléfonos ocultos salen enmascarados y no se busca por
+ * teléfono. Una línea es un número del equipo: no hay "mandate un mensaje".
  */
-export async function searchNewChat(viewer: GroupsViewer, numberId: string, rawQuery: string): Promise<NewChatResult[]> {
+export async function newChatDirectory(
+  viewer: GroupsViewer,
+  numberId: string,
+  opts: { q?: string; cursor?: string | null; limit?: number; now?: Date } = {},
+): Promise<NewChatDirectory> {
   const db = getDb();
-  const q = String(rawQuery ?? '').trim().slice(0, 80);
-  const digits = /^\+?[\d\s().-]+$/.test(q) ? q.replace(/\D/g, '') : '';
-  // Con los teléfonos ocultos no se busca por teléfono: daría un modo de adivinarlos.
-  const byPhone = !viewer.mask && digits.length >= 3;
+  const q = parseNewChatQuery(opts.q ?? '');
   const label = (phone: string) => (phone ? (viewer.mask ? maskPhone(phone) : `+${phone}`) : '');
-  const out: NewChatResult[] = [];
-  const seen = new Set<string>();
+  const phones = new Map<string, string>();
+  const phoneOf = (e: NewChatEntry) => phones.get(e.key) ?? '';
+  const entry = (key: string, raw: { name: string; phone: string; picture: string | null; about?: string }, ids: { chatId?: string; contactId?: string }): NewChatEntry => {
+    phones.set(key, raw.phone);
+    return { key, ...ids, name: raw.name || label(raw.phone), phoneLabel: label(raw.phone), phone: viewer.mask ? '' : raw.phone, pictureUrl: raw.picture ?? '', about: raw.about ?? '' };
+  };
 
   const where = ['c.user_id = ?', 'c.number_id = ?', "c.kind = 'dm'", 'c.hidden_at IS NULL'];
   const args: Array<string | number> = [viewer.ws, numberId];
@@ -61,46 +68,54 @@ export async function searchNewChat(viewer: GroupsViewer, numberId: string, rawQ
     where.push(access.sql);
     args.push(...access.args);
   }
-  if (q) {
-    where.push(byPhone ? "(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\')" : "c.name LIKE ? ESCAPE '\\'");
-    args.push(likeArg(q));
-    if (byPhone) args.push(likeArg(digits));
-  }
-  const chats = (await db
+  const chatRows = (await db
     .prepare(
-      `SELECT c.id, c.name, c.phone, c.picture_url FROM groups_chats c WHERE ${where.join(' AND ')}
+      `SELECT c.id, c.name, c.phone, c.picture_url, c.last_message_at FROM groups_chats c WHERE ${where.join(' AND ')}
        ORDER BY c.last_message_at DESC LIMIT ?`,
     )
-    .all(...args, q ? CHAT_ROWS : NEW_CHAT_SEARCH_LIMIT)) as Array<{ id: string; name: string; phone: string; picture_url: string | null }>;
-  for (const c of chats) {
-    if (c.phone) seen.add(c.phone);
-    out.push({ key: `chat:${c.id}`, chatId: c.id, name: c.name || label(c.phone), phoneLabel: label(c.phone), phone: viewer.mask ? '' : c.phone, pictureUrl: c.picture_url ?? '' });
-  }
+    .all(...args, NEW_CHAT_MAX_ROWS)) as Array<{ id: string; name: string; phone: string; picture_url: string | null; last_message_at: string | null }>;
+  const chats = chatRows.map((c) => entry(`chat:${c.id}`, { name: c.name, phone: c.phone, picture: c.picture_url }, { chatId: c.id }));
 
-  // La libreta de la línea: solo para quien ve todos los chats de la línea, y con al menos dos letras.
-  if (!viewer.restricted && q.length >= 2) {
-    const like = likeArg(q);
+  // La libreta de la línea: solo para quien ve todos los chats de la línea.
+  let book: NewChatEntry[] = [];
+  if (!viewer.restricted) {
     const rows = (await db
       .prepare(
-        `SELECT id, phone, saved_name, push_name, picture_url FROM wa_contacts
-         WHERE app = 'lines' AND account_id = ? AND user_id = ? AND phone <> ''
-           AND (saved_name LIKE ? ESCAPE '\\' OR push_name LIKE ? ESCAPE '\\'${byPhone ? " OR phone LIKE ? ESCAPE '\\'" : ''})
-         LIMIT ?`,
+        `SELECT id, phone, saved_name, push_name, picture_url, about FROM wa_contacts
+         WHERE app = 'lines' AND account_id = ? AND user_id = ? AND phone <> '' LIMIT ?`,
       )
-      .all(numberId, viewer.ws, like, like, ...(byPhone ? [likeArg(digits)] : []), NEW_CHAT_SEARCH_LIMIT)) as Array<{
-      id: string;
-      phone: string;
-      saved_name: string;
-      push_name: string;
-      picture_url: string;
-    }>;
-    const book = rows
-      .filter((r) => !seen.has(r.phone))
-      .map((r) => ({ key: `contact:${r.id}`, contactId: r.id, name: displayName(r) || label(r.phone), phoneLabel: label(r.phone), phone: viewer.mask ? '' : r.phone, pictureUrl: r.picture_url ?? '' }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    out.push(...book);
+      .all(numberId, viewer.ws, NEW_CHAT_MAX_ROWS)) as Array<{ id: string; phone: string; saved_name: string; push_name: string; picture_url: string; about: string }>;
+    book = rows.map((r) => entry(`contact:${r.id}`, { name: displayName(r), phone: r.phone, picture: r.picture_url, about: r.about }, { contactId: r.id }));
   }
-  return out.slice(0, NEW_CHAT_SEARCH_LIMIT);
+
+  const all = mergeNewChat(chats, book, phoneOf)
+    .filter((e) => matchesNewChat(e, q, { phone: !viewer.mask, rawPhone: phoneOf(e) }))
+    .sort(compareNewChat);
+  const page = pageNewChat(all, opts.cursor, opts.limit);
+
+  let frequent: NewChatEntry[] = [];
+  if (!q.text && !q.digits && !opts.cursor) {
+    const recent = chatRows.filter((c) => c.last_message_at).slice(0, NEW_CHAT_FREQUENT_SCAN);
+    if (recent.length) {
+      const since = new Date((opts.now ?? new Date()).getTime() - NEW_CHAT_FREQUENT_DAYS * 86_400_000).toISOString();
+      const counts = (await db
+        .prepare(
+          `SELECT chat_id, COUNT(*) AS n FROM groups_messages
+           WHERE chat_id IN (${recent.map(() => '?').join(',')}) AND created_at >= ? AND direction IN ('in', 'out')
+           GROUP BY chat_id`,
+        )
+        .all(...recent.map((c) => c.id), since)) as Array<{ chat_id: string; n: number }>;
+      const n = new Map(counts.map((c) => [c.chat_id, Number(c.n)]));
+      const byKey = new Map(chats.map((c) => [c.chatId, c]));
+      frequent = recent
+        .filter((c) => (n.get(c.id) ?? 0) > 0)
+        .sort((a, b) => (n.get(b.id) ?? 0) - (n.get(a.id) ?? 0))
+        .slice(0, NEW_CHAT_FREQUENT)
+        .map((c) => byKey.get(c.id)!)
+        .filter(Boolean);
+    }
+  }
+  return { self: null, frequent, contacts: page.rows, next: page.next, total: all.length };
 }
 
 /** El id del chat 1:1 con un teléfono, según cómo lo nombra el proveedor de la línea. */
@@ -160,7 +175,7 @@ export interface StartChatInput {
   numberId: string;
   /** Teléfono escrito a mano… */
   phone?: string;
-  /** …o un contacto de la libreta de la línea (resultado de searchNewChat). */
+  /** …o un contacto de la libreta de la línea (fila de newChatDirectory). */
   contactId?: string;
 }
 
