@@ -270,6 +270,13 @@ const parity: ProductParity = {
         'Cada áudio é transcrito com o Voice ao ser visto e o texto fica embaixo do balão; os longos ganham um resumo com IA. Salvo uma vez e só para você. Testado com o transcritor falso',
       ],
     }),
+    row('wa-new-chat', 'whatsapp', ['New chat like WhatsApp Web: message yourself, new group, all contacts A to Z', 'Chat nuevo como WhatsApp Web: mandate un mensaje, grupo nuevo, todos los contactos de la A a la Z', 'Nova conversa como o WhatsApp Web: mensagem para você, novo grupo, todos os contatos de A a Z'], 'partial', {
+      detail: [
+        'Search by name or number, frequently contacted, new WhatsApp group with members and a name, New email for Gmail. No communities. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Búsqueda por nombre o número, contactados con frecuencia, grupo nuevo de WhatsApp con participantes y nombre, Correo nuevo para Gmail. Sin comunidades. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Pesquisa por nome ou número, contatos frequentes, novo grupo do WhatsApp com participantes e nome, Novo e-mail para o Gmail. Sem comunidades. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
         'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. Leaving or editing a group is done on the phone',

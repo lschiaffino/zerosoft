@@ -137,8 +137,11 @@ test('Inbox, mensaje nuevo: describe el mensaje, lo inserta en el campo y no man
   await request.post('/api/inbox/whatsapp');
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   await page.setViewportSize({ width: 1280, height: 800 });
+  // Gmail de prueba (INBOX_FAKE=1): con WhatsApp, "Nuevo" abre el panel de chat nuevo y el mensaje nuevo es "New email".
+  expect((await request.get('/api/inbox/gmail', { maxRedirects: 0 })).status()).toBeLessThan(400);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.locator('.ib-compose-btn').click();
+  await page.getByRole('dialog', { name: 'New chat' }).getByRole('option', { name: 'New email' }).click();
   const dialog = page.getByRole('dialog', { name: 'New message' });
   await expect(dialog).toBeVisible();
   const message = dialog.getByLabel('Message', { exact: true });
@@ -150,7 +153,8 @@ test('Inbox, mensaje nuevo: describe el mensaje, lo inserta en el campo y no man
   await expect(bar.getByRole('button', { name: 'Suggest a reply' })).toHaveCount(0);
   await ask.fill('avisale que llego a las 8');
   await ask.press('Enter');
-  await expect(bar.getByTestId('ai-compose-draft')).toHaveText('Borrador: avisale que llego a las 8');
+  // Un correo vuelve con "Subject: …" arriba: al insertarlo va al campo Asunto.
+  await expect(bar.getByTestId('ai-compose-draft')).toContainText('Borrador: avisale que llego a las 8');
   // Enter en la barra no manda el formulario.
   await expect(dialog).toBeVisible();
   await expect(message).toHaveValue('');

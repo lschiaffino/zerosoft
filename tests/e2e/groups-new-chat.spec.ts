@@ -1,9 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
- * Lines, "Chat nuevo" (el "+" de la bandeja) contra el proveedor falso
- * (GROUPS_FAKE=1): buscar un contacto que ya tiene chat, escribirle a un
- * número nuevo, y los errores en el diálogo. Nombres y números inventados.
+ * Lines, "Chat nuevo" (el "+ Nuevo" del lateral abre el panel como el de
+ * WhatsApp Web, sin menú) contra el proveedor falso (GROUPS_FAKE=1): buscar
+ * un contacto que ya tiene chat, escribirle a un número nuevo, la lista en
+ * orden con su letra, el teclado y los errores. Nombres y números inventados.
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -52,18 +53,20 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-/** Abre el diálogo y elige la línea del test (el workspace de los e2e tiene varias). */
+const SEARCH = 'Search name or number';
+
+/** Abre el panel con el "+ Nuevo" del lateral (sin menú) y elige la línea del test (el workspace de los e2e tiene varias). */
 async function openDialog(page: Page, n: NumberInfo) {
-  // En escritorio la lista no tiene "+": se entra por Nuevo › Chat nuevo del lateral.
-  await page.locator('.side-new-btn').click();
-  await page.getByRole('menuitem', { name: 'New chat' }).click();
+  await page.getByTestId('side-new').click();
+  await expect(page.locator('.side-menu')).toHaveCount(0);
   const dialog = page.getByRole('dialog', { name: 'New chat' });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('combobox', { name: SEARCH })).toBeFocused();
+  // Las líneas llegan al abrir: recién entonces se sabe si hay selector (con una sola línea no hay).
+  await expect(dialog.getByRole('status', { name: 'Loading…' })).toHaveCount(0, { timeout: 20_000 });
   const from = dialog.getByLabel('From line');
-  await expect(dialog.getByLabel('Name or phone number')).toBeVisible();
-  // Las líneas llegan al abrir: recién entonces se sabe si hay selector.
-  await expect(dialog.getByRole('status').filter({ hasText: 'Loading' })).toHaveCount(0);
   if (await from.count()) await from.selectOption(n.id);
+  await expect(dialog.getByRole('status', { name: 'Loading…' })).toHaveCount(0);
   return dialog;
 }
 
@@ -76,9 +79,9 @@ test('chat nuevo: un contacto que ya tiene chat abre ese chat', async ({ page, r
 
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const dialog = await openDialog(page, n);
-  await dialog.getByLabel('Name or phone number').fill(name);
-  const row = dialog.getByRole('button', { name: new RegExp(name) });
-  await expect(row).toContainText(`+${from}`);
+  await dialog.getByRole('combobox', { name: SEARCH }).fill(name);
+  const row = dialog.getByRole('option', { name: new RegExp(name) });
+  await expect(row).toContainText(`+${from.slice(0, 2)} ${from.slice(2, 3)} `);
   await row.click();
 
   await expect(dialog).toBeHidden();
@@ -88,8 +91,8 @@ test('chat nuevo: un contacto que ya tiene chat abre ese chat', async ({ page, r
   // El mismo número escrito a mano lleva al mismo chat: no se crea otro.
   const url = page.url();
   const again = await openDialog(page, n);
-  await again.getByLabel('Name or phone number').fill(`+${from.slice(0, 2)} ${from.slice(2, 5)} ${from.slice(5)}`);
-  await again.getByRole('button', { name: new RegExp(name) }).click();
+  await again.getByRole('combobox', { name: SEARCH }).fill(`+${from.slice(0, 2)} ${from.slice(2, 5)} ${from.slice(5)}`);
+  await again.getByRole('option', { name: new RegExp(name) }).click();
   await expect(page).toHaveURL(url);
   expect(errors).toEqual([]);
 });
@@ -101,24 +104,25 @@ test('chat nuevo: un número que no está en la libreta crea el chat, con el cam
 
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const dialog = await openDialog(page, n);
-  const search = dialog.getByLabel('Name or phone number');
+  const search = dialog.getByRole('combobox', { name: SEARCH });
 
   // Un número imposible: aviso en el diálogo y nada para elegir.
   await search.fill('123 45');
   await expect(dialog.getByText('That number is too short.', { exact: false })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /^Message \+/ })).toHaveCount(0);
+  await expect(dialog.getByRole('option', { name: /^Message \+/ })).toHaveCount(0);
   await search.fill('+1234567890123456');
   await expect(dialog.getByRole('alert').filter({ hasText: 'That number is too long.' })).toBeVisible();
 
   // Un número que WhatsApp no conoce: lo dice y no crea el chat.
   await search.fill('+54 9 11 2000-0000');
-  await dialog.getByRole('button', { name: 'Message +5491120000000' }).click();
+  await dialog.getByRole('option', { name: /^Message \+54 9 11 2000-0000/ }).click();
   await expect(dialog.getByRole('alert').filter({ hasText: 'That number is not on WhatsApp.' })).toBeVisible();
   await expect(page).toHaveURL(/\/app\/lines\/inbox$/);
 
-  // Con espacios, guiones y paréntesis: se ofrece el número normalizado.
+  // Con espacios, guiones y paréntesis: se ofrece el número normalizado, y Enter lo abre.
   await search.fill(`+${to.slice(0, 2)} (${to.slice(2, 5)}) ${to.slice(5, 9)}-${to.slice(9)}`);
-  await dialog.getByRole('button', { name: `Message +${to}` }).click();
+  await expect(dialog.getByRole('option', { name: /^Message \+54 9/ })).toHaveAttribute('aria-selected', 'true');
+  await search.press('Enter');
   await expect(dialog).toBeHidden();
   await expect(page).toHaveURL(/\/app\/lines\/inbox\/[^/?#]+/);
   await expect(page.getByRole('heading', { level: 2, name: `+${to}` })).toBeVisible();
@@ -142,6 +146,40 @@ test('chat nuevo: Esc cierra y "New group" lleva a crear un grupo', async ({ pag
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   const again = await openDialog(page, n);
-  await again.getByRole('link', { name: 'New group' }).click();
-  await expect(page).toHaveURL(/\/app\/lines\/list\?new=1/);
+  await again.getByRole('option', { name: 'New group' }).click();
+  await expect(page).toHaveURL(/\/app\/lines\/list\?new=1/, { timeout: 20_000 });
+});
+
+test('chat nuevo: frecuentes, contactos en orden con su letra, búsqueda sin tildes y teclado', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const n = await fakeNumber(request);
+  const tag = uid();
+  const zoe = `Zoe ${tag}`;
+  const alvaro = `Álvaro ${tag}`;
+  const beto = `Beto ${tag}`;
+  for (const [who, times] of [[zoe, 1], [alvaro, 3], [beto, 2]] as const) {
+    const from = phone();
+    for (let i = 0; i < times; i++) await inbound(request, n, from, `Hola ${i}`, who);
+  }
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+  const dialog = await openDialog(page, n);
+  // Contactados con frecuencia: el que más escribió primero.
+  const frequent = dialog.getByRole('group', { name: 'Frequently contacted' });
+  await expect(frequent.getByRole('option')).toHaveCount(3);
+  await expect(frequent.getByRole('option').first()).toContainText(alvaro);
+  // La lista completa, en orden alfabético sin tildes, cada uno bajo su letra.
+  await expect(dialog.getByRole('group', { name: 'A', exact: true }).getByRole('option', { name: new RegExp(alvaro) })).toBeVisible();
+  await expect(dialog.getByRole('group', { name: 'B', exact: true }).getByRole('option', { name: new RegExp(beto) })).toBeVisible();
+  await expect(dialog.getByRole('group', { name: 'Z', exact: true }).getByRole('option', { name: new RegExp(zoe) })).toBeVisible();
+
+  // Sin tildes: "alvaro" encuentra a Álvaro; ↓ y Enter lo abren.
+  const search = dialog.getByRole('combobox', { name: SEARCH });
+  await search.fill(`alvaro ${tag}`);
+  await expect(dialog.getByRole('listbox').getByRole('option')).toHaveCount(1);
+  await expect(dialog.getByRole('option', { name: new RegExp(alvaro) })).toHaveAttribute('aria-selected', 'true');
+  await search.press('ArrowUp');
+  await search.press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('heading', { level: 2, name: alvaro })).toBeVisible();
+  expect(errors).toEqual([]);
 });

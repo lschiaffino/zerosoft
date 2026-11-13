@@ -81,6 +81,7 @@ export default function NewChatPanel(props: NewChatPanelProps) {
   const [picked, setPicked] = useState<Map<string, NewChatEntry>>(new Map());
   const [groupName, setGroupName] = useState('');
   const seq = useRef(0);
+  const pointer = useRef('');
   const moreAbort = useRef<AbortController | null>(null);
 
   // Abrir y cerrar el <dialog>; al abrir, todo de cero y el foco en el buscador.
@@ -270,6 +271,17 @@ export default function NewChatPanel(props: NewChatPanelProps) {
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  // El puntero marca la fila solo si se movió de verdad: al desplazar con las flechas, Chrome manda un mousemove
+  // sin movimiento y la fila bajo el puntero le robaría la marca al teclado.
+  const hover = (ev: React.MouseEvent, o: Option) => {
+    const at = `${ev.clientX},${ev.clientY}`;
+    if (pointer.current === at) return;
+    pointer.current = at;
+    if (current?.id !== o.id) setActive(options.indexOf(o));
+  };
+  // Un clic en una fila no saca el foco del buscador (las flechas y Enter siguen andando).
+  const keepFocus = (ev: React.MouseEvent) => ev.preventDefault();
+
   const subtitle = (e: NewChatEntry) => {
     if (e.about) return e.about;
     const phone = e.phone ? formatPhone(e.phone) : e.phoneLabel;
@@ -293,7 +305,8 @@ export default function NewChatPanel(props: NewChatPanelProps) {
         aria-disabled={disabled || undefined}
         aria-busy={busy === e.key || undefined}
         className={`wa-nc-row${current?.id === o.id ? ' is-active' : ''}${selected ? ' is-picked' : ''}`}
-        onMouseMove={() => current?.id !== o.id && setActive(options.indexOf(o))}
+        onMouseMove={(ev) => hover(ev, o)}
+        onMouseDown={keepFocus}
         onClick={() => !disabled && choose(o)}
       >
         <span className="wa-nc-avatar">
@@ -464,7 +477,8 @@ export default function NewChatPanel(props: NewChatPanelProps) {
                             role="option"
                             aria-selected={current?.id === o.id}
                             className={`wa-nc-row wa-nc-action${current?.id === o.id ? ' is-active' : ''}`}
-                            onMouseMove={() => current?.id !== o.id && setActive(options.indexOf(o))}
+                            onMouseMove={(ev) => hover(ev, o)}
+                            onMouseDown={keepFocus}
                             onClick={onClose}
                             tabIndex={-1}
                           >
@@ -480,7 +494,8 @@ export default function NewChatPanel(props: NewChatPanelProps) {
                             role="option"
                             aria-selected={current?.id === o.id}
                             className={`wa-nc-row wa-nc-action${current?.id === o.id ? ' is-active' : ''}`}
-                            onMouseMove={() => current?.id !== o.id && setActive(options.indexOf(o))}
+                            onMouseMove={(ev) => hover(ev, o)}
+                            onMouseDown={keepFocus}
                             onClick={() => choose(o)}
                           >
                             <span className="wa-nc-icon" aria-hidden="true">
@@ -497,7 +512,8 @@ export default function NewChatPanel(props: NewChatPanelProps) {
                           aria-selected={current?.id === o.id}
                           aria-busy={busy === 'direct' || undefined}
                           className={`wa-nc-row wa-nc-action${current?.id === o.id ? ' is-active' : ''}`}
-                          onMouseMove={() => current?.id !== o.id && setActive(options.indexOf(o))}
+                          onMouseMove={(ev) => hover(ev, o)}
+                            onMouseDown={keepFocus}
                           onClick={() => choose(o)}
                         >
                           <span className="wa-nc-icon is-ink" aria-hidden="true">

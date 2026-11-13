@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-13-wa-new-chat',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox: New opens the new chat panel, like WhatsApp Web',
+      es: 'Lines e Inbox: Nuevo abre el panel de chat nuevo, como en WhatsApp Web',
+      pt: 'Lines e Inbox: Novo abre o painel de nova conversa, como no WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The New button in the sidebar opens the new chat panel right away, with no menu in between: search by name (accents optional) or by number in any format, New group at the top, the people you message most under Frequently contacted, and every contact in alphabetical order under its letter, loading more as you scroll. A number that is not a contact shows Message +54 9 … to start the chat. Arrow keys and Enter pick, Esc closes, and on a phone it fills the screen. People who only see their own chats only find those, and hidden numbers stay hidden.',
+        es: 'El botón Nuevo del lateral abre el panel de chat nuevo de una, sin menú en el medio: buscás por nombre (con o sin tildes) o por número escrito como sea, arriba está Grupo nuevo, en Contactados con frecuencia las personas a las que más les escribís, y abajo todos los contactos en orden alfabético con su letra, que se cargan a medida que bajás. Un número que no es contacto ofrece Escribirle a +54 9 … para empezar el chat. Las flechas y Enter eligen, Esc cierra, y en el teléfono ocupa la pantalla. Quien solo ve sus chats encuentra solo esos, y los números ocultos siguen ocultos.',
+        pt: 'O botão Novo da barra lateral abre o painel de nova conversa direto, sem menu no meio: pesquise por nome (com ou sem acento) ou por número em qualquer formato, Novo grupo fica no topo, as pessoas com quem você mais fala aparecem em Contatos frequentes, e todos os contatos vêm em ordem alfabética com sua letra, carregando mais conforme você rola. Um número que não é contato mostra Enviar mensagem para +54 9 … para começar a conversa. Setas e Enter escolhem, Esc fecha, e no celular ocupa a tela. Quem só vê as próprias conversas só encontra essas, e os números ocultos continuam ocultos.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same panel in Inbox, plus Message yourself, New group (pick members, name it, and the WhatsApp group is created and opened) and New email when Gmail is connected.',
+        es: 'El mismo panel en Inbox, con Mandate un mensaje, Grupo nuevo (elegís participantes, le ponés nombre y se crea el grupo de WhatsApp y se abre) y Correo nuevo si tenés Gmail conectado.',
+        pt: 'O mesmo painel no Inbox, com Envie uma mensagem para você, Novo grupo (escolha participantes, dê um nome e o grupo do WhatsApp é criado e aberto) e Novo e-mail com o Gmail conectado.',
+      },
+      {
+        product: 'platform',
+        en: 'The New button at the top of the sidebar is now a filled ink button in every app.',
+        es: 'El botón Nuevo arriba del lateral ahora es un botón lleno de tinta en todas las apps.',
+        pt: 'O botão Novo no topo da barra lateral agora é um botão preenchido em tinta em todos os apps.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-board',
     date: '2026-11-13',
     title: {
