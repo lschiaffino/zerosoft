@@ -10,6 +10,7 @@ import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
+import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
@@ -523,10 +524,13 @@ export default function InboxApp(props: {
     const onVis = () => tick();
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener(INBOX_CHANGED, tick);
+    // Un cambio confirmado en el asistente (carpetas desde un JSON): la lista se pone al día sin recargar.
+    window.addEventListener(ASSISTANT_APPLIED_EVENT, tick);
     return () => {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener(INBOX_CHANGED, tick);
+      window.removeEventListener(ASSISTANT_APPLIED_EVENT, tick);
     };
   }, [reloadList, reloadState, loadDetail, openId, liveOn]);
 
