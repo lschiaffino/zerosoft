@@ -577,5 +577,10 @@
     "removeCol": "Remover esta coluna",
     "removeLastRow": "Remover a última linha",
     "removeLastCol": "Remover a última coluna"
+  },
+  "star": {
+    "add": "Destacar",
+    "remove": "Remover destaque",
+    "badge": "Destacada"
   }
 }

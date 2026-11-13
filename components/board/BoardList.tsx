@@ -1,5 +1,6 @@
 'use client';
 
+import { starredFirst } from '@/lib/board-stars-order';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -35,6 +36,7 @@ type Prompt =
 export default function BoardList({
   initialBoards,
   initialFolders = [],
+  initialStarred = [],
   initialView = { kind: 'all' },
   startNew = false,
   serverNow,
@@ -42,6 +44,8 @@ export default function BoardList({
 }: {
   initialBoards: BoardSummary[];
   initialFolders?: BoardFolder[];
+  /** Ids que esta persona destacó. */
+  initialStarred?: string[];
   initialView?: BoardView;
   startNew?: boolean;
   /** "Ahora" del render del servidor: el primer render del cliente usa el mismo (sin hydration mismatch). */
@@ -56,6 +60,7 @@ export default function BoardList({
   const router = useRouter();
   const [boards, setBoards] = useState(initialBoards);
   const [folders, setFolders] = useState(initialFolders);
+  const [starred, setStarred] = useState<Set<string>>(() => new Set(initialStarred));
   const [view, setView] = useState<BoardView>(initialView);
   const [trash, setTrash] = useState<BoardSummary[] | null>(null);
   const [trashError, setTrashError] = useState(false);
@@ -288,6 +293,28 @@ export default function BoardList({
     }
   }
 
+  async function toggleStar(b: BoardSummary) {
+    setMenu(null);
+    const next = !starred.has(b.id);
+    const apply = (on: boolean) =>
+      setStarred((cur) => {
+        const n = new Set(cur);
+        if (on) n.add(b.id);
+        else n.delete(b.id);
+        return n;
+      });
+    apply(next);
+    const res = await fetch(`/api/boards/${b.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ starred: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      apply(!next);
+      setToast({ text: t('list.actionError'), tone: 'error' });
+    }
+  }
+
   async function duplicate(b: BoardSummary) {
     setMenu(null);
     const res = await fetch(`/api/boards/${b.id}/duplicate`, {
@@ -433,7 +460,7 @@ export default function BoardList({
   );
 
   const folder = view.kind === 'folder' ? folders.find((f) => f.id === view.id) ?? null : null;
-  const shown = searchingNow ? (results ?? []) : view.kind === 'folder' ? boards.filter((b) => b.folder_id === view.id) : boards;
+  const shown = searchingNow ? (results ?? []) : starredFirst(view.kind === 'folder' ? boards.filter((b) => b.folder_id === view.id) : boards, starred);
   const folderName = (id: string | null | undefined) => (id ? folders.find((f) => f.id === id)?.name ?? null : null);
 
   function card(b: BoardSummary) {
@@ -473,6 +500,7 @@ export default function BoardList({
             {b.updated_by ? ` · ${b.updated_by}` : ''}
             {view.kind !== 'folder' && folderName(b.folder_id) ? ` · ${folderName(b.folder_id)}` : ''}
           </p>
+          {starred.has(b.id) && <span className="badge badge-outline board-card-shared" data-testid="board-starred">{t('star.badge')}</span>}
           {b.shared && <span className="badge badge-outline board-card-shared">{t('share.on')}</span>}
           {b.access === 'restricted' && <span className="badge badge-outline board-card-shared">{t('access.restrictedBadge')}</span>}
         </div>
@@ -483,6 +511,7 @@ export default function BoardList({
           onToggle={(open) => setMenu(open ? b.id : null)}
           items={[
             { label: t('list.rename'), onSelect: () => { setMenu(null); setRenaming(b.id); } },
+            { label: starred.has(b.id) ? t('star.remove') : t('star.add'), onSelect: () => void toggleStar(b) },
             { label: t('list.duplicate'), onSelect: () => void duplicate(b) },
             { label: t('folders.moveTo'), onSelect: () => { setMenu(null); setPrompt({ kind: 'move', board: b, value: b.folder_id ?? '' }); } },
             { label: t('list.delete'), danger: true, onSelect: () => void remove(b) },

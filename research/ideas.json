@@ -2597,7 +2597,9 @@
     "title": "Board: Star boards and pin them at the top of the list and sidebar",
     "description": "Miro has Starred boards that stay pinned on the home screen (https://help.miro.com/hc/en-us/articles/360017730773). Our board list in components/board/BoardList.tsx sorts by update date only, with no per-user favorite. Teams that keep one living roadmap board plus many workshop boards lose it under the new ones. First scope: a per-user star toggle on each row and in the editor header, stored in a small table, with starred boards listed first and in the sidebar.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-13-board"
   },
   {
     "title": "Board: Let people request access from a private board link",
@@ -2887,6 +2889,24 @@
     "title": "Notes: Let a public link expire on a date and require a password",
     "description": "Evernote public links stay open until revoked, and its help center documents no expiry (https://help.evernote.com/hc/articles/208313588). Notes has a public read link (share_token in lib/notes-shares.ts) that works until someone turns it off. For a small team sharing client notes, a link that expires after a week and an optional password is a safer default than remembering to revoke. First scope: optional expires_at on the share, checked on the public route, with a picker in the share popover; password protection as a second step.",
     "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Save a board as a workspace template and start new boards from it",
+    "description": "Miro lets teams keep their own templates next to the built-in library (https://help.miro.com/hc/en-us/sections/360003285093-Working-on-the-Board). Board ships a fixed gallery in lib/board-templates.ts and a duplicate action, but a team cannot mark its retro or planning board as a reusable template. Small teams repeat the same ritual every sprint and today they duplicate an old board and clear it by hand. First scope: a 'Save as template' action in the board menu that stores a copy flagged as template, shown in the gallery under a 'Your templates' heading and hidden from the main list.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add a keyboard shortcut sheet for the sticky, table and presentation tools",
+    "description": "Miro opens a shortcut reference with F1 and lists every hotkey (https://help.miro.com/hc/en-us/sections/360003285093-Working-on-the-Board). Board relies on the stock Excalidraw help dialog, which does not mention our own tools: sticky notes, tables, reactions, voting, follow mode and present (components/board/BoardCanvasTools.tsx, BoardPresent.tsx). Shortcuts we add are invisible unless someone reads the changelog. First scope: a '?' dialog in the editor chrome that lists the Board-specific keys in en, es and pt and opens from Cmd+K.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Let an admin set a board to view-only for everyone",
+    "description": "Miro can restrict a board to view access for most people while owners keep editing (https://help.miro.com/hc/en-us/sections/360003285093-Working-on-the-Board). Board has per-person access levels in lib/board-access.ts, but no single switch to freeze a finished board such as a signed-off retro or a workshop result. Without it, a stray drag by a teammate changes a record the team wanted to keep. First scope: a read-only toggle in the share panel that makes requireBoardAccess treat edit as view for non-owners, with a visible banner in the editor and an audit log entry.",
+    "product": "board",
     "kind": "idea"
   }
 ]
