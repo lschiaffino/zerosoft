@@ -15,8 +15,23 @@ test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-
 const uid = () => Math.random().toString(36).slice(2, 8);
 const UPLOAD_DELAY_MS = 3_000;
 const INSTANT_MS = 300;
-// 1x1 PNG.
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
+/** Una foto de 480x320 hecha en la página (un degradado), como PNG. */
+async function photo(page: Page): Promise<Buffer> {
+  const b64 = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 480;
+    c.height = 320;
+    const g = c.getContext('2d')!;
+    const grad = g.createLinearGradient(0, 0, 480, 320);
+    grad.addColorStop(0, '#f2a65a');
+    grad.addColorStop(1, '#3a6ea5');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 480, 320);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  return Buffer.from(b64, 'base64');
+}
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -41,6 +56,7 @@ async function shot(page: Page, name: string) {
   if (!dir) return;
   await page.screenshot({ path: `${dir}/${name}-1280.png` });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(500);
   await page.screenshot({ path: `${dir}/${name}-390.png` });
   await page.setViewportSize({ width: 1280, height: 800 });
 }
@@ -142,6 +158,7 @@ test('Lines: la nota de voz y la foto aparecen al instante con el reloj y el til
   await page.getByRole('button', { name: 'Record a voice note' }).click();
   await expect(page.locator('.wa-recording')).toBeVisible();
   await page.waitForTimeout(1_200);
+  await page.waitForLoadState('networkidle');
   const voiceMs = await timeToBubble(page, '.wa-recording button[aria-label="Send voice note"]', '[id^="m-tmp-"] .wa-voice', '.wa-recording');
   console.log(`[instant] Lines voice note: bubble in ${voiceMs} ms`);
   expect(voiceMs).toBeLessThan(INSTANT_MS);
@@ -155,7 +172,7 @@ test('Lines: la nota de voz y la foto aparecen al instante con el reloj y el til
   await expect(page.locator('.gr-msg-out').filter({ has: page.locator('.wa-voice') }).last().locator('.wa-ticks[title="Sent"], .wa-ticks[title="Delivered"], .wa-ticks[title="Read"]')).toBeVisible();
 
   // Foto: a la bandeja (se sube por detrás) y enviar; la vista previa se cierra ya.
-  await page.locator('input[type=file]').first().setInputFiles({ name: 'terraza.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'terraza.png', mimeType: 'image/png', buffer: await photo(page) });
   await expect(page.locator('.wa-attach-pane')).toBeVisible();
   const photoMs = await timeToBubble(page, '.wa-attach-send', '[id^="m-tmp-"] .wa-image', '.wa-attach-pane');
   console.log(`[instant] Lines photo: bubble in ${photoMs} ms`);
@@ -204,6 +221,9 @@ async function inboxChat(page: Page, request: APIRequestContext, title: string) 
     data: { events: [{ type: 'message', chatId: `${phone}@s.whatsapp.net`, chatName: title, isGroup: false, fromMe: false, senderPhone: phone, senderName: title, providerMessageId: `in-${uid()}`, body: 'hola', timestamp: new Date().toISOString() }] },
   });
   expect(res.ok()).toBe(true);
+  // La conversación ya compilada y leída una vez (con next dev, la primera lectura puede pasar el tiempo de la pantalla).
+  const [row] = await sql('SELECT id FROM inbox_threads WHERE title = ?', [title]);
+  expect((await request.get(`/api/inbox/threads/${row.id}`, { timeout: 90_000 })).ok()).toBe(true);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await expect(async () => {
     await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
@@ -222,6 +242,7 @@ test('Inbox: la nota de voz y la foto aparecen al instante con el reloj y el til
   await thread.getByRole('button', { name: 'Record a voice message' }).click();
   await expect(thread.locator('.wa-recording')).toBeVisible();
   await page.waitForTimeout(1_200);
+  await page.waitForLoadState('networkidle');
   const voiceMs = await timeToBubble(page, '.wa-recording button[aria-label="Send the voice message"]', '[id^="m-tmp-"] .wa-voice', '.wa-recording');
   console.log(`[instant] Inbox voice note: bubble in ${voiceMs} ms`);
   expect(voiceMs).toBeLessThan(INSTANT_MS);
@@ -232,7 +253,7 @@ test('Inbox: la nota de voz y la foto aparecen al instante con el reloj y el til
   await expect(thread.locator('[id^="m-tmp-"]')).toHaveCount(0, { timeout: 20_000 });
   await expect(thread.locator('.gr-msg-out').filter({ has: page.locator('.wa-voice') }).last().locator('.wa-ticks[title="Sent"], .wa-ticks[title="Delivered"], .wa-ticks[title="Read"]')).toBeVisible();
 
-  await thread.locator('.ib-wa-attach input[type=file]').first().setInputFiles({ name: 'terraza.png', mimeType: 'image/png', buffer: PNG });
+  await thread.locator('.ib-wa-attach input[type=file]').first().setInputFiles({ name: 'terraza.png', mimeType: 'image/png', buffer: await photo(page) });
   await expect(page.locator('.wa-attach-pane')).toBeVisible();
   const photoMs = await timeToBubble(page, '.wa-attach-send', '[id^="m-tmp-"] .wa-image', '.wa-attach-pane');
   console.log(`[instant] Inbox photo: bubble in ${photoMs} ms`);
