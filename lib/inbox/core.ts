@@ -1050,12 +1050,14 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   const marks = unique.map(() => '?').join(',');
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
-  if (a.action === 'archive' || a.action === 'unarchive') {
+  // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
+  // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.
+  if (a.action === 'archive' || a.action === 'unarchive' || a.action === 'done' || a.action === 'undone') {
     const wa = (await db
       .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND id IN (${marks})`)
       .all(owner, ...unique)) as Array<{ id: string }>;
     const { requestArchivePush } = await import('../wa-archive-sync');
-    await requestArchivePush('inbox', owner, wa.map((r) => r.id), a.action === 'archive');
+    await requestArchivePush('inbox', owner, wa.map((r) => r.id), a.action === 'archive' || a.action === 'done');
   }
   return unique;
 }
