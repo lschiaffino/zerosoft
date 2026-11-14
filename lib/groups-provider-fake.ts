@@ -24,6 +24,10 @@
  *   teléfono). La devuelven findContacts (historial de Inbox), chatInfo
  *   (nombre, info, participantes con lid y nombre) y participants. `groups`
  *   suma a la persona a esos grupos (solo con lid si no trae teléfono).
+ * - Mensajes que no se pudieron descifrar (como Evolution con el parche 0002):
+ *   un evento `{ type: 'fake_withheld', message: <evento message> }` llega a
+ *   la app como `missing` y el número se guarda el mensaje; fetchHistory del
+ *   chat lo devuelve como historial (fakeHistoryRequests() lista los pedidos).
  * - Privacidad: `{ type: 'fake_privacy', readreceipts: 'all' | 'none' }` en el
  *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
  *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
@@ -89,6 +93,17 @@ interface FakeState {
   failArchives?: number;
   /** "Confirmaciones de lectura" de la cuenta (sin valor: prendidas). */
   readReceipts?: 'all' | 'none';
+  /** Mensajes que "no se pudieron descifrar", por chat: los devuelve fetchHistory. */
+  withheld?: Map<string, InboundEvent[]>;
+  /** Cada pedido de historial que hizo la app (tests). */
+  historyRequests?: FakeHistoryRequest[];
+}
+
+export interface FakeHistoryRequest {
+  chatId: string;
+  count: number;
+  after?: number;
+  at: number;
 }
 
 export interface FakeArchive {
@@ -189,6 +204,21 @@ export function fakeSent(numberId: string): FakeSent[] {
 /** Los archivar/desarchivar que recibió el número falso, con la referencia que mandó la app (tests). */
 export function fakeArchives(numberId: string): FakeArchive[] {
   return (stateFor(numberId).archives ??= []);
+}
+
+/** Los pedidos de historial que recibió el número falso (tests). */
+export function fakeHistoryRequests(numberId: string): FakeHistoryRequest[] {
+  return (stateFor(numberId).historyRequests ??= []);
+}
+
+/** Un `fake_withheld` del webhook: el número se guarda el mensaje y la app se entera de que falta. */
+function withhold(s: FakeState, raw: unknown): InboundEvent | null {
+  const m = (raw ?? {}) as Partial<Extract<InboundEvent, { type: 'message' }>>;
+  if (typeof m.chatId !== 'string' || typeof m.providerMessageId !== 'string' || !m.chatId || !m.providerMessageId) return null;
+  const msg = { ...m, type: 'message' } as Extract<InboundEvent, { type: 'message' }>;
+  const map = (s.withheld ??= new Map());
+  map.set(m.chatId, [...(map.get(m.chatId) ?? []), msg]);
+  return { type: 'missing', chatId: m.chatId, messageId: m.providerMessageId, fromMe: m.fromMe === true, ...(m.timestamp ? { timestamp: m.timestamp } : {}) };
 }
 
 /** Los próximos `n` archivar del número falso fallan con 'unreachable' (tests). */
@@ -463,6 +493,14 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       void send(chatId, archive ? 'archive' : 'unarchive', 'archive');
     },
     sendPresence: async () => undefined,
+    /** El historial del chat "desde el teléfono": lo que se guardó con fake_withheld, como historial. */
+    fetchHistory: async (chatId, o) => {
+      requireConnected();
+      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), at: Date.now() });
+      const events = (s.withheld?.get(chatId) ?? []).map((e) => ({ ...e, history: true }));
+      s.withheld?.delete(chatId);
+      return { requestId: `fake-hist-${randomUUID()}`, events };
+    },
     /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
@@ -584,9 +622,13 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
         const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };
         if (ev.type === 'fake_privacy' && (ev.readreceipts === 'all' || ev.readreceipts === 'none')) s.readReceipts = ev.readreceipts;
       }
-      const out = events.filter((e): e is InboundEvent => {
+      const out = events.flatMap((e): InboundEvent[] => {
         const t = (e as { type?: unknown })?.type;
-        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive'].includes(String(t));
+        if (t === 'fake_withheld') {
+          const missing = withhold(s, (e as { message?: unknown }).message);
+          return missing ? [missing] : [];
+        }
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive', 'missing'].includes(String(t)) ? [e as InboundEvent] : [];
       });
       // El asunto que llegó con el mensaje es el que devuelve chatInfo (como el servidor real).
       for (const e of out) {

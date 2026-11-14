@@ -199,7 +199,9 @@
     "noteHint": "Escribí @ para mencionar a alguien. Le llega un aviso.",
     "task": "Tarea",
     "question": "Pide respuesta",
-    "fileUnavailable": "No disponible"
+    "fileUnavailable": "No disponible",
+    "fetchMissing": "Traer mensajes que faltan",
+    "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
   },
   "status": {
     "pending": "Enviando",
@@ -1016,7 +1018,9 @@
     "hubspot_company_gone": "Esa empresa ya no está en HubSpot. Vinculá este chat a otra empresa.",
     "own_number": "Ese es el número de esta misma línea.",
     "not_on_whatsapp": "Ese número no tiene WhatsApp. Revisalo, con el código de país.",
-    "chat_no_access": "Esta línea ya tiene un chat con ese número y no tenés acceso. Pedíselo a un admin."
+    "chat_no_access": "Esta línea ya tiene un chat con ese número y no tenés acceso. Pedíselo a un admin.",
+    "history_rate_limited": "Ya pediste los mensajes de este chat hace un momento. Probá de nuevo en un minuto.",
+    "history_failed": "Tu teléfono no respondió. Fijate que tenga internet y probá de nuevo."
   },
   "media": {
     "image": "Imagen",

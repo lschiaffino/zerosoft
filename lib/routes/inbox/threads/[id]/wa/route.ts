@@ -29,7 +29,8 @@ export async function GET(req: Request, ctx: Ctx) {
 /**
  * { action: 'summary' } pide un resumen nuevo a la IA; { action: 'block' |
  * 'unblock' } bloquea en WhatsApp; { action: 'presence', state } manda
- * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused").
+ * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused");
+ * { action: 'fetchMissing', auto? } le pide al teléfono el historial del chat.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -41,6 +42,17 @@ export async function POST(req: Request, ctx: Ctx) {
     return withOwner(async (owner) => {
       await sendMyPresence(owner, id, state);
       return iJson({ ok: true });
+    });
+  }
+  if (b?.action === 'fetchMissing') {
+    // El historial del chat desde el teléfono (mensajes que WhatsApp no pudo entregar, lib/wa-history-gaps.ts).
+    const auto = (b as { auto?: unknown }).auto === true;
+    return withOwner(async (owner) => {
+      const { requestChatHistory, historyResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestChatHistory('inbox', owner, id, { auto });
+      if (!out) throw new InboxError('not_found', 404);
+      const r = historyResponse(out, auto);
+      return iJson(r.body, r.status);
     });
   }
   const limited = await limitByIp(req, 'inbox-ai', 60, 60).catch(() => null);

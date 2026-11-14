@@ -19,6 +19,24 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   (`{ remoteJid, instanceId }`), así que archivar, fijar o leer un chat desde el teléfono nunca llegaba a zerosoft.
   Ahora manda también `archived`, `pinned` y `unreadCount` cuando WhatsApp los informa. Propuesto a Evolution; se
   saca cuando una versión oficial lo traiga.
+- `0002-recover-dropped-messages.patch`: los mensajes que llegan y no se pueden descifrar (`No session record`,
+  `Invalid PreKey ID`, `Message absent from node`, etc.) Evolution los tiraba con un "Message ignored" en el log, y
+  nunca llegaban ni a su base ni a zerosoft (pasó con mensajes mandados desde el teléfono). Ahora:
+  - le pide una vez al teléfono que reenvíe ese mensaje (`requestPlaceholderResend` de Baileys; el reenvío llega como
+    un `MESSAGES_UPSERT` normal con el mismo id);
+  - avisa por el webhook con un `MESSAGES_UPSERT` sin `message`, con `zsUndecryptable: true`, `key`,
+    `messageTimestamp` y `messageStubParameters` (el motivo). zerosoft lo lee como "falta un mensaje en este chat"
+    (`parseEvolutionWebhook` → `{ type: 'missing' }`); quien no lo conoce lo ignora porque no trae contenido;
+  - suma `POST /chat/fetchHistory/{instance}` con `{ remoteJid, count?: 1..100, after?: segundos }` (mismo `apikey`
+    que el resto de `/chat`): pide al teléfono el historial de ese chat (`fetchMessageHistory`), anclado en el mensaje
+    guardado más viejo posterior a `after`, o en el más nuevo. Responde `{ requestId, anchor, count }`. Lo que manda
+    el teléfono llega por `MESSAGES_SET` (con `syncType: 'ON_DEMAND'`), se guarda en la base de Evolution y zerosoft
+    lo guarda como historial (sin avisos ni automatizaciones);
+  - en ese historial pedido, lo repetido se busca en la base y no en el caché de la primera sincronización (que no
+    tiene lo que llegó después).
+
+  WhatsApp solo manda los mensajes anteriores al ancla: si el que falta es el último del chat, lo recupera el reenvío
+  del teléfono, no el historial. Las dos cosas necesitan el teléfono conectado a internet.
 
 ## Mantenimiento (automático)
 
