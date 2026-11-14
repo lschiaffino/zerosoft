@@ -2828,6 +2828,17 @@ a.track-board-card-title:hover {
     gap: 4px;
   }
 
+  /* Vencidos y Triage entran enteros a 390px (con 110px cada uno se cortaba Triage). */
+  .track-overview th:nth-child(3),
+  .track-overview th:nth-child(4) {
+    width: 64px !important;
+  }
+
+  .track-overview th,
+  .track-overview td {
+    padding-inline: 8px;
+  }
+
   .track-search .track-search-kbd {
     display: none;
   }
