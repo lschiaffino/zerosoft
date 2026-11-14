@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-14',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -59,6 +59,14 @@ const parity: ProductParity = {
       area: 'issues',
       label: { en: 'Issue templates', es: 'Templates de issue', pt: 'Templates de issue' },
       detail: { en: 'Per project, with one default template that quick create fills in', es: 'Por proyecto, con una plantilla por defecto que el alta rápida precarga', pt: 'Por projeto, com um template padrão que a criação rápida preenche' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
+      id: 'project-templates',
+      area: 'issues',
+      label: { en: 'Project templates', es: 'Templates de proyectos', pt: 'Templates de projetos' },
+      detail: { en: 'Save a project as a template (description, priority, teams, labels, milestones with their offset from the start date, open issues with milestone, parent and labels) and pick it when creating a project; rename and delete in settings. Issues from private teams stay out unless you can see them. No editing the template contents in place yet', es: 'Guardar un proyecto como template (descripción, prioridad, teams, etiquetas, milestones con su distancia al inicio, issues abiertos con milestone, padre y etiquetas) y elegirlo al crear un proyecto; renombrar y borrar en ajustes. Los issues de teams privados no entran si no los ves. Todavía sin editar el contenido del template en el lugar', pt: 'Salvar um projeto como template (descrição, prioridade, teams, etiquetas, milestones com a distância até o início, issues abertos com milestone, pai e etiquetas) e escolhê-lo ao criar um projeto; renomear e apagar nas configurações. Issues de teams privados ficam de fora se você não os vê. Ainda sem editar o conteúdo do template no lugar' },
       status: 'have',
       competitorHas: true,
     },

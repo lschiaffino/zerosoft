@@ -2503,7 +2503,9 @@
     "title": "Track: Create projects from a project template",
     "description": "Linear lets a workspace save project templates with a description, milestones and a set of issues, then start new projects from them (https://linear.app/docs/project-templates). Track has issue templates per project (lib/track-templates.ts) but every new project starts empty. Teams that run the same kind of project, such as a launch or a client onboarding, rebuild its milestones and first issues each time. First scope: save a project as a template with its milestones and open issues, and a Use template choice in the new project form.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-14-track-project-templates"
   },
   {
     "title": "Track: Send a saved view digest to Slack or email",

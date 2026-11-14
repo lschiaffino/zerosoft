@@ -500,5 +500,32 @@
     "typed": "Typed",
     "people": "{count} people",
     "noInitiatives": "No initiatives yet"
+  },
+  "templates": {
+    "tab": "Project templates",
+    "saveAction": "Save as template",
+    "saveTitle": "Save project as template",
+    "saveHelp": "The template keeps the description, priority, teams, labels, milestones (with their distance from the start date) and the open issues. Lead, members and dates stay out.",
+    "name": "Template name",
+    "description": "What it is for",
+    "descriptionPlaceholder": "Product launch, customer onboarding…",
+    "save": "Save template",
+    "saved": "Template “{name}” saved",
+    "pick": "Template",
+    "none": "No template",
+    "contents": "{milestones, plural, one {# milestone} other {# milestones}} · {issues, plural, one {# issue} other {# issues}}",
+    "willCreate": "Creates {milestones, plural, one {# milestone} other {# milestones}} and {issues, plural, one {# issue} other {# issues}} from the template.",
+    "needsTeam": "Pick a team to create its issues.",
+    "datesFromStart": "Milestone dates count from the start date.",
+    "settingsTitle": "Project templates",
+    "settingsHelp": "Save a project as a template from its … menu, then pick it when you create a project. Whoever saved a template, or an admin, can rename or delete it.",
+    "emptyTitle": "No project templates yet",
+    "emptyBody": "Open a project and choose Save as template in its … menu.",
+    "goToProjects": "Go to projects",
+    "rename": "Rename",
+    "renameLabel": "Rename template {name}",
+    "deleteLabel": "Delete template {name}",
+    "deleteTitle": "Delete the template “{name}”?",
+    "deleteBody": "Projects already created from it stay as they are."
   }
 }

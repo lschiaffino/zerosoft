@@ -553,3 +553,15 @@
 .tp-chip-avatars .track-avatar + .track-avatar { margin-left: -4px; box-shadow: 0 0 0 1px var(--chrome-bg); }
 .tp-latest-by, .tp-update-author { display: inline-flex; align-items: center; gap: 6px; }
 .tp-latest-by .track-avatar, .tp-update-author .track-avatar { width: 18px; height: 18px; font-size: 0.625rem; }
+
+/* Ajustes › Project templates: una fila por template con lo que trae y sus acciones. */
+.tp-template-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.tp-template-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tp-template-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tp-template-name { font-size: 0.9375rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-template-main .ui-help { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-template-actions { display: inline-flex; gap: 4px; flex: none; }
+@media (max-width: 480px) {
+  .tp-template-row { flex-wrap: wrap; }
+  .tp-template-actions { width: 100%; justify-content: flex-end; }
+}

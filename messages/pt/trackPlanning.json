@@ -500,5 +500,32 @@
     "typed": "Digitada",
     "people": "{count} pessoas",
     "noInitiatives": "Ainda não há iniciativas"
+  },
+  "templates": {
+    "tab": "Templates de projetos",
+    "saveAction": "Salvar como template",
+    "saveTitle": "Salvar o projeto como template",
+    "saveHelp": "O template guarda a descrição, a prioridade, os teams, as etiquetas, os milestones (com a distância até a data de início) e os issues abertos. Ficam de fora o lead, os membros e as datas.",
+    "name": "Nome do template",
+    "description": "Para que serve",
+    "descriptionPlaceholder": "Lançamento de produto, onboarding de clientes…",
+    "save": "Salvar template",
+    "saved": "Template “{name}” salvo",
+    "pick": "Template",
+    "none": "Sem template",
+    "contents": "{milestones, plural, one {# milestone} other {# milestones}} · {issues, plural, one {# issue} other {# issues}}",
+    "willCreate": "Cria {milestones, plural, one {# milestone} other {# milestones}} e {issues, plural, one {# issue} other {# issues}} do template.",
+    "needsTeam": "Escolha um team para criar os issues.",
+    "datesFromStart": "As datas dos milestones contam a partir da data de início.",
+    "settingsTitle": "Templates de projetos",
+    "settingsHelp": "Salve um projeto como template no menu … dele e escolha-o ao criar um projeto. Quem salvou, ou um admin, pode renomear ou apagar.",
+    "emptyTitle": "Ainda não há templates de projetos",
+    "emptyBody": "Abra um projeto e escolha Salvar como template no menu ….",
+    "goToProjects": "Ir para projetos",
+    "rename": "Renomear",
+    "renameLabel": "Renomear o template {name}",
+    "deleteLabel": "Apagar o template {name}",
+    "deleteTitle": "Apagar o template “{name}”?",
+    "deleteBody": "Os projetos já criados com ele ficam como estão."
   }
 }

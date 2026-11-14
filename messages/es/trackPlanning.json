@@ -500,5 +500,32 @@
     "typed": "Tipeada",
     "people": "{count} personas",
     "noInitiatives": "Todavía no hay iniciativas"
+  },
+  "templates": {
+    "tab": "Templates de proyectos",
+    "saveAction": "Guardar como template",
+    "saveTitle": "Guardar el proyecto como template",
+    "saveHelp": "El template guarda la descripción, la prioridad, los teams, las etiquetas, los milestones (con su distancia a la fecha de inicio) y los issues abiertos. Quedan afuera el lead, los miembros y las fechas.",
+    "name": "Nombre del template",
+    "description": "Para qué sirve",
+    "descriptionPlaceholder": "Lanzamiento de producto, onboarding de clientes…",
+    "save": "Guardar template",
+    "saved": "Template “{name}” guardado",
+    "pick": "Template",
+    "none": "Sin template",
+    "contents": "{milestones, plural, one {# milestone} other {# milestones}} · {issues, plural, one {# issue} other {# issues}}",
+    "willCreate": "Crea {milestones, plural, one {# milestone} other {# milestones}} y {issues, plural, one {# issue} other {# issues}} del template.",
+    "needsTeam": "Elegí un team para crear sus issues.",
+    "datesFromStart": "Las fechas de los milestones se cuentan desde la fecha de inicio.",
+    "settingsTitle": "Templates de proyectos",
+    "settingsHelp": "Guardá un proyecto como template desde su menú … y elegilo al crear un proyecto. Quien lo guardó, o un admin, lo puede renombrar o borrar.",
+    "emptyTitle": "Todavía no hay templates de proyectos",
+    "emptyBody": "Abrí un proyecto y elegí Guardar como template en su menú ….",
+    "goToProjects": "Ir a proyectos",
+    "rename": "Renombrar",
+    "renameLabel": "Renombrar el template {name}",
+    "deleteLabel": "Borrar el template {name}",
+    "deleteTitle": "¿Borrar el template “{name}”?",
+    "deleteBody": "Los proyectos que ya se crearon con él quedan como están."
   }
 }

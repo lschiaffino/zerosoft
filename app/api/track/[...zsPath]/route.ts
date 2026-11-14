@@ -44,37 +44,38 @@ import * as m38 from '@/lib/routes/track/issues/[id]/triage/route';
 import * as m39 from '@/lib/routes/track/labels/[id]/route';
 import * as m40 from '@/lib/routes/track/milestones/[id]/route';
 import * as m41 from '@/lib/routes/track/plan-milestones/[id]/route';
-import * as m42 from '@/lib/routes/track/plan-updates/[id]/route';
-import * as m43 from '@/lib/routes/track/plan-updates/[id]/comments/route';
-import * as m44 from '@/lib/routes/track/plans/[id]/route';
-import * as m45 from '@/lib/routes/track/plans/[id]/follow/route';
-import * as m46 from '@/lib/routes/track/plans/[id]/issues/route';
-import * as m47 from '@/lib/routes/track/plans/[id]/milestones/route';
-import * as m48 from '@/lib/routes/track/plans/[id]/updates/route';
-import * as m49 from '@/lib/routes/track/projects/[id]/route';
-import * as m50 from '@/lib/routes/track/projects/[id]/ai/issue-from-text/route';
-import * as m51 from '@/lib/routes/track/projects/[id]/ai/summary/route';
-import * as m52 from '@/lib/routes/track/projects/[id]/automation/route';
-import * as m53 from '@/lib/routes/track/projects/[id]/cycles/route';
-import * as m54 from '@/lib/routes/track/projects/[id]/issues/route';
-import * as m55 from '@/lib/routes/track/projects/[id]/members/route';
-import * as m56 from '@/lib/routes/track/projects/[id]/milestones/route';
-import * as m57 from '@/lib/routes/track/projects/[id]/recurring/route';
-import * as m58 from '@/lib/routes/track/projects/[id]/statuses/route';
-import * as m59 from '@/lib/routes/track/projects/[id]/statuses/reorder/route';
-import * as m60 from '@/lib/routes/track/projects/[id]/templates/route';
-import * as m61 from '@/lib/routes/track/projects/[id]/triage/route';
-import * as m62 from '@/lib/routes/track/projects/[id]/triage-rules/route';
-import * as m63 from '@/lib/routes/track/projects/[id]/triage-settings/route';
-import * as m64 from '@/lib/routes/track/projects/[id]/views/route';
-import * as m65 from '@/lib/routes/track/recurring/[id]/route';
-import * as m66 from '@/lib/routes/track/sentry/webhook/[id]/route';
-import * as m67 from '@/lib/routes/track/statuses/[id]/route';
-import * as m68 from '@/lib/routes/track/templates/[id]/route';
-import * as m69 from '@/lib/routes/track/triage-rules/[id]/route';
-import * as m70 from '@/lib/routes/track/views/[id]/route';
-import * as m71 from '@/lib/routes/track/views/[id]/default/route';
-import * as m72 from '@/lib/routes/track/views/[id]/favorite/route';
+import * as m42 from '@/lib/routes/track/plan-templates/[id]/route';
+import * as m43 from '@/lib/routes/track/plan-updates/[id]/route';
+import * as m44 from '@/lib/routes/track/plan-updates/[id]/comments/route';
+import * as m45 from '@/lib/routes/track/plans/[id]/route';
+import * as m46 from '@/lib/routes/track/plans/[id]/follow/route';
+import * as m47 from '@/lib/routes/track/plans/[id]/issues/route';
+import * as m48 from '@/lib/routes/track/plans/[id]/milestones/route';
+import * as m49 from '@/lib/routes/track/plans/[id]/updates/route';
+import * as m50 from '@/lib/routes/track/projects/[id]/route';
+import * as m51 from '@/lib/routes/track/projects/[id]/ai/issue-from-text/route';
+import * as m52 from '@/lib/routes/track/projects/[id]/ai/summary/route';
+import * as m53 from '@/lib/routes/track/projects/[id]/automation/route';
+import * as m54 from '@/lib/routes/track/projects/[id]/cycles/route';
+import * as m55 from '@/lib/routes/track/projects/[id]/issues/route';
+import * as m56 from '@/lib/routes/track/projects/[id]/members/route';
+import * as m57 from '@/lib/routes/track/projects/[id]/milestones/route';
+import * as m58 from '@/lib/routes/track/projects/[id]/recurring/route';
+import * as m59 from '@/lib/routes/track/projects/[id]/statuses/route';
+import * as m60 from '@/lib/routes/track/projects/[id]/statuses/reorder/route';
+import * as m61 from '@/lib/routes/track/projects/[id]/templates/route';
+import * as m62 from '@/lib/routes/track/projects/[id]/triage/route';
+import * as m63 from '@/lib/routes/track/projects/[id]/triage-rules/route';
+import * as m64 from '@/lib/routes/track/projects/[id]/triage-settings/route';
+import * as m65 from '@/lib/routes/track/projects/[id]/views/route';
+import * as m66 from '@/lib/routes/track/recurring/[id]/route';
+import * as m67 from '@/lib/routes/track/sentry/webhook/[id]/route';
+import * as m68 from '@/lib/routes/track/statuses/[id]/route';
+import * as m69 from '@/lib/routes/track/templates/[id]/route';
+import * as m70 from '@/lib/routes/track/triage-rules/[id]/route';
+import * as m71 from '@/lib/routes/track/views/[id]/route';
+import * as m72 from '@/lib/routes/track/views/[id]/default/route';
+import * as m73 from '@/lib/routes/track/views/[id]/favorite/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -122,37 +123,38 @@ const d = createDispatcher('zsPath', [
   { pattern: 'labels/[id]', mod: m39 }, // lib/routes/track/labels/[id]
   { pattern: 'milestones/[id]', mod: m40 }, // lib/routes/track/milestones/[id]
   { pattern: 'plan-milestones/[id]', mod: m41 }, // lib/routes/track/plan-milestones/[id]
-  { pattern: 'plan-updates/[id]', mod: m42 }, // lib/routes/track/plan-updates/[id]
-  { pattern: 'plan-updates/[id]/comments', mod: m43 }, // lib/routes/track/plan-updates/[id]/comments
-  { pattern: 'plans/[id]', mod: m44 }, // lib/routes/track/plans/[id]
-  { pattern: 'plans/[id]/follow', mod: m45 }, // lib/routes/track/plans/[id]/follow
-  { pattern: 'plans/[id]/issues', mod: m46 }, // lib/routes/track/plans/[id]/issues
-  { pattern: 'plans/[id]/milestones', mod: m47 }, // lib/routes/track/plans/[id]/milestones
-  { pattern: 'plans/[id]/updates', mod: m48 }, // lib/routes/track/plans/[id]/updates
-  { pattern: 'projects/[id]', mod: m49 }, // lib/routes/track/projects/[id]
-  { pattern: 'projects/[id]/ai/issue-from-text', mod: m50 }, // lib/routes/track/projects/[id]/ai/issue-from-text
-  { pattern: 'projects/[id]/ai/summary', mod: m51 }, // lib/routes/track/projects/[id]/ai/summary
-  { pattern: 'projects/[id]/automation', mod: m52 }, // lib/routes/track/projects/[id]/automation
-  { pattern: 'projects/[id]/cycles', mod: m53 }, // lib/routes/track/projects/[id]/cycles
-  { pattern: 'projects/[id]/issues', mod: m54 }, // lib/routes/track/projects/[id]/issues
-  { pattern: 'projects/[id]/members', mod: m55 }, // lib/routes/track/projects/[id]/members
-  { pattern: 'projects/[id]/milestones', mod: m56 }, // lib/routes/track/projects/[id]/milestones
-  { pattern: 'projects/[id]/recurring', mod: m57 }, // lib/routes/track/projects/[id]/recurring
-  { pattern: 'projects/[id]/statuses', mod: m58 }, // lib/routes/track/projects/[id]/statuses
-  { pattern: 'projects/[id]/statuses/reorder', mod: m59 }, // lib/routes/track/projects/[id]/statuses/reorder
-  { pattern: 'projects/[id]/templates', mod: m60 }, // lib/routes/track/projects/[id]/templates
-  { pattern: 'projects/[id]/triage', mod: m61 }, // lib/routes/track/projects/[id]/triage
-  { pattern: 'projects/[id]/triage-rules', mod: m62 }, // lib/routes/track/projects/[id]/triage-rules
-  { pattern: 'projects/[id]/triage-settings', mod: m63 }, // lib/routes/track/projects/[id]/triage-settings
-  { pattern: 'projects/[id]/views', mod: m64 }, // lib/routes/track/projects/[id]/views
-  { pattern: 'recurring/[id]', mod: m65 }, // lib/routes/track/recurring/[id]
-  { pattern: 'sentry/webhook/[id]', mod: m66 }, // lib/routes/track/sentry/webhook/[id]
-  { pattern: 'statuses/[id]', mod: m67 }, // lib/routes/track/statuses/[id]
-  { pattern: 'templates/[id]', mod: m68 }, // lib/routes/track/templates/[id]
-  { pattern: 'triage-rules/[id]', mod: m69 }, // lib/routes/track/triage-rules/[id]
-  { pattern: 'views/[id]', mod: m70 }, // lib/routes/track/views/[id]
-  { pattern: 'views/[id]/default', mod: m71 }, // lib/routes/track/views/[id]/default
-  { pattern: 'views/[id]/favorite', mod: m72 }, // lib/routes/track/views/[id]/favorite
+  { pattern: 'plan-templates/[id]', mod: m42 }, // lib/routes/track/plan-templates/[id]
+  { pattern: 'plan-updates/[id]', mod: m43 }, // lib/routes/track/plan-updates/[id]
+  { pattern: 'plan-updates/[id]/comments', mod: m44 }, // lib/routes/track/plan-updates/[id]/comments
+  { pattern: 'plans/[id]', mod: m45 }, // lib/routes/track/plans/[id]
+  { pattern: 'plans/[id]/follow', mod: m46 }, // lib/routes/track/plans/[id]/follow
+  { pattern: 'plans/[id]/issues', mod: m47 }, // lib/routes/track/plans/[id]/issues
+  { pattern: 'plans/[id]/milestones', mod: m48 }, // lib/routes/track/plans/[id]/milestones
+  { pattern: 'plans/[id]/updates', mod: m49 }, // lib/routes/track/plans/[id]/updates
+  { pattern: 'projects/[id]', mod: m50 }, // lib/routes/track/projects/[id]
+  { pattern: 'projects/[id]/ai/issue-from-text', mod: m51 }, // lib/routes/track/projects/[id]/ai/issue-from-text
+  { pattern: 'projects/[id]/ai/summary', mod: m52 }, // lib/routes/track/projects/[id]/ai/summary
+  { pattern: 'projects/[id]/automation', mod: m53 }, // lib/routes/track/projects/[id]/automation
+  { pattern: 'projects/[id]/cycles', mod: m54 }, // lib/routes/track/projects/[id]/cycles
+  { pattern: 'projects/[id]/issues', mod: m55 }, // lib/routes/track/projects/[id]/issues
+  { pattern: 'projects/[id]/members', mod: m56 }, // lib/routes/track/projects/[id]/members
+  { pattern: 'projects/[id]/milestones', mod: m57 }, // lib/routes/track/projects/[id]/milestones
+  { pattern: 'projects/[id]/recurring', mod: m58 }, // lib/routes/track/projects/[id]/recurring
+  { pattern: 'projects/[id]/statuses', mod: m59 }, // lib/routes/track/projects/[id]/statuses
+  { pattern: 'projects/[id]/statuses/reorder', mod: m60 }, // lib/routes/track/projects/[id]/statuses/reorder
+  { pattern: 'projects/[id]/templates', mod: m61 }, // lib/routes/track/projects/[id]/templates
+  { pattern: 'projects/[id]/triage', mod: m62 }, // lib/routes/track/projects/[id]/triage
+  { pattern: 'projects/[id]/triage-rules', mod: m63 }, // lib/routes/track/projects/[id]/triage-rules
+  { pattern: 'projects/[id]/triage-settings', mod: m64 }, // lib/routes/track/projects/[id]/triage-settings
+  { pattern: 'projects/[id]/views', mod: m65 }, // lib/routes/track/projects/[id]/views
+  { pattern: 'recurring/[id]', mod: m66 }, // lib/routes/track/recurring/[id]
+  { pattern: 'sentry/webhook/[id]', mod: m67 }, // lib/routes/track/sentry/webhook/[id]
+  { pattern: 'statuses/[id]', mod: m68 }, // lib/routes/track/statuses/[id]
+  { pattern: 'templates/[id]', mod: m69 }, // lib/routes/track/templates/[id]
+  { pattern: 'triage-rules/[id]', mod: m70 }, // lib/routes/track/triage-rules/[id]
+  { pattern: 'views/[id]', mod: m71 }, // lib/routes/track/views/[id]
+  { pattern: 'views/[id]/default', mod: m72 }, // lib/routes/track/views/[id]/default
+  { pattern: 'views/[id]/favorite', mod: m73 }, // lib/routes/track/views/[id]/favorite
 ]);
 
 export const GET = d.GET;
