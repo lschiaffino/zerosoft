@@ -990,20 +990,41 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-compose-link > .wa-icon-btn { flex: none; align-self: flex-start; }
 @media (max-width: 480px) { .wa-compose-link-img { width: 52px; height: 52px; } }
 
-/* Ajuste "Visualización" (components/chat-style/DisplaySection.tsx): opciones a la izquierda, un chat de ejemplo a la derecha. */
+/* Ajuste "Visualización" (components/chat-style/DisplaySection.tsx): opciones a la izquierda y, a la derecha,
+   una vista previa (lista de chats y un chat de grupo) con las mismas clases que los chats. En escritorio la
+   vista previa queda fija mientras se recorren las opciones; angosto, va debajo. Todo lo que cambia cada opción
+   llega por las variables y reglas globales de lib/chat-display.ts; lo que en la app depende del ancho de la
+   ventana (fotos, ancho de los mensajes) se escala acá para que se vea en una vista chica. */
 .wa-contents { display: contents; }
 .wa-display-head { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
-.wa-display-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); gap: 24px; align-items: start; }
+/* Al llegar con #chat-display la sección queda debajo de la banda. */
+#chat-display { scroll-margin-top: calc(var(--band-h, 48px) + 12px); }
+.wa-display-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 24px; align-items: start; }
 .wa-display-options { display: grid; gap: 14px; min-width: 0; }
 .wa-display-row { display: grid; gap: 6px; min-width: 0; }
 .wa-display-label { font-size: 0.875rem; color: var(--ink); }
 .wa-display-seg { flex-wrap: wrap; }
 .wa-display-check { margin-top: 2px; }
+.wa-display-preview { position: sticky; top: calc(var(--band-h, 48px) + 16px); display: grid; gap: 6px; min-width: 0; }
+.wa-display-preview-label { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-2); }
 .wa-display-sample.gr-inbox { display: block; height: auto; min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
-.wa-display-sample .wa-messages { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
+.wa-display-sample .wa-display-list { flex: none; overflow: visible; border-bottom: 1px solid var(--wa-border-strong); }
+.wa-display-sample .gr-row-item { content-visibility: visible; }
+.wa-display-sample .gr-row { cursor: default; }
+.wa-display-sample .gr-row-item:last-child .gr-row-main { border-bottom: 0; }
+.wa-display-sample .gr-row-preview > svg { flex: none; color: var(--wa-icon); }
+.wa-display-sample .wa-messages { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; }
+.wa-display-sample.gr-inbox .gr-msg { max-width: 65%; }
+.wa-display-sample.gr-inbox[data-bubble-width='wide'] .gr-msg { max-width: 82%; }
 .wa-display-sample .gr-msg-out .wa-text { overflow-wrap: anywhere; }
+.wa-display-sample .wa-image { cursor: default; }
+/* Fotos: la misma relación entre chico, normal y grande (220, 300, 400) a la escala de la vista previa. */
+.wa-display-sample[data-media-size='small'] { --wa-media-w: 104px; }
+.wa-display-sample[data-media-size='default'] { --wa-media-w: 142px; }
+.wa-display-sample[data-media-size='large'] { --wa-media-w: 190px; }
 @media (max-width: 900px) {
   .wa-display-grid { grid-template-columns: minmax(0, 1fr); }
+  .wa-display-preview { position: static; }
 }
 @media (max-width: 1023px) {
   .wa-display-seg > .btn { min-height: 40px; }

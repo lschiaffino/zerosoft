@@ -85,6 +85,7 @@ import {
   MuteIcon,
   Bell,
   Sparkle,
+  DisplayIcon,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
@@ -1933,6 +1934,8 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'close', glyph: chat.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
                     ]
                   : []),
+                // Visualización (texto, fotos, lista, fondo): vale para Lines e Inbox; abre Ajustes en esa sección.
+                { key: 'display', glyph: <DisplayIcon size={18} />, label: tw('display.title'), divider: true, onSelect: () => router.push('/app/lines/settings?tab=appearance#chat-display') },
               ]}
             />
             <button type="button" className={`wa-icon-btn gr-details-toggle${detailsShown ? ' is-on' : ''}`} onClick={toggleDetails} aria-expanded={detailsShown} aria-label={t('thread.details')} title={t('thread.details')}>

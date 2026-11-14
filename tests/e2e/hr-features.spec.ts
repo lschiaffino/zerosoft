@@ -28,6 +28,8 @@ interface Person {
 }
 
 async function person(browser: Browser, baseURL: string, name: string, apps = '*'): Promise<Person> {
+  // El workspace demo se crea con el primer pedido del usuario demo: sin esto el spec dependía de que otro test lo hubiera abierto antes.
+  expect((await fetch(new URL('/en/app', baseURL))).ok).toBe(true);
   const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
   const email = `fx-${name.toLowerCase().replace(/\W+/g, '')}-${uid()}@darwin-e2e.io`;
   const ctx = await browser.newContext({ baseURL });
