@@ -148,7 +148,9 @@
     "upload_failed": "Não foi possível enviar o arquivo. Tente de novo.",
     "invalid_file": "Esse arquivo não é uma exportação do inbox-zero.",
     "media_unavailable": "Este arquivo não está mais disponível no WhatsApp.",
-    "group_failed": "O WhatsApp não conseguiu criar o grupo. Tente de novo daqui a pouco."
+    "group_failed": "O WhatsApp não conseguiu criar o grupo. Tente de novo daqui a pouco.",
+    "history_rate_limited": "Você já pediu as mensagens desta conversa há pouco. Tente de novo em um minuto.",
+    "history_failed": "Seu telefone não respondeu. Verifique se ele está com internet e tente de novo."
   },
   "empty": {
     "connectTitle": "Conecte o WhatsApp ou o Gmail",

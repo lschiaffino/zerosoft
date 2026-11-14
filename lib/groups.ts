@@ -518,6 +518,8 @@ export interface ChatRow {
   presence?: string | null;
   presence_who?: string | null;
   presence_at?: string | null;
+  /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
+  history_gap_at?: string | null;
 }
 
 export interface LabelDto {
@@ -580,6 +582,8 @@ export interface ChatDto {
   match?: string;
   /** Empresa (o, si no hay, negocio) de HubSpot vinculada al chat (lib/groups-hubspot.ts). */
   hubspotName?: string;
+  /** Le falta un mensaje que WhatsApp no pudo entregar: al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
+  historyGap?: boolean;
 }
 
 export interface ChatPresence {
@@ -657,6 +661,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
     presence: chatPresence(row),
+    ...(row.history_gap_at ? { historyGap: true } : {}),
   };
 }
 
@@ -2372,6 +2377,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
     const live = opts.history ? [] : events.filter((e) => !(e.type === 'message' && e.history));
     const past = opts.history ? events : events.filter((e) => e.type === 'message' && e.history);
     const h = await ingestHistory(number, past);
+    // El historial que se pidió por un mensaje que faltaba (lib/wa-history-gaps.ts): si lo trajo, el hueco se cierra.
+    if (h.messages > 0) await import('./wa-history-gaps').then((g) => g.resolveGaps('lines', { accountId: number.id })).catch(() => 0);
     if (live.length === 0) return h;
     const r = await ingestEvents(number, live);
     // Solo lo en vivo puede pedir un reintento: el historial nunca (un mensaje roto del historial no hace que el
@@ -2598,6 +2605,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         await applyContact(number, ev);
       } else if (ev.type === 'archive') {
         if (!(await applyPhoneArchive(number, ev.chatId, ev.archived))) res.ignored++;
+      } else if (ev.type === 'missing') {
+        // WhatsApp entregó un mensaje que no se pudo descifrar: hueco en el chat y pedido de historial (lib/wa-history-gaps.ts).
+        const chat = await findPhoneChat(number, ev.chatId);
+        const { recordMissing } = await import('./wa-history-gaps');
+        if (!chat || chat.hidden_at || (await recordMissing('lines', { chatId: chat.id, accountId: number.id, scopeId: ws }, ev)) !== 'recorded') res.ignored++;
       } else if (ev.type === 'presence') {
         // Solo los chats que ya existen: la presencia no crea chats.
         const state = ev.state === 'paused' || ev.state === 'unavailable' ? null : ev.state;
@@ -2642,6 +2654,20 @@ function needsBookFirst(ev: InboundEvent): boolean {
  */
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
+  const chat = await findPhoneChat(number, chatId);
+  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
+  const { isArchiveEcho } = await import('./wa-archive-sync');
+  if (await isArchiveEcho('lines', chat.id, archived)) return false;
+  const now = nowIso();
+  await db
+    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
+    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+  return true;
+}
+
+/** El chat de un aviso de WhatsApp, que puede venir con el otro sufijo o con el lid (no crea nada). */
+async function findPhoneChat(number: Pick<NumberRow, 'id'>, chatId: string): Promise<ChatRow | undefined> {
+  const db = getDb();
   const find = (jid: string) =>
     db.prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?').get(number.id, jid) as Promise<ChatRow | undefined>;
   let chat = await find(chatId);
@@ -2652,14 +2678,7 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
     const phone = await phoneForLid({ app: 'lines', accountId: number.id }, lidDigits(chatId)).catch(() => '');
     if (phone) chat = (await find(`${phone}@s.whatsapp.net`)) ?? (await find(`${phone}@c.us`));
   }
-  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
-  const { isArchiveEcho } = await import('./wa-archive-sync');
-  if (await isArchiveEcho('lines', chat.id, archived)) return false;
-  const now = nowIso();
-  await db
-    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
-  return true;
+  return chat;
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */

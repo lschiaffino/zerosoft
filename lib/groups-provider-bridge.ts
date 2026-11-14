@@ -979,6 +979,27 @@ export function evolutionArchiveBody(chatId: string, archive: boolean, last?: Ar
   return body;
 }
 
+/**
+ * Un mensaje que WhatsApp entregó y Evolution no pudo descifrar (parche 0002 de
+ * infra/evolution: MESSAGES_UPSERT sin `message`, con `zsUndecryptable: true`)
+ * → `missing`. Sin el parche esos mensajes no llegan y esto nunca aparece.
+ */
+export function evolutionMissingEvent(m: Json): InboundEvent | null {
+  if (m.zsUndecryptable !== true) return null;
+  const key = (m.key ?? {}) as Json;
+  const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn);
+  const messageId = String(key.id ?? '');
+  if (!chatId || !messageId || /@(broadcast|newsletter)$/.test(chatId)) return null;
+  const ts = Number(m.messageTimestamp);
+  return {
+    type: 'missing',
+    chatId,
+    messageId,
+    fromMe: key.fromMe === true,
+    ...(Number.isFinite(ts) && ts > 0 ? { timestamp: new Date((ts > 1e12 ? ts : ts * 1000)).toISOString() } : {}),
+  };
+}
+
 /** Webhook de Evolution API → eventos normalizados. */
 export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
   const b = (body ?? {}) as Json;
@@ -990,7 +1011,10 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       // messages.set: el historial que WhatsApp manda al vincular (se guarda sin avisos).
       const history = event === 'messages.set';
       const rows = Array.isArray(d) ? (d as Json[]) : Array.isArray(d.messages) ? (d.messages as Json[]) : [d];
-      return rows.flatMap((m) => evolutionMessageEvents(m, history));
+      return rows.flatMap((m) => {
+        const missing = history ? null : evolutionMissingEvent(m);
+        return missing ? [missing] : evolutionMessageEvents(m, history);
+      });
     }
     case 'contacts.upsert':
     case 'contacts.update':
@@ -1347,6 +1371,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     /** /chat/updateBlockStatus (Evolution v2): bloquea o desbloquea el número en WhatsApp. */
     async blockContact(chatId, block) {
       await api(`/chat/updateBlockStatus/${instance}`, 'POST', { number: chatId, status: block ? 'block' : 'unblock' });
+    },
+    /**
+     * /chat/fetchHistory (parche 0002 de infra/evolution): el teléfono manda el
+     * historial del chat y llega por el webhook (MESSAGES_SET). Sin el parche
+     * Evolution responde 404 y sale como 'not_found'.
+     */
+    async fetchHistory(chatId, o) {
+      const count = Math.max(1, Math.min(100, Math.floor(o.count) || 50));
+      const after = o.after && Number.isFinite(o.after) && o.after > 0 ? Math.floor(o.after) : undefined;
+      const r = (await api(`/chat/fetchHistory/${instance}`, 'POST', { remoteJid: chatId, count, ...(after ? { after } : {}) })) as Json | null;
+      const requestId = r && typeof r.requestId === 'string' ? r.requestId : undefined;
+      return requestId ? { requestId } : {};
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {

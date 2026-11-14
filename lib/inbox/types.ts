@@ -77,6 +77,8 @@ export interface ThreadDto {
   lastSeenAt: string | null;
   /** Último mensaje con foto o video (su miniatura en la fila). */
   lastMediaId?: string | null;
+  /** WhatsApp: le falta un mensaje que no se pudo entregar; al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
+  historyGap?: boolean;
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */

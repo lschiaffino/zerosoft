@@ -189,6 +189,8 @@ export interface ThreadRow {
   last_seen_at?: string | null;
   summary?: string;
   summary_at?: string | null;
+  /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
+  history_gap_at?: string | null;
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
@@ -726,6 +728,7 @@ export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled
     presenceWho: r.presence_who ?? '',
     lastSeenAt: r.last_seen_at ?? null,
     lastMediaId: r.last_media_id ?? null,
+    ...(r.history_gap_at ? { historyGap: true } : {}),
   };
 }
 
