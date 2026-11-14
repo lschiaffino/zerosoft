@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-14',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -24,7 +24,7 @@ const parity: ProductParity = {
       id: 'issue-core-fields',
       area: 'issues',
       label: { en: 'Status, priority, assignee, labels, estimate, start and due dates', es: 'Estado, prioridad, asignado, labels, estimación, inicio y vencimiento', pt: 'Status, prioridade, responsável, labels, estimativa, início e prazo' },
-      detail: { en: 'Four priorities (urgent to low), no separate No priority value', es: 'Cuatro prioridades (urgente a baja), sin un valor aparte de Sin prioridad', pt: 'Quatro prioridades (urgente a baixa), sem um valor separado de Sem prioridade' },
+      detail: { en: 'Urgent, high, medium, low and No priority, set with P and 0 to 4, as in Linear', es: 'Urgente, alta, media, baja y Sin prioridad, con P y 0 a 4, como en Linear', pt: 'Urgente, alta, média, baixa e Sem prioridade, com P e 0 a 4, como no Linear' },
       status: 'have',
       competitorHas: true,
       weight: 2,
@@ -148,7 +148,7 @@ const parity: ProductParity = {
       id: 'group-sort',
       area: 'views',
       label: { en: 'Grouping and sorting', es: 'Agrupar y ordenar', pt: 'Agrupar e ordenar' },
-      detail: { en: 'Group by status, assignee, priority, cycle, label, team, project or project milestone; order by manual (drag rows), priority, updated, created, due date or estimate. No sub-grouping yet', es: 'Agrupa por estado, asignado, prioridad, cycle, label, equipo, project o milestone del project; ordena manual (arrastrando filas), por prioridad, actualización, creación, vencimiento o estimación. Todavía sin sub-agrupado', pt: 'Agrupa por status, responsável, prioridade, cycle, label, equipe, project ou milestone do project; ordena manual (arrastando linhas), por prioridade, atualização, criação, prazo ou estimativa. Ainda sem subagrupamento' },
+      detail: { en: 'Group by status, assignee, priority, cycle, label, team, project or project milestone; order by manual (drag rows), priority, updated, created, due date or estimate; sub-grouping inside each group', es: 'Agrupa por estado, asignado, prioridad, cycle, label, equipo, project o milestone del project; ordena manual (arrastrando filas), por prioridad, actualización, creación, vencimiento o estimación; sub-agrupado dentro de cada grupo', pt: 'Agrupa por status, responsável, prioridade, cycle, label, equipe, project ou milestone do project; ordena manual (arrastando linhas), por prioridade, atualização, criação, prazo ou estimativa; subagrupamento dentro de cada grupo' },
       status: 'have',
       competitorHas: true,
     },
