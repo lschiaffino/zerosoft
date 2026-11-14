@@ -235,6 +235,8 @@ describe('info del contacto y del grupo', () => {
     const s = await makeSummary(owner, th.id);
     expect(s.text).toMatch(/mensajes/);
     expect(await readSummary(owner, th.id)).toMatchObject({ text: s.text, stale: false });
+    // El mensaje siguiente tiene que ser de un milisegundo posterior: en el mismo, el resumen no se ve viejo.
+    while (Date.now() <= Date.parse(s.at!)) await new Promise((done) => setTimeout(done, 1));
     await chatWith(phone, 'otro mensaje después');
     expect((await readSummary(owner, th.id)).stale).toBe(true);
     const stranger = await makeUser('ibwa-sum-other');

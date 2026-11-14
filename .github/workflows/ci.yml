@@ -119,6 +119,39 @@ jobs:
           curl -sf -o /dev/null -w "%{http_code}\n" http://localhost:3000/en
           docker logs zs | tail -20
 
+  # Los e2e en cuarentena (tests/e2e/quarantine.json): corren y se reportan, pero no bloquean el merge
+  # (no están en los needs de "CI result"). Los jobs e2e de arriba los saltean (playwright.config.ts).
+  e2e-quarantine:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+      - run: tar -xf next-build.tar && rm next-build.tar
+      - run: npx playwright install --with-deps chromium
+      - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+      - run: npx playwright test --pass-with-no-tests
+        env:
+          CI: 'true'
+          E2E_QUARANTINE: only
+      - uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
+        with:
+          name: playwright-report-quarantine
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
   ci-result:
     name: CI result

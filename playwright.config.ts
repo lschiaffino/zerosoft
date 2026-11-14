@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import os from 'os';
 import path from 'path';
+import { quarantineFilter } from './tests/e2e/quarantine';
 
 // E2E_PORT deja correr varias suites a la vez (agentes en paralelo) sin pisarse el puerto.
 const PORT = Number(process.env.E2E_PORT) || 3210;
@@ -22,6 +23,8 @@ export default defineConfig({
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
+  // Inestables en cuarentena (tests/e2e/quarantine.json): en CI corren en un job aparte que no bloquea.
+  ...quarantineFilter(),
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   webServer: {
     // Keep-alive largo: con el de 5 s (más 1 s de margen de Node) un pedido de un contexto de Playwright

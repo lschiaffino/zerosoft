@@ -107,6 +107,13 @@ test.setTimeout(180_000);
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  // Cada intento arranca con la colección vacía ("No stickers yet"): la del intento anterior, o la que dejó otro
+  // test con el usuario demo, ya tiene los mismos dos stickers y favoritos.
+  // Si este es el primer test de la corrida la app todavía no migró: sin tablas, la colección ya está vacía.
+  for (const table of ['wa_stickers', 'wa_sticker_sync']) {
+    if ((await sql('SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?', ['table', table])).length === 0) continue;
+    await sql(`DELETE FROM ${table} WHERE user_id IN (SELECT id FROM users WHERE email = 'demo@zerosoft.ai')`);
+  }
 });
 
 test('Lines: sticker chico y sin burbuja, GIF en burbuja, pestaña Stickers y favoritos', async ({ page, request }) => {
