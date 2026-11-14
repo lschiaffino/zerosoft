@@ -38,6 +38,13 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   WhatsApp solo manda los mensajes anteriores al ancla: si el que falta es el último del chat, lo recupera el reenvío
   del teléfono, no el historial. Las dos cosas necesitan el teléfono conectado a internet.
 
+- `0003-sync-chat-state-on-connect.patch`: al vincular o reconectar, WhatsApp manda el estado de archivado y
+  fijado de cada chat, pero Baileys lo deja esperando el historial de ese chat y casi nunca lo emite, así que lo
+  archivado en el teléfono mientras la línea estaba desconectada no llegaba a zerosoft. Ahora, 45 segundos después de
+  conectar, Evolution relee esa colección (`regular_low`) desde cero como un cambio normal y cada chat sale por
+  `CHATS_UPDATE` con `archived` y `pinned`. También queda `POST /chat/syncChatState/{instance}` (sin cuerpo, mismo
+  `apikey`) para pedirlo a mano.
+
 ## Mantenimiento (automático)
 
 El workflow corre todos los lunes:
