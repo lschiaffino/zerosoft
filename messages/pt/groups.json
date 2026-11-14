@@ -209,7 +209,8 @@
     "delivered": "Entregue",
     "read": "Lida",
     "failed": "Não enviada",
-    "received": "Recebida"
+    "received": "Recebida",
+    "readHidden": "Lida. Seu WhatsApp não mostra porque suas confirmações de leitura estão desativadas; o zerosoft sabe porque recebe o aviso."
   },
   "details": {
     "name": "Nome",

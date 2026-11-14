@@ -921,7 +921,7 @@ export default function InboxShell({
                   </span>
                 ) : (
                   <>
-                    {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
+                    {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(c.lastStatus === 'read' && c.readHidden ? 'status.readHidden' : `status.${c.lastStatus}`)} />}
                     {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
                     {c.lastKind === 'voice' || c.lastMessagePreview === '[voice]' ? (
                       <span className="gr-row-voice">

@@ -53,6 +53,7 @@ import {
   type MemberRole,
   type Participant,
   type ParticipantAction,
+  type PrivacySettings,
   type ParticipantResult,
   type ProviderKind,
   type WebhookRequest,
@@ -643,6 +644,19 @@ const BAILEYS_MEDIA = ['imageMessage', 'videoMessage', 'ptvMessage', 'audioMessa
  * manda el número y, en el historial sin nombre, los dígitos del teléfono o
  * del lid: nada de eso es un nombre.
  */
+/**
+ * La respuesta de /chat/fetchPrivacySettings de Evolution. Las confirmaciones de lectura vienen en
+ * `readreceipts` ('all' o 'none'); algunas versiones la envuelven en { privacySettings } o { data }.
+ * Otro valor o nada: null (no se sabe).
+ */
+export function parseEvolutionPrivacy(raw: unknown): PrivacySettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Json;
+  const body = (r.readreceipts !== undefined ? r : (r.privacySettings ?? r.data ?? r.response ?? {})) as Json;
+  const v = String(body?.readreceipts ?? '').toLowerCase();
+  return v === 'all' || v === 'none' ? { readReceipts: v } : null;
+}
+
 export function cleanPushName(raw: unknown): string {
   const s = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
   if (!s || /^(você|voce|you|tú|tu)$/i.test(s)) return '';
@@ -1471,6 +1485,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (!id) throw new ProviderError('provider_error');
       return { id };
     },
+    /**
+     * /chat/markMessageAsRead → Baileys readMessages, que con las confirmaciones de lectura apagadas
+     * manda 'read-self' en lugar de 'read' (el contacto no ve tildes azules). No mandar recibos a mano.
+     */
     async markRead(chatId, messageIds) {
       if (!messageIds.length) return;
       await api(`/chat/markMessageAsRead/${instance}`, 'POST', {
@@ -1481,6 +1499,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       throw new ProviderError('unsupported');
     },
     listTemplates: async () => [],
+    /** /chat/fetchPrivacySettings: { readreceipts: 'all' | 'none', profile, status, online, last, groupadd }. */
+    async privacySettings() {
+      return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
+    },
     fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];

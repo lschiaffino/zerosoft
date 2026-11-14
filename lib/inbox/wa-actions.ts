@@ -217,5 +217,7 @@ export async function markChatReadOnWhatsapp(owner: string, threadId: string): P
     .prepare("SELECT external_id FROM inbox_messages WHERE thread_id = ? AND from_me = 0 AND external_id NOT LIKE 'local-%' ORDER BY sent_at DESC LIMIT 20")
     .all(thread.id)) as Array<{ external_id: string }>;
   if (!rows.length) return;
+  // Solo por markRead (el "marcar leído" del servidor): con las confirmaciones de lectura apagadas en el
+  // teléfono, Baileys manda 'read-self' y el otro no ve tildes azules. Nunca un recibo 'read' a mano.
   await p.markRead(thread.external_id, rows.map((r) => r.external_id)).catch(() => null);
 }

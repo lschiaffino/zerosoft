@@ -135,8 +135,18 @@ async function applyState(account: AccountRow, state: ConnectState): Promise<voi
   // para que WhatsApp termine de mandar el historial (cada tanda nueva la vuelve a correr).
   const first = status === 'connected' && !account.sync_cursor;
   if (first) patch.sync_cursor = backfillCursor(Date.now() + BACKFILL_DELAY_MS);
+  const wasConnected = account.status === 'connected';
   await setAccountState(account.id, patch);
   Object.assign(account, patch);
+  // Recién conectada (o sin el dato todavía): sus confirmaciones de lectura (lib/wa-privacy.ts).
+  if (status === 'connected' && (!wasConnected || !account.privacy_at)) {
+    const { refreshPrivacy } = await import('../wa-privacy');
+    try {
+      await refreshPrivacy('inbox', account.id, waProviderFor(account));
+    } catch {
+      // Sin proveedor: la lee el repaso diario.
+    }
+  }
   // Y, detrás de ese arranque rápido (los chats recientes), todo el historial que guardó el servidor: una
   // importación en segundo plano que se retoma sola (lib/inbox/import-jobs.ts). Una vez por cuenta. El servidor
   // falso de las pruebas no la arranca solo: sus chats de mentira no tienen que aparecer en cada cuenta de prueba.

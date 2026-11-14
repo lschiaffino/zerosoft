@@ -49,7 +49,7 @@
     "showQuote": "Show quoted text",
     "revoked": "Deleted for everyone · kept here",
     "edited": "Edited",
-    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent" },
+    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
     "older": "Load earlier messages",
     "empty": "No messages yet. Say hello.",
     "today": "Today",
