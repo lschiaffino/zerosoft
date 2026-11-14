@@ -257,7 +257,11 @@ test('exportar el tablero a PNG y SVG desde el menú', async ({ page }) => {
     await dialog.getByRole('button', { name: `Exportar a ${kind}` }).click();
     const file = await download;
     expect(file.suggestedFilename().toLowerCase()).toMatch(kind === 'PNG' ? /\.png$/ : /\.svg$/);
-    await page.keyboard.press('Escape');
+    // El modal de Excalidraw cierra con Esc solo si la tecla sale de adentro (onKeyDown del modal), y al
+    // terminar la descarga el foco puede quedar afuera: Esc desde el botón y se espera a que se cierre,
+    // si no el clic siguiente en el menú cae sobre el fondo del modal.
+    await dialog.getByRole('button', { name: `Exportar a ${kind}` }).press('Escape');
+    await expect(dialog).toBeHidden();
   }
   await page.screenshot({ path: shot('board-export.png') });
 });

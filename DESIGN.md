@@ -230,6 +230,7 @@ Animated figures drawn with the torus ramp (` ·°o0Ø`), in one `<pre>`. `lib/z
 `.btn` in `styles/ui.css`, one component for site and app. Sentence case, 1px border, `--radius-1` corners.
 - **Variants:** `.btn-primary` (alias `.btn-solid`): ink plate, one per view. `.btn-secondary` (plain `.btn`, alias `.btn-outline`): white with a 3.3:1 field border. `.btn-ghost`: text only, hover fill. `.btn-danger`: red text; `.btn-primary.btn-danger` is the red plate. `.btn-chrome` / `.btn-chrome-outline` sit on the theme's chrome (site header, board header): ink on white. `.btn-invert` / `.btn-invert-solid` sit on ink bands (closing band).
 - **Sizes:** default 40px on the site, 36px inside `.app-frame`; `.btn-sm` 32px / 28px; `.btn-lg` 48px.
+- **Segmented** (`.btn-group`): the selected segment (`aria-pressed`, `aria-selected` or `aria-current`) is an ink plate; inside `.app-frame` it takes the app color like the primary button, darkening a step on hover and another on press.
 - **States:** hover inverts the primary plate; press scales to 0.98; focus is a 2px ink outline offset 2px (`--chrome-focus` on chrome); disabled is 40% opacity; loading is `aria-busy="true"`.
 - **Copy:** a verb and an object ("Crear link", "Guardar cambios").
 
@@ -247,7 +248,7 @@ Animated figures drawn with the torus ramp (` ·°o0Ø`), in one `<pre>`. `lib/z
 - **Switcher:** a menu (`role="menu"`, arrow keys, Home/End, Esc returns focus) listing the eleven apps with their zeros; the current one carries `aria-current`.
 - **Collapsed** (≥1024px, `.sidebar-collapsed`, 56px, remembered in localStorage `zs-side-collapsed`): only the icons, labels kept for screen readers.
 - **Mobile drawer** (<1024px): slides from the left under the band, 48% ink backdrop, Esc closes and returns focus.
-- **Color:** AppSidebar injects `--accent`, `--accent-ink` and `--accent-on` on `.app-frame`. The app color is wayfinding only (active item, active tab bar, charts); actions stay ink.
+- **Color:** AppSidebar injects `--accent`, `--accent-ink` and `--accent-on` on `.app-frame`; `AppAccent` adds `--app-btn`, `--app-btn-on`, `--app-btn-hover` and `--app-btn-active` (per theme, rule in `lib/app-accent.ts`: white text at 4.6:1 or more, or same-hue ink on very light colors). The app color says where you are: the active item, the active tab bar, charts, and the selected segment of a `.btn-group` (a "you are here" state). It also fills the primary button. Outside an app (Home, platform Settings) both stay ink.
 - **Heights:** `--band-h` (48px) is the only chrome above content.
 
 ### App home (`/app`)

@@ -6,7 +6,8 @@ import { evolutionProvider } from '@/lib/groups-provider-bridge';
 import { connectNumber, createNumber, getChatRow, getNumberRowById, ingestEvents, listChats, sendMessage, type NumberRow } from '@/lib/groups';
 import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
 import { setLineAccess } from '@/lib/groups-lines';
-import { dmChatId, searchNewChat, startChat } from '@/lib/groups-new-chat';
+import { dmChatId, newChatDirectory, startChat } from '@/lib/groups-new-chat';
+import type { GroupsViewer } from '@/lib/groups-access';
 import { looksLikePhone, parseNewChatPhone } from '@/lib/groups-new-chat-shared';
 import { rememberContacts } from '@/lib/wa-contacts';
 import { makeUser } from './helpers';
@@ -38,6 +39,11 @@ async function line(ws: string, label: string): Promise<NumberRow> {
   // El estado guardado lo actualiza la pantalla de conexión al consultar: acá, a mano.
   await getDb().prepare("UPDATE groups_numbers SET status = 'connected' WHERE id = ?").run(n.id);
   return (await getNumberRowById(n.id))!;
+}
+
+/** Lo que el panel muestra en "Contactos" para lo escrito (toda la lista, sin páginas). */
+async function searchNewChat(v: GroupsViewer, numberId: string, q: string) {
+  return (await newChatDirectory(v, numberId, { q, limit: 200 })).contacts;
 }
 
 const chatCount = async (numberId: string) => Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_chats WHERE number_id = ?').get(numberId)) as { n: number }).n);
@@ -198,7 +204,7 @@ describe('acceso', () => {
     expect(await searchNewChat(v, w.pub.id, '%%')).toEqual([]);
   });
 
-  it('nunca pasa de 20 filas', async () => {
+  it('pagina la libreta: todas las filas, sin repetir, en orden', async () => {
     const ws = await makeUser('nc-limit');
     const n = await line(ws.id, 'Ventas');
     const v = await groupsViewer(ws.id, ws.id, 'owner');
@@ -206,7 +212,18 @@ describe('acceso', () => {
       { app: 'lines', accountId: n.id, userId: ws.id },
       Array.from({ length: 45 }, (_, i) => ({ phone: `54911444400${String(i).padStart(2, '0')}`, saved: `Contacto Prueba ${i}` })),
     );
-    expect(await searchNewChat(v, n.id, 'Contacto')).toHaveLength(20);
+    const first = await newChatDirectory(v, n.id, { q: 'Contacto', limit: 20 });
+    expect(first.contacts).toHaveLength(20);
+    expect(first.total).toBe(45);
+    const second = await newChatDirectory(v, n.id, { q: 'Contacto', limit: 20, cursor: first.next });
+    const third = await newChatDirectory(v, n.id, { q: 'Contacto', limit: 20, cursor: second.next });
+    expect(third.next).toBeNull();
+    const names = [...first.contacts, ...second.contacts, ...third.contacts].map((r) => r.name);
+    expect(names).toHaveLength(45);
+    expect(new Set(names).size).toBe(45);
+    // Orden natural: "Contacto Prueba 2" antes que "Contacto Prueba 10".
+    expect(names.slice(0, 3)).toEqual(['Contacto Prueba 0', 'Contacto Prueba 1', 'Contacto Prueba 2']);
+    expect(names.at(-1)).toBe('Contacto Prueba 44');
   });
 
   it('quien no ve la línea no encuentra su chat por otra línea ni resuelve sus contactos', async () => {
@@ -241,8 +258,8 @@ describe('acceso', () => {
     expect((await contacts.GET(new Request(`http://x/api/groups/contacts?number=${w.priv.id}&q=Cliente`))).status).toBe(404);
     expect((await contacts.GET(new Request('http://x/api/groups/contacts'))).status).toBe(400);
     // En la línea que sí ve: busca y crea.
-    const found = (await (await contacts.GET(new Request(`http://x/api/groups/contacts?number=${w.pub.id}&q=Cliente`))).json()) as { rows: Array<{ name: string }> };
-    expect(found.rows.map((r) => r.name)).toEqual(['Cliente Abierto']);
+    const found = (await (await contacts.GET(new Request(`http://x/api/groups/contacts?number=${w.pub.id}&q=Cliente`))).json()) as { contacts: Array<{ name: string }> };
+    expect(found.contacts.map((r) => r.name)).toEqual(['Cliente Abierto']);
     expect((await post({ numberId: w.pub.id })).status).toBe(400);
     expect((await post({ numberId: w.pub.id, phone: '5491133330077', contactId: 'x' })).status).toBe(400);
     expect((await post({ numberId: w.pub.id, phone: '123' })).status).toBe(400);

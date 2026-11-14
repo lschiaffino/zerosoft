@@ -192,7 +192,7 @@ export interface ThreadRow {
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
-function avatarVersion(url: string): string {
+export function avatarVersion(url: string): string {
   return createHash('sha256').update(url).digest('hex').slice(0, 10);
 }
 

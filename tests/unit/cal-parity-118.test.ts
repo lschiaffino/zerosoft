@@ -561,15 +561,23 @@ describe('SMS por horario y alcance de un member', () => {
 });
 
 describe('alcance de member en inicio de Cal, inicio de la plataforma y Voice', () => {
+  // Mediodía UTC fijo: "hoy" (dayRangeUtc) y "dentro de una hora" no dependen de la hora a la que corre
+  // la suite. Con el reloj real, a las 23:59 la reserva caía al día siguiente y el inicio no la mostraba.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-06-15T12:00:00.000Z') });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   async function twoHosts(label: string) {
     const { u, et } = await setup(label);
     const member = await makeUser(`${label}-m`);
     const teamId = crypto.randomUUID();
     await getDb().prepare('INSERT INTO teams (id, name, owner_id) VALUES (?, ?, ?)').run(teamId, 'T', u.id);
     await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'member')").run(teamId, member.id);
-    // Hoy (UTC) dentro de un rato: una del owner y una del member.
+    // Hoy (UTC) dentro de una hora: una del owner y una del member.
     const soon = new Date(Date.now() + 60 * 60_000);
-    if (soon.toISOString().slice(0, 10) !== new Date().toISOString().slice(0, 10)) soon.setTime(Date.now() + 60_000);
     const insert = async (host: string, email: string) => {
       const id = crypto.randomUUID();
       await getDb()

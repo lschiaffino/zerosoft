@@ -1225,6 +1225,17 @@ export function buildNav(
   }
 }
 
+/**
+ * "+ Nuevo" sin menú: en Lines e Inbox el botón abre directo el panel de chat
+ * nuevo (como el lápiz de WhatsApp Web), y el grupo o el correo nuevos son
+ * filas de ese panel. Null en el resto de las apps, que muestran el menú.
+ */
+export function directNewItem(product: AppProduct, labels: SidebarLabels): NavItem | null {
+  if (product === 'groups') return { href: '/app/lines/inbox?new=1', label: labels.newChat ?? labels.new, icon: 'chat', active: false };
+  if (product === 'inbox') return { href: '/app/inbox?new=1', label: labels.newChat ?? labels.inbox.compose, icon: 'inbox', active: false };
+  return null;
+}
+
 /** Acciones del menú "+ Nuevo": cada una crea algo (ruta /new o ?new=1). */
 export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean; pathname?: string } = {}): NavItem[] {
   // Un miembro de solo lectura en Docs no ve "Nueva página" (crearla le daría error).

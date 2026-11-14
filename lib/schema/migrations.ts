@@ -9959,6 +9959,21 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE wa_link_previews ADD COLUMN version INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Board: pizarras destacadas por persona (lib/board-stars.ts). Cada persona fija las suyas arriba de la lista.
+    id: '400_board_stars',
+    async up(c) {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_stars (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, board_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_stars_board ON board_stars(board_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

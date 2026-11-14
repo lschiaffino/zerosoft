@@ -577,5 +577,10 @@
     "removeCol": "Remove this column",
     "removeLastRow": "Remove the last row",
     "removeLastCol": "Remove the last column"
+  },
+  "star": {
+    "add": "Star",
+    "remove": "Remove star",
+    "badge": "Starred"
   }
 }

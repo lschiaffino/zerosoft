@@ -148,6 +148,33 @@ describe('Tarjetas de contacto', () => {
     await expect(sendMessage(user.id, user.id, c.id, { body: '', contacts: [{ name: 'x', phone: '1' }] })).rejects.toMatchObject({ code: 'invalid_contact_card' });
   });
 
+  it('Evolution: archivar usa primero el último mensaje que guarda Evolution; si no tiene, el nuestro', async () => {
+    const calls: Array<{ path: string; body: unknown }> = [];
+    let found = true;
+    vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+      const u = new URL(String(input instanceof Request ? input.url : input));
+      const body = typeof init.body === 'string' ? JSON.parse(init.body) : null;
+      calls.push({ path: u.pathname, body });
+      // Evolution responde 404 ("Last message not found") cuando no tiene mensajes de ese chat y no le pasamos uno.
+      if (!found && body && !('lastMessage' in body)) return Response.json({ status: 404, error: 'Not Found', response: { message: ['Last message not found'] } }, { status: 404 });
+      return Response.json({ chatId: body?.chat, archived: true });
+    });
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs' });
+    const gid = '120363000000000077@g.us';
+    const ref = { id: 'M9', fromMe: false, timestamp: 1_800_000_000, participant: '5491100000009@s.whatsapp.net' };
+    // Con mensajes en Evolution: un solo pedido, sin nuestra referencia (la suya tiene el participante "@lid").
+    await p.archiveChat!(gid, true, ref);
+    expect(calls).toEqual([{ path: '/chat/archiveChat/zs', body: { chat: gid, archive: true } }]);
+    // Sin mensajes en Evolution: después del 404 va con la nuestra.
+    found = false;
+    calls.length = 0;
+    await p.archiveChat!(gid, true, ref);
+    expect(calls.map((c) => c.body)).toEqual([
+      { chat: gid, archive: true },
+      { chat: gid, archive: true, lastMessage: { key: { remoteJid: gid, fromMe: false, id: 'M9', participant: '5491100000009@s.whatsapp.net' }, messageTimestamp: 1_800_000_000 } },
+    ]);
+  });
+
   it('Evolution: /message/sendContact con wuid y teléfono con +', async () => {
     const calls: Array<{ path: string; body: unknown }> = [];
     vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {

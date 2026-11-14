@@ -263,6 +263,13 @@ const parity: ProductParity = {
         'Como no WhatsApp: a imagem grande em cima em páginas com uma imagem grande, miniatura pequena com logos, só texto sem imagem, com o domínio e o ícone do site. Lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Ao digitar, a prévia aparece acima do campo e pode ser tirada antes de enviar. Grande, compacta ou nenhuma em Visualização. Testado com o leitor e o provedor falsos; falta testar com WhatsApp real',
       ],
     }),
+    row('wa-display', 'whatsapp', ['Personal chat display', 'Visualización de los chats por persona', 'Visualização das conversas por pessoa'], 'have', {
+      detail: [
+        'Text size, chat list density, photo and video size, link previews, message width, background and sender photos in groups. A live preview (chat list and a group chat) shows every option as you pick it. Opened from the menu of any chat or from settings, and shared with Lines',
+        'Tamaño del texto, densidad de la lista, tamaño de fotos y videos, vista previa de links, ancho de los mensajes, fondo y fotos de quien escribe en grupos. Una vista previa en vivo (lista de chats y un chat de grupo) muestra cada opción al elegirla. Se abre desde el menú de cualquier chat o desde los ajustes, y vale también para Lines',
+        'Tamanho do texto, densidade da lista, tamanho de fotos e vídeos, prévia de links, largura das mensagens, fundo e fotos de quem escreve nos grupos. Uma prévia ao vivo (lista de conversas e uma conversa de grupo) mostra cada opção ao escolher. Abre pelo menu de qualquer conversa ou pelas configurações, e vale também para o Lines',
+      ],
+    }),
     row('wa-voice-notes', 'whatsapp', ['Voice notes: speed, waveform, resume', 'Notas de voz: velocidad, forma de onda, seguir', 'Notas de voz: velocidade, forma de onda, continuar'], 'have', {
       detail: [
         '1×, 1.5× and 2× (the choice is kept), the waveform WhatsApp sends, and an audio resumes where you left it in this browser',
@@ -276,6 +283,13 @@ const parity: ProductParity = {
         'Every audio is transcribed with Voice when you see it and the text sits under the bubble; long ones get an AI summary. Saved once and only for you. Tested with the fake transcriber',
         'Cada audio se transcribe con Voice al verlo y el texto queda debajo de la burbuja; los largos llevan un resumen con IA. Se guarda una vez y solo para vos. Probado con el transcriptor falso',
         'Cada áudio é transcrito com o Voice ao ser visto e o texto fica embaixo do balão; os longos ganham um resumo com IA. Salvo uma vez e só para você. Testado com o transcritor falso',
+      ],
+    }),
+    row('wa-new-chat', 'whatsapp', ['New chat like WhatsApp Web: message yourself, new group, all contacts A to Z', 'Chat nuevo como WhatsApp Web: mandate un mensaje, grupo nuevo, todos los contactos de la A a la Z', 'Nova conversa como o WhatsApp Web: mensagem para você, novo grupo, todos os contatos de A a Z'], 'partial', {
+      detail: [
+        'Search by name or number, frequently contacted, new WhatsApp group with members and a name, New email for Gmail. No communities. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Búsqueda por nombre o número, contactados con frecuencia, grupo nuevo de WhatsApp con participantes y nombre, Correo nuevo para Gmail. Sin comunidades. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Pesquisa por nome ou número, contatos frequentes, novo grupo do WhatsApp com participantes e nome, Novo e-mail para o Gmail. Sem comunidades. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {

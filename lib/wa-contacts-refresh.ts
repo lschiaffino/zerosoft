@@ -175,13 +175,25 @@ export async function refreshAccount(app: WaApp, accountId: string, target: Refr
 // Inbox
 // ---------------------------------------------------------------------------
 
-/** Cron: el repaso diario de las cuentas de WhatsApp de Inbox. */
-export async function refreshInboxDaily(now = new Date(), deadline = Date.now() + 12_000, gapMs = REFRESH_GAP_MS): Promise<number> {
+/** Solo esas cuentas (o todas sin lista): `AND id IN (...)` y sus valores. */
+function onlyIds(ids: string[] | undefined): { sql: string; args: string[] } {
+  if (!ids) return { sql: '', args: [] };
+  return { sql: ` AND id IN (${ids.map(() => '?').join(',') || "''"})`, args: ids };
+}
+
+/**
+ * Cron: el repaso diario de las cuentas de WhatsApp de Inbox. `accountIds` lo acota a esas cuentas (los
+ * tests, que comparten la base con otras cuentas conectadas que le ganarían el turno de ACCOUNTS_PER_RUN).
+ */
+export async function refreshInboxDaily(now = new Date(), deadline = Date.now() + 12_000, gapMs = REFRESH_GAP_MS, accountIds?: string[]): Promise<number> {
   const { refreshChatInfo } = await import('./inbox/wa-meta');
   const { waProviderFor } = await import('./inbox/whatsapp');
   const { fillInboxTitles, learnFromHistoryContacts } = await import('./inbox/wa-names');
   const db = getDb();
-  const accounts = (await db.prepare("SELECT * FROM inbox_accounts WHERE kind = 'whatsapp' AND status = 'connected' LIMIT 500").all()) as unknown as import('./inbox/core').AccountRow[];
+  const only = onlyIds(accountIds);
+  const accounts = (await db
+    .prepare(`SELECT * FROM inbox_accounts WHERE kind = 'whatsapp' AND status = 'connected'${only.sql} LIMIT 500`)
+    .all(...only.args)) as unknown as import('./inbox/core').AccountRow[];
   if (!accounts.length) return 0;
   await enrollAccounts('inbox', accounts.map((a) => ({ id: a.id, userId: a.owner_id, later: a.provider === 'fake' })), now);
   let n = 0;
@@ -228,15 +240,16 @@ export function pictureKey(url: string): string {
   }
 }
 
-/** Cron: el repaso diario de los números de Lines conectados. */
-export async function refreshLinesDaily(now = new Date(), deadline = Date.now() + 12_000, gapMs = REFRESH_GAP_MS): Promise<number> {
+/** Cron: el repaso diario de los números de Lines conectados. `numberIds` lo acota a esos números (como en Inbox). */
+export async function refreshLinesDaily(now = new Date(), deadline = Date.now() + 12_000, gapMs = REFRESH_GAP_MS, numberIds?: string[]): Promise<number> {
   const groups = await import('./groups');
   const { storePicture } = await import('./groups-import');
   const { fillLinesNames, learnLinesChatInfo, learnLinesContacts } = await import('./groups-wa-names');
   const db = getDb();
+  const only = onlyIds(numberIds);
   const numbers = (await db
-    .prepare("SELECT * FROM groups_numbers WHERE status = 'connected' AND provider IN ('managed', 'evolution', 'waha', 'fake') LIMIT 500")
-    .all()) as unknown as import('./groups').NumberRow[];
+    .prepare(`SELECT * FROM groups_numbers WHERE status = 'connected' AND provider IN ('managed', 'evolution', 'waha', 'fake')${only.sql} LIMIT 500`)
+    .all(...only.args)) as unknown as import('./groups').NumberRow[];
   if (!numbers.length) return 0;
   await enrollAccounts('lines', numbers.map((x) => ({ id: x.id, userId: x.user_id, later: x.provider === 'fake' })), now);
   let n = 0;
