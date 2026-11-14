@@ -820,7 +820,7 @@ function storedStatus(m: Json): 'sent' | 'delivered' | 'read' | undefined {
 export function evolutionMessageEvents(m: Json, history = false): InboundEvent[] {
   const key = (m.key ?? {}) as Json;
   // Chats con id "@lid": se usa el id con teléfono cuando Evolution lo da.
-  const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn);
+  const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn, m.remoteJidAlt);
   const id = String(key.id ?? '');
   if (!chatId || !id || chatId === 'status@broadcast' || /@(broadcast|newsletter)$/.test(chatId)) return [];
   const isGroup = isGroupJid(chatId);
@@ -1091,7 +1091,8 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
     case 'messages.delete': {
       const key = ((d.key ?? d) as Json) ?? {};
       const id = String(key.id ?? '');
-      const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt);
+      // Como en los mensajes: el teléfono puede venir en remoteJidAlt o en senderPn (según la versión).
+      const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, d.remoteJidAlt, d.senderPn);
       return id && chatId ? [{ type: 'revoke', chatId, providerMessageId: id }] : [];
     }
     case 'call': {
@@ -1212,7 +1213,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         if (!remoteJid || /@(broadcast|newsletter)$/.test(remoteJid)) return [];
         const last = (c.lastMessage ?? {}) as Json;
         const lk = (last.key ?? {}) as Json;
-        const chatId = pnJid(remoteJid, lk.remoteJidAlt, lk.senderPn);
+        // El teléfono del chat: el del último mensaje (remoteJidAlt o senderPn) o el que traiga el chat mismo.
+        const chatId = pnJid(remoteJid, lk.remoteJidAlt, lk.senderPn, last.senderPn, c.remoteJidAlt, c.senderPn);
         const isGroup = isGroupJid(chatId);
         // En un 1:1, el nombre del contacto; si no hay, el pushName del último mensaje que mandó la otra persona.
         const name = cleanPushName(c.pushName) || (!isGroup && lk.fromMe !== true ? cleanPushName(last.pushName) : '');

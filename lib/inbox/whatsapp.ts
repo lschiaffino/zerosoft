@@ -29,8 +29,9 @@ import {
 } from './core';
 import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './types';
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
-import { inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
-import { lookupContacts, displayName, phoneForLid } from '../wa-contacts';
+import { contactInput, inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
+import { contactsFromMessage, lidPhonePairs, lookupContacts, displayName, phoneForLid, resolveLidChats, type ContactInput } from '../wa-contacts';
+import { inboxTwinsFromMessages, mergeLidChats } from '../wa-dedupe-run';
 import { pokeLive } from '../wa-live';
 import { transientError } from '../transient-error';
 
@@ -277,6 +278,13 @@ export async function applyPhoneArchive(account: AccountRow, chatId: string, arc
   return true;
 }
 
+/** El id con que se guarda un chat del servidor: el del teléfono si llegó por lid y la libreta ya lo sabe. */
+export async function bookChatId(account: Pick<AccountRow, 'id' | 'owner_id'>, chatId: string): Promise<string> {
+  if (!isLidJid(chatId)) return chatId;
+  const phone = await phoneForLid(inboxScope(account), lidDigits(chatId)).catch(() => '');
+  return phone ? `${phone}@s.whatsapp.net` : chatId;
+}
+
 /** El chat de un aviso de WhatsApp, que puede venir con el lid (no crea nada). */
 async function findPhoneThread(account: AccountRow, chatId: string) {
   let t = await findThread(account.id, normalizeWaJid(chatId));
@@ -295,10 +303,12 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   let failed = 0;
   // La libreta (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero: los mensajes
   // ya la usan. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
-  const slice = events.slice(0, 2000);
+  let slice = events.slice(0, 2000);
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) await learnFromEvents(account, slice).catch(() => null);
   else learning = learnFromEvents(account, slice).catch(() => null);
+  // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
+  slice = await resolveLidChats(inboxScope(account), slice).catch(() => slice);
   // Mensajes ya guardados: lo que falle después de guardarlos (el nombre del chat) no pide reintento.
   const stored = new Set<string>();
   for (const e of slice) {
@@ -378,6 +388,11 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
     }
   }
   if (learning) await learning;
+  // La misma persona con dos chats (lid y teléfono): se juntan cuando la tanda enseñó el par o trajo un mensaje
+  // recibido que ya estaba en el otro (lib/wa-dedupe.ts). Nunca frena la tanda: lo en vivo, después de responder.
+  const dedupe = () => dedupeBatch(account, slice).catch(() => null);
+  if (opts.history || slice.some((e) => e.type === 'message' && e.history)) await dedupe();
+  else await afterResponse(dedupe);
   // El historial que se pidió por un mensaje que faltaba (lib/wa-history-gaps.ts): si lo trajo, el hueco se cierra.
   if (messages > 0 && (opts.history || slice.some((e) => e.type === 'message' && e.history))) {
     await import('../wa-history-gaps').then((g) => g.resolveGaps('inbox', { accountId: account.id })).catch(() => 0);
@@ -385,6 +400,34 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   // Tildes, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   if (slice.length) pokeLive('inbox', account.owner_id);
   return failed ? { messages, failed } : { messages };
+}
+
+/** Corre el trabajo después de responder (next/server after); fuera de un request, acá mismo. */
+async function afterResponse(job: () => Promise<unknown>): Promise<void> {
+  try {
+    const { after } = await import('next/server');
+    after(job);
+  } catch {
+    await job();
+  }
+}
+
+/** Después de una tanda: juntar los chats por lid con el del teléfono que esta tanda dejó a la vista. */
+async function dedupeBatch(account: AccountRow, events: InboundEvent[]): Promise<void> {
+  const items: ContactInput[] = [];
+  const inbound: string[] = [];
+  for (const e of events) {
+    if (e.type === 'message') {
+      items.push(...contactsFromMessage(e));
+      if (!e.fromMe && !(e.isGroup || waKindOf(e.chatId) === 'group')) inbound.push(e.providerMessageId);
+    } else if (e.type === 'contact') {
+      const c = contactInput(e);
+      if (c) items.push(c);
+    }
+  }
+  const lids = lidPhonePairs(items).map((p) => p.lid);
+  const pairs = await inboxTwinsFromMessages(account, inbound).catch(() => []);
+  if (lids.length || pairs.length) await mergeLidChats('inbox', account.id, { lids, pairs });
 }
 
 /**
@@ -569,7 +612,8 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         const rows = await history.chats(cursor.page, CHATS_PAGE);
         const queue = cursor.queue ?? [];
         for (const c of rows) {
-          const t = await upsertThread(account, { externalId: c.chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(c.chatId) });
+          const chatId = await bookChatId(account, c.chatId);
+          const t = await upsertThread(account, { externalId: chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(chatId) });
           if (c.archived) await markArchived(t.id);
           if (c.unread > 0) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
           if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);

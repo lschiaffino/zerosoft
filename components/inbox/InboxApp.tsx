@@ -1040,6 +1040,7 @@ export default function InboxApp(props: {
       <li
         key={th.id}
         data-idx={i}
+        data-thread-id={th.id}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
         {...gestures.rowProps(th.id)}
         {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}

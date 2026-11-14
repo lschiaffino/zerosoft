@@ -396,12 +396,54 @@ export async function forgetContacts(app: WaApp, accountId: string): Promise<voi
  * teléfono y lid. Los propios no (el pushName es el nuestro).
  */
 export function contactsFromMessage(e: { fromMe: boolean; isGroup: boolean; chatId: string; senderPhone: string; senderName: string; senderLid?: string; chatLid?: string }): ContactInput[] {
-  if (e.fromMe) return [];
   const out: ContactInput[] = [];
+  // El par lid ↔ teléfono del chat 1:1 vale también en lo que mando yo (Evolution lo trae en remoteJidAlt): sin él,
+  // el chat de quien solo me respondió por lid quedaba aparte del de su teléfono.
+  const chatPhone = /@lid$/i.test(e.chatId) ? '' : cleanPhone(e.chatId.replace(/@.*/, ''));
+  if (!e.isGroup && e.chatLid && chatPhone && cleanLid(e.chatLid)) out.push({ phone: chatPhone, lid: cleanLid(e.chatLid) });
+  if (e.fromMe) return out;
   const phone = cleanPhone(e.senderPhone);
   const lid = cleanLid(e.senderLid);
   if (phone || lid) out.push({ ...(phone ? { phone } : {}), ...(lid ? { lid } : {}), ...(cleanName(e.senderName) ? { push: cleanName(e.senderName) } : {}) });
-  const chatPhone = /@lid$/i.test(e.chatId) ? '' : cleanPhone(e.chatId.replace(/@.*/, ''));
-  if (!e.isGroup && e.chatLid && chatPhone) out.push({ phone: chatPhone, lid: cleanLid(e.chatLid) });
+  return out;
+}
+
+/**
+ * Eventos de un chat 1:1 que llegó con el lid (sin el teléfono al lado): si la
+ * libreta ya sabe el teléfono, el evento pasa al chat del teléfono. Así el
+ * mismo contacto no abre un chat por lid además del suyo (el que tiene cuando
+ * el mensaje llega con el teléfono, o desde el historial). El lid queda en
+ * chatLid (y, si manda la otra persona, en senderLid con su teléfono).
+ */
+export async function resolveLidChats<E extends { type: string }>(scope: Pick<ContactScope, 'app' | 'accountId'>, events: E[]): Promise<E[]> {
+  const cache = new Map<string, string>();
+  const out: E[] = [];
+  for (const e of events) {
+    const m = e as unknown as { type: string; chatId?: string; isGroup?: boolean; fromMe?: boolean; senderPhone?: string; senderLid?: string; chatLid?: string };
+    const lid = typeof m.chatId === 'string' && /@lid$/i.test(m.chatId) && !m.isGroup ? cleanLid(m.chatId) : '';
+    if (!lid) {
+      out.push(e);
+      continue;
+    }
+    if (!cache.has(lid)) cache.set(lid, await phoneForLid(scope, lid).catch(() => ''));
+    const phone = cache.get(lid) ?? '';
+    if (!phone) {
+      out.push(e);
+      continue;
+    }
+    const next = { ...m, chatId: `${phone}@s.whatsapp.net` } as typeof m;
+    if (m.type === 'message') {
+      next.chatLid = m.chatLid || lid;
+      if (!m.fromMe && !m.senderPhone) next.senderPhone = phone;
+    }
+    out.push(next as unknown as E);
+  }
+  return out;
+}
+
+/** Los pares lid ↔ teléfono que enseña una tanda (para juntar los chats de la misma persona). */
+export function lidPhonePairs(items: ContactInput[]): Array<{ lid: string; phone: string }> {
+  const out: Array<{ lid: string; phone: string }> = [];
+  for (const it of mergeInputs(items)) if (it.lid && it.phone) out.push({ lid: it.lid, phone: it.phone });
   return out;
 }

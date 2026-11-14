@@ -55,6 +55,7 @@ import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
 import { deleteManagedInstance, managedAvailable, managedProvider, newManagedInstance, queueManagedDelete } from './groups-provider-managed';
 import { sampleProvider } from './groups-provider-sample';
 import { learnLinesEvents, withLinesMentions } from './groups-wa-names';
+import { resolveLidChats } from './wa-contacts';
 import type { MentionMap } from './wa-mentions';
 import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
@@ -2439,6 +2440,10 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) batch = await learnLinesEvents(number, slice);
   else learning = learnLinesEvents(number, slice).catch(() => null);
+  // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
+  batch = await resolveLidChats({ app: 'lines', accountId: number.id }, batch).catch(() => batch);
+  // Mensajes repetidos que querían entrar a otro chat (uno por lid y otro por teléfono): la misma persona.
+  const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   for (const ev of batch) {
     // El mensaje ya quedó guardado: lo que falle después se loguea, no pide reintento (el reintento no lo rehace).
     let saved = false;
@@ -2483,6 +2488,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (row) pokeLive('lines', ws);
         if (!row) {
           res.duplicates++;
+          if (!isGroup && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
           // Repetido (un reintento del proveedor): lo de antes de responder se vuelve a aplicar, porque todo es
           // idempotente; lo de después (asignación, avisos) ya corrió la primera vez.
           await finishChat(number, stored.chat, chatInput, false).catch(logAfterError);
@@ -2664,9 +2670,12 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       console.error('[groups] webhook event failed', ev.type, (err as Error)?.name ?? 'error');
     }
   }
+  if (learning) await learning;
+  // La misma persona con dos chats (lid y teléfono): se juntan cuando la tanda enseñó el par o trajo un mensaje
+  // recibido que ya estaba en el otro (lib/wa-dedupe.ts). Nunca frena la tanda: corre después de responder.
+  await runAfter(() => dedupeLinesBatch(number, batch, dups));
   // Estados, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   pokeLive('lines', ws);
-  if (learning) await learning;
   if (post.length) {
     await runAfter(async () => {
       for (const job of post) await job().catch(logAfterError);
@@ -2675,6 +2684,20 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   }
   if (later.length) await runAfter(() => storeInboundBatch(number, later));
   return res;
+}
+
+/** Después de una tanda: juntar los chats por lid con el del teléfono que esta tanda dejó a la vista. */
+export async function dedupeLinesBatch(
+  number: Pick<NumberRow, 'id' | 'user_id'>,
+  events: InboundEvent[],
+  dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }>,
+): Promise<void> {
+  const { contactsFromMessage, lidPhonePairs } = await import('./wa-contacts');
+  const { linesTwinsFromDuplicates, mergeLidChats } = await import('./wa-dedupe-run');
+  const items = events.flatMap((e) => (e.type === 'message' ? contactsFromMessage(e) : e.type === 'contact' && e.lid && e.phone ? [{ lid: e.lid, phone: e.phone }] : []));
+  const lids = lidPhonePairs(items).map((p) => p.lid);
+  const pairs = await linesTwinsFromDuplicates(number, dups).catch(() => []);
+  if (lids.length || pairs.length) await mergeLidChats('lines', number.id, { lids, pairs });
 }
 
 /** ¿La tanda trae a alguien solo con su lid? Entonces la libreta va antes: el mensaje se guarda con el teléfono si ya se conoce. */

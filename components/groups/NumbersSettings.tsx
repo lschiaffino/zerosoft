@@ -150,7 +150,7 @@ export default function NumbersSettings({
       ) : (
         <ul className="gr-numbers">
           {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
-            <li key={n.id} className="panel gr-number">
+            <li key={n.id} className="panel gr-number" data-number-id={n.id}>
               <div className="gr-number-main">
                 <strong>{n.name}</strong>
                 <span className="ui-help">
@@ -194,7 +194,7 @@ export default function NumbersSettings({
               )}
               {n.canManage && n.provider !== 'sample' && (
                 <div className="gr-number-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)} data-testid="line-connect-btn">
                     {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
                   </button>
                   {n.caps.groups && n.status === 'connected' && (
@@ -222,7 +222,7 @@ export default function NumbersSettings({
                     {t('numbers.edit')}
                   </button>
                   {n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)} data-testid="line-disconnect-btn">
                       {t('numbers.disconnect')}
                     </button>
                   )}
