@@ -32,7 +32,7 @@ import { listAccounts, newId, nowIso, upsertThread, type AccountRow } from './co
 import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmail';
 import { importPart, parseImport, type ImportResult } from './import';
 import { InboxError } from './types';
-import { ingestWhatsappEvents, waProviderFor } from './whatsapp';
+import { bookChatId, ingestWhatsappEvents, waProviderFor } from './whatsapp';
 import { fillInboxTitles, learnFromHistoryContacts } from './wa-names';
 import { phoneDigits } from '../groups-provider';
 
@@ -348,7 +348,9 @@ async function stepWhatsapp(job: JobRow, deadline: number, now: Date): Promise<v
         const rows = await history.chats(cursor.chatPage, CHAT_PAGE);
         const seen = new Set(cursor.queue);
         for (const c of rows) {
-          await upsertThread(account, { externalId: c.chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(c.chatId) });
+          // Un chat que el servidor tiene por lid va al del teléfono si la libreta ya lo sabe (no se abre uno aparte).
+          const chatId = await bookChatId(account, c.chatId);
+          await upsertThread(account, { externalId: chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(chatId) });
           if (!seen.has(c.remoteJid)) {
             cursor.queue.push(c.remoteJid);
             seen.add(c.remoteJid);

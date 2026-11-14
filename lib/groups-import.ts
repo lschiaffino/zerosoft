@@ -32,6 +32,7 @@
 import { getDb } from './db';
 import {
   applyReaction,
+  dedupeLinesBatch,
   getNumberRow,
   getNumberRowById,
   inboundMeta,
@@ -52,6 +53,7 @@ import { isGroupJid, isLidJid, phoneDigits, type GroupsProvider, type InboundEve
 import { parsePoll, pollPreview, voteOptions } from './groups-polls';
 import { defaultBridgeFetch } from './groups-provider-bridge';
 import { fillLinesNames, learnLinesContacts, learnLinesEvents } from './groups-wa-names';
+import { phoneForLid, resolveLidChats } from './wa-contacts';
 
 export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'older' | 'done';
 export type ImportState = 'queued' | 'running' | 'done' | 'error';
@@ -227,7 +229,11 @@ export async function applyContact(number: Pick<NumberRow, 'id' | 'user_id'>, ev
 export async function ingestHistory(number: NumberRow, incoming: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
-  const events = await learnLinesEvents(number, incoming.slice(0, 2000));
+  const learned = await learnLinesEvents(number, incoming.slice(0, 2000));
+  // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
+  const events = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
+  // Mensajes recibidos repetidos que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
+  const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   const db = getDb();
   const ws = number.user_id;
   const chats = new Map<string, ChatRow>();
@@ -288,6 +294,7 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
         });
         if (!row) {
           res.duplicates++;
+          if (chat.kind === 'dm' && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
           continue;
         }
         res.messages++;
@@ -362,6 +369,8 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
       .run(l.at, l.preview, chatId, l.at);
   }
   for (const id of groupsTouched) await refreshMemberCount(id);
+  // La misma persona con dos chats (lid y teléfono): se juntan (lib/wa-dedupe.ts).
+  await dedupeLinesBatch(number, events, dups).catch(() => null);
   return res;
 }
 
@@ -443,8 +452,11 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
       let lid: string | null = null;
       for (const c of rows) {
         let name = c.name || undefined;
-        if (!c.isGroup && !name && isLidJid(c.chatId)) name = lid ??= await lidChatName(number.user_id);
-        const chat = await upsertChat(number, { providerChatId: c.chatId, kind: c.isGroup ? 'group' : 'dm', name, phone: c.isGroup ? '' : phoneDigits(c.chatId) }, { silent: true });
+        // Un chat que el servidor tiene por lid va al del teléfono si la libreta ya lo sabe (no se abre uno aparte).
+        const known = isLidJid(c.chatId) && !c.isGroup ? await phoneForLid({ app: 'lines', accountId: number.id }, c.chatId).catch(() => '') : '';
+        const chatId = known ? `${known}@s.whatsapp.net` : c.chatId;
+        if (!c.isGroup && !name && isLidJid(chatId)) name = lid ??= await lidChatName(number.user_id);
+        const chat = await upsertChat(number, { providerChatId: chatId, kind: c.isGroup ? 'group' : 'dm', name, phone: c.isGroup ? '' : phoneDigits(chatId) }, { silent: true });
         // No leídos como en el teléfono (solo si acá no había nada pendiente).
         // Solo en chats que trajo esta importación: un chat que el equipo ya leyó no vuelve a quedar sin leer.
         if (c.unread > 0 && chat.created_at >= job.started_at) await db.prepare('UPDATE groups_chats SET unread_count = ? WHERE id = ? AND unread_count = 0').run(Math.min(c.unread, 9999), chat.id);

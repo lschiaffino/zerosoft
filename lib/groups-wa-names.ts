@@ -8,8 +8,9 @@
  */
 import { getDb } from './db';
 import { isGroupJid, lidDigits, phoneDigits, type ChatInfo, type HistoryContact, type InboundEvent } from './groups-provider';
-import { contactsFromMessage, mentionSelf, mentionTargets, rememberContacts, resolveLidSenders, resolveTextMentions, someoneWord, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
+import { contactsFromMessage, lidPhonePairs, mentionSelf, mentionTargets, rememberContacts, resolveLidSenders, resolveTextMentions, someoneWord, type ContactInput, type ContactScope, type Renamed } from './wa-contacts';
 import { ownMentions, type MentionMap } from './wa-mentions';
+import { mergeLidChats } from './wa-dedupe-run';
 import { maskPhone } from './groups-mask';
 
 /** Nombres genéricos de un chat que solo tiene lid (lib/groups.ts → lidChatName). */
@@ -125,6 +126,9 @@ export async function learnLinesEvents<E extends InboundEvent>(number: { id: str
 export async function learnLinesContacts(number: { id: string; user_id: string }, rows: HistoryContact[]): Promise<number> {
   const items = rows.map(linesContactInput).filter((c): c is ContactInput => !!c);
   await remember(number, items);
+  // Los chats que entraron por lid de quien la libreta ya sabe el teléfono: se juntan con el del teléfono.
+  const lids = lidPhonePairs(items).map((p) => p.lid);
+  if (lids.length) await mergeLidChats('lines', number.id, { lids });
   return items.length;
 }
 
