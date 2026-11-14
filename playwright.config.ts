@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import os from 'os';
 import path from 'path';
+import { quarantineFilter } from './tests/e2e/quarantine';
 
 // E2E_PORT deja correr varias suites a la vez (agentes en paralelo) sin pisarse el puerto.
 const PORT = Number(process.env.E2E_PORT) || 3210;
@@ -22,6 +23,8 @@ export default defineConfig({
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
+  // Inestables en cuarentena (tests/e2e/quarantine.json): en CI corren en un job aparte que no bloquea.
+  ...quarantineFilter(),
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   webServer: {
     // Keep-alive largo: con el de 5 s (más 1 s de margen de Node) un pedido de un contexto de Playwright
@@ -37,6 +40,8 @@ export default defineConfig({
       E2E_IDENTITY_COOKIE: '1',
       ANALYTICS_ALLOW_HEADLESS: '1',
       TURSO_DATABASE_URL: `file:${dbFile}`,
+      // Si la base queda tomada más de 3 s, el log del servidor dice quién la tiene (lib/db.ts, lockDebug).
+      DB_LOCK_DEBUG: '1',
       NEXTAUTH_SECRET: 'e2e-secret',
       NEXTAUTH_URL: `http://localhost:${PORT}`,
       SHORT_DOMAIN: `localhost:${PORT}`,

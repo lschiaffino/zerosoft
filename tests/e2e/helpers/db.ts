@@ -23,10 +23,13 @@ export function e2eDb(): Client {
     const original = (client[key] as (...args: unknown[]) => Promise<unknown>).bind(client);
     (client as unknown as Record<K, unknown>)[key] = async (...args: unknown[]) => {
       await ready;
-      const deadline = Date.now() + BUSY_WAIT_MS;
+      const start = Date.now();
+      const deadline = start + BUSY_WAIT_MS;
       for (let wait = 10; ; wait = Math.min(wait * 2, 250)) {
         try {
-          return await original(...args);
+          const out = await original(...args);
+          if (Date.now() - start > 3000) console.log(`[e2e db] ${key} esperó la base ${Date.now() - start}ms: ${JSON.stringify(args[0]).slice(0, 200)}`);
+          return out;
         } catch (err) {
           if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
           await new Promise((done) => setTimeout(done, wait));

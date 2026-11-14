@@ -43,6 +43,65 @@ async function retryBusy<T>(run: () => Promise<T>, onSnapshot?: () => Promise<vo
 }
 
 /**
+ * DB_LOCK_DEBUG=1 (e2e): avisa en el log cuando la base local queda tomada más de 3 s, con las transacciones
+ * interactivas abiertas de este proceso (edad y dónde se abrieron), y cuando una consulta o el event loop se
+ * frenan. Sirve para encontrar quién retiene el lock cuando un test falla con SQLITE_BUSY.
+ */
+function lockDebug(client: Client) {
+  const open = new Map<Transaction, { at: number; stack: string }>();
+  const tx = client.transaction.bind(client);
+  client.transaction = (async (mode?: TransactionMode) => {
+    const t = await tx(mode);
+    open.set(t, { at: Date.now(), stack: (new Error('tx').stack ?? '').split('\n').slice(2, 9).join('\n') });
+    for (const k of ['commit', 'rollback', 'close'] as const) {
+      const orig = (t[k] as () => unknown).bind(t);
+      (t as unknown as Record<string, unknown>)[k] = () => {
+        open.delete(t);
+        return orig();
+      };
+    }
+    return t;
+  }) as Client['transaction'];
+  for (const k of ['execute', 'batch', 'executeMultiple'] as const) {
+    const orig = (client[k] as (...a: unknown[]) => Promise<unknown>).bind(client);
+    (client as unknown as Record<string, unknown>)[k] = async (...a: unknown[]) => {
+      const t0 = Date.now();
+      try {
+        return await orig(...a);
+      } finally {
+        const ms = Date.now() - t0;
+        if (ms > 500) console.log(`[dblock] ${k} lento ${ms}ms ${JSON.stringify(a[0]).slice(0, 300)}`);
+      }
+    };
+  }
+  const probe = createClient({ url: DB_URL });
+  let last = Date.now();
+  let lockedSince: number | null = null;
+  let reported = 0;
+  setInterval(() => {
+    const now = Date.now();
+    if (now - last > 1500) console.log(`[dblock] event loop frenado ${now - last - 1000}ms`);
+    last = now;
+    void (async () => {
+      try {
+        await probe.execute('BEGIN IMMEDIATE');
+        await probe.execute('ROLLBACK');
+        if (lockedSince !== null && now - lockedSince > 3000) console.log(`[dblock] la base se liberó tras ${now - lockedSince}ms`);
+        lockedSince = null;
+      } catch (err) {
+        if (!/SQLITE_BUSY|locked/i.test(String(err))) return;
+        lockedSince ??= now;
+        if (now - lockedSince > 3000 && now - reported > 5000) {
+          reported = now;
+          const txs = [...open.values()].map((v) => `  abierta hace ${now - v.at}ms\n${v.stack}`).join('\n');
+          console.log(`[dblock] base tomada hace ${now - lockedSince}ms; transacciones abiertas acá: ${open.size}\n${txs}`);
+        }
+      }
+    })();
+  }, 1000).unref?.();
+}
+
+/**
  * Cliente libsql crudo (para transacciones interactivas).
  * createClient no hace I/O al construir: es safe llamarlo de forma sync.
  */
@@ -56,6 +115,7 @@ export function getClient(): Client {
   if (!IS_REMOTE) {
     const begin = _client.transaction.bind(_client) as (mode?: TransactionMode) => Promise<Transaction>;
     _client.transaction = ((mode?: TransactionMode) => retryBusy(() => begin(mode))) as Client['transaction'];
+    if (process.env.DB_LOCK_DEBUG === '1') lockDebug(_client);
   }
   return _client;
 }
