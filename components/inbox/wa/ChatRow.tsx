@@ -74,7 +74,7 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
               </>
             ) : (
               <>
-                {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(`message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}
+                {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(th.lastStatus === 'read' && th.readHidden ? 'message.status.readHidden' : `message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}
                 {th.channel === 'gmail' && th.lastFromMe && <span className="wa-row-sender">{t('list.you')}</span>}
                 {th.kind === 'group' && !th.lastFromMe && th.lastSender && <span className="wa-row-sender">{th.lastSender}:</span>}
                 {(kind === 'image' || kind === 'video') && th.lastMediaId && <RowThumb id={th.lastMediaId} />}

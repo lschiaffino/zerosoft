@@ -22,24 +22,56 @@ let _client: Client | null = null;
 const BUSY_WAIT_MS = 5000;
 
 /**
- * SQLite local (self-host, tests): una transacción interactiva se lleva la conexión y libsql abre otra
- * sin busy_timeout, así que otra escritura del mismo proceso falla al instante con SQLITE_BUSY. Un
- * busy_timeout no sirve: la espera es síncrona, frena el event loop y la transacción nunca termina.
- * Se reintenta cediendo el turno. Turso no pasa por acá: espera del lado del servidor.
+ * SQLite local (self-host, tests): una transacción interactiva se lleva la conexión y libsql abre otra, así
+ * que otra escritura del mismo proceso (o la de otro proceso, como el test del e2e) puede encontrar la base
+ * tomada (SQLITE_BUSY). Un busy_timeout no sirve: la espera es síncrona, frena el event loop y la
+ * transacción que tiene el lock no puede avanzar hasta que vence. Se reintenta cediendo el turno.
+ *
+ * Antes de reintentar se descarta la conexión (`onBusy`): libsql no resetea la sentencia que falló con BUSY,
+ * y mientras siga "en curso" la conexión no cierra su transacción implícita. La escritura del reintento
+ * entraba pero quedaba sin commit, con la base tomada para todos, hasta que el GC juntaba la sentencia
+ * (decenas de segundos); si en el medio la conexión se cerraba, la escritura se perdía.
+ * Turso no pasa por acá: espera del lado del servidor.
  */
-async function retryBusy<T>(run: () => Promise<T>, onSnapshot?: () => Promise<void>): Promise<T> {
+async function retryBusy<T>(run: () => Promise<T>, onBusy?: () => Promise<void>): Promise<T> {
   const deadline = Date.now() + BUSY_WAIT_MS;
   for (let wait = 2; ; wait = Math.min(wait * 2, 50)) {
     try {
       return await run();
     } catch (err) {
-      if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
-      // WAL: la conexión quedó con una lectura vieja abierta (una consulta que no se cerró) y ninguna
-      // escritura suya va a pasar por más que espere. Se abre otra conexión y se reintenta.
-      if (onSnapshot && (err as { extendedCode?: string }).extendedCode === 'SQLITE_BUSY_SNAPSHOT') await onSnapshot();
+      if (!/SQLITE_BUSY|database is locked/i.test(String(err))) throw err;
+      if (onBusy) await onBusy();
+      if (Date.now() >= deadline) throw err;
       await new Promise((done) => setTimeout(done, wait));
     }
   }
+}
+
+/**
+ * SQLite local: execute, batch y el BEGIN de transaction reintentan si la base está tomada, también para quien
+ * usa el cliente crudo (migraciones, analytics, Track). Cada conexión de libsql arranca con busy_timeout 0 (y
+ * foreign_keys prendido): las esperas son todas las de retryBusy, sin frenar el event loop.
+ */
+function localClient(client: Client): Client {
+  const raw = {
+    execute: client.execute.bind(client) as (stmt: unknown) => Promise<ResultSet>,
+    batch: client.batch.bind(client) as (stmts: unknown, mode?: TransactionMode) => Promise<ResultSet[]>,
+    transaction: client.transaction.bind(client) as (mode?: TransactionMode) => Promise<Transaction>,
+    reconnect: client.reconnect.bind(client) as () => Promise<void>,
+  };
+  const reconnect = async () => {
+    try {
+      await raw.reconnect();
+    } catch {
+      // Sin conexión nueva se sigue reintentando con la que hay.
+    }
+  };
+  client.execute = ((stmt: unknown, args?: unknown) =>
+    retryBusy(() => raw.execute(args === undefined ? stmt : { sql: stmt, args }), reconnect)) as Client['execute'];
+  client.batch = ((stmts: unknown, mode?: TransactionMode) => retryBusy(() => raw.batch(stmts, mode), reconnect)) as Client['batch'];
+  // El BEGIN corre en la conexión principal (después libsql abre otra para el resto): si falla, también se descarta.
+  client.transaction = ((mode?: TransactionMode) => retryBusy(() => raw.transaction(mode), reconnect)) as Client['transaction'];
+  return client;
 }
 
 /**
@@ -54,8 +86,7 @@ export function getClient(): Client {
     authToken: IS_REMOTE ? process.env.TURSO_AUTH_TOKEN : undefined,
   });
   if (!IS_REMOTE) {
-    const begin = _client.transaction.bind(_client) as (mode?: TransactionMode) => Promise<Transaction>;
-    _client.transaction = ((mode?: TransactionMode) => retryBusy(() => begin(mode))) as Client['transaction'];
+    localClient(_client);
   }
   return _client;
 }
@@ -72,12 +103,9 @@ export function ensureMigrated(): Promise<void> {
   if (!_migratePromise) {
     const p = (async () => {
       const client = getClient();
-      if (!IS_REMOTE) {
-        await client.execute('PRAGMA foreign_keys = ON');
-        await client.execute('PRAGMA busy_timeout = 5000');
-        // WAL: lectores concurrentes durante el build estático de Next.
-        await client.execute('PRAGMA journal_mode = WAL');
-      }
+      // WAL (queda guardado en la base): lectores concurrentes durante el build estático de Next y mientras
+      // alguien escribe. Sin busy_timeout: la espera síncrona frenaba el event loop (ver retryBusy).
+      if (!IS_REMOTE) await client.execute('PRAGMA journal_mode = WAL');
       await runMigrations(client);
     })();
     _migratePromise = p;
@@ -178,21 +206,8 @@ let _db: Db | null = null;
 export function getDb(): Db {
   if (_db) return _db;
   const client = getClient();
-  const executor: Executor = IS_REMOTE
-    ? client
-    : {
-        execute: (stmt) =>
-          retryBusy(
-            () => client.execute(stmt),
-            async () => {
-              try {
-                await client.reconnect();
-              } catch {
-                // Sin conexión nueva se sigue reintentando con la que hay.
-              }
-            },
-          ),
-      };
+  // SQLite local: el cliente ya reintenta si la base está tomada (localClient).
+  const executor: Executor = client;
   _db = {
     prepare: (sql) => makeStatement(executor, sql, ensureMigrated),
     exec: async (sql) => {
@@ -224,17 +239,8 @@ export async function dbBatch(stmts: BatchStatement[]): Promise<BatchResult[]> {
   await ensureMigrated();
   const client = getClient();
   if (QUERY_STATS) queryCount++;
-  const run = () => client.batch(stmts, 'write');
-  // SQLite local: si otra escritura tiene tomada la base se reintenta cediendo el turno, como las consultas sueltas.
-  const res = IS_REMOTE
-    ? await run()
-    : await retryBusy(run, async () => {
-        try {
-          await client.reconnect();
-        } catch {
-          // Sin conexión nueva se sigue reintentando con la que hay.
-        }
-      });
+  // SQLite local: si otra escritura tiene tomada la base, el cliente reintenta (localClient).
+  const res = await client.batch(stmts, 'write');
   return res.map((r) => ({ rows: plainRows(r), changes: Number(r.rowsAffected) }));
 }
 

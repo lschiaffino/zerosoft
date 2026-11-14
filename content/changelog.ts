@@ -30,6 +30,98 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14-self-host-db-busy',
+    date: '2026-11-14',
+    title: {
+      en: 'Self-hosting: no more lost saves when the database is busy',
+      es: 'Self-host: ya no se pierden cambios cuando la base está ocupada',
+      pt: 'Self-host: as alterações não se perdem mais quando o banco está ocupado',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'With the local SQLite database, a save that had to wait for another write could stay uncommitted and keep the database locked for every other request for up to a minute. It now waits on a fresh connection and is saved at once.',
+        es: 'Con la base SQLite local, un guardado que tenía que esperar a otra escritura podía quedar sin confirmar y dejar la base tomada para todos los demás pedidos hasta un minuto. Ahora espera en una conexión nueva y se guarda en el momento.',
+        pt: 'Com o banco SQLite local, um salvamento que precisava esperar outra escrita podia ficar sem confirmar e deixar o banco travado para todos os outros pedidos por até um minuto. Agora ele espera numa conexão nova e é salvo na hora.',
+      },
+      {
+        product: 'pulse',
+        en: 'On a phone, each row of the live events list is a full-height tap target.',
+        es: 'En el teléfono, cada fila de la lista de eventos en vivo se puede tocar en toda su altura.',
+        pt: 'No celular, cada linha da lista de eventos ao vivo pode ser tocada em toda a sua altura.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-14-fetch-missing-messages',
+    date: '2026-11-14',
+    title: {
+      en: 'Inbox and Lines: messages that did not arrive come back from your phone',
+      es: 'Inbox y Lines: los mensajes que no llegaron vuelven desde el teléfono',
+      pt: 'Inbox e Lines: as mensagens que não chegaram voltam do telefone',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Sometimes WhatsApp delivers a message the connection cannot decrypt, often one you sent from your phone. Before, it was lost without notice. Now we ask your phone to resend it and, if it does not, ask for that chat’s history. The message shows up in its place, without new notifications.',
+        es: 'A veces WhatsApp entrega un mensaje que la conexión no puede descifrar, muchas veces uno que mandaste desde el teléfono. Antes se perdía sin aviso. Ahora le pedimos al teléfono que lo reenvíe y, si no lo hace, el historial de ese chat. El mensaje aparece en su lugar, sin avisos nuevos.',
+        pt: 'Às vezes o WhatsApp entrega uma mensagem que a conexão não consegue descriptografar, muitas vezes uma que você mandou pelo telefone. Antes ela se perdia sem aviso. Agora pedimos ao telefone que a reenvie e, se não, o histórico daquela conversa. A mensagem aparece no lugar dela, sem avisos novos.',
+      },
+      {
+        product: 'groups',
+        en: 'In Lines and Inbox, Fetch missing messages in the chat menu asks your phone for the chat’s recent messages whenever you think something is missing.',
+        es: 'En Lines e Inbox, Traer mensajes que faltan en el menú del chat le pide al teléfono los mensajes recientes del chat cuando creas que falta algo.',
+        pt: 'No Lines e no Inbox, Buscar mensagens que faltam no menu da conversa pede ao telefone as mensagens recentes da conversa quando você achar que falta algo.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-14-read-receipts-off',
+    date: '2026-11-14',
+    title: {
+      en: 'Inbox and Lines: blue ticks explained when your read receipts are off',
+      es: 'Inbox y Lines: las tildes azules explicadas cuando tenés las confirmaciones de lectura apagadas',
+      pt: 'Inbox e Lines: os tiques azuis explicados quando suas confirmações de leitura estão desativadas',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'With read receipts off, your phone shows gray ticks in one-to-one chats, but zerosoft still gets the read notice and keeps showing blue ticks. Hover the ticks to see why. zerosoft reads the setting from your WhatsApp when you connect and once a day. Marking a chat as read still never tells the other person while your read receipts are off.',
+        es: 'Con las confirmaciones de lectura apagadas, el teléfono muestra tildes grises en los chats uno a uno, pero a zerosoft le sigue llegando el aviso de leído y muestra las tildes azules. Pasá el mouse por las tildes para ver por qué. zerosoft lee el ajuste de tu WhatsApp al conectar y una vez por día. Marcar un chat como leído sigue sin avisarle al otro mientras tengas las confirmaciones apagadas.',
+        pt: 'Com as confirmações de leitura desativadas, o celular mostra tiques cinza nas conversas individuais, mas o zerosoft continua recebendo o aviso de leitura e mostra os tiques azuis. Passe o mouse pelos tiques para ver o motivo. O zerosoft lê o ajuste do seu WhatsApp ao conectar e uma vez por dia. Marcar uma conversa como lida continua sem avisar a outra pessoa enquanto as confirmações estiverem desativadas.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines, for each line. Groups are unchanged: WhatsApp still shows who read there.',
+        es: 'Lo mismo en Lines, para cada línea. Los grupos no cambian: WhatsApp sigue mostrando ahí quién leyó.',
+        pt: 'O mesmo no Lines, para cada linha. Os grupos não mudam: o WhatsApp continua mostrando ali quem leu.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-13-wa-gifs',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox: search and send GIFs like WhatsApp',
+      es: 'Lines e Inbox: buscar y mandar GIF como en WhatsApp',
+      pt: 'Lines e Inbox: pesquisar e enviar GIFs como no WhatsApp',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The emoji panel has a GIFs tab between Emoji and Stickers. It opens with trending GIFs, has the WhatsApp categories (Haha, Sad, Love, Reaction, Sports, TV) and a search that looks in your language. Click a GIF to send it: it goes out the way WhatsApp sends GIFs, as a short video that plays muted on a loop with a GIF mark.',
+        es: 'El panel de emojis tiene una pestaña GIF entre Emoji y Stickers. Abre con los GIF en tendencia, tiene las categorías de WhatsApp (Jaja, Triste, Amor, Reacción, Deportes, TV) y una búsqueda en tu idioma. Un clic en un GIF lo manda: sale como WhatsApp manda los GIF, un video corto que se reproduce sin sonido y en bucle con la marca GIF.',
+        pt: 'O painel de emojis tem uma aba GIFs entre Emoji e Figurinhas. Ela abre com os GIFs em alta, tem as categorias do WhatsApp (Haha, Triste, Amor, Reação, Esportes, TV) e uma pesquisa no seu idioma. Um clique num GIF envia: ele sai como o WhatsApp envia GIFs, um vídeo curto que toca sem som e em loop com a marca GIF.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines. GIF search uses GIPHY or Tenor with a key the admin sets on the server; without one, the tab says it is not set up and emoji and stickers work as before.',
+        es: 'Lo mismo en Lines. La búsqueda usa GIPHY o Tenor con una clave que el administrador pone en el servidor; sin ella, la pestaña avisa que no está configurada y los emojis y stickers funcionan como antes.',
+        pt: 'O mesmo no Lines. A pesquisa usa o GIPHY ou o Tenor com uma chave que o administrador coloca no servidor; sem ela, a aba avisa que não está configurada e emojis e figurinhas funcionam como antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-display-settings',
     date: '2026-11-13',
     title: {

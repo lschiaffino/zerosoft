@@ -43,6 +43,7 @@ import EmojiPicker from './wa/EmojiPicker';
 import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
+import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
@@ -447,6 +448,34 @@ export default function ChatThread(props: ThreadProps) {
       }
     }
   }
+
+  // Mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts): se le pide el historial del chat al teléfono. Lo que
+  // manda llega como historial, con su hora (en el medio del hilo, no al final): se vuelve a traer lo último unas veces.
+  const historyTimers = useRef<number[]>([]);
+  useEffect(() => () => historyTimers.current.forEach((id) => window.clearTimeout(id)), []);
+  const refetchLatest = useCallback(async () => {
+    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${OLDER_PAGE}`);
+    if (res.data?.messages.length) merge(res.data.messages);
+  }, [props.chat.id, merge]);
+  const watchHistory = useCallback(() => {
+    void refetchLatest();
+    for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(() => void refetchLatest(), ms));
+  }, [refetchLatest]);
+  async function fetchMissing() {
+    const res = await api<{ ok: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'fetchMissing' } });
+    if (!res.data) return showToast(errText(res.error), true);
+    showToast(t('thread.fetchMissingToast'));
+    watchHistory();
+  }
+  // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
+  // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
+  const autoHistory = useRef('');
+  useEffect(() => {
+    if (autoHistory.current === props.chat.id) return;
+    autoHistory.current = props.chat.id;
+    if (!props.chat.historyGap) return;
+    void api<{ ok: boolean }>(`/api/groups/chats/${props.chat.id}`, { body: { action: 'fetchMissing', auto: true } }).then((res) => res.data?.ok && watchHistory());
+  }, [props.chat.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOlder = useCallback(async () => {
     if (loadingOlder || !hasOlder || messages.length === 0) return;
@@ -1329,6 +1358,15 @@ export default function ChatThread(props: ThreadProps) {
     return true;
   }
 
+  /** Un GIF de la pestaña GIFs: el servidor baja el MP4 y lo guarda, y sale como video con gifPlayback. '' si salió. */
+  async function sendGif(g: GifItem): Promise<string> {
+    const res = await api<{ media: Record<string, unknown> }>('/api/groups/gifs', { body: { url: g.mp4, width: g.width, height: g.height } });
+    if (!res.data) return res.error || 'send_failed';
+    const sent = await post({ note: false, replyToId: replyTo?.id ?? null, body: '', media: res.data.media });
+    if (sent) setReplyTo(null);
+    return sent ? '' : 'send_failed';
+  }
+
   function downloadMedia(m: MessageDto) {
     if (!m.media?.url) return;
     const a = document.createElement('a');
@@ -1761,7 +1799,7 @@ export default function ChatThread(props: ThreadProps) {
             <time dateTime={m.createdAt}>
               <LocalText>{time}</LocalText>
             </time>
-            {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(`status.${m.status}`)} />}
+            {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(m.status === 'read' && chat.readHidden ? 'status.readHidden' : `status.${m.status}`)} />}
             {m.direction === 'out' && m.status === 'failed' && (props.isAdmin || m.authorId === props.me) && (
               <button type="button" className="wa-retry" onClick={() => void retrySend(m)} aria-label={t('wa.retry')} title={t('wa.retry')}>
                 <Retry size={14} />
@@ -1928,6 +1966,7 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
                 { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
+                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void fetchMissing() }] : []),
                 ...(narrow
                   ? [
                       { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
@@ -2142,6 +2181,7 @@ export default function ChatThread(props: ThreadProps) {
                 {emojiOpen && (
                   <EmojiPicker
                     stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
+                    gifs={mode === 'reply' ? { api: '/api/groups/gifs', onSend: sendGif } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
                     }}

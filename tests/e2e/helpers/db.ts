@@ -11,24 +11,38 @@ const BUSY_WAIT_MS = 60_000;
  * síncrona y congela el proceso del test, que también atiende los servidores falsos a los que la app
  * llama (webhooks, proveedores simulados). Si la app tiene la base tomada mientras espera una de esas
  * respuestas, nadie avanza hasta que vence el plazo y la escritura falla igual.
+ *
+ * Antes de reintentar se abre otra conexión: libsql no resetea la sentencia que falló con BUSY, y con ella
+ * "en curso" la escritura del reintento entra sin commit. La base quedaba tomada para la app hasta que el GC
+ * del test juntaba la sentencia, y si el test cerraba la conexión antes, la escritura se perdía.
  */
 export function e2eDb(): Client {
   const client = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   const execute = client.execute.bind(client) as (stmt: unknown) => ReturnType<Client['execute']>;
-  const ready = (async () => {
+  const setup = async () => {
     await execute('PRAGMA busy_timeout = 25');
     await execute('PRAGMA journal_mode = WAL');
-  })().catch(() => undefined);
+  };
+  let ready = setup().catch(() => undefined);
   const wrap = <K extends 'execute' | 'batch' | 'executeMultiple' | 'migrate' | 'transaction'>(key: K) => {
     const original = (client[key] as (...args: unknown[]) => Promise<unknown>).bind(client);
     (client as unknown as Record<K, unknown>)[key] = async (...args: unknown[]) => {
       await ready;
-      const deadline = Date.now() + BUSY_WAIT_MS;
+      const start = Date.now();
+      const deadline = start + BUSY_WAIT_MS;
       for (let wait = 10; ; wait = Math.min(wait * 2, 250)) {
         try {
-          return await original(...args);
+          const out = await original(...args);
+          if (Date.now() - start > 3000) console.log(`[e2e db] ${key} esperó la base ${Date.now() - start}ms: ${JSON.stringify(args[0]).slice(0, 200)}`);
+          return out;
         } catch (err) {
-          if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
+          if (!/SQLITE_BUSY|database is locked/i.test(String(err))) throw err;
+          // reconnect() está tipado como void pero en SQLite local es async.
+          ready = Promise.resolve(client.reconnect())
+            .then(setup)
+            .catch(() => undefined);
+          await ready;
+          if (Date.now() >= deadline) throw err;
           await new Promise((done) => setTimeout(done, wait));
         }
       }

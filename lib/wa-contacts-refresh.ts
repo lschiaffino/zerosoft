@@ -11,11 +11,14 @@
  * (wa_contact_sync: fase y cursor) para seguir en la próxima corrida. Cada
  * cuenta se reclama con compare-and-set (claimed_until): dos corridas nunca
  * repasan la misma a la vez. El repaso que se hace al abrir un chat sigue
- * igual (lib/inbox/wa-meta.ts). Server-only.
+ * igual (lib/inbox/wa-meta.ts). De paso relee la privacidad de la cuenta
+ * ("Confirmaciones de lectura", lib/wa-privacy.ts) si tiene más de un día.
+ * Server-only.
  */
 import { getDb } from './db';
 import type { GroupsProvider } from './groups-provider';
 import type { WaApp } from './wa-contacts';
+import { privacyStale, refreshPrivacy } from './wa-privacy';
 
 /** Cada cuánto se repasa una cuenta entera. */
 export const REFRESH_EVERY_MS = 24 * 3600_000;
@@ -206,6 +209,7 @@ export async function refreshInboxDaily(now = new Date(), deadline = Date.now() 
     } catch {
       continue;
     }
+    if (privacyStale((account as { privacy_at?: string | null }).privacy_at, now)) await refreshPrivacy('inbox', account.id, provider, now).catch(() => null);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnFromHistoryContacts(account, rows),
@@ -262,6 +266,7 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
     } catch {
       continue;
     }
+    if (privacyStale(number.privacy_at, now)) await refreshPrivacy('lines', number.id, provider, now).catch(() => null);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnLinesContacts(number, rows),

@@ -128,7 +128,8 @@ test('importar al conectar: 212 chats con nombres, fotos y mensajes; el hilo se 
     await caption.press('Enter');
     await expect(page.locator('.gr-msg-out', { hasText: 'Te mando la nota' }).locator('.wa-doc')).toBeVisible();
     await expect(tray).toHaveCount(0);
-    expect(hits.some((p) => p.startsWith('/message/sendMedia/'))).toBe(true);
+    // La burbuja sale al apretar Enter (antes de que la cola de envío llegue al proveedor): se espera el pedido.
+    await expect.poll(() => hits.some((p) => p.startsWith('/message/sendMedia/'))).toBe(true);
 
     // Reaccionar desde la burbuja y el menú con la flecha (Responder arma la cita en el composer).
     const last = page.locator('.gr-msg-in').last();

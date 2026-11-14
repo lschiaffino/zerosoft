@@ -96,6 +96,9 @@ export interface NumberRow {
   owner_id?: string | null;
   /** 'all' = todo el workspace; 'restricted' = solo dueño, admins y lo que figure en groups_number_access. */
   visibility?: string;
+  /** "Confirmaciones de lectura" del WhatsApp de la línea ('all', 'none' o '' sin saber; lib/wa-privacy.ts). */
+  read_receipts?: string;
+  privacy_at?: string | null;
 }
 
 export interface NumberDto {
@@ -424,6 +427,15 @@ async function saveState(row: NumberRow, state: ConnectState | null, error = '')
   await getDb()
     .prepare('UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
     .run(state?.status ?? 'error', state?.phone ? phoneDigits(state.phone) : row.phone, error, nowIso(), row.id);
+  // Recién conectado: se leen sus confirmaciones de lectura (lib/wa-privacy.ts).
+  if (state?.status === 'connected' && row.status !== 'connected') {
+    const { refreshPrivacy } = await import('./wa-privacy');
+    try {
+      await refreshPrivacy('lines', row.id, providerFor(row));
+    } catch {
+      // Sin proveedor válido: se lee en el repaso diario.
+    }
+  }
   // Recién conectado: se importan sus chats y mensajes (una vez; "Reimportar" lo repite).
   if (state?.status === 'connected' && row.status !== 'connected' && (row.provider === 'managed' || row.provider === 'evolution')) {
     const { queueImport, kickImport } = await import('./groups-import');
@@ -518,6 +530,8 @@ export interface ChatRow {
   presence?: string | null;
   presence_who?: string | null;
   presence_at?: string | null;
+  /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
+  history_gap_at?: string | null;
 }
 
 export interface LabelDto {
@@ -572,6 +586,11 @@ export interface ChatDto {
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
   lastDirection?: string | null;
   lastStatus?: string | null;
+  /**
+   * 1:1 de una línea con las confirmaciones de lectura apagadas: el WhatsApp del teléfono no muestra si el
+   * otro leyó, zerosoft sí (le llega el aviso). Solo cambia la explicación de las tildes azules.
+   */
+  readHidden?: boolean;
   lastSender?: string | null;
   /** Duración (segundos) si el último fue audio o nota de voz; tipo de media o "deleted". */
   lastDuration?: number | null;
@@ -580,6 +599,8 @@ export interface ChatDto {
   match?: string;
   /** Empresa (o, si no hay, negocio) de HubSpot vinculada al chat (lib/groups-hubspot.ts). */
   hubspotName?: string;
+  /** Le falta un mensaje que WhatsApp no pudo entregar: al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
+  historyGap?: boolean;
 }
 
 export interface ChatPresence {
@@ -657,6 +678,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
     presence: chatPresence(row),
+    ...(row.history_gap_at ? { historyGap: true } : {}),
   };
 }
 
@@ -695,6 +717,13 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     )[0];
   }
   if (row.kind === 'dm') {
+    // Las confirmaciones de lectura de la línea (y, si el dato tiene más de un día, se vuelve a leer después de responder).
+    const number = await getNumberRow(ws, row.number_id);
+    if (number) {
+      const { readHiddenInWhatsapp, refreshPrivacyIfStale } = await import('./wa-privacy');
+      if (readHiddenInWhatsapp(number.read_receipts, false)) dto.readHidden = true;
+      if (number.status === 'connected') await refreshPrivacyIfStale('lines', number, () => providerFor(number));
+    }
     // La "info" del contacto: la trae el repaso diario a la libreta del número.
     const key = row.phone || lidDigits(row.provider_chat_id);
     if (key) {
@@ -1006,6 +1035,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
+  // Líneas con las confirmaciones de lectura apagadas: solo si hay algún 1:1 cuyo último mensaje salió leído.
+  const { receiptsOffIds } = await import('./wa-privacy');
+  const receiptsOff = await receiptsOffIds(
+    'lines',
+    rows.filter((r) => r.kind === 'dm' && (r.last_info ?? '').startsWith('out|read|')).map((r) => r.number_id),
+  );
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
   const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
@@ -1024,6 +1059,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
         lastStatus: st || null,
+        ...(r.kind === 'dm' && receiptsOff.has(r.number_id) ? { readHidden: true } : {}),
         lastSender: sender || null,
         lastDuration: Number(dur) || null,
         lastKind: lastKind || null,
@@ -1329,6 +1365,8 @@ export async function sendReadReceipts(ws: string, chat: ChatRow): Promise<void>
          ORDER BY created_at DESC LIMIT ?`,
       )
       .all(chat.id, n)) as Array<{ pid: string }>;
+    // Solo por markRead (el "marcar leído" del servidor): con las confirmaciones de lectura apagadas en el
+    // teléfono, Baileys manda 'read-self' y el otro no ve tildes azules. Nunca un recibo 'read' a mano.
     if (rows.length) await provider.markRead(chat.provider_chat_id, rows.map((r) => r.pid));
   } catch {
     // Best effort: si WhatsApp no lo toma, el chat igual queda leído en Groups.
@@ -1752,6 +1790,8 @@ export interface SendMedia {
   duration?: number;
   /** Forma de onda de una nota de voz (al reenviarla, para que se vea igual). */
   waveform?: number[];
+  /** Video que WhatsApp reproduce como GIF (gifPlayback); se guarda como animated. */
+  gif?: boolean;
 }
 
 export interface SendInput {
@@ -2022,6 +2062,7 @@ async function sendMediaMessage(
     height: visual ? posNum(media.height, 20_000) : undefined,
     duration: kind === 'audio' || kind === 'voice' || kind === 'video' ? posNum(media.duration, 86_400) : undefined,
     ptt: kind === 'voice' || undefined,
+    animated: (kind === 'video' && media.gif === true) || undefined,
     waveform: kind === 'voice' && Array.isArray(media.waveform) ? media.waveform.slice(0, 64).map((v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)))) : undefined,
   });
   const authorKind = input.authorKind ?? 'person';
@@ -2065,6 +2106,7 @@ async function sendMediaMessage(
       kind,
       ...(base64 ? { base64 } : {}),
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+      ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2142,6 +2184,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             kind,
             ...(base64 ? { base64 } : {}),
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+            ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
           })
         ).id || null;
     } else {
@@ -2372,6 +2415,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
     const live = opts.history ? [] : events.filter((e) => !(e.type === 'message' && e.history));
     const past = opts.history ? events : events.filter((e) => e.type === 'message' && e.history);
     const h = await ingestHistory(number, past);
+    // El historial que se pidió por un mensaje que faltaba (lib/wa-history-gaps.ts): si lo trajo, el hueco se cierra.
+    if (h.messages > 0) await import('./wa-history-gaps').then((g) => g.resolveGaps('lines', { accountId: number.id })).catch(() => 0);
     if (live.length === 0) return h;
     const r = await ingestEvents(number, live);
     // Solo lo en vivo puede pedir un reintento: el historial nunca (un mensaje roto del historial no hace que el
@@ -2598,6 +2643,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         await applyContact(number, ev);
       } else if (ev.type === 'archive') {
         if (!(await applyPhoneArchive(number, ev.chatId, ev.archived))) res.ignored++;
+      } else if (ev.type === 'missing') {
+        // WhatsApp entregó un mensaje que no se pudo descifrar: hueco en el chat y pedido de historial (lib/wa-history-gaps.ts).
+        const chat = await findPhoneChat(number, ev.chatId);
+        const { recordMissing } = await import('./wa-history-gaps');
+        if (!chat || chat.hidden_at || (await recordMissing('lines', { chatId: chat.id, accountId: number.id, scopeId: ws }, ev)) !== 'recorded') res.ignored++;
       } else if (ev.type === 'presence') {
         // Solo los chats que ya existen: la presencia no crea chats.
         const state = ev.state === 'paused' || ev.state === 'unavailable' ? null : ev.state;
@@ -2642,6 +2692,20 @@ function needsBookFirst(ev: InboundEvent): boolean {
  */
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
+  const chat = await findPhoneChat(number, chatId);
+  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
+  const { isArchiveEcho } = await import('./wa-archive-sync');
+  if (await isArchiveEcho('lines', chat.id, archived)) return false;
+  const now = nowIso();
+  await db
+    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
+    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+  return true;
+}
+
+/** El chat de un aviso de WhatsApp, que puede venir con el otro sufijo o con el lid (no crea nada). */
+async function findPhoneChat(number: Pick<NumberRow, 'id'>, chatId: string): Promise<ChatRow | undefined> {
+  const db = getDb();
   const find = (jid: string) =>
     db.prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?').get(number.id, jid) as Promise<ChatRow | undefined>;
   let chat = await find(chatId);
@@ -2652,14 +2716,7 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
     const phone = await phoneForLid({ app: 'lines', accountId: number.id }, lidDigits(chatId)).catch(() => '');
     if (phone) chat = (await find(`${phone}@s.whatsapp.net`)) ?? (await find(`${phone}@c.us`));
   }
-  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
-  const { isArchiveEcho } = await import('./wa-archive-sync');
-  if (await isArchiveEcho('lines', chat.id, archived)) return false;
-  const now = nowIso();
-  await db
-    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
-  return true;
+  return chat;
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */

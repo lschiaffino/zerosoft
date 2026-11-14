@@ -70,6 +70,15 @@ CI=1 npx playwright test tests/e2e/<area>*.spec.ts
 
 Use `E2E_PORT` to avoid port clashes when several suites run at once.
 
+**Flaky e2e tests.** Fix the cause first: wait for the signal the user
+waits for (a response, an aria state, the element being there), never a
+blind sleep or a retry. A flaky test you can't fix in your change goes to
+`tests/e2e/quarantine.json` (`test` as `<file> › <title>`, `since`,
+`reason`, `owner`). CI runs quarantined tests in the `e2e-quarantine` job,
+which reports but doesn't block the merge. An entry expires after 21 days
+(`tests/unit/e2e-quarantine.test.ts` fails): by then the cause is fixed and
+the entry removed, or the test is deleted.
+
 ## Definition of done
 
 A feature is done when a person can use it end to end, not when its tests

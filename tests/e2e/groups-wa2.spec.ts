@@ -31,7 +31,9 @@ async function events(request: APIRequestContext, n: NumberInfo, list: unknown[]
   expect(res.ok(), await res.text()).toBe(true);
 }
 
-const dm = () => `549${Date.now().toString().slice(-9)}${Math.floor(Math.random() * 9)}@c.us`;
+// Dos llamadas en el mismo milisegundo daban el mismo chat una de cada nueve veces (el contacto y el chat eran uno).
+let dmSeq = 0;
+const dm = () => `549${Date.now().toString().slice(-7)}${String(++dmSeq % 1000).padStart(3, '0')}@c.us`;
 
 async function inbound(request: APIRequestContext, n: NumberInfo, chatId: string, body: string, senderName: string) {
   await events(request, n, [
@@ -108,7 +110,8 @@ test('mandar un contacto desde el menú + y ver "escribiendo…"', async ({ page
   await page.getByRole('menuitem', { name: 'Contact', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Send contacts' });
   await dialog.getByRole('searchbox', { name: 'Search chats' }).fill(friend);
-  await dialog.getByRole('checkbox').first().check();
+  // El de ese contacto, no el primero: hasta que llega la búsqueda se ve la lista anterior, que después se reemplaza.
+  await dialog.getByRole('checkbox', { name: friend }).check();
   await dialog.getByRole('button', { name: 'Send contact' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('.wa-contact', { hasText: friend }).last()).toBeVisible();
