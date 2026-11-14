@@ -28,6 +28,12 @@ export const ECHO_WINDOW_MS = 15_000;
 /** Esperas entre reintentos: 30 s, 2 min, 10 min, 1 h, 6 h. Después se deja. */
 export const RETRY_BACKOFF_MS = [30_000, 120_000, 600_000, 3_600_000, 21_600_000];
 const CLAIM_MS = 60_000;
+/**
+ * Ritmo por cuenta o número: como mucho un cambio cada PACE_GAP_MS y PACE_PER_MINUTE por minuto. Archivar muchos
+ * chats de golpe mandaba decenas de cambios a WhatsApp en segundos; ningún teléfono hace eso.
+ */
+export const PACE_GAP_MS = 3_000;
+export const PACE_PER_MINUTE = 12;
 /** Chats que se mandan en el momento (el resto, en el cron). */
 const NOW_LIMIT = 50;
 
@@ -95,7 +101,13 @@ export async function requestArchivePush(app: ArchiveApp, scopeId: string, chatI
   await queueArchivePush(app, scopeId, chatIds, archived);
   const ids = [...new Set(chatIds)].slice(0, NOW_LIMIT);
   const job = async () => {
-    for (const id of ids) await flushArchivePush(app, id).catch((err) => logFailure(app, 'flush_error', err));
+    // Con ritmo: entre uno y otro se espera (hasta 40 s en total); lo que no entra lo manda el cron.
+    const until = Date.now() + 40_000;
+    for (const id of ids) {
+      const left = until - Date.now();
+      if (left <= 0) break;
+      await flushArchivePush(app, id, undefined, { waitUpToMs: Math.min(PACE_GAP_MS + 500, left) }).catch((err) => logFailure(app, 'flush_error', err));
+    }
   };
   try {
     after(job);
@@ -119,12 +131,26 @@ function logFailure(app: ArchiveApp, code: string, err?: unknown) {
  * Manda el pedido pendiente de un chat si le toca (claim por fila: dos corridas
  * no lo mandan dos veces). Si mientras tanto llegó otro pedido, se manda ese.
  */
-export async function flushArchivePush(app: ArchiveApp, chatId: string, now = () => Date.now()): Promise<'sent' | 'skipped' | 'failed' | 'idle'> {
+export async function flushArchivePush(
+  app: ArchiveApp,
+  chatId: string,
+  now = () => Date.now(),
+  opts: { waitUpToMs?: number } = {},
+): Promise<'sent' | 'skipped' | 'failed' | 'idle'> {
   const db = getDb();
   for (let round = 0; round < 3; round++) {
     const row = await getArchivePush(app, chatId);
-    const t = now();
+    let t = now();
     if (!row || row.done_at || Date.parse(row.next_at) > t) return 'idle';
+    const wait = await paceDelay(app, row.scope_id, t);
+    if (wait > 0) {
+      if (wait > (opts.waitUpToMs ?? 0)) {
+        await db.prepare('UPDATE wa_archive_push SET next_at = ? WHERE app = ? AND chat_id = ? AND version = ?').run(iso(t + wait), app, chatId, row.version);
+        return 'idle';
+      }
+      await new Promise((r) => setTimeout(r, wait));
+      t = now();
+    }
     const claim = await db
       .prepare(
         `UPDATE wa_archive_push SET claimed_until = ? WHERE app = ? AND chat_id = ? AND version = ? AND done_at IS NULL
@@ -174,6 +200,20 @@ export async function flushArchivePush(app: ArchiveApp, chatId: string, now = ()
   return 'idle';
 }
 
+/** Cuánto falta para poder mandar otro cambio de esta cuenta o número (0: ya). */
+export async function paceDelay(app: ArchiveApp, scopeId: string, t: number): Promise<number> {
+  const r = (await getDb()
+    .prepare(
+      `SELECT MAX(done_at) AS last, COUNT(*) AS n, MIN(done_at) AS first FROM wa_archive_push
+        WHERE app = ? AND scope_id = ? AND sent_count > 0 AND last_error = '' AND done_at > ?`,
+    )
+    .get(app, scopeId, iso(t - 60_000))) as { last: string | null; n: number; first: string | null } | undefined;
+  if (!r?.last) return 0;
+  const gap = Date.parse(r.last) + PACE_GAP_MS - t;
+  const minute = Number(r.n) >= PACE_PER_MINUTE && r.first ? Date.parse(r.first) + 60_000 - t : 0;
+  return Math.max(0, gap, minute);
+}
+
 /** Cron: los pedidos que esperan su reintento (y los que no se mandaron en el momento). */
 export async function runArchivePushes(opts: { limit?: number; deadline?: number } = {}, now = new Date()): Promise<{ sent: number; failed: number }> {
   const db = getDb();
@@ -184,7 +224,7 @@ export async function runArchivePushes(opts: { limit?: number; deadline?: number
   let failed = 0;
   for (const r of rows) {
     if (opts.deadline && Date.now() > opts.deadline) break;
-    const out = await flushArchivePush(r.app, r.chat_id, () => Math.max(Date.now(), now.getTime())).catch(() => 'failed' as const);
+    const out = await flushArchivePush(r.app, r.chat_id, () => Math.max(Date.now(), now.getTime()), { waitUpToMs: PACE_GAP_MS + 500 }).catch(() => 'failed' as const);
     if (out === 'sent') sent++;
     if (out === 'failed') failed++;
   }
@@ -258,29 +298,18 @@ async function attempt(row: PushRow): Promise<Attempt> {
   }
   if (!provider.archiveChat) return { kind: 'skip', reason: 'unsupported' };
   const ref = await target.ref(target.chatJid);
-  // Un 1:1 que WhatsApp puede tener por teléfono o por lid: se manda con los dos ids. Alcanza con que salga uno (el
-  // proveedor puede conocer el chat solo por el otro); si fallan los dos, se reintenta con el error del principal.
-  const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
-  let mainErr: unknown = null;
+  // Una sola orden por chat. Antes se mandaba también con el otro id del mismo 1:1 (teléfono ↔ lid), y WhatsApp
+  // recibía dos cambios para dos "chats" que son el mismo: el 14/11 desvinculó todos los dispositivos de la cuenta
+  // 30 s después de un par así. El otro id solo se usa si el principal falla.
   try {
     await provider.archiveChat(target.chatJid, want, ref);
+    return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null }) };
   } catch (err) {
-    mainErr = err;
+    const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
+    if (!alt) throw err;
+    await provider.archiveChat(alt, want, await target.ref(alt));
+    return { kind: 'sent', sent: JSON.stringify({ jid: alt, archive: want, ts: ref?.timestamp ?? null, mainFailed: true }) };
   }
-  let altSent = false;
-  if (alt) {
-    try {
-      await provider.archiveChat(alt, want, await target.ref(alt));
-      altSent = true;
-    } catch {
-      /* queda el principal */
-    }
-  }
-  if (mainErr && !altSent) throw mainErr;
-  return {
-    kind: 'sent',
-    sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null, ...(mainErr ? { mainFailed: true } : {}), ...(altSent ? { alt } : {}) }),
-  };
 }
 
 /** Segundos de una fecha guardada (ISO, o "YYYY-MM-DD HH:MM:SS" de SQLite, que es UTC). */
