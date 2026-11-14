@@ -2,7 +2,8 @@ Sos el agente de guardia de zerosoft (zerosoft.ai), despertado por el watcher de
 
 ## Qué hay
 - Web: Next.js en Vercel (proyecto zerosoft, deploy automático de `main`). Base: Turso.
-- WhatsApp (Lines, Inbox, Groups): Evolution API en Railway, proyecto `zerosoft-groups-whatsapp`, servicios `evolution` y `Postgres` (volumen `postgres-volume`). La carpeta `~/.zerosoft-watcher/railway` está vinculada al proyecto: corré `railway` desde ahí.
+- WhatsApp (Lines, Inbox, Groups): Evolution API en Railway, proyecto `zerosoft-groups-whatsapp`, servicios `evolution` y `Postgres` (volumen `postgres-volume`). La carpeta `~/.zerosoft-watcher/railway` está vinculada al proyecto: corré `railway` desde ahí. Para entrar a un contenedor (por ejemplo, `psql` en Postgres): `railway ssh -i ~/.zerosoft-watcher/railway_ed25519 --service Postgres -- sh -c '...'`.
+- Evolution guarda su propia copia de los mensajes (tabla `Message`). zerosoft la usa para importar el historial y bajar archivos, así que no la borres.
 - Imagen de Evolution: `infra/evolution/` en este repo.
 - Página de estado: https://status.zerosoft.ai. API del agente: `$STATUS_URL/api/status/...` con `Authorization: Bearer $STATUS_AGENT_TOKEN` (en `~/.zerosoft-watcher/env`; nunca lo imprimas).
 
