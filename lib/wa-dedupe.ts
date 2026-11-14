@@ -403,3 +403,32 @@ export async function runMerge(
   const res = await batch([{ sql: MERGE_PAIRS_DDL, args: [] }, ...head, ...stmts]);
   return countsOf(res, 1 + head.length, at);
 }
+
+/**
+ * Cuántos chats por lid quedan (y cuántos tienen teléfono en la libreta) y cuántos mensajes de un chat por lid
+ * tienen copia en el del teléfono. Para el log de la limpieza: se leen en un batch 'write' (contra la base
+ * principal, no una réplica que puede venir atrasada).
+ */
+export const DEDUPE_COUNTS: Array<[string, string]> = [
+  ['inboxLidChats', "SELECT COUNT(*) AS n FROM inbox_threads WHERE kind = 'dm' AND external_id LIKE '%@lid'"],
+  [
+    'inboxLidChatsWithPhone',
+    `SELECT COUNT(*) AS n FROM inbox_threads l JOIN wa_contacts c ON c.app = 'inbox' AND c.account_id = l.account_id
+       AND c.lid = substr(l.external_id, 1, length(l.external_id) - 4) AND c.phone <> ''
+     WHERE l.kind = 'dm' AND l.external_id LIKE '%@lid'`,
+  ],
+  [
+    'inboxDupMessages',
+    `SELECT COUNT(*) AS n FROM inbox_threads l JOIN inbox_messages lm ON lm.thread_id = l.id
+     WHERE l.kind = 'dm' AND l.external_id LIKE '%@lid' AND EXISTS (
+       SELECT 1 FROM inbox_messages sm JOIN inbox_threads s ON s.id = sm.thread_id
+       WHERE sm.owner_id = lm.owner_id AND sm.external_id = lm.external_id AND s.account_id = l.account_id AND s.kind = 'dm' AND s.external_id LIKE '%@s.whatsapp.net')`,
+  ],
+  ['linesLidChats', "SELECT COUNT(*) AS n FROM groups_chats WHERE kind = 'dm' AND provider_chat_id LIKE '%@lid'"],
+  [
+    'linesLidChatsWithPhone',
+    `SELECT COUNT(*) AS n FROM groups_chats l JOIN wa_contacts c ON c.app = 'lines' AND c.account_id = l.number_id
+       AND c.lid = substr(l.provider_chat_id, 1, length(l.provider_chat_id) - 4) AND c.phone <> ''
+     WHERE l.kind = 'dm' AND l.provider_chat_id LIKE '%@lid'`,
+  ],
+];
