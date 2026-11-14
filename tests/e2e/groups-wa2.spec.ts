@@ -31,7 +31,9 @@ async function events(request: APIRequestContext, n: NumberInfo, list: unknown[]
   expect(res.ok(), await res.text()).toBe(true);
 }
 
-const dm = () => `549${Date.now().toString().slice(-9)}${Math.floor(Math.random() * 9)}@c.us`;
+// Dos llamadas en el mismo milisegundo daban el mismo chat una de cada nueve veces (el contacto y el chat eran uno).
+let dmSeq = 0;
+const dm = () => `549${Date.now().toString().slice(-7)}${String(++dmSeq % 1000).padStart(3, '0')}@c.us`;
 
 async function inbound(request: APIRequestContext, n: NumberInfo, chatId: string, body: string, senderName: string) {
   await events(request, n, [
