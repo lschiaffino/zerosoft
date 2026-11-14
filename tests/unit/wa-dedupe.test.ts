@@ -17,6 +17,7 @@ import { evolutionMessageEvents, parseEvolutionWebhook } from '@/lib/groups-prov
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import type { InboundEvent } from '@/lib/groups-provider';
 import migration from '@/lib/schema/migration-files/20261114_1943_wa_relink_dedupe';
+import check from '@/lib/schema/migration-files/20261114_2116_wa_relink_dedupe_check';
 import { makeUser } from './helpers';
 
 beforeEach(() => {
@@ -303,8 +304,9 @@ describe('migración: junta los duplicados que ya quedaron', () => {
     const ids = async (t: string) => ((await db.prepare('SELECT external_id FROM inbox_messages WHERE thread_id = ? ORDER BY external_id').all(t)) as Array<{ external_id: string }>).map((r) => r.external_id);
     expect(await ids(pPn)).toEqual(['P1', 'P2', 'P3']);
     expect(await ids(qPn)).toEqual(['Q1', 'Q2']);
-    // Otra vez: nada cambia.
+    // Otra vez (y la segunda pasada): nada cambia.
     await migration.up(getClient());
+    await check.up(getClient());
     expect(await ids(pPn)).toEqual(['P1', 'P2', 'P3']);
     expect(await ids(qPn)).toEqual(['Q1', 'Q2']);
   });
