@@ -1,4 +1,12 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { existsSync } from 'node:fs';
+
+// Changelog y migraciones de a un archivo por cambio: se arman las listas antes de dev y build. La imagen Docker
+// final no trae scripts/ (las listas ya quedaron compiladas en el build), así que ahí se saltea.
+if (existsSync(new URL('./scripts/gen-fragments.mjs', import.meta.url))) {
+  const { genFragments } = await import('./scripts/gen-fragments.mjs');
+  genFragments();
+}
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 

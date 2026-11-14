@@ -17,6 +17,7 @@ import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { fewerReadsUp } from './fewer-reads-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
+import { MIGRATION_FILES } from './migration-files.generated';
 
 /**
  * Migraciones versionadas. Cada una corre una sola vez por base y queda
@@ -10044,4 +10045,12 @@ export async function runMigrations(client: Client, migrations: Migration[] = MI
     applied.push(m.id);
   }
   return applied;
+}
+
+// Las migraciones nuevas van una por archivo en lib/schema/migration-files/, con id AAAAMMDD_HHMM_nombre
+// (scripts/gen-fragments.mjs): dos PRs no eligen el mismo número ni chocan en esta lista. Corren después de las
+// numeradas, en orden de id.
+for (const m of MIGRATION_FILES) {
+  if (MIGRATIONS.some((x) => x.id === m.id)) throw new Error(`migración repetida: ${m.id}`);
+  MIGRATIONS.push(m);
 }

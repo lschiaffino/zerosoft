@@ -23,7 +23,7 @@ competidor (documentación pública, API, changelog y precios). El tick horario
 ## Cuando una idea se construye
 
 Al mergear el arreglo, marcá la idea en `ideas.json` con su avance y, si ya
-salió, con la entrada de `content/changelog.ts` que la cuenta:
+salió, con la entrada de `content/changelog-entries/` que la cuenta:
 
 ```json
 { "title": "Link: ...", "...": "...", "status": "done", "changelog": "2026-10-19-link" }

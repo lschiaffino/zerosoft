@@ -6,6 +6,7 @@
  */
 
 import type { ProductKey } from '@/lib/product-taxonomy';
+import { CHANGELOG_FRAGMENTS } from './changelog-entries.generated';
 
 /** Taxonomía compartida con feedback, roadmap y board (lib/product-taxonomy.ts). */
 export type ChangelogProduct = ProductKey;
@@ -5411,3 +5412,7 @@ export type ChangelogLocale = (typeof CHANGELOG_LOCALES)[number];
 export function pick(l: Localized, locale: string): string {
   return l[(CHANGELOG_LOCALES as readonly string[]).includes(locale) ? (locale as ChangelogLocale) : 'en'];
 }
+
+// Las entradas nuevas van una por archivo en content/changelog-entries/ (scripts/gen-fragments.mjs): así dos PRs
+// no chocan en esta lista. Van primero porque son las más nuevas.
+CHANGELOG.unshift(...CHANGELOG_FRAGMENTS);
