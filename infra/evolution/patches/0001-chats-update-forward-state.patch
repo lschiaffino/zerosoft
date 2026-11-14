@@ -1,0 +1,22 @@
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 60e857f..c1d9104 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -781,8 +781,16 @@ export class BaileysStartupService extends ChannelStartupService {
+         }
+       >[],
+     ) => {
++      // zerosoft: además del id, el estado que cambió (archivado, fijado, no leídos). Sin esto, archivar o fijar un
++      // chat desde el teléfono no llegaba a quien escucha el webhook.
+       const chatsRaw = chats.map((chat) => {
+-        return { remoteJid: chat.id, instanceId: this.instanceId };
++        return {
++          remoteJid: chat.id,
++          instanceId: this.instanceId,
++          ...(typeof chat.archived === 'boolean' ? { archived: chat.archived } : {}),
++          ...(chat.pinned !== undefined && chat.pinned !== null ? { pinned: Number(chat.pinned) } : {}),
++          ...(typeof chat.unreadCount === 'number' ? { unreadCount: chat.unreadCount } : {}),
++        };
+       });
+ 
+       this.sendDataWebhook(Events.CHATS_UPDATE, chatsRaw);
