@@ -47,6 +47,8 @@ export const planCreateSchema = z.object({
   targetDate: day.nullish(),
   updateCadence: z.enum(UPDATE_CADENCES).optional(),
   updateDay: z.number().int().min(1).max(7).optional(),
+  /** Crear desde un template de project (lib/track-plan-templates). */
+  templateId: id.optional(),
   /** Resources: links del project (docs, diseños), como en Linear. */
   links: z
     .array(
@@ -59,7 +61,7 @@ export const planCreateSchema = z.object({
     .optional(),
 });
 
-export const planUpdateSchema = planCreateSchema.partial().extend({
+export const planUpdateSchema = planCreateSchema.omit({ templateId: true }).partial().extend({
   /** Archivar (true) o desarchivar (false) el project. */
   archived: z.boolean().optional(),
 });
@@ -94,6 +96,17 @@ export const planUpdateCreateSchema = z.object({
 export const planUpdateEditSchema = z.object({
   health: z.enum(PLAN_HEALTH).optional(),
   body: markdown.optional(),
+});
+
+export const planTemplateCreateSchema = z.object({
+  planId: id,
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(500).optional(),
+});
+
+export const planTemplateUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(500).optional(),
 });
 
 export const planUpdateCommentSchema = z.object({

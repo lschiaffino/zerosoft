@@ -14,6 +14,7 @@ import KeyPicker, { type KeyPickerHandle } from '@/components/track/KeyPicker';
 import { isTypingTarget } from '@/components/track/trackCommands';
 import TrackIcon from '@/components/track/TrackIcon';
 import { DateChip } from './pickers';
+import { usePlanTemplates } from './PlanTemplates';
 import { PriorityIcon, TrackToast } from '@/components/track/InlineEditors';
 import { pushUndo } from '@/components/track/trackUndo';
 
@@ -488,11 +489,15 @@ export function NewPlanModal({
   const [team, setTeam] = useState('');
   const [start, setStart] = useState('');
   const [target, setTarget] = useState('');
+  const [templateId, setTemplateId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const templates = usePlanTemplates(open);
+  const template = templates.rows?.find((x) => x.id === templateId);
 
   useEffect(() => {
     if (open) {
+      setTemplateId('');
       setName(planDraft?.name ?? '');
       setSummary(planDraft?.summary ?? '');
       setStatus('planned');
@@ -502,7 +507,13 @@ export function NewPlanModal({
       setTarget('');
       setError(null);
     }
-  }, [open, meta?.me, defaultTeamId]);
+    // Solo al abrir: si las personas (meta) llegan después, no se borra lo ya tipeado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultTeamId]);
+  // El lead por defecto (quien crea) apenas se sabe quién es, sin pisar uno elegido.
+  useEffect(() => {
+    if (open && meta?.me) setLead((cur) => cur || meta.me);
+  }, [open, meta?.me]);
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -518,6 +529,7 @@ export function NewPlanModal({
       startDate: start || null,
       targetDate: target || null,
       initiativeIds: initiativeId ? [initiativeId] : undefined,
+      templateId: templateId || undefined,
     });
     setBusy(false);
     if (!res.ok) {
@@ -597,6 +609,30 @@ export function NewPlanModal({
         </div>
         {/* Propiedades como chips (como el "New project" de Linear): sin selects ni fechas mm/dd/yyyy. */}
         <div className="tp-new-plan-chips" role="group" aria-label={t('plan.properties')}>
+          {(templates.rows?.length ?? 0) > 0 && (
+            <KeyPicker
+              ariaLabel={t('templates.pick')}
+              className={`tp-chip${templateId ? '' : ' is-empty'}`}
+              testId="tp-new-template"
+              value={templateId}
+              options={[
+                { value: '', label: t('templates.none') },
+                ...(templates.rows ?? []).map((x) => ({
+                  value: x.id,
+                  label: x.name,
+                  meta: t('templates.contents', { milestones: x.milestones, issues: x.issues }),
+                  keywords: x.description,
+                })),
+              ]}
+              onSelect={(v) => setTemplateId(v)}
+              trigger={
+                <>
+                  <TrackIcon name="plans" size={13} />
+                  <span className="track-inline-text">{template ? template.name : t('templates.pick')}</span>
+                </>
+              }
+            />
+          )}
           <KeyPicker
             ariaLabel={t('plan.status')}
             className="tp-chip"
@@ -666,6 +702,13 @@ export function NewPlanModal({
             testId="tp-new-target"
           />
         </div>
+        {template && (
+          <p className="ui-help" role="status" data-testid="tp-new-template-note">
+            {t('templates.willCreate', { milestones: template.milestones, issues: template.issues })}
+            {template.issues > 0 && !team && template.teams === 0 ? ` ${t('templates.needsTeam')}` : ''}
+            {template.datedMilestones && !start ? ` ${t('templates.datesFromStart')}` : ''}
+          </p>
+        )}
       </form>
     </Modal>
   );

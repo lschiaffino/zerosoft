@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { planningContext, readJson } from '@/lib/track-planning-http';
 import { createPlan, listPlans, listScopeTeams, listWorkspaceMembers } from '@/lib/track-plans';
 import { listInitiatives } from '@/lib/track-initiatives';
-import { PLAN_STATUSES, planCreateSchema, type PlanStatus } from '@/lib/track-planning-schema';
-import { invalidBody, trackError, unauthorized } from '@/lib/track-http';
+import { PLAN_PRIORITIES, PLAN_STATUSES, planCreateSchema, type PlanStatus } from '@/lib/track-planning-schema';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { applyTemplateToPlan, getAccessiblePlanTemplate, parseTemplateData, templateDefaults } from '@/lib/track-plan-templates';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,27 @@ export async function POST(req: NextRequest) {
   if (!ctx) return unauthorized();
   const parsed = planCreateSchema.safeParse(await readJson(req));
   if (!parsed.success) return invalidBody(parsed.error);
-  const res = await createPlan(ctx.scope, ctx.actorId, parsed.data);
+  const { templateId, ...input } = parsed.data;
+  // Desde un template (como Linear): lo que el formulario no eligió sale del template.
+  const template = templateId ? await getAccessiblePlanTemplate(templateId, ctx.scope) : undefined;
+  if (templateId && !template) return notFound();
+  const data = template ? parseTemplateData(template.data) : null;
+  const defaults = data ? templateDefaults(data) : null;
+  const payload = defaults
+    ? {
+        ...input,
+        summary: input.summary ?? defaults.summary,
+        description: input.description ?? defaults.description,
+        priority:
+          input.priority ??
+          ((PLAN_PRIORITIES as readonly string[]).includes(defaults.priority) ? (defaults.priority as (typeof PLAN_PRIORITIES)[number]) : undefined),
+        icon: input.icon ?? defaults.icon,
+        teamIds: input.teamIds?.length ? input.teamIds : defaults.teamIds,
+        labelIds: input.labelIds?.length ? input.labelIds : defaults.labelIds,
+      }
+    : input;
+  const res = await createPlan(ctx.scope, ctx.actorId, payload);
   if (!res.ok) return trackError(400, res.error);
-  return NextResponse.json(res.plan, { status: 201 });
+  const applied = data ? await applyTemplateToPlan(res.plan.id, data, ctx.actorId) : undefined;
+  return NextResponse.json({ ...res.plan, template: applied }, { status: 201 });
 }

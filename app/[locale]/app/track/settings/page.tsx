@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
@@ -7,6 +7,7 @@ import { GithubSettings, LabelsSettings } from '@/components/track/TrackSettings
 import NotifySettings from '@/components/track/NotifySettings';
 import TrackImportPanel from '@/components/track/TrackImportPanel';
 import AutomationSettings from '@/components/track/planning/AutomationSettings';
+import { PlanTemplatesSettings } from '@/components/track/planning/PlanTemplates';
 import AgentAppsSettings from '@/components/track/triage/AgentAppsSettings';
 import { AccessSettings, ApiSettings, AuditLogSettings, GithubExtras, IntegrationsSettings } from '@/components/track/TrackIntegrationsSettings';
 import { listProjects } from '@/lib/track-data';
@@ -19,7 +20,7 @@ export default async function TrackSettingsPage(props: {
 }) {
   const { locale } = await props.params;
   const rawTab = (await props.searchParams)?.tab;
-  const TABS = ['github', 'integrations', 'api', 'access', 'audit', 'notifications', 'import', 'automations', 'agents'] as const;
+  const TABS = ['templates', 'github', 'integrations', 'api', 'access', 'audit', 'notifications', 'import', 'automations', 'agents'] as const;
   const tab = (TABS as readonly string[]).includes(rawTab ?? '') ? (rawTab as (typeof TABS)[number]) : 'labels';
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -41,6 +42,7 @@ export default async function TrackSettingsPage(props: {
         label={t('settingsPage.title')}
         items={[
           { key: 'labels', label: t('labelsSettings.title') },
+          { key: 'templates', label: tp('templates.tab') },
           { key: 'github', label: t('github.title') },
           { key: 'integrations', label: t('integrations.tab') },
           { key: 'api', label: t('apiSettings.tab') },
@@ -54,6 +56,8 @@ export default async function TrackSettingsPage(props: {
       >
         {tab === 'labels' ? (
           <LabelsSettings isAdmin={admin} />
+        ) : tab === 'templates' ? (
+          <PlanTemplatesSettings isAdmin={admin} me={realUserId(user)} />
         ) : tab === 'notifications' ? (
           <NotifySettings locale={locale} />
         ) : tab === 'import' ? (
