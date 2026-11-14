@@ -213,6 +213,17 @@ export async function isArchiveEcho(app: ArchiveApp, chatId: string, archived: b
   return false;
 }
 
+/**
+ * Qué se hizo con un archivado que llegó desde el teléfono, en los logs (sin el número: solo el tipo de id y sus
+ * últimos 2 dígitos). Siempre devuelve false salvo 'applied', para usarlo como return.
+ */
+export function traceArchive(app: ArchiveApp, jid: string, archived: boolean, result: 'not_found' | 'hidden' | 'same' | 'echo' | 'applied'): boolean {
+  const kind = isGroupJid(jid) ? 'group' : isLidJid(jid) ? 'lid' : 'pn';
+  // eslint-disable-next-line no-console
+  console.info('[wa-archive] phone', JSON.stringify({ app, kind, tail: jid.split('@')[0].slice(-2), archived, result }));
+  return result === 'applied';
+}
+
 /** El mismo chat 1:1 con el otro id que conoce WhatsApp (teléfono ↔ lid), si la libreta lo sabe. */
 export async function altJid(contacts: Target['contacts'], jid: string): Promise<string> {
   if (isGroupJid(jid)) return '';

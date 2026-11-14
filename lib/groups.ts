@@ -2693,9 +2693,11 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
-  const { isArchiveEcho } = await import('./wa-archive-sync');
-  if (await isArchiveEcho('lines', chat.id, archived)) return false;
+  const { isArchiveEcho, traceArchive } = await import('./wa-archive-sync');
+  if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
+  if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
+  if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
+  traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
   await db
     .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
