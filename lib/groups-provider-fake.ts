@@ -32,6 +32,7 @@
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
+import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -67,7 +68,7 @@ export interface FakeSent {
   kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
   /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
-  media?: { kind: string; mimetype: string; base64: boolean };
+  media?: { kind: string; mimetype: string; base64: boolean; gifPlayback?: boolean };
   /** Teléfonos mencionados (textos en grupos). */
   mentions?: string[];
 }
@@ -279,6 +280,7 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
   if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
@@ -446,8 +448,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       return r;
     },
     sendMedia: async (chatId, media) => {
-      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64) });
-      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;
+      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
+      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
@@ -483,7 +485,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
     },
-    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },

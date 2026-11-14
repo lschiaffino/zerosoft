@@ -152,6 +152,8 @@ export interface MediaInput {
   base64?: string;
   /** Id en el proveedor del mensaje que se cita. */
   replyTo?: string;
+  /** Video que WhatsApp reproduce como GIF (mudo, en loop, con la marca GIF): videoMessage.gifPlayback. */
+  gifPlayback?: boolean;
 }
 
 /** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */

@@ -382,6 +382,8 @@ export function forwardMedia(url: string, msg: Pick<MessageRow, 'media_type' | '
     ...(info?.height ? { height: info.height } : {}),
     ...(info?.duration ? { duration: info.duration } : {}),
     ...(info?.waveform?.length ? { waveform: info.waveform } : {}),
+    // Un GIF reenviado sigue siendo GIF (gifPlayback).
+    ...(info?.animated && msg.media_type.startsWith('video/') ? { gif: true } : {}),
   };
 }
 

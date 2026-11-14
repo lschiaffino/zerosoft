@@ -132,6 +132,7 @@ works without one.
 | `AI_FREE_TOKENS_PER_MONTH` / `AI_RATE_LIMIT_PER_MINUTE` / `AI_ENABLED` | AI quota per workspace, rate limit, and an off switch. |
 | `ZEROSOFT_LICENSE_KEY` | Enterprise license key for `ee/` features (optional). |
 | `ADMIN_EMAILS` | Emails that can see the feedback, roadmap and changelog admin pages. |
+| `GIPHY_API_KEY` / `TENOR_API_KEY` / `GIF_PROVIDER` | GIF search in the emoji panel of Lines and Inbox (the GIFs tab). One key is enough; with both, GIPHY wins unless `GIF_PROVIDER=tenor`. Unset: the tab says GIF search isn't set up and the rest works. The key stays on the server. |
 
 Social network apps (Meta, LinkedIn, X, TikTok, YouTube, Threads) are covered
 in [social-networks.md](social-networks.md).
