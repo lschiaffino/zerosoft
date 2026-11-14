@@ -1,0 +1,252 @@
+diff --git a/src/api/controllers/chat.controller.ts b/src/api/controllers/chat.controller.ts
+index 22e90b9..09a3575 100644
+--- a/src/api/controllers/chat.controller.ts
++++ b/src/api/controllers/chat.controller.ts
+@@ -2,6 +2,7 @@ import {
+   ArchiveChatDto,
+   BlockUserDto,
+   DeleteMessage,
++  FetchHistoryDto,
+   getBase64FromMediaMessageDto,
+   MarkChatUnreadDto,
+   NumberDto,
+@@ -17,6 +18,7 @@ import {
+ import { InstanceDto } from '@api/dto/instance.dto';
+ import { Query } from '@api/repository/repository.service';
+ import { WAMonitoringService } from '@api/services/monitor.service';
++import { BadRequestException } from '@exceptions';
+ import { Contact, Message, MessageUpdate } from '@prisma/client';
+ 
+ export class ChatController {
+@@ -34,6 +36,13 @@ export class ChatController {
+     return await this.waMonitor.waInstances[instanceName].archiveChat(data);
+   }
+ 
++  // zerosoft: only the Baileys channel has on-demand history.
++  public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
++    const instance = this.waMonitor.waInstances[instanceName];
++    if (typeof instance?.fetchHistory !== 'function') throw new BadRequestException('History is not available here');
++    return await instance.fetchHistory(data);
++  }
++
+   public async markChatUnread({ instanceName }: InstanceDto, data: MarkChatUnreadDto) {
+     return await this.waMonitor.waInstances[instanceName].markChatUnread(data);
+   }
+diff --git a/src/api/dto/chat.dto.ts b/src/api/dto/chat.dto.ts
+index b11f32b..9be1ca8 100644
+--- a/src/api/dto/chat.dto.ts
++++ b/src/api/dto/chat.dto.ts
+@@ -81,6 +81,13 @@ export class ArchiveChatDto {
+   archive: boolean;
+ }
+ 
++// zerosoft: POST /chat/fetchHistory/{instance}
++export class FetchHistoryDto {
++  remoteJid: string;
++  count?: number;
++  after?: number;
++}
++
+ export class MarkChatUnreadDto {
+   lastMessage?: LastMessage;
+   chat?: string;
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index c1d9104..906ba69 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -4,6 +4,7 @@ import {
+   ArchiveChatDto,
+   BlockUserDto,
+   DeleteMessage,
++  FetchHistoryDto,
+   getBase64FromMediaMessageDto,
+   LastMessage,
+   MarkChatUnreadDto,
+@@ -948,9 +949,9 @@ export class BaileysStartupService extends ChannelStartupService {
+       syncType?: proto.HistorySync.HistorySyncType;
+     }) => {
+       try {
+-        if (syncType === proto.HistorySync.HistorySyncType.ON_DEMAND) {
+-          console.log('received on-demand history sync, messages=', messages);
+-        }
++        // zerosoft: on-demand history (POST /chat/fetchHistory) is checked against the database, not against the
++        // cache of the first sync, which no longer has the messages that came after it.
++        const onDemand = syncType === proto.HistorySync.HistorySyncType.ON_DEMAND;
+         console.log(
+           `recv ${chats.length} chats, ${contacts.length} contacts, ${messages.length} msgs (is latest: ${isLatest}, progress: ${progress}%), type: ${syncType}`,
+         );
+@@ -1006,11 +1007,16 @@ export class BaileysStartupService extends ChannelStartupService {
+         const messagesRaw: any[] = [];
+ 
+         const messagesRepository: Set<string> = new Set(
+-          chatwootImport.getRepositoryMessagesCache(instance) ??
++          (!onDemand && chatwootImport.getRepositoryMessagesCache(instance)) ||
+             (
+               await this.prismaRepository.message.findMany({
+                 select: { key: true },
+-                where: { instanceId: this.instanceId },
++                where: onDemand
++                  ? {
++                      instanceId: this.instanceId,
++                      OR: messages.filter((m) => m.key?.id).map((m) => ({ key: { path: ['id'], equals: m.key.id } })),
++                    }
++                  : { instanceId: this.instanceId },
+               })
+             ).map((message) => {
+               const key = message.key as { id: string };
+@@ -1019,7 +1025,7 @@ export class BaileysStartupService extends ChannelStartupService {
+             }),
+         );
+ 
+-        if (chatwootImport.getRepositoryMessagesCache(instance) === null) {
++        if (!onDemand && chatwootImport.getRepositoryMessagesCache(instance) === null) {
+           chatwootImport.setRepositoryMessagesCache(instance, messagesRepository);
+         }
+ 
+@@ -1057,6 +1063,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         this.sendDataWebhook(Events.MESSAGES_SET, [...messagesRaw], true, undefined, {
+           isLatest,
+           progress,
++          ...(onDemand ? { syncType: 'ON_DEMAND' } : {}),
+         });
+ 
+         if (this.configService.get<Database>('DATABASE').SAVE_DATA.HISTORIC) {
+@@ -1108,6 +1115,7 @@ export class BaileysStartupService extends ChannelStartupService {
+             )
+           ) {
+             this.logger.warn(`Message ignored with messageStubParameters: ${JSON.stringify(received, null, 2)}`);
++            this.zsUndecryptable(received);
+             continue;
+           }
+           if (received.message?.conversation || received.message?.extendedTextMessage?.text) {
+@@ -3696,6 +3704,69 @@ export class BaileysStartupService extends ChannelStartupService {
+     }
+   }
+ 
++  // zerosoft: a message WhatsApp delivered that could not be decrypted (or came without content) used to be dropped
++  // silently. Now the phone is asked once to resend it, and the webhook gets a MESSAGES_UPSERT without `message` and
++  // with `zsUndecryptable: true`, so whoever listens knows a message is missing and can ask for the chat's history.
++  private readonly zsResendRequested = new Set<string>();
++
++  private zsUndecryptable(received: WAMessage) {
++    const key = received?.key;
++    if (!key?.id || !key.remoteJid || key.remoteJid === 'status@broadcast') return;
++    if (this.zsResendRequested.has(key.id)) return;
++    if (this.zsResendRequested.size > 5000) this.zsResendRequested.clear();
++    this.zsResendRequested.add(key.id);
++
++    const reason = String(received.messageStubParameters?.[0] ?? '');
++    this.logger.warn(`zerosoft: undecryptable message ${key.id} in ${key.remoteJid} (${reason}), asking the phone`);
++    // Not awaited: Baileys waits a few seconds before sending the request, and the event queue must not stop.
++    this.client
++      .requestPlaceholderResend(key)
++      .then((requestId) => this.logger.info(`zerosoft: resend requested for ${key.id} (${requestId ?? 'already'})`))
++      .catch((error) => this.logger.warn(`zerosoft: resend request failed for ${key.id}: ${error?.toString()}`));
++
++    const timestamp = Long.isLong(received.messageTimestamp)
++      ? received.messageTimestamp.toNumber()
++      : Number(received.messageTimestamp) || undefined;
++    this.sendDataWebhook(Events.MESSAGES_UPSERT, {
++      key,
++      pushName: received.pushName,
++      messageTimestamp: timestamp,
++      messageStubType: 'CIPHERTEXT',
++      messageStubParameters: received.messageStubParameters,
++      zsUndecryptable: true,
++      instanceId: this.instanceId,
++    });
++  }
++
++  // zerosoft: on-demand history for a chat. WhatsApp sends `count` messages older than the anchor (a message stored
++  // here); they arrive through messaging-history.set (ON_DEMAND) and go out as MESSAGES_SET. Anchor: the oldest
++  // stored message newer than `after` (seconds) when given, if not the newest stored message of the chat.
++  public async fetchHistory(data: FetchHistoryDto) {
++    const jid = createJid(data.remoteJid);
++    const sameChat = {
++      OR: [{ key: { path: ['remoteJid'], equals: jid } }, { key: { path: ['remoteJidAlt'], equals: jid } }],
++    };
++    const after = Number(data.after) > 0 ? Math.floor(Number(data.after)) : 0;
++    const anchor =
++      (after
++        ? await this.prismaRepository.message.findFirst({
++            where: { instanceId: this.instanceId, messageTimestamp: { gt: after }, ...sameChat },
++            orderBy: { messageTimestamp: 'asc' },
++          })
++        : null) ??
++      (await this.prismaRepository.message.findFirst({
++        where: { instanceId: this.instanceId, ...sameChat },
++        orderBy: { messageTimestamp: 'desc' },
++      }));
++    if (!anchor) throw new NotFoundException('No stored message in this chat to anchor the history request');
++
++    const key = anchor.key as proto.IMessageKey;
++    const count = Math.min(Math.max(Math.floor(Number(data.count) || 50), 1), 100);
++    const requestId = await this.client.fetchMessageHistory(count, key, Number(anchor.messageTimestamp) * 1000);
++    this.logger.info(`zerosoft: on-demand history for ${jid} (${count} before ${key.id}), request ${requestId}`);
++    return { requestId, anchor: { id: key.id, fromMe: key.fromMe, timestamp: anchor.messageTimestamp }, count };
++  }
++
+   public async getLastMessage(number: string) {
+     const where: any = { key: { remoteJid: number }, instanceId: this.instance.id };
+ 
+diff --git a/src/api/routes/chat.router.ts b/src/api/routes/chat.router.ts
+index 158947e..b789abc 100644
+--- a/src/api/routes/chat.router.ts
++++ b/src/api/routes/chat.router.ts
+@@ -3,6 +3,7 @@ import {
+   ArchiveChatDto,
+   BlockUserDto,
+   DeleteMessage,
++  FetchHistoryDto,
+   getBase64FromMediaMessageDto,
+   MarkChatUnreadDto,
+   NumberDto,
+@@ -24,6 +25,7 @@ import {
+   blockUserSchema,
+   contactValidateSchema,
+   deleteMessageSchema,
++  fetchHistorySchema,
+   markChatUnreadSchema,
+   messageUpSchema,
+   messageValidateSchema,
+@@ -80,6 +82,16 @@ export class ChatRouter extends RouterBroker {
+ 
+         return res.status(HttpStatus.CREATED).json(response);
+       })
++      .post(this.routerPath('fetchHistory'), ...guards, async (req, res) => {
++        const response = await this.dataValidate<FetchHistoryDto>({
++          request: req,
++          schema: fetchHistorySchema,
++          ClassRef: FetchHistoryDto,
++          execute: (instance, data) => chatController.fetchHistory(instance, data),
++        });
++
++        return res.status(HttpStatus.CREATED).json(response);
++      })
+       .post(this.routerPath('markChatUnread'), ...guards, async (req, res) => {
+         const response = await this.dataValidate<MarkChatUnreadDto>({
+           request: req,
+diff --git a/src/validate/chat.schema.ts b/src/validate/chat.schema.ts
+index 7dae445..44de458 100644
+--- a/src/validate/chat.schema.ts
++++ b/src/validate/chat.schema.ts
+@@ -91,6 +91,19 @@ export const archiveChatSchema: JSONSchema7 = {
+   required: ['archive'],
+ };
+ 
++// zerosoft: POST /chat/fetchHistory/{instance}
++export const fetchHistorySchema: JSONSchema7 = {
++  $id: v4(),
++  type: 'object',
++  properties: {
++    remoteJid: { type: 'string' },
++    count: { type: 'integer', minimum: 1, maximum: 100 },
++    after: { type: 'integer', minimum: 0 },
++  },
++  required: ['remoteJid'],
++  ...isNotEmpty('remoteJid'),
++};
++
+ export const markChatUnreadSchema: JSONSchema7 = {
+   $id: v4(),
+   type: 'object',

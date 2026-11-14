@@ -16,6 +16,8 @@ import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
 import { refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
+import { waProviderFor } from '@/lib/inbox/whatsapp';
+import { refreshPrivacyIfStale } from '@/lib/wa-privacy';
 import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
 
 export const runtime = 'nodejs';
@@ -53,7 +55,10 @@ async function buildDetail(owner: string, id: string, around: string | undefined
   }
   const thread = await getThread(owner, id);
   const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
-  const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
+  const account = row.channel === 'whatsapp' ? await getAccount(owner, row.account_id) : null;
+  const wa = account ? await waDetails(owner, row, account) : null;
+  // Las confirmaciones de lectura de la cuenta: si el dato tiene más de un día, se relee después de responder.
+  if (account?.status === 'connected') await refreshPrivacyIfStale('inbox', account, () => waProviderFor(account));
   return {
     thread,
     messages: page.messages,

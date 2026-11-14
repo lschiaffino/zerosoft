@@ -9973,6 +9973,53 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_board_stars_board ON board_stars(board_id);
       `);
     },
+  },  {
+    // WhatsApp: la privacidad de "Confirmaciones de lectura" de cada línea de Lines y cada cuenta de Inbox
+    // ('all', 'none' o '' sin saber), con la hora en que se leyó del servidor (lib/wa-privacy.ts).
+    id: '401_wa_read_receipts_privacy',
+    async up(c) {
+      await addColumn(c, "ALTER TABLE groups_numbers ADD COLUMN read_receipts TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE groups_numbers ADD COLUMN privacy_at TEXT');
+      await addColumn(c, "ALTER TABLE inbox_accounts ADD COLUMN read_receipts TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE inbox_accounts ADD COLUMN privacy_at TEXT');
+    },
+  },
+  {
+    // Inbox y Lines: mensajes que WhatsApp entregó y no se pudieron descifrar (lib/wa-history-gaps.ts). Uno por
+    // mensaje faltante, el pedido de historial por chat (con su espera y su tope por línea) y la marca en el chat.
+    id: '402_wa_history_gaps',
+    async up(c) {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_history_gaps (
+          app TEXT NOT NULL,
+          account_id TEXT NOT NULL,
+          message_id TEXT NOT NULL,
+          chat_id TEXT NOT NULL,
+          from_me INTEGER NOT NULL DEFAULT 0,
+          msg_ts INTEGER,
+          created_at TEXT NOT NULL,
+          resolved_at TEXT,
+          PRIMARY KEY (app, account_id, message_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_wa_history_gaps_open ON wa_history_gaps(app, chat_id) WHERE resolved_at IS NULL;
+        CREATE TABLE IF NOT EXISTS wa_history_fetch (
+          app TEXT NOT NULL,
+          chat_id TEXT NOT NULL,
+          account_id TEXT NOT NULL,
+          scope_id TEXT NOT NULL,
+          due_at TEXT,
+          claimed_until TEXT,
+          last_at TEXT,
+          auto_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (app, chat_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_wa_history_fetch_due ON wa_history_fetch(due_at) WHERE due_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_wa_history_fetch_line ON wa_history_fetch(app, account_id, last_at);
+      `);
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN history_gap_at TEXT');
+      await addColumn(c, 'ALTER TABLE inbox_threads ADD COLUMN history_gap_at TEXT');
+    },
   },
 ];
 

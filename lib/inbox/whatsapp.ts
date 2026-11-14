@@ -135,8 +135,18 @@ async function applyState(account: AccountRow, state: ConnectState): Promise<voi
   // para que WhatsApp termine de mandar el historial (cada tanda nueva la vuelve a correr).
   const first = status === 'connected' && !account.sync_cursor;
   if (first) patch.sync_cursor = backfillCursor(Date.now() + BACKFILL_DELAY_MS);
+  const wasConnected = account.status === 'connected';
   await setAccountState(account.id, patch);
   Object.assign(account, patch);
+  // Recién conectada (o sin el dato todavía): sus confirmaciones de lectura (lib/wa-privacy.ts).
+  if (status === 'connected' && (!wasConnected || !account.privacy_at)) {
+    const { refreshPrivacy } = await import('../wa-privacy');
+    try {
+      await refreshPrivacy('inbox', account.id, waProviderFor(account));
+    } catch {
+      // Sin proveedor: la lee el repaso diario.
+    }
+  }
   // Y, detrás de ese arranque rápido (los chats recientes), todo el historial que guardó el servidor: una
   // importación en segundo plano que se retoma sola (lib/inbox/import-jobs.ts). Una vez por cuenta. El servidor
   // falso de las pruebas no la arranca solo: sus chats de mentira no tienen que aparecer en cada cuenta de prueba.
@@ -255,11 +265,7 @@ function needsBookFirst(e: InboundEvent): boolean {
  * ignora (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
-  let t = await findThread(account.id, normalizeWaJid(chatId));
-  if (!t && isLidJid(chatId)) {
-    const phone = await phoneForLid(inboxScope(account), lidDigits(chatId)).catch(() => '');
-    if (phone) t = await findThread(account.id, `${phone}@s.whatsapp.net`);
-  }
+  const t = await findPhoneThread(account, chatId);
   if (!t || !!t.archived_at === archived) return false;
   const { isArchiveEcho } = await import('../wa-archive-sync');
   if (await isArchiveEcho('inbox', t.id, archived)) return false;
@@ -267,6 +273,16 @@ export async function applyPhoneArchive(account: AccountRow, chatId: string, arc
     .prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
     .run(archived ? nowIso() : null, archived ? 1 : 0, nowIso(), t.id);
   return true;
+}
+
+/** El chat de un aviso de WhatsApp, que puede venir con el lid (no crea nada). */
+async function findPhoneThread(account: AccountRow, chatId: string) {
+  let t = await findThread(account.id, normalizeWaJid(chatId));
+  if (!t && isLidJid(chatId)) {
+    const phone = await phoneForLid(inboxScope(account), lidDigits(chatId)).catch(() => '');
+    if (phone) t = await findThread(account.id, `${phone}@s.whatsapp.net`);
+  }
+  return t;
 }
 
 /** Guarda lo que manda el servidor de WhatsApp (webhook o historial). Devuelve cuántos mensajes nuevos entraron. */
@@ -299,6 +315,14 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
         case 'archive':
           await applyPhoneArchive(account, e.chatId, e.archived);
           break;
+        case 'missing': {
+          // WhatsApp entregó un mensaje que no se pudo descifrar: hueco en el chat y pedido de historial (lib/wa-history-gaps.ts).
+          const t = await findPhoneThread(account, e.chatId);
+          if (!t) break;
+          const { recordMissing } = await import('../wa-history-gaps');
+          await recordMissing('inbox', { chatId: t.id, accountId: account.id, scopeId: account.owner_id }, e);
+          break;
+        }
         case 'status': {
           // Las tildes no vuelven atrás (llega "entregado" después de "leído").
           const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
@@ -352,6 +376,10 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
     }
   }
   if (learning) await learning;
+  // El historial que se pidió por un mensaje que faltaba (lib/wa-history-gaps.ts): si lo trajo, el hueco se cierra.
+  if (messages > 0 && (opts.history || slice.some((e) => e.type === 'message' && e.history))) {
+    await import('../wa-history-gaps').then((g) => g.resolveGaps('inbox', { accountId: account.id })).catch(() => 0);
+  }
   // Tildes, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   if (slice.length) pokeLive('inbox', account.owner_id);
   return failed ? { messages, failed } : { messages };

@@ -199,7 +199,9 @@
     "noteHint": "Type @ to mention someone. They get a notification.",
     "task": "Task",
     "question": "Needs reply",
-    "fileUnavailable": "Not available"
+    "fileUnavailable": "Not available",
+    "fetchMissing": "Fetch missing messages",
+    "fetchMissingToast": "We asked your phone for this chat’s messages. They may take a moment."
   },
   "status": {
     "pending": "Sending",
@@ -207,7 +209,8 @@
     "delivered": "Delivered",
     "read": "Read",
     "failed": "Not sent",
-    "received": "Received"
+    "received": "Received",
+    "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice."
   },
   "details": {
     "name": "Name",
@@ -1015,7 +1018,9 @@
     "hubspot_company_gone": "That company is no longer in HubSpot. Link this chat to another company.",
     "own_number": "That is this line’s own number.",
     "not_on_whatsapp": "That number is not on WhatsApp. Check it, including the country code.",
-    "chat_no_access": "This line already has a chat with that number and you don’t have access to it. Ask an admin."
+    "chat_no_access": "This line already has a chat with that number and you don’t have access to it. Ask an admin.",
+    "history_rate_limited": "You already asked for this chat’s messages a moment ago. Try again in a minute.",
+    "history_failed": "Your phone did not answer. Check that it is online and try again."
   },
   "media": {
     "image": "Image",

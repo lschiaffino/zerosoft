@@ -49,7 +49,7 @@
     "showQuote": "Ver texto citado",
     "revoked": "Eliminado para todos · se conserva acá",
     "edited": "Editado",
-    "status": { "pending": "Enviando", "sent": "Enviado", "delivered": "Entregado", "read": "Leído", "failed": "No se envió" },
+    "status": { "pending": "Enviando", "sent": "Enviado", "delivered": "Entregado", "read": "Leído", "failed": "No se envió", "readHidden": "Leído. Tu WhatsApp no te lo muestra porque tenés las confirmaciones de lectura apagadas; zerosoft lo sabe porque le llega el aviso." },
     "older": "Ver mensajes anteriores",
     "empty": "Todavía no hay mensajes. Saludá.",
     "today": "Hoy",
@@ -148,7 +148,9 @@
     "upload_failed": "No se pudo subir el archivo. Probá de nuevo.",
     "invalid_file": "Ese archivo no es una exportación de inbox-zero.",
     "media_unavailable": "Este archivo ya no está disponible en WhatsApp.",
-    "group_failed": "WhatsApp no pudo crear el grupo. Probá de nuevo en un rato."
+    "group_failed": "WhatsApp no pudo crear el grupo. Probá de nuevo en un rato.",
+    "history_rate_limited": "Ya pediste los mensajes de este chat hace un momento. Probá de nuevo en un minuto.",
+    "history_failed": "Tu teléfono no respondió. Fijate que tenga internet y probá de nuevo."
   },
   "empty": {
     "connectTitle": "Conectá WhatsApp o Gmail",

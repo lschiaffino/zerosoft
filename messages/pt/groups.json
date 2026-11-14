@@ -199,7 +199,9 @@
     "noteHint": "Digite @ para mencionar alguém. A pessoa recebe um aviso.",
     "task": "Tarefa",
     "question": "Pede resposta",
-    "fileUnavailable": "Indisponível"
+    "fileUnavailable": "Indisponível",
+    "fetchMissing": "Buscar mensagens que faltam",
+    "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco."
   },
   "status": {
     "pending": "Enviando",
@@ -207,7 +209,8 @@
     "delivered": "Entregue",
     "read": "Lida",
     "failed": "Não enviada",
-    "received": "Recebida"
+    "received": "Recebida",
+    "readHidden": "Lida. Seu WhatsApp não mostra porque suas confirmações de leitura estão desativadas; o zerosoft sabe porque recebe o aviso."
   },
   "details": {
     "name": "Nome",
@@ -1015,7 +1018,9 @@
     "hubspot_company_gone": "Essa empresa não está mais no HubSpot. Vincule esta conversa a outra empresa.",
     "own_number": "Esse é o número desta mesma linha.",
     "not_on_whatsapp": "Esse número não tem WhatsApp. Confira, com o código do país.",
-    "chat_no_access": "Esta linha já tem uma conversa com esse número e você não tem acesso. Peça a um admin."
+    "chat_no_access": "Esta linha já tem uma conversa com esse número e você não tem acesso. Peça a um admin.",
+    "history_rate_limited": "Você já pediu as mensagens desta conversa há pouco. Tente de novo em um minuto.",
+    "history_failed": "Seu telefone não respondeu. Verifique se ele está com internet e tente de novo."
   },
   "media": {
     "image": "Imagem",
