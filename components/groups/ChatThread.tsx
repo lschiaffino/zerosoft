@@ -43,6 +43,7 @@ import EmojiPicker from './wa/EmojiPicker';
 import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
+import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
@@ -1329,6 +1330,15 @@ export default function ChatThread(props: ThreadProps) {
     return true;
   }
 
+  /** Un GIF de la pestaña GIFs: el servidor baja el MP4 y lo guarda, y sale como video con gifPlayback. '' si salió. */
+  async function sendGif(g: GifItem): Promise<string> {
+    const res = await api<{ media: Record<string, unknown> }>('/api/groups/gifs', { body: { url: g.mp4, width: g.width, height: g.height } });
+    if (!res.data) return res.error || 'send_failed';
+    const sent = await post({ note: false, replyToId: replyTo?.id ?? null, body: '', media: res.data.media });
+    if (sent) setReplyTo(null);
+    return sent ? '' : 'send_failed';
+  }
+
   function downloadMedia(m: MessageDto) {
     if (!m.media?.url) return;
     const a = document.createElement('a');
@@ -2142,6 +2152,7 @@ export default function ChatThread(props: ThreadProps) {
                 {emojiOpen && (
                   <EmojiPicker
                     stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
+                    gifs={mode === 'reply' ? { api: '/api/groups/gifs', onSend: sendGif } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
                     }}

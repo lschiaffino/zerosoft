@@ -8,6 +8,7 @@ import { withTimeout } from '@/lib/conditional-fetch';
 import { inboxQueue, pendingSends, tempInboxMessage } from './pending';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
+import type { GifItem } from '@/components/groups/wa/GifPanel';
 import Avatar from '@/components/groups/wa/Avatar';
 import MentionTextarea from '@/components/groups/wa/MentionTextarea';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
@@ -283,6 +284,22 @@ const WaComposer = forwardRef<
     return true;
   };
 
+  /** Un GIF de la pestaña GIFs: el servidor baja el MP4 y lo manda como video con gifPlayback. '' si salió. */
+  const sendGif = async (g: GifItem): Promise<string> => {
+    if (disabled || paused) return 'send_failed';
+    const threadId = thread.id;
+    const r = await inboxQueue(threadId)(() =>
+      api<{ messages: MessageDto[] }>('/api/inbox/gifs', {
+        method: 'POST',
+        json: { threadId, url: g.mp4, width: g.width, height: g.height, clientId: newClientId(), ...(replyToId ? { replyTo: replyToId } : {}) },
+      }),
+    );
+    if (!r.ok) return r.data.error ?? 'send_failed';
+    if (replyToId) onCancelBanner();
+    onSent(r.data.messages);
+    return '';
+  };
+
   /** Dicta con Voice: el texto entra en el campo. */
   const dictate = () => {
     area.current?.focus();
@@ -433,6 +450,7 @@ const WaComposer = forwardRef<
           {emoji && (
             <EmojiPicker
               stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
+              gifs={editing ? undefined : { api: '/api/inbox/gifs', onSend: sendGif }}
               onPick={(e) => insertAtCaret(e)}
               onClose={() => {
                 setEmoji(false);

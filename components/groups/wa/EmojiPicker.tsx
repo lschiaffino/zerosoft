@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslations } from 'next-intl';
 import type { EmojiCategory } from './emoji-data';
 import StickerPanel, { type StickerTab } from './StickerPanel';
+import GifPanel, { type GifTab } from './GifPanel';
 import { recentWithDefaults } from './emoji-recent';
 
 export const RECENT_KEY = 'zs-groups-emoji-recent';
-/** Última pestaña del panel (Emoji o Stickers), como WhatsApp Web la recuerda. */
+/** Última pestaña del panel (Emoji, GIFs o Stickers), como WhatsApp Web la recuerda. */
 const PANEL_KEY = 'zs-wa-expression-tab';
 const CATS: Array<{ key: 'recent' | EmojiCategory; icon: string }> = [
   { key: 'recent', icon: '🕘' },
@@ -50,9 +51,12 @@ export function saveRecent(list: string[]) {
   }
 }
 
-function readPanel(): 'emoji' | 'stickers' {
+type Panel = 'emoji' | 'gifs' | 'stickers';
+
+function readPanel(has: { gifs: boolean; stickers: boolean }): Panel {
   try {
-    return window.localStorage.getItem(PANEL_KEY) === 'stickers' ? 'stickers' : 'emoji';
+    const v = window.localStorage.getItem(PANEL_KEY);
+    return v === 'stickers' && has.stickers ? 'stickers' : v === 'gifs' && has.gifs ? 'gifs' : 'emoji';
   } catch {
     return 'emoji';
   }
@@ -62,13 +66,14 @@ function readPanel(): 'emoji' | 'stickers' {
  * Panel de emojis del composer, como el de WhatsApp Web: búsqueda,
  * pestañas por categoría (con los recientes) y la grilla. Los datos se cargan
  * aparte la primera vez que se abre. Esc cierra; flechas recorren la grilla.
- * Con `stickers`, arriba van las pestañas Emoji | Stickers (StickerPanel).
+ * Con `gifs` o `stickers`, arriba van las pestañas Emoji | GIFs | Stickers
+ * (GifPanel, StickerPanel).
  */
-export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (emoji: string) => void; onClose: () => void; stickers?: StickerTab }) {
+export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPick: (emoji: string) => void; onClose: () => void; stickers?: StickerTab; gifs?: GifTab }) {
   const t = useTranslations('groups.wa');
   const ref = useRef<HTMLDivElement>(null);
-  const [panel, setPanel] = useState<'emoji' | 'stickers'>(() => (stickers ? readPanel() : 'emoji'));
-  const choosePanel = (p: 'emoji' | 'stickers') => {
+  const [panel, setPanel] = useState<Panel>(() => readPanel({ gifs: Boolean(gifs), stickers: Boolean(stickers) }));
+  const choosePanel = (p: Panel) => {
     setPanel(p);
     try {
       window.localStorage.setItem(PANEL_KEY, p);
@@ -132,15 +137,26 @@ export default function EmojiPicker({ onPick, onClose, stickers }: { onPick: (em
 
   const list: Array<[string, string]> = results ?? (active === 'recent' ? recentWithDefaults(recent).map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
 
-  const panelTabs = stickers ? (
-    <div className="wa-xp-tabs" role="tablist" aria-label={t('stickers.panels')}>
-      {(['emoji', 'stickers'] as const).map((p) => (
-        <button key={p} type="button" role="tab" aria-selected={panel === p} onClick={() => choosePanel(p)}>
-          {p === 'emoji' ? t('emoji') : t('stickers.tab')}
-        </button>
-      ))}
-    </div>
-  ) : null;
+  const panels: Panel[] = ['emoji', ...(gifs ? (['gifs'] as const) : []), ...(stickers ? (['stickers'] as const) : [])];
+  const panelTabs =
+    panels.length > 1 ? (
+      <div className="wa-xp-tabs" role="tablist" aria-label={t('stickers.panels')}>
+        {panels.map((p) => (
+          <button key={p} type="button" role="tab" aria-selected={panel === p} onClick={() => choosePanel(p)}>
+            {p === 'emoji' ? t('emoji') : p === 'gifs' ? t('gifs.tab') : t('stickers.tab')}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  if (gifs && panel === 'gifs') {
+    return (
+      <div className="wa-emoji is-gifs" data-voice-off role="dialog" aria-label={t('gifs.tab')} ref={ref} onKeyDown={onKey}>
+        {panelTabs}
+        <GifPanel api={gifs.api} onSend={gifs.onSend} onSent={onClose} />
+      </div>
+    );
+  }
 
   if (stickers && panel === 'stickers') {
     return (

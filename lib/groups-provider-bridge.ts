@@ -1414,6 +1414,9 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           fileName,
           // WhatsApp no muestra texto en un audio: lo manda aparte quien llama.
           ...(kind === 'audio' ? {} : { caption: media.caption ?? '' }),
+          // Un GIF (lib/wa-gifs.ts). Evolution lo lee desde la rama develop (después de 2.3.7); las versiones
+          // anteriores ignoran el campo y fijan gifPlayback en false, así que llega como un video común.
+          ...(kind === 'video' && media.gifPlayback ? { gifPlayback: true } : {}),
           ...quoted,
         })) as Json;
       }

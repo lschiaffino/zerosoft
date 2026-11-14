@@ -874,6 +874,29 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-stk-note { margin-top: 10px !important; font-size: 0.8125rem; }
 .wa-stk-error { margin: 0 2px 6px; font-size: 0.8125rem; color: var(--wa-danger, #ea0038); }
 
+/* Pestaña GIFs: búsqueda, categorías, mosaico de vistas previas animadas y la atribución del proveedor. */
+.wa-gif-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.wa-gif-panel .wa-emoji-search { margin: 2px 2px 6px; }
+.wa-gif-cats { display: flex; gap: 6px; padding: 0 2px 6px; overflow-x: auto; scrollbar-width: none; }
+.wa-gif-cats::-webkit-scrollbar { display: none; }
+.wa-gif-cats button { flex: none; height: 28px; padding: 0 10px; font: inherit; font-size: 0.8125rem; color: var(--wa-text); background: var(--wa-search-bg); border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.wa-gif-cats button:hover { background: var(--wa-row-hover); }
+.wa-gif-cats button[aria-pressed='true'] { color: var(--wa-primary-ink, var(--wa-text)); background: var(--wa-chip-on-bg, var(--wa-search-bg)); border-color: var(--wa-primary); }
+.wa-gif-cats button:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-gif-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.wa-gif-grid { display: flex; gap: 4px; align-items: flex-start; padding: 0 2px; }
+.wa-gif-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.wa-gif-tile { position: relative; display: block; width: 100%; padding: 0; overflow: hidden; background: var(--wa-row-hover); border: 0; border-radius: 6px; cursor: pointer; }
+.wa-gif-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wa-gif-tile:hover img { opacity: 0.88; }
+.wa-gif-tile:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-gif-tile[aria-busy='true'] { opacity: 0.5; }
+.wa-gif-tile:disabled { cursor: default; }
+.wa-gif-skel { display: block; width: 100%; background: var(--wa-row-hover); border-radius: 6px; }
+.wa-gif-end { min-height: 8px; text-align: center; font-size: 0.75rem; color: var(--wa-text-2); }
+.wa-gif-attrib { margin: 4px 2px 0; font-size: 0.6875rem; letter-spacing: 0.02em; text-align: right; color: var(--wa-text-2); }
+.wa-gif-unset { margin: auto 0; }
+
 /* Sticker que no se puede dibujar (Lottie) y GIF de WhatsApp (gifPlayback). */
 .wa-image.is-sticker.is-missing { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 140px; height: 140px; color: var(--wa-text-2); font-size: 0.8125rem; background: color-mix(in srgb, var(--wa-panel) 70%, transparent); border-radius: 12px; }
 .wa-gif { aspect-ratio: auto; min-height: 120px; cursor: zoom-in; }
