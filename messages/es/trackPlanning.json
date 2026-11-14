@@ -278,7 +278,7 @@
       "target": "Fecha objetivo",
       "progress": "Progreso"
     },
-    "planCount": "{count, plural, one {# plan} other {# planes}}",
+    "planCount": "{active} de {count, plural, one {# proyecto} other {# proyectos}}",
     "plans": "Proyectos",
     "noPlans": "Sin proyectos. Sumá uno existente o creá uno nuevo.",
     "addPlan": "Sumar un proyecto",

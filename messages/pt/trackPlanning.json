@@ -278,7 +278,7 @@
       "target": "Data-alvo",
       "progress": "Progresso"
     },
-    "planCount": "{count, plural, one {# plano} other {# planos}}",
+    "planCount": "{active} de {count, plural, one {# projeto} other {# projetos}}",
     "plans": "Projetos",
     "noPlans": "Sem projetos. Adicione um existente ou crie um novo.",
     "addPlan": "Adicionar um projeto",

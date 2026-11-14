@@ -108,7 +108,7 @@ export function InitiativesList() {
                         .map((p) => (
                           <span key={p.id} className={`tp-dot tp-health-${p.health}`} title={`${p.name} · ${t(`health.${p.health}`)}`} />
                         ))}
-                      <span className="ui-help">{t('initiatives.planCount', { count: r.plans.length })}</span>
+                      <span className="ui-help">{t('initiatives.planCount', { active: r.plans.filter((p) => p.status === 'in_progress').length, count: r.plans.length })}</span>
                     </span>
                   </td>
                   <td data-label={t('initiatives.columns.owner')}>{r.lead_name ?? t('common.noLead')}</td>
