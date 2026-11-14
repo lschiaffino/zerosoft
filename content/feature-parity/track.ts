@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-14',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -107,7 +107,7 @@ const parity: ProductParity = {
       id: 'initiatives',
       area: 'issues',
       label: { en: 'Initiatives and sub-initiatives', es: 'Initiatives y sub-initiatives', pt: 'Initiatives e sub-initiatives' },
-      detail: { en: 'Owner, status, target date, projects and sub-initiatives, combined progress; health is the worst of its active projects (no separate initiative updates)', es: 'Responsable, estado, fecha objetivo, proyectos y sub-iniciativas, progreso sumado; la salud es la peor de sus proyectos en curso (sin updates propios de la iniciativa)', pt: 'Responsável, status, data-alvo, projetos e sub-iniciativas, progresso somado; a saúde é a pior dos projetos em andamento (sem updates próprios da iniciativa)' },
+      detail: { en: 'Owner, status, target date, projects and sub-initiatives, combined progress; initiative updates with health and text that notify the owner and project leads, and the latest one sets the health (without updates, the worst of its active projects). No comments or reminders on initiative updates yet', es: 'Responsable, estado, fecha objetivo, proyectos y sub-iniciativas, progreso sumado; updates de la iniciativa con salud y texto que avisan al responsable y a los leads de sus proyectos, y el último fija la salud (sin updates, la peor de sus proyectos en curso). Todavía sin comentarios ni recordatorios en esos updates', pt: 'Responsável, status, data-alvo, projetos e sub-iniciativas, progresso somado; updates da iniciativa com saúde e texto que avisam o responsável e os leads dos projetos, e o último define a saúde (sem updates, a pior dos projetos em andamento). Ainda sem comentários nem lembretes nesses updates' },
       status: 'have',
       competitorHas: true,
     },

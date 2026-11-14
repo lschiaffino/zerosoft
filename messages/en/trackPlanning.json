@@ -500,5 +500,14 @@
     "typed": "Typed",
     "people": "{count} people",
     "noInitiatives": "No initiatives yet"
+  },
+  "initiativeUpdates": {
+    "title": "Updates",
+    "placeholder": "How is this initiative going? What moved across its projects, what is at risk, what comes next",
+    "notifyHelp": "The owner, the creator and the leads of its projects get it in their Inbox. The latest update sets the initiative health.",
+    "empty": "No updates yet. Post the first one with its health so everyone knows where this initiative stands.",
+    "bodyRequired": "Write what changed before posting.",
+    "editLabel": "Edit update by {name}",
+    "deleteLabel": "Delete update by {name}"
   }
 }

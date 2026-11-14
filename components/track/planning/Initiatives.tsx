@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, useRef } from 'react';
+import InitiativeUpdates from './InitiativeUpdates';
+import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -426,6 +428,13 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
             <p className="ui-help">{t('initiatives.descriptionEmpty')}</p>
           )}
         </section>
+
+        <InitiativeUpdates
+          initiativeId={ini.id}
+          // El composer arranca con la salud de ahora (del último update o de sus projects).
+          lastHealth={(PLAN_HEALTH as readonly string[]).includes(ini.health) ? (ini.health as PlanHealth) : null}
+          onPosted={load}
+        />
 
         <section className="tp-card" aria-labelledby="tp-ini-plans">
           <div className="tp-card-head">
