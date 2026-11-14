@@ -37,8 +37,8 @@ export function e2eDb(): Client {
           return out;
         } catch (err) {
           if (!/SQLITE_BUSY|database is locked/i.test(String(err))) throw err;
-          ready = client
-            .reconnect()
+          // reconnect() está tipado como void pero en SQLite local es async.
+          ready = Promise.resolve(client.reconnect())
             .then(setup)
             .catch(() => undefined);
           await ready;
