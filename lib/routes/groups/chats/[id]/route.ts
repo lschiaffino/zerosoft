@@ -56,15 +56,30 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 }
 
-/** Saca el chat de Groups (el grupo sigue en WhatsApp). */
-/** { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado. */
+/**
+ * { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado.
+ * { action: 'fetchMissing', auto? }: le pide al teléfono el historial del chat (mensajes que WhatsApp no pudo
+ * entregar, lib/wa-history-gaps.ts). `auto`: lo pide la pantalla al abrir un chat con la marca; responde 200 igual
+ * si no sale (topes, sin huecos).
+ */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
-  const b = (await req.json().catch(() => ({}))) as { action?: string };
+  const b = (await req.json().catch(() => ({}))) as { action?: string; auto?: unknown };
+  if (b.action === 'fetchMissing') {
+    try {
+      const { requestChatHistory, historyResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestChatHistory('lines', s.ws, id, { auto: b.auto === true });
+      if (!out) return groupsError(404, 'not_found');
+      const r = historyResponse(out, b.auto === true);
+      return NextResponse.json(r.body, { status: r.status });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   if (b.action !== 'importOlder') return groupsError(400, 'invalid_action');
   try {
     const { importOlder } = await import('@/lib/groups-import');

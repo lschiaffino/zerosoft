@@ -69,6 +69,11 @@ export interface ThreadDto {
   lastKind: string;
   /** Tildes del último mensaje propio (sent, delivered, read, failed). */
   lastStatus: string;
+  /**
+   * WhatsApp 1:1 con las confirmaciones de lectura de la cuenta apagadas: el teléfono no muestra si el otro
+   * leyó, zerosoft sí (le llega el aviso). Solo cambia la explicación de las tildes azules.
+   */
+  readHidden?: boolean;
   presence: '' | 'typing' | 'recording' | 'online';
   /** En un grupo, quién escribe (teléfono). */
   presenceWho: string;
@@ -77,6 +82,8 @@ export interface ThreadDto {
   lastSeenAt: string | null;
   /** Último mensaje con foto o video (su miniatura en la fila). */
   lastMediaId?: string | null;
+  /** WhatsApp: le falta un mensaje que no se pudo entregar; al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
+  historyGap?: boolean;
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */

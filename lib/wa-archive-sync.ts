@@ -214,7 +214,7 @@ export async function isArchiveEcho(app: ArchiveApp, chatId: string, archived: b
 }
 
 /** El mismo chat 1:1 con el otro id que conoce WhatsApp (teléfono ↔ lid), si la libreta lo sabe. */
-async function altJid(contacts: Target['contacts'], jid: string): Promise<string> {
+export async function altJid(contacts: Target['contacts'], jid: string): Promise<string> {
   if (isGroupJid(jid)) return '';
   const db = getDb();
   if (isLidJid(jid)) {

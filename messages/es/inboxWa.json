@@ -264,5 +264,7 @@
     "groupName": "Nombre del grupo",
     "groupMembers": "{n, plural, one {# participante} other {# participantes}}",
     "createGroup": "Crear grupo"
-  }
+  },
+  "fetchMissing": "Traer mensajes que faltan",
+  "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
 }

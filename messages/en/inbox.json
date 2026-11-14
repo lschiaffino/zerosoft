@@ -49,7 +49,7 @@
     "showQuote": "Show quoted text",
     "revoked": "Deleted for everyone · kept here",
     "edited": "Edited",
-    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent" },
+    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
     "older": "Load earlier messages",
     "empty": "No messages yet. Say hello.",
     "today": "Today",
@@ -148,7 +148,9 @@
     "upload_failed": "The file could not be uploaded. Try again.",
     "invalid_file": "That file is not an inbox-zero export.",
     "media_unavailable": "This file is no longer available on WhatsApp.",
-    "group_failed": "WhatsApp could not create the group. Try again in a moment."
+    "group_failed": "WhatsApp could not create the group. Try again in a moment.",
+    "history_rate_limited": "You already asked for this chat’s messages a moment ago. Try again in a minute.",
+    "history_failed": "Your phone did not answer. Check that it is online and try again."
   },
   "empty": {
     "connectTitle": "Connect WhatsApp or Gmail",

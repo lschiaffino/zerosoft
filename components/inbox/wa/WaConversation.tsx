@@ -251,6 +251,31 @@ const WaConversation = forwardRef<
     };
   }, [detail.focus, detail.thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts): se le pide el historial del chat al teléfono. Lo que
+  // manda llega como historial (con su hora): se vuelve a traer el chat unas veces.
+  const historyTimers = useRef<number[]>([]);
+  useEffect(() => () => historyTimers.current.forEach((t) => window.clearTimeout(t)), []);
+  const watchHistory = useCallback(() => {
+    onRefresh();
+    for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(onRefresh, ms));
+  }, [onRefresh]);
+  const fetchMissing = useCallback(async () => {
+    const r = await api<{ ok?: boolean }>(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', json: { action: 'fetchMissing' } });
+    if (!r.ok) return onError(r.data.error ?? 'generic');
+    props.onToast(w('fetchMissingToast'));
+    watchHistory();
+  }, [detail.thread.id, onError, props, w, watchHistory]);
+  // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
+  // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
+  const autoHistory = useRef('');
+  useEffect(() => {
+    const id = detail.thread.id;
+    if (autoHistory.current === id) return;
+    autoHistory.current = id;
+    if (!detail.thread.historyGap) return;
+    void api<{ ok?: boolean }>(`/api/inbox/threads/${id}/wa`, { method: 'POST', json: { action: 'fetchMissing', auto: true } }).then((r) => r.ok && r.data.ok && watchHistory());
+  }, [detail.thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const act = useCallback(
     async (m: MessageDto, body: Record<string, unknown>, method: 'PATCH' | 'DELETE' = 'PATCH'): Promise<boolean> => {
       const r = await api(`/api/inbox/messages/${m.id}`, { method, ...(method === 'PATCH' ? { json: body } : {}) });
@@ -397,6 +422,7 @@ const WaConversation = forwardRef<
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
     { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
+    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void fetchMissing() },
     ...(thread.mutedUntil
       ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]
       : [
@@ -611,7 +637,7 @@ const WaConversation = forwardRef<
             )}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
-            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(m.status === 'read' && thread.readHidden ? 'message.status.readHidden' : `message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
             {isTempId(m.id) && m.status === 'failed' && m.hasMedia && (
               <button type="button" className="wa-retry" onClick={() => retryInboxMedia(m.id)} aria-label={w('retry')} title={w('retry')}>
                 <Retry size={14} />

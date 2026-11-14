@@ -1,0 +1,97 @@
+name: Evolution image
+
+# Imagen de Evolution API con los parches de infra/evolution (README ahí). Se arma al cambiar esa carpeta y se
+# revisa todos los lunes si salió una versión oficial nueva.
+on:
+  push:
+    branches: [main]
+    paths: ['infra/evolution/**', '.github/workflows/evolution-image.yml']
+  pull_request:
+    paths: ['infra/evolution/**', '.github/workflows/evolution-image.yml']
+  schedule:
+    - cron: '0 12 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  issues: write
+
+env:
+  IMAGE: ghcr.io/lschiaffino/zerosoft-evolution
+
+jobs:
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Código de Evolution con los parches
+        run: |
+          version=$(cat infra/evolution/VERSION)
+          level=$(cat infra/evolution/PATCH_LEVEL)
+          echo "TAG=${version}-zs${level}" >> "$GITHUB_ENV"
+          git clone --depth 1 --branch "$version" https://github.com/EvolutionAPI/evolution-api.git evolution
+          cd evolution
+          for p in ../infra/evolution/patches/*.patch; do echo "aplicando $p"; git apply --whitespace=nowarn "$p"; done
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: evolution
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ env.TAG }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Evolution API ${{ env.TAG }} con los parches de zerosoft (infra/evolution)
+
+  upstream:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ¿Hay una versión nueva de Evolution?
+        run: |
+          current=$(cat infra/evolution/VERSION)
+          latest=$(gh api repos/EvolutionAPI/evolution-api/releases/latest -q .tag_name)
+          echo "actual $current, última $latest"
+          if [ "$latest" = "$current" ]; then echo "sin cambios"; exit 0; fi
+          # Ya avisado: no se repite el issue o el PR cada lunes.
+          if gh pr list --search "Evolution $latest in:title" --state all --json number -q '.[0].number' | grep -q .; then exit 0; fi
+          if gh issue list --search "Evolution $latest in:title" --state all --json number -q '.[0].number' | grep -q .; then exit 0; fi
+          git clone --depth 1 --branch "$latest" https://github.com/EvolutionAPI/evolution-api.git evo
+          src=evo/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+          if grep -A6 "'chats.update'" "$src" | grep -q "archived"; then
+            gh issue create --title "Evolution $latest ya manda el estado del chat en CHATS_UPDATE" \
+              --body "La versión oficial $latest ya incluye lo que hace infra/evolution/patches/0001. Se puede volver a la imagen oficial (evoapicloud/evolution-api:v$latest) y borrar el parche."
+            exit 0
+          fi
+          ok=true
+          for p in infra/evolution/patches/*.patch; do (cd evo && git apply --check "../$p") || ok=false; done
+          if [ "$ok" != true ]; then
+            gh issue create --title "Evolution $latest: los parches de infra/evolution no aplican" \
+              --body "Salió Evolution $latest y los parches ya no aplican sobre su código. Hay que rehacerlos antes de actualizar. La imagen actual sigue en $current."
+            exit 0
+          fi
+          branch="evolution-$latest"
+          git config user.name "Lautaro Schiaffino"
+          git config user.email "lschiaffino@users.noreply.github.com"
+          git checkout -b "$branch"
+          echo "$latest" > infra/evolution/VERSION
+          echo "1" > infra/evolution/PATCH_LEVEL
+          git commit -am "Evolution $latest con los parches de zerosoft"
+          git push origin "$branch"
+          gh pr create --title "Evolution $latest con los parches de zerosoft" \
+            --body "Salió Evolution $latest y los parches aplican. Al mergear se arma ghcr.io/lschiaffino/zerosoft-evolution:${latest}-zs1; después hay que cambiar la etiqueta de la imagen del servicio evolution en Railway. Revisar las notas de la versión: https://github.com/EvolutionAPI/evolution-api/releases/tag/$latest"

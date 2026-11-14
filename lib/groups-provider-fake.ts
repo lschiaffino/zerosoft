@@ -24,10 +24,19 @@
  *   teléfono). La devuelven findContacts (historial de Inbox), chatInfo
  *   (nombre, info, participantes con lid y nombre) y participants. `groups`
  *   suma a la persona a esos grupos (solo con lid si no trae teléfono).
+ * - Mensajes que no se pudieron descifrar (como Evolution con el parche 0002):
+ *   un evento `{ type: 'fake_withheld', message: <evento message> }` llega a
+ *   la app como `missing` y el número se guarda el mensaje; fetchHistory del
+ *   chat lo devuelve como historial (fakeHistoryRequests() lista los pedidos).
+ * - Privacidad: `{ type: 'fake_privacy', readreceipts: 'all' | 'none' }` en el
+ *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
+ *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
+ *   lo que Baileys: con 'none' el recibo queda 'read-self' (en `sent`).
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
+import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -63,9 +72,11 @@ export interface FakeSent {
   kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
   /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
-  media?: { kind: string; mimetype: string; base64: boolean };
+  media?: { kind: string; mimetype: string; base64: boolean; gifPlayback?: boolean };
   /** Teléfonos mencionados (textos en grupos). */
   mentions?: string[];
+  /** Marcar leído: el recibo que manda WhatsApp ('read-self' con las confirmaciones apagadas: el otro no lo ve). */
+  receipt?: 'read' | 'read-self';
 }
 
 interface FakeState {
@@ -80,6 +91,19 @@ interface FakeState {
   archives?: FakeArchive[];
   /** Cuántos archivar seguidos fallan (el servidor no responde): para probar los reintentos. */
   failArchives?: number;
+  /** "Confirmaciones de lectura" de la cuenta (sin valor: prendidas). */
+  readReceipts?: 'all' | 'none';
+  /** Mensajes que "no se pudieron descifrar", por chat: los devuelve fetchHistory. */
+  withheld?: Map<string, InboundEvent[]>;
+  /** Cada pedido de historial que hizo la app (tests). */
+  historyRequests?: FakeHistoryRequest[];
+}
+
+export interface FakeHistoryRequest {
+  chatId: string;
+  count: number;
+  after?: number;
+  at: number;
 }
 
 export interface FakeArchive {
@@ -182,6 +206,21 @@ export function fakeArchives(numberId: string): FakeArchive[] {
   return (stateFor(numberId).archives ??= []);
 }
 
+/** Los pedidos de historial que recibió el número falso (tests). */
+export function fakeHistoryRequests(numberId: string): FakeHistoryRequest[] {
+  return (stateFor(numberId).historyRequests ??= []);
+}
+
+/** Un `fake_withheld` del webhook: el número se guarda el mensaje y la app se entera de que falta. */
+function withhold(s: FakeState, raw: unknown): InboundEvent | null {
+  const m = (raw ?? {}) as Partial<Extract<InboundEvent, { type: 'message' }>>;
+  if (typeof m.chatId !== 'string' || typeof m.providerMessageId !== 'string' || !m.chatId || !m.providerMessageId) return null;
+  const msg = { ...m, type: 'message' } as Extract<InboundEvent, { type: 'message' }>;
+  const map = (s.withheld ??= new Map());
+  map.set(m.chatId, [...(map.get(m.chatId) ?? []), msg]);
+  return { type: 'missing', chatId: m.chatId, messageId: m.providerMessageId, fromMe: m.fromMe === true, ...(m.timestamp ? { timestamp: m.timestamp } : {}) };
+}
+
 /** Los próximos `n` archivar del número falso fallan con 'unreachable' (tests). */
 export function fakeFailArchives(numberId: string, n: number): void {
   stateFor(numberId).failArchives = Math.max(0, n);
@@ -249,6 +288,7 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
   if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
@@ -416,8 +456,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       return r;
     },
     sendMedia: async (chatId, media) => {
-      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64) });
-      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : r;
+      const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
+      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
@@ -427,7 +467,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
-    markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
+    markRead: async (chatId, ids) => {
+      send(chatId, ids.join(','), 'read');
+      // Como Baileys readMessages: con las confirmaciones apagadas, el recibo es 'read-self'.
+      s.sent[s.sent.length - 1].receipt = s.readReceipts === 'none' ? 'read-self' : 'read';
+    },
+    privacySettings: async () => {
+      requireConnected();
+      return { readReceipts: s.readReceipts ?? 'all' };
+    },
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
     // Para probar "Chat nuevo": un teléfono que termina en 0000000 no tiene WhatsApp; el resto sí.
     checkNumber: async (phone) => {
@@ -445,7 +493,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       void send(chatId, archive ? 'archive' : 'unarchive', 'archive');
     },
     sendPresence: async () => undefined,
-    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, el resto una foto. */
+    /** El historial del chat "desde el teléfono": lo que se guardó con fake_withheld, como historial. */
+    fetchHistory: async (chatId, o) => {
+      requireConnected();
+      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), at: Date.now() });
+      const events = (s.withheld?.get(chatId) ?? []).map((e) => ({ ...e, history: true }));
+      s.withheld?.delete(chatId);
+      return { requestId: `fake-hist-${randomUUID()}`, events };
+    },
+    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },
@@ -561,9 +617,18 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (!Array.isArray(events)) return [];
       // La libreta del servidor cambia sin que la app se entere (la trae el repaso diario).
       for (const e of events) if ((e as { type?: unknown })?.type === 'fake_contacts') applyFakeContacts(s, (e as { contacts?: unknown }).contacts);
-      const out = events.filter((e): e is InboundEvent => {
+      // La privacidad también (la app la lee al conectar, en el repaso diario o pasado un día).
+      for (const e of events) {
+        const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };
+        if (ev.type === 'fake_privacy' && (ev.readreceipts === 'all' || ev.readreceipts === 'none')) s.readReceipts = ev.readreceipts;
+      }
+      const out = events.flatMap((e): InboundEvent[] => {
         const t = (e as { type?: unknown })?.type;
-        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive'].includes(String(t));
+        if (t === 'fake_withheld') {
+          const missing = withhold(s, (e as { message?: unknown }).message);
+          return missing ? [missing] : [];
+        }
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive', 'missing'].includes(String(t)) ? [e as InboundEvent] : [];
       });
       // El asunto que llegó con el mensaje es el que devuelve chatInfo (como el servidor real).
       for (const e of out) {

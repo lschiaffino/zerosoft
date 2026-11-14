@@ -73,6 +73,8 @@ export interface ProviderCaps {
   polls: boolean;
   /** Mandar tarjetas de contacto (vCard). */
   contacts: boolean;
+  /** Pedirle al teléfono el historial de un chat (los mensajes que no llegaron). Evolution con los parches de infra/evolution. */
+  fetchHistory?: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
@@ -80,10 +82,10 @@ export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true, contacts: false },
   waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: false },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
-  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true },
-  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true },
+  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true },
   sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false, contacts: true },
-  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: true, fetchHistory: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -150,6 +152,8 @@ export interface MediaInput {
   base64?: string;
   /** Id en el proveedor del mensaje que se cita. */
   replyTo?: string;
+  /** Video que WhatsApp reproduce como GIF (mudo, en loop, con la marca GIF): videoMessage.gifPlayback. */
+  gifPlayback?: boolean;
 }
 
 /** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */
@@ -250,6 +254,13 @@ export type InboundEvent =
   | { type: 'edit'; chatId: string; providerMessageId: string; body: string; at?: string }
   /** Alguien borró un mensaje para todos. */
   | { type: 'revoke'; chatId: string; providerMessageId: string }
+  /**
+   * WhatsApp entregó un mensaje que no se pudo descifrar (Evolution con el
+   * parche 0002: MESSAGES_UPSERT con `zsUndecryptable`). Falta en el chat
+   * hasta que el teléfono lo reenvíe o llegue con el historial
+   * (lib/wa-history-gaps.ts). `timestamp`: ISO, si WhatsApp la dio.
+   */
+  | { type: 'missing'; chatId: string; messageId: string; fromMe: boolean; timestamp?: string }
   | {
       type: 'call';
       chatId: string;
@@ -375,6 +386,13 @@ export interface ArchiveRef {
   participant?: string;
 }
 
+/** "Confirmaciones de lectura" de WhatsApp: 'all' prendidas, 'none' apagadas. */
+export type ReadReceiptsSetting = 'all' | 'none';
+
+export interface PrivacySettings {
+  readReceipts: ReadReceiptsSetting;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
   /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
@@ -397,6 +415,14 @@ export interface GroupsProvider {
   readonly caps: ProviderCaps;
   /** Historial guardado en el gateway (solo Evolution y el QR administrado). */
   history?: HistorySource;
+  /**
+   * Le pide al teléfono el historial de un chat (caps.fetchHistory). Con
+   * Evolution la respuesta llega después por el webhook (MESSAGES_SET, como
+   * historial); un proveedor que la tiene en el momento la devuelve en
+   * `events`. `after` (segundos): el pedido se ancla en el primer mensaje
+   * posterior, para que entre lo que falta antes de él.
+   */
+  fetchHistory?(chatId: string, opts: { count: number; after?: number }): Promise<{ requestId?: string; events?: InboundEvent[] }>;
   /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;
@@ -411,8 +437,21 @@ export interface GroupsProvider {
   sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
   /** Tarjeta de contacto (vCard) nativa de WhatsApp. */
   sendContact?(chatId: string, contacts: Array<{ name: string; phone: string }>): Promise<SendResult>;
-  /** Tildes azules: marca leídos en WhatsApp los mensajes recibidos de un chat. */
+  /**
+   * Tildes azules: marca leídos en WhatsApp los mensajes recibidos de un chat.
+   * Pasa siempre por el "marcar leído" del servidor (Evolution
+   * /chat/markMessageAsRead → Baileys readMessages), nunca por un recibo armado
+   * a mano: con las confirmaciones de lectura apagadas en el teléfono, Baileys
+   * manda 'read-self' (solo los otros dispositivos propios se enteran) y el otro
+   * no ve tildes azules, igual que en WhatsApp.
+   */
   markRead?(chatId: string, messageIds: string[]): Promise<void>;
+  /**
+   * Privacidad de la cuenta en WhatsApp (por ahora solo "Confirmaciones de
+   * lectura"). null si el servidor no lo dijo. Solo Evolution (y el QR
+   * administrado) y el falso: WAHA no tiene un equivalente.
+   */
+  privacySettings?(): Promise<PrivacySettings | null>;
   listTemplates(): Promise<Template[]>;
   /** Baja un archivo recibido (solo los proveedores que lo dejan, con tope de tamaño). */
   fetchMedia?(ref: MediaRef, maxBytes: number): Promise<FetchedMedia>;
