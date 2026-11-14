@@ -163,7 +163,8 @@ jobs:
   # Los e2e en cuarentena (tests/e2e/quarantine.json): corren y se reportan, pero no bloquean el merge
   # (no están en los needs de "CI result"). Los jobs e2e de arriba los saltean (playwright.config.ts).
   e2e-quarantine:
-    needs: check
+    needs: [build, changes]
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
