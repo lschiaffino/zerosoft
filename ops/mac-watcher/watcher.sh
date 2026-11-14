@@ -56,6 +56,22 @@ report() { # report COMPONENT STATUS DETAIL [METRICS_JSON]
 since() { local f="$STATE/$1"; [ -f "$f" ] && echo $(( $(now) - $(cat "$f") )) || echo 999999; }
 mark() { now > "$STATE/$1"; }
 
+# Desplegar un servicio que se quedó sin deploy (el reinicio de la CLI necesita uno existente).
+# Usa la sesión de la CLI de Railway (~/.railway/config.json) contra su API pública.
+deploy_service() {
+  python3 -I - "$1" <<'PY'
+import json, os, subprocess, sys, urllib.request
+tok = json.load(open(os.path.expanduser("~/.railway/config.json")))["user"]["accessToken"]
+st = json.loads(subprocess.run(["railway", "status", "--json"], capture_output=True, text=True).stdout)
+env = [e["node"]["id"] for e in st["environments"]["edges"] if e["node"]["name"] == "production"][0]
+svc = [s["node"]["id"] for s in st["services"]["edges"] if s["node"]["name"] == sys.argv[1]][0]
+q = 'mutation($s:String!,$e:String!){ serviceInstanceDeployV2(serviceId:$s, environmentId:$e) }'
+req = urllib.request.Request("https://backboard.railway.com/graphql/v2", json.dumps({"query": q, "variables": {"s": svc, "e": env}}).encode(),
+  {"Authorization": "Bearer " + tok, "content-type": "application/json"})
+print(urllib.request.urlopen(req, timeout=30).read().decode())
+PY
+}
+
 # ---------- 1 y 2: Railway (Postgres, disco, Evolution) ----------
 if [ -d "$RAILWAY_DIR" ] && command -v railway >/dev/null; then
   cd "$RAILWAY_DIR" || exit 0
@@ -81,7 +97,7 @@ except Exception: print("")' 2>/dev/null)
       # Runbook: Postgres caído con disco disponible → reiniciar (con disco lleno no sirve: lo resuelve Claude/el dueño).
       if [ -n "$vol" ] && [ "${pct:-100}" -lt 95 ] && [ "$(since restart-postgres)" -gt $RESTART_GAP_S ]; then
         log "runbook: Postgres $pg con disco al ${pct}% → reinicio"
-        act railway service restart --service Postgres || act railway service redeploy --service Postgres
+        if [ "$pg" = "NO DEPLOYMENT" ]; then act deploy_service Postgres; else act railway service restart --service Postgres --yes || act railway service redeploy --service Postgres --yes; fi
         mark restart-postgres
       fi
       ;;
@@ -92,7 +108,7 @@ except Exception: print("")' 2>/dev/null)
     *)
       if [ "$(since restart-evolution)" -gt $RESTART_GAP_S ]; then
         log "runbook: Evolution $evo → reinicio"
-        act railway service restart --service evolution || true
+        if [ "$evo" = "NO DEPLOYMENT" ]; then act deploy_service evolution; else act railway service restart --service evolution --yes; fi || true
         mark restart-evolution
       fi
       ;;
