@@ -108,7 +108,8 @@ test('mandar un contacto desde el menú + y ver "escribiendo…"', async ({ page
   await page.getByRole('menuitem', { name: 'Contact', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Send contacts' });
   await dialog.getByRole('searchbox', { name: 'Search chats' }).fill(friend);
-  await dialog.getByRole('checkbox').first().check();
+  // El de ese contacto, no el primero: hasta que llega la búsqueda se ve la lista anterior, que después se reemplaza.
+  await dialog.getByRole('checkbox', { name: friend }).check();
   await dialog.getByRole('button', { name: 'Send contact' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('.wa-contact', { hasText: friend }).last()).toBeVisible();

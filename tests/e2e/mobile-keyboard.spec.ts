@@ -49,11 +49,12 @@ test('Lines en el teléfono: con el teclado abierto el chat entra en lo que se v
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.click();
   const box = page.locator('.wa-messages');
-  await expect(box.getByText('mensaje 14')).toBeVisible({ timeout: 20_000 });
+  // exact: con la hora pegada, la burbuja de "mensaje 1" a las 4:xx también dice "mensaje 14:xx".
+  await expect(box.getByText('mensaje 14', { exact: true })).toBeVisible({ timeout: 20_000 });
 
   // Con muchos sin leer abre en el separador (como WhatsApp): se baja al final antes de abrir el teclado.
   await box.evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await page.waitForTimeout(300);
+  await expect.poll(() => box.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(2);
   // Se abre el teclado: quedan 450 px visibles.
   await page.evaluate(() => (window as unknown as { __kb: (h: number) => void }).__kb(450));
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--app-vh'))).toBe('450px');

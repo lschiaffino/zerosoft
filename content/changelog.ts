@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14-self-host-db-busy',
+    date: '2026-11-14',
+    title: {
+      en: 'Self-hosting: no more lost saves when the database is busy',
+      es: 'Self-host: ya no se pierden cambios cuando la base está ocupada',
+      pt: 'Self-host: as alterações não se perdem mais quando o banco está ocupado',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'With the local SQLite database, a save that had to wait for another write could stay uncommitted and keep the database locked for every other request for up to a minute. It now waits on a fresh connection and is saved at once.',
+        es: 'Con la base SQLite local, un guardado que tenía que esperar a otra escritura podía quedar sin confirmar y dejar la base tomada para todos los demás pedidos hasta un minuto. Ahora espera en una conexión nueva y se guarda en el momento.',
+        pt: 'Com o banco SQLite local, um salvamento que precisava esperar outra escrita podia ficar sem confirmar e deixar o banco travado para todos os outros pedidos por até um minuto. Agora ele espera numa conexão nova e é salvo na hora.',
+      },
+      {
+        product: 'pulse',
+        en: 'On a phone, each row of the live events list is a full-height tap target.',
+        es: 'En el teléfono, cada fila de la lista de eventos en vivo se puede tocar en toda su altura.',
+        pt: 'No celular, cada linha da lista de eventos ao vivo pode ser tocada em toda a sua altura.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-display-settings',
     date: '2026-11-13',
     title: {

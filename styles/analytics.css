@@ -149,6 +149,10 @@
   min-width: 0;
 }
 .an-row-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* En el teléfono la fila entera es el área táctil: con el alto de la letra (18 px) quedaba pegada a otros botones. */
+@media (pointer: coarse), (max-width: 720px) {
+  .an-row-button { min-height: 40px; }
+}
 .an-live-detail td { background: var(--brand-enamel); }
 .an-live-status { font-size: 0.75rem; color: var(--dim); }
 .an-props { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 4px 16px; margin: 0; font-size: 0.8125rem; }

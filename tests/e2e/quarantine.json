@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "test": "robots-parity-2.spec.ts › robots: con el autoaprendizaje apagado, el cambio de HTML hace fallar la corrida",
+    "since": "2026-11-14",
+    "reason": "Comparte la cola de corridas de Robots con los tests anteriores: si queda una corrida o un lote en curso, la suya espera en cola más que el timeout (runNow espera hasta 120 s, el test tiene 60 s). Falló en los dos intentos en PRs que no tocan Robots.",
+    "owner": "lschiaffino"
+  },
+  {
+    "test": "robots-parity-2.spec.ts › robots: envía las filas a un S3 compatible (servidor falso local) firmado, y avisa si falla",
+    "since": "2026-11-14",
+    "reason": "Misma cola compartida que el de autoaprendizaje apagado: queda en 'queued' detrás de corridas de otros tests y vence el timeout de 60 s.",
+    "owner": "lschiaffino"
+  },
+  {
+    "test": "robots-parity-2.spec.ts › robots: lote de 2.500 filas en partes, avance y cancelar con confirmación",
+    "since": "2026-11-14",
+    "reason": "Encola 2.500 corridas y espera el avance del worker en 30 s; con la cola ocupada por tests anteriores el avance no llega a tiempo, y si falla antes de cancelar deja la cola llena para los siguientes.",
+    "owner": "lschiaffino"
+  }
+]

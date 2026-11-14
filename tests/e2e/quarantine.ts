@@ -32,14 +32,15 @@ export function splitTest(entry: Pick<QuarantineEntry, 'test'>): { file: string;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Lo que Playwright compara con grep es "<archivo> <describes...> <título> <@tags>": se ancla el archivo al
- * principio y el título al final (antes de los tags), así un título no tapa a otro que lo contiene.
+ * Lo que Playwright compara con grep es "<raíz> <proyecto> <archivo> <describes...> <título> <@tags>" (raíz y
+ * proyecto vacíos acá, así que empieza con espacios): el archivo va como palabra entera y el título al final
+ * (antes de los tags), así un título no tapa a otro que lo contiene.
  */
 export function quarantinePattern(entries: QuarantineEntry[]): RegExp | null {
   if (entries.length === 0) return null;
   const parts = entries.map((e) => {
     const { file, title } = splitTest(e);
-    return `^${escape(file)} (?:.* )?${escape(title)}(?: @\\S+)*$`;
+    return `(?:^| )${escape(file)} (?:.* )?${escape(title)}(?: @\\S+)*$`;
   });
   return new RegExp(parts.join('|'));
 }

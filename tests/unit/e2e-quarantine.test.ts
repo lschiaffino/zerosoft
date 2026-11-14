@@ -32,11 +32,14 @@ describe('cuarentena de e2e (tests/e2e/quarantine.json)', () => {
   it('el patrón separa el test exacto de los que solo se le parecen', () => {
     const re = quarantinePattern([{ test: 'a.spec.ts › hace X', since: '2026-01-01', reason: 'motivo de prueba', owner: 'x' }])!;
     expect(re.test('a.spec.ts hace X')).toBe(true);
+    // Así lo arma Playwright: raíz y proyecto sin nombre adelante.
+    expect(re.test('  a.spec.ts hace X')).toBe(true);
     expect(re.test('a.spec.ts grupo anidado hace X')).toBe(true);
     expect(re.test('a.spec.ts hace X @slow')).toBe(true);
     expect(re.test('a.spec.ts hace X y Y')).toBe(false);
     expect(re.test('b.spec.ts hace X')).toBe(false);
     expect(re.test('xa.spec.ts hace X')).toBe(false);
+    expect(re.test('  dir/xa.spec.ts hace X')).toBe(false);
   });
 
   it('only, skip e include arman el filtro de Playwright', () => {

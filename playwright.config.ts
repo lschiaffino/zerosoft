@@ -40,8 +40,6 @@ export default defineConfig({
       E2E_IDENTITY_COOKIE: '1',
       ANALYTICS_ALLOW_HEADLESS: '1',
       TURSO_DATABASE_URL: `file:${dbFile}`,
-      // Si la base queda tomada más de 3 s, el log del servidor dice quién la tiene (lib/db.ts, lockDebug).
-      DB_LOCK_DEBUG: '1',
       NEXTAUTH_SECRET: 'e2e-secret',
       NEXTAUTH_URL: `http://localhost:${PORT}`,
       SHORT_DOMAIN: `localhost:${PORT}`,
