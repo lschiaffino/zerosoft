@@ -124,6 +124,11 @@ export interface RuleActions {
   cycleId?: string;
   /** Acepta el issue en este estado (sale de triage). */
   acceptStatusId?: string;
+  /**
+   * Lo mueve a la cola de triage de otro team del workspace (como "Move to team"
+   * de Linear). Excluye estado, cycle y asignado, que son del team de origen.
+   */
+  moveToProjectId?: string;
 }
 
 export interface TriageRule {
@@ -203,13 +208,19 @@ export function planTriageRules(
     if (!ruleMatches(r, subject)) continue;
     matched.push({ id: r.id, name: r.name });
     const a = r.actions;
-    for (const key of ['priority', 'assigneeId', 'cycleId', 'acceptStatusId'] as const) {
+    for (const key of ['priority', 'assigneeId', 'cycleId', 'acceptStatusId', 'moveToProjectId'] as const) {
       const v = a[key];
       if (!v) continue;
       if (actions[key] && actions[key] !== v) conflicts.push(key);
       else (actions as Record<string, unknown>)[key] = v;
     }
     if (a.labelIds?.length) actions.labelIds = [...new Set([...(actions.labelIds ?? []), ...a.labelIds])];
+  }
+  // Mover a otro team gana: estado, cycle y asignado son del team de origen y no se aplican.
+  if (actions.moveToProjectId) {
+    delete actions.acceptStatusId;
+    delete actions.cycleId;
+    delete actions.assigneeId;
   }
   return { actions, matched, conflicts: [...new Set(conflicts)] };
 }
