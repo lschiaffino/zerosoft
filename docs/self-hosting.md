@@ -119,6 +119,7 @@ works without one.
 | `NEXT_PUBLIC_GITHUB_REPO` | `owner/name` of the source repository the site links to. Set it in a fork. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob for uploads. Required on Vercel. Elsewhere, unset: files go to `UPLOADS_DIR` (default `data/uploads`) and are always served through access-checked routes. |
 | `CRON_SECRET` | Required in production for the cron endpoints above. |
+| `STATUS_AGENT_TOKEN` / `ALERT_EMAIL` | Status monitoring: the token for the watcher API and who gets alert emails. See [status.md](status.md). |
 | `ENCRYPTION_KEY` | Encrypts OAuth tokens and webhook secrets at rest. Unset: derived from `NEXTAUTH_SECRET`. |
 | `CREDENTIALS_KEY` | Optional dedicated key for Flow and Robots credentials (AES-256-GCM, bound to each workspace). Rotating it means re-entering saved credentials. |
 | `FLOW_CODE_RUNNER` | `sandbox` or `none`. See "Robots and Flow". |

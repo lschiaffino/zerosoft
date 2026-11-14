@@ -85,6 +85,11 @@ export default defineConfig({
       GROUPS_GIFS_FAKE: '1',
       // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.
       CRON_SECRET: 'e2e-cron',
+      // status.zerosoft.ai: los chequeos del cron sin salir a la red (salvo la base local), la API del watcher
+      // con este token y la página sin la caché de 30 s (tests/e2e/status-page.spec.ts siembra y mira enseguida).
+      STATUS_CHECKS_FAKE: '1',
+      STATUS_AGENT_TOKEN: 'e2e-status-agent-token-0123456789',
+      STATUS_PAGE_NO_CACHE: '1',
       // IA del CRM contra el modelo falso (lib/crm-ai-fake.ts): cuota y ai_usage
       // corren igual; con la cookie crm_ai_fake=off se ve el error ai_disabled.
       CRM_AI_FAKE: '1',
