@@ -1,4 +1,4 @@
-import { brandingHosts, feedbackHosts } from './host-rewrite';
+import { brandingHosts, feedbackHosts, statusHosts } from './host-rewrite';
 
 /**
  * ¿Este host es la app (zerosoft.ai, previews, localhost) o un dominio propio
@@ -27,7 +27,7 @@ export function appHosts(): Set<string> {
     .map((v) => hostOf(v.trim()))
     .filter((h): h is string => Boolean(h));
   // Subdominios de superficie (board público, marca): son la app, no dominios de Link.
-  for (const h of [...feedbackHosts(), ...brandingHosts()]) hosts.push(h);
+  for (const h of [...feedbackHosts(), ...brandingHosts(), ...statusHosts()]) hosts.push(h);
   return new Set(hosts);
 }
 
