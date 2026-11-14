@@ -259,6 +259,19 @@ async function cleanActions(projectId: string, raw: RuleActions): Promise<RuleAc
     if (found.length !== ids.length) throw new TriageError('invalid_label');
     out.labelIds = ids;
   }
+  if (raw.moveToProjectId) {
+    if (raw.moveToProjectId === projectId) throw new TriageError('invalid_team');
+    const [from, to] = (await Promise.all([
+      db.prepare('SELECT team_id, owner_id FROM track_projects WHERE id = ?').get(projectId),
+      db.prepare("SELECT team_id, owner_id, status FROM track_projects WHERE id = ?").get(raw.moveToProjectId),
+    ])) as Array<{ team_id: string | null; owner_id: string | null; status?: string } | undefined>;
+    // Solo un team activo del mismo workspace.
+    if (!from || !to || to.status === 'archived' || projectWorkspaceId(from) !== projectWorkspaceId(to)) throw new TriageError('invalid_team');
+    out.moveToProjectId = raw.moveToProjectId;
+    delete out.acceptStatusId;
+    delete out.cycleId;
+    delete out.assigneeId;
+  }
   return out;
 }
 
@@ -377,6 +390,22 @@ function descriptionText(raw: string): string {
   }
 }
 
+/**
+ * Mueve un issue que está en triage a otro team y lo deja en la cola de triage
+ * de ese team si la tiene activa (moveIssueToTeam lo saca de triage).
+ */
+async function moveTriagedIssue(issueId: string, targetProjectId: string, actorId: string | null) {
+  const { moveIssueToTeam, getIssue, getProject } = await import('./track-data');
+  const current = await getIssue(issueId);
+  if (!current || current.triage !== 1) return undefined;
+  const target = await getProject(targetProjectId);
+  if (!target) return undefined;
+  const moved = await moveIssueToTeam(issueId, targetProjectId, actorId ?? current.creator_id ?? 'system');
+  if (!moved) return undefined;
+  if (target.triage_enabled) await getDb().prepare('UPDATE track_issues SET triage = 1 WHERE id = ?').run(issueId);
+  return getIssue(issueId);
+}
+
 export interface TriageEntryResult {
   matched: Array<{ id: string; name: string }>;
   ownerId: string | null;
@@ -387,7 +416,7 @@ export interface TriageEntryResult {
  * asigna al responsable de turno y, si hay sugerencias de IA en modo "auto",
  * las pide en segundo plano. Devuelve el issue actualizado.
  */
-export async function onIssueEnteredTriage(issue: TrackIssueWithStatus): Promise<TrackIssueWithStatus> {
+export async function onIssueEnteredTriage(issue: TrackIssueWithStatus, hops = 0): Promise<TrackIssueWithStatus> {
   const { updateIssue, getIssue, getProject } = await import('./track-data');
   const { claimTriage } = await import('./track-bulk');
   const [rules, settings, project] = await Promise.all([
@@ -421,6 +450,12 @@ export async function onIssueEnteredTriage(issue: TrackIssueWithStatus): Promise
     if (Object.keys(payload).length > 0) await updateIssue(issue.id, payload, actor, { via });
     if (a.acceptStatusId && (await claimTriage(issue.id))) {
       await updateIssue(issue.id, { statusId: a.acceptStatusId }, actor, { via });
+    }
+    // A la cola de triage de otro team: ahí corren sus reglas y su responsable de turno.
+    // Hasta 3 saltos, así dos teams que se mandan issues entre sí no giran para siempre.
+    if (a.moveToProjectId && hops < 3) {
+      const moved = await moveTriagedIssue(issue.id, a.moveToProjectId, actor);
+      if (moved) return moved.triage === 1 ? onIssueEnteredTriage(moved, hops + 1) : moved;
     }
   }
 
