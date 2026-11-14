@@ -42,5 +42,5 @@ test('regla de triage que mueve a otro team: se crea en los ajustes y mueve el i
   expect(issue.identifier.startsWith(`${billing.slug.toUpperCase()}-`)).toBe(true);
   expect(issue.triage).toBe(1);
   await page.goto(`/en/app/track/team/${billing.id}?tab=triage`);
-  await expect(page.getByTestId('track-triage').getByText('Wrong invoice total')).toBeVisible();
+  await expect(page.getByTestId('track-triage').getByText('Wrong invoice total').first()).toBeVisible();
 });
