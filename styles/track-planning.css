@@ -253,6 +253,8 @@
   .tp-row-health { grid-area: health; }
   .tp-row-progress { grid-area: progress; }
   .tp-row-lead, .tp-row-date, .tp-row-summary { display: none; }
+  /* Cycles de todos los teams: sin el team, "Cycle 41" de dos teams era igual. */
+  .tp-cycles-list .tp-row-summary { display: inline; min-width: 0; }
   .tp-row > .btn-icon { grid-row: 1; grid-column: 2; }
   .tp-tl { grid-template-columns: 120px minmax(0, 1fr); }
   .tp-widgets { grid-template-columns: minmax(0, 1fr); }
