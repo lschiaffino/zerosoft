@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listBoards } from '@/lib/boards';
 import { boardViewer } from '@/lib/board-access';
+import { listStarredIds } from '@/lib/board-stars';
 import { listBoardFolders } from '@/lib/board-folders';
 import BoardList, { type BoardView } from '@/components/board/BoardList';
 
@@ -22,8 +23,8 @@ export default async function BoardsPage(props: {
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const viewer = boardViewer(user);
-  const [boards, folders] = await Promise.all([listBoards(user.id, viewer), listBoardFolders(user.id, viewer)]);
+  const [boards, folders, starredIds] = await Promise.all([listBoards(user.id, viewer), listBoardFolders(user.id, viewer), listStarredIds(user.id, viewer.personId)]);
   const view: BoardView =
     sp.view === 'trash' ? { kind: 'trash' } : sp.folder && folders.some((f) => f.id === sp.folder) ? { kind: 'folder', id: sp.folder } : { kind: 'all' };
-  return <BoardList initialBoards={boards} initialFolders={folders} initialView={view} startNew={sp.new === '1'} serverNow={Date.now()} canPurge={viewer.isAdmin} />;
+  return <BoardList initialBoards={boards} initialFolders={folders} initialStarred={starredIds} initialView={view} startNew={sp.new === '1'} serverNow={Date.now()} canPurge={viewer.isAdmin} />;
 }

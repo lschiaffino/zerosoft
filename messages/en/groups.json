@@ -91,21 +91,8 @@
   },
   "newChat": {
     "open": "New chat",
-    "title": "New chat",
     "from": "From line",
-    "search": "Name or phone number",
-    "placeholder": "Search a contact or type a number",
-    "message": "Message {phone}",
-    "messageHelp": "Opens the chat. Nothing is sent until you write.",
-    "newGroup": "New group",
-    "results": "Contacts and chats",
-    "recent": "Recent chats",
-    "empty": "Search a contact of this line, or type a number with its country code.",
-    "noResults": "No contact or chat matches. To write to a new number, type it with its country code.",
-    "tooShort": "That number is too short. Write it in full, with the country code (8 to 15 digits).",
-    "tooLong": "That number is too long. A phone number has at most 15 digits.",
-    "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has.",
-    "loadError": "Could not load the contacts. Try again."
+    "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has."
   },
   "filters": {
     "all": "All",

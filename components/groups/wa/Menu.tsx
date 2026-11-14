@@ -84,10 +84,14 @@ export function MessageMenu({
     const close = () => setOpen(false);
     document.addEventListener('mousedown', onDown);
     window.addEventListener('resize', close);
-    // Si se scrollea lo de atrás (no el propio menú), se cierra: la posición dejó de valer.
+    // Si se scrollea algo que mueve el botón (la página o un contenedor suyo), se cierra: la posición dejó de
+    // valer. Otro scroll no lo mueve y no lo cierra: la lista de mensajes que se queda abajo sola cuando llega
+    // algo o el campo de texto que crece cerraban el menú de la cabecera apenas se abría.
     const onScroll = (e: Event) => {
-      if (list.current && e.target instanceof Node && list.current.contains(e.target)) return;
-      close();
+      const target = e.target;
+      if (!(target instanceof Node) || !button.current) return close();
+      if (list.current?.contains(target)) return;
+      if (target.contains(button.current)) close();
     };
     window.addEventListener('scroll', onScroll, true);
     return () => {

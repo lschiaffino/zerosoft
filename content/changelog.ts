@@ -52,6 +52,99 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-13-display-settings',
+    date: '2026-11-13',
+    title: {
+      en: 'Inbox and Lines: a Display preview that shows every option',
+      es: 'Inbox y Lines: una vista previa de Visualización que muestra cada opción',
+      pt: 'Inbox e Lines: uma prévia de Visualização que mostra cada opção',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The Display preview now has a chat list and a group chat with a photo, so you see the list density, photo size, message width, text size, background, sender photos and link previews change as you pick them. On a wide screen it stays in view while you scroll the options. Open it from the menu of any chat.',
+        es: 'La vista previa de Visualización ahora tiene una lista de chats y un chat de grupo con una foto: ves cambiar la densidad de la lista, el tamaño de las fotos, el ancho de los mensajes, el texto, el fondo, las fotos de quien escribe y las vistas previas de links al elegirlos. En pantallas anchas queda a la vista mientras recorrés las opciones. Se abre desde el menú de cualquier chat.',
+        pt: 'A prévia de Visualização agora tem uma lista de conversas e uma conversa de grupo com uma foto: você vê mudar a densidade da lista, o tamanho das fotos, a largura das mensagens, o texto, o fundo, as fotos de quem escreve e as prévias de links ao escolher. Em telas largas fica à vista enquanto você percorre as opções. Abre pelo menu de qualquer conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines: Display is in the chat menu, and opens the Appearance tab of settings.',
+        es: 'Lo mismo en Lines: Visualización está en el menú del chat y abre la pestaña Apariencia de los ajustes.',
+        pt: 'O mesmo no Lines: Visualização está no menu da conversa e abre a aba Aparência das configurações.',
+      },
+      {
+        product: 'groups',
+        en: 'Inside every app, the selected option of a segmented control now takes the app color, like the main button.',
+        es: 'Dentro de cada app, la opción elegida de un control segmentado ahora lleva el color de la app, como el botón principal.',
+        pt: 'Dentro de cada app, a opção escolhida de um controle segmentado agora leva a cor do app, como o botão principal.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-13-wa-new-chat',
+    date: '2026-11-13',
+    title: {
+      en: 'Lines and Inbox: New opens the new chat panel, like WhatsApp Web',
+      es: 'Lines e Inbox: Nuevo abre el panel de chat nuevo, como en WhatsApp Web',
+      pt: 'Lines e Inbox: Novo abre o painel de nova conversa, como no WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The New button in the sidebar opens the new chat panel right away, with no menu in between: search by name (accents optional) or by number in any format, New group at the top, the people you message most under Frequently contacted, and every contact in alphabetical order under its letter, loading more as you scroll. A number that is not a contact shows Message +54 9 … to start the chat. Arrow keys and Enter pick, Esc closes, and on a phone it fills the screen. People who only see their own chats only find those, and hidden numbers stay hidden.',
+        es: 'El botón Nuevo del lateral abre el panel de chat nuevo de una, sin menú en el medio: buscás por nombre (con o sin tildes) o por número escrito como sea, arriba está Grupo nuevo, en Contactados con frecuencia las personas a las que más les escribís, y abajo todos los contactos en orden alfabético con su letra, que se cargan a medida que bajás. Un número que no es contacto ofrece Escribirle a +54 9 … para empezar el chat. Las flechas y Enter eligen, Esc cierra, y en el teléfono ocupa la pantalla. Quien solo ve sus chats encuentra solo esos, y los números ocultos siguen ocultos.',
+        pt: 'O botão Novo da barra lateral abre o painel de nova conversa direto, sem menu no meio: pesquise por nome (com ou sem acento) ou por número em qualquer formato, Novo grupo fica no topo, as pessoas com quem você mais fala aparecem em Contatos frequentes, e todos os contatos vêm em ordem alfabética com sua letra, carregando mais conforme você rola. Um número que não é contato mostra Enviar mensagem para +54 9 … para começar a conversa. Setas e Enter escolhem, Esc fecha, e no celular ocupa a tela. Quem só vê as próprias conversas só encontra essas, e os números ocultos continuam ocultos.',
+      },
+      {
+        product: 'inbox',
+        en: 'Same panel in Inbox, plus Message yourself, New group (pick members, name it, and the WhatsApp group is created and opened) and New email when Gmail is connected.',
+        es: 'El mismo panel en Inbox, con Mandate un mensaje, Grupo nuevo (elegís participantes, le ponés nombre y se crea el grupo de WhatsApp y se abre) y Correo nuevo si tenés Gmail conectado.',
+        pt: 'O mesmo painel no Inbox, com Envie uma mensagem para você, Novo grupo (escolha participantes, dê um nome e o grupo do WhatsApp é criado e aberto) e Novo e-mail com o Gmail conectado.',
+      },
+      {
+        product: 'platform',
+        en: 'The New button at the top of the sidebar is now a filled ink button in every app.',
+        es: 'El botón Nuevo arriba del lateral ahora es un botón lleno de tinta en todas las apps.',
+        pt: 'O botão Novo no topo da barra lateral agora é um botão preenchido em tinta em todos os apps.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-13-archive-reaches-phone',
+    date: '2026-11-13',
+    title: {
+      en: 'Inbox and Lines: archiving now archives on your phone too',
+      es: 'Inbox y Lines: archivar ahora archiva también en el teléfono',
+      pt: 'Inbox e Lines: arquivar agora arquiva também no celular',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'WhatsApp silently ignored archive requests in groups because the message they pointed to did not match the one on the phone. They now use the exact message WhatsApp knows.',
+        es: 'WhatsApp descartaba en silencio el archivado de los grupos porque el mensaje de referencia no coincidía con el del teléfono. Ahora usa exactamente el mensaje que conoce WhatsApp.',
+        pt: 'O WhatsApp descartava em silêncio o arquivamento dos grupos porque a mensagem de referência não batia com a do celular. Agora usa exatamente a mensagem que o WhatsApp conhece.',
+      },
+      { product: 'groups', en: 'Same in Lines.', es: 'Lo mismo en Lines.', pt: 'O mesmo no Lines.' },
+    ],
+  },
+  {
+    id: '2026-11-13-board',
+    date: '2026-11-13',
+    title: {
+      en: 'Board: star the boards you use most',
+      es: 'Board: destacá las pizarras que más usás',
+      pt: 'Board: destaque os boards que você mais usa',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Open the menu on a board card and choose Star: it moves to the top of the list. Stars are yours alone, so nobody else on the team sees a change.',
+        es: 'Abrí el menú de una pizarra y elegí Destacar: sube al principio de la lista. Las estrellas son solo tuyas, el resto del equipo no ve ningún cambio.',
+        pt: 'Abra o menu de um board e escolha Destacar: ele sobe para o topo da lista. As estrelas são só suas, o resto do time não vê mudança.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-instant-media-send',
     date: '2026-11-13',
     title: {

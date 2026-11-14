@@ -87,6 +87,13 @@ const parity: ProductParity = {
 
     // Bandeja
     row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('new-chat', 'inbox', ['New chat like WhatsApp Web: search, frequently contacted, all contacts A to Z', 'Chat nuevo como WhatsApp Web: buscador, contactados con frecuencia, todos los contactos de la A a la Z', 'Nova conversa como o WhatsApp Web: pesquisa, contatos frequentes, todos os contatos de A a Z'], 'partial', {
+      detail: [
+        'New in the sidebar opens it directly; names without accents and numbers in any format; New group goes to the group form; keyboard and phone layout. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Nuevo del lateral lo abre directo; nombres sin tildes y números escritos como sea; Grupo nuevo lleva a crear el grupo; teclado y teléfono. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Novo da barra lateral abre direto; nomes sem acento e números em qualquer formato; Novo grupo leva ao formulário de grupo; teclado e celular. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
@@ -113,9 +120,9 @@ const parity: ProductParity = {
     }),
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
       detail: [
-        'Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews). No message search inside a chat yet',
-        'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas). Todavía sin búsqueda dentro de un chat',
-        'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias). Ainda sem busca dentro de uma conversa',
+        'Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews) with a live preview, opened from the chat menu. No message search inside a chat yet',
+        'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas) con vista previa en vivo, desde el menú del chat. Todavía sin búsqueda dentro de un chat',
+        'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias) com prévia ao vivo, pelo menu da conversa. Ainda sem busca dentro de uma conversa',
       ],
     }),
     row('wa-stickers', 'inbox', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {

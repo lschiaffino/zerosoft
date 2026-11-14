@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { getBoard, getBoardName, moveBoardToFolder, renameBoard, setBoardThumbnail, trashBoard } from '@/lib/boards';
+import { setBoardStarred } from '@/lib/board-stars';
 import { logBoardAudit } from '@/lib/board-audit';
 import { publishBoardAccessChanged } from '@/lib/board-live';
 import { emitEventSoon } from '@/lib/events';
@@ -28,6 +29,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
+  // Destacar es personal: alcanza con poder ver la pizarra.
+  const starBody = (await req.clone().json().catch(() => null)) as Record<string, unknown> | null;
+  if (starBody && starBody.name === undefined && typeof starBody.starred === 'boolean') {
+    const seen = await requireBoardAccess(user, id, 'view');
+    if (isDenied(seen)) return seen;
+    const lim = await limitWrites('boards:star', user.actingUser?.id ?? user.id, 120);
+    if (lim) return lim;
+    if (!(await setBoardStarred(user.id, user.actingUser?.id ?? user.id, id, starBody.starred))) return jsonError(404, 'not_found');
+    return NextResponse.json({ ok: true, starred: starBody.starred });
+  }
   const access = await requireBoardAccess(user, id, 'edit');
   if (isDenied(access)) return access;
   const limited = await limitWrites('boards:write', user.actingUser?.id ?? user.id, 60);

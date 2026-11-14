@@ -175,7 +175,20 @@ export function MoreDialog({ open, thread, onClose, onAction, startConfirm = fal
 }
 
 /** Chat nuevo (número de WhatsApp) o correo nuevo. */
-export function ComposeDialog({ open, accounts, onClose, onCreated }: { open: boolean; accounts: InboxAccountDto[]; onClose: () => void; onCreated: (t: ThreadDto) => void }) {
+export function ComposeDialog({
+  open,
+  accounts,
+  onClose,
+  onCreated,
+  channel: initialChannel,
+}: {
+  open: boolean;
+  accounts: InboxAccountDto[];
+  onClose: () => void;
+  onCreated: (t: ThreadDto) => void;
+  /** Abrir directo en ese canal ("Correo nuevo" del panel de chat nuevo). */
+  channel?: 'gmail';
+}) {
   const t = useTranslations('inbox.compose');
   const te = useTranslations('inbox.errors');
   const wa = accounts.find((a) => a.kind === 'whatsapp' && a.status === 'connected');
@@ -192,7 +205,7 @@ export function ComposeDialog({ open, accounts, onClose, onCreated }: { open: bo
       setSubject('');
       setBody('');
       setErr('');
-      setChannel(wa ? 'whatsapp' : 'gmail');
+      setChannel(wa && initialChannel !== 'gmail' ? 'whatsapp' : 'gmail');
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const none = !wa && gmail.length === 0;

@@ -247,19 +247,29 @@ async function attempt(row: PushRow): Promise<Attempt> {
   }
   if (!provider.archiveChat) return { kind: 'skip', reason: 'unsupported' };
   const ref = await target.ref(target.chatJid);
-  await provider.archiveChat(target.chatJid, want, ref);
-  // Un 1:1 que WhatsApp puede tener por teléfono o por lid: también con el otro id (si falla, ya salió el principal).
+  // Un 1:1 que WhatsApp puede tener por teléfono o por lid: se manda con los dos ids. Alcanza con que salga uno (el
+  // proveedor puede conocer el chat solo por el otro); si fallan los dos, se reintenta con el error del principal.
   const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
+  let mainErr: unknown = null;
+  try {
+    await provider.archiveChat(target.chatJid, want, ref);
+  } catch (err) {
+    mainErr = err;
+  }
   let altSent = false;
   if (alt) {
     try {
       await provider.archiveChat(alt, want, await target.ref(alt));
       altSent = true;
     } catch {
-      /* el principal ya salió */
+      /* queda el principal */
     }
   }
-  return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null, ...(altSent ? { alt } : {}) }) };
+  if (mainErr && !altSent) throw mainErr;
+  return {
+    kind: 'sent',
+    sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null, ...(mainErr ? { mainFailed: true } : {}), ...(altSent ? { alt } : {}) }),
+  };
 }
 
 /** Segundos de una fecha guardada (ISO, o "YYYY-MM-DD HH:MM:SS" de SQLite, que es UTC). */
