@@ -96,6 +96,9 @@ export interface NumberRow {
   owner_id?: string | null;
   /** 'all' = todo el workspace; 'restricted' = solo dueño, admins y lo que figure en groups_number_access. */
   visibility?: string;
+  /** "Confirmaciones de lectura" del WhatsApp de la línea ('all', 'none' o '' sin saber; lib/wa-privacy.ts). */
+  read_receipts?: string;
+  privacy_at?: string | null;
 }
 
 export interface NumberDto {
@@ -424,6 +427,15 @@ async function saveState(row: NumberRow, state: ConnectState | null, error = '')
   await getDb()
     .prepare('UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
     .run(state?.status ?? 'error', state?.phone ? phoneDigits(state.phone) : row.phone, error, nowIso(), row.id);
+  // Recién conectado: se leen sus confirmaciones de lectura (lib/wa-privacy.ts).
+  if (state?.status === 'connected' && row.status !== 'connected') {
+    const { refreshPrivacy } = await import('./wa-privacy');
+    try {
+      await refreshPrivacy('lines', row.id, providerFor(row));
+    } catch {
+      // Sin proveedor válido: se lee en el repaso diario.
+    }
+  }
   // Recién conectado: se importan sus chats y mensajes (una vez; "Reimportar" lo repite).
   if (state?.status === 'connected' && row.status !== 'connected' && (row.provider === 'managed' || row.provider === 'evolution')) {
     const { queueImport, kickImport } = await import('./groups-import');
@@ -572,6 +584,11 @@ export interface ChatDto {
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
   lastDirection?: string | null;
   lastStatus?: string | null;
+  /**
+   * 1:1 de una línea con las confirmaciones de lectura apagadas: el WhatsApp del teléfono no muestra si el
+   * otro leyó, zerosoft sí (le llega el aviso). Solo cambia la explicación de las tildes azules.
+   */
+  readHidden?: boolean;
   lastSender?: string | null;
   /** Duración (segundos) si el último fue audio o nota de voz; tipo de media o "deleted". */
   lastDuration?: number | null;
@@ -695,6 +712,13 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     )[0];
   }
   if (row.kind === 'dm') {
+    // Las confirmaciones de lectura de la línea (y, si el dato tiene más de un día, se vuelve a leer después de responder).
+    const number = await getNumberRow(ws, row.number_id);
+    if (number) {
+      const { readHiddenInWhatsapp, refreshPrivacyIfStale } = await import('./wa-privacy');
+      if (readHiddenInWhatsapp(number.read_receipts, false)) dto.readHidden = true;
+      if (number.status === 'connected') await refreshPrivacyIfStale('lines', number, () => providerFor(number));
+    }
     // La "info" del contacto: la trae el repaso diario a la libreta del número.
     const key = row.phone || lidDigits(row.provider_chat_id);
     if (key) {
@@ -1006,6 +1030,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
+  // Líneas con las confirmaciones de lectura apagadas: solo si hay algún 1:1 cuyo último mensaje salió leído.
+  const { receiptsOffIds } = await import('./wa-privacy');
+  const receiptsOff = await receiptsOffIds(
+    'lines',
+    rows.filter((r) => r.kind === 'dm' && (r.last_info ?? '').startsWith('out|read|')).map((r) => r.number_id),
+  );
   // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
   const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
   const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
@@ -1024,6 +1054,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
         lastStatus: st || null,
+        ...(r.kind === 'dm' && receiptsOff.has(r.number_id) ? { readHidden: true } : {}),
         lastSender: sender || null,
         lastDuration: Number(dur) || null,
         lastKind: lastKind || null,
@@ -1329,6 +1360,8 @@ export async function sendReadReceipts(ws: string, chat: ChatRow): Promise<void>
          ORDER BY created_at DESC LIMIT ?`,
       )
       .all(chat.id, n)) as Array<{ pid: string }>;
+    // Solo por markRead (el "marcar leído" del servidor): con las confirmaciones de lectura apagadas en el
+    // teléfono, Baileys manda 'read-self' y el otro no ve tildes azules. Nunca un recibo 'read' a mano.
     if (rows.length) await provider.markRead(chat.provider_chat_id, rows.map((r) => r.pid));
   } catch {
     // Best effort: si WhatsApp no lo toma, el chat igual queda leído en Groups.

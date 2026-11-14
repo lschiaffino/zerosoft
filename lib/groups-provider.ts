@@ -377,6 +377,13 @@ export interface ArchiveRef {
   participant?: string;
 }
 
+/** "Confirmaciones de lectura" de WhatsApp: 'all' prendidas, 'none' apagadas. */
+export type ReadReceiptsSetting = 'all' | 'none';
+
+export interface PrivacySettings {
+  readReceipts: ReadReceiptsSetting;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
   /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
@@ -413,8 +420,21 @@ export interface GroupsProvider {
   sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
   /** Tarjeta de contacto (vCard) nativa de WhatsApp. */
   sendContact?(chatId: string, contacts: Array<{ name: string; phone: string }>): Promise<SendResult>;
-  /** Tildes azules: marca leídos en WhatsApp los mensajes recibidos de un chat. */
+  /**
+   * Tildes azules: marca leídos en WhatsApp los mensajes recibidos de un chat.
+   * Pasa siempre por el "marcar leído" del servidor (Evolution
+   * /chat/markMessageAsRead → Baileys readMessages), nunca por un recibo armado
+   * a mano: con las confirmaciones de lectura apagadas en el teléfono, Baileys
+   * manda 'read-self' (solo los otros dispositivos propios se enteran) y el otro
+   * no ve tildes azules, igual que en WhatsApp.
+   */
   markRead?(chatId: string, messageIds: string[]): Promise<void>;
+  /**
+   * Privacidad de la cuenta en WhatsApp (por ahora solo "Confirmaciones de
+   * lectura"). null si el servidor no lo dijo. Solo Evolution (y el QR
+   * administrado) y el falso: WAHA no tiene un equivalente.
+   */
+  privacySettings?(): Promise<PrivacySettings | null>;
   listTemplates(): Promise<Template[]>;
   /** Baja un archivo recibido (solo los proveedores que lo dejan, con tope de tamaño). */
   fetchMedia?(ref: MediaRef, maxBytes: number): Promise<FetchedMedia>;

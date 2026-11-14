@@ -9973,6 +9973,16 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_board_stars_board ON board_stars(board_id);
       `);
     },
+  },  {
+    // WhatsApp: la privacidad de "Confirmaciones de lectura" de cada línea de Lines y cada cuenta de Inbox
+    // ('all', 'none' o '' sin saber), con la hora en que se leyó del servidor (lib/wa-privacy.ts).
+    id: '401_wa_read_receipts_privacy',
+    async up(c) {
+      await addColumn(c, "ALTER TABLE groups_numbers ADD COLUMN read_receipts TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE groups_numbers ADD COLUMN privacy_at TEXT');
+      await addColumn(c, "ALTER TABLE inbox_accounts ADD COLUMN read_receipts TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE inbox_accounts ADD COLUMN privacy_at TEXT');
+    },
   },
 ];
 

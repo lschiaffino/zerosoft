@@ -611,7 +611,7 @@ const WaConversation = forwardRef<
             )}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
-            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(m.status === 'read' && thread.readHidden ? 'message.status.readHidden' : `message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
             {isTempId(m.id) && m.status === 'failed' && m.hasMedia && (
               <button type="button" className="wa-retry" onClick={() => retryInboxMedia(m.id)} aria-label={w('retry')} title={w('retry')}>
                 <Retry size={14} />
