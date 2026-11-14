@@ -5,15 +5,17 @@
  *
  * - FEEDBACK_HOST (default feedback.zerosoft.ai) → /<locale>/feedback-board
  * - BRANDING_HOST (default branding.zerosoft.ai) → /<locale>/brand
- * Ambas aceptan una lista separada por coma. En desarrollo también responden
- * feedback.localhost y branding.localhost.
+ * - STATUS_HOST (default status.zerosoft.ai) → /<locale>/status
+ * Todas aceptan una lista separada por coma. En desarrollo también responden
+ * feedback.localhost, branding.localhost y status.localhost.
  */
 
-export type HostSurface = 'board' | 'brand';
+export type HostSurface = 'board' | 'brand' | 'status';
 
 export const SURFACE_PREFIX: Record<HostSurface, string> = {
   board: 'feedback-board',
   brand: 'brand',
+  status: 'status',
 };
 
 const LOCALES = ['en', 'es', 'pt'] as const;
@@ -46,6 +48,10 @@ export function brandingHosts(): string[] {
   return hostList(process.env.BRANDING_HOST, 'branding.zerosoft.ai');
 }
 
+export function statusHosts(): string[] {
+  return hostList(process.env.STATUS_HOST, 'status.zerosoft.ai');
+}
+
 /** Host principal del board (el primero de FEEDBACK_HOST). */
 export function primaryFeedbackHost(): string {
   return feedbackHosts()[0];
@@ -57,6 +63,7 @@ export function surfaceForHost(rawHost: string | null | undefined): HostSurface 
   if (!host) return null;
   if (host === 'feedback.localhost' || feedbackHosts().includes(host)) return 'board';
   if (host === 'branding.localhost' || brandingHosts().includes(host)) return 'brand';
+  if (host === 'status.localhost' || statusHosts().includes(host)) return 'status';
   return null;
 }
 

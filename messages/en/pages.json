@@ -3152,66 +3152,71 @@
   "status": {
     "meta": {
       "title": "zerosoft.ai status",
-      "description": "What runs zerosoft.ai and how we will report its health. No made-up numbers."
+      "description": "Live status of zerosoft.ai: the website, the apps, WhatsApp and email, checked every minute, with 90 days of history and every incident."
     },
-    "title": "Status.",
-    "sub": "Live monitoring is not wired up yet. Until it is, we will not show you numbers we did not measure.",
-    "s1": {
-      "name": "Link",
-      "desc": "Dashboard, redirects and QR codes"
+    "title": "Status",
+    "backToSite": "Back to zerosoft.ai",
+    "updated": "Checked every minute. Last update {time} UTC.",
+    "banner": {
+      "up": "All systems operational",
+      "degraded": "Some systems are degraded",
+      "down": "Some systems are down",
+      "unknown": "No recent data"
     },
-    "s2": {
-      "name": "CRM",
-      "desc": "Contacts, companies, deals, workflows"
+    "componentsTitle": "Components",
+    "components": {
+      "website": {
+        "name": "Website",
+        "desc": "zerosoft.ai, sign-in and public pages"
+      },
+      "apps": {
+        "name": "Apps and API",
+        "desc": "Every app, its data and the public API"
+      },
+      "whatsapp": {
+        "name": "WhatsApp (Lines and Inbox)",
+        "desc": "Sending and receiving WhatsApp messages"
+      },
+      "email": {
+        "name": "Email",
+        "desc": "Notifications, reminders and sign-in codes"
+      }
     },
-    "s3": {
-      "name": "Track",
-      "desc": "Projects, issues, cycles"
+    "state": {
+      "up": "Operational",
+      "degraded": "Degraded",
+      "down": "Outage",
+      "unknown": "No data"
     },
-    "s4": {
-      "name": "Cal",
-      "desc": "Event types and public booking pages"
+    "uptime": "{pct}% uptime",
+    "noUptime": "No data yet",
+    "daysAgo": "90 days ago",
+    "today": "Today",
+    "dayOk": "{date}: no problems",
+    "dayIssues": "{date}: {down} min down, {degraded} min degraded",
+    "dayNone": "{date}: no data",
+    "current": "Current incidents",
+    "past": "Past incidents",
+    "noPast": "No incidents in the last 90 days.",
+    "incidentTitle": {
+      "down": "{component}: outage",
+      "degraded": "{component}: degraded performance"
     },
-    "s5": {
-      "name": "Docs",
-      "desc": "Pages, sharing, comments"
+    "started": "Started {time}",
+    "ongoing": "Ongoing for {duration}",
+    "resolvedAfter": "Resolved after {duration}",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "kinds": {
+      "opened": "We detected the problem and are working on it.",
+      "reopened": "The problem came back.",
+      "now_down": "It got worse: the service is down.",
+      "now_degraded": "The service is degraded.",
+      "resolved": "Resolved. Checks are passing again.",
+      "note": "Update"
     },
-    "s6": {
-      "name": "Chat",
-      "desc": "Widget, inbox, auto-answer bot"
-    },
-    "s7": {
-      "name": "API v1",
-      "desc": "Public REST API for Link, CRM and Cal"
-    },
-    "s8": {
-      "name": "Auth",
-      "desc": "Google sign-in"
-    },
-    "s9": {
-      "name": "Agents",
-      "desc": "Agents, knowledge, tools"
-    },
-    "s10": {
-      "name": "Flow",
-      "desc": "Workflows, triggers, runs"
-    },
-    "s11": {
-      "name": "Robots",
-      "desc": "Browser robots, schedules, runner"
-    },
-    "s12": {
-      "name": "Notes",
-      "desc": "Notes, notebooks, search"
-    },
-    "s13": {
-      "name": "Board",
-      "desc": "Whiteboards, autosave, share links"
-    },
-    "noData": "No data yet",
-    "monitoringTitle": "Coming soon.",
-    "monitoringBody": "Real uptime checks and a public incident log are on the way. When something breaks before then, we will say so here, in plain words.",
-    "contact": "Something down? Write to hola@zerosoft.ai."
+    "timeline": "Timeline",
+    "contact": "Something broken that is not listed here? Write to hola@zerosoft.ai."
   },
   "docs": {
     "meta": {
