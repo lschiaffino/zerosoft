@@ -1606,7 +1606,15 @@
       "shareOnSave": "Compartir con el equipo",
       "shareHelp": "Las vistas del equipo las ve todo el equipo. Solo vos las editás.",
       "updateView": "Actualizar vista",
-      "saveAsNew": "Guardar como vista nueva"
+      "saveAsNew": "Guardar como vista nueva",
+      "workspace": {
+        "team": "Workspace",
+        "share": "Compartir con el workspace",
+        "teamViews": "Compartidas con el workspace",
+        "sharedOn": "Todo el workspace ya ve esta vista",
+        "shareOnSave": "Compartir con el workspace",
+        "shareHelp": "Todo el workspace ve acá las vistas compartidas, con los issues a los que tiene acceso. Solo vos las editás."
+      }
     },
     "filter": {
       "fields": {

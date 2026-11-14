@@ -215,7 +215,7 @@ export default function TrackIssueList({
   const viewsSource: ListViewsSource | null = team ? { kind: 'team', projectId: team.projectId } : personalViews ? { kind: 'personal', key: viewKey } : null;
   const lv = useListViews(viewsSource, userId, team?.views, {
     saved: tx('views.saved'),
-    sharedOn: tx('views.sharedOn'),
+    sharedOn: team ? tx('views.sharedOn') : tx('views.workspace.sharedOn'),
     sharedOff: tx('views.sharedOff'),
   });
 
@@ -676,6 +676,7 @@ export default function TrackIssueList({
       userId={userId}
       dirty={viewDirty}
       personal={!team}
+      shareable={lv.shareable}
       onSelect={selectView}
       onSetDefault={(id) =>
         viewAction(async () => {
@@ -1145,7 +1146,11 @@ export default function TrackIssueList({
           save: t('common.save'),
           cancel: t('common.cancel'),
           error: t('errors.generic'),
-          ...(team ? { shared: tx('views.shareOnSave'), sharedHelp: tx('views.shareHelp') } : {}),
+          ...(team
+            ? { shared: tx('views.shareOnSave'), sharedHelp: tx('views.shareHelp') }
+            : lv.shareable
+              ? { shared: tx('views.workspace.shareOnSave'), sharedHelp: tx('views.workspace.shareHelp') }
+              : {}),
         }}
       />
       <TrackToast message={store.error} onDismiss={store.clearError} dismissLabel={ui.inline.dismiss} />

@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-14',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -165,7 +165,7 @@ const parity: ProductParity = {
       id: 'saved-views',
       area: 'views',
       label: { en: 'Saved views', es: 'Vistas guardadas', pt: 'Visualizações salvas' },
-      detail: { en: 'Personal and team views per team with filters, grouping, sort, sub-issues and list/board; favorites in the sidebar, save changes, link to share. No view alerts to Slack yet', es: 'Vistas personales y de equipo por equipo con filtros, agrupado, orden, sub-issues y lista/tablero; favoritas en el sidebar, guardar cambios, link para compartir. Todavía sin alertas de vista a Slack', pt: 'Visualizações pessoais e de equipe por equipe com filtros, agrupamento, ordem, sub-issues e lista/quadro; favoritas na barra lateral, salvar mudanças, link para compartilhar. Ainda sem alertas de visualização no Slack' },
+      detail: { en: 'Personal and team views per team, and workspace views on Issues and a project\'s Issues tab that everyone in the workspace sees (only the owner edits them); filters, grouping, sort, sub-issues and list/board; favorites in the sidebar, save changes, link to share. No view alerts to Slack yet', es: 'Vistas personales y de equipo por equipo, y vistas del workspace en Issues y en la pestaña Issues de un project que ve todo el workspace (solo quien la creó la edita); filtros, agrupado, orden, sub-issues y lista/tablero; favoritas en el sidebar, guardar cambios, link para compartir. Todavía sin alertas de vista a Slack', pt: 'Visualizações pessoais e de equipe por equipe, e visualizações do workspace em Issues e na aba Issues de um project que todo o workspace vê (só quem criou edita); filtros, agrupamento, ordem, sub-issues e lista/quadro; favoritas na barra lateral, salvar mudanças, link para compartilhar. Ainda sem alertas de visualização no Slack' },
       status: 'have',
       competitorHas: true,
       weight: 2,
@@ -174,7 +174,7 @@ const parity: ProductParity = {
       id: 'cross-project-issues',
       area: 'views',
       label: { en: 'Issues across all teams and My issues', es: 'Issues de todos los equipos y Mis issues', pt: 'Issues de todas as equipes e Meus issues' },
-      detail: { en: 'Same list as a team: filters (also by team and project), list or board, grouping by status, assignee, priority, project, team, cycle or label, ordering incl. manual and estimate, completed issues (all, past week, none), empty groups and visible properties, remembered per view and person. No sub-grouping and no saved views outside a team yet', es: 'La misma lista que un team: filtros (también por team y project), lista o tablero, agrupar por estado, asignado, prioridad, project, team, cycle o label, orden incluido manual y estimación, terminados (todos, última semana, ninguno), grupos vacíos y propiedades visibles, recordados por vista y persona. Todavía sin sub-agrupado ni vistas guardadas fuera de un team', pt: 'A mesma lista de um team: filtros (também por team e project), lista ou quadro, agrupar por status, responsável, prioridade, project, team, cycle ou label, ordem incluindo manual e estimativa, concluídos (todos, última semana, nenhum), grupos vazios e propriedades visíveis, lembrados por visualização e pessoa. Ainda sem subagrupamento nem visualizações salvas fora de um team' },
+      detail: { en: 'Same list as a team: filters (also by team and project), list or board, grouping by status, assignee, priority, project, team, cycle or label, sub-grouping, ordering incl. manual and estimate, completed issues (all, past week, none), empty groups and visible properties, remembered per view and person; saved views, personal or shared with the workspace', es: 'La misma lista que un team: filtros (también por team y project), lista o tablero, agrupar por estado, asignado, prioridad, project, team, cycle o label, orden incluido manual y estimación, sub-agrupado, terminados (todos, última semana, ninguno), grupos vacíos y propiedades visibles, recordados por vista y persona; vistas guardadas, personales o compartidas con el workspace', pt: 'A mesma lista de um team: filtros (também por team e project), lista ou quadro, agrupar por status, responsável, prioridade, project, team, cycle ou label, ordem incluindo manual e estimativa, subagrupamento, concluídos (todos, última semana, nenhum), grupos vazios e propriedades visíveis, lembrados por visualização e pessoa; visualizações salvas, pessoais ou compartilhadas com o workspace' },
       status: 'have',
       competitorHas: true,
     },

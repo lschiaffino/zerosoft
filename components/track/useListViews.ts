@@ -7,8 +7,8 @@ import { pushNotice } from './trackUndo';
 
 /**
  * De dónde salen las vistas guardadas de una lista: las de un team
- * (track_issue_views, se comparten y van a favoritas) o las personales de
- * cualquier otra lista (track_list_views).
+ * (track_issue_views, se comparten y van a favoritas) o las de cualquier otra
+ * lista (track_list_views: personales o compartidas con el workspace).
  */
 export type ListViewsSource = { kind: 'team'; projectId: string } | { kind: 'personal'; key: string };
 
@@ -33,6 +33,8 @@ export interface ListViews {
   views: TrackSavedView[];
   /** Ya se sabe qué vistas hay (las de un team vienen del server). */
   ready: boolean;
+  /** Se pueden compartir: las de un team con el team, las de otras listas con el workspace (My issues no). */
+  shareable: boolean;
   create: (name: string, shared: boolean, payload: Payload) => Promise<TrackSavedView>;
   update: (id: string, payload: Payload) => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
@@ -45,14 +47,19 @@ export interface ListViews {
 export function useListViews(source: ListViewsSource | null, userId: string, initial?: TrackSavedView[], messages?: { saved: string; sharedOn: string; sharedOff: string }): ListViews {
   const [views, setViews] = useState<TrackSavedView[]>(initial ?? []);
   const [ready, setReady] = useState(Boolean(initial) || !source);
+  const [listShareable, setListShareable] = useState(false);
   const key = source ? (source.kind === 'team' ? `team:${source.projectId}` : `personal:${source.key}`) : '';
 
   useEffect(() => {
     if (!source || initial) return;
     let alive = true;
     const url = source.kind === 'team' ? `/api/track/projects/${source.projectId}/views` : `/api/track/list-views?key=${encodeURIComponent(source.key)}`;
-    void api<{ rows: TrackSavedView[] }>(url)
-      .then((d) => alive && setViews(d.rows))
+    void api<{ rows: TrackSavedView[]; shareable?: boolean }>(url)
+      .then((d) => {
+        if (!alive) return;
+        setViews(d.rows);
+        setListShareable(Boolean(d.shareable));
+      })
       .catch(() => undefined)
       .finally(() => alive && setReady(true));
     return () => {
@@ -70,7 +77,7 @@ export function useListViews(source: ListViewsSource | null, userId: string, ini
       const created =
         source.kind === 'team'
           ? await api<TrackSavedView>(`/api/track/projects/${source.projectId}/views`, json('POST', { name, shared, ...payload }))
-          : await api<TrackSavedView>('/api/track/list-views', json('POST', { key: source.key, name, ...payload }));
+          : await api<TrackSavedView>('/api/track/list-views', json('POST', { key: source.key, name, shared, ...payload }));
       setViews((prev) => [...prev, created]);
       return created;
     },
@@ -97,7 +104,11 @@ export function useListViews(source: ListViewsSource | null, userId: string, ini
     setViews((prev) => prev.map((v) => ({ ...v, is_default: v.user_id === userId && v.id === id })));
   };
   const setShared = async (id: string, shared: boolean) => {
-    replace(await api<TrackSavedView>(`/api/track/views/${id}`, json('PATCH', { shared })));
+    replace(
+      team
+        ? await api<TrackSavedView>(`/api/track/views/${id}`, json('PATCH', { shared }))
+        : await api<TrackSavedView>('/api/track/list-views', json('PATCH', { id, shared })),
+    );
     if (messages) pushNotice(shared ? messages.sharedOn : messages.sharedOff);
   };
   const setFavorite = async (id: string, favorite: boolean) => {
@@ -105,5 +116,5 @@ export function useListViews(source: ListViewsSource | null, userId: string, ini
     announce();
   };
 
-  return { views, ready, create, update, rename, remove, setDefault, setShared, setFavorite };
+  return { views, ready, shareable: team || listShareable, create, update, rename, remove, setDefault, setShared, setFavorite };
 }

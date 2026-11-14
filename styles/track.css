@@ -3248,7 +3248,17 @@ body:has(.track-bulk-bar) .track-undo-toasts { bottom: 72px; }
 .track-board-card.is-selected.is-draggable:hover { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .track-board-column[data-track-drop].is-drop-target { outline: 1px solid var(--ink); outline-offset: -1px; }
 
-/* Teléfono angosto: el menú de vistas guardadas se ancla a los bordes de la pantalla en vez de salirse por la izquierda. */
+/* Teléfono angosto: el menú de vistas guardadas se ancla a los bordes de la pantalla en vez de salirse por la izquierda,
+   abajo como una hoja (con `fixed`, el `top: 100%` de escritorio lo dejaba debajo del borde de la pantalla, invisible). */
 @media (max-width: 480px) {
-  .track-saved-views-menu { position: fixed; left: 12px; right: 12px; min-width: 0; max-width: none; }
+  .track-saved-views-menu {
+    position: fixed;
+    top: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    min-width: 0;
+    max-width: none;
+    max-height: 60vh;
+  }
 }
