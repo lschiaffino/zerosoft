@@ -266,9 +266,11 @@ function needsBookFirst(e: InboundEvent): boolean {
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
   const t = await findPhoneThread(account, chatId);
-  if (!t || !!t.archived_at === archived) return false;
-  const { isArchiveEcho } = await import('../wa-archive-sync');
-  if (await isArchiveEcho('inbox', t.id, archived)) return false;
+  const { isArchiveEcho, traceArchive } = await import('../wa-archive-sync');
+  if (!t) return traceArchive('inbox', chatId, archived, 'not_found');
+  if (!!t.archived_at === archived) return traceArchive('inbox', chatId, archived, 'same');
+  if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
+  traceArchive('inbox', chatId, archived, 'applied');
   await getDb()
     .prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
     .run(archived ? nowIso() : null, archived ? 1 : 0, nowIso(), t.id);

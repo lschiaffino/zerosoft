@@ -10,7 +10,7 @@ import { connectWhatsapp, ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
 import { evolutionArchiveBody } from '@/lib/groups-provider-bridge';
 import { fakeArchives, fakeFailArchives, resetFakeProvider } from '@/lib/groups-provider-fake';
 import { connectNumber, createNumber, getChat, getNumberRowById, ingestEvents, listChats, updateChat, type NumberRow } from '@/lib/groups';
-import { ECHO_WINDOW_MS, RETRY_BACKOFF_MS, flushArchivePush, getArchivePush, isArchiveEcho, pickRef, runArchivePushes, secondsOf } from '@/lib/wa-archive-sync';
+import { ECHO_WINDOW_MS, PACE_GAP_MS, RETRY_BACKOFF_MS, flushArchivePush, paceDelay, queueArchivePush, getArchivePush, isArchiveEcho, pickRef, runArchivePushes, secondsOf } from '@/lib/wa-archive-sync';
 import { fetchLive, latestLiveId, liveBatch, livePoll } from '@/lib/wa-live';
 import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from '@/lib/schema/wa-live-triggers';
 import { makeUser } from './helpers';
@@ -198,6 +198,36 @@ describe('Inbox → WhatsApp', () => {
     expect(out.filter((o) => o === 'sent')).toHaveLength(1);
     expect(fakeArchives(`inbox-${account.id}`)).toHaveLength(1);
     vi.restoreAllMocks();
+  });
+});
+
+describe('una orden por chat y con ritmo', () => {
+  it('un 1:1 con teléfono y lid conocidos se archiva con una sola orden (nunca con los dos ids)', async () => {
+    const { owner, account } = await inboxSetup('wa-arch-one');
+    const phone = '5491100004301';
+    await ingestWhatsappEvents(account, [
+      { type: 'contact', chatId: `${phone}@s.whatsapp.net`, name: 'Paula Ejemplo', lid: '204700000004301', phone },
+      inbound(`${phone}@s.whatsapp.net`),
+    ]);
+    const [t] = await listThreads(owner);
+    await applyThreadAction(owner, [t.id], { action: 'archive' });
+    expect(fakeArchives(`inbox-${account.id}`).map((a) => a.chatId)).toEqual([`${phone}@s.whatsapp.net`]);
+  });
+
+  it('un cambio pegado al anterior de la misma cuenta espera su turno (no salen ráfagas)', async () => {
+    const { owner, account } = await inboxSetup('wa-arch-pace');
+    await ingestWhatsappEvents(account, [inbound('5491100004302@s.whatsapp.net'), inbound('5491100004303@s.whatsapp.net')]);
+    const [a, b] = await listThreads(owner);
+    await applyThreadAction(owner, [a.id], { action: 'archive' });
+    expect(await paceDelay('inbox', owner, Date.now())).toBeGreaterThan(0);
+    await getDb().prepare('UPDATE inbox_threads SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), b.id);
+    await queueArchivePush('inbox', owner, [b.id], true);
+    expect(await flushArchivePush('inbox', b.id)).toBe('idle');
+    const row = await getArchivePush('inbox', b.id);
+    expect(row?.done_at).toBeNull();
+    expect(Date.parse(row!.next_at)).toBeGreaterThan(Date.now());
+    expect(Date.parse(row!.next_at)).toBeLessThanOrEqual(Date.now() + PACE_GAP_MS + 100);
+    expect(fakeArchives(`inbox-${account.id}`)).toHaveLength(1);
   });
 });
 

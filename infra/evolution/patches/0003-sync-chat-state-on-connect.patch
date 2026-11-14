@@ -1,0 +1,75 @@
+diff --git a/src/api/controllers/chat.controller.ts b/src/api/controllers/chat.controller.ts
+index 09a3575..bba2ec5 100644
+--- a/src/api/controllers/chat.controller.ts
++++ b/src/api/controllers/chat.controller.ts
+@@ -36,6 +36,13 @@ export class ChatController {
+     return await this.waMonitor.waInstances[instanceName].archiveChat(data);
+   }
+ 
++  // zerosoft: only the Baileys channel can re-read the archived/pinned state.
++  public async syncChatState({ instanceName }: InstanceDto) {
++    const instance = this.waMonitor.waInstances[instanceName];
++    if (typeof instance?.syncChatState !== 'function') throw new BadRequestException('Chat state sync is not available here');
++    return await instance.syncChatState();
++  }
++
+   // zerosoft: only the Baileys channel has on-demand history.
+   public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
+     const instance = this.waMonitor.waInstances[instanceName];
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 906ba69..c23d153 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -514,6 +514,15 @@ export class BaileysStartupService extends ChannelStartupService {
+         profilePictureUrl: this.instance.profilePictureUrl,
+         ...this.stateConnection,
+       });
++
++      // zerosoft: al conectar (vincular o reconectar), el estado de archivado y fijado de cada chat. En la primera
++      // sincronización Baileys deja esos cambios esperando el historial del chat y casi nunca salen; acá se relee
++      // la colección entera como un cambio normal, y cada chat sale por CHATS_UPDATE. Una vez por conexión.
++      const client = this.client;
++      setTimeout(() => {
++        if (this.client !== client || this.stateConnection.state !== 'open') return;
++        this.syncChatState().catch((error) => this.logger.warn(`syncChatState failed: ${error?.message ?? error}`));
++      }, 45_000);
+     }
+ 
+     if (connection === 'connecting') {
+@@ -3741,6 +3750,15 @@ export class BaileysStartupService extends ChannelStartupService {
+   // zerosoft: on-demand history for a chat. WhatsApp sends `count` messages older than the anchor (a message stored
+   // here); they arrive through messaging-history.set (ON_DEMAND) and go out as MESSAGES_SET. Anchor: the oldest
+   // stored message newer than `after` (seconds) when given, if not the newest stored message of the chat.
++  // zerosoft: relee la colección de WhatsApp donde viven archivado y fijado (regular_low) desde cero, sin el modo
++  // "primera sincronización", para que Baileys emita un chats.update por cada chat con su estado actual.
++  public async syncChatState() {
++    if (this.stateConnection.state !== 'open') throw new BadRequestException('Instance is not connected');
++    await this.client.authState.keys.set({ 'app-state-sync-version': { regular_low: null } } as any);
++    await (this.client as any).resyncAppState(['regular_low'], false);
++    return { synced: true };
++  }
++
+   public async fetchHistory(data: FetchHistoryDto) {
+     const jid = createJid(data.remoteJid);
+     const sameChat = {
+diff --git a/src/api/routes/chat.router.ts b/src/api/routes/chat.router.ts
+index b789abc..6c354b4 100644
+--- a/src/api/routes/chat.router.ts
++++ b/src/api/routes/chat.router.ts
+@@ -82,6 +82,16 @@ export class ChatRouter extends RouterBroker {
+ 
+         return res.status(HttpStatus.CREATED).json(response);
+       })
++      .post(this.routerPath('syncChatState'), ...guards, async (req, res) => {
++        const response = await this.dataValidate<InstanceDto>({
++          request: req,
++          schema: null,
++          ClassRef: InstanceDto,
++          execute: (instance) => chatController.syncChatState(instance),
++        });
++
++        return res.status(HttpStatus.OK).json(response);
++      })
+       .post(this.routerPath('fetchHistory'), ...guards, async (req, res) => {
+         const response = await this.dataValidate<FetchHistoryDto>({
+           request: req,

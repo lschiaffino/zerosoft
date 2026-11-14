@@ -63,6 +63,14 @@ const parity: ProductParity = {
       competitorHas: true,
     },
     {
+      id: 'project-templates',
+      area: 'issues',
+      label: { en: 'Project templates', es: 'Templates de proyectos', pt: 'Templates de projetos' },
+      detail: { en: 'Save a project as a template (description, priority, teams, labels, milestones with their offset from the start date, open issues with milestone, parent and labels) and pick it when creating a project; rename and delete in settings. Issues from private teams stay out unless you can see them. No editing the template contents in place yet', es: 'Guardar un proyecto como template (descripción, prioridad, teams, etiquetas, milestones con su distancia al inicio, issues abiertos con milestone, padre y etiquetas) y elegirlo al crear un proyecto; renombrar y borrar en ajustes. Los issues de teams privados no entran si no los ves. Todavía sin editar el contenido del template en el lugar', pt: 'Salvar um projeto como template (descrição, prioridade, teams, etiquetas, milestones com a distância até o início, issues abertos com milestone, pai e etiquetas) e escolhê-lo ao criar um projeto; renomear e apagar nas configurações. Issues de teams privados ficam de fora se você não os vê. Ainda sem editar o conteúdo do template no lugar' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
       id: 'recurring-issues',
       area: 'issues',
       label: { en: 'Recurring issues', es: 'Issues recurrentes', pt: 'Issues recorrentes' },
@@ -107,7 +115,7 @@ const parity: ProductParity = {
       id: 'initiatives',
       area: 'issues',
       label: { en: 'Initiatives and sub-initiatives', es: 'Initiatives y sub-initiatives', pt: 'Initiatives e sub-initiatives' },
-      detail: { en: 'Owner, status, target date, projects and sub-initiatives, combined progress; health is the worst of its active projects (no separate initiative updates)', es: 'Responsable, estado, fecha objetivo, proyectos y sub-iniciativas, progreso sumado; la salud es la peor de sus proyectos en curso (sin updates propios de la iniciativa)', pt: 'Responsável, status, data-alvo, projetos e sub-iniciativas, progresso somado; a saúde é a pior dos projetos em andamento (sem updates próprios da iniciativa)' },
+      detail: { en: 'Owner, status, target date, projects and sub-initiatives, combined progress; initiative updates with health and text that notify the owner and project leads, and the latest one sets the health (without updates, the worst of its active projects). No comments or reminders on initiative updates yet', es: 'Responsable, estado, fecha objetivo, proyectos y sub-iniciativas, progreso sumado; updates de la iniciativa con salud y texto que avisan al responsable y a los leads de sus proyectos, y el último fija la salud (sin updates, la peor de sus proyectos en curso). Todavía sin comentarios ni recordatorios en esos updates', pt: 'Responsável, status, data-alvo, projetos e sub-iniciativas, progresso somado; updates da iniciativa com saúde e texto que avisam o responsável e os leads dos projetos, e o último define a saúde (sem updates, a pior dos projetos em andamento). Ainda sem comentários nem lembretes nesses updates' },
       status: 'have',
       competitorHas: true,
     },
