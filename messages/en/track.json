@@ -1606,7 +1606,15 @@
       "shareOnSave": "Share with the team",
       "shareHelp": "Everyone in the team sees team views. Only you can edit them.",
       "updateView": "Update view",
-      "saveAsNew": "Save as new view"
+      "saveAsNew": "Save as new view",
+      "workspace": {
+        "team": "Workspace",
+        "share": "Share with the workspace",
+        "teamViews": "Shared with the workspace",
+        "sharedOn": "Everyone in the workspace can see this view now",
+        "shareOnSave": "Share with the workspace",
+        "shareHelp": "Everyone in the workspace sees shared views here, with the issues they have access to. Only you can edit them."
+      }
     },
     "filter": {
       "fields": {

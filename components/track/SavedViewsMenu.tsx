@@ -22,8 +22,10 @@ interface SavedViewsMenuProps {
   onCopyLink: (id: string) => void;
   /** Abre el menú al montar (sidebar › team › Views). */
   defaultOpen?: boolean;
-  /** Vistas personales (listas que no son de un team): sin favoritas, compartir ni por defecto. */
+  /** Vistas de listas que no son de un team: sin favoritas ni por defecto; se comparten con el workspace. */
   personal?: boolean;
+  /** Se pueden compartir (las de un team siempre; las demás según la lista: My issues no). */
+  shareable?: boolean;
   labels: {
     title: string;
     empty: string;
@@ -53,6 +55,7 @@ export default function SavedViewsMenu({
   onCopyLink,
   defaultOpen = false,
   personal = false,
+  shareable = !personal,
   labels,
 }: SavedViewsMenuProps) {
   const t = useTranslations('track.ux.views');
@@ -65,6 +68,8 @@ export default function SavedViewsMenu({
   const active = views.find((v) => v.id === activeViewId);
   const mine = views.filter((v) => v.user_id === userId);
   const team = views.filter((v) => v.user_id !== userId);
+  // Las de un team se comparten con el team; las de otras listas, con todo el workspace.
+  const k = personal ? 'workspace.' : '';
 
   useEffect(() => {
     if (!open) return;
@@ -113,7 +118,7 @@ export default function SavedViewsMenu({
           >
             <span>{view.name}</span>
             {view.is_default && <span className="track-saved-view-tag">{labels.default}</span>}
-            {own && view.shared && <span className="track-saved-view-tag">{t('team')}</span>}
+            {own && view.shared && <span className="track-saved-view-tag">{t(`${k}team`)}</span>}
             {!own && view.owner_name && <span className="track-saved-view-owner">{view.owner_name}</span>}
           </button>
         )}
@@ -142,14 +147,14 @@ export default function SavedViewsMenu({
           </button>
           {own && (
             <>
-              {!personal && (
+              {shareable && (
               <button
                 type="button"
                 className={`btn btn-ghost btn-sm btn-icon${view.shared ? ' is-on' : ''}`}
                 onClick={() => onToggleShared(view.id, !view.shared)}
                 aria-pressed={view.shared}
-                aria-label={`${view.shared ? t('unshare') : t('share')}: ${view.name}`}
-                title={view.shared ? t('unshare') : t('share')}
+                aria-label={`${view.shared ? t('unshare') : t(`${k}share`)}: ${view.name}`}
+                title={view.shared ? t('unshare') : t(`${k}share`)}
                 data-testid="track-view-share"
               >
                 <TrackIcon name="users" size={13} />
@@ -248,7 +253,7 @@ export default function SavedViewsMenu({
               )}
               {team.length > 0 && (
                 <>
-                  <p className="track-saved-views-section">{t('teamViews')}</p>
+                  <p className="track-saved-views-section">{t(`${k}teamViews`)}</p>
                   <ul className="track-saved-view-list">{team.map(item)}</ul>
                 </>
               )}
