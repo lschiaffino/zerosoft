@@ -249,7 +249,7 @@ function StepItem({
 }
 
 /** Pasos con selector que admiten selectores alternativos (autorreparación). */
-const HEAL_TYPES = new Set(['click', 'fill', 'select', 'press', 'wait', 'extract', 'extract_table', 'extract_list', 'download', 'scroll']);
+const HEAL_TYPES = new Set(['click', 'fill', 'select', 'check', 'press', 'wait', 'extract', 'extract_table', 'extract_list', 'download', 'scroll']);
 
 /** Selectores alternativos: plegados salvo que el paso ya tenga alguno. */
 function Fallbacks({ step, readOnly, onChange }: { step: AnyStep; readOnly: boolean; onChange: (s: AnyStep) => void }) {
@@ -565,7 +565,7 @@ function TypeFields({
       )}
     </Field>
   );
-  const choice = (key: string, label: string, options: readonly string[], ns: 'modes' | 'onMissing' | 'waitUntil') => (
+  const choice = (key: string, label: string, options: readonly string[], ns: 'modes' | 'onMissing' | 'waitUntil' | 'checkState') => (
     <Field key={key} label={label}>
       {(id) => (
         <select id={id} className="select" value={String((step as Record<string, unknown>)[key] ?? options[0])} disabled={readOnly} onChange={(e) => set({ [key]: e.target.value })}>
@@ -682,6 +682,13 @@ function TypeFields({
           {step.type === 'fill' &&
             /\{\{[^{}]*\bcredentials\b/.test(String((step as Record<string, unknown>).value ?? '')) &&
             text('origin', t('fields.origin'), 'https://login.example.com', true, t('originHint'))}
+        </div>
+      );
+    case 'check':
+      return (
+        <div className="robots-fields">
+          {text('selector', t('fields.selector'), 'input[name="terms"]')}
+          {choice('state', t('fields.checkState'), ['checked', 'unchecked'], 'checkState')}
         </div>
       );
     case 'press':

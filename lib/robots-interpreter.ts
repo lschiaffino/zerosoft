@@ -18,6 +18,7 @@ export interface RobotLocator {
   click(opts?: { timeout?: number }): Promise<void>;
   fill(value: string, opts?: { timeout?: number }): Promise<void>;
   selectOption(value: string, opts?: { timeout?: number }): Promise<unknown>;
+  setChecked?(checked: boolean, opts?: { timeout?: number }): Promise<void>;
   press(key: string, opts?: { timeout?: number }): Promise<void>;
   innerText(opts?: { timeout?: number }): Promise<string>;
   getAttribute(name: string, opts?: { timeout?: number }): Promise<string | null>;
@@ -440,7 +441,7 @@ export async function robotInterpreter(
   };
 
   const READ_TYPES = ['wait', 'extract', 'extract_table', 'extract_list', 'scroll'];
-  const ACTION_TYPES = ['click', 'fill', 'select', 'press', 'download', 'upload'];
+  const ACTION_TYPES = ['click', 'fill', 'select', 'check', 'press', 'download', 'upload'];
   /** Un paso que usa un login, o que apunta a un campo de contraseña, nunca se reaprende. */
   const canRelearn = (s: InterpreterStep, pr: unknown): boolean => {
     if (/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s))) return false;
@@ -894,6 +895,15 @@ export async function robotInterpreter(
         if (!selector) fail('missing_selector');
         await page.locator(selector).first().selectOption(render(s.value, ctx), { timeout: timeout() });
         return { detail: selector };
+      }
+      case 'check': {
+        if (!selector) fail('missing_selector');
+        const want = str(s.state).trim() !== 'unchecked';
+        const target = page.locator(selector).first();
+        const setChecked = target.setChecked?.bind(target);
+        if (!setChecked) return fail('unsupported');
+        await setChecked(want, { timeout: timeout() });
+        return { detail: `${selector} ${want ? '✓' : '✗'}` };
       }
       case 'press': {
         const key = str(s.key).trim();
