@@ -2585,7 +2585,9 @@
     "title": "Robots: Add a Check or uncheck step for checkboxes and radio buttons",
     "description": "UiPath has a dedicated Check/Uncheck activity that sets a checkbox to a known state instead of toggling it (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step toggles, so a robot that runs on a page where the box starts checked flips it the wrong way. First scope: a check step with a checked/unchecked choice that uses the page's real state, and a recorder mapping from checkbox clicks to this step.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-14-robots-check"
   },
   {
     "title": "Board: Copy a link that opens the board zoomed on a frame or selection",
@@ -2907,6 +2909,36 @@
     "title": "Board: Let an admin set a board to view-only for everyone",
     "description": "Miro can restrict a board to view access for most people while owners keep editing (https://help.miro.com/hc/en-us/sections/360003285093-Working-on-the-Board). Board has per-person access levels in lib/board-access.ts, but no single switch to freeze a finished board such as a signed-off retro or a workshop result. Without it, a stray drag by a teammate changes a record the team wanted to keep. First scope: a read-only toggle in the share panel that makes requireBoardAccess treat edit as view for non-owners, with a visible banner in the editor and an audit log entry.",
     "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Toggle option to the Check or uncheck step",
+    "description": "UiPath's Check/Uncheck activity offers Check, Uncheck and Toggle (switch the current state) (https://docs.uipath.com/activities/other/latest/ui-automation/activities-index). Our Check or uncheck step (lib/robots-schema.ts) only sets a final state of checked or unchecked. Toggle matters for switches that a site renders as a custom button where the current state is not readable. First scope: a third state value that clicks once and logs the result.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Hover Text step that finds text and hovers over it",
+    "description": "UiPath has a Hover activity and a Hover Text activity that searches a string inside an element and hovers it (https://docs.uipath.com/activities/other/latest/ui-automation/hover-text). Our Click step takes a selector or visible text, but nothing hovers (lib/robots-interpreter.ts). Menus that open on hover block small teams from automating many admin panels. First scope: a hover step with selector or visible text, plus a short wait for the menu to render.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Retry a group of steps together with a limit and delay",
+    "description": "UiPath's Retry Scope reruns a whole sequence until a condition passes (https://docs.uipath.com/activities/other/latest/ui-automation/activities-index). Our retries apply to one step at a time (retries and retryDelayMs in lib/robots-schema.ts), so a flow like open menu, click, wait for result cannot be retried as a unit. First scope: a group step with up to 5 attempts that reruns its children from the first one and logs each attempt.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Show a run timeline with the duration of each step",
+    "description": "UiPath Orchestrator shows execution logs per job with timestamps for each activity (https://docs.uipath.com/orchestrator/automation-cloud/latest/user-guide/logs). Our run detail lists steps and status (components/robots/RunsPanel.tsx) but not how long each took. A team tuning a slow robot cannot see which step eats the time budget. First scope: store started and finished times per step in the run log and show the duration next to each step.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Pause a run for a human decision and resume from the app",
+    "description": "UiPath Action Center lets a robot hand a task to a person and continue after they respond (https://docs.uipath.com/action-center/automation-cloud/latest/user-guide/about-action-center). Robots run start to finish with no way to wait for approval, for example before submitting a form. First scope: an Ask for approval step that stops the run in a waiting status, notifies the workspace, and continues or fails when someone answers in the run view.",
+    "product": "robots",
     "kind": "idea"
   }
 ]

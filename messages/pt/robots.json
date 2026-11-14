@@ -169,6 +169,7 @@
       "click": "Clicar",
       "fill": "Preencher campo",
       "select": "Escolher opção",
+      "check": "Marcar ou desmarcar",
       "press": "Pressionar tecla",
       "wait": "Esperar",
       "extract": "Extrair",
@@ -194,6 +195,7 @@
       "ms": "Milissegundos",
       "waitSelector": "Ou até este seletor aparecer",
       "waitUntil": "Esperar até o elemento",
+      "checkState": "Estado final",
       "name": "Salvar como variável",
       "mode": "O que extrair",
       "attribute": "Atributo",
@@ -234,6 +236,10 @@
       "aiFieldDesc": "Descrição (opcional)",
       "aiScope": "Só dentro deste seletor (opcional)",
       "origin": "Site do login"
+    },
+    "checkState": {
+      "checked": "Marcado",
+      "unchecked": "Desmarcado"
     },
     "waitUntil": {
       "appears": "Aparecer na página",

@@ -78,6 +78,7 @@ export const STEP_TYPES = [
   'click',
   'fill',
   'select',
+  'check',
   'press',
   'wait',
   'extract',
@@ -177,6 +178,14 @@ const fillStep = z.object({
   ...retry,
 });
 const selectStep = z.object({ type: z.literal('select'), selector: selector.min(1), value: template.default(''), ...heal, ...retry });
+const checkStep = z.object({
+  type: z.literal('check'),
+  selector: selector.min(1),
+  /** Estado final de la casilla o el radio: marcado (default) o desmarcado. */
+  state: z.enum(['checked', 'unchecked']).optional().default('checked'),
+  ...heal,
+  ...retry,
+});
 const pressStep = z.object({
   type: z.literal('press'),
   key: z.string().trim().min(1).max(40).regex(/^[A-Za-z0-9+_ -]+$/),
@@ -309,6 +318,7 @@ const leafStep = z.discriminatedUnion('type', [
   clickStep,
   fillStep,
   selectStep,
+  checkStep,
   pressStep,
   waitStep,
   extractStep,
@@ -493,6 +503,8 @@ export function defaultStep(type: RobotStepType): RobotStep {
     case 'fill':
     case 'select':
       return { type, selector: '', value: '' };
+    case 'check':
+      return { type, selector: '', state: 'checked' };
     case 'press':
       return { type, key: 'Enter', selector: '' };
     case 'wait':
