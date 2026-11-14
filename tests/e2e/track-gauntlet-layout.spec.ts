@@ -13,7 +13,8 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 test('lista: un issue con varias etiquetas ocupa una sola línea', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const team = (await (await request.post('/api/track/projects', { data: { name: `Layout ${uid()}` } })).json()) as { id: string };
-  const title = 'Offline sync for the mobile app';
+  // Título propio (track-linear-import.spec cuenta los issues con el título del workspace falso de Linear).
+  const title = `Layout labels row ${uid()}`;
   const res = await request.post(`/api/track/projects/${team.id}/issues`, {
     data: {
       title,

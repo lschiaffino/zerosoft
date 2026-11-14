@@ -1,13 +1,15 @@
 /**
  * Track — initiatives (como Linear): agrupan plans bajo un objetivo, con
- * responsable, estado, fecha objetivo y sub-initiatives. El progreso es el de
- * sus plans (incluidos los de las sub-initiatives) y la salud, la peor entre
+ * responsable, estado, fecha objetivo, sub-initiatives y updates. El progreso
+ * es el de sus plans (incluidos los de las sub-initiatives). La salud es la
+ * del último update (lib/track-initiative-updates); sin updates, la peor entre
  * sus plans en curso.
  */
 import { getDb } from './db';
 import { inScope, listPlans, listWorkspaceMembers, planningClosed, scopeWhere, type PlanSummary, type WorkspaceScope } from './track-plans';
 import type { HealthState } from './track-planning-core';
 import type { InitiativeCreatePayload, InitiativeStatus, InitiativeUpdatePayload } from './track-planning-schema';
+import { latestInitiativeUpdates, type LatestInitiativeUpdate } from './track-initiative-updates';
 
 export interface TrackInitiativeRow {
   id: string;
@@ -33,7 +35,11 @@ export interface InitiativeSummary extends TrackInitiativeRow {
   /** Plans propios y de las sub-initiatives. */
   plans: PlanSummary[];
   percent: number;
+  /** La del último update; sin updates, la de projects_health. */
   health: HealthState;
+  /** La peor de sus projects en curso (el color de "Active projects"). */
+  projects_health: HealthState;
+  last_update: LatestInitiativeUpdate | null;
   start_date: string | null;
   end_date: string | null;
 }
@@ -181,7 +187,10 @@ export async function listInitiatives(scope: WorkspaceScope, opts: { ids?: strin
   const links = (await db
     .prepare(`SELECT initiative_id, plan_id FROM track_initiative_plans WHERE initiative_id IN ${inClause(rows.length)}`)
     .all(...rows.map((r) => r.id))) as Array<{ initiative_id: string; plan_id: string }>;
-  const plans = await listPlans(scope, { ids: [...new Set(links.map((l) => l.plan_id))] });
+  const [plans, latest] = await Promise.all([
+    listPlans(scope, { ids: [...new Set(links.map((l) => l.plan_id))] }),
+    latestInitiativeUpdates(rows.map((r) => r.id)),
+  ]);
   const byId = new Map(plans.map((p) => [p.id, p]));
   const childrenOf = (id: string) => rows.filter((r) => r.parent_id === id).map((r) => r.id);
   const collect = (id: string, seen = new Set<string>()): string[] => {
@@ -203,7 +212,9 @@ export async function listInitiatives(scope: WorkspaceScope, opts: { ids?: strin
       child_ids: childrenOf(r.id),
       plans: all,
       percent: points > 0 ? Math.round((done / points) * 100) : 0,
-      health: worstHealth(all),
+      health: latest.get(r.id)?.health ?? worstHealth(all),
+      projects_health: worstHealth(all),
+      last_update: latest.get(r.id) ?? null,
       start_date: starts[0] ?? null,
       end_date: r.target_date ?? ends[ends.length - 1] ?? null,
     };

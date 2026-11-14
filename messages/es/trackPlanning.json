@@ -501,6 +501,15 @@
     "people": "{count} personas",
     "noInitiatives": "Todavía no hay iniciativas"
   },
+  "initiativeUpdates": {
+    "title": "Updates",
+    "placeholder": "¿Cómo viene esta iniciativa? Qué avanzó en sus proyectos, qué está en riesgo, qué sigue",
+    "notifyHelp": "El responsable, quien la creó y los leads de sus proyectos lo reciben en su Inbox. El último update fija la salud de la iniciativa.",
+    "empty": "Todavía no hay updates. Publicá el primero con su salud para que todos sepan cómo viene esta iniciativa.",
+    "bodyRequired": "Escribí qué cambió antes de publicar.",
+    "editLabel": "Editar el update de {name}",
+    "deleteLabel": "Borrar el update de {name}"
+  },
   "templates": {
     "tab": "Templates de proyectos",
     "saveAction": "Guardar como template",

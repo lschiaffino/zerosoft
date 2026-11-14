@@ -146,9 +146,9 @@
 .tp-composer .textarea { min-height: 96px; }
 .tp-health-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
 .tp-health-pick legend { margin-bottom: 6px; }
-.tp-health-opt { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.8125rem; border: 1px solid var(--ui-field); border-radius: var(--radius-1); cursor: pointer; }
+.tp-health-opt { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.8125rem; border: 1px solid var(--ui-field); border-radius: var(--radius-1); cursor: pointer; }
 .tp-health-opt.on { border-color: var(--ink); background: var(--brand-enamel); }
-.tp-health-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.tp-health-opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .tp-health-opt:focus-within { outline: 2px solid var(--ink); outline-offset: 1px; }
 .tp-feed { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .tp-feed-event { display: flex; justify-content: space-between; gap: 12px; padding: 2px 4px; font-size: 0.8125rem; color: var(--brand-gray-1); }
@@ -157,6 +157,14 @@
 .tp-update-actions { margin-left: auto; display: inline-flex; gap: 4px; }
 .tp-update-body { font-size: 0.875rem; }
 .tp-update-progress { margin: 0; }
+/* Updates de una initiative: el composer y la lista dentro de la misma tarjeta, separados por reglas. */
+.tp-ini-composer { display: flex; flex-direction: column; gap: 10px; }
+.tp-ini-updates .tp-update-editor { padding: 8px 10px; border: 1px solid var(--ui-field); border-radius: var(--radius-1); }
+.tp-ini-updates .tp-update-editor:focus-within { border-color: var(--ink); }
+.tp-ini-updates .tp-feed { gap: 0; border-top: 1px solid var(--line); }
+.tp-ini-update { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.tp-ini-update:last-child { border-bottom: 0; padding-bottom: 0; }
+.tp-ini-updates-empty { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); }
 .tp-comments { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .tp-comments-body { display: flex; flex-direction: column; gap: 8px; width: 100%; padding-left: 12px; border-left: 2px solid var(--line); }
 .tp-comment { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

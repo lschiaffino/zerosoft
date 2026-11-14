@@ -1136,7 +1136,9 @@
     "title": "Track: Share saved views with the team and allow workspace-level views",
     "description": "Linear views can be personal or shared with a team or the workspace, and filtered views can be shared by URL or shortcut (https://linear.app/changelog, Jul 2, 2026 entry). Track saved views are filtered by user_id in listIssueViews (lib/track-data.ts), so each teammate has to rebuild the same Bugs this week view, and views only exist inside one project. First scope: a visibility flag (personal or team) on track_issue_views, shared views listed for all project members, and saved views on the cross-project Issues page.\n\nPriority: medium. Effort: S. Compared with Linear.",
     "product": "track",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-14-track-workspace-views"
   },
   {
     "title": "Track: Add milestones with target dates and progress inside a project",
