@@ -54,7 +54,8 @@
     "cancelled": "Cancelado. No cambió nada.",
     "failed": "No funcionó: {error}",
     "open": "Abrir",
-    "showAll": "los {count} caracteres"
+    "showAll": "los {count} caracteres",
+    "partial": "Hecho en parte"
   },
   "actionErrors": {
     "forbidden": "Ya no tenés acceso para hacer esto.",
@@ -243,6 +244,97 @@
       "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo.",
       "rate_limited": "Demasiadas subidas. Probá más tarde."
     },
-    "removeFailed": "Quitá los archivos que no se pudieron adjuntar para mandar el mensaje."
+    "removeFailed": "Quitá los archivos que no se pudieron adjuntar para mandar el mensaje.",
+    "pastedName": "pegado-{n}.{ext}",
+    "pasted": "Texto largo pegado como archivo para que no se corte."
+  },
+  "folders": {
+    "app": {
+      "inbox": "Inbox",
+      "lines": "Lines"
+    },
+    "summaryBoth": "Crear {create, plural, one {# carpeta} other {# carpetas}} y poner {assign, plural, one {# chat} other {# chats}} en {app}",
+    "summaryCreate": "Crear {create, plural, one {# carpeta} other {# carpetas}} en {app}",
+    "summaryAssign": "Poner {assign, plural, one {# chat} other {# chats}} en carpetas de {app}",
+    "summaryMove": "Ordenar las carpetas de {app}",
+    "working": "{create, plural, =0 {Poniendo los chats en carpetas…} one {Creando # carpeta…} other {Creando # carpetas…}}",
+    "create": "Carpetas nuevas ({count})",
+    "reuse": "Carpetas que ya existen ({count})",
+    "chats": "Chats a sumar",
+    "chatsValue": "{assign} nuevos, {already} ya estaban",
+    "perFolder": "{path} · {count, plural, one {# chat} other {# chats}}",
+    "unmatched": "No encontrados ({count})",
+    "closest": "{chat} en {folder}: lo más parecido es {names}",
+    "noCandidates": "{chat} en {folder}: nada parecido",
+    "ambiguous": "Más de una coincidencia ({count})",
+    "ambiguousRow": "{chat} en {folder}: {names}",
+    "conflicts": "En dos carpetas del JSON ({count})",
+    "conflictRow": "{chat}: {folders}. En Lines un chat va en una sola carpeta, así que se saltea.",
+    "moves": "Ya están en otra carpeta ({count})",
+    "moveRow": "{chat}: {from} → {to}",
+    "movesKept": "Se quedan donde están. Pedime que los mueva si querés.",
+    "movesDone": "Pasan a la carpeta nueva (y salen de la otra).",
+    "removals": "Se sacan de otras carpetas",
+    "removalsValue": "{count, plural, one {# asignación} other {# asignaciones}} que no están en el JSON",
+    "tooDeep": "No se crean: demasiado hondas ({count})",
+    "tooDeepValue": "{paths}. Las carpetas llegan hasta {max} niveles debajo del primero.",
+    "overLimit": "No se crean: límite de carpetas ({count})",
+    "newChats": "Chats nuevos ({count})",
+    "newChatsValue": "{names}. Aparecen en Inbox sin mensajes hasta que WhatsApp los sincronice.",
+    "skipped": "Sin entender ({count})",
+    "more": "y {count} más",
+    "source": "Leído de",
+    "sourceMessage": "tu mensaje",
+    "result": "Creé {created, plural, one {# carpeta} other {# carpetas}} ({reused} ya existían). Sumé {added, plural, one {# chat} other {# chats}} a carpetas ({already} ya estaban).",
+    "resultMoved": "{count, plural, one {# chat salió} other {# chats salieron}} de otra carpeta.",
+    "resultRemoved": "Saqué {count, plural, one {# asignación vieja} other {# asignaciones viejas}}.",
+    "resultNew": "Sumé {count, plural, one {# chat nuevo} other {# chats nuevos}}.",
+    "resultFailed": "No pude terminar: {list}. Pedime que lo intente de nuevo: solo hace lo que falta.",
+    "resultHidden": "{count, plural, one {# chat se salteó} other {# chats se saltearon}} porque ya no los ves."
+  },
+  "working": "Trabajando",
+  "reasoning": {
+    "thinking": "Pensando",
+    "thought": "Pensó {seconds, plural, one {# segundo} other {# segundos}}",
+    "show": "Ver el razonamiento"
+  },
+  "code": {
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copyFailed": "No se pudo copiar"
+  },
+  "message": {
+    "showAll": "Ver todo",
+    "showLess": "Ver menos"
+  },
+  "toolLabel": {
+    "running": "Usando {tool}…",
+    "ok": "Usó {tool}",
+    "failed": "{tool} no funcionó",
+    "proposeRunning": "Preparando el cambio…",
+    "proposeOk": "Listo para confirmar: {summary}",
+    "proposeFailed": "No se pudo preparar el cambio",
+    "names": {
+      "search_workspace": "la búsqueda del workspace",
+      "list_members": "la lista de miembros",
+      "list_webhooks": "los webhooks",
+      "webhook_deliveries": "los envíos del webhook",
+      "find_operations": "el catálogo de operaciones",
+      "get_operation": "el detalle de una operación",
+      "run_operation": "una operación",
+      "crm_search": "la búsqueda del CRM",
+      "crm_list_deals": "los negocios del CRM",
+      "inbox_folders": "tus carpetas de Inbox",
+      "inbox_find_chats": "tus chats de Inbox",
+      "lines_folders": "las carpetas de Lines",
+      "groups_chats": "los chats de Lines",
+      "list_import_jobs": "las importaciones recientes",
+      "integration_health": "las cuentas conectadas",
+      "email_status": "la entrega de emails"
+    },
+    "foldersRunning": "Leyendo tu JSON y buscando los chats…",
+    "foldersOk": "Plan listo: {summary}",
+    "foldersFailed": "No se pudieron leer las carpetas",
+    "foldersNothing": "Todo lo del JSON ya está en su lugar"
   }
 }

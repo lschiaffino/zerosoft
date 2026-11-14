@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-12-assistant-folders-json',
+    date: '2026-11-12',
+    title: {
+      en: 'Assistant: folders from another inbox, and answers that read like a chat',
+      es: 'Asistente: carpetas de otra bandeja y respuestas que se leen como un chat',
+      pt: 'Assistente: pastas de outra caixa e respostas que se leem como um chat',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Paste or attach the JSON exported from another inbox and ask the assistant to create the folders, subfolders and put the chats in them. It finds chats by name, phone, WhatsApp id or email, shows a plan with the ones it could not find and the closest names, and changes nothing until you click Confirm. Running it again only does what is missing.',
+        es: 'Pegá o adjuntá el JSON exportado de otra bandeja y pedile al asistente que cree las carpetas y subcarpetas y ponga los chats. Encuentra los chats por nombre, teléfono, id de WhatsApp o email, muestra un plan con los que no encontró y los nombres más parecidos, y no cambia nada hasta que tocás Confirmar. Repetirlo solo hace lo que falta.',
+        pt: 'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra um plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta.',
+      },
+      {
+        product: 'groups',
+        en: 'The same for the shared Lines folders, only with the chats you can see. Chats already in a folder stay there unless you ask to move them.',
+        es: 'Lo mismo para las carpetas compartidas de Lines, solo con los chats que ves. Los chats que ya están en una carpeta se quedan ahí salvo que pidas moverlos.',
+        pt: 'O mesmo para as pastas compartilhadas do Lines, só com as conversas que você vê. As que já estão numa pasta ficam lá a menos que você peça para movê-las.',
+      },
+      {
+        product: 'platform',
+        en: 'The assistant shows when it is thinking, folds the model reasoning into "Thought for N seconds", lists each step with its state, and writes answers with headings, lists, tables and code you can copy. A long paste goes in as a file so nothing gets cut.',
+        es: 'El asistente muestra cuándo está pensando, pliega el razonamiento del modelo en "Pensó N segundos", lista cada paso con su estado y escribe las respuestas con títulos, listas, tablas y código para copiar. Un texto largo pegado entra como archivo para que no se corte.',
+        pt: 'O assistente mostra quando está pensando, recolhe o raciocínio do modelo em "Pensou por N segundos", lista cada passo com seu estado e escreve as respostas com títulos, listas, tabelas e código para copiar. Um texto longo colado entra como arquivo para não ser cortado.',
+      },
+    ],
+  },
+  {
     id: '2026-11-14-self-host-db-busy',
     date: '2026-11-14',
     title: {
