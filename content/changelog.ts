@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14-read-receipts-off',
+    date: '2026-11-14',
+    title: {
+      en: 'Inbox and Lines: blue ticks explained when your read receipts are off',
+      es: 'Inbox y Lines: las tildes azules explicadas cuando tenés las confirmaciones de lectura apagadas',
+      pt: 'Inbox e Lines: os tiques azuis explicados quando suas confirmações de leitura estão desativadas',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'With read receipts off, your phone shows gray ticks in one-to-one chats, but zerosoft still gets the read notice and keeps showing blue ticks. Hover the ticks to see why. zerosoft reads the setting from your WhatsApp when you connect and once a day. Marking a chat as read still never tells the other person while your read receipts are off.',
+        es: 'Con las confirmaciones de lectura apagadas, el teléfono muestra tildes grises en los chats uno a uno, pero a zerosoft le sigue llegando el aviso de leído y muestra las tildes azules. Pasá el mouse por las tildes para ver por qué. zerosoft lee el ajuste de tu WhatsApp al conectar y una vez por día. Marcar un chat como leído sigue sin avisarle al otro mientras tengas las confirmaciones apagadas.',
+        pt: 'Com as confirmações de leitura desativadas, o celular mostra tiques cinza nas conversas individuais, mas o zerosoft continua recebendo o aviso de leitura e mostra os tiques azuis. Passe o mouse pelos tiques para ver o motivo. O zerosoft lê o ajuste do seu WhatsApp ao conectar e uma vez por dia. Marcar uma conversa como lida continua sem avisar a outra pessoa enquanto as confirmações estiverem desativadas.',
+      },
+      {
+        product: 'groups',
+        en: 'Same in Lines, for each line. Groups are unchanged: WhatsApp still shows who read there.',
+        es: 'Lo mismo en Lines, para cada línea. Los grupos no cambian: WhatsApp sigue mostrando ahí quién leyó.',
+        pt: 'O mesmo no Lines, para cada linha. Os grupos não mudam: o WhatsApp continua mostrando ali quem leu.',
+      },
+    ],
+  },
+  {
     id: '2026-11-13-display-settings',
     date: '2026-11-13',
     title: {

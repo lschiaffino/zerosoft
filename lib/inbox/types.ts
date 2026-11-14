@@ -69,6 +69,11 @@ export interface ThreadDto {
   lastKind: string;
   /** Tildes del último mensaje propio (sent, delivered, read, failed). */
   lastStatus: string;
+  /**
+   * WhatsApp 1:1 con las confirmaciones de lectura de la cuenta apagadas: el teléfono no muestra si el otro
+   * leyó, zerosoft sí (le llega el aviso). Solo cambia la explicación de las tildes azules.
+   */
+  readHidden?: boolean;
   presence: '' | 'typing' | 'recording' | 'online';
   /** En un grupo, quién escribe (teléfono). */
   presenceWho: string;

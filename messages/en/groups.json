@@ -207,7 +207,8 @@
     "delivered": "Delivered",
     "read": "Read",
     "failed": "Not sent",
-    "received": "Received"
+    "received": "Received",
+    "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice."
   },
   "details": {
     "name": "Name",

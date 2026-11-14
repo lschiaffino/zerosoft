@@ -207,7 +207,8 @@
     "delivered": "Entregado",
     "read": "Leído",
     "failed": "No enviado",
-    "received": "Recibido"
+    "received": "Recibido",
+    "readHidden": "Leído. Tu WhatsApp no te lo muestra porque tenés las confirmaciones de lectura apagadas; zerosoft lo sabe porque le llega el aviso."
   },
   "details": {
     "name": "Nombre",

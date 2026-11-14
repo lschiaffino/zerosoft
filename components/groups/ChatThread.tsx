@@ -1761,7 +1761,7 @@ export default function ChatThread(props: ThreadProps) {
             <time dateTime={m.createdAt}>
               <LocalText>{time}</LocalText>
             </time>
-            {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(`status.${m.status}`)} />}
+            {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(m.status === 'read' && chat.readHidden ? 'status.readHidden' : `status.${m.status}`)} />}
             {m.direction === 'out' && m.status === 'failed' && (props.isAdmin || m.authorId === props.me) && (
               <button type="button" className="wa-retry" onClick={() => void retrySend(m)} aria-label={t('wa.retry')} title={t('wa.retry')}>
                 <Retry size={14} />

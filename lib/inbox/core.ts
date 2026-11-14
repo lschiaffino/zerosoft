@@ -9,6 +9,7 @@ import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
+import { readHiddenInWhatsapp } from '../wa-privacy';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -63,6 +64,9 @@ export interface AccountRow {
   error: string;
   created_at: string;
   updated_at: string;
+  /** WhatsApp: "Confirmaciones de lectura" ('all', 'none' o '' sin saber) y cuándo se leyó (lib/wa-privacy.ts). */
+  read_receipts?: string;
+  privacy_at?: string | null;
 }
 
 /** Credenciales de la cuenta, descifradas. */
@@ -660,7 +664,8 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const select = `SELECT ${LIST_COLS}, ${mode.key} AS sort_key,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
-         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id
+         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
+         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
        FROM inbox_threads t`;
   type Row = ThreadRow & { folder_ids: string | null; scheduled_count: number; sort_key: string | null };
   const db = getDb();
@@ -694,7 +699,10 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   };
 }
 
-export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null }, now = new Date()): ThreadDto {
+export function threadDto(
+  r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null; account_receipts?: string | null },
+  now = new Date(),
+): ThreadDto {
   const snoozed = r.snoozed_until && r.snoozed_until > now.toISOString() ? r.snoozed_until : null;
   return {
     id: r.id,
@@ -722,6 +730,9 @@ export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled
     lastSender: r.last_sender ?? '',
     lastKind: r.last_kind ?? '',
     lastStatus: r.last_status ?? '',
+    // 1:1 con las confirmaciones de lectura apagadas en el teléfono: solo cambia la explicación de las tildes
+    // azules (el estado sigue siendo el real; lib/wa-privacy.ts).
+    ...(r.channel === 'whatsapp' && readHiddenInWhatsapp(r.account_receipts, r.kind === 'group') ? { readHidden: true } : {}),
     presence: presenceOf(r, now),
     presenceWho: r.presence_who ?? '',
     lastSeenAt: r.last_seen_at ?? null,
@@ -735,7 +746,8 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
       `SELECT t.*,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
-         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id
+         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
+         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
        FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?`,
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
