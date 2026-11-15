@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './backLayer';
 
 export interface MenuItem {
   key: string;
@@ -43,6 +44,8 @@ export function MessageMenu({
   const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
+  // Teléfono: "atrás" cierra el menú abierto.
+  useBackLayer(open, () => setOpen(false), { enabled: useMediaQuery(TOUCH_QUERY) });
   const setOpen = (v: boolean | ((p: boolean) => boolean)) =>
     setOpenState((prev) => {
       const next = typeof v === 'function' ? v(prev) : v;

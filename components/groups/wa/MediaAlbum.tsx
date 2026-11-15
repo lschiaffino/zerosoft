@@ -35,6 +35,7 @@ export default function MediaAlbum({
   menuLabel,
   align,
   onLoad,
+  onHold,
 }: {
   tiles: AlbumTile[];
   onOpen: (id: string) => void;
@@ -43,6 +44,8 @@ export default function MediaAlbum({
   menuLabel: string;
   align: 'left' | 'right';
   onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
+  /** Toque largo sobre una foto (teléfono): quien lo usa muestra el menú táctil de ese mensaje. Sin esto, abre la flecha. */
+  onHold?: (id: string, el: HTMLElement) => void;
 }) {
   const t = useTranslations('groups');
   const { shape, shown, more } = albumLayout(tiles.length);
@@ -52,7 +55,7 @@ export default function MediaAlbum({
       {tiles.slice(0, shown).map((tile, i) => {
         const cover = more > 0 && i === shown - 1;
         const openMenu = (el: HTMLElement) => el.querySelector<HTMLButtonElement>('.wa-album-chevron')?.click();
-        const hold = longPress(openMenu);
+        const hold = longPress((el) => (onHold ? onHold(tile.id, el) : openMenu(el)));
         return (
           <div
             key={tile.id}

@@ -347,3 +347,14 @@ export const MoreLinesIcon = (p: P) => (
     <path d="M5 7h14M5 12h14M5 17h9" />
   </Svg>
 );
+export const StarIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.6L12 16.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z" />
+  </Svg>
+);
+export const CopyIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="1.5" />
+    <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+  </Svg>
+);

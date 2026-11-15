@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { mediaKind, previewToken } from '@/lib/groups-rules';
 import { parseDbUtc } from '@/lib/utils';
 import { mentionLabels, replaceMentions, type MentionMap } from '@/lib/wa-mentions';
+import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './wa/backLayer';
 
 /** fetch con JSON: devuelve { data } o { error: código }. Nunca tira. */
 export async function api<T = Record<string, unknown>>(
@@ -134,6 +135,8 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // Teléfono: "atrás" cierra el diálogo (no la pantalla de abajo).
+  useBackLayer(open, () => !busy && onClose(), { enabled: useMediaQuery(TOUCH_QUERY) });
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
