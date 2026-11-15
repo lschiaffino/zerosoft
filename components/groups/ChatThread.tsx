@@ -1811,6 +1811,13 @@ export default function ChatThread(props: ThreadProps) {
                   gone={(m.meta as Record<string, unknown>).mediaGone === true}
                   onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
                   onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
+                  avatar={
+                    m.direction === 'in'
+                      ? chat.kind === 'dm'
+                        ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
+                        : { name: inName(m), seed: m.senderPhone || m.senderName }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
+                  }
                 />
               ) : !media.url ? (
                 <DocCard
