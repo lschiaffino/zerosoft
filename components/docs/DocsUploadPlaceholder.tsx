@@ -126,9 +126,8 @@ function DocsUploadPlaceholder({ upload: u, indent, onCancel, onRetry, onRemove 
               <DocsGlyph name="file" size={18} />
             </span>
             <span className="docs-file-name">{u.name}</span>
-            <span className="docs-file-size">
-              {statusText} · {formatFileSize(u.size)}
-            </span>
+            {/* Solo el estado: con el tamaño al lado, en el teléfono el nombre partía en dos renglones y la ficha saltaba. */}
+            <span className="docs-file-size">{statusText}</span>
             {cancel}
             {progress}
           </div>
