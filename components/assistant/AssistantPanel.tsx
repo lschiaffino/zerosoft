@@ -12,6 +12,16 @@ import PanelSplitter from '@/components/ui/PanelSplitter';
 const STORE_KEY = 'zs:assistant-panel-conversation';
 /** Cómo se ve el panel (flotante, fijo al costado o a pantalla completa) y su ancho: por navegador. */
 const LAYOUT_KEY = 'zs:assistant-panel-layout';
+/** Un modal de la página a la vista (⌘K, una confirmación). Los que quedan montados pero ocultos no cuentan. */
+function pageModalOpen(panel: HTMLElement | null): boolean {
+  for (const el of document.querySelectorAll<HTMLElement>('dialog[open], [aria-modal="true"]')) {
+    if (panel?.contains(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden') return true;
+  }
+  return false;
+}
+
 export type PanelMode = 'float' | 'pinned' | 'full';
 const WIDTH_DEFAULT = 440;
 const WIDTH_MIN = 340;
@@ -203,7 +213,7 @@ export default function AssistantPanel() {
     if (!open) return;
     const handle = (e: KeyboardEvent, inside: boolean) => {
       // Un modal de la página (⌘K, una confirmación) se queda con Esc; con el foco en el panel, es del panel.
-      if (!inside && document.querySelector('dialog[open], [aria-modal="true"]')) return;
+      if (!inside && pageModalOpen(panelRef.current)) return;
       if (mode === 'full') {
         e.preventDefault();
         changeMode(beforeFull.current);
@@ -218,7 +228,7 @@ export default function AssistantPanel() {
       if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
       // Flotante (o pantalla completa) es lo que está arriba de todo: Esc es suyo esté donde esté el foco
       // (después de "Confirmar" el foco queda en la página), salvo que haya un modal de la página abierto.
-      const onTop = mode !== 'pinned' && !document.querySelector('dialog[open], [aria-modal="true"]');
+      const onTop = mode !== 'pinned' && !pageModalOpen(panelRef.current);
       if (panelRef.current?.contains(document.activeElement) || onTop) handle(e, true);
     };
     const onBubble = (e: KeyboardEvent) => {
