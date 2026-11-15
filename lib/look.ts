@@ -78,14 +78,15 @@ export const LOOK_INIT_SCRIPT =
   `document.documentElement.setAttribute('data-look',a?(k.indexOf(w)>=0?w:'${DEFAULT_LOOK}'):'${SITE_LOOK}')}catch(e){}`;
 
 /**
- * Script de la app (que sí conoce users.look): si la cookie de este navegador
- * no coincide (primera vez en otro equipo), pone el atributo y la cookie antes
- * de que se pinte la app.
+ * Script de la app (que sí conoce users.look): pone el atributo antes de que
+ * se pinte la app y, si la cookie de este navegador no coincide (primera vez
+ * en otro equipo, cookie borrada), la reescribe.
  */
 export function lookSyncScript(look: Look): string {
+  const v = JSON.stringify(look);
   return (
-    `try{var r=document.documentElement;if(r.getAttribute('data-look')!==${JSON.stringify(look)}){` +
-    `r.setAttribute('data-look',${JSON.stringify(look)});document.cookie=${JSON.stringify(lookCookieString(look))}}}catch(e){}`
+    `try{var r=document.documentElement;if(r.getAttribute('data-look')!==${v})r.setAttribute('data-look',${v});` +
+    `if(!new RegExp('(?:^|;\\\\s*)${LOOK_COOKIE}=${look}(?:;|$)').test(document.cookie))document.cookie=${JSON.stringify(lookCookieString(look))}}catch(e){}`
   );
 }
 

@@ -34,6 +34,20 @@ describe('look', () => {
     expect(runInit('/en/app', 'zs_look=<script>')).toBe('classic');
   });
 
+  it('el script de la app pone el atributo y repone la cookie que falta', () => {
+    const run = (cookie: string, attr: string | null) => {
+      const doc = {
+        cookie,
+        documentElement: { getAttribute: () => attr, setAttribute: (_: string, v: string) => (attr = v) },
+      };
+      new Function('document', lookSyncScript('liquid'))(doc);
+      return { attr, cookie: doc.cookie };
+    };
+    expect(run('', 'classic')).toEqual({ attr: 'liquid', cookie: lookCookieString('liquid') });
+    expect(run('zs_look=liquid', 'liquid')).toEqual({ attr: 'liquid', cookie: 'zs_look=liquid' });
+    expect(run('a=1; zs_look=classic', 'liquid').cookie).toBe(lookCookieString('liquid'));
+  });
+
   it('el script de la app escapa el valor', () => {
     expect(lookSyncScript('classic')).toContain('"classic"');
     expect(lookSyncScript('classic')).not.toContain('</script');
