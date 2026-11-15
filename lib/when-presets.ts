@@ -58,3 +58,14 @@ export function localInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** Los presets a mostrar ahora: si dos caen en el mismo minuto, queda el primero. */
+export function visiblePresets(now = new Date()): SnoozePreset[] {
+  const seen = new Set<number>();
+  return SNOOZE_PRESETS.filter((p) => {
+    const t = Math.floor(presetDate(p, now).getTime() / 60_000);
+    if (seen.has(t)) return false;
+    seen.add(t);
+    return true;
+  });
+}
