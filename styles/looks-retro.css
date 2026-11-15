@@ -136,8 +136,9 @@
   box-shadow: inset 0 -1px var(--rt-shadow), inset 0 -2px var(--rt-light), inset 0 1px var(--rt-light);
 }
 :root[data-look='retro'] .side { border-right: 0; box-shadow: inset -1px 0 var(--rt-shadow), inset -2px 0 var(--rt-light); }
-:root[data-look='retro'] .side-link.active { color: var(--rt-select-fg); background: var(--rt-select); }
-:root[data-look='retro'] .side-link.active svg { color: inherit; }
+:root[data-look='retro'] :is(.side-link, .side-stop).active,
+:root[data-look='retro'] :is(.side-link, .side-stop).active:hover { color: var(--rt-select-fg); background: var(--rt-select); }
+:root[data-look='retro'] :is(.side-link, .side-stop).active :is(svg, span) { color: inherit; }
 :root[data-look='retro'] .ui-page-header { border-bottom: 0; box-shadow: 0 1px var(--rt-shadow), 0 2px var(--rt-light); }
 
 /* ---------- Botones: relieve; apretados, hundidos ---------- */
@@ -243,7 +244,7 @@
 :root[data-look='retro'] :is([role='menuitem'], [role='option'], .zs-ctx-item, .cmdk-item, .band-menu-item):is(:hover, :focus-visible, .sel, .is-active, [aria-selected='true']) :is(svg, .cmdk-meta, .zs-ctx-icon, .zs-msel-hint) { color: inherit; }
 
 /* La barra de título: el encabezado de cada modal, drawer y ⌘K. */
-:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) {
+:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) {
   min-height: 0;
   padding: 4px 4px 4px 8px;
   margin: 3px 3px 0;
@@ -252,7 +253,7 @@
   border-bottom: 0;
 }
 :root[data-look='retro'] :is(.ui-modal-title, .ui-drawer-title) { font-family: var(--font-ui); font-size: 0.875rem; font-weight: 700; letter-spacing: 0; color: inherit; }
-:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) .btn { --btn-h: 22px; min-height: 22px; padding: 0 6px; }
+:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) .btn { --btn-h: 22px; min-height: 22px; padding: 0 6px; }
 :root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) .btn-icon { width: 22px; }
 :root[data-look='retro'] .ui-modal-foot,
 :root[data-look='retro'] .ui-drawer-foot { background: transparent; border-top: 0; }
@@ -282,3 +283,6 @@
 .st-look-swatch[data-look='retro'] .s-menu { background: #c0c0c0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff; }
 .st-look-swatch[data-look='retro'] .s-row { background: #808080; }
 .st-look-swatch[data-look='retro'] .s-row.r1 { background: #000080; }
+
+/* En la barra de título todo el texto va en blanco; los botones conservan su relieve. */
+:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) :is(a, span, h2, h3, p, div):not(.btn):not(.btn *) { color: inherit; }
