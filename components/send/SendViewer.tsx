@@ -26,6 +26,8 @@ function onColor(hex: string): string {
 export default function SendViewer({ token, initial }: { token: string; initial: ViewerState }) {
   const [state, setState] = useState<ViewerState>(initial);
   const api = `/api/send/public/${token}`;
+  // Solo la página que ya llegó cerrada avisa que alguien la abrió; una pestaña que se cierra por un cambio, no.
+  const [reportClosed] = useState(initial.state === 'closed');
   const refresh = useCallback(async () => {
     const res = await fetch(api).catch(() => null);
     if (res?.status === 404) return setState((s) => ({ state: 'closed', reason: 'disabled', brand: s.brand }));
@@ -62,7 +64,7 @@ export default function SendViewer({ token, initial }: { token: string; initial:
         <main className="sv-gate" aria-busy="true" data-testid="sv-start">
           <span className="ui-skeleton ui-skeleton-row sv-start" />
         </main>
-      ) : state.state === 'closed' ? <Closed reason={state.reason} state={state} /> : state.state === 'gate' ? <Gate api={api} state={state} onState={setState} /> : <Reader api={api} state={state} refresh={refresh} />}
+      ) : state.state === 'closed' ? <Closed reason={state.reason} state={state} api={api} report={reportClosed} /> : state.state === 'gate' ? <Gate api={api} state={state} onState={setState} /> : <Reader api={api} state={state} refresh={refresh} />}
     </div>
   );
 }
@@ -85,8 +87,36 @@ function Brand({ state }: { state: ViewerState }) {
   );
 }
 
-function Closed({ reason, state }: { reason: 'disabled' | 'expired' | 'unavailable'; state: ViewerState }) {
+/**
+ * Botón propio del link: abre su URL en otra pestaña y avisa el clic sin esperar.
+ * Con un documento abierto, el clic queda en sus números.
+ */
+function LinkButton({ api, button, documentId, className, testId }: { api: string; button: { label: string; url: string }; documentId: string | null; className: string; testId: string }) {
   const t = useTranslations('send.viewer');
+  const report = () => {
+    const body = JSON.stringify({ button: true, documentId });
+    if (!navigator.sendBeacon?.(`${api}/click`, body)) void fetch(`${api}/click`, { method: 'POST', body, keepalive: true }).catch(() => undefined);
+  };
+  let host = '';
+  try {
+    host = new URL(button.url).host;
+  } catch {
+    host = '';
+  }
+  return (
+    <a className={`btn btn-sm sv-cta ${className}`} href={button.url} target="_blank" rel="noopener noreferrer nofollow" title={t('buttonTitle', { host })} onClick={report} data-testid={testId}>
+      <span className="sv-cta-label">{button.label}</span>
+    </a>
+  );
+}
+
+function Closed({ reason, state, api, report }: { reason: 'disabled' | 'expired' | 'unavailable'; state: ViewerState; api: string; report: boolean }) {
+  const t = useTranslations('send.viewer');
+  // Un POST del navegador: un previsualizador de links no lo hace, así que no avisa.
+  useEffect(() => {
+    if (!report || reason === 'unavailable') return;
+    void postJson(api, { closedOpen: true, webdriver: navigator.webdriver === true });
+  }, [api, reason, report]);
   return (
     <main className="sv-gate" data-testid="sv-closed" data-reason={reason}>
       <div className="sv-card">
@@ -322,6 +352,11 @@ function Reader({ api, state, refresh }: { api: string; state: Extract<ViewerSta
           <h1>{state.space?.title}</h1>
           {state.space?.description && <p>{state.space.description}</p>}
           {state.message && <p className="sv-message">{state.message}</p>}
+          {state.button && (
+            <div>
+              <LinkButton api={api} button={state.button} documentId={null} className="" testId="sv-button" />
+            </div>
+          )}
         </header>
         {folders.map((f) => (
           <section key={f} className="sv-space-group">
@@ -559,6 +594,7 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
               </button>
             </div>
           )}
+          {state.button && <LinkButton api={api} button={state.button} documentId={doc.id} className="sv-hide-sm" testId="sv-button" />}
           {doc.downloadable && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={download} data-testid="sv-download">
               {t('download')}
@@ -609,6 +645,11 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
           {t('trackingNotice')} {state.watermark ? t('watermarkNotice') : ''}
         </p>
       </main>
+      {state.button && (
+        <div className="sv-cta-dock sv-show-sm">
+          <LinkButton api={api} button={state.button} documentId={doc.id} className="sv-cta-wide" testId="sv-button-mobile" />
+        </div>
+      )}
     </div>
   );
 }

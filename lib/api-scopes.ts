@@ -113,6 +113,7 @@ export const SCOPE_APP: Record<string, string> = {
   forms: 'forms',
   send: 'send',
   calls: 'calls',
+  fleet: 'fleet',
 };
 
 /** Solo los scopes de apps permitidas ('*' = todas). */

@@ -35,6 +35,14 @@ async function call<T>(api: string, init?: RequestInit): Promise<{ data: T | nul
   }
 }
 
+/** Crea un sticker desde una imagen ("Sticker nuevo" del menú + y "Crear" de la pestaña). */
+export async function createSticker(api: string, file: File): Promise<{ sticker: StickerItem | null; error: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  const r = await call<{ sticker: StickerItem }>(api, { method: 'POST', body: form });
+  return { sticker: r.data?.sticker ?? null, error: r.data?.sticker ? '' : r.error || 'server_error' };
+}
+
 const post = <T,>(api: string, body: Record<string, unknown>) =>
   call<T>(api, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
@@ -141,6 +149,14 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
       setError(t('saveFailed'));
     }
   }
+
+  // La primera vez, con la colección vacía, se importan solos los stickers de los chats: la pestaña no abre vacía.
+  const autoImport = useRef(false);
+  useEffect(() => {
+    if (items === null || items.length > 0 || imported || autoImport.current || error) return;
+    autoImport.current = true;
+    void importFromChats();
+  }, [items, imported, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = useMemo(() => {
     const list = items ?? [];
