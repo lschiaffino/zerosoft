@@ -1895,9 +1895,16 @@
       "direction_to_notion": "Direction set to Docs to Notion"
     },
     "webhookTitle": "Notion webhooks",
-    "webhookHelp": "Server setting. In the public integration, add a webhook subscription pointing to this path on your domain. Notion sends a verification token here: paste it back in Notion to verify.",
+    "webhookHelp": "Server setting. In the public integration, add a webhook subscription pointing to this path on your domain. Notion sends a verification token here: paste it in Notion, and once Notion accepts it, confirm it here.",
     "webhookWaiting": "Waiting for Notion to send the verification token (15 minutes).",
     "webhookClear": "Clear token",
+    "webhookCandidatesHelp": "Paste this token in Notion (Webhooks, Verify). When Notion accepts it, confirm it here. Events are accepted only after that.",
+    "webhookMany": "More than one token arrived. Confirm only the one Notion accepts.",
+    "webhookConfirm": "Confirm",
+    "webhookConfirmed": "Verified. Every Notion event is checked against the confirmed token.",
+    "webhookFromEnv": "Set on the server with NOTION_WEBHOOK_SECRET.",
+    "webhookElsewhere": "Another admin is verifying the webhook right now. Starting here cancels that.",
+    "webhookStop": "Stop waiting",
     "notice": {
       "connected": "Notion is connected. The import starts now.",
       "denied": "The connection was cancelled in Notion.",
@@ -1921,6 +1928,9 @@
       "source_unreachable": "Could not reach Notion.",
       "source_error": "Notion returned an error.",
       "internal_error": "Unexpected error.",
+      "webhook_confirmed": "A token is already confirmed. Clear it first.",
+      "webhook_no_window": "The wait ran out. Start waiting again.",
+      "webhook_unknown_token": "That token is no longer available. Start waiting again.",
       "failed": "Something went wrong. Try again."
     },
     "privacy": "Imported pages are visible to the whole workspace, or to the teamspace you choose. Subpages with narrower access stay only in Docs.",

@@ -174,6 +174,14 @@ const parity: ProductParity = {
         'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local, mais o histórico completo do WhatsApp Desktop desse Mac. Arquivos grandes sobem direto e continuam importando em segundo plano; importar duas vezes não duplica',
       ],
     }),
+    row('folders-json', 'platform', ['Folders from another inbox with the assistant', 'Carpetas de otra bandeja con el asistente', 'Pastas de outra caixa com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste or attach the JSON exported from another inbox and ask the assistant (⌘J) to create the folders and subfolders and put the chats in them. It finds chats by name, phone, WhatsApp id or email, shows the plan with the chats it could not find and their closest names, and changes nothing until you click Confirm. Running it again only does what is missing. Tested with the fake model',
+        'Pegá o adjuntá el JSON exportado de otra bandeja y pedile al asistente (⌘J) que cree las carpetas y subcarpetas y ponga los chats. Encuentra los chats por nombre, teléfono, id de WhatsApp o email, muestra el plan con los que no encontró y los nombres más parecidos, y no cambia nada hasta que tocás Confirmar. Repetirlo solo hace lo que falta. Probado con el modelo falso',
+        'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente (⌘J) para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra o plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta. Testado com o modelo falso',
+      ],
+    }),
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [
@@ -239,6 +247,13 @@ const parity: ProductParity = {
         'GIFs tab in the emoji panel, between Emoji and Stickers: trending when empty, categories like WhatsApp (Haha, Sad, Love...), search in your language, and a click sends it as a WhatsApp GIF (MP4 that plays muted on a loop). Needs a GIPHY or Tenor key on the server. With Evolution 2.3.7 and earlier it arrives as a regular video, because that version does not pass gifPlayback. Tested with sample GIFs and the fake provider',
         'Pestaña GIF en el panel de emojis, entre Emoji y Stickers: tendencias al abrirla, categorías como WhatsApp (Jaja, Triste, Amor...), búsqueda en tu idioma, y un clic lo manda como GIF de WhatsApp (MP4 que se reproduce sin sonido y en bucle). Necesita una clave de GIPHY o Tenor en el servidor. Con Evolution 2.3.7 o anterior llega como video común, porque esa versión no pasa gifPlayback. Probado con GIF de ejemplo y el proveedor falso',
         'Aba GIFs no painel de emojis, entre Emoji e Figurinhas: em alta ao abrir, categorias como no WhatsApp (Haha, Triste, Amor...), pesquisa no seu idioma, e um clique envia como GIF do WhatsApp (MP4 que toca sem som e em loop). Precisa de uma chave do GIPHY ou do Tenor no servidor. Com o Evolution 2.3.7 ou anterior chega como vídeo comum, porque essa versão não repassa gifPlayback. Testado com GIFs de exemplo e o provedor falso',
+      ],
+    }),
+    row('wa-attach-menu', 'whatsapp', ['Attach menu: document, photos, camera, audio, contact, poll, new sticker', 'Menú de adjuntar: documento, fotos, cámara, audio, contacto, encuesta, sticker nuevo', 'Menu de anexar: documento, fotos, câmera, áudio, contato, enquete, nova figurinha'], 'partial', {
+      detail: [
+        'The + menu has the WhatsApp options in the WhatsApp order, with colored icons: camera opens the computer camera (or the phone camera), contact sends up to 5 contact cards, poll sends a WhatsApp poll, and new sticker turns an image into a sticker and sends it. Help me write, dictate and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',
+        'El menú + tiene las opciones de WhatsApp en el orden de WhatsApp, con íconos de color: cámara abre la de la computadora (o la del teléfono), contacto manda hasta 5 tarjetas, encuesta manda una encuesta de WhatsApp y sticker nuevo convierte una imagen en sticker y lo manda. Ayudame a escribir, dictar y comandos van debajo de una línea. Faltan los eventos: nuestro servidor de WhatsApp todavía no los puede mandar. Probado con el proveedor falso',
+        'O menu + tem as opções do WhatsApp na ordem do WhatsApp, com ícones coloridos: câmera abre a do computador (ou a do celular), contato envia até 5 cartões, enquete envia uma enquete do WhatsApp e nova figurinha transforma uma imagem em figurinha e envia. Me ajude a escrever, ditar e comandos ficam abaixo de uma linha. Faltam os eventos: nosso servidor de WhatsApp ainda não consegue enviá-los. Testado com o provedor falso',
       ],
     }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {

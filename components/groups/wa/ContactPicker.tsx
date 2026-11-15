@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChatDto, MessageDto } from '@/lib/groups';
-import { Modal, api, useErrorText } from '../ui';
+import { Modal, api, useErrorText } from '../dialog-kit';
 import Avatar from './Avatar';
 
 interface Pick {
@@ -12,16 +12,34 @@ interface Pick {
   phone: string;
 }
 
+/** Un contacto para elegir (un chat 1 a 1 o uno de la libreta). */
+export interface ContactRow {
+  id: string;
+  name: string;
+  phone: string;
+  pictureUrl?: string;
+}
+
+/**
+ * De dónde salen los contactos y cómo se mandan. Sin esto, los de Lines
+ * (/api/groups/chats y /api/groups/chats/:id/messages); Inbox pasa los suyos.
+ */
+export interface ContactSource {
+  list: (q: string) => Promise<ContactRow[] | null>;
+  /** '' si salió; si no, el código de error. */
+  send: (contacts: Array<{ name: string; phone: string }>) => Promise<string>;
+}
+
 /**
  * "Contacto" del menú +: elegir hasta 5 contactos (los chats 1 a 1 de la
  * bandeja, con búsqueda) o escribir un nombre y un número, y mandarlos como
  * tarjetas de WhatsApp.
  */
-export default function ContactPicker({ open, chatId, onClose, onSent }: { open: boolean; chatId: string; onClose: () => void; onSent: (m: MessageDto) => void }) {
+export default function ContactPicker({ open, chatId, onClose, onSent, source }: { open: boolean; chatId: string; onClose: () => void; onSent?: (m: MessageDto) => void; source?: ContactSource }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const [q, setQ] = useState('');
-  const [rows, setRows] = useState<ChatDto[] | null>(null);
+  const [rows, setRows] = useState<ContactRow[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [picked, setPicked] = useState<Pick[]>([]);
   const [manual, setManual] = useState({ name: '', phone: '' });
@@ -40,20 +58,25 @@ export default function ContactPicker({ open, chatId, onClose, onSent }: { open:
     if (!open) return;
     let alive = true;
     const id = setTimeout(async () => {
-      const p = new URLSearchParams({ kind: 'dm', limit: '40' });
-      if (q.trim()) p.set('q', q.trim());
-      const res = await api<{ rows: ChatDto[] }>(`/api/groups/chats?${p}`, { method: 'GET' });
+      let list: ContactRow[] | null;
+      if (source) list = await source.list(q.trim());
+      else {
+        const p = new URLSearchParams({ kind: 'dm', limit: '40' });
+        if (q.trim()) p.set('q', q.trim());
+        const res = await api<{ rows: ChatDto[] }>(`/api/groups/chats?${p}`, { method: 'GET' });
+        list = res.data ? res.data.rows.map((r) => ({ id: r.id, name: r.name, phone: r.phone, pictureUrl: r.pictureUrl })) : null;
+      }
       if (!alive) return;
-      setLoadError(!res.data);
-      setRows(res.data ? res.data.rows.filter((r) => r.phone && r.id !== chatId) : []);
+      setLoadError(!list);
+      setRows(list ? list.filter((r) => r.phone && r.id !== chatId) : []);
     }, q ? 200 : 0);
     return () => {
       alive = false;
       clearTimeout(id);
     };
-  }, [open, q, chatId]);
+  }, [open, q, chatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function toggle(c: ChatDto) {
+  function toggle(c: ContactRow) {
     setPicked((prev) =>
       prev.some((p) => p.key === c.id) ? prev.filter((p) => p.key !== c.id) : prev.length >= 5 ? prev : [...prev, { key: c.id, name: c.name, phone: c.phone }],
     );
@@ -69,10 +92,17 @@ export default function ContactPicker({ open, chatId, onClose, onSent }: { open:
     if (list.length === 0) return setError(t('wa.contactPickOne'));
     setBusy(true);
     setError('');
+    if (source) {
+      const err = await source.send(list.map((p) => ({ name: p.name, phone: p.phone })));
+      setBusy(false);
+      if (err) return setError(errText(err));
+      onClose();
+      return;
+    }
     const res = await api<MessageDto>(`/api/groups/chats/${chatId}/messages`, { body: { contacts: list.map((p) => ({ name: p.name, phone: p.phone })) } });
     setBusy(false);
     if (!res.data) return setError(errText(res.error));
-    onSent(res.data);
+    onSent?.(res.data);
   }
 
   const count = picked.length + (manual.phone.replace(/[^\d]/g, '') ? 1 : 0);
@@ -103,10 +133,10 @@ export default function ContactPicker({ open, chatId, onClose, onSent }: { open:
           </div>
         ) : loadError ? (
           <p className="ui-error" role="alert">
-            {t('inbox.loadError')}
+            {t('wa.contactLoadError')}
           </p>
         ) : rows.length === 0 ? (
-          <p className="ui-help">{q ? t('inbox.noResults') : t('wa.contactNone')}</p>
+          <p className="ui-help">{q ? t('wa.contactNoResults') : t('wa.contactNone')}</p>
         ) : (
           <ul className="wa-contact-pick" aria-label={t('wa.contactTitle')}>
             {rows.map((c) => {

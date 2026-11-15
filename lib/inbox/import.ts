@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { getDb } from '../db';
 import { addMessage, findThread, newId, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
 import { ensureWhatsappAccount, markArchived } from './whatsapp';
-import { FOLDER_COLORS, InboxError, LIMITS, normalizeWaJid, waKindOf, waPhoneOf } from './types';
+import { FOLDER_COLORS, foldText, InboxError, LIMITS, normalizeWaJid, waKindOf, waPhoneOf } from './types';
 
 export const EXPORT_FORMAT = 'inbox-zero-export';
 
@@ -101,7 +101,7 @@ export function stanzaIdOf(raw: string): string {
 // eslint-disable-next-line no-control-regex
 const PART_SEP = /\u001e/;
 
-async function threadFor(account: AccountRow, cache: Map<string, ThreadRow>, rawId: string, name = ''): Promise<ThreadRow | null> {
+export async function threadFor(account: AccountRow, cache: Map<string, ThreadRow>, rawId: string, name = ''): Promise<ThreadRow | null> {
   const id = normalizeWaJid(rawId);
   if (!/@(s\.whatsapp\.net|g\.us|lid)$/.test(id)) return null;
   const hit = cache.get(id);
@@ -113,6 +113,136 @@ async function threadFor(account: AccountRow, cache: Map<string, ThreadRow>, raw
 
 function color(raw: string, i: number): string {
   return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : FOLDER_COLORS[i % FOLDER_COLORS.length];
+}
+
+export interface FolderUpsert {
+  /** Id de la carpeta en el archivo (o su ruta): lo usan los hijos en parentKey. */
+  key: string;
+  name: string;
+  parentKey: string | null;
+  color?: string;
+  icon?: string;
+  position?: number;
+}
+
+export interface FolderUpsertResult {
+  /** key → id de la carpeta (creada o la que ya estaba). */
+  ids: Map<string, string>;
+  created: number;
+  reused: number;
+  /** Keys que no se crearon: el tope de carpetas o más hondo de lo permitido (con maxDepth). */
+  skipped: string[];
+}
+
+/**
+ * Crea las carpetas de Inbox que falten (padres antes que hijos) y reusa las
+ * que ya están con el mismo nombre en el mismo padre (sin distinguir
+ * mayúsculas ni tildes): correrlo dos veces no duplica nada. Lo usan el
+ * importador y el asistente (carpetas desde un JSON).
+ */
+export async function upsertInboxFolders(owner: string, list: FolderUpsert[], now = new Date(), opts: { maxDepth?: number } = {}): Promise<FolderUpsertResult> {
+  const db = getDb();
+  const nowS = nowIso(now);
+  const res: FolderUpsertResult = { ids: new Map(), created: 0, reused: 0, skipped: [] };
+  const existing = (await db.prepare('SELECT id, name, parent_id FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(owner)) as Array<{
+    id: string;
+    name: string;
+    parent_id: string | null;
+  }>;
+  const keyOf = (parentId: string | null, name: string) => `${parentId ?? ''}|${foldText(name.trim().replace(/\s+/g, ' '))}`;
+  const byKey = new Map<string, string>();
+  for (const f of existing) if (!byKey.has(keyOf(f.parent_id, f.name))) byKey.set(keyOf(f.parent_id, f.name), f.id);
+  const depth = new Map<string, number>();
+  const parentOf = new Map(existing.map((f) => [f.id, f.parent_id]));
+  const depthOfId = (id: string): number => {
+    const hit = depth.get(id);
+    if (hit !== undefined) return hit;
+    let d = 0;
+    let p = parentOf.get(id) ?? null;
+    const seen = new Set([id]);
+    while (p && !seen.has(p)) {
+      seen.add(p);
+      d++;
+      p = parentOf.get(p) ?? null;
+    }
+    depth.set(id, d);
+    return d;
+  };
+  let total = existing.length;
+  let pos = existing.length;
+  const pending = [...list].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  for (let pass = 0; pass < 6 && pending.length; pass++) {
+    for (let i = 0; i < pending.length; ) {
+      const f = pending[i];
+      const parentKey = f.parentKey;
+      if (parentKey && !res.ids.has(parentKey) && !res.skipped.includes(parentKey) && pass < 5) {
+        i++;
+        continue;
+      }
+      pending.splice(i, 1);
+      const name = f.name.trim().replace(/\s+/g, ' ').slice(0, LIMITS.folderName);
+      if (!name) continue;
+      if (parentKey && res.skipped.includes(parentKey)) {
+        res.skipped.push(f.key);
+        continue;
+      }
+      const parentId = parentKey ? (res.ids.get(parentKey) ?? null) : null;
+      if (opts.maxDepth !== undefined && parentId && depthOfId(parentId) + 1 > opts.maxDepth) {
+        res.skipped.push(f.key);
+        continue;
+      }
+      let id = byKey.get(keyOf(parentId, name));
+      if (id) res.reused++;
+      else {
+        if (total >= LIMITS.folders) {
+          res.skipped.push(f.key);
+          continue;
+        }
+        id = newId('ibf');
+        await db
+          .prepare('INSERT INTO inbox_folders (id, owner_id, name, color, icon, position, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(id, owner, name, color(f.color ?? '', pos), (f.icon ?? '').slice(0, 8), pos++, parentId, nowS, nowS);
+        byKey.set(keyOf(parentId, name), id);
+        parentOf.set(id, parentId);
+        total++;
+        res.created++;
+      }
+      res.ids.set(f.key, id);
+    }
+  }
+  return res;
+}
+
+/**
+ * Suma chats (de esta persona) a una carpeta, en tandas de 200. Los que ya
+ * estaban no cambian; los que ya no existen (o no son de esta persona) se
+ * cuentan aparte.
+ */
+export async function addThreadsToFolder(owner: string, folderId: string, threadIds: string[]): Promise<{ added: number; already: number; missing: number }> {
+  const db = getDb();
+  const out = { added: 0, already: 0, missing: 0 };
+  const ids = [...new Set(threadIds)];
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const marks = chunk.map(() => '?').join(', ');
+    const seen = (await db
+      .prepare(
+        `SELECT COUNT(*) AS n, SUM(CASE WHEN EXISTS (SELECT 1 FROM inbox_thread_folders tf WHERE tf.thread_id = t.id AND tf.folder_id = ?) THEN 1 ELSE 0 END) AS here
+         FROM inbox_threads t WHERE t.owner_id = ? AND t.id IN (${marks})`,
+      )
+      .get(folderId, owner, ...chunk)) as { n: number; here: number | null } | undefined;
+    out.missing += chunk.length - Number(seen?.n ?? 0);
+    out.already += Number(seen?.here ?? 0);
+    const r = await db
+      .prepare(
+        `INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id)
+         SELECT t.id, f.id FROM inbox_threads t JOIN inbox_folders f ON f.id = ? AND f.owner_id = t.owner_id
+         WHERE t.owner_id = ? AND t.id IN (${chunk.map(() => '?').join(', ')})`,
+      )
+      .run(folderId, owner, ...chunk);
+    out.added += r.changes;
+  }
+  return out;
 }
 
 export async function importPart(owner: string, part: ImportPart, now = new Date()): Promise<ImportResult> {
@@ -153,40 +283,24 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
     }
   }
 
-  // Carpetas: por nombre (reimportar no duplica). Las subcarpetas, después de sus padres.
-  const idMap = new Map<string, string>();
-  const existing = (await db.prepare('SELECT id, name FROM inbox_folders WHERE owner_id = ?').all(owner)) as Array<{ id: string; name: string }>;
-  const byName = new Map(existing.map((f) => [f.name.toLowerCase(), f.id]));
-  const pending = [...part.folders].sort((a, b) => a.position - b.position);
-  let pos = existing.length;
-  for (let pass = 0; pass < 6 && pending.length; pass++) {
-    for (let i = 0; i < pending.length; ) {
-      const f = pending[i];
-      const parentKey = f.parentId === null || f.parentId === undefined ? null : String(f.parentId);
-      if (parentKey && !idMap.has(parentKey) && pass < 5) {
-        i++;
-        continue;
-      }
-      const name = f.name.trim().slice(0, LIMITS.folderName);
-      pending.splice(i, 1);
-      if (!name) continue;
-      let id = byName.get(name.toLowerCase());
-      if (!id) {
-        if (existing.length + out.folders >= LIMITS.folders) continue;
-        id = newId('ibf');
-        await db
-          .prepare('INSERT INTO inbox_folders (id, owner_id, name, color, icon, position, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(id, owner, name, color(f.color, pos), f.icon.slice(0, 8), pos++, parentKey ? (idMap.get(parentKey) ?? null) : null, nowS, nowS);
-        byName.set(name.toLowerCase(), id);
-        out.folders++;
-      }
-      idMap.set(String(f.id), id);
-    }
-  }
+  // Carpetas: por ruta (reimportar no duplica). Las subcarpetas, después de sus padres.
+  const folders = await upsertInboxFolders(
+    owner,
+    part.folders.map((f) => ({
+      key: String(f.id),
+      name: f.name,
+      parentKey: f.parentId === null || f.parentId === undefined ? null : String(f.parentId),
+      color: f.color,
+      icon: f.icon,
+      position: f.position,
+    })),
+    now,
+  );
+  out.folders = folders.created;
   for (const cf of part.chatFolders) {
-    const folder = idMap.get(String(cf.folderId));
+    const folder = folders.ids.get(String(cf.folderId));
     const t = folder ? await threadFor(account, cache, cf.chatId) : null;
-    if (folder && t) await db.prepare('INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id) VALUES (?, ?)').run(t.id, folder);
+    if (folder && t) await addThreadsToFolder(owner, folder, [t.id]);
   }
 
   // Programados que siguen pendientes y en el futuro (lo viejo no se manda solo).

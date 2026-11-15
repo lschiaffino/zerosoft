@@ -20,7 +20,9 @@ export function openAssistant(detail: OpenAssistantDetail = {}): void {
 
 export type ChatPart =
   | { type: 'tool'; callId: string; tool: string; input: unknown; output?: unknown; ok?: boolean; running: boolean }
-  | { type: 'action'; action: ActionView };
+  | { type: 'action'; action: ActionView }
+  /** Razonamiento del modelo: `ms` null mientras sigue pensando. */
+  | { type: 'reasoning'; key: string; text: string; ms: number | null };
 
 /** Un adjunto ya subido (POST /api/assistant/files). */
 export interface ChatAttachment {
@@ -44,6 +46,8 @@ export interface ChatItem {
   failedSend?: boolean;
   error?: string;
   streaming?: boolean;
+  /** Esperando al modelo (antes de la primera palabra o entre una herramienta y la respuesta). */
+  waiting?: boolean;
 }
 
 export interface AssistantStatus {
@@ -65,7 +69,12 @@ export interface StoredMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  parts: Array<{ type: 'tool'; tool: string; input: unknown; output: unknown; ok: boolean } | { type: 'action'; actionId: string } | ({ type: 'attachment' } & ChatAttachment)>;
+  parts: Array<
+    | { type: 'tool'; tool: string; input: unknown; output: unknown; ok: boolean }
+    | { type: 'action'; actionId: string }
+    | { type: 'reasoning'; text: string; ms: number }
+    | ({ type: 'attachment' } & ChatAttachment)
+  >;
 }
 
 /** Mensajes guardados → ítems de la UI (las acciones con su estado actual). */
@@ -78,6 +87,7 @@ export function toChatItems(messages: StoredMessage[], actions: ActionView[]): C
     attachments: m.parts.flatMap((p) => (p.type === 'attachment' ? [{ id: p.id, name: p.name, mime: p.mime, size: p.size, url: p.url, kind: p.kind }] : [])),
     parts: m.parts.flatMap((p, i): ChatPart[] => {
       if (p.type === 'attachment') return [];
+      if (p.type === 'reasoning') return p.text ? [{ type: 'reasoning', key: `${m.id}-r${i}`, text: p.text, ms: p.ms }] : [];
       if (p.type === 'tool') return [{ type: 'tool', callId: `${m.id}-${i}`, tool: p.tool, input: p.input, output: p.output, ok: p.ok, running: false }];
       const a = byId.get(p.actionId);
       return a ? [{ type: 'action', action: a }] : [];

@@ -12,6 +12,7 @@ import type { LineFolderDto } from '@/lib/groups-lines';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { Modal, api, useErrorText } from './ui';
 import { FOLDERS_CHANGED, notifyFoldersChanged } from './LineFolders';
+import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 
 type FolderDto = LineFolderDto;
 interface FolderData {
@@ -88,10 +89,12 @@ export default function GroupsFoldersBranch() {
     };
     run();
     window.addEventListener(FOLDERS_CHANGED, run);
+    window.addEventListener(ASSISTANT_APPLIED_EVENT, run);
     document.addEventListener('visibilitychange', onVisible);
     const id = window.setInterval(onVisible, 30_000);
     return () => {
       window.removeEventListener(FOLDERS_CHANGED, run);
+      window.removeEventListener(ASSISTANT_APPLIED_EVENT, run);
       document.removeEventListener('visibilitychange', onVisible);
       window.clearInterval(id);
     };
