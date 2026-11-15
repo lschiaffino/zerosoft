@@ -59,7 +59,7 @@ const parity: ProductParity = {
     row('excel', 'content', ['Excel and spreadsheets in a viewer', 'Excel y planillas en un visor', 'Excel e planilhas em um visor'], 'missing'),
     row('video', 'content', ['Video', 'Video', 'Vídeo'], 'partial', {
       weight: 2,
-      detail: ['MP4, WebM and MOV up to 1 GB against their 2 GB, played as uploaded with no transcoding', 'MP4, WebM y MOV hasta 1 GB contra sus 2 GB, se reproduce como se subió, sin transcodificar', 'MP4, WebM e MOV até 1 GB contra 2 GB deles, reproduzido como enviado, sem transcodificação'],
+      detail: ['MP4, M4V, WebM and MOV up to 1 GB against their 2 GB, played as uploaded with no transcoding', 'MP4, M4V, WebM y MOV hasta 1 GB contra sus 2 GB, se reproduce como se subió, sin transcodificar', 'MP4, M4V, WebM e MOV até 1 GB contra 2 GB deles, reproduzido como enviado, sem transcodificação'],
     }),
     row('audio', 'content', ['Audio', 'Audio', 'Áudio'], 'missing'),
     row('download-only', 'content', ['Download-only files', 'Archivos solo para descargar', 'Arquivos só para download'], 'missing'),
@@ -71,7 +71,7 @@ const parity: ProductParity = {
     }),
     row('folders', 'content', ['Content folders', 'Carpetas de contenido', 'Pastas de conteúdo'], 'missing'),
     row('in-doc-links', 'content', ['Clickable links inside a document', 'Links clicables dentro de un documento', 'Links clicáveis dentro de um documento'], 'have', {
-      detail: ['Links in a PDF, Word or Docs page click through: web and email open in a new tab, links to another page jump there', 'Los links de un PDF, un Word o una página de Docs se pueden tocar: web y email abren en otra pestaña, y un link a otra página salta ahí', 'Os links de um PDF, um Word ou uma página do Docs podem ser clicados: web e email abrem em outra aba, e um link para outra página pula para ela'],
+      detail: ['Links in a PDF, Word or Docs page click through: web and email open in a new tab. Links to another page jump there in PDFs only', 'Los links de un PDF, un Word o una página de Docs se pueden tocar: web y email abren en otra pestaña. Un link a otra página salta ahí solo en un PDF', 'Os links de um PDF, um Word ou uma página do Docs podem ser clicados: web e email abrem em outra aba. Um link para outra página pula para ela só em PDF'],
     }),
     row('in-doc-media', 'content', ['Videos and GIFs inside a document', 'Videos y GIF dentro de un documento', 'Vídeos e GIFs dentro de um documento'], 'missing'),
     row('internal-notes', 'content', ['Internal notes on a document', 'Notas internas en un documento', 'Notas internas em um documento'], 'missing'),
@@ -128,7 +128,7 @@ const parity: ProductParity = {
     }),
     row('passcode', 'access', ['Passcode', 'Código de acceso', 'Código de acesso'], 'have', {
       weight: 2,
-      detail: ['Hashed, with a limit per person and a delay per link', 'Con hash, con un tope por persona y una demora por link', 'Com hash, com um limite por pessoa e uma espera por link'],
+      detail: ['Hashed, with a limit per IP (8 tries in 15 minutes) and a cap and a slowdown per link', 'Con hash, con un tope por IP (8 intentos en 15 minutos) y un tope y una demora por link', 'Com hash, com um limite por IP (8 tentativas em 15 minutos) e um limite e uma espera por link'],
     }),
     row('expiry', 'access', ['Expiry date', 'Fecha de vencimiento', 'Data de vencimento'], 'have', { weight: 2 }),
     row('allow-block', 'access', ['Allow or block emails and domains', 'Permitir o bloquear emails y dominios', 'Permitir ou bloquear emails e domínios'], 'have', {
@@ -143,7 +143,7 @@ const parity: ProductParity = {
     }),
     row('watermark', 'access', ['Dynamic watermark', 'Watermark dinámico', 'Marca d\'água dinâmica'], 'partial', {
       weight: 2,
-      detail: ['Email, date and time, drawn on the server on every page and in downloads. No custom text, IP, position, color or transparency, and only over the player on video', 'Email, fecha y hora, dibujados en el servidor en cada página y en las descargas. Sin texto libre, IP, posición, color ni transparencia, y en video solo sobre el reproductor', 'Email, data e hora, desenhados no servidor em cada página e nos downloads. Sem texto livre, IP, posição, cor nem transparência, e em vídeo só sobre o player'],
+      detail: ['Email, date and time, drawn on the server on every page and in downloads. No custom text, IP, position, color or transparency, On video, only the email over the player, and download is turned off', 'Email, fecha y hora, dibujados en el servidor en cada página y en las descargas. Sin texto libre, IP, posición, color ni transparencia, En video, solo el email sobre el reproductor, y la descarga se apaga', 'Email, data e hora, desenhados no servidor em cada página e nos downloads. Sem texto livre, IP, posição, cor nem transparência, Em vídeo, só o email sobre o player, e o download fica desligado'],
     }),
     row('watermark-default', 'access', ['Default watermark for the account', 'Watermark por defecto de la cuenta', 'Marca d\'água padrão da conta'], 'missing'),
     row('screenshot-protection', 'access', ['Screenshot protection', 'Protección contra capturas', 'Proteção contra prints'], 'missing', {
@@ -187,7 +187,7 @@ const parity: ProductParity = {
       detail: ['Time per stretch of the video and % watched. No engagement score', 'Tiempo por tramo del video y % visto. Sin puntaje de atención', 'Tempo por trecho do vídeo e % visto. Sem pontuação de atenção'],
     }),
     row('csv-export', 'analytics', ['Export visits as CSV', 'Exportar visitas a CSV', 'Exportar visitas em CSV'], 'have', {
-      detail: ['Admins only, with the seconds per page and the version of each visit', 'Solo admins, con los segundos por página y la versión de cada visita', 'Só admins, com os segundos por página e a versão de cada visita'],
+      detail: ['Admins only, the latest 500 visits, with the seconds per page and the version of each visit', 'Solo admins, las últimas 500 visitas, con los segundos por página y la versión de cada visita', 'Só admins, as últimas 500 visitas, com os segundos por página e a versão de cada visita'],
     }),
     row('link-clicks', 'analytics', ['Clicks on links inside the document', 'Clics en links del documento', 'Cliques em links do documento'], 'have', {
       detail: ['Per document and per visit, with the page it was on. PowerPoint links are not kept yet', 'Por documento y por visita, con la página donde estaba. Los links de PowerPoint todavía no se guardan', 'Por documento e por visita, com a página onde estava. Os links de PowerPoint ainda não são guardados'],
@@ -213,7 +213,13 @@ const parity: ProductParity = {
     row('unauthorized-alert', 'alerts', ['Alert on an unauthorized email', 'Aviso de un email no autorizado', 'Aviso de um email não autorizado'], 'partial', {
       detail: ['In the bell and in the activity list; no email yet, and no one-click grant', 'En la campana y en la actividad; todavía sin email ni permiso en un clic', 'No sino e na atividade; ainda sem email nem permissão em um clique'],
     }),
-    row('disabled-alert', 'alerts', ['Alert when a disabled link is opened', 'Aviso al abrir un link deshabilitado', 'Aviso ao abrir um link desabilitado'], 'missing'),
+    row('disabled-alert', 'alerts', ['Alert when a disabled link is opened', 'Aviso al abrir un link deshabilitado', 'Aviso ao abrir um link desabilitado'], 'have', {
+      detail: [
+        'In the bell and by email, for disabled and expired links, once a day per person, with the email if they had entered one. Link previews and bots do not count. It also shows in the document activity',
+        'En la campana y por email, para links deshabilitados y vencidos, una vez por día por persona, con el email si lo había escrito. Las vistas previas de links y los bots no cuentan. También aparece en la actividad del documento',
+        'No sino e por email, para links desativados e expirados, uma vez por dia por pessoa, com o email se a pessoa o tinha digitado. Prévias de links e bots não contam. Também aparece na atividade do documento',
+      ],
+    }),
     row('digests', 'alerts', ['Daily and weekly digests', 'Resúmenes diarios y semanales', 'Resumos diários e semanais'], 'missing'),
     row('notify-team', 'alerts', ['Notify teammates of a visit', 'Avisar a compañeros de una visita', 'Avisar colegas de uma visita'], 'partial', {
       detail: ['The document owner and the person who made the link', 'El dueño del documento y quien armó el link', 'O dono do documento e quem criou o link'],
@@ -233,7 +239,13 @@ const parity: ProductParity = {
     row('space-access', 'spaces', ['Access per person', 'Acceso por persona', 'Acesso por pessoa'], 'have', {
       detail: ["By email, with a verified address: anyone not listed stays out, and each person sees only their documents", "Por email, con la dirección verificada: quien no figura queda afuera, y cada persona ve solo sus documentos", "Por email, com o endereço verificado: quem não está na lista fica de fora, e cada pessoa vê só seus documentos"],
     }),
-    row('space-csv', 'spaces', ['Export the space\'s visits', 'Exportar las visitas del espacio', 'Exportar as visitas do espaço'], 'have'),
+    row('space-csv', 'spaces', ['Export the space\'s visits', 'Exportar las visitas del espacio', 'Exportar as visitas do espaço'], 'partial', {
+      detail: [
+        'Admins only. The latest 100 visits, with document, link, email, seconds and % viewed. No time per page',
+        'Solo admins. Las últimas 100 visitas, con documento, link, email, segundos y % visto. Sin tiempo por página',
+        'Só admins. As últimas 100 visitas, com documento, link, email, segundos e % visto. Sem tempo por página',
+      ],
+    }),
     row('space-folders', 'spaces', ['Folders', 'Carpetas', 'Pastas'], 'partial', {
       detail: ['One level, as a label on each document. 2,000 documents, no per-folder permissions', 'Un nivel, como etiqueta de cada documento. 2.000 documentos, sin permisos por carpeta', 'Um nível, como rótulo de cada documento. 2.000 documentos, sem permissões por pasta'],
     }),
@@ -287,10 +299,16 @@ const parity: ProductParity = {
     row('zapier', 'platform', ['Zapier and IFTTT', 'Zapier e IFTTT', 'Zapier e IFTTT'], 'missing'),
     row('browser-email-addins', 'platform', ['Chrome, Gmail and Outlook add-ins', 'Complementos de Chrome, Gmail y Outlook', 'Complementos de Chrome, Gmail e Outlook'], 'missing'),
     row('mcp', 'platform', ['MCP server', 'Servidor MCP', 'Servidor MCP'], 'partial', {
-      detail: ['Reads documents, versions and numbers. Making or loosening a link stays on the web', 'Lee documentos, versiones y números. Crear o aflojar un link queda en la web', 'Lê documentos, versões e números. Criar ou afrouxar um link fica na web'],
+      detail: ['Reads documents, spaces, links and numbers (CSV too), shares a Docs page, creates a space, and renames or deletes documents, links and spaces. Making or changing a link, what a space shows or who sees it, replacing a file and the brand stay on the web', 'Lee documentos, espacios, links y números (también en CSV), comparte una página de Docs, crea un espacio, y renombra o borra documentos, links y espacios. Crear o cambiar un link, qué muestra un espacio o quién lo ve, reemplazar un archivo y la marca quedan en la web', 'Lê documentos, espaços, links e números (também em CSV), compartilha uma página do Docs, cria um espaço, e renomeia ou apaga documentos, links e espaços. Criar ou mudar um link, o que um espaço mostra ou quem o vê, substituir um arquivo e a marca ficam na web'],
     }),
     row('subteams', 'platform', ['Sub-teams and folder access', 'Subequipos y acceso por carpeta', 'Subequipes e acesso por pasta'], 'missing'),
-    row('transfer', 'platform', ['Transfer someone\'s content', 'Transferir el contenido de alguien', 'Transferir o conteúdo de alguém'], 'missing'),
+    row('transfer', 'platform', ['Transfer someone\'s content', 'Transferir el contenido de alguien', 'Transferir o conteúdo de alguém'], 'missing', {
+      detail: [
+        'When someone leaves, their links pass to the owner. Documents can\'t be handed to another person',
+        'Cuando alguien se va, sus links pasan al owner. Los documentos no se pueden pasar a otra persona',
+        'Quando alguém sai, os links passam para o owner. Os documentos não podem ser passados para outra pessoa',
+      ],
+    }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
   ],
 };

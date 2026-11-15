@@ -8,13 +8,13 @@ import {
 } from '@libsql/client';
 import fs from 'fs';
 import { runMigrations } from './schema/migrations';
+import { databaseUrl } from './db-url';
 import { handleBase, isValidHandle, pickHandle } from './schema/handles';
 import path from 'path';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'zerosoftware.db');
 
-const DB_URL = process.env.TURSO_DATABASE_URL ?? `file:${DB_PATH}`;
+const DB_URL = databaseUrl();
 const IS_REMOTE = !DB_URL.startsWith('file:');
 
 let _client: Client | null = null;
