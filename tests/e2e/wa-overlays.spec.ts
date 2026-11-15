@@ -156,7 +156,8 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
       name: 'reactions popover',
       open: () => press(chip()),
       el: () => page.getByTestId('wa-reactions-popover'),
-      trigger: chip,
+      // A 390 es una hoja con fondo: el globito queda tapado y el fondo la cierra (es el toque afuera).
+      trigger: touch ? undefined : chip,
       pick: async () => {
         // "Reaccionar" cierra el cuadro y abre la barra rápida.
         await press(page.getByTestId('wa-reactions-react'));
