@@ -137,7 +137,8 @@ export async function refreshContactPictures(
   const due: PictureRow[] = [];
   for (const p of list) {
     const r = rows.get(p) as PictureRow | undefined;
-    if (!r || seen.has(r.id)) continue;
+    // Solo teléfonos: unos dígitos que la libreta conoce como lid no son un número al que pedirle la foto.
+    if (!r || seen.has(r.id) || r.phone !== p) continue;
     seen.add(r.id);
     if (pictureDue(r, now)) due.push(r);
     if (due.length >= limit) break;

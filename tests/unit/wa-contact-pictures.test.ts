@@ -151,6 +151,15 @@ describe('refreshContactPictures', () => {
     expect(asked.sort()).toEqual([`${A}@s.whatsapp.net`, `${B}@s.whatsapp.net`]);
   });
 
+  it('unos dígitos que la libreta conoce como lid no se piden como teléfono', async () => {
+    const scope = await scopeFor();
+    const LID = '118571178918133';
+    await rememberContacts(scope, [{ lid: LID, push: 'Solo Lid' }]);
+    const provider = { profilePicture: vi.fn(async () => '') };
+    expect(await refreshContactPictures(scope, provider, [LID], { gapMs: 0 })).toBe(0);
+    expect(provider.profilePicture).not.toHaveBeenCalled();
+  });
+
   it('sin el método en el proveedor no hace nada', async () => {
     const scope = await scopeFor();
     expect(await refreshContactPictures(scope, {}, [A], { gapMs: 0 })).toBe(0);
