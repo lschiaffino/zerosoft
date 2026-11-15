@@ -1,7 +1,7 @@
 import { iJson, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
 import { InboxError } from '@/lib/inbox/types';
-import { sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
+import { personCard, sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
 import { makeSummary, readSummary } from '@/lib/inbox/wa-summary';
 
 export const runtime = 'nodejs';
@@ -13,13 +13,16 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
 
 /**
  * Panel de info de un chat de WhatsApp: ?part=shared&kind=media|docs|links|starred
- * (lo compartido en el chat) o ?part=summary (el resumen guardado).
+ * (lo compartido en el chat), ?part=summary (el resumen guardado) o
+ * ?part=person&phone=<dígitos> (la ficha de una persona del grupo).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
     const sp = new URL(req.url).searchParams;
     if (sp.get('part') === 'summary') return iJson({ summary: await readSummary(owner, id) });
+    // La ficha de una persona del grupo (foto o nombre de quien escribió).
+    if (sp.get('part') === 'person') return iJson({ person: await personCard(owner, id, (sp.get('phone') ?? '').slice(0, 30)) });
     const kind = sp.get('kind') as SharedKind;
     if (!KINDS.includes(kind)) throw new InboxError('invalid_input', 400);
     return iJson({ items: await sharedContent(owner, id, kind) });

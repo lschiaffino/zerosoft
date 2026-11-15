@@ -6,7 +6,7 @@
  * public/sw.js repite estas reglas (sin build); tests/unit/offline-prefs.test.ts
  * compara las dos.
  */
-export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board'] as const;
+export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal'] as const;
 export type OfflineApp = (typeof OFFLINE_APPS)[number];
 
 export const OFFLINE_SIZES = ['light', 'normal', 'max'] as const;
@@ -31,7 +31,7 @@ export interface OfflinePrefs {
 
 export const DEFAULT_OFFLINE_PREFS: OfflinePrefs = {
   enabled: true,
-  apps: { crm: true, docs: true, track: true, notes: true, board: true },
+  apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true },
   size: 'normal',
   days: 30,
 };
@@ -65,6 +65,8 @@ export function offlineAppOf(pathname: string): OfflineApp | null {
   if (/^\/app\/?$/.test(p) || /^\/app\/crm(\/|$)/.test(p) || /^\/api\/crm\//.test(p)) return 'crm';
   if (/^\/app\/docs(\/|$)/.test(p)) return 'docs';
   if (/^\/app\/track(\/|$)/.test(p)) return 'track';
+  if (/^\/app\/board(\/|$)/.test(p)) return 'board';
+  if (/^\/app\/calendar(\/|$)/.test(p)) return 'cal';
   return null;
 }
 
@@ -113,7 +115,7 @@ export function offlineEvictions(entries: readonly OfflineEntry[], prefs: Offlin
 
 /** Uso por app a partir del índice del worker. */
 export function offlineUsage(entries: readonly OfflineEntry[]): Record<OfflineApp | 'static', { pages: number; bytes: number }> {
-  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of entries) {
     out[e.app].pages += 1;
     out[e.app].bytes += e.bytes;

@@ -203,6 +203,7 @@
     "remove": "Delete",
     "questionTitle": "Question",
     "required": "Required",
+    "randomize": "Show options in random order",
     "ref": "Variable name",
     "refHelp": "Use {ref} to insert this answer in later questions and endings.",
     "refInvalid": "Lowercase letters, numbers and _, starting with a letter, and not used by another question.",

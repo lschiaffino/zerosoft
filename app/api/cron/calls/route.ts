@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cronAuthError } from '@/lib/status/agent-auth';
 import { runCallsCron } from '@/lib/calls/process';
 
 export const runtime = 'nodejs';
@@ -12,12 +13,8 @@ export const maxDuration = 300;
  * trabajos. Misma autorización (CRON_SECRET como Bearer).
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
-  }
-  if (secret && (req.headers.get('authorization') ?? '') !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  // CRON_SECRET en tiempo constante; en producción sin secreto no corre.
+  const denied = cronAuthError(req);
+  if (denied) return denied;
   return NextResponse.json(await runCallsCron({ budgetMs: 240_000 }));
 }

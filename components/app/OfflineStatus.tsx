@@ -27,7 +27,7 @@ import { rootsDue, safeStorage } from '@/lib/offline-apps';
  */
 
 /** Rutas cuyas vistas se guardan para abrir sin red (las mismas que isOfflineNavigation en public/sw.js). */
-export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track|board)(?:\/|$)|\/notes\/?$|\/?$)/;
+export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track|board|calendar)(?:\/|$)|\/notes\/?$|\/?$)/;
 
 interface Brief {
   id: number;

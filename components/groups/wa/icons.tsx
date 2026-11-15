@@ -347,3 +347,21 @@ export const MoreLinesIcon = (p: P) => (
     <path d="M5 7h14M5 12h14M5 17h9" />
   </Svg>
 );
+/** Globo de chat: "Mensaje" en la ficha de un contacto. */
+export const ChatIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 18.5 5.3 15A7.5 7.5 0 1 1 9 18.6z" />
+  </Svg>
+);
+/** Estrella: mensajes destacados. */
+export const StarIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" />
+  </Svg>
+);
+/** Flecha a la derecha: una fila que abre otra vista. */
+export const ChevronRight = (p: P) => (
+  <Svg strokeWidth={2.2} {...p}>
+    <path d="m10 7 5 5-5 5" />
+  </Svg>
+);

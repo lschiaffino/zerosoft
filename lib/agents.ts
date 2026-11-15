@@ -14,6 +14,8 @@
 import { localized } from './notification-copy';
 import { generateText, isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from 'ai';
 import { chatConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSql } from './groups-access';
+import type { TeamRole } from './teams';
 import { getDb } from './db';
 import { aiKnowledgeFilterSql } from './docs-access';
 import type { AgentConversationRow, AgentMessageRow, AgentRow, AgentToolCallRow, AgentChannel } from './db';
@@ -1043,9 +1045,13 @@ export async function conversationForChat(
 export async function listConversations(
   workspaceId: string,
   agentId: string,
-  opts: { channel?: AgentChannel; limit?: number; needsReview?: boolean; viewer?: { personId: string; isAdmin: boolean } } = {},
+  opts: { channel?: AgentChannel; limit?: number; needsReview?: boolean; viewer?: { personId: string; isAdmin: boolean; role?: TeamRole } } = {},
 ): Promise<AgentConversationDto[]> {
-  const visible = opts.viewer && !opts.viewer.isAdmin ? chatConversationVisibleSql('c.chat_conversation_id', opts.viewer.personId) : null;
+  const chatVisible = opts.viewer && !opts.viewer.isAdmin ? chatConversationVisibleSql('c.chat_conversation_id', opts.viewer.personId) : null;
+  // Las que vienen de un chat de Lines: solo si la persona ve ese chat.
+  const linesVisible = opts.viewer && !opts.viewer.isAdmin ? await linesAgentConversationSql(workspaceId, opts.viewer.personId, opts.viewer.role ?? 'member', 'c.id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
+  const visible = parts.length ? { sql: parts.map((p) => p.sql).join(' AND '), args: parts.flatMap((p) => p.args) } : null;
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const rows = (await getDb()
     .prepare(

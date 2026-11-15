@@ -10,7 +10,7 @@
 import { PRODUCT_CONFIG, type ProductKey } from './products';
 
 /** Apps con modo sin conexión, en el orden en que la página "necesita conexión" las ofrece. */
-export const OFFLINE_PRODUCTS = ['docs', 'notes', 'track', 'crm', 'board'] as const satisfies readonly ProductKey[];
+export const OFFLINE_PRODUCTS = ['docs', 'notes', 'track', 'crm', 'board', 'cal'] as const satisfies readonly ProductKey[];
 
 export function worksOffline(key: ProductKey | string | null | undefined): boolean {
   return (OFFLINE_PRODUCTS as readonly string[]).includes(String(key));

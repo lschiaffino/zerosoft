@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { type MouseEvent as ReactMouseEvent, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
@@ -9,6 +9,8 @@ import { atBottom as isAtBottom } from '@/lib/scroll-anchor';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
+import { useInboxPersonSheet } from './person-sheet';
+import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
@@ -103,12 +105,22 @@ const WaConversation = forwardRef<
     onRename: (title: string) => void;
     onRefresh: () => void;
     loadOlder: () => Promise<void>;
+    /** Abrir otro chat de Inbox (el 1:1 de alguien del grupo, un grupo en común). */
+    onOpenThread?: (id: string) => void;
+    /** Abrir (o crear) el chat 1:1 con un teléfono. */
+    onStartChat?: (phone: string) => Promise<void>;
+    /** "Mensaje a <persona>" o "Responder en privado" (con la cita) desde un grupo. */
+    onMessagePerson?: (phone: string, threadId: string | null, quote?: { message: MessageDto; chat: { id: string; title: string } }) => Promise<void>;
+    /** Respuesta en privado pendiente: si es para este chat, se abre respondiendo al mensaje del grupo. */
+    privateReply?: { threadId: string; message: MessageDto; chat: { id: string; title: string } } | null;
+    onPrivateReplyUsed?: () => void;
   }
 >(function WaConversation(props, composerRef) {
   const { detail, connected, onAction, onError, onRefresh } = props;
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const ws = useTranslations('groups.wa.stickers');
+  const tsheet = useTranslations('groups.wa.contactSheet');
   const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
@@ -119,6 +131,8 @@ const WaConversation = forwardRef<
   const scroller = useRef<HTMLDivElement>(null);
   const openedFor = useRef('');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
+  // Respondiendo en privado: el mensaje citado es de un grupo (su nombre va en la cita).
+  const [replyChat, setReplyChat] = useState<{ msgId: string; id: string; title: string } | null>(null);
   const [editing, setEditing] = useState<MessageDto | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
@@ -212,6 +226,16 @@ const WaConversation = forwardRef<
     setNotesOpen(false);
   }, [thread.id]);
 
+  // "Responder en privado": este chat 1:1 se abre respondiendo al mensaje del grupo (una vez).
+  const { privateReply, onPrivateReplyUsed } = props;
+  useEffect(() => {
+    if (!privateReply || privateReply.threadId !== thread.id) return;
+    setEditing(null);
+    setReplyTo(privateReply.message);
+    setReplyChat({ msgId: privateReply.message.id, ...privateReply.chat });
+    onPrivateReplyUsed?.();
+  }, [privateReply, thread.id, onPrivateReplyUsed]);
+
   // Nombres de los participantes (para remitentes, menciones y "escribiendo").
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -220,6 +244,23 @@ const WaConversation = forwardRef<
     if (wa?.myPhone) m.set(wa.myPhone, w('you'));
     return m;
   }, [wa, messages, w]);
+
+  // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
+  const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
+
+  // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
+  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
+  const openPerson = personSheet.open;
+  // Una mención ("@Nombre") en un grupo también abre la ficha de esa persona, como en WhatsApp.
+  const openMention = (e: ReactMouseEvent, m: MessageDto) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.wa-mention[data-mention]');
+    if (!el) return;
+    const d = el.dataset.mention ?? '';
+    const phone = m.mentionNames?.[d]?.phone || (wa?.participants.some((p) => p.phone === d) ? d : '');
+    if (!phone || phone === wa?.myPhone) return;
+    e.stopPropagation();
+    openPerson(phone, names.get(phone) || (el.textContent ?? '').replace(/^@/, ''), avatars.get(phone));
+  };
 
   // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
   const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
@@ -357,6 +398,16 @@ const WaConversation = forwardRef<
   const startReply = (m: MessageDto) => {
     setEditing(null);
     setReplyTo(m);
+    setReplyChat(null);
+  };
+  const downloadFile = (url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || '';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
   const startEdit = (m: MessageDto) => {
     setReplyTo(null);
@@ -381,16 +432,27 @@ const WaConversation = forwardRef<
       return items;
     }
     const items: MenuItem[] = [];
+    // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, reenviar, copiar, editar |
+    // responder en privado, mensaje a quien lo mandó | eliminar.
     if (!m.revoked) {
+      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
+      const url = m.hasMedia && m.mediaType !== 'sticker' && !m.meta?.viewOnce ? inboxMediaUrl(m) : '';
+      if (url) items.push({ key: 'download', label: w('download'), onSelect: () => downloadFile(url, m.mediaName) });
+      items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
       // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
       if ((m.body || m.mediaType) && !m.meta?.viewOnce) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
-      if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
-      items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
       if (canEdit(m)) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
-      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
+      if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
+      // Grupo, mensaje de otra persona: escribirle por privado (con la cita o sin ella), como en WhatsApp.
+      if (group && props.onMessagePerson && canReplyPrivately({ group, fromMe: m.fromMe, deleted: !!m.revoked, senderPhone: m.senderHandle, myPhone: wa?.myPhone })) {
+        const dmId = wa?.participants.find((p) => p.phone === m.senderHandle)?.threadId ?? null;
+        const who = names.get(m.senderHandle) || senderLabel(m.senderName, m.senderHandle);
+        items.push({ key: 'replyPrivately', label: w('replyPrivately'), divider: true, onSelect: () => void props.onMessagePerson?.(m.senderHandle, dmId, { message: m, chat: { id: thread.id, title: name } }) });
+        items.push({ key: 'messageSender', label: w('messageName', { name: who }), onSelect: () => void props.onMessagePerson?.(m.senderHandle, dmId) });
+      }
     }
     items.push({ key: 'hide', label: w('deleteForMe'), divider: true, danger: true, onSelect: () => void act(m, { action: 'hide' }) });
     if (canDeleteAll(m)) items.push({ key: 'deleteAll', label: w('deleteForEveryone'), danger: true, onSelect: () => void act(m, {}, 'DELETE') });
@@ -413,9 +475,9 @@ const WaConversation = forwardRef<
           caption: m.body,
           author: m.fromMe ? w('you') : group ? names.get(m.senderHandle) || senderLabel(m.senderName, m.senderHandle) : name,
           createdAt: m.sentAt,
-          avatar: m.fromMe ? undefined : group ? { src: '', seed: m.senderHandle || m.senderName, kind: 'dm' as const } : { src: thread.avatar, seed: thread.id, kind: 'dm' as const },
+          avatar: m.fromMe ? undefined : group ? { src: avatars.get(m.senderHandle) ?? '', seed: m.senderHandle || m.senderName, kind: 'dm' as const } : { src: thread.avatar, seed: thread.id, kind: 'dm' as const },
         })),
-    [messages, names, group, name, thread.avatar, thread.id, w],
+    [messages, names, avatars, group, name, thread.avatar, thread.id, w],
   );
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
 
@@ -546,20 +608,34 @@ const WaConversation = forwardRef<
           e.preventDefault();
           e.currentTarget.querySelector<HTMLButtonElement>('.wa-chevron')?.click();
         }}
+        onClick={group ? (e) => openMention(e, m) : undefined}
         {...gestures}
       >
         <span className="wa-swipe-reply" aria-hidden="true">
           <ArrowLeft size={18} />
         </span>
         {groupIn && (
-          <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={author} kind="dm" size={26} seed={m.senderHandle || m.senderName} />}
+          <span className="wa-sender-avatar">
+            {!cont && (
+              <button
+                type="button"
+                className="wa-person"
+                tabIndex={-1}
+                aria-label={tsheet('openFor', { name: author })}
+                onClick={() => openPerson(m.senderHandle, author, avatars.get(m.senderHandle))}
+                data-testid="wa-sender-avatar"
+              >
+                <Avatar name={author} kind="dm" size={26} src={avatars.get(m.senderHandle) || undefined} seed={m.senderHandle || m.senderName} />
+              </button>
+            )}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
           {groupIn && !cont && author && (
             <p className={`gr-msg-author ${color}`}>
-              <span className="wa-author-name">{author}</span>
+              <button type="button" className="wa-person wa-author-name" onClick={() => openPerson(m.senderHandle, author, avatars.get(m.senderHandle))} data-testid="wa-sender-name">
+                {author}
+              </button>
               {m.senderHandle && author !== formatPhone(m.senderHandle) && <span className="wa-phone">{formatPhone(m.senderHandle)}</span>}
             </p>
           )}
@@ -572,9 +648,13 @@ const WaConversation = forwardRef<
             <button
               type="button"
               className={`gr-quote ${m.reply.fromMe ? 'wa-q-me' : group ? `wa-q${colorIndex(m.reply.senderHandle || m.reply.senderName)}` : 'wa-q-them'}`}
-              onClick={() => jumpTo(m.reply!.id)}
+              onClick={() => (m.reply!.chat ? props.onOpenThread?.(m.reply!.chat.id) : jumpTo(m.reply!.id))}
+              data-testid={m.reply.chat ? 'wa-private-quote' : undefined}
             >
-              <strong>{quoteAuthor(m.reply)}</strong>
+              <strong>
+                {quoteAuthor(m.reply)}
+                {m.reply.chat && <span className="wa-quote-chat"> · {m.reply.chat.title || w('group')}</span>}
+              </strong>
               <span>
                 <RichText text={quoteText(m.reply)} inline mentions={mentionsFor({ body: quoteText(m.reply), mentionNames: m.reply.mentionNames })} />
               </span>
@@ -624,7 +704,7 @@ const WaConversation = forwardRef<
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
-                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), src: avatars.get(m.senderHandle) || undefined, seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
@@ -750,7 +830,10 @@ const WaConversation = forwardRef<
   ) : replyTo ? (
     <ComposerBanner label={w('cancelReply')} onClose={() => setReplyTo(null)}>
       <span className={`gr-quote gr-quote-plain ${replyTo.fromMe ? 'wa-q-me' : group ? `wa-q${colorIndex(replyTo.senderHandle || replyTo.senderName)}` : 'wa-q-them'}`}>
-        <strong>{quoteAuthor(replyTo)}</strong>
+        <strong>
+          {quoteAuthor(replyTo)}
+          {replyChat?.msgId === replyTo.id && <span className="wa-quote-chat"> · {replyChat.title}</span>}
+        </strong>
         <span>
           <RichText text={quoteText(replyTo)} inline mentions={mentionsFor({ body: quoteText(replyTo), mentionNames: replyTo.mentionNames })} />
         </span>
@@ -922,7 +1005,7 @@ const WaConversation = forwardRef<
           )}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
-          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
+          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined}
           onTyping={() => presence('composing')}
           commands={slashCommands}
           onCancelBanner={() => {
@@ -972,6 +1055,7 @@ const WaConversation = forwardRef<
           return err;
         }}
       />
+      {personSheet.sheet}
       <Modal open={!!infoFor} title={w('info')} onClose={() => setInfoFor(null)}>
         {infoFor && (
           <>
