@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'DocSend',
-  lastReviewed: '2026-11-03',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'content', label: loc(['Content', 'Contenido', 'Conteúdo']) },
     { id: 'links', label: loc(['Links', 'Links', 'Links']) },
@@ -207,7 +207,13 @@ const parity: ProductParity = {
     row('unauthorized-alert', 'alerts', ['Alert on an unauthorized email', 'Aviso de un email no autorizado', 'Aviso de um email não autorizado'], 'partial', {
       detail: ['In the bell and in the activity list; no email yet, and no one-click grant', 'En la campana y en la actividad; todavía sin email ni permiso en un clic', 'No sino e na atividade; ainda sem email nem permissão em um clique'],
     }),
-    row('disabled-alert', 'alerts', ['Alert when a disabled link is opened', 'Aviso al abrir un link deshabilitado', 'Aviso ao abrir um link desabilitado'], 'missing'),
+    row('disabled-alert', 'alerts', ['Alert when a disabled link is opened', 'Aviso al abrir un link deshabilitado', 'Aviso ao abrir um link desabilitado'], 'have', {
+      detail: [
+        'In the bell and by email, for disabled and expired links, once a day per person, with the email if they had entered one. Link previews and bots do not count. It also shows in the document activity',
+        'En la campana y por email, para links deshabilitados y vencidos, una vez por día por persona, con el email si lo había escrito. Las vistas previas de links y los bots no cuentan. También aparece en la actividad del documento',
+        'No sino e por email, para links desativados e expirados, uma vez por dia por pessoa, com o email se a pessoa o tinha digitado. Prévias de links e bots não contam. Também aparece na atividade do documento',
+      ],
+    }),
     row('digests', 'alerts', ['Daily and weekly digests', 'Resúmenes diarios y semanales', 'Resumos diários e semanais'], 'missing'),
     row('notify-team', 'alerts', ['Notify teammates of a visit', 'Avisar a compañeros de una visita', 'Avisar colegas de uma visita'], 'partial', {
       detail: ['The document owner and the person who made the link', 'El dueño del documento y quien armó el link', 'O dono do documento e quem criou o link'],

@@ -26,6 +26,8 @@ function onColor(hex: string): string {
 export default function SendViewer({ token, initial }: { token: string; initial: ViewerState }) {
   const [state, setState] = useState<ViewerState>(initial);
   const api = `/api/send/public/${token}`;
+  // Solo la página que ya llegó cerrada avisa que alguien la abrió; una pestaña que se cierra por un cambio, no.
+  const [reportClosed] = useState(initial.state === 'closed');
   const refresh = useCallback(async () => {
     const res = await fetch(api).catch(() => null);
     if (res?.status === 404) return setState((s) => ({ state: 'closed', reason: 'disabled', brand: s.brand }));
@@ -62,7 +64,7 @@ export default function SendViewer({ token, initial }: { token: string; initial:
         <main className="sv-gate" aria-busy="true" data-testid="sv-start">
           <span className="ui-skeleton ui-skeleton-row sv-start" />
         </main>
-      ) : state.state === 'closed' ? <Closed reason={state.reason} state={state} /> : state.state === 'gate' ? <Gate api={api} state={state} onState={setState} /> : <Reader api={api} state={state} refresh={refresh} />}
+      ) : state.state === 'closed' ? <Closed reason={state.reason} state={state} api={api} report={reportClosed} /> : state.state === 'gate' ? <Gate api={api} state={state} onState={setState} /> : <Reader api={api} state={state} refresh={refresh} />}
     </div>
   );
 }
@@ -85,8 +87,13 @@ function Brand({ state }: { state: ViewerState }) {
   );
 }
 
-function Closed({ reason, state }: { reason: 'disabled' | 'expired' | 'unavailable'; state: ViewerState }) {
+function Closed({ reason, state, api, report }: { reason: 'disabled' | 'expired' | 'unavailable'; state: ViewerState; api: string; report: boolean }) {
   const t = useTranslations('send.viewer');
+  // Un POST del navegador: un previsualizador de links no lo hace, así que no avisa.
+  useEffect(() => {
+    if (!report || reason === 'unavailable') return;
+    void postJson(api, { closedOpen: true, webdriver: navigator.webdriver === true });
+  }, [api, reason, report]);
   return (
     <main className="sv-gate" data-testid="sv-closed" data-reason={reason}>
       <div className="sv-card">

@@ -225,7 +225,9 @@
     "colOnPage": "En la página",
     "colClicks": "Clics",
     "toPage": "Página {page} del documento",
-    "clickedOn": "Tocó en la página {page}: {target}"
+    "clickedOn": "Tocó en la página {page}: {target}",
+    "closedDisabled": "Link deshabilitado",
+    "closedExpired": "Link vencido"
   },
   "spaces": {
     "title": "Espacios",
