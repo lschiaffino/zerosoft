@@ -230,6 +230,8 @@
     "colClicks": "Clics",
     "toPage": "Página {page} del documento",
     "clickedOn": "Tocó en la página {page}: {target}",
+    "closedDisabled": "Link deshabilitado",
+    "closedExpired": "Link vencido",
     "buttonClick": "Botón: {label}",
     "clickedButton": "Tocó el botón: {label}"
   },
