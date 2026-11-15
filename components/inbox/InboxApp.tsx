@@ -185,6 +185,8 @@ export default function InboxApp(props: {
   const [compose, setCompose] = useState<false | 'any' | 'gmail'>(false);
   // "Chat nuevo" de WhatsApp (el panel de WhatsApp Web, el mismo de Lines).
   const [newChat, setNewChat] = useState(false);
+  // Respuesta en privado pendiente: el chat 1:1 que se abre la toma (una vez) y responde al mensaje del grupo.
+  const [privateReply, setPrivateReply] = useState<{ threadId: string; message: MessageDto; chat: { id: string; title: string } } | null>(null);
   const accountsRef = useRef(props.initialState.accounts);
   accountsRef.current = state.accounts;
   /** "Nuevo" (lateral, botón de la lista, C): con WhatsApp vinculado, el panel de chat nuevo; si no, el mensaje nuevo (correo). */
@@ -783,6 +785,25 @@ export default function InboxApp(props: {
   };
   moreActionRef.current = moreAction;
 
+  /**
+   * "Mensaje a <persona>" o "Responder en privado" desde un grupo: su chat 1:1 (el que ya existe o uno nuevo)
+   * y, si se responde, ese chat se abre respondiendo al mensaje del grupo.
+   */
+  const messagePerson = async (phone: string, threadId: string | null, quote?: { message: MessageDto; chat: { id: string; title: string } }) => {
+    let id = threadId;
+    if (!id) {
+      const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
+      if (!r.ok) {
+        toast(errText(r.data.error), { bad: true });
+        return;
+      }
+      setThreads((xs) => [r.data.thread, ...xs.filter((x) => x.id !== r.data.thread.id)]);
+      id = r.data.thread.id;
+    }
+    setPrivateReply(quote ? { threadId: id, ...quote } : null);
+    setInfoOpen(false);
+    open(id);
+  };
   /** Abre (o crea) el chat 1:1 de WhatsApp con un teléfono (participantes de un grupo, su ficha). */
   const startChatWith = async (phone: string) => {
     const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
@@ -1373,6 +1394,9 @@ export default function InboxApp(props: {
               open(id);
             }}
             onStartChat={startChatWith}
+            onMessagePerson={messagePerson}
+            privateReply={privateReply}
+            onPrivateReplyUsed={() => setPrivateReply(null)}
           />
         ) : detail && openId ? (
           <Conversation
