@@ -82,6 +82,7 @@
     "importClose": "Close",
     "group": "Group",
     "snoozedUntil": "Snoozed until {when}",
+    "snoozedShort": "Snoozed · {when}",
     "followUpAt": "Reminder {when}",
     "archivedEntry": "Archived",
     "archivedBack": "Back to the inbox",

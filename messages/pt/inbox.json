@@ -82,6 +82,7 @@
     "importClose": "Fechar",
     "group": "Grupo",
     "snoozedUntil": "Adiado até {when}",
+    "snoozedShort": "Adiada · {when}",
     "followUpAt": "Lembrete {when}",
     "archivedEntry": "Arquivadas",
     "archivedBack": "Voltar para a caixa",

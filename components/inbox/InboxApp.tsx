@@ -10,6 +10,7 @@ import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
+import { aheadWhen } from '@/lib/when-presets';
 import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
@@ -1166,8 +1167,8 @@ export default function InboxApp(props: {
                 {th.channel === 'gmail' && <span className="ib-chan-dot" data-ch="gmail" role="img" aria-label="Gmail" />}
                 {marker && <span className="ib-tag ib-tag-strong">{marker}</span>}
                 {view !== 'snoozed' && th.snoozedUntil && (
-                  <span className="ib-tag" data-testid="inbox-row-snoozed">
-                    {t('list.snoozedUntil', { when: longWhen(th.snoozedUntil, locale) })}
+                  <span className="ib-tag" data-testid="inbox-row-snoozed" title={t('list.snoozedUntil', { when: longWhen(th.snoozedUntil, locale) })}>
+                    {t('list.snoozedShort', { when: aheadWhen(th.snoozedUntil, locale) })}
                   </span>
                 )}
                 {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}

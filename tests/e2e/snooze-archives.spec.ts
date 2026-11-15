@@ -11,6 +11,8 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const FIRST_MS = 60_000;
+/** Lo que espera al servidor (guardar, el cron, el aviso en vivo). Local, con `next dev` cargado por el cron, tarda. */
+const SERVER_MS = 45_000;
 const SHOTS = process.env.SNOOZE_SHOTS;
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
@@ -28,6 +30,10 @@ const phone = () => `54911${Math.floor(10_000_000 + Math.random() * 89_999_999)}
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+  // Lo que la consola marca como error (el aviso de Next en desarrollo): se muestra en el log, sin fallar el test.
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') console.log(`[console.error] ${msg.text().slice(0, 400)}`);
+  });
   page.on('response', (res) => {
     if (res.status() >= 500) errors.push(`${res.status()} ${res.url()}`);
   });
@@ -95,11 +101,11 @@ for (const width of [1280, 390]) {
       // Sale de la bandeja al instante y la entrada de Archivados aparece.
       await expect(row).toHaveCount(0);
       await expect(page.getByTestId('inbox-archived-entry')).toBeVisible();
-      await expect.poll(async () => (await sql('SELECT archived_at, snoozed_until FROM inbox_threads WHERE id = ?', [threadId]))[0], { timeout: 10_000 }).toMatchObject({
+      await expect.poll(async () => (await sql('SELECT archived_at, snoozed_until FROM inbox_threads WHERE id = ?', [threadId]))[0], { timeout: SERVER_MS }).toMatchObject({
         archived_at: expect.any(String),
         snoozed_until: expect.any(String),
       });
-      await expect.poll(async () => (await pushRow('inbox', threadId))?.sent_count, { timeout: 10_000 }).toBe(1);
+      await expect.poll(async () => (await pushRow('inbox', threadId))?.sent_count, { timeout: SERVER_MS }).toBe(1);
       await shot(page, 'inbox-2-snoozed', width);
 
       await page.getByTestId('inbox-archived-entry').click();
@@ -113,12 +119,13 @@ for (const width of [1280, 390]) {
       // Vence: el cron lo devuelve a la bandeja y lo desarchiva en WhatsApp.
       await sql('UPDATE inbox_threads SET snoozed_until = ? WHERE id = ?', [new Date(Date.now() - 60_000).toISOString(), threadId]);
       await cron(request);
-      await expect.poll(async () => (await pushRow('inbox', threadId))?.archived, { timeout: 10_000 }).toBe(0);
+      await expect.poll(async () => (await pushRow('inbox', threadId))?.archived, { timeout: SERVER_MS }).toBe(0);
       await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
       await expect(row).toBeVisible({ timeout: FIRST_MS });
       await shot(page, 'inbox-4-woke', width);
+      // Archivados: el chat ya no está (la vista puede quedar vacía: se espera el "volver a la bandeja" de esa vista).
       await page.goto('/en/app/inbox/v/archived', { waitUntil: 'networkidle' });
-      await expect(page.locator('.ib-list')).toHaveAttribute('data-list', 'v:archived|', { timeout: FIRST_MS });
+      await expect(page.getByTestId('inbox-archived-back')).toBeVisible({ timeout: FIRST_MS });
       await expect(row).toHaveCount(0);
       expect(errors, errors.join('\n')).toEqual([]);
     });
@@ -153,10 +160,10 @@ for (const width of [1280, 390]) {
       await expect(dialog).toBeHidden();
       // Sale de la lista al instante; la fila de Archivados está.
       await expect(row).toHaveCount(0);
-      await expect(page.locator('.ui-toast', { hasText: 'Snoozed until' })).toBeVisible();
+      await expect(page.locator('.ui-toast', { hasText: 'Snoozed until' })).toBeVisible({ timeout: SERVER_MS });
       const archivedRow = page.locator('.wa-archived-row');
       await expect(archivedRow).toBeVisible();
-      await expect.poll(async () => (await pushRow('lines', chatId))?.sent_count, { timeout: 10_000 }).toBe(1);
+      await expect.poll(async () => (await pushRow('lines', chatId))?.sent_count, { timeout: SERVER_MS }).toBe(1);
       await shot(page, 'lines-2-snoozed', width);
 
       await archivedRow.click();
@@ -168,10 +175,10 @@ for (const width of [1280, 390]) {
       // Vence: el cron lo devuelve a la lista y lo desarchiva en WhatsApp.
       await sql('UPDATE groups_chats SET snoozed_until = ? WHERE id = ?', [new Date(Date.now() - 60_000).toISOString(), chatId]);
       await cron(request);
-      await expect.poll(async () => (await sql('SELECT archived_at FROM groups_chats WHERE id = ?', [chatId]))[0].archived_at, { timeout: 10_000 }).toBeNull();
-      await expect.poll(async () => (await pushRow('lines', chatId))?.archived, { timeout: 10_000 }).toBe(0);
+      await expect.poll(async () => (await sql('SELECT archived_at FROM groups_chats WHERE id = ?', [chatId]))[0].archived_at, { timeout: SERVER_MS }).toBeNull();
+      await expect.poll(async () => (await pushRow('lines', chatId))?.archived, { timeout: SERVER_MS }).toBe(0);
       // En Archivados ya no está (la pantalla abierta se entera sola).
-      await expect(row).toHaveCount(0, { timeout: 15_000 });
+      await expect(row).toHaveCount(0, { timeout: SERVER_MS });
       await page.locator('.wa-archived-head button').click();
       await expect(row).toBeVisible({ timeout: FIRST_MS });
       await shot(page, 'lines-4-woke', width);

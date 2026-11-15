@@ -82,6 +82,7 @@
     "importClose": "Cerrar",
     "group": "Grupo",
     "snoozedUntil": "Pospuesto hasta {when}",
+    "snoozedShort": "Pospuesto · {when}",
     "followUpAt": "Recordatorio {when}",
     "archivedEntry": "Archivados",
     "archivedBack": "Volver a la bandeja",
