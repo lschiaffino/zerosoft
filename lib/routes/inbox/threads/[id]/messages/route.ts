@@ -1,9 +1,9 @@
 import { createScheduled, listMessages } from '@/lib/inbox/core';
 import { iFail, iJson, inboxOwner, parseBody, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
-import { sendSchema } from '@/lib/inbox/schemas';
+import { sendCardSchema, sendSchema } from '@/lib/inbox/schemas';
 import { sendToThread } from '@/lib/inbox/send';
-import { sendWaMessage } from '@/lib/inbox/wa-actions';
+import { sendWaCard, sendWaMessage } from '@/lib/inbox/wa-actions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,17 @@ export async function POST(req: Request, ctx: Ctx) {
   if ('res' in a) return a.res;
   const owner = a.owner;
   try {
+    // Encuesta o tarjetas de contacto (el menú + de WhatsApp): otro cuerpo, sin texto.
+    const raw = (await req
+      .clone()
+      .json()
+      .catch(() => null)) as Record<string, unknown> | null;
+    if (raw && (raw.poll || raw.contacts)) {
+      const card = await parseBody(req, sendCardSchema);
+      await sendWaCard(owner, id, card, card.clientId);
+      const page = await listMessages(owner, id);
+      return iJson({ messages: page.messages, more: page.more, cursor: page.cursor }, 201);
+    }
     const body = await parseBody(req, sendSchema);
     if (body.sendAt) return iJson({ scheduled: await createScheduled(owner, id, body.body, body.sendAt) }, 201);
     const noPreview = body.linkPreview === false ? { linkPreview: false } : {};
