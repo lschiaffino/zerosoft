@@ -959,6 +959,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-bq { display: inline-block; padding-left: 8px; border-left: 3px solid color-mix(in srgb, var(--wa-text-2) 45%, transparent); color: var(--wa-text-2); }
 .wa-li { display: inline-flex; gap: 6px; padding-left: 4px; }
 .wa-li-mark { flex: none; color: var(--wa-text-2); }
+.wa-li-body { flex: 1; min-width: 0; }
 /* Visor: zoom con clic y tira de miniaturas. */
 .wa-viewer-stage img { cursor: zoom-in; transition: transform 0.15s ease-out; }
 .wa-viewer-stage img.is-zoomed { cursor: zoom-out; transform: scale(2); }
