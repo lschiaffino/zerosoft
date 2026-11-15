@@ -635,7 +635,29 @@ export default function DocsEditor({
     end: number;
     top: number;
     left: number;
+    /** Borde de arriba y de abajo de la selección (para ubicar la barra según su alto real). */
+    selTop: number;
+    selBottom: number;
   } | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  // La barra se ubica con su tamaño real: centrada en la selección pero adentro del
+  // editor (antes se suponía de 220px y, con ~560px, tapaba el sidebar o se cortaba
+  // contra el borde en el teléfono), y arriba de la selección aunque ocupe dos renglones.
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || !toolbar) return;
+    const area = rootRef.current?.getBoundingClientRect();
+    const lo = Math.max(8, (area?.left ?? 0) + 8);
+    const hi = Math.min(window.innerWidth - 8, (area?.right ?? window.innerWidth) - 8);
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const left = hi - lo <= w ? (lo + hi) / 2 : Math.max(lo + w / 2, Math.min(hi - w / 2, toolbar.left));
+    // Sin lugar arriba (la barra fija de la página): va debajo de la selección.
+    const bar = document.querySelector('.docs-top-bar')?.getBoundingClientRect().bottom ?? 56;
+    const top = toolbar.selTop - h - 8 > bar ? toolbar.selTop - h - 8 : toolbar.selBottom + 8;
+    el.style.left = `${Math.round(left)}px`;
+    el.style.top = `${Math.round(top)}px`;
+  });
   /** Popover de link: offsets de texto plano ya capturados + href de prefill. */
   const [linkDialog, setLinkDialog] = useState<{
     index: number;
@@ -939,7 +961,7 @@ export default function DocsEditor({
       const center = rect.left + rect.width / 2;
       const left = Math.max(110, Math.min(window.innerWidth - 110, center));
       const top = rect.top > 64 ? rect.top - 46 : rect.bottom + 8;
-      setToolbar({ index: Number(indexAttr), start: offsets.start, end: offsets.end, top, left });
+      setToolbar({ index: Number(indexAttr), start: offsets.start, end: offsets.end, top, left, selTop: rect.top, selBottom: rect.bottom });
     };
     document.addEventListener('selectionchange', update);
     window.addEventListener('scroll', update, true);
@@ -4888,6 +4910,7 @@ export default function DocsEditor({
         createPortal(
         <div
           className="docs-format-toolbar"
+          ref={toolbarRef}
           style={{ top: toolbar.top, left: toolbar.left }}
           onMouseDown={(e) => e.preventDefault()}
         >
