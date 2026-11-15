@@ -99,6 +99,8 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
       if (f.url && isInboxBlobUrl(f.url)) await deleteUploads([f.url]).catch(() => null);
       return '';
     },
+    // Un archivo tarda más: el servidor espera hasta 90 s al gateway.
+    { waitMs: 95_000 },
   );
 }
 

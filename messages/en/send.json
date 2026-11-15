@@ -179,7 +179,11 @@
     "csvAdded": "{count, plural, one {Added # entry.} other {Added # entries.}}",
     "csvSkipped": "{count, plural, one {Skipped # cell that is not an email or a domain.} other {Skipped # cells that are not an email or a domain.}}",
     "csvTooMany": "The list is over {max}: remove some before saving.",
-    "accessCount": "{count} of {max}"
+    "accessCount": "{count} of {max}",
+    "buttonLabel": "Button text",
+    "buttonLabelPlaceholder": "Book a call",
+    "buttonUrl": "Button link",
+    "buttonHelp": "Shows a button in the viewer that opens this address in a new tab, for example your booking page. Clicks show up in the numbers. Leave both empty for no button."
   },
   "visits": {
     "loadError": "The numbers didn't load.",
@@ -220,12 +224,14 @@
     "perPage": "Average time per page in version {n}, and how many visits got there",
     "reach": "{pct}% reached",
     "deniedTitle": "Tried to open it without access",
-    "clicksTitle": "Links clicked inside the document",
+    "clicksTitle": "Clicks on links in the document and on the button",
     "colLink": "Link",
     "colOnPage": "On page",
     "colClicks": "Clicks",
     "toPage": "Page {page} of the document",
-    "clickedOn": "Clicked on page {page}: {target}"
+    "clickedOn": "Clicked on page {page}: {target}",
+    "buttonClick": "Button: {label}",
+    "clickedButton": "Clicked the button: {label}"
   },
   "spaces": {
     "title": "Spaces",
@@ -334,7 +340,8 @@
     "videoError": "The video didn't load. Some browsers can't play MOV files.",
     "unavailableTitle": "This link is no longer available",
     "linkTo": "Open {url}",
-    "linkToPage": "Go to page {page}"
+    "linkToPage": "Go to page {page}",
+    "buttonTitle": "Opens {host} in a new tab"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -386,6 +393,8 @@
     "logo_https": "The logo needs an https:// address: the viewer only loads secure images.",
     "page_too_complex": "A page in this file is too heavy to prepare. Print it to a new PDF, or lower its detail, and upload that.",
     "csv_too_large": "That file is over 1 MB. A list of emails is much smaller.",
-    "too_many_entries": "The list has more than 500 entries."
+    "too_many_entries": "The list has more than 500 entries.",
+    "invalid_button_label": "Write the button text, up to 40 characters.",
+    "invalid_button_url": "The button needs a web address, like https://acme.com/demo."
   }
 }

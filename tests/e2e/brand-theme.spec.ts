@@ -37,7 +37,7 @@ test('/brand es la marca default y no enlaza a temas', async ({ page }) => {
   expect(res?.status()).toBeLessThan(400);
   await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
   await expect(page.getByRole('heading', { level: 1, name: 'La marca' })).toBeVisible();
-  await expect(page.locator('.bd-swatch')).toHaveCount(6 + 28);
+  await expect(page.locator('.bd-swatch')).toHaveCount(6 + 29);
   await expect(page.locator('a[href*="nuevo-branding/subte"]')).toHaveCount(0);
 });
 

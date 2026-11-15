@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { MessageDto } from '@/lib/inbox/types';
 import { measureImage, newFiles, type TrayItem } from '@/components/groups/wa/attachments';
-import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
-import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
+import type { MenuItem } from '@/components/groups/wa/Menu';
+import AttachMenu, { type AttachMenuHandle } from '@/components/groups/wa/AttachMenu';
+import { SendIcon, Trash } from '@/components/groups/wa/icons';
 import { MEDIA_SEND_TIMEOUT_MS, inboxQueue, pendingSends, tempInboxMedia } from './pending';
 import { withTimeout } from '@/lib/conditional-fetch';
 import { TEMP_PREFIX, localPreviews, mediaKindOf, newClientId, uploadProgress, type UnsentMedia, type UnsentMediaKind } from '@/lib/optimistic-send';
@@ -236,40 +237,24 @@ export function useSendTray(threadId: string, onError?: (code: string) => void) 
   return { items, add, remove, clear, sendAll, setCaption, retry, sending: false };
 }
 
-/** "+" del campo: documento o fotos y videos (como el menú de adjuntar de WhatsApp Web). */
-export function AttachButton({ onFiles, disabled, extra = [] }: { onFiles: (files: File[]) => void; disabled?: boolean; /** Lo que el composer suma al menú (escribir con AI, dictar, snippets). */ extra?: MenuItem[] }) {
-  const w = useTranslations('inboxWa');
-  const docs = useRef<HTMLInputElement>(null);
-  const media = useRef<HTMLInputElement>(null);
-  const pick = (input: HTMLInputElement | null) => {
-    if (!input) return;
-    input.value = '';
-    input.click();
-  };
-  return (
-    <span className="ib-wa-attach">
-      {disabled ? (
-        <button type="button" className="wa-icon-btn" disabled aria-label={w('attach')}>
-          <Plus size={24} />
-        </button>
-      ) : (
-        <MessageMenu
-          label={w('attach')}
-          trigger={<Plus size={24} />}
-          className="wa-icon-btn wa-attach"
-          align="left"
-          items={[
-            { key: 'doc', label: w('attachDocument'), icon: <DocIcon size={16} />, onSelect: () => pick(docs.current) },
-            { key: 'photo', label: w('attachMedia'), icon: <PhotoIcon size={16} />, onSelect: () => pick(media.current) },
-            ...extra,
-          ]}
-        />
-      )}
-      <input ref={docs} type="file" multiple hidden onChange={(e) => onFiles([...(e.target.files ?? [])])} aria-hidden="true" tabIndex={-1} />
-      <input ref={media} type="file" multiple hidden accept="image/*,video/*" onChange={(e) => onFiles([...(e.target.files ?? [])])} aria-hidden="true" tabIndex={-1} />
-    </span>
-  );
-}
+/**
+ * "+" del campo, como el menú de adjuntar de WhatsApp (components/groups/wa/AttachMenu.tsx, el mismo de Lines):
+ * documento, fotos y videos, cámara, audio, contacto, encuesta y sticker nuevo; abajo, lo del composer.
+ */
+export const AttachButton = forwardRef<
+  AttachMenuHandle,
+  {
+    onFiles: (files: File[]) => void;
+    disabled?: boolean;
+    onContact?: () => void;
+    onPoll?: () => void;
+    onNewSticker?: (file: File) => void;
+    /** Lo que el composer suma al menú (escribir con AI, dictar, snippets). */
+    extra?: MenuItem[];
+  }
+>(function AttachButton(props, ref) {
+  return <AttachMenu ref={ref} className="ib-wa-attach" {...props} />;
+});
 
 function recorderMime(): string {
   if (typeof MediaRecorder === 'undefined') return '';

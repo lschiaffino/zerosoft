@@ -9,6 +9,7 @@ import FolderRail from '@/components/ui/FolderRail';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import type { FolderDto } from '@/lib/inbox/types';
 import { api, INBOX_CHANGED, notifyInboxChanged } from './api';
+import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import { FolderDialog, Modal } from './InboxDialogs';
 
 const FOLDER_MIME = 'application/x-zs-inbox-folder';
@@ -67,7 +68,11 @@ export default function InboxBranch() {
     const run = () => void load();
     run();
     window.addEventListener(INBOX_CHANGED, run);
-    return () => window.removeEventListener(INBOX_CHANGED, run);
+    window.addEventListener(ASSISTANT_APPLIED_EVENT, run);
+    return () => {
+      window.removeEventListener(INBOX_CHANGED, run);
+      window.removeEventListener(ASSISTANT_APPLIED_EVENT, run);
+    };
   }, [pathname, load]);
 
   const toggle = (id: string, open?: boolean) => {

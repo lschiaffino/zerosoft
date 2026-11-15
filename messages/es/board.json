@@ -22,7 +22,9 @@
     "actionError": "No se pudo completar la acción. Probá de nuevo.",
     "creating": "Creando…",
     "templatesTitle": "Empezar con una plantilla",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "localBadge": "En este dispositivo",
+    "localHint": "Esperando para subirse"
   },
   "share": {
     "button": "Compartir",
@@ -59,7 +61,8 @@
     "remoteAppliedAnon": "Actualizada con cambios de otra persona",
     "remoteChanged": "{name} cambió esta pizarra. Tus cambios de acá todavía no se guardaron.",
     "remoteChangedAnon": "Otra persona cambió esta pizarra. Tus cambios de acá todavía no se guardaron.",
-    "remoteMerge": "Combinar sus cambios"
+    "remoteMerge": "Combinar sus cambios",
+    "draftRestored": "Volvieron los cambios que hiciste en este dispositivo."
   },
   "public": {
     "notFound": "Pizarra no encontrada",
@@ -582,5 +585,10 @@
     "add": "Destacar",
     "remove": "Quitar destacado",
     "badge": "Destacada"
+  },
+  "local": {
+    "missingTitle": "Esta pizarra no está en este dispositivo",
+    "missingBody": "Puede que ya se haya subido. Abrila desde la lista.",
+    "syncError": "No se pudo subir esta pizarra. Queda en este dispositivo y se sube más tarde."
   }
 }
