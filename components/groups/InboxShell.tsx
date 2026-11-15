@@ -934,6 +934,12 @@ export default function InboxShell({
                 )}
               </span>
               <span className="gr-row-icons">
+                {/* Como WhatsApp: en la búsqueda (que también trae lo archivado), "Archivado" a la derecha. */}
+                {debounced && !archivedView && c.archived && (
+                  <span className="wa-archived-tag" data-testid="search-archived-tag">
+                    {t('wa.archivedTag')}
+                  </span>
+                )}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (

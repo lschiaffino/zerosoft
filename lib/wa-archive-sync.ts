@@ -298,6 +298,17 @@ export async function altJid(contacts: Target['contacts'], jid: string): Promise
   return r?.lid ? `${r.lid}@lid` : '';
 }
 
+/**
+ * Con qué id va el archivado de un chat (y con cuál se reintenta si ese falla). WhatsApp guarda el archivado de un
+ * 1:1 con el lid del chat cuando la cuenta ya pasó a lids: así llega el estado que manda el teléfono (al vincular la
+ * línea el 15/11, 305 de los 346 avisos de 1:1 archivados vinieron por lid). Mandado con el número de teléfono, el
+ * teléfono lo toma como otro chat y no archiva nada. Si la libreta conoce el lid va ese; si no, el id que tenemos.
+ */
+export async function archiveJids(contacts: Target['contacts'], chatJid: string): Promise<[string, string]> {
+  const other = await altJid(contacts, chatJid).catch(() => '');
+  return isLidJid(other) ? [other, chatJid] : [chatJid, other];
+}
+
 async function attempt(row: PushRow): Promise<Attempt> {
   const target = row.app === 'inbox' ? await inboxTarget(row) : await linesTarget(row);
   if (!target || target.archived === null) return { kind: 'skip', reason: 'gone' };
@@ -312,18 +323,18 @@ async function attempt(row: PushRow): Promise<Attempt> {
     return { kind: 'fail', error: 'not_connected', retry: true };
   }
   if (!provider.archiveChat) return { kind: 'skip', reason: 'unsupported' };
-  const ref = await target.ref(target.chatJid);
   // Una sola orden por chat. Antes se mandaba también con el otro id del mismo 1:1 (teléfono ↔ lid), y WhatsApp
   // recibía dos cambios para dos "chats" que son el mismo: el 14/11 desvinculó todos los dispositivos de la cuenta
   // 30 s después de un par así. El otro id solo se usa si el principal falla.
+  const [main, alt] = await archiveJids(target.contacts, target.chatJid);
+  const ref = await target.ref(main);
   try {
     try {
-      await provider.archiveChat(target.chatJid, want, ref);
+      await provider.archiveChat(main, want, ref);
       await target.setSyncError('').catch(() => null);
-      return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null }) };
+      return { kind: 'sent', sent: JSON.stringify({ jid: main, archive: want, ts: ref?.timestamp ?? null }) };
     } catch (err) {
       if (isAppStateError(err)) throw err;
-      const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
       if (!alt) throw err;
       await provider.archiveChat(alt, want, await target.ref(alt));
       await target.setSyncError('').catch(() => null);

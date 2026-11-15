@@ -181,6 +181,11 @@
 .gr-row-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gr-row-sender { flex: none; }
 .gr-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
+/* "Archivado" a la derecha de un resultado de búsqueda, como WhatsApp (solo en la búsqueda; Inbox y Lines). */
+.wa-archived-tag {
+  flex: none; padding: 0 5px; border: 1px solid var(--wa-border-strong); border-radius: var(--radius-1);
+  font-size: var(--wa-fs-meta); line-height: 16px; color: var(--wa-text-2); white-space: nowrap;
+}
 .gr-inbox .gr-pin-icon { margin: 0; color: var(--wa-text-2); }
 .gr-inbox .gr-unread {
   margin: 0; min-width: 18px; height: 18px; padding: 0 5px; font-family: var(--wa-font); font-size: var(--wa-fs-meta); font-weight: 500; line-height: 18px;

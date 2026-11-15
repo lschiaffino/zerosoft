@@ -1948,7 +1948,8 @@
       "openFor": "Info. del contacto de {name}"
     },
     "replyPrivately": "Responder en privado",
-    "messageName": "Enviar mensaje a {name}"
+    "messageName": "Enviar mensaje a {name}",
+    "archivedTag": "Archivado"
   },
   "swipe": {
     "read": "Leído",

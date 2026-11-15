@@ -94,6 +94,7 @@
     "scheduled": "{n, plural, one {# scheduled} other {# scheduled}}",
     "dragMany": "{n} chats",
     "searchResults": "Search results",
+    "archivedTag": "Archived",
     "messagesFound": "Messages",
     "moreMessages": "More messages",
     "search": "Search chats and messages",

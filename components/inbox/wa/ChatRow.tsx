@@ -37,9 +37,10 @@ function RowThumb({ id }: { id: string }) {
  * Lo de adentro de una fila de la lista, como WhatsApp Web: foto, nombre,
  * hora (verde con no leídos), tildes del último propio, "Ana:" en grupos,
  * ícono del tipo de media, "escribiendo…", silenciado, no leídos y fijado.
- * Las marcas de Inbox (volvió, sin respuesta, programados) van al lado.
+ * Las marcas de Inbox (volvió, sin respuesta, programados) van al lado. En los
+ * resultados de búsqueda, un chat archivado lleva "Archivado" a la derecha.
  */
-export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra?: ReactNode; timeLabel?: string }) {
+export default function ChatRow({ th, extra, timeLabel, archivedTag }: { th: ThreadDto; extra?: ReactNode; timeLabel?: string; archivedTag?: boolean }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const locale = useLocale();
@@ -88,6 +89,11 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
             )}
           </span>
           <span className="wa-row-icons">
+            {archivedTag && (
+              <span className="wa-archived-tag" data-testid="search-archived-tag">
+                {t('list.archivedTag')}
+              </span>
+            )}
             {muted && <MuteIcon size={16} label={w('muted')} />}
             {unread && (
               <span className={`wa-unread${muted ? ' is-muted' : ''}`} aria-label={w('unread', { n: th.unread })}>
