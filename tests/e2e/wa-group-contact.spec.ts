@@ -141,6 +141,7 @@ test.describe('Lines', () => {
       .poll(async () => String((await sql("SELECT picture FROM wa_contacts WHERE app = 'lines' AND account_id = ? AND phone = ?", [n.id, ana]))[0]?.picture ?? ''), { timeout: 30_000 })
       .toMatch(/^data:image\//);
     await page.reload({ waitUntil: 'networkidle' });
+    const groupUrl = page.url();
     const bubble = page.locator('.gr-msg', { hasText: `precios nuevos ${tag}` });
     await expect(bubble.getByTestId('wa-sender-avatar').locator('img')).toBeVisible({ timeout: 20_000 });
 
@@ -155,7 +156,7 @@ test.describe('Lines', () => {
     expect(dmUrl).not.toContain(encodeURIComponent(gid));
 
     // De vuelta al grupo: Responder en privado.
-    await page.goBack({ waitUntil: 'networkidle' });
+    await page.goto(groupUrl, { waitUntil: 'networkidle' });
     const again = page.locator('.gr-msg', { hasText: `precios nuevos ${tag}` });
     await again.hover();
     await again.locator('.wa-chevron').click();

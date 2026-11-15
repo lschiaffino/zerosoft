@@ -18,7 +18,7 @@ import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } fro
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
-import { knownPrivateQuote, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
+import { knownPrivateQuote, peekPendingPrivateReply, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
@@ -360,10 +360,12 @@ export default function ChatThread(props: ThreadProps) {
 
   // "Responder en privado" desde un grupo: este chat 1:1 se abre respondiendo al mensaje del grupo.
   useEffect(() => {
-    const pr = takePendingPrivateReply(props.chat.id);
-    if (!pr) return;
-    // Después de lo que limpia el composer al cambiar de chat.
+    if (!peekPendingPrivateReply(props.chat.id)) return;
+    // Después de lo que limpia el composer al cambiar de chat. Se toma recién acá: un montaje que se desarma
+    // antes (StrictMode, navegación) no la gasta.
     const id = window.setTimeout(() => {
+      const pr = takePendingPrivateReply(props.chat.id);
+      if (!pr) return;
       setReplyTo(pr.message);
       setReplyChat({ msgId: pr.message.id, chatName: pr.quote.chatName });
       setMode('reply');

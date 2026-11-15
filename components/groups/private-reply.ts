@@ -32,6 +32,10 @@ export function setPendingPrivateReply(dmId: string, message: MessageDto, chat: 
   known.set(message.id, quote);
 }
 
+export function peekPendingPrivateReply(dmId: string): boolean {
+  return pending.has(dmId);
+}
+
 export function takePendingPrivateReply(dmId: string): { message: MessageDto; quote: ReplyQuote } | null {
   const p = pending.get(dmId) ?? null;
   pending.delete(dmId);
