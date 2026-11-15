@@ -107,7 +107,9 @@ test('bandeja: equipos, seguir, colisión, variables, AI, Track y vistas guardad
   await page.setViewportSize({ width: 1440, height: 900 });
   const w = await widget(request);
   const visitor = `v-${uid()}`;
-  await ok(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: visitor, body: 'No me llega la factura', name: 'Ana Pérez', email: 'ana@example.com' } }));
+  // Nombre único: otras specs dejan personas "Ana Pérez" (Inbox) que ⌘K también encuentra.
+  const person = `Ana Pérez ${uid()}`;
+  await ok(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: visitor, body: 'No me llega la factura', name: person, email: 'ana@example.com' } }));
   const { rows } = await ok<{ rows: Array<{ id: string }> }>(request.get(`/api/chat/conversations?widgetIds=${w.id}`));
   const convId = rows[0].id;
   await ok(request.post(`/api/chat/widgets/${w.id}/canned`, { data: { shortcut: `hola${uid()}`, title: 'Saludo con nombre', body: 'Hola {{first_name}}, soy {{agent_first_name}}.' } }));
@@ -166,9 +168,9 @@ test('bandeja: equipos, seguir, colisión, variables, AI, Track y vistas guardad
   await page.locator('#side-branch').getByRole('link', { name: teamName }).click();
   await page.waitForURL(/team=/);
   await expect(page.getByRole('heading', { level: 1, name: teamName })).toBeVisible();
-  await expect(page.locator('.chat-row', { hasText: 'Ana Pérez' })).toBeVisible();
+  await expect(page.locator('.chat-row', { hasText: person })).toBeVisible();
   await page.locator('#side-branch').getByRole('link', { name: 'Siguiendo' }).click();
-  await expect(page.locator('.chat-row', { hasText: 'Ana Pérez' })).toBeVisible();
+  await expect(page.locator('.chat-row', { hasText: person })).toBeVisible();
 
   // Vista guardada: filtros actuales con nombre, en el sidebar y en Vistas.
   await page.goto('/es/app/chat/inbox');
@@ -187,8 +189,8 @@ test('bandeja: equipos, seguir, colisión, variables, AI, Track y vistas guardad
   // Cmd+K encuentra la conversación por la persona.
   await page.keyboard.press('ControlOrMeta+k');
   const search = page.getByRole('dialog', { name: /Buscar|Search/ });
-  await search.getByRole('combobox').fill('Ana Pérez');
-  await search.getByRole('option', { name: /Ana Pérez/ }).first().click();
+  await search.getByRole('combobox').fill(person);
+  await search.getByRole('option', { name: new RegExp(person) }).first().click();
   await expect(page).toHaveURL(new RegExp(convId));
   expect(errors, errors.join('\n')).toEqual([]);
 });
