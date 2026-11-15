@@ -27,6 +27,10 @@ CLAUDE_AFTER_S=180                        # el incidente tiene que llevar 3 min 
 CLAUDE_GAP_S=3600                         # como mucho una sesión de Claude por incidente por hora
 CLAUDE_TIMEOUT_S=1800                     # y que no dure más de 30 min
 
+# La CLI de Railway sin respuesta no puede colgar la pasada (con el lock tomado no habría más reportes).
+RAILWAY_BIN="$(command -v railway || true)"
+railway() { [ -n "$RAILWAY_BIN" ] && perl -e 'alarm shift; exec @ARGV' 90 "$RAILWAY_BIN" "$@"; }
+
 act() { if [ -n "${DRY_RUN:-}" ]; then log "dry-run: $*"; else "$@" >> "$LOG" 2>&1; fi; }
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG"; }
 now() { date +%s; }
@@ -73,7 +77,7 @@ PY
 }
 
 # ---------- 1 y 2: Railway (Postgres, disco, Evolution) ----------
-if [ -d "$RAILWAY_DIR" ] && command -v railway >/dev/null; then
+if [ -d "$RAILWAY_DIR" ] && [ -n "$RAILWAY_BIN" ]; then
   cd "$RAILWAY_DIR" || exit 0
   vol=$(railway volume list --json 2>/dev/null | python3 -I -c 'import sys,json
 try:
@@ -116,6 +120,14 @@ except Exception: print("")' 2>/dev/null)
 fi
 
 # ---------- 3: incidentes abiertos → Claude ----------
+# Claude corre con su propio lock y suelta el del watcher: si no, mientras trabaja (hasta 30 min) no hay reportes,
+# el estado abre "no report from the watcher" por la sesión misma y el incidente no se puede cerrar.
+rm -rf "$LOCK"
+CLAUDE_LOCK="$STATE/claude-lock"
+if ! mkdir "$CLAUDE_LOCK" 2>/dev/null; then
+  if [ $(( $(now) - $(stat -f %m "$CLAUDE_LOCK" 2>/dev/null || echo 0) )) -gt $(( CLAUDE_TIMEOUT_S + 600 )) ]; then rm -rf "$CLAUDE_LOCK"; mkdir "$CLAUDE_LOCK"; else exit 0; fi
+fi
+trap 'rm -rf "$CLAUDE_LOCK"' EXIT
 open=$(api GET '/api/status/incidents?state=open' 2>/dev/null || true)
 echo "$open" | python3 -I -c 'import sys,json
 try: d=json.load(sys.stdin)
@@ -148,6 +160,7 @@ $(tail -n 30 "$LOG")
   summary=$(tail -c 1500 "$out" | python3 -I -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
   api POST "/api/status/incidents/$id/notes" "{\"by\":\"claude\",\"text\":$summary}" >/dev/null || true
   log "claude: incidente $id terminado, log en $out"
+  break   # una sesión por pasada: el lock de Claude no puede quedar tomado más que CLAUDE_TIMEOUT_S
 done
 
 exit 0
