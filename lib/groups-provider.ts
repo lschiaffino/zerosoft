@@ -19,6 +19,7 @@
  * nunca incluyen credenciales en los errores: ProviderError lleva un código
  * corto y, a lo sumo, el status HTTP del proveedor.
  */
+import type { LinkHqRef } from './wa-link-thumb';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
 
@@ -351,6 +352,8 @@ export interface LinkPreview {
   description?: string;
   /** Miniatura chica como data URL (JPEG). */
   thumbnail?: string;
+  /** Imagen grande que subió el teléfono (lib/wa-link-thumb.ts): se baja una vez al llegar. */
+  hq?: LinkHqRef;
 }
 
 /** Datos de un chat para mostrar (como "Info del contacto" o "Info del grupo" en WhatsApp). */

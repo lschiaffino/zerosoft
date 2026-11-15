@@ -14,6 +14,7 @@
  * self-host con ALLOW_PRIVATE_WEBHOOKS=true. Los errores no llevan la key.
  */
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
+import { linkHqOf } from './wa-link-thumb';
 import {
   evolutionFileName,
   infoFromBaileys,
@@ -692,7 +693,9 @@ export function linkPreviewOf(ext: Json): LinkPreview | undefined {
   if (!title || !url) return undefined;
   const description = typeof ext.description === 'string' ? ext.description.replace(/\s+/g, ' ').trim().slice(0, 500) : '';
   const thumb = typeof ext.jpegThumbnail === 'string' && /^[A-Za-z0-9+/=]+$/.test(ext.jpegThumbnail) && ext.jpegThumbnail.length < 24_000 ? `data:image/jpeg;base64,${ext.jpegThumbnail}` : '';
-  return { url, title, ...(description ? { description } : {}), ...(thumb ? { thumbnail: thumb } : {}) };
+  // La imagen grande (Maps, notas con foto): WhatsApp la sube cifrada; se baja una vez al guardar el mensaje.
+  const hq = linkHqOf(ext);
+  return { url, title, ...(description ? { description } : {}), ...(thumb ? { thumbnail: thumb } : {}), ...(hq ? { hq } : {}) };
 }
 
 /**

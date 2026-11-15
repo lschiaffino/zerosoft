@@ -316,7 +316,7 @@
 .wa-n9 { color: var(--wa-n9) !important; } .wa-n10 { color: var(--wa-n10) !important; } .wa-n11 { color: var(--wa-n11) !important; }
 
 .gr-inbox .wa-text { margin: 0; color: var(--wa-text); word-break: break-word; }
-.gr-inbox .wa-text a { color: var(--wa-link); text-decoration: none; }
+.gr-inbox .wa-text a { color: var(--wa-link); text-decoration: none; overflow-wrap: anywhere; word-break: break-all; }
 .gr-inbox .wa-text a:hover { text-decoration: underline; }
 .gr-inbox .wa-text.is-emoji { font-size: 2.25rem; line-height: 1.15; }
 .wa-spacer { display: inline-block; width: 48px; height: 1px; vertical-align: bottom; }

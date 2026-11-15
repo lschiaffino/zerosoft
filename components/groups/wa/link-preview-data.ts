@@ -38,6 +38,8 @@ const DATA_IMG = /^data:image\/(jpeg|png|webp|gif|x-icon|vnd\.microsoft\.icon);b
 export function safeImage(raw: string | undefined): string {
   if (!raw) return '';
   if (raw.startsWith('/api/wa/link-preview/image?')) return raw;
+  // La imagen grande que mandó WhatsApp, guardada con el mensaje (Inbox y Lines).
+  if (/^\/api\/(inbox|groups)\/media\/[A-Za-z0-9_-]+\?link=1$/.test(raw)) return raw;
   return raw.length < 2_000_000 && DATA_IMG.test(raw) ? raw : '';
 }
 
@@ -55,6 +57,23 @@ export function dataUrlSize(src: string | undefined): { width: number; height: n
   } catch {
     return null;
   }
+}
+
+/**
+ * La vista previa que mandó WhatsApp guardada en el meta de un mensaje de
+ * Lines (`link`): la imagen grande por la ruta del mensaje si se bajó, si no
+ * la miniatura chica.
+ */
+export function linkFromMeta(meta: Record<string, unknown> | undefined | null): LinkPreviewData | null {
+  const l = meta?.link as { url?: unknown; title?: unknown; description?: unknown; thumb?: unknown; image?: unknown; imageWidth?: unknown; imageHeight?: unknown } | undefined;
+  if (!l || typeof l.url !== 'string' || typeof l.title !== 'string' || !l.title) return null;
+  const image = typeof l.image === 'string' ? l.image : '';
+  return {
+    url: l.url,
+    title: l.title,
+    ...(typeof l.description === 'string' ? { description: l.description } : {}),
+    ...(image ? { image, imageWidth: Number(l.imageWidth) || undefined, imageHeight: Number(l.imageHeight) || undefined } : typeof l.thumb === 'string' ? { image: l.thumb } : {}),
+  };
 }
 
 /** La vista previa que mandó WhatsApp, con las medidas de su miniatura. */

@@ -12,6 +12,7 @@ import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
+import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -1553,6 +1554,8 @@ function mediaUrlFor(row: MessageRow): string {
 export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; rn?: number }): MessageDto {
   const poll = parsePoll(row.poll);
   const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
+  // La imagen grande del link va por la ruta del mensaje: sin la clave ni los bytes.
+  if (meta.link) meta.link = publicLink(meta.link as StoredLink, `/api/groups/media/${row.id}?link=1`);
   return {
     id: row.id,
     chatId: row.chat_id,
@@ -2362,6 +2365,11 @@ export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): Sto
   if (ev.media?.info) meta.media = compactInfo(ev.media.info);
   if (ev.location) meta.location = ev.location;
   if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
+  // La vista previa del link que mandó WhatsApp (título, descripción, miniatura y la referencia a la imagen grande).
+  if (ev.link) {
+    const l = ev.link;
+    meta.link = { url: l.url, title: l.title, ...(l.description ? { description: l.description } : {}), ...(l.thumbnail ? { thumb: l.thumbnail } : {}), ...(l.hq ? { hqRef: l.hq } : {}) } satisfies StoredLink;
+  }
   // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
   const mentions = (ev.mentions ?? []).filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
   if (mentions.length) meta.mentions = mentions;
@@ -2582,6 +2590,13 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (ev.media?.fetchRef && row.media_url.startsWith('evo:')) {
           const ref = ev.media.fetchRef;
           later.push({ messageId: row.id, ref });
+        }
+        // La imagen grande de la vista previa del link (Maps, notas): se baja una vez, después de responder.
+        if (ev.link?.hq) {
+          const hq = ev.link.hq;
+          post.push(async () => {
+            if (await storeLinkHq('groups_messages', row.id, hq)) pokeLive('lines', ws);
+          });
         }
         // Lo de antes de responder. Si algo de esto falla, el mensaje ya está guardado: se loguea y se sigue.
         await (async () => {
