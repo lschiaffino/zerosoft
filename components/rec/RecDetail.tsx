@@ -1,14 +1,14 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecAnalytics, RecVideoDto } from '@/lib/rec';
-import { clampTrim, fmtClock, isTrimmed, parseClock, trimKey, trimmedDuration } from '@/lib/rec-schema';
+import { clampTrim, fmtClock, isTrimmed, parseClock, silenceCuts, trimKey, trimmedDuration } from '@/lib/rec-schema';
 import { cutWebm } from '@/lib/rec-webm';
 import { fetchInParts } from './download';
 import { parseDbUtc } from '@/lib/utils';
@@ -58,6 +58,7 @@ export default function RecDetail({
   const [video, setVideo] = useState(initial);
   const [tab, setTab] = useState<Tab>('details');
   const [markers, setMarkers] = useState<RecMarker[]>([]);
+  const silences = useMemo(() => silenceCuts(video.transcript, video.durationSec), [video.transcript, video.durationSec]);
   const [now, setNow] = useState(0);
   const [share, setShare] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -372,6 +373,7 @@ export default function RecDetail({
             trimStart={video.trimStart}
             trimEnd={video.trimEnd}
             chapters={video.chapters}
+            silences={silences}
             markers={markers}
             cta={video.ctaLabel && video.ctaUrl ? { label: video.ctaLabel, url: video.ctaUrl, mode: video.ctaMode } : null}
             onTime={setNow}
@@ -690,6 +692,7 @@ export default function RecDetail({
             currentAbs={relNow}
             onSeek={(s) => player.current?.seek(s)}
             onMarkers={setMarkers}
+            onReact={(e) => player.current?.pop(e)}
           />
         </aside>
       </div>

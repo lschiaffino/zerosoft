@@ -187,6 +187,44 @@ section.rec-edit-block { padding-bottom: 20px; }
   color: #ffffff;
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
+.rec-scrub-note {
+  max-width: 220px;
+  /* Relleno vertical como borde transparente: el recorte de overflow es en el borde del relleno, así la tercera línea no se asoma. */
+  padding: 0 8px;
+  border-block: 4px solid transparent;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: #ffffff;
+  background: rgb(0 0 0 / 0.82);
+  border-radius: var(--radius-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* Reacciones que suben sobre el video al pasar por su segundo (y la propia al reaccionar). */
+.rec-pops { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+.rec-pop {
+  position: absolute;
+  bottom: 12px;
+  font-size: 1.75rem;
+  line-height: 1;
+  transform: translateX(-50%);
+  animation: rec-pop-rise 2.2s ease-out forwards;
+}
+@keyframes rec-pop-rise {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  12% { opacity: 1; transform: translate(-50%, -12px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -160px) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-pop { animation: rec-pop-fade 2.2s linear forwards; }
+  @keyframes rec-pop-fade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
 .rec-scrub-time { padding: 1px 6px; font-size: 0.75rem; color: #ffffff; background: rgb(0 0 0 / 0.72); border-radius: var(--radius-1); }
 .rec-player-bar {
   display: flex;
