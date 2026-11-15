@@ -27,11 +27,22 @@ interface Status {
   progress: { total: number; synced: number; pending: number; errors: number; skipped: number };
   roots: Array<{ id: string; title: string; kind: string; enabled: boolean }>;
   log: Array<{ id: string; dir: string; action: string; title: string; pageId: string | null; detail: string | null; at: string }>;
-  webhookToken?: string | null;
-  webhookWaiting?: boolean;
+  webhook?: {
+    confirmed: boolean;
+    fromEnv: boolean;
+    waiting: boolean;
+    waitingElsewhere: boolean;
+    candidates: Array<{ id: string; token: string; at: string }>;
+  };
 }
 
 const DIRECTIONS: Direction[] = ['two_way', 'import', 'to_notion'];
+
+function webhookState(w: NonNullable<Status['webhook']>): string {
+  if (w.confirmed) return 'confirmed';
+  if (w.waiting) return w.candidates.length ? 'received' : 'waiting';
+  return w.waitingElsewhere ? 'elsewhere' : 'idle';
+}
 const KNOWN_ACTIONS = new Set([
   'created', 'updated', 'archived', 'restored', 'comment', 'unshared', 'conflict_notion', 'conflict_docs', 'too_large', 'error', 'connected',
   'disconnected', 'discovered', 'imported', 'paused', 'resumed', 'rate_limited', 'direction_two_way', 'direction_import', 'direction_to_notion',
@@ -54,6 +65,7 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
   const [busy, setBusy] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
   const driving = useRef(false);
 
   const load = useCallback(async () => {
@@ -118,6 +130,28 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
     }
     setStatus(data);
     return null;
+  }
+
+  // Esperando el token de verificación: se mira seguido para que aparezca apenas Notion lo manda.
+  const webhookWaiting = Boolean(status?.webhook?.waiting && !status.webhook.confirmed);
+  useEffect(() => {
+    if (!webhookWaiting) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 4_000);
+    return () => window.clearInterval(timer);
+  }, [webhookWaiting, load]);
+
+  async function webhookAction(body: Record<string, unknown>) {
+    if (busy) return;
+    setBusy(true);
+    setWebhookError(null);
+    const err = await send('PATCH', body);
+    setBusy(false);
+    if (err) {
+      setWebhookError(err);
+      void load();
+    }
   }
 
   async function connect() {
@@ -384,30 +418,76 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
         </>
       )}
 
-      {status.webhookToken !== undefined ? (
+      {status.webhook ? (
         <FormSection title={t('webhookTitle')} description={t('webhookHelp')}>
-          <p className="ui-help">
-            <code className="docs-notion-code">/api/integrations/notion/webhook</code>
-          </p>
-          {status.webhookToken ? (
-            <div className="docs-notion-webhook">
-              <code className="docs-notion-code" data-testid="notion-sync-webhook-token">
-                {status.webhookToken}
-              </code>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void send('PATCH', { clear_webhook_token: true })}>
-                {t('webhookClear')}
-              </button>
-            </div>
-          ) : (
-            <div className="docs-notion-webhook">
-              <p className="ui-help">{status.webhookWaiting ? t('webhookWaiting') : t('webhookIdle')}</p>
-              {status.webhookWaiting ? null : (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void send('PATCH', { open_webhook_window: true })}>
+          <div className="docs-notion-webhook-box" data-testid="notion-sync-webhook" data-state={webhookState(status.webhook)}>
+            <p className="ui-help">
+              <code className="docs-notion-code">/api/integrations/notion/webhook</code>
+            </p>
+            {status.webhook.confirmed ? (
+              <div className="docs-notion-webhook">
+                <p className="ui-help">{status.webhook.fromEnv ? t('webhookFromEnv') : t('webhookConfirmed')}</p>
+                {status.webhook.fromEnv ? null : (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void webhookAction({ clear_webhook_token: true })} data-testid="notion-sync-webhook-clear">
+                    {t('webhookClear')}
+                  </button>
+                )}
+              </div>
+            ) : status.webhook.waiting ? (
+              <>
+                {status.webhook.candidates.length ? (
+                  <>
+                    <p className="ui-help">{t('webhookCandidatesHelp')}</p>
+                    {status.webhook.candidates.length > 1 ? (
+                      <p className="ui-error" role="alert">
+                        {t('webhookMany')}
+                      </p>
+                    ) : null}
+                    <ul className="docs-notion-webhook-list" data-testid="notion-sync-webhook-candidates">
+                      {status.webhook.candidates.map((c) => (
+                        <li key={c.id} className="docs-notion-webhook">
+                          <code className="docs-notion-code" data-testid="notion-sync-webhook-token">
+                            {c.token}
+                          </code>
+                          <time className="ui-help" dateTime={c.at}>
+                            {time(c.at)}
+                          </time>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={busy}
+                            onClick={() => void webhookAction({ confirm_webhook_token: c.id })}
+                            data-testid="notion-sync-webhook-confirm"
+                          >
+                            {t('webhookConfirm')}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="ui-help">{t('webhookWaiting')}</p>
+                )}
+                <div>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void webhookAction({ clear_webhook_token: true })} data-testid="notion-sync-webhook-stop">
+                    {t('webhookStop')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="docs-notion-webhook">
+                <p className="ui-help">{status.webhook.waitingElsewhere ? t('webhookElsewhere') : t('webhookIdle')}</p>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void webhookAction({ open_webhook_window: true })} data-testid="notion-sync-webhook-open">
                   {t('webhookOpen')}
                 </button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+            {webhookError ? (
+              <p className="ui-error" role="alert">
+                {webhookError}
+              </p>
+            ) : null}
+          </div>
         </FormSection>
       ) : null}
 
