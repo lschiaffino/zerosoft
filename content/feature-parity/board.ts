@@ -419,9 +419,9 @@ const parity: ProductParity = {
       area: 'mobile-offline',
       label: { en: 'Work offline', es: 'Trabajar offline', pt: 'Trabalhar offline' },
       detail: {
-        en: 'Boards you opened open without a connection; what you draw is saved on the device and merged element by element when you are back online. New boards need a connection',
-        es: 'Las pizarras que abriste se abren sin red; lo que dibujás queda en el dispositivo y se combina elemento por elemento al volver la red. Crear una pizarra nueva necesita conexión',
-        pt: 'Os quadros que você abriu abrem sem conexão; o que você desenha fica no dispositivo e é combinado elemento por elemento quando a conexão volta. Criar um quadro novo precisa de conexão',
+        en: 'Boards you opened open without a connection; what you draw is saved on the device, comes back on its own after a reload and is merged element by element when you are back online. New boards can be created offline and upload once the connection returns. Templates need a connection',
+        es: 'Las pizarras que abriste se abren sin red; lo que dibujás queda en el dispositivo, vuelve solo al recargar y se combina elemento por elemento al volver la red. Las pizarras nuevas se pueden crear sin red y se suben cuando vuelve la conexión. Las plantillas necesitan conexión',
+        pt: 'Os quadros que você abriu abrem sem conexão; o que você desenha fica no dispositivo, volta sozinho ao recarregar e é combinado elemento por elemento quando a conexão volta. Quadros novos podem ser criados sem conexão e são enviados quando ela volta. Os modelos precisam de conexão',
       },
       status: 'have',
       competitorHas: true,

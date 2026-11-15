@@ -55,6 +55,8 @@ import {
   type RecSegment,
   type RecSpace,
   type RecTranscriptStatus,
+  parseSpriteMeta,
+  type RecSpriteMeta,
 } from './rec-schema';
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: string, len: number) => Promise<Buffer>;
@@ -84,25 +86,33 @@ export async function dropRecFiles(urls: string[]): Promise<void> {
   const blobs = urls.filter((u) => /^https:\/\//.test(u));
   const local = urls.filter((u) => !/^https:\/\//.test(u));
   if (local.length) await deleteUploads(local);
-  if (!blobs.length || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  if (!blobs.length) return;
   const { del } = await import('@vercel/blob');
-  try {
-    await del(blobs);
-  } catch {
-    for (const u of blobs) await getDb().prepare('INSERT OR IGNORE INTO rec_file_deletes (url) VALUES (?)').run(u).catch(() => undefined);
+  const { recBlobOpts } = await import('./rec-upload');
+  // Las del store privado con su token; las de antes con el de siempre.
+  for (const u of blobs) {
+    const token = recBlobOpts(u).token;
+    if (!token && !process.env.BLOB_READ_WRITE_TOKEN) continue;
+    try {
+      await del(u, token ? { token } : undefined);
+    } catch {
+      await getDb().prepare('INSERT OR IGNORE INTO rec_file_deletes (url) VALUES (?)').run(u).catch(() => undefined);
+    }
   }
 }
 
 /** Cron: reintenta lo que Blob no pudo borrar. Hasta 20 intentos por archivo. */
 export async function retryRecFileDeletes(limit = 20): Promise<number> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return 0;
+  const { recBlobOpts, recPrivateToken } = await import('./rec-upload');
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !recPrivateToken()) return 0;
   const rows = (await getDb().prepare('SELECT url FROM rec_file_deletes ORDER BY attempts LIMIT ?').all(limit)) as Array<{ url: string }>;
   if (!rows.length) return 0;
   const { del } = await import('@vercel/blob');
   let done = 0;
   for (const r of rows) {
     try {
-      await del(r.url);
+      const token = recBlobOpts(r.url).token;
+      await del(r.url, token ? { token } : undefined);
       await getDb().prepare('DELETE FROM rec_file_deletes WHERE url = ?').run(r.url);
       done++;
     } catch {
@@ -206,6 +216,9 @@ export interface RecVideoRow {
   mp4_status: 'none' | 'processing' | 'failed';
   mp4_started_at: string | null;
   mp4_job: string | null;
+  /** Tira de miniaturas de la línea de tiempo, de la misma versión que el MP4 (mp4_for). */
+  sprite_url: string | null;
+  sprite_meta: string | null;
   comments_require_account: number;
   processing_at: string | null;
   views: number;
@@ -263,6 +276,8 @@ export interface RecVideoDto {
   hasGif: boolean;
   /** Versión del MP4 de reproducción ('' sin MP4): va en la URL del reproductor (caché larga). */
   playVer: string;
+  /** Tira de miniaturas para la vista previa de la línea de tiempo (?kind=sprite&v=playVer). */
+  sprite: RecSpriteMeta | null;
   /** Segundo del original de donde sale la miniatura (null = no se sabe). */
   thumbAt: number | null;
   views: number;
@@ -339,6 +354,7 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     hasThumb: !!row.thumb_url && (manager || assetVisible(row, 'thumb')),
     hasGif: !!row.gif_url && (manager || assetVisible(row, 'gif')),
     playVer: row.mp4_url && row.mp4_for ? row.mp4_for : '',
+    sprite: row.mp4_url && row.sprite_url ? parseSpriteMeta(row.sprite_meta) : null,
     thumbAt: row.thumb_at,
     views: row.views,
     lastViewedAt: row.last_viewed_at,
@@ -975,7 +991,7 @@ export async function deleteVideo(a: RecActor, id: string): Promise<void> {
   await getDb().prepare('DELETE FROM rec_videos WHERE id = ?').run(id);
   const { deleteRecParts } = await import('./rec-upload');
   await deleteRecParts(id).catch(() => undefined);
-  await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url].filter((u): u is string => !!u));
+  await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url, v.sprite_url].filter((u): u is string => !!u));
 }
 
 /**
@@ -1269,6 +1285,7 @@ export interface PublicVideoDto {
   hasThumb: boolean;
   /** Versión del MP4 de reproducción ('' sin MP4). */
   playVer: string;
+  sprite: RecSpriteMeta | null;
   overlays: RecOverlay[];
 }
 
@@ -1297,6 +1314,7 @@ export function toPublicDto(v: RecVideoRow & { author_name: string | null }, isA
     ctaMode: v.cta_mode,
     hasThumb: !!v.thumb_url && (isAuthor || assetVisible(v, 'thumb')),
     playVer: v.mp4_url && v.mp4_for ? v.mp4_for : '',
+    sprite: v.mp4_url && v.sprite_url ? parseSpriteMeta(v.sprite_meta) : null,
     overlays: isAuthor ? parseJson<RecOverlay[]>(v.overlays, []) : overlaysInTrim(parseJson<RecOverlay[]>(v.overlays, []), v.trim_start, v.trim_end),
   };
 }
@@ -1677,14 +1695,14 @@ export const STALE_RECORDING_DAYS = 7;
 export async function cleanupStaleRecordings(limit = 20): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_RECORDING_DAYS * 24 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const rows = (await getDb()
-    .prepare("SELECT id, url, audio_url, thumb_url, gif_url, mp4_url FROM rec_videos WHERE status = 'recording' AND created_at < ? LIMIT ?")
-    .all(cutoff, limit)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'mp4_url'>>;
+    .prepare("SELECT id, url, audio_url, thumb_url, gif_url, mp4_url, sprite_url FROM rec_videos WHERE status = 'recording' AND created_at < ? LIMIT ?")
+    .all(cutoff, limit)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'mp4_url' | 'sprite_url'>>;
   const { deleteRecParts } = await import('./rec-upload');
   for (const r of rows) {
     const res = await getDb().prepare("DELETE FROM rec_videos WHERE id = ? AND status = 'recording'").run(r.id);
     if (!res.changes) continue;
     await deleteRecParts(r.id).catch(() => undefined);
-    await dropRecFiles([r.url, r.audio_url, r.thumb_url, r.gif_url, r.mp4_url].filter((u): u is string => !!u));
+    await dropRecFiles([r.url, r.audio_url, r.thumb_url, r.gif_url, r.mp4_url, r.sprite_url].filter((u): u is string => !!u));
   }
   const { cleanEmptyPartDirs } = await import('./rec-upload');
   await cleanEmptyPartDirs().catch(() => undefined);

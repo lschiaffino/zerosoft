@@ -56,6 +56,14 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
     vacío, WhatsApp no lo aplicaba y Evolution respondía "archivado". zerosoft lo muestra como "volvé a vincular la
     línea". Una cuenta cuyo `regular_low` nunca tuvo cambios también da `sync_failed` (caso raro).
 
+- `0005-baileys-skip-patch-mac.patch` (sobre el `Dockerfile`, porque Baileys vive en `node_modules`): Baileys
+  7.0.0-rc.9 valida siempre el MAC de cada patch de app-state y, si uno no da (`Invalid patch mac`), borra el estado
+  de `regular_low` y no lo vuelve a leer; el archivado del teléfono deja de llegar. El 15/11 pasó en la línea del
+  dueño 7 minutos después de vincularla de cero, con un patch escrito por el teléfono (no por zerosoft). Baileys
+  7.0.0-rc14 usa `appStateMacVerification.patch` (false por defecto, como WhatsApp Web) y saltea lo que no puede
+  leer; el parche hace lo mismo con un `sed` después de `npm ci`, y el build falla si la línea cambió. Se saca al
+  pasar a una versión de Evolution con Baileys rc14 o posterior.
+
 **Las claves viven en el disco del contenedor.** Con `CACHE_REDIS_ENABLED=false`, Evolution guarda en Postgres solo
 `creds`; las sesiones de Signal, las pre-keys y las claves de app-state quedan en `/evolution/instances`, que no
 tiene volumen: cada deploy las borra. Por eso, después de un deploy, las líneas vinculadas antes no pueden leer ni

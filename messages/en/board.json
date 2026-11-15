@@ -22,7 +22,9 @@
     "actionError": "Couldn’t finish that. Try again.",
     "creating": "Creating…",
     "templatesTitle": "Start from a template",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "localBadge": "On this device",
+    "localHint": "Waiting to upload"
   },
   "share": {
     "button": "Share",
@@ -59,7 +61,8 @@
     "remoteAppliedAnon": "Updated with changes from someone else",
     "remoteChanged": "{name} changed this board. Your changes here aren't saved yet.",
     "remoteChangedAnon": "Someone else changed this board. Your changes here aren't saved yet.",
-    "remoteMerge": "Merge their changes"
+    "remoteMerge": "Merge their changes",
+    "draftRestored": "Your changes from this device are back on the board."
   },
   "public": {
     "notFound": "Board not found",
@@ -582,5 +585,10 @@
     "add": "Star",
     "remove": "Remove star",
     "badge": "Starred"
+  },
+  "local": {
+    "missingTitle": "This board isn’t on this device",
+    "missingBody": "It may have been uploaded already. Open it from the list.",
+    "syncError": "Couldn’t upload this board. It stays on this device and uploads later."
   }
 }

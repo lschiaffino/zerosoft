@@ -964,6 +964,29 @@ async function quotesFor(threadId: string, rows: MessageRow[]): Promise<Map<stri
       mediaType: q.media_type,
     });
   }
+  // Respuestas en privado (las mías o las que me mandaron): el citado es de un grupo de la misma cuenta.
+  const missing = ids.filter((x) => !out.has(x));
+  if (missing.length) {
+    const other = (await getDb()
+      .prepare(
+        `SELECT m.id, m.external_id, m.from_me, m.sender_name, m.sender_handle, m.body, m.media_type, m.revoked_at, t.id AS chat_id, t.title AS chat_title
+         FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
+         WHERE t.account_id = (SELECT account_id FROM inbox_threads WHERE id = ?) AND t.kind = 'group' AND m.external_id IN (${missing.map(() => '?').join(',')})
+         LIMIT 200`,
+      )
+      .all(threadId, ...missing)) as Array<{ id: string; external_id: string; from_me: number; sender_name: string; sender_handle: string; body: string; media_type: string; revoked_at: string | null; chat_id: string; chat_title: string }>;
+    for (const q of other) {
+      out.set(q.external_id, {
+        id: q.id,
+        fromMe: q.from_me === 1,
+        senderName: q.sender_name,
+        senderHandle: q.sender_handle,
+        body: q.revoked_at ? '' : q.body.slice(0, 300),
+        mediaType: q.media_type,
+        chat: { id: q.chat_id, title: q.chat_title },
+      });
+    }
+  }
   return out;
 }
 

@@ -8,7 +8,7 @@ import { closeRecording, getSessionRow, queueNotes, updateSession } from '@/lib/
 import { queueNoteAfterResponse } from '@/lib/voice-jobs';
 import { transcribeProvider, VoiceTranscribeError } from '@/lib/voice-transcribe';
 import { isVoiceAudioType } from '@/lib/voice-types';
-import { isVoiceBlobUrl, voiceBlobAccess, voiceBlobEnabled, voiceImportMaxBytes } from '@/lib/voice-blob';
+import { isVoiceBlobUrl, voiceBlobAccess, voiceBlobEnabled, voiceBlobToken, voiceImportMaxBytes } from '@/lib/voice-blob';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (!isVoiceBlobUrl(url, auth.owner.personId)) return voiceJsonError(400, 'invalid_input');
       blobUrl = url;
       // Por el SDK de Blob (sin seguir redirecciones a otro lado; los privados van con el token).
-      const blob = await get(url, { access: voiceBlobAccess() }).catch(() => null);
+      const blob = await get(url, { access: voiceBlobAccess(), ...voiceBlobToken() }).catch(() => null);
       if (!blob || blob.statusCode !== 200 || !blob.stream) return voiceJsonError(400, 'invalid_input');
       if ((blob.blob.size ?? 0) > max) throw new VoiceTranscribeError('audio_too_large');
       type = blob.blob.contentType || 'audio/webm';
@@ -65,6 +65,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await updateSession(auth.owner, id, { status: 'done' }).catch(() => {});
     return voiceErrorResponse(err);
   } finally {
-    if (blobUrl && process.env.BLOB_READ_WRITE_TOKEN) await del(blobUrl).catch(() => {});
+    if (blobUrl && voiceBlobEnabled()) await del(blobUrl, voiceBlobToken()).catch(() => {});
   }
 }

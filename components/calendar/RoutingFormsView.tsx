@@ -36,7 +36,7 @@ export default function RoutingFormsView({ items, handle, openNew }: RoutingForm
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useKeyShortcut('c', () => setOpen(true), !open);
+  useKeyShortcut('c', () => navigator.onLine && setOpen(true), !open);
   const slug = slugify(title);
 
   function close() {

@@ -33,6 +33,7 @@ import { processPendingAgentSessions } from '@/lib/track-agents';
 import { recheckLinkSafety } from '@/lib/link-safety';
 import { pruneDeferredClicks } from '@/lib/link-deferred';
 import { pruneOfflineRequests } from '@/lib/offline-idempotency';
+import { pruneSendClaims } from '@/lib/send-once';
 import { pruneLinkHistory } from '@/lib/link-activity';
 import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
 import { pruneBoardEvents } from '@/lib/board-live';
@@ -120,6 +121,8 @@ export async function GET(req: NextRequest) {
   const linkDeferred = await pruneDeferredClicks().catch(() => null);
   // Claves de altas hechas sin conexión (lib/offline-idempotency.ts).
   const offlineRequests = await pruneOfflineRequests().catch(() => null);
+  // Claves de envíos de Lines e Inbox (lib/send-once.ts).
+  const sendClaims = await pruneSendClaims().catch(() => null);
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);
@@ -207,6 +210,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

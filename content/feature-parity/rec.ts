@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-10',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -122,9 +122,9 @@ const parity: ProductParity = {
     }),
     row('filler-silence-removal', 'editing', ['Remove filler words and silences with AI', 'Quitar muletillas y silencios con IA', 'Remover vícios de linguagem e silêncios com IA'], 'partial', {
       detail: [
-        'From the transcript and without AI: marks silences of 2 s or more and phrases made up only of filler words, then creates a new video. It does not remove a filler word inside a sentence. Same limits as editing from the transcript',
-        'Desde la transcripción y sin IA: marca silencios de 2 s o más y frases hechas solo de muletillas, y crea un video nuevo. No saca una muletilla en medio de una frase. Los mismos límites que editar desde la transcripción',
-        'A partir da transcrição e sem IA: marca silêncios de 2 s ou mais e frases feitas só de vícios, e cria um vídeo novo. Não tira um vício no meio de uma frase. Os mesmos limites de editar pela transcrição',
+        'From the transcript and without AI: marks silences of 2 s or more and phrases made up only of filler words, then creates a new video. It does not remove a filler word inside a sentence. Same limits as editing from the transcript. Viewers can also turn on "Skip silences" in the player, which jumps over those gaps while playing',
+        'Desde la transcripción y sin IA: marca silencios de 2 s o más y frases hechas solo de muletillas, y crea un video nuevo. No saca una muletilla en medio de una frase. Los mismos límites que editar desde la transcripción. Quien mira también puede prender "Saltar silencios" en el reproductor, que pasa esos huecos de largo al reproducir',
+        'A partir da transcrição e sem IA: marca silêncios de 2 s ou mais e frases feitas só de vícios, e cria um vídeo novo. Não tira um vício no meio de uma frase. Os mesmos limites de editar pela transcrição. Quem assiste também pode ligar "Pular silêncios" no player, que pula esses intervalos ao reproduzir',
       ],
     }),
     row('custom-thumbnail', 'editing', ['Custom and GIF thumbnails', 'Miniatura propia y GIF', 'Miniatura própria e GIF'], 'have', {
@@ -161,9 +161,9 @@ const parity: ProductParity = {
     row('watch-page', 'sharing', ['Video page with player and transcript', 'Página del video con reproductor y transcripción', 'Página do vídeo com player e transcrição'], 'have', {
       weight: 2,
       detail: [
-        '/v/<id>: player with speed, captions, chapters and keyboard shortcuts, summary, transcript and comments',
-        '/v/<id>: reproductor con velocidad, subtítulos, capítulos y atajos de teclado, resumen, transcripción y comentarios',
-        '/v/<id>: player com velocidade, legendas, capítulos e atalhos de teclado, resumo, transcrição e comentários',
+        '/v/<id>: player with speed, captions, chapters and keyboard shortcuts, summary, transcript and comments. Hovering or dragging on the timeline shows a frame preview with the time and chapter. The recorded file gets an index at the start when the recording stops (no re-encoding), so you can jump to any second right away; jumps are immediate once the playback copy (index first, keyframe every 2 s) is ready, which happens after the upload',
+        '/v/<id>: reproductor con velocidad, subtítulos, capítulos y atajos de teclado, resumen, transcripción y comentarios. Al pasar o arrastrar por la línea de tiempo se ve un cuadro de vista previa con el tiempo y el capítulo. El archivo grabado recibe un índice al principio al cortar la grabación (sin recodificar), así que se puede saltar a cualquier segundo desde el primer momento; saltar es inmediato cuando está la copia para reproducir (índice al principio, keyframe cada 2 s), que se arma después de subir',
+        '/v/<id>: player com velocidade, legendas, capítulos e atalhos de teclado, resumo, transcrição e comentários. Ao passar ou arrastar pela linha do tempo aparece um quadro de prévia com o tempo e o capítulo. O arquivo gravado recebe um índice no começo ao parar a gravação (sem codificar de novo), então dá para pular para qualquer segundo desde o primeiro momento; pular é imediato quando a cópia para reprodução (índice no começo, keyframe a cada 2 s) está pronta, o que acontece depois do envio',
       ],
     }),
     row('embed-player', 'sharing', ['Embed the player in other sites', 'Insertar el reproductor en otros sitios', 'Incorporar o player em outros sites'], 'have', {
@@ -238,16 +238,16 @@ const parity: ProductParity = {
     row('timestamped-comments', 'engagement', ['Time-stamped comments', 'Comentarios con tiempo', 'Comentários com tempo'], 'have', {
       weight: 2,
       detail: [
-        'Marked on the timeline, one click jumps to the second, with text replies (no video replies)',
-        'Marcados en la línea de tiempo, un clic lleva al segundo, con respuestas de texto (sin respuestas en video)',
-        'Marcados na linha do tempo, um clique leva ao segundo, com respostas de texto (sem respostas em vídeo)',
+        'Marked on the timeline, one click jumps to the second, and hovering a mark shows the comment over the video. Text replies (no video replies)',
+        'Marcados en la línea de tiempo, un clic lleva al segundo, y al pasar por una marca se ve el comentario sobre el video. Respuestas de texto (sin respuestas en video)',
+        'Marcados na linha do tempo, um clique leva ao segundo, e ao passar por uma marca o comentário aparece sobre o vídeo. Respostas de texto (sem respostas em vídeo)',
       ],
     }),
     row('emoji-reactions', 'engagement', ['Emoji reactions', 'Reacciones con emoji', 'Reações com emoji'], 'have', {
       detail: [
-        'Six reactions with the second of the video, shown on the timeline',
-        'Seis reacciones con el segundo del video, marcadas en la línea de tiempo',
-        'Seis reações com o segundo do vídeo, marcadas na linha do tempo',
+        'Six reactions with the second of the video, shown on the timeline. They float up over the video when playback reaches their second, and yours floats up as you react',
+        'Seis reacciones con el segundo del video, marcadas en la línea de tiempo. Suben sobre el video cuando la reproducción llega a su segundo, y la tuya sube al reaccionar',
+        'Seis reações com o segundo do vídeo, marcadas na linha do tempo. Sobem sobre o vídeo quando a reprodução chega ao segundo delas, e a sua sobe ao reagir',
       ],
     }),
     row('transcript-captions', 'engagement', ['Transcript and captions', 'Transcripción y subtítulos', 'Transcrição e legendas'], 'have', {

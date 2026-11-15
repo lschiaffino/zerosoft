@@ -22,7 +22,9 @@
     "actionError": "Não foi possível concluir. Tente de novo.",
     "creating": "Criando…",
     "templatesTitle": "Começar com um modelo",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "localBadge": "Neste dispositivo",
+    "localHint": "Aguardando envio"
   },
   "share": {
     "button": "Compartilhar",
@@ -59,7 +61,8 @@
     "remoteAppliedAnon": "Atualizado com mudanças de outra pessoa",
     "remoteChanged": "{name} mudou este quadro. Suas mudanças aqui ainda não foram salvas.",
     "remoteChangedAnon": "Outra pessoa mudou este quadro. Suas mudanças aqui ainda não foram salvas.",
-    "remoteMerge": "Combinar as mudanças"
+    "remoteMerge": "Combinar as mudanças",
+    "draftRestored": "As alterações feitas neste dispositivo voltaram ao quadro."
   },
   "public": {
     "notFound": "Quadro não encontrado",
@@ -582,5 +585,10 @@
     "add": "Destacar",
     "remove": "Remover destaque",
     "badge": "Destacada"
+  },
+  "local": {
+    "missingTitle": "Este quadro não está neste dispositivo",
+    "missingBody": "Talvez já tenha sido enviado. Abra-o pela lista.",
+    "syncError": "Não foi possível enviar este quadro. Ele fica neste dispositivo e é enviado depois."
   }
 }

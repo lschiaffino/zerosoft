@@ -117,6 +117,54 @@ export function trimmedDuration(duration: number, trimStart: number, trimEnd: nu
   return Math.max(0, end - trimStart);
 }
 
+/**
+ * Tira de miniaturas para la vista previa de la línea de tiempo: un cuadro de
+ * `w`×`h` cada `every` segundos (del video que se ve, ya recortado), en una
+ * grilla de `cols` columnas. A lo sumo SPRITE_MAX cuadros: un video largo
+ * tiene cuadros más espaciados.
+ */
+export interface RecSpriteMeta {
+  every: number;
+  cols: number;
+  count: number;
+  w: number;
+  h: number;
+}
+
+export const SPRITE_MAX = 120;
+
+export function spritePlan(durationSec: number): RecSpriteMeta {
+  const d = Math.max(1, Number(durationSec) || 1);
+  const every = Math.max(2, Math.ceil(d / SPRITE_MAX));
+  return { every, cols: 10, count: Math.max(1, Math.ceil(d / every)), w: 160, h: 90 };
+}
+
+export function parseSpriteMeta(raw: unknown): RecSpriteMeta | null {
+  let m: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      m = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!m || typeof m !== 'object') return null;
+  const o = m as Record<string, unknown>;
+  const n = (k: string, max: number) => (typeof o[k] === 'number' && Number.isInteger(o[k]) && (o[k] as number) > 0 && (o[k] as number) <= max ? (o[k] as number) : null);
+  const every = n('every', 3600);
+  const cols = n('cols', 50);
+  const count = n('count', 1000);
+  const w = n('w', 640);
+  const h = n('h', 640);
+  return every && cols && count && w && h ? { every, cols, count, w, h } : null;
+}
+
+/** Posición en la tira (px) del cuadro del segundo `t`. */
+export function spriteTile(m: RecSpriteMeta, t: number): { x: number; y: number } {
+  const i = Math.max(0, Math.min(m.count - 1, Math.floor(Math.max(0, t) / m.every)));
+  return { x: (i % m.cols) * m.w, y: Math.floor(i / m.cols) * m.h };
+}
+
 /** URL de la llamada a la acción: solo web (http/https), sin IPs ni localhost, como Loom. */
 export function cleanCtaUrl(raw: string): string | null {
   const text = raw.trim();

@@ -382,6 +382,31 @@ describe('la línea no puede sincronizar el archivado (app_state_unavailable)', 
     expect(toNumberDto((await getNumberRowById(number.id))!).archiveSyncBroken).toBe(false);
   });
 
+  it('con la marca puesta, el "no archivado" del teléfono no desarchiva lo archivado acá (Inbox y Lines)', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const { owner, account } = await inboxSetup('wa-arch-stale');
+    const jid = '5491100004903@s.whatsapp.net';
+    await ingestWhatsappEvents(account, [inbound(jid)]);
+    const [t] = await listThreads(owner);
+    await getDb().prepare("UPDATE inbox_accounts SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(account.id);
+    await getDb().prepare('UPDATE inbox_threads SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), t.id);
+    await ingestWhatsappEvents(account, [{ type: 'archive', chatId: jid, archived: false }]);
+    expect((await listThreads(owner, { view: 'archived' })).map((x) => x.id)).toEqual([t.id]);
+
+    const { ws, number } = await linesSetup('wa-lines-stale');
+    await ingestEvents(number, [inbound(jid)]);
+    const [c] = (await listChats(ws, ws)).rows;
+    await getDb().prepare("UPDATE groups_numbers SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(number.id);
+    await getDb().prepare('UPDATE groups_chats SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), c.id);
+    await ingestEvents(number, [{ type: 'archive', chatId: jid, archived: false }]);
+    expect((await getChat(ws, c.id))!.archived).toBe(true);
+    // Archivar desde el teléfono sí se aplica (eso llega bien aunque la marca esté).
+    await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(c.id);
+    await ingestEvents(number, [{ type: 'archive', chatId: jid, archived: true }]);
+    expect((await getChat(ws, c.id))!.archived).toBe(true);
+    info.mockRestore();
+  });
+
   it('Lines: desconectar el número borra la marca', async () => {
     const { ws, number } = await linesSetup('wa-lines-appstate-b');
     await getDb().prepare("UPDATE groups_numbers SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(number.id);

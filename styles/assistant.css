@@ -79,8 +79,9 @@ html[data-assistant-pinned] body .fl-root { right: calc(var(--asst-w, 440px) + 1
   html[data-assistant-pinned] .app-frame { padding-right: 0; }
   /* Dedos: botones y campo de 40px, letra de 16px (iOS no hace zoom al enfocar). */
   .asst-icon-btn,
-  .asst-composer-bar .asst-attach { width: 40px; height: 40px; }
-  .asst-input { min-height: 40px; padding-block: 8px; font-size: 16px; }
+  .asst-composer .asst-composer-bar .asst-attach { width: 40px; height: 40px; }
+  /* Con .asst-composer delante: la regla base de .asst-input está más abajo y si no le ganaba. */
+  .asst-composer .asst-input { min-height: 40px; padding-block: 8px; font-size: 16px; }
   .asst-send { min-height: 40px; }
   .asst-panel .asst-messages,
   .asst-panel .asst-form { padding-inline: 12px; }
