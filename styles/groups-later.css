@@ -46,3 +46,11 @@
   /* "Deshacer" del aviso: que el dedo lo agarre. */
   .ui-toast .ui-toast-action { min-height: 40px; padding: 4px 12px; }
 }
+
+/* Lo mismo en Lines: horario y acciones chicos y sin negrita en la franja de programados (en compu). */
+.gr-later-strip .gr-later-when { font-weight: 500; font-size: 0.75rem; }
+@media (min-width: 768px) {
+  .gr-later-strip .gr-later-actions { gap: 0; }
+  .gr-later-strip .gr-later-actions .btn { min-height: 0; height: auto; padding: 2px 6px; font-size: 0.75rem; font-weight: 400; color: var(--wa-text-2, var(--ink-2)); }
+  .gr-later-strip .gr-later-actions .btn:hover:not(:disabled), .gr-later-strip .gr-later-actions .btn:focus-visible { color: var(--wa-text, var(--ink)); background: var(--ui-hover); }
+}

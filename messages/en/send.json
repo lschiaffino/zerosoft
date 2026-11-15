@@ -230,6 +230,8 @@
     "colClicks": "Clicks",
     "toPage": "Page {page} of the document",
     "clickedOn": "Clicked on page {page}: {target}",
+    "closedDisabled": "Disabled link",
+    "closedExpired": "Expired link",
     "buttonClick": "Button: {label}",
     "clickedButton": "Clicked the button: {label}"
   },
