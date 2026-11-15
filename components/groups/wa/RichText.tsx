@@ -28,7 +28,7 @@ function renderText(text: string, key: string, mentions?: MentionLabels): ReactN
         typeof p === 'string' ? (
           p
         ) : (
-          <span key={i} className="wa-mention">
+          <span key={i} className="wa-mention" data-mention={p.mention}>
             @{p.label}
           </span>
         ),

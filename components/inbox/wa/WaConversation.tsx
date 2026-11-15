@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { type MouseEvent as ReactMouseEvent, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
@@ -208,6 +208,16 @@ const WaConversation = forwardRef<
   // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
   const openPerson = personSheet.open;
+  // Una mención ("@Nombre") en un grupo también abre la ficha de esa persona, como en WhatsApp.
+  const openMention = (e: ReactMouseEvent, m: MessageDto) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.wa-mention[data-mention]');
+    if (!el) return;
+    const d = el.dataset.mention ?? '';
+    const phone = m.mentionNames?.[d]?.phone || (wa?.participants.some((p) => p.phone === d) ? d : '');
+    if (!phone || phone === wa?.myPhone) return;
+    e.stopPropagation();
+    openPerson(phone, names.get(phone) || (el.textContent ?? '').replace(/^@/, ''), avatars.get(phone));
+  };
 
   // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
   const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
@@ -555,6 +565,7 @@ const WaConversation = forwardRef<
           e.preventDefault();
           e.currentTarget.querySelector<HTMLButtonElement>('.wa-chevron')?.click();
         }}
+        onClick={group ? (e) => openMention(e, m) : undefined}
         {...gestures}
       >
         <span className="wa-swipe-reply" aria-hidden="true">

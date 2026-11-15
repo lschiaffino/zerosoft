@@ -678,7 +678,8 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     flagged: Boolean(row.flagged_at),
     labels,
     createdAt: row.created_at,
-    pictureUrl: row.picture_url ?? '',
+    // Un chat 1:1 sin foto propia todavía (recién abierto desde un grupo): la de la persona en la libreta.
+    pictureUrl: row.picture_url || (row as ChatRow & { contact_picture?: string | null }).contact_picture || '',
     announce: Boolean(row.announce),
     locked: Boolean(row.locked),
     ephemeral: Number(row.ephemeral ?? 0),
@@ -716,6 +717,12 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
 export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
+  if (row.kind === 'dm' && !row.picture_url && row.phone) {
+    const pic = (await getDb().prepare("SELECT picture FROM wa_contacts WHERE app = 'lines' AND account_id = ? AND phone = ? AND picture <> '' LIMIT 1").get(row.number_id, row.phone)) as
+      | { picture: string }
+      | undefined;
+    if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic.picture;
+  }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
     const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
@@ -995,6 +1002,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const db = getDb();
   const total = query.count === false ? { c: 0 } : ((await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number });
   const select = `SELECT c.*, ${matchSelect},
+         CASE WHEN c.kind = 'dm' AND COALESCE(c.picture_url, '') = '' AND c.phone <> '' THEN
+           (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = c.phone LIMIT 1) END AS contact_picture,
          (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info,
          (SELECT zhl.name FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != ''
