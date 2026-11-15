@@ -43,6 +43,10 @@ test('Docs: el globo de comentar sigue visible al llevarle el mouse y abre el co
   await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2, { steps: 8 });
   await expect(grip).toHaveCSS('opacity', '1');
 
+  // El puente del asa no tapa el principio del renglón: un click en el primer píxel cae en el texto.
+  await editable(page, 'Reunión').click({ position: { x: 1, y: 6 } });
+  await expect(editable(page, 'Reunión')).toBeFocused();
+
   // Vuelve al texto y cruza otra vez para hacer click en el globo.
   await page.mouse.move(box.x + box.width - 20, box.y + 12, { steps: 12 });
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
