@@ -490,6 +490,8 @@ export type ProviderErrorCode =
   | 'invalid_phone'
   | 'rate_limited'
   | 'provider_error'
+  /** La línea no puede mandar cambios de app-state (archivar): le falta la clave o su estado se rompió. Se vuelve a vincular. */
+  | 'app_state_unavailable'
   | 'unreachable';
 
 export class ProviderError extends Error {

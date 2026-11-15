@@ -144,6 +144,11 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
         </div>
         <span className={`badge ${connected ? 'badge-ok' : 'badge-warn'}`}>{connected ? t('statusOn') : t('statusOff')}</span>
       </div>
+      {connected && account?.archiveSyncBroken && (
+        <p className="ui-error" role="status" data-testid="inbox-wa-archive-broken">
+          {t('archiveBroken')}
+        </p>
+      )}
       {!available ? (
         <p className="ib-help">{t('unavailable')}</p>
       ) : (

@@ -181,6 +181,9 @@ export async function disconnectWhatsapp(account: AccountRow): Promise<void> {
   }
   await writeAccountConfig(account.id, {});
   await setAccountState(account.id, { status: 'disconnected', provider: '', sync_cursor: '', error: '' });
+  // La instancia y sus claves se borraron: la próxima vinculación arranca limpia y el aviso de archivado ya no vale.
+  const { clearArchiveSyncError } = await import('../wa-archive-sync');
+  await clearArchiveSyncError('inbox', account.id).catch(() => null);
 }
 
 /**

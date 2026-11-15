@@ -90,6 +90,8 @@ export interface NumberRow {
   config: string;
   webhook_secret: string;
   last_error: string;
+  /** No puede sincronizar el archivado con WhatsApp ('app_state_unavailable'; lib/wa-archive-sync.ts). */
+  archive_sync_error?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -109,6 +111,8 @@ export interface NumberDto {
   phone: string;
   status: ConnectState['status'];
   lastError: string;
+  /** La línea no puede sincronizar el archivado con WhatsApp: hay que volver a vincularla (lib/wa-archive-sync.ts). */
+  archiveSyncBroken: boolean;
   caps: (typeof PROVIDER_CAPS)[ProviderKind];
   /** Campos de configuración cargados (los secretos nunca se devuelven). */
   configured: Record<string, boolean>;
@@ -148,6 +152,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     phone: row.phone,
     status: row.status,
     lastError: row.last_error,
+    archiveSyncBroken: !!row.archive_sync_error,
     caps: PROVIDER_CAPS[row.provider],
     configured,
     // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
@@ -477,6 +482,8 @@ export async function disconnectNumber(ws: string, id: string): Promise<void> {
   if (!row) throw new GroupsError('not_found', 404);
   await safeDisconnect(row);
   await saveState(row, { status: 'disconnected' });
+  const { clearArchiveSyncError } = await import('./wa-archive-sync');
+  await clearArchiveSyncError('lines', row.id).catch(() => null);
 }
 
 async function safeDisconnect(row: NumberRow): Promise<void> {

@@ -37,6 +37,8 @@ export interface InboxAccountDto {
   lastSyncAt: string | null;
   /** Hay importación del historial de WhatsApp en curso. */
   backfilling: boolean;
+  /** WhatsApp: archivar no llega al teléfono y viceversa; hay que volver a vincular. */
+  archiveSyncBroken?: boolean;
 }
 
 export interface ThreadDto {

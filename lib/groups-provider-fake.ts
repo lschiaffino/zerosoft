@@ -91,6 +91,8 @@ interface FakeState {
   archives?: FakeArchive[];
   /** Cuántos archivar seguidos fallan (el servidor no responde): para probar los reintentos. */
   failArchives?: number;
+  /** Con qué falla (por defecto 'unreachable'; 'app_state_unavailable': la línea no puede sincronizar el archivado). */
+  failArchivesCode?: 'unreachable' | 'app_state_unavailable';
   /** "Confirmaciones de lectura" de la cuenta (sin valor: prendidas). */
   readReceipts?: 'all' | 'none';
   /** Mensajes que "no se pudieron descifrar", por chat: los devuelve fetchHistory. */
@@ -221,9 +223,10 @@ function withhold(s: FakeState, raw: unknown): InboundEvent | null {
   return { type: 'missing', chatId: m.chatId, messageId: m.providerMessageId, fromMe: m.fromMe === true, ...(m.timestamp ? { timestamp: m.timestamp } : {}) };
 }
 
-/** Los próximos `n` archivar del número falso fallan con 'unreachable' (tests). */
-export function fakeFailArchives(numberId: string, n: number): void {
+/** Los próximos `n` archivar del número falso fallan con 'unreachable' (u otro código) (tests). */
+export function fakeFailArchives(numberId: string, n: number, code: 'unreachable' | 'app_state_unavailable' = 'unreachable'): void {
   stateFor(numberId).failArchives = Math.max(0, n);
+  stateFor(numberId).failArchivesCode = code;
 }
 
 /** Estado de un grupo del número falso (tests). */
@@ -487,7 +490,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       requireConnected();
       if (s.failArchives) {
         s.failArchives--;
-        throw new ProviderError('unreachable');
+        throw new ProviderError(s.failArchivesCode ?? 'unreachable');
       }
       (s.archives ??= []).push({ chatId, archive, ...(last ? { last } : {}), at: Date.now() });
       void send(chatId, archive ? 'archive' : 'unarchive', 'archive');

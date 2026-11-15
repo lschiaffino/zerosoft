@@ -67,6 +67,8 @@ export interface AccountRow {
   /** WhatsApp: "Confirmaciones de lectura" ('all', 'none' o '' sin saber) y cuándo se leyó (lib/wa-privacy.ts). */
   read_receipts?: string;
   privacy_at?: string | null;
+  /** WhatsApp: no puede sincronizar el archivado ('app_state_unavailable'; lib/wa-archive-sync.ts). */
+  archive_sync_error?: string;
 }
 
 /** Credenciales de la cuenta, descifradas. */
@@ -102,6 +104,7 @@ export function accountDto(r: AccountRow): InboxAccountDto {
     error: r.error,
     lastSyncAt: r.last_sync_at,
     backfilling,
+    archiveSyncBroken: r.kind === 'whatsapp' && !!r.archive_sync_error,
   };
 }
 
