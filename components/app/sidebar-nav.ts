@@ -274,6 +274,8 @@ export interface SidebarLabels {
   inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
+  /** Fleet: tablero de agentes, chats, PRs y deploys. */
+  fleet: { now: string; chats: string; prs: string; deploys: string; connect: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -347,7 +349,8 @@ export type AppProduct =
   | 'forms'
   | 'send'
   | 'inbox'
-  | 'calls';
+  | 'calls'
+  | 'fleet';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -377,6 +380,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/send', 'send'],
   ['/app/inbox', 'inbox'],
   ['/app/calls', 'calls'],
+  ['/app/fleet', 'fleet'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -428,6 +432,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   send: 'send',
   inbox: 'inbox',
   calls: 'calls',
+  fleet: 'fleet',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -1028,6 +1033,17 @@ export function buildNav(
         appSettingsGroup('/app/inbox/settings'),
       ];
     }
+    case 'fleet':
+      return [
+        {
+          items: [
+            { href: '/app/fleet', label: labels.fleet.now, active: pathname === '/app/fleet', icon: 'fleet' },
+            { href: '/app/fleet/prs', label: labels.fleet.prs, active: at('/app/fleet/prs'), icon: 'pullRequest' },
+            { href: '/app/fleet/deploys', label: labels.fleet.deploys, active: at('/app/fleet/deploys'), icon: 'deploy' },
+          ],
+        },
+        appSettingsGroup('/app/fleet/settings'),
+      ];
     case 'calls':
       return [
         {
@@ -1252,6 +1268,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/inbox?new=1', labels.inbox.compose, 'inbox')];
     case 'calls':
       return [item('/app/calls?new=1', labels.calls.newCall, 'calls')];
+    case 'fleet':
+      return [item('/app/fleet/settings?new=1#agents', labels.fleet.connect, 'plug')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':
