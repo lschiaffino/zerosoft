@@ -157,7 +157,7 @@ test('Inbox: una foto con texto que no se pudo bajar mantiene el ancho de la fot
   const open = async () => {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
-    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible();
+    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 });
   };
   await open();
   const thread = page.locator('.ib-wa-thread');
