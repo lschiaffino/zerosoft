@@ -66,7 +66,7 @@ pub fn message(l: &str, o: &Outcome) -> (String, String) {
     match o {
         Outcome::Off => (t(l, "upToDate"), t(l, "updatesOff")),
         Outcome::UpToDate(v) => (t(l, "upToDate"), fill(&t(l, "upToDateVersion"), &[("v", v)])),
-        Outcome::Downloading(v) => (fill(&t(l, "updateDownloading"), &[("v", v)]), t(l, "updateDownloadingBody")),
+        Outcome::Downloading(v) => (fill(&t(l, "updateDownloadingTitle"), &[("v", v)]), t(l, "updateDownloadingBody")),
         Outcome::Ready(v) => (t(l, "updateReady"), fill(&t(l, "updateReadyBody"), &[("v", v)])),
         Outcome::Failed(key, detail) => {
             let text = t(l, key);
