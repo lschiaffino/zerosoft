@@ -29,6 +29,7 @@ import { useComposerLinkPreview } from '@/components/groups/wa/ComposerLinkPrevi
 import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
+import { keepFocus } from '@/components/groups/wa/keyboard';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -577,7 +578,7 @@ const WaComposer = forwardRef<
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+          <button type="button" className="wa-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
             // Clic derecho en Enviar: programar el envío (como en WhatsApp).
             if (editing || !hasText) return;
             e.preventDefault();

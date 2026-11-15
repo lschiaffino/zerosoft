@@ -94,6 +94,7 @@ import TouchMessageMenu from './wa/TouchMessageMenu';
 import SelectionBar from './wa/SelectionBar';
 import { useBackLayer } from './wa/backLayer';
 import { swipeAndHold } from '@/components/inbox/wa/gestures';
+import { keepFocus, tapClosesKeyboard } from './wa/keyboard';
 import ContactPicker from './wa/ContactPicker';
 import LiveWaveform from './wa/LiveWaveform';
 import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
@@ -2065,7 +2066,7 @@ export default function ChatThread(props: ThreadProps) {
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">
-          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
+          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} onClick={tapClosesKeyboard} data-voice-off>
             {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
               <p className="wa-history-note">
                 <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
@@ -2331,6 +2332,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className="wa-send"
+                  {...keepFocus}
                   onClick={() => void saveEdit()}
                   disabled={editing.busy || !editing.text.trim()}
                   aria-busy={editing.busy || undefined}
@@ -2343,6 +2345,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
+                  {...keepFocus}
                   onClick={() => void send()}
                   onContextMenu={(e) => {
                     // Clic derecho en Enviar: programar el envío (como en Inbox).
