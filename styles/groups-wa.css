@@ -1369,6 +1369,9 @@ button.wa-person:focus-visible { outline: 2px solid var(--wa-primary); outline-o
 }
 /* Un miembro de la lista de Lines abre su ficha: la foto y el nombre son un solo botón. */
 button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+@media (pointer: coarse) {
+  button.gr-member-open { min-height: 40px; }
+}
 /* Respuesta en privado: el nombre del grupo del mensaje citado, al lado de quien lo mandó. */
 .wa-quote-chat { font-weight: 400; color: var(--wa-text-2); }
 .gr-quote strong span.wa-quote-chat { display: inline; overflow: visible; }
