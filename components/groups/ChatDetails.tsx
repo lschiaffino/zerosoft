@@ -2,6 +2,7 @@
 
 import { MessageMenu } from './ThreadParts';
 import Avatar from './wa/Avatar';
+import { useLinesPersonSheet } from './person-sheet';
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -81,6 +82,9 @@ export default function ChatDetails({
   const inbox = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
+  const tsheet = useTranslations('groups.wa.contactSheet');
+  // Un miembro abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1 en la línea.
+  const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true));
   const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
   const [phones, setPhones] = useState('');
@@ -440,11 +444,29 @@ export default function ChatDetails({
               <ul className="gr-members">
                 {shownMembers.slice(0, compact && !memberQ ? 30 : memberLimit).map((m) => (
                   <li key={m.phone}>
-                    <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
-                    <span className="gr-member-who">
-                      <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
-                      {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
-                    </span>
+                    {(m as MemberDto & { masked?: boolean }).masked ? (
+                      <>
+                        <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
+                        <span className="gr-member-who">
+                          <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
+                          {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
+                        </span>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="wa-person gr-member-open"
+                        onClick={() => personSheet.open({ phone: m.phone }, m.name || `+${m.phone}`, m.picture || undefined)}
+                        aria-label={tsheet('openFor', { name: m.name || `+${m.phone}` })}
+                        data-testid="wa-member"
+                      >
+                        <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
+                        <span className="gr-member-who">
+                          <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
+                          {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
+                        </span>
+                      </button>
+                    )}
                     {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
                     {m.role !== 'superadmin' && !(m as MemberDto & { masked?: boolean }).masked && (
                       <span className="gr-member-actions">
@@ -578,6 +600,7 @@ export default function ChatDetails({
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
       />
+      {personSheet.sheet}
       {toast}
     </div>
   );

@@ -9,6 +9,7 @@ import { atBottom as isAtBottom } from '@/lib/scroll-anchor';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
+import { useInboxPersonSheet } from './person-sheet';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
@@ -98,12 +99,17 @@ const WaConversation = forwardRef<
     onRename: (title: string) => void;
     onRefresh: () => void;
     loadOlder: () => Promise<void>;
+    /** Abrir otro chat de Inbox (el 1:1 de alguien del grupo, un grupo en común). */
+    onOpenThread?: (id: string) => void;
+    /** Abrir (o crear) el chat 1:1 con un teléfono. */
+    onStartChat?: (phone: string) => Promise<void>;
   }
 >(function WaConversation(props, composerRef) {
   const { detail, connected, onAction, onError, onRefresh } = props;
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const ws = useTranslations('groups.wa.stickers');
+  const tsheet = useTranslations('groups.wa.contactSheet');
   const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
@@ -180,6 +186,10 @@ const WaConversation = forwardRef<
 
   // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
   const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
+
+  // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
+  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
+  const openPerson = personSheet.open;
 
   // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
   const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
@@ -512,14 +522,27 @@ const WaConversation = forwardRef<
           <ArrowLeft size={18} />
         </span>
         {groupIn && (
-          <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={author} kind="dm" size={26} src={avatars.get(m.senderHandle) || undefined} seed={m.senderHandle || m.senderName} />}
+          <span className="wa-sender-avatar">
+            {!cont && (
+              <button
+                type="button"
+                className="wa-person"
+                tabIndex={-1}
+                aria-label={tsheet('openFor', { name: author })}
+                onClick={() => openPerson(m.senderHandle, author, avatars.get(m.senderHandle))}
+                data-testid="wa-sender-avatar"
+              >
+                <Avatar name={author} kind="dm" size={26} src={avatars.get(m.senderHandle) || undefined} seed={m.senderHandle || m.senderName} />
+              </button>
+            )}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
           {groupIn && !cont && author && (
             <p className={`gr-msg-author ${color}`}>
-              <span className="wa-author-name">{author}</span>
+              <button type="button" className="wa-person wa-author-name" onClick={() => openPerson(m.senderHandle, author, avatars.get(m.senderHandle))} data-testid="wa-sender-name">
+                {author}
+              </button>
               {m.senderHandle && author !== formatPhone(m.senderHandle) && <span className="wa-phone">{formatPhone(m.senderHandle)}</span>}
             </p>
           )}
@@ -910,6 +933,7 @@ const WaConversation = forwardRef<
         </div>
       )}
       {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
+      {personSheet.sheet}
       <Modal open={!!infoFor} title={w('info')} onClose={() => setInfoFor(null)}>
         {infoFor && (
           <>

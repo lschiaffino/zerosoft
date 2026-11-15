@@ -17,6 +17,7 @@ import { listAccounts, nowIso, type AccountRow, type ThreadRow } from './core';
 import { InboxError, type MessageReaction, type ParticipantDto, type WaDetailsDto, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
 import { inboxScope, learnFromChatInfo } from './wa-names';
+import type { WaPersonCard } from '../wa-person';
 import { displayName, lookupContacts, type ContactRow } from '../wa-contacts';
 
 type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
@@ -360,7 +361,7 @@ export async function waDetails(owner: string, thread: ThreadRow, account: Accou
 }
 
 /** Grupos en común: los grupos de la cuenta donde está este teléfono (según los participantes guardados). */
-async function commonGroups(owner: string, thread: ThreadRow): Promise<NonNullable<WaDetailsDto['commonGroups']>> {
+async function commonGroups(owner: string, thread: Pick<ThreadRow, 'handle' | 'account_id'>): Promise<NonNullable<WaDetailsDto['commonGroups']>> {
   const phone = phoneDigits(thread.handle);
   if (!phone) return [];
   const rows = (await getDb()
@@ -370,6 +371,66 @@ async function commonGroups(owner: string, thread: ThreadRow): Promise<NonNullab
     )
     .all(owner, thread.account_id, `%"phone":"${phone}"%`)) as Array<{ id: string; title: string; avatar_url: string }>;
   return rows.map((r) => ({ id: r.id, title: r.title, avatar: r.avatar_url ? `/api/inbox/avatar/${r.id}` : '' }));
+}
+
+/**
+ * La ficha de una persona de un grupo (al tocar su foto o su nombre): nombre,
+ * foto, "info", su rol en el grupo, el chat 1:1 si existe (con lo compartido,
+ * silencio y bloqueo) y los grupos en común. Sin pedir nada al servidor.
+ */
+export async function personCard(owner: string, groupId: string, rawPhone: string): Promise<WaPersonCard> {
+  const db = getDb();
+  const group = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(groupId, owner)) as ThreadRow | undefined;
+  if (!group || group.channel !== 'whatsapp' || group.kind !== 'group') throw new InboxError('not_found', 404);
+  const phone = phoneDigits(rawPhone);
+  if (!/^\d{8,15}$/.test(phone)) throw new InboxError('invalid_input', 400);
+  const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(group.account_id, owner)) as AccountRow | undefined;
+  if (!account) throw new InboxError('not_found', 404);
+  const me = phoneDigits(account.address) === phone;
+  const role = parseThreadInfo(group.info).participants.find((p) => phoneDigits(p.phone) === phone)?.role ?? null;
+  const contact = (await lookupContacts(inboxScope(account), [phone]).catch(() => new Map<string, ContactRow>())).get(phone);
+  const dm = (await db
+    .prepare("SELECT id, title, avatar_url, muted_until, info FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle = ? ORDER BY last_message_at DESC LIMIT 1")
+    .get(owner, account.id, phone)) as { id: string; title: string; avatar_url: string; muted_until: string | null; info: string } | undefined;
+  const sent = dm
+    ? undefined
+    : ((await db
+        .prepare("SELECT sender_name FROM inbox_messages WHERE thread_id = ? AND from_me = 0 AND sender_handle = ? AND sender_name <> '' ORDER BY sent_at DESC LIMIT 1")
+        .get(group.id, phone)) as { sender_name: string } | undefined);
+  const counts = dm
+    ? ((await db
+        .prepare(
+          `SELECT
+             SUM(CASE WHEN media_type IN ('image', 'video') AND media_ref <> '' AND revoked_at IS NULL THEN 1 ELSE 0 END) AS media,
+             SUM(CASE WHEN media_type = 'document' AND revoked_at IS NULL THEN 1 ELSE 0 END) AS docs,
+             SUM(CASE WHEN (body LIKE '%http://%' OR body LIKE '%https://%') AND revoked_at IS NULL THEN 1 ELSE 0 END) AS links,
+             SUM(CASE WHEN starred_at IS NOT NULL THEN 1 ELSE 0 END) AS starred
+           FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL`,
+        )
+        .get(dm.id, owner)) as { media: number | null; docs: number | null; links: number | null; starred: number | null } | undefined)
+    : undefined;
+  const dmInfo = dm ? parseThreadInfo(dm.info) : null;
+  const groups = (await commonGroups(owner, { handle: phone, account_id: account.id })).filter((g) => g.id !== group.id);
+  let canBlock = false;
+  if (dm && !me && account.status === 'connected') {
+    try {
+      canBlock = !!waProviderFor(account).blockContact;
+    } catch {
+      canBlock = false;
+    }
+  }
+  return {
+    phone,
+    name: me ? '' : (dm?.title && dm.title !== phone ? dm.title : '') || displayName(contact) || sent?.sender_name || '',
+    about: contact?.about || dmInfo?.about || '',
+    picture: contact?.picture || (dm?.avatar_url ? `/api/inbox/avatar/${dm.id}` : ''),
+    role,
+    me,
+    dm: dm ? { id: dm.id, muted: !!(dm.muted_until && dm.muted_until > new Date().toISOString()), blocked: !!dmInfo?.blocked } : null,
+    shared: { media: Number(counts?.media ?? 0), docs: Number(counts?.docs ?? 0), links: Number(counts?.links ?? 0), starred: Number(counts?.starred ?? 0) },
+    commonGroups: groups.map((g) => ({ id: g.id, name: g.title, picture: g.avatar })),
+    canBlock,
+  };
 }
 
 export type SharedKind = 'media' | 'docs' | 'links' | 'starred';

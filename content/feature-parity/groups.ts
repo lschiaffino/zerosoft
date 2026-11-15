@@ -146,6 +146,13 @@ const parity: ProductParity = {
         'As conversas e cada membro de um grupo (ao lado das mensagens, na lista de membros e ao mencionar), buscadas poucas por vez, guardadas para não expirar e conferidas toda semana. Testado com o provedor falso',
       ],
     }),
+    row('wa-contact-info', 'inbox', ['Contact info of a group member', 'Info del contacto de un miembro del grupo', 'Dados do contato de um membro do grupo'], 'partial', {
+      detail: [
+        'The photo or name of a sender, or a member in the chat details, opens their contact info like WhatsApp: photo, name, number, about, admin badge, Message (opens or starts the chat on the same line), shared media, links and docs, starred messages and mute of that chat, and groups in common on the line. No calls and no blocking from Lines yet. Tested with the fake provider',
+        'La foto o el nombre de quien escribió, o un miembro en los detalles del chat, abre su info del contacto como en WhatsApp: foto, nombre, número, info, si es admin, Mensaje (abre o empieza el chat en la misma línea), archivos, enlaces y documentos, destacados y silenciar de ese chat, y los grupos en común de la línea. Sin llamadas y todavía sin bloquear desde Lines. Probado con el proveedor falso',
+        'A foto ou o nome de quem escreveu, ou um membro nos detalhes da conversa, abre os dados do contato como no WhatsApp: foto, nome, número, recado, se é admin, Mensagem (abre ou começa a conversa na mesma linha), mídia, links e docs, favoritas e silenciar dessa conversa, e os grupos em comum da linha. Sem chamadas e ainda sem bloquear pelo Lines. Testado com o provedor falso',
+      ],
+    }),
     row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
       detail: [
         'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Not in file captions or scheduled messages yet. Tested against a simulated gateway; not yet tried with real WhatsApp',
