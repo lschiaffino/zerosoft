@@ -11,9 +11,9 @@ export default {
   items: [
     {
       product: 'platform',
-      en: 'Every response under /api now says private, no-store unless the route sets its own caching on purpose, like social preview images, feeds, embeds and public files.',
-      es: 'Toda respuesta bajo /api ahora dice private, no-store, salvo las rutas que fijan su caché a propósito, como las imágenes para redes, los feeds, los embeds y los archivos públicos.',
-      pt: 'Toda resposta em /api agora diz private, no-store, exceto as rotas que definem o próprio cache de propósito, como imagens para redes, feeds, embeds e arquivos públicos.',
+      en: 'Every read under /api now says private, no-store and errors say private, so no shared cache keeps them. Routes that set their own caching on purpose keep it, like social preview images, feeds, embeds, the desktop update feed and public files.',
+      es: 'Toda lectura bajo /api ahora dice private, no-store y los errores dicen private, así ningún caché compartido los guarda. Las rutas que fijan su caché a propósito la conservan, como las imágenes para redes, los feeds, los embeds, el feed de actualizaciones de escritorio y los archivos públicos.',
+      pt: 'Toda leitura em /api agora diz private, no-store e os erros dizem private, assim nenhum cache compartilhado os guarda. As rotas que definem o próprio cache de propósito o mantêm, como imagens para redes, feeds, embeds, o feed de atualizações do desktop e arquivos públicos.',
     },
   ],
 } satisfies ChangelogEntry;
