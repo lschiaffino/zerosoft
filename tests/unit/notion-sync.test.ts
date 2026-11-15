@@ -13,11 +13,13 @@ import {
   getNotionSyncStatus,
   handleNotionWebhook,
   notionSyncLocalChange,
+  clearWebhookToken,
+  confirmWebhookToken,
   openWebhookWindow,
-  pendingWebhookToken,
   syncNotionNow,
   updateNotionSync,
   verifyNotionSignature,
+  webhookVerificationState,
 } from '@/lib/notion-sync';
 import { notionSyncFakeCall, notionSyncFakeLog, resetNotionSyncFake, SYNC_FAKE_IDS, T } from '@/lib/notion-sync-fake';
 import { createDocComment, createDocPage, listDocComments, parseBlocks, updateDocPage } from '@/lib/docs';
@@ -387,22 +389,125 @@ describe('Notion sync: OAuth y webhooks', () => {
     await expect(connectNotion(u.id, u.id, { kind: 'token', token: 'secret_wrong' })).rejects.toThrow('invalid_token');
   });
 
-  it('webhook: guarda el token de verificación una sola vez y exige la firma', async () => {
-    // Sin ventana abierta por quien administra la instancia: no se guarda nada.
-    await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_early' }), null);
-    expect(await pendingWebhookToken()).toBeNull();
-    await openWebhookWindow();
-    const first = await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_v1' }), null);
-    expect(first.status).toBe(200);
-    expect(await pendingWebhookToken()).toBe('secret_v1');
-    // Un segundo token (de cualquiera) no pisa el primero.
-    await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_attacker' }), null);
-    const body = JSON.stringify({ type: 'page.content_updated', workspace_id: SYNC_FAKE_IDS.notionWorkspace, entity: { id: SYNC_FAKE_IDS.wiki, type: 'page' } });
-    const sig = `sha256=${createHmac('sha256', 'secret_v1').update(body).digest('hex')}`;
-    expect(verifyNotionSignature(body, sig, 'secret_v1')).toBe(true);
-    expect((await handleNotionWebhook(body, sig)).status).toBe(200);
-    const bad = `sha256=${createHmac('sha256', 'secret_attacker').update(body).digest('hex')}`;
-    expect((await handleNotionWebhook(body, bad)).status).toBe(401);
-    expect((await handleNotionWebhook(body, null)).status).toBe(401);
+});
+
+describe('Notion sync: verificación del webhook', () => {
+  const REAL = 'secret_notionRealToken0123456789abcdef';
+  const FAKE = 'secret_attackerToken0123456789abcdefgh';
+  const verification = (token: string) => handleNotionWebhook(JSON.stringify({ verification_token: token }), null);
+  const event = JSON.stringify({ type: 'page.content_updated', workspace_id: SYNC_FAKE_IDS.notionWorkspace, entity: { id: SYNC_FAKE_IDS.wiki, type: 'page' } });
+  const sign = (raw: string, key: string) => `sha256=${createHmac('sha256', key).update(raw).digest('hex')}`;
+  let ws = '';
+  let op = '';
+
+  beforeEach(async () => {
+    await clearWebhookToken();
+    const u = await makeUser('wh');
+    ws = u.id;
+    op = u.id;
+  });
+
+  it('sin verificación pendiente, un token sin firma no deja nada', async () => {
+    const res = await verification(REAL);
+    expect(res.status).toBe(200);
+    const st = await webhookVerificationState(ws, op);
+    expect(st).toMatchObject({ confirmed: false, waiting: false, candidates: [] });
+    // Y no sirve para firmar eventos.
+    expect((await handleNotionWebhook(event, sign(event, REAL))).status).toBe(401);
+  });
+
+  it('el token que llega es solo un candidato: no valida firmas hasta que se confirma', async () => {
+    await openWebhookWindow(ws, op);
+    await verification(REAL);
+    await verification(REAL); // "Resend token": no se duplica.
+    const st = await webhookVerificationState(ws, op);
+    expect(st.waiting).toBe(true);
+    expect(st.candidates.map((c) => c.token)).toEqual([REAL]);
+    expect((await handleNotionWebhook(event, sign(event, REAL))).status).toBe(401);
+
+    await confirmWebhookToken(ws, op, st.candidates[0].id);
+    const after = await webhookVerificationState(ws, op);
+    expect(after).toMatchObject({ confirmed: true, waiting: false, candidates: [] });
+    expect((await handleNotionWebhook(event, sign(event, REAL))).status).toBe(200);
+  });
+
+  it('un token ajeno que llega primero no gana: se confirma el que Notion aceptó', async () => {
+    await openWebhookWindow(ws, op);
+    await verification(FAKE);
+    await verification(REAL);
+    const st = await webhookVerificationState(ws, op);
+    expect(st.candidates).toHaveLength(2);
+    const real = st.candidates.find((c) => c.token === REAL)!;
+    await confirmWebhookToken(ws, op, real.id);
+    expect((await handleNotionWebhook(event, sign(event, REAL))).status).toBe(200);
+    expect((await handleNotionWebhook(event, sign(event, FAKE))).status).toBe(401);
+  });
+
+  it('un secreto confirmado no se pisa: ni desde la ruta ni abriendo otra ventana', async () => {
+    await openWebhookWindow(ws, op);
+    await verification(REAL);
+    const st = await webhookVerificationState(ws, op);
+    await confirmWebhookToken(ws, op, st.candidates[0].id);
+    await verification(FAKE);
+    expect((await webhookVerificationState(ws, op)).candidates).toEqual([]);
+    await expect(openWebhookWindow(ws, op)).rejects.toMatchObject({ code: 'webhook_confirmed', status: 409 });
+    expect((await handleNotionWebhook(event, sign(event, FAKE))).status).toBe(401);
+    expect((await handleNotionWebhook(event, sign(event, REAL))).status).toBe(200);
+  });
+
+  it('la ventana queda atada al workspace y a la persona que la abrió', async () => {
+    const other = await makeUser('wh-other');
+    await openWebhookWindow(ws, op);
+    await verification(REAL);
+    // Otro workspace no ve los tokens ni puede confirmarlos.
+    const seen = await webhookVerificationState(other.id, other.id);
+    expect(seen).toMatchObject({ waiting: false, waitingElsewhere: true, candidates: [] });
+    const id = (await webhookVerificationState(ws, op)).candidates[0].id;
+    await expect(confirmWebhookToken(other.id, other.id, id)).rejects.toMatchObject({ code: 'webhook_no_window' });
+    // Misma workspace, otra persona: tampoco.
+    await expect(confirmWebhookToken(ws, other.id, id)).rejects.toMatchObject({ code: 'webhook_no_window' });
+    await expect(confirmWebhookToken(ws, op, 'nope')).rejects.toMatchObject({ code: 'webhook_unknown_token' });
+  });
+
+  it('la ventana vence a los 15 minutos y los tokens con otra forma o de más se ignoran', async () => {
+    await openWebhookWindow(ws, op);
+    await verification('not-a-notion-token');
+    await verification(`secret_${'x'.repeat(300)}`);
+    expect((await webhookVerificationState(ws, op)).candidates).toEqual([]);
+    for (let i = 0; i < 8; i++) await verification(`secret_flood${i}abcdefghijklmnopqrstu`);
+    expect((await webhookVerificationState(ws, op)).candidates).toHaveLength(5);
+    const id = (await webhookVerificationState(ws, op)).candidates[0].id;
+    await getDb()
+      .prepare(`UPDATE notion_sync_webhook SET created_at = ? WHERE id = 'window'`)
+      .run(new Date(Date.now() - 16 * 60_000).toISOString());
+    expect((await webhookVerificationState(ws, op)).waiting).toBe(false);
+    await expect(confirmWebhookToken(ws, op, id)).rejects.toMatchObject({ code: 'webhook_no_window' });
+    await clearWebhookToken();
+    await verification(REAL);
+    expect((await webhookVerificationState(ws, op)).candidates).toEqual([]);
+  });
+
+  it('eventos: sin firma, con firma mala o con otro largo se rechazan (401)', async () => {
+    await openWebhookWindow(ws, op);
+    await verification(REAL);
+    await confirmWebhookToken(ws, op, (await webhookVerificationState(ws, op)).candidates[0].id);
+    const good = sign(event, REAL);
+    expect(verifyNotionSignature(event, good, REAL)).toBe(true);
+    expect((await handleNotionWebhook(event, null)).status).toBe(401);
+    expect((await handleNotionWebhook(event, '')).status).toBe(401);
+    expect((await handleNotionWebhook(event, good.slice(0, -1))).status).toBe(401);
+    const flipped = good.slice(0, -1) + (good.endsWith('0') ? '1' : '0');
+    expect((await handleNotionWebhook(event, flipped)).status).toBe(401);
+    expect((await handleNotionWebhook(`${event} `, good)).status).toBe(401);
+    // Un token de verificación firmado no abre otro camino: se trata como evento.
+    const verif = JSON.stringify({ verification_token: FAKE });
+    expect((await handleNotionWebhook(verif, sign(verif, FAKE))).status).toBe(401);
+    expect((await handleNotionWebhook(event, good)).status).toBe(200);
+  });
+
+  it('el estado del webhook solo se le muestra a quien administra la instancia', async () => {
+    await openWebhookWindow(ws, op);
+    expect((await getNotionSyncStatus(ws)).webhook).toBeUndefined();
+    expect((await getNotionSyncStatus(ws, { operator: true, userId: op })).webhook).toMatchObject({ waiting: true });
   });
 });
