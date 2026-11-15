@@ -98,7 +98,7 @@ async function main() {
     .prepare(
       `SELECT t.account_id AS account, CASE WHEN m.media_ref LIKE '%"wire"%' THEN 1 ELSE 0 END AS wire, COUNT(*) AS n
        FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
-       WHERE m.media_ref <> '' AND m.media_type <> '' AND m.revoked_at IS NULL AND m.sent_at >= ?
+       WHERE t.channel = 'whatsapp' AND m.media_ref <> '' AND m.media_type <> '' AND m.sent_at >= ?
          AND NOT EXISTS (SELECT 1 FROM inbox_media_files f WHERE f.message_id = m.id)
        GROUP BY 1, 2`,
     )
@@ -112,8 +112,9 @@ async function main() {
       .prepare(
         `INSERT INTO wa_media_jobs (app, message_id, scope_id, attempts, next_at, created_at)
          SELECT 'inbox', m.id, t.account_id, 0, ?, ? FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
-         WHERE m.media_ref <> '' AND m.media_type <> '' AND m.revoked_at IS NULL AND m.sent_at >= ?
+         WHERE t.channel = 'whatsapp' AND m.media_ref <> '' AND m.media_type <> '' AND m.sent_at >= ?
            AND NOT EXISTS (SELECT 1 FROM inbox_media_files f WHERE f.message_id = m.id)
+           AND NOT EXISTS (SELECT 1 FROM wa_media_jobs j WHERE j.app = 'inbox' AND j.message_id = m.id)
          ORDER BY m.sent_at DESC LIMIT ?
          ON CONFLICT (app, message_id) DO NOTHING`,
       )

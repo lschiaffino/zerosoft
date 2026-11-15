@@ -35,5 +35,6 @@ export default {
       PRIMARY KEY (app, message_id)
     )`);
     await c.execute('CREATE INDEX IF NOT EXISTS idx_wa_media_jobs_due ON wa_media_jobs(next_at)');
+    await c.execute('CREATE INDEX IF NOT EXISTS idx_wa_media_jobs_scope ON wa_media_jobs(app, scope_id, next_at)');
   },
 } satisfies Migration;

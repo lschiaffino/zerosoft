@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
   // Inbox y Lines: el historial de los chats con mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts).
   const waHistory = await import('@/lib/wa-history-gaps').then((m) => m.runHistoryFetches({ limit: 20, deadline: start + 35_000 })).catch(() => null);
   // Inbox y Lines: los archivos de WhatsApp que no se pudieron bajar al llegar (reintentos espaciados, claim por fila).
-  const waMedia = await import('@/lib/wa-media-jobs').then((m) => m.runMediaJobs({ limit: 8, deadline: start + 45_000 })).catch(() => null);
+  const waMedia = await import('@/lib/wa-media-jobs').then((m) => m.runMediaJobs({ limit: 8, deadline: Date.now() + 20_000 })).catch(() => null);
   await import('@/lib/wa-live').then((m) => m.pruneLiveEvents()).catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const noteTasks = await fireNoteTasksDue({ limit: 200 }).catch(() => null);

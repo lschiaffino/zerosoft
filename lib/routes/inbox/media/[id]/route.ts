@@ -33,8 +33,7 @@ export async function GET(req: Request, ctx: Ctx) {
       });
     }
     const thread = await getThreadRow(owner, msg.thread_id);
-    // Lo que se borró para todos no se sirve más (la copia guardada se borra en el repaso horario).
-    if (thread.channel !== 'whatsapp' || !msg.media_ref || msg.revoked_at) throw new InboxError('not_found', 404);
+    if (thread.channel !== 'whatsapp' || !msg.media_ref) throw new InboxError('not_found', 404);
     const account = await getAccount(owner, thread.account_id);
     // La copia guardada si está; si no, se baja del servidor de WhatsApp y se guarda (lib/inbox/media-store.ts).
     const file = await inboxMedia(account, owner, msg);

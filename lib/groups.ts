@@ -2396,20 +2396,20 @@ function logAfterError(err: unknown): null {
 
 /** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
 async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: string; ref: MediaRef }>): Promise<void> {
+  // Todo queda en la cola antes de empezar (lib/wa-media-jobs.ts): si esta tanda se corta, o algo no se baja (falla
+  // pasajera, la línea caída, pasó el tope de la tanda), se reintenta solo. Lo que acá sí se baja, o falla para
+  // siempre, la cola lo descarta al mirarlo.
+  const { dropMediaJob, queueMediaJob } = await import('./wa-media-jobs');
+  for (const it of items) await queueMediaJob('lines', number.id, it.messageId, 90_000).catch(() => null);
   let budget = INBOUND_MEDIA_BUDGET;
-  const left = new Set(items.map((it) => it.messageId));
   for (const it of items.slice(0, INBOUND_MEDIA_PER_WEBHOOK)) {
     if (budget <= 0) break;
     const res = await storeInboundMedia(number, it.messageId, it.ref, { budget, retry: true }).catch(() => null);
     if (res) {
       budget -= res.bytes;
-      left.delete(it.messageId);
+      await dropMediaJob('lines', it.messageId).catch(() => null);
     }
   }
-  // Lo que no se bajó (falla pasajera, la línea caída, pasó el tope de la tanda) queda en la cola y se reintenta solo
-  // (lib/wa-media-jobs.ts). Lo que falló para siempre ya no está pendiente: la cola lo descarta al mirarlo.
-  const { queueMediaJob } = await import('./wa-media-jobs');
-  for (const id of left) await queueMediaJob('lines', number.id, id, 60_000).catch(() => null);
 }
 
 /** Fallas que no se arreglan reintentando: tipo no permitido, más grande que el tope, el gateway no lo tiene. */

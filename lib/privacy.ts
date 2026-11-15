@@ -207,13 +207,13 @@ function ownBlobHost(): string | null {
   return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
-const PRIVATE_APPS = ['hiring', 'sign', 'send', 'calls', 'books', 'assistant'] as const;
+const PRIVATE_APPS = ['hiring', 'sign', 'send', 'calls', 'books', 'assistant', 'inbox'] as const;
 type PrivateApp = (typeof PRIVATE_APPS)[number];
 const UUID_BIN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.bin';
 
 /** Referencia exacta de un archivo privado (lib/private-files.ts): nombres aleatorios, nunca públicos. */
 function privateRef(app: PrivateApp, value: string): boolean {
-  const folder = app === 'books' ? 'books-private' : app;
+  const folder = app === 'books' ? 'books-private' : app === 'inbox' ? 'inbox-media' : app;
   return (
     new RegExp(`^local:${UUID_BIN}$`).test(value) ||
     new RegExp(`^blobp:${folder}/${UUID_BIN}$`).test(value) ||
@@ -253,6 +253,9 @@ async function privateRemover(app: string): Promise<((refs: string[]) => Promise
       return (await import('./books-files')).deleteBooksFiles;
     case 'assistant':
       return (await import('./assistant/files')).deleteAssistantFiles;
+    case 'inbox':
+      // La copia privada de los archivos de WhatsApp (inbox_media_files.file_ref).
+      return (await import('./inbox/media-store')).deleteInboxMediaFiles;
     default:
       return null;
   }
