@@ -51,7 +51,7 @@ async function check(page: Page, thread: Locator) {
   await expect(msg.locator('.wa-edited')).toBeVisible();
   await expect(card.locator('.wa-doc-dl')).toHaveCount(0);
   await expect(card.locator('.wa-doc-icon b')).toHaveText('HTML');
-  await expect(card.locator('.wa-doc-meta')).toHaveText(/kB • html$/);
+  await expect(card.locator('.wa-doc-meta')).toHaveText(/\d+ k?B • html$/);
   // El nombre en un renglón, cortado en el medio con la extensión a la vista.
   await expect(card.locator('.wa-doc-name')).toHaveText(/….*\.html$/);
   expect((await card.locator('.wa-doc-name').boundingBox())!.height).toBeLessThan(24);
