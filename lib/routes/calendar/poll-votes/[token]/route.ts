@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { noStore } from '@/lib/no-store';
 import { limitByIp } from '@/lib/rate-limit';
 import { CalendarError } from '@/lib/calendar';
 import { getPollByToken, votePoll, type PollDetail } from '@/lib/calendar-polls';
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest, props: Ctx) {
   const limited = await limitByIp(req, 'poll', 60, 60);
   if (limited) return limited;
   const poll = await getPollByToken((await props.params).token);
-  return poll ? NextResponse.json(publicView(poll)) : notFound();
+  return poll ? noStore(NextResponse.json(publicView(poll))) : notFound();
 }
 
 /** Voto de un participante (sin cuenta). Con el mismo email, reemplaza su voto. */
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest, props: Ctx) {
   if (!parsed.success) return invalidBody(parsed.error);
   try {
     const { poll, editToken } = await votePoll((await props.params).token, parsed.data);
-    return NextResponse.json({ ...publicView(poll), editToken });
+    return noStore(NextResponse.json({ ...publicView(poll), editToken }));
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);
     return crmError(500, 'generic');

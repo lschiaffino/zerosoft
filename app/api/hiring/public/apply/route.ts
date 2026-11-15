@@ -51,8 +51,9 @@ export async function POST(req: NextRequest) {
   const file = form.get('resume');
   const resume = file && typeof file !== 'string' && file.size > 0 ? { bytes: Buffer.from(await file.arrayBuffer()), filename: file.name } : null;
   try {
-    const res = await applyPublic(handle, str(form.get('job')).slice(0, 90), parsed.data, resume);
-    return hJson({ ok: true, duplicate: res.existing }, 201);
+    // Misma respuesta si el email ya se postuló: no se revela quién se postuló a qué.
+    await applyPublic(handle, str(form.get('job')).slice(0, 90), parsed.data, resume);
+    return hJson({ ok: true }, 201);
   } catch (err) {
     if (err instanceof HiringError && err.status === 404) return hJson({ error: 'not_found' }, 404);
     return hFail(err);
