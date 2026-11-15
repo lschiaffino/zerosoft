@@ -3,6 +3,7 @@ import { isFileUrl } from '@/lib/files/store';
 import { ownedFileResponse } from '@/lib/files/serve';
 import { proxyPublicBlob } from '@/lib/files/legacy-proxy';
 import { localResponse } from '@/lib/crm-media-file';
+import { servingFor } from '@/lib/file-attachments';
 import { localUploadPath } from '@/lib/uploads';
 import { getChatRow, getMessageRow, getNumberRow, readConfig, storeInboundMedia } from '@/lib/groups';
 import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
@@ -51,13 +52,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   // Guardado por nosotros (storage privado): solo si el archivo es de este workspace.
   if (isFileUrl(stored)) return (await ownedFileResponse(req, stored, { workspaceId: s.ws }, { download })) ?? groupsError(404, 'not_found');
   // De antes: Blob público o disco local. Se pasa por acá (la URL del storage no llega al navegador).
-  const safeHeaders = {
-    'content-type': /(html|svg|xml|javascript)/i.test(msg.media_type || '') ? 'application/octet-stream' : msg.media_type || 'application/octet-stream',
-    'cache-control': 'private, max-age=3600',
-    'x-content-type-options': 'nosniff',
-    'content-security-policy': "default-src 'none'; sandbox",
-    'content-disposition': `${download ? 'attachment' : 'inline'}; filename="${(msg.media_name || 'file').replace(/[^\w.-]/g, '_')}"`,
-  };
+  // Como /api/files: en línea solo lo previsualizable (con su tipo de la lista), lo demás se descarga; siempre aislado.
+  const safeHeaders = { ...servingFor(msg.media_name || '', msg.media_type, { download }).headers, 'Cache-Control': 'private, max-age=3600' };
   if (/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(stored)) return proxyPublicBlob(req, stored, safeHeaders);
   if (stored.startsWith('/uploads/')) {
     const file = localUploadPath(stored, 'chat');
@@ -79,17 +75,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   } catch {
     return groupsError(502, 'provider_error');
   }
-  const type = upstream.headers.get('content-type') || msg.media_type || 'application/octet-stream';
-  // Nada que el navegador pueda ejecutar en nuestro origen.
-  const safeType = /(html|svg|xml|javascript)/i.test(type) ? 'application/octet-stream' : type;
+  const type = msg.media_type || upstream.headers.get('content-type') || 'application/octet-stream';
+  // Nada que el navegador pueda ejecutar en nuestro origen: lo que no se muestra en línea se descarga.
   return new NextResponse(upstream.body, {
-    headers: {
-      'content-type': safeType,
-      'cache-control': 'private, max-age=3600',
-      'x-content-type-options': 'nosniff',
-      'content-security-policy': "default-src 'none'; sandbox",
-      'content-disposition': `inline; filename="${(msg.media_name || 'file').replace(/[^\w.-]/g, '_')}"`,
-    },
+    headers: { ...servingFor(msg.media_name || '', type, { download }).headers, 'Cache-Control': 'private, max-age=3600' },
   });
 }
 
