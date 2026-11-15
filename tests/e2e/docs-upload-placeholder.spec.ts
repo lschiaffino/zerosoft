@@ -87,7 +87,7 @@ async function insideColumn(scope: Locator, el: Locator) {
 }
 
 async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
-  // 1. Imagen con "/image" en una línea vacía: el esqueleto toma ese lugar con la forma de la imagen.
+  // 1. Imagen con "/image" en una línea vacía: el esqueleto va en ese lugar con la forma de la imagen y la línea queda debajo.
   const hold = await holdUploads(p, uploadPattern);
   await scope.locator('.docs-blocks .docs-editable').last().click();
   const chooser = p.waitForEvent('filechooser');
@@ -197,7 +197,7 @@ test('Docs: cancelar una subida saca el esqueleto y no crea el bloque', async ({
   await expect.poll(() => hold.count()).toBe(1);
   await ph.getByRole('button', { name: 'Cancel upload of paisaje.png' }).click();
   await expect(ph).toHaveCount(0);
-  // La línea vacía vuelve a verse y no se creó ningún bloque de imagen.
+  // La línea vacía sigue ahí y no se creó ningún bloque de imagen.
   await expect(page.getByTestId('docs-image-block')).toHaveCount(0);
   await expect(page.locator('.docs-blocks .docs-editable')).toHaveCount(2);
 });

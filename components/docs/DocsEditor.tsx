@@ -1300,6 +1300,10 @@ export default function DocsEditor({
   /** Línea para seguir escribiendo debajo del último bloque subido: la vacía que ya estaba ahí o una nueva, con el foco adentro. */
   const focusBelowUpload = useCallback(
     (last: string) => {
+      // Si la persona ya está escribiendo en otro lado, no se le saca el foco.
+      const active = document.activeElement;
+      const typing = active instanceof HTMLElement && active.isContentEditable && (active.textContent ?? '') !== '';
+      if (typing) return;
       setBlocks((prev) => {
         const i = prev.findIndex((b) => b.id === last);
         if (i === -1) return prev;
@@ -1376,8 +1380,9 @@ export default function DocsEditor({
 
   /**
    * Sube archivos y crea un bloque por cada uno, después de `anchorId` (null =
-   * al principio). `replaceId`: párrafo vacío que se reemplaza por el primero
-   * (ej. "/imagen" en una línea vacía). Cada archivo tiene su esqueleto desde
+   * al principio). `replaceId`: línea vacía donde se pidió (ej. "/imagen" en
+   * una línea vacía): los bloques van arriba y la línea queda debajo para
+   * seguir escribiendo. Cada archivo tiene su esqueleto desde
    * el primer momento, en el lugar y con el tamaño del bloque que va a quedar;
    * se ubica por id: mientras sube, la persona puede seguir editando.
    */
@@ -1394,7 +1399,7 @@ export default function DocsEditor({
         id: newId(),
         group,
         anchorId,
-        replaceId: opts.replaceId ?? null,
+        beforeId: opts.replaceId ?? null,
         indent: opts.indent,
         kind: fileKindForRequest(opts.kind, file.type || 'application/octet-stream'),
         requested: opts.kind,
@@ -4382,12 +4387,9 @@ export default function DocsEditor({
       } else if (b.type === 'column') {
         // Columna suelta (no debería quedar: normalizeStructure la deshace).
         i = subtreeEnd(blocks, i) + 1;
-      } else if (slots.replace.has(b.id)) {
-        // "/imagen" en una línea vacía: el esqueleto ocupa esa línea (el bloque la va a reemplazar).
-        out.push(...renderUploads(slots.replace.get(b.id), i));
-        out.push(...renderUploads(slots.after.get(b.id), i));
-        i++;
       } else {
+        // "/imagen" en una línea vacía: el esqueleto va arriba y la línea queda debajo, con el foco.
+        out.push(...renderUploads(slots.before.get(b.id), i));
         out.push(renderLeaf(b, i));
         out.push(...renderUploads(slots.after.get(b.id), i));
         i++;

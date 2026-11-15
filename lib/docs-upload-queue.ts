@@ -27,8 +27,12 @@ export interface PendingUpload {
   group: string;
   /** Bloque después del cual va (null = al principio de la página). */
   anchorId: string | null;
-  /** Párrafo vacío que el bloque reemplaza ("/imagen" en una línea vacía). */
-  replaceId: string | null;
+  /**
+   * Línea vacía sobre la que se pidió ("/imagen" o pegar en una línea vacía):
+   * el bloque va justo arriba y la línea queda debajo, con el foco, para
+   * seguir escribiendo. Así nada se esconde mientras sube.
+   */
+  beforeId: string | null;
   /** Nivel pedido (un drop adentro de una columna); sin él, el del ancla. */
   indent?: number;
   /** Lo que se va a ver (según el tipo del archivo local); al terminar manda el del servidor. */
@@ -117,7 +121,7 @@ export function createUploadQueue(): UploadQueue {
           .filter((x) => x.id !== id)
           .map((x, i) =>
             // Solo las que siguen en el grupo y no fallaron: una con error de antes queda donde estaba.
-            x.group === u.group && i >= at && x.status !== 'error' ? { ...x, anchorId: placedId, replaceId: null } : x,
+            x.group === u.group && i >= at && x.status !== 'error' ? { ...x, anchorId: placedId } : x,
           ),
       );
     },
@@ -125,8 +129,8 @@ export function createUploadQueue(): UploadQueue {
 }
 
 /**
- * Ubica el bloque subido en el documento: en lugar del párrafo vacío
- * `replaceId` si sigue vacío, si no después de `anchorId` (al final si el
+ * Ubica el bloque subido en el documento: justo arriba de la línea `beforeId`
+ * si sigue ahí (con su nivel); si no, después de `anchorId` (al final si el
  * ancla se borró mientras subía, al principio si es null). Toma el nivel
  * pedido o el del ancla (adentro de una columna o un sincronizado si el ancla
  * es el contenedor).
@@ -134,12 +138,12 @@ export function createUploadQueue(): UploadQueue {
 export function placeUploadedBlock(
   blocks: DocsBlock[],
   block: DocsBlock,
-  at: { anchorId: string | null; replaceId: string | null; indent?: number },
+  at: { anchorId: string | null; beforeId: string | null; indent?: number },
 ): DocsBlock[] {
   const next = [...blocks];
-  const ri = at.replaceId ? next.findIndex((b) => b.id === at.replaceId) : -1;
-  if (ri !== -1 && next[ri].type === 'paragraph' && next[ri].content === '') {
-    next[ri] = setIndent(block, blockIndent(next[ri]));
+  const bi = at.beforeId ? next.findIndex((b) => b.id === at.beforeId) : -1;
+  if (bi !== -1) {
+    next.splice(bi, 0, setIndent(block, blockIndent(next[bi])));
     return next;
   }
   const ai = at.anchorId ? next.findIndex((b) => b.id === at.anchorId) : -1;
@@ -152,24 +156,22 @@ export function placeUploadedBlock(
 }
 
 /**
- * Dónde se dibuja cada esqueleto: en lugar de un párrafo vacío que va a
- * reemplazar (`replace`), debajo de un bloque (`after`), al principio de la
- * página (`top`) o, si su ancla ya no está, al final (`end`). En cada lugar,
- * en el orden en que se eligieron los archivos.
+ * Dónde se dibuja cada esqueleto: arriba de una línea (`before`), debajo de
+ * un bloque (`after`), al principio de la página (`top`) o, si su ancla ya no
+ * está, al final (`end`). En cada lugar, en el orden en que se eligieron.
  */
 export function uploadSlots(blocks: readonly DocsBlock[], pending: readonly PendingUpload[]) {
-  const byId = new Map(blocks.map((b) => [b.id, b] as const));
-  const replace = new Map<string, PendingUpload[]>();
+  const ids = new Set(blocks.map((b) => b.id));
+  const before = new Map<string, PendingUpload[]>();
   const after = new Map<string, PendingUpload[]>();
   const top: PendingUpload[] = [];
   const end: PendingUpload[] = [];
   const push = (m: Map<string, PendingUpload[]>, k: string, u: PendingUpload) => m.set(k, [...(m.get(k) ?? []), u]);
   for (const u of pending) {
-    const r = u.replaceId ? byId.get(u.replaceId) : undefined;
-    if (r && r.type === 'paragraph' && r.content === '') push(replace, r.id, u);
+    if (u.beforeId && ids.has(u.beforeId)) push(before, u.beforeId, u);
     else if (u.anchorId === null) top.push(u);
-    else if (byId.has(u.anchorId)) push(after, u.anchorId, u);
+    else if (ids.has(u.anchorId)) push(after, u.anchorId, u);
     else end.push(u);
   }
-  return { replace, after, top, end };
+  return { before, after, top, end };
 }
