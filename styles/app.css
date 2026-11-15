@@ -1441,6 +1441,16 @@ td.cell-actions > * + * { margin-left: 4px; }
 .app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
 .sidebar-collapsed .side-soon { display: none; }
 
+/* Sin red (<html data-network="offline">, components/app/OfflineStatus): las apps que necesitan
+   conexión quedan atenuadas con la etiqueta; abrirlas muestra la página "necesita conexión". */
+.app-offline-tag { display: none; }
+[data-network='offline'] [data-needs-network] { color: var(--muted); }
+[data-network='offline'] [data-needs-network] .app-offline-tag { display: inline; margin-left: auto; padding: 0 4px; font-size: 11px; line-height: 16px; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+[data-network='offline'] [data-needs-network] .app-soon-tag { display: none; }
+.home-tile[data-needs-network] { position: relative; }
+[data-network='offline'] .home-tile[data-needs-network] .home-tile-offline { position: absolute; top: 12px; right: 12px; }
+[data-network='offline'] .home-tile[data-needs-network] .home-tile-icon { opacity: 0.5; }
+
 /* Pantallas muy angostas: la banda entera entra (la campana quedaba afuera a 320px) y
    Recientes no corta la fecha a mitad de palabra. */
 @media (max-width: 360px) {

@@ -6,6 +6,7 @@ import { clearOfflineData } from '@/lib/offline-queue';
 import RecSignOutDialog from '@/components/rec/RecSignOutDialog';
 import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
 import OfflineStatus from './OfflineStatus';
+import { worksOffline } from '@/lib/offline-apps';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pendingWrites } from '@/lib/offline-fetch';
 import { useTranslations } from 'next-intl';
@@ -400,10 +401,13 @@ export default function AppSidebar({
         className="band-menu-item"
         onClick={() => setSwitcherOpen(false)}
         aria-current={key === product ? 'page' : undefined}
+        data-needs-network={worksOffline(line) ? undefined : ''}
       >
         <ProductGlyph product={line} size={14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
         {isComingSoon(line) && <span className="app-soon-tag">{labels.preview ?? labels.soon}</span>}
+        {/* Sin red (<html data-network="offline">) se ve: esta app necesita conexión. */}
+        {!worksOffline(line) && <span className="app-offline-tag">{tOffline('needsConnection')}</span>}
       </Link>
     );
   };

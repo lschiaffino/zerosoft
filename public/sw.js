@@ -411,14 +411,77 @@ function replay() {
 
 // ---------- Ciclo de vida ----------
 
-function offlineHtml(locale) {
-  const text = {
-    en: ['You are offline', 'This page has not been opened on this device yet. It will load when the connection is back.'],
-    es: ['Sin conexión', 'Esta página todavía no se abrió en este dispositivo. Va a cargar cuando vuelva la conexión.'],
-    pt: ['Sem conexão', 'Esta página ainda não foi aberta neste dispositivo. Ela carrega quando a conexão voltar.'],
-  }[locale] || null;
-  const [title, body] = text || ['You are offline', 'This page will load when the connection is back.'];
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:340px;padding:24px}h1{font-size:1.25rem;margin:0 0 8px}button{font:inherit;padding:8px 14px;border:1px solid currentColor;border-radius:3px;background:none;color:inherit;cursor:pointer}</style></head><body><main><h1>${title}</h1><p>${body}</p><button onclick="location.reload()">↻</button></main></body></html>`;
+// Apps con modo sin conexión (las mismas que lib/offline-apps.ts, OFFLINE_PRODUCTS): nombre y ruta de inicio.
+const OFFLINE_PRODUCTS = [
+  ['docs', 'Docs', '/app/docs'],
+  ['notes', 'Notes', '/app/notes'],
+  ['track', 'Track', '/app/track'],
+  ['crm', 'CRM', '/app/crm'],
+];
+
+const OFFLINE_TEXT = {
+  en: {
+    title: 'You are offline',
+    notCached: 'This page has not been opened on this device yet. It loads when the connection is back.',
+    onlineOnly: '{app} needs a connection. It opens as soon as you are back online.',
+    worksOffline: 'These apps work offline. Changes you make are saved on this device and sent when the connection is back:',
+    retry: 'Try again',
+    home: 'Home',
+  },
+  es: {
+    title: 'Sin conexión',
+    notCached: 'Esta página todavía no se abrió en este dispositivo. Carga cuando vuelva la conexión.',
+    onlineOnly: '{app} necesita conexión. Se abre apenas vuelva la red.',
+    worksOffline: 'Estas apps andan sin conexión. Lo que cambies se guarda en este dispositivo y se manda cuando vuelva la red:',
+    retry: 'Probar de nuevo',
+    home: 'Inicio',
+  },
+  pt: {
+    title: 'Sem conexão',
+    notCached: 'Esta página ainda não foi aberta neste dispositivo. Ela carrega quando a conexão voltar.',
+    onlineOnly: '{app} precisa de conexão. Abre assim que a conexão voltar.',
+    worksOffline: 'Estes apps funcionam sem conexão. O que você mudar fica salvo neste dispositivo e é enviado quando a conexão voltar:',
+    retry: 'Tentar de novo',
+    home: 'Início',
+  },
+};
+
+/** Nombre de la app de una ruta /app/<path> (para "X necesita conexión"); null si no se sabe. */
+const APP_NAMES = {
+  lines: 'Lines', inbox: 'Inbox', calendar: 'Cal', board: 'Board', talk: 'Talk', voice: 'Voice', rec: 'Rec', links: 'Link', flow: 'Flow',
+  forms: 'Forms', send: 'Send', calls: 'Calls', sign: 'Sign', people: 'People', pulse: 'Pulse', analytics: 'Analytics', chat: 'Chat',
+  agents: 'Agents', robots: 'Robots', design: 'Design', shop: 'Shop', social: 'Social', hiring: 'Hiring', books: 'Books', assistant: 'Assistant', settings: null,
+};
+
+function appNameOf(pathname) {
+  const m = /^(?:\/(?:en|es|pt))?\/app\/([^/]+)/.exec(pathname);
+  if (!m) return null;
+  return Object.prototype.hasOwnProperty.call(APP_NAMES, m[1]) ? APP_NAMES[m[1]] : null;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+/**
+ * Página sin red para una pantalla de la app que no se puede mostrar:
+ * - kind 'not-cached': una app que anda sin conexión, pero esta vista nunca se abrió acá.
+ * - kind 'online-only': una app que necesita conexión (Lines, Talk, Voice...).
+ * Lleva a las apps que sí andan sin red (las prendidas en los ajustes) y se
+ * recarga sola cuando vuelve la red.
+ */
+function offlineHtml(locale, kind, appName, prefs) {
+  const l = OFFLINE_TEXT[locale] ? locale : 'en';
+  const t = OFFLINE_TEXT[l];
+  const body = kind === 'online-only' && appName ? t.onlineOnly.replace('{app}', escapeHtml(appName)) : t.notCached;
+  const apps = OFFLINE_PRODUCTS.filter(([key]) => !prefs || (prefs.enabled && prefs.apps[key]));
+  const links = apps.map(([key, name, path]) => `<li><a href="/${l}${path}" data-app="${key}">${name}</a></li>`).join('');
+  const list = apps.length ? `<p>${t.worksOffline}</p><ul>${links}</ul>` : '';
+  return `<!doctype html><html lang="${l}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title}</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font:15px/1.5 system-ui,sans-serif;background:Canvas;color:CanvasText}main{max-width:380px;padding:24px}h1{font-size:1.25rem;margin:0 0 8px}p{margin:0 0 12px}ul{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-wrap:wrap;gap:8px}a{color:inherit}ul a{display:inline-block;padding:6px 12px;border:1px solid color-mix(in srgb,currentColor 30%,transparent);border-radius:3px;text-decoration:none}ul a:hover,ul a:focus-visible{border-color:currentColor}.row{display:flex;gap:12px;align-items:center}button{font:inherit;padding:8px 14px;border:1px solid currentColor;border-radius:3px;background:none;color:inherit;cursor:pointer}</style></head><body><main data-zs-offline="${kind}"><h1>${t.title}</h1><p>${body}</p>${list}<div class="row"><button type="button" onclick="location.reload()">${t.retry}</button><a href="/${l}/app">${t.home}</a></div></main><script>addEventListener('online',function(){location.reload()})</script></body></html>`;
+}
+
+function offlineResponse(locale, kind, appName, prefs) {
+  return new Response(offlineHtml(locale, kind, appName, prefs), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 self.addEventListener('install', () => {
@@ -663,10 +726,8 @@ async function crmNavigation(request) {
     return await networkFirst(request);
   } catch {
     // Sin conexión con el modo apagado (o esta app afuera): no se sirve nada guardado.
-    if (!offlineAllows(await getPrefs(), url.pathname)) {
-      const l = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || TRACK_PAGE.exec(url.pathname) || [])[1] || 'en';
-      return new Response(offlineHtml(l), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
-    }
+    const prefs = await getPrefs();
+    if (!offlineAllows(prefs, url.pathname)) return offlineResponse(localeOf(url.pathname), 'not-cached', null, prefs);
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
     if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname)) {
@@ -689,9 +750,43 @@ async function crmNavigation(request) {
         }
       }
     }
-    const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || TRACK_PAGE.exec(url.pathname) || [])[1] || 'en';
-    return new Response(offlineHtml(locale), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    return offlineResponse(localeOf(url.pathname), 'not-cached', null, prefs);
   }
+}
+
+/** Locale de la ruta; sin locale (/app/docs, como abre la app instalada), el del sistema. */
+function localeOf(pathname) {
+  const m = /^\/(en|es|pt)(?=\/|$)/.exec(pathname);
+  if (m) return m[1];
+  const nav = String((self.navigator && self.navigator.language) || '').slice(0, 2).toLowerCase();
+  return OFFLINE_TEXT[nav] ? nav : 'en';
+}
+
+// Cualquier otra pantalla de la app (/app/**). Con red, como sin worker: nada se guarda.
+const APP_ANY = /^(?:\/(?:en|es|pt))?\/app(?:\/|$)/;
+
+/**
+ * Pantallas de apps que necesitan conexión (Lines, Talk, Voice, Ajustes...):
+ * con red pasan derecho; sin red, en vez del error del navegador (o la
+ * ventana en blanco de la app de escritorio), una página que dice que esa app
+ * necesita conexión y lleva a las que andan sin red.
+ */
+async function onlineOnlyNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    const url = new URL(request.url);
+    return offlineResponse(localeOf(url.pathname), 'online-only', appNameOf(url.pathname), await getPrefs());
+  }
+}
+
+/** Archivos de la app (/_next/static/...) que pide una página: se guardan junto con ella para abrirla sin red. */
+function staticUrlsIn(html) {
+  const out = new Set();
+  const re = /\/_next\/static\/[^"'\s)\\<>]+/g;
+  let m;
+  while ((m = re.exec(String(html))) && out.size < 120) out.add(m[0]);
+  return [...out];
 }
 
 async function cacheFirst(request) {
@@ -765,6 +860,10 @@ self.addEventListener('fetch', (event) => {
     }
     if (request.mode === 'navigate' && isOfflineNavigation(url)) {
       event.respondWith(crmNavigation(request));
+      return;
+    }
+    if (request.mode === 'navigate' && APP_ANY.test(url.pathname)) {
+      event.respondWith(onlineOnlyNavigation(request));
       return;
     }
     // GET de la API del CRM (listas, ajustes): network-first. Las páginas RSC
@@ -897,7 +996,18 @@ self.addEventListener('message', (event) => {
               }
             } else if (pages && meta && isOfflineNavigation(u) && storable(u) && offlineAllows(prefs, u.pathname)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
-              if (res.ok && !res.redirected) await store(pages, `${PAGES}-${encodeURIComponent(meta.id)}`, u.href, res, offlineAppOf(u.pathname));
+              if (res.ok && !res.redirected && (res.headers.get('content-type') || '').includes('text/html')) {
+                await store(pages, `${PAGES}-${encodeURIComponent(meta.id)}`, u.href, res, offlineAppOf(u.pathname));
+                // Una vista que la persona todavía no abrió (el inicio de cada app): también su JS y CSS.
+                if (data.withStatics) {
+                  for (const s of staticUrlsIn(await res.clone().text().catch(() => ''))) {
+                    const su = new URL(s, self.location.origin).href;
+                    if (await statics.match(su)) continue;
+                    const sr = await fetch(su).catch(() => null);
+                    if (sr && sr.ok) await store(statics, STATIC, su, sr, 'static');
+                  }
+                }
+              }
             }
           } catch {
             /* sin red o recurso que ya no existe */
@@ -962,4 +1072,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches, parseOfflinePrefs, offlineAppOf, offlineAllows, offlineEvictions, OFFLINE_LIMITS, DEFAULT_PREFS, setPrefs, getPrefs, clearOffline };
+self.__zsOffline = { offlineHtml, appNameOf, localeOf, staticUrlsIn, APP_ANY, OFFLINE_PRODUCTS, shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches, parseOfflinePrefs, offlineAppOf, offlineAllows, offlineEvictions, OFFLINE_LIMITS, DEFAULT_PREFS, setPrefs, getPrefs, clearOffline };
