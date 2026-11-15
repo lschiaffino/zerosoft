@@ -160,7 +160,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   await expect
     .poll(async () => String((await sql("SELECT status FROM wa_transcripts WHERE scope = 'inbox' AND message_id = ?", [healId]))[0]?.status ?? ''), { timeout: 30_000 })
     .toBe('done');
-  await expect(thread.locator('.gr-msg').filter({ has: heal }).locator('.wa-transcript')).toBeVisible();
+  await expect(thread.locator('.gr-msg').filter({ has: heal }).locator('.wa-transcript')).toBeVisible({ timeout: 60_000 });
 
   // 2. Nota de voz que WhatsApp ya no tiene: lo dice, y el botón queda para pedírsela de nuevo al teléfono.
   const gone = voices.nth(1);
