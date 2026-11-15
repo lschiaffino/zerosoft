@@ -102,6 +102,16 @@ export async function GET(req: NextRequest) {
   // Inbox (personal): pospuestos y "recordame si no contesta" que vencieron, envíos programados (claim pending → sending),
   // sync de Gmail (claim por cuenta en sync_claimed_until) e importación inicial de WhatsApp.
   const inbox = await import('@/lib/inbox/cron').then((m) => m.runInboxCron(new Date(), 30_000)).catch(() => null);
+  // Fleet: cuentas de GitHub y Vercel que no se sincronizan hace 5 minutos (claim por cuenta en sync_claimed_at), el
+  // feed en vivo de más de un día y las sesiones "trabajando" sin eventos hace 2 horas.
+  const fleet = await import('@/lib/fleet/core')
+    .then(async (m) => {
+      const r = await m.syncDueConnections({ limit: 20, budgetMs: 25_000 });
+      await m.pruneFeed();
+      await import('@/lib/fleet/sessions').then((s) => s.settleStaleSessions());
+      return r;
+    })
+    .catch(() => null);
   // Voice: grabaciones colgadas y notas con IA en cola (claim por fila en notes_status).
   const voice = await runVoiceCron({ budgetMs: 20_000, cleanup: false }).catch(() => null);
   // Agentes de datos y prospección del CRM (claim por ítem en claimed_at).
@@ -135,5 +145,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }
