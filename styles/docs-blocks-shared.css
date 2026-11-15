@@ -12,7 +12,13 @@
 .docs-button-block.focused:focus,
 .docs-breadcrumb-block:focus-visible,
 /* Bloque seleccionado: anillo azul tenue, como la selección de bloques (no una caja negra). */
-.docs-breadcrumb-block.focused:focus { box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); outline: none; }
+.docs-breadcrumb-block.focused:focus { box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); outline: 2px solid transparent; }
+/* Con el teclado el anillo va entero; con el mouse, tenue. */
+.docs-link-block:focus-visible,
+.docs-equation-block:focus-visible,
+.docs-toc-block:focus-visible,
+.docs-button-block:focus-visible,
+.docs-breadcrumb-block:focus-visible { box-shadow: 0 0 0 2px #2383e2; }
 .docs-link-input-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: var(--radius-1); color: var(--brand-gray-2); }
 .docs-link-url-input { flex: 1 1 200px; min-width: 0; }
 .docs-link-error { flex-basis: 100%; font-size: 0.8125rem; color: var(--bad-ink); }

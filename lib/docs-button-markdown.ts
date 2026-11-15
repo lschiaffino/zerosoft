@@ -3,9 +3,10 @@
  * Markdown estricto no entiende: `[] tarea`, `[ ] tarea`, `[x] hecha` (sin el
  * guion de lista) o `- [] tarea` (sin el espacio entre corchetes). Se pasan a
  * la forma GFM (`- [ ] tarea`) antes de convertir a bloques, como hace Notion
- * al tipear `[]`. Las líneas dentro de un bloque de código quedan como están.
+ * al tipear `[]`. Quedan como están las líneas dentro de un bloque de código,
+ * los links (`[x](url)`, `[x]: url`) y unos corchetes sin texto detrás.
  */
-const TODO_SHORTHAND = /^(\s*)(?:[-*+]\s*)?\[(\s?|[xX])\](?!\()\s*(.*)$/;
+const TODO_SHORTHAND = /^(\s*)(?:[-*+]\s+|-)?\[(\s?|[xX])\](?![(:])\s*(\S.*)$/;
 
 export function expandButtonShorthand(md: string): string {
   let fence: string | null = null;
