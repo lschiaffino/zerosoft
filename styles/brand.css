@@ -38,6 +38,7 @@
   --c-send-ink: #0b7285;
   --c-inbox-ink: #3d5a80;
   --c-calls-ink: #a61e4d;
+  --c-fleet-ink: #237032;
   --c-forms-ink: #6e730d;
 
   /* Texto sobre un relleno del color del producto. */
@@ -68,6 +69,7 @@
   --c-send-on: #ffffff;
   --c-inbox-on: #ffffff;
   --c-calls-on: #ffffff;
+  --c-fleet-on: #ffffff;
   --c-forms-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
