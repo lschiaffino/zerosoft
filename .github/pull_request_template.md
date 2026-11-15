@@ -8,7 +8,7 @@
 
 - [ ] `npm run typecheck && npm run lint && npm test`
 - [ ] Used the change in the browser, end to end
-- [ ] Ran the e2e specs for the area I changed (CI runs the full suite)
+- [ ] Ran the e2e specs for the area I changed (CI runs that area on the pull request and the full suite on `main`)
 - [ ] en / es / pt strings updated together (if the UI changed)
 - [ ] New migration as a new file in `lib/schema/migration-files/` instead of editing an existing one (if the schema changed)
 - [ ] No changes under `ee/`
