@@ -522,6 +522,15 @@
 .docs-editable:empty { display: block; }
 .docs-editor-small { --docs-text: 0.9375rem; }
 
+/* Texto en el que se escribe (título, bloques, celdas, leyendas): sin caja de foco,
+   el caret alcanza, como en Notion. Más específico que el :focus-visible global
+   (globals.css), que según el orden de carga de las hojas le ganaba al outline: none
+   de cada regla y dejaba un rectángulo negro de 2px alrededor del párrafo. */
+.docs-editor [contenteditable='true']:focus,
+.docs-editor [contenteditable='true']:focus-visible,
+.docs-title:focus-visible,
+.docs-editable:focus-visible { outline: none; }
+
 .docs-editable strong { font-weight: 700; }
 .docs-editable u { text-decoration: underline; text-underline-offset: 3px; }
 .docs-editable s { text-decoration: line-through; }
@@ -928,7 +937,14 @@
 .docs-gap { position: relative; height: 2px; }
 .docs-gap-add { position: absolute; top: 50%; left: -26px; z-index: 30; width: 20px; height: 20px; transform: translateY(-50%); }
 
-.docs-block-comment { position: absolute; top: 5px; right: -40px; gap: 3px; min-width: 24px; height: 24px; padding: 0 4px; }
+.docs-block-comment { --docs-rail-gap: 16px; position: absolute; top: 5px; right: calc(-24px - var(--docs-rail-gap)); gap: 3px; min-width: 24px; height: 24px; padding: 0 4px; }
+/* Puentes de hover: el asa y el globo quedan afuera del bloque, y al cruzar el hueco
+   el bloque perdía el :hover y el botón se escondía antes de llegar. Cada botón
+   estira su zona hasta el borde del bloque (solo cuando ya está visible). */
+.docs-block-grip::after,
+.docs-block-comment::before { content: ''; position: absolute; top: -5px; bottom: -5px; }
+.docs-block-grip::after { left: 100%; width: 8px; }
+.docs-block-comment::before { right: 100%; width: var(--docs-rail-gap); }
 .docs-block-comment.has-comments { color: var(--ink); }
 .docs-block-comment-count { font-size: 0.6875rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -1443,7 +1459,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-page-header,
   .docs-blocks,
   .docs-readonly-body { width: min(100% - 80px, var(--measure)); }
-  .docs-block-comment { right: -34px; }
+  .docs-block-comment { --docs-rail-gap: 10px; }
 }
 
 @media (max-width: 1023px) {
@@ -1534,7 +1550,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-editor:not(.docs-readonly) .docs-page-header { padding-left: 26px; }
   .docs-block-grip { left: -26px; }
   .docs-gap-add { left: -24px; }
-  .docs-block-comment { right: 0; }
+  .docs-block-comment { --docs-rail-gap: 0px; right: 0; }
   .docs-title { font-size: 2.25rem; }
   .docs-page-header { padding-top: 28px; }
   /* Aire abajo para que el botón flotante de feedback no tape el texto. */
@@ -1633,8 +1649,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 /* ---------- Bloques de imagen y archivo ---------- */
 
 .docs-file-block { display: block; padding: 4px 0; outline: none; }
+/* Bloque de medios seleccionado: anillo azul tenue (el mismo de la selección de bloques), no una caja negra. */
 .docs-file-block:focus-visible,
-.docs-file-block.focused:focus { box-shadow: 0 0 0 2px var(--ink); border-radius: var(--radius-1); }
+.docs-file-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
 .docs-image { display: block; max-width: 100%; height: auto; border-radius: var(--radius-1); }
 .docs-file-card {
   display: flex;
@@ -1702,7 +1719,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 .docs-board-block { display: block; padding: 4px 0; outline: none; }
 .docs-board-block:focus-visible,
-.docs-board-block.focused:focus { box-shadow: 0 0 0 2px var(--ink); border-radius: var(--radius-1); }
+.docs-board-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
 .docs-board-embed {
   display: flex;
   align-items: stretch;
@@ -1959,6 +1976,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-radio { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.875rem; }
 .docs-button-md { font-family: var(--font-data); font-size: 0.8125rem; resize: vertical; }
 .docs-button-actions { display: flex; justify-content: flex-end; gap: 6px; }
+/* Eliminar va a la izquierda, lejos de Guardar. */
+.docs-button-delete { margin-right: auto; }
+.docs-button-hint { margin: -6px 0 0; font-size: 0.75rem; line-height: 1.4; color: var(--brand-gray-2); }
 
 .docs-mention-section { padding: 6px 10px 2px; font-size: 0.6875rem; font-weight: 600; color: var(--brand-gray-2); }
 .docs-mention-detail { margin-left: auto; font-size: 0.75rem; color: var(--brand-gray-2); white-space: nowrap; }
