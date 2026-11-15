@@ -303,7 +303,8 @@ export function planCard(plan: FoldersPlan, extras: PlanExtras, locale: string):
   if (plan.moves.length) {
     details.push({
       label: t('moves', { count: plan.moves.length }),
-      after: `${listOf(t, plan.moves.map((m) => t('moveRow', { chat: m.chat, from: m.from, to: m.to })))}\n${plan.removeFromOthers ? t('movesDone') : t('movesKept')}`,
+      // La aclaración va primero: la tarjeta muestra los primeros renglones y el resto con "Ver todo".
+      after: `${plan.removeFromOthers ? t('movesDone') : t('movesKept')}\n${listOf(t, plan.moves.map((m) => t('moveRow', { chat: m.chat, from: m.from, to: m.to })))}`,
     });
   }
   if (plan.removals.length) details.push({ label: t('removals'), after: t('removalsValue', { count: plan.removals.length }) });

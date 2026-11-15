@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_ROWS, STEP_ROWS, followDecision, initialRows, isNearBottom, nextReveal } from '@/lib/assistant/scroll';
+import { INITIAL_ROWS, STEP_ROWS, followAfterScroll, followDecision, initialRows, isNearBottom, nextReveal } from '@/lib/assistant/scroll';
 import { renderAssistantMarkdown } from '@/lib/assistant/markdown';
 
 /** Una sola barra de scroll en el asistente: listas y tablas largas se abren en el lugar; la charla sigue lo nuevo solo si estabas al final. */
@@ -49,6 +49,12 @@ describe('seguir lo que llega', () => {
     expect(followDecision({ following: false, holding: false, nearBottom: false })).toEqual({ action: 'stay', jump: true });
   });
 
+  it('subir un poco mientras llega texto deja de seguir, aunque siga cerca del final; bajar al final vuelve a seguir', () => {
+    expect(followAfterScroll({ scrolledUp: true, nearBottom: true })).toBe(false);
+    expect(followAfterScroll({ scrolledUp: false, nearBottom: true })).toBe(true);
+    expect(followAfterScroll({ scrolledUp: false, nearBottom: false })).toBe(false);
+  });
+
   it('abrir una lista no salta, aunque estuviera al final', () => {
     expect(followDecision({ following: true, holding: true, nearBottom: false })).toEqual({ action: 'stay', jump: true });
     expect(followDecision({ following: true, holding: true, nearBottom: true })).toEqual({ action: 'stay', jump: false });
@@ -72,6 +78,25 @@ describe('tablas largas en la respuesta', () => {
     const open = renderAssistantMarkdown(table(27), { rows: { shown: { t0: 27 }, label } });
     expect(open.match(/<tr>/g)).toHaveLength(28);
     expect(open).not.toContain('data-rows-more');
+  });
+
+  it('mientras se escribe no se achica: de entrada nunca más de 8, y al terminar 10 se ven enteras', () => {
+    const writing = renderAssistantMarkdown(table(10), { cursor: true, rows: { shown: {}, label } });
+    expect(writing.match(/<tr>/g)).toHaveLength(9);
+    const done = renderAssistantMarkdown(table(10), { rows: { shown: {}, label } });
+    expect(done.match(/<tr>/g)).toHaveLength(11);
+  });
+
+  it('los números no cambian al abrir: una sublista escondida ya tiene el suyo', () => {
+    const a = Array.from({ length: 12 }, (_, i) => (i === 10 ? `- A${i}\n  - sub 1\n  - sub 2` : `- A${i}`)).join('\n');
+    const b = Array.from({ length: 12 }, (_, i) => `1. B${i}`).join('\n');
+    const src = `${a}\n\ntext\n\n${b}`;
+    const closed = renderAssistantMarkdown(src, { rows: { shown: {}, label } });
+    expect(closed).toContain('<ol data-rows="l2">');
+    const open = renderAssistantMarkdown(src, { rows: { shown: { l0: 12 }, label } });
+    expect(open).toContain('<ul data-rows="l1">');
+    expect(open).toContain('<ol data-rows="l2">');
+    expect(open).toContain('data-rows-more="l2"');
   });
 
   it('cada tabla del mensaje lleva su número; el cursor sigue en la última celda', () => {

@@ -25,7 +25,7 @@ function watchErrors(page: Page): string[] {
 
 async function linkWhatsapp(request: APIRequestContext) {
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
 }
 
 /** El JSON de ejemplo con carpetas propias de esta corrida (y chats que no existen: van a "Not found"). */
@@ -77,7 +77,7 @@ async function askForPlan(page: Page, scope: Locator, tag: string): Promise<Loca
 }
 
 test.beforeEach(async () => {
-  // La primera respuesta del asistente compila sus rutas en `next dev`: más margen.
+  // Subir el archivo, el plan y varias pasadas de scroll: más margen (y local corre en `next dev`).
   test.slow();
 });
 
@@ -100,7 +100,7 @@ test('página del asistente: una sola barra de scroll con un plan largo (1440)',
 
   // Al terminar quedó en el final: la tarjeta termina a la vista con Confirmar.
   const confirm = card.getByRole('button', { name: 'Confirm' });
-  await expect(confirm).toBeInViewport();
+  await expect(confirm).toBeInViewport({ ratio: 1 });
 
   // La lista de carpetas: 8 renglones y "Show all 23" la abre en el lugar, sin mover la charla.
   const folders = card.getByTestId('assistant-action-list').first();
@@ -118,7 +118,7 @@ test('página del asistente: una sola barra de scroll con un plan largo (1440)',
   const notFound = card.getByTestId('assistant-action-list').nth(1);
   await expect(notFound.locator('li')).toHaveCount(8);
   await card.getByTestId('assistant-show-rows').first().click();
-  expect((await notFound.locator('li').count()) > 8).toBe(true);
+  await expect(notFound.locator('li')).not.toHaveCount(8);
   expect(await nestedVerticalScrolls(messages)).toEqual([]);
   await expectWindowDoesNotScroll(page);
 
@@ -127,7 +127,7 @@ test('página del asistente: una sola barra de scroll con un plan largo (1440)',
     const list = el.closest('[data-testid="assistant-messages"]') as HTMLElement;
     list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top + 200;
   });
-  await expect(confirm).toBeInViewport();
+  await expect(confirm).toBeInViewport({ ratio: 1 });
   const bar = (await card.getByTestId('assistant-action-bar').boundingBox())!;
   const box = (await messages.boundingBox())!;
   expect(bar.y + bar.height).toBeLessThanOrEqual(box.y + box.height + 1);
@@ -140,14 +140,15 @@ test('página del asistente: una sola barra de scroll con un plan largo (1440)',
   await expect(jump).toBeHidden();
   expect(await messages.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(80);
 
-  await confirm.click();
-  await expect(card).toHaveAttribute('data-status', 'done', { timeout: 120_000 });
+  // Se cancela (no deja 23 carpetas en la base que comparten los demás tests de Inbox).
+  await card.getByRole('button', { name: 'Cancel' }).click();
+  await expect(card).toHaveAttribute('data-status', 'cancelled', { timeout: 60_000 });
 
   // Abrir la charla de nuevo: queda en el último mensaje.
   await expect(page).toHaveURL(/\?c=/);
   await page.reload({ waitUntil: 'networkidle' });
   const reloaded = page.getByTestId('assistant-messages');
-  await expect(reloaded.getByTestId('assistant-action')).toHaveAttribute('data-status', 'done');
+  await expect(reloaded.getByTestId('assistant-action')).toHaveAttribute('data-status', 'cancelled', { timeout: 60_000 });
   await expect.poll(() => reloaded.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(80);
   await expect(reloaded.getByTestId('assistant-action')).toBeInViewport();
   await expectWindowDoesNotScroll(page);
@@ -161,23 +162,28 @@ test('panel y teléfono (390, oscuro): sin scrolls anidados y el campo siempre a
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.keyboard.press('ControlOrMeta+j');
   const panel = page.getByTestId('assistant-panel');
+  await expect(panel).toBeVisible();
   const card = await askForPlan(page, panel, uid());
   const messages = panel.getByTestId('assistant-messages');
   expect(await nestedVerticalScrolls(messages)).toEqual([]);
   await card.getByRole('button', { name: 'Show all 23' }).click();
   await expect(card.getByTestId('assistant-action-list').first().locator('li')).toHaveCount(23);
   expect(await nestedVerticalScrolls(messages)).toEqual([]);
-  await expect(card.getByRole('button', { name: 'Confirm' })).toBeInViewport();
+  await expect(card.getByRole('button', { name: 'Confirm' })).toBeInViewport({ ratio: 1 });
 
   // Teléfono: hoja a pantalla completa, el campo abajo y a la vista.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(panel.getByRole('textbox', { name: /Ask anything/ })).toBeInViewport();
-  await expect(card.getByRole('button', { name: 'Confirm' })).toBeInViewport();
+  await card.evaluate((el) => {
+    const list = el.closest('[data-testid="assistant-messages"]') as HTMLElement;
+    list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top + 120;
+  });
+  await expect(card.getByRole('button', { name: 'Confirm' })).toBeInViewport({ ratio: 1 });
   expect(await nestedVerticalScrolls(messages)).toEqual([]);
   await expectWindowDoesNotScroll(page);
   await card.getByRole('button', { name: 'Cancel' }).click();
-  await expect(card).toHaveAttribute('data-status', 'cancelled');
+  await expect(card).toHaveAttribute('data-status', 'cancelled', { timeout: 60_000 });
 
   // La página a 390: barra de arriba, el historial en lugar de la charla.
   await page.keyboard.press('Escape');

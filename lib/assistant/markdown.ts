@@ -16,7 +16,7 @@
 import { Marked, type Tokens } from 'marked';
 import { escapeHtml, safeHref, unescapeEntities } from '../track-markdown';
 import { highlightCode } from '../track-highlight';
-import { initialRows, nextReveal, type Reveal } from './scroll';
+import { INITIAL_ROWS, initialRows, nextReveal, type Reveal } from './scroll';
 
 export const ASSISTANT_MARKDOWN_MAX = 60_000;
 const CURSOR_HTML = '<span class="asst-cursor" aria-hidden="true"></span>';
@@ -25,20 +25,22 @@ let copyLabel = 'Copy';
 
 /**
  * Tablas y listas largas: cuántos renglones se ven de cada una y el texto del botón. La clave es
- * `t<n>` (la tabla n del mensaje) o `l<n>` (la lista n).
+ * `t<n>` (la tabla n del mensaje) o `l<n>` (la lista n), numeradas sobre el texto entero (no sobre lo
+ * que se ve): abrir una lista no le cambia el número a las que siguen.
  */
 export interface CollapsedRows {
   shown: Record<string, number>;
   label: (r: Reveal) => string;
 }
 let collapse: CollapsedRows | null = null;
-let tableIndex = 0;
-let listIndex = 0;
+/** Mientras se escribe: una lista que pasa de 10 a 11 renglones no se achica (de entrada nunca más de 8). */
+let writing = false;
+let keys = new WeakMap<object, string>();
 
 /** Cuántos de `total` se ven y el botón para ver más ('' si ya se ve todo, o sin `collapse`). */
 function collapsed(key: string, total: number): { shown: number; button: string } {
   if (!collapse) return { shown: total, button: '' };
-  const shown = Math.min(total, collapse.shown[key] ?? initialRows(total));
+  const shown = Math.min(total, collapse.shown[key] ?? (writing ? Math.min(total, INITIAL_ROWS) : initialRows(total)));
   const next = nextReveal(total, shown);
   const button = next
     ? `<button type="button" class="btn btn-ghost btn-sm asst-show-rows" data-rows-more="${key}" data-to="${next.to}">${escapeHtml(collapse.label(next))}</button>`
@@ -80,7 +82,7 @@ const md = new Marked({
       );
     },
     list(token: Tokens.List) {
-      const key = `l${listIndex++}`;
+      const key = keys.get(token) ?? '';
       const { shown, button } = collapsed(key, token.items.length);
       const body = token.items
         .slice(0, shown)
@@ -88,7 +90,7 @@ const md = new Marked({
         .join('');
       const type = token.ordered ? 'ol' : 'ul';
       const start = token.ordered && token.start !== 1 ? ` start="${token.start}"` : '';
-      return `<${type}${start}>\n${body}</${type}>\n${button ? `${LIST_MORE_OPEN}${button}</div>\n` : ''}`;
+      return `<${type}${start}${key ? ` data-rows="${key}"` : ''}>\n${body}</${type}>\n${button ? `${LIST_MORE_OPEN}${button}</div>\n` : ''}`;
     },
     table(token: Tokens.Table) {
       const cell = (c: Tokens.TableCell, tag: 'th' | 'td') => {
@@ -96,14 +98,15 @@ const md = new Marked({
         return `<${tag}${tag === 'th' ? ' scope="col"' : ''}${align}>${this.parser.parseInline(c.tokens)}</${tag}>`;
       };
       const head = `<tr>${token.header.map((c) => cell(c, 'th')).join('')}</tr>`;
-      const { shown, button } = collapsed(`t${tableIndex++}`, token.rows.length);
+      const key = keys.get(token) ?? '';
+      const { shown, button } = collapsed(key, token.rows.length);
       const rows = token.rows
         .slice(0, shown)
         .map((r) => `<tr>${r.map((c) => cell(c, 'td')).join('')}</tr>`)
         .join('');
       // El botón va en un <caption> abajo: en el código queda antes de las filas, así el cursor de escritura sigue en la última celda.
       const caption = button ? `<caption class="asst-table-more">${button}</caption>` : '';
-      return `<div class="table-wrap asst-table"><table class="table table-compact">${caption}<thead>${head}</thead><tbody>${rows}</tbody></table></div>\n`;
+      return `<div class="table-wrap asst-table"><table class="table table-compact">${caption}<thead>${head}</thead><tbody${key ? ` data-rows="${key}"` : ''}>${rows}</tbody></table></div>\n`;
     },
   },
 });
@@ -113,13 +116,24 @@ export function renderAssistantMarkdown(markdown: string, opts: { cursor?: boole
   const src = markdown.slice(0, ASSISTANT_MARKDOWN_MAX);
   copyLabel = opts.copy ?? 'Copy';
   collapse = opts.rows ?? null;
-  tableIndex = 0;
-  listIndex = 0;
-  let html: string;
+  writing = Boolean(opts.cursor);
+  let html = '';
   try {
-    html = src.trim() ? (md.parse(src) as string).trim() : '';
+    if (src.trim()) {
+      // Cada lista y tabla se numera antes de pintar (también las que quedan adentro de un renglón escondido).
+      const tokens = md.lexer(src);
+      let tables = 0;
+      let lists = 0;
+      md.walkTokens(tokens, (token) => {
+        if (token.type === 'table') keys.set(token, `t${tables++}`);
+        else if (token.type === 'list') keys.set(token, `l${lists++}`);
+      });
+      html = (md.parser(tokens) as string).trim();
+    }
   } finally {
     collapse = null;
+    writing = false;
+    keys = new WeakMap();
   }
   if (!opts.cursor) return html;
   // El cursor va adentro del último bloque (antes de las etiquetas que lo cierran): al final del párrafo,

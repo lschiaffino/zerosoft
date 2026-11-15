@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from 'react';
-import { followDecision, isNearBottom } from '@/lib/assistant/scroll';
+import { followAfterScroll, followDecision, isNearBottom } from '@/lib/assistant/scroll';
 
 /**
  * Lo que agranda un mensaje a pedido de la persona (una lista que se abre,
@@ -28,10 +28,13 @@ export function useFollow(listRef: RefObject<HTMLDivElement | null>, ready: bool
       if (d.action === 'follow') el.scrollTop = el.scrollHeight;
       setShowJump(d.jump);
     };
+    let lastTop = el.scrollTop;
     const onScroll = () => {
+      const scrolledUp = el.scrollTop < lastTop - 1;
+      lastTop = el.scrollTop;
       if (holding.current) return;
       const near = isNearBottom(el);
-      following.current = near;
+      following.current = followAfterScroll({ scrolledUp, nearBottom: near });
       setShowJump(!near);
     };
     onChange();
@@ -41,7 +44,18 @@ export function useFollow(listRef: RefObject<HTMLDivElement | null>, ready: bool
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onChange);
     ro?.observe(el);
     el.addEventListener('scroll', onScroll, { passive: true });
+    // Abrir un bloque plegado (los pasos, el razonamiento) agranda el mensaje sin tocar el DOM: tampoco salta.
+    const onToggle = () => {
+      following.current = false;
+      requestAnimationFrame(() => {
+        const near = isNearBottom(el);
+        following.current = near;
+        setShowJump(!near);
+      });
+    };
+    el.addEventListener('toggle', onToggle, true);
     return () => {
+      el.removeEventListener('toggle', onToggle, true);
       mo?.disconnect();
       ro?.disconnect();
       el.removeEventListener('scroll', onScroll);

@@ -273,11 +273,7 @@ export function AssistantMarkdown({ text, streaming }: { text: string; streaming
         const to = Number(more.dataset.to);
         const root = e.currentTarget;
         // La fila o el ítem que recibe el foco: el primero nuevo de esa tabla o lista.
-        const target = (): HTMLElement | undefined => {
-          const n = Number(key.slice(1));
-          if (key.startsWith('t')) return root.querySelectorAll<HTMLTableElement>('.asst-table table')[n]?.tBodies[0];
-          return root.querySelectorAll<HTMLElement>('ul, ol')[n];
-        };
+        const target = () => root.querySelector<HTMLElement>(`[data-rows="${key}"]`);
         const from = target()?.children.length ?? 0;
         setRowsShown((prev) => ({ ...prev, [key]: to }));
         // El foco pasa al primer renglón nuevo (el HTML se vuelve a pintar), sin mover la charla.

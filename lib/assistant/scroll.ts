@@ -49,3 +49,12 @@ export function followDecision(s: { following: boolean; holding: boolean; nearBo
   if (s.following) return { action: 'follow', jump: false };
   return { action: 'stay', jump: !s.nearBottom };
 }
+
+/**
+ * Después de un scroll: ¿se sigue lo nuevo? Subir, aunque sea un poco (trackpad, dedo), deja de
+ * seguir en el momento: si no, mientras llega texto cada cuadro te devolvería al final. Se vuelve a
+ * seguir al bajar hasta el final.
+ */
+export function followAfterScroll(s: { scrolledUp: boolean; nearBottom: boolean }): boolean {
+  return !s.scrolledUp && s.nearBottom;
+}

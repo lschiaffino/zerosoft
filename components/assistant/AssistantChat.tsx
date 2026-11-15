@@ -87,6 +87,8 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
     <div className={`asst-action${action.destructive ? ' is-destructive' : ''}`} data-testid="assistant-action" data-status={action.status}>
       <p className="asst-action-kicker">{action.destructive ? t('action.destructive') : t('action.review')}</p>
       <p className="asst-action-summary">{action.summary}</p>
+      {/* El cuerpo: la barra de botones se pega abajo solo dentro de él, así nunca tapa el resumen de arriba. */}
+      <div className="asst-action-body">
       {action.details.length > 0 && (
         <dl className="asst-action-details">
           {action.details.map((d, i) => (
@@ -158,6 +160,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
           )}
         </p>
       )}
+      </div>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -468,7 +471,13 @@ export default function AssistantChat({
       </HoldScrollContext.Provider>
       {showJump && (
         <div className="asst-jump-wrap">
-          <button type="button" className="btn btn-secondary btn-sm asst-jump" data-testid="assistant-jump" onClick={follow}>
+          <button type="button" className="btn btn-secondary btn-sm asst-jump" data-testid="assistant-jump"
+            onClick={() => {
+              follow();
+              // El botón se va: el foco pasa al campo.
+              inputRef.current?.focus({ preventScroll: true });
+            }}
+          >
             <span aria-hidden="true">↓</span> {t('jumpToLatest')}
           </button>
         </div>
