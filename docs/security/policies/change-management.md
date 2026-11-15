@@ -9,10 +9,14 @@ Last reviewed: 2026-11-09 · Owner: security officer · Review: yearly
 2. **Pull request.** Every change goes through a PR on GitHub with a description of what
    changed and how it was tested. Database changes are migrations appended to
    `lib/schema/migrations.ts`; they are forward-only and idempotent.
-3. **Automated checks (CI, `.github/workflows/`):** type check, lint, unit tests, production
-   build, end-to-end tests in four shards plus the real-integration suite, Docker self-host
-   smoke test, CodeQL static analysis, secret scanning (gitleaks) and a dependency audit. The
-   single required status is "CI result".
+3. **Automated checks (CI, `.github/workflows/`):** on every pull request, type check, lint,
+   unit tests and secret scanning (gitleaks), plus the production build and the end-to-end
+   tests of the areas the change touches (the full suite when it touches shared code; the
+   map is `scripts/e2e-areas.json`), the real-session suite when session code changes, the
+   Docker self-host smoke test and the dependency audit when dependencies change. Every push
+   to `main` and a nightly run execute the full end-to-end suite, the real-session suite and
+   the Docker smoke test; a failure opens the issue "CI: main is red". CodeQL static analysis
+   runs on `main` and weekly. The single required status is "CI result".
 4. **Review.** Changes to sensitive paths (auth, sessions, access control, schema, CI,
    licensing) need the owner's review (`.github/CODEOWNERS`). Security-relevant changes also
    get an independent security review (a second reviewer or a dedicated review agent) before

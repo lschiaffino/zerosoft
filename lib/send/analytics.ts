@@ -74,7 +74,8 @@ export interface DocumentAnalytics {
   visits: VisitDto[];
   visitors: VisitorDto[];
   versions: VersionStat[];
-  denied: Array<{ email: string | null; at: string; linkName: string }>;
+  /** Sin acceso por la lista (`denied`) o con el link deshabilitado o vencido. */
+  denied: Array<{ email: string | null; at: string; linkName: string; reason: 'denied' | 'disabled' | 'expired' }>;
   /** Links del documento y botón del link que se tocaron, con cuántas veces y cuántas personas. */
   linkClicks: Array<{ url: string | null; toPage: number | null; page: number; button: string | null; clicks: number; people: number }>;
 }
@@ -267,10 +268,10 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
   const seconds = visits.reduce((n, v) => n + v.seconds, 0);
   const denied = (await db
     .prepare(
-      `SELECT e.email, e.created_at, l.name AS link_name FROM send_events e LEFT JOIN send_links l ON l.id = e.link_id
-       WHERE e.document_id = ? AND e.type = 'denied' ORDER BY e.created_at DESC LIMIT 50`,
+      `SELECT e.email, e.created_at, e.type, e.detail, l.name AS link_name FROM send_events e LEFT JOIN send_links l ON l.id = e.link_id
+       WHERE e.document_id = ? AND e.type IN ('denied', 'closed_open')${opts.linkId ? ' AND e.link_id = ?' : ''} ORDER BY e.created_at DESC LIMIT 50`,
     )
-    .all(documentId)) as Array<{ email: string | null; created_at: string; link_name: string | null }>;
+    .all(...(opts.linkId ? [documentId, opts.linkId] : [documentId]))) as Array<{ email: string | null; created_at: string; type: string; detail: string; link_name: string | null }>;
   return {
     totals: {
       visits: visits.length,
@@ -292,7 +293,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       avgCompletion: Math.round(Number(v.avg_completion ?? 0)),
       avgSeconds: Math.round(Number(v.avg_seconds ?? 0) * 10) / 10,
     })),
-    denied: denied.map((d) => ({ email: d.email, at: d.created_at, linkName: d.link_name ?? '' })),
+    denied: denied.map((d) => ({ email: d.email, at: d.created_at, linkName: d.link_name ?? '', reason: d.type === 'denied' ? 'denied' : d.detail === 'expired' ? 'expired' : 'disabled' })),
     linkClicks: [...byUrl.values()].map(({ people, ...rest }) => ({ ...rest, people: people.size })).sort((a, b) => b.clicks - a.clicks),
   };
 }
