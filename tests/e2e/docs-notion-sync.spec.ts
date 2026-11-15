@@ -100,6 +100,45 @@ test('Notion: conectar con token, importar y editar de ida y vuelta', async ({ p
   expect((await request.get(`/api/docs/pages/${hit!.id}`)).ok()).toBeTruthy();
 });
 
+test('Notion: verificar el webhook (candidato, confirmar, firmas)', async ({ page, request }) => {
+  const hook = '/api/integrations/notion/webhook';
+  const token = `secret_e2e${uid()}${uid()}${uid()}abcdef`;
+  const event = JSON.stringify({ type: 'page.content_updated', workspace_id: 'ws-e2e', entity: { id: 'x', type: 'page' } });
+  const { createHmac } = await import('crypto');
+  const sign = (key: string) => `sha256=${createHmac('sha256', key).update(event).digest('hex')}`;
+  // Se empieza de cero (otro intento pudo dejar un token confirmado).
+  await request.patch('/api/docs/notion', { data: { clear_webhook_token: true } });
+
+  await page.goto('/en/app/docs/settings?tab=integrations', { waitUntil: 'networkidle' });
+  const box = page.getByTestId('notion-sync-webhook');
+  await expect(box).toHaveAttribute('data-state', 'idle');
+  // Sin espera abierta, un token sin firma no queda en ningún lado.
+  await request.post(hook, { data: { verification_token: token } });
+  await page.getByTestId('notion-sync-webhook-open').click();
+  await expect(box).toHaveAttribute('data-state', 'waiting');
+
+  // Notion manda el token: aparece solo (la pantalla mira seguido) y todavía no valida firmas.
+  expect((await request.post(hook, { data: { verification_token: token } })).ok()).toBeTruthy();
+  await expect(box).toHaveAttribute('data-state', 'received', { timeout: 15_000 });
+  await expect(page.getByTestId('notion-sync-webhook-token')).toHaveText(token);
+  const early = await request.post(hook, { data: event, headers: { 'content-type': 'application/json', 'x-notion-signature': sign(token) } });
+  expect(early.status()).toBe(401);
+
+  await page.getByTestId('notion-sync-webhook-confirm').click();
+  await expect(box).toHaveAttribute('data-state', 'confirmed');
+  await expect(page.locator('body')).not.toContainText(token);
+  const signed = await request.post(hook, { data: event, headers: { 'content-type': 'application/json', 'x-notion-signature': sign(token) } });
+  expect(signed.status()).toBe(200);
+  const unsigned = await request.post(hook, { data: event, headers: { 'content-type': 'application/json' } });
+  expect(unsigned.status()).toBe(401);
+
+  // Borrar vuelve al principio; los eventos con el token viejo se rechazan.
+  await page.getByTestId('notion-sync-webhook-clear').click();
+  await expect(box).toHaveAttribute('data-state', 'idle');
+  const stale = await request.post(hook, { data: event, headers: { 'content-type': 'application/json', 'x-notion-signature': sign(token) } });
+  expect(stale.status()).toBe(401);
+});
+
 test('Notion: a 390 px la pantalla no tiene scroll horizontal', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/app/docs/settings?tab=integrations', { waitUntil: 'networkidle' });

@@ -166,6 +166,13 @@ const parity: ProductParity = {
     }),
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
+    row('wa-attach-menu', 'inbox', ['Attach menu like WhatsApp (camera, poll, new sticker)', 'Menú de adjuntar como WhatsApp (cámara, encuesta, sticker nuevo)', 'Menu de anexar como o WhatsApp (câmera, enquete, nova figurinha)'], 'partial', {
+      detail: [
+        'Document, photos and videos, camera (the computer camera too), audio, contact, poll and new sticker, in the WhatsApp order with colored icons; poll and contact only show when the line can send them. Help me write, dictate, send later and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',
+        'Documento, fotos y videos, cámara (también la de la computadora), audio, contacto, encuesta y sticker nuevo, en el orden de WhatsApp con íconos de color; encuesta y contacto aparecen solo si la línea los puede mandar. Ayudame a escribir, dictar, enviar más tarde y comandos van debajo de una línea. Faltan los eventos: nuestro servidor de WhatsApp todavía no los puede mandar. Probado con el proveedor falso',
+        'Documento, fotos e vídeos, câmera (também a do computador), áudio, contato, enquete e nova figurinha, na ordem do WhatsApp com ícones coloridos; enquete e contato só aparecem se a linha pode enviá-los. Me ajude a escrever, ditar, enviar depois e comandos ficam abaixo de uma linha. Faltam os eventos: nosso servidor de WhatsApp ainda não consegue enviá-los. Testado com o provedor falso',
+      ],
+    }),
     row('line-health', 'numbers', ['Warning when a line disconnects, with QR re-scan', 'Aviso cuando una línea se desconecta, con QR de nuevo', 'Aviso quando uma linha desconecta, com QR de novo'], 'have'),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have', {
       detail: [
@@ -346,6 +353,14 @@ const parity: ProductParity = {
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
+    }),
+    row('folders-json', 'automation', ['Folders from a JSON with the assistant', 'Carpetas desde un JSON con el asistente', 'Pastas a partir de um JSON com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste a JSON exported from another tool and the assistant plans the shared folders and which chats go in each, only with chats you can see. Chats already in another folder stay there unless you ask to move them; you confirm before anything changes. It cannot create chats that are not on a line yet. Tested with the fake model',
+        'Pegá un JSON exportado de otra herramienta y el asistente arma el plan de carpetas compartidas y qué chats van en cada una, solo con los chats que ves. Los que ya están en otra carpeta se quedan ahí salvo que pidas moverlos; confirmás antes de que cambie algo. No puede crear chats que todavía no están en una línea. Probado con el modelo falso',
+        'Cole um JSON exportado de outra ferramenta e o assistente monta o plano de pastas compartilhadas e quais conversas vão em cada uma, só com as conversas que você vê. As que já estão em outra pasta ficam lá a menos que você peça para movê-las; você confirma antes de qualquer mudança. Não consegue criar conversas que ainda não estão numa linha. Testado com o modelo falso',
+      ],
     }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
       detail: [
