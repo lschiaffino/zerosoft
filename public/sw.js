@@ -285,7 +285,7 @@ function isChatRead(url) {
   const p = url.pathname;
   if (/^\/api\/groups\/(chats|folders|lists)$/.test(p)) return true;
   if (/^\/api\/groups\/chats\/[^/]+\/messages$/.test(p)) return true;
-  if (p === '/api/inbox/threads' || p === '/api/inbox/state') return true;
+  if (p === '/api/inbox/threads') return true;
   return /^\/api\/inbox\/threads\/[^/]+(\/messages)?$/.test(p);
 }
 
@@ -776,6 +776,29 @@ async function networkFirst(request) {
   }
 }
 
+/**
+ * Lines e Inbox consultan su lista y la conversación abierta cada pocos segundos: la respuesta vuelve en el acto y
+ * se guarda por detrás (waitUntil), sin esperar el índice de lo guardado. Sin red, la última copia.
+ */
+async function chatRead(event, request) {
+  const url = new URL(request.url);
+  if (!offlineAllows(await getPrefs(), url.pathname)) return fetch(request);
+  const cache = await pagesCache();
+  if (!cache) return fetch(request);
+  try {
+    const res = await fetch(request);
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) {
+      const meta = await getMeta();
+      if (meta) event.waitUntil(store(cache, `${PAGES}-${encodeURIComponent(meta.id)}`, request, res.clone(), offlineAppOf(url.pathname)).then(trim).catch(() => undefined));
+    }
+    return res;
+  } catch (err) {
+    const hit = await cache.match(request, { ignoreVary: true });
+    if (hit) return hit;
+    throw err;
+  }
+}
+
 async function crmNavigation(request) {
   const url = new URL(request.url);
   try {
@@ -944,7 +967,7 @@ self.addEventListener('fetch', (event) => {
       return;
     }
     // Lines e Inbox: la lista y las conversaciones ya abiertas se leen sin red.
-    if (isChatRead(url) && !request.headers.has('range')) event.respondWith(networkFirst(request));
+    if (isChatRead(url) && !request.headers.has('range')) event.respondWith(chatRead(event, request));
     return;
   }
 
