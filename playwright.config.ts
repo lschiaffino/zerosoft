@@ -144,6 +144,9 @@ export default defineConfig({
       VOICE_AI_FAKE: '1',
       // Calls: el bot simulado (lib/calls/fake-bot.ts) en vez de services/calls-bot y el análisis sin modelo.
       CALLS_BOT_FAKE: '1',
+      // Fleet: GitHub y Vercel falsos (lib/fleet/fake.ts, tokens "fake…") y el tiempo real por consulta (un stream abierto no deja llegar a networkidle).
+      FLEET_FAKE: '1',
+      FLEET_REALTIME: 'poll',
       CALLS_AI_FAKE: '1',
       // Voice → Notion sin salir a internet (lib/voice-send.ts).
       VOICE_NOTION_FAKE: '1',
