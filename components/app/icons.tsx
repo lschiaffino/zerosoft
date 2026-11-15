@@ -73,6 +73,9 @@ export type IconName =
   | 'sign'
   | 'send'
   | 'calls'
+  | 'fleet'
+  | 'pullRequest'
+  | 'deploy'
   | 'flag'
   | 'bug'
   | 'sql'
@@ -341,6 +344,29 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="7" width="18" height="13" rx="1" />
       <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
+    </>
+  ),
+  fleet: (
+    <>
+      <rect x="3" y="4" width="8" height="7" rx="1.5" />
+      <rect x="13" y="4" width="8" height="7" rx="1.5" />
+      <rect x="3" y="13" width="8" height="7" rx="1.5" />
+      <rect x="13" y="13" width="8" height="7" rx="1.5" />
+      <path d="M5.5 8.5h3M15.5 17.5h3" />
+    </>
+  ),
+  pullRequest: (
+    <>
+      <circle cx="6" cy="5.5" r="2" />
+      <circle cx="6" cy="18.5" r="2" />
+      <circle cx="18" cy="18.5" r="2" />
+      <path d="M6 7.5v9M18 16.5V9.5a3 3 0 0 0-3-3h-4M13 4.5l-2 2 2 2" />
+    </>
+  ),
+  deploy: (
+    <>
+      <path d="M12 4l9 15H3z" />
+      <path d="M12 10v4M12 16.5v.5" />
     </>
   ),
   calls: (
