@@ -107,6 +107,13 @@ export async function connectWhatsapp(owner: string): Promise<{ account: Account
     }
     account = (await ensureWhatsappAccount(owner))!;
   }
+  // Empieza una vinculación (la primera, o la línea se volvió a vincular): lo que entre desde ahora es "nuevo"; los
+  // chats que ya estaban conservan lo que la persona hizo (isFreshThread). Con la cuenta ya conectada no cambia.
+  if (account.status !== 'connected') {
+    const linkedAt = nowIso();
+    await getDb().prepare('UPDATE inbox_accounts SET linked_at = ? WHERE id = ?').run(linkedAt, account.id);
+    account.linked_at = linkedAt;
+  }
   let state: ConnectState;
   try {
     state = await waProviderFor(account).connect(webhookUrlFor(account));
@@ -478,7 +485,7 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
     try {
       const t = await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
       // Los archivados del historial entran marcados como archivados (no ensucian la bandeja).
-      if ((c.archived === true || c.archive === true) && isFreshThread(t)) await markArchived(t.id);
+      if ((c.archived === true || c.archive === true) && isFreshThread(t, account)) await markArchived(t.id);
       n++;
     } catch {
       /* uno roto no frena el resto */
@@ -488,14 +495,29 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
 }
 
 /**
- * ¿El chat entró recién con esta vinculación? Lo que dice el teléfono de un chat (archivado, no leídos) se copia solo
- * a los chats nuevos: en uno que ya estaba acá (la línea se volvió a vincular o a importar) manda lo que la persona
- * hizo en Inbox (lo leyó, lo sacó de archivados, lo fijó), y no se pisa.
+ * ¿El chat entró con esta vinculación? Lo que dice el teléfono de un chat (archivado, no leídos) se copia solo a los
+ * chats nuevos: en uno que ya estaba acá (la línea se volvió a vincular o a importar) manda lo que la persona hizo en
+ * Inbox (lo leyó, lo sacó de archivados, lo fijó), y no se pisa. "Con esta vinculación" es creado después de que se
+ * empezó a vincular (inbox_accounts.linked_at, que connectWhatsapp pone al mostrar el QR), como hace Lines con el
+ * arranque de su importación. Una cuenta vinculada antes de que existiera ese dato: solo lo creado en la última hora.
  */
-export const FRESH_THREAD_MS = 6 * 60 * 60 * 1000;
-export function isFreshThread(t: Pick<ThreadRow, 'created_at'>, now = Date.now()): boolean {
+export const LEGACY_FRESH_MS = 60 * 60 * 1000;
+export function isFreshThread(t: Pick<ThreadRow, 'created_at'>, account: Pick<AccountRow, 'linked_at'>, now = Date.now()): boolean {
   const created = Date.parse(t.created_at);
-  return !Number.isFinite(created) || now - created < FRESH_THREAD_MS;
+  if (!Number.isFinite(created)) return false;
+  const linked = account.linked_at ? Date.parse(account.linked_at) : NaN;
+  return Number.isFinite(linked) ? created >= linked : now - created < LEGACY_FRESH_MS;
+}
+
+/**
+ * Lo que el teléfono dice de un chat al importar lo que guardó el servidor (archivado, no leídos): solo en los chats
+ * que entraron con esta vinculación (isFreshThread). Devuelve si se aplicó.
+ */
+export async function applyPhoneChatState(account: Pick<AccountRow, 'linked_at'>, t: Pick<ThreadRow, 'id' | 'created_at'>, c: { archived?: boolean; unread?: number }): Promise<boolean> {
+  if (!isFreshThread(t, account)) return false;
+  if (c.archived) await markArchived(t.id);
+  if (c.unread && c.unread > 0) await getDb().prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+  return true;
 }
 
 /** Marca un chat como archivado sin tocar uno que ya lo está (conserva la fecha). */
@@ -681,10 +703,7 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         for (const c of rows) {
           const chatId = await bookChatId(account, c.chatId);
           const t = await upsertThread(account, { externalId: chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(chatId) });
-          // Solo en los chats que entraron con esta vinculación (ver isFreshThread).
-          const fresh = isFreshThread(t);
-          if (c.archived && fresh) await markArchived(t.id);
-          if (c.unread > 0 && fresh) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+          await applyPhoneChatState(account, t, c);
           if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);
           if (queue.length < MAX_CHATS) queue.push(c.remoteJid);
         }

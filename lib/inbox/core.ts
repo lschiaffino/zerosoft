@@ -69,6 +69,8 @@ export interface AccountRow {
   privacy_at?: string | null;
   /** WhatsApp: no puede sincronizar el archivado ('app_state_unavailable'; lib/wa-archive-sync.ts). */
   archive_sync_error?: string;
+  /** WhatsApp: cuándo se empezó a vincular por última vez (el QR). NULL en las cuentas vinculadas antes de guardarlo. */
+  linked_at?: string | null;
 }
 
 /** Credenciales de la cuenta, descifradas. */

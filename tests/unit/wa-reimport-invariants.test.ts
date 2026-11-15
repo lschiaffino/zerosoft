@@ -17,7 +17,7 @@ import { existsSync } from 'fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { createAccount, createFolder, findThread, getAccountById, saveNotes } from '@/lib/inbox/core';
-import { connectWhatsapp, disconnectWhatsapp, ingestHistoryChats, ingestWhatsappEvents, readMediaRef } from '@/lib/inbox/whatsapp';
+import { applyPhoneChatState, connectWhatsapp, disconnectWhatsapp, ingestHistoryChats, ingestWhatsappEvents, readMediaRef } from '@/lib/inbox/whatsapp';
 import { connectNumber, createLabel, createNumber, disconnectNumber, getNumberRowById, ingestEvents, setChatLabels, type NumberRow } from '@/lib/groups';
 import { ingestHistory } from '@/lib/groups-import';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
@@ -233,13 +233,29 @@ describe('Inbox: importar, usar y volver a importar', () => {
     expect(again.id).toBe(acc.id);
     await getDb().prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(acc.id);
     const linked = (await getAccountById(acc.id))!;
+    expect(linked.linked_at).toBeTruthy();
     for (const v of variants(d)) {
       await ingestWhatsappEvents(linked, v.events, { history: true });
       expect(await snapshot(acc.id, u.id), v.name).toEqual(before);
     }
+    // Con el historial, el teléfono vuelve a decir cómo tiene cada chat (la lista de chats y la importación de lo que
+    // guardó el servidor): todos archivados y con no leídos. Los chats ya estaban: no se pisa nada. Sin tocar fechas:
+    // los chats tienen segundos, pero son anteriores a esta vinculación.
+    await ingestHistoryChats(linked, [{ remoteJid: d.pa, archived: true }, { remoteJid: d.pb, archived: true }, { remoteJid: d.group, name: 'Equipo Ejemplo', archive: true }]);
+    for (const jid of [d.pa, d.pb, d.group]) {
+      expect(await applyPhoneChatState(linked, (await findThread(acc.id, jid))!, { archived: true, unread: 7 })).toBe(false);
+    }
+    expect(await snapshot(acc.id, u.id), 'estado del teléfono').toEqual(before);
+    // Un chat que entra con esta vinculación sí llega como está en el teléfono.
+    const nuevo = `${person().phone}@s.whatsapp.net`;
+    await ingestHistoryChats(linked, [{ remoteJid: nuevo, archived: true }]);
+    const fresh = (await findThread(acc.id, nuevo))!;
+    expect(fresh.archived_at).not.toBeNull();
+    expect(await applyPhoneChatState(linked, fresh, { unread: 4 })).toBe(true);
+    expect((await findThread(acc.id, nuevo))!.unread).toBe(4);
   });
 
-  it('lo que dice el teléfono (archivado, no leídos) no pisa lo que la persona hizo en un chat que ya estaba', async () => {
+  it('cuenta vinculada antes de guardar cuándo: el teléfono solo manda en los chats de la última hora', async () => {
     const { u, acc } = await account('inv-in4');
     const d = dataset(false);
     await ingestWhatsappEvents(acc, d.events, { history: true });
@@ -313,7 +329,14 @@ describe('Inbox: importar, usar y volver a importar', () => {
     await db.prepare('UPDATE inbox_messages SET starred_at = ? WHERE id = ?').run(new Date().toISOString(), twin.id);
     expect((await transcribeMessage('inbox', u.id, twin.id, async () => ({ data: Buffer.from('RIFF....WAVE'), mimetype: 'audio/wav', seconds: 2 }))).status).toBe('done');
 
-    await mergeLidChats('inbox', acc.id, { pairs: [{ loser: lidThread.id, survivor: old.thread_id, lid: p.lid, phone: p.phone }] });
+    // En el chat del teléfono había quedado un intento fallido (el audio no se podía bajar): gana la hecha.
+    await transcribeMessage('inbox', u.id, old.id, async () => {
+      throw Object.assign(new Error('x'), { code: 'media_gone' });
+    });
+    expect((await readTranscript('inbox', u.id, old.id))?.status).toBe('failed');
+
+    const counts = await mergeLidChats('inbox', acc.id, { pairs: [{ loser: lidThread.id, survivor: old.thread_id, lid: p.lid, phone: p.phone }] });
+    expect(counts).toMatchObject({ merged: 1, messages: 1 });
 
     const left = (await db.prepare('SELECT id, thread_id, media_ref, starred_at FROM inbox_messages WHERE external_id = ?').all(mid)) as Array<{ id: string; thread_id: string; media_ref: string; starred_at: string | null }>;
     expect(left).toHaveLength(1);
@@ -393,7 +416,10 @@ describe('Lines: importar, usar y volver a importar', () => {
     expect(before.messages).toHaveLength(d.events.length + 1);
 
     for (const v of variants(d)) {
-      await ingestEvents(row, v.events, { history: v.history ?? true });
+      // En vivo (un reintento del gateway) y como historial.
+      await ingestEvents(row, v.events, v.history ? { history: true } : {});
+      expect(await snapshot(row.id, user.id), `webhook en vivo: ${v.name}`).toEqual(before);
+      await ingestEvents(row, v.events, { history: true });
       expect(await snapshot(row.id, user.id), `webhook: ${v.name}`).toEqual(before);
       // Y por la importación del historial (el otro camino por el que llega lo mismo).
       await ingestHistory(row, v.events);

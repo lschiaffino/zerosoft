@@ -247,7 +247,8 @@ export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatemen
     // vincular) se puede volver a bajar; la vieja, que es solo el id del mensaje, ya no. Si no, al juntar los chats se
     // borraba justo la copia que servía.
     const dup = (col: string) =>
-      `(SELECT l.${col} FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id)`;
+      // Si dos chats perdedores tienen el mismo mensaje, primero la copia que trae la clave del archivo.
+      `(SELECT l.${col} FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id ORDER BY (l.media_ref LIKE '%"wire"%') DESC LIMIT 1)`;
     stmts.push({
       sql: `UPDATE inbox_messages SET
           starred_at = COALESCE(starred_at, ${dup('starred_at')}),
@@ -260,7 +261,17 @@ export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatemen
           AND external_id IN (SELECT l.external_id FROM inbox_messages l WHERE l.thread_id IN ${P} AND (l.starred_at IS NOT NULL OR l.reactions <> '' OR l.media_ref <> ''))`,
       args: [run, run, run, run, run, run],
     });
-    // La transcripción hecha sobre el repetido (se guarda por id de mensaje) pasa al que queda, si ese no tiene una.
+    // La transcripción hecha sobre el repetido (se guarda por id de mensaje) pasa al que queda. Gana la que está
+    // hecha: si el que queda solo tiene un intento fallido (su audio ya no se podía bajar) y el repetido tiene la
+    // transcripción, primero se saca el intento fallido.
+    stmts.push({
+      sql: `DELETE FROM wa_transcripts WHERE scope = 'inbox' AND status <> 'done' AND message_id IN (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            JOIN wa_transcripts lt ON lt.scope = 'inbox' AND lt.message_id = l.id AND lt.owner_id = wa_transcripts.owner_id AND lt.status = 'done')`,
+      args: [run],
+    });
     stmts.push({
       sql: `UPDATE OR IGNORE wa_transcripts SET message_id = (
             SELECT s.id FROM inbox_messages l
