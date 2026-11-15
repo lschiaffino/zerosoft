@@ -1958,7 +1958,13 @@
     "mediaGoneShort": "No longer on WhatsApp",
     "mediaOffline": "The line is disconnected. Link it again to download this.",
     "mediaOfflineShort": "Line disconnected",
-    "mediaRetryFailed": "Couldn't download"
+    "mediaRetryFailed": "Couldn't download",
+    "olderLoad": "Load older messages",
+    "olderLoading": "Loading older messages…",
+    "olderNone": "No older messages on WhatsApp",
+    "olderError": "Couldn't load them. Try again",
+    "olderLimited": "Wait a moment and try again",
+    "olderOffline": "Line disconnected: link it to load older messages"
   },
   "swipe": {
     "read": "Read",

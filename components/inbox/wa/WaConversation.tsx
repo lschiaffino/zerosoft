@@ -29,6 +29,7 @@ import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
 import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
@@ -104,7 +105,8 @@ const WaConversation = forwardRef<
     onToggleInfo: () => void;
     onRename: (title: string) => void;
     onRefresh: () => void;
-    loadOlder: () => Promise<void>;
+    /** Trae de lo guardado los mensajes anteriores a los que hay; devuelve cuántos sumó. */
+    loadOlder: () => Promise<number>;
     /** Abrir otro chat de Inbox (el 1:1 de alguien del grupo, un grupo en común). */
     onOpenThread?: (id: string) => void;
     /** Abrir (o crear) el chat 1:1 con un teléfono. */
@@ -274,6 +276,30 @@ const WaConversation = forwardRef<
   };
   /** Texto plano con las menciones nombradas (copiar, editar, info). */
   const mentionText = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }) => replaceMentions(m.body, mentionsFor(m));
+
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega entra por loadOlder, como al subir en la conversación.
+  const olderHistory = useOlderHistory(
+    thread.id,
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      // Lo que llegó puede ser más de una página de lo guardado: se traen todas (hasta 4), así la ficha no se cambia
+      // por el botón de "anteriores" a mitad de camino.
+      let total = 0;
+      for (let i = 0; i < 4; i++) {
+        const n = await props.loadOlder();
+        total += n;
+        if (n === 0) break;
+        // Que la página recién sumada ya esté en pantalla antes de pedir la que sigue (el cursor sale de ahí).
+        await new Promise((res) => setTimeout(res, 80));
+      }
+      return total;
+    },
+  );
 
   // Leyendo más arriba, la conversación no se mueve sola (fotos que cargan, reacciones o
   // "editado" que llegan con la consulta, anteriores que se suman arriba); abajo de todo, sigue al final.
@@ -958,6 +984,10 @@ const WaConversation = forwardRef<
                 {t('message.older')}
               </button>
             </div>
+          )}
+          {!detail.more && messages.length > 0 && thread.channel === 'whatsapp' && (
+            // Lo guardado se terminó: lo anterior se le pide al teléfono.
+            <OlderHistoryChip state={olderHistory.state} offline={!connected} onLoad={() => void olderHistory.run()} />
           )}
           {messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>}
           {days.map((d) => (

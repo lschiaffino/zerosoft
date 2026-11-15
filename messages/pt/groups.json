@@ -1958,7 +1958,13 @@
     "mediaGoneShort": "Não está mais no WhatsApp",
     "mediaOffline": "A linha está desconectada. Vincule de novo para baixar.",
     "mediaOfflineShort": "Linha desconectada",
-    "mediaRetryFailed": "Não foi possível baixar"
+    "mediaRetryFailed": "Não foi possível baixar",
+    "olderLoad": "Carregar mensagens anteriores",
+    "olderLoading": "Carregando mensagens anteriores…",
+    "olderNone": "Não há mensagens anteriores no WhatsApp",
+    "olderError": "Não foi possível carregar. Tentar de novo",
+    "olderLimited": "Espere um momento e tente de novo",
+    "olderOffline": "Linha desconectada: vincule para carregar mensagens anteriores"
   },
   "swipe": {
     "read": "Lida",

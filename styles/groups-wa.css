@@ -269,6 +269,22 @@
 }
 .wa-older { display: flex; justify-content: center; margin: 4px 0 8px; }
 .wa-older .btn { background: var(--wa-system-chip); color: var(--wa-text-2); box-shadow: var(--wa-shadow-bubble); border: 0; }
+/* "Cargar mensajes anteriores": una ficha tranquila y centrada arriba de la primera fecha, como las fichas de fecha. */
+.wa-older-history { display: flex; justify-content: center; margin: 6px 12px 10px; }
+.wa-older-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; max-width: 100%; padding: 5px 12px;
+  font: inherit; font-size: var(--wa-fs-small); line-height: 1.25; text-align: center; color: var(--wa-text-2);
+  background: var(--wa-system-chip); border: 0; border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble);
+}
+button.wa-older-chip { cursor: pointer; }
+button.wa-older-chip:hover:not(:disabled) { color: var(--wa-text); }
+button.wa-older-chip:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+button.wa-older-chip:disabled { cursor: default; }
+button.wa-older-chip.is-loading { cursor: progress; }
+.wa-older-chip svg { flex: none; }
+.wa-older-chip .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-older-chip.is-error, .wa-older-chip.is-limited { color: var(--wa-text); }
+@media (prefers-reduced-motion: reduce) { .wa-older-chip .is-spinning { animation: none; } }
 .wa-empty-thread { align-self: center; display: inline-flex; align-items: center; gap: 6px; margin: 12px 0; padding: 5px 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }
 
 .wa-day { position: sticky; top: 4px; z-index: 3; display: flex; justify-content: center; margin: 8px 0 5px; pointer-events: none; }

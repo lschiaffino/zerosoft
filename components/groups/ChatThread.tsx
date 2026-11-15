@@ -29,6 +29,7 @@ import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
 import WhenDialog from '@/components/ui/WhenDialog';
@@ -124,6 +125,8 @@ export interface ThreadProps {
   me: string;
   isAdmin: boolean;
   numberName: string;
+  /** La línea está vinculada (si no, no se le puede pedir nada al teléfono). */
+  numberConnected?: boolean;
   caps: ProviderCaps;
   /** Número de ejemplo: lo que se manda queda guardado y no sale a WhatsApp. */
   sample?: boolean;
@@ -454,26 +457,30 @@ export default function ChatThread(props: ThreadProps) {
 
   /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
   const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
-  const [olderDone, setOlderDone] = useState(false);
-  const [fetchingOlder, setFetchingOlder] = useState(false);
-  /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
-  async function fetchOlderFromPhone() {
-    if (fetchingOlder) return;
-    setFetchingOlder(true);
-    const res = await api<{ added: number; done: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'importOlder' } });
-    setFetchingOlder(false);
-    if (!res.data) return showToast(errText(res.error), true);
-    if (res.data.added === 0 || res.data.done) setOlderDone(true);
-    if (res.data.added > 0) {
-      const first = messages[0];
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega se suma arriba sin mover lo que se está leyendo.
+  const firstRef = useRef<MessageDto | undefined>(undefined);
+  firstRef.current = messages[0];
+  const olderHistory = useOlderHistory(
+    chat.id,
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      const first = firstRef.current;
+      if (!first) return 0;
       const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(olderCursor(first))}`);
-      if (older.data?.messages.length) {
+      const list = older.data?.messages ?? [];
+      if (list.length) {
         const box = boxRef.current;
         if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
-        merge(older.data.messages);
+        merge(list);
       }
-    }
-  }
+      return list.length;
+    },
+  );
 
   // Mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts): se le pide el historial del chat al teléfono. Lo que
   // manda llega como historial, con su hora (en el medio del hilo, no al final): se vuelve a traer lo último unas veces.
@@ -2152,15 +2159,8 @@ export default function ChatThread(props: ThreadProps) {
 
         <div className="wa-scroll">
           <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
-            {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
-              <p className="wa-history-note">
-                <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
-                {!olderDone && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void fetchOlderFromPhone()} aria-busy={fetchingOlder || undefined}>
-                    {t('wa.historyFetch')}
-                  </button>
-                )}
-              </p>
+            {!hasOlder && messages.length > 0 && props.caps.fetchHistory && !props.sample && (
+              <OlderHistoryChip state={olderHistory.state} offline={props.numberConnected === false} onLoad={() => void olderHistory.run()} />
             )}
             {hasOlder && (
               <p className="wa-older">

@@ -190,6 +190,13 @@ const parity: ProductParity = {
         'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Começa sozinha ao vincular o WhatsApp; até onde chega depende do que o celular envia ao vincular. O Gmail traz todo o e-mail da conta do mesmo jeito. Testado com o servidor falso',
       ],
     }),
+    row('history-older', 'platform', ['Load older messages from the phone, on demand', 'Cargar mensajes anteriores desde el teléfono, a pedido', 'Carregar mensagens anteriores do celular, sob demanda'], 'partial', {
+      detail: [
+        'A "Load older messages" chip at the top of a chat, once what we have stored runs out. It asks the phone for the 50 messages before the oldest one we have; they come in as history, without duplicates, and what you were reading stays in place. It says when the phone has no more, lets you retry after an error and is disabled with the reason while the line is disconnected. One request per chat at a time and a cap per line per hour. Tested with the fake server; with real WhatsApp it needs the phone online, and after linking a line again it needs our WhatsApp server image with patch 0006',
+        'Una ficha "Cargar mensajes anteriores" arriba del chat, cuando lo que tenemos guardado se termina. Le pide al teléfono los 50 mensajes anteriores al más viejo que tenemos; entran como historial, sin repetidos, y lo que estabas leyendo queda en su lugar. Dice cuando el teléfono no tiene más, deja reintentar después de un error y queda deshabilitada con el motivo mientras la línea está desconectada. Un pedido por chat a la vez y un tope por línea por hora. Probado con el servidor falso; con WhatsApp real necesita el teléfono en línea y, después de volver a vincular una línea, la imagen de nuestro servidor de WhatsApp con el parche 0006',
+        'Uma ficha "Carregar mensagens anteriores" no topo da conversa, quando o que temos guardado acaba. Pede ao celular as 50 mensagens anteriores à mais antiga que temos; entram como histórico, sem repetidas, e o que você estava lendo fica no lugar. Avisa quando o celular não tem mais, deixa tentar de novo depois de um erro e fica desabilitada com o motivo enquanto a linha está desconectada. Um pedido por conversa por vez e um limite por linha por hora. Testado com o servidor falso; com o WhatsApp real precisa do celular online e, depois de vincular uma linha de novo, da imagem do nosso servidor de WhatsApp com o patch 0006',
+      ],
+    }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
 
     // WhatsApp Web (la lista, la conversación y la info del contacto, como en WhatsApp)

@@ -58,6 +58,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 /**
  * { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado.
+ * { action: 'loadOlder' }: "Cargar mensajes anteriores": lo que guardó el gateway y, si no hay más, el teléfono.
  * { action: 'fetchMissing', auto? }: le pide al teléfono el historial del chat (mensajes que WhatsApp no pudo
  * entregar, lib/wa-history-gaps.ts). `auto`: lo pide la pantalla al abrir un chat con la marca; responde 200 igual
  * si no sale (topes, sin huecos).
@@ -75,6 +76,22 @@ export async function POST(req: Request, ctx: Ctx) {
       const out = await requestChatHistory('lines', s.ws, id, { auto: b.auto === true });
       if (!out) return groupsError(404, 'not_found');
       const r = historyResponse(out, b.auto === true);
+      return NextResponse.json(r.body, { status: r.status });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  if (b.action === 'loadOlder') {
+    // "Cargar mensajes anteriores": primero lo que guardó el gateway (la importación trae los últimos N); si no hay
+    // más ahí, se le pide al teléfono (lib/wa-history-gaps.ts). Solo quien ve el chat (chatGuard, arriba).
+    try {
+      const { importOlder } = await import('@/lib/groups-import');
+      const stored = await importOlder(s.ws, id).catch(() => ({ added: 0, done: true }));
+      if (stored.added > 0) return NextResponse.json({ ok: true, delivered: stored.added, pending: false });
+      const { requestOlderHistory, olderResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestOlderHistory('lines', s.ws, id);
+      if (!out) return groupsError(404, 'not_found');
+      const r = olderResponse(out);
       return NextResponse.json(r.body, { status: r.status });
     } catch (err) {
       return handleGroupsError(err);

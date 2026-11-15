@@ -21,11 +21,15 @@
  *   AUTO_CHAT_INTERVAL_MS solo, y AUTO_MAX pedidos solos por hueco abierto.
  * - "Traer mensajes que faltan" en el menú del chat pide lo mismo a mano; al
  *   abrir un chat con la marca, la pantalla lo pide sola una vez (`auto`).
+ * - "Cargar mensajes anteriores" (arriba del chat, cuando lo guardado se
+ *   termina) pide los OLDER_COUNT mensajes anteriores al más viejo que
+ *   tenemos (loadOlderHistory): un pedido por chat a la vez, con esperas que
+ *   crecen si el teléfono no trae nada, y un tope por línea por hora.
  *
  * Server-only.
  */
 import { getDb } from './db';
-import { ProviderError, type GroupsProvider, type InboundEvent } from './groups-provider';
+import { ProviderError, type GroupsProvider, type HistoryAnchor, type InboundEvent } from './groups-provider';
 import { isRateLimited, rateLimit } from './rate-limit';
 
 export type GapApp = 'inbox' | 'lines';
@@ -167,6 +171,8 @@ export interface FetchTarget extends GapChat {
   altJid?: () => Promise<string>;
   /** Guarda lo que el proveedor devolvió en el momento (como historial). */
   ingest: (events: InboundEvent[]) => Promise<void>;
+  /** El mensaje de WhatsApp más viejo guardado de este chat (null si no hay ninguno). */
+  oldest: () => Promise<HistoryAnchor | null>;
 }
 
 export type FetchOutcome =
@@ -249,9 +255,158 @@ export async function fetchChatHistory(target: FetchTarget, opts: { auto?: boole
   return outcome;
 }
 
+// ---------------------------------------------------------------------------
+// "Cargar mensajes anteriores"
+// ---------------------------------------------------------------------------
+
+/** Mensajes por pedido. */
+export const OLDER_COUNT = 50;
+/** Entre dos pedidos del mismo chat. Se duplica con cada pedido seguido que no trajo nada (hasta OLDER_MAX_INTERVAL_MS). */
+export const OLDER_MIN_INTERVAL_MS = 4_000;
+export const OLDER_MAX_INTERVAL_MS = 10 * 60_000;
+/** Pedidos de mensajes anteriores por línea por hora (aparte de los de mensajes que faltan). */
+export const OLDER_LINE_HOURLY_CAP = 40;
+/** Pedidos seguidos sin nada nuevo después de los cuales se dice "no hay más" sin molestar al teléfono (hasta que pase la espera). */
+export const OLDER_EMPTY_STOP = 2;
+
+export type OlderOutcome =
+  /** Salió el pedido. `delivered`: lo que ya llegó (un proveedor que responde en el momento); si no, llega por el webhook. */
+  | { ok: true; delivered: number; pending: boolean }
+  /** El teléfono ya no trajo nada las últimas veces: no hay mensajes anteriores (se vuelve a probar pasada la espera). */
+  | { ok: true; none: true }
+  | { ok: false; error: 'rate_limited' | 'unsupported' | 'not_connected' | 'busy' | 'failed' | 'empty_chat'; retryInMs?: number };
+
+/** Cuánto hay que esperar entre pedidos de un chat según cuántos seguidos no trajeron nada. */
+export function olderInterval(empty: number): number {
+  return Math.min(OLDER_MAX_INTERVAL_MS, OLDER_MIN_INTERVAL_MS * 2 ** Math.max(0, Math.min(empty, 12)));
+}
+
+/**
+ * Le pide al teléfono los OLDER_COUNT mensajes anteriores al más viejo que
+ * tenemos guardado de este chat. Lo que manda llega como historial (por el
+ * webhook, o en el momento si el proveedor lo devuelve) y se guarda con el
+ * mismo camino que la importación: lo repetido no se duplica.
+ *
+ * - Un pedido por chat a la vez (claim de la fila, compartido con el de
+ *   mensajes que faltan).
+ * - Si el más viejo guardado es el mismo que en el pedido anterior, ese pedido
+ *   no trajo nada: la espera hasta el próximo se duplica, y después de
+ *   OLDER_EMPTY_STOP seguidos se responde "no hay más" sin pedirle nada al
+ *   teléfono hasta que pase la espera.
+ * - Tope por línea por hora (el teléfono hace el trabajo; muchos pedidos
+ *   seguidos pueden marcar el número).
+ */
+export async function loadOlderHistory(target: FetchTarget, nowFn = () => Date.now()): Promise<OlderOutcome> {
+  const db = getDb();
+  const { app, chatId } = target;
+  const now = nowFn();
+  let provider: GroupsProvider;
+  try {
+    provider = target.provider();
+  } catch {
+    return { ok: false, error: 'not_connected' };
+  }
+  if (!provider.fetchHistory || !provider.caps.fetchHistory) return { ok: false, error: 'unsupported' };
+  if (!target.connected) return { ok: false, error: 'not_connected' };
+  const anchor = await target.oldest();
+  if (!anchor) return { ok: false, error: 'empty_chat' };
+
+  const row = (await db.prepare('SELECT older_at, older_anchor, older_empty FROM wa_history_fetch WHERE app = ? AND chat_id = ?').get(app, chatId)) as
+    | { older_at: string | null; older_anchor: string; older_empty: number }
+    | undefined;
+  // ¿El pedido anterior trajo algo? Si el más viejo sigue siendo el mismo, no.
+  const sameAnchor = !!row?.older_at && row.older_anchor === anchor.id;
+  const empty = sameAnchor ? Number(row?.older_empty ?? 0) + 1 : 0;
+  const last = row?.older_at ? Date.parse(row.older_at) : 0;
+  const wait = olderInterval(sameAnchor ? Number(row?.older_empty ?? 0) : 0);
+  if (last && now - last < wait) {
+    // Ya se pidió desde este mismo mensaje y no trajo nada varias veces: no hay más (por ahora).
+    if (sameAnchor && Number(row?.older_empty ?? 0) >= OLDER_EMPTY_STOP) return { ok: true, none: true };
+    return { ok: false, error: 'busy', retryInMs: wait - (now - last) };
+  }
+  if (await isRateLimited(`wa-history-older:${app}:${target.accountId}`, OLDER_LINE_HOURLY_CAP, 3600)) return { ok: false, error: 'rate_limited' };
+
+  await db
+    .prepare(`INSERT INTO wa_history_fetch (app, chat_id, account_id, scope_id) VALUES (?, ?, ?, ?) ON CONFLICT(app, chat_id) DO NOTHING`)
+    .run(app, chatId, target.accountId, target.scopeId);
+  const claim = await db
+    .prepare('UPDATE wa_history_fetch SET claimed_until = ? WHERE app = ? AND chat_id = ? AND (claimed_until IS NULL OR claimed_until < ?)')
+    .run(iso(now + CLAIM_MS), app, chatId, iso(now));
+  if (claim.changes === 0) return { ok: false, error: 'busy', retryInMs: 3000 };
+  await rateLimit(`wa-history-older:${app}:${target.accountId}`, OLDER_LINE_HOURLY_CAP, 3600);
+
+  let outcome: OlderOutcome;
+  try {
+    // `after`: para un gateway sin el parche del ancla, que busca en su base el primer mensaje posterior.
+    const opts = { count: OLDER_COUNT, after: Math.max(1, anchor.timestamp - 1), anchor };
+    let res: { requestId?: string; events?: InboundEvent[]; anchorId?: string };
+    try {
+      res = await provider.fetchHistory(target.jid, opts);
+    } catch (err) {
+      // El gateway puede conocer el chat 1:1 solo por el otro id (lid ↔ teléfono).
+      const alt = err instanceof ProviderError && err.code === 'not_found' && target.altJid ? await target.altJid().catch(() => '') : '';
+      if (!alt) throw err;
+      res = await provider.fetchHistory(alt, opts);
+    }
+    const events = (res.events ?? []).map((e) => (e.type === 'message' ? { ...e, history: true } : e));
+    if (events.length) await target.ingest(events);
+    const delivered = events.filter((e) => e.type === 'message').length;
+    // Lo trae el webhook: `pending`. Si el proveedor ya respondió (con o sin mensajes), no hay nada que esperar.
+    outcome = { ok: true, delivered, pending: res.events === undefined };
+    // eslint-disable-next-line no-console
+    console.info(`[wa-history] ${app} older requested, anchored ${res.anchorId ? res.anchorId === anchor.id : 'unknown'}, delivered ${delivered}`);
+  } catch (err) {
+    const code = err instanceof ProviderError ? err.code : 'error';
+    // eslint-disable-next-line no-console
+    console.warn(`[wa-history] ${app} older failed: ${code}`);
+    outcome = { ok: false, error: code === 'not_connected' ? 'not_connected' : 'failed' };
+  }
+  // Un pedido que falló no cuenta como "no trajo nada".
+  await db
+    .prepare('UPDATE wa_history_fetch SET claimed_until = NULL, older_at = ?, older_anchor = ?, older_empty = ? WHERE app = ? AND chat_id = ?')
+    .run(iso(nowFn()), outcome.ok ? anchor.id : (row?.older_anchor ?? ''), outcome.ok ? empty : Number(row?.older_empty ?? 0), app, chatId);
+  return outcome;
+}
+
+/** "Cargar mensajes anteriores" desde la pantalla (null: el chat no existe o no es de WhatsApp). */
+export async function requestOlderHistory(app: GapApp, scopeId: string, chatId: string): Promise<OlderOutcome | null> {
+  const target = await fetchTarget(app, scopeId, chatId);
+  if (!target) return null;
+  return loadOlderHistory(target);
+}
+
+/** La respuesta HTTP de "Cargar mensajes anteriores" (el texto lo pone la pantalla). */
+export function olderResponse(out: OlderOutcome): { status: number; body: Record<string, unknown> } {
+  if (out.ok) return { status: 200, body: 'none' in out ? { ok: true, none: true } : { ok: true, delivered: out.delivered, pending: out.pending } };
+  switch (out.error) {
+    case 'busy':
+      // Hay un pedido en curso o recién hecho: la pantalla sigue esperando lo que traiga.
+      return { status: 200, body: { ok: true, delivered: 0, pending: true, recent: true, retryInMs: out.retryInMs ?? 0 } };
+    case 'empty_chat':
+      return { status: 200, body: { ok: true, none: true } };
+    case 'rate_limited':
+      return { status: 429, body: { error: 'history_rate_limited' } };
+    case 'not_connected':
+      return { status: 409, body: { error: 'not_connected' } };
+    case 'unsupported':
+      return { status: 400, body: { error: 'unsupported' } };
+    default:
+      return { status: 502, body: { error: 'history_failed' } };
+  }
+}
+
 /** El chat de cada app, listo para pedir su historial (null: no existe o no es de WhatsApp). */
 export async function fetchTarget(app: GapApp, scopeId: string, chatId: string): Promise<FetchTarget | null> {
   return app === 'lines' ? linesTarget(scopeId, chatId) : inboxTarget(scopeId, chatId);
+}
+
+/** El ancla de un mensaje guardado (la hora, en segundos; en un grupo, quién lo mandó si hay teléfono). */
+function anchorOf(id: string, fromMe: boolean, at: string, senderPhone: string): HistoryAnchor | null {
+  // Las fechas de Lines pueden venir como "YYYY-MM-DD HH:MM:SS" (UTC).
+  const ms = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(at) ? at : `${at.replace(' ', 'T')}Z`);
+  if (!id || !Number.isFinite(ms)) return null;
+  const phone = senderPhone.replace(/\D/g, '');
+  return { id, fromMe, timestamp: Math.floor(ms / 1000), ...(phone.length >= 6 ? { participant: `${phone}@s.whatsapp.net` } : {}) };
 }
 
 async function linesTarget(ws: string, chatId: string): Promise<FetchTarget | null> {
@@ -273,6 +428,16 @@ async function linesTarget(ws: string, chatId: string): Promise<FetchTarget | nu
     jid: chat.provider_chat_id,
     altJid: () => altJid({ app: 'lines', accountId: number.id }, chat.provider_chat_id),
     ingest: async (events) => void (await ingestEvents(number, events, { history: true })),
+    oldest: async () => {
+      const m = (await getDb()
+        .prepare(
+          `SELECT provider_message_id AS id, direction, created_at, sender_phone FROM groups_messages
+           WHERE chat_id = ? AND provider_message_id IS NOT NULL AND provider_message_id <> '' AND direction IN ('in', 'out')
+           ORDER BY created_at ASC LIMIT 1`,
+        )
+        .get(chat.id)) as { id: string; direction: string; created_at: string; sender_phone: string } | undefined;
+      return m ? anchorOf(m.id, m.direction === 'out', m.created_at, chat.provider_chat_id.endsWith('@g.us') && m.direction === 'in' ? m.sender_phone : '') : null;
+    },
   };
 }
 
@@ -296,6 +461,12 @@ async function inboxTarget(owner: string, threadId: string): Promise<FetchTarget
     jid: t.external_id,
     altJid: () => altJid({ app: 'inbox', accountId: account.id }, t.external_id),
     ingest: async (events) => void (await ingestWhatsappEvents(account, events, { history: true })),
+    oldest: async () => {
+      const m = (await getDb()
+        .prepare("SELECT external_id AS id, from_me, sent_at, sender_handle FROM inbox_messages WHERE thread_id = ? AND external_id <> '' AND external_id NOT LIKE 'local-%' ORDER BY sent_at ASC LIMIT 1")
+        .get(t.id)) as { id: string; from_me: number; sent_at: string; sender_handle: string } | undefined;
+      return m ? anchorOf(m.id, Number(m.from_me) === 1, m.sent_at, t.external_id.endsWith('@g.us') && Number(m.from_me) !== 1 ? m.sender_handle : '') : null;
+    },
   };
 }
 

@@ -105,6 +105,8 @@ export interface FakeHistoryRequest {
   chatId: string;
   count: number;
   after?: number;
+  /** "Cargar mensajes anteriores": el mensaje desde el que se pidió. */
+  anchorId?: string;
   at: number;
 }
 
@@ -206,6 +208,44 @@ export function fakeSent(numberId: string): FakeSent[] {
 /** Los archivar/desarchivar que recibió el número falso, con la referencia que mandó la app (tests). */
 export function fakeArchives(numberId: string): FakeArchive[] {
   return (stateFor(numberId).archives ??= []);
+}
+
+/** Mensajes anteriores que "tiene el teléfono" de un chat de prueba (los que empiezan con FAKE_OLDER_PREFIX). */
+export const FAKE_OLDER_TOTAL = 70;
+export const FAKE_OLDER_PREFIX = '1777';
+export const FAKE_OLDER_FAIL_PREFIX = '1778';
+
+/**
+ * El historial anterior del teléfono falso, sin estado: un chat cuyo número empieza con FAKE_OLDER_PREFIX tiene
+ * FAKE_OLDER_TOTAL mensajes de texto anteriores a lo que haya, con ids "old-<chat>-<n>" (n = 1 el más nuevo). Se
+ * devuelven los `count` anteriores al ancla; pasado el último, nada. Con FAKE_OLDER_FAIL_PREFIX el teléfono no
+ * responde. Los demás chats no tienen historial anterior.
+ */
+export function fakeOlderHistory(chatId: string, anchor: { id: string; timestamp: number }, count: number): InboundEvent[] {
+  const digits = chatId.replace(/@.*/, '');
+  if (digits.startsWith(FAKE_OLDER_FAIL_PREFIX)) throw new ProviderError('unreachable');
+  if (!digits.startsWith(FAKE_OLDER_PREFIX)) return [];
+  const m = new RegExp(`^old-${digits}-(\\d+)$`).exec(anchor.id);
+  const from = m ? Number(m[1]) + 1 : 1;
+  // El primero es un minuto anterior al primer ancla; cada uno, un minuto antes que el siguiente.
+  const base = m ? anchor.timestamp + Number(m[1]) * 60 : anchor.timestamp;
+  const isGroup = chatId.endsWith('@g.us');
+  const out: InboundEvent[] = [];
+  for (let n = from; n <= FAKE_OLDER_TOTAL && out.length < Math.max(1, count); n++) {
+    out.push({
+      type: 'message',
+      chatId,
+      isGroup,
+      fromMe: n % 4 === 0,
+      senderPhone: n % 4 === 0 || isGroup ? '' : digits,
+      senderName: n % 4 === 0 ? '' : 'Contacto de prueba',
+      providerMessageId: `old-${digits}-${n}`,
+      body: `Mensaje anterior ${n}`,
+      timestamp: new Date((base - n * 60) * 1000).toISOString(),
+      history: true,
+    } as InboundEvent);
+  }
+  return out;
 }
 
 /** Los pedidos de historial que recibió el número falso (tests). */
@@ -525,7 +565,9 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     /** El historial del chat "desde el teléfono": lo que se guardó con fake_withheld, como historial. */
     fetchHistory: async (chatId, o) => {
       requireConnected();
-      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), at: Date.now() });
+      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), ...(o.anchor ? { anchorId: o.anchor.id } : {}), at: Date.now() });
+      // Con ancla: los mensajes anteriores a ese ("Cargar mensajes anteriores").
+      if (o.anchor) return { requestId: `fake-hist-${randomUUID()}`, anchorId: o.anchor.id, events: fakeOlderHistory(chatId, o.anchor, o.count) };
       const events = (s.withheld?.get(chatId) ?? []).map((e) => ({ ...e, history: true }));
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
