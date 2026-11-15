@@ -1038,6 +1038,7 @@ export function buildNav(
         {
           items: [
             { href: '/app/fleet', label: labels.fleet.now, active: pathname === '/app/fleet', icon: 'fleet' },
+            { href: '/app/fleet/chats', label: labels.fleet.chats, active: at('/app/fleet/chats'), icon: 'chat' },
             { href: '/app/fleet/prs', label: labels.fleet.prs, active: at('/app/fleet/prs'), icon: 'pullRequest' },
             { href: '/app/fleet/deploys', label: labels.fleet.deploys, active: at('/app/fleet/deploys'), icon: 'deploy' },
           ],

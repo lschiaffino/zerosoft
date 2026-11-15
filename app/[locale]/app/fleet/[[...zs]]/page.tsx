@@ -6,10 +6,11 @@ import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { fleetActorOf } from '@/lib/fleet/api';
 import { loadBoard } from '@/lib/fleet/board';
-import { listConnections } from '@/lib/fleet/core';
-import { listTokens } from '@/lib/fleet/sessions';
+import { feedCursor, listConnections } from '@/lib/fleet/core';
+import { listMessages, listSessions, listTokens, markRead } from '@/lib/fleet/sessions';
 import { FLEET_NAME } from '@/lib/fleet/name';
 import FleetBoard from '@/components/fleet/FleetBoard';
+import FleetChats from '@/components/fleet/FleetChats';
 import FleetPrs from '@/components/fleet/FleetPrs';
 import FleetDeploys from '@/components/fleet/FleetDeploys';
 import FleetSettings from '@/components/fleet/FleetSettings';
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ locale: string; zs?: string[] }>; searchParams: Promise<Record<string, string | undefined>> };
 
-const TITLE_KEY: Record<string, string> = { prs: 'nav.prs', deploys: 'nav.deploys', settings: 'settings.title' };
+const TITLE_KEY: Record<string, string> = { chats: 'nav.chats', prs: 'nav.prs', deploys: 'nav.deploys', settings: 'settings.title' };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale, zs = [] } = await props.params;
@@ -38,7 +39,8 @@ async function installUrl(): Promise<string> {
 }
 
 /**
- * Fleet en una sola ruta (presupuesto de rutas): /app/fleet (ahora), /app/fleet/prs, /app/fleet/deploys y /app/fleet/settings.
+ * Fleet en una sola ruta (presupuesto de rutas): /app/fleet (ahora), /app/fleet/chats(/<sesión>),
+ * /app/fleet/prs, /app/fleet/deploys y /app/fleet/settings.
  */
 export default async function FleetPage(props: Props) {
   const { locale, zs = [] } = await props.params;
@@ -47,7 +49,7 @@ export default async function FleetPage(props: Props) {
   const user = await requireUser(locale);
   if (!userCanUseApp(user, 'fleet') || user.role === 'guest') notFound();
   const actor = fleetActorOf(user);
-  const [section] = zs;
+  const [section, id] = zs;
 
   switch (section) {
     case undefined:
@@ -56,6 +58,12 @@ export default async function FleetPage(props: Props) {
       return <FleetPrs initial={await loadBoard(actor)} realtimeMode={realtimeMode()} initialChecks={sp.checks ?? ''} />;
     case 'deploys':
       return <FleetDeploys initial={await loadBoard(actor)} realtimeMode={realtimeMode()} />;
+    case 'chats': {
+      const cursor = await feedCursor(actor);
+      if (id) await markRead(actor, id);
+      const [sessions, archived, messages] = await Promise.all([listSessions(actor), listSessions(actor, { archived: true }), id ? listMessages(actor, id) : Promise.resolve(null)]);
+      return <FleetChats sessions={sessions} archived={archived} activeId={id ?? null} initialMessages={messages} cursor={cursor} realtimeMode={realtimeMode()} />;
+    }
     case 'settings': {
       const [connections, tokens, url] = await Promise.all([listConnections(actor), listTokens(actor), installUrl()]);
       return <FleetSettings connections={connections} tokens={tokens} installUrl={url} />;

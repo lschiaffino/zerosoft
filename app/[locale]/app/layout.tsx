@@ -467,6 +467,7 @@ export default async function AppLayout(
                 { href: '/app/calls/ask', label: tCalls('nav.ask') },
                 { href: '/app/calls/analytics', label: tCalls('nav.analytics') },
                 { href: '/app/fleet', label: tFleet('nav.now') },
+                { href: '/app/fleet/chats', label: tFleet('nav.chats') },
                 { href: '/app/fleet/prs', label: tFleet('nav.prs') },
                 { href: '/app/fleet/deploys', label: tFleet('nav.deploys') },
                 { href: '/app/assistant', label: tSide('assistant') },

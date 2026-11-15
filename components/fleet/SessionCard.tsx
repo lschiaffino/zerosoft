@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import type { SessionDto } from '@/lib/fleet/types';
 import { Ago, ChecksMark, DeployMark, StatusLabel } from './ui';
 
@@ -14,7 +15,9 @@ export default function SessionCard({ s }: { s: SessionDto }) {
         <Ago iso={s.lastEventAt} className="flt-meta" />
       </div>
       <h3 className="flt-card-title">
-{s.title}
+        <Link href={`/app/fleet/chats/${s.id}`} className="flt-card-link">
+          {s.title}
+        </Link>
       </h3>
       {(s.branch || s.orcaWorktree || s.orcaPane) && (
         <p className="flt-card-meta">

@@ -126,3 +126,51 @@ test('tablero: las sesiones del hook aparecen como tarjetas y cambian en vivo', 
   await shot(page, 'deploys');
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('chat: la respuesta queda en cola, el Stop hook la entrega y cambian las tildes', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const s = `e2e-${uid()}`;
+  const first = await hook(request, { event: 'UserPromptSubmit', session: s, project: 'web', branch: 'main', text: `Build the pricing page ${s}` });
+  await hook(request, {
+    event: 'Stop',
+    session: s,
+    text: 'Built the page.\n\n- Added `PricingTable`\n- **Tests** pass\n\n```sh\nnpm test\n```',
+  });
+  await page.goto(`/en/app/fleet/chats/${first.session}`, { waitUntil: 'networkidle' });
+  const thread = page.getByTestId('fleet-thread');
+  await expect(thread.locator('[data-role="prompt"]')).toHaveCount(1);
+  await expect(thread.locator('[data-role="agent"]')).toHaveCount(1);
+  await expect(thread.locator('[data-role="agent"] pre')).toBeVisible();
+
+  await page.getByTestId('fleet-composer').fill('Also add a test for the yearly toggle');
+  await page.keyboard.press('Enter');
+  const reply = thread.locator('[data-role="reply"]').last();
+  await expect(reply).toHaveAttribute('data-status', 'pending');
+  await expect(reply.getByTestId('fleet-ticks')).toHaveAttribute('data-tick', 'pending');
+  await shot(page, 'chat');
+
+  // El Stop hook del agente pregunta y recibe la respuesta.
+  const stop = await hook(request, { event: 'Stop', session: s, text: 'Done.' });
+  expect(stop.output).toEqual({ decision: 'block', reason: 'Also add a test for the yearly toggle' });
+  await expect(reply).toHaveAttribute('data-status', 'delivered', { timeout: 15_000 });
+  await expect(reply.getByTestId('fleet-ticks')).toHaveAttribute('data-tick', 'delivered');
+
+  // El agente responde después: tildes azules.
+  await hook(request, { event: 'Stop', session: s, text: 'Added the yearly toggle test.' });
+  await expect(reply.getByTestId('fleet-ticks')).toHaveAttribute('data-tick', 'read', { timeout: 15_000 });
+
+  // Renombrar desde el menú.
+  await page.getByTestId('fleet-thread-menu').click();
+  await page.getByTestId('fleet-rename').click();
+  await page.getByTestId('fleet-rename-input').fill(`Pricing ${s}`);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('fleet-thread-title')).toHaveText(`Pricing ${s}`);
+  await expect(page.locator(`[data-testid="fleet-chat-row"][data-session="${first.session}"]`)).toContainText(`Pricing ${s}`);
+
+  // 390: un panel por vez, con volver.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId('fleet-composer')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

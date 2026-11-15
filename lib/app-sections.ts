@@ -8,7 +8,7 @@ export const APP_SECTIONS = {
   send: ['new', 'documents', 'spaces', 'settings'],
   inbox: ['v', 'f', 'analytics', 'settings'],
   calls: ['call', 'upcoming', 'deals', 'ask', 'analytics', 'settings'],
-  fleet: ['prs', 'deploys', 'settings'],
+  fleet: ['chats', 'prs', 'deploys', 'settings'],
   shop: ['orders', 'products', 'collections', 'inventory', 'customers', 'discounts', 'analytics', 'settings'],
   books: ['invoices', 'credit-notes', 'bills', 'recurring', 'quotes', 'contacts', 'items', 'expenses', 'purchase-orders', 'banking', 'accounts', 'journal', 'reports', 'settings'],
   people: ['me', 'u', 'org', 'time-off', 'onboarding', 'reviews', 'reports', 'settings', 'welcome'],
