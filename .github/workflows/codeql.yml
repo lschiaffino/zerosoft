@@ -4,15 +4,22 @@ name: CodeQL
 
 # Solo main y el semanal (decisión del dueño, 9 nov 2026): en cada PR ocupaba
 # los runners que necesitan los tests.
+# En main, solo cuando cambia código (no con contenido ni documentación).
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'content/**'
+      - 'research/**'
+      - 'docs/**'
+      - '**/*.md'
   schedule:
     - cron: '17 6 * * 1'
 
+# La corrida en curso termina y la más nueva espera: con un merge atrás de otro, cortarla dejaba main sin analizar.
 concurrency:
   group: codeql-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
