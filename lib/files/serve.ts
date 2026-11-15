@@ -15,14 +15,14 @@ import { NextResponse } from 'next/server';
 import type { ProductKey } from '../products';
 import { PRODUCT_CONFIG } from '../products';
 import { scopeAllows } from './scopes';
-import { MAX_RESPONSE_CHUNK, openFile, ownedFileRow, parseByteRange, verifySignature, type FileOwner, type StoredFileRow } from './store';
+import { MAX_RESPONSE_CHUNK, fileSize, openFile, ownedFileRow, parseByteRange, verifySignature, type FileOwner, type StoredFileRow } from './store';
 
 export type FileDecision = 'ok' | 'unauthorized' | 'not_found';
 
 /** El permiso de /api/files para esta fila. 'not_found' también cuando existe y no es tuyo (no se dice que existe). */
 export async function authorizeFile(row: StoredFileRow, search: URLSearchParams): Promise<FileDecision> {
   if (search.has('sig') || search.has('exp')) {
-    return verifySignature(row.id, search.get('exp'), search.get('sig')) ? 'ok' : 'not_found';
+    return verifySignature(row, search.get('exp'), search.get('sig')) ? 'ok' : 'not_found';
   }
   if (row.access === 'public') return 'ok';
   if (row.access === 'internal') return 'not_found';
@@ -51,10 +51,13 @@ export async function fileResponse(
 ): Promise<Response> {
   const { servingFor } = await import('../file-attachments');
   const s = servingFor(row.name, row.mime, { download: opts.download });
-  const range = parseByteRange(req.headers.get('range'), row.size);
-  if (range === 'invalid' && row.size > 0) {
-    return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${row.size}`, 'Cache-Control': 'no-store' } });
+  // Una fila de antes registrada con tamaño 0 usa el del original: si no, el rango se ignoraría y siempre saldría desde el byte 0.
+  const size = await fileSize(row);
+  const range = parseByteRange(req.headers.get('range'), size);
+  if (range === 'invalid' && size > 0) {
+    return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${size}`, 'Cache-Control': 'no-store' } });
   }
+  const wanted = range && range !== 'invalid' ? range : null;
   const headers: Record<string, string> = {
     ...s.headers,
     'Accept-Ranges': 'bytes',
@@ -64,9 +67,17 @@ export async function fileResponse(
     ...(opts.publicCache ? { 'Cross-Origin-Resource-Policy': 'cross-origin' } : {}),
   };
   if (opts.head) {
-    return new NextResponse(null, { status: 200, headers: { ...headers, 'Content-Length': String(row.size) } });
+    // HEAD con Range responde lo mismo que el GET (206 y el rango), sin cuerpo.
+    if (wanted) {
+      const end = Math.min(wanted.end, wanted.start + MAX_RESPONSE_CHUNK - 1);
+      return new NextResponse(null, {
+        status: 206,
+        headers: { ...headers, 'Content-Length': String(end - wanted.start + 1), 'Content-Range': `bytes ${wanted.start}-${end}/${size}` },
+      });
+    }
+    return new NextResponse(null, { status: 200, headers: { ...headers, 'Content-Length': String(size) } });
   }
-  const opened = await openFile(row, range && range !== 'invalid' ? range : null, { cap: range ? MAX_RESPONSE_CHUNK : undefined }).catch(() => null);
+  const opened = await openFile({ ...row, size }, wanted, { cap: wanted ? MAX_RESPONSE_CHUNK : undefined }).catch(() => null);
   if (!opened) return notFound();
   const out: Record<string, string> = { ...headers, 'Content-Length': String(Math.max(0, opened.end - opened.start + 1)) };
   if (opened.partial) out['Content-Range'] = `bytes ${opened.start}-${opened.end}/${opened.size}`;

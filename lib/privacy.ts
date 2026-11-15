@@ -233,7 +233,14 @@ function uploadPattern(): RegExp {
 function collectFiles(table: string, row: Record<string, unknown>, out: Map<string, string>): void {
   // Archivos de lib/files/store.ts: se borran por su ref (la fila se va con el workspace).
   if (table === 'stored_files') {
-    if (typeof row.ref === 'string' && row.ref) out.set(row.ref, 'files');
+    if (typeof row.ref === 'string' && row.ref && row.ref !== 'gone:') out.set(row.ref, 'files');
+    // Un archivo migrado: el original público de antes se borra también.
+    if (typeof row.legacy_key === 'string' && row.legacy_key && typeof row.ref === 'string' && !row.ref.startsWith('legacy:')) {
+      const key = row.legacy_key;
+      const host = ownBlobHost();
+      if (key.startsWith('uploads/')) out.set(`/${key}`, 'public');
+      else if (host && /^[A-Za-z0-9._/-]+$/.test(key) && !key.includes('..')) out.set(`https://${host}/${key}`, 'public');
+    }
     return;
   }
   const app = table.split('_')[0] as PrivateApp;

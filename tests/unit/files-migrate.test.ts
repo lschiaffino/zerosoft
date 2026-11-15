@@ -112,4 +112,52 @@ describe('migración a archivos privados', () => {
     await migratePrivateFiles(getClient(), { ...io, apply: true, deleteOriginals: true });
     expect(deleted).toContain(photo);
   });
+
+  it('con --tables, el borrado igual mira las referencias de todas las tablas', async () => {
+    const shared = `https://${HOST}/chat/44444444-2222-4333-8444-555555555555-compartida.jpg`;
+    originals.set(shared, Buffer.from('compartida'));
+    await getDb().prepare('INSERT INTO mig_test_items (id, user_id, url, body) VALUES (?, ?, ?, ?)').run('c', WS, shared, '');
+    await getClient().execute('CREATE TABLE IF NOT EXISTS mig_test_other (id TEXT PRIMARY KEY, user_id TEXT, url TEXT)');
+    await getDb().prepare('INSERT INTO mig_test_other (id, user_id, url) VALUES (?, ?, ?)').run('x', WS, shared);
+    const r = await migratePrivateFiles(getClient(), { ...io, tables: ['mig_test_items'], apply: true, deleteOriginals: true });
+    expect(r.failed).toEqual([]);
+    // mig_test_items ya apunta a la copia, pero mig_test_other (fuera de --tables) sigue usando el original.
+    expect(((await getDb().prepare('SELECT url FROM mig_test_items WHERE id = ?').get('c')) as { url: string }).url).toMatch(/^\/api\/files\//);
+    expect(deleted).not.toContain(shared);
+    expect(originals.has(shared)).toBe(true);
+  });
+
+  it('una copia borrada después: el original se borra en la próxima pasada, si nada más lo usa', async () => {
+    const gone = `https://${HOST}/chat/55555555-2222-4333-8444-555555555555-borrada.jpg`;
+    originals.set(gone, Buffer.from('borrada'));
+    await getDb().prepare('INSERT INTO mig_test_items (id, user_id, url, body) VALUES (?, ?, ?, ?)').run('d', WS, gone, '');
+    await migratePrivateFiles(getClient(), { ...io, tables: ['mig_test_items'], apply: true });
+    const newUrl = ((await getDb().prepare('SELECT url FROM mig_test_items WHERE id = ?').get('d')) as { url: string }).url;
+    expect(deleted).not.toContain(gone);
+    // Se borra lo que la usaba (como al borrar un mensaje).
+    await store.deleteFileUrls([newUrl]);
+    await getDb().prepare('DELETE FROM mig_test_items WHERE id = ?').run('d');
+    expect((await store.fileRowForLegacyKey('chat/55555555-2222-4333-8444-555555555555-borrada.jpg'))!.ref).toBe(store.GONE_REF);
+    const r = await migratePrivateFiles(getClient(), { ...io, tables: ['mig_test_items'], apply: true, deleteOriginals: true });
+    expect(r.failed).toEqual([]);
+    expect(deleted).toContain(gone);
+    expect(await store.fileRowForLegacyKey('chat/55555555-2222-4333-8444-555555555555-borrada.jpg')).toBeNull();
+  });
+
+  it('una copia borrada cuya URL vieja todavía está en otra tabla: se vuelve a migrar, no se borra', async () => {
+    const back = `https://${HOST}/chat/66666666-2222-4333-8444-555555555555-vuelve.jpg`;
+    originals.set(back, Buffer.from('vuelve'));
+    await getDb().prepare('INSERT INTO mig_test_items (id, user_id, url, body) VALUES (?, ?, ?, ?)').run('e', WS, back, '');
+    await migratePrivateFiles(getClient(), { ...io, tables: ['mig_test_items'], apply: true });
+    const first = ((await getDb().prepare('SELECT url FROM mig_test_items WHERE id = ?').get('e')) as { url: string }).url;
+    await store.deleteFileUrls([first]);
+    await getDb().prepare('INSERT INTO mig_test_other (id, user_id, url) VALUES (?, ?, ?)').run('y', WS, back);
+    const r = await migratePrivateFiles(getClient(), { ...io, tables: ['mig_test_other'], apply: true, deleteOriginals: true });
+    expect(r.failed).toEqual([]);
+    const now = ((await getDb().prepare('SELECT url FROM mig_test_other WHERE id = ?').get('y')) as { url: string }).url;
+    expect(now).toMatch(/^\/api\/files\//);
+    const row = (await store.fileRowForUrl(now))!;
+    expect(row.ref).not.toBe(store.GONE_REF);
+    expect((await store.readFileBytes(row))!.toString()).toBe('vuelve');
+  });
 });

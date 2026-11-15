@@ -5,7 +5,7 @@
  * no llega al navegador). Server-only.
  */
 import { NextResponse } from 'next/server';
-import { MAX_RESPONSE_CHUNK, parseByteRange } from './store';
+import { MAX_RESPONSE_CHUNK, fetchRange, parseByteRange } from './store';
 
 function ownBlob(url: string): boolean {
   try {
@@ -26,10 +26,11 @@ export async function proxyPublicBlob(req: Request, url: string, headers: Record
   if (range === 'invalid') return new NextResponse(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
   const start = range?.start ?? 0;
   const end = range ? Math.min(range.end, start + MAX_RESPONSE_CHUNK - 1) : size - 1;
-  const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, cache: 'no-store' }).catch(() => null);
-  if (!res?.body || (res.status !== 206 && res.status !== 200)) return notFound();
-  const partial = start > 0 || end < size - 1;
-  return new NextResponse(res.body, {
+  // El rango pedido o nada: un storage que ignora el Range no hace salir el archivo desde otro byte.
+  const body = await fetchRange(url, start, end);
+  if (!body) return notFound();
+  const partial = range !== null || end < size - 1;
+  return new NextResponse(body, {
     status: partial ? 206 : 200,
     headers: {
       ...headers,

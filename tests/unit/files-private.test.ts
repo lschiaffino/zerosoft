@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, realpath, rm } from 'fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +22,7 @@ vi.mock('@/lib/files/scopes', () => ({
 
 const sealed = await import('@/lib/files/sealed');
 const store = await import('@/lib/files/store');
-const { GET: fileGET } = await import('@/app/api/files/[id]/[[...name]]/route');
+const { GET: fileGET, HEAD: fileHEAD } = await import('@/app/api/files/[id]/[[...name]]/route');
 const { GET: legacyGET } = await import('@/app/api/files/legacy/[...path]/route');
 const { saveUpload } = await import('@/lib/uploads');
 const { getDb } = await import('@/lib/db');
@@ -187,6 +187,39 @@ describe('/api/files: sesión, permiso y rangos', () => {
     expect(r1.headers.get('accept-ranges')).toBe('bytes');
   });
 
+  it('rangos: bytes=0- es 206 aunque cubra todo; HEAD con Range responde igual que el GET', async () => {
+    const audio = bytes(5000, 5);
+    const url = await saveUpload('chat', 'corta.ogg', 'audio/ogg', audio, { workspaceId: OWNER, userId: OWNER, access: 'workspace' });
+    session.user = owner();
+    const all = await get(url, { range: 'bytes=0-' });
+    expect(all.status).toBe(206);
+    expect(all.headers.get('content-range')).toBe(`bytes 0-4999/5000`);
+    expect((await body(all)).equals(audio)).toBe(true);
+    const id = store.fileIdFromUrl(url)!;
+    const head = await fileHEAD(new Request(new URL(url, 'http://localhost'), { method: 'HEAD', headers: { range: 'bytes=10-19' } }), { params: Promise.resolve({ id }) });
+    expect(head.status).toBe(206);
+    expect(head.headers.get('content-range')).toBe('bytes 10-19/5000');
+    expect(head.headers.get('content-length')).toBe('10');
+    const plain = await fileHEAD(new Request(new URL(url, 'http://localhost'), { method: 'HEAD' }), { params: Promise.resolve({ id }) });
+    expect(plain.status).toBe(200);
+    expect(plain.headers.get('content-length')).toBe('5000');
+  });
+
+  it('rangos en un archivo de antes registrado con tamaño 0: usa el tamaño real', async () => {
+    const data = bytes(300, 9);
+    await mkdir(path.join(tmp, 'chat'), { recursive: true });
+    const name = '22222222-3333-4444-8555-666666666666-voz.ogg';
+    await writeFile(path.join(tmp, 'chat', name), data);
+    const row = (await store.registerLegacyFile(`/uploads/chat/${name}`, { workspaceId: OWNER, folder: 'chat', access: 'workspace', name: 'voz.ogg', mime: 'audio/ogg', size: 0 }))!;
+    session.user = owner();
+    const url = store.fileUrl(row);
+    const part = await get(url, { range: 'bytes=100-149' });
+    expect(part.status).toBe(206);
+    expect(part.headers.get('content-range')).toBe('bytes 100-149/300');
+    expect((await body(part)).equals(data.subarray(100, 150))).toBe(true);
+    expect((await get(url, { range: 'bytes=400-' })).status).toBe(416);
+  });
+
   it("'user': solo la persona dueña (Inbox)", async () => {
     const url = await saveUpload('inbox', 'doc.pdf', 'application/pdf', Buffer.from('%PDF-1'), { workspaceId: OWNER, userId: 'person-a' });
     session.user = owner('person-b');
@@ -235,7 +268,10 @@ describe('/api/files: sesión, permiso y rangos', () => {
     const past = Math.floor(Date.now() / 1000) - 10;
     expect((await get(`${url}?exp=${past}&sig=${'a'.repeat(43)}`)).status).toBe(404);
     // Relativa (visitante del widget de Chat).
-    expect((await get(store.signedRelativeUrl(url))).status).toBe(200);
+    expect((await get(await store.signedRelativeUrl(url))).status).toBe(200);
+    // Atada al archivo como está: si cambia su acceso, la URL deja de valer.
+    await getDb().prepare("UPDATE stored_files SET access = 'workspace' WHERE id = ?").run(row.id);
+    expect((await get(signed)).status).toBe(404);
   });
 
   it('ownedFileRow: solo archivos del workspace (o de la persona)', async () => {
@@ -286,6 +322,19 @@ describe('/api/files: sesión, permiso y rangos', () => {
     session.user = null;
     const denied = await get(url);
     expect(JSON.stringify([...denied.headers.entries()]) + (await denied.text())).not.toContain('blob.vercel-storage.com');
+  });
+
+  it('borrar la copia de un archivo migrado deja la marca para borrar el original', async () => {
+    const legacy = 'https://abc123.public.blob.vercel-storage.com/chat/33333333-2222-4333-8444-555555555555-x.png';
+    const row = (await store.registerLegacyFile(legacy, { workspaceId: OWNER, folder: 'chat', access: 'workspace', name: 'x.png', mime: 'image/png', size: 1 }))!;
+    const copy = await store.putFile(Buffer.from('x'), { workspaceId: OWNER, folder: 'chat', access: 'workspace', name: 'x.png', mime: 'image/png' });
+    expect(await store.swapFileRef(row.id, row.ref, copy)).toBe(true);
+    await store.deleteFileUrls([store.fileUrl(row)]);
+    const left = (await store.getFileRow(row.id))!;
+    expect(left.ref).toBe(store.GONE_REF);
+    expect(left.legacy_key).toBe('chat/33333333-2222-4333-8444-555555555555-x.png');
+    session.user = owner();
+    expect((await get(store.fileUrl(row))).status).toBe(404);
   });
 
   it('borrar saca la fila y los bytes', async () => {
