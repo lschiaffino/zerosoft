@@ -13,7 +13,7 @@
  */
 import { generateText, Output, streamText, type LanguageModel } from 'ai';
 import { z } from 'zod';
-import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
+import { AiError, aiEnabled, assertAiAvailable, assertAiMonthlyQuota, assertAiQuota, assertAiRate, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
 import { ruleCleanup, applyDictionary, LIST_WORD_RE } from './voice-cleanup';
 import type { VoiceChatModel, VoiceCleanupDepth, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
@@ -47,6 +47,24 @@ async function voiceModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, pr
   if (state === 'off') throw new AiError('ai_disabled');
   await assertAiAvailable(ws);
   return resolveAiModel(preferredId);
+}
+
+/**
+ * Cuota del mes de la IA, pedida apenas llega el dictado (corre mientras se
+ * transcribe). Nunca queda como rechazo sin atender.
+ */
+export function voiceCleanupQuota(ws: string): Promise<void> {
+  const p = assertAiMonthlyQuota(ws);
+  p.catch(() => {});
+  return p;
+}
+
+/** Modelo de la limpieza con la cuota ya pedida (voiceCleanupQuota); el rate limit va junto con la llamada. */
+async function dictationModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, preferredId: string, quota: Promise<void>): Promise<{ model: LanguageModel; modelId: string }> {
+  const state = await voiceAiFakeState();
+  if (state === 'off' || (!state && !aiEnabled())) throw new AiError('ai_disabled');
+  await quota;
+  return state === 'on' ? { model: fakeModel(fake), modelId: 'voice-fake' } : resolveAiModel(preferredId);
 }
 
 async function record(ws: string, feature: string, modelId: string, usage: { inputTokens?: number; outputTokens?: number } | undefined) {
@@ -174,6 +192,14 @@ export async function cleanupDictation(opts: {
    * cortas por reglas, la IA con un tope de tiempo y sin reintentos.
    */
   fast?: boolean;
+  /**
+   * Cuota del mes ya pedida (voiceCleanupQuota, en paralelo con la
+   * transcripción): el rate limit corre junto con la llamada al modelo y nada
+   * de eso se suma a la espera.
+   */
+  quota?: Promise<void>;
+  /** Registrar el consumo después de contestar en vez de esperarlo. */
+  later?: (job: () => Promise<unknown>) => void;
 }): Promise<{ text: string; ai: boolean; aiError: string | null }> {
   const raw = opts.raw.trim();
   if (!raw) return { text: '', ai: false, aiError: null };
@@ -184,17 +210,32 @@ export async function cleanupDictation(opts: {
     if (canSkipAiCleanup(raw, opts.tone, ruled)) return { text: ruled, ai: false, aiError: null };
   }
   const words = opts.dictionary.filter((d) => d.kind === 'word').map((d) => d.phrase);
+  const fake = () => ({ text: ruleCleanup(raw, [], { context: opts.context, language: opts.language }) });
   const run = async (preferredId: string) => {
-    const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: ruleCleanup(raw, [], { context: opts.context, language: opts.language }) }), preferredId);
-    const res = await generateText({
-      model,
-      instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words, depth: opts.depth }),
-      prompt: raw.slice(0, 20_000),
-      temperature: 0,
-      maxOutputTokens: Math.min(4000, 64 + raw.length),
-      timeout: opts.fast ? fastCleanupTimeoutMs(raw) : 30_000,
-      maxRetries: opts.fast ? 0 : 1,
-    });
+    const { model, modelId } = opts.quota
+      ? await dictationModel(opts.workspaceId, fake, preferredId, opts.quota)
+      : await voiceModel(opts.workspaceId, fake, preferredId);
+    const abort = new AbortController();
+    // Con la cuota ya pedida, el rate limit corre junto con el modelo; si no da, se corta la llamada.
+    const rate = opts.quota
+      ? assertAiRate(opts.workspaceId).catch((err: unknown) => {
+          abort.abort();
+          throw err;
+        })
+      : Promise.resolve();
+    const [res] = await Promise.all([
+      generateText({
+        model,
+        instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words, depth: opts.depth }),
+        prompt: raw.slice(0, 20_000),
+        temperature: 0,
+        maxOutputTokens: Math.min(4000, 64 + raw.length),
+        timeout: opts.fast ? fastCleanupTimeoutMs(raw) : 30_000,
+        maxRetries: opts.fast ? 0 : 1,
+        abortSignal: abort.signal,
+      }),
+      rate,
+    ]);
     return { res, modelId };
   };
   try {
@@ -208,7 +249,9 @@ export async function cleanupDictation(opts: {
       out = await run(resolveAiModel().modelId);
     }
     const { res, modelId } = out;
-    await record(opts.workspaceId, 'voice_cleanup', modelId, res.totalUsage);
+    const usage = () => record(opts.workspaceId, 'voice_cleanup', modelId, res.totalUsage);
+    if (opts.later) opts.later(usage);
+    else await usage();
     const text = applyDictionary(res.text.trim(), opts.dictionary) || rules();
     return { text, ai: true, aiError: null };
   } catch (err) {

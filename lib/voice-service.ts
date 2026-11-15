@@ -2,14 +2,15 @@
  * Voice: los flujos que comparten las rutas de la app y la API v1 (la app de
  * escritorio). Server-only.
  */
-import { transcribeAudio, providerDiarizes, FAKE_MEETING_ME, FAKE_MEETING_THEM } from './voice-transcribe';
-import { askMeetings, cleanupDictation, enhanceMeeting, streamAskMeetings } from './voice-ai';
+import { transcribeAudio, transcribePrecheck, providerDiarizes, FAKE_MEETING_ME, FAKE_MEETING_THEM } from './voice-transcribe';
+import { askMeetings, cleanupDictation, enhanceMeeting, streamAskMeetings, voiceCleanupQuota } from './voice-ai';
 import { listSharedWithMe, resolveShare, type SharedMeetingView } from './voice-share';
 import {
   canUploadChunk,
   claimChunk,
   createSession,
   getCustomTemplate,
+  getDictationProfile,
   getSessionDetail,
   getSessionRow,
   getVoiceSettings,
@@ -61,6 +62,26 @@ export interface DictateResult {
   timings: DictateTimings;
 }
 
+/**
+ * Lo que un dictado necesita antes de transcribir, pedido todo junto y de una:
+ * ajustes y diccionario (guardados un rato), la cuota y el rate limit de la
+ * transcripción, y la cuota de la IA (que se espera recién al limpiar). La ruta
+ * lo arranca mientras termina de llegar el audio.
+ */
+export interface PreparedDictation {
+  profile: ReturnType<typeof getDictationProfile>;
+  transcribeCheck: Promise<void>;
+  aiQuota: Promise<void>;
+}
+
+export function prepareDictation(owner: VoiceOwner): PreparedDictation {
+  const prepared = { profile: getDictationProfile(owner), transcribeCheck: transcribePrecheck(owner.workspaceId), aiQuota: voiceCleanupQuota(owner.workspaceId) };
+  // Si el pedido termina antes (audio inválido), ningún rechazo queda sin atender.
+  prepared.profile.catch(() => {});
+  prepared.transcribeCheck.catch(() => {});
+  return prepared;
+}
+
 export async function dictate(args: {
   owner: VoiceOwner;
   audio: Uint8Array;
@@ -74,14 +95,20 @@ export async function dictate(args: {
   save?: boolean;
   /**
    * Modo rápido (la app de escritorio pega el texto apenas llega): limpieza
-   * corta por reglas o con tope de tiempo, y el historial se guarda con
-   * `later` después de contestar.
+   * corta por reglas o con tope de tiempo, y el historial y el consumo se
+   * guardan con `later` después de contestar.
    */
   fast?: boolean;
   later?: (job: () => Promise<unknown>) => void;
+  /** Lo arrancado antes con prepareDictation (si no, se pide acá). */
+  prepared?: PreparedDictation;
 }): Promise<DictateResult> {
   const t0 = Date.now();
-  const [settings, dictionary] = await Promise.all([getVoiceSettings(args.owner), listDictionary(args.owner)]);
+  const prepared = args.prepared ?? prepareDictation(args.owner);
+  const [{ settings, dictionary }] = await Promise.all([prepared.profile, prepared.transcribeCheck]);
+  // En modo rápido, todo lo que no cambia el texto (consumo, historial) va en un solo trabajo después de contestar.
+  const afterJobs: Array<() => Promise<unknown>> = [];
+  const defer = args.fast && args.later ? (job: () => Promise<unknown>) => void afterJobs.push(job) : undefined;
   const t1 = Date.now();
   const context: VoiceContext = (VOICE_CONTEXTS as readonly string[]).includes(args.context ?? '') ? (args.context as VoiceContext) : 'other';
   const tr = await transcribeAudio({
@@ -92,12 +119,15 @@ export async function dictate(args: {
     vocabulary: dictionary.filter((d) => d.kind === 'word' || d.kind === 'replace').map((d) => (d.kind === 'word' ? d.phrase : d.replacement)),
     durationHintMs: args.durationMs,
     fakeText: args.fakeText,
+    purpose: 'dictation',
+    prechecked: true,
+    deferUsage: defer,
   });
   const t2 = Date.now();
   const tone = dictationTone(settings, context);
   // raw: la transcripción tal cual, solo con los reemplazos y snippets del diccionario.
   const cleaned = tone
-    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup, depth: settings.cleanupDepth, language: tr.language, fast: args.fast })
+    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup, depth: settings.cleanupDepth, language: tr.language, fast: args.fast, quota: prepared.aiQuota, later: defer })
     : { text: applyDictionary(tr.text.replace(/\s+/g, ' ').trim(), dictionary), ai: false, aiError: null };
   const t3 = Date.now();
   const timings = (saveMs: number): DictateTimings => ({ setupMs: t1 - t0, transcribeMs: t2 - t1, cleanupMs: t3 - t2, saveMs, totalMs: t3 - t0 + saveMs });
@@ -113,8 +143,11 @@ export async function dictate(args: {
     language: tr.language,
     durationMs,
   };
-  const deferred = args.save !== false && !!cleaned.text && !!args.fast && !!args.later;
-  if (deferred) args.later!(() => createSession(args.owner, input));
+  const deferred = args.save !== false && !!cleaned.text && !!defer;
+  if (deferred) afterJobs.push(() => createSession(args.owner, input));
+  if (afterJobs.length) args.later!(async () => {
+    for (const job of afterJobs) await job();
+  });
   if (args.save === false || !cleaned.text || deferred) {
     const now = new Date().toISOString();
     return {
