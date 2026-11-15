@@ -208,6 +208,24 @@ function Thread({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages?.length]);
 
+  // El menú se cierra con un clic afuera o con Esc desde cualquier lado.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setMenu(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+
   // El último mensaje del agente: una respuesta entregada antes de eso ya la leyó (tildes azules).
   const lastAgentAt = useMemo(() => [...(messages ?? [])].reverse().find((m) => m.role === 'agent')?.createdAt ?? '', [messages]);
 
@@ -324,7 +342,7 @@ function Thread({
             </a>
           )}
         </div>
-        <div className="flt-menu-wrap">
+        <div className="flt-menu-wrap" ref={menuRef}>
           <button type="button" className="flt-icon-btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} data-testid="fleet-thread-menu" aria-label={t('chats.more')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <circle cx="12" cy="5" r="1.8" />

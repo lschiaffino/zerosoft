@@ -29,7 +29,7 @@ function req(url: string, method = 'GET', body?: unknown, headers: Record<string
     body: body === undefined ? undefined : JSON.stringify(body),
   }) as never;
 }
-const ctx = (params: Record<string, string>) => ({ params: Promise.resolve(params) });
+const ctx = (params: Record<string, string>) => ({ params: Promise.resolve(params) }) as never;
 
 async function asUser(label: string) {
   const u = await makeUser(label);

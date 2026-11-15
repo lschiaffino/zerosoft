@@ -60,7 +60,7 @@ afterAll(async () => {
 });
 
 function sh(script: string, env: Record<string, string>, input = ''): string {
-  return execFileSync('sh', ['-c', script], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env }, input, encoding: 'utf8', timeout: 30_000 });
+  return execFileSync('sh', ['-c', script], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env } as unknown as NodeJS.ProcessEnv, input, encoding: 'utf8', timeout: 30_000 });
 }
 
 describe.skipIf(!hasTools)('Fleet: instalador y hook (sh + perl + curl)', () => {
