@@ -23,18 +23,34 @@ export function isVoiceBlobUrl(raw: string, personId: string): boolean {
   return decodeURIComponent(url.pathname).startsWith(`/${voiceBlobPrefix(personId)}`);
 }
 
+/**
+ * Store privado de archivos de la suite (FILES_BLOB_READ_WRITE_TOKEN o
+ * BLOB_PRIVATE_READ_WRITE_TOKEN): con él, la grabación nunca queda en una URL
+ * pública mientras espera que se transcriba.
+ */
+export function voicePrivateToken(): string | null {
+  return process.env.FILES_BLOB_READ_WRITE_TOKEN?.trim() || process.env.BLOB_PRIVATE_READ_WRITE_TOKEN?.trim() || null;
+}
+
 /** ¿Está la subida directa a Blob? (sin token, la grabación va por la ruta en un multipart). */
 export function voiceBlobEnabled(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim() || voicePrivateToken());
 }
 
 /**
- * Acceso de las grabaciones subidas a Blob: VOICE_BLOB_ACCESS=private si el
- * store es privado (recomendado: el archivo no queda en una URL pública
- * mientras espera), public por defecto para los stores públicos.
+ * Acceso de las grabaciones subidas a Blob: privado con el store privado de
+ * archivos (o VOICE_BLOB_ACCESS=private si el store de siempre es privado);
+ * public si no.
  */
 export function voiceBlobAccess(): 'public' | 'private' {
+  if (voicePrivateToken()) return 'private';
   return process.env.VOICE_BLOB_ACCESS?.trim().toLowerCase() === 'private' ? 'private' : 'public';
+}
+
+/** Token con el que se firma, lee y borra (el del store privado si hay; si no, el de siempre). */
+export function voiceBlobToken(): { token?: string } {
+  const t = voicePrivateToken();
+  return t ? { token: t } : {};
 }
 
 /** Tope de una grabación importada según el proveedor (OpenAI acepta 25 MB por archivo). */

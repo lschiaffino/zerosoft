@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { REC_MODES, fmtClock, type RecMode } from '@/lib/rec-schema';
-import { patchWebmDuration } from '@/lib/rec-webm';
+import { indexWebm } from '@/lib/rec-webm';
 import { encodeGif, type GifFrame } from '@/lib/rec-gif';
 import { clockElapsed, clockIdle, clockPause, clockResume, clockStart, controlAllowed, overlayState, parseRecControl, type RecClock, type RecControl } from '@/lib/rec-controls';
 import { DESKTOP_REC_CONTROL_EVENT, desktopBridge } from '@/lib/desktop-bridge';
@@ -621,7 +621,7 @@ export default function Recorder({
     if (!sink) {
       blob = new Blob(chunks.current, { type });
       if (type === 'video/webm') {
-        const patched = patchWebmDuration(new Uint8Array(await blob.arrayBuffer()), durationSec * 1000);
+        const patched = indexWebm(new Uint8Array(await blob.arrayBuffer()), durationSec * 1000);
         blob = new Blob([patched as Uint8Array<ArrayBuffer>], { type });
       }
     }

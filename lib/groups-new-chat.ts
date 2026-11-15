@@ -13,6 +13,7 @@
  *   ("@s.whatsapp.net", "@c.us", o solo dígitos en la Cloud API) o con su lid
  *   ("@lid"): se busca en todos antes de crear.
  */
+import { contactPicture } from './wa-picture-url';
 import { getDb } from './db';
 import { GroupsError, getNumberRow, providerFor, upsertChat, type ChatRow, type NumberRow } from './groups';
 import { canSeeChat, chatAccessSql, maskPhone, type GroupsViewer } from './groups-access';
@@ -85,7 +86,8 @@ export async function newChatDirectory(
          WHERE app = 'lines' AND account_id = ? AND user_id = ? AND phone <> '' LIMIT ?`,
       )
       .all(numberId, viewer.ws, NEW_CHAT_MAX_ROWS)) as Array<{ id: string; phone: string; saved_name: string; push_name: string; picture_url: string; about: string }>;
-    book = rows.map((r) => entry(`contact:${r.id}`, { name: displayName(r), phone: r.phone, picture: r.picture_url, about: r.about }, { contactId: r.id }));
+    // La foto de la CDN de WhatsApp pasa por nuestra ruta (con sesión y acceso a la línea).
+    book = rows.map((r) => entry(`contact:${r.id}`, { name: displayName(r), phone: r.phone, picture: contactPicture('groups', r.id, r.picture_url), about: r.about }, { contactId: r.id }));
   }
 
   const all = mergeNewChat(chats, book, phoneOf)

@@ -1748,14 +1748,16 @@
       "docs": "Docs",
       "track": "Track",
       "notes": "Notes",
-      "board": "Board"
+      "board": "Board",
+      "cal": "Cal (read only)"
     },
     "appsHelp": {
       "crm": "Contacts, companies, deals and the home page",
       "docs": "Pages you opened or marked available offline",
       "track": "Lists, issues and projects you opened",
       "notes": "The list of notes",
-      "board": "Boards you opened and the list of boards"
+      "board": "Boards you opened and the list of boards",
+      "cal": "Bookings, event types and availability you opened. Editing needs a connection"
     },
     "appUsage": "{pages, plural, one {# page} other {# pages}}, {size}",
     "measuring": "Measuring…",

@@ -2944,5 +2944,41 @@
     "description": "UiPath Action Center lets a robot hand a task to a person and continue after they respond (https://docs.uipath.com/action-center/automation-cloud/latest/user-guide/about-action-center). Robots run start to finish with no way to wait for approval, for example before submitting a form. First scope: an Ask for approval step that stops the run in a waiting status, notifies the workspace, and continues or fails when someone answers in the run view.",
     "product": "robots",
     "kind": "idea"
+  },
+  {
+    "title": "Forms: Add an Other option with a free text field to choice questions",
+    "description": "Typeform multiple choice questions can add an Other option that opens a text box, and Tally keeps it pinned last when choices are randomized (https://tally.so/help/how-to-create-an-other-option). Our choice, checkbox and dropdown questions only accept the fixed list in lib/forms/types.ts, so a respondent whose answer is not listed has nowhere to write it. Small teams run into this on every survey. First scope: an allowOther flag on choice and multi_choice that shows a last option with a text input, stored in the answer and shown in the responses table, summary and CSV.",
+    "product": "forms",
+    "kind": "idea"
+  },
+  {
+    "title": "Forms: Add picture choice questions with an image per option",
+    "description": "Typeform has a Picture choice question where each option is an image with a label (https://www.typeform.com/help/a/picture-choice-360029568931/). Forms has text-only options in lib/forms/types.ts and components/forms/QuestionInputs.tsx. Product feedback, event and menu forms read much better with images. First scope: an optional imageUrl on each choice, uploaded through the existing form file route, rendered as a grid of cards that keep the keyboard letters.",
+    "product": "forms",
+    "kind": "idea"
+  },
+  {
+    "title": "Forms: Email a copy of the answers to the respondent",
+    "description": "Typeform sends respondents an email with a recap of their answers when the form has an email question and the setting is on (https://www.typeform.com/help/a/send-a-notification-to-respondents-360029603912/). Forms only notifies the team (notifyPeople and notifyEmails in lib/forms/types.ts) and shows an ending screen. Booking, application and order forms need a receipt the person can keep. First scope: a settings toggle that picks one email question and sends a plain message with the answers piped in, through the existing mail sender with its fake flag.",
+    "product": "forms",
+    "kind": "idea"
+  },
+  {
+    "title": "Forms: Add an Address question with street, city, region and country",
+    "description": "Typeform Contact info and Address blocks collect several fields in one screen (https://www.typeform.com/help/a/address-360029572971/). Forms has one field per question, so asking for a shipping address takes five questions with five Enter presses. Delivery, event and hiring forms ask for addresses all the time. First scope: an address question type with street, city, region, postal code and country fields, required per field, saved as an object and exported as separate CSV columns.",
+    "product": "forms",
+    "kind": "idea"
+  },
+  {
+    "title": "Forms: Keep chosen options pinned while the rest are randomized",
+    "description": "Typeform cannot randomize choices while keeping an option such as None of the above in place, and its community asks for it repeatedly (https://community.typeform.com/build-your-typeform-7/how-do-i-randomize-choices-while-fixing-position-of-certain-options-4957). Forms now randomizes the order of choices per respondent, but the whole list moves. Surveys usually need Other or I don't know to stay last. First scope: a pinned flag on each choice that keeps it at the end of the shuffled list, editable in the options list of the builder and covered by the shuffle unit test.",
+    "product": "forms",
+    "kind": "idea"
+  },
+  {
+    "title": "Forms: Pass the answers to the redirect URL as query parameters",
+    "description": "Typeform redirects after submit and can append answers and hidden fields to the URL using variables (https://www.typeform.com/help/a/redirect-on-completion-360029618711/). Forms redirects to a fixed https URL per ending (redirectUrl in lib/forms/types.ts) and drops the answers. Teams use this to prefill a Calendly, Cal or payment page with the name and email just collected. First scope: placeholders like {{email}} in the redirect URL, piped with the form's own pipe function and URL encoded.",
+    "product": "forms",
+    "kind": "idea"
   }
 ]

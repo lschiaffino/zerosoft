@@ -154,6 +154,29 @@ export function chatAccessSql(viewer: GroupsViewer | null | undefined, alias = '
   return parts.length ? { sql: parts.join(' AND '), args } : null;
 }
 
+/**
+ * Conversaciones de Agents que nacieron de un chat de Lines (un agente asignado
+ * al chat: groups_chats.agent_conversation_id). Llevan los mensajes del chat, así
+ * que siguen sus reglas: quien no ve el chat no ve la conversación, y con
+ * teléfonos ocultos no se ve ninguna (el texto trae el número de quien escribe).
+ * Condición SQL sobre `column` (id de agent_conversations); null si no restringe.
+ */
+export async function linesAgentConversationSql(ws: string, personId: string, role: TeamRole, column: string): Promise<{ sql: string; args: string[] } | null> {
+  if (role === 'owner' || role === 'admin') return null;
+  const viewer = await groupsViewer(ws, personId, role);
+  if (viewer.mask) return { sql: `NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column})`, args: [] };
+  const access = chatAccessSql(viewer, 'zgc');
+  if (!access) return null;
+  return { sql: `NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column} AND NOT (${access.sql}))`, args: access.args };
+}
+
+/** ¿Ve esta conversación de Agents según el chat de Lines del que viene (si viene de uno)? */
+export async function canSeeLinesAgentConversation(ws: string, personId: string, role: TeamRole, conversationId: string): Promise<boolean> {
+  const cond = await linesAgentConversationSql(ws, personId, role, '?');
+  if (!cond) return true;
+  return Boolean(await getDb().prepare(`SELECT 1 AS x WHERE ${cond.sql}`).get(conversationId, ...cond.args));
+}
+
 /** ¿Ve esta línea? (visibilidad por línea; las etiquetas no cuentan). */
 export async function canSeeNumber(viewer: GroupsViewer | null | undefined, numberId: string): Promise<boolean> {
   if (!viewer) return false;

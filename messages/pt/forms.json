@@ -203,6 +203,7 @@
     "remove": "Excluir",
     "questionTitle": "Pergunta",
     "required": "Obrigatória",
+    "randomize": "Mostrar as opções em ordem aleatória",
     "ref": "Nome da variável",
     "refHelp": "Use {ref} para inserir esta resposta em perguntas e finais posteriores.",
     "refInvalid": "Letras minúsculas, números e _, começando com uma letra, e que nenhuma outra pergunta use.",
