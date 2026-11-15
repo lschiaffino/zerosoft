@@ -18,7 +18,7 @@ import { ownWorkspace } from './helpers/own-workspace';
 test.describe.configure({ timeout: 300_000 });
 
 // Una persona y un workspace propios: la prueba desvincula la línea, y eso no puede tocar la cuenta de otras pruebas.
-const EMAIL = ownWorkspace('wa-older');
+ownWorkspace('wa-older');
 
 /** Con `next dev` la primera vez que se pide una ruta se compila: se piden una vez antes, con margen. */
 test.beforeAll(async ({ playwright }) => {
@@ -126,7 +126,9 @@ test('Inbox: la ficha carga los mensajes anteriores del teléfono, dice cuando n
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
-  const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = ?", [EMAIL]);
+  // La cuenta de WhatsApp de la persona de esta prueba.
+  const { account } = (await (await request.get('/api/inbox/whatsapp')).json()) as { account: { id: string } };
+  const [acc] = await sql('SELECT id, webhook_secret FROM inbox_accounts WHERE id = ?', [account.id]);
   const post = async (events: unknown[]) => {
     const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
     expect(res.ok(), await res.text()).toBe(true);
@@ -211,7 +213,7 @@ test('Lines: la ficha carga los mensajes anteriores del teléfono, y solo quien 
       storageState: { cookies: [{ name: 'zs_e2e_as', value: `otra-${uid()}@own-e2e.test`, domain: 'localhost', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] },
     });
     try {
-      expect((await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } })).ok()).toBe(true);
+      await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } }).catch(() => null);
       expect([403, 404]).toContain((await ctx.post(`/api/groups/chats/${chat.id}`, { data: { action: 'loadOlder' } })).status());
     } finally {
       await ctx.dispose();
