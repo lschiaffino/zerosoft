@@ -1079,3 +1079,4 @@ section.board-templates { padding: 0; }
 .board-timer-chip.is-done { cursor: pointer; }
 
 .board-offline-label { font-size: 0.75rem; color: var(--bad-ink); white-space: nowrap; }
+.board-local-missing { padding: 48px 24px; }

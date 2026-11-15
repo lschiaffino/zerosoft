@@ -25,6 +25,8 @@ export const AUDIT_ACTIONS = [
   'ticket_created',
   'ticket_updated',
   'ticket_deleted',
+  /** La empresa de HubSpot del chat se reemplazó por la del mismo grupo en otra línea (lib/groups-identity.ts). */
+  'hubspot_company',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

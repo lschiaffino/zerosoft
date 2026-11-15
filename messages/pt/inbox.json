@@ -367,7 +367,8 @@
       "resync": "Sincronizar de novo",
       "resyncTitle": "Sincronizar o WhatsApp de novo",
       "resyncBody": "O WhatsApp só envia o histórico de conversas quando um aparelho é conectado. Para trazê-lo, o Inbox encerra a sessão atual e mostra um QR novo: escaneie em WhatsApp › Aparelhos conectados. As conversas que já estão aqui continuam. O histórico pode levar alguns minutos para aparecer.",
-      "resyncYes": "Mostrar QR novo"
+      "resyncYes": "Mostrar QR novo",
+      "archiveBroken": "O arquivamento do WhatsApp não está sincronizando neste número: o que você arquiva aqui não chega ao celular e o que você arquiva no celular não aparece aqui. Use Sincronizar de novo para vincular outra vez e corrigir."
     },
     "gmail": {
       "intro": "Conecte o Gmail com o Google. Concluir também arquiva no Gmail e o status de leitura fica sincronizado.",

@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Solo para la microVM que arma el MP4 de descarga (lib/rec-mp4.ts): baja el
+ * Solo para la microVM que arma el MP4 (y la tira de miniaturas, lib/rec-mp4.ts): baja el
  * video y avisa al terminar. Sin sesión: cada URL va firmada para un video, una
  * versión y un propósito, y vence (60 minutos la de bajar).
  */
@@ -29,7 +29,12 @@ export async function GET(req: NextRequest) {
   return serveRecFile(req, plan.source, v.content_type);
 }
 
-const doneSchema = z.object({ url: z.string().max(2000).optional(), size: z.number().min(0).optional(), error: z.string().max(500).optional() });
+const doneSchema = z.object({
+  url: z.string().max(2000).optional(),
+  size: z.number().min(0).optional(),
+  sprite: z.string().max(2000).nullable().optional(),
+  error: z.string().max(500).optional(),
+});
 
 export async function POST(req: NextRequest) {
   const s = signed(req, 'done');

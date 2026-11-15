@@ -338,7 +338,10 @@
     "errOtherServer": "Recorded for another server",
     "pendingOtherServer": "Recorded for {server}. It is only sent there.",
     "privLastWipeLeftovers": "These could not be deleted and are still listed below: {list}.",
-    "privLastWipeMarker": "zerosoft found a request to delete all local data that it could not fully trust, so it only deleted its own folders. Check the list below and use \"Delete all local data\" again if anything is left."
+    "privLastWipeMarker": "zerosoft found a request to delete all local data that it could not fully trust, so it only deleted its own folders. Check the list below and use \"Delete all local data\" again if anything is left.",
+    "offlineTitle": "You are offline",
+    "offlineBody": "zerosoft could not reach the server, and this window has not been opened offline on this computer yet. It opens by itself when the connection is back. After that, Docs, Notes, Track, CRM and Board also work offline here.",
+    "offlineRetry": "Try again"
   },
   "es": {
     "open": "Abrir zerosoft",
@@ -679,7 +682,10 @@
     "errOtherServer": "Grabado para otro servidor",
     "pendingOtherServer": "Grabado para {server}. Solo se manda ahí.",
     "privLastWipeLeftovers": "Esto no se pudo borrar y sigue en la lista de abajo: {list}.",
-    "privLastWipeMarker": "zerosoft encontró un pedido de borrar todos los datos locales en el que no pudo confiar del todo, así que solo borró sus propias carpetas. Mirá la lista de abajo y usá \"Borrar todos los datos locales\" de nuevo si quedó algo."
+    "privLastWipeMarker": "zerosoft encontró un pedido de borrar todos los datos locales en el que no pudo confiar del todo, así que solo borró sus propias carpetas. Mirá la lista de abajo y usá \"Borrar todos los datos locales\" de nuevo si quedó algo.",
+    "offlineTitle": "Sin conexión",
+    "offlineBody": "zerosoft no pudo llegar al servidor, y esta ventana todavía no se abrió sin red en esta computadora. Se abre sola cuando vuelva la conexión. Desde ahí, Docs, Notes, Track, CRM y Board también andan sin red acá.",
+    "offlineRetry": "Probar de nuevo"
   },
   "pt": {
     "open": "Abrir zerosoft",
@@ -1020,6 +1026,9 @@
     "errOtherServer": "Gravado para outro servidor",
     "pendingOtherServer": "Gravado para {server}. Só é enviado para lá.",
     "privLastWipeLeftovers": "Isto não pôde ser apagado e continua na lista abaixo: {list}.",
-    "privLastWipeMarker": "O zerosoft encontrou um pedido de apagar todos os dados locais em que não pôde confiar totalmente, então só apagou as próprias pastas. Confira a lista abaixo e use \"Apagar todos os dados locais\" de novo se sobrou algo."
+    "privLastWipeMarker": "O zerosoft encontrou um pedido de apagar todos os dados locais em que não pôde confiar totalmente, então só apagou as próprias pastas. Confira a lista abaixo e use \"Apagar todos os dados locais\" de novo se sobrou algo.",
+    "offlineTitle": "Sem conexão",
+    "offlineBody": "O zerosoft não conseguiu chegar ao servidor, e esta janela ainda não foi aberta sem conexão neste computador. Ela abre sozinha quando a conexão voltar. Depois disso, Docs, Notes, Track, CRM e Board também funcionam sem conexão aqui.",
+    "offlineRetry": "Tentar de novo"
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
@@ -25,7 +25,7 @@ import {
   ambiguousToServer,
   baseFrom,
   clearDraft,
-  draftDiffers,
+  draftAction,
   flushOnLeave,
   mergeBoardScenes,
   readDraft,
@@ -130,9 +130,19 @@ export default function BoardEditor({
   guestToken = null,
   meId = null,
   initial = null,
+  ensureCreated,
+  notice = null,
 }: {
   board: BoardDetail;
   locale: string;
+  /**
+   * Pizarra creada sin red (components/board/LocalBoard): antes de cada
+   * guardado se asegura de que exista en el servidor. false = todavía sin red
+   * (lo dibujado queda en el borrador del dispositivo).
+   */
+  ensureCreated?: () => Promise<boolean>;
+  /** Aviso extra arriba del lienzo (el de la pizarra creada sin red). */
+  notice?: ReactNode;
   /** Persona que abre la pizarra (autoría de stickies y reacciones); los invitados usan una clave de la pestaña. */
   meId?: string | null;
   /** Taller, Track y comentarios que vinieron con la página (lib/board-bootstrap.ts). */
@@ -244,6 +254,10 @@ export default function BoardEditor({
   const thumbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** El primer onChange es el estado inicial normalizado por Excalidraw: solo fija la firma. */
   const baselineRef = useRef(true);
+  const ensureCreatedRef = useRef(ensureCreated);
+  ensureCreatedRef.current = ensureCreated;
+  /** Lo dibujado en este dispositivo volvió solo al abrir: aviso corto. */
+  const [draftRestored, setDraftRestored] = useState(false);
 
   /** Lo que hay en el lienzo ahora, listo para guardar. */
   const canvasScene = useCallback((): BoardScene | null => {
@@ -334,6 +348,7 @@ export default function BoardEditor({
         thumbnail = await sceneThumbnail(scene.elements, String(scene.appState.viewBackgroundColor ?? '#ffffff'));
         if (thumbnail) lastThumbRef.current = Date.now();
       }
+      if (ensureCreatedRef.current && !(await ensureCreatedRef.current())) throw new Error('offline');
       const body = JSON.stringify({ version: versionRef.current, scene: await withUploadedFiles(scene), thumbnail });
       if (body.length > BOARD_MAX_SCENE_BYTES * 1.2) {
         blockedRef.current = 'too_large';
@@ -376,6 +391,9 @@ export default function BoardEditor({
       }
     } catch {
       pendingRef.current = pendingRef.current ?? scene;
+      // Sin red: lo dibujado queda en el dispositivo ya (no solo al salir), así una recarga o un
+      // cierre sin conexión no lo pierde y la banda de la app lo cuenta como cambio pendiente.
+      writeDraft(storage(), board.id, { baseVersion: versionRef.current, scene: pendingRef.current, savedAt: Date.now() });
       setState('error');
     } finally {
       inFlightRef.current = false;
@@ -387,6 +405,15 @@ export default function BoardEditor({
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
   }, [board.id, apiBase, withUploadedFiles, scheduleThumbnail, setState]);
+
+  // Volvió la red: lo pendiente se manda ya, sin esperar el próximo reintento.
+  useEffect(() => {
+    const onOnline = () => {
+      if (pendingRef.current && !blockedRef.current) void save();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [save]);
 
   /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
   function rememberUploaded(files: Record<string, unknown>) {
@@ -624,12 +651,16 @@ export default function BoardEditor({
     (window as unknown as { __boardApi?: CanvasApi }).__boardApi = api;
   }, []);
 
-  // Borrador de una visita anterior que no llegó al servidor: se ofrece recuperarlo.
+  // Borrador de una visita anterior que no llegó al servidor. Hecho sobre la misma versión que se
+  // abre (lo común: se dibujó sin red y se recargó): vuelve solo. Si el servidor cambió, se ofrece.
+  const autoRestoreRef = useRef<BoardDraft | null>(null);
   useEffect(() => {
     const d = readDraft(storage(), board.id);
-    if (d && draftDiffers(d, board.scene)) setDraft(d);
-    else if (d) clearDraft(storage(), board.id);
-  }, [board.id, board.scene]);
+    const action = draftAction(d, board.scene, board.version);
+    if (action === 'drop') clearDraft(storage(), board.id);
+    else if (action === 'ask') setDraft(d);
+    else if (action === 'restore' && !readOnly) autoRestoreRef.current = d;
+  }, [board.id, board.scene, board.version, readOnly]);
 
   // Aviso al salir con cambios sin guardar; queda un borrador local por si el último PUT no llega.
   useEffect(() => {
@@ -683,9 +714,24 @@ export default function BoardEditor({
     };
   }, [board.id, apiBase, canvasScene, pushThumbnail]);
 
+  // Restaurar solo, en cuanto el lienzo está listo.
+  useEffect(() => {
+    const d = autoRestoreRef.current;
+    if (!canvasApi || !d) return;
+    autoRestoreRef.current = null;
+    void restoreDraft(d).then(() => setDraftRestored(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- una vez por borrador, con el lienzo listo
+  }, [canvasApi]);
+
+  useEffect(() => {
+    if (!draftRestored) return;
+    const h = setTimeout(() => setDraftRestored(false), REMOTE_STATUS_MS);
+    return () => clearTimeout(h);
+  }, [draftRestored]);
+
   /** "Recuperar": suma el borrador al lienzo (combinado si algo cambió desde entonces). */
-  async function restoreDraft() {
-    const d = draft;
+  async function restoreDraft(from: BoardDraft | null = draft) {
+    const d = from;
     const api = apiRef.current;
     if (!d || !api) return;
     const { reconcile } = await import('./ExcalidrawCanvas');
@@ -1420,6 +1466,17 @@ export default function BoardEditor({
             </button>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => void restoreDraft()}>
               {t('editor.draftRestore')}
+            </button>
+          </div>
+        </div>
+      )}
+      {notice}
+      {draftRestored && !draft && state !== 'conflict' && (
+        <div className="board-notice" role="status" data-testid="board-draft-restored">
+          <span>{t('editor.draftRestored')}</span>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm" onClick={() => setDraftRestored(false)}>
+              {t('editor.dismiss')}
             </button>
           </div>
         </div>

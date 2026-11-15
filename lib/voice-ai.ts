@@ -13,9 +13,9 @@
  */
 import { generateText, Output, streamText, type LanguageModel } from 'ai';
 import { z } from 'zod';
-import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
+import { AiError, aiEnabled, assertAiAvailable, assertAiMonthlyQuota, assertAiQuota, assertAiRate, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
-import { ruleCleanup, applyDictionary } from './voice-cleanup';
+import { ruleCleanup, applyDictionary, LIST_WORD_RE } from './voice-cleanup';
 import type { VoiceChatModel, VoiceCleanupDepth, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
 
 const LANG_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
@@ -47,6 +47,24 @@ async function voiceModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, pr
   if (state === 'off') throw new AiError('ai_disabled');
   await assertAiAvailable(ws);
   return resolveAiModel(preferredId);
+}
+
+/**
+ * Cuota del mes de la IA, pedida apenas llega el dictado (corre mientras se
+ * transcribe). Nunca queda como rechazo sin atender.
+ */
+export function voiceCleanupQuota(ws: string): Promise<void> {
+  const p = assertAiMonthlyQuota(ws);
+  p.catch(() => {});
+  return p;
+}
+
+/** Modelo de la limpieza con la cuota ya pedida (voiceCleanupQuota); el rate limit va junto con la llamada. */
+async function dictationModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, preferredId: string, quota: Promise<void>): Promise<{ model: LanguageModel; modelId: string }> {
+  const state = await voiceAiFakeState();
+  if (state === 'off' || (!state && !aiEnabled())) throw new AiError('ai_disabled');
+  await quota;
+  return state === 'on' ? { model: fakeModel(fake), modelId: 'voice-fake' } : resolveAiModel(preferredId);
 }
 
 async function record(ws: string, feature: string, modelId: string, usage: { inputTokens?: number; outputTokens?: number } | undefined) {
@@ -81,28 +99,31 @@ export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTo
     'You clean up dictated speech so it can be pasted as written text.',
     `It will be pasted into ${CONTEXT_TEXT[opts.context]}. Tone: ${TONE_TEXT[opts.tone]}.`,
     'Rules:',
-    '- Keep the speaker\'s words and meaning. Do not add facts, greetings, sign-offs or answers. Do not translate.',
+    '- Keep the speaker\'s words, meaning, names and numbers exactly. Do not add facts, greetings, sign-offs or answers. Do not translate: write in the language spoken.',
     '- Add punctuation and capitals. Remove filler words (um, uh, eh, este, tipo, né) and false starts.',
-    '- Apply spoken self-corrections: "Monday, no, I mean Tuesday" or "el lunes, no, quise decir el martes" keeps only the correction. "Scratch that" deletes the previous sentence.',
+    '- Apply spoken self-corrections: "Monday, no, I mean Tuesday", "el lunes, no, mejor el martes" or "segunda, ou melhor, terça" keep only the correction. "Scratch that" deletes the previous sentence.',
     light ? '' : '- Remove asides to self about the dictation that carry no content ("let me think", "déjame pensar", "wait, I got that wrong", "me equivoqué").',
-    '- "New line" and "new paragraph" are line breaks.',
+    '- Dictated punctuation becomes the symbol, never the words: "coma"/"comma"/"vírgula" → ","; "dos puntos"/"colon"/"dois pontos" → ":"; "punto y coma" → ";"; "punto"/"period"/"ponto final" → "."; "signo de interrogación"/"question mark" → "?"; "abrir/cerrar paréntesis", "open/close paren", "abre/fecha parênteses" → "(" and ")"; "abrir/cerrar comillas", "open/close quote", "abre/fecha aspas" → quotes; "arroba"/"at" and "punto"/"dot" inside an address → "@" and ".". Only when it is dictation, not content ("ganamos por dos puntos" stays).',
+    '- "New line"/"nueva línea"/"nova linha" is a line break; "new paragraph"/"punto y aparte"/"novo parágrafo" starts a new paragraph.',
     depth === 'thorough'
       ? '- Remove repetitions, restarts and circling back: when the speaker says the same thing more than once, or drops a sentence and starts it again, keep only the final complete version. Drop words that only announce what is about to be said ("what I wanted to say is", "lo que te quería decir era"). Tighten wordy phrasing lightly, but keep every piece of information, name and number, and the speaker\'s own vocabulary.'
       : '',
     ...(light
       ? ['- Keep the sentences as spoken apart from that: do not reorder, shorten or reformat them.']
       : [
-      'Layout (rearrange only what was said; never add or reword content to make it fit):',
-      '- When the speaker enumerates three or more items (things to buy, tasks, names, options), write them as a bulleted list: one line per item starting with "- ", capitalised, without the "and"/"y"/"e" and without a final period, right after the words that introduce them (end those with a colon). Two items stay inside the sentence.',
-      '- Use a numbered list ("1. ") instead when the order matters: steps, or "first… second…", "primero… segundo…".',
-      '- When a long dictation changes topic, split it into short paragraphs separated by a blank line.',
-      opts.context === 'email'
-      ? '- It is an email: a spoken greeting goes on its own line, the body in paragraphs, and a spoken sign-off and name each on their own line. If the speaker did not say a greeting or a sign-off, do not write one.'
-      : opts.context === 'chat'
-      ? '- It is a chat message: keep it compact, one paragraph unless there is a list.'
-      : '',
-      'Example. Dictated: "te paso la lista de compras quiero comprar huevos leche jugo de naranja y pan". Written:',
-      'Te paso la lista de compras. Quiero comprar:\n- Huevos\n- Leche\n- Jugo de naranja\n- Pan',
+          'Layout (rearrange only what was said; never add or reword content to make it fit):',
+          '- When the speaker enumerates three or more items (things to buy, tasks, names, options), write them as a bulleted list: one line per item starting with "- ", capitalised, without the "and"/"y"/"e" and without a final period, right after the words that introduce them (end those with a colon). When the speaker announces a list ("una lista", "a list", "uma lista") or dictates a colon before the items, two items are a list too. Otherwise two items stay inside the sentence.',
+          '- Use a numbered list ("1. ") instead when the speaker numbers the items or the order matters: "punto uno… punto dos…", "number one… number two…", "first… second…", "primero… segundo…", steps.',
+          '- When a long dictation changes topic, split it into short paragraphs separated by a blank line.',
+          opts.context === 'email'
+            ? '- It is an email: the greeting the speaker said goes on its own line ending with a comma ("Hola Juan,"), then a blank line, the body in short paragraphs separated by blank lines, then the spoken sign-off on its own line ending with a comma ("Saludos,") and the name on the line below. If the speaker did not say a greeting or a sign-off, do not write one.'
+            : opts.context === 'chat'
+              ? '- It is a chat message: keep it short and casual, one paragraph unless there is a list. Never add a greeting, a sign-off or headings.'
+              : '- If the dictation is clearly an email (it opens with a greeting to someone and closes with a sign-off), lay it out like one: greeting line, blank line, body paragraphs, blank line, sign-off line and name.',
+          opts.context === 'note' ? '- It is a note: a dictated title ("título…", "title…", "título:") becomes a first line starting with "# "; lists use "- ".' : '',
+          'Examples (dictated → written):',
+          '"Quiero una lista, dos puntos, huevo, carne y leche" →\nQuiero una lista:\n- Huevo\n- Carne\n- Leche',
+          '"te paso la lista de compras quiero comprar huevos leche jugo de naranja y pan" →\nTe paso la lista de compras. Quiero comprar:\n- Huevos\n- Leche\n- Jugo de naranja\n- Pan',
         ]),
     opts.words.length ? `- Spell these names and terms exactly like this: ${opts.words.slice(0, 200).join(', ')}.` : '',
     'Reply with the cleaned text only.',
@@ -131,15 +152,23 @@ export function fastCleanupTimeoutMs(raw: string): number {
   return Math.min(6000, 2000 + words * 15);
 }
 
+/** Cuatro o más cosas seguidas con comas y una "y" al final: una enumeración que la IA puede pasar a lista. */
+const ENUMERATION_RE =
+  /(?:[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,2},\s+){2,}[\p{L}\p{N}'’-]+(?:\s+[\p{L}\p{N}'’-]+){0,2},?\s+(?:y|e|and|or|o|ou)\s+[\p{L}\p{N}]/iu;
+
 /**
  * Frase corta sin nada que pida la IA: las reglas (muletillas, "no, quise
- * decir", listas, saltos y mayúsculas) alcanzan y se ahorra la vuelta al
- * modelo. Con tono formal se usa la IA igual (reescribe, no solo puntúa).
+ * decir", puntuación dicha, listas, mail, saltos y mayúsculas) alcanzan y se
+ * ahorra la vuelta al modelo. Con tono formal se usa la IA igual (reescribe,
+ * no solo puntúa). `ruled` es lo que dieron las reglas: si se pidió una lista
+ * o se enumeraron cosas y las reglas no la armaron, decide la IA.
  */
-export function canSkipAiCleanup(raw: string, tone: VoiceTone): boolean {
+export function canSkipAiCleanup(raw: string, tone: VoiceTone, ruled?: string): boolean {
   if (tone === 'formal') return false;
   const words = raw.trim().split(/\s+/).filter(Boolean).length;
-  return words > 0 && words <= FAST_RULES_MAX_WORDS;
+  if (words === 0 || words > FAST_RULES_MAX_WORDS) return false;
+  if (ruled !== undefined && !ruled.includes('\n') && (LIST_WORD_RE.test(raw) || ENUMERATION_RE.test(raw))) return false;
+  return true;
 }
 
 /**
@@ -156,28 +185,57 @@ export async function cleanupDictation(opts: {
   useAi: boolean;
   /** Cuánto limpia (por defecto 'standard'). */
   depth?: VoiceCleanupDepth;
+  /** Idioma que dio la transcripción (las reglas lo usan para las muletillas). */
+  language?: string;
   /**
    * Modo rápido (la app de escritorio espera el texto para pegarlo): frases
    * cortas por reglas, la IA con un tope de tiempo y sin reintentos.
    */
   fast?: boolean;
+  /**
+   * Cuota del mes ya pedida (voiceCleanupQuota, en paralelo con la
+   * transcripción): el rate limit corre junto con la llamada al modelo y nada
+   * de eso se suma a la espera.
+   */
+  quota?: Promise<void>;
+  /** Registrar el consumo después de contestar en vez de esperarlo. */
+  later?: (job: () => Promise<unknown>) => void;
 }): Promise<{ text: string; ai: boolean; aiError: string | null }> {
   const raw = opts.raw.trim();
   if (!raw) return { text: '', ai: false, aiError: null };
-  if (!opts.useAi) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
-  if (opts.fast && opts.depth !== 'thorough' && canSkipAiCleanup(raw, opts.tone)) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
+  const rules = () => ruleCleanup(raw, opts.dictionary, { context: opts.context, language: opts.language });
+  if (!opts.useAi) return { text: rules(), ai: false, aiError: null };
+  if (opts.fast && opts.depth !== 'thorough') {
+    const ruled = rules();
+    if (canSkipAiCleanup(raw, opts.tone, ruled)) return { text: ruled, ai: false, aiError: null };
+  }
   const words = opts.dictionary.filter((d) => d.kind === 'word').map((d) => d.phrase);
+  const fake = () => ({ text: ruleCleanup(raw, [], { context: opts.context, language: opts.language }) });
   const run = async (preferredId: string) => {
-    const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: ruleCleanup(raw, []) }), preferredId);
-    const res = await generateText({
-      model,
-      instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words, depth: opts.depth }),
-      prompt: raw.slice(0, 20_000),
-      temperature: 0,
-      maxOutputTokens: Math.min(4000, 64 + raw.length),
-      timeout: opts.fast ? fastCleanupTimeoutMs(raw) : 30_000,
-      maxRetries: opts.fast ? 0 : 1,
-    });
+    const { model, modelId } = opts.quota
+      ? await dictationModel(opts.workspaceId, fake, preferredId, opts.quota)
+      : await voiceModel(opts.workspaceId, fake, preferredId);
+    const abort = new AbortController();
+    // Con la cuota ya pedida, el rate limit corre junto con el modelo; si no da, se corta la llamada.
+    const rate = opts.quota
+      ? assertAiRate(opts.workspaceId).catch((err: unknown) => {
+          abort.abort();
+          throw err;
+        })
+      : Promise.resolve();
+    const [res] = await Promise.all([
+      generateText({
+        model,
+        instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words, depth: opts.depth }),
+        prompt: raw.slice(0, 20_000),
+        temperature: 0,
+        maxOutputTokens: Math.min(4000, 64 + raw.length),
+        timeout: opts.fast ? fastCleanupTimeoutMs(raw) : 30_000,
+        maxRetries: opts.fast ? 0 : 1,
+        abortSignal: abort.signal,
+      }),
+      rate,
+    ]);
     return { res, modelId };
   };
   try {
@@ -191,13 +249,15 @@ export async function cleanupDictation(opts: {
       out = await run(resolveAiModel().modelId);
     }
     const { res, modelId } = out;
-    await record(opts.workspaceId, 'voice_cleanup', modelId, res.totalUsage);
-    const text = applyDictionary(res.text.trim(), opts.dictionary) || ruleCleanup(raw, opts.dictionary);
+    const usage = () => record(opts.workspaceId, 'voice_cleanup', modelId, res.totalUsage);
+    if (opts.later) opts.later(usage);
+    else await usage();
+    const text = applyDictionary(res.text.trim(), opts.dictionary) || rules();
     return { text, ai: true, aiError: null };
   } catch (err) {
-    if (err instanceof AiError) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: err.code };
+    if (err instanceof AiError) return { text: rules(), ai: false, aiError: err.code };
     console.error('[voice] cleanup failed', err instanceof Error ? err.message : 'error');
-    return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: 'ai_failed' };
+    return { text: rules(), ai: false, aiError: 'ai_failed' };
   }
 }
 

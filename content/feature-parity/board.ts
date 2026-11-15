@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Excalidraw+',
   alsoCompared: ['Miro'],
-  lastReviewed: '2026-11-07',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'canvas', label: { en: 'Canvas editing', es: 'Edición del lienzo', pt: 'Edição da tela' } },
     { id: 'collaboration', label: { en: 'Collaboration and sharing', es: 'Colaboración y compartir', pt: 'Colaboração e compartilhamento' } },
@@ -418,8 +418,12 @@ const parity: ProductParity = {
       id: 'offline',
       area: 'mobile-offline',
       label: { en: 'Work offline', es: 'Trabajar offline', pt: 'Trabalhar offline' },
-      detail: { en: 'Unsaved changes stay as a local draft you can restore; no offline mode that syncs later', es: 'Lo no guardado queda como borrador local restaurable; no hay modo offline que sincronice después', pt: 'O que não salvou fica como rascunho local restaurável; não há modo offline que sincronize depois' },
-      status: 'partial',
+      detail: {
+        en: 'Boards you opened open without a connection; what you draw is saved on the device, comes back on its own after a reload and is merged element by element when you are back online. New boards can be created offline and upload once the connection returns. Templates need a connection',
+        es: 'Las pizarras que abriste se abren sin red; lo que dibujás queda en el dispositivo, vuelve solo al recargar y se combina elemento por elemento al volver la red. Las pizarras nuevas se pueden crear sin red y se suben cuando vuelve la conexión. Las plantillas necesitan conexión',
+        pt: 'Os quadros que você abriu abrem sem conexão; o que você desenha fica no dispositivo, volta sozinho ao recarregar e é combinado elemento por elemento quando a conexão volta. Quadros novos podem ser criados sem conexão e são enviados quando ela volta. Os modelos precisam de conexão',
+      },
+      status: 'have',
       competitorHas: true,
     },
 

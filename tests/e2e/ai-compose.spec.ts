@@ -140,7 +140,7 @@ test('Inbox, mensaje nuevo: describe el mensaje, lo inserta en el campo y no man
   // Gmail de prueba (INBOX_FAKE=1): con WhatsApp, "Nuevo" abre el panel de chat nuevo y el mensaje nuevo es "New email".
   expect((await request.get('/api/inbox/gmail', { maxRedirects: 0 })).status()).toBeLessThan(400);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.ib-compose-btn').click();
+  await page.getByTestId('side-new').click();
   await page.getByRole('dialog', { name: 'New chat' }).getByRole('option', { name: 'New email' }).click();
   const dialog = page.getByRole('dialog', { name: 'New message' });
   await expect(dialog).toBeVisible();

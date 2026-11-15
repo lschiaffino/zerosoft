@@ -135,7 +135,7 @@ test('importar al conectar: 212 chats con nombres, fotos y mensajes; el hilo se 
     const last = page.locator('.gr-msg-in').last();
     await last.hover();
     await last.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Reply' }).click();
+    await page.getByTestId('menu-reply').click();
     await expect(page.locator('.wa-replying')).toBeVisible();
     await page.keyboard.press('Escape');
     expect(errors).toEqual([]);

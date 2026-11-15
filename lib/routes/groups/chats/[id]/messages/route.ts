@@ -141,5 +141,12 @@ export async function POST(req: Request, ctx: Ctx) {
       if (!open && !(await canSeeChat(viewer, id).catch(() => false))) return groupsError(404, 'not_found');
       return NextResponse.json(maskMessage(viewer, toMessageDto(saved)), { status: 201 });
     },
+    {
+      // Salió (o quedó guardado como no enviado, con su clientId): lo demás (sin acceso, tope de envíos) suelta la
+      // clave y el reintento vuelve a probar.
+      ok: (res) => res.status === 201,
+      // Un archivo tarda más: el servidor espera hasta 90 s al gateway.
+      ...(media ? { waitMs: 95_000 } : {}),
+    },
   );
 }

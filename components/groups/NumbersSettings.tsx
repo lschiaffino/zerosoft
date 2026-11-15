@@ -166,6 +166,11 @@ export default function NumbersSettings({
                   {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
                 </span>
                 {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
+                {n.archiveSyncBroken && n.provider !== 'sample' && (
+                  <span className="ui-error" role="status" data-testid="line-archive-broken">
+                    {t('wa.archiveBroken')}
+                  </span>
+                )}
                 {/* Qué historial trae cada tipo de conexión, sin prometer lo que el proveedor no da. */}
                 {(n.provider === 'cloud' || n.provider === 'waha') && (
                   <span className="ui-help gr-number-note" data-testid="line-history-note">

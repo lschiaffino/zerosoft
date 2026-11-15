@@ -1756,7 +1756,7 @@
   },
   "offline": {
     "title": "Offline mode",
-    "desc": "Keep what you opened in CRM, Docs, Track and Notes on this device, so it opens and you can keep working without a connection.",
+    "desc": "Keep what you opened in CRM, Docs, Track, Notes and Board on this device, so it opens and you can keep working without a connection.",
     "loading": "Loading offline settings",
     "enabled": "Keep apps available offline",
     "enabledHelp": "Pages you open are saved on this device. Changes made without a connection are sent when it comes back.",
@@ -1770,13 +1770,17 @@
       "crm": "CRM and Home",
       "docs": "Docs",
       "track": "Track",
-      "notes": "Notes"
+      "notes": "Notes",
+      "board": "Board",
+      "cal": "Cal (read only)"
     },
     "appsHelp": {
       "crm": "Contacts, companies, deals and the home page",
       "docs": "Pages you opened or marked available offline",
       "track": "Lists, issues and projects you opened",
-      "notes": "The list of notes"
+      "notes": "The list of notes",
+      "board": "Boards you opened and the list of boards",
+      "cal": "Bookings, event types and availability you opened. Editing needs a connection"
     },
     "appUsage": "{pages, plural, one {# page} other {# pages}}, {size}",
     "measuring": "Measuring…",
@@ -1809,7 +1813,8 @@
     "pendingQueue": "{n, plural, one {# change in CRM or Track} other {# changes in CRM or Track}}",
     "pendingFailed": "{n, plural, one {# change the server rejected (retry it from the status bar)} other {# changes the server rejected (retry them from the status bar)}}",
     "pendingDocs": "{n, plural, one {# Docs draft} other {# Docs drafts}}",
-    "pendingNotes": "{n, plural, one {# change in Notes} other {# changes in Notes}}"
+    "pendingNotes": "{n, plural, one {# change in Notes} other {# changes in Notes}}",
+    "pendingBoard": "{n, plural, one {# board with changes} other {# boards with changes}}"
   },
   "desktopApp": {
     "title": "Desktop app",

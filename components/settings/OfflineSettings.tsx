@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
-import { docsDrafts, notesPending } from '@/components/app/OfflineStatus';
+import { boardDrafts, docsDrafts, notesPending } from '@/components/app/OfflineStatus';
 import { registerAppServiceWorker } from '@/lib/sw-client';
 import { OFFLINE_APPS, OFFLINE_DAYS, OFFLINE_LIMITS, OFFLINE_SIZES, type OfflineApp, type OfflinePrefs } from '@/lib/offline-prefs';
 import { readOfflinePrefs, writeOfflinePrefs } from '@/lib/offline-prefs-client';
@@ -37,7 +37,7 @@ export default function OfflineSettings({ owner }: { owner: string }) {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
   const [queue, setQueue] = useState({ count: 0, failed: 0 });
-  const [local, setLocal] = useState({ docs: 0, notes: 0 });
+  const [local, setLocal] = useState({ docs: 0, notes: 0, board: 0 });
   const [confirmOff, setConfirmOff] = useState(false);
   const [status, setStatus] = useState('');
   const [worker, setWorker] = useState<'loading' | 'ready' | 'none'>('loading');
@@ -84,14 +84,14 @@ export default function OfflineSettings({ owner }: { owner: string }) {
       })
       .catch(() => setWorker('none'));
     let alive = true;
-    void notesPending(owner).then((notes) => alive && setLocal({ docs: docsDrafts(owner), notes }));
+    void notesPending(owner).then((notes) => alive && setLocal({ docs: docsDrafts(owner), notes, board: boardDrafts() }));
     return () => {
       alive = false;
       navigator.serviceWorker.removeEventListener('message', onMessage);
     };
   }, [owner, post, refreshEstimate]);
 
-  const pending = queue.count + queue.failed + local.docs + local.notes;
+  const pending = queue.count + queue.failed + local.docs + local.notes + local.board;
 
   function apply(next: OfflinePrefs, message = t('saved')) {
     setPrefs(next);
@@ -261,6 +261,7 @@ export default function OfflineSettings({ owner }: { owner: string }) {
             {queue.failed > 0 && <li>{t('pendingFailed', { n: queue.failed })}</li>}
             {local.docs > 0 && <li>{t('pendingDocs', { n: local.docs })}</li>}
             {local.notes > 0 && <li>{t('pendingNotes', { n: local.notes })}</li>}
+            {local.board > 0 && <li>{t('pendingBoard', { n: local.board })}</li>}
           </ul>
         )}
       </FormSection>

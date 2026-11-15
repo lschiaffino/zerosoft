@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
+import CalOffline from '@/components/calendar/CalOffline';
 import '@/styles/calendar.css';
 
 /**
@@ -11,7 +12,9 @@ export default async function CalendarLayout(props: { children: ReactNode; param
   const { locale } = await props.params;
   return (
     <ClientMessages locale={locale} namespaces={['calendar']}>
-      <div className="cal-app">{props.children}</div>
+      <div className="cal-app">
+        <CalOffline>{props.children}</CalOffline>
+      </div>
     </ClientMessages>
   );
 }

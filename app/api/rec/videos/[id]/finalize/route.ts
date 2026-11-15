@@ -4,6 +4,7 @@ import { finalizeVideo, getVideoRow, toDto } from '@/lib/rec';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
 import { processRecVideo } from '@/lib/rec-ai';
 import { recAiForcedOff } from '@/lib/rec-ai-flags';
+import { preparePlayback } from '@/lib/rec-mp4';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ const schema = z.object({
   height: z.number().min(0).max(10_000).optional(),
 });
 
-/** Grabación lista: pasa a la biblioteca y se transcribe después de responder. */
+/** Grabación lista: pasa a la biblioteca; se transcribe y se arma el MP4 de reproducción después de responder. */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const s = await recActor();
   if ('res' in s) return s.res;
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const forceOff = await recAiForcedOff();
     after(() => processRecVideo(id, { forceOff }).catch(() => null));
     const v = await getVideoRow(s.actor, id);
+    // MP4 de reproducción (índice al principio, keyframe cada 2 s): adelantar no lee todo el video.
+    if (v) await preparePlayback(v).catch(() => undefined);
     return recJson({ video: toDto(v!, s.actor) });
   } catch (err) {
     return recFail(err);
