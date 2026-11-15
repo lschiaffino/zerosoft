@@ -54,6 +54,8 @@ const msgWith = (thread: Locator, text: string) => thread.locator('.gr-msg', { h
 async function checkRetry(page: Page, thread: Locator, app: string, release: () => Promise<unknown>) {
   const retry = msgWith(thread, 'Foto que tarda');
   const ph = retry.getByTestId('wa-media-unavailable');
+  // La foto se pide recién cuando entra en pantalla (loading="lazy").
+  await retry.scrollIntoViewIfNeeded();
   // El reintento automático corre solo una vez y vuelve a fallar: queda el botón.
   await expect(ph).toHaveAttribute('data-state', 'idle', { timeout: 30_000 });
   const button = retry.getByTestId('wa-media-retry');
@@ -68,6 +70,7 @@ async function checkRetry(page: Page, thread: Locator, app: string, release: () 
 
   // La que WhatsApp ya no tiene: el aviso final, sin botón.
   const gone = msgWith(thread, 'Foto que ya no está');
+  await gone.scrollIntoViewIfNeeded();
   await expect(gone.getByTestId('wa-media-unavailable')).toHaveAttribute('data-state', 'gone', { timeout: 30_000 });
   await expect(gone.getByTestId('wa-media-retry')).toHaveCount(0);
   await shot(page, `${app}-gone`, gone);

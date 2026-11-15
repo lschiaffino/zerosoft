@@ -7,6 +7,27 @@ import StickerPanel, { type StickerTab } from './StickerPanel';
 import GifPanel, { type GifTab } from './GifPanel';
 import { recentWithDefaults } from './emoji-recent';
 
+/** Íconos de las pestañas Emoji | GIF | Stickers (como las de WhatsApp: ícono arriba del nombre). */
+const SmileyTab = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8M9 9.5h.01M15 9.5h.01" />
+  </svg>
+);
+const GifTabIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2.5" y="5" width="19" height="14" rx="3" />
+    <path d="M10 10.2a2 2 0 0 0-1.6-.7c-1.3 0-2.1 1-2.1 2.5s.8 2.5 2.1 2.5c1 0 1.6-.6 1.6-1.6V12H8.6M12.6 9.6v4.8M15.4 14.4V9.6h2.6M15.4 12h2.1" />
+  </svg>
+);
+const StickerTabIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15.5 21H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8.5Z" />
+    <path d="M21 15h-3a3 3 0 0 0-3 3v3" />
+    <path d="M8.5 13.5c1 1.2 2.2 1.8 3.5 1.8M9 9h.01M15 9h.01" />
+  </svg>
+);
+
 export const RECENT_KEY = 'zs-groups-emoji-recent';
 /** Última pestaña del panel (Emoji, GIFs o Stickers), como WhatsApp Web la recuerda. */
 const PANEL_KEY = 'zs-wa-expression-tab';
@@ -142,8 +163,11 @@ export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPic
     panels.length > 1 ? (
       <div className="wa-xp-tabs" role="tablist" aria-label={t('stickers.panels')}>
         {panels.map((p) => (
-          <button key={p} type="button" role="tab" aria-selected={panel === p} onClick={() => choosePanel(p)}>
-            {p === 'emoji' ? t('emoji') : p === 'gifs' ? t('gifs.tab') : t('stickers.tab')}
+          <button key={p} type="button" role="tab" aria-selected={panel === p} data-panel={p} onClick={() => choosePanel(p)}>
+            <span className="wa-xp-ico" aria-hidden="true">
+              {p === 'emoji' ? <SmileyTab /> : p === 'gifs' ? <GifTabIcon /> : <StickerTabIcon />}
+            </span>
+            <span>{p === 'emoji' ? t('emoji') : p === 'gifs' ? t('gifs.tab') : t('stickers.tab')}</span>
           </button>
         ))}
       </div>
