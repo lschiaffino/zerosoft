@@ -57,7 +57,9 @@ export async function POST(req: Request) {
           ? {
               // El proveedor baja la media de una URL pública: un /uploads/ se completa con el origen.
               url: m.url.startsWith('/') ? `${(process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '')}${m.url}` : m.url,
-              mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file' }
+              mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file',
+              // Nota de voz grabada ("Enviar más tarde" desde la grabadora): sale como nota de voz.
+              ...(m.kind === 'voice' || m.voice === true ? { kind: 'voice' as const, duration: Number(m.duration) || 0 } : {}) }
           : null,
       chatIds: strArr(b.chatIds, 2000).filter((id) => !visible || visible.has(id)),
       poll: b.poll ?? null,

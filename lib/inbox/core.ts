@@ -1450,6 +1450,11 @@ export interface ScheduledRow {
   media_url: string;
   media_name: string;
   media_type: string;
+  /** 'voice': el archivo sale como nota de voz. */
+  media_kind: string;
+  media_duration: number;
+  /** Mensaje (nuestro id) que cita. */
+  reply_to: string;
 }
 
 export async function listScheduled(owner: string, threadId?: string): Promise<ScheduledDto[]> {
@@ -1475,6 +1480,9 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     mediaName: r.media_name ?? '',
     mediaType: r.media_type ?? '',
     mediaUrl: r.media_url ?? '',
+    mediaVoice: r.media_kind === 'voice',
+    mediaDuration: Number(r.media_duration ?? 0),
+    replyTo: r.reply_to ?? '',
   }));
 }
 

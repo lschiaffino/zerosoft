@@ -1020,7 +1020,8 @@
     "not_on_whatsapp": "Esse número não tem WhatsApp. Confira, com o código do país.",
     "chat_no_access": "Esta linha já tem uma conversa com esse número e você não tem acesso. Peça a um admin.",
     "history_rate_limited": "Você já pediu as mensagens desta conversa há pouco. Tente de novo em um minuto.",
-    "history_failed": "Seu telefone não respondeu. Verifique se ele está com internet e tente de novo."
+    "history_failed": "Seu telefone não respondeu. Verifique se ele está com internet e tente de novo.",
+    "voice_too_short": "Grave pelo menos um segundo para agendar."
   },
   "media": {
     "image": "Imagem",
@@ -1628,7 +1629,13 @@
     "openChat": "Abrir a conversa com {name}",
     "loadError": "As mensagens agendadas não carregaram. Tente de novo.",
     "retry": "Tentar de novo",
-    "close": "Fechar"
+    "close": "Fechar",
+    "voiceButton": "Enviar a mensagem de voz mais tarde",
+    "voiceTag": "🎤 Mensagem de voz ({time})",
+    "voicePlay": "Ouvir a mensagem de voz",
+    "voiceStop": "Pausar",
+    "voicePlayFailed": "Não foi possível reproduzir o áudio.",
+    "voiceTooShort": "Grave pelo menos um segundo para agendar."
   },
   "polls": {
     "button": "Enquete",

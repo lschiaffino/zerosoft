@@ -89,7 +89,8 @@
     "unsupported": "Isso não pode ser feito nesta conversa.",
     "forbidden": "Só dá para mudar as suas próprias mensagens.",
     "client_upload_unavailable": "Arquivos com mais de 4 MB não podem ser enviados deste servidor.",
-    "nothing_to_summarize": "Ainda não há mensagens para resumir."
+    "nothing_to_summarize": "Ainda não há mensagens para resumir.",
+    "voice_too_short": "Grave pelo menos um segundo para agendar."
   },
   "viewPhoto": "Ver a foto",
   "groupMembers": "{n, plural, one {Grupo · # membro} other {Grupo · # membros}}",
@@ -269,5 +270,13 @@
   "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco.",
   "replyPrivately": "Responder em particular",
   "messageName": "Enviar mensagem para {name}",
-  "download": "Baixar"
+  "download": "Baixar",
+  "voicePause": "Pausar",
+  "voiceResume": "Continuar gravando",
+  "voicePaused": "Pausado",
+  "voiceLater": "Enviar a mensagem de voz mais tarde",
+  "voiceTag": "🎤 Mensagem de voz ({time})",
+  "voicePlay": "Ouvir a mensagem de voz",
+  "voiceStop": "Pausar",
+  "voicePlayFailed": "Não foi possível reproduzir o áudio."
 }

@@ -1381,3 +1381,21 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
 /* Una mención en un grupo abre la ficha de esa persona. */
 .gr-msg .wa-mention[data-mention] { cursor: pointer; }
 .gr-msg .wa-mention[data-mention]:hover { text-decoration: underline; }
+
+
+/* Nota de voz programada ("Enviar más tarde" desde la grabadora): en la tira de programados de Lines y de Inbox, con
+   el botón para escucharla antes de que salga. */
+.wa-sched-voice { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.wa-sched-voice-play {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0;
+  color: var(--wa-text, var(--ink)); background: transparent; border: 1px solid var(--wa-border-strong, var(--line)); border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-sched-voice-play:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.wa-sched-voice-play:focus-visible { outline: 2px solid var(--wa-primary, currentColor); outline-offset: 2px; }
+.wa-sched-voice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wa-text, var(--ink)); font-variant-numeric: tabular-nums; }
+.wa-sched-voice-error { color: var(--wa-danger, var(--bad-ink)); white-space: nowrap; }
+/* La grabadora mientras la nota se sube para quedar programada. */
+.wa-recording[aria-busy='true'] .wa-icon-btn, .wa-recording[aria-busy='true'] .wa-send { opacity: 0.5; cursor: progress; }
+@media (max-width: 720px) {
+  .wa-sched-voice-play { width: 40px; height: 40px; }
+}

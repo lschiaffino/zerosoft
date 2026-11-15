@@ -316,9 +316,9 @@ const parity: ProductParity = {
     }),
     row('scheduled', 'broadcasts', ['Scheduled messages', 'Mensajes programados', 'Mensagens agendadas'], 'have', {
       detail: [
-        'Send later from the message box with presets or a date; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats',
-        'Enviar más tarde desde el cuadro con opciones rápidas o una fecha; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats',
-        'Enviar mais tarde pela caixa com opções rápidas ou uma data; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas',
+        'Send later from the message box with presets or a date; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
+        'Enviar más tarde desde el cuadro con opciones rápidas o una fecha; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
+        'Enviar mais tarde pela caixa com opções rápidas ou uma data; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
       ],
     }),
     row('recurring', 'broadcasts', ['Recurring messages', 'Mensajes recurrentes', 'Mensagens recorrentes'], 'have', {

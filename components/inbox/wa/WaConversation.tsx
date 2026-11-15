@@ -976,6 +976,11 @@ const WaConversation = forwardRef<
             threadId={thread.id}
             replyTo={replyTo?.id}
             onQueued={() => setReplyTo(null)}
+            onScheduled={(iso) => {
+              setReplyTo(null);
+              props.onScheduledChange();
+              props.onToast(t('toast.scheduled', { when: longWhen(iso, locale) }));
+            }}
             onError={onError}
             onDone={() => setRecording(false)}
             onStart={() => presence('recording')}

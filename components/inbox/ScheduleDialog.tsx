@@ -10,6 +10,9 @@ export interface PartMedia {
   url: string;
   name: string;
   type: string;
+  /** Nota de voz grabada (sale como nota de voz), con sus segundos. */
+  voice?: boolean;
+  duration?: number;
 }
 
 interface Part {
@@ -93,7 +96,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
     key.current = newKey() + newKey();
     const open = target.edit?.filter((s) => s.status !== 'sent' && s.status !== 'cancelled') ?? [];
     if (open.length) {
-      setParts(open.map((s, i) => ({ key: newKey(), body: s.body, delaySec: i === 0 ? 0 : s.delaySec, media: s.mediaUrl ? { url: s.mediaUrl, name: s.mediaName, type: s.mediaType } : null, uploading: false })));
+      setParts(open.map((s, i) => ({ key: newKey(), body: s.body, delaySec: i === 0 ? 0 : s.delaySec, media: s.mediaUrl ? { url: s.mediaUrl, name: s.mediaName, type: s.mediaType, ...(s.mediaVoice ? { voice: true, duration: s.mediaDuration } : {}) } : null, uploading: false })));
       const at = new Date(open[0].sendAt);
       setCustom(localInputValue(at.getTime() > n.getTime() + 60_000 ? at : new Date(n.getTime() + 3600_000)));
     } else {
