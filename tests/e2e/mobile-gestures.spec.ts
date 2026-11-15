@@ -59,7 +59,10 @@ async function noSideScroll(page: Page) {
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
 }
 
-/** Lo mismo en las dos apps, con el chat ya abierto y dos mensajes recibidos (`a` arriba de `b`). */
+/**
+ * Lo mismo en las dos apps, con el chat ya abierto y tres mensajes recibidos (`a` arriba, `b` el último). La
+ * barra de reacciones tapa el mensaje de justo arriba del marcado: se toca `a`, que queda más arriba.
+ */
 async function gestures(page: Page, cdp: CDPSession, a: string, b: string) {
   const box = page.locator('.wa-messages');
   const first = box.locator('.gr-msg', { hasText: a });
@@ -112,7 +115,7 @@ test('Inbox en el teléfono: toque largo, selección, deslizar para responder y 
   const dm = `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}7@s.whatsapp.net`;
   const at = (s: number) => new Date(Date.now() - 600_000 + s * 1000).toISOString();
   const msg = (body: string, s: number) => ({ type: 'message', chatId: dm, isGroup: false, fromMe: false, senderPhone: dm.replace(/@.*/, ''), senderName: `Tacto ${tag}`, providerMessageId: `t-${tag}-${s}`, body, timestamp: at(s) });
-  const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: [msg(`primero ${tag}`, 1), msg(`segundo ${tag}`, 2)] } });
+  const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: [msg(`primero ${tag}`, 1), msg(`medio ${tag}`, 2), msg(`segundo ${tag}`, 3)] } });
   expect(res.ok()).toBe(true);
 
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
@@ -144,7 +147,7 @@ test('Lines en el teléfono: toque largo, selección, deslizar para responder y 
   const tag = uid();
   const url = await fakeLine(request, `Tacto ${tag}`);
   const chatId = `54911${Math.floor(Math.random() * 1e7)}@c.us`;
-  for (const [i, body] of [`primero ${tag}`, `segundo ${tag}`].entries()) {
+  for (const [i, body] of [`primero ${tag}`, `medio ${tag}`, `segundo ${tag}`].entries()) {
     await request.post(new URL(url).pathname, {
       data: { events: [{ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: '5491155550000', senderName: `Tacto ${tag}`, providerMessageId: `lt-${tag}-${i}`, body }] },
     });
