@@ -101,6 +101,8 @@ export interface MigrateOptions {
   batch?: number;
   /** Solo estas carpetas (por defecto, todas las migrables). */
   folders?: string[];
+  /** Solo estas tablas (por defecto, todas). */
+  tables?: string[];
   /** Tope de archivos a copiar en esta corrida (para ir de a tandas). */
   limit?: number;
   log?: (line: string) => void;
@@ -251,6 +253,7 @@ async function discover(db: Client, opts: MigrateOptions, report: MigrateReport,
   const wanted = new Set(opts.folders?.length ? opts.folders : MIGRATABLE_FOLDERS);
   const found = new Map<string, Found>();
   for (const t of await tables(db)) {
+    if (opts.tables?.length && !opts.tables.includes(t.name)) continue;
     const owner = ownerSql(t);
     const rule = RULES[t.name];
     for (const col of t.textCols) {

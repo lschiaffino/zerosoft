@@ -18,6 +18,8 @@ const originals = new Map<string, Buffer>();
 const deleted: string[] = [];
 
 const io = {
+  // Solo las tablas del test (la base la comparten los demás tests).
+  tables: ['mig_test_items', 'mig_test_orphans'],
   sizeOf: async (url: string) => originals.get(url)?.length ?? null,
   readOriginal: async (url: string) => {
     const b = originals.get(url);

@@ -65,7 +65,7 @@ export async function storeBoardAttachment(workspaceId: string, boardId: string,
   const fileId = `att_${crypto.randomUUID().replace(/-/g, '')}`;
   let url: string;
   try {
-    url = await saveUpload('boards', `${fileId}.${ext}`, mime, Buffer.from(bytes));
+    url = await saveUpload('boards', `${fileId}.${ext}`, mime, Buffer.from(bytes), { workspaceId, userId: null, app: 'board' });
   } catch {
     return { ok: false, code: 'storage_unavailable' };
   }
@@ -96,7 +96,7 @@ export async function storeBoardFile(
   if (parsed.bytes.length > BOARD_MAX_FILE_BYTES) return { ok: false, code: 'too_large' };
   let url: string;
   try {
-    url = await saveUpload('boards', `${fileId}.${extensionFor(parsed.mime)}`, parsed.mime, parsed.bytes);
+    url = await saveUpload('boards', `${fileId}.${extensionFor(parsed.mime)}`, parsed.mime, parsed.bytes, { workspaceId, userId: null, app: 'board' });
   } catch {
     return { ok: false, code: 'storage_unavailable' };
   }

@@ -360,7 +360,8 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     const msg = await sendMessage(user.id, user.id, chat.id, { body: 'la foto', media: { url, mimetype: 'image/png', filename: 'foto.png', width: 1, height: 1 } });
     const call = calls.find((c) => c.url.endsWith('/message/sendMedia/s'))!;
     expect(call.body).toMatchObject({ mediatype: 'image', media: PNG.toString('base64'), fileName: 'foto.jpg', caption: 'la foto' });
-    expect(msg).toMatchObject({ status: 'sent', body: 'la foto', media: { url, type: 'image/png', name: 'foto.png', kind: 'image', size: PNG.length, width: 1, height: 1 } });
+    // Al navegador va la ruta del mensaje (con el acceso al chat), nunca la del archivo.
+    expect(msg).toMatchObject({ status: 'sent', body: 'la foto', media: { url: `/api/groups/media/${msg.id}`, type: 'image/png', name: 'foto.png', kind: 'image', size: PNG.length, width: 1, height: 1 } });
     const row = (await getDb().prepare('SELECT provider_message_id FROM groups_messages WHERE id = ?').get(msg.id)) as { provider_message_id: string };
     expect(row.provider_message_id).toBe('OUT1');
     // Las tildes llegan por webhook y se aplican al mensaje.
@@ -444,10 +445,10 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     expect(fromMeCall.body).toEqual({ message: { key: { id: 'P1', remoteJid: '5491155550000@s.whatsapp.net', fromMe: true } }, convertToMp4: false });
     const msgs = await listMessages(user.id, chat.id);
     const [voice, doc, photo, loc] = msgs;
-    expect(voice).toMatchObject({ direction: 'in', media: { kind: 'voice', ptt: true, duration: 9, url: expect.stringMatching(/^\/uploads\/chat\/.+\.ogg$/) } });
+    expect(voice).toMatchObject({ direction: 'in', media: { kind: 'voice', ptt: true, duration: 9, url: `/api/groups/media/${voice.id}` } });
     expect(voice.media?.size).toBe(Buffer.from('OggS-voice').length);
-    expect(doc).toMatchObject({ media: { kind: 'document', name: 'Factura.pdf', pages: 2, url: expect.stringMatching(/^\/uploads\/chat\/.+Factura\.pdf$/) } });
-    expect(photo).toMatchObject({ direction: 'out', authorKind: 'phone', body: 'desde el teléfono', media: { kind: 'image', width: 640, height: 480, url: expect.stringMatching(/^\/uploads\/chat\//) } });
+    expect(doc).toMatchObject({ media: { kind: 'document', name: 'Factura.pdf', pages: 2, url: `/api/groups/media/${doc.id}` } });
+    expect(photo).toMatchObject({ direction: 'out', authorKind: 'phone', body: 'desde el teléfono', media: { kind: 'image', width: 640, height: 480, url: `/api/groups/media/${photo.id}` } });
     expect(photo.media?.pending).toBeUndefined();
     expect(loc).toMatchObject({ media: null, location: { lat: 10, lng: 20, name: 'Oficina' } });
     // meta no repite lo que ya está en media/location.
