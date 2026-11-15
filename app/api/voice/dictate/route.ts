@@ -2,6 +2,7 @@ import { after, NextRequest, NextResponse } from 'next/server';
 import { voiceAuth } from '@/lib/voice-route';
 import { fakeTextFromRequest, readAudio, voiceErrorResponse } from '@/lib/voice-http';
 import { dictate } from '@/lib/voice-service';
+import { getDb } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,4 +39,17 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return voiceErrorResponse(err);
   }
+}
+
+/**
+ * Precalentar el dictado (sin sesión, no lee ni guarda nada de nadie): la app de escritorio lo pide
+ * al empezar a grabar y el cron de cada minuto también, así el primer dictado no paga el arranque en
+ * frío de esta función (cargar el módulo y abrir la conexión a la base) mientras la persona espera.
+ */
+export async function GET() {
+  await getDb()
+    .prepare('SELECT 1')
+    .get()
+    .catch(() => null);
+  return new NextResponse(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 }
