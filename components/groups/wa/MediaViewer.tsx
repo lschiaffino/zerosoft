@@ -25,7 +25,20 @@ export interface ViewerItem {
  * Visor a pantalla completa de imágenes y videos del chat (como el de
  * WhatsApp Web): flechas o ←/→ para recorrer, Esc cierra, bajar el archivo.
  */
-export default function MediaViewer({ items, index, onIndex, onClose }: { items: ViewerItem[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+export default function MediaViewer({
+  items,
+  index,
+  onIndex,
+  onClose,
+  container,
+}: {
+  items: ViewerItem[];
+  index: number;
+  onIndex: (i: number) => void;
+  onClose: () => void;
+  /** Dónde se monta (por defecto el body): dentro de un <dialog> modal, el dialog (fuera de él todo queda inerte). */
+  container?: Element | null;
+}) {
   const t = useTranslations('groups.wa');
   const locale = useLocale();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -115,6 +128,6 @@ export default function MediaViewer({ items, index, onIndex, onClose }: { items:
         </ul>
       )}
     </div>,
-    document.body,
+    container ?? document.body,
   );
 }

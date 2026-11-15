@@ -1895,7 +1895,46 @@
     "deleteSelectedTitle": "{n, plural, one {Delete # message?} other {Delete # messages?}}",
     "deleteSelectedForMe": "They disappear from this chat for you. The other people in the chat still have them.",
     "deleteSelectedForAll": "They are deleted in WhatsApp for everyone in the chat.",
-    "deleteSelectedDone": "{n, plural, one {# message deleted} other {# messages deleted}}"
+    "deleteSelectedDone": "{n, plural, one {# message deleted} other {# messages deleted}}",
+    "contactSheet": {
+      "title": "Contact info",
+      "close": "Close",
+      "back": "Back",
+      "viewPhoto": "View photo",
+      "you": "You",
+      "admin": "Group admin",
+      "message": "Message",
+      "retry": "Try again",
+      "about": "About",
+      "shared": "Media, links and docs",
+      "starred": "Starred messages",
+      "mute": "Mute notifications",
+      "commonGroups": "{n, plural, one {# group in common} other {# groups in common}}",
+      "group": "Group",
+      "blockTitle": "Block {name}?",
+      "blockBody": "Blocked contacts can no longer call you or send you messages. {name} is not told.",
+      "cancel": "Cancel",
+      "block": "Block",
+      "blockName": "Block {name}",
+      "unblockName": "Unblock {name}",
+      "tabs": {
+        "media": "Media",
+        "docs": "Docs",
+        "links": "Links"
+      },
+      "empty": {
+        "media": "No photos or videos in your chat with this person",
+        "docs": "No documents in your chat with this person",
+        "links": "No links in your chat with this person",
+        "starred": "No starred messages"
+      },
+      "document": "Document",
+      "photo": "Photo",
+      "video": "Video",
+      "loadFailed": "Could not load this contact",
+      "openFailed": "Could not open the chat",
+      "openFor": "Contact info of {name}"
+    }
   },
   "swipe": {
     "read": "Read",

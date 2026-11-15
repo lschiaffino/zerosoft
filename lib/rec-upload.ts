@@ -24,14 +24,45 @@ import { MAX_REC_BYTES, MAX_REC_BYTES_LOCAL, MAX_REC_PARTS } from './rec-schema'
 export type RecFileKind = 'video' | 'audio' | 'trimmed';
 
 /**
- * Acceso de los archivos de Rec en Blob. Con REC_BLOB_ACCESS=private (un store
- * privado de Vercel Blob) nada se puede leer sin el token del servidor. Con un
- * store público (el default) las URLs siguen siendo leíbles por quien las
- * tenga, pero nunca salen de acá: los paths llevan un sufijo al azar y todo se
- * sirve por nuestras rutas después de chequear el acceso (sin redirigir).
+ * Store privado de archivos de la suite (el mismo de lib/files/store.ts):
+ * FILES_BLOB_READ_WRITE_TOKEN o BLOB_PRIVATE_READ_WRITE_TOKEN. Con él, lo
+ * nuevo de Rec se guarda ahí y nada se puede leer sin el token del servidor.
+ */
+export function recPrivateToken(): string | null {
+  return process.env.FILES_BLOB_READ_WRITE_TOKEN?.trim() || process.env.BLOB_PRIVATE_READ_WRITE_TOKEN?.trim() || null;
+}
+
+/**
+ * Acceso de los archivos nuevos de Rec en Blob. Con el store privado
+ * (recPrivateToken) o REC_BLOB_ACCESS=private, privado. Si no, el store de la
+ * suite: las URLs nunca salen de acá (sufijo al azar, todo se sirve por
+ * nuestras rutas después de chequear el acceso, sin redirigir).
  */
 export function recBlobAccess(): 'public' | 'private' {
+  if (recPrivateToken()) return 'private';
   return process.env.REC_BLOB_ACCESS?.trim().toLowerCase() === 'private' ? 'private' : 'public';
+}
+
+/** Token para escribir lo nuevo (el del store privado, si hay; si no, el de siempre). */
+function recWriteToken(): { token?: string } {
+  const t = recPrivateToken();
+  return t ? { token: t } : {};
+}
+
+/**
+ * Cómo leer o borrar una URL guardada: las del store privado
+ * (*.private.blob.vercel-storage.com) con su token; las de antes, como antes.
+ */
+export function recBlobOpts(url: string): { access: 'public' | 'private'; token?: string } {
+  let host = '';
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    host = '';
+  }
+  const t = recPrivateToken();
+  if (/\.private\.blob\.vercel-storage\.com$/i.test(host)) return t ? { access: 'private', token: t } : { access: 'private' };
+  return { access: process.env.REC_BLOB_ACCESS?.trim().toLowerCase() === 'private' ? 'private' : 'public' };
 }
 
 /**
@@ -42,7 +73,7 @@ export function recBlobAccess(): 'public' | 'private' {
 export const REC_SERVE_CHUNK = 4 * 1024 * 1024;
 
 export function blobUploadEnabled(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN;
+  return !!process.env.BLOB_READ_WRITE_TOKEN || !!recPrivateToken();
 }
 
 /** Sin Blob en Vercel no hay dónde guardar (el disco es efímero). */
@@ -79,6 +110,7 @@ export async function issueBlobToken(
   if (existing && !isRecBlobPathname(existing, ws, videoId)) throw new RecError('invalid_path');
   const pathname = existing ?? recBlobPathname(ws, videoId, kind, contentType);
   const token = await generateClientTokenFromReadWriteToken({
+    ...recWriteToken(),
     pathname,
     allowedContentTypes: [contentType.split(';')[0].trim().toLowerCase()],
     maximumSizeInBytes: MAX_REC_BYTES,
@@ -95,6 +127,7 @@ export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 
     const { put } = await import('@vercel/blob');
     const res = await put(`rec/${ws}/${videoId}/${randomBytes(9).toString('base64url')}-${kind}.${ext}`, body, {
       access: recBlobAccess(),
+      ...recWriteToken(),
       contentType: type,
       addRandomSuffix: false,
     });
@@ -107,7 +140,7 @@ export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 
 /** Archivo entero desde Blob (público o privado), para transcribir el audio. */
 export async function readRecBlob(url: string): Promise<Uint8Array> {
   const { get } = await import('@vercel/blob');
-  const res = await get(url, { access: recBlobAccess() });
+  const res = await get(url, recBlobOpts(url));
   if (!res || !res.stream) throw new Error('audio_fetch_failed');
   return new Uint8Array(await new Response(res.stream).arrayBuffer());
 }
@@ -245,10 +278,10 @@ export async function serveRecFile(
  */
 async function proxyBlob(req: NextRequest, url: string, type: string, opts: { download?: string | null; size?: number; cache?: string }): Promise<NextResponse> {
   const { get, head } = await import('@vercel/blob');
-  const access = recBlobAccess();
+  const read = recBlobOpts(url);
   let size = opts.size && opts.size > 0 ? opts.size : 0;
   if (!size) {
-    const meta = await head(url).catch(() => null);
+    const meta = await head(url, read.token ? { token: read.token } : undefined).catch(() => null);
     size = meta?.size ?? 0;
   }
   if (!size) return NextResponse.json({ error: 'not_found' }, { status: 404 });
@@ -258,7 +291,7 @@ async function proxyBlob(req: NextRequest, url: string, type: string, opts: { do
   const partial = !!range || size > REC_SERVE_CHUNK;
   const start = range?.start ?? 0;
   const end = partial ? Math.min(range?.end ?? size - 1, start + REC_SERVE_CHUNK - 1, size - 1) : size - 1;
-  const res = await get(url, { access, headers: partial ? { range: `bytes=${start}-${end}` } : undefined }).catch(() => null);
+  const res = await get(url, { ...read, headers: partial ? { range: `bytes=${start}-${end}` } : undefined }).catch(() => null);
   if (!res?.stream) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return new NextResponse(res.stream, {
     status: partial ? 206 : 200,

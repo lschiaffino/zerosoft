@@ -57,6 +57,8 @@
 .gr-inbox .wa-messages.is-selecting .gr-msg { cursor: pointer; }
 /* En modo selección, tocar un mensaje lo elige: lo de adentro (links, fotos, audio) no se abre. */
 .gr-inbox .wa-messages.is-selecting .gr-bubble *:not(.wa-album, .wa-album *) { pointer-events: none; }
+/* El álbum elige foto por foto. pointer-events se hereda: sin esto toma el "none" de lo que lo envuelve. */
+.gr-inbox .wa-messages.is-selecting .gr-bubble .wa-album { pointer-events: auto; }
 
 /* ---------- Con el dedo ---------- */
 
