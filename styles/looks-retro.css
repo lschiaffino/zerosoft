@@ -253,8 +253,11 @@
   border-bottom: 0;
 }
 :root[data-look='retro'] :is(.ui-modal-title, .ui-drawer-title) { font-family: var(--font-ui); font-size: 0.875rem; font-weight: 700; letter-spacing: 0; color: inherit; }
-:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) .btn { --btn-h: 22px; min-height: 22px; padding: 0 6px; }
-:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) .btn-icon { width: 22px; }
+/* Botones chicos de barra de título solo con mouse; con el dedo quedan de 40px. */
+@media (pointer: fine) and (min-width: 721px) {
+  :root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) .btn { --btn-h: 22px; min-height: 22px; padding: 0 6px; }
+  :root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) .btn-icon { width: 22px; }
+}
 :root[data-look='retro'] .ui-modal-foot,
 :root[data-look='retro'] .ui-drawer-foot { background: transparent; border-top: 0; }
 :root[data-look='retro'] .cmdk { padding: 3px; }
