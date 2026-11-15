@@ -1,0 +1,20 @@
+diff --git a/Dockerfile b/Dockerfile
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -14,6 +14,16 @@
+ COPY ./tsup.config.ts ./
+ 
+ RUN npm ci --silent
++
++# zerosoft: Baileys 7.0.0-rc.9 valida siempre el MAC de cada patch de app-state (decodePatches pasa `true` fijo) y,
++# si uno no da, borra el estado de la colección y no la vuelve a leer: el archivado del teléfono deja de llegar.
++# Los patches que escribe el teléfono fallan esa validación aunque la clave sea la correcta. Baileys 7.0.0-rc14
++# usa appStateMacVerification.patch (false por defecto, como WhatsApp Web) y saltea el patch que no se puede leer.
++# Acá: el mismo valor configurable que el resto de la validación. Falla el build si la línea cambió.
++RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
++    grep -q ': () => { }, true);' "$f" && \
++    sed -i 's/: () => { }, true);/: () => { }, validateMacs);/' "$f" && \
++    grep -q ': () => { }, validateMacs);' "$f"
+ 
+ COPY ./src ./src
+ COPY ./public ./public
