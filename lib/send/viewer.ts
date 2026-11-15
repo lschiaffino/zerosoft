@@ -421,6 +421,46 @@ export async function recordDenied(link: LinkRow, session: SessionRow): Promise<
   }).catch(() => undefined);
 }
 
+/**
+ * Alguien abrió en un navegador un link deshabilitado o vencido. Lo manda la página
+ * cerrada con un POST (un previsualizador de links no llega). Queda registrado una
+ * vez por día por persona (la sesión si la había, si no la IP), y quien mandó el link
+ * recibe un aviso con el mismo tope por hora que el resto.
+ */
+export async function recordClosedOpen(link: LinkRow, session: SessionRow | null, meta: RequestMeta & { ip: string; webdriver?: boolean }): Promise<boolean> {
+  const state = linkState(link);
+  if (state === 'active') return false;
+  if (isAutomated(meta, meta.webdriver)) return false;
+  const who = session?.id ?? createHash('sha256').update(`${link.id}|${meta.ip}`).digest('base64url').slice(0, 24);
+  // La suma es atómica: de dos pedidos a la vez, solo el primero pasa.
+  if (!(await rateLimit(`send:closed:${link.id}:${who}`, 1, 86_400)).ok) return false;
+  const email = session?.email ?? null;
+  await logEvent(link, 'closed_open', email, state);
+  if (!link.notify || !(await claimAlert(link))) return true;
+  const title = await targetTitle(link);
+  const db = getDb();
+  const owner = link.document_id
+    ? ((await db.prepare('SELECT owner_id FROM send_documents WHERE id = ?').get(link.document_id)) as { owner_id: string } | undefined)?.owner_id
+    : ((await db.prepare('SELECT owner_id FROM send_spaces WHERE id = ?').get(link.space_id)) as { owner_id: string } | undefined)?.owner_id;
+  const heading = localized(state === 'expired' ? 'sendExpiredOpened' : 'sendDisabledOpened', { who: email, title });
+  const body = localized('sendReadingBody', { link: link.name || null });
+  for (const userId of await activeRecipients(link.workspace_id, [owner ?? link.created_by, link.created_by])) {
+    await createNotification({ userId, type: 'send_activity', title: heading, body, href: linkHref(link), sourceType: 'send_link', sourceId: link.id }).catch(() => undefined);
+    const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string | null } | undefined;
+    if (!user?.email) continue;
+    const [subject, text] = await renderForRecipient(userId, [heading, body]);
+    const url = `${appOrigin()}${linkHref(link)}`;
+    await sendEmail({
+      to: user.email,
+      from: appSender(),
+      subject: subject ?? '',
+      text: `${text ?? ''}\n\n${url}`,
+      html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [escapeHtml(text ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
+    }).catch(() => undefined);
+  }
+  return true;
+}
+
 // ---------- Avisos del navegador ----------
 
 export interface PingDelta {

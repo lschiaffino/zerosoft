@@ -13,6 +13,7 @@
  */
 import { spawn } from 'child_process';
 import { ensureMigrated, getClient } from '../db';
+import { databaseUrl } from '../db-url';
 
 export const SQL_TIMEOUT_MS = Number(process.env.ANALYTICS_SQL_TIMEOUT_MS) || 8000;
 
@@ -30,7 +31,7 @@ export interface SqlRunResult {
   rows: unknown[][];
 }
 
-const DB_URL = process.env.TURSO_DATABASE_URL ?? `file:${process.cwd()}/data/zerosoftware.db`;
+const DB_URL = databaseUrl();
 
 /**
  * Programa del proceso hijo: lee {path, sql, args, max} de stdin y escribe
