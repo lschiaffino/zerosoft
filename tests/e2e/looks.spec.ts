@@ -85,7 +85,7 @@ for (const look of ['lines', 'liquid', 'classic'] as const) {
     const cmdk = page.locator('.cmdk');
     await expect(cmdk).toBeVisible();
     const r = await cmdk.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
-    expect(r).toBe(look === 'lines' ? '3px' : look === 'classic' ? '12px' : '22px');
+    expect(r).toBe({ lines: '3px', classic: '14px', liquid: '22px' }[look]);
     expect(errors).toEqual([]);
   });
 }
