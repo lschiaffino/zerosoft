@@ -142,7 +142,7 @@ describe('/api/files: sesión, permiso y rangos', () => {
   afterAll(async () => {
     for (const [k, v] of [['UPLOADS_DIR', prev.dir], ['BLOB_READ_WRITE_TOKEN', prev.blob], ['VERCEL', prev.vercel]] as const) {
       if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
+      else (process.env as Record<string, string | undefined>)[k] = v;
     }
     await rm(tmp, { recursive: true, force: true });
   });
