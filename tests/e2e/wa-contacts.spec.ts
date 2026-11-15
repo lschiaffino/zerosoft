@@ -20,7 +20,6 @@ const TOKEN = 'pat-na1-e2e-wa-contacts';
 /** Con SHOTS=<carpeta>, capturas para revisar a ojo. */
 const SHOTS = process.env.SHOTS;
 
-test.describe.configure({ mode: 'serial' });
 test.setTimeout(240_000);
 
 function watchErrors(page: Page): string[] {
@@ -251,7 +250,8 @@ test('Lines › Contactos: una fila por persona, crear en HubSpot con la empresa
   expect(links).toHaveLength(1);
   // "Abrir chat" va al 1:1.
   await dialog.getByTestId('contact-message').click();
-  await expect(page).toHaveURL(/\/app\/lines\/inbox\/[^/?]+/);
+  // La primera vez el chat puede tardar en abrir (con `next dev`, compila).
+  await expect(page).toHaveURL(/\/app\/lines\/inbox\/[^/?]+/, { timeout: 60_000 });
 
   // ---------- Compuertas en la computadora, oscuro, y en el teléfono ----------
   await page.goto('/en/app/lines/contacts', { waitUntil: 'networkidle' });
@@ -330,7 +330,7 @@ test('Inbox › Contactos: una fila por persona entre grupo y chat, su grupo en 
   await expect(dialog.getByTestId('contact-hs-matches')).toContainText(`Tomás ${tag}`, { timeout: 30_000 });
   await expect(dialog.getByTestId('contact-hs-create')).toHaveCount(0);
   await dialog.getByTestId('contact-message').click();
-  await expect(page).toHaveURL(/\/app\/inbox\?t=ibt_/);
+  await expect(page).toHaveURL(/\/app\/inbox\?t=ibt_/, { timeout: 60_000 });
 
   if (SHOTS) {
     await setTheme(page.context(), baseURL!, 'dark');

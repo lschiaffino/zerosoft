@@ -65,10 +65,21 @@
 .wc-section + .wc-section { padding-top: 14px; border-top: 1px solid var(--line); }
 .wc-section-title { margin: 0; font-size: 0.75rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .wc-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.wc-list-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
-.wc-link { min-width: 0; overflow: hidden; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; text-underline-offset: 3px; }
+.wc-list-item { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wc-link {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+.wc-link:hover { text-decoration-color: currentColor; }
 .wc-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.wc-match { padding: 6px 0; }
+.wc-match { justify-content: space-between; padding: 6px 0; }
 .wc-match + .wc-match { border-top: 1px solid var(--line); }
 .wc-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0 0 10px; }
 .wc-dl dt { color: var(--dim); }
