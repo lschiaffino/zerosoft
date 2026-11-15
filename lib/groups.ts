@@ -1291,6 +1291,10 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
       } catch (err) {
         throw new GroupsError(providerErrorCode(err), 502);
       }
+      // "Cambiaste el nombre/la descripción del grupo" en el chat (WhatsApp no nos avisa estos cambios).
+      const { linesOwnGroupEvent } = await import('./wa-group-system');
+      if (name !== undefined && name !== row.name) await linesOwnGroupEvent(row, { t: 'subject', by: { p: 'me' }, subject: name }).catch(() => false);
+      if (description !== undefined && description !== row.description) await linesOwnGroupEvent(row, { t: 'description', by: { p: 'me' } }).catch(() => false);
     }
     if (name !== undefined) set('name', name);
     if (description !== undefined) set('description', description);
@@ -2714,7 +2718,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         const { ingestCall } = await import('./groups-inbox');
         await ingestCall(number, ev);
         res.messages++;
-      } else if (ev.type === 'participants') {
+      } else if (ev.type === 'participants' || ev.type === 'group') {
+        // El aviso en el chat ("Ana te agregó", "Beto salió") y, si me agregaron a un grupo nuevo, el chat (lib/wa-group-system.ts).
+        const { linesGroupEvent } = await import('./wa-group-system');
+        await linesGroupEvent(number, ev).catch((err: unknown) => console.error('[groups] aviso del grupo', err instanceof Error ? err.name : 'error'));
+        if (ev.type === 'group') continue;
         const chat = (await getDb()
           .prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?')
           .get(number.id, ev.chatId)) as ChatRow | undefined;
@@ -3130,6 +3138,9 @@ export async function createGroups(ws: string, numberId: string, rows: CreateGro
       }
       if (r.labelIds?.length) await setChatLabels(ws, chat.id, r.labelIds);
       if (r.crmCompanyId) await updateChat(ws, chat.id, { crmCompanyId: r.crmCompanyId }).catch(() => null);
+      // "Creaste el grupo «…»" como primera línea del chat y vista previa de la lista.
+      const { linesOwnGroupEvent } = await import('./wa-group-system');
+      await linesOwnGroupEvent(chat, { t: 'create', by: { p: 'me' }, subject: name }, now).catch(() => false);
       out.push({ name, ok: true, chatId: chat.id, notAdded });
     } catch (err) {
       out.push({ name, ok: false, error: providerErrorCode(err) });

@@ -17,7 +17,7 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -43,6 +43,8 @@ import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
 import { useInboxThreadCommands } from '../slash-commands';
 import { typingLabel } from './ChatRow';
+import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent';
+import { parseEvent } from '@/lib/wa-group-events';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -128,6 +130,15 @@ const WaConversation = forwardRef<
   const wa = detail.wa ?? null;
   const group = thread.kind === 'group';
   const name = chatName(thread, w('group'));
+  const tg = useTranslations('groups.wa.newGroup');
+  // El aviso de creación del grupo (para la tarjeta del grupo sin mensajes: quién lo creó).
+  const createdEvent = useMemo(() => {
+    for (const m of messages) {
+      const e = m.mediaType === 'system' ? parseEvent(m.meta?.sys) : null;
+      if (e?.t === 'create') return e;
+    }
+    return null;
+  }, [messages]);
   const scroller = useRef<HTMLDivElement>(null);
   const openedFor = useRef('');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
@@ -564,6 +575,13 @@ const WaConversation = forwardRef<
       days.push({ key, at: m.sentAt, items: [] });
       prev = null;
     }
+    // Aviso del grupo ("Ana te agregó", "Beto salió"): una línea centrada, sin burbuja ni menú.
+    const sys = m.mediaType === 'system' ? parseEvent(m.meta?.sys) : null;
+    if (m.mediaType === 'system') {
+      if (sys) days[days.length - 1].items.push(<GroupEventLine key={m.id} e={sys} id={m.id} />);
+      prev = null;
+      continue;
+    }
     const cont = !!prev && senderKey(prev) === senderKey(m);
     prev = run[run.length - 1];
     days[days.length - 1].items.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
@@ -952,7 +970,18 @@ const WaConversation = forwardRef<
               </button>
             </div>
           )}
-          {messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>}
+          {group && !detail.more && !messages.some((m) => m.mediaType !== 'system') ? (
+            <NewGroupCard
+              name={name}
+              avatar={thread.avatar || undefined}
+              seed={thread.id}
+              created={createdEvent}
+              members={wa?.size || wa?.participants.length || 0}
+              actions={props.infoOpen ? [] : [{ key: 'info', label: tg('info'), icon: <InfoIcon size={18} />, onSelect: props.onToggleInfo }]}
+            />
+          ) : (
+            messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>
+          )}
           {days.map((d) => (
             <section key={d.key} className="wa-dayblock">
               <div className="wa-day" role="separator">

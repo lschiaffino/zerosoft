@@ -211,6 +211,13 @@ const parity: ProductParity = {
 
     // Grupos
     row('create-group', 'groups', ['Create a group', 'Crear un grupo', 'Criar um grupo'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('group-events', 'groups', ['Group notices: created, added, left, admins', 'Avisos del grupo: creado, agregó, salió, admins', 'Avisos do grupo: criado, adicionou, saiu, admins'], 'partial', {
+      detail: [
+        'A new group, or one the line was added to, shows in the inbox right away with its notice as the preview. Adds, removals, leaves, invite link joins, admin changes and name or description changes made from zerosoft show as centered lines. Changes of name, description or icon made on the phone do not arrive yet. Tested against a simulated gateway',
+        'Un grupo nuevo, o uno al que agregaron a la línea, aparece en la bandeja en el momento con su aviso de vista previa. Agregados, sacados, salidas, entradas con el link, cambios de admin y de nombre o descripción hechos desde zerosoft se ven como líneas centradas. Los cambios de nombre, descripción o foto hechos en el teléfono todavía no llegan. Probado contra un gateway simulado',
+        'Um grupo novo, ou um ao qual a linha foi adicionada, aparece na caixa na hora com seu aviso como prévia. Adições, remoções, saídas, entradas pelo link, mudanças de admin e de nome ou descrição feitas pelo zerosoft aparecem como linhas centralizadas. Mudanças de nome, descrição ou foto feitas no celular ainda não chegam. Testado contra um gateway simulado',
+      ],
+    }),
     row('bulk-create', 'groups', ['Create many groups from a CSV', 'Crear muchos grupos desde un CSV', 'Criar muitos grupos a partir de um CSV'], 'partial', {
       competitorHas: false,
       detail: ['Up to 50 per run with result per row. Tested against a simulated gateway; not yet tried with real WhatsApp', 'Hasta 50 por vez con resultado por fila. Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Até 50 por vez com resultado por linha. Testado contra um gateway simulado; falta testar com WhatsApp real'],

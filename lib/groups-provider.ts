@@ -285,7 +285,16 @@ export type InboundEvent =
       /** Opciones elegidas (nombres o índices); vacío = sacó su voto. */
       options: Array<string | number>;
     }
-  | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[] }
+  /**
+   * Cambio de participantes de un grupo. `author`: quién lo hizo (teléfono, "<dígitos>@lid" o vacío si
+   * WhatsApp no lo dice). Remove de uno mismo es "salió"; add sin autor, "se unió con el link".
+   */
+  | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[]; author?: string }
+  /**
+   * Un grupo nuevo para la cuenta (Evolution: GROUPS_UPSERT) o un cambio de asunto o descripción
+   * (groups.update, con quién lo hizo). `owner`/`author`: teléfono o "<dígitos>@lid". `creation`: segundos.
+   */
+  | { type: 'group'; chatId: string; event: 'create' | 'subject' | 'description'; subject?: string; owner?: string; author?: string; creation?: number; phones?: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
 
 export type CallDirection = 'in' | 'out';
@@ -369,6 +378,8 @@ export interface ChatInfo {
   size?: number;
   /** Creación del grupo (segundos). */
   createdAt?: number;
+  /** Quién creó el grupo: teléfono (dígitos) o "<dígitos>@lid", si el servidor lo dice. */
+  owner?: string;
   isBusiness?: boolean;
 }
 
@@ -429,6 +440,12 @@ export interface GroupsProvider {
    * posterior, para que entre lo que falta antes de él.
    */
   fetchHistory?(chatId: string, opts: { count: number; after?: number }): Promise<{ requestId?: string; events?: InboundEvent[] }>;
+  /**
+   * Suma al webhook ya registrado los eventos que falten (EVOLUTION_EVENTS), con la misma URL. Las
+   * instancias vinculadas antes de sumar un evento no lo reciben hasta que se registra de nuevo.
+   * true si lo actualizó.
+   */
+  syncWebhookEvents?(): Promise<boolean>;
   /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;

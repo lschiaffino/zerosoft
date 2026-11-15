@@ -306,6 +306,13 @@ const parity: ProductParity = {
         'Pesquisa por nome ou número, contatos frequentes, novo grupo do WhatsApp com participantes e nome, Novo e-mail para o Gmail. Sem comunidades. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
+    row('wa-group-events', 'whatsapp', ['Group notices: created, added, left, admins', 'Avisos del grupo: creado, agregó, salió, admins', 'Avisos do grupo: criado, adicionou, saiu, admins'], 'partial', {
+      detail: [
+        'A new group shows at the top of the list right away, with "You created group" or "Ana added you" as its preview and a card in the empty chat. Adds, removals, leaves, invite link joins and admin changes show as centered lines and as the preview when they are the latest. Name, description and icon changes made on the phone do not reach zerosoft yet, and notices from before this change cannot be recovered. Tested with the fake provider and simulated gateway payloads',
+        'Un grupo nuevo aparece arriba de la lista en el momento, con "Creaste el grupo" o "Ana te agregó" de vista previa y una tarjeta en el chat vacío. Agregados, sacados, salidas, entradas con el link y cambios de admin se ven como líneas centradas y como vista previa si son lo último. Los cambios de nombre, descripción o foto hechos en el teléfono todavía no llegan a zerosoft, y los avisos anteriores a este cambio no se pueden recuperar. Probado con el proveedor falso y avisos simulados del gateway',
+        'Um grupo novo aparece no topo da lista na hora, com "Você criou o grupo" ou "Ana adicionou você" como prévia e um cartão na conversa vazia. Adições, remoções, saídas, entradas pelo link e mudanças de admin aparecem como linhas centralizadas e como prévia quando são o último. Mudanças de nome, descrição ou foto feitas no celular ainda não chegam ao zerosoft, e os avisos anteriores a esta mudança não podem ser recuperados. Testado com o provedor falso e avisos simulados do gateway',
+      ],
+    }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
         'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',

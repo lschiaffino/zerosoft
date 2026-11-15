@@ -90,6 +90,8 @@ export interface ThreadDto {
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
 export interface WaMessageMeta {
+  /** Aviso del grupo (media_type 'system'; lib/wa-group-events.ts): "Creaste el grupo", "Ana te agregó". */
+  sys?: unknown;
   width?: number;
   height?: number;
   /** Segundos (audio, nota de voz, video). */

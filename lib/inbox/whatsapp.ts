@@ -331,6 +331,13 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
         case 'archive':
           await applyPhoneArchive(account, e.chatId, e.archived);
           break;
+        case 'participants':
+        case 'group': {
+          // Avisos del grupo (lo crearon, me agregaron, salió alguien): fila de sistema y, si es nuevo para mí, el chat (lib/wa-group-system.ts).
+          const { inboxGroupEvent } = await import('../wa-group-system');
+          await inboxGroupEvent(account, e);
+          break;
+        }
         case 'missing': {
           // WhatsApp entregó un mensaje que no se pudo descifrar: hueco en el chat y pedido de historial (lib/wa-history-gaps.ts).
           const t = await findPhoneThread(account, e.chatId);
