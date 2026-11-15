@@ -175,6 +175,8 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     expect(JSON.stringify(inbound)).not.toContain('blob.vercel-storage.com');
     const anon = await browser.newContext({ baseURL });
     try {
+      // DEMO_MODE: sin cookies todo pedido es el usuario demo; zs_e2e_as=session es "sin sesión de verdad".
+      await anon.addCookies([{ name: 'zs_e2e_as', value: 'session', url: baseURL! }]);
       expect((await anon.request.get(inbound[0].media!.url)).status()).toBe(401);
       expect((await anon.request.get(img.url)).status()).toBe(401);
       const stranger = `groups-media-x-${uid()}@darwin-e2e.io`;
