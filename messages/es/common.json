@@ -1067,7 +1067,8 @@
     "signOutCancel": "Cancelar",
     "unknownShort": "{count, plural, one {# cambio sin enviar} other {# cambios sin enviar}}",
     "unknownTitle": "Sin enviar",
-    "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás."
+    "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás.",
+    "needsConnection": "Necesita conexión"
   },
   "comingSoon": {
     "badge": "Próximamente",

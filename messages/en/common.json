@@ -1067,7 +1067,8 @@
     "signOutCancel": "Cancel",
     "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
     "unknownTitle": "Not sent",
-    "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them."
+    "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them.",
+    "needsConnection": "Needs connection"
   },
   "comingSoon": {
     "badge": "Coming soon",
