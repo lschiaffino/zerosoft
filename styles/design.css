@@ -84,6 +84,10 @@ body:has(.dz-editor) .fl-root { display: none; }
 .dz-folder:hover { border-color: var(--ink); }
 .dz-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .dz-folder-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Con el dedo: carpetas de 40px de alto, como el resto de lo tocable. */
+@media (pointer: coarse) {
+  .dz-folder { min-height: 40px; }
+}
 .dz-home-error { display: flex; align-items: center; gap: 8px; }
 
 .dz-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }

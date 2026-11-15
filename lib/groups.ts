@@ -38,6 +38,7 @@ import {
   type ProviderKind,
 } from './groups-provider';
 import { cloudProvider } from './groups-provider-cloud';
+import { privateQuoteAllowed } from './wa-person';
 import { bridgeProvider, MAX_INBOUND_MEDIA } from './groups-provider-bridge';
 import {
   baseMime,
@@ -90,6 +91,8 @@ export interface NumberRow {
   config: string;
   webhook_secret: string;
   last_error: string;
+  /** No puede sincronizar el archivado con WhatsApp ('app_state_unavailable'; lib/wa-archive-sync.ts). */
+  archive_sync_error?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -109,6 +112,8 @@ export interface NumberDto {
   phone: string;
   status: ConnectState['status'];
   lastError: string;
+  /** La línea no puede sincronizar el archivado con WhatsApp: hay que volver a vincularla (lib/wa-archive-sync.ts). */
+  archiveSyncBroken: boolean;
   caps: (typeof PROVIDER_CAPS)[ProviderKind];
   /** Campos de configuración cargados (los secretos nunca se devuelven). */
   configured: Record<string, boolean>;
@@ -148,6 +153,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     phone: row.phone,
     status: row.status,
     lastError: row.last_error,
+    archiveSyncBroken: !!row.archive_sync_error,
     caps: PROVIDER_CAPS[row.provider],
     configured,
     // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
@@ -477,6 +483,8 @@ export async function disconnectNumber(ws: string, id: string): Promise<void> {
   if (!row) throw new GroupsError('not_found', 404);
   await safeDisconnect(row);
   await saveState(row, { status: 'disconnected' });
+  const { clearArchiveSyncError } = await import('./wa-archive-sync');
+  await clearArchiveSyncError('lines', row.id).catch(() => null);
 }
 
 async function safeDisconnect(row: NumberRow): Promise<void> {
@@ -670,7 +678,8 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     flagged: Boolean(row.flagged_at),
     labels,
     createdAt: row.created_at,
-    pictureUrl: row.picture_url ?? '',
+    // Un chat 1:1 sin foto propia todavía (recién abierto desde un grupo): la de la persona en la libreta.
+    pictureUrl: row.picture_url || (row as ChatRow & { contact_picture?: string | null }).contact_picture || '',
     announce: Boolean(row.announce),
     locked: Boolean(row.locked),
     ephemeral: Number(row.ephemeral ?? 0),
@@ -683,7 +692,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
   };
 }
 
-async function labelsFor(chatIds: string[]): Promise<Map<string, LabelDto[]>> {
+export async function labelsFor(chatIds: string[]): Promise<Map<string, LabelDto[]>> {
   const out = new Map<string, LabelDto[]>();
   if (chatIds.length === 0) return out;
   const marks = chatIds.map(() => '?').join(',');
@@ -708,6 +717,12 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
 export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
+  if (row.kind === 'dm' && !row.picture_url && row.phone) {
+    const pic = (await getDb().prepare("SELECT picture FROM wa_contacts WHERE app = 'lines' AND account_id = ? AND phone = ? AND picture <> '' LIMIT 1").get(row.number_id, row.phone)) as
+      | { picture: string }
+      | undefined;
+    if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic.picture;
+  }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
     const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
@@ -987,6 +1002,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const db = getDb();
   const total = query.count === false ? { c: 0 } : ((await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number });
   const select = `SELECT c.*, ${matchSelect},
+         CASE WHEN c.kind = 'dm' AND COALESCE(c.picture_url, '') = '' AND c.phone <> '' THEN
+           (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = c.phone LIMIT 1) END AS contact_picture,
          (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info,
          (SELECT zhl.name FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != ''
@@ -1201,6 +1218,12 @@ async function finishChat(number: Pick<NumberRow, 'id' | 'user_id'>, row: ChatRo
         row.name = known.slice(0, 200);
       }
     }
+  }
+  // Una línea que entra a un grupo: el grupo es uno solo y, si ya tiene empresa de HubSpot, la hereda (lib/groups-identity.ts).
+  if (created && input.kind === 'group') {
+    const { attachGroupIdentity } = await import('./groups-identity');
+    // Que falle la copia de la empresa no frena la llegada del mensaje.
+    await attachGroupIdentity(number.user_id, row.id).catch((err: unknown) => console.error('[groups] identidad del grupo', err instanceof Error ? err.message : 'error'));
   }
   // Importados del historial: no disparan flujos ni webhooks de "chat nuevo".
   if (created && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
@@ -1448,6 +1471,8 @@ export interface MessageDto {
   /** Tarjetas de contacto (nombre, teléfonos). */
   contacts?: ContactCard[];
   replyToId: string | null;
+  /** Respuesta en privado: el mensaje citado es de otro chat de la línea (el grupo), con lo necesario para mostrarlo. */
+  replyQuote?: ReplyQuote | null;
   reactions: Reaction[];
   status: string;
   error: string;
@@ -1468,6 +1493,19 @@ export interface MessageDto {
   seq?: number;
   /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono, de la libreta del número). */
   mentionNames?: MentionMap;
+}
+
+/** Un mensaje citado de otro chat (respuesta en privado a un mensaje de un grupo). */
+export interface ReplyQuote {
+  id: string;
+  chatId: string;
+  chatName: string;
+  direction: MessageRow['direction'];
+  senderName: string;
+  senderPhone: string;
+  body: string;
+  mediaType: string;
+  deleted: boolean;
 }
 
 /**
@@ -1581,7 +1619,37 @@ export async function listMessages(
   const out = rows.map(toMessageDto);
   // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
   if (rows.length) await withLinesMentions(rows[0].number_id, out, rows[0].chat_id).catch(() => null);
+  await withReplyQuotes(ws, out).catch(() => null);
   return out;
+}
+
+/** Respuestas que citan un mensaje de otro chat (en privado, desde un grupo): el citado va en replyQuote. */
+export async function withReplyQuotes(ws: string, messages: MessageDto[]): Promise<void> {
+  const ids = [...new Set(messages.filter((m) => m.replyToId).map((m) => m.replyToId!))].filter((id) => !messages.some((m) => m.id === id)).slice(0, 200);
+  if (!ids.length) return;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT m.id, m.chat_id, m.direction, m.sender_name, m.sender_phone, m.body, m.media_type, m.deleted_at, c.name AS chat_name
+       FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
+       WHERE m.user_id = ? AND m.id IN (${ids.map(() => '?').join(',')})`,
+    )
+    .all(ws, ...ids)) as Array<{ id: string; chat_id: string; direction: MessageRow['direction']; sender_name: string; sender_phone: string; body: string; media_type: string; deleted_at: string | null; chat_name: string }>;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  for (const m of messages) {
+    const q = m.replyToId ? byId.get(m.replyToId) : undefined;
+    if (!q || q.chat_id === m.chatId) continue;
+    m.replyQuote = {
+      id: q.id,
+      chatId: q.chat_id,
+      chatName: q.chat_name,
+      direction: q.direction,
+      senderName: q.sender_name,
+      senderPhone: q.sender_phone,
+      body: q.deleted_at ? '' : q.body.slice(0, 300),
+      mediaType: q.media_type,
+      deleted: !!q.deleted_at,
+    };
+  }
 }
 
 export async function getMessageRow(ws: string, id: string): Promise<MessageRow | null> {
@@ -1900,7 +1968,18 @@ export async function sendMessage(
   let replyProviderId: string | undefined;
   if (input.replyToId) {
     const target = await getMessageRow(ws, input.replyToId);
-    if (!target || target.chat_id !== chatId) throw new GroupsError('invalid_reply');
+    if (!target) throw new GroupsError('invalid_reply');
+    if (target.chat_id !== chatId) {
+      // "Responder en privado": un mensaje de esta persona en un grupo de la misma línea, citado en su chat 1:1.
+      const from = await getChatRow(ws, target.chat_id);
+      const ok =
+        !!from &&
+        privateQuoteAllowed(
+          { accountId: from.number_id, groupKind: from.kind, fromMe: target.direction !== 'in', senderPhone: phoneDigits(target.sender_phone), deleted: !!target.deleted_at },
+          { accountId: chat.number_id, kind: chat.kind, phone: chat.phone || phoneDigits(chat.provider_chat_id) },
+        );
+      if (!ok) throw new GroupsError('invalid_reply');
+    }
     replyProviderId = target.provider_message_id ?? undefined;
   }
   const provider = providerFor(number);
@@ -2525,9 +2604,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           }
         })().catch(logAfterError);
         post.push(async () => {
-          // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
+          // Grupo que no conocíamos: se traen sus miembros una vez (best effort). Como mucho una vez cada
+          // MEMBERS_RETRY_SEC por chat: si WhatsApp no los da (límite, grupo con solo lids), el conteo sigue en 0
+          // y sin este tope se pedían en cada mensaje del grupo (cientos de groupMetadata, 429 de WhatsApp).
           if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
-            await syncMembers(ws, chat.id).catch(() => null);
+            if (await membersFetchAllowed(chat.id)) await syncMembers(ws, chat.id).catch(() => null);
           }
           // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
           if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
@@ -2716,9 +2797,10 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
+  if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
@@ -2824,6 +2906,8 @@ export interface MemberDto {
   phone: string;
   name: string;
   role: MemberRole;
+  /** Foto de perfil guardada ('' si no tiene o todavía no se pidió; lib/wa-contact-pictures.ts). */
+  picture?: string;
 }
 
 export async function listMembers(ws: string, chatId: string): Promise<MemberDto[]> {
@@ -2832,7 +2916,8 @@ export async function listMembers(ws: string, chatId: string): Promise<MemberDto
       // Sin nombre guardado en el grupo: el de la libreta del número (contactos y nombres de perfil de todos sus chats).
       `SELECT m.phone, CASE WHEN m.name <> '' THEN m.name ELSE COALESCE((
            SELECT CASE WHEN w.saved_name <> '' THEN w.saved_name ELSE w.push_name END FROM wa_contacts w
-           WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role
+           WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role,
+         COALESCE((SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') AS picture
        FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
        WHERE m.chat_id = ? AND c.user_id = ? ORDER BY CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
     )
@@ -2883,6 +2968,17 @@ export async function groupContext(ws: string, chatId: string): Promise<{ chat: 
   const provider = providerFor(number);
   if (!provider.caps.groups) throw new GroupsError('groups_unsupported');
   return { chat, provider };
+}
+
+/** Cada cuánto, como mucho, se piden solos los miembros de un grupo que todavía no tiene ninguno. */
+export const MEMBERS_RETRY_SEC = 6 * 3600;
+/** Pausa entre pedidos de miembros de varios grupos seguidos. */
+export const MEMBERS_GAP_MS = 400;
+
+/** ¿Se pueden pedir ya los miembros de este chat sin que nadie lo pidiera? Cuenta el intento (compartido entre instancias). */
+export async function membersFetchAllowed(chatId: string): Promise<boolean> {
+  const { rateLimit } = await import('./rate-limit');
+  return (await rateLimit(`groups-members:${chatId}`, 1, MEMBERS_RETRY_SEC)).ok;
 }
 
 /** Vuelve a leer los miembros desde WhatsApp. */
@@ -3115,7 +3211,11 @@ export async function syncGroups(ws: string, numberId: string): Promise<{ groups
         .prepare('UPDATE groups_chats SET announce = COALESCE(?, announce), locked = COALESCE(?, locked), left_at = NULL WHERE id = ?')
         .run(g.announce === undefined ? null : Number(g.announce), g.locked === undefined ? null : Number(g.locked), chat.id);
     }
-    if (n < 50) await syncMembers(ws, chat.id).catch(() => null);
+    if (n < 50) {
+      // Pausa entre grupos: 50 groupMetadata seguidos le ganan un 429 a la cuenta.
+      if (n > 0) await new Promise((r) => setTimeout(r, MEMBERS_GAP_MS));
+      await syncMembers(ws, chat.id).catch(() => null);
+    }
     n++;
   }
   return { groups: n };

@@ -21,6 +21,7 @@ mod dictation;
 mod hud;
 mod indicator;
 mod nav;
+mod offline;
 mod platform;
 mod privacy;
 mod rec_overlay;

@@ -367,7 +367,8 @@
       "resync": "Sync again",
       "resyncTitle": "Sync WhatsApp again",
       "resyncBody": "WhatsApp only sends chat history when a device is linked. To bring it in, Inbox ends the current session and shows a new QR code: scan it from WhatsApp › Linked devices. Chats already here stay. History can take a few minutes to show up.",
-      "resyncYes": "Show new QR"
+      "resyncYes": "Show new QR",
+      "archiveBroken": "WhatsApp archiving is not syncing on this number: archiving here doesn't reach the phone, and archiving on the phone doesn't show up here. Use Sync again to link it again and fix it."
     },
     "gmail": {
       "intro": "Connect Gmail with Google. Archive also archives in Gmail, and read state stays in sync.",

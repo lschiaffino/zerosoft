@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { brandOnColor, fmtClock, type RecChapter, type RecOverlay, type RecSegment } from '@/lib/rec-schema';
+import { brandOnColor, fmtClock, silenceCuts, type RecChapter, type RecOverlay, type RecSegment, type RecSpriteMeta } from '@/lib/rec-schema';
 import type { RecBrand } from '@/lib/rec-admin';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
@@ -28,6 +28,8 @@ export interface RecWatchVideo {
   ctaUrl: string;
   ctaMode: 'always' | 'end';
   hasThumb: boolean;
+  playVer: string;
+  sprite: RecSpriteMeta | null;
   overlays: RecOverlay[];
 }
 
@@ -48,6 +50,7 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
   const file = `/api/rec/v/${encodeURIComponent(video.shareId)}/file`;
   const seek = useCallback((rel: number) => player.current?.seek(rel), []);
   const viewerName = useCallback(() => storedViewerName(), []);
+  const silences = useMemo(() => silenceCuts(video.transcript, video.durationSec), [video.transcript, video.durationSec]);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.createdAt));
 
   return (
@@ -62,7 +65,8 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
         )}
         <RecPlayer
           ref={player}
-          src={file}
+          src={`${file}?kind=play${video.playVer ? `&v=${video.playVer}` : ''}`}
+          sprite={video.sprite ? { url: `${file}?kind=sprite&v=${video.playVer}`, meta: video.sprite } : null}
           captionsSrc={video.transcript.length ? `${file}?kind=captions` : null}
           poster={video.hasThumb ? `${file}?kind=thumb` : null}
           title={video.title}
@@ -70,6 +74,7 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
           trimStart={video.trimStart}
           trimEnd={video.trimEnd}
           chapters={video.chapters}
+          silences={silences}
           markers={markers}
           cta={video.ctaLabel && video.ctaUrl ? { label: video.ctaLabel, url: video.ctaUrl, mode: video.ctaMode } : null}
           trackUrl={`/api/rec/v/${encodeURIComponent(video.shareId)}/track`}
@@ -136,6 +141,7 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
             currentAbs={() => video.trimStart + (player.current?.current() ?? 0)}
             onSeek={seek}
             onMarkers={setMarkers}
+            onReact={(e) => player.current?.pop(e)}
           />
         </div>
         <div hidden={tab !== 'transcript'} role="tabpanel">

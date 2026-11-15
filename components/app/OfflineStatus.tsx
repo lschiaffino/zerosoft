@@ -8,6 +8,7 @@ import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client'
 import { whoCookie } from '@/lib/docs-offline';
 import { notesDbName } from '@/components/notes/notesOffline';
 import { readOfflinePrefs } from '@/lib/offline-prefs-client';
+import { rootsDue, safeStorage } from '@/lib/offline-apps';
 
 /**
  * Estado sin conexión en la banda de la app (toda la suite).
@@ -26,7 +27,7 @@ import { readOfflinePrefs } from '@/lib/offline-prefs-client';
  */
 
 /** Rutas cuyas vistas se guardan para abrir sin red (las mismas que isOfflineNavigation en public/sw.js). */
-export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track)(?:\/|$)|\/notes\/?$|\/?$)/;
+export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track|board|calendar)(?:\/|$)|\/notes\/?$|\/?$)/;
 
 interface Brief {
   id: number;
@@ -40,6 +41,18 @@ interface Brief {
 type SyncState = 'idle' | 'syncing' | 'synced';
 
 const DOCS_DRAFT_PREFIX = 'zs-docs-draft:';
+const BOARD_DRAFT_PREFIX = 'zs:board-draft:';
+
+/** Pizarras de Board con cambios que todavía no llegaron al servidor (borradores de lib/board-sync.ts). */
+export function boardDrafts(): number {
+  try {
+    let n = 0;
+    for (let i = 0; i < localStorage.length; i++) if (localStorage.key(i)?.startsWith(BOARD_DRAFT_PREFIX)) n += 1;
+    return n;
+  } catch {
+    return 0;
+  }
+}
 
 export function docsDrafts(owner: string): number {
   try {
@@ -94,12 +107,13 @@ function describe(b: Brief, fallback: string): string {
 
 export default function OfflineStatus({ owner }: { owner: string }) {
   const t = useTranslations('common.offline');
-  const helpHref = `/${useLocale()}/download#offline`;
+  const locale = useLocale();
+  const helpHref = `/${locale}/download#offline`;
   const router = useRouter();
   const pathname = usePathname() ?? '';
   const [online, setOnline] = useState(true);
   const [queue, setQueue] = useState<{ pending: Brief[]; failed: Brief[]; conflicts: Brief[]; count: number; unknown: number }>({ pending: [], failed: [], conflicts: [], count: 0, unknown: 0 });
-  const [local, setLocal] = useState({ docs: 0, notes: 0 });
+  const [local, setLocal] = useState({ docs: 0, notes: 0, board: 0 });
   const [sync, setSync] = useState<SyncState>('idle');
   const [open, setOpen] = useState(false);
   const [retryLater, setRetryLater] = useState(false);
@@ -144,9 +158,12 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     return () => sw.removeEventListener('message', onMessage);
   }, [router]);
 
-  // Registro y "guardar esta vista" en las apps que andan sin red.
+  // Registro y "guardar esta vista" en las apps que andan sin red. En las demás también se
+  // registra (fuera de los e2e, como AppPwa): sin red, el worker muestra "necesita conexión" en
+  // vez del error del navegador, y guarda el inicio de las apps que andan sin red.
   useEffect(() => {
-    if (!offlineApp || !('serviceWorker' in navigator) || !serviceWorkerEnabled()) return;
+    if (!('serviceWorker' in navigator) || !serviceWorkerEnabled()) return;
+    if (!offlineApp && navigator.webdriver) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       registerAppServiceWorker()
@@ -165,8 +182,12 @@ export default function OfflineStatus({ owner }: { owner: string }) {
             warmedStatics.current = true;
             for (const r of performance.getEntriesByType('resource')) if (r.name.includes('/_next/static/')) urls.push(r.name);
           }
-          urls.push(location.href);
+          if (offlineApp) urls.push(location.href);
           target?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls });
+          // El inicio de cada app sin conexión, con su JS y CSS, aunque la persona no lo haya abierto
+          // en este dispositivo: así sin red se puede abrir y navegar. Cada 6 horas como mucho.
+          const roots = rootsDue(safeStorage(), owner, locale, location.origin, Date.now(), Boolean(navigator.webdriver));
+          if (roots.length) target?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls: roots, withStatics: true });
           target?.postMessage({ type: 'zs-sync' });
         })
         .catch(() => null);
@@ -175,9 +196,13 @@ export default function OfflineStatus({ owner }: { owner: string }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [offlineApp, pathname, owner]);
+  }, [offlineApp, pathname, owner, locale]);
 
-  // Red que va y viene.
+  // Red que va y viene. <html data-network="offline">: el selector de apps marca las que necesitan conexión.
+  useEffect(() => {
+    document.documentElement.dataset.network = online ? 'online' : 'offline';
+  }, [online]);
+
   useEffect(() => {
     function goOnline() {
       setOnline(true);
@@ -200,18 +225,19 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     let alive = true;
     const read = async () => {
       const docs = docsDrafts(owner);
+      const board = boardDrafts();
       const notes = await notesPending(owner);
-      if (alive) setLocal((prev) => (prev.docs === docs && prev.notes === notes ? prev : { docs, notes }));
+      if (alive) setLocal((prev) => (prev.docs === docs && prev.notes === notes && prev.board === board ? prev : { docs, notes, board }));
     };
     void read();
-    const id = window.setInterval(read, online && queue.count === 0 && local.docs + local.notes === 0 ? 30_000 : 4_000);
+    const id = window.setInterval(read, online && queue.count === 0 && local.docs + local.notes + local.board === 0 ? 30_000 : 4_000);
     window.addEventListener('storage', read);
     return () => {
       alive = false;
       window.clearInterval(id);
       window.removeEventListener('storage', read);
     };
-  }, [owner, online, queue.count, local.docs, local.notes]);
+  }, [owner, online, queue.count, local.docs, local.notes, local.board]);
 
   // Con red y cambios esperando (el servidor no pudo antes): se reintenta solo cada tanto.
   useEffect(() => {
@@ -249,7 +275,7 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     };
   }, [open]);
 
-  const pending = queue.count + local.docs + local.notes;
+  const pending = queue.count + local.docs + local.notes + local.board;
   const failed = queue.failed.length;
   const conflicts = queue.conflicts.length;
 
@@ -317,12 +343,13 @@ export default function OfflineStatus({ owner }: { owner: string }) {
               </ul>
             </section>
           )}
-          {(local.docs > 0 || local.notes > 0) && (
+          {(local.docs > 0 || local.notes > 0 || local.board > 0) && (
             <section>
               <h3>{t('inApps')}</h3>
               <ul>
                 {local.docs > 0 && <li>{t('docsDrafts', { count: local.docs })}</li>}
                 {local.notes > 0 && <li>{t('notesPending', { count: local.notes })}</li>}
+                {local.board > 0 && <li>{t('boardDrafts', { count: local.board })}</li>}
               </ul>
             </section>
           )}

@@ -75,7 +75,8 @@
     "speed": "Playback speed {speed}",
     "unmute": "Unmute",
     "mute": "Mute",
-    "fullscreen": "Full screen"
+    "fullscreen": "Full screen",
+    "skipSilences": "Skip silences"
   },
   "comments": {
     "title": "Comments",

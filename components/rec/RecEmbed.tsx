@@ -16,7 +16,8 @@ export default function RecEmbed({ video, shareUrl, brand }: { video: RecWatchVi
         {video.title}
       </a>
       <RecPlayer
-        src={file}
+        src={`${file}?kind=play${video.playVer ? `&v=${video.playVer}` : ''}`}
+        sprite={video.sprite ? { url: `${file}?kind=sprite&v=${video.playVer}`, meta: video.sprite } : null}
         captionsSrc={video.transcript.length ? `${file}?kind=captions` : null}
         poster={video.hasThumb ? `${file}?kind=thumb` : null}
         title={video.title}

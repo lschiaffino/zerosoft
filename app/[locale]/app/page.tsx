@@ -7,6 +7,7 @@ import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
 import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { isStaff, loadWorkspaceAppRules } from '@/lib/workspace-apps';
 import { appDenial } from '@/lib/app-access';
+import { worksOffline } from '@/lib/offline-apps';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import RequestAccessButton from '@/components/app/RequestAccessButton';
@@ -30,9 +31,10 @@ export default async function PlatformHomePage(props: {
 }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
-  const [t, tProducts, mode, timeZone] = await Promise.all([
+  const [t, tProducts, tOffline, mode, timeZone] = await Promise.all([
     getTranslations({ locale, namespace: 'common.appHome' }),
     getTranslations({ locale, namespace: 'common.products' }),
+    getTranslations({ locale, namespace: 'common.offline' }),
     getWorkspaceMode(user),
     getUserTimeZone(),
   ]);
@@ -109,7 +111,13 @@ export default async function PlatformHomePage(props: {
           <ul>
             {apps.map((k, i) => (
               <li key={k} style={{ ['--i' as string]: i }}>
-                <Link href={PRODUCT_CONFIG[k].launch} className={`home-tile card-${k}`} aria-label={t('open', { name: PRODUCT_CONFIG[k].name })}>
+                <Link
+                  href={PRODUCT_CONFIG[k].launch}
+                  className={`home-tile card-${k}`}
+                  aria-label={t('open', { name: PRODUCT_CONFIG[k].name })}
+                  data-needs-network={worksOffline(k) ? undefined : ''}
+                >
+                  {!worksOffline(k) && <span className="app-offline-tag home-tile-offline">{tOffline('needsConnection')}</span>}
                   <span className="home-tile-icon" aria-hidden="true">
                     <ProductGlyph product={k} size={30} />
                   </span>

@@ -1752,7 +1752,7 @@
   },
   "offline": {
     "title": "Modo sin conexión",
-    "desc": "Guarda en este dispositivo lo que abriste en CRM, Docs, Track y Notes, para abrirlo y seguir trabajando sin conexión.",
+    "desc": "Guarda en este dispositivo lo que abriste en CRM, Docs, Track, Notes y Board, para abrirlo y seguir trabajando sin conexión.",
     "loading": "Cargando los ajustes sin conexión",
     "enabled": "Mantener las apps disponibles sin conexión",
     "enabledHelp": "Las páginas que abrís se guardan en este dispositivo. Lo que cambies sin conexión se manda cuando vuelve.",
@@ -1766,13 +1766,17 @@
       "crm": "CRM e Inicio",
       "docs": "Docs",
       "track": "Track",
-      "notes": "Notes"
+      "notes": "Notes",
+      "board": "Board",
+      "cal": "Cal (solo lectura)"
     },
     "appsHelp": {
       "crm": "Contactos, empresas, negocios y la página de inicio",
       "docs": "Las páginas que abriste o marcaste disponibles sin conexión",
       "track": "Las listas, issues y proyectos que abriste",
-      "notes": "La lista de notas"
+      "notes": "La lista de notas",
+      "board": "Las pizarras que abriste y la lista de pizarras",
+      "cal": "Las reservas, tipos de evento y disponibilidad que abriste. Para editar hace falta conexión"
     },
     "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
     "measuring": "Midiendo…",
@@ -1805,7 +1809,8 @@
     "pendingQueue": "{n, plural, one {# cambio en CRM o Track} other {# cambios en CRM o Track}}",
     "pendingFailed": "{n, plural, one {# cambio que el servidor rechazó (se reintenta desde la barra de estado)} other {# cambios que el servidor rechazó (se reintentan desde la barra de estado)}}",
     "pendingDocs": "{n, plural, one {# borrador de Docs} other {# borradores de Docs}}",
-    "pendingNotes": "{n, plural, one {# cambio en Notes} other {# cambios en Notes}}"
+    "pendingNotes": "{n, plural, one {# cambio en Notes} other {# cambios en Notes}}",
+    "pendingBoard": "{n, plural, one {# pizarra con cambios} other {# pizarras con cambios}}"
   },
   "desktopApp": {
     "title": "App de escritorio",

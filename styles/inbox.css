@@ -46,6 +46,11 @@ body:has(.ib-composer) #zs-chat-root { display: none !important; }
 .ib-list-head { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
 .ib-list-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ib-list-title .ib-h1 { flex: 1; }
+/* Escritorio: sin "Bandeja" ni "Nuevo" en la lista (la miga y el lateral ya los tienen, como en Lines). En una carpeta queda su nombre y "Editar". */
+@media (min-width: 1024px) {
+  .ib-list-title .ib-compose-btn { display: none; }
+  .ib-list-title:not(.has-folder) { display: none; }
+}
 .ib-search .input { width: 100%; }
 .ib-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; }
 .ib-tabs::-webkit-scrollbar { display: none; }

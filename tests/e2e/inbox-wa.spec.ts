@@ -202,7 +202,7 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   // Responder desde el menú (flecha): la cita queda arriba del campo y sale con el mensaje.
   await incoming.hover();
   await incoming.locator('.wa-chevron').click();
-  await page.getByRole('menuitem', { name: 'Reply' }).click();
+  await page.getByTestId('menu-reply').click();
   await expect(thread.locator('.wa-replying .gr-quote')).toContainText('¿Me pasás el link?');
   const field = page.getByRole('textbox', { name: 'Message' });
   await field.fill('Sí, ahí va: https://example.test/x');
@@ -516,7 +516,7 @@ test('Más tarde visible junto a Enviar (también con clic derecho) y los archiv
   await expect(entry).toBeVisible();
   await expect(entry).toContainText('1');
   await entry.click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Archived' })).toBeVisible();
+  await expect(page.locator('.ib-list')).toHaveAttribute('data-list', 'v:archived|');
   const row = page.locator('.ib-item', { hasText: name });
   await expect(row).toBeVisible();
   await expect(page.locator('.ib-item', { hasText: otherName })).toHaveCount(0);
