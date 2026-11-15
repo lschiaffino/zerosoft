@@ -102,6 +102,17 @@ export function extensionOf(name: string, type: string): string {
   return t.replace(/^(x-|vnd\.)/, '').split(/[.+]/)[0].slice(0, 6).toUpperCase();
 }
 
+/**
+ * Nombre de archivo en un renglón, como WhatsApp: si es largo se corta en el
+ * medio y se conserva el final (la extensión): "informe-anual-de…final.pdf".
+ */
+export function middleEllipsis(name: string, max = 36): string {
+  const chars = [...name];
+  if (chars.length <= max) return name;
+  const tail = Math.min(12, Math.max(6, Math.floor(max / 3)));
+  return `${chars.slice(0, max - tail - 1).join('').trimEnd()}…${chars.slice(-tail).join('')}`;
+}
+
 /** Texto con links: partes de texto y de URL (sin HTML). */
 export function linkify(text: string): Array<{ text: string; href?: string }> {
   const out: Array<{ text: string; href?: string }> = [];
