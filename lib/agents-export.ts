@@ -6,6 +6,8 @@
  */
 import { getDb } from './db';
 import { chatConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSql } from './groups-access';
+import type { TeamRole } from './teams';
 import type { AgentConversationRow } from './db';
 
 const MAX_CONVERSATIONS = 2000;
@@ -33,8 +35,12 @@ const HEADER = [
   'message',
 ];
 
-export async function exportConversationsCsv(workspaceId: string, agentId: string, opts: { days?: number; now?: Date; viewerId?: string } = {}): Promise<string> {
-  const visible = opts.viewerId ? chatConversationVisibleSql('chat_conversation_id', opts.viewerId) : null;
+export async function exportConversationsCsv(workspaceId: string, agentId: string, opts: { days?: number; now?: Date; viewerId?: string; viewerRole?: TeamRole } = {}): Promise<string> {
+  const chatVisible = opts.viewerId ? chatConversationVisibleSql('chat_conversation_id', opts.viewerId) : null;
+  // Las que vienen de un chat de Lines: solo si la persona ve ese chat.
+  const linesVisible = opts.viewerId ? await linesAgentConversationSql(workspaceId, opts.viewerId, opts.viewerRole ?? 'member', 'agent_conversations.id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
+  const visible = parts.length ? { sql: parts.map((p) => p.sql).join(' AND '), args: parts.flatMap((p) => p.args) } : null;
   const db = getDb();
   const now = opts.now ?? new Date();
   const from = new Date(now.getTime() - Math.min(Math.max(opts.days ?? 30, 1), 365) * 86_400_000).toISOString();

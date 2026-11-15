@@ -29,6 +29,7 @@ import type { FetchLike } from './groups-provider';
 import { fakeMode } from './groups-integrations';
 import { fakeHubspotFetch } from './groups-hubspot-fake';
 import { mediaKind } from './groups-rules';
+import { clearGroupCompany, clearWorkspaceGroupCompanies, propagateGroupCompany } from './groups-identity';
 
 const API = 'https://api.hubapi.com';
 
@@ -383,6 +384,7 @@ export async function updateHubspotSettings(ws: string, patch: { autoLink?: bool
 async function clearWorkspaceData(ws: string): Promise<void> {
   const db = getDb();
   await db.prepare('DELETE FROM groups_hubspot_links WHERE user_id = ?').run(ws);
+  await clearWorkspaceGroupCompanies(ws);
   await db.prepare('DELETE FROM groups_hubspot_matches WHERE user_id = ?').run(ws);
   await db.prepare('DELETE FROM groups_hubspot_notes WHERE user_id = ?').run(ws);
   for (const table of ['groups_hubspot_props', 'groups_hubspot_prop_groups', 'groups_hubspot_companies', 'groups_hubspot_values', 'groups_hubspot_sync_log', 'groups_hubspot_suggest']) {
@@ -652,12 +654,14 @@ export async function linkHubspot(
     const { importHubspotCompanies } = await import('./groups-hubspot-sync');
     await importHubspotCompanies(ws, [id], 'link').catch(() => null);
   };
+  let companyChanged = type === 'company';
   if (type === 'company') await importCompany(rec.id);
   if (type === 'contact' && opts.withCompany && rec.companyId) {
     const has = (await linkRows(ws, chatId)).some((l) => l.object_type === 'company');
     if (!has) {
       try {
         await saveLink(ws, chatId, await fetchRecord(conn, 'company', rec.companyId), actor);
+        companyChanged = true;
         await importCompany(rec.companyId);
       } catch (err) {
         // La empresa principal no se pudo leer: queda solo el contacto.
@@ -665,13 +669,21 @@ export async function linkHubspot(
       }
     }
   }
+  // Un grupo tiene una sola empresa aunque esté en varias líneas: pasa a todas (lib/groups-identity.ts).
+  if (companyChanged) await propagateGroupCompany(ws, chatId, actor);
   await markUsed(ws).catch(() => null);
   return (await linkRows(ws, chatId)).map((r) => rowToRecord(conn, r));
 }
 
 export async function unlinkHubspot(ws: string, chatId: string, type: HubspotType): Promise<boolean> {
   if (!(HUBSPOT_TYPES as readonly string[]).includes(type)) throw new HubspotError('invalid_input');
-  const res = await getDb().prepare('DELETE FROM groups_hubspot_links WHERE chat_id = ? AND user_id = ? AND object_type = ?').run(chatId, ws, type);
+  const db = getDb();
+  // La empresa de un grupo es la de todas sus líneas: se quita de todas.
+  const hadCompany =
+    type === 'company' && Boolean(await db.prepare("SELECT 1 AS x FROM groups_hubspot_links WHERE chat_id = ? AND user_id = ? AND object_type = 'company'").get(chatId, ws));
+  if (hadCompany) await clearGroupCompany(ws, chatId);
+  const res = await db.prepare('DELETE FROM groups_hubspot_links WHERE chat_id = ? AND user_id = ? AND object_type = ?').run(chatId, ws, type);
+  if (hadCompany) return true;
   // Quitar el contacto a mano es decir "este no es": no se vuelve a proponer ni a vincular solo.
   if (res.changes > 0 && type === 'contact') await dismissHubspotSuggestion(ws, chatId);
   return res.changes > 0;

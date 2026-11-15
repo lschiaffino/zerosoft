@@ -204,7 +204,7 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   await five.locator('.wa-album-tile').nth(1).click({ button: 'right' });
   const menu = page.getByRole('menu');
   await expect(menu).toBeVisible();
-  await menu.getByRole('menuitem', { name: 'Reply' }).click();
+  await menu.getByTestId('menu-reply').click();
   await expect(page.locator('.wa-composer .gr-quote-plain, .ib-wa-thread .gr-quote-plain').first()).toContainText('Photo');
 
   await page.setViewportSize({ width: 390, height: 844 });

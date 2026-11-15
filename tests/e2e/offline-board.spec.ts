@@ -72,10 +72,10 @@ test.describe('Sin conexión: Board', () => {
     await expect(status).toContainText('1 change on this device', { timeout: 20_000 });
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/offline-board.png` });
 
-    // Recargar sin red: la pizarra guardada, y lo dibujado se recupera.
+    // Recargar sin red: la pizarra guardada, y lo dibujado vuelve solo (sin preguntar).
     await page.reload();
     await waitCanvas(page);
-    await page.getByRole('button', { name: 'Restore them' }).click();
+    await expect(page.getByTestId('board-draft-restored')).toBeVisible();
     await expect.poll(() => page.evaluate((r) => (window as unknown as { __boardApi: BoardApi }).__boardApi.getSceneElements().some((e) => e.id === r), rid)).toBe(true);
 
     await context.setOffline(false);
@@ -90,5 +90,65 @@ test.describe('Sin conexión: Board', () => {
       .toBe(1);
     // Sin cambios pendientes: la banda se va.
     await expect(status).toBeHidden({ timeout: 20_000 });
+  });
+
+  test('pizarra nueva sin red: se dibuja, vuelve sola al recargar y al volver la red se crea una sola vez', async ({ page, context }) => {
+    // Con red, la lista deja guardadas la página de pizarras nuevas sin red y el lienzo.
+    await openAndCache(page, '/en/app/board');
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          for (const name of await caches.keys()) {
+            if (name.includes('-pages-') && (await (await caches.open(name)).match(`${location.origin}/en/app/board/local`, { ignoreSearch: true }))) return true;
+          }
+          return false;
+        }),
+      { timeout: 30_000 })
+      .toBe(true);
+    const before = ((await (await page.request.get('/api/boards')).json()) as { boards: Array<{ id: string }> }).boards.length;
+
+    await context.setOffline(true);
+    await page.getByTestId('board-new').first().click();
+    await page.waitForURL(/\/en\/app\/board\/local\?id=/);
+    const id = new URL(page.url()).searchParams.get('id') ?? '';
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await waitCanvas(page);
+    const rid = `new-offline-${Date.now().toString(36)}`;
+    await addRect(page, rid);
+    await expect(page.getByTestId('offline-status')).toBeVisible();
+    await expect.poll(() => page.evaluate((k) => localStorage.getItem(k) !== null, `zs:board-draft:${id}`), { timeout: 20_000 }).toBe(true);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/offline-board-new.png` });
+
+    // Recargar sin red: la misma pizarra, con lo dibujado.
+    await page.reload();
+    await waitCanvas(page);
+    await expect.poll(() => page.evaluate((r) => (window as unknown as { __boardApi: BoardApi }).__boardApi.getSceneElements().some((e) => e.id === r), rid)).toBe(true);
+
+    // La lista sin red la muestra como "en este dispositivo".
+    await page.goto('/en/app/board');
+    await expect(page.getByTestId('board-local-card')).toHaveCount(1);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/offline-board-list.png` });
+
+    // Vuelve la red: se crea con su id, con lo dibujado, una sola vez.
+    await context.setOffline(false);
+    await expect
+      .poll(
+        async () => {
+          const r = await page.request.get(`/api/boards/${id}`);
+          if (!r.ok()) return -1;
+          const b = (await r.json()) as { scene: { elements: El[] } };
+          return b.scene.elements.filter((e) => e.id === rid && !e.isDeleted).length;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(1);
+    await expect(page.getByTestId('board-local-card')).toHaveCount(0, { timeout: 20_000 });
+    const after = ((await (await page.request.get('/api/boards')).json()) as { boards: Array<{ id: string }> }).boards;
+    expect(after.length).toBe(before + 1);
+    expect(after.filter((b) => b.id === id)).toHaveLength(1);
+    // Reintentar con el mismo id no la duplica.
+    const again = await page.request.post('/api/boards', { data: { id, name: 'Otra vez' } });
+    expect(again.status()).toBe(200);
+    expect(((await (await page.request.get('/api/boards')).json()) as { boards: unknown[] }).boards.length).toBe(before + 1);
   });
 });

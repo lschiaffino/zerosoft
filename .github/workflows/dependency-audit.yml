@@ -1,0 +1,44 @@
+# Dependencias con vulnerabilidades críticas (npm audit). Solo cuando cambian las dependencias (en un PR
+# o en main) y una vez por semana, por los avisos nuevos sobre lo que ya está instalado.
+# Las altas y moderadas se siguen con Dependabot y en el registro de riesgos.
+name: Dependency audit
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'desktop/package.json'
+      - 'desktop/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'desktop/package.json'
+      - 'desktop/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  schedule:
+    - cron: '41 6 * * 1'
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev --package-lock-only --audit-level=critical
+      - run: npm audit --package-lock-only --audit-level=critical
+        working-directory: desktop

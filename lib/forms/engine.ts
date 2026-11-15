@@ -526,6 +526,35 @@ const PIPE_RE = /\{\{\s*([a-z][a-z0-9_]{0,39})\s*\}\}/gi;
  * escapa (React o escapeHtml), así que una respuesta con HTML queda como
  * texto. Cada valor insertado se corta en 200 caracteres.
  */
+/**
+ * Mezcla las opciones de las preguntas con `randomize` (una mezcla distinta
+ * por semilla, la misma para la misma semilla). Solo cambia el orden en que
+ * se muestran: las respuestas guardan ids, así que el motor no se entera.
+ */
+export function shuffleChoices(def: FormDefinition, seed: number): FormDefinition {
+  let a = seed >>> 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  if (!def.questions.some((q) => q.randomize && q.choices && q.choices.length > 1)) return def;
+  return {
+    ...def,
+    questions: def.questions.map((q) => {
+      if (!q.randomize || !q.choices || q.choices.length < 2) return q;
+      const c = [...q.choices];
+      for (let i = c.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        [c[i], c[j]] = [c[j], c[i]];
+      }
+      return { ...q, choices: c };
+    }),
+  };
+}
+
 export function pipe(text: string, def: FormDefinition, ctx: { answers: Answers; vars?: Record<string, number>; hidden?: Record<string, string>; labels?: DisplayLabels }): string {
   if (!text.includes('{{')) return text;
   return text.replace(PIPE_RE, (_, key: string) => {

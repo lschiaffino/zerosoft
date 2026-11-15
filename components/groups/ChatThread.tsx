@@ -18,6 +18,7 @@ import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } fro
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
+import { knownPrivateQuote, peekPendingPrivateReply, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
@@ -33,7 +34,7 @@ import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentio
 import WhenDialog from '@/components/ui/WhenDialog';
 import { longWhen } from '@/lib/when-presets';
 import { ScheduledStrip, notifyScheduledChanged, useWhenLabels } from './Scheduled';
-import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
+import { DEFAULT_RULE, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
@@ -57,7 +58,6 @@ import {
   Chevron,
   ClockIcon,
   Close,
-  DocIcon,
   Forwarded,
   Lock,
   Mic,
@@ -68,10 +68,6 @@ import {
   Smiley,
   Ticks,
   Trash,
-  PhotoIcon,
-  CameraIcon,
-  MusicIcon,
-  PollIcon,
   CheckIcon,
   Pause,
   UserPlus,
@@ -79,7 +75,6 @@ import {
   GroupIcon,
   ViewOnce,
   Retry,
-  Person,
   InfoIcon,
   TranslateIcon,
   UnreadIcon,
@@ -90,6 +85,9 @@ import {
   DisplayIcon,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
+import PollDialog, { type PollDraft } from './wa/PollDialog';
+import { createSticker } from './wa/StickerPanel';
 import LiveWaveform from './wa/LiveWaveform';
 import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
@@ -191,14 +189,12 @@ export default function ChatThread(props: ThreadProps) {
   const [caret, setCaret] = useState(0);
   const [mode, setMode] = useState<'reply' | 'note'>('reply');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
+  // Respondiendo en privado: el mensaje citado es de un grupo (su nombre va en la cita).
+  const [replyChat, setReplyChat] = useState<{ msgId: string; chatName: string } | null>(null);
   const tray = useAttachTray();
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLInputElement>(null);
-  const [hasCamera, setHasCamera] = useState(false);
-  useEffect(() => setHasCamera(window.matchMedia('(pointer: coarse)').matches && Boolean(navigator.mediaDevices)), []);
   const previewOpen = mode === 'reply' && tray.items.length > 0;
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -247,9 +243,6 @@ export default function ChatThread(props: ThreadProps) {
   const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
   // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
   useExpiry(presence?.state === 'composing' || presence?.state === 'recording', presence?.at, PRESENCE_EXPIRY_MS, () => setPresence(null));
-  const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
-  const [pollBusy, setPollBusy] = useState(false);
-  const [pollError, setPollError] = useState('');
   const [repeat, setRepeat] = useState(false);
   const [rule, setRule] = useState<RecurrenceRule>(DEFAULT_RULE);
   const [timezone, setTimezone] = useState(browserTimezone);
@@ -283,8 +276,7 @@ export default function ChatThread(props: ThreadProps) {
   useFocusOnOpen(inputRef, props.chat.id);
   const boxRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<AttachMenuHandle>(null);
   const requested = useRef<Set<string>>(new Set());
   const pendingCaret = useRef<number | null>(null);
   const keepOffset = useRef<number | null>(null);
@@ -354,6 +346,22 @@ export default function ChatThread(props: ThreadProps) {
   const taskMessage = useMemo(() => (taskFor ? { id: taskFor.id, body: waText(taskFor) } : null), [taskFor, waText]);
   const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
   const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
+
+  // "Responder en privado" desde un grupo: este chat 1:1 se abre respondiendo al mensaje del grupo.
+  useEffect(() => {
+    if (!peekPendingPrivateReply(props.chat.id)) return;
+    // Después de lo que limpia el composer al cambiar de chat. Se toma recién acá: un montaje que se desarma
+    // antes (StrictMode, navegación) no la gasta.
+    const id = window.setTimeout(() => {
+      const pr = takePendingPrivateReply(props.chat.id);
+      if (!pr) return;
+      setReplyTo(pr.message);
+      setReplyChat({ msgId: pr.message.id, chatName: pr.quote.chatName });
+      setMode('reply');
+      inputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [props.chat.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir el chat lo marca leído.
   useEffect(() => {
@@ -681,8 +689,8 @@ export default function ChatThread(props: ThreadProps) {
       openTicket,
       openTask: setTaskFor,
       openLater,
-      attach: () => fileRef.current?.click(),
-      openPoll: () => (setPollError(''), setPollOpen(true)),
+      attach: () => attachRef.current?.pickFiles(),
+      openPoll: () => setPollOpen(true),
       openContact: () => setContactOpen(true),
       openEmoji: () => setEmojiOpen(true),
       toggleMute: () => void toggleMute(),
@@ -1119,20 +1127,31 @@ export default function ChatThread(props: ThreadProps) {
     setSummary({ text: res.data?.summary ?? '', error: res.error ? errText(res.error) : '', busy: false });
   }
 
-  async function sendPoll() {
-    const options = poll.options.map((o) => o.trim()).filter(Boolean);
-    if (!poll.question.trim()) return setPollError(errText('poll_question'));
-    if (options.length < 2) return setPollError(errText('poll_options'));
-    setPollBusy(true);
-    setPollError('');
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
-    setPollBusy(false);
-    if (!res.data) return setPollError(errText(res.error));
+  /** La encuesta del menú +: '' si salió (el diálogo se cierra), o el código de error. */
+  async function sendPoll(poll: PollDraft): Promise<string> {
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll } });
+    if (!res.data) return res.error || 'send_failed';
     merge([res.data]);
-    if (res.data.status === 'failed') return setPollError(errText(res.data.error || 'send_failed'));
+    if (res.data.status === 'failed') return res.data.error || 'send_failed';
     setPollOpen(false);
-    setPoll({ question: '', options: ['', ''], multi: false });
     refresh();
+    return '';
+  }
+
+  /** Dictar con Voice: el texto entra en el campo (como en Inbox). */
+  function dictate() {
+    inputRef.current?.focus();
+    window.dispatchEvent(new Event('zs:voice-dictate'));
+  }
+
+  /** "Sticker nuevo" del menú +: lo crea desde la imagen (queda en la colección) y lo manda. */
+  async function newSticker(file: File) {
+    const r = await createSticker('/api/groups/stickers', file);
+    if (!r.sticker) {
+      showToast(r.error === 'sticker_too_large' ? t('wa.stickers.tooLarge') : r.error === 'sticker_convert_unavailable' ? t('wa.stickers.convertUnavailable') : t('wa.stickers.createFailed'), true);
+      return;
+    }
+    await sendSticker(r.sticker.id);
   }
 
   function scheduledMedia() {
@@ -1301,6 +1320,8 @@ export default function ChatThread(props: ThreadProps) {
         { key: 'remove', label: t('common.remove'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) },
       ];
     }
+    // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, fijar, reenviar, copiar, editar |
+    // responder en privado, mensaje a quien lo mandó | eliminar | seleccionar. Debajo, la capa del equipo.
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
     if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
     if (live)
@@ -1309,32 +1330,47 @@ export default function ChatThread(props: ThreadProps) {
         label: t('thread.reply'),
         onSelect: () => {
           setReplyTo(m);
+          setReplyChat(null);
           setMode('reply');
           inputRef.current?.focus();
         },
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
-    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
-    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
-    if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
-    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
+    if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
+    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (m.body.trim() && !m.deletedAt) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
-    items.push({ key: 'select', label: t('wa.select'), onSelect: () => setSelecting(new Set([m.id])) });
+    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
+    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
+    // Grupo, mensaje de otra persona: escribirle por privado (con la cita o sin ella), como en WhatsApp.
+    if (chat.kind === 'group' && m.direction === 'in' && !m.deletedAt && m.senderPhone) {
+      items.push({ key: 'replyPrivately', label: t('wa.replyPrivately'), divider: true, onSelect: () => void openPrivateChat(m, true) });
+      items.push({ key: 'messageSender', label: t('wa.messageName', { name: inName(m) }), onSelect: () => void openPrivateChat(m, false) });
+    }
     if (can.delete)
       items.push({
         key: 'delete',
         label: m.direction === 'note' ? t('thread.deleteNote') : t('thread.deleteForAll'),
         onSelect: () => setDeleting(m),
         danger: true,
+        divider: true,
       });
+    items.push({ key: 'select', label: t('wa.select'), divider: !can.delete, onSelect: () => setSelecting(new Set([m.id])) });
     // Capa del equipo, debajo.
     const team: MenuItem[] = [];
     if (live && !m.ticketId) team.push({ key: 'ticket', label: t('wa.createTicket'), onSelect: () => openTicket(m) });
     team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (team.length) team[0] = { ...team[0], divider: true };
     return [...items, ...team];
+  }
+
+  /** "Mensaje a <persona>" o "Responder en privado": su chat 1:1 en la misma línea (se crea si no existe). */
+  async function openPrivateChat(m: MessageDto, quote: boolean) {
+    const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id } });
+    if (!res.data) return showToast(errText(res.error), true);
+    if (quote) setPendingPrivateReply(res.data.id, m, { id: chat.id, name: chat.name });
+    router.push(`/app/lines/inbox/${res.data.id}${window.location.search}`);
   }
 
   async function favoriteSticker(messageId: string) {
@@ -1552,6 +1588,8 @@ export default function ChatThread(props: ThreadProps) {
   /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
   function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
+    // Respuesta en privado: el citado es de un grupo (viene del servidor o, recién mandado, de acá).
+    const privateQuote = !quoted && m.replyToId ? (m.replyQuote ?? knownPrivateQuote(m.replyToId)) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
     const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
@@ -1599,7 +1637,21 @@ export default function ChatThread(props: ThreadProps) {
           openMenuIn(e.currentTarget);
         }}
         {...longPress((el) => openMenuIn(el))}
-        onClick={selecting ? () => toggleSelected(m.id) : undefined}
+        onClick={
+          selecting
+            ? () => toggleSelected(m.id)
+            : chat.kind === 'group'
+              ? (e) => {
+                  // Una mención ("@Nombre") abre la ficha de esa persona, como en WhatsApp.
+                  const el = (e.target as HTMLElement).closest<HTMLElement>('.wa-mention[data-mention]');
+                  const d = el?.dataset.mention ?? '';
+                  const phone = (m.mentionNames?.[d]?.phone || (memberNames.has(d) || memberPics.has(d) ? d : '')).replace(/\D/g, '');
+                  if (!el || !/^\d{8,15}$/.test(phone)) return;
+                  e.stopPropagation();
+                  personSheet.open({ phone }, memberNames.get(phone) || (el.textContent ?? '').replace(/^@/, ''), memberPics.get(phone));
+                }
+              : undefined
+        }
       >
         {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
@@ -1648,6 +1700,20 @@ export default function ChatThread(props: ThreadProps) {
             <p className="gr-forwarded">
               <Forwarded size={13} /> {t('thread.forwarded')}
             </p>
+          )}
+          {privateQuote && (
+            <button
+              type="button"
+              className={`gr-quote ${privateQuote.direction === 'in' ? `wa-q${colorIndex(privateQuote.senderPhone || privateQuote.senderName)}` : 'wa-q-me'}`}
+              onClick={() => router.push(`/app/lines/inbox/${privateQuote.chatId}#m-${privateQuote.id}`)}
+              data-testid="wa-private-quote"
+            >
+              <strong>
+                {privateQuote.direction === 'in' ? privateQuote.senderName || (privateQuote.senderPhone ? `+${privateQuote.senderPhone}` : chat.name) : t('wa.you')}
+                <span className="wa-quote-chat"> · {privateQuote.chatName}</span>
+              </strong>
+              <span>{privateQuote.deleted ? t('wa.deletedMessage') : privateQuote.body.slice(0, 160) || mediaText({ media: privateQuote.mediaType ? { type: privateQuote.mediaType, name: '' } : null })}</span>
+            </button>
           )}
           {quoted && (
             <button
@@ -2123,7 +2189,10 @@ export default function ChatThread(props: ThreadProps) {
           {replyTo && (
             <div className="wa-replying">
               <span className={`gr-quote ${replyTo.direction === 'in' ? 'wa-q-them' : 'wa-q-me'}`}>
-                <strong>{t('thread.replyingTo')} {quoteAuthor(replyTo)}</strong>
+                <strong>
+                  {t('thread.replyingTo')} {quoteAuthor(replyTo)}
+                  {replyChat?.msgId === replyTo.id && <span className="wa-quote-chat"> · {replyChat.chatName}</span>}
+                </strong>
                 <span>{quoteLine(replyTo)}</span>
               </span>
               <button type="button" className="wa-icon-btn" onClick={() => setReplyTo(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>
@@ -2221,48 +2290,19 @@ export default function ChatThread(props: ThreadProps) {
                 )}
               </span>
               {mode === 'reply' && (
-                <>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      addFiles([...(e.target.files ?? [])]);
-                      e.target.value = '';
-                    }}
-                  />
-                  <input
-                    ref={photoRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      addFiles([...(e.target.files ?? [])]);
-                      e.target.value = '';
-                    }}
-                  />
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
-                  <input ref={audioRef} type="file" accept="audio/*" multiple hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
-                  <MessageMenu
-                    label={t('thread.attach')}
-                    className="wa-icon-btn wa-attach"
-                    align="left"
-                    trigger={<Plus size={24} />}
-                    items={[
-                      { key: 'doc', icon: <DocIcon size={17} />, label: t('wa.document'), onSelect: () => fileRef.current?.click() },
-                      { key: 'photo', icon: <PhotoIcon size={17} />, label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
-                      ...(hasCamera ? [{ key: 'camera', icon: <CameraIcon size={17} />, label: t('wa.camera'), onSelect: () => cameraRef.current?.click() }] : []),
-                      { key: 'audio', icon: <MusicIcon size={17} />, label: t('wa.audio'), onSelect: () => audioRef.current?.click() },
-                      ...(props.caps.contacts ? [{ key: 'contact', icon: <Person size={17} />, label: t('wa.contact'), onSelect: () => setContactOpen(true) }] : []),
-                      { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
-                      { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
-                      { key: 'ai', icon: <PencilSparkle size={17} />, label: tc('open'), onSelect: ai.openBar },
-                      { key: 'commands', icon: <SlashIcon size={17} />, label: ts('menuItem'), onSelect: slash.openFromButton },
-                    ]}
-                  />
-                </>
+                <AttachMenu
+                  ref={attachRef}
+                  onFiles={addFiles}
+                  onContact={props.caps.contacts ? () => setContactOpen(true) : undefined}
+                  onPoll={props.caps.polls ? () => setPollOpen(true) : undefined}
+                  onNewSticker={(f) => void newSticker(f)}
+                  extra={[
+                    ...(aiAllowed ? [{ key: 'ai', glyph: <PencilSparkle size={18} />, label: tc('open'), onSelect: ai.openBar }] : []),
+                    { key: 'dictate', glyph: <Mic size={18} />, label: t('wa.dictate'), onSelect: dictate },
+                    { key: 'schedule', glyph: <ClockIcon size={18} />, label: t('later.title'), onSelect: openLater },
+                    { key: 'commands', glyph: <SlashIcon size={18} />, label: ts('menuItem'), onSelect: slash.openFromButton },
+                  ]}
+                />
               )}
               <MentionTextarea
                 ref={inputRef}
@@ -2350,7 +2390,7 @@ export default function ChatThread(props: ThreadProps) {
             onCaption={tray.setCaption}
             onRemove={tray.remove}
             onRetry={tray.retry}
-            onAdd={() => fileRef.current?.click()}
+            onAdd={() => attachRef.current?.pickFiles()}
             onSend={() => void send()}
             onClose={tray.clear}
             onFiles={addFiles}
@@ -2525,37 +2565,7 @@ export default function ChatThread(props: ThreadProps) {
         }}
       />
 
-      <Modal
-        open={pollOpen}
-        title={t('polls.title')}
-        onClose={() => setPollOpen(false)}
-        onSubmit={() => void sendPoll()}
-        busy={pollBusy}
-        foot={
-          <>
-            <button type="button" className="btn btn-ghost" onClick={() => setPollOpen(false)}>
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="btn btn-primary" aria-busy={pollBusy || undefined} disabled={!props.caps.polls}>
-              {t('polls.send')}
-            </button>
-          </>
-        }
-      >
-        <div className="ui-fields">
-          {!props.caps.polls && (
-            <p className="gr-banner is-bad" role="alert">
-              {t('polls.unsupported')}
-            </p>
-          )}
-          <PollFields question={poll.question} options={poll.options} multi={poll.multi} onChange={setPoll} idPrefix="chat" />
-          {pollError && (
-            <p className="ui-error" role="alert">
-              {pollError}
-            </p>
-          )}
-        </div>
-      </Modal>
+      <PollDialog open={pollOpen} supported={props.caps.polls} onClose={() => setPollOpen(false)} onSend={sendPoll} />
       <Modal open={!!infoFor} title={t('wa.messageInfo')} onClose={() => setInfoFor(null)} foot={<button type="button" className="btn btn-primary" onClick={() => setInfoFor(null)}>{t('common.close')}</button>}>
         {infoFor && (
           <dl className="wa-info">
