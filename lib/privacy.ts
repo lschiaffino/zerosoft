@@ -223,10 +223,19 @@ function privateRef(app: PrivateApp, value: string): boolean {
 
 function uploadPattern(): RegExp {
   const host = ownBlobHost();
-  return host ? new RegExp(`https://${host.replace(/\./g, '\\.')}/[A-Za-z0-9._/-]+|/uploads/[a-z]+/[A-Za-z0-9._-]+`, 'g') : /\/uploads\/[a-z]+\/[A-Za-z0-9._-]+/g;
+  // /api/files/<id>/<nombre>: los archivos de ahora (lib/files/store.ts); deleteUploads borra fila y bytes.
+  const files = '/api/files/[A-Za-z0-9_-]{22}/[A-Za-z0-9._-]+';
+  return host
+    ? new RegExp(`https://${host.replace(/\./g, '\\.')}/[A-Za-z0-9._/-]+|/uploads/[a-z]+/[A-Za-z0-9._-]+|${files}`, 'g')
+    : new RegExp(`/uploads/[a-z]+/[A-Za-z0-9._-]+|${files}`, 'g');
 }
 
 function collectFiles(table: string, row: Record<string, unknown>, out: Map<string, string>): void {
+  // Archivos de lib/files/store.ts: se borran por su ref (la fila se va con el workspace).
+  if (table === 'stored_files') {
+    if (typeof row.ref === 'string' && row.ref) out.set(row.ref, 'files');
+    return;
+  }
   const app = table.split('_')[0] as PrivateApp;
   const re = uploadPattern();
   for (const v of Object.values(row)) {
@@ -276,7 +285,7 @@ async function stillReferenced(client: Client, schema: Schema, urls: Set<string>
               await client
                 .execute({
                   sql: `SELECT rowid AS rid, ${quote(col)} AS v FROM ${quote(table)} WHERE ${last === null ? '1' : 'rowid > ?'} AND typeof(${quote(col)}) = 'text'
-                          AND (${quote(col)} LIKE '%/uploads/%'${host ? ` OR ${quote(col)} LIKE ?` : ''}) ORDER BY rowid LIMIT 500`,
+                          AND (${quote(col)} LIKE '%/uploads/%' OR ${quote(col)} LIKE '%/api/files/%'${host ? ` OR ${quote(col)} LIKE ?` : ''}) ORDER BY rowid LIMIT 500`,
                   args: [...(last === null ? [] : [last as InValue]), ...(host ? [`%${host}%`] : [])],
                 })
                 .catch(() => null)
@@ -306,6 +315,12 @@ async function drainFiles(client: Client, schema: Schema, erasureId: string): Pr
     const { deleteUploads } = await import('./uploads');
     for (let i = 0; i < publics.length; i += 200) await deleteUploads(publics.slice(i, i + 200));
     deleted += publics.length;
+  }
+  const stored = toDelete.filter((q) => q.app === 'files').map((q) => q.ref);
+  if (stored.length) {
+    const { discardBytes } = await import('./files/store');
+    for (const ref of stored) await discardBytes(ref);
+    deleted += stored.length;
   }
   for (const app of PRIVATE_APPS) {
     const refs = toDelete.filter((q) => q.app === app).map((q) => q.ref);
