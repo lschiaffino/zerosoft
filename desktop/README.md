@@ -36,6 +36,12 @@ stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria
   `Nav::Connect` y `connect_start`): el callback valida el `state` contra una cookie que pone esa ruta,
   así que todo el recorrido pasa en el mismo navegador. Si ahí no hay sesión, la ruta manda al login y
   vuelve (`lib/oauth-signin.ts`). La cuenta queda conectada para quien tenga la sesión en ese navegador.
+- **Sin conexión** (desde la 0.3.9): la página anda sin red con su service worker (`public/sw.js`),
+  que WKWebView y WebView2 usan como un navegador: lo ya abierto y el inicio de Docs, Notes, Track,
+  CRM y Board se abren sin red, y las demás apps dicen "necesita conexión". Si una pestaña no
+  terminó su primera carga en 10 s (primera vez sin red, o sin datos guardados), la app dibuja en el
+  documento en blanco que deja WKWebView una página "Sin conexión" que vuelve a probar sola al volver
+  la red (`src/offline.rs`). No hace pedidos propios para decidirlo.
 - **Deep links** `zerosoft://open?path=/app/talk` (validados campo por campo, `src/deeplink.rs`).
 - **Puente con la página** (`window.zerosoftDesktop`): versión, plataforma, `startLogin`, `openSettings` y
   `notify`, más un `window.Notification` que manda avisos nativos. Solo existe con el origen del

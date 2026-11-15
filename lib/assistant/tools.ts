@@ -775,7 +775,7 @@ const automate: AssistantTool[] = [
     app: 'agents',
     description: 'AI agents of the workspace with their status.',
     input: z.object({}),
-    run: async (ctx) => ({ agents: (await listAgents(ctx.workspaceId)).map((a) => ({ ...pick(a, ['id', 'name', 'status', 'model', 'updatedAt']), href: `/app/agents/${a.id}` })) }),
+    run: async (ctx) => ({ agents: (await listAgents(ctx.workspaceId, ctx.user)).map((a) => ({ ...pick(a, ['id', 'name', 'status', 'model', 'updatedAt']), href: `/app/agents/${a.id}` })) }),
   }),
 ];
 

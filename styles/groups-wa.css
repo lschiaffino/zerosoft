@@ -8,7 +8,8 @@
    ============================================================ */
 
 .gr-inbox,
-.wa-viewer {
+.wa-viewer,
+.wa-contact-sheet {
   --wa-panel: #ffffff;
   --wa-panel-header: #f0f2f5;
   --wa-conv-bg: #efeae2;
@@ -85,7 +86,8 @@
 /* --- oscuro: preferencia del sistema --- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .gr-inbox,
-  :root:not([data-theme='light']) .wa-viewer {
+  :root:not([data-theme='light']) .wa-viewer,
+  :root:not([data-theme='light']) .wa-contact-sheet {
     --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
     --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
     --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -99,7 +101,8 @@
 }
 /* --- oscuro: elegido en la app (igual que el bloque de arriba) --- */
 :root[data-theme='dark'] .gr-inbox,
-:root[data-theme='dark'] .wa-viewer {
+:root[data-theme='dark'] .wa-viewer,
+:root[data-theme='dark'] .wa-contact-sheet {
   --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
   --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
   --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -959,6 +962,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-bq { display: inline-block; padding-left: 8px; border-left: 3px solid color-mix(in srgb, var(--wa-text-2) 45%, transparent); color: var(--wa-text-2); }
 .wa-li { display: inline-flex; gap: 6px; padding-left: 4px; }
 .wa-li-mark { flex: none; color: var(--wa-text-2); }
+.wa-li-body { flex: 1; min-width: 0; }
 /* Visor: zoom con clic y tira de miniaturas. */
 .wa-viewer-stage img { cursor: zoom-in; transition: transform 0.15s ease-out; }
 .wa-viewer-stage img.is-zoomed { cursor: zoom-out; transform: scale(2); }
@@ -1302,3 +1306,75 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .wa-upbar.is-spinning i { width: 30%; animation: wa-upbar-run 1.1s ease-in-out infinite; }
 @keyframes wa-upbar-run { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 @media (prefers-reduced-motion: reduce) { .wa-upring.is-spinning svg, .wa-upbar.is-spinning i { animation: none; } .wa-upring-bar, .wa-upbar i { transition: none; } }
+
+/* ---------- Info del contacto (components/groups/wa/ContactSheet.tsx) ----------
+   La ficha de una persona de un grupo, como en WhatsApp: modal en la
+   computadora y pantalla entera en el teléfono. Inbox y Lines. */
+dialog.ui-modal.wa-contact-sheet { width: min(420px, calc(100vw - 32px)); padding: 0; display: flex; flex-direction: column; background: var(--wa-panel-header); color: var(--wa-text); font-family: var(--wa-font); overflow: hidden; }
+dialog.ui-modal.wa-contact-sheet:not([open]) { display: none; }
+/* La misma altura al pasar a lo compartido o los destacados (la hoja no salta). */
+@media (min-width: 641px) { dialog.ui-modal.wa-contact-sheet { min-height: min(560px, calc(100dvh - 64px)); } }
+.wa-contact-sheet .wa-sheet-head { justify-content: flex-start; gap: 12px; min-height: 52px; padding: 8px 12px; background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
+.wa-contact-sheet .wa-sheet-head .ui-modal-title { font-family: var(--wa-font); font-size: 1rem; font-weight: 500; letter-spacing: normal; font-stretch: normal; }
+.wa-contact-sheet .wa-icon-btn { color: var(--wa-icon); }
+.wa-sheet-body { display: flex; flex-direction: column; gap: 8px; padding: 0 0 12px; overflow-y: auto; overscroll-behavior: contain; }
+.wa-sheet-hero { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 20px 16px; background: var(--wa-panel); text-align: center; }
+.wa-sheet-photo { padding: 0; background: none; border: 0; border-radius: 50%; cursor: zoom-in; }
+.wa-sheet-photo:disabled { cursor: default; }
+.wa-sheet-photo:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 3px; }
+.wa-sheet-name { margin: 8px 0 0; font-size: 1.25rem; line-height: 1.25; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-sheet-phone { margin: 0; font-size: var(--wa-fs-ui, 0.875rem); color: var(--wa-text-2); }
+.wa-sheet-badge { margin-top: 2px; padding: 1px 6px; font-size: 0.75rem; color: var(--wa-primary-ink); border: 1px solid currentColor; border-radius: 4px; }
+.wa-sheet-actions { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
+.wa-sheet-action { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 92px; padding: 10px 14px; background: var(--wa-panel); color: var(--wa-primary-ink); border: 1px solid var(--wa-border-strong); border-radius: 8px; font: inherit; font-size: 0.875rem; cursor: pointer; }
+.wa-sheet-action:hover { background: var(--wa-row-hover); }
+.wa-sheet-action:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.wa-sheet-action:disabled { opacity: 0.6; cursor: progress; }
+.wa-sheet-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 20px; background: var(--wa-panel); }
+.wa-sheet-card.wa-sheet-rows { padding: 4px 0; }
+.wa-sheet-rows > .wa-sheet-label { padding: 8px 20px 2px; }
+.wa-sheet-label { margin: 0; font-size: 0.875rem; font-weight: 400; color: var(--wa-text-2); }
+.wa-sheet-about { margin: 0; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-sheet-muted { margin: 0; font-size: 0.8125rem; color: var(--wa-text-2); }
+.wa-sheet-empty { padding: 24px 20px; text-align: center; }
+.wa-sheet-list { list-style: none; margin: 0; padding: 0; }
+.wa-sheet-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 48px; padding: 8px 20px; background: none; color: var(--wa-text); border: 0; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.wa-sheet-row:hover { background: var(--wa-row-hover); }
+.wa-sheet-row:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-sheet-row > svg { flex: none; color: var(--wa-icon); }
+.wa-sheet-row.is-danger, .wa-sheet-row.is-danger > svg { color: var(--wa-danger); }
+.wa-sheet-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.wa-sheet-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-sheet-link { color: var(--wa-link); }
+.wa-sheet-count { color: var(--wa-text-2); font-size: 0.875rem; }
+.wa-sheet-row .ui-switch { flex: none; margin: 0; }
+.wa-sheet-confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px 20px; }
+.wa-sheet-confirm p { margin: 0; }
+.wa-sheet-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.wa-sheet-tabs { display: flex; position: sticky; top: 0; z-index: 1; background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
+.wa-sheet-tabs button { flex: 1; min-height: 44px; padding: 0 8px; background: none; color: var(--wa-text-2); border: 0; border-bottom: 3px solid transparent; font: inherit; cursor: pointer; }
+.wa-sheet-tabs button.is-on { color: var(--wa-primary-ink); border-bottom-color: var(--wa-primary); }
+.wa-sheet-grid { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 0; padding: 8px; background: var(--wa-panel); }
+.wa-sheet-thumb { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; background: var(--wa-chip-bg); border: 0; border-radius: 4px; cursor: zoom-in; }
+.wa-sheet-thumb img, .wa-sheet-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wa-sheet-starred { display: flex; flex-direction: column; gap: 2px; padding: 10px 20px; background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); overflow-wrap: anywhere; }
+.wa-contact-sheet .wa-viewer { z-index: 2; }
+/* Un nombre o una foto de un grupo que abre la ficha. */
+button.wa-person { padding: 0; background: none; border: 0; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+button.wa-person:hover .wa-author-name, button.wa-person.wa-author-name:hover { text-decoration: underline; }
+button.wa-person:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 640px) {
+  dialog.ui-modal.wa-contact-sheet { width: 100% !important; max-width: 100% !important; height: 100dvh; max-height: 100dvh !important; margin: 0 !important; border-width: 0 !important; border-radius: 0 !important; padding-top: env(safe-area-inset-top, 0px); }
+  .wa-contact-sheet .wa-sheet-head { padding: 8px; }
+}
+/* Un miembro de la lista de Lines abre su ficha: la foto y el nombre son un solo botón. */
+button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+@media (pointer: coarse) {
+  button.gr-member-open { min-height: 40px; }
+}
+/* Respuesta en privado: el nombre del grupo del mensaje citado, al lado de quien lo mandó. */
+.wa-quote-chat { font-weight: 400; color: var(--wa-text-2); }
+.gr-quote strong span.wa-quote-chat { display: inline; overflow: visible; }
+/* Una mención en un grupo abre la ficha de esa persona. */
+.gr-msg .wa-mention[data-mention] { cursor: pointer; }
+.gr-msg .wa-mention[data-mention]:hover { text-decoration: underline; }

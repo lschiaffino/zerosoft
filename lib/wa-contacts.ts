@@ -55,6 +55,10 @@ export interface ContactRow {
   about: string;
   picture_url: string;
   updated_at: string;
+  /** Copia guardada de la foto de perfil (lib/wa-contact-pictures.ts). */
+  picture?: string;
+  picture_src?: string;
+  picture_at?: string | null;
 }
 
 /** Un contacto cuyo nombre para mostrar cambió (para renombrar chats y miembros). */
@@ -151,6 +155,11 @@ export async function rememberContacts(scope: ContactScope, items: ContactInput[
       const after = displayName(merged);
       if (extra.length) {
         await db.prepare(`DELETE FROM wa_contacts WHERE id IN (${extra.map(() => '?').join(',')})`).run(...extra.map((r) => r.id));
+        // La foto guardada de la fila que se junta pasa a la principal (si esta no tenía).
+        const pic = extra.find((r) => r.picture);
+        if (base && !base.picture && pic) {
+          await db.prepare('UPDATE wa_contacts SET picture = ?, picture_src = ?, picture_at = ? WHERE id = ?').run(pic.picture ?? '', pic.picture_src ?? '', pic.picture_at ?? null, base.id);
+        }
       }
       if (base) {
         const same =
@@ -387,6 +396,15 @@ export async function resolveTextMentions(
 /** Borra la libreta de una cuenta (al borrar la cuenta de Inbox o el número de Lines). */
 export async function forgetContacts(app: WaApp, accountId: string): Promise<void> {
   const db = getDb();
+  // Las fotos guardadas de la libreta se borran con ella.
+  const pics = (await db
+    .prepare("SELECT picture FROM wa_contacts WHERE app = ? AND account_id = ? AND picture <> '' AND picture NOT LIKE 'data:%'")
+    .all(app, accountId)
+    .catch(() => [])) as Array<{ picture: string }>;
+  if (pics.length) {
+    const { deleteUploads } = await import('./uploads');
+    await deleteUploads(pics.map((r) => r.picture)).catch(() => null);
+  }
   await db.prepare('DELETE FROM wa_contacts WHERE app = ? AND account_id = ?').run(app, accountId);
   await db.prepare('DELETE FROM wa_contact_sync WHERE app = ? AND account_id = ?').run(app, accountId);
 }

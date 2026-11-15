@@ -61,7 +61,7 @@ const WaComposer = forwardRef<
     /** Pegar fotos o archivos en el campo (van a la vista previa). */
     onPasteFiles?: (files: File[]) => void;
     /** Participantes para mencionar con "@" (grupos). */
-    mentionables?: Array<{ phone: string; name: string }>;
+    mentionables?: Array<{ phone: string; name: string; avatar?: string }>;
     /** Se escribió algo (para mandar "escribiendo"). */
     onTyping?: () => void;
     /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
@@ -156,6 +156,7 @@ const WaComposer = forwardRef<
 
   // Menciones (grupos): "@" abre los participantes; en el campo la mención se ve en verde y al mandar sale como
   // mención de WhatsApp ("@<teléfono>" con la lista de mencionados), que le avisa a la persona.
+  const mentionPics = useMemo(() => new Map((mentionables ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar!])), [mentionables]);
   const mentionPool = useMemo(() => (mentionables?.length ? waMentionables(mentionables, picked.current) : null), [mentionables, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const mentionHits = useMemo(() => (mentionPool && !editing ? findMentionHits(text, mentionPool) : []), [text, mentionPool, editing]);
   const mentionQuery = mentionPool && !editing ? mentionQueryAt(text, caret) : null;
@@ -243,15 +244,20 @@ const WaComposer = forwardRef<
     }
     setBusy('send');
     draft.sending();
+    // Una respuesta también lleva su clientId: si no le llega la respuesta y se vuelve a mandar, no sale dos veces.
+    const replyKey = `${replyToId}\n${out}`;
+    const replyClientId = retryIds.current.get(replyKey) ?? newClientId();
+    retryIds.current.delete(replyKey);
     // Por la misma cola del chat: una respuesta no se adelanta a un texto que todavía está saliendo.
     const r = await inboxQueue(thread.id)(() =>
       api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
         method: 'POST',
-        json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
+        json: { body: out, clientId: replyClientId, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
       }),
     );
     setBusy('');
     if (!r.ok) {
+      retryIds.current.set(replyKey, replyClientId);
       draft.failed(text);
       onError(r.data.error ?? 'send_failed');
       return;
@@ -417,7 +423,7 @@ const WaComposer = forwardRef<
                 onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
                 onClick={() => insertMention(p)}
               >
-                <Avatar name={p.name || p.id} kind="dm" size={32} seed={p.id} />
+                <Avatar name={p.name || p.id} kind="dm" size={32} src={mentionPics.get(p.id) || undefined} seed={p.id} />
                 <span className="wa-mention-who">
                   <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
                   {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}

@@ -1,0 +1,157 @@
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -1755,8 +1755,14 @@
+     'groups.update': (groupMetadataUpdate: Partial<GroupMetadata>[]) => {
+       this.sendDataWebhook(Events.GROUPS_UPDATE, groupMetadataUpdate);
+ 
++      // zerosoft: al conectar, Baileys trae todos los grupos de una (groupFetchAllParticipating) y los emite acá con
++      // la metadata completa. Releerla grupo por grupo eran decenas de groupMetadata seguidos y 429 de WhatsApp: si
++      // trae participantes se guarda tal cual; si no (cambio de asunto, ajustes), se relee una sola vez.
+       groupMetadataUpdate.forEach((group) => {
+-        if (isJidGroup(group.id)) {
++        if (!isJidGroup(group.id)) return;
++        if (Array.isArray(group.participants) && group.subject !== undefined) {
++          this.storeGroupMetadata(group.id, group as GroupMetadata).catch(() => undefined);
++        } else {
+           this.updateGroupMetadataCache(group.id);
+         }
+       });
+@@ -1780,7 +1786,9 @@
+ 
+       try {
+         // Usa o mesmo método que o endpoint /group/participants
+-        const groupParticipants = await this.findParticipants({ groupJid: participantsUpdate.id });
++        // zerosoft: se relee la metadata una vez (queda en caché) y los participantes salen de ahí.
++        await this.updateGroupMetadataCache(participantsUpdate.id);
++        const groupParticipants = await this.findParticipants({ groupJid: participantsUpdate.id }, true);
+ 
+         // Validação para garantir que temos dados válidos
+         if (!groupParticipants?.participants || !Array.isArray(groupParticipants.participants)) {
+@@ -1822,8 +1830,6 @@
+         // Fallback - envia sem conversão
+         this.sendDataWebhook(Events.GROUP_PARTICIPANTS_UPDATE, participantsUpdate);
+       }
+-
+-      this.updateGroupMetadataCache(participantsUpdate.id);
+     },
+   };
+ 
+@@ -3804,7 +3810,25 @@
+     return lastMessage as unknown as LastMessage;
+   }
+ 
++  // zerosoft: antes de mandar un cambio de app-state (archivar, no leído): la clave de la línea tiene que estar y la
++  // colección regular_low tiene que poder sincronizarse. Si no, Baileys arma el cambio sobre un estado vacío o viejo,
++  // WhatsApp no lo aplica (o lo guarda roto) y antes se respondía "archivado" igual. Ahora es un 409 con
++  // `app_state_unavailable` y el motivo, y quien llama le dice al usuario que vuelva a vincular la línea.
++  private async assertAppStateReady() {
++    // Mismo formato que las excepciones de Evolution (el middleware responde { status, error, response: { message } }).
++    const unavailable = (reason: string) => ({ status: 409, error: 'Conflict', message: [`app_state_unavailable: ${reason}`] });
++    if (this.stateConnection?.state !== 'open') throw unavailable('not_connected');
++    const keyId = this.client?.authState?.creds?.myAppStateKeyId;
++    if (!keyId) throw unavailable('missing_key');
++    const keys = await this.client.authState.keys.get('app-state-sync-key', [keyId]);
++    if (!keys?.[keyId]) throw unavailable('missing_key');
++    await (this.client as any).resyncAppState(['regular_low'], false);
++    const versions = await this.client.authState.keys.get('app-state-sync-version', ['regular_low']);
++    if (!versions?.regular_low?.version) throw unavailable('sync_failed');
++  }
++
+   public async archiveChat(data: ArchiveChatDto) {
++    await this.assertAppStateReady();
+     try {
+       let last_message = data.lastMessage;
+       let number = data.chat;
+@@ -3833,6 +3857,7 @@
+   }
+ 
+   public async markChatUnread(data: MarkChatUnreadDto) {
++    await this.assertAppStateReady();
+     try {
+       let last_message = data.lastMessage;
+       let number = data.chat;
+@@ -4376,24 +4401,56 @@
+   }
+ 
+   // Group
+-  private async updateGroupMetadataCache(groupJid: string) {
+-    try {
+-      const meta = await this.client.groupMetadata(groupJid);
+-
+-      const cacheConf = this.configService.get<CacheConf>('CACHE');
++  // zerosoft: pedidos de metadata en vuelo por grupo (dos eventos seguidos comparten uno) y pausa tras un 429.
++  private groupMetaInFlight = new Map<string, Promise<GroupMetadata | null>>();
++  private groupMetaPausedUntil = 0;
+ 
+-      if ((cacheConf?.REDIS?.ENABLED && cacheConf?.REDIS?.URI !== '') || cacheConf?.LOCAL?.ENABLED) {
+-        this.logger.verbose(`Updating cache for group: ${groupJid}`);
+-        await groupMetadataCache.set(groupJid, { timestamp: Date.now(), data: meta });
++  private isRateOverlimit(error: any) {
++    return error?.data === 429 || /rate-overlimit/.test(String(error?.message ?? ''));
++  }
++
++  // zerosoft: groupMetadata con pausa: después de un rate-overlimit no se le pide nada a WhatsApp por un minuto
++  // (insistir con 429 seguidos arriesga la cuenta). Lanza el error como antes.
++  private async groupMetadataPaced(groupJid: string) {
++    if (Date.now() < this.groupMetaPausedUntil) throw new BadRequestException('rate-overlimit (paused)');
++    try {
++      return await this.client.groupMetadata(groupJid);
++    } catch (error) {
++      if (this.isRateOverlimit(error)) {
++        this.groupMetaPausedUntil = Date.now() + 60_000;
++        this.logger.warn(`groupMetadata rate-overlimit: paused for 60s`);
+       }
++      throw error;
++    }
++  }
+ 
+-      return meta;
+-    } catch (error) {
+-      this.logger.error(error);
+-      return null;
++  private async storeGroupMetadata(groupJid: string, meta: GroupMetadata) {
++    const cacheConf = this.configService.get<CacheConf>('CACHE');
++    if ((cacheConf?.REDIS?.ENABLED && cacheConf?.REDIS?.URI !== '') || cacheConf?.LOCAL?.ENABLED) {
++      await groupMetadataCache.set(groupJid, { timestamp: Date.now(), data: meta });
+     }
+   }
+ 
++  private async updateGroupMetadataCache(groupJid: string) {
++    const pending = this.groupMetaInFlight.get(groupJid);
++    if (pending) return pending;
++    const run = (async () => {
++      try {
++        const meta = await this.groupMetadataPaced(groupJid);
++        this.logger.verbose(`Updating cache for group: ${groupJid}`);
++        await this.storeGroupMetadata(groupJid, meta);
++        return meta;
++      } catch (error) {
++        if (!this.isRateOverlimit(error) && Date.now() >= this.groupMetaPausedUntil) this.logger.error(error);
++        return null;
++      } finally {
++        this.groupMetaInFlight.delete(groupJid);
++      }
++    })();
++    this.groupMetaInFlight.set(groupJid, run);
++    return run;
++  }
++
+   private getGroupMetadataCache = async (groupJid: string) => {
+     if (!isJidGroup(groupJid)) return null;
+ 
+@@ -4630,9 +4687,13 @@
+     }
+   }
+ 
+-  public async findParticipants(id: GroupJid) {
++  public async findParticipants(id: GroupJid, cachedOnly = false) {
+     try {
+-      const participants = (await this.client.groupMetadata(id.groupJid)).participants;
++      // zerosoft: primero la caché (1 h, se renueva con cada evento del grupo); WhatsApp solo si no está.
++      const cached = cachedOnly || (await groupMetadataCache?.has(id.groupJid)) ? await this.getGroupMetadataCache(id.groupJid) : null;
++      const meta = cached ?? (cachedOnly ? null : await this.groupMetadataPaced(id.groupJid));
++      if (!meta) throw new Error('Group metadata not available');
++      const participants = meta.participants;
+       const contacts = await this.prismaRepository.contact.findMany({
+         where: { instanceId: this.instanceId, remoteJid: { in: participants.map((p) => p.id) } },
+       });

@@ -61,6 +61,7 @@ export default function RecComments({
   currentAbs,
   onSeek,
   onMarkers,
+  onReact,
 }: {
   shareId: string;
   trimStart: number;
@@ -70,6 +71,8 @@ export default function RecComments({
   currentAbs: () => number;
   onSeek: (relSec: number) => void;
   onMarkers?: (m: RecMarker[]) => void;
+  /** Reacción guardada: el reproductor la hace subir sobre el video. */
+  onReact?: (emoji: string) => void;
 }) {
   const t = useTranslations('rec.comments');
   const locale = useLocale();
@@ -150,7 +153,7 @@ export default function RecComments({
   }
 
   async function react(emoji: string) {
-    await post({ kind: 'reaction', emoji, atSec: currentAbs() });
+    if (await post({ kind: 'reaction', emoji, atSec: currentAbs() })) onReact?.(emoji);
   }
 
   async function submit() {

@@ -15,8 +15,20 @@ import TemplatePreview from './TemplatePreview';
 import { notifyBoardsChanged } from './BoardBranch';
 import { preloadCanvas } from './preloadCanvas';
 import { parseDbUtc } from '@/lib/utils';
+import { listLocalBoards, syncLocalBoard, writeLocalBoard, type LocalBoard } from '@/lib/board-sync';
 
 const TOAST_MS = 6000;
+/** Cada cuánto se vuelve a guardar la página de pizarras sin red (/app/board/local) y el lienzo. */
+const LOCAL_WARM_EVERY_MS = 6 * 60 * 60 * 1000;
+const LOCAL_WARM_KEY = 'zs:board-local-warm';
+
+function localStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 /** Plantillas plegadas o abiertas: se recuerda por navegador. */
 const TEMPLATES_KEY = 'board.templates.collapsed';
 const SEARCH_DEBOUNCE_MS = 250;
@@ -185,10 +197,62 @@ export default function BoardList({
   const currentFolderId = view.kind === 'folder' ? view.id : null;
   const searchingNow = query.trim().length > 0;
 
+  // Pizarras creadas sin red en este dispositivo: se listan y, con red, se suben (con su id: nunca dos veces).
+  const [localBoards, setLocalBoards] = useState<LocalBoard[]>([]);
+  const syncingLocal = useRef(false);
+  const syncLocal = useCallback(async () => {
+    const pending = listLocalBoards(localStore());
+    setLocalBoards(pending);
+    if (!pending.length || !navigator.onLine || syncingLocal.current) return;
+    syncingLocal.current = true;
+    let synced = 0;
+    for (const b of pending) if ((await syncLocalBoard(localStore(), b.id)) === 'synced') synced++;
+    syncingLocal.current = false;
+    setLocalBoards(listLocalBoards(localStore()));
+    if (synced) {
+      const res = await fetch('/api/boards').catch(() => null);
+      if (res?.ok) setBoards(((await res.json()) as { boards: BoardSummary[] }).boards);
+    }
+  }, []);
+  useEffect(() => {
+    void syncLocal();
+    const onOnline = () => void syncLocal();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [syncLocal]);
+
+  // Con red: la página de pizarras nuevas sin red y el lienzo quedan guardados en el dispositivo.
+  useEffect(() => {
+    if (!navigator.onLine || !('serviceWorker' in navigator)) return;
+    const store = localStore();
+    const last = Number(store?.getItem(LOCAL_WARM_KEY) ?? 0);
+    if (Date.now() - last < LOCAL_WARM_EVERY_MS) return;
+    preloadCanvas();
+    void navigator.serviceWorker.getRegistration().then((reg) => {
+      const target = navigator.serviceWorker.controller ?? reg?.active;
+      if (!target) return;
+      target.postMessage({ type: 'zs-warm', urls: [`${location.origin}/${locale}/app/board/local`], withStatics: true });
+      try {
+        store?.setItem(LOCAL_WARM_KEY, String(Date.now()));
+      } catch {
+        /* sin storage: se vuelve a guardar la próxima vez */
+      }
+    });
+  }, [locale]);
+
+  /** Sin red: la pizarra nace en el dispositivo y se abre en /app/board/local (el worker la sirve sin red). */
+  const createOffline = useCallback(() => {
+    const id = crypto.randomUUID();
+    if (!writeLocalBoard(localStore(), { id, name: t('list.untitled'), folderId: currentFolderId, createdAt: Date.now() })) return false;
+    window.location.assign(`/${locale}/app/board/local?id=${id}`);
+    return true;
+  }, [t, currentFolderId, locale]);
+
   const create = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     preloadCanvas(); // el lienzo baja mientras se crea la pizarra
+    if (!navigator.onLine && createOffline()) return;
     try {
       const res = await fetch('/api/boards', {
         method: 'POST',
@@ -198,11 +262,13 @@ export default function BoardList({
       if (!res.ok) throw new Error(String(res.status));
       const board = (await res.json()) as BoardDetail;
       router.push(`/app/board/${board.id}`);
-    } catch {
+    } catch (err) {
+      // Se cortó la red en el medio (fetch tira TypeError): igual que sin red.
+      if (err instanceof TypeError && createOffline()) return;
       setToast({ text: t('list.createError'), tone: 'error' });
       setBusy(false);
     }
-  }, [busy, router, t, currentFolderId]);
+  }, [busy, router, t, currentFolderId, createOffline]);
 
   /** Pizarra nueva con la escena de la plantilla, en el idioma de la interfaz. */
   async function createFromTemplate(key: BoardTemplateKey) {
@@ -435,7 +501,7 @@ export default function BoardList({
   }
 
   const newButton = (
-    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy}>
+    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy} data-testid="board-new">
       {busy ? t('list.creating') : t('list.new')}
     </button>
   );
@@ -462,6 +528,23 @@ export default function BoardList({
   const folder = view.kind === 'folder' ? folders.find((f) => f.id === view.id) ?? null : null;
   const shown = searchingNow ? (results ?? []) : starredFirst(view.kind === 'folder' ? boards.filter((b) => b.folder_id === view.id) : boards, starred);
   const folderName = (id: string | null | undefined) => (id ? folders.find((f) => f.id === id)?.name ?? null : null);
+  const localShown = view.kind === 'folder' ? localBoards.filter((b) => b.folderId === view.id) : localBoards;
+
+  /** Pizarra creada sin red: abre su página local (link común: sin red el router no puede pedir la página). */
+  function localCard(b: LocalBoard) {
+    return (
+      <li key={`local-${b.id}`} className="board-card is-local" data-testid="board-local-card" onPointerEnter={preloadCanvas} onFocus={preloadCanvas}>
+        <div className="board-thumb" aria-hidden="true" />
+        <div className="board-card-body">
+          <a href={`/${locale}/app/board/local?id=${encodeURIComponent(b.id)}`} className="board-card-name">
+            {b.name}
+          </a>
+          <p className="board-card-meta">{t('list.localHint')}</p>
+          <span className="badge badge-outline board-card-shared">{t('list.localBadge')}</span>
+        </div>
+      </li>
+    );
+  }
 
   function card(b: BoardSummary) {
     return (
@@ -544,7 +627,7 @@ export default function BoardList({
         <nav className="board-folders" aria-label={t('folders.title')}>
           <button type="button" className="board-folder-tab" aria-current={view.kind === 'all' && !searchingNow ? 'page' : undefined} onClick={() => setViewAndUrl({ kind: 'all' })}>
             {t('folders.all')}
-            <span className="board-folder-count">{boards.length}</span>
+            <span className="board-folder-count">{boards.length + localBoards.length}</span>
           </button>
           {folders.map((f) => (
             <button
@@ -660,14 +743,17 @@ export default function BoardList({
             </>
           )}
         </section>
-      ) : shown.length === 0 ? (
+      ) : shown.length === 0 && localShown.length === 0 ? (
         folder ? (
           <EmptyState quiet product="board" title={t('folders.emptyTitle')} body={t('folders.emptyHint')} action={newButton} />
         ) : (
           <EmptyState quiet product="board" title={t('list.emptyTitle')} body={t('list.emptyHint')} action={newButton} />
         )
       ) : (
-        <ul className="board-grid">{shown.map(card)}</ul>
+        <ul className="board-grid">
+          {localShown.map(localCard)}
+          {shown.map(card)}
+        </ul>
       )}
 
       {view.kind !== 'trash' && !searchingNow && (

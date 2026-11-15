@@ -7,7 +7,7 @@ const SITE = 'https://zerosoft.ai';
 const to = (DEPLOY_NOTIFY_TO || '').split(',').map((s) => s.trim()).filter(Boolean);
 if (!RESEND_API_KEY || !to.length) {
   console.log('deploy-notify: sin RESEND_API_KEY o DEPLOY_NOTIFY_TO, no se manda nada');
-  process.exit(0);
+  if (!process.env.DRY_RUN) process.exit(0);
 }
 
 async function gh(path) {
@@ -40,6 +40,36 @@ function gist(body) {
     .trim();
   const para = text.split(/\n\s*\n/).find((p) => p.trim() && !/^#+\s/.test(p.trim())) || '';
   return para.replace(/\s+/g, ' ').slice(0, 400);
+}
+
+/** Lee un string entre comillas simples de TypeScript (con \' y \\ escapados). */
+function unq(raw) {
+  return raw.replace(/\\(['"\\n])/g, (_, c) => (c === 'n' ? '\n' : c));
+}
+
+/**
+ * Las entradas del changelog que trae un PR (content/changelog-entries/*.ts), con su texto en inglés: el título y,
+ * por cada ítem, el producto y el texto. El archivo se lee de la versión desplegada.
+ */
+async function changelogEntries(n) {
+  const out = [];
+  try {
+    const files = await gh(`/pulls/${n}/files?per_page=100`);
+    for (const f of files.filter((x) => /^content\/changelog-entries\/.+\.ts$/.test(x.filename) && x.status !== 'removed').slice(0, 5)) {
+      try {
+        const file = await gh(`/contents/${f.filename}?ref=${DEPLOY_SHA}`);
+        const src = Buffer.from(file.content || '', 'base64').toString('utf8');
+        const title = /title:\s*\{[\s\S]*?\ben:\s*'((?:\\.|[^'\\])*)'/.exec(src);
+        const itemsSrc = src.slice(src.indexOf('items:'));
+        const items = [];
+        const re = /product:\s*'([a-z0-9-]+)'[\s\S]*?\ben:\s*'((?:\\.|[^'\\])*)'/g;
+        let m;
+        while ((m = re.exec(itemsSrc))) items.push({ product: m[1], text: unq(m[2]) });
+        if (title || items.length) out.push({ title: title ? unq(title[1]) : `Update #${n}`, items });
+      } catch {}
+    }
+  } catch {}
+  return out;
 }
 
 const base = await previousSha();
@@ -78,9 +108,20 @@ for (const n of [...new Set(prNums)]) {
         } catch {}
       }
     }
-    prs.push({ n, title: pr.title, url: pr.html_url, gist: parts.length ? '' : gist(pr.body), parts });
+    prs.push({
+      n,
+      title: pr.title,
+      url: pr.html_url,
+      gist: parts.length ? '' : gist(pr.body),
+      parts,
+      additions: pr.additions || 0,
+      deletions: pr.deletions || 0,
+      files: pr.changed_files || 0,
+      author: pr.user?.login || '',
+      entries: await changelogEntries(n),
+    });
   } catch {
-    prs.push({ n, title: `PR #${n}`, url: `https://github.com/${GITHUB_REPOSITORY}/pull/${n}`, gist: '', parts: [] });
+    prs.push({ n, title: `PR #${n}`, url: `https://github.com/${GITHUB_REPOSITORY}/pull/${n}`, gist: '', parts: [], additions: 0, deletions: 0, files: 0, author: '', entries: [] });
   }
 }
 // Commits que entraron por PR no se repiten como sueltos.
@@ -92,29 +133,58 @@ for (const n of prNums) {
 }
 const direct = loose.filter((c) => !prShas.has(c.sha));
 
+// ---- El mail, en inglés: lo nuevo (texto en inglés de cada entrada del changelog), lo interno y los números. ----
 const short = DEPLOY_SHA.slice(0, 8);
 const count = prs.reduce((a, p) => a + (p.parts.length || 1), 0) + direct.length;
-const subject = prs.length === 1 && !prs[0].parts.length && !direct.length ? `Deploy: ${prs[0].title}` : `Deploy ${short}: ${count} ${count === 1 ? 'cambio' : 'cambios'}`;
+const entries = prs.flatMap((p) => p.entries.map((e) => ({ ...e, pr: p })));
+const internal = prs.filter((p) => !p.entries.length);
+const totals = prs.reduce((t, p) => ({ add: t.add + p.additions, del: t.del + p.deletions, files: t.files + p.files }), { add: 0, del: 0, files: 0 });
+const when = new Date().toUTCString().replace(' GMT', ' UTC');
+const subject =
+  entries.length === 1 && count === 1
+    ? `Live on zerosoft.ai: ${entries[0].title}`
+    : entries.length
+      ? `Live on zerosoft.ai: ${entries.length} ${entries.length === 1 ? 'update' : 'updates'}${internal.length + direct.length ? ` + ${internal.length + direct.length} internal` : ''} (${short})`
+      : `Deployed ${short}: ${count} internal ${count === 1 ? 'change' : 'changes'}`;
+const productName = (p) => p.charAt(0).toUpperCase() + p.slice(1);
 
-const items = [
-  ...prs.map(
-    (p) =>
-      `<li style="margin:0 0 14px"><a href="${esc(p.url)}" style="color:#111;font-weight:600">#${p.n} ${esc(p.title)}</a>${p.gist ? `<div style="color:#555;margin-top:4px">${esc(p.gist)}</div>` : ''}${
-        p.parts.length ? `<ul style="padding-left:18px;margin:6px 0 0;color:#333">${p.parts.map((x) => `<li style="margin:0 0 4px"><a href="${esc(x.url)}" style="color:#333">#${x.n}</a> ${esc(x.title)}</li>`).join('')}</ul>` : ''
-      }</li>`,
-  ),
-  ...direct.map((c) => `<li style="margin:0 0 10px"><a href="https://github.com/${GITHUB_REPOSITORY}/commit/${c.sha}" style="color:#111">${esc(c.subject)}</a> <span style="color:#888">${c.sha.slice(0, 8)}</span></li>`),
-];
-const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111;max-width:640px">
-<p style="margin:0 0 16px">Ya está en producción <a href="${SITE}" style="color:#111">zerosoft.ai</a> (versión <code>${short}</code>).</p>
-${items.length ? `<ul style="padding-left:18px;margin:0 0 16px">${items.join('')}</ul>` : '<p>Sin cambios de código nuevos (redeploy).</p>'}
-<p style="color:#888;font-size:13px;margin:16px 0 0">${base ? `<a href="https://github.com/${GITHUB_REPOSITORY}/compare/${base.slice(0, 12)}...${short}" style="color:#888">Ver todos los cambios</a> · ` : ''}<a href="https://github.com/${GITHUB_REPOSITORY}/blob/main/content/changelog.ts" style="color:#888">Changelog</a>${DEPLOY_URL ? ` · <a href="${esc(DEPLOY_URL)}" style="color:#888">Deploy</a>` : ''}</p>
+const h = (t) => `<h2 style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#888;margin:28px 0 10px">${t}</h2>`;
+const entryHtml = (e) =>
+  `<div style="margin:0 0 22px"><div style="font-size:17px;font-weight:600;margin:0 0 6px">${esc(e.title)}</div>${e.items
+    .map(
+      (i) =>
+        `<p style="margin:0 0 8px">${i.product ? `<span style="display:inline-block;font-size:12px;font-weight:600;color:#555;border:1px solid #ddd;border-radius:4px;padding:0 6px;margin-right:6px">${esc(productName(i.product))}</span>` : ''}${esc(i.text)}</p>`,
+    )
+    .join('')}<div style="font-size:13px;color:#888"><a href="${esc(e.pr.url)}" style="color:#888">PR #${e.pr.n}</a> · ${e.pr.files} files · +${e.pr.additions} −${e.pr.deletions}</div></div>`;
+const internalHtml = (p) =>
+  `<li style="margin:0 0 12px"><a href="${esc(p.url)}" style="color:#111;font-weight:600">#${p.n} ${esc(p.title)}</a> <span style="color:#888;font-size:13px">· ${p.files} files · +${p.additions} −${p.deletions}</span>${
+    p.gist ? `<div style="color:#555;margin-top:4px">${esc(p.gist)}</div>` : ''
+  }${p.parts.length ? `<ul style="padding-left:18px;margin:6px 0 0;color:#333">${p.parts.map((x) => `<li style="margin:0 0 4px"><a href="${esc(x.url)}" style="color:#333">#${x.n}</a> ${esc(x.title)}</li>`).join('')}</ul>` : ''}</li>`;
+const links = [
+  base ? `<a href="https://github.com/${GITHUB_REPOSITORY}/compare/${base.slice(0, 12)}...${short}" style="color:#888">All changes</a>` : '',
+  `<a href="${SITE}/en/changelog" style="color:#888">Changelog</a>`,
+  `<a href="${SITE}/en/status" style="color:#888">Status</a>`,
+  DEPLOY_URL ? `<a href="${esc(DEPLOY_URL)}" style="color:#888">Deployment</a>` : '',
+].filter(Boolean);
+const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#111;max-width:640px">
+<p style="margin:0 0 6px">A new version of <a href="${SITE}" style="color:#111">zerosoft.ai</a> is live in production.</p>
+<p style="margin:0;color:#555;font-size:14px">Version <code>${short}</code> · ${esc(when)} · ${count} ${count === 1 ? 'change' : 'changes'} from ${prs.length} ${prs.length === 1 ? 'pull request' : 'pull requests'}${direct.length ? ` and ${direct.length} direct ${direct.length === 1 ? 'commit' : 'commits'}` : ''} · ${totals.files} files · +${totals.add} −${totals.del}</p>
+${entries.length ? h("What's new") + entries.map(entryHtml).join('') : ''}
+${internal.length || direct.length ? h(entries.length ? 'Also shipped (internal)' : 'What shipped (internal)') + `<ul style="padding-left:18px;margin:0">${internal.map(internalHtml).join('')}${direct
+  .map((c) => `<li style="margin:0 0 10px"><a href="https://github.com/${GITHUB_REPOSITORY}/commit/${c.sha}" style="color:#111">${esc(c.subject)}</a> <span style="color:#888">${c.sha.slice(0, 8)}</span></li>`)
+  .join('')}</ul>` : ''}
+${!entries.length && !internal.length && !direct.length ? '<p>No new code changes (redeploy).</p>' : ''}
+<p style="color:#888;font-size:13px;margin:28px 0 0">${links.join(' · ')}</p>
 </div>`;
 const text = [
-  `Ya está en producción zerosoft.ai (versión ${short}).`,
+  `A new version of zerosoft.ai is live in production.`,
+  `Version ${short} · ${when} · ${count} ${count === 1 ? 'change' : 'changes'} · ${totals.files} files · +${totals.add} -${totals.del}`,
+  ...(entries.length ? ['', "WHAT'S NEW", ...entries.flatMap((e) => ['', e.title, ...e.items.map((i) => `${i.product ? `[${productName(i.product)}] ` : ''}${i.text}`), `PR #${e.pr.n}: ${e.pr.url}`])] : []),
+  ...(internal.length || direct.length
+    ? ['', 'ALSO SHIPPED (INTERNAL)', ...internal.map((p) => `- #${p.n} ${p.title}${p.gist ? `\n  ${p.gist}` : ''}${p.parts.map((x) => `\n  · #${x.n} ${x.title}`).join('')}`), ...direct.map((c) => `- ${c.subject} (${c.sha.slice(0, 8)})`)]
+    : []),
   '',
-  ...prs.map((p) => `- #${p.n} ${p.title}${p.gist ? `\n  ${p.gist}` : ''}${p.parts.map((x) => `\n  · #${x.n} ${x.title}`).join('')}`),
-  ...direct.map((c) => `- ${c.subject} (${c.sha.slice(0, 8)})`),
+  `Changelog: ${SITE}/en/changelog · Status: ${SITE}/en/status${base ? ` · All changes: https://github.com/${GITHUB_REPOSITORY}/compare/${base.slice(0, 12)}...${short}` : ''}`,
 ].join('\n');
 
 if (process.env.DRY_RUN) {

@@ -1,8 +1,8 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecChapter, type RecOverlay } from '@/lib/rec-schema';
+import { chapterAt, fmtClock, mergeRanges, spriteTile, trimmedDuration, type Range, type RecChapter, type RecOverlay, type RecSpriteMeta } from '@/lib/rec-schema';
 
 export interface RecMarker {
   id: string;
@@ -18,6 +18,8 @@ export interface RecPlayerHandle {
   current(): number;
   /** Elemento de video (para tomar un frame como miniatura). */
   video(): HTMLVideoElement | null;
+  /** Emoji que sube sobre el video (al reaccionar). */
+  pop(emoji: string): void;
 }
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -51,9 +53,13 @@ const RecPlayer = forwardRef<
     overlays?: RecOverlay[];
     /** Sin descarga: el menú del navegador no ofrece "guardar video". */
     noDownload?: boolean;
+    /** Tira de miniaturas: vista previa al pasar o arrastrar por la línea de tiempo. */
+    sprite?: { url: string; meta: RecSpriteMeta } | null;
+    /** Silencios (segundos del original, de la transcripción): "Saltar silencios" los pasa de largo. */
+    silences?: Range[];
   }
 >(function RecPlayer(props, ref) {
-  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload } = props;
+  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload, sprite, silences = [] } = props;
   const t = useTranslations('rec.player');
   const wrap = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -65,6 +71,17 @@ const RecPlayer = forwardRef<
   const [captions, setCaptions] = useState(false);
   const [ended, setEnded] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
+  /** Vista previa de la línea de tiempo: segundo (del video recortado) y posición en px dentro del video. */
+  const [scrub, setScrub] = useState<{ t: number; x: number; w: number; tol: number } | null>(null);
+  const [spriteOk, setSpriteOk] = useState(false);
+  const media = useRef<HTMLDivElement>(null);
+  /** Emojis que suben sobre el video: los de las reacciones al pasar por su segundo, y el propio al reaccionar. */
+  const [pops, setPops] = useState<Array<{ id: number; emoji: string; x: number }>>([]);
+  const popSeq = useRef(0);
+  const [skipSilences, setSkipSilences] = useState(false);
+  // Lo que lee el evento timeupdate sin volver a engancharse.
+  const live = useRef({ markers, silences, skipSilences });
+  live.current = { markers, silences, skipSilences };
   // ranges: intervalos realmente reproducidos (segundos del video recortado), para el % visto.
   const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[] });
 
@@ -84,7 +101,13 @@ const RecPlayer = forwardRef<
     [trimStart, visible],
   );
 
-  useImperativeHandle(ref, () => ({ seek, current: () => time, video: () => video.current }), [seek, time]);
+  const pop = useCallback((emoji: string) => {
+    const id = ++popSeq.current;
+    setPops((prev) => [...prev.slice(-5), { id, emoji, x: 12 + Math.random() * 76 }]);
+    window.setTimeout(() => setPops((prev) => prev.filter((p) => p.id !== id)), 2200);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ seek, current: () => time, video: () => video.current, pop }), [seek, time, pop]);
 
   // ---------- Seguimiento de la vista ----------
   const send = useCallback(
@@ -159,6 +182,19 @@ const RecPlayer = forwardRef<
       }
       const rel = Math.max(0, Math.min(abs - trimStart, visible));
       const delta = rel - s.last;
+      const { markers: marks, silences: gaps, skipSilences: skip } = live.current;
+      // Reproduciendo de corrido: las reacciones del tramo que pasó suben sobre el video, como en Loom.
+      if (!v.paused && delta > 0 && delta < 2) {
+        for (const m of marks) {
+          const at = m.atSec - trimStart;
+          if (m.emoji && at > s.last && at <= rel) pop(m.emoji);
+        }
+      }
+      // Saltar silencios: dentro de un hueco sin voz, al final del hueco.
+      if (skip && !v.paused) {
+        const gap = gaps.find(([a, b]) => abs >= a + 0.3 && abs < b - 0.6);
+        if (gap) v.currentTime = Math.min(gap[1] - 0.25, end || gap[1]);
+      }
       if (!v.paused && delta > 0 && delta < 2) {
         s.watched += delta;
         const lastRange = s.ranges[s.ranges.length - 1];
@@ -206,7 +242,7 @@ const RecPlayer = forwardRef<
       v.removeEventListener('ended', onEnded);
       v.removeEventListener('seeked', onSeeked);
     };
-  }, [trimStart, end, visible, onTime, openView, send]);
+  }, [trimStart, end, visible, onTime, openView, send, pop]);
 
   useEffect(() => {
     if (video.current) video.current.playbackRate = speed;
@@ -217,6 +253,30 @@ const RecPlayer = forwardRef<
     if (!v) return;
     for (const tr of Array.from(v.textTracks)) tr.mode = captions ? 'showing' : 'hidden';
   }, [captions, captionsSrc]);
+
+  // La tira se carga una vez; si no está (todavía se arma, o es de otra versión), la vista previa muestra solo el tiempo.
+  useEffect(() => {
+    setSpriteOk(false);
+    if (!sprite?.url) return;
+    let alive = true;
+    const img = new Image();
+    img.onload = () => {
+      if (alive) setSpriteOk(true);
+    };
+    img.src = sprite.url;
+    return () => {
+      alive = false;
+    };
+  }, [sprite?.url]);
+
+  function scrubAt(clientX: number, el: HTMLElement) {
+    const box = el.getBoundingClientRect();
+    const m = media.current?.getBoundingClientRect();
+    if (!m || box.width <= 0) return;
+    const frac = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
+    // tol: a cuántos segundos queda una marca a 8 px del cursor (para mostrar su comentario).
+    setScrub({ t: frac * visible, x: clientX - m.left, w: m.width, tol: (8 / box.width) * visible });
+  }
 
   function toggle() {
     const v = video.current;
@@ -269,7 +329,7 @@ const RecPlayer = forwardRef<
       role="region"
       data-testid="rec-player"
     >
-      <div className="rec-player-media">
+      <div className="rec-player-media" ref={media}>
         <video
           ref={video}
           className="rec-player-video"
@@ -304,6 +364,23 @@ const RecPlayer = forwardRef<
                   </span>
                 ),
               )}
+          </div>
+        )}
+        {scrub && (
+          <ScrubPreview
+            scrub={scrub}
+            sprite={spriteOk ? (sprite ?? null) : null}
+            chapter={chapters[chapterAt(chapters, trimStart + scrub.t)]?.title ?? ''}
+            note={nearestMarker(markers, scrub.t + trimStart, scrub.tol)?.label ?? ''}
+          />
+        )}
+        {pops.length > 0 && (
+          <div className="rec-pops" aria-hidden="true">
+            {pops.map((p) => (
+              <span key={p.id} className="rec-pop" style={{ left: `${p.x}%` }} data-testid="rec-pop">
+                {p.emoji}
+              </span>
+            ))}
           </div>
         )}
         {!playing && (
@@ -341,7 +418,17 @@ const RecPlayer = forwardRef<
         <span className="rec-player-time data" aria-hidden="true">
           {fmtClock(time)} / {fmtClock(visible)}
         </span>
-        <div className="rec-timeline">
+        <div
+          className="rec-timeline"
+          onPointerMove={(e) => scrubAt(e.clientX, e.currentTarget)}
+          onPointerDown={(e) => scrubAt(e.clientX, e.currentTarget)}
+          onPointerLeave={() => setScrub(null)}
+          onPointerUp={(e) => {
+            if (e.pointerType !== 'mouse') setScrub(null);
+          }}
+          onPointerCancel={() => setScrub(null)}
+          data-testid="rec-timeline"
+        >
           <input
             type="range"
             className="rec-timeline-range"
@@ -422,6 +509,21 @@ const RecPlayer = forwardRef<
                   {s}x
                 </button>
               ))}
+              {silences.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={skipSilences}
+                  className="rec-menu-item"
+                  onClick={() => {
+                    setSkipSilences((v) => !v);
+                    setSpeedOpen(false);
+                  }}
+                  data-testid="rec-skip-silences"
+                >
+                  {t('skipSilences')}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -445,5 +547,43 @@ const RecPlayer = forwardRef<
     </div>
   );
 });
+
+/** La marca (comentario o reacción) más cerca del segundo `abs`, si está a menos de `tol`. */
+function nearestMarker(markers: RecMarker[], abs: number, tol: number): RecMarker | null {
+  let best: RecMarker | null = null;
+  for (const m of markers) if (Math.abs(m.atSec - abs) <= tol && (!best || Math.abs(m.atSec - abs) < Math.abs(best.atSec - abs))) best = m;
+  return best;
+}
+
+/** Cuadro y tiempo sobre la línea de tiempo, como YouTube o Loom. */
+function ScrubPreview({ scrub, sprite, chapter, note }: { scrub: { t: number; x: number; w: number }; sprite: { url: string; meta: RecSpriteMeta } | null; chapter: string; note: string }) {
+  // En pantallas angostas el cuadro es más chico (la tira se escala igual).
+  const width = scrub.w < 480 ? 112 : 160;
+  const left = Math.max(6, Math.min(scrub.x - width / 2, scrub.w - width - 6));
+  let frame: CSSProperties | null = null;
+  if (sprite) {
+    const k = width / sprite.meta.w;
+    const { x, y } = spriteTile(sprite.meta, scrub.t);
+    frame = {
+      width,
+      height: Math.round(sprite.meta.h * k),
+      backgroundImage: `url("${sprite.url}")`,
+      backgroundSize: `${sprite.meta.cols * sprite.meta.w * k}px auto`,
+      backgroundPosition: `${-x * k}px ${-y * k}px`,
+    };
+  }
+  return (
+    <div className="rec-scrub" style={{ left, width }} aria-hidden="true" data-testid="rec-scrub">
+      {frame && <span className="rec-scrub-frame" style={frame} data-testid="rec-scrub-frame" />}
+      {note && (
+        <span className="rec-scrub-note" data-testid="rec-scrub-note">
+          {note}
+        </span>
+      )}
+      {chapter && <span className="rec-scrub-chapter">{chapter}</span>}
+      <span className="rec-scrub-time data">{fmtClock(scrub.t)}</span>
+    </div>
+  );
+}
 
 export default RecPlayer;

@@ -1365,6 +1365,17 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
       return { name, about: about.trim().slice(0, 1000), pictureUrl, isBusiness: r.isBusiness === true };
     },
+    async profilePicture(chatId) {
+      try {
+        const r = (await api(`/chat/fetchProfilePictureUrl/${instance}`, 'POST', { number: chatId })) as Json;
+        const url = r && typeof r === 'object' ? String(r.profilePictureUrl ?? '') : '';
+        return /^https:\/\//.test(url) ? url.slice(0, 2000) : '';
+      } catch (err) {
+        // Sin foto o número que no existe: Evolution responde 400/404. Lo demás (429, caído) se informa.
+        if (err instanceof ProviderError && (err.code === 'not_found' || err.httpStatus === 400)) return '';
+        throw err;
+      }
+    },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
     },
@@ -1406,11 +1417,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       // grupos, quien escribió va como "<lid>@lid"). Con la nuestra (el teléfono) Evolution respondía bien pero el
       // teléfono no encontraba el mensaje y descartaba el archivado sin avisar. Si Evolution no tiene mensajes de ese
       // chat, se manda la referencia nuestra, como antes.
+      // 409: nuestro Evolution (parche 0004) no manda nada si la línea no puede sincronizar el archivado
+      // (`app_state_unavailable`): reintentar con otra referencia no sirve, hay que volver a vincular.
+      const appState = (err: unknown) =>
+        err instanceof ProviderError && err.httpStatus === 409 ? new ProviderError('app_state_unavailable', 409) : err;
       try {
         await api(`/chat/archiveChat/${instance}`, 'POST', { chat: chatId, archive });
       } catch (err) {
-        if (!last) throw err;
-        await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
+        const e = appState(err);
+        if (!last || e !== err) throw e;
+        await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last)).catch((err2) => {
+          throw appState(err2);
+        });
       }
     },
     async sendText(chatId, text, o) {

@@ -52,7 +52,7 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
   const [toast, setToast] = useState<{ text: string; id?: string; tone?: 'error' } | null>(null);
 
   useEffect(() => setRows(items), [items]);
-  useKeyShortcut('c', () => setModalOpen(true), !modalOpen && !oneOffOpen);
+  useKeyShortcut('c', () => navigator.onLine && setModalOpen(true), !modalOpen && !oneOffOpen);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 6000);
@@ -61,8 +61,9 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
 
   // Botones de "Crear" de la página (cabecera, estado vacío) abren el mismo modal.
   useEffect(() => {
-    const open = () => setModalOpen(true);
-    const openOneOff = () => setOneOffOpen(true);
+    // Sin red Cal es de solo lectura (CalOffline): el atajo C o "Nuevo" no abren un formulario que no se puede guardar.
+    const open = () => navigator.onLine && setModalOpen(true);
+    const openOneOff = () => navigator.onLine && setOneOffOpen(true);
     window.addEventListener('zs-cal:new-event-type', open);
     window.addEventListener('zs-cal:new-one-off', openOneOff);
     return () => {

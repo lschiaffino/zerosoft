@@ -5,11 +5,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { applyThreadAction, listThreads, type AccountRow } from '@/lib/inbox/core';
-import { connectWhatsapp, ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
+import { accountDto, applyThreadAction, getAccountById, listThreads, type AccountRow } from '@/lib/inbox/core';
+import { connectWhatsapp, disconnectWhatsapp, ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
 import { evolutionArchiveBody } from '@/lib/groups-provider-bridge';
 import { fakeArchives, fakeFailArchives, resetFakeProvider } from '@/lib/groups-provider-fake';
-import { connectNumber, createNumber, getChat, getNumberRowById, ingestEvents, listChats, updateChat, type NumberRow } from '@/lib/groups';
+import { connectNumber, createNumber, disconnectNumber, getChat, getNumberRowById, ingestEvents, listChats, toNumberDto, updateChat, type NumberRow } from '@/lib/groups';
 import { ECHO_WINDOW_MS, PACE_GAP_MS, RETRY_BACKOFF_MS, flushArchivePush, paceDelay, queueArchivePush, getArchivePush, isArchiveEcho, pickRef, runArchivePushes, secondsOf } from '@/lib/wa-archive-sync';
 import { fetchLive, latestLiveId, liveBatch, livePoll } from '@/lib/wa-live';
 import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from '@/lib/schema/wa-live-triggers';
@@ -346,6 +346,72 @@ describe('Lines ↔ WhatsApp', () => {
     await ingestEvents(number, [{ type: 'archive', chatId: jid, archived: true }]);
     expect(fakeArchives(number.id)).toHaveLength(1);
     expect((await getChat(ws, c.id))!.archived).toBe(true);
+  });
+});
+
+describe('la línea no puede sincronizar el archivado (app_state_unavailable)', () => {
+  it('Inbox: no se reintenta, la cuenta queda marcada y desvincular borra la marca', async () => {
+    const { owner, account } = await inboxSetup('wa-arch-appstate');
+    await ingestWhatsappEvents(account, [inbound('5491100004901@s.whatsapp.net')]);
+    const [t] = await listThreads(owner);
+    fakeFailArchives(`inbox-${account.id}`, 5, 'app_state_unavailable');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await applyThreadAction(owner, [t.id], { action: 'archive' });
+    warn.mockRestore();
+    const row = (await getArchivePush('inbox', t.id))!;
+    expect(row).toMatchObject({ attempts: 1, last_error: 'app_state_unavailable', sent_count: 0 });
+    // Se deja: ni reintento ni el otro id del chat.
+    expect(row.done_at).not.toBeNull();
+    expect(fakeArchives(`inbox-${account.id}`)).toHaveLength(0);
+    expect(accountDto((await getAccountById(account.id))!).archiveSyncBroken).toBe(true);
+    await disconnectWhatsapp((await getAccountById(account.id))!);
+    expect(accountDto((await getAccountById(account.id))!).archiveSyncBroken).toBe(false);
+  });
+
+  it('Lines: el número queda marcado y un archivado que sale bien borra la marca', async () => {
+    const { ws, number } = await linesSetup('wa-lines-appstate');
+    await ingestEvents(number, [inbound('5491100004902@s.whatsapp.net')]);
+    const [c] = (await listChats(ws, ws)).rows;
+    fakeFailArchives(number.id, 1, 'app_state_unavailable');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await updateChat(ws, c.id, { archived: true });
+    warn.mockRestore();
+    expect(toNumberDto((await getNumberRowById(number.id))!).archiveSyncBroken).toBe(true);
+    await updateChat(ws, c.id, { archived: false });
+    expect(fakeArchives(number.id)).toHaveLength(1);
+    expect(toNumberDto((await getNumberRowById(number.id))!).archiveSyncBroken).toBe(false);
+  });
+
+  it('con la marca puesta, el "no archivado" del teléfono no desarchiva lo archivado acá (Inbox y Lines)', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const { owner, account } = await inboxSetup('wa-arch-stale');
+    const jid = '5491100004903@s.whatsapp.net';
+    await ingestWhatsappEvents(account, [inbound(jid)]);
+    const [t] = await listThreads(owner);
+    await getDb().prepare("UPDATE inbox_accounts SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(account.id);
+    await getDb().prepare('UPDATE inbox_threads SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), t.id);
+    await ingestWhatsappEvents(account, [{ type: 'archive', chatId: jid, archived: false }]);
+    expect((await listThreads(owner, { view: 'archived' })).map((x) => x.id)).toEqual([t.id]);
+
+    const { ws, number } = await linesSetup('wa-lines-stale');
+    await ingestEvents(number, [inbound(jid)]);
+    const [c] = (await listChats(ws, ws)).rows;
+    await getDb().prepare("UPDATE groups_numbers SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(number.id);
+    await getDb().prepare('UPDATE groups_chats SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), c.id);
+    await ingestEvents(number, [{ type: 'archive', chatId: jid, archived: false }]);
+    expect((await getChat(ws, c.id))!.archived).toBe(true);
+    // Archivar desde el teléfono sí se aplica (eso llega bien aunque la marca esté).
+    await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(c.id);
+    await ingestEvents(number, [{ type: 'archive', chatId: jid, archived: true }]);
+    expect((await getChat(ws, c.id))!.archived).toBe(true);
+    info.mockRestore();
+  });
+
+  it('Lines: desconectar el número borra la marca', async () => {
+    const { ws, number } = await linesSetup('wa-lines-appstate-b');
+    await getDb().prepare("UPDATE groups_numbers SET archive_sync_error = 'app_state_unavailable' WHERE id = ?").run(number.id);
+    await disconnectNumber(ws, number.id);
+    expect(toNumberDto((await getNumberRowById(number.id))!).archiveSyncBroken).toBe(false);
   });
 });
 

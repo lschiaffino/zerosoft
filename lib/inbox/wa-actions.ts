@@ -4,7 +4,8 @@
  * todos (lo propio) o solo para mí, destacar, reenviar y las tildes azules
  * al abrir el chat. Todo filtra por la dueña. Server-only.
  */
-import { ProviderError } from '../groups-provider';
+import { privateQuoteAllowed } from '../wa-person';
+import { ProviderError, phoneDigits } from '../groups-provider';
 import { getDb } from '../db';
 import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { onceInFlight } from '../send-once';
@@ -53,7 +54,15 @@ export async function sendWaMessage(owner: string, threadId: string, body: strin
   let replyTo: string | undefined;
   if (opts.replyTo) {
     const quoted = await getMessageRow(owner, opts.replyTo);
-    if (quoted.thread_id !== thread.id) throw new InboxError('not_found', 404);
+    if (quoted.thread_id !== thread.id) {
+      // "Responder en privado": un mensaje de esta persona en un grupo de la misma cuenta, citado en su chat 1:1.
+      const from = await getThreadRow(owner, quoted.thread_id);
+      const ok = privateQuoteAllowed(
+        { accountId: from.account_id, groupKind: from.kind === 'group' ? 'group' : 'dm', fromMe: quoted.from_me === 1, senderPhone: phoneDigits(quoted.sender_handle), deleted: !!quoted.revoked_at },
+        { accountId: thread.account_id, kind: thread.kind === 'group' ? 'group' : 'dm', phone: phoneDigits(thread.handle) },
+      );
+      if (!ok) throw new InboxError('not_found', 404);
+    }
     replyTo = quoted.external_id;
   }
   // Solo se mencionan teléfonos que están escritos en el texto, y solo en grupos.

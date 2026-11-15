@@ -69,6 +69,8 @@ describe('modo sin conexión: ajustes', () => {
     expect(offlineAppOf('/pt/app/notes')).toBe('notes');
     expect(offlineAppOf('/app/notes/abc')).toBeNull();
     expect(offlineAppOf('/app/chat')).toBeNull();
+    expect(offlineAppOf('/en/app/board/b1')).toBe('board');
+    expect(offlineAppOf('/es/app/calendar/bookings')).toBe('cal');
     const prefs = parseOfflinePrefs({ apps: { docs: false } });
     expect(offlineAllows(prefs, '/en/app/docs/p1')).toBe(false);
     expect(offlineAllows(prefs, '/en/app/track')).toBe(true);
@@ -101,7 +103,7 @@ describe('modo sin conexión: ajustes', () => {
     const entries = [entry('old', 'crm', 1, 10, now), entry('a', 'docs', 30, 3, now), entry('b', 'track', 30, 2, now)];
     expect(sw.offlineEvictions(entries, prefs, now)).toEqual(offlineEvictions(entries, prefs, now));
     expect(sw.parseOfflinePrefs({ enabled: false, apps: { notes: false } })).toEqual(parseOfflinePrefs({ enabled: false, apps: { notes: false } }));
-    for (const p of ['/es/app', '/app/crm/x', '/app/docs/a', '/app/track', '/app/notes', '/app/notes/x', '/app/chat']) expect(sw.offlineAppOf(p), p).toBe(offlineAppOf(p));
+    for (const p of ['/es/app', '/app/crm/x', '/app/docs/a', '/app/track', '/app/notes', '/app/notes/x', '/app/chat', '/app/board/x', '/es/app/calendar', '/app/calendar/bookings']) expect(sw.offlineAppOf(p), p).toBe(offlineAppOf(p));
     expect(sw.OFFLINE_LIMITS).toEqual(OFFLINE_LIMITS);
     expect(sw.DEFAULT_PREFS).toEqual(DEFAULT_OFFLINE_PREFS);
   });
