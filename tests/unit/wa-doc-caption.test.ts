@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { editedText, parseEvolutionWebhook } from '@/lib/groups-provider-bridge';
-import { middleEllipsis } from '@/components/groups/wa/format';
+import { splitFileName } from '@/components/groups/wa/format';
 
 /**
  * Documentos con texto y su edición (Inbox y Lines, Evolution): el texto de
@@ -54,12 +54,11 @@ describe('edición del texto de un archivo', () => {
   });
 });
 
-describe('middleEllipsis', () => {
-  it('corta en el medio y deja la extensión', () => {
-    expect(middleEllipsis('corto.pdf')).toBe('corto.pdf');
-    const long = middleEllipsis('propuesta-comercial-version-final-revisada-por-todos.html', 36);
-    expect([...long].length).toBeLessThanOrEqual(36);
-    expect(long.endsWith('todos.html')).toBe(true);
-    expect(long).toContain('…');
+describe('splitFileName', () => {
+  it('los cortos van enteros; los largos dejan el final (la extensión) aparte', () => {
+    expect(splitFileName('corto.pdf')).toEqual(['corto.pdf', '']);
+    const [head, tail] = splitFileName('propuesta-comercial-version-final-revisada.html');
+    expect(head + tail).toBe('propuesta-comercial-version-final-revisada.html');
+    expect(tail).toBe('isada.html');
   });
 });

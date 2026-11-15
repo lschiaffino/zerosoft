@@ -103,14 +103,14 @@ export function extensionOf(name: string, type: string): string {
 }
 
 /**
- * Nombre de archivo en un renglón, como WhatsApp: si es largo se corta en el
- * medio y se conserva el final (la extensión): "informe-anual-de…final.pdf".
+ * Un nombre de archivo en dos partes para cortarlo en el medio con CSS: el
+ * principio (que se achica con "…") y el final que siempre se ve (los últimos
+ * caracteres con la extensión). Los nombres cortos van enteros en la primera.
  */
-export function middleEllipsis(name: string, max = 36): string {
+export function splitFileName(name: string, tail = 10): [string, string] {
   const chars = [...name];
-  if (chars.length <= max) return name;
-  const tail = Math.min(12, Math.max(6, Math.floor(max / 3)));
-  return `${chars.slice(0, max - tail - 1).join('').trimEnd()}…${chars.slice(-tail).join('')}`;
+  if (chars.length <= tail * 2) return [name, ''];
+  return [chars.slice(0, -tail).join(''), chars.slice(-tail).join('')];
 }
 
 /** Texto con links: partes de texto y de URL (sin HTML). */

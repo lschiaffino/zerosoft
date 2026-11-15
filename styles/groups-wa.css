@@ -485,7 +485,9 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-doc-pdf { --doc-c: #e94e3c; } .wa-doc-doc, .wa-doc-docx { --doc-c: #2d6cc0; } .wa-doc-xls, .wa-doc-xlsx, .wa-doc-csv { --doc-c: #1e7e45; }
 .wa-doc-ppt, .wa-doc-pptx { --doc-c: #d24726; } .wa-doc-zip, .wa-doc-rar { --doc-c: #8e7a5e; } .wa-doc-html, .wa-doc-htm { --doc-c: #e8710a; }
 .wa-doc-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.wa-doc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-preview); line-height: 18px; }
+.wa-doc-name { display: flex; min-width: 0; white-space: pre; font-size: var(--wa-fs-preview); line-height: 18px; }
+.wa-doc-name-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wa-doc-name-tail { flex: none; }
 .wa-doc-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-meta); line-height: 15px; color: var(--wa-text-2); }
 
 .wa-location { display: flex; flex-direction: column; width: min(270px, 62vw); color: var(--wa-text); text-decoration: none; border-radius: 6px; overflow: hidden; background: var(--wa-quote-bg); }

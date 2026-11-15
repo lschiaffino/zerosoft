@@ -72,7 +72,13 @@ async function check(page: Page, thread: Locator) {
   await expect(card.locator('.wa-doc-icon b')).toHaveText('HTML');
   await expect(card.locator('.wa-doc-meta')).toHaveText(/\d+ k?B • html$/);
   // El nombre en un renglón, cortado en el medio con la extensión a la vista.
-  await expect(card.locator('.wa-doc-name')).toHaveText(/….*\.html$/);
+  await expect(card.locator('.wa-doc-name')).toHaveText('propuesta-comercial-version-final-revisada.html');
+  const [head, tail] = [card.locator('.wa-doc-name-head'), card.locator('.wa-doc-name-tail')];
+  await expect(tail).toHaveText(/\.html$/);
+  // El principio se achica (con "…") y el final entra entero en la tarjeta.
+  expect(await head.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  const [tb0, cb0] = [(await tail.boundingBox())!, (await card.boundingBox())!];
+  expect(tb0.x + tb0.width).toBeLessThanOrEqual(cb0.x + cb0.width);
   expect((await card.locator('.wa-doc-name').boundingBox())!.height).toBeLessThan(24);
   // El texto debajo de la tarjeta.
   const [cb, tb] = [(await card.boundingBox())!, (await msg.locator('.wa-text').boundingBox())!];

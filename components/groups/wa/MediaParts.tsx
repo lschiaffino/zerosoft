@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { duration, extensionOf, fileSize, middleEllipsis, posterFrame, waveBars } from './format';
+import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars } from './format';
 import { DocIcon, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
@@ -216,6 +216,7 @@ export function DocCard({
   const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', size ? fileSize(size, locale) : '', ext.toLowerCase()].filter(Boolean).join(' • ');
   const isPdf = ext.toLowerCase() === 'pdf' || type === 'application/pdf';
   const shownName = name || t('media.file');
+  const [nameHead, nameTail] = splitFileName(shownName);
   const inner = (
     <>
       {isPdf && thumbnail ? (
@@ -231,8 +232,10 @@ export function DocCard({
         {ext && <b>{ext.slice(0, 4)}</b>}
       </span>
       <span className="wa-doc-main">
+        {/* Un renglón, cortado en el medio: el principio se achica con "…" y el final (la extensión) queda siempre. */}
         <span className="wa-doc-name" title={shownName}>
-          {middleEllipsis(shownName)}
+          <span className="wa-doc-name-head">{nameHead}</span>
+          {nameTail && <span className="wa-doc-name-tail">{nameTail}</span>}
         </span>
         <span className="wa-doc-meta">{url ? meta : t('thread.fileUnavailable')}</span>
       </span>
