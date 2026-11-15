@@ -36,7 +36,9 @@ import {
 import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
-import { ScheduledAllButton } from './Scheduled';
+import WhenDialog from '@/components/ui/WhenDialog';
+import { longWhen } from '@/lib/when-presets';
+import { ScheduledAllButton, useWhenLabels } from './Scheduled';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useSwitchingTo, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
@@ -227,6 +229,9 @@ export default function InboxShell({
   const locale = useLocale();
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [archivedView, setArchivedView] = useState(false);
+  const [snoozeFor, setSnoozeFor] = useState<ChatDto | null>(null);
+  const laterLabels = useWhenLabels();
+  const snoozeLabels = useMemo(() => ({ ...laterLabels, confirm: t('snooze.confirm') }), [laterLabels, t]);
   const [archivedInfo, setArchivedInfo] = useState({ total: 0, unread: 0 });
   const [dropped, setDropped] = useState<DroppedNumber[]>([]);
   const [hiding, setHiding] = useState<ChatDto | null>(null);
@@ -746,6 +751,26 @@ export default function InboxShell({
     return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
   }
 
+  /**
+   * Posponer: el chat queda archivado (acá y en WhatsApp) hasta la hora elegida, y vuelve solo. Sale de la lista al
+   * instante y Archivados suma uno; Deshacer lo deja como estaba.
+   */
+  async function snoozeChat(c: ChatDto, iso: string) {
+    setRows((rs) => (archivedView ? rs.map((r) => (r.id === c.id ? { ...r, archived: true, snoozedUntil: iso } : r)) : rs.filter((r) => r.id !== c.id)));
+    if (!c.archived) setArchivedInfo((cur) => ({ total: cur.total + 1, unread: cur.unread + (c.unread > 0 ? 1 : 0) }));
+    const res = await api(`/api/groups/chats/${c.id}`, { method: 'PATCH', body: { snoozedUntil: iso } });
+    void load(true);
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    showToast(t('snooze.done', { when: longWhen(iso, locale) }), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { snoozedUntil: null }) });
+  }
+
+  function cancelSnooze(c: ChatDto) {
+    void rowAction(c, { snoozedUntil: null }).then(() => showToast(t('snooze.cancelled'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { snoozedUntil: c.snoozedUntil }) }));
+  }
+
   /** Archivar o desarchivar, con deshacer en el aviso. */
   function toggleArchived(c: ChatDto) {
     void rowAction(c, { archived: !c.archived }).then(() =>
@@ -766,6 +791,7 @@ export default function InboxShell({
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
       { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
+      { key: 'snooze', glyph: <ClockIcon size={18} />, label: c.snoozedUntil ? t('snooze.cancel') : t('snooze.action'), onSelect: () => (c.snoozedUntil ? cancelSnooze(c) : setSnoozeFor(c)) },
       { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', glyph: <PinIcon size={18} />, label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
@@ -791,6 +817,7 @@ export default function InboxShell({
       { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
       ...from('unread'),
       ...from('archive'),
+      ...from('snooze'),
       ...from('pin'),
       ...from('mute'),
       ...from('close'),
@@ -944,6 +971,11 @@ export default function InboxShell({
                 )}
               </span>
               <span className="gr-row-icons">
+                {c.snoozedUntil && (
+                  <span className="gr-row-snoozed" data-testid="lines-row-snoozed" title={t('snooze.until', { when: longWhen(c.snoozedUntil, locale) })}>
+                    <ClockIcon size={16} label={t('snooze.until', { when: longWhen(c.snoozedUntil, locale) })} />
+                  </span>
+                )}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (
@@ -1569,6 +1601,17 @@ export default function InboxShell({
           setMoveIds(null);
           void moveToFolder(ids, folderId);
         }}
+      />
+      <WhenDialog
+        open={!!snoozeFor}
+        title={t('snooze.title')}
+        labels={snoozeLabels}
+        onPick={(iso) => {
+          const c = snoozeFor;
+          setSnoozeFor(null);
+          if (c) void snoozeChat(c, iso);
+        }}
+        onClose={() => setSnoozeFor(null)}
       />
       {gestures.layer}
       <ContextMenu anchor={ctxMenu.open?.anchor ?? null} items={ctxMenu.open ? ctxItems(ctxMenu.open.id) : []} onClose={ctxMenu.close} />

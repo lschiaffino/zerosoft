@@ -2454,5 +2454,14 @@
     "newColumnAdd": "Add column",
     "newColumnHelp": "A new zerosoft property for every group in the workspace. You can fill it in from the table or from each group.",
     "propCreated": "Column {name} added"
+  },
+  "snooze": {
+    "action": "Snooze chat",
+    "cancel": "Cancel snooze",
+    "title": "Snooze until",
+    "confirm": "Snooze",
+    "done": "Snoozed until {when}. It stays in Archived until then.",
+    "cancelled": "Snooze cancelled",
+    "until": "Snoozed until {when}"
   }
 }

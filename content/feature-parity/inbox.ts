@@ -73,7 +73,11 @@ const parity: ProductParity = {
     }),
     row('snooze', 'triage', ['Snooze (remind me)', 'Posponer', 'Adiar'], 'have', {
       weight: 2,
-      detail: ['H with six presets or any date. A new message brings it back early', 'H con seis opciones o cualquier fecha. Un mensaje nuevo lo trae antes', 'H com seis opções ou qualquer data. Uma mensagem nova traz de volta antes'],
+      detail: [
+        'H with six presets or any date. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
+        'H con seis opciones o cualquier fecha. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
+        'H com seis opções ou qualquer data. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
+      ],
     }),
     row('follow-up', 'triage', ['Remind me if there is no reply', 'Recordame si no contesta', 'Lembrar se não responder'], 'have', {
       detail: ['F. If they reply in the meantime the reminder clears by itself', 'F. Si contesta antes, el recordatorio se borra solo', 'F. Se responderem antes, o lembrete some sozinho'],

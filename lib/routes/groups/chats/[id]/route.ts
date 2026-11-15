@@ -20,7 +20,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json({ chat: maskChat(guard.viewer, chat), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído. */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar y posponer. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -44,6 +44,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
   if (typeof b.muted === 'boolean') patch.muted = b.muted;
   if (typeof b.archived === 'boolean') patch.archived = b.archived;
+  if (b.snoozedUntil === null || typeof b.snoozedUntil === 'string') patch.snoozedUntil = (b.snoozedUntil as string | null) || null;
   if (typeof b.hidden === 'boolean') patch.hidden = b.hidden;
   try {
     if (b.folderId === null || typeof b.folderId === 'string') {

@@ -9,7 +9,7 @@ import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
-import { sendUnarchiveMark } from '../wa-archive-sync';
+import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
@@ -174,6 +174,8 @@ export interface ThreadRow {
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
+  /** 1: el pospuesto archivó el chat (no estaba archivado); al cancelarlo vuelve a la bandeja. */
+  snooze_archived?: number;
   woke_at: string | null;
   woke_reason: string;
   follow_up_at: string | null;
@@ -366,8 +368,9 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
          done_at = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ((? = 1 AND (muted_until IS NULL OR muted_until <= ?)) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
-         snoozed_until = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE snoozed_until END,
+         archived_at = CASE WHEN ((? = 1 AND (muted_until IS NULL OR muted_until <= ? OR (snoozed_until IS NOT NULL AND snooze_archived = 1))) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
+         snoozed_until = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE snoozed_until END,
+         snooze_archived = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN 0 ELSE snooze_archived END,
          follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
        WHERE ${where}`,
@@ -398,13 +401,21 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
       out,
       sure,
       sentAt,
-      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
+      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado; si lo archivó un
+      // pospuesto, vuelve igual).
       live,
       now,
       out,
       sure,
       sentAt,
+      // El pospuesto termina cuando el chat sale de Archivados: llega un mensaje, o sale uno por WhatsApp.
       live,
+      out,
+      sure,
+      sentAt,
+      live,
+      out,
+      sure,
       sentAt,
       live,
       now,
@@ -420,8 +431,10 @@ function outgoingLive(m: NewMessage): boolean {
 
 /** Antes de tocar el chat: el desarchivado por envío queda anotado para el eco del teléfono (lib/wa-archive-sync.ts). */
 function unarchiveMark(m: NewMessage, sentAt: string, messageId: string, fromHere = false): BatchStatement[] {
-  if (!outgoingLive(m)) return [];
   const mine = 'c.id = (SELECT thread_id FROM inbox_messages WHERE id = ?)';
+  // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
+  if (!m.fromMe && !m.history) return [snoozeWakeMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
+  if (!outgoingLive(m)) return [];
   return [fromHere ? sendUnarchiveMark('inbox', mine, [messageId]) : sendUnarchiveMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
 }
 
@@ -434,6 +447,7 @@ function noteNewest(thread: ThreadRow, m: NewMessage, sentAt: string): void {
   if (outgoingLive(m) && thread.channel === 'whatsapp') {
     thread.archived_at = null;
     thread.done_at = null;
+    thread.snoozed_until = null;
   }
 }
 
@@ -1058,6 +1072,9 @@ export function futureIso(raw: string, now: Date): string {
   return new Date(t).toISOString();
 }
 
+/** El chat está pospuesto y fue el pospuesto el que lo archivó (columnas de inbox_threads). */
+const SNOOZE_ARCHIVED = '(snoozed_until IS NOT NULL AND snooze_archived = 1)';
+
 /** Una acción sobre uno o varios chats (todos de la persona; los ajenos se ignoran). Devuelve los ids que cambiaron. */
 export async function applyThreadAction(owner: string, ids: string[], a: ThreadAction, now = new Date()): Promise<string[]> {
   const db = getDb();
@@ -1075,12 +1092,13 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   let extra: Array<string | number | null> = [];
   switch (a.action) {
     case 'done':
-      sql = 'done_at = ?, snoozed_until = NULL, woke_at = NULL, woke_reason = \'\', unread = 0';
+      sql = 'done_at = ?, snoozed_until = NULL, snooze_archived = 0, woke_at = NULL, woke_reason = \'\', unread = 0';
       extra = [nowS];
       break;
     case 'undone':
       // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar".
-      sql = 'done_at = NULL, archived_at = NULL';
+      // Sacarlo de Archivados a mano cancela el pospuesto.
+      sql = 'done_at = NULL, archived_at = NULL, snoozed_until = NULL, snooze_archived = 0';
       break;
     case 'read':
       sql = 'unread = 0';
@@ -1101,14 +1119,19 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'unarchive':
-      sql = 'archived_at = NULL, done_at = NULL';
+      sql = 'archived_at = NULL, done_at = NULL, snoozed_until = NULL, snooze_archived = 0';
       break;
     case 'snooze':
-      sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
-      extra = [futureIso(a.until, now)];
+      // Posponer archiva el chat (queda en Archivados y en Pospuestos) hasta que vuelve. `snooze_archived` anota si
+      // lo archivó el pospuesto: uno que ya estaba archivado o "hecho" queda como estaba.
+      sql = `snooze_archived = CASE WHEN ${SNOOZE_ARCHIVED} OR (archived_at IS NULL AND done_at IS NULL) THEN 1 ELSE 0 END,
+        archived_at = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN ? ELSE archived_at END,
+        snoozed_until = ?, woke_at = NULL, woke_reason = ''`;
+      extra = [nowS, futureIso(a.until, now)];
       break;
     case 'unsnooze':
-      sql = 'snoozed_until = NULL';
+      // Cancelar el pospuesto (o Deshacer) deja el chat como estaba antes de posponerlo.
+      sql = `archived_at = CASE WHEN ${SNOOZE_ARCHIVED} THEN NULL ELSE archived_at END, snoozed_until = NULL, snooze_archived = 0`;
       break;
     case 'followUp':
       sql = 'follow_up_at = ?, follow_up_since = ?';
@@ -1142,7 +1165,19 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     }
   }
   const marks = unique.map(() => '?').join(',');
+  // Posponer y cancelar el pospuesto archivan o desarchivan solo algunos chats: los de WhatsApp se miran antes de cambiarlos.
+  let snoozePush: string[] = [];
+  if (a.action === 'snooze' || a.action === 'unsnooze') {
+    const moved = a.action === 'snooze' ? 'archived_at IS NULL AND done_at IS NULL' : `${SNOOZE_ARCHIVED} AND archived_at IS NOT NULL`;
+    snoozePush = ((await db
+      .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND ${moved} AND id IN (${marks})`)
+      .all(owner, ...unique)) as Array<{ id: string }>).map((r) => r.id);
+  }
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
+  if (snoozePush.length) {
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, snoozePush, a.action === 'snooze');
+  }
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
   // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
   // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.

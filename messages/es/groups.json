@@ -2454,5 +2454,14 @@
     "newColumnAdd": "Agregar columna",
     "newColumnHelp": "Una propiedad nueva de zerosoft para todos los grupos del workspace. Se completa desde la tabla o desde cada grupo.",
     "propCreated": "Columna {name} agregada"
+  },
+  "snooze": {
+    "action": "Posponer chat",
+    "cancel": "Cancelar pospuesto",
+    "title": "Posponer hasta",
+    "confirm": "Posponer",
+    "done": "Pospuesto hasta {when}. Hasta entonces queda en Archivados.",
+    "cancelled": "Pospuesto cancelado",
+    "until": "Pospuesto hasta {when}"
   }
 }

@@ -2454,5 +2454,14 @@
     "newColumnAdd": "Adicionar coluna",
     "newColumnHelp": "Uma nova propriedade do zerosoft para todos os grupos do workspace. Dá para preencher pela tabela ou por cada grupo.",
     "propCreated": "Coluna {name} adicionada"
+  },
+  "snooze": {
+    "action": "Adiar conversa",
+    "cancel": "Cancelar adiamento",
+    "title": "Adiar até",
+    "confirm": "Adiar",
+    "done": "Adiada até {when}. Fica em Arquivadas até lá.",
+    "cancelled": "Adiamento cancelado",
+    "until": "Adiada até {when}"
   }
 }

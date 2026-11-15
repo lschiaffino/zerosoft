@@ -267,6 +267,7 @@ function needsBookFirst(e: InboundEvent): boolean {
  * que puede ser su lid). Un chat que todavía no está en Inbox no se crea por
  * esto; uno que ya está así no se toca; el eco viejo de un pedido nuestro se
  * ignora (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
+ * Desarchivarlo desde el teléfono cancela el pospuesto, como desarchivarlo acá.
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
   const t = await findPhoneThread(account, chatId);
@@ -277,8 +278,11 @@ export async function applyPhoneArchive(account: AccountRow, chatId: string, arc
   if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
   traceArchive('inbox', chatId, archived, 'applied');
   await getDb()
-    .prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? nowIso() : null, archived ? 1 : 0, nowIso(), t.id);
+    .prepare(
+      `UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END,
+         snoozed_until = CASE WHEN ? THEN snoozed_until ELSE NULL END, snooze_archived = CASE WHEN ? THEN snooze_archived ELSE 0 END, updated_at = ? WHERE id = ?`,
+    )
+    .run(archived ? nowIso() : null, archived ? 1 : 0, archived ? 1 : 0, archived ? 1 : 0, nowIso(), t.id);
   return true;
 }
 
