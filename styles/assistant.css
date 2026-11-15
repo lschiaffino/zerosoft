@@ -288,7 +288,8 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 /* Confirmar / Cancelar: pegados abajo de la charla mientras se recorre una tarjeta larga; al final de la tarjeta, en su lugar. */
 .asst-action-bar {
   position: sticky;
-  bottom: 0;
+  /* La charla tiene 16px de relleno abajo: sin esto, el contenido de la tarjeta asoma debajo de la barra. */
+  bottom: -16px;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -305,6 +306,8 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 /* "Ir al final": aparece si subiste a leer; a la derecha, arriba del campo (no tapa Confirmar). */
 .asst-jump-wrap { position: relative; height: 0; z-index: 2; }
 .asst-jump { position: absolute; right: 16px; bottom: 10px; box-shadow: 0 2px 8px var(--ui-shadow); }
+/* En la página, dentro de la columna de la charla (no contra el borde de la ventana). */
+.asst-page-main .asst-jump { right: max(16px, calc((100% - 760px) / 2 + 12px)); }
 .asst-action-result { margin: 0; font-size: 0.8125rem; }
 .asst-action-result.is-done { color: var(--ok-ink); }
 .asst-action-result.is-partial { color: var(--warn-ink); }

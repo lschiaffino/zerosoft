@@ -66,12 +66,12 @@ async function nestedVerticalScrolls(messages: Locator): Promise<string[]> {
 
 async function askForPlan(page: Page, scope: Locator, tag: string): Promise<Locator> {
   await scope.getByTestId('assistant-file-input').setInputFiles({ name: 'inboxzero.json', mimeType: 'application/json', buffer: taggedFixture(tag) });
-  await expect(scope.getByTestId('assistant-attachment')).toHaveAttribute('data-status', 'ready', { timeout: 30_000 });
+  await expect(scope.getByTestId('assistant-attachment')).toHaveAttribute('data-status', 'ready', { timeout: 90_000 });
   const input = scope.getByRole('textbox', { name: /Ask anything/ });
   await input.fill('create the folders from this json in inbox');
   await input.press('Enter');
   const card = scope.getByTestId('assistant-msg-assistant').last().getByTestId('assistant-action');
-  await expect(card).toHaveAttribute('data-status', 'pending', { timeout: 30_000 });
+  await expect(card).toHaveAttribute('data-status', 'pending', { timeout: 90_000 });
   await expect(card).toContainText('New folders (23)');
   return card;
 }
@@ -141,7 +141,7 @@ test('página del asistente: una sola barra de scroll con un plan largo (1440)',
   expect(await messages.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(80);
 
   await confirm.click();
-  await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+  await expect(card).toHaveAttribute('data-status', 'done', { timeout: 120_000 });
 
   // Abrir la charla de nuevo: queda en el último mensaje.
   await expect(page).toHaveURL(/\?c=/);

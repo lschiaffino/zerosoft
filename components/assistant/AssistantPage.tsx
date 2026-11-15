@@ -130,12 +130,9 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
               title={showList ? t('page.hideChats') : t('page.showChats')}
               onClick={() => setShowList((v) => !v)}
             >
-              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-                {showList ? (
-                  <path d="M10 3 5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                ) : (
-                  <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-                )}
+              {/* Volver (flecha) o el reloj del historial, el mismo del panel. */}
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d={showList ? 'M10 3 5 8l5 5' : 'M8 3.5a4.5 4.5 0 1 1-4.3 3.2M3 3v3h3M8 5.5V8l1.8 1.2'} />
               </svg>
             </button>
             <h1 className="asst-page-title">{t('page.title')}</h1>
