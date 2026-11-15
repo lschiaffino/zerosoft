@@ -57,7 +57,7 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
   await entry.getByRole('link').click();
   await expect(page).toHaveURL(/\/app\/inbox\/v\/nofolder/);
   await expect(entry).toHaveClass(/active/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('No folder');
+  await expect(page.getByRole('heading', { level: 1, name: 'No folder' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Edit folder' })).toHaveCount(0);
 
   const list = page.locator('.ib-list');

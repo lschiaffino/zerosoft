@@ -1146,7 +1146,7 @@ export default function InboxApp(props: {
       />
       <div className="ib-list-pane">
         <div className="ib-list-head">
-          <div className={`ib-list-title${folder ? ' has-folder' : ''}`}>
+          <div className={`ib-list-title${folder || (view === 'nofolder' && !q) ? ' has-folder' : ''}`}>
             {/* En escritorio la miga ya dice "Bandeja" y el lateral tiene "Nuevo": se ocultan (styles/inbox.css, como Lines). En una carpeta queda su nombre. */}
             <h1 className="ib-h1">{viewTitle}</h1>
             {folder && (
