@@ -1,0 +1,44 @@
+/*
+ * Menú de adjuntar de Lines e Inbox (components/groups/wa/AttachMenu.tsx), como el de WhatsApp:
+ * íconos rellenos de un color cada uno, sin círculo, en el orden de WhatsApp; lo nuestro (AI,
+ * dictar, comandos...) separado abajo con íconos de línea grises. La lista va en un portal (fuera
+ * de .gr-inbox): usa los tokens de la app (--bg, --line, --dim).
+ */
+.gr-menu-list.is-attach { min-width: 232px; }
+.gr-menu-list.is-attach .gr-menu-item { gap: 14px; min-height: 40px; padding: 0 16px 0 12px; }
+.gr-menu-list.is-attach .gr-menu-icon { width: 24px; height: 24px; background: none; border-radius: 0; }
+.gr-menu-list.is-attach .gr-menu-glyph { width: 24px; }
+.gr-menu-list.is-attach .gr-menu-icon.is-doc { color: #7f66ff; }
+.gr-menu-list.is-attach .gr-menu-icon.is-photo { color: #007bfc; }
+.gr-menu-list.is-attach .gr-menu-icon.is-camera { color: #ff2e74; }
+.gr-menu-list.is-attach .gr-menu-icon.is-audio { color: #fa6533; }
+.gr-menu-list.is-attach .gr-menu-icon.is-contact { color: #009de2; }
+.gr-menu-list.is-attach .gr-menu-icon.is-poll { color: #ffb02e; }
+.gr-menu-list.is-attach .gr-menu-icon.is-sticker { color: #02a698; }
+/* Oscuro: los violetas, azules y verdes, un poco más claros para que se lean sobre el fondo. */
+:root[data-theme='dark'] .gr-menu-list.is-attach .gr-menu-icon.is-doc { color: #a791ff; }
+:root[data-theme='dark'] .gr-menu-list.is-attach .gr-menu-icon.is-photo { color: #53a6fd; }
+:root[data-theme='dark'] .gr-menu-list.is-attach .gr-menu-icon.is-sticker { color: #06cf9c; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .gr-menu-list.is-attach .gr-menu-icon.is-doc { color: #a791ff; }
+  :root:not([data-theme='light']) .gr-menu-list.is-attach .gr-menu-icon.is-photo { color: #53a6fd; }
+  :root:not([data-theme='light']) .gr-menu-list.is-attach .gr-menu-icon.is-sticker { color: #06cf9c; }
+}
+.wa-attach-wrap { position: relative; display: inline-flex; }
+
+/* Cámara en vivo (computadora): pantalla oscura, la imagen al centro y el botón redondo para sacar la foto. */
+.wa-camera { position: fixed; inset: 0; z-index: 2100; display: flex; flex-direction: column; color: #e9edef; background: #0b141a; }
+.wa-camera-head { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 12px; font-weight: 500; }
+.wa-camera-head .wa-icon-btn { color: inherit; }
+.wa-camera-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 16px; }
+.wa-camera-live,
+.wa-camera-shot { max-width: 100%; max-height: 100%; border-radius: 6px; }
+/* La vista en vivo, espejada como un espejo; la foto sale derecha. */
+.wa-camera-live { transform: scaleX(-1); background: #000; }
+.wa-camera-live.is-hidden { display: none; }
+.wa-camera-msg { position: absolute; max-width: 360px; margin: 0; padding: 0 16px; text-align: center; color: #aebac1; }
+.wa-camera-foot { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 96px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+.wa-camera-snap { width: 64px; height: 64px; padding: 0; background: #fff; background-clip: padding-box; border: 5px solid rgba(255, 255, 255, 0.35); border-radius: 50%; cursor: pointer; }
+.wa-camera-snap:hover { background-color: #f0f2f5; }
+.wa-camera-snap:focus-visible { outline: 2px solid #00a884; outline-offset: 3px; }
+.wa-camera-snap:disabled { opacity: 0.4; cursor: default; }
