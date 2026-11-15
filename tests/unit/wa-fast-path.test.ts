@@ -243,10 +243,11 @@ describe('mandar', () => {
     // Antes: 6 idas hasta el proveedor y 12 en total, en fila. Hoy: 4 consultas antes del proveedor en 2 idas
     // (tope de escrituras + quién mira + chat; línea + tope de envíos) y una tanda después.
     const beforeProvider = seen.sql.findIndex((q) => /INTO groups_messages/.test(q));
-    // 5 consultas antes del proveedor (la quinta, en la misma vuelta que el chat: ¿este clientId ya se mandó?).
-    expect(beforeProvider).toBeLessThanOrEqual(6);
-    // Consultas en total (la del clientId va en paralelo con otras: no suma espera).
-    expect(seen.trips).toBeLessThanOrEqual(7);
+    // 5 consultas antes del proveedor (la quinta, en la misma vuelta que el chat: ¿este clientId ya se mandó?), más
+    // tomar la clave del envío (send_claims: otra instancia con el mismo clientId no lo manda otra vez).
+    expect(beforeProvider).toBeLessThanOrEqual(7);
+    // Consultas en total (la del clientId va en paralelo con otras: no suma espera; la clave del envío, sí).
+    expect(seen.trips).toBeLessThanOrEqual(8);
     expect((body.meta as Record<string, unknown>).cid).toBe('cid-12345678');
     expect(body.status).toBe('sent');
     // Un clientId raro no se guarda.
@@ -296,10 +297,11 @@ describe('mandar', () => {
     });
     // Antes: 3 idas hasta el proveedor. Hoy: el límite por IP y, juntos, el chat y su cuenta.
     const insert = seen.sql.findIndex((q) => /INTO inbox_messages/.test(q));
-    // Más, en la misma vuelta que el chat y su cuenta: ¿este clientId ya se mandó?
-    expect(insert).toBeLessThanOrEqual(4);
-    // Consultas en total (la del clientId va en paralelo con otras: no suma espera).
-    expect(seen.trips).toBeLessThanOrEqual(7);
+    // Más, en la misma vuelta que el chat y su cuenta: ¿este clientId ya se mandó? Y tomar la clave del envío
+    // (send_claims: otra instancia con el mismo clientId no lo manda otra vez).
+    expect(insert).toBeLessThanOrEqual(5);
+    // Consultas en total (la del clientId va en paralelo con otras: no suma espera; la clave del envío, sí).
+    expect(seen.trips).toBeLessThanOrEqual(8);
     const mine = body.messages[body.messages.length - 1];
     expect(mine.body).toBe('respuesta');
     expect(mine.meta?.cid).toBe('cid-abcdefgh');
