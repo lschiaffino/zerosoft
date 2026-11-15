@@ -80,15 +80,24 @@ export async function contactPictures(scope: Pick<ContactScope, 'app' | 'account
   return out;
 }
 
-/** Guarda una foto y devuelve la URL nuestra ('' si no se pudo). */
-export type StorePicture = (url: string) => Promise<string>;
+/** Guarda una foto y devuelve la URL nuestra ('' si no se pudo). `scope`: de qué cuenta es (el dueño del archivo). */
+export type StorePicture = (url: string, scope?: ContactScope) => Promise<string>;
 
-/** Una data URL chica (solo el proveedor falso) queda tal cual; una URL de WhatsApp se baja a nuestro storage. */
-export async function defaultStorePicture(url: string): Promise<string> {
+/**
+ * Una data URL chica (solo el proveedor falso) queda tal cual; una URL de
+ * WhatsApp se baja a nuestro storage privado: en Lines la ve quien ve esa
+ * línea; en Inbox (personal), solo la persona dueña de la cuenta.
+ */
+export async function defaultStorePicture(url: string, scope?: ContactScope): Promise<string> {
   if (/^data:image\/(png|jpeg|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(url)) return url.length <= 64_000 ? url : '';
-  if (!/^https:\/\//.test(url)) return '';
-  const { storePicture } = await import('./groups-import');
-  return storePicture(url);
+  if (!/^https:\/\//.test(url) || !scope?.userId) return '';
+  const { downloadPicture } = await import('./groups-import');
+  const pic = await downloadPicture(url);
+  if (!pic) return '';
+  const { saveUpload } = await import('./uploads');
+  return saveUpload('chat', pic.name, pic.type, pic.data, scope.app === 'lines'
+    ? { workspaceId: scope.userId, userId: null, app: 'groups', access: 'workspace', scope: `groups-number:${scope.accountId}` }
+    : { workspaceId: scope.userId, userId: scope.userId, app: 'inbox', access: 'user' });
 }
 
 const ours = (url: string) => !!url && !url.startsWith('data:');
@@ -165,14 +174,20 @@ export async function refreshContactPictures(
       if (err instanceof ProviderError && (err.code === 'unreachable' || err.code === 'not_connected' || err.code === 'auth_failed')) break;
       continue;
     }
-    await applyPicture(r, url, store);
+    await applyPicture(r, url, store, scope);
     checked++;
   }
   return checked;
 }
 
 /** Guarda lo que dijo WhatsApp de la foto de una persona: nueva, la misma o ninguna. */
-export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'picture_src'>, url: string, store: StorePicture = defaultStorePicture): Promise<void> {
+export async function applyPicture(
+  r: Pick<PictureRow, 'id' | 'picture' | 'picture_src'>,
+  url: string,
+  store: StorePicture = defaultStorePicture,
+  /** De qué cuenta es la foto (el dueño del archivo guardado). */
+  scope?: ContactScope,
+): Promise<void> {
   const db = getDb();
   if (!url) {
     // Sin foto (la sacó, o su privacidad no deja verla): como en WhatsApp, iniciales.
@@ -187,7 +202,7 @@ export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'pictu
   }
   const src = pictureSource(url);
   if (src && src === r.picture_src && r.picture) return;
-  const stored = await store(url).catch(() => '');
+  const stored = await store(url, scope).catch(() => '');
   if (!stored) return;
   await db.prepare('UPDATE wa_contacts SET picture = ?, picture_src = ? WHERE id = ?').run(stored.slice(0, 64_000), src, r.id);
   if (ours(r.picture) && r.picture !== stored) {

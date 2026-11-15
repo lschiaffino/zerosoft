@@ -298,6 +298,9 @@ describe('cuerpo de la ruta y vista previa', () => {
       width: 10,
       height: 20,
     });
+    // Un archivo privado (/api/files) queda relativo: al mandar se chequea que sea del workspace.
+    expect(mediaFromBody({ url: '/api/files/AAAAAAAAAAAAAAAAAAAAAA/a.png', mimetype: 'image/png', filename: 'a.png' }, req)?.url).toBe('/api/files/AAAAAAAAAAAAAAAAAAAAAA/a.png');
+    expect(() => mediaFromBody({ url: '/api/files/../x', mimetype: 'image/png', filename: 'a.png' }, req)).toThrow(expect.objectContaining({ code: 'invalid_media' }));
     // Una media que vino y no sirve es un 400 (no se manda el texto solo).
     expect(() => mediaFromBody({ url: 'javascript:alert(1)' }, req)).toThrow(expect.objectContaining({ code: 'invalid_media', status: 400 }));
     expect(mediaFromBody(null, req)).toBeNull();

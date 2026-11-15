@@ -15,6 +15,12 @@ const CHECKS: Record<string, Check> = {
     const viewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);
     return canSeeChat(viewer, id);
   },
+  /** Foto de una persona de la libreta de una línea de Lines: quien ve esa línea. */
+  'groups-number': async (user, id) => {
+    const { groupsViewer, canSeeNumber } = await import('../groups-access');
+    const viewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);
+    return canSeeNumber(viewer, id);
+  },
   /** Adjuntos de una conversación de Chat: quien ve el widget (los restringidos, solo admins y su lista). */
   'chat-widget': async (user, id) => {
     const { getChatWidget } = await import('../chat-data');
