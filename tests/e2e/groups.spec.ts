@@ -176,6 +176,7 @@ test('grupos: crear uno, varios desde CSV y agregar miembros en lote', async ({ 
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   const a = `Batch A ${uid()}`;
   const b = `Batch B ${uid()}`;
+  await page.getByTestId('groups-more-button').click();
   await page.getByRole('button', { name: 'Import CSV' }).click();
   const csv = page.getByRole('dialog', { name: 'Create groups from a CSV' });
   await csv.getByLabel('Or paste it').fill(`name,participants\n${a},+15550002001\n${b},+15550002002 +15550002003`);
