@@ -74,8 +74,14 @@ export function inboundFake(): boolean {
   return process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true';
 }
 
+/** Sin secreto configurado: una clave fija solo sirve para desarrollo; en producción, error. */
+function devFallback(value: string): string {
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new Error('NEXTAUTH_SECRET is required');
+  return value;
+}
+
 function signingKey(): string {
-  return process.env.CHAT_INBOUND_SECRET || process.env.NEXTAUTH_SECRET || 'zerosoft-chat-inbound';
+  return process.env.CHAT_INBOUND_SECRET || process.env.NEXTAUTH_SECRET || devFallback('zerosoft-chat-inbound');
 }
 
 export function addressSignature(kind: 'reply' | 'inbox', id: string): string {

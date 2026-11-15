@@ -2767,9 +2767,10 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
+  if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
@@ -2875,6 +2876,8 @@ export interface MemberDto {
   phone: string;
   name: string;
   role: MemberRole;
+  /** Foto de perfil guardada ('' si no tiene o todavía no se pidió; lib/wa-contact-pictures.ts). */
+  picture?: string;
 }
 
 export async function listMembers(ws: string, chatId: string): Promise<MemberDto[]> {
@@ -2883,7 +2886,8 @@ export async function listMembers(ws: string, chatId: string): Promise<MemberDto
       // Sin nombre guardado en el grupo: el de la libreta del número (contactos y nombres de perfil de todos sus chats).
       `SELECT m.phone, CASE WHEN m.name <> '' THEN m.name ELSE COALESCE((
            SELECT CASE WHEN w.saved_name <> '' THEN w.saved_name ELSE w.push_name END FROM wa_contacts w
-           WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role
+           WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role,
+         COALESCE((SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') AS picture
        FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
        WHERE m.chat_id = ? AND c.user_id = ? ORDER BY CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
     )

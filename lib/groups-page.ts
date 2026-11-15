@@ -46,6 +46,14 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     listPinned(ws, chatId),
     listTeams(ws),
   ]);
+  // Grupo: las fotos de perfil de quienes escriben (los de la pantalla primero) y del resto, después de responder.
+  if (raw.kind === 'group' && number?.status === 'connected') {
+    const { refreshPicturesSoon } = await import('./wa-contact-pictures');
+    const { providerFor } = await import('./groups');
+    const senders = messages.filter((m) => m.direction === 'in' && m.senderPhone).map((m) => m.senderPhone).reverse();
+    const phones = [...senders, ...members.map((m) => m.phone)].filter((p) => p !== number.phone);
+    await refreshPicturesSoon({ app: 'lines', accountId: number.id, userId: number.user_id }, () => providerFor(number), phones).catch(() => null);
+  }
   const contact = chat.crmContactId
     ? ((await db
         .prepare("SELECT id, TRIM(first_name || ' ' || last_name) AS name, email FROM crm_contacts WHERE id = ? AND user_id = ?")

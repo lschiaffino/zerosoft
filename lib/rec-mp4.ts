@@ -251,11 +251,12 @@ async function sourceRow(id: string): Promise<(Row & { title: string }) | null> 
 }
 
 async function storeMp4(v: Row, bytes: Buffer): Promise<string> {
-  const { blobUploadEnabled, recBlobAccess } = await import('./rec-upload');
+  const { blobUploadEnabled, recBlobAccess, recPrivateToken } = await import('./rec-upload');
   if (blobUploadEnabled()) {
     const { put } = await import('@vercel/blob');
     const res = await put(`rec/${v.workspace_id}/${v.id}/${randomBytes(9).toString('base64url')}-mp4.mp4`, bytes, {
       access: recBlobAccess(),
+      ...(recPrivateToken() ? { token: recPrivateToken()! } : {}),
       contentType: 'video/mp4',
       addRandomSuffix: false,
       multipart: bytes.length > 50 * 1024 * 1024,
@@ -419,11 +420,13 @@ async function runSandbox(id: string, key: string): Promise<void> {
   if (!plan || plan.key !== key) return;
   const { Sandbox } = await import('@vercel/sandbox');
   const { generateClientTokenFromReadWriteToken } = await import('@vercel/blob/client');
-  const { recBlobAccess } = await import('./rec-upload');
+  const { recBlobAccess, recPrivateToken } = await import('./rec-upload');
   const { recBaseUrl } = await import('./rec-page');
+  const writeToken = recPrivateToken() ? { token: recPrivateToken()! } : {};
   const base = recBaseUrl();
   const pathname = `rec/${v.workspace_id}/${v.id}/${randomBytes(9).toString('base64url')}-mp4.mp4`;
   const token = await generateClientTokenFromReadWriteToken({
+    ...writeToken,
     pathname,
     allowedContentTypes: ['video/mp4'],
     validUntil: Date.now() + 2 * 3600_000,
@@ -431,6 +434,7 @@ async function runSandbox(id: string, key: string): Promise<void> {
   });
   const spritePathname = `rec/${v.workspace_id}/${v.id}/${randomBytes(9).toString('base64url')}-sprite.jpg`;
   const spriteToken = await generateClientTokenFromReadWriteToken({
+    ...writeToken,
     pathname: spritePathname,
     allowedContentTypes: ['image/jpeg'],
     validUntil: Date.now() + 2 * 3600_000,

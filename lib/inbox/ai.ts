@@ -287,16 +287,31 @@ export function inboxAiState(): InboxAiState {
   return aiEnabled() ? 'ready' : 'not_configured';
 }
 
-function inboxAiModel(): { model: LanguageModel; modelId: string; via: 'openrouter' | 'gateway' } | null {
+type InboxModel = { model: LanguageModel; modelId: string; via: 'openrouter' | 'gateway' };
+
+/**
+ * Modelos a probar, en orden: OpenRouter (si hay clave) y después el Gateway
+ * (si está). Si el primero falla de entrada o no escribe nada, se prueba el
+ * siguiente: la persona no ve un error mientras haya otro modelo que ande.
+ */
+function inboxAiModels(): InboxModel[] {
   const state = inboxAiState();
   if (state === 'disabled') throw new InboxError('ai_disabled', 503);
-  if (state !== 'ready') return null;
+  if (state !== 'ready') return [];
+  const out: InboxModel[] = [];
   if (process.env.OPENROUTER_API_KEY?.trim()) {
     const id = process.env.INBOX_AI_MODEL?.trim() || process.env.ASSISTANT_MODEL?.trim() || DEFAULT_ASSISTANT_MODEL;
-    return { model: openRouterChatModel(id, 'zerosoft inbox'), modelId: `openrouter:${id}`, via: 'openrouter' };
+    out.push({ model: openRouterChatModel(id, 'zerosoft inbox'), modelId: `openrouter:${id}`, via: 'openrouter' });
   }
-  const r = resolveAiModel(process.env.INBOX_AI_MODEL);
-  return { ...r, via: 'gateway' };
+  if (aiEnabled() || !out.length) {
+    try {
+      const g = resolveAiModel(out.length ? undefined : process.env.INBOX_AI_MODEL);
+      if (!out.some((o) => o.modelId === g.modelId)) out.push({ ...g, via: 'gateway' });
+    } catch {
+      /* sin Gateway: queda OpenRouter solo */
+    }
+  }
+  return out;
 }
 
 function mapError(err: unknown): InboxError {
@@ -342,65 +357,74 @@ async function* fakeChunks(text: string): AsyncGenerator<string> {
 export async function inboxAiStream(owner: string, req: InboxAiRequest): Promise<ReadableStream<Uint8Array>> {
   const b = await build(owner, req);
   if (inboxFakeAllowed()) return textStream(fakeChunks(b.fake));
-  const m = inboxAiModel();
-  if (!m) throw new InboxError('ai_not_configured', 503);
+  const models = inboxAiModels();
+  if (!models.length) throw new InboxError('ai_not_configured', 503);
   try {
     await assertAiQuota(owner);
   } catch (err) {
     throw mapError(err);
   }
-  const result = streamText({
-    model: m.model,
-    instructions: b.instructions,
-    prompt: b.prompt,
-    temperature: b.temperature,
-    maxOutputTokens: b.maxOutputTokens,
-    timeout: 45_000,
-    maxRetries: 1,
-    onEnd: async ({ totalUsage }) => {
-      await recordAiUsage({
-        workspaceId: owner,
-        feature: b.feature,
-        model: m.modelId,
-        inputTokens: totalUsage?.inputTokens ?? 0,
-        outputTokens: totalUsage?.outputTokens ?? 0,
-      }).catch(() => {});
-    },
-  });
-  const it = result.fullStream[Symbol.asyncIterator]();
-  // Hasta el primer texto (o el error o el final).
-  let first = '';
-  for (;;) {
-    const n = await it.next().catch((err: unknown) => ({ done: false as const, value: { type: 'error' as const, error: err } }));
-    if (n.done) break;
-    const part = n.value;
-    if (part.type === 'text-delta' && part.text) {
-      first = part.text;
-      break;
-    }
-    if (part.type === 'error') {
-      logFailure(m.via, m.modelId, part.error);
-      throw mapError(part.error);
-    }
-  }
-  if (!first) {
-    logFailure(m.via, m.modelId, new Error('empty response'));
-    throw new InboxError('ai_failed', 502);
-  }
-  async function* rest(): AsyncGenerator<string> {
-    yield first;
+  let lastErr: unknown = null;
+  for (const m of models) {
+    const result = streamText({
+      model: m.model,
+      instructions: b.instructions,
+      prompt: b.prompt,
+      temperature: b.temperature,
+      maxOutputTokens: b.maxOutputTokens,
+      timeout: 45_000,
+      maxRetries: 1,
+      onEnd: async ({ totalUsage }) => {
+        await recordAiUsage({
+          workspaceId: owner,
+          feature: b.feature,
+          model: m.modelId,
+          inputTokens: totalUsage?.inputTokens ?? 0,
+          outputTokens: totalUsage?.outputTokens ?? 0,
+        }).catch(() => {});
+      },
+    });
+    const it = result.fullStream[Symbol.asyncIterator]();
+    // Hasta el primer texto (o el error o el final).
+    let first = '';
+    let failed: unknown = null;
     for (;;) {
-      const n = await it.next();
-      if (n.done) return;
+      const n = await it.next().catch((err: unknown) => ({ done: false as const, value: { type: 'error' as const, error: err } }));
+      if (n.done) break;
       const part = n.value;
-      if (part.type === 'text-delta' && part.text) yield part.text;
-      else if (part.type === 'error') {
-        logFailure(m!.via, m!.modelId, part.error);
-        throw part.error;
+      if (part.type === 'text-delta' && part.text) {
+        first = part.text;
+        break;
+      }
+      if (part.type === 'error') {
+        failed = part.error;
+        break;
       }
     }
+    if (!first) {
+      const err = failed ?? new Error('empty response');
+      logFailure(m.via, m.modelId, err);
+      lastErr = err;
+      // Sin crédito o sin IA: no sirve probar otro modelo, se dice tal cual.
+      if (err instanceof AiError) throw mapError(err);
+      continue;
+    }
+    async function* rest(): AsyncGenerator<string> {
+      yield first;
+      for (;;) {
+        const n = await it.next();
+        if (n.done) return;
+        const part = n.value;
+        if (part.type === 'text-delta' && part.text) yield part.text;
+        else if (part.type === 'error') {
+          logFailure(m.via, m.modelId, part.error);
+          throw part.error;
+        }
+      }
+    }
+    return textStream(rest());
   }
-  return textStream(rest());
+  throw lastErr && !(lastErr instanceof Error && lastErr.message === 'empty response') ? mapError(lastErr) : new InboxError('ai_failed', 502);
 }
 
 /** Lee un stream de inboxAiStream entero (pedido sin stream). */

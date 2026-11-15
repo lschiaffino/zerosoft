@@ -19,6 +19,7 @@ import { getDb } from './db';
 import type { GroupsProvider } from './groups-provider';
 import type { WaApp } from './wa-contacts';
 import { privacyStale, refreshPrivacy } from './wa-privacy';
+import { refreshContactPictures } from './wa-contact-pictures';
 
 /** Cada cuánto se repasa una cuenta entera. */
 export const REFRESH_EVERY_MS = 24 * 3600_000;
@@ -32,6 +33,8 @@ const CHAT_BATCH = 20;
 /** Cuentas por corrida como máximo. */
 const ACCOUNTS_PER_RUN = 5;
 const CLAIM_MS = 3 * 60_000;
+/** Fotos de participantes por grupo en cada repaso (lib/wa-contact-pictures.ts: vencen a la semana). */
+const PICTURES_PER_CHAT = 15;
 
 export type RefreshPhase = 'contacts' | 'chats' | 'idle';
 
@@ -222,7 +225,16 @@ export async function refreshInboxDaily(now = new Date(), deadline = Date.now() 
         ).map((r) => r.id),
       refreshChat: async (id) => {
         const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND account_id = ?').get(id, account.id)) as import('./inbox/core').ThreadRow | undefined;
-        if (thread) await refreshChatInfo(account, thread, now);
+        if (!thread) return;
+        await refreshChatInfo(account, thread, now);
+        // Grupo: de paso, las fotos de algunos participantes que nunca se pidieron o vencieron.
+        if (thread.kind === 'group') {
+          const { parseThreadInfo } = await import('./inbox/wa-meta');
+          const fresh = (await db.prepare('SELECT info FROM inbox_threads WHERE id = ?').get(thread.id)) as { info: string } | undefined;
+          const me = account.address.replace(/\D/g, '');
+          const phones = parseThreadInfo(fresh?.info).participants.map((p) => p.phone).filter((p) => p !== me);
+          await refreshContactPictures({ app: 'inbox', accountId: account.id, userId: account.owner_id }, provider, phones, { now, deadline, limit: PICTURES_PER_CHAT, gapMs });
+        }
       },
     };
     if (await refreshAccount('inbox', account.id, target, deadline, now, gapMs)) n++;
@@ -291,6 +303,9 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
           const about = info.about.slice(0, 2000);
           if (about !== chat.description) await db.prepare('UPDATE groups_chats SET description = ? WHERE id = ?').run(about, chat.id);
           if (info.participants?.length) await groups.storeMembers(chat.id, info.participants);
+          // De paso, las fotos de algunos participantes que nunca se pidieron o vencieron.
+          const phones = (info.participants ?? []).map((p) => p.phone).filter((p) => p && p !== number.phone);
+          await refreshContactPictures({ app: 'lines', accountId: number.id, userId: number.user_id }, provider, phones, { now, deadline, limit: PICTURES_PER_CHAT, gapMs });
         }
         await learnLinesChatInfo(number, chat.provider_chat_id, info);
         // Foto: se baja de nuevo solo si cambió (la guardamos nosotros: la de WhatsApp vence).

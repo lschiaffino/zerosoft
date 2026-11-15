@@ -259,11 +259,24 @@ export async function isArchiveEcho(app: ArchiveApp, chatId: string, archived: b
  * Qué se hizo con un archivado que llegó desde el teléfono, en los logs (sin el número: solo el tipo de id y sus
  * últimos 2 dígitos). Siempre devuelve false salvo 'applied', para usarlo como return.
  */
-export function traceArchive(app: ArchiveApp, jid: string, archived: boolean, result: 'not_found' | 'hidden' | 'same' | 'echo' | 'applied'): boolean {
+export function traceArchive(app: ArchiveApp, jid: string, archived: boolean, result: 'not_found' | 'hidden' | 'same' | 'echo' | 'stale' | 'applied'): boolean {
   const kind = isGroupJid(jid) ? 'group' : isLidJid(jid) ? 'lid' : 'pn';
   // eslint-disable-next-line no-console
   console.info('[wa-archive] phone', JSON.stringify({ app, kind, tail: jid.split('@')[0].slice(-2), archived, result }));
   return result === 'applied';
+}
+
+/**
+ * ¿El teléfono quiere desarchivar un chat archivado acá, con el archivado de la
+ * línea roto (archive_sync_error)? Entonces el "no archivado" es el estado viejo
+ * del teléfono, al que nunca llegó nuestro archivado: no se aplica (si no, lo
+ * archivado en zerosoft vuelve solo a la bandeja).
+ */
+export async function isStaleUnarchive(app: ArchiveApp, scopeId: string, archived: boolean): Promise<boolean> {
+  if (archived) return false;
+  const table = app === 'inbox' ? 'inbox_accounts' : 'groups_numbers';
+  const row = (await getDb().prepare(`SELECT archive_sync_error FROM ${table} WHERE id = ?`).get(scopeId)) as { archive_sync_error?: string } | undefined;
+  return !!row?.archive_sync_error;
 }
 
 /** El mismo chat 1:1 con el otro id que conoce WhatsApp (teléfono ↔ lid), si la libreta lo sabe. */
