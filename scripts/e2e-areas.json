@@ -1,0 +1,96 @@
+{
+  "//": "Qué e2e corre un pull request según lo que toca (scripts/e2e-select.mjs; tests/unit/e2e-select.test.ts). En main y en la corrida nocturna corre todo. Un archivo que no cae en 'skip', en un área ni es un spec pide la suite completa.",
+
+  "skip": [
+    "content/**", "research/**", "docs/**", "**/*.md", "desktop/**", "tests/unit/**",
+    "infra/**", "ops/**", "services/**", "cli/**", "extensions/**", "mobile/**", ".env*.example",
+    "scripts/api-public-routes.json", "scripts/api-route-guards.mjs",
+    "Dockerfile", ".dockerignore", "docker-compose.yml", "docker/**",
+    "tests/e2e-real/**", "playwright.real.config.ts", "tests/e2e/quarantine.json"
+  ],
+
+  "//core-only": "Una migración nueva corre con cada app sobre una base vacía en app-smoke (core); el resto lo deciden los demás archivos del PR.",
+  "core-only": ["lib/schema/migration-files/**"],
+
+  "full": [
+    "components/ui/**", "components/app/**", "lib/ui/**",
+    "lib/db*", "lib/schema/**", "lib/auth*", "lib/session*", "lib/workspace*", "lib/teams*", "lib/products.ts",
+    "middleware.ts", "styles/globals.css", "styles/ui.css", "styles/app*.css", "styles/themes/**",
+    "messages/*/common.json", "i18n/**",
+    "package.json", "package-lock.json", "playwright.config.ts", "next.config.*", "tsconfig.json",
+    "scripts/e2e-*", ".github/**",
+    "tests/e2e/helpers/**", "tests/e2e/fixtures/**", "tests/e2e/quarantine.ts", "tests/e2e/responsive-audit.ts"
+  ],
+
+  "core": ["app-smoke", "onboarding", "invite-signup", "account-security", "responsive-a"],
+
+  "docker": ["Dockerfile", ".dockerignore", "docker-compose.yml", "docker/**", "package.json", "package-lock.json", "next.config.*", ".github/workflows/ci.yml"],
+
+  "real": [
+    "tests/e2e-real/**", "playwright.real.config.ts", "playwright.config.ts", ".github/workflows/ci.yml",
+    "lib/auth*", "lib/session*", "lib/workspace*", "lib/teams*", "lib/email*", "middleware.ts",
+    "components/auth/**", "app/api/auth/**", "app/api/teams/**", "app/[locale]/auth/**", "app/[locale]/invite/**"
+  ],
+
+  "quarantine": ["tests/e2e/quarantine.json", "tests/e2e/quarantine.ts", "playwright.config.ts", ".github/workflows/ci.yml"],
+
+  "areas": {
+    "inbox": { "names": ["inbox", "inboxWa"], "specs": ["inbox", "inbox-*", "assistant-folders"], "with": ["chat-ui"] },
+    "lines": {
+      "names": ["groups", "lines"],
+      "specs": ["groups", "groups-*", "lines-*", "member-capabilities", "tasks-unified"],
+      "with": ["chat-ui", "inbox"]
+    },
+    "chat-ui": {
+      "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
+      "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard"],
+      "with": ["inbox", "lines"]
+    },
+    "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
+    "notes": { "names": ["notes"], "specs": ["notes-*", "member-privacy"], "with": ["board"] },
+    "board": { "names": ["board", "boards"], "paths": ["app/[locale]/b/**"], "specs": ["board-*", "offline-board", "notes-board"] },
+    "track": { "names": ["track", "trackList", "trackPlanning", "trackTriage"], "specs": ["track-*", "offline-track", "importers"] },
+    "crm": { "names": ["crm"], "paths": ["styles/quote.css", "app/[locale]/q/**", "app/[locale]/view/**", "app/[locale]/watch/**"], "specs": ["crm-*"], "with": ["cal"] },
+    "cal": { "names": ["calendar", "cal"], "paths": ["app/[locale]/book/**", "app/[locale]/r/**"], "specs": ["cal-*", "offline-cal"] },
+    "voice": { "names": ["voice"], "paths": ["app/[locale]/m/**"], "specs": ["voice", "voice-*"] },
+    "rec": { "names": ["rec"], "paths": ["app/[locale]/v/**"], "specs": ["rec", "rec-*", "docs-meeting-rec"] },
+    "send": { "names": ["send"], "specs": ["send", "send-*"] },
+    "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms"] },
+    "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
+    "chat": { "names": ["chat"], "specs": ["chat", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
+    "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
+    "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },
+    "flow": { "names": ["flow"], "specs": ["flow-*"] },
+    "agents": { "names": ["agents"], "paths": ["app/[locale]/a/**"], "specs": ["agents", "agents-*"] },
+    "robots": { "names": ["robots"], "specs": ["robots", "robots-*"] },
+    "assistant": { "names": ["assistant"], "specs": ["assistant", "assistant-*"] },
+    "analytics": {
+      "names": ["analytics", "analytics-kit", "analyticsKit", "analyticsMore", "analyticsReplay", "pulse", "bi", "ingest"],
+      "paths": ["app/[locale]/stats/**"],
+      "specs": ["analytics", "analytics-*", "bi"]
+    },
+    "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**"], "specs": ["books"] },
+    "shop": { "names": ["shop"], "paths": ["app/store/**", "styles/store.css"], "specs": ["shop"] },
+    "social": { "names": ["social"], "specs": ["social"] },
+    "design": { "names": ["design"], "paths": ["app/[locale]/d/**"], "specs": ["design"] },
+    "calls": { "names": ["calls"], "paths": ["app/[locale]/call/**"], "specs": ["calls"] },
+    "hr": { "names": ["hiring", "people"], "paths": ["lib/hr-*", "styles/careers.css", "app/careers/**"], "specs": ["hiring", "hr-*", "people"] },
+    "fleet": { "names": ["fleet"], "specs": ["fleet"] },
+    "mcp": { "names": ["mcp"], "paths": ["scripts/mcp-catalog.mjs"], "specs": ["mcp"] },
+    "status": { "names": ["status"], "specs": ["status-page"] },
+    "settings": { "names": ["settings"], "specs": ["settings", "settings-*", "platform-settings", "privacy", "lifecycle-emails", "display-settings"] },
+    "desktop-web": { "names": ["desktop", "download"], "paths": ["app/[locale]/download/**", "styles/desktop-download.css"], "specs": ["desktop-*", "download"] },
+    "site": {
+      "names": ["site", "blog", "products", "pages", "compare", "changelog", "tools", "videos", "legal"],
+      "paths": ["app/[locale]/page.tsx", "app/[locale]/products/**", "app/[locale]/compare/**", "app/[locale]/blog/**", "app/[locale]/changelog/**", "app/[locale]/tools/**", "app/[locale]/videos/**", "components/Header*.tsx", "components/Footer.tsx", "lib/og/**", "lib/seo*"],
+      "specs": ["site", "site-static", "seo", "og-cards", "product-parity"]
+    }
+  },
+
+  "full-only": [
+    "apps-coming-soon", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
+    "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "qa-followups", "qa-polish",
+    "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
+  ]
+}
