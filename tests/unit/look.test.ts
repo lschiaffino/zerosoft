@@ -27,6 +27,7 @@ describe('look', () => {
   it('el script inicial aplica la cookie solo en la app', () => {
     expect(runInit('/en/app/crm', 'zs_look=classic')).toBe('classic');
     expect(runInit('/es/app', 'x=1; zs_look=liquid')).toBe('liquid');
+    expect(runInit('/en/app', 'zs_look=retro')).toBe('retro');
     expect(runInit('/en/app', '')).toBe('classic');
     expect(runInit('/en/app', 'zs_look=lines')).toBe('lines');
     expect(runInit('/en', 'zs_look=liquid')).toBe('lines');
@@ -54,8 +55,8 @@ describe('look', () => {
   });
 
   it('cada bloque oscuro de un aspecto está para el sistema y para data-theme', () => {
-    const css = readFileSync('styles/looks.css', 'utf8');
-    for (const look of ['classic', 'liquid']) {
+    const css = readFileSync('styles/looks.css', 'utf8') + readFileSync('styles/looks-retro.css', 'utf8');
+    for (const look of ['classic', 'liquid', 'retro']) {
       const system = css.match(new RegExp(`:root\\[data-look='${look}'\\]:not\\(\\[data-theme='light'\\]\\) \\{([^}]*)\\}`))?.[1];
       const explicit = css.match(new RegExp(`:root\\[data-look='${look}'\\]\\[data-theme='dark'\\] \\{([^}]*)\\}`))?.[1];
       expect(system, look).toBeTruthy();

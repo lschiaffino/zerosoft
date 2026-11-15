@@ -10,6 +10,8 @@
  *   color de la app en los bordes activos, botones principales y filetes.
  * - `liquid`: superficies translúcidas con desenfoque, radios grandes y
  *   barras y menús que flotan (Liquid Glass de Apple).
+ * - `retro`: un escritorio de los noventa: botones y ventanas en relieve,
+ *   campos hundidos, barras de título con degradé (styles/looks-retro.css).
  *
  * <html data-look="…"> lo pone LOOK_INIT_SCRIPT antes del primer paint desde
  * la cookie zs_look; la preferencia de verdad vive en users.look (la app la
@@ -18,7 +20,7 @@
  * Sin imports de Node ni de React: lo usan el layout y el cliente.
  */
 
-export const LOOKS = ['classic', 'lines', 'liquid'] as const;
+export const LOOKS = ['classic', 'lines', 'liquid', 'retro'] as const;
 export type Look = (typeof LOOKS)[number];
 
 export const DEFAULT_LOOK: Look = 'classic';

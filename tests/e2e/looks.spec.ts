@@ -12,7 +12,7 @@ test.describe.configure({ mode: 'serial' });
 
 const radius = (page: Page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--radius-1').trim());
 
-async function setLook(page: Page, look: 'lines' | 'classic' | 'liquid') {
+async function setLook(page: Page, look: 'lines' | 'classic' | 'liquid' | 'retro') {
   const res = await page.request.put('/api/profile/look', { data: { look } });
   expect(res.ok()).toBe(true);
 }
@@ -64,7 +64,7 @@ test('la API rechaza un aspecto desconocido', async ({ page }) => {
 
 const SAMPLE = ['/en/app', '/en/app/crm/contacts', '/en/app/track', '/en/app/docs', '/en/app/calendar', '/en/app/lines', '/en/app/inbox', '/en/app/links', '/en/app/notes', '/en/app/board'];
 
-for (const look of ['lines', 'liquid', 'classic'] as const) {
+for (const look of ['lines', 'liquid', 'retro', 'classic'] as const) {
   test(`muestra de apps en ${look}: atributo, tokens y sin errores`, async ({ page }) => {
     test.setTimeout(180_000);
     await setLook(page, look);
@@ -85,7 +85,7 @@ for (const look of ['lines', 'liquid', 'classic'] as const) {
     const cmdk = page.locator('.cmdk');
     await expect(cmdk).toBeVisible();
     const r = await cmdk.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
-    expect(r).toBe({ lines: '3px', classic: '14px', liquid: '22px' }[look]);
+    expect(r).toBe({ lines: '3px', classic: '14px', liquid: '22px', retro: '0px' }[look]);
     expect(errors).toEqual([]);
   });
 }

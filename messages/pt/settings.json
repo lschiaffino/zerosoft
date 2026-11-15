@@ -1747,6 +1747,10 @@
       "liquid": {
         "name": "Líquido",
         "desc": "Camadas translúcidas com desfoque, cantos maiores e menus que flutuam."
+      },
+      "retro": {
+        "name": "Retrô",
+        "desc": "Uma área de trabalho dos anos noventa: botões e janelas cinza em relevo, campos brancos afundados e barras de título."
       }
     }
   },

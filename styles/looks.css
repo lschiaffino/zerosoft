@@ -7,6 +7,8 @@
      --app-btn), tinta fuera de una app.
    - classic: menús, popovers y modales con esquinas redondeadas, borde suave y
      sombra; rellenos al pasar; botones sólidos sin invertir.
+   - retro: en styles/looks-retro.css (usa los tokens de abajo y las mismas
+     listas de superficies flotantes).
    - liquid: superficies translúcidas con desenfoque, brillo en el borde
      superior, radios grandes y un fondo con un tinte del color de la app.
      Sin backdrop-filter, o con prefers-reduced-transparency, las superficies
@@ -151,7 +153,7 @@
 
 /* ---------- Superficies flotantes (classic y liquid) ---------- */
 
-:root:is([data-look='classic'], [data-look='liquid']) :is(
+:root:is([data-look='classic'], [data-look='liquid'], [data-look='retro']) :is(
   [role='menu'],
   .zs-ctx-menu, .zs-msel-list, .band-menu-panel, .band-offline-panel, .side-menu, .side-bell-panel, .column-toggle-menu,
   .row-menu, .track-label-options, .bi-suggest, .board-pop, .board-thread, .board-mention-list, .board-reaction-picker,
@@ -195,7 +197,7 @@
 }
 
 /* Ítems de un menú o una lista: el relleno al pasar lleva su propia esquina. */
-:root:is([data-look='classic'], [data-look='liquid']) :is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'], .zs-ctx-item, .zs-msel-opt, .cmdk-item, .band-menu-item) {
+:root:is([data-look='classic'], [data-look='liquid'], [data-look='retro']) :is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'], .zs-ctx-item, .zs-msel-opt, .cmdk-item, .band-menu-item) {
   border-radius: var(--radius-item);
 }
 
@@ -210,7 +212,7 @@
 
 /* ---------- Modales, ⌘K y drawers ---------- */
 
-:root:is([data-look='classic'], [data-look='liquid']) :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .qm, .modal-card, .fc-dialog, .cmdk) {
+:root:is([data-look='classic'], [data-look='liquid'], [data-look='retro']) :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .qm, .modal-card, .fc-dialog, .cmdk) {
   background-color: var(--modal-bg);
   border: 1px solid var(--pop-edge);
   border-radius: var(--radius-modal);

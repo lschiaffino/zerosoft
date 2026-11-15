@@ -1747,6 +1747,10 @@
       "liquid": {
         "name": "Líquido",
         "desc": "Capas translúcidas con desenfoque, esquinas más grandes y menús que flotan."
+      },
+      "retro": {
+        "name": "Retro",
+        "desc": "Un escritorio de los noventa: botones y ventanas grises en relieve, campos blancos hundidos y barras de título."
       }
     }
   },

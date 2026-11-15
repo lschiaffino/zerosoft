@@ -9,6 +9,7 @@ import '@/styles/ui.css';
 import '@/styles/themes/dark.css';
 // Aspecto de la interfaz (lines, classic, liquid; ver lib/look.ts). Después del modo oscuro: sus bloques oscuros ganan.
 import '@/styles/looks.css';
+import '@/styles/looks-retro.css';
 
 // El <html> real vive en app/[locale]/layout.tsx (patrón next-intl).
 export default function RootLayout({ children }: { children: ReactNode }) {

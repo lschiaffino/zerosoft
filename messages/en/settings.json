@@ -1747,6 +1747,10 @@
       "liquid": {
         "name": "Liquid",
         "desc": "Translucent layers with blur, larger corners and floating menus."
+      },
+      "retro": {
+        "name": "Retro",
+        "desc": "A nineties desktop: raised gray buttons and windows, sunken white fields and title bars."
       }
     }
   },
