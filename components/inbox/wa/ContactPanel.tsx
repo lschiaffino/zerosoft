@@ -10,6 +10,7 @@ import { Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/components/gro
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
+import { useInboxPersonSheet } from './person-sheet';
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -53,7 +54,7 @@ export default function ContactPanel({
   wa: WaDetailsDto | null;
   onClose: () => void;
   onOpenThread: (id: string) => void;
-  onStartChat: (phone: string) => void;
+  onStartChat: (phone: string) => void | Promise<void>;
   onMute: (until: string | null) => void;
   onError: (code: string) => void;
   onToast: (text: string) => void;
@@ -72,6 +73,9 @@ export default function ContactPanel({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [muteOpen, setMuteOpen] = useState(false);
+  const tsheet = useTranslations('groups.wa.contactSheet');
+  // Un participante abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1.
+  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast });
 
   const load = useCallback(
     async (kind: SharedKind) => {
@@ -307,8 +311,9 @@ export default function ContactPanel({
                       type="button"
                       className="ib-wa-row"
                       disabled={p.me}
-                      onClick={() => (p.threadId ? onOpenThread(p.threadId) : onStartChat(p.phone))}
-                      title={p.me ? undefined : w('messageMember')}
+                      onClick={() => personSheet.open(p.phone, p.name || formatPhone(p.phone), p.avatar || undefined)}
+                      title={p.me ? undefined : tsheet('openFor', { name: p.name || formatPhone(p.phone) })}
+                      data-testid="wa-participant"
                     >
                       <Avatar name={p.me ? w('you') : p.name || formatPhone(p.phone)} kind="dm" src={p.avatar || undefined} seed={p.phone} size={40} />
                       <span className="ib-wa-row-main">
@@ -405,6 +410,7 @@ export default function ContactPanel({
             ))}
         </section>
       </div>
+      {personSheet.sheet}
       {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
       {photoOpen && thread.avatar && (
         <MediaViewer

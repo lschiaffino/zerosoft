@@ -15,6 +15,9 @@
  * - El inicio de la app instalada (/app, start_url de app/manifest.ts) también
  *   es network-first con la última versión guardada.
  *
+ * Cal sin conexión: solo lectura. Navegaciones a /<locale>/app/calendar/**:
+ *   network-first con la última versión guardada; nada de Cal se encola.
+ *
  * Docs sin conexión (D5):
  * - Navegaciones a /<locale>/app/docs/**: network-first con la última versión
  *   guardada, así una página ya abierta (o marcada "Disponible sin conexión",
@@ -87,11 +90,11 @@ const INDEX_KEY = '/__zs-offline-index';
 
 // ---------- Ajustes (las mismas reglas que lib/offline-prefs.ts) ----------
 
-const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board'];
+const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal'];
 const OFFLINE_SIZES = ['light', 'normal', 'max'];
 const OFFLINE_DAYS = [7, 30, 90];
 const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1024 } };
-const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true, board: true }, size: 'normal', days: 30 };
+const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true }, size: 'normal', days: 30 };
 
 function parseOfflinePrefs(raw) {
   const d = DEFAULT_PREFS;
@@ -113,6 +116,7 @@ function offlineAppOf(pathname) {
   if (/^\/app\/docs(\/|$)/.test(p)) return 'docs';
   if (/^\/app\/track(\/|$)/.test(p)) return 'track';
   if (/^\/app\/board(\/|$)/.test(p)) return 'board';
+  if (/^\/app\/calendar(\/|$)/.test(p)) return 'cal';
   return null;
 }
 
@@ -251,6 +255,11 @@ const TRACK_ROOT = /^\/app\/track(\/|$)/;
 const BOARD_PAGE = /^\/(en|es|pt)\/app\/board(\/|$)/;
 const BOARD_ROOT = /^\/app\/board(\/|$)/;
 
+// Cal: solo lectura. Las vistas que la persona abrió (inicio, reservas, tipos de evento...) se
+// guardan para leerlas sin red; la página deshabilita lo que edita (components/calendar/CalOffline).
+const CAL_PAGE = /^\/(en|es|pt)\/app\/calendar(\/|$)/;
+const CAL_ROOT = /^\/app\/calendar(\/|$)/;
+
 // Docs: el editor y la lista (D5).
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
 const DOCS_ROOT = /^\/app\/docs(\/|$)/;
@@ -278,7 +287,9 @@ function isOfflineNavigation(url) {
     TRACK_PAGE.test(url.pathname) ||
     TRACK_ROOT.test(url.pathname) ||
     BOARD_PAGE.test(url.pathname) ||
-    BOARD_ROOT.test(url.pathname)
+    BOARD_ROOT.test(url.pathname) ||
+    CAL_PAGE.test(url.pathname) ||
+    CAL_ROOT.test(url.pathname)
   );
 }
 
@@ -426,6 +437,7 @@ const OFFLINE_PRODUCTS = [
   ['track', 'Track', '/app/track'],
   ['crm', 'CRM', '/app/crm'],
   ['board', 'Board', '/app/board'],
+  ['cal', 'Cal', '/app/calendar'],
 ];
 
 const OFFLINE_TEXT = {
@@ -644,7 +656,7 @@ async function clearOffline() {
 async function broadcastUsage() {
   const meta = await getMeta();
   const mine = meta ? `${PAGES}-${encodeURIComponent(meta.id)}` : null;
-  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of await readIndex()) {
     if (!usage[e.app]) continue;
     if (e.app !== 'static' && e.cache !== mine) continue;
@@ -739,7 +751,7 @@ async function crmNavigation(request) {
     if (!offlineAllows(prefs, url.pathname)) return offlineResponse(localeOf(url.pathname), 'not-cached', null, prefs);
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname) || BOARD_ROOT.test(url.pathname)) {
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname) || BOARD_ROOT.test(url.pathname) || CAL_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cronAuthError } from '@/lib/status/agent-auth';
 import { pruneRobotRuns, runDueRobots } from '@/lib/robots';
 
 export const runtime = 'nodejs';
@@ -15,13 +16,9 @@ export const maxDuration = 300;
  */
 export async function GET(req: NextRequest) {
   const start = Date.now();
-  const secret = process.env.CRON_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
-  }
-  if (secret && (req.headers.get('authorization') ?? '') !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  // CRON_SECRET en tiempo constante; en producción sin secreto no corre.
+  const denied = cronAuthError(req);
+  if (denied) return denied;
   const robots = await runDueRobots(new Date(), 100, Math.max(0, 270_000 - (Date.now() - start)));
   const pruned = await pruneRobotRuns().catch(() => 0);
   return NextResponse.json({ robots, pruned });

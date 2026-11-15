@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const ctx = await agentRouteContext(id);
   if ('res' in ctx) return ctx.res;
   const days = Number(req.nextUrl.searchParams.get('days') ?? 30);
-  const csv = await exportConversationsCsv(ctx.user.id, id, { days: Number.isFinite(days) ? days : 30, viewerId: isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId });
+  const csv = await exportConversationsCsv(ctx.user.id, id, { days: Number.isFinite(days) ? days : 30, viewerId: isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId, viewerRole: ctx.user.role });
   const slug = ctx.row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'agent';
   return new Response(csv, {
     headers: {
