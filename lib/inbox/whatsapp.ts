@@ -465,13 +465,24 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
     try {
       const t = await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
       // Los archivados del historial entran marcados como archivados (no ensucian la bandeja).
-      if (c.archived === true || c.archive === true) await markArchived(t.id);
+      if ((c.archived === true || c.archive === true) && isFreshThread(t)) await markArchived(t.id);
       n++;
     } catch {
       /* uno roto no frena el resto */
     }
   }
   return n;
+}
+
+/**
+ * ¿El chat entró recién con esta vinculación? Lo que dice el teléfono de un chat (archivado, no leídos) se copia solo
+ * a los chats nuevos: en uno que ya estaba acá (la línea se volvió a vincular o a importar) manda lo que la persona
+ * hizo en Inbox (lo leyó, lo sacó de archivados, lo fijó), y no se pisa.
+ */
+export const FRESH_THREAD_MS = 6 * 60 * 60 * 1000;
+export function isFreshThread(t: Pick<ThreadRow, 'created_at'>, now = Date.now()): boolean {
+  const created = Date.parse(t.created_at);
+  return !Number.isFinite(created) || now - created < FRESH_THREAD_MS;
 }
 
 /** Marca un chat como archivado sin tocar uno que ya lo está (conserva la fecha). */
@@ -663,8 +674,10 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         for (const c of rows) {
           const chatId = await bookChatId(account, c.chatId);
           const t = await upsertThread(account, { externalId: chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(chatId) });
-          if (c.archived) await markArchived(t.id);
-          if (c.unread > 0) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+          // Solo en los chats que entraron con esta vinculación (ver isFreshThread).
+          const fresh = isFreshThread(t);
+          if (c.archived && fresh) await markArchived(t.id);
+          if (c.unread > 0 && fresh) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
           if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);
           if (queue.length < MAX_CHATS) queue.push(c.remoteJid);
         }
