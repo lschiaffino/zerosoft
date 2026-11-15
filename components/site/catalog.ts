@@ -49,6 +49,7 @@ export const RIVALS: Record<ProductKey, string> = {
   send: 'DocSend',
   inbox: 'Superhuman · WhatsApp Web',
   calls: 'Gong',
+  fleet: 'GitHub · Vercel',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -170,4 +171,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   inbox: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   // Gong no publica precios: el bloque remite a gong.io/pricing.
   calls: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Fleet no reemplaza un producto pago: el bloque de precio compara con lo que ya usás (GitHub y Vercel, gratis para mirar).
+  fleet: { sections: ['shot', 'features', 'how', 'parity', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

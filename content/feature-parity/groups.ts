@@ -166,6 +166,13 @@ const parity: ProductParity = {
     }),
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
+    row('wa-attach-menu', 'inbox', ['Attach menu like WhatsApp (camera, poll, new sticker)', 'Menú de adjuntar como WhatsApp (cámara, encuesta, sticker nuevo)', 'Menu de anexar como o WhatsApp (câmera, enquete, nova figurinha)'], 'partial', {
+      detail: [
+        'Document, photos and videos, camera (the computer camera too), audio, contact, poll and new sticker, in the WhatsApp order with colored icons; poll and contact only show when the line can send them. Help me write, dictate, send later and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',
+        'Documento, fotos y videos, cámara (también la de la computadora), audio, contacto, encuesta y sticker nuevo, en el orden de WhatsApp con íconos de color; encuesta y contacto aparecen solo si la línea los puede mandar. Ayudame a escribir, dictar, enviar más tarde y comandos van debajo de una línea. Faltan los eventos: nuestro servidor de WhatsApp todavía no los puede mandar. Probado con el proveedor falso',
+        'Documento, fotos e vídeos, câmera (também a do computador), áudio, contato, enquete e nova figurinha, na ordem do WhatsApp com ícones coloridos; enquete e contato só aparecem se a linha pode enviá-los. Me ajude a escrever, ditar, enviar depois e comandos ficam abaixo de uma linha. Faltam os eventos: nosso servidor de WhatsApp ainda não consegue enviá-los. Testado com o provedor falso',
+      ],
+    }),
     row('line-health', 'numbers', ['Warning when a line disconnects, with QR re-scan', 'Aviso cuando una línea se desconecta, con QR de nuevo', 'Aviso quando uma linha desconecta, com QR de novo'], 'have'),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have', {
       detail: [
