@@ -397,6 +397,12 @@ export interface GroupsProvider {
   readonly kind: ProviderKind;
   /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
   chatInfo?(chatId: string): Promise<ChatInfo | null>;
+  /**
+   * Foto de perfil de una persona ("<tel>@s.whatsapp.net" o "<lid>@lid"): la URL en el servidor de
+   * WhatsApp, '' si no tiene o no se ve (privacidad). Lanza ProviderError si el servidor falla
+   * (rate_limited: WhatsApp pide esperar), para no tomar eso como "sin foto".
+   */
+  profilePicture?(chatId: string): Promise<string>;
   /** Bloquear o desbloquear un contacto en WhatsApp. */
   blockContact?(chatId: string, block: boolean): Promise<void>;
   /**

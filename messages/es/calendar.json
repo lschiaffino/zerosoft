@@ -1049,5 +1049,9 @@
     "changeVote": "Cambiar mi voto",
     "publicBooked": "Esta reunión ya está reservada. Revisá tu email por la invitación.",
     "publicClosed": "Esta encuesta está cerrada."
+  },
+  "offline": {
+    "title": "Sin conexión. Cal está en solo lectura.",
+    "body": "Ves lo último que se cargó en este dispositivo. Para crear o cambiar reservas, tipos de evento y disponibilidad hace falta conexión."
   }
 }

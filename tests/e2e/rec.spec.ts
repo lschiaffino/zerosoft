@@ -170,6 +170,28 @@ test('grabar con la cámara: pausa, sube por partes, miniatura, GIF, duración y
   expect(duration).toBeGreaterThan(2);
   expect(duration).toBeLessThan(8);
 
+  // El original (WebM) trae el índice (Cues) al principio: se adelanta aunque el MP4 todavía no exista.
+  const head = await page.request.get(`/api/rec/videos/${id}/file?kind=play`, { headers: { range: 'bytes=0-65535' } });
+  expect(head.headers()['content-type']).toBe('video/webm');
+  expect((await head.body()).indexOf(Buffer.from([0x1c, 0x53, 0xbb, 0x6b]))).toBeGreaterThan(0);
+  const webmSeek = await page.evaluate(
+    (src) =>
+      new Promise<boolean>((done) => {
+        const v = document.createElement('video');
+        v.muted = true;
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => {
+          v.onseeked = () => done(v.currentTime > 2);
+          v.currentTime = v.duration - 0.5;
+        };
+        v.onerror = () => done(false);
+        v.src = src;
+        setTimeout(() => done(false), 10_000);
+      }),
+    `/api/rec/videos/${id}/file?kind=play`,
+  );
+  expect(webmSeek).toBe(true);
+
   const thumb = await page.request.get(`/api/rec/videos/${id}/file?kind=thumb`);
   expect(thumb.headers()['content-type']).toContain('image/jpeg');
   const gif = await page.request.get(`/api/rec/videos/${id}/file?kind=gif`);
@@ -756,7 +778,53 @@ test('reproducir: el reproductor pasa al MP4 con índice al principio y adelanta
       }),
   );
   expect(seeked).toBe(true);
+  // Vista previa al pasar por la línea de tiempo: el cuadro de la tira y el tiempo; se va al salir.
+  const timeline = page.getByTestId('rec-timeline');
+  const box = (await timeline.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+  await expect(page.getByTestId('rec-scrub')).toBeVisible();
+  await expect(page.getByTestId('rec-scrub-frame')).toHaveCSS('background-image', /kind=sprite/);
+  await page.mouse.move(box.x + box.width / 2, box.y - 200);
+  await expect(page.getByTestId('rec-scrub')).toHaveCount(0);
   // Sin versión en la URL sigue el original: un reproductor a mitad de camino no mezcla dos archivos.
   const orig = await page.request.get(`/api/rec/videos/${video.id}/file?kind=play`);
   expect(orig.headers()['content-type']).toBe('video/webm');
+});
+
+test('reacciones en el video: suben al pasar por su segundo, la marca muestra el comentario y se saltan los silencios', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const video = await uploadVideo(page.request, await makeWebm(page, 6200), `Reactions ${uid()}`, 6);
+  // Una reacción en el segundo 1 y un comentario en el 2; transcripción con un silencio de 1 a 5.
+  await ok(page.request.post(`/api/rec/v/${video.shareId}/comments`, { data: { kind: 'reaction', emoji: '🎉', atSec: 1 } }));
+  await ok(page.request.post(`/api/rec/v/${video.shareId}/comments`, { data: { kind: 'comment', body: 'Look at this part', atSec: 2 } }));
+  const c = db();
+  await c.execute({
+    sql: "UPDATE rec_videos SET transcript = ?, transcript_status = 'done' WHERE id = ?",
+    args: [JSON.stringify([{ start: 0, end: 1, text: 'one' }, { start: 5, end: 6, text: 'two' }]), video.id],
+  });
+  c.close();
+  await page.goto(`/en/app/rec/${video.id}`);
+  const player = page.getByTestId('rec-player');
+  await expect(player.locator('.rec-marker')).toHaveCount(2);
+  // Pasar por la marca del comentario muestra el texto en la vista previa.
+  await player.locator('.rec-marker:not(.emoji)').hover();
+  await expect(page.getByTestId('rec-scrub-note')).toContainText('Look at this part');
+  await page.mouse.move(0, 0);
+  // Al reproducir, la reacción del segundo 1 sube sobre el video.
+  const v = page.getByTestId('rec-video');
+  await v.evaluate((el: HTMLVideoElement) => el.play());
+  await expect(page.getByTestId('rec-pop')).toHaveText('🎉', { timeout: 6_000 });
+  // Reaccionar hace subir el emoji en el momento.
+  await page.getByRole('button', { name: 'React with 👏' }).click();
+  await expect(page.getByTestId('rec-pop').filter({ hasText: '👏' })).toBeVisible();
+  // Saltar silencios: desde el segundo 1 pasa directo al 5.
+  await v.evaluate((el: HTMLVideoElement) => {
+    el.pause();
+    el.currentTime = 0.5;
+  });
+  await page.getByTestId('rec-speed').click();
+  await page.getByTestId('rec-skip-silences').click();
+  await v.evaluate((el: HTMLVideoElement) => el.play());
+  await expect.poll(() => v.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 4_000 }).toBeGreaterThan(4.5);
 });

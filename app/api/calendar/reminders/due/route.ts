@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cronAuthError } from '@/lib/status/agent-auth';
 import { claimReminder, expireUnconfirmedBookings, expireUnpaidHolds, listDueReminders, releaseReminder } from '@/lib/calendar';
 import { afterBookingDeclined } from '@/lib/calendar-lifecycle';
 import { processDueWorkflowRuns } from '@/lib/calendar-workflows';
@@ -23,16 +24,9 @@ const BUDGET_MS = 45_000;
  * fuera de producción queda abierto para desarrollo.
  */
 async function run(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
-  }
-  if (secret) {
-    const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
-  }
+  // CRON_SECRET en tiempo constante; en producción sin secreto no corre.
+  const denied = cronAuthError(req);
+  if (denied) return denied;
 
   // Tandas hasta vaciar la cola (si el cron se atrasa, un solo LIMIT dejaría
   // atrasados los que no entran). Se corta si una tanda no envió ninguno
