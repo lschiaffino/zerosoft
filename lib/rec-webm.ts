@@ -433,7 +433,7 @@ export function cutWebm(bytes: Uint8Array, startMs: number, endMs: number | null
     off += p.length;
   }
   const dur = Number.isFinite(end) ? Math.min(end, durationMs || end) : durationMs;
-  return { bytes: patchWebmDuration(out, dur), fromMs: clusters[first].timecode, startCut: first > 0 || startMs === 0 };
+  return { bytes: indexWebm(out, dur), fromMs: clusters[first].timecode, startCut: first > 0 || startMs === 0 };
 }
 
 // ============================================================
@@ -586,5 +586,457 @@ export function composeWebm(sources: Array<{ bytes: Uint8Array; keep: Array<[num
     }
   });
   if (!pieces.length) return { ok: false, error: 'nothing_left' };
-  return { ok: true, bytes: patchWebmDuration(concat(out), cursor), durationMs: cursor, pieces };
+  return { ok: true, bytes: indexWebm(concat(out), cursor), durationMs: cursor, pieces };
+}
+
+// ============================================================
+// Índice (Cues) sin recodificar
+// ============================================================
+
+/*
+ * MediaRecorder no escribe Cues: para adelantar, el reproductor lee el archivo
+ * de corrido hasta ese punto. Acá se recorre el archivo una vez (en streaming,
+ * sin tenerlo entero en memoria), se anota dónde empieza cada cluster con
+ * keyframe y se arma un header nuevo: SeekHead + Info (con Duration) + Tracks
+ * + Cues, antes del primer cluster. Los clusters no se tocan (se copian tal
+ * cual detrás del header nuevo). Chrome, Firefox y Safari leen las Cues del
+ * principio al abrir el archivo y adelantan pidiendo un rango.
+ */
+
+const ID_SEEK_HEAD = 0x114d9b74;
+const ID_CUES = 0x1c53bb6b;
+const ID_VOID = 0xec;
+/** Más que esto antes del primer cluster no es un WebM de MediaRecorder. */
+const MAX_HEAD = 4 * 1024 * 1024;
+
+export interface WebmClusterMark {
+  /** Byte donde empieza el cluster (desde el principio del archivo). */
+  offset: number;
+  /** Timecode del cluster, en unidades de TimecodeScale. */
+  timecode: number;
+  /** Empieza con keyframe de video: se puede saltar acá. */
+  key: boolean;
+}
+
+export interface WebmScan {
+  /** Bytes antes del primer cluster (EBML, Segment y sus hijos: Info, Tracks...). */
+  head: Uint8Array;
+  clusters: WebmClusterMark[];
+}
+
+/**
+ * Recorre un WebM que llega por pedazos, en orden. Guarda solo el header y una
+ * marca por cluster: el contenido de los bloques se saltea sin copiarlo.
+ */
+export class WebmScanner {
+  private pos = 0;
+  private rest: Uint8Array = new Uint8Array(0);
+  private skip = 0;
+  private level: 'top' | 'segment' | 'cluster' = 'top';
+  private headParts: Uint8Array[] = [];
+  private headBytes = 0;
+  private head: Uint8Array | null = null;
+  private videoTrack: number | null = null;
+  private cluster: { offset: number; timecode: number; key: boolean | null; end: number | null } | null = null;
+  private clusters: WebmClusterMark[] = [];
+  private failed = false;
+
+  feed(chunk: Uint8Array): void {
+    if (this.failed || !chunk.length) return;
+    if (this.head === null && this.headBytes < MAX_HEAD) {
+      // Solo lo que puede ser header: el resto de los bytes no se copia.
+      const keep = chunk.slice(0, MAX_HEAD - this.headBytes);
+      this.headParts.push(keep);
+      this.headBytes += keep.length;
+    }
+    let b = chunk;
+    if (this.skip) {
+      if (this.skip >= b.length) {
+        this.skip -= b.length;
+        this.pos += b.length;
+        return;
+      }
+      b = b.subarray(this.skip);
+      this.pos += this.skip;
+      this.skip = 0;
+    }
+    if (this.rest.length) b = concat([this.rest, b]);
+    let o = 0;
+    while (!this.failed && o < b.length) {
+      const used = this.step(b, o);
+      if (used === null) break;
+      o += used;
+      if (this.skip) {
+        const left = b.length - o;
+        if (this.skip >= left) {
+          this.skip -= left;
+          o = b.length;
+          break;
+        }
+        o += this.skip;
+        this.skip = 0;
+      }
+    }
+    this.pos += o;
+    this.rest = b.slice(o);
+  }
+
+  /** Lee un elemento en b[o]: devuelve los bytes consumidos (0 = cambió de nivel), o null si faltan bytes. */
+  private step(b: Uint8Array, o: number): number | null {
+    const abs = this.pos + o;
+    // Cluster de tamaño conocido: terminó.
+    if (this.level === 'cluster' && this.cluster?.end !== null && this.cluster && abs >= this.cluster.end) {
+      this.closeCluster();
+      return 0;
+    }
+    const avail = b.length - o;
+    const id = readId(b, o);
+    if (!id) {
+      if (avail < 4) return null;
+      this.fail();
+      return null;
+    }
+    const size = readSize(b, o + id.length);
+    if (!size) {
+      if (avail < id.length + 8 && b[o + id.length] !== 0) return null;
+      this.fail();
+      return null;
+    }
+    const hdr = id.length + size.length;
+    if (this.level === 'top') {
+      if (id.value === ID_EBML && !size.unknown) {
+        this.skip = size.value;
+        return hdr;
+      }
+      if (id.value === ID_SEGMENT) {
+        this.level = 'segment';
+        return hdr;
+      }
+      this.fail();
+      return null;
+    }
+    if (this.level === 'cluster') {
+      // Cluster de tamaño desconocido (MediaRecorder): termina en el primer elemento que no es suyo.
+      if (this.cluster?.end === null && !CLUSTER_CHILDREN.has(id.value)) {
+        this.closeCluster();
+        return 0;
+      }
+      if (size.unknown) {
+        this.fail();
+        return null;
+      }
+      if (id.value === ID_TIMECODE) {
+        if (avail < hdr + size.value) return null;
+        if (this.cluster) this.cluster.timecode = readUInt(b, o + hdr, size.value);
+        return hdr + size.value;
+      }
+      if (id.value === ID_SIMPLE_BLOCK && this.cluster && this.cluster.key === null) {
+        const need = hdr + Math.min(size.value, 11);
+        if (avail < need) return null;
+        const track = readSize(b, o + hdr);
+        if (track && hdr + track.length + 2 < hdr + size.value && (this.videoTrack === null || track.value === this.videoTrack)) {
+          this.cluster.key = (b[o + hdr + track.length + 2] & 0x80) !== 0;
+        }
+      }
+      this.skip = size.value;
+      return hdr;
+    }
+    // Hijos del Segment.
+    if (id.value === ID_CLUSTER) {
+      if (this.head === null && !this.takeHead(abs)) return null;
+      this.cluster = { offset: abs, timecode: 0, key: null, end: size.unknown ? null : abs + hdr + size.value };
+      this.level = 'cluster';
+      return hdr;
+    }
+    if (size.unknown) {
+      this.fail();
+      return null;
+    }
+    this.skip = size.value;
+    return hdr;
+  }
+
+  private takeHead(end: number): boolean {
+    if (end > MAX_HEAD) {
+      this.fail();
+      return false;
+    }
+    this.head = concat(this.headParts).slice(0, end);
+    this.headParts = [];
+    const tracks = findChild(this.head, ID_TRACKS);
+    this.videoTrack = tracks ? videoTrackNumber(this.head, tracks[1], tracks[2]) : null;
+    return true;
+  }
+
+  private closeCluster() {
+    const c = this.cluster;
+    if (c) this.clusters.push({ offset: c.offset, timecode: c.timecode, key: c.key ?? this.videoTrack === null });
+    this.cluster = null;
+    this.level = 'segment';
+  }
+
+  private fail() {
+    this.failed = true;
+    this.headParts = [];
+    this.rest = new Uint8Array(0);
+  }
+
+  /** Cierra la lectura. null si el archivo no se entendió o no tiene clusters. */
+  finish(): WebmScan | null {
+    if (this.level === 'cluster') this.closeCluster();
+    if (this.failed || !this.head || !this.clusters.length) return null;
+    return { head: this.head, clusters: this.clusters };
+  }
+}
+
+/** Hijo del Segment antes del primer cluster: [inicio, inicio de los datos, fin]. */
+function findChild(head: Uint8Array, want: number): [number, number, number] | null {
+  for (const c of segmentChildren(head) ?? []) if (c.id === want) return [c.start, c.data, c.end];
+  return null;
+}
+
+interface HeadChild {
+  id: number;
+  start: number;
+  data: number;
+  end: number;
+}
+
+/** Hijos del Segment en un header (los bytes antes del primer cluster), o null si no se entiende. */
+function segmentChildren(head: Uint8Array): HeadChild[] | null {
+  const ebml = readId(head, 0);
+  if (!ebml || ebml.value !== ID_EBML) return null;
+  const ebmlSize = readSize(head, ebml.length);
+  if (!ebmlSize || ebmlSize.unknown) return null;
+  const segAt = ebml.length + ebmlSize.length + ebmlSize.value;
+  const seg = readId(head, segAt);
+  const segSize = seg && readSize(head, segAt + seg.length);
+  if (!seg || seg.value !== ID_SEGMENT || !segSize) return null;
+  const out: HeadChild[] = [];
+  let p = segAt + seg.length + segSize.length;
+  while (p < head.length) {
+    const id = readId(head, p);
+    const size = id && readSize(head, p + id.length);
+    if (!id || !size || size.unknown) return null;
+    const data = p + id.length + size.length;
+    if (data + size.value > head.length) return null;
+    out.push({ id: id.value, start: p, data, end: data + size.value });
+    p = data + size.value;
+  }
+  return out;
+}
+
+function uintElement(id: number[], value: number): number[] {
+  const out = [...id, 0x88];
+  const bytes: number[] = [];
+  let v = Math.max(0, Math.floor(value));
+  for (let i = 0; i < 8; i++) {
+    bytes.unshift(v % 256);
+    v = Math.floor(v / 256);
+  }
+  return [...out, ...bytes];
+}
+
+function idBytes(id: number): number[] {
+  const out: number[] = [];
+  let v = id;
+  while (v > 0) {
+    out.unshift(v % 256);
+    v = Math.floor(v / 256);
+  }
+  return out;
+}
+
+/** Elemento con tamaño de 1 byte (contenido de menos de 127 bytes). */
+function small(id: number[], body: number[]): number[] {
+  return [...id, 0x80 | body.length, ...body];
+}
+
+/**
+ * Header nuevo con índice: el EBML de siempre, Segment de tamaño desconocido,
+ * SeekHead, Info (con `durationMs`), Tracks, lo demás que hubiera y Cues (un
+ * punto por cluster con keyframe, como mucho uno cada `minGapMs`). Los
+ * clusters van detrás sin cambios, desde `scan.clusters[0].offset`. null si
+ * ya tiene índice o no se entiende: entonces se deja el archivo como está.
+ */
+export function webmHeadWithCues(scan: WebmScan, durationMs: number, minGapMs = 1000): Uint8Array | null {
+  const { head, clusters } = scan;
+  const children = segmentChildren(head);
+  if (!children || !clusters.length || clusters[0].offset !== head.length) return null;
+  // Ya indexado (Cues al principio, o un SeekHead que apunta a unas Cues del final): no se toca.
+  if (children.some((c) => c.id === ID_CUES || (c.id === ID_SEEK_HEAD && seekHeadHasCues(head, c)))) return null;
+  const info = children.find((c) => c.id === ID_INFO);
+  const tracks = children.find((c) => c.id === ID_TRACKS);
+  if (!info || !tracks) return null;
+  const ebml = readId(head, 0)!;
+  const ebmlSize = readSize(head, ebml.length)!;
+  const ebmlEnd = ebml.length + ebmlSize.length + ebmlSize.value;
+  const segHead = concat([head.subarray(0, ebmlEnd), head.subarray(ebmlEnd, ebmlEnd + 4), Uint8Array.from([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])]);
+  // Info con la duración: se reusa patchWebmDuration sobre un documento mínimo.
+  const bareInfo = head.subarray(info.start, info.end);
+  const mini = concat([segHead, bareInfo]);
+  const infoBytes = (durationMs > 0 ? patchWebmDuration(mini, durationMs) : mini).subarray(segHead.length);
+  let scale = 1_000_000;
+  for (let p = info.data; p < info.end; ) {
+    const cid = readId(head, p);
+    const cs = cid && readSize(head, p + cid.length);
+    if (!cid || !cs || cs.unknown) break;
+    const cd = p + cid.length + cs.length;
+    if (cid.value === ID_TIMECODE_SCALE) scale = readUInt(head, cd, cs.value) || scale;
+    p = cd + cs.value;
+  }
+  // El SeekHead viejo (sin Cues) se reemplaza por el nuevo; el relleno (Void) se descarta.
+  const others = children.filter((c) => c.id !== ID_INFO && c.id !== ID_TRACKS && c.id !== ID_VOID && c.id !== ID_SEEK_HEAD).map((c) => head.subarray(c.start, c.end));
+  const tracksBytes = head.subarray(tracks.start, tracks.end);
+  const vt = videoTrackNumber(head, tracks.data, tracks.end) ?? firstTrackNumber(head, tracks.data, tracks.end);
+  if (vt === null) return null;
+  // Puntos: clusters con keyframe, separados al menos minGapMs (en unidades de TimecodeScale).
+  const gap = (minGapMs * 1_000_000) / scale;
+  const points: WebmClusterMark[] = [];
+  for (const c of clusters) {
+    if (!c.key) continue;
+    if (points.length && c.timecode - points[points.length - 1].timecode < gap) continue;
+    points.push(c);
+  }
+  if (!points.length) return null;
+  // Tamaños fijos (enteros de 8 bytes): las posiciones no dependen del tamaño de las Cues.
+  const CUE_POINT = 34;
+  const cuesLen = 4 + 8 + points.length * CUE_POINT;
+  const SEEK_HEAD = 68;
+  const posInfo = SEEK_HEAD;
+  const posTracks = posInfo + infoBytes.length;
+  const posCues = posTracks + tracksBytes.length + others.reduce((n, x) => n + x.length, 0);
+  const firstCluster = posCues + cuesLen;
+  const seek = (id: number, pos: number) => small([0x4d, 0xbb], [...small([0x53, 0xab], idBytes(id)), ...uintElement([0x53, 0xac], pos)]);
+  const seekHead = small(idBytes(ID_SEEK_HEAD), [...seek(ID_INFO, posInfo), ...seek(ID_TRACKS, posTracks), ...seek(ID_CUES, posCues)]);
+  if (seekHead.length !== SEEK_HEAD) return null;
+  const cues: number[] = [...idBytes(ID_CUES), ...Array.from(sizeVint8(points.length * CUE_POINT))];
+  for (const c of points) {
+    const pos = firstCluster + (c.offset - head.length);
+    const point = small([0xbb], [...uintElement([0xb3], c.timecode), ...small([0xb7], [...uintElement([0xf7], vt), ...uintElement([0xf1], pos)])]);
+    if (point.length !== CUE_POINT) return null;
+    cues.push(...point);
+  }
+  return concat([segHead, Uint8Array.from(seekHead), infoBytes, tracksBytes, ...others, Uint8Array.from(cues)]);
+}
+
+/** El SeekHead tiene una entrada para Cues (unas Cues al final, como las escribe ffmpeg). */
+function seekHeadHasCues(head: Uint8Array, seekHead: HeadChild): boolean {
+  for (let p = seekHead.data; p < seekHead.end; ) {
+    const id = readId(head, p);
+    const s = id && readSize(head, p + id.length);
+    if (!id || !s || s.unknown) return false;
+    const d = p + id.length + s.length;
+    if (id.value === 0x4dbb) {
+      for (let q = d; q < d + s.value; ) {
+        const cid = readId(head, q);
+        const cs = cid && readSize(head, q + cid.length);
+        if (!cid || !cs || cs.unknown) break;
+        const cd = q + cid.length + cs.length;
+        if (cid.value === 0x53ab && readUInt(head, cd, cs.value) === ID_CUES) return true;
+        q = cd + cs.value;
+      }
+    }
+    p = d + s.value;
+  }
+  return false;
+}
+
+function firstTrackNumber(b: Uint8Array, start: number, end: number): number | null {
+  let p = start;
+  while (p < end) {
+    const id = readId(b, p);
+    const size = id && readSize(b, p + id.length);
+    if (!id || !size || size.unknown) return null;
+    const data = p + id.length + size.length;
+    if (id.value === ID_TRACK_ENTRY) {
+      for (let q = data; q < data + size.value; ) {
+        const cid = readId(b, q);
+        const cs = cid && readSize(b, q + cid.length);
+        if (!cid || !cs || cs.unknown) break;
+        const cd = q + cid.length + cs.length;
+        if (cid.value === ID_TRACK_NUMBER) return readUInt(b, cd, cs.value);
+        q = cd + cs.value;
+      }
+    }
+    p = data + size.value;
+  }
+  return null;
+}
+
+/**
+ * Archivo entero en memoria: el mismo WebM con Duration e índice al principio.
+ * Si no se puede indexar, al menos con la duración (como antes).
+ */
+export function indexWebm(bytes: Uint8Array, durationMs: number): Uint8Array {
+  const scanner = new WebmScanner();
+  scanner.feed(bytes);
+  const scan = scanner.finish();
+  const head = scan ? webmHeadWithCues(scan, durationMs) : null;
+  if (!scan || !head) return patchWebmDuration(bytes, durationMs);
+  return concat([head, bytes.subarray(scan.head.length)]);
+}
+
+/** Cues del header (para tests y diagnósticos): tiempo y posición de cada punto, o null si no hay. */
+export function readWebmCues(bytes: Uint8Array): Array<{ time: number; pos: number }> | null {
+  const children = segmentChildrenUntilCluster(bytes);
+  const cues = children?.find((c) => c.id === ID_CUES);
+  if (!cues) return null;
+  const out: Array<{ time: number; pos: number }> = [];
+  const walk = (start: number, end: number, cb: (id: number, data: number, size: number) => void) => {
+    for (let p = start; p < end; ) {
+      const id = readId(bytes, p);
+      const s = id && readSize(bytes, p + id.length);
+      if (!id || !s || s.unknown) return;
+      const d = p + id.length + s.length;
+      cb(id.value, d, s.value);
+      p = d + s.value;
+    }
+  };
+  walk(cues.data, cues.end, (id, d, s) => {
+    if (id !== 0xbb) return;
+    let time = 0;
+    let pos = -1;
+    walk(d, d + s, (cid, cd, cs) => {
+      if (cid === 0xb3) time = readUInt(bytes, cd, cs);
+      if (cid === 0xb7) walk(cd, cd + cs, (tid, td, ts) => {
+        if (tid === 0xf1) pos = readUInt(bytes, td, ts);
+      });
+    });
+    out.push({ time, pos });
+  });
+  return out;
+}
+
+/** Hijos del Segment hasta el primer cluster, sobre el archivo entero. */
+function segmentChildrenUntilCluster(bytes: Uint8Array): HeadChild[] | null {
+  const ebml = readId(bytes, 0);
+  const ebmlSize = ebml && readSize(bytes, ebml.length);
+  if (!ebml || ebml.value !== ID_EBML || !ebmlSize || ebmlSize.unknown) return null;
+  const segAt = ebml.length + ebmlSize.length + ebmlSize.value;
+  const seg = readId(bytes, segAt);
+  const segSize = seg && readSize(bytes, segAt + seg.length);
+  if (!seg || seg.value !== ID_SEGMENT || !segSize) return null;
+  let p = segAt + seg.length + segSize.length;
+  const out: HeadChild[] = [];
+  while (p < bytes.length) {
+    const id = readId(bytes, p);
+    const size = id && readSize(bytes, p + id.length);
+    if (!id || !size || size.unknown || id.value === ID_CLUSTER) break;
+    const data = p + id.length + size.length;
+    out.push({ id: id.value, start: p, data, end: data + size.value });
+    p = data + size.value;
+  }
+  return out;
+}
+
+/** Offset donde empiezan los datos del Segment (las posiciones de SeekHead y Cues cuentan desde acá). */
+export function webmSegmentDataStart(bytes: Uint8Array): number | null {
+  const ebml = readId(bytes, 0);
+  const ebmlSize = ebml && readSize(bytes, ebml.length);
+  if (!ebml || !ebmlSize || ebmlSize.unknown) return null;
+  const segAt = ebml.length + ebmlSize.length + ebmlSize.value;
+  const seg = readId(bytes, segAt);
+  const segSize = seg && readSize(bytes, segAt + seg.length);
+  return seg && segSize ? segAt + seg.length + segSize.length : null;
 }
