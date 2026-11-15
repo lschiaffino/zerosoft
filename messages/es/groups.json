@@ -1898,6 +1898,21 @@
     "deleteSelectedForMe": "Desaparecen de este chat para vos. Las demás personas del chat los siguen teniendo.",
     "deleteSelectedForAll": "Se borran en WhatsApp para todas las personas del chat.",
     "deleteSelectedDone": "{n, plural, one {# mensaje borrado} other {# mensajes borrados}}",
+    "newSticker": "Sticker nuevo",
+    "dictate": "Dictar",
+    "cameraCapture": {
+      "title": "Sacar foto",
+      "close": "Cerrar la cámara",
+      "preview": "La foto que sacaste",
+      "starting": "Abriendo la cámara…",
+      "denied": "El navegador no dio permiso para la cámara. Permitilo en los ajustes del sitio y probá de nuevo.",
+      "none": "No hay una cámara en este dispositivo.",
+      "snap": "Sacar foto",
+      "retake": "Repetir",
+      "use": "Usar foto"
+    },
+    "contactLoadError": "No se pudieron cargar tus contactos.",
+    "contactNoResults": "Ningún contacto coincide con la búsqueda.",
     "contactSheet": {
       "title": "Info. del contacto",
       "close": "Cerrar",

@@ -9,6 +9,8 @@
  * `category` y `audience` ordenan los menús: el catálogo del sitio
  * (AUDIENCE_PRODUCTS) y el switcher de la app salen de acá.
  */
+import { FLEET_NAME } from './fleet/name';
+
 export type ProductCategory = 'sell' | 'support' | 'automate' | 'build' | 'run' | 'daily';
 export type ProductAudience = 'team' | 'personal';
 
@@ -63,6 +65,7 @@ export const PRODUCT_CONFIG = {
   forms: { name: 'Forms', launch: '/app/forms', path: 'forms', color: '#6e730d', category: 'sell', audience: 'team' },
   send: { name: 'Send', launch: '/app/send', path: 'send', color: '#0b7285', category: 'sell', audience: 'team' },
   calls: { name: 'Calls', launch: '/app/calls', path: 'calls', color: '#a61e4d', category: 'sell', audience: 'team' },
+  fleet: { name: FLEET_NAME, launch: '/app/fleet', path: 'fleet', color: '#2f9e44', category: 'build', audience: 'personal' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -71,6 +74,7 @@ export const PRODUCT_CONFIG = {
  */
 export const APP_SWITCHER_ORDER = [
   'track',
+  'fleet',
   'link',
   'crm',
   'shop',

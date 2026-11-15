@@ -170,7 +170,7 @@ export default async function AppLayout(
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   const tBi = await getTranslations({ locale, namespace: 'bi' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tCalls, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tCalls, tFleet, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -201,6 +201,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'send' }),
       getTranslations({ locale, namespace: 'inbox' }),
       getTranslations({ locale, namespace: 'calls' }),
+      getTranslations({ locale, namespace: 'fleet' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -285,6 +286,7 @@ export default async function AppLayout(
                 { href: '/app/send/settings', label: tSide('appSettings') },
                 { href: '/app/inbox/settings', label: tSide('appSettings') },
                 { href: '/app/calls/settings', label: tSide('appSettings') },
+                { href: '/app/fleet/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -464,6 +466,10 @@ export default async function AppLayout(
                 { href: '/app/calls/deals', label: tCalls('nav.deals') },
                 { href: '/app/calls/ask', label: tCalls('nav.ask') },
                 { href: '/app/calls/analytics', label: tCalls('nav.analytics') },
+                { href: '/app/fleet', label: tFleet('nav.now') },
+                { href: '/app/fleet/chats', label: tFleet('nav.chats') },
+                { href: '/app/fleet/prs', label: tFleet('nav.prs') },
+                { href: '/app/fleet/deploys', label: tFleet('nav.deploys') },
                 { href: '/app/assistant', label: tSide('assistant') },
                 { href: '/app/download', label: tSide('downloadDesktop') },
               ]}
@@ -714,6 +720,7 @@ export default async function AppLayout(
               compose: tInbox('nav.compose'),
               analytics: tInbox('nav.analytics'),
             },
+            fleet: { now: tFleet('nav.now'), chats: tFleet('nav.chats'), prs: tFleet('nav.prs'), deploys: tFleet('nav.deploys'), connect: tFleet('nav.connect') },
             calls: { library: tCalls('nav.library'), upcoming: tCalls('nav.upcoming'), deals: tCalls('nav.deals'), ask: tCalls('nav.ask'), newCall: tCalls('nav.new'), analytics: tCalls('nav.analytics') },
             forms: { forms: tForms('nav.forms'), templates: tForms('nav.templates'), newForm: tForms('list.new') },
             books: {

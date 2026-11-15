@@ -161,6 +161,7 @@ function useGroupOrder() {
         'send',
         'inbox',
         'calls',
+        'fleet',
         'links',
         'docs',
         'notes',

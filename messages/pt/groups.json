@@ -1898,6 +1898,21 @@
     "deleteSelectedForMe": "Elas somem desta conversa para você. As outras pessoas da conversa continuam com elas.",
     "deleteSelectedForAll": "Elas são apagadas no WhatsApp para todas as pessoas da conversa.",
     "deleteSelectedDone": "{n, plural, one {# mensagem apagada} other {# mensagens apagadas}}",
+    "newSticker": "Nova figurinha",
+    "dictate": "Ditar",
+    "cameraCapture": {
+      "title": "Tirar foto",
+      "close": "Fechar a câmera",
+      "preview": "A foto que você tirou",
+      "starting": "Abrindo a câmera…",
+      "denied": "O navegador não permitiu a câmera. Permita nas configurações do site e tente de novo.",
+      "none": "Nenhuma câmera encontrada neste dispositivo.",
+      "snap": "Tirar foto",
+      "retake": "Tirar outra",
+      "use": "Usar foto"
+    },
+    "contactLoadError": "Não foi possível carregar seus contatos.",
+    "contactNoResults": "Nenhum contato corresponde à pesquisa.",
     "contactSheet": {
       "title": "Dados do contato",
       "close": "Fechar",

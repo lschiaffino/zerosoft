@@ -30,12 +30,15 @@ export function MessageMenu({
   className = 'btn btn-ghost btn-sm',
   align,
   onOpenChange,
+  listClassName,
 }: {
   label: string;
   items: MenuItem[];
   /** Contenido del botón (por defecto ⋯). */
   trigger?: ReactNode;
   className?: string;
+  /** Clase extra de la lista (el menú de adjuntar usa "is-attach": íconos de color como WhatsApp). */
+  listClassName?: string;
   /** Lado hacia el que abre la lista (por defecto, alineada a la derecha del botón). */
   align?: 'left' | 'right';
   onOpenChange?: (open: boolean) => void;
@@ -85,19 +88,34 @@ export function MessageMenu({
       setOpen(false);
     };
     const close = () => setOpen(false);
+    // Esc cierra aunque el foco haya quedado en otro lado (el campo que toma el foco al abrir el chat, por ejemplo).
+    const onEsc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || list.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      button.current?.focus();
+    };
+    document.addEventListener('keydown', onEsc, true);
     document.addEventListener('mousedown', onDown);
     window.addEventListener('resize', close);
     // Si se scrollea algo que mueve el botón (la página o un contenedor suyo), se cierra: la posición dejó de
     // valer. Otro scroll no lo mueve y no lo cierra: la lista de mensajes que se queda abajo sola cuando llega
     // algo o el campo de texto que crece cerraban el menú de la cabecera apenas se abría.
+    // Solo si el botón de verdad se movió: un contenedor que se acomoda sin moverlo (el chat que baja solo al
+    // terminar de cargar las fotos) no cierra el menú.
+    const at = button.current?.getBoundingClientRect();
     const onScroll = (e: Event) => {
       const target = e.target;
       if (!(target instanceof Node) || !button.current) return close();
       if (list.current?.contains(target)) return;
-      if (target.contains(button.current)) close();
+      if (!target.contains(button.current)) return;
+      const now = button.current.getBoundingClientRect();
+      if (!at || Math.abs(now.top - at.top) > 1 || Math.abs(now.left - at.left) > 1) close();
     };
     window.addEventListener('scroll', onScroll, true);
     return () => {
+      document.removeEventListener('keydown', onEsc, true);
       document.removeEventListener('mousedown', onDown);
       window.removeEventListener('resize', close);
       window.removeEventListener('scroll', onScroll, true);
@@ -126,7 +144,7 @@ export function MessageMenu({
   if (items.length === 0) return null;
   const listEl = open ? (
     <div
-      className={`gr-menu-list is-portal${items.some((it) => it.icon) ? ' has-icons' : ''}${items.some((it) => it.glyph) ? ' has-glyphs' : ''}`}
+      className={`gr-menu-list is-portal${items.some((it) => it.icon) ? ' has-icons' : ''}${items.some((it) => it.glyph) ? ' has-glyphs' : ''}${listClassName ? ` ${listClassName}` : ''}`}
       role="menu"
       aria-label={label}
       ref={list}
@@ -138,6 +156,7 @@ export function MessageMenu({
           key={it.key}
           type="button"
           role="menuitem"
+          data-key={it.key}
           data-testid={`menu-${it.key}`}
           className={`gr-menu-item${it.danger ? ' gr-danger' : ''}${it.divider ? ' has-divider' : ''}`}
           onClick={() => {

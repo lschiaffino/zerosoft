@@ -79,7 +79,8 @@
     "forms": "Forms",
     "send": "Send",
     "inbox": "Inbox",
-    "calls": "Calls"
+    "calls": "Calls",
+    "fleet": "Fleet"
   },
   "empty": "Todavía no hay ideas. Proponé la primera.",
   "emptySearch": "Nada coincide con la búsqueda. Probá con otras palabras o proponé la idea.",
@@ -158,7 +159,8 @@
       "ideas": "Ideas",
       "send": "Enviar",
       "news": "Novedades",
-      "calls": "Calls"
+      "calls": "Calls",
+      "fleet": "Fleet"
     },
     "unread": "{count, plural, one {# novedad sin leer} other {# novedades sin leer}}",
     "searchPlaceholder": "Buscar ideas para votar",

@@ -1895,9 +1895,16 @@
       "direction_to_notion": "Dirección: de Docs a Notion"
     },
     "webhookTitle": "Webhooks de Notion",
-    "webhookHelp": "Ajuste del servidor. En la integración pública, agregá una suscripción de webhook a esta ruta de tu dominio. Notion manda acá un token de verificación: pegalo en Notion para verificar.",
+    "webhookHelp": "Ajuste del servidor. En la integración pública, agregá una suscripción de webhook a esta ruta de tu dominio. Notion manda acá un token de verificación: pegalo en Notion y, cuando Notion lo acepte, confirmalo acá.",
     "webhookWaiting": "Esperando que Notion mande el token de verificación (15 minutos).",
     "webhookClear": "Borrar token",
+    "webhookCandidatesHelp": "Pegá este token en Notion (Webhooks, Verify). Cuando Notion lo acepte, confirmalo acá. Recién ahí se aceptan los eventos.",
+    "webhookMany": "Llegó más de un token. Confirmá solo el que Notion acepte.",
+    "webhookConfirm": "Confirmar",
+    "webhookConfirmed": "Verificado. Cada evento de Notion se valida contra el token confirmado.",
+    "webhookFromEnv": "Fijado en el servidor con NOTION_WEBHOOK_SECRET.",
+    "webhookElsewhere": "Otro admin está verificando el webhook ahora. Si empezás acá, se cancela lo suyo.",
+    "webhookStop": "Dejar de esperar",
     "notice": {
       "connected": "Notion quedó conectado. El import empieza ahora.",
       "denied": "La conexión se canceló en Notion.",
@@ -1921,6 +1928,9 @@
       "source_unreachable": "No se pudo llegar a Notion.",
       "source_error": "Notion devolvió un error.",
       "internal_error": "Error inesperado.",
+      "webhook_confirmed": "Ya hay un token confirmado. Borralo primero.",
+      "webhook_no_window": "Se terminó la espera. Volvé a empezar.",
+      "webhook_unknown_token": "Ese token ya no está disponible. Volvé a empezar la espera.",
       "failed": "Algo salió mal. Probá de nuevo."
     },
     "privacy": "Las páginas importadas las ve todo el workspace, o el teamspace que elijas. Las subpáginas con acceso más cerrado quedan solo en Docs.",
