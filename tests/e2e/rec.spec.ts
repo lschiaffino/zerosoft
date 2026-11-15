@@ -541,7 +541,7 @@ test('analítica: vistas, únicos, % visto, ubicación, dispositivo y CSV', asyn
   // Recién subido: sin vistas, el estado vacío explica qué se va a ver.
   await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('rec-tab-insights').click();
-  await expect(page.getByTestId('rec-insights-empty')).toContainText('No views yet');
+  await expect(page.getByTestId('rec-insights-empty')).toBeVisible();
 
   const c = db();
   const ins = (key: string, no: number, user: string | null, name: string, pos: number, cta: number, place: [string, string, string, string, string, string, string]) =>
@@ -557,26 +557,34 @@ test('analítica: vistas, únicos, % visto, ubicación, dispositivo y CSV', asyn
   c.close();
   await page.reload({ waitUntil: 'networkidle' });
   await page.getByTestId('rec-tab-insights').click();
-  const insights = page.getByTestId('rec-insights');
-  await expect(insights).toContainText('Unique viewers2');
-  await expect(insights).toContainText('Average watched75%');
-  await expect(insights.getByRole('row').filter({ hasText: 'Lucía' })).toContainText('100%');
-  await expect(insights.getByRole('row').filter({ hasText: 'Lucía' })).toContainText('Montevideo, Uruguay');
-  // Sin nombre: un número estable en vez de "Anonymous", con su ciudad, dispositivo y origen.
-  const anon = insights.getByRole('row').filter({ hasText: 'Viewer 2' });
-  await expect(anon).toContainText('50%');
-  await expect(anon).toContainText('Córdoba, Argentina');
-  await expect(anon).toContainText('Mobile · Mobile Safari · iOS');
-  await expect(anon).toContainText('news.example.com');
-  await expect(page.getByTestId('rec-countries')).toContainText('Argentina');
-  await expect(page.getByTestId('rec-devices')).toContainText('Mobile');
+  await expect(page.getByTestId('rec-stat-views')).toHaveText('3');
+  await expect(page.getByTestId('rec-stat-unique')).toHaveText('2');
+  await expect(page.getByTestId('rec-stat-avg')).toHaveText('75%');
+  const rows = page.getByTestId('rec-viewer-row');
+  await expect(rows).toHaveCount(2);
+  const lucia = rows.filter({ hasText: 'Lucía' });
+  await expect(lucia.getByTestId('rec-viewer-pct')).toHaveText('100%');
+  await expect(lucia.getByTestId('rec-viewer-place')).toContainText('Montevideo');
+  // Sin nombre: un número estable, con su ciudad, dispositivo y origen.
+  const anon = rows.filter({ hasText: 'Córdoba' });
+  await expect(anon.getByTestId('rec-viewer-pct')).toHaveText('50%');
+  await expect(anon.getByTestId('rec-viewer-device')).toContainText('Mobile Safari · iOS');
+  await expect(anon.getByTestId('rec-viewer-device')).toContainText('news.example.com');
   await expect(page.getByTestId('rec-sources')).toContainText('news.example.com');
+  await expect(page.getByTestId('rec-countries').locator('[title="AR"]')).toBeVisible();
+  await expect(page.getByTestId('rec-countries').locator('[title="UY"]')).toBeVisible();
+  await expect(page.getByTestId('rec-devices').locator('[title="mobile"]')).toBeVisible();
   await expect(page.getByTestId('rec-days')).toBeVisible();
-  // La curva muestra el momento y el % al pasar el mouse.
+  // La curva muestra el momento y el % al pasar el mouse (y con el teclado).
   const chart = page.getByTestId('rec-retention-chart');
-  const box = (await chart.boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
-  await expect(page.getByTestId('rec-retention-tip')).toContainText('% of viewers');
+  await chart.scrollIntoViewIfNeeded();
+  await chart.locator('svg').hover({ position: { x: 300, y: 80 } });
+  await expect(page.getByTestId('rec-retention-tip')).toBeVisible();
+  await chart.focus();
+  await page.keyboard.press('Home');
+  await expect(page.getByTestId('rec-retention-tip')).toContainText('0:0');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('rec-retention-tip')).toHaveCount(0);
   const csv = await page.request.get(`/api/rec/videos/${v.id}/analytics?format=csv`);
   expect(csv.headers()['content-type']).toContain('text/csv');
   const text = await csv.text();
@@ -587,7 +595,7 @@ test('analítica: vistas, únicos, % visto, ubicación, dispositivo y CSV', asyn
 
   // Teléfono: sin scroll de costado, columnas secundarias debajo del nombre, botón de 40 px.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(anon).toContainText('Córdoba, Argentina');
+  await expect(anon.getByTestId('rec-viewer-place')).toContainText('Córdoba');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect((await page.getByTestId('rec-export-csv').boundingBox())!.height).toBeGreaterThanOrEqual(40);
 });

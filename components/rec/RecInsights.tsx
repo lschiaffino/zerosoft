@@ -84,27 +84,27 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
       <dl className="rec-stats">
         <div>
           <dt>{td('views')}</dt>
-          <dd className="data">{stats.views}</dd>
+          <dd className="data" data-testid="rec-stat-views">{stats.views}</dd>
         </div>
         <div>
           <dt>{td('unique')}</dt>
-          <dd className="data">{stats.unique}</dd>
+          <dd className="data" data-testid="rec-stat-unique">{stats.unique}</dd>
         </div>
         <div>
           <dt>{td('avgWatched')}</dt>
-          <dd className="data">{stats.avgPct}%</dd>
+          <dd className="data" data-testid="rec-stat-avg">{stats.avgPct}%</dd>
         </div>
         <div>
           <dt>{td('completed')}</dt>
-          <dd className="data">{stats.completed}</dd>
+          <dd className="data" data-testid="rec-stat-completed">{stats.completed}</dd>
         </div>
         <div>
           <dt>{t('watchTime')}</dt>
-          <dd className="data">{fmtWatch(stats.watchSec)}</dd>
+          <dd className="data" data-testid="rec-stat-watch">{fmtWatch(stats.watchSec)}</dd>
         </div>
         <div>
           <dt>{td('ctaClicks')}</dt>
-          <dd className="data">{stats.ctaClicks}</dd>
+          <dd className="data" data-testid="rec-stat-cta">{stats.ctaClicks}</dd>
         </div>
       </dl>
 
@@ -175,12 +175,12 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
                         {r.signedIn && <span className="muted"> · {td('signedIn')}</span>}
                       </span>
                       {r.email && r.email !== r.name && <span className="rec-vw-sub muted">{r.email}</span>}
-                      <span className="rec-vw-sub muted">
+                      <span className="rec-vw-sub muted" data-testid="rec-viewer-device">
                         {[deviceText(r) || t('unknown'), r.referrer ? labels.plain(r.referrer) : t('direct')].join(' · ')}
                       </span>
                       <span className="rec-vw-sub rec-vw-narrow muted">{last}</span>
                     </td>
-                    <td className="rec-vw-loc" title={r.region && where ? `${where} (${r.region})` : undefined}>
+                    <td className="rec-vw-loc" data-testid="rec-viewer-place" title={r.region && where ? `${where} (${r.region})` : undefined}>
                       {where ? (
                         <>
                           {flag && (
@@ -195,7 +195,7 @@ export default function RecInsights({ stats, videoId, duration }: { stats: RecAn
                       )}
                     </td>
                     <td className="num data">
-                      <span className="rec-vw-pct">{r.pct}%</span>
+                      <span className="rec-vw-pct" data-testid="rec-viewer-pct">{r.pct}%</span>
                       <span className="rec-vw-time muted">{fmtWatch(r.watchedSec)}</span>
                     </td>
                     <td className="data rec-col-wide">
