@@ -488,7 +488,9 @@ export function MediaUnavailable({
   }, [retryKey, goneAtStart]);
   const label =
     state === 'gone'
-      ? t(kind === 'video' ? 'wa.mediaGoneVideo' : 'wa.mediaGoneImage')
+      ? kind === 'video'
+        ? t('wa.mediaGoneVideo')
+        : t('wa.mediaGoneImage')
       : state === 'busy'
         ? t('wa.downloadingAgain')
         : state === 'offline'
