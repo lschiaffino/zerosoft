@@ -1,4 +1,5 @@
 import { withDatabaseBodies, type DocsBlock } from './docs-types';
+import { isFileUrlPath } from './files/url';
 
 /**
  * Bloques de imagen y archivo de Docs. Puro (sin DB ni fs): lo usan el editor,
@@ -46,7 +47,7 @@ const INLINE_VIDEO = /^video\/(mp4|webm|ogg|quicktime)$/i;
 const INLINE_AUDIO = /^audio\/(mpeg|mp3|mp4|x-m4a|aac|ogg|wav|x-wav|webm|flac)$/i;
 const PDF_MIME = /^application\/pdf$/i;
 
-// URL que devuelve saveUpload('docs', …): disco local o Vercel Blob. Solo
+// URL que devuelve saveUpload('docs', …) (/api/files/…) o las de antes: disco local o Vercel Blob. Solo
 // estas se aceptan en un bloque (y solo estas pide el proxy: nada de SSRF).
 const LOCAL_URL = /^\/uploads\/docs\/[A-Za-z0-9._-]+$/;
 const BLOB_URL = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/docs\/[A-Za-z0-9._-]+$/;
@@ -54,7 +55,8 @@ const BLOB_URL = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/docs
 const MIME_RE = /^[\w.+-]+\/[\w.+-]+$/;
 
 export function isDocsUploadUrl(url: unknown): url is string {
-  return typeof url === 'string' && (LOCAL_URL.test(url) || BLOB_URL.test(url));
+  // isFileUrlPath: lo de ahora (storage privado); la ruta que lo sirve chequea que sea del workspace de la página.
+  return typeof url === 'string' && (isFileUrlPath(url) || LOCAL_URL.test(url) || BLOB_URL.test(url));
 }
 
 export function isInlineImageMime(mime: string | null | undefined): boolean {

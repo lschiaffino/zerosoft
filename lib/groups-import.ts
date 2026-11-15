@@ -402,8 +402,11 @@ async function save(job: ImportRow, patch: Partial<Pick<ImportRow, 'phase' | 'cu
   return r.changes > 0;
 }
 
-/** Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp vencen). */
-export async function storePicture(url: string): Promise<string> {
+/**
+ * Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp
+ * vencen). Se ve por /api/files solo con acceso a ese chat.
+ */
+export async function storePicture(url: string, owner: { ws: string; chatId: string }): Promise<string> {
   if (!/^https?:\/\//.test(url)) return '';
   const res = await defaultBridgeFetch(url, { method: 'GET' });
   if (!res.ok) {
@@ -418,11 +421,17 @@ export async function storePicture(url: string): Promise<string> {
   const data = Buffer.from(await res.arrayBuffer());
   if (data.length === 0 || data.length > MAX_PICTURE) return '';
   const { saveUpload } = await import('./uploads');
-  return saveUpload('chat', `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data);
+  return saveUpload('chat', `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data, {
+    workspaceId: owner.ws,
+    userId: null,
+    app: 'groups',
+    access: 'workspace',
+    scope: `groups-chat:${owner.chatId}`,
+  });
 }
 
-async function setPicture(chatId: string, url: string): Promise<void> {
-  const stored = await storePicture(url).catch(() => '');
+async function setPicture(ws: string, chatId: string, url: string): Promise<void> {
+  const stored = await storePicture(url, { ws, chatId }).catch(() => '');
   if (stored) await getDb().prepare("UPDATE groups_chats SET picture_url = ? WHERE id = ? AND picture_url = ''").run(stored, chatId);
 }
 
@@ -463,7 +472,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         await db
           .prepare('INSERT OR IGNORE INTO groups_import_chats (number_id, remote_jid, chat_id, last_at, done) VALUES (?, ?, ?, ?, 0)')
           .run(number.id, c.remoteJid, chat.id, Math.floor(c.lastAt));
-        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(chat.id, c.pictureUrl);
+        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(number.user_id, chat.id, c.pictureUrl);
       }
       const total = ((await db.prepare('SELECT COUNT(DISTINCT chat_id) AS n FROM groups_import_chats WHERE number_id = ?').get(number.id)) as { n: number }).n;
       // La última página (o un tope de seguridad) pasa a los contactos.
@@ -546,7 +555,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         if (Date.now() > deadline) break;
         if (!c.picture_url) {
           const url = await history.picture(c.provider_chat_id).catch(() => '');
-          if (url) await setPicture(c.id, url);
+          if (url) await setPicture(number.user_id, c.id, url);
         }
         // Los grupos traen sus miembros de WhatsApp (los del historial son solo quienes escribieron).
         if (c.kind === 'group') {

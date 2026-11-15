@@ -58,13 +58,10 @@ test('Uploads: .xht se rechaza; lo privado no sale por /uploads ni sin acceso', 
   await writeFile(path.join(legacy, 'docs', 'legacy-privado.pdf'), '%PDF-1.4');
   try {
     expect((await request.get('/uploads/docs/legacy-privado.pdf')).status()).toBe(404);
+    // Un adjunto de chat de antes ya no es público: solo se sirve registrado por la migración y con permiso.
     const res = await request.get(`/uploads/chat/${chatName}`);
-    expect(res.status()).toBe(200);
-    const h = res.headers();
-    expect(h['content-type']).toBe('application/octet-stream');
-    expect(h['content-disposition']).toMatch(/^attachment/);
-    expect(h['x-content-type-options']).toBe('nosniff');
-    expect(h['content-security-policy']).toContain('sandbox');
+    expect([401, 404]).toContain(res.status());
+    expect(res.headers()['content-type'] ?? '').not.toContain('html');
 
     // Abierto en el navegador: se descarga o queda aislado, el script nunca corre.
     await page.goto('/en');

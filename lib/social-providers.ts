@@ -211,6 +211,15 @@ export async function readMedia(m: MediaItem): Promise<Buffer> {
   // Solo subidas de Social registradas (social_media): nunca una URL que no subimos nosotros.
   const { isRegisteredMedia } = await import('./social');
   if (!(await isRegisteredMedia(m.url))) throw new SocialApiError('invalid_media', 'Media must be an uploaded file');
+  if (m.url.startsWith('/api/files/') || /^https?:\/\/[^/]+\/api\/files\//.test(m.url)) {
+    // Lo de Social es público por diseño (las redes lo bajan por URL); igual se lee del storage, no por HTTP.
+    const { readUploadBytes } = await import('./uploads');
+    const { fileIdFromUrl } = await import('./files/store');
+    const id = fileIdFromUrl(m.url);
+    const buf = id ? await readUploadBytes(`/api/files/${id}/f`, null, 1024 * 1024 * 1024) : null;
+    if (!buf) throw new SocialApiError('invalid_media', `Could not read ${m.name ?? 'media'}`);
+    return buf;
+  }
   const local = localUploadPath(m.url, 'social');
   if (local) return readFile(local);
   const u = new URL(m.url);

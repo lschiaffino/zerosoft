@@ -463,7 +463,7 @@ export async function processInboundEmail(email: InboundEmail, schedule: Schedul
   const attachments: ChatAttachment[] = [];
   for (const f of files) {
     try {
-      const url = await saveUpload('chat', f.filename, f.contentType, f.data);
+      const url = await saveUpload('chat', f.filename, f.contentType, f.data, { workspaceId: widget!.user_id, userId: null, app: 'chat', scope: `chat-widget:${widget!.id}` });
       attachments.push({ name: f.filename, url, size: f.data.length, mime: f.contentType, type: chatAttachmentType(f.contentType) });
     } catch (err) {
       // Un adjunto rechazado (tipo o tamaño) no frena el mensaje: queda en la nota para el equipo.

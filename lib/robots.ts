@@ -9,6 +9,7 @@
  *
  * user_id = workspace (dueño); created_by = persona real.
  */
+import { runWithFileOwner } from './files/owner-context';
 import { after } from 'next/server';
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
@@ -1438,7 +1439,8 @@ async function executeClaimedRun(
   const duration = Date.now() - t0;
   if (persist && result.storageState) await saveSession(workspaceId, robot.id, result.storageState).catch(() => {});
   const vars: Record<string, unknown> = { ...(result.vars ?? {}) };
-  if (Array.isArray(result.files) && result.files.length) await storeFiles(result.files, vars);
+  const fileOwner = { workspaceId, userId: null };
+  if (Array.isArray(result.files) && result.files.length) await runWithFileOwner(fileOwner, () => storeFiles(result.files!, vars));
   // Credenciales: nunca quedan en logs, variables, errores ni nombres de capturas.
   if (secrets.length) {
     result = {
@@ -1465,11 +1467,11 @@ async function executeClaimedRun(
     exports.ai = { errors: aiErrors };
     warnings += aiErrors.length;
   }
-  const shots = await storeScreenshots(Array.isArray(result.screenshots) ? result.screenshots : []);
+  const shots = await runWithFileOwner(fileOwner, () => storeScreenshots(Array.isArray(result.screenshots) ? result.screenshots : []));
   let output = JSON.stringify(vars);
   const truncated = output.length > 200_000;
   if (truncated) output = JSON.stringify({ truncated: true, preview: output.slice(0, 2000) });
-  const failure = status === 'failed' ? await storeFailure(result.failure, secrets) : null;
+  const failure = status === 'failed' ? await runWithFileOwner(fileOwner, () => storeFailure(result.failure, secrets)) : null;
   const change = status === 'success' ? await compareWithPrevious(workspaceId, robot.id, id, output) : null;
   // Tabla acumulada: las filas de la lista del robot se juntan con las de corridas anteriores.
   const dsVar = datasetVariable(robot.steps, settings);
@@ -2231,7 +2233,7 @@ export function defaultRetentionDays(): number {
 export function runUploadUrls(row: Pick<RobotRunRow, 'screenshots' | 'failure' | 'output'>): string[] {
   const urls: string[] = [];
   const add = (u: unknown) => {
-    if (typeof u === 'string' && (u.startsWith('/uploads/robots/') || /^https:\/\/[^/]+\/robots\//.test(u))) urls.push(u);
+    if (typeof u === 'string' && (u.startsWith('/api/files/') || u.startsWith('/uploads/robots/') || /^https:\/\/[^/]+\/robots\//.test(u))) urls.push(u);
   };
   for (const s of parseJson<Array<{ url?: unknown }>>(row.screenshots, [])) add(s?.url);
   add(parseJson<{ screenshot?: unknown } | null>(row.failure, null)?.screenshot);

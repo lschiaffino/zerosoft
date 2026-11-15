@@ -89,7 +89,7 @@ export async function POST(req: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
   let url: string;
   try {
-    url = await saveUpload('chat', filename, mime, buffer);
+    url = await saveUpload('chat', filename, mime, buffer, { workspaceId: widget.user_id, userId: null, app: 'chat', scope: `chat-widget:${widget.id}` });
   } catch (err) {
     if (err instanceof UploadError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;

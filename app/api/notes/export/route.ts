@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     }
   }
   const filename = `${slugifyTitle(name) || 'notes'}.enex`;
-  return new NextResponse(enexStream(notes(), { origin, lockedText: t('lock.exportedLocked') }), {
+  return new NextResponse(enexStream(notes(), { origin, lockedText: t('lock.exportedLocked'), owner: { workspaceId: owner.workspaceId, userId: owner.personId } }), {
     headers: {
       'content-type': 'application/enex+xml; charset=utf-8',
       'content-disposition': `attachment; filename="${filename}"`,

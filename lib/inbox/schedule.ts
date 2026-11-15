@@ -7,6 +7,7 @@
  * Un mensaje puede llevar un archivo de WhatsApp (subido antes a
  * /api/inbox/upload); el texto va como pie. Server-only.
  */
+import { isFileUrlPath } from '../files/url';
 import { readFile } from 'fs/promises';
 import { getDb } from '../db';
 import { deleteUploads, localUploadPath } from '../uploads';
@@ -37,6 +38,8 @@ export interface PartInput {
  * Nada de URLs arbitrarias (el servidor las baja para mandarlas).
  */
 export function isInboxMediaUrl(url: string): boolean {
+  // /api/files/…: lo de ahora (al leerlo se chequea que sea de la persona).
+  if (isFileUrlPath(url)) return true;
   if (/^\/uploads\/inbox\/[A-Za-z0-9._-]{1,200}$/.test(url)) return true;
   try {
     const u = new URL(url);
@@ -193,9 +196,15 @@ export async function scheduleNextPart(row: ScheduledRow, now: Date): Promise<Sc
 export const BLOCKED_SQL =
   "(s.batch_id <> '' AND EXISTS (SELECT 1 FROM inbox_scheduled p WHERE p.batch_id = s.batch_id AND p.owner_id = s.owner_id AND p.seq < s.seq AND p.status NOT IN ('sent','cancelled')))";
 
-/** Bytes de un archivo subido para Inbox (local o Blob). */
-export async function readInboxMedia(url: string): Promise<Buffer> {
+/** Bytes de un archivo subido para Inbox (storage privado, o local o Blob de antes). `owner`: la persona dueña del Inbox. */
+export async function readInboxMedia(url: string, owner: string): Promise<Buffer> {
   if (!isInboxMediaUrl(url)) throw new InboxError('media_unavailable', 410);
+  if (isFileUrlPath(url)) {
+    const { readUploadBytes } = await import('../uploads');
+    const data = await readUploadBytes(url, { userId: owner }, MAX_SCHEDULED_MEDIA);
+    if (!data) throw new InboxError('media_unavailable', 410);
+    return data;
+  }
   if (url.startsWith('/uploads/')) {
     const file = localUploadPath(url, 'inbox');
     const data = file ? await readFile(file).catch(() => null) : null;

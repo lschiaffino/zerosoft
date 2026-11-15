@@ -11,6 +11,7 @@
  * (SQLite local) una corrida larga sin pausas frenaba los demás requests, y
  * cancelar tiene efecto en la tanda siguiente.
  */
+import { runWithFileOwner } from './files/owner-context';
 import {
   appendImportItems,
   claimImportJob,
@@ -200,7 +201,7 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
       if (!adapter) throw new ImportError('invalid_source');
 
       if (job.status === 'fetching') {
-        const res = await adapter.fetchStep(job);
+        const res = await runWithFileOwner({ workspaceId: job.workspace_id, userId: job.user_id }, () => adapter.fetchStep(job));
         const room = adapter.maxItems ? Math.max(0, adapter.maxItems - job.total) : res.items.length;
         const items = res.items.slice(0, room);
         const total = job.total + (await appendImportItems(id, job.total, items));
@@ -236,7 +237,7 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
         const report = (job.report ?? adapter.emptyReport()) as Record<string, unknown>;
         const items = await listImportItems(id, job.processed, adapter.chunkSize);
         if (items.length > 0) {
-          await adapter.writeStep(job, stage, items, report);
+          await runWithFileOwner({ workspaceId: job.workspace_id, userId: job.user_id }, () => adapter.writeStep(job, stage, items, report));
           await updateImportJob(id, { stage, processed: job.processed + items.length, report, onlyIf: 'importing' });
           continue;
         }
