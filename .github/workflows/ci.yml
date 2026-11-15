@@ -1,19 +1,29 @@
 name: CI
 
+# Un pull request corre solo lo que su cambio pide (job "changes", scripts/e2e-select.mjs): los e2e de las
+# áreas que toca, en 1 a 3 partes, y sin e2e-real, cuarentena ni Docker salvo que toque lo suyo.
+# Cada push a main y la corrida de cada noche corren todo: las 6 partes, e2e-real, cuarentena y Docker.
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Todas las noches, 07:23 UTC.
+    - cron: '23 7 * * *'
+  workflow_dispatch:
 
 # El token del job solo lee: los tests no escriben en el repo (y en los PR de forks nunca hay secretos).
 permissions:
   contents: read
-  # dorny/paths-filter lee la lista de archivos del PR por la API.
+  # El job "changes" lee la lista de archivos del PR por la API.
   pull-requests: read
 
+# En un PR, un push nuevo corta la corrida anterior. En main no: la corrida en curso termina y la más
+# nueva espera su turno (antes cada merge cortaba la anterior y main no llegaba a probarse entero).
+# La nocturna va en su propio grupo para que un merge no la desplace.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -38,26 +48,42 @@ jobs:
       - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - run: npm test
 
-  # ¿Hace falta e2e? No si el PR solo toca el desktop, el blog, la documentación o archivos .md.
+  # Qué pide este cambio (scripts/e2e-select.mjs con scripts/e2e-areas.json): qué specs de e2e y en cuántas
+  # partes, y si hacen falta el build, e2e-real, la cuarentena y Docker. Fuera de un PR, todo.
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      e2e: ${{ steps.filter.outputs.skip != 'true' }}
+      e2e: ${{ steps.plan.outputs.e2e }}
+      build: ${{ steps.plan.outputs.build }}
+      real: ${{ steps.plan.outputs.real }}
+      quarantine: ${{ steps.plan.outputs.quarantine }}
+      docker: ${{ steps.plan.outputs.docker }}
+      shards: ${{ steps.plan.outputs.shards }}
+      shard_total: ${{ steps.plan.outputs.shard_total }}
+      specs: ${{ steps.plan.outputs.specs }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - id: filter
-        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
-        with:
-          predicate-quantifier: every
-          filters: |
-            skip:
-              - 'desktop/**'
-              - 'docs/**'
-              - 'content/blog/**'
-              - '**/*.md'
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          list="$RUNNER_TEMP/changed.txt"
+          : > "$list"
+          if [ "$EVENT" = pull_request ]; then
+            # Si la API falla la lista queda vacía, y sin lista el script pide todo.
+            gh api --paginate "repos/$REPO/pulls/$PR/files?per_page=100" \
+              --jq '.[] | .filename, (.previous_filename // empty)' > "$list" || : > "$list"
+          fi
+          node scripts/e2e-select.mjs --event "$EVENT" --files "$list" >> "$GITHUB_OUTPUT"
 
   # El build va aparte del chequeo: e2e lo necesita y no espera a typecheck, lint ni los unit tests.
   build:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -89,7 +115,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        # [1] para una selección chica, hasta [1, 2, 3, 4, 5, 6] para la suite completa.
+        shard: ${{ fromJSON(needs.changes.outputs.shards || '[1]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -106,10 +133,17 @@ jobs:
       - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       # Un worker por shard: los tests comparten el workspace demo de la base de cada corrida.
       # Partes repartidas por duración (scripts/e2e-shard.mjs con tests/e2e/timings.json), no por cantidad.
-      - run: npx playwright test $(node scripts/e2e-shard.mjs ${{ matrix.shard }} 6)
+      # E2E_SPECS es la selección del PR; vacío, la suite completa.
+      - run: |
+          files=$(node scripts/e2e-shard.mjs "$E2E_SHARD" "$E2E_SHARD_TOTAL")
+          # Sin archivos, `playwright test` correría toda la suite en esta parte.
+          test -n "$files"
+          npx playwright test $files
         env:
           CI: 'true'
           E2E_SHARD: ${{ matrix.shard }}
+          E2E_SHARD_TOTAL: ${{ needs.changes.outputs.shard_total }}
+          E2E_SPECS: ${{ needs.changes.outputs.specs }}
       # La duración de cada test, para actualizar tests/e2e/timings.json (scripts/e2e-timings.mjs).
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ always() }}
@@ -127,9 +161,10 @@ jobs:
           retention-days: 7
 
   # Sesiones reales: sin DEMO_MODE, cada rol entra con su código por email.
+  # En un PR, solo si toca sus specs o el código de sesión; en main y de noche, siempre.
   e2e-real:
     needs: [build, changes]
-    if: needs.changes.outputs.e2e == 'true'
+    if: needs.changes.outputs.real == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -154,7 +189,10 @@ jobs:
             test-results/
           retention-days: 7
 
+  # En un PR, solo si toca el Dockerfile o las dependencias; en main y de noche, siempre.
   docker:
+    needs: changes
+    if: needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -171,9 +209,10 @@ jobs:
 
   # Los e2e en cuarentena (tests/e2e/quarantine.json): corren y se reportan, pero no bloquean el merge
   # (no están en los needs de "CI result"). Los jobs e2e de arriba los saltean (playwright.config.ts).
+  # En un PR, solo si toca la lista o un spec con tests en cuarentena; en main y de noche, siempre.
   e2e-quarantine:
     needs: [build, changes]
-    if: needs.changes.outputs.e2e == 'true'
+    if: needs.changes.outputs.quarantine == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -203,19 +242,83 @@ jobs:
             test-results/
           retention-days: 7
 
-  # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
+  # Nombre estable para exigir un solo check, sea cual sea la cantidad de partes.
+  # Verde solo si cada job que el plan pidió terminó bien. Un job que el plan no pidió queda salteado y
+  # cuenta como bien; uno fallado o cancelado, nunca.
   ci-result:
     name: CI result
     needs: [check, changes, build, e2e, e2e-real, docker]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - run: |
-          echo "check=${{ needs.check.result }} build=${{ needs.build.result }} e2e=${{ needs.e2e.result }} e2e-real=${{ needs.e2e-real.result }} docker=${{ needs.docker.result }} e2e-needed=${{ needs.changes.outputs.e2e }}"
-          test "${{ needs.check.result }}" = success
-          test "${{ needs.build.result }}" = success
-          test "${{ needs.docker.result }}" = success
-          if [ "${{ needs.changes.outputs.e2e }}" = "true" ]; then
-            test "${{ needs.e2e.result }}" = success
-            test "${{ needs.e2e-real.result }}" = success
+      - env:
+          CHECK: ${{ needs.check.result }}
+          CHANGES: ${{ needs.changes.result }}
+          BUILD: ${{ needs.build.result }}
+          E2E: ${{ needs.e2e.result }}
+          REAL: ${{ needs.e2e-real.result }}
+          DOCKER: ${{ needs.docker.result }}
+          WANT_BUILD: ${{ needs.changes.outputs.build }}
+          WANT_E2E: ${{ needs.changes.outputs.e2e }}
+          WANT_REAL: ${{ needs.changes.outputs.real }}
+          WANT_DOCKER: ${{ needs.changes.outputs.docker }}
+        run: |
+          echo "check=$CHECK changes=$CHANGES build=$BUILD($WANT_BUILD) e2e=$E2E($WANT_E2E) e2e-real=$REAL($WANT_REAL) docker=$DOCKER($WANT_DOCKER)"
+          ok=0
+          # gate <job> <resultado> <pedido>: pedido → success; no pedido → skipped (o success).
+          gate() {
+            if [ "$3" = true ]; then
+              [ "$2" = success ] || { echo "::error::$1 hacía falta y terminó en '$2'"; ok=1; }
+            elif [ "$3" = false ]; then
+              [ "$2" = skipped ] || [ "$2" = success ] || { echo "::error::$1 terminó en '$2'"; ok=1; }
+            else
+              echo "::error::sin plan para $1 (el job changes no dejó su salida)"; ok=1
+            fi
+          }
+          gate check "$CHECK" true
+          gate changes "$CHANGES" true
+          gate build "$BUILD" "$WANT_BUILD"
+          gate e2e "$E2E" "$WANT_E2E"
+          gate e2e-real "$REAL" "$WANT_REAL"
+          gate docker "$DOCKER" "$WANT_DOCKER"
+          exit $ok
+
+  # main o la corrida nocturna en rojo: queda un issue abierto (uno solo, se actualiza con cada falla) y se
+  # cierra solo cuando vuelve a pasar. Los PR no pasan por acá.
+  main-status:
+    name: Main status
+    needs: ci-result
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && (needs.ci-result.result == 'success' || needs.ci-result.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      # La lista de jobs de esta corrida, para nombrar los que fallaron.
+      actions: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RESULT: ${{ needs.ci-result.result }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: 'CI: main is red'
+        run: |
+          issue=$(gh issue list -R "$REPO" --state open --search "in:title \"$TITLE\"" --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          short=$(printf %s "$SHA" | cut -c1-9)
+          if [ "$RESULT" = failure ]; then
+            failed=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+              --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | "- \(.name): \(.conclusion)"' || true)
+            body=$(printf 'The full suite failed on `%s` (%s).\n\nRun: %s\n\n%s\n' "$short" "$EVENT" "$RUN_URL" "$failed")
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" -R "$REPO" --body "$body"
+            else
+              gh issue create -R "$REPO" --title "$TITLE" --body "$body"
+            fi
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" -R "$REPO" --comment "Green again on \`$short\` ($EVENT). Run: $RUN_URL"
           fi
