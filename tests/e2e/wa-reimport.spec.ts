@@ -82,6 +82,8 @@ test('Inbox: lo mismo que vuelve a llegar no duplica mensajes ni vuelve a marcar
   await expect.poll(async () => Number((await state()).unread), { timeout: 15_000 }).toBe(0);
   const before = await state();
 
+  // Fuera del chat: un chat abierto se marca leído solo y taparía un no leído que volviera.
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await again(post, evs);
   expect(await state()).toEqual(before);
   await open();
@@ -122,13 +124,15 @@ test('Lines: lo mismo que vuelve a llegar no duplica mensajes, no pierde el arch
     const before = await state();
     expect(Number(before.n)).toBe(3);
 
+    // Fuera del chat: un chat abierto se marca leído solo y taparía un no leído que volviera.
+    await page.goto('/en/app/lines', { waitUntil: 'networkidle' });
     await again(post, evs);
     expect(await state()).toEqual(before);
     // El archivo guardado es el mismo (no se volvió a bajar ni se perdió el enlace).
     expect(await file()).toBe(saved);
     await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
     await expectSame(page.locator('.wa-thread'), tag);
-    expect((await sql('SELECT COUNT(*) AS n FROM groups_chats WHERE number_id = ?', [numberId]))[0].n).toBe(1);
+    expect(Number((await sql('SELECT COUNT(*) AS n FROM groups_chats WHERE number_id = ?', [numberId]))[0].n)).toBe(1);
   } finally {
     await request.delete(`/api/groups/numbers/${numberId}`).catch(() => null);
   }
