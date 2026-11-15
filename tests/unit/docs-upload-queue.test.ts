@@ -31,8 +31,9 @@ describe('cola de subidas', () => {
     // El progreso no retrocede ni pasa de 100.
     q.progress('x', 10);
     expect(q.find('x')?.progress).toBe(42);
+    // Y no llega a 100 hasta que el servidor responde.
     q.progress('x', 180);
-    expect(q.find('x')?.progress).toBe(100);
+    expect(q.find('x')?.progress).toBe(99);
     q.fail('x', 'failed');
     expect(q.find('x')).toMatchObject({ status: 'error', error: 'failed' });
     expect(canRetry(q.find('x')!)).toBe(true);
@@ -133,6 +134,36 @@ describe('uploadSlots', () => {
     expect(s.after.get('b')?.map((u) => u.id)).toEqual(['af']);
     expect(s.top.map((u) => u.id)).toEqual(['t']);
     expect(s.end.map((u) => u.id)).toEqual(['lost']);
+  });
+
+  it('con una columna o un sincronizado de ancla, va primero adentro del contenedor', () => {
+    const blocks: DocsBlock[] = [
+      { id: 'cols', type: 'columns', content: '' },
+      { id: 'c1', type: 'column', content: '', indent: 1 },
+      para('x', 'uno', 2),
+      { id: 's', type: 'synced', content: '' },
+      para('y', 'dos', 1),
+    ];
+    const s = uploadSlots(blocks, [up('in-col', { anchorId: 'c1' }), up('in-sync', { anchorId: 's' })]);
+    expect(s.inside.get('c1')?.map((u) => u.id)).toEqual(['in-col']);
+    expect(s.inside.get('s')?.map((u) => u.id)).toEqual(['in-sync']);
+    expect(s.after.size).toBe(0);
+    // Y el bloque cae ahí mismo.
+    expect(placeUploadedBlock(blocks, img('i'), { anchorId: 'c1', beforeId: null }).map((b) => b.id)).toEqual(['cols', 'c1', 'i', 'x', 's', 'y']);
+  });
+
+  it('soltado en la página después de unas columnas, va debajo de todo el contenedor', () => {
+    const blocks: DocsBlock[] = [
+      { id: 'cols', type: 'columns', content: '' },
+      { id: 'c1', type: 'column', content: '', indent: 1 },
+      para('x', 'uno', 2),
+      para('z', 'abajo'),
+    ];
+    const s = uploadSlots(blocks, [up('page', { anchorId: 'x', indent: 0 })]);
+    expect(s.after.get('cols')?.map((u) => u.id)).toEqual(['page']);
+    // Adentro de la columna, con su nivel: debajo del ancla.
+    const t = uploadSlots(blocks, [up('col', { anchorId: 'x', indent: 2 })]);
+    expect(t.after.get('x')?.map((u) => u.id)).toEqual(['col']);
   });
 
   it('si la línea de referencia se borró, va después del ancla', () => {

@@ -967,7 +967,30 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/calls/calls/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/calls/calls/${i.id}`))),
   },
+  {
+    // Fleet: una sesión de agente que entra por el hook (token de ingesta): el primer prompt es su nombre.
+    app: 'Fleet',
+    list: '/en/app/fleet',
+    create: async (request, name) => {
+      const token = await fleetToken(request);
+      const headers = { authorization: `Bearer ${token}` };
+      const session = `smoke-${uid()}`;
+      const { session: id } = await ok<{ session: string }>(request.post('/api/fleet/ingest', { headers, data: { event: 'UserPromptSubmit', session, project: 'smoke', text: name } }));
+      await ok(request.post('/api/fleet/ingest', { headers, data: { event: 'Stop', session, text: 'ok' } }));
+      return { id, name };
+    },
+    detail: (i) => `/en/app/fleet/chats/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/fleet/sessions/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/fleet/sessions/${i.id}`))),
+  },
 ];
+
+/** Token de ingesta de Fleet compartido por las sesiones del smoke. */
+let fleetIngestToken: string | null = null;
+async function fleetToken(request: APIRequestContext): Promise<string> {
+  if (!fleetIngestToken) fleetIngestToken = (await ok<{ token: string }>(request.post('/api/fleet/tokens', { data: { label: `smoke ${uid()}` } }))).token;
+  return fleetIngestToken;
+}
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */
 function watchErrors(page: Page): string[] {

@@ -169,7 +169,8 @@
       "cancelNamed": "Cancelar o envio de {name}",
       "retry": "Tentar de novo",
       "remove": "Remover",
-      "removeNamed": "Remover {name}"
+      "removeNamed": "Remover {name}",
+      "retryNamed": "Tentar de novo o envio de {name}"
     },
     "togglePlaceholder": "Recolhível",
     "calloutPlaceholder": "Escreva uma nota…",

@@ -1656,7 +1656,11 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-file-block { display: block; padding: 4px 0; outline: none; }
 /* Bloque de medios seleccionado: anillo azul tenue (el mismo de la selección de bloques), no una caja negra. */
 .docs-file-block:focus-visible,
-.docs-file-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+.docs-file-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+/* Con el teclado el anillo va entero (se tiene que ver bien); con el mouse, tenue. El outline
+   transparente lo deja visible en modo de alto contraste, donde la sombra no se dibuja. */
+.docs-file-block:focus-visible,
+.docs-board-block:focus-visible { box-shadow: 0 0 0 2px #2383e2; }
 .docs-image { display: block; max-width: 100%; height: auto; border-radius: var(--radius-1); }
 .docs-file-card {
   display: flex;
@@ -1701,9 +1705,11 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 /* Mismo tamaño que el bloque que va a quedar: imagen y video con su proporción
    (16:9 hasta leer el archivo), PDF con la altura del visor. */
 .docs-upload-box { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 16 / 9; }
-/* Un video sin medidas todavía se dibuja 2:1 (el 300×150 del navegador): el esqueleto igual. */
-.docs-upload-box-video { aspect-ratio: 2 / 1; max-height: 70vh; }
+/* Un video sin medidas (un formato que el navegador no lee) se dibuja de 150px de alto: el esqueleto igual. */
+.docs-upload-box-video { aspect-ratio: auto; height: 150px; max-height: 70vh; }
 .docs-upload-box-pdf { aspect-ratio: auto; height: 640px; max-height: 80vh; }
+/* Reserva un renglón igual al del bloque final sin mostrarlo. */
+.docs-upload-ghost { visibility: hidden; }
 .docs-upload-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(240px, calc(100% - 24px)); font-size: 0.8125rem; color: var(--brand-gray-1); text-align: center; }
 .docs-upload-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 500; }
 .docs-upload-meta { display: flex; align-items: center; gap: 10px; }
@@ -1726,7 +1732,12 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-upload-cancel:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* Archivo y audio: la ficha del archivo, con el progreso en una raya abajo (no cambia el alto). */
-.docs-upload-card { position: relative; background: var(--brand-enamel); }
+.docs-upload-card,
+.docs-file-card.docs-upload-card:hover { position: relative; background: var(--brand-enamel); }
+/* El texto va por encima del brillo. */
+.docs-upload-card > :not(.docs-upload-bar) { position: relative; z-index: 1; }
+/* El alto del reproductor de audio. */
+.docs-upload-audio { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 54px; }
 .docs-upload-card .docs-upload-bar { position: absolute; left: 0; right: 0; bottom: 0; width: auto; height: 2px; border-radius: 0; background: transparent; }
 .docs-upload-cancel {
   position: relative;
@@ -1765,6 +1776,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-upload-error-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
 .docs-upload-actions { display: flex; gap: 6px; margin-left: auto; }
 
+@media (max-width: 720px) {
+  .docs-upload-box-pdf { height: 420px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .docs-skel::after { animation: none; opacity: 0; }
   .docs-upload-bar-fill { transition: none; }
@@ -1817,7 +1831,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 .docs-board-block { display: block; padding: 4px 0; outline: none; }
 .docs-board-block:focus-visible,
-.docs-board-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+.docs-board-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
 .docs-board-embed {
   display: flex;
   align-items: stretch;
