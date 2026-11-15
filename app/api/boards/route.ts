@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createBoard, listBoards, listTrash, searchBoards } from '@/lib/boards';
+import { createBoard, getBoard, listBoards, listTrash, searchBoards } from '@/lib/boards';
 import { getBoardFolder } from '@/lib/board-folders';
 import { logBoardAudit } from '@/lib/board-audit';
 import { emitEventSoon } from '@/lib/events';
-import { boardViewer } from '@/lib/board-access';
+import { boardViewer, getBoardAccessInfo } from '@/lib/board-access';
 import { boardCreateSchema } from '@/lib/boards-schema';
 import { buildTemplateScene, type TemplateText } from '@/lib/board-templates';
 import { routing } from '@/i18n/routing';
@@ -49,14 +49,31 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const parsed = boardCreateSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return invalidInput(parsed.error);
-  const { name, template } = parsed.data;
+  const { name, template, id } = parsed.data;
+  // Pizarra creada sin red (lib/board-sync.ts, syncLocalBoard): si ya llegó, es la misma.
+  if (id) {
+    const existing = await getBoardAccessInfo(user.id, id);
+    if (existing) {
+      const board = existing.created_by === personId ? await getBoard(user.id, id) : null;
+      return board ? NextResponse.json(board) : jsonError(409, 'id_taken');
+    }
+  }
   const folderId = parsed.data.folderId && (await getBoardFolder(user.id, parsed.data.folderId)) ? parsed.data.folderId : null;
   let scene;
   if (template) {
     const locale = (routing.locales as readonly string[]).includes(parsed.data.locale ?? '') ? parsed.data.locale! : routing.defaultLocale;
     scene = buildTemplateScene(template, templateText(locale));
   }
-  const board = await createBoard(user.id, personId, name ?? '', { scene, folderId });
+  let board;
+  try {
+    board = await createBoard(user.id, personId, name ?? '', { scene, folderId, id });
+  } catch (err) {
+    // El id existe en otro workspace (o llegó otro pedido igual en paralelo): no se pisa.
+    if (!id) throw err;
+    const raced = await getBoardAccessInfo(user.id, id);
+    const same = raced?.created_by === personId ? await getBoard(user.id, id) : null;
+    return same ? NextResponse.json(same) : jsonError(409, 'id_taken');
+  }
   await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'board.created', boardId: board.id, boardName: board.name, data: template ? { template } : {} });
   await emitEventSoon(user.id, 'board.created', { board: { id: board.id, name: board.name }, createdBy: personId });
   return NextResponse.json(board, { status: 201 });

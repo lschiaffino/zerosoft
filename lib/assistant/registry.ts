@@ -27,16 +27,24 @@ export interface ToolCtx {
   personId: string;
   locale: string;
   isAdmin: boolean;
+  /** La charla del turno (las herramientas que leen lo que la persona pegó o adjuntó). */
+  conversationId?: string;
 }
 
 export interface PreparedAction {
   summary: string;
   /** Lo que cambia, para la tarjeta de confirmación (antes → después). */
   details: Array<{ label: string; before?: string | null; after: string }>;
-  /** Acciones destructivas: lo que la persona tiene que tipear para confirmar. */
-  confirmText?: string;
+  /** Acciones destructivas: lo que la persona tiene que tipear para confirmar (null: alcanza con el botón). */
+  confirmText?: string | null;
   /** Input normalizado que se guarda y se ejecuta (ids resueltos, etc.). */
   input?: Record<string, unknown>;
+  /** Texto del botón mientras corre ("Creando 12 carpetas…"). */
+  working?: string;
+  /** Esta acción en particular es destructiva aunque la herramienta no siempre lo sea. */
+  destructive?: boolean;
+  /** Lo que vuelve al modelo además del resumen (el plan, para explicarlo y preguntar). */
+  forModel?: unknown;
 }
 
 export interface ActionResult {
@@ -44,6 +52,8 @@ export interface ActionResult {
   message?: string;
   href?: string;
   error?: string;
+  /** Se hizo una parte: el mensaje dice qué faltó y que repetir solo hace eso. */
+  partial?: boolean;
 }
 
 interface BaseTool<S extends z.ZodTypeAny> {

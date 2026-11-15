@@ -37,6 +37,25 @@ export const sendSchema = z.object({
     .optional(),
 });
 
+/** Encuesta o tarjetas de contacto de WhatsApp (el menú + del chat). Una de las dos. */
+export const sendCardSchema = z.union([
+  z.object({
+    poll: z.object({
+      question: z.string().trim().min(1).max(255),
+      options: z.array(z.string().trim().min(1).max(100)).min(2).max(12),
+      multi: z.boolean().optional(),
+    }),
+    clientId: z.string().regex(/^[\w-]{8,40}$/).optional(),
+  }),
+  z.object({
+    contacts: z
+      .array(z.object({ name: z.string().max(100).optional(), phone: z.string().min(1).max(30) }))
+      .min(1)
+      .max(5),
+    clientId: z.string().regex(/^[\w-]{8,40}$/).optional(),
+  }),
+]);
+
 /** Acciones sobre un mensaje de WhatsApp (reaccionar, editar, destacar, borrar para mí, reenviar). */
 export const messageActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('react'), emoji: z.string().max(16) }),

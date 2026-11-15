@@ -1748,14 +1748,16 @@
       "docs": "Docs",
       "track": "Track",
       "notes": "Notes",
-      "board": "Board"
+      "board": "Board",
+      "cal": "Cal (somente leitura)"
     },
     "appsHelp": {
       "crm": "Contatos, empresas, negócios e a página inicial",
       "docs": "As páginas que você abriu ou marcou como disponíveis sem conexão",
       "track": "As listas, issues e projetos que você abriu",
       "notes": "A lista de notas",
-      "board": "Os quadros que você abriu e a lista de quadros"
+      "board": "Os quadros que você abriu e a lista de quadros",
+      "cal": "As reservas, tipos de evento e disponibilidade que você abriu. Para editar é preciso conexão"
     },
     "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
     "measuring": "Medindo…",

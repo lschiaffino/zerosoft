@@ -64,6 +64,7 @@ import { formsTools } from './tools-forms';
 import { sendTools } from './tools-send';
 import { catalogTools } from './tools-catalog';
 import { attachmentTools } from './tools-attachments';
+import { folderTools } from './tools-folders';
 
 // ---------- Utilidades ----------
 
@@ -775,7 +776,7 @@ const automate: AssistantTool[] = [
     app: 'agents',
     description: 'AI agents of the workspace with their status.',
     input: z.object({}),
-    run: async (ctx) => ({ agents: (await listAgents(ctx.workspaceId)).map((a) => ({ ...pick(a, ['id', 'name', 'status', 'model', 'updatedAt']), href: `/app/agents/${a.id}` })) }),
+    run: async (ctx) => ({ agents: (await listAgents(ctx.workspaceId, ctx.user)).map((a) => ({ ...pick(a, ['id', 'name', 'status', 'model', 'updatedAt']), href: `/app/agents/${a.id}` })) }),
   }),
 ];
 
@@ -1176,7 +1177,7 @@ const social: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools, ...sendTools, ...catalogTools, ...attachmentTools];
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools, ...sendTools, ...catalogTools, ...attachmentTools, ...folderTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

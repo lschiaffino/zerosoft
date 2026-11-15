@@ -29,6 +29,7 @@ import {
   newId,
   newToken,
   normalizeEmail,
+  cleanLinkButton,
   nowIso,
   parseAccessList,
   PART_BYTES,
@@ -101,6 +102,8 @@ export interface LinkRow {
   message: string;
   notify: number;
   use_branding: number;
+  button_label: string;
+  button_url: string;
   access_epoch: number;
   transferred_from: string | null;
   disabled_at: string | null;
@@ -733,6 +736,9 @@ export interface LinkInput {
   watermark?: boolean;
   ndaTemplateId?: string | null;
   message?: string;
+  /** Botón propio del visor: van juntos; los dos vacíos lo sacan. */
+  buttonLabel?: string;
+  buttonUrl?: string;
   notify?: boolean;
   useBranding?: boolean;
   disabled?: boolean;
@@ -753,6 +759,8 @@ export interface LinkDto {
   watermark: boolean;
   ndaTemplateId: string | null;
   message: string;
+  buttonLabel: string;
+  buttonUrl: string;
   notify: boolean;
   useBranding: boolean;
   state: 'active' | 'disabled' | 'expired';
@@ -783,6 +791,8 @@ export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; 
     watermark: !!l.watermark,
     ndaTemplateId: l.nda_template_id,
     message: l.message,
+    buttonLabel: l.button_label ?? '',
+    buttonUrl: l.button_url ?? '',
     notify: !!l.notify,
     useBranding: !!l.use_branding,
     state: linkState(l),
@@ -843,6 +853,11 @@ function cleanLinkFields(input: LinkInput) {
   if (input.watermark !== undefined) out.watermark = input.watermark ? 1 : 0;
   if (input.ndaTemplateId !== undefined) out.nda_template_id = input.ndaTemplateId || null;
   if (input.message !== undefined) out.message = input.message.slice(0, 1000);
+  if (input.buttonLabel !== undefined || input.buttonUrl !== undefined) {
+    const b = cleanLinkButton(input.buttonLabel ?? '', input.buttonUrl ?? '');
+    out.button_label = b.label;
+    out.button_url = b.url;
+  }
   if (input.notify !== undefined) out.notify = input.notify ? 1 : 0;
   if (input.useBranding !== undefined) out.use_branding = input.useBranding ? 1 : 0;
   return out;
@@ -865,8 +880,8 @@ export async function createLink(actor: SendActor, target: { documentId?: string
   await getDb()
     .prepare(
       `INSERT INTO send_links (id, workspace_id, document_id, space_id, created_by, name, recipient_email, token_hash, token_sealed, require_email, verify_email,
-         passcode_hash, expires_at, allow_download, access_mode, access_list, watermark, nda_template_id, message, notify, use_branding, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         passcode_hash, expires_at, allow_download, access_mode, access_list, watermark, nda_template_id, message, notify, use_branding, button_label, button_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -890,6 +905,8 @@ export async function createLink(actor: SendActor, target: { documentId?: string
       (fields.message as string) ?? '',
       (fields.notify as number) ?? 1,
       (fields.use_branding as number) ?? 1,
+      (fields.button_label as string) ?? '',
+      (fields.button_url as string) ?? '',
       ts,
       ts,
     );

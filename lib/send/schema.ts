@@ -14,6 +14,8 @@ export const linkSchema = z.object({
   watermark: z.boolean().optional(),
   ndaTemplateId: z.string().max(60).nullable().optional(),
   message: z.string().max(1000).optional(),
+  buttonLabel: z.string().max(200).optional(),
+  buttonUrl: z.string().max(2000).optional(),
   notify: z.boolean().optional(),
   useBranding: z.boolean().optional(),
   disabled: z.boolean().optional(),

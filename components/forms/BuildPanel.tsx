@@ -350,6 +350,12 @@ function QuestionEditor({ q, index, total, onPatch, onMove, onRemove, onDuplicat
           </Field>
         </div>
       )}
+      {CHOICE_TYPES.includes(q.type) && (
+        <label className="ui-check">
+          <input type="checkbox" checked={!!q.randomize} onChange={(e) => onPatch({ randomize: e.target.checked || undefined })} data-testid="fm-q-randomize" />
+          <span>{t('randomize')}</span>
+        </label>
+      )}
       {CHOICE_TYPES.includes(q.type) && <ChoiceList items={q.choices ?? []} onChange={(c) => onPatch({ choices: c })} label={t('options')} withPoints={q.type === 'choice' || q.type === 'multi_choice'} idPrefix="c" />}
       {q.type === 'matrix' && (
         <div className="ui-fields-2">

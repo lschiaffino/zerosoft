@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-13',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -174,6 +174,14 @@ const parity: ProductParity = {
         'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local, mais o histórico completo do WhatsApp Desktop desse Mac. Arquivos grandes sobem direto e continuam importando em segundo plano; importar duas vezes não duplica',
       ],
     }),
+    row('folders-json', 'platform', ['Folders from another inbox with the assistant', 'Carpetas de otra bandeja con el asistente', 'Pastas de outra caixa com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste or attach the JSON exported from another inbox and ask the assistant (⌘J) to create the folders and subfolders and put the chats in them. It finds chats by name, phone, WhatsApp id or email, shows the plan with the chats it could not find and their closest names, and changes nothing until you click Confirm. Running it again only does what is missing. Tested with the fake model',
+        'Pegá o adjuntá el JSON exportado de otra bandeja y pedile al asistente (⌘J) que cree las carpetas y subcarpetas y ponga los chats. Encuentra los chats por nombre, teléfono, id de WhatsApp o email, muestra el plan con los que no encontró y los nombres más parecidos, y no cambia nada hasta que tocás Confirmar. Repetirlo solo hace lo que falta. Probado con el modelo falso',
+        'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente (⌘J) para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra o plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta. Testado com o modelo falso',
+      ],
+    }),
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [
@@ -194,9 +202,9 @@ const parity: ProductParity = {
     }),
     row('wa-photos', 'whatsapp', ['Profile photos', 'Fotos de perfil', 'Fotos de perfil'], 'partial', {
       detail: [
-        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. Tested with the fake provider',
-        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. Probado con el proveedor falso',
-        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Testado com o provedor falso',
+        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. In groups, every participant has their photo (next to their messages, in the participant list and when mentioning), fetched a few at a time, stored so it does not expire and checked again every week. Tested with the fake provider',
+        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. En los grupos, cada participante tiene su foto (al lado de sus mensajes, en la lista de participantes y al mencionar), pedida de a pocas, guardada para que no venza y revisada cada semana. Probado con el proveedor falso',
+        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Nos grupos, cada participante tem sua foto (ao lado das mensagens, na lista de participantes e ao mencionar), buscada poucas por vez, guardada para não expirar e conferida toda semana. Testado com o provedor falso',
       ],
     }),
     row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'partial', {
@@ -215,9 +223,9 @@ const parity: ProductParity = {
     }),
     row('wa-message-actions', 'whatsapp', ['Reply, react, forward, copy, edit, delete, star', 'Responder, reaccionar, reenviar, copiar, editar, borrar, destacar', 'Responder, reagir, encaminhar, copiar, editar, apagar, favoritar'], 'partial', {
       detail: [
-        'From the arrow menu, right click or a long press. Forwarding sends a copy of any message (text, photo, video, document, sticker, audio; a voice note goes as a voice note) to up to 5 chats, marked "Forwarded" here but not on the other phone, because our WhatsApp server has no native forward. View once messages are not forwarded. Message info shows delivered and read, not the time',
-        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia de cualquier mensaje (texto, foto, video, documento, sticker, audio; una nota de voz sale como nota de voz) a hasta 5 chats, marcada "Reenviado" acá pero no en el teléfono de quien la recibe, porque nuestro servidor de WhatsApp no tiene reenvío nativo. Los de ver una vez no se reenvían. La info del mensaje muestra entregado y leído, sin la hora',
-        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia de qualquer mensagem (texto, foto, vídeo, documento, figurinha, áudio; uma nota de voz sai como nota de voz) para até 5 conversas, marcada "Encaminhada" aqui mas não no telefone de quem recebe, porque nosso servidor de WhatsApp não tem encaminhamento nativo. As de visualização única não são encaminhadas. Os dados da mensagem mostram entregue e lida, sem a hora',
+        'From the arrow menu, right click or a long press, in the WhatsApp order. In groups, Reply privately (the one on one chat opens replying, the quote shows the group like on WhatsApp) and Message plus the name of the sender. Download for photos, videos and files. No Pin, Select messages or Report yet. Forwarding sends a copy of any message (text, photo, video, document, sticker, audio; a voice note goes as a voice note) to up to 5 chats, marked "Forwarded" here but not on the other phone, because our WhatsApp server has no native forward. View once messages are not forwarded. Message info shows delivered and read, not the time',
+        'Desde la flecha, el clic derecho o un toque largo, en el orden de WhatsApp. En grupos, Responder en privado (el chat individual se abre respondiendo y la cita muestra el grupo como en WhatsApp) y Enviar mensaje con el nombre de quien escribió. Descargar para fotos, videos y archivos. Todavía sin Fijar, Seleccionar mensajes ni Reportar. Reenviar manda una copia de cualquier mensaje (texto, foto, video, documento, sticker, audio; una nota de voz sale como nota de voz) a hasta 5 chats, marcada "Reenviado" acá pero no en el teléfono de quien la recibe, porque nuestro servidor de WhatsApp no tiene reenvío nativo. Los de ver una vez no se reenvían. La info del mensaje muestra entregado y leído, sin la hora',
+        'Pela seta, clique direito ou toque longo, na ordem do WhatsApp. Em grupos, Responder em particular (a conversa individual abre respondendo e a citação mostra o grupo como no WhatsApp) e Enviar mensagem com o nome de quem escreveu. Baixar para fotos, vídeos e arquivos. Ainda sem Fixar, Selecionar mensagens nem Denunciar. Encaminhar envia uma cópia de qualquer mensagem (texto, foto, vídeo, documento, figurinha, áudio; uma nota de voz sai como nota de voz) para até 5 conversas, marcada "Encaminhada" aqui mas não no telefone de quem recebe, porque nosso servidor de WhatsApp não tem encaminhamento nativo. As de visualização única não são encaminhadas. Os dados da mensagem mostram entregue e lida, sem a hora',
       ],
     }),
     row('wa-media-view', 'whatsapp', ['Photos, video, voice notes, documents, stickers, locations, contacts, polls', 'Fotos, video, notas de voz, documentos, stickers, ubicaciones, contactos, encuestas', 'Fotos, vídeo, notas de voz, documentos, figurinhas, localizações, contatos, enquetes'], 'partial', {
@@ -241,6 +249,13 @@ const parity: ProductParity = {
         'Aba GIFs no painel de emojis, entre Emoji e Figurinhas: em alta ao abrir, categorias como no WhatsApp (Haha, Triste, Amor...), pesquisa no seu idioma, e um clique envia como GIF do WhatsApp (MP4 que toca sem som e em loop). Precisa de uma chave do GIPHY ou do Tenor no servidor. Com o Evolution 2.3.7 ou anterior chega como vídeo comum, porque essa versão não repassa gifPlayback. Testado com GIFs de exemplo e o provedor falso',
       ],
     }),
+    row('wa-attach-menu', 'whatsapp', ['Attach menu: document, photos, camera, audio, contact, poll, new sticker', 'Menú de adjuntar: documento, fotos, cámara, audio, contacto, encuesta, sticker nuevo', 'Menu de anexar: documento, fotos, câmera, áudio, contato, enquete, nova figurinha'], 'partial', {
+      detail: [
+        'The + menu has the WhatsApp options in the WhatsApp order, with colored icons: camera opens the computer camera (or the phone camera), contact sends up to 5 contact cards, poll sends a WhatsApp poll, and new sticker turns an image into a sticker and sends it. Help me write, dictate and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',
+        'El menú + tiene las opciones de WhatsApp en el orden de WhatsApp, con íconos de color: cámara abre la de la computadora (o la del teléfono), contacto manda hasta 5 tarjetas, encuesta manda una encuesta de WhatsApp y sticker nuevo convierte una imagen en sticker y lo manda. Ayudame a escribir, dictar y comandos van debajo de una línea. Faltan los eventos: nuestro servidor de WhatsApp todavía no los puede mandar. Probado con el proveedor falso',
+        'O menu + tem as opções do WhatsApp na ordem do WhatsApp, com ícones coloridos: câmera abre a do computador (ou a do celular), contato envia até 5 cartões, enquete envia uma enquete do WhatsApp e nova figurinha transforma uma imagem em figurinha e envia. Me ajude a escrever, ditar e comandos ficam abaixo de uma linha. Faltam os eventos: nosso servidor de WhatsApp ainda não consegue enviá-los. Testado com o provedor falso',
+      ],
+    }),
     row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {
       detail: [
         'Several files at once with a caption each and a preview before sending (paste more images into the preview; the same one twice goes in once); voice notes from the microphone. Files and voice notes show in the chat as soon as you send, with the clock, and upload in the background. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
@@ -250,9 +265,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
       detail: [
-        'Type @ to pick a member (photo initial, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
-        'Con @ se elige a alguien del grupo (inicial, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
-        'Com @ se escolhe alguém do grupo (inicial, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
+        'Type @ to pick a member (photo, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account, and clicking one opens that contact info. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo (foto, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta, y hacer clic en una abre la info del contacto. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo (foto, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta, e clicar em uma abre os dados do contato. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
@@ -293,9 +308,9 @@ const parity: ProductParity = {
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
-        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. Leaving or editing a group is done on the phone',
-        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. Salir o editar un grupo se hace en el teléfono',
-        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. Sair ou editar um grupo é feito no celular',
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. Salir o editar un grupo se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. Sair ou editar um grupo é feito no celular',
       ],
     }),
     row('wa-ai-summary', 'whatsapp', ['AI summary of a chat', 'Resumen con IA de un chat', 'Resumo com IA de uma conversa'], 'better', {

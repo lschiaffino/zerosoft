@@ -113,6 +113,8 @@ test('Docs API: lista sin contenido y paginada', async ({ request }) => {
 
 test('Board: apuntar a una pizarra de la lista precarga el lienzo', async ({ page, request }) => {
   await request.post('/api/boards', { data: { name: `Precarga ${uid()}` } });
+  // La lista guarda el lienzo para usarlo sin red una vez cada 6 h; acá se mide solo la precarga al apuntar.
+  await page.addInitScript(() => localStorage.setItem('zs:board-local-warm', String(Date.now())));
   await page.goto('/en/app/board', { waitUntil: 'networkidle' });
   const scripts = () => page.evaluate(() => performance.getEntriesByType('resource').filter((e) => (e as PerformanceResourceTiming).initiatorType === 'script').length);
   const before = await scripts();

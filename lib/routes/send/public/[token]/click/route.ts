@@ -1,14 +1,16 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { recordLinkClick, requireViewer } from '@/lib/send/viewer';
+import { recordButtonClick, recordLinkClick, requireViewer } from '@/lib/send/viewer';
 import { publicLink, sendLimit, sFail, sJson, type PublicCtx } from '@/lib/send/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({ documentId: z.string().max(40), versionId: z.string().max(40), page: z.number().int().min(1).max(10_000), index: z.number().int().min(0).max(500) });
+/** El botón propio del link: con el documento que estaba abierto, si había uno. */
+const buttonSchema = z.object({ button: z.literal(true), documentId: z.string().max(40).nullable().optional() });
 
-/** POST: alguien tocó un link de una página. Con el link cortado responde como el resto (410). */
+/** POST: alguien tocó un link de una página o el botón del link. Con el link cortado responde como el resto (410). */
 export async function POST(req: NextRequest, ctx: PublicCtx) {
   const p = await publicLink(req, (await ctx.params).token);
   if ('res' in p) return p.res;
@@ -17,9 +19,13 @@ export async function POST(req: NextRequest, ctx: PublicCtx) {
   try {
     const session = await requireViewer(p.link, p.cookie);
     // sendBeacon manda text/plain: el cuerpo se lee como JSON igual.
-    const parsed = schema.safeParse(JSON.parse(await req.text()));
+    const raw: unknown = JSON.parse(await req.text());
+    const meta = { headers: req.headers, ua: req.headers.get('user-agent') ?? '' };
+    const button = buttonSchema.safeParse(raw);
+    if (button.success) return sJson({ counted: await recordButtonClick(p.link, session, button.data, meta) });
+    const parsed = schema.safeParse(raw);
     if (!parsed.success) return sJson({ error: 'invalid_input' }, 400);
-    return sJson({ counted: await recordLinkClick(p.link, session, parsed.data, { headers: req.headers, ua: req.headers.get('user-agent') ?? '' }) });
+    return sJson({ counted: await recordLinkClick(p.link, session, parsed.data, meta) });
   } catch (err) {
     if (err instanceof SyntaxError) return sJson({ error: 'invalid_input' }, 400);
     return sFail(err);

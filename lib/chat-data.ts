@@ -2428,11 +2428,15 @@ export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
  * Proyección de la conversación para rutas públicas (widget): sin los
  * atributos de conversación, que completa el equipo y son internos.
  */
-export function toPublicConversation<T extends ChatConversationRow | null>(conversation: T): T {
-  if (!conversation) return conversation;
-  const { attributes: _attributes, ...rest } = conversation;
-  void _attributes;
-  return rest as T;
+/** Lo que ve el visitante de su conversación: nada interno (asignación, prioridad, equipo, SLA, atributos). */
+export type PublicConversation = Pick<ChatConversationRow, 'id' | 'widget_id' | 'visitor_id' | 'status' | 'subject' | 'created_at' | 'updated_at' | 'resolved_at'>;
+
+export function toPublicConversation(conversation: ChatConversationRow): PublicConversation;
+export function toPublicConversation(conversation: ChatConversationRow | null): PublicConversation | null;
+export function toPublicConversation(conversation: ChatConversationRow | null): PublicConversation | null {
+  if (!conversation) return null;
+  const { id, widget_id, visitor_id, status, subject, created_at, updated_at, resolved_at } = conversation;
+  return { id, widget_id, visitor_id, status, subject, created_at, updated_at, resolved_at };
 }
 
 /** Proyección del indicador de escribiendo para rutas públicas: sin ids de agentes. */
