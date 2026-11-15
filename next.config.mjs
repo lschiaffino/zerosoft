@@ -110,6 +110,14 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Ni plugins (<object>/<embed>) ni un <base> inyectado que cambie a dónde apuntan los links relativos.
+          // Va aparte de las CSP de cada ruta: el navegador aplica todas.
+          { key: 'Content-Security-Policy', value: "object-src 'none'; base-uri 'self'" },
+          // Cámara, micrófono y pantalla (Rec, Voice, Calls) solo para nuestro origen; lo que no usamos, apagado.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), usb=(), serial=(), hid=(), bluetooth=(), midi=(), browsing-topics=()',
+          },
         ],
       },
       // La app y el login no se enmarcan desde otros sitios (clickjacking). Lo que sí se embebe
