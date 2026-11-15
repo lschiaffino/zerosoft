@@ -859,11 +859,15 @@ export default function DocsEditor({
     if (active && active !== document.body && !(root && root.contains(active)) && active.tagName !== 'INPUT') return;
     const el = blockRefs.current[i];
     if (!el) return;
-    el.focus();
-    setCaretOffset(el, 0);
+    // Ya está escribiendo ahí (la línea vacía bajo lo recién subido): el cursor no se mueve.
+    if (active !== el) {
+      el.focus();
+      setCaretOffset(el, 0);
+    }
     prevFocus.current = i;
     setFocusIndex(i);
-  }, [blocks]);
+    // focusTick: el pedido puede llegar sin que cambien los bloques (la línea vacía ya estaba).
+  }, [blocks, focusTick]);
 
   useEffect(() => {
     if (!menuOpen) return;

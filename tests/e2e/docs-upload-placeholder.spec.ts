@@ -100,7 +100,14 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   await expect(ph.getByRole('button', { name: /Cancel upload of paisaje\.png/ })).toBeVisible();
   // La forma real del archivo (640×360) apenas se lee.
   const box = ph.locator('.docs-upload-box');
-  await expect.poll(async () => Math.round(((await box.boundingBox())?.height ?? 0))).toBe(360);
+  // (16:9; en una columna más angosta que la imagen se achica con ella).
+  await expect
+    .poll(async () => {
+      const b = await box.boundingBox();
+      return b ? Math.round((b.width / b.height) * 100) : 0;
+    })
+    .toBe(178);
+  expect((await box.boundingBox())!.width).toBeLessThanOrEqual(640);
   await insideColumn(scope, ph);
   // El texto de "Subiendo" ya no aparece abajo, pegado al borde.
   await expect(scope.locator('.docs-upload-status')).toHaveCount(0);
