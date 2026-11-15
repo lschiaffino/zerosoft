@@ -1656,7 +1656,11 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-file-block { display: block; padding: 4px 0; outline: none; }
 /* Bloque de medios seleccionado: anillo azul tenue (el mismo de la selección de bloques), no una caja negra. */
 .docs-file-block:focus-visible,
-.docs-file-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+.docs-file-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+/* Con el teclado el anillo va entero (se tiene que ver bien); con el mouse, tenue. El outline
+   transparente lo deja visible en modo de alto contraste, donde la sombra no se dibuja. */
+.docs-file-block:focus-visible,
+.docs-board-block:focus-visible { box-shadow: 0 0 0 2px #2383e2; }
 .docs-image { display: block; max-width: 100%; height: auto; border-radius: var(--radius-1); }
 .docs-file-card {
   display: flex;
@@ -1817,7 +1821,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 .docs-board-block { display: block; padding: 4px 0; outline: none; }
 .docs-board-block:focus-visible,
-.docs-board-block.focused:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+.docs-board-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
 .docs-board-embed {
   display: flex;
   align-items: stretch;

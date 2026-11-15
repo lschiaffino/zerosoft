@@ -28,6 +28,16 @@ const db = () => getDb();
 
 const STEPS: Step[] = [
   {
+    // Fleet: todo es de la persona (tokens del hook, cuentas de GitHub y Vercel, sesiones): sale con ella del workspace.
+    // Primero los tokens: el hook de su computadora deja de entrar al instante.
+    name: 'fleet',
+    run: async (e) => {
+      for (const table of ['fleet_tokens', 'fleet_items', 'fleet_connections', 'fleet_messages', 'fleet_sessions', 'fleet_feed', 'fleet_prefs']) {
+        await db().prepare(`DELETE FROM ${table} WHERE workspace_id = ? AND person_id = ?`).run(e.ownerId, e.userId);
+      }
+    },
+  },
+  {
     // Calls: el bot deja de ir a sus reuniones y su regla automática se apaga. Las grabadas quedan (son del workspace).
     name: 'calls',
     run: async (e) => {

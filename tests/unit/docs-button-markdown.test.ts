@@ -41,5 +41,9 @@ describe('Markdown del bloque botón', () => {
     expect(expandButtonShorthand('[x](https://a.com) link')).toBe('[x](https://a.com) link');
     expect(expandButtonShorthand('Ver [nota] abajo')).toBe('Ver [nota] abajo');
     expect(expandButtonShorthand('```\n[] queda\n```')).toBe('```\n[] queda\n```');
+    expect(expandButtonShorthand('[x]: https://a.com')).toBe('[x]: https://a.com');
+    expect(expandButtonShorthand('*[x]* texto')).toBe('*[x]* texto');
+    expect(expandButtonShorthand('[]')).toBe('[]');
+    expect(expandButtonShorthand('-[ ] pegado')).toBe('- [ ] pegado');
   });
 });

@@ -2792,11 +2792,17 @@ export default function DocsEditor({
           // Backspace dentro de una celda de tabla/database edita el texto de
           // la celda: NUNCA borra el bloque entero.
           const target = e.target as HTMLElement;
-          if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+          // Tampoco con el foco en un botón o un link de adentro (el botón del bloque, la barra de una imagen).
+          if (target.closest('input, textarea, select, button, a, [contenteditable="true"]')) return;
           e.preventDefault();
-          // Como el menú del asa: con deshacer, y si era el único bloque queda una línea vacía.
-          const res = deleteBlocks(index, index);
-          editBlock(res.start, res.blocks);
+          if (blocks.length > 1) {
+            // Los hijos suben un nivel, como siempre.
+            removeBlock(index);
+          } else {
+            // El único bloque de la página: queda una línea vacía (como el menú del asa).
+            const res = deleteBlocks(index, index);
+            editBlock(res.start, res.blocks);
+          }
           return;
         }
       }

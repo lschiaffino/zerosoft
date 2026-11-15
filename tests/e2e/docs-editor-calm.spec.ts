@@ -129,6 +129,16 @@ test('Docs: el botón se borra desde su configuración, con Backspace y desde el
   await page.keyboard.press('ControlOrMeta+z');
   await expect(block).toHaveCount(1);
 
+  // Supr hace lo mismo; con el foco en el botón de adentro no borra nada.
+  await block.focus();
+  await page.keyboard.press('Delete');
+  await expect(block).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(block).toHaveCount(1);
+  await block.getByTestId('docs-button-run').focus();
+  await page.keyboard.press('Backspace');
+  await expect(block).toHaveCount(1);
+
   // 3. Menú del asa, también cuando es el único bloque de la página.
   await editable(page, 'Arriba').click();
   await page.keyboard.press('Escape');

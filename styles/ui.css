@@ -286,10 +286,11 @@
 .select:focus,
 .textarea:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 /* El borde ya marca el foco: sin el anillo global de :focus-visible (globals.css), que
-   según el orden de carga de las hojas le ganaba al outline: none y dejaba una caja doble. */
+   según el orden de carga de las hojas le ganaba al outline: none y dejaba una caja doble.
+   Transparente y no none: en modo de alto contraste sigue marcando el foco. */
 .input:focus-visible,
 .select:focus-visible,
-.textarea:focus-visible { outline: none; }
+.textarea:focus-visible { outline: 2px solid transparent; }
 .input::placeholder,
 .textarea::placeholder { color: var(--brand-gray-3); opacity: 1; }
 .input:disabled,
