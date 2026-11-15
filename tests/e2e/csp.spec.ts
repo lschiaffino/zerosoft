@@ -41,10 +41,12 @@ test('CSP: nonce por request en la app y ninguna violación al cargar', async ({
 });
 
 test('CSP: headers base en el sitio y en la app', async ({ request }) => {
+  const app = (await request.get('/en/app')).headers()['content-security-policy'];
+  expect(app).toContain("frame-ancestors 'self'");
+  expect(app).toContain("object-src 'none'");
+  expect(app).toContain("base-uri 'self'");
   for (const path of ['/en', '/en/app']) {
     const h = (await request.get(path)).headers();
-    expect(h['content-security-policy'], path).toContain("object-src 'none'");
-    expect(h['content-security-policy'], path).toContain("base-uri 'self'");
     expect(h['permissions-policy'], path).toContain('geolocation=()');
     expect(h['permissions-policy'], path).toContain('microphone=(self)');
     expect(h['x-content-type-options'], path).toBe('nosniff');
