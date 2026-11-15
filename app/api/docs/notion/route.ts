@@ -7,6 +7,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { isAdminEmail } from '@/lib/feedback';
 import {
   clearWebhookToken,
+  confirmWebhookToken,
   connectNotion,
   disconnectNotion,
   getNotionSyncStatus,
@@ -26,6 +27,7 @@ const patchSchema = z.object({
   roots: z.array(z.object({ id: z.string().max(64), enabled: z.boolean() })).max(500).optional(),
   clear_webhook_token: z.literal(true).optional(),
   open_webhook_window: z.literal(true).optional(),
+  confirm_webhook_token: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/).optional(),
 });
 
 /**
@@ -40,9 +42,9 @@ async function admin() {
   return { user } as const;
 }
 
-/** Estado; quien administra la instancia (ADMIN_EMAILS) ve además el token de verificación del webhook. */
-function status(user: { id: string; email: string; actingUser?: { email: string } }) {
-  return getNotionSyncStatus(user.id, { operator: isAdminEmail((user.actingUser ?? user).email) });
+/** Estado; quien administra la instancia (ADMIN_EMAILS) ve además la verificación del webhook. */
+function status(user: { id: string; email: string; actingUser?: { id: string; email: string } }) {
+  return getNotionSyncStatus(user.id, { operator: isAdminEmail((user.actingUser ?? user).email), userId: user.actingUser?.id ?? user.id });
 }
 
 function fail(e: unknown): NextResponse {
@@ -77,11 +79,20 @@ export async function PATCH(req: NextRequest) {
   if ('error' in a) return a.error;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
-  const { clear_webhook_token, open_webhook_window, ...patch } = parsed.data;
-  if (clear_webhook_token || open_webhook_window) {
+  const { clear_webhook_token, open_webhook_window, confirm_webhook_token, ...patch } = parsed.data;
+  if (clear_webhook_token || open_webhook_window || confirm_webhook_token) {
+    // Webhook de la integración pública: solo quien administra la instancia, atado a su workspace y a su persona.
     if (!isAdminEmail((a.user.actingUser ?? a.user).email)) return forbidden();
-    if (clear_webhook_token) await clearWebhookToken();
-    if (open_webhook_window) await openWebhookWindow();
+    const who = realUserId(a.user);
+    try {
+      if (clear_webhook_token) await clearWebhookToken();
+      if (open_webhook_window) await openWebhookWindow(a.user.id, who);
+      if (confirm_webhook_token) await confirmWebhookToken(a.user.id, who, confirm_webhook_token);
+    } catch (e) {
+      return fail(e);
+    }
+    const what = clear_webhook_token ? 'webhook_cleared' : confirm_webhook_token ? 'webhook_confirmed' : 'webhook_waiting';
+    await logDocsAudit({ workspaceId: a.user.id, actor: a.user.actingUser ?? a.user, action: 'settings.notion', detail: what, ip: requestIp(req.headers) });
   }
   try {
     if (Object.keys(patch).length) await updateNotionSync(a.user.id, patch);

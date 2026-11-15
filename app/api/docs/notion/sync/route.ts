@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin, userCanUseApp } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId, userCanUseApp } from '@/lib/session';
 import { docsError, forbidden, unauthorized } from '@/lib/docs-http';
 import { rateLimit } from '@/lib/rate-limit';
 import { isAdminEmail } from '@/lib/feedback';
@@ -20,5 +20,8 @@ export async function POST() {
   const limit = await rateLimit(`notion-sync-now:${user.id}`, 60, 60);
   if (!limit.ok) return docsError(429, 'rate_limited');
   const ran = await syncNotionNow(user.id, 8_000);
-  return NextResponse.json({ ran, ...(await getNotionSyncStatus(user.id, { operator: isAdminEmail((user.actingUser ?? user).email) })) });
+  return NextResponse.json({
+    ran,
+    ...(await getNotionSyncStatus(user.id, { operator: isAdminEmail((user.actingUser ?? user).email), userId: realUserId(user) })),
+  });
 }

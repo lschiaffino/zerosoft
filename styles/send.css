@@ -164,6 +164,14 @@ section > .sd-help:last-child { margin-top: 12px; }
 .sv-video { display: block; width: 100%; background: #000; }
 .sv-video-mark { position: absolute; top: 12px; right: 12px; padding: 2px 6px; background: rgb(0 0 0 / 0.45); color: #fff; font-size: 0.75rem; pointer-events: none; overflow-wrap: anywhere; max-width: 70%; }
 .sv-foot { max-width: 920px; text-align: center; padding: 8px 0 16px; }
+/* Botón propio del link: el color de la marca, como el botón de los pasos. */
+.sv-cta { background: var(--accent); border-color: var(--accent); color: var(--sv-on); max-width: 240px; text-decoration: none; }
+.sv-cta:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); border-color: color-mix(in srgb, var(--accent) 86%, var(--ink)); color: var(--sv-on); }
+.sv-cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sv-cta-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-cta-dock { position: sticky; bottom: 0; z-index: 5; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--brand-white); border-top: 1px solid var(--line); }
+.sv-cta-wide { width: 100%; max-width: none; justify-content: center; }
+.sv-show-sm { display: none; }
 
 .sv-space { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 32px 16px; display: grid; gap: 20px; align-content: start; min-width: 0; }
 .sv-space-head { display: grid; gap: 8px; }
@@ -181,6 +189,7 @@ section > .sd-help:last-child { margin-top: 12px; }
   .sv-bar { padding: 8px 12px; gap: 8px; }
   .sv-bar-left { flex: 1 1 0; gap: 8px; }
   .sv-hide-sm { display: none; }
+  .sv-show-sm { display: block; }
   .sv-pages { padding: 8px 0; gap: 8px; }
   .sv-page { box-shadow: none; scroll-margin-top: 60px; }
   .sv-foot { padding: 8px 12px 16px; }

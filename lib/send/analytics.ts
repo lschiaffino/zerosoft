@@ -31,8 +31,8 @@ export interface VisitDto {
   live: boolean;
   pages: Array<{ page: number; seconds: number }>;
   returning: boolean;
-  /** Links tocados en esta visita, en orden. */
-  clicks: Array<{ url: string | null; toPage: number | null; page: number; at: string }>;
+  /** Links tocados en esta visita, en orden. `button`: el texto del botón del link, si fue el botón (page 0). */
+  clicks: Array<{ url: string | null; toPage: number | null; page: number; button: string | null; at: string }>;
 }
 
 export interface PageStat {
@@ -74,9 +74,10 @@ export interface DocumentAnalytics {
   visits: VisitDto[];
   visitors: VisitorDto[];
   versions: VersionStat[];
-  denied: Array<{ email: string | null; at: string; linkName: string }>;
-  /** Links del documento que se tocaron, con cuántas veces y cuántas personas. */
-  linkClicks: Array<{ url: string | null; toPage: number | null; page: number; clicks: number; people: number }>;
+  /** Sin acceso por la lista (`denied`) o con el link deshabilitado o vencido. */
+  denied: Array<{ email: string | null; at: string; linkName: string; reason: 'denied' | 'disabled' | 'expired' }>;
+  /** Links del documento y botón del link que se tocaron, con cuántas veces y cuántas personas. */
+  linkClicks: Array<{ url: string | null; toPage: number | null; page: number; button: string | null; clicks: number; people: number }>;
 }
 
 interface VisitRow {
@@ -143,22 +144,25 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
     }
   }
   const clickRows = (await db
-    .prepare("SELECT email, detail, created_at FROM send_events WHERE document_id = ? AND type = 'link_click' ORDER BY created_at LIMIT 5000")
-    .all(documentId)) as Array<{ email: string | null; detail: string; created_at: string }>;
+    .prepare(
+      `SELECT email, type, detail, created_at FROM send_events WHERE document_id = ? AND type IN ('link_click', 'button_click')${opts.linkId ? ' AND link_id = ?' : ''} ORDER BY created_at LIMIT 5000`,
+    )
+    .all(...(opts.linkId ? [documentId, opts.linkId] : [documentId]))) as Array<{ email: string | null; type: string; detail: string; created_at: string }>;
   const clicksByVisit = new Map<string, VisitDto['clicks']>();
-  const byUrl = new Map<string, { url: string | null; toPage: number | null; page: number; clicks: number; people: Set<string> }>();
+  const byUrl = new Map<string, { url: string | null; toPage: number | null; page: number; button: string | null; clicks: number; people: Set<string> }>();
   for (const c of clickRows) {
-    let d: { url?: string | null; toPage?: number | null; page?: number; visitId?: string | null; versionId?: string } = {};
+    let d: { url?: string | null; toPage?: number | null; page?: number; label?: string; visitId?: string | null; versionId?: string | null } = {};
     try {
       d = JSON.parse(c.detail);
     } catch {
       continue;
     }
     if (opts.versionId && d.versionId !== opts.versionId) continue;
-    const item = { url: d.url ?? null, toPage: d.toPage ?? null, page: Number(d.page ?? 0), at: c.created_at };
+    const button = c.type === 'button_click' ? String(d.label ?? '') : null;
+    const item = { url: d.url ?? null, toPage: button === null ? (d.toPage ?? null) : null, page: button === null ? Number(d.page ?? 0) : 0, button, at: c.created_at };
     if (d.visitId) clicksByVisit.set(d.visitId, [...(clicksByVisit.get(d.visitId) ?? []), item]);
-    const key = `${item.url ?? `#${item.toPage}`}|${item.page}`;
-    const cur = byUrl.get(key) ?? { url: item.url, toPage: item.toPage, page: item.page, clicks: 0, people: new Set<string>() };
+    const key = button === null ? `${item.url ?? `#${item.toPage}`}|${item.page}` : `button|${button}|${item.url}`;
+    const cur = byUrl.get(key) ?? { url: item.url, toPage: item.toPage, page: item.page, button, clicks: 0, people: new Set<string>() };
     cur.clicks++;
     cur.people.add(c.email ?? d.visitId ?? c.created_at);
     byUrl.set(key, cur);
@@ -264,10 +268,10 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
   const seconds = visits.reduce((n, v) => n + v.seconds, 0);
   const denied = (await db
     .prepare(
-      `SELECT e.email, e.created_at, l.name AS link_name FROM send_events e LEFT JOIN send_links l ON l.id = e.link_id
-       WHERE e.document_id = ? AND e.type = 'denied' ORDER BY e.created_at DESC LIMIT 50`,
+      `SELECT e.email, e.created_at, e.type, e.detail, l.name AS link_name FROM send_events e LEFT JOIN send_links l ON l.id = e.link_id
+       WHERE e.document_id = ? AND e.type IN ('denied', 'closed_open')${opts.linkId ? ' AND e.link_id = ?' : ''} ORDER BY e.created_at DESC LIMIT 50`,
     )
-    .all(documentId)) as Array<{ email: string | null; created_at: string; link_name: string | null }>;
+    .all(...(opts.linkId ? [documentId, opts.linkId] : [documentId]))) as Array<{ email: string | null; created_at: string; type: string; detail: string; link_name: string | null }>;
   return {
     totals: {
       visits: visits.length,
@@ -289,7 +293,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       avgCompletion: Math.round(Number(v.avg_completion ?? 0)),
       avgSeconds: Math.round(Number(v.avg_seconds ?? 0) * 10) / 10,
     })),
-    denied: denied.map((d) => ({ email: d.email, at: d.created_at, linkName: d.link_name ?? '' })),
+    denied: denied.map((d) => ({ email: d.email, at: d.created_at, linkName: d.link_name ?? '', reason: d.type === 'denied' ? 'denied' : d.detail === 'expired' ? 'expired' : 'disabled' })),
     linkClicks: [...byUrl.values()].map(({ people, ...rest }) => ({ ...rest, people: people.size })).sort((a, b) => b.clicks - a.clicks),
   };
 }
