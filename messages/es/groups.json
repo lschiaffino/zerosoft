@@ -1812,6 +1812,7 @@
     "deleteChatBody": "Sale de la lista para todo el equipo. En WhatsApp no cambia nada y, si llega un mensaje nuevo, el chat vuelve a aparecer con su historial.",
     "chatDeleted": "Chat eliminado",
     "lineDropped": "{name} perdió la conexión con WhatsApp. Los mensajes nuevos no llegan hasta que la reconectes.",
+    "archiveBroken": "El archivado de WhatsApp no se está sincronizando en esta línea: lo que archivás acá no llega al teléfono y lo que archivás en el teléfono no aparece acá. Desconectá la línea y volvé a vincularla para arreglarlo.",
     "line": "Tu línea",
     "rescan": "Escanear el QR de nuevo",
     "reconnect": "Reconectar",

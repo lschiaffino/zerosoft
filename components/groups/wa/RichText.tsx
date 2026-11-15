@@ -77,15 +77,16 @@ function renderNodes(nodes: WaNode[], key = 'n', mentions?: MentionLabels): Reac
 
 /**
  * Una línea con lo de WhatsApp a nivel de línea: "> cita", "- " o "* " para
- * viñetas y "1. " para listas numeradas.
+ * viñetas y "1. " para listas numeradas. El contenido del ítem va en un solo
+ * span: si cada negrita fuera un hijo del flex, se partiría en columnas.
  */
 function renderLine(line: string, key: string, mentions?: MentionLabels): ReactNode {
   const quote = /^>\s?(.*)$/.exec(line);
   if (quote) return <span key={key} className="wa-bq">{renderNodes(parseWa(quote[1]), key, mentions)}</span>;
   const bullet = /^[-*•]\s+(.*)$/.exec(line);
-  if (bullet) return <span key={key} className="wa-li"><span className="wa-li-mark" aria-hidden="true">•</span>{renderNodes(parseWa(bullet[1]), key, mentions)}</span>;
+  if (bullet) return <span key={key} className="wa-li"><span className="wa-li-mark" aria-hidden="true">•</span><span className="wa-li-body">{renderNodes(parseWa(bullet[1]), key, mentions)}</span></span>;
   const num = /^(\d{1,3})\.\s+(.*)$/.exec(line);
-  if (num) return <span key={key} className="wa-li"><span className="wa-li-mark">{num[1]}.</span>{renderNodes(parseWa(num[2]), key, mentions)}</span>;
+  if (num) return <span key={key} className="wa-li"><span className="wa-li-mark">{num[1]}.</span><span className="wa-li-body">{renderNodes(parseWa(num[2]), key, mentions)}</span></span>;
   return <span key={key}>{renderNodes(parseWa(line), key, mentions)}</span>;
 }
 

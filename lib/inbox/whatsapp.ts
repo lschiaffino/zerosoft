@@ -181,6 +181,9 @@ export async function disconnectWhatsapp(account: AccountRow): Promise<void> {
   }
   await writeAccountConfig(account.id, {});
   await setAccountState(account.id, { status: 'disconnected', provider: '', sync_cursor: '', error: '' });
+  // La instancia y sus claves se borraron: la próxima vinculación arranca limpia y el aviso de archivado ya no vale.
+  const { clearArchiveSyncError } = await import('../wa-archive-sync');
+  await clearArchiveSyncError('inbox', account.id).catch(() => null);
 }
 
 /**
@@ -267,9 +270,10 @@ function needsBookFirst(e: InboundEvent): boolean {
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
   const t = await findPhoneThread(account, chatId);
-  const { isArchiveEcho, traceArchive } = await import('../wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('../wa-archive-sync');
   if (!t) return traceArchive('inbox', chatId, archived, 'not_found');
   if (!!t.archived_at === archived) return traceArchive('inbox', chatId, archived, 'same');
+  if (await isStaleUnarchive('inbox', account.id, archived)) return traceArchive('inbox', chatId, archived, 'stale');
   if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
   traceArchive('inbox', chatId, archived, 'applied');
   await getDb()

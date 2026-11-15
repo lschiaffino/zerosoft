@@ -75,7 +75,8 @@
     "speed": "Velocidad {speed}",
     "unmute": "Activar sonido",
     "mute": "Silenciar",
-    "fullscreen": "Pantalla completa"
+    "fullscreen": "Pantalla completa",
+    "skipSilences": "Saltar silencios"
   },
   "comments": {
     "title": "Comentarios",

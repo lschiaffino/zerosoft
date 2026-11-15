@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-14',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -97,9 +97,9 @@ const parity: ProductParity = {
     }),
     row('lists-punctuation', 'cleanup', ['Spoken lists and punctuation', 'Listas y puntuación dictadas', 'Listas e pontuação ditadas'], 'have', {
       detail: [
-        "\"First… second…\" becomes a numbered list and \"new line\" or \"new paragraph\" break lines",
-        "\"Primero… segundo…\" arma una lista numerada y \"nueva línea\" o \"nuevo párrafo\" cortan la línea",
-        "\"Primeiro… segundo…\" vira uma lista numerada e \"nova linha\" ou \"novo parágrafo\" quebram a linha",
+        "\"A list: eggs, milk and bread\" becomes a bulleted list, \"first… second…\" or \"number one… number two…\" a numbered one. Spoken punctuation (\"colon\", \"comma\", \"open paren\", \"open quote\", \"new paragraph\") turns into the symbol, in English, Spanish and Portuguese. An email gets its greeting and sign-off on their own lines; a chat stays as said",
+        "\"Una lista, dos puntos, huevo, carne y leche\" arma una lista con viñetas, \"punto uno… punto dos…\" o \"primero… segundo…\" una numerada. La puntuación dicha (\"dos puntos\", \"coma\", \"abrir paréntesis\", \"abrir comillas\", \"punto y aparte\") queda como el signo, en español, inglés y portugués. Un mail queda con el saludo y la despedida en su línea; un chat queda como se dijo",
+        "\"Uma lista, dois pontos, arroz, feijão e café\" vira uma lista com marcadores, \"primeiro… segundo…\" ou \"número um… número dois…\" uma numerada. A pontuação falada (\"dois pontos\", \"vírgula\", \"abre parênteses\", \"abre aspas\", \"novo parágrafo\") vira o sinal, em português, espanhol e inglês. Um e-mail fica com a saudação e a despedida na própria linha; um chat fica como foi dito",
       ],
     }),
 

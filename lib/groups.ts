@@ -90,6 +90,8 @@ export interface NumberRow {
   config: string;
   webhook_secret: string;
   last_error: string;
+  /** No puede sincronizar el archivado con WhatsApp ('app_state_unavailable'; lib/wa-archive-sync.ts). */
+  archive_sync_error?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -109,6 +111,8 @@ export interface NumberDto {
   phone: string;
   status: ConnectState['status'];
   lastError: string;
+  /** La línea no puede sincronizar el archivado con WhatsApp: hay que volver a vincularla (lib/wa-archive-sync.ts). */
+  archiveSyncBroken: boolean;
   caps: (typeof PROVIDER_CAPS)[ProviderKind];
   /** Campos de configuración cargados (los secretos nunca se devuelven). */
   configured: Record<string, boolean>;
@@ -148,6 +152,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     phone: row.phone,
     status: row.status,
     lastError: row.last_error,
+    archiveSyncBroken: !!row.archive_sync_error,
     caps: PROVIDER_CAPS[row.provider],
     configured,
     // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
@@ -477,6 +482,8 @@ export async function disconnectNumber(ws: string, id: string): Promise<void> {
   if (!row) throw new GroupsError('not_found', 404);
   await safeDisconnect(row);
   await saveState(row, { status: 'disconnected' });
+  const { clearArchiveSyncError } = await import('./wa-archive-sync');
+  await clearArchiveSyncError('lines', row.id).catch(() => null);
 }
 
 async function safeDisconnect(row: NumberRow): Promise<void> {
@@ -2525,9 +2532,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           }
         })().catch(logAfterError);
         post.push(async () => {
-          // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
+          // Grupo que no conocíamos: se traen sus miembros una vez (best effort). Como mucho una vez cada
+          // MEMBERS_RETRY_SEC por chat: si WhatsApp no los da (límite, grupo con solo lids), el conteo sigue en 0
+          // y sin este tope se pedían en cada mensaje del grupo (cientos de groupMetadata, 429 de WhatsApp).
           if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
-            await syncMembers(ws, chat.id).catch(() => null);
+            if (await membersFetchAllowed(chat.id)) await syncMembers(ws, chat.id).catch(() => null);
           }
           // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
           if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
@@ -2716,9 +2725,10 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
+  if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
@@ -2883,6 +2893,17 @@ export async function groupContext(ws: string, chatId: string): Promise<{ chat: 
   const provider = providerFor(number);
   if (!provider.caps.groups) throw new GroupsError('groups_unsupported');
   return { chat, provider };
+}
+
+/** Cada cuánto, como mucho, se piden solos los miembros de un grupo que todavía no tiene ninguno. */
+export const MEMBERS_RETRY_SEC = 6 * 3600;
+/** Pausa entre pedidos de miembros de varios grupos seguidos. */
+export const MEMBERS_GAP_MS = 400;
+
+/** ¿Se pueden pedir ya los miembros de este chat sin que nadie lo pidiera? Cuenta el intento (compartido entre instancias). */
+export async function membersFetchAllowed(chatId: string): Promise<boolean> {
+  const { rateLimit } = await import('./rate-limit');
+  return (await rateLimit(`groups-members:${chatId}`, 1, MEMBERS_RETRY_SEC)).ok;
 }
 
 /** Vuelve a leer los miembros desde WhatsApp. */
@@ -3115,7 +3136,11 @@ export async function syncGroups(ws: string, numberId: string): Promise<{ groups
         .prepare('UPDATE groups_chats SET announce = COALESCE(?, announce), locked = COALESCE(?, locked), left_at = NULL WHERE id = ?')
         .run(g.announce === undefined ? null : Number(g.announce), g.locked === undefined ? null : Number(g.locked), chat.id);
     }
-    if (n < 50) await syncMembers(ws, chat.id).catch(() => null);
+    if (n < 50) {
+      // Pausa entre grupos: 50 groupMetadata seguidos le ganan un 429 a la cuenta.
+      if (n > 0) await new Promise((r) => setTimeout(r, MEMBERS_GAP_MS));
+      await syncMembers(ws, chat.id).catch(() => null);
+    }
     n++;
   }
   return { groups: n };

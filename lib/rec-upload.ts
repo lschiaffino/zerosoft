@@ -89,7 +89,7 @@ export async function issueBlobToken(
 }
 
 /** Miniatura o GIF: a Blob (con el acceso de Rec y path al azar) o al disco local. */
-export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 'gif', type: string, body: Buffer): Promise<string> {
+export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 'gif' | 'sprite', type: string, body: Buffer): Promise<string> {
   const ext = type === 'image/gif' ? 'gif' : type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
   if (blobUploadEnabled()) {
     const { put } = await import('@vercel/blob');
@@ -207,7 +207,7 @@ export async function serveRecFile(
   req: NextRequest,
   url: string,
   contentType: string,
-  opts: { download?: string | null; size?: number } = {},
+  opts: { download?: string | null; size?: number; cache?: string } = {},
 ): Promise<NextResponse> {
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   const type = contentType.split(';')[0] || 'application/octet-stream';
@@ -224,6 +224,7 @@ export async function serveRecFile(
       status: range ? 206 : 200,
       headers: {
         ...COMMON,
+        ...(opts.cache ? { 'cache-control': opts.cache } : {}),
         'content-type': type,
         'accept-ranges': 'bytes',
         'content-length': String(end - start + 1),
@@ -242,7 +243,7 @@ export async function serveRecFile(
  * Blob no llega al navegador). Con Range, a lo sumo REC_SERVE_CHUNK bytes por
  * respuesta (206); sin Range y si el archivo entra, 200 completo.
  */
-async function proxyBlob(req: NextRequest, url: string, type: string, opts: { download?: string | null; size?: number }): Promise<NextResponse> {
+async function proxyBlob(req: NextRequest, url: string, type: string, opts: { download?: string | null; size?: number; cache?: string }): Promise<NextResponse> {
   const { get, head } = await import('@vercel/blob');
   const access = recBlobAccess();
   let size = opts.size && opts.size > 0 ? opts.size : 0;
@@ -263,6 +264,7 @@ async function proxyBlob(req: NextRequest, url: string, type: string, opts: { do
     status: partial ? 206 : 200,
     headers: {
       ...COMMON,
+      ...(opts.cache ? { 'cache-control': opts.cache } : {}),
       'content-type': type,
       'accept-ranges': 'bytes',
       'content-length': String(end - start + 1),

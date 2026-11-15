@@ -86,6 +86,44 @@ async function foreignCopy(videoId: string, patch: Record<string, string | numbe
   return { id, shareId };
 }
 
+/**
+ * Luz media (0–255) de los cuadros del video del reproductor en los segundos `at`, decodificados
+ * en el navegador: prueba que lo grabado tiene imagen (un video negro da ~0).
+ */
+async function frameLuma(page: Page, at: number[]): Promise<number[]> {
+  const src = await page.getByTestId('rec-video').getAttribute('src');
+  return page.evaluate(
+    async ({ src, at }) => {
+      const v = document.createElement('video');
+      v.muted = true;
+      v.preload = 'auto';
+      v.src = src;
+      await new Promise((ok, fail) => {
+        v.onloadeddata = ok;
+        v.onerror = fail;
+      });
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 36;
+      const g = c.getContext('2d', { willReadFrequently: true })!;
+      const out: number[] = [];
+      for (const t of at) {
+        await new Promise((ok) => {
+          v.onseeked = ok;
+          v.currentTime = t;
+        });
+        g.drawImage(v, 0, 0, c.width, c.height);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        out.push(Math.round(sum / (d.length / 4)));
+      }
+      return out;
+    },
+    { src: src!, at },
+  );
+}
+
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
 });
@@ -167,7 +205,36 @@ test('pantalla y cámara: la burbuja se mueve con el teclado y el video se guard
   await page.getByTestId('rec-stop').click();
   await expect(page).toHaveURL(/\/en\/app\/rec\/[0-9a-f-]{36}/, { timeout: 30_000 });
   await expect(page.getByTestId('rec-player')).toBeVisible();
+  // Lo grabado tiene imagen desde el primer cuadro (antes salía negro: el canvas se grababa vacío).
+  const luma = await frameLuma(page, [0, 0.5, 1.5]);
+  for (const l of luma) expect(l, `luz de los cuadros: ${luma.join(', ')}`).toBeGreaterThan(20);
 });
+
+for (const kind of ['black', 'none'] as const) {
+  test(`pantalla sin imagen (${kind === 'black' ? 'cuadros negros' : 'sin cuadros'}, como una Mac sin permiso): avisa y no graba`, async ({ page }) => {
+    // La pantalla compartida es un canvas: negro, o que no manda ningún cuadro.
+    await page.addInitScript((kind) => {
+      navigator.mediaDevices.getDisplayMedia = async () => {
+        const c = document.createElement('canvas');
+        c.width = 640;
+        c.height = 360;
+        const g = c.getContext('2d')!;
+        if (kind === 'black')
+          setInterval(() => {
+            g.fillStyle = '#000';
+            g.fillRect(0, 0, c.width, c.height);
+          }, 50);
+        return c.captureStream(30);
+      };
+    }, kind);
+    await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+    await page.getByText('Screen only', { exact: true }).click();
+    await page.getByTestId('rec-start').click();
+    await expect(page.getByTestId('rec-recorder').getByRole('alert')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('rec-recorder')).toHaveAttribute('data-phase', 'setup');
+    await expect(page.getByTestId('rec-countdown')).toHaveCount(0);
+  });
+}
 
 test('controles: silenciar, empezar de nuevo y la barra de la app de escritorio (pausa, sigue y termina)', async ({ page }) => {
   test.setTimeout(120_000);
@@ -657,4 +724,85 @@ test('recorte: quien no es el autor recibe la copia cortada y la transcripción 
   const vtt = await (await page.request.get(`/api/rec/v/${other.shareId}/file?kind=captions`)).text();
   expect(vtt).not.toContain('secreto');
   expect(await page.content()).not.toContain('secreto');
+});
+
+test('reproducir: el reproductor pasa al MP4 con índice al principio y adelanta sin leer todo', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const video = await uploadVideo(page.request, await makeWebm(page, 4200), `Seek ${uid()}`, 4);
+  // El MP4 de reproducción se arma solo al terminar de subir (ffmpeg local en dev y CI).
+  let playVer = '';
+  for (let i = 0; i < 60 && !playVer; i++) {
+    playVer = (await ok<{ video: { playVer: string } }>(page.request.get(`/api/rec/videos/${video.id}`))).video.playVer;
+    if (!playVer) await page.waitForTimeout(500);
+  }
+  test.skip(!playVer, 'Sin ffmpeg no hay MP4 de reproducción');
+  const mp4 = page.waitForResponse((r) => r.url().includes(`/api/rec/videos/${video.id}/file?kind=play&v=${playVer}`));
+  await page.goto(`/en/app/rec/${video.id}`);
+  const res = await mp4;
+  expect(res.headers()['content-type']).toBe('video/mp4');
+  expect(res.headers()['cache-control']).toContain('immutable');
+  // Adelantar al final: llega el cuadro.
+  const seeked = await page.getByTestId('rec-video').evaluate(
+    (v: HTMLVideoElement) =>
+      new Promise<boolean>((done) => {
+        const go = () => {
+          v.onseeked = () => done(true);
+          v.currentTime = 3.5;
+        };
+        if (v.readyState >= 1) go();
+        else v.onloadedmetadata = go;
+        setTimeout(() => done(false), 10_000);
+      }),
+  );
+  expect(seeked).toBe(true);
+  // Vista previa al pasar por la línea de tiempo: el cuadro de la tira y el tiempo; se va al salir.
+  const timeline = page.getByTestId('rec-timeline');
+  const box = (await timeline.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+  await expect(page.getByTestId('rec-scrub')).toBeVisible();
+  await expect(page.getByTestId('rec-scrub-frame')).toHaveCSS('background-image', /kind=sprite/);
+  await page.mouse.move(box.x + box.width / 2, box.y - 200);
+  await expect(page.getByTestId('rec-scrub')).toHaveCount(0);
+  // Sin versión en la URL sigue el original: un reproductor a mitad de camino no mezcla dos archivos.
+  const orig = await page.request.get(`/api/rec/videos/${video.id}/file?kind=play`);
+  expect(orig.headers()['content-type']).toBe('video/webm');
+});
+
+test('reacciones en el video: suben al pasar por su segundo, la marca muestra el comentario y se saltan los silencios', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const video = await uploadVideo(page.request, await makeWebm(page, 6200), `Reactions ${uid()}`, 6);
+  // Una reacción en el segundo 1 y un comentario en el 2; transcripción con un silencio de 1 a 5.
+  await ok(page.request.post(`/api/rec/v/${video.shareId}/comments`, { data: { kind: 'reaction', emoji: '🎉', atSec: 1 } }));
+  await ok(page.request.post(`/api/rec/v/${video.shareId}/comments`, { data: { kind: 'comment', body: 'Look at this part', atSec: 2 } }));
+  const c = db();
+  await c.execute({
+    sql: "UPDATE rec_videos SET transcript = ?, transcript_status = 'done' WHERE id = ?",
+    args: [JSON.stringify([{ start: 0, end: 1, text: 'one' }, { start: 5, end: 6, text: 'two' }]), video.id],
+  });
+  c.close();
+  await page.goto(`/en/app/rec/${video.id}`);
+  const player = page.getByTestId('rec-player');
+  await expect(player.locator('.rec-marker')).toHaveCount(2);
+  // Pasar por la marca del comentario muestra el texto en la vista previa.
+  await player.locator('.rec-marker:not(.emoji)').hover();
+  await expect(page.getByTestId('rec-scrub-note')).toContainText('Look at this part');
+  await page.mouse.move(0, 0);
+  // Al reproducir, la reacción del segundo 1 sube sobre el video.
+  const v = page.getByTestId('rec-video');
+  await v.evaluate((el: HTMLVideoElement) => el.play());
+  await expect(page.getByTestId('rec-pop')).toHaveText('🎉', { timeout: 6_000 });
+  // Reaccionar hace subir el emoji en el momento.
+  await page.getByRole('button', { name: 'React with 👏' }).click();
+  await expect(page.getByTestId('rec-pop').filter({ hasText: '👏' })).toBeVisible();
+  // Saltar silencios: desde el segundo 1 pasa directo al 5.
+  await v.evaluate((el: HTMLVideoElement) => {
+    el.pause();
+    el.currentTime = 0.5;
+  });
+  await page.getByTestId('rec-speed').click();
+  await page.getByTestId('rec-skip-silences').click();
+  await v.evaluate((el: HTMLVideoElement) => el.play());
+  await expect.poll(() => v.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 4_000 }).toBeGreaterThan(4.5);
 });
