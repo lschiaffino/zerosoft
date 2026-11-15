@@ -244,15 +244,20 @@ const WaComposer = forwardRef<
     }
     setBusy('send');
     draft.sending();
+    // Una respuesta también lleva su clientId: si no le llega la respuesta y se vuelve a mandar, no sale dos veces.
+    const replyKey = `${replyToId}\n${out}`;
+    const replyClientId = retryIds.current.get(replyKey) ?? newClientId();
+    retryIds.current.delete(replyKey);
     // Por la misma cola del chat: una respuesta no se adelanta a un texto que todavía está saliendo.
     const r = await inboxQueue(thread.id)(() =>
       api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
         method: 'POST',
-        json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
+        json: { body: out, clientId: replyClientId, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
       }),
     );
     setBusy('');
     if (!r.ok) {
+      retryIds.current.set(replyKey, replyClientId);
       draft.failed(text);
       onError(r.data.error ?? 'send_failed');
       return;
