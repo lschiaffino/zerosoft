@@ -184,7 +184,18 @@ const SPOKEN_MARKS: SpokenMark[] = [
   { words: ['comma'], sym: ',', join: 'left', notAfter: ['a', 'the', 'oxford', 'no'] },
   { words: ['vírgula', 'virgula'], sym: ',', join: 'left', notAfter: ['a', 'uma', 'sem', 'da', 'na'] },
   // "Punto" suelto solo cierra el dictado (en el medio es una palabra: "en ese punto").
-  { words: ['punto', 'period', 'ponto'], sym: '.', join: 'left', endOnly: true },
+  {
+    words: ['punto', 'period', 'ponto'],
+    sym: '.',
+    join: 'left',
+    endOnly: true,
+    // "es un buen punto", "the trial period", "um bom ponto": la palabra es contenido.
+    notAfter: [
+      'un', 'el', 'buen', 'este', 'ese', 'mismo', 'otro', 'al', 'del', 'ningún', 'cada', 'primer', 'último', 'mi', 'tu', 'su', 'de', 'a', 'en', 'hasta', 'ese', 'aquel',
+      'the', 'a', 'this', 'that', 'trial', 'grace', 'waiting', 'billing', 'notice', 'probation', 'free', 'test', 'same', 'time', 'cooling', 'sample', 'first', 'second', 'last',
+      'um', 'o', 'bom', 'esse', 'outro', 'ao', 'do', 'no', 'primeiro', 'último', 'meu', 'seu', 'em', 'até',
+    ],
+  },
 ];
 
 function phraseRe(words: string[]): string {
@@ -282,9 +293,15 @@ function cleanItem(s: string): string {
     .trim();
 }
 
+// Sin "do" ni "no": en inglés son "things to do number one", "no number two".
+const MARK_ARTICLES = new Set(['el', 'del', 'al', 'la', 'este', 'ese', 'the', 'this', 'that', 'o', 'ao', 'esse']);
+
 /** "punto uno pan punto dos leche" / "number one… number two…" → lista numerada. */
 export function formatNumberedMarkers(text: string): string {
-  const marks = [...text.matchAll(NUMBERED_MARK_RE)].map((m) => ({ n: NUMBER_INDEX.get(m[1].toLowerCase()) ?? 0, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
+  const marks = [...text.matchAll(NUMBERED_MARK_RE)]
+    .map((m) => ({ n: NUMBER_INDEX.get(m[1].toLowerCase()) ?? 0, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }))
+    // "el punto uno del contrato": con artículo delante es contenido, no un número de lista.
+    .filter((m) => !MARK_ARTICLES.has(lastWord(text.slice(0, m.start))));
   const startAt = marks.findIndex((m) => m.n === 1);
   if (startAt < 0) return text;
   const seq = [marks[startAt]];
@@ -341,7 +358,8 @@ export function formatInlineList(text: string): string {
       const segment = stop >= 0 ? afterIntro.slice(0, stop) : afterIntro;
       const rest = stop >= 0 ? afterIntro.slice(stop + 1).trim() : '';
       const announced = LIST_WORD_RE.test(intro);
-      const items = splitItems(segment, listed ? 4 : 6);
+      // Sin anunciar una lista, solo cosas cortas ("pan, queso y vino"), no frases ("Nota: el martes llamo a Juan, a Pedro y a Ana").
+      const items = splitItems(segment, announced && !listed ? 6 : 4);
       if (!items || items.length < (announced ? 2 : 3)) return line;
       const list = items.map((s) => `- ${capitalize(s)}`).join('\n');
       return `${intro}:\n${list}${rest ? `\n${capitalize(rest)}` : ''}`;

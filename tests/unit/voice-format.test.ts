@@ -37,6 +37,9 @@ describe('puntuación dicha', () => {
     expect(applySpokenPunctuation('en ese punto no estoy de acuerdo')).toBe('en ese punto no estoy de acuerdo');
     expect(applySpokenPunctuation('the trial period ends today')).toBe('the trial period ends today');
     expect(applySpokenPunctuation('nos vemos mañana punto')).toBe('nos vemos mañana.');
+    expect(applySpokenPunctuation('es un buen punto')).toBe('es un buen punto');
+    expect(applySpokenPunctuation('we are still in the trial period')).toBe('we are still in the trial period');
+    expect(applySpokenPunctuation('é um bom ponto')).toBe('é um bom ponto');
   });
 
   it('direcciones dictadas', () => {
@@ -69,6 +72,11 @@ describe('listas por reglas', () => {
     );
     expect(ruleCleanup('things to do number one call Ana number two send the quote')).toBe('Things to do:\n1. Call Ana\n2. Send the quote');
     expect(ruleCleanup('we need three things first milk second eggs and third bread')).toBe('We need three things:\n1. Milk\n2. Eggs\n3. Bread');
+  });
+
+  it('no arma listas con frases ni con "el punto uno del contrato"', () => {
+    expect(formatInlineList('Nota: el martes llamo a Juan, a Pedro y a Ana')).toBe('Nota: el martes llamo a Juan, a Pedro y a Ana');
+    expect(formatNumberedMarkers('revisá el punto uno del contrato y el punto dos del anexo')).toBe('revisá el punto uno del contrato y el punto dos del anexo');
   });
 
   it('lo que sigue a la lista queda en su línea', () => {
