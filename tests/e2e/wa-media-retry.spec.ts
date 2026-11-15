@@ -13,6 +13,23 @@ import { e2eDb } from './helpers/db';
 
 test.describe.configure({ timeout: 180_000 });
 
+/**
+ * Con `next dev` (como corre esto en una máquina local), la primera vez que se pide una ruta se compila, y las rutas
+ * agrupadas de Inbox y Lines tardan: se piden una vez antes, con margen, para que la pantalla no se quede esperando.
+ * Con el build de CI responden al instante.
+ */
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(600_000);
+  const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
+  try {
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/media/warm', '/api/inbox/messages/warm', '/api/groups/media/warm', '/api/groups/messages/warm/transcript', '/api/groups/chats/warm/messages']) {
+      await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    }
+  } finally {
+    await ctx.dispose();
+  }
+});
+
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
