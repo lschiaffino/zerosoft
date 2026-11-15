@@ -121,10 +121,10 @@ export async function POST(req: Request) {
 
   return NextResponse.json(
     {
-      message: toPublicMessage(message),
+      message: await toPublicMessage(message),
       conversation: toPublicConversation(result.conversation),
       visitor: toPublicVisitor(visitor),
-      bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
+      bot: result.botMessage ? await toPublicMessage(result.botMessage) : null,
     },
     { status: 201 },
   );

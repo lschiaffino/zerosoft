@@ -35,6 +35,7 @@ import {
   storeBytes,
   swapFileRef,
   discardBytes,
+  GONE_REF,
   type FileAccess,
   type StoredFileRow,
 } from './store';
@@ -376,6 +377,11 @@ export async function migratePrivateFiles(db: Client, opts: MigrateOptions = {})
     const key = legacyKeyFor(e.url)!;
     try {
       let row = await fileRowForLegacyKey(key);
+      if (row?.ref === GONE_REF) {
+        // Su copia se borró (la fila que la usaba ya no está), pero esta celda todavía usa el original: se registra de nuevo.
+        await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
+        row = null;
+      }
       if (!row) {
         const name = nameOf(e.url);
         row = await registerLegacyFile(e.url, {
@@ -441,18 +447,32 @@ export async function migratePrivateFiles(db: Client, opts: MigrateOptions = {})
 async function deletePass(db: Client, opts: MigrateOptions, report: MigrateReport): Promise<void> {
   const readOriginal = opts.readOriginal ?? defaultRead;
   const deleteOriginal = opts.deleteOriginal ?? defaultDelete;
-  // Toda URL vieja que siga en la base (también en tablas sin dueño conocido).
+  // Toda URL vieja que siga en la base, en cualquier tabla (aunque esta corrida migre solo algunas) y
+  // también en tablas sin dueño conocido. Se compara por clave (el pathname), no por la URL entera.
   const still = new Set<string>();
-  await discover(db, { ...opts, folders: undefined }, emptyReport(), still);
+  await discover(db, { ...opts, folders: undefined, tables: undefined }, emptyReport(), still);
+  const used = new Set<string>();
+  for (const u of still) {
+    const k = legacyKeyFor(u);
+    if (k) used.add(k);
+  }
   const rs = await db.execute("SELECT * FROM stored_files WHERE legacy_key IS NOT NULL AND ref NOT LIKE 'legacy:%'");
   for (const r of rs.rows) {
     const row = r as unknown as StoredFileRow;
     const key = String(row.legacy_key);
+    if (used.has(key)) continue;
     const url = key.startsWith('uploads/') ? `/${key}` : null;
     const original = url ?? (await originalUrlFor(db, key));
-    if (!original || still.has(original)) continue;
+    if (!original) continue;
     if (opts.folders?.length && !opts.folders.includes(String(row.folder))) continue;
     try {
+      if (row.ref === GONE_REF) {
+        // La copia ya se borró con lo que la usaba: el original se va también, y después la marca.
+        await deleteOriginal(original);
+        await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
+        report.deleted++;
+        continue;
+      }
       const src = await readOriginal(original);
       if (!src) continue; // Ya no está.
       const a = await hashOf(src);

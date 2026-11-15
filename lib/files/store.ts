@@ -177,8 +177,11 @@ function signingKey(): Buffer {
   return createHmac('sha256', 'zerosoft-files-url').update(base).digest();
 }
 
-function sign(id: string, exp: number): string {
-  return createHmac('sha256', signingKey()).update(`${id}.${exp}`).digest('base64url');
+/** Lo que ata una firma a ese archivo tal como está: si cambia de dueño, de acceso o de bytes, la URL deja de valer. */
+export type SignableFileRow = Pick<StoredFileRow, 'id' | 'workspace_id' | 'access' | 'ref'>;
+
+function sign(row: SignableFileRow, exp: number): string {
+  return createHmac('sha256', signingKey()).update(['zsf1', row.id, exp, row.workspace_id, row.access, row.ref].join('\n')).digest('base64url');
 }
 
 /** Lo más que dura una URL firmada. */
@@ -189,9 +192,9 @@ export const MAX_SIGNED_TTL_S = 60 * 60;
  * que vence (por defecto 15 minutos). Solo para servicios de afuera (el
  * servidor de WhatsApp que manda la foto); al navegador va fileUrl().
  */
-export function signedFileUrl(row: Pick<StoredFileRow, 'id' | 'name'>, origin: string, ttlSeconds = 15 * 60): string {
+export function signedFileUrl(row: SignableFileRow & Pick<StoredFileRow, 'name'>, origin: string, ttlSeconds = 15 * 60): string {
   const exp = Math.floor(Date.now() / 1000) + Math.max(30, Math.min(MAX_SIGNED_TTL_S, Math.round(ttlSeconds)));
-  return `${origin.replace(/\/$/, '')}${fileUrl(row)}?exp=${exp}&sig=${sign(row.id, exp)}`;
+  return `${origin.replace(/\/$/, '')}${fileUrl(row)}?exp=${exp}&sig=${sign(row, exp)}`;
 }
 
 /**
@@ -200,22 +203,22 @@ export function signedFileUrl(row: Pick<StoredFileRow, 'id' | 'name'>, origin: s
  * una ventana redondeada (la misma URL durante un rato, así el navegador la
  * cachea), entre `ttlSeconds` y el doble. Otras URLs vuelven igual.
  */
-export function signedRelativeUrl(url: string, ttlSeconds = 30 * 60): string {
-  const id = fileIdFromUrl(url);
-  if (!id) return url;
+export async function signedRelativeUrl(url: string, ttlSeconds = 30 * 60, db: Db = getDb()): Promise<string> {
+  const row = await fileRowForUrl(url, db).catch(() => null);
+  if (!row) return url;
   const ttl = Math.max(60, Math.min(Math.floor(MAX_SIGNED_TTL_S / 2), Math.round(ttlSeconds)));
   const exp = (Math.floor(Date.now() / 1000 / ttl) + 2) * ttl;
   const path = (url.startsWith('/') ? url : new URL(url).pathname).split(/[?#]/)[0];
-  return `${path}?exp=${exp}&sig=${sign(id, exp)}`;
+  return `${path}?exp=${exp}&sig=${sign(row, exp)}`;
 }
 
 /** ¿La firma de la URL vale para este archivo y no venció? Comparación en tiempo constante. */
-export function verifySignature(id: string, exp: string | null, sig: string | null): boolean {
+export function verifySignature(row: SignableFileRow, exp: string | null, sig: string | null): boolean {
   if (!exp || !sig || !/^\d{1,12}$/.test(exp) || !/^[A-Za-z0-9_-]{43}$/.test(sig)) return false;
   const n = Number(exp);
   const now = Math.floor(Date.now() / 1000);
   if (n < now || n > now + MAX_SIGNED_TTL_S + 60) return false;
-  const want = Buffer.from(sign(id, n));
+  const want = Buffer.from(sign(row, n));
   const got = Buffer.from(sig);
   return want.length === got.length && timingSafeEqual(want, got);
 }
@@ -524,12 +527,44 @@ async function* webIter(stream: ReadableStream<Uint8Array>): AsyncGenerator<Uint
   }
 }
 
-async function fetchRange(url: string, from: number, to: number): Promise<ReadableStream<Uint8Array> | null> {
+/** Los primeros `n` bytes de un stream (y se corta el resto). */
+function limitStream(stream: ReadableStream<Uint8Array>, n: number): ReadableStream<Uint8Array> {
+  return toWeb(
+    (async function* () {
+      let left = n;
+      const reader = stream.getReader();
+      try {
+        while (left > 0) {
+          const { done, value } = await reader.read();
+          if (done || !value) break;
+          const piece = value.byteLength > left ? value.subarray(0, left) : value;
+          left -= piece.byteLength;
+          yield piece;
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+    })(),
+  );
+}
+
+/**
+ * Respuesta del storage a un pedido con rango: un 206 tal cual; un 200 (el
+ * storage ignoró el Range) solo si pedimos desde 0, cortado al largo pedido;
+ * cualquier otra cosa, null.
+ */
+function rangeBody(status: number, body: ReadableStream<Uint8Array> | null | undefined, from: number, to: number): ReadableStream<Uint8Array> | null {
+  if (!body) return null;
+  if (status === 206) return body;
+  if (status === 200 && from === 0) return limitStream(body, to - from + 1);
+  body.cancel().catch(() => {});
+  return null;
+}
+
+export async function fetchRange(url: string, from: number, to: number): Promise<ReadableStream<Uint8Array> | null> {
   const res = await fetch(url, { headers: { Range: `bytes=${from}-${to}` }, cache: 'no-store' }).catch(() => null);
-  if (!res || !res.body || (res.status !== 206 && res.status !== 200)) return null;
-  // Un 200 a un pedido con rango (el storage ignoró el Range): solo sirve si pedimos desde 0.
-  if (res.status === 200 && from !== 0) return null;
-  return res.body as ReadableStream<Uint8Array>;
+  if (!res) return null;
+  return rangeBody(res.status, res.body as ReadableStream<Uint8Array> | null, from, to);
 }
 
 function isOwnBlobUrl(url: string): boolean {
@@ -546,14 +581,20 @@ function isOwnBlobUrl(url: string): boolean {
  * cantidad de bytes por respuesta (las funciones de Vercel cortan en 4,5 MB);
  * el reproductor pide el resto. null si no está.
  */
+/** Tamaño real del archivo: el de la fila o, si una fila de antes quedó registrada con 0, el del original. */
+export async function fileSize(row: StoredFileRow): Promise<number> {
+  if (row.ref.startsWith('legacy:') && !row.size) return (await legacySize(row.ref.slice(7))) ?? 0;
+  return row.size;
+}
+
 export async function openFile(row: StoredFileRow, range: { start: number; end: number } | null, opts: { cap?: number } = {}): Promise<OpenedFile | null> {
-  let size = row.size;
-  if (row.ref.startsWith('legacy:') && !size) size = (await legacySize(row.ref.slice(7))) ?? 0;
+  const size = await fileSize(row);
   const empty = size === 0;
   const start = range?.start ?? 0;
   let end = range?.end ?? Math.max(0, size - 1);
   if (opts.cap && !empty && end - start + 1 > opts.cap) end = start + opts.cap - 1;
-  const partial = !empty && (start > 0 || end < size - 1);
+  // Un pedido con Range siempre es parcial (206 con Content-Range), aunque cubra el archivo entero.
+  const partial = !empty && (range !== null || start > 0 || end < size - 1);
   if (empty) return { stream: toWeb((async function* () {})()), size: 0, start: 0, end: -1, partial: false };
 
   if (row.ref.startsWith('fsp:')) {
@@ -562,7 +603,11 @@ export async function openFile(row: StoredFileRow, range: { start: number; end: 
     const { get } = await import('@vercel/blob');
     const res = await get(row.ref.slice(4), { access: 'private', token, useCache: false, headers: partial ? { range: `bytes=${start}-${end}` } : undefined }).catch(() => null);
     if (!res?.stream) return null;
-    return { stream: res.stream as ReadableStream<Uint8Array>, size, start, end, partial };
+    const stream = res.stream as ReadableStream<Uint8Array>;
+    if (!partial) return res.statusCode === 200 ? { stream, size, start, end, partial } : null;
+    // Se pidió un rango: tiene que volver ese rango (no el archivo entero desde otro byte).
+    const body = rangeBody(res.statusCode, stream, start, end);
+    return body ? { stream: body, size, start, end, partial } : null;
   }
 
   if (row.ref.startsWith('fse:') || row.ref.startsWith('fsl:')) {
@@ -701,9 +746,21 @@ export async function deleteFileUrls(urls: Array<string | null | undefined>, db:
     const row = await fileRowForUrl(url, db).catch(() => null);
     if (!row) continue;
     await removeBytes(row);
+    if (row.legacy_key && !row.ref.startsWith('legacy:')) {
+      // Copia de un archivo de antes: queda la marca (sin bytes, no se sirve) para que la migración con
+      // --delete-originals borre también el original público cuando nada más lo use.
+      await db
+        .prepare(`UPDATE stored_files SET ref = '${GONE_REF}', size = 0, header = NULL, access = 'internal' WHERE id = ?`)
+        .run(row.id)
+        .catch(() => undefined);
+      continue;
+    }
     await db.prepare('DELETE FROM stored_files WHERE id = ?').run(row.id).catch(() => undefined);
   }
 }
+
+/** ref de una copia migrada que se borró: sin bytes; solo marca que el original público también hay que borrarlo. */
+export const GONE_REF = 'gone:';
 
 /** Para la migración: cambia dónde están los bytes de una fila (después de verificar la copia). */
 export async function swapFileRef(id: string, from: string, to: Pick<StoredFileRow, 'ref' | 'header' | 'size'>, db: Db = getDb()): Promise<boolean> {
