@@ -72,6 +72,8 @@ interface Target {
   /** Libreta de la cuenta o número (para el id alternativo lid ↔ teléfono). */
   contacts: { app: ArchiveApp; accountId: string };
   ref: (jid: string) => Promise<ArchiveRef | undefined>;
+  /** Anota (o borra, con '') que la línea no puede sincronizar el archivado con WhatsApp. */
+  setSyncError: (code: string) => Promise<void>;
 }
 
 function iso(ms: number): string {
@@ -302,14 +304,37 @@ async function attempt(row: PushRow): Promise<Attempt> {
   // recibía dos cambios para dos "chats" que son el mismo: el 14/11 desvinculó todos los dispositivos de la cuenta
   // 30 s después de un par así. El otro id solo se usa si el principal falla.
   try {
-    await provider.archiveChat(target.chatJid, want, ref);
-    return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null }) };
+    try {
+      await provider.archiveChat(target.chatJid, want, ref);
+      await target.setSyncError('').catch(() => null);
+      return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null }) };
+    } catch (err) {
+      if (isAppStateError(err)) throw err;
+      const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
+      if (!alt) throw err;
+      await provider.archiveChat(alt, want, await target.ref(alt));
+      await target.setSyncError('').catch(() => null);
+      return { kind: 'sent', sent: JSON.stringify({ jid: alt, archive: want, ts: ref?.timestamp ?? null, mainFailed: true }) };
+    }
   } catch (err) {
-    const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
-    if (!alt) throw err;
-    await provider.archiveChat(alt, want, await target.ref(alt));
-    return { kind: 'sent', sent: JSON.stringify({ jid: alt, archive: want, ts: ref?.timestamp ?? null, mainFailed: true }) };
+    // La línea no puede sincronizar el archivado (sin clave de app-state o con el estado roto): no se reintenta ni
+    // se manda con otro id; queda anotado en la cuenta o el número y su configuración pide volver a vincularla.
+    if (!isAppStateError(err)) throw err;
+    await target.setSyncError(APP_STATE_UNAVAILABLE).catch(() => null);
+    return { kind: 'fail', error: APP_STATE_UNAVAILABLE, retry: false };
   }
+}
+
+export const APP_STATE_UNAVAILABLE = 'app_state_unavailable';
+
+function isAppStateError(err: unknown): boolean {
+  return err instanceof ProviderError && err.code === APP_STATE_UNAVAILABLE;
+}
+
+/** Al volver a vincular una línea, su aviso de archivado roto ya no vale. */
+export async function clearArchiveSyncError(app: ArchiveApp, accountId: string): Promise<void> {
+  const table = app === 'inbox' ? 'inbox_accounts' : 'groups_numbers';
+  await getDb().prepare(`UPDATE ${table} SET archive_sync_error = '' WHERE id = ? AND archive_sync_error <> ''`).run(accountId);
 }
 
 /** Segundos de una fecha guardada (ISO, o "YYYY-MM-DD HH:MM:SS" de SQLite, que es UTC). */
@@ -348,6 +373,9 @@ async function inboxTarget(row: PushRow): Promise<Target | null> {
     provider: () => waProviderFor(account),
     chatJid: t.external_id,
     contacts: { app: 'inbox', accountId: account.id },
+    setSyncError: async (code) => {
+      await db.prepare('UPDATE inbox_accounts SET archive_sync_error = ? WHERE id = ? AND archive_sync_error <> ?').run(code, account.id, code);
+    },
     ref: async (jid) => {
       const rows = (await db
         .prepare("SELECT external_id, from_me, sent_at, sender_handle FROM inbox_messages WHERE thread_id = ? AND external_id NOT LIKE 'local-%' ORDER BY sent_at DESC LIMIT 20")
@@ -375,6 +403,9 @@ async function linesTarget(row: PushRow): Promise<Target | null> {
     provider: () => providerFor(number),
     chatJid: chat.provider_chat_id,
     contacts: { app: 'lines', accountId: number.id },
+    setSyncError: async (code) => {
+      await db.prepare('UPDATE groups_numbers SET archive_sync_error = ? WHERE id = ? AND archive_sync_error <> ?').run(code, number.id, code);
+    },
     ref: async (jid) => {
       const rows = (await db
         .prepare(
