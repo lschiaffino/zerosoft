@@ -1,0 +1,72 @@
+/*
+ * Editor de fotos de la vista previa (components/groups/wa/ImageEditor.tsx), en Lines e Inbox:
+ * las herramientas arriba (recortar, sticker, texto, lápiz, deshacer), los colores y grosores debajo
+ * y la foto al centro. La vista previa es oscura en las fotos, como la de WhatsApp.
+ */
+.wa-attach-pane.is-editing .wa-attach-stage { padding: 0; align-items: stretch; }
+.wa-attach-pane.is-editing .wa-attach-stage > .wa-edit { flex: 1; height: auto; }
+.wa-edit:focus { outline: none; }
+.wa-edit { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+.wa-edit-tools { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 8px; }
+.wa-edit-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 40px; padding: 0 8px; font: inherit; font-size: 0.875rem; font-weight: 500; color: var(--wa-icon, var(--ink)); background: none; border: 0; border-radius: 50%; cursor: pointer; }
+.wa-edit-btn.is-text, .wa-edit-btn.is-done { border-radius: 8px; }
+.wa-edit-btn.is-done { color: #fff; background: var(--wa-primary, #00a884); padding: 0 16px; }
+.wa-edit-btn:hover:not(:disabled):not(.is-done) { background: var(--wa-row-hover, rgba(0, 0, 0, 0.06)); }
+.wa-edit-btn.is-on { color: #fff; background: var(--wa-primary, #00a884); }
+.wa-edit-btn:focus-visible { outline: 2px solid var(--wa-primary, #00a884); outline-offset: 1px; }
+.wa-edit-btn:disabled { opacity: 0.35; cursor: default; }
+.wa-edit-emoji-wrap { position: relative; display: inline-flex; }
+.wa-edit-emoji-wrap .wa-emoji { top: calc(100% + 6px); bottom: auto; left: 50%; transform: translateX(-50%); z-index: 60; }
+.wa-edit-props { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; padding: 0 8px 6px; }
+.wa-edit-colors { display: flex; gap: 6px; }
+.wa-edit-swatch { width: 22px; height: 22px; padding: 0; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25); cursor: pointer; }
+.wa-edit-swatch[aria-checked='true'] { transform: scale(1.2); box-shadow: 0 0 0 2px var(--wa-primary, #00a884); }
+.wa-edit-swatch:focus-visible { outline: 2px solid var(--wa-primary, #00a884); outline-offset: 2px; }
+.wa-edit-brushes { display: flex; gap: 2px; }
+.wa-edit-brush { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.wa-edit-brush i { display: block; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25); }
+.wa-edit-brush[aria-checked='true'] { border-color: var(--wa-primary, #00a884); }
+.wa-edit-size { display: flex; align-items: center; gap: 6px; }
+.wa-edit-size input { width: 140px; accent-color: var(--wa-primary, #00a884); }
+.wa-edit-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; overflow: hidden; }
+.wa-edit-canvas { position: relative; flex: none; }
+.wa-edit-photo { display: block; touch-action: none; border-radius: 2px; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2); }
+.wa-edit[data-tool='draw'] .wa-edit-photo { cursor: crosshair; }
+.wa-edit-sel { position: absolute; border: 1.5px dashed #fff; border-radius: 4px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); pointer-events: none; }
+.wa-edit-typing {
+  position: absolute; z-index: 2; margin: 0; padding: 0 8px; font-weight: 600; font-family: system-ui, sans-serif;
+  text-align: center; text-shadow: 0 0 3px rgba(0, 0, 0, 0.6); background: rgba(0, 0, 0, 0.18); border: 0; outline: none; resize: none; overflow: hidden;
+}
+.wa-edit-typing::placeholder { color: rgba(255, 255, 255, 0.7); }
+/* Recorte: lo de afuera más oscuro, el marco con sus esquinas para arrastrar. */
+.wa-edit-crop { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+.wa-edit-crop-box { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); cursor: move; touch-action: none; }
+.wa-edit-crop-box::before, .wa-edit-crop-box::after { content: ''; position: absolute; inset: 33.33% 0; border-top: 1px solid rgba(255, 255, 255, 0.45); border-bottom: 1px solid rgba(255, 255, 255, 0.45); pointer-events: none; }
+.wa-edit-crop-box::after { inset: 0 33.33%; border: 0; border-left: 1px solid rgba(255, 255, 255, 0.45); border-right: 1px solid rgba(255, 255, 255, 0.45); }
+.wa-edit-handle { position: absolute; width: 22px; height: 22px; touch-action: none; }
+.wa-edit-handle.is-nw { left: -6px; top: -6px; border-left: 4px solid #fff; border-top: 4px solid #fff; cursor: nwse-resize; }
+.wa-edit-handle.is-ne { right: -6px; top: -6px; border-right: 4px solid #fff; border-top: 4px solid #fff; cursor: nesw-resize; }
+.wa-edit-handle.is-sw { left: -6px; bottom: -6px; border-left: 4px solid #fff; border-bottom: 4px solid #fff; cursor: nesw-resize; }
+.wa-edit-handle.is-se { right: -6px; bottom: -6px; border-right: 4px solid #fff; border-bottom: 4px solid #fff; cursor: nwse-resize; }
+.wa-edit-handle.is-n, .wa-edit-handle.is-s { left: 50%; width: 28px; height: 14px; margin-left: -14px; cursor: ns-resize; }
+.wa-edit-handle.is-n { top: -8px; }
+.wa-edit-handle.is-s { bottom: -8px; }
+.wa-edit-handle.is-w, .wa-edit-handle.is-e { top: 50%; width: 14px; height: 28px; margin-top: -14px; cursor: ew-resize; }
+.wa-edit-handle.is-w { left: -8px; }
+.wa-edit-handle.is-e { right: -8px; }
+/* HD: el botón de la cabecera, como el de WhatsApp (marcado cuando sale en tamaño real). */
+.wa-hd { margin-left: auto; height: 26px; padding: 0 7px; font: inherit; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; color: var(--wa-icon, var(--ink)); background: none; border: 1.5px solid currentColor; border-radius: 5px; cursor: pointer; }
+.wa-hd.is-on { color: #fff; background: var(--wa-primary, #00a884); border-color: var(--wa-primary, #00a884); }
+.wa-hd:focus-visible { outline: 2px solid var(--wa-primary, #00a884); outline-offset: 2px; }
+.wa-attach-caption { display: flex; align-items: center; gap: 4px; }
+.wa-attach-caption .input { flex: 0 1 650px; min-width: 0; }
+.wa-attach-caption .wa-emoji { bottom: calc(100% + 8px); }
+.wa-attach-thumb.is-edited .wa-attach-pick::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px; background: var(--wa-primary, #00a884); border: 1.5px solid #fff; border-radius: 50%; }
+.wa-attach-pick { position: relative; }
+@media (max-width: 480px) {
+  .wa-edit-tools { gap: 0; padding: 4px; }
+  .wa-edit-btn { min-width: 38px; height: 38px; }
+  .wa-edit-colors { gap: 4px; }
+  .wa-edit-swatch { width: 20px; height: 20px; }
+  .wa-edit-size input { width: 110px; }
+}

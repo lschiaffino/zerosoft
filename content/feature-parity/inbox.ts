@@ -241,6 +241,13 @@ const parity: ProductParity = {
         'Aba GIFs no painel de emojis, entre Emoji e Figurinhas: em alta ao abrir, categorias como no WhatsApp (Haha, Triste, Amor...), pesquisa no seu idioma, e um clique envia como GIF do WhatsApp (MP4 que toca sem som e em loop). Precisa de uma chave do GIPHY ou do Tenor no servidor. Com o Evolution 2.3.7 ou anterior chega como vídeo comum, porque essa versão não repassa gifPlayback. Testado com GIFs de exemplo e o provedor falso',
       ],
     }),
+    row('wa-image-editor', 'whatsapp', ['Edit a photo before sending (crop, draw, text, sticker, HD)', 'Editar una foto antes de mandarla (recortar, dibujar, texto, sticker, HD)', 'Editar uma foto antes de enviar (cortar, desenhar, texto, figurinha, HD)'], 'partial', {
+      detail: [
+        'In the preview, for photos picked, dropped or pasted: crop and rotate, emoji or sticker on top, colored text, pencil with colors and sizes, undo, an emoji button for the caption and HD (standard quality otherwise, up to 1600 px like WhatsApp). Several photos, each with its own edits. Missing: blur and filters. Tested with the fake provider',
+        'En la vista previa, para fotos elegidas, soltadas o pegadas: recortar y rotar, emoji o sticker encima, texto de color, lápiz con colores y grosores, deshacer, botón de emoji para el comentario y HD (si no, calidad estándar, hasta 1600 px como WhatsApp). Varias fotos, cada una con sus cambios. Faltan desenfocar y filtros. Probado con el proveedor falso',
+        'Na pré-visualização, para fotos escolhidas, soltas ou coladas: cortar e girar, emoji ou figurinha por cima, texto colorido, lápis com cores e espessuras, desfazer, botão de emoji para a legenda e HD (senão, qualidade padrão, até 1600 px como no WhatsApp). Várias fotos, cada uma com suas edições. Faltam desfoque e filtros. Testado com o provedor falso',
+      ],
+    }),
     row('wa-attach-menu', 'whatsapp', ['Attach menu: document, photos, camera, audio, contact, poll, new sticker', 'Menú de adjuntar: documento, fotos, cámara, audio, contacto, encuesta, sticker nuevo', 'Menu de anexar: documento, fotos, câmera, áudio, contato, enquete, nova figurinha'], 'partial', {
       detail: [
         'The + menu has the WhatsApp options in the WhatsApp order, with colored icons: camera opens the computer camera (or the phone camera), contact sends up to 5 contact cards, poll sends a WhatsApp poll, and new sticker turns an image into a sticker and sends it. Help me write, dictate and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',

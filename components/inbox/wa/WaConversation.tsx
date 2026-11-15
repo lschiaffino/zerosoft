@@ -949,6 +949,8 @@ const WaConversation = forwardRef<
             if (tray.sendAll(replyTo?.id)) setReplyTo(null);
           }}
           onFiles={(files) => void tray.add(files)}
+          onReplace={tray.replace}
+          stickerApi="/api/inbox/stickers"
         />
       )}
       {dragging && (

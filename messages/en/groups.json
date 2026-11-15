@@ -1905,7 +1905,32 @@
       "use": "Use photo"
     },
     "contactLoadError": "Could not load your contacts.",
-    "contactNoResults": "No contact matches that search."
+    "contactNoResults": "No contact matches that search.",
+    "editor": {
+      "tools": "Edit photo",
+      "crop": "Crop and rotate",
+      "rotate": "Rotate left",
+      "reset": "Reset",
+      "done": "Done",
+      "sticker": "Sticker or emoji",
+      "text": "Text",
+      "textPlaceholder": "Type",
+      "draw": "Draw",
+      "undo": "Undo",
+      "color": "Color",
+      "brush": "Pencil size",
+      "brushSizes": {
+        "0": "Thin",
+        "1": "Medium",
+        "2": "Thick"
+      },
+      "size": "Size",
+      "remove": "Remove",
+      "photo": "Photo being edited",
+      "hd": "HD quality",
+      "hdOn": "HD: sends the photo at full size",
+      "hdOff": "Standard quality: a lighter photo, like WhatsApp. Turn on HD to send it at full size"
+    }
   },
   "swipe": {
     "read": "Read",

@@ -1905,7 +1905,32 @@
       "use": "Usar foto"
     },
     "contactLoadError": "Não foi possível carregar seus contatos.",
-    "contactNoResults": "Nenhum contato corresponde à pesquisa."
+    "contactNoResults": "Nenhum contato corresponde à pesquisa.",
+    "editor": {
+      "tools": "Editar foto",
+      "crop": "Cortar e girar",
+      "rotate": "Girar para a esquerda",
+      "reset": "Redefinir",
+      "done": "Pronto",
+      "sticker": "Figurinha ou emoji",
+      "text": "Texto",
+      "textPlaceholder": "Digite",
+      "draw": "Desenhar",
+      "undo": "Desfazer",
+      "color": "Cor",
+      "brush": "Espessura do lápis",
+      "brushSizes": {
+        "0": "Fino",
+        "1": "Médio",
+        "2": "Grosso"
+      },
+      "size": "Tamanho",
+      "remove": "Remover",
+      "photo": "Foto sendo editada",
+      "hd": "Qualidade HD",
+      "hdOn": "HD: envia a foto em tamanho real",
+      "hdOff": "Qualidade padrão: uma foto mais leve, como no WhatsApp. Ative o HD para enviar em tamanho real"
+    }
   },
   "swipe": {
     "read": "Lida",
