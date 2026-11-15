@@ -423,3 +423,19 @@ a.asst-file:hover { border-color: var(--ink-2); }
 @media (max-width: 640px) {
   .asst-action-details > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* Tarjeta de permiso para leer chats: los tres botones en una fila (en el teléfono, apilados). */
+.asst-action.is-consent { border-color: var(--line); background: var(--bg-soft); }
+@media (max-width: 480px) {
+  .asst-action.is-consent .asst-action-buttons { flex-direction: column; align-items: stretch; }
+}
+
+/* Ajustes › Cuenta › Acceso del asistente. */
+.asst-access { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.asst-access-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.asst-access-state { font-size: 0.8125rem; }
+@media (max-width: 480px) {
+  .asst-access-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .asst-access-state { grid-column: 1; grid-row: 2; }
+  .asst-access-row .btn { grid-column: 2; grid-row: 1 / span 2; }
+}

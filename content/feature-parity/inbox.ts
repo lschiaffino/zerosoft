@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-13',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -180,6 +180,14 @@ const parity: ProductParity = {
         'Paste or attach the JSON exported from another inbox and ask the assistant (⌘J) to create the folders and subfolders and put the chats in them. It finds chats by name, phone, WhatsApp id or email, shows the plan with the chats it could not find and their closest names, and changes nothing until you click Confirm. Running it again only does what is missing. Tested with the fake model',
         'Pegá o adjuntá el JSON exportado de otra bandeja y pedile al asistente (⌘J) que cree las carpetas y subcarpetas y ponga los chats. Encuentra los chats por nombre, teléfono, id de WhatsApp o email, muestra el plan con los que no encontró y los nombres más parecidos, y no cambia nada hasta que tocás Confirmar. Repetirlo solo hace lo que falta. Probado con el modelo falso',
         'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente (⌘J) para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra o plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta. Testado com o modelo falso',
+      ],
+    }),
+    row('assistant-behind', 'platform', ['Assistant: what you are behind on', 'Asistente: qué tenés atrasado', 'Assistente: o que está atrasado'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Ask the assistant (⌘J) what you are behind on: chats waiting for your reply and for how long, overdue reminders, back from snooze and important unread, from names and times only. It reads messages only after you allow it (this time or always, revocable in Settings), and suggests reply drafts, snooze, reminders, archive, done or folders in one card. Tested with the fake model',
+        'Preguntale al asistente (⌘J) qué tenés atrasado: chats que esperan tu respuesta y hace cuánto, recordatorios vencidos, los que volvieron de posponer y no leídos importantes, solo con nombres y horarios. Lee mensajes solo si lo permitís (esta vez o siempre, se apaga en Ajustes) y propone borradores, posponer, recordatorios, archivar, hecho o carpetas en una tarjeta. Probado con el modelo falso',
+        'Pergunte ao assistente (⌘J) o que está atrasado: conversas esperando sua resposta e há quanto tempo, lembretes vencidos, as que voltaram do adiamento e não lidas importantes, só com nomes e horários. Ele lê mensagens só se você permitir (desta vez ou sempre, desligável em Configurações) e sugere rascunhos, adiar, lembretes, arquivar, feito ou pastas num cartão. Testado com o modelo falso',
       ],
     }),
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
