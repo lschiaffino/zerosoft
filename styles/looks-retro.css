@@ -207,13 +207,13 @@
 
 /* ---------- Campos, casillas, interruptores: hundidos y blancos ---------- */
 
-:root[data-look='retro'] :is(.input, .select, .textarea) {
+:root[data-look='retro'] :is(.input, .select, .textarea, .qm-input, .qm-field :is(input, select, textarea)) {
   background-color: var(--rt-field);
   border-color: transparent;
   box-shadow: var(--rt-sunken);
 }
 :root[data-look='retro'] :is(.input, .select, .textarea):hover:not(:disabled):not(:focus) { border-color: transparent; }
-:root[data-look='retro'] :is(.input, .select, .textarea):focus { border-color: transparent; box-shadow: var(--rt-sunken); outline: 1px dotted var(--ink); outline-offset: -4px; }
+:root[data-look='retro'] :is(.input, .select, .textarea, .qm-input, .qm-field :is(input, select, textarea)):focus { border-color: transparent; box-shadow: var(--rt-sunken); outline: 1px dotted var(--ink); outline-offset: -4px; }
 :root[data-look='retro'] .ui-check input[type='checkbox'] { background-color: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
 :root[data-look='retro'] .ui-check input[type='checkbox']:is(:checked, :indeterminate) { background-color: var(--rt-field); border-color: transparent; }
 :root[data-look='retro'] .ui-switch input { background: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
