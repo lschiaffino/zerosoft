@@ -6,7 +6,7 @@
 /** /api/files/<id de 22>/<nombre seguro>: lo que devuelve saveUpload. */
 export const FILE_URL_RE = /^\/api\/files\/[A-Za-z0-9_-]{22}\/[A-Za-z0-9._-]{1,80}$/;
 
-export function isFileUrlPath(url: unknown): url is string {
+export function isFileUrlPath(url: unknown): boolean {
   return typeof url === 'string' && FILE_URL_RE.test(url);
 }
 
