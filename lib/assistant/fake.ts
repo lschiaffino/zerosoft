@@ -5,6 +5,11 @@
  */
 import type { FakeCallInfo, FakeStep } from '../crm-ai-fake';
 
+/** El pedido de cierre del motor (engine.ts WRAP_UP_MARK); acá suelto para no importar el motor. */
+const WRAP_UP_MARK = '[wrap-up]';
+/** "Revisá todo el catálogo": el modelo falso busca sin parar (como el que se quedaba sin pasos). */
+const DIG = /^dig through (?:the|every) catalog|^revis(?:a|á) todo el cat(?:a|á)logo/i;
+
 function apps(system: string): string[] {
   const m = /Apps they can use here: ([^.\n]*)\./.exec(system);
   return m ? m[1].split(',').map((s) => s.trim()) : [];
@@ -14,8 +19,41 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   const last = (info.userTexts[info.userTexts.length - 1] ?? '').trim();
   const can = apps(info.system);
   const done = info.toolResults[info.toolResults.length - 1];
+  // Cierre: sin herramientas, cuenta qué hizo y qué espera confirmación.
+  if (last.startsWith(WRAP_UP_MARK)) {
+    const pending = info.toolResults.filter((r) => (r.output as { status?: unknown } | null)?.status === 'awaiting_user_confirmation').length;
+    return {
+      text: `I used ${info.toolResults.length} steps and stopped there. ${pending ? `${pending} change(s) wait for your confirmation on the card.` : 'Nothing waits for confirmation yet.'} Tell me if I should keep going.`,
+    };
+  }
+  const asked = [...info.userTexts].reverse().find((u) => !u.startsWith(WRAP_UP_MARK)) ?? '';
+  if (DIG.test(asked)) return { tool: 'find_operations', input: { query: `folders ${info.toolResults.length}` } };
+  // "Callado": el modelo termina sin texto después de una herramienta (el motor pide el cierre).
+  if (done && /^(?:list|show) my inbox folders silently/i.test(asked)) return { text: '' };
   if (done) {
     const out = (done.output ?? {}) as Record<string, unknown>;
+    if (done.tool === 'propose_folders_from_json') return foldersReply(out);
+    if (done.tool === 'inbox_folders') {
+      const rows = (out.folders as Array<{ path: string; chats: number }>) ?? [];
+      if (!rows.length) return { text: 'You have no Inbox folders yet.' };
+      return {
+        text: [
+          `## Your Inbox folders`,
+          '',
+          `You have **${rows.length} folders** and ${String(out.totalChats ?? 0)} chats in Inbox.`,
+          '',
+          '| Folder | Chats |',
+          '| --- | ---: |',
+          ...rows.map((r) => `| ${r.path} | ${r.chats} |`),
+          '',
+          'To move them somewhere else, export them as JSON:',
+          '',
+          '```json',
+          JSON.stringify({ folders: rows.slice(0, 2).map((r) => ({ path: r.path, chats: [] })) }, null, 2),
+          '```',
+        ].join('\n'),
+      };
+    }
     if (out.error) return { text: `I could not do that (${String(out.error)}).` };
     if (out.status === 'awaiting_user_confirmation') return { text: `${String(out.summary)}. Review the card and confirm.` };
     if (done.tool === 'crm_list_deals') {
@@ -55,6 +93,18 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     }
     return { text: 'Done looking that up.' };
   }
+  // Carpetas desde un JSON (pegado o adjunto): el plan lo arma la herramienta leyendo la charla.
+  if (/create the folders|crea(?:r|me)? las carpetas|criar? as pastas|folders from (?:this|the|my) json|configur(?:a|á|e|es) (?:mis|my|minhas) (?:carpetas|folders|pastas)/i.test(last)) {
+    const removeFromOtherFolders = /move them|sac(?:a|á)los|mov(?:e|é)los/i.test(last);
+    const inbox = /\binbox\b/i.test(last);
+    const lines = /\blines\b/i.test(last);
+    return {
+      reasoning: 'The person pasted a JSON exported from another inbox and wants its folders, subfolders and chats here. I will plan it first with propose_folders_from_json, which reads the JSON from the chat, and show the plan for confirmation.',
+      tool: 'propose_folders_from_json',
+      input: { target: inbox && lines ? 'both' : lines ? 'lines' : 'inbox', ...(removeFromOtherFolders ? { removeFromOtherFolders: true } : {}) },
+    };
+  }
+  if (/^(?:summari[sz]e|list|show) my inbox folders/i.test(last)) return { reasoning: 'Read the Inbox folders and count the chats in each.', tool: 'inbox_folders', input: {} };
   const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
   // Adjuntos: el último de la charla, de la línea de las instrucciones.
   const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}) \(/g)].map((m) => m[1]);
@@ -116,4 +166,37 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   const find = /^(?:find|search) (.+)$/i.exec(last);
   if (find) return { tool: 'search_workspace', input: { query: find[1] } };
   return { text: `I can look things up and prepare changes for you to confirm. Apps here: ${can.join(', ') || 'none'}.` };
+}
+
+/** Respuesta al plan de carpetas: una tabla con lo que se crea y lo que no encontró. */
+function foldersReply(out: Record<string, unknown>): FakeStep {
+  if (out.error === 'nothing_to_do') return { text: 'Everything in that JSON is already in place. Nothing to change.' };
+  if (out.error) {
+    const hint = typeof out.hint === 'string' ? out.hint : '';
+    return { text: `I could not read the folders (${String(out.error)}). ${hint}`.trim() };
+  }
+  type Plan = {
+    foldersToCreate?: Array<{ path: string; chats: number }>;
+    foldersReused?: Array<{ path: string; chats: number }>;
+    notFound?: Array<{ chat: string; folder: string; closest: string[] }>;
+  };
+  // Inbox y Lines en una tarjeta: el plan trae uno por destino; la tabla muestra el primero.
+  const raw = (out.plan ?? {}) as Plan & { targets?: Plan[] };
+  const plan = raw.targets?.[0] ?? raw;
+  const rows = [...(plan.foldersToCreate ?? []).map((f) => ({ ...f, state: 'new' })), ...(plan.foldersReused ?? []).map((f) => ({ ...f, state: 'exists' }))];
+  const missing = plan.notFound ?? [];
+  return {
+    text: [
+      'Here is the plan. Nothing changes until you confirm.',
+      '',
+      '| Folder | Chats | |',
+      '| --- | ---: | --- |',
+      ...rows.map((r) => `| ${r.path} | ${r.chats} | ${r.state} |`),
+      '',
+      ...(missing.length
+        ? [`**Not found (${missing.length}):**`, ...missing.map((m) => `- ${m.chat} in *${m.folder}*${m.closest.length ? `: maybe ${m.closest.join(', ')}?` : ''}`), '']
+        : []),
+      'Click **Confirm** on the card to apply it.',
+    ].join('\n'),
+  };
 }

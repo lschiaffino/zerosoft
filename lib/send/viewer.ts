@@ -173,6 +173,8 @@ export type ViewerState =
       state: 'open';
       brand: ViewerBrand;
       message: string;
+      /** Botón propio del link, o null. */
+      button: { label: string; url: string } | null;
       email: string | null;
       emailVerified: boolean;
       watermark: boolean;
@@ -276,7 +278,8 @@ export async function viewerState(link: LinkRow, session: SessionRow | null): Pr
     const s = (await getDb().prepare('SELECT title, description FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string; description: string } | undefined;
     if (s) space = s;
   }
-  return { state: 'open', brand, message: link.message, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };
+  const button = link.button_label && link.button_url ? { label: link.button_label, url: link.button_url } : null;
+  return { state: 'open', brand, message: link.message, button, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };
 }
 
 /** Sesión que puede ver, o el motivo por el que no. Lo usa cada imagen, video y descarga. */
@@ -750,6 +753,40 @@ export async function recordLinkClick(link: LinkRow, session: SessionRow, input:
   await db
     .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .run(newId('se'), link.workspace_id, link.id, input.documentId, 'link_click', session.email, JSON.stringify({ url: hit.url ?? null, toPage: hit.page ?? null, page: input.page, visitId: visit?.id ?? null, versionId: input.versionId }).slice(0, 2400), nowIso());
+  return true;
+}
+
+/**
+ * Un clic en el botón propio del link. La URL sale del link guardado; si el botón
+ * cambió o se sacó, no cuenta. Con un documento abierto queda en sus números.
+ */
+export async function recordButtonClick(link: LinkRow, session: SessionRow, input: { documentId?: string | null }, meta: RequestMeta): Promise<boolean> {
+  if (isAutomated(meta, false)) return false;
+  if (!link.button_label || !link.button_url) return false;
+  let documentId: string | null = null;
+  if (input.documentId) {
+    const docs = await linkDocuments(link, session.email);
+    if (!docs.some((d) => d.doc.id === input.documentId)) throw new SendError('not_found', 404);
+    documentId = input.documentId;
+  }
+  const db = getDb();
+  const visit = documentId
+    ? ((await db
+        .prepare("SELECT id, version_id FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, '') = ? ORDER BY started_at DESC LIMIT 1")
+        .get(session.id, documentId, session.email ?? '')) as { id: string; version_id: string } | undefined)
+    : undefined;
+  await db
+    .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(
+      newId('se'),
+      link.workspace_id,
+      link.id,
+      documentId,
+      'button_click',
+      session.email,
+      JSON.stringify({ label: link.button_label, url: link.button_url, visitId: visit?.id ?? null, versionId: visit?.version_id ?? null }).slice(0, 2400),
+      nowIso(),
+    );
   return true;
 }
 

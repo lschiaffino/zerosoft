@@ -179,7 +179,11 @@
     "csvAdded": "{count, plural, one {Se sumó # entrada.} other {Se sumaron # entradas.}}",
     "csvSkipped": "{count, plural, one {Se salteó # celda que no es email ni dominio.} other {Se saltearon # celdas que no son email ni dominio.}}",
     "csvTooMany": "La lista pasa de {max}: sacá algunas antes de guardar.",
-    "accessCount": "{count} de {max}"
+    "accessCount": "{count} de {max}",
+    "buttonLabel": "Texto del botón",
+    "buttonLabelPlaceholder": "Agendar una llamada",
+    "buttonUrl": "Link del botón",
+    "buttonHelp": "Muestra un botón en el visor que abre esta dirección en otra pestaña, por ejemplo tu página de reservas. Los clics aparecen en los números. Dejá los dos vacíos para no mostrar botón."
   },
   "visits": {
     "loadError": "Los números no cargaron.",
@@ -220,14 +224,16 @@
     "perPage": "Tiempo promedio por página en la versión {n}, y cuántas visitas llegaron",
     "reach": "llegó el {pct} %",
     "deniedTitle": "Intentaron abrirlo sin acceso",
-    "clicksTitle": "Links tocados dentro del documento",
+    "clicksTitle": "Clics en links del documento y en el botón",
     "colLink": "Link",
     "colOnPage": "En la página",
     "colClicks": "Clics",
     "toPage": "Página {page} del documento",
     "clickedOn": "Tocó en la página {page}: {target}",
     "closedDisabled": "Link deshabilitado",
-    "closedExpired": "Link vencido"
+    "closedExpired": "Link vencido",
+    "buttonClick": "Botón: {label}",
+    "clickedButton": "Tocó el botón: {label}"
   },
   "spaces": {
     "title": "Espacios",
@@ -336,7 +342,8 @@
     "videoError": "El video no cargó. Algunos navegadores no reproducen archivos MOV.",
     "unavailableTitle": "Este link ya no está disponible",
     "linkTo": "Abrir {url}",
-    "linkToPage": "Ir a la página {page}"
+    "linkToPage": "Ir a la página {page}",
+    "buttonTitle": "Abre {host} en otra pestaña"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -388,6 +395,8 @@
     "logo_https": "El logo necesita una dirección https://: el visor solo carga imágenes seguras.",
     "page_too_complex": "Una página de este archivo es demasiado pesada para prepararla. Imprimilo a un PDF nuevo, o bajale el detalle, y subí ese.",
     "csv_too_large": "Ese archivo pasa de 1 MB. Una lista de emails es mucho más chica.",
-    "too_many_entries": "La lista tiene más de 500 entradas."
+    "too_many_entries": "La lista tiene más de 500 entradas.",
+    "invalid_button_label": "Escribí el texto del botón, hasta 40 caracteres.",
+    "invalid_button_url": "El botón necesita una dirección web, como https://acme.com/demo."
   }
 }
