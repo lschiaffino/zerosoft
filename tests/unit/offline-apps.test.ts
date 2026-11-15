@@ -48,6 +48,7 @@ describe('apps sin conexión', () => {
     expect(worksOffline('track')).toBe(true);
     expect(worksOffline('groups')).toBe(false);
     expect(worksOffline('talk')).toBe(false);
+    expect(worksOffline('board')).toBe(true);
     expect(worksOffline(null)).toBe(false);
   });
 });
@@ -115,17 +116,17 @@ describe('rootsDue', () => {
   it('devuelve los inicios una vez cada 6 horas por persona', () => {
     const s = mem();
     const first = rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000);
-    expect(first).toEqual(['https://app.test/en/app', 'https://app.test/en/app/docs', 'https://app.test/en/app/notes', 'https://app.test/en/app/track', 'https://app.test/en/app/crm']);
+    expect(first).toEqual(['https://app.test/en/app', 'https://app.test/en/app/docs', 'https://app.test/en/app/notes', 'https://app.test/en/app/track', 'https://app.test/en/app/crm', 'https://app.test/en/app/board']);
     expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + 1000)).toEqual([]);
-    expect(rootsDue(s, 'otra:w', 'en', 'https://app.test', 1_000_000 + 1000)).toHaveLength(5);
-    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + OFFLINE_ROOTS_EVERY_MS)).toHaveLength(5);
+    expect(rootsDue(s, "otra:w", "en", "https://app.test", 1_000_000 + 1000)).toHaveLength(6);
+    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + OFFLINE_ROOTS_EVERY_MS)).toHaveLength(6);
   });
 
   it('en un navegador automatizado solo si el test lo pide; sin storage ni persona, nada', () => {
     const s = mem();
     expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toEqual([]);
     s.setItem('zs-e2e-warm-roots', '1');
-    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toHaveLength(5);
+    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toHaveLength(6);
     expect(rootsDue(null, 'u:w', 'en', 'https://app.test', 1)).toEqual([]);
     expect(rootsDue(mem(), '', 'en', 'https://app.test', 1)).toEqual([]);
   });

@@ -6,7 +6,7 @@
  * public/sw.js repite estas reglas (sin build); tests/unit/offline-prefs.test.ts
  * compara las dos.
  */
-export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes'] as const;
+export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board'] as const;
 export type OfflineApp = (typeof OFFLINE_APPS)[number];
 
 export const OFFLINE_SIZES = ['light', 'normal', 'max'] as const;
@@ -31,7 +31,7 @@ export interface OfflinePrefs {
 
 export const DEFAULT_OFFLINE_PREFS: OfflinePrefs = {
   enabled: true,
-  apps: { crm: true, docs: true, track: true, notes: true },
+  apps: { crm: true, docs: true, track: true, notes: true, board: true },
   size: 'normal',
   days: 30,
 };

@@ -1039,7 +1039,7 @@
     "syncing": "Sincronizando…",
     "synced": "Sincronizado",
     "panelTitle": "Estado sin conexión",
-    "leadOffline": "Lo que ya abriste en CRM, Docs, Notes y Track se sigue viendo. Lo que cambies queda guardado en este dispositivo y se manda solo al volver la red.",
+    "leadOffline": "Lo que ya abriste en CRM, Docs, Notes, Track y Board se sigue viendo. Lo que cambies queda guardado en este dispositivo y se manda solo al volver la red.",
     "leadPending": "Hay cambios guardados en este dispositivo que todavía no llegaron al servidor.",
     "leadOnline": "Todo lo que hiciste sin conexión ya está en el servidor.",
     "savedOnDevice": "Guardado en este dispositivo",
@@ -1068,7 +1068,8 @@
     "unknownShort": "{count, plural, one {# cambio sin enviar} other {# cambios sin enviar}}",
     "unknownTitle": "Sin enviar",
     "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás.",
-    "needsConnection": "Necesita conexión"
+    "needsConnection": "Necesita conexión",
+    "boardDrafts": "Board: {count, plural, one {# pizarra con cambios} other {# pizarras con cambios}}"
   },
   "comingSoon": {
     "badge": "Próximamente",
