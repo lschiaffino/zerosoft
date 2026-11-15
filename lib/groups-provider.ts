@@ -291,10 +291,10 @@ export type InboundEvent =
    */
   | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[]; author?: string }
   /**
-   * Un grupo nuevo para la cuenta (Evolution: GROUPS_UPSERT) o un cambio de asunto o descripción
-   * (groups.update, con quién lo hizo). `owner`/`author`: teléfono o "<dígitos>@lid". `creation`: segundos.
+   * Un grupo nuevo para la cuenta (Evolution: GROUPS_UPSERT) o un cambio de asunto, descripción o foto
+   * (groups.update con el parche 0008 de infra/evolution, con quién lo hizo). `owner`/`author`: teléfono o "<dígitos>@lid". `creation`: segundos.
    */
-  | { type: 'group'; chatId: string; event: 'create' | 'subject' | 'description'; subject?: string; owner?: string; author?: string; creation?: number; phones?: string[] }
+  | { type: 'group'; chatId: string; event: 'create' | 'subject' | 'description' | 'icon'; subject?: string; owner?: string; author?: string; creation?: number; phones?: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
 
 export type CallDirection = 'in' | 'out';

@@ -595,9 +595,11 @@ export const EVOLUTION_EVENTS = [
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
   // Grupo nuevo para la cuenta (creado desde el teléfono o al incluirla otra persona): sin esto el grupo no
-  // aparecía hasta su primer mensaje. GROUP_UPDATE (asunto, descripción) no sirve en Evolution 2.3.7: su filtro
-  // compara contra GROUPS_UPDATE y nunca coincide (lib/wa-group-events.ts).
+  // aparecía hasta su primer mensaje.
   'GROUPS_UPSERT',
+  // Asunto, descripción y foto cambiados en el teléfono (groups.update). Llega con el parche 0008 de
+  // infra/evolution; sin él Evolution 2.3.7 no lo manda (su filtro compara contra GROUPS_UPDATE).
+  'GROUP_UPDATE',
   'CALL',
   // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
   // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
@@ -1201,6 +1203,8 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         if (!isGroupJid(id) || !author || Array.isArray(g.participants)) return [];
         if (typeof g.subject === 'string' && g.subject.trim()) return [{ type: 'group', chatId: id, event: 'subject', subject: g.subject.replace(/\s+/g, ' ').trim().slice(0, 200), author }];
         if (typeof g.desc === 'string') return [{ type: 'group', chatId: id, event: 'description', author }];
+        // La foto (parche 0008: el mensaje de sistema GROUP_CHANGE_ICON sale como groups.update con `picture`).
+        if (g.picture === 'changed' || g.picture === 'removed') return [{ type: 'group', chatId: id, event: 'icon', author }];
         return [];
       });
     }

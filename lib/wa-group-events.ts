@@ -18,9 +18,10 @@
  *   no traen `message`. Por eso lo anterior a este cambio no se puede rearmar.
  * - Cambios de asunto, descripción o foto: Evolution emite `groups.update`,
  *   pero su filtro de webhooks compara GROUPS_UPDATE contra la opción
- *   GROUP_UPDATE y nunca coincide; tampoco hay evento de foto. Se muestran
- *   los que se hacen desde zerosoft (Lines) y el parser queda listo por si el
- *   servidor los manda.
+ *   GROUP_UPDATE y nunca coincide, y la foto solo llega como stub. El parche
+ *   0008 de infra/evolution arregla las dos cosas (la foto sale como
+ *   groups.update con `picture`). Lo hecho desde zerosoft (Lines) se anota
+ *   también al hacerlo.
  */
 
 export const WA_GROUP_EVENT_TYPES = ['create', 'add', 'remove', 'leave', 'join', 'promote', 'demote', 'subject', 'description', 'icon'] as const;

@@ -129,6 +129,17 @@ describe('Evolution: lo que llega del servidor', () => {
     expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', subject: 'Nuevo', author: '5491100000002@s.whatsapp.net' }] })).toEqual([
       { type: 'group', chatId: '1@g.us', event: 'subject', subject: 'Nuevo', author: '5491100000002' },
     ]);
+    // Descripción y foto (la foto, con el parche 0008: el stub GROUP_CHANGE_ICON sale como groups.update con `picture`).
+    expect(parseEvolutionWebhook({ event: 'GROUPS_UPDATE', data: [{ id: '1@g.us', desc: 'Reglas del grupo', author: '987654321012345@lid', authorPn: '5491100000002@s.whatsapp.net' }] })).toEqual([
+      { type: 'group', chatId: '1@g.us', event: 'description', author: '5491100000002' },
+    ]);
+    expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', picture: 'changed', author: '987654321012345@lid' }] })).toEqual([
+      { type: 'group', chatId: '1@g.us', event: 'icon', author: '987654321012345@lid' },
+    ]);
+    expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', picture: 'removed', authorPn: '5491100000002@s.whatsapp.net' }] })).toEqual([
+      { type: 'group', chatId: '1@g.us', event: 'icon', author: '5491100000002' },
+    ]);
+    expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', announce: true, author: '5491100000002@s.whatsapp.net' }] })).toEqual([]);
     expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', subject: 'Todo', participants: [] }] })).toEqual([]);
     expect(parseEvolutionWebhook({ event: 'groups.update', data: [{ id: '1@g.us', subject: 'Sin autor' }] })).toEqual([]);
   });
@@ -142,6 +153,7 @@ describe('Evolution: lo que llega del servidor', () => {
     expect(await syncEvolutionWebhook(call, 'inst')).toBe(true);
     expect(calls[1]).toMatchObject({ path: '/webhook/set/inst', method: 'POST', body: { webhook: { url: 'https://example.test/hook/x/y', events: EVOLUTION_EVENTS } } });
     expect(EVOLUTION_EVENTS).toContain('GROUPS_UPSERT');
+    expect(EVOLUTION_EVENTS).toContain('GROUP_UPDATE');
     // Ya los tiene, o no hay webhook: no toca nada.
     expect(await syncEvolutionWebhook(async () => ({ url: 'https://example.test/h', events: EVOLUTION_EVENTS }), 'inst')).toBe(false);
     expect(await syncEvolutionWebhook(async () => null, 'inst')).toBe(false);
@@ -209,6 +221,27 @@ describe('Inbox', () => {
     expect((await listThreadsPage(u.id)).threads[0].id).not.toBe(g.id);
     const msgs = (await listMessages(u.id, g.id)).messages;
     expect(msgs.map((m) => m.mediaType)).toEqual(['', 'system']);
+  });
+
+  it('cambios hechos en el teléfono (parche 0008): nombre nuevo en la lista, foto y descripción como avisos', async () => {
+    const { u, account: a } = await inboxAccount('wge-inbox-update');
+    const g = await upsertThread(a, { externalId: '120363000999@g.us', kind: 'group', title: 'Viejo nombre' });
+    await ingestWhatsappEvents(
+      a,
+      parseEvolutionWebhook({
+        event: 'groups.update',
+        data: [
+          { id: '120363000999@g.us', subject: 'Nombre nuevo', author: '5491100000002@s.whatsapp.net' },
+          { id: '120363000999@g.us', picture: 'changed', author: '5491100000002@s.whatsapp.net' },
+        ],
+      }),
+    );
+    const t = (await findThread(a.id, '120363000999@g.us'))!;
+    expect(t.title).toBe('Nombre nuevo');
+    expect(t.unread).toBe(0);
+    expect(decodeSysPreview(t.preview)).toEqual({ t: 'icon', by: { p: '5491100000002' } });
+    const sys = (await listMessages(u.id, g.id)).messages.map((m) => (m.meta?.sys as { t: string }).t);
+    expect(sys).toEqual(['subject', 'icon']);
   });
 
   it('un grupo vacío que ya estaba: va al lugar de su creación en WhatsApp (los viejos quedan abajo)', async () => {
