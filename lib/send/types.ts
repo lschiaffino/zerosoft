@@ -310,6 +310,26 @@ export function safeHttpUrl(v: unknown): string {
   }
 }
 
+// ---------- Botón del visor ----------
+
+export const MAX_BUTTON_LABEL = 40;
+
+/**
+ * Botón propio de un link: van los dos o ninguno. La URL es web (http o https),
+ * nunca javascript: ni un archivo local. Vacíos, el link no tiene botón.
+ */
+export function cleanLinkButton(label: unknown, url: unknown): { label: string; url: string } {
+  const l = typeof label === 'string' ? label.replace(/\s+/g, ' ').trim() : '';
+  const rawUrl = typeof url === 'string' ? url.trim() : '';
+  if (!l && !rawUrl) return { label: '', url: '' };
+  if (!l || l.length > MAX_BUTTON_LABEL) throw new SendError('invalid_button_label', 400);
+  // Sin esquema se toma como https: es lo que alguien escribe ("acme.com/demo").
+  const withScheme = rawUrl && !/^[a-z][a-z0-9+.-]*:/i.test(rawUrl) ? `https://${rawUrl}` : rawUrl;
+  const u = rawUrl.length <= 2000 ? safeHttpUrl(withScheme) : '';
+  if (!u) throw new SendError('invalid_button_url', 400);
+  return { label: l, url: u };
+}
+
 // ---------- Dispositivo ----------
 
 export function deviceKind(type: string | undefined): 'mobile' | 'tablet' | 'desktop' {
