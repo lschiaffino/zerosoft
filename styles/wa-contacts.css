@@ -1,0 +1,101 @@
+/* Contactos de WhatsApp en Lines y en Inbox (components/groups/wa/ContactsView.tsx).
+   Usa la barra y los menús de la tabla de grupos (lines-groups-table.css) y solo tokens. */
+
+.wc-toolbar { flex-wrap: wrap; }
+.wc-pick .gr-gt-menu-btn.is-on { border-color: var(--ink); }
+.wc-pick-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-menu { min-width: 220px; padding: 4px; }
+.wc-menuitem { gap: 8px; width: 100%; }
+.wc-menuitem:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.wc-menuitem[aria-checked='true'] { font-weight: 600; }
+.wc-menuitem-check { flex: none; width: 1em; color: var(--ink); text-align: center; }
+.wc-count { white-space: nowrap; }
+
+/* Tabla */
+.wc-table td { vertical-align: middle; }
+.wc-table th { white-space: nowrap; }
+.wc-namecell { min-width: 220px; }
+.wc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.wc-name:hover .wc-name-main { text-decoration: underline; text-underline-offset: 3px; }
+.wc-name:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--radius-1); }
+.wc-name-text { display: flex; flex-direction: column; min-width: 0; }
+.wc-name-main { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-name-sub { font-size: 0.8125rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-name-sub:empty { display: none; }
+.wc-chips { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.wc-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 200px;
+  padding: 0 6px;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.wc-more { flex: none; padding: 0 4px; font-size: 0.8125rem; color: var(--dim); }
+.wc-groups { display: inline-flex; align-items: center; gap: 4px; max-width: 320px; }
+.wc-groups-names { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-hs { display: inline-flex; flex-direction: column; min-width: 0; max-width: 260px; }
+.wc-hs .gr-gt-company-link > span { white-space: nowrap; }
+.wc-hs-company { font-size: 0.8125rem; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Ficha */
+.wc-title { display: inline-flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; }
+.wc-title .wc-name-sub { font-weight: 400; }
+.wc-detail { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.wc-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wc-section + .wc-section { padding-top: 14px; border-top: 1px solid var(--line); }
+.wc-section-title { margin: 0; font-size: 0.75rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.wc-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wc-list-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wc-link { min-width: 0; overflow: hidden; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; text-underline-offset: 3px; }
+.wc-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.wc-match { padding: 6px 0; }
+.wc-match + .wc-match { border-top: 1px solid var(--line); }
+.wc-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0 0 10px; }
+.wc-dl dt { color: var(--dim); }
+.wc-dl dd { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; }
+.wc-hs-linked > .btn,
+.wc-hs-create { align-self: flex-start; }
+.wc-hs-find { display: flex; flex-direction: column; gap: 8px; }
+.wc-hs-label { margin: 0; font-size: 0.875rem; }
+.wc-note { margin: 0; font-size: 0.875rem; color: var(--ink); }
+.wc-note.is-bad { color: var(--bad-ink); }
+
+@media (max-width: 1023px) {
+  .wc-chip,
+  .wc-link,
+  .wc-list-item .btn { min-height: 40px; }
+  .wc-link { display: inline-flex; align-items: center; }
+  .wc-menuitem { min-height: 40px; }
+  .wc-pick .gr-gt-menu-btn { --btn-h: 40px; }
+}
+@media (max-width: 640px) {
+  /* En el teléfono cada fila es una tarjeta (table-stack): nada se corta de costado. */
+  .wc-namecell { min-width: 0; }
+  .wc-groups,
+  .wc-hs { max-width: 100%; }
+  .wc-groups-names { white-space: normal; }
+  .wc-toolbar > .input { flex: 1 1 100%; }
+  .wc-toolbar .gr-columns { position: static; }
+  .wc-toolbar .gr-gt-popover { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
+  .wc-count { display: none; }
+}
