@@ -5,6 +5,7 @@
  * Blob (lib/routes/inbox/upload) y el servidor de WhatsApp lo baja por URL:
  * apenas sale, se borra de Blob. Server-only.
  */
+import { isFileUrlPath } from '../files/url';
 import { baseMime, MEDIA_KINDS, MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
@@ -37,14 +38,32 @@ export interface OutgoingFile {
   height?: number;
 }
 
-/** Solo URLs de nuestro Blob y de la carpeta de Inbox (nada que el servidor de WhatsApp vaya a bajar de otro lado). */
+/**
+ * Solo un archivo nuestro: /api/files/… (subida directa, privada; al mandar
+ * se chequea que sea de la persona) o, de antes, nuestro Blob en la carpeta
+ * de Inbox. Nada que el servidor de WhatsApp vaya a bajar de otro lado.
+ */
 export function isInboxBlobUrl(raw: string): boolean {
+  if (isFileUrlPath(raw)) return true;
   try {
     const u = new URL(raw);
     return u.protocol === 'https:' && /\.public\.blob\.vercel-storage\.com$/i.test(u.hostname) && /^\/inbox\/[0-9a-f-]{36}-[A-Za-z0-9._-]{1,120}$/.test(u.pathname);
   } catch {
     return false;
   }
+}
+
+/**
+ * URL que baja el servidor de WhatsApp: para un archivo de /api/files (que
+ * tiene que ser de la persona), una URL firmada de nuestro dominio que vence
+ * en minutos; nunca la del storage.
+ */
+async function providerUrl(owner: string, url: string): Promise<string> {
+  if (!isFileUrlPath(url)) return url;
+  const { ownedFileRow, signedFileUrl } = await import('../files/store');
+  const row = await ownedFileRow(url, { userId: owner });
+  if (!row) throw new InboxError('invalid_input', 400);
+  return signedFileUrl(row, (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, ''), 30 * 60);
 }
 
 /** Nombre de archivo sin rutas ni caracteres raros. */
@@ -110,7 +129,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     const p = waProviderFor(account);
     id = (
       await p.sendMedia(thread.external_id, {
-        url: f.url ?? '',
+        url: f.url ? await providerUrl(owner, f.url) : '',
         mimetype,
         filename,
         ...(kind === 'voice' ? {} : caption ? { caption } : {}),

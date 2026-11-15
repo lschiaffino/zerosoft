@@ -120,6 +120,9 @@ export async function GET(req: NextRequest) {
   const linkDeferred = await pruneDeferredClicks().catch(() => null);
   // Claves de altas hechas sin conexión (lib/offline-idempotency.ts).
   const offlineRequests = await pruneOfflineRequests().catch(() => null);
+  // Subidas directas que quedaron sin terminar (lib/files/direct-upload.ts): no quedan en el storage.
+  const incomingSwept = await (await import('@/lib/files/direct-upload')).sweepIncoming().catch(() => null);
+  void incomingSwept;
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);

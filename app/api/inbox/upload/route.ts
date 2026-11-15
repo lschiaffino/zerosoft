@@ -16,7 +16,8 @@ const MEDIA_TYPES = ['image/*', 'video/*', 'audio/*', 'application/pdf', 'applic
 
 /** Cómo subir: directo a Vercel Blob (archivos grandes) o por esta ruta (servidor propio). */
 export async function GET() {
-  return withOwner(async () => iJson({ mode: process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'server', maxMedia: MAX_SCHEDULED_MEDIA }));
+  // 'blob': el archivo de un programado sube directo y privado por /api/files/upload (lib/files/direct-upload.ts).
+  return withOwner(async () => iJson({ mode: process.env.BLOB_READ_WRITE_TOKEN || process.env.FILES_BLOB_READ_WRITE_TOKEN ? 'blob' : 'server', maxMedia: MAX_SCHEDULED_MEDIA }));
 }
 
 /**
@@ -64,9 +65,6 @@ export async function POST(req: Request) {
       onBeforeGenerateToken: async (pathname) => {
         if (/^inbox-import\/[A-Za-z0-9._-]{1,120}\.ndjson$/.test(pathname)) {
           return { allowedContentTypes: ['application/x-ndjson', 'application/json', 'application/octet-stream', 'text/plain'], maximumSizeInBytes: MAX_IMPORT_BYTES, addRandomSuffix: true };
-        }
-        if (/^inbox\/[A-Za-z0-9._-]{1,160}$/.test(pathname) && isAllowedUpload(pathname, 'application/octet-stream')) {
-          return { allowedContentTypes: MEDIA_TYPES, maximumSizeInBytes: MAX_SCHEDULED_MEDIA, addRandomSuffix: true };
         }
         throw new Error('invalid_pathname');
       },
