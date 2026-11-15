@@ -87,7 +87,7 @@
 .sc-compose-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .sc-accounts { display: flex; flex-wrap: wrap; gap: 6px; }
 .sc-account { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--ui-field, var(--line)); border-radius: var(--radius-1); background: var(--bg); color: var(--ink); font: inherit; font-size: 0.875rem; cursor: pointer; max-width: 100%; }
-.sc-account[aria-pressed='true'] { border-color: var(--ink); background: var(--bg-soft); box-shadow: inset 0 -3px 0 var(--c-social); }
+.sc-account[aria-pressed='true'] { border-color: var(--accent-ink); background: var(--bg-soft); box-shadow: inset 0 -3px 0 var(--c-social); }
 .sc-account[data-expired='true'] { opacity: 0.6; }
 .sc-account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-textarea { width: 100%; min-height: 160px; resize: vertical; }

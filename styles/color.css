@@ -13,9 +13,9 @@
 }
 
 /* ---------- Controles con el color de la app ---------- */
-.filter-select.on, .filter-more.on { border-color: var(--ink); color: var(--ink); background-color: var(--brand-enamel); }
+.filter-select.on, .filter-more.on { border-color: var(--accent-ink); color: var(--ink); background-color: var(--brand-enamel); }
 .filter-count { background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
-.chip.active, .kb-view-btn.active { border-color: var(--ink); color: var(--ink); background: var(--ui-hover); }
+.chip.active, .kb-view-btn.active { border-color: var(--accent-ink); color: var(--ink); background: var(--ui-hover); }
 .app-tab.active { border-bottom-color: var(--accent); }
 .app-content a.cell-name:hover, .app-content .kb-card-name:hover { color: var(--accent-ink); }
 

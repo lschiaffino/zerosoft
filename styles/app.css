@@ -137,7 +137,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   width: 8px;
   height: 8px;
   margin-left: auto;
-  background: var(--ink);
+  background: var(--accent-ink);
 }
 
 /* Switcher de la plataforma: una sola grilla de tres columnas para destacadas y categorías. */
@@ -1013,7 +1013,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   height: 32px;
   min-height: 32px;
 }
-.filter-select.on { border-color: var(--ink); }
+.filter-select.on { border-color: var(--accent-ink); }
 .filter-date { border-color: var(--ui-field); height: 32px; min-height: 32px; }
 
 /* Badge editable inline (lifecycle/lead status en tablas): .cell-inline le
@@ -1090,7 +1090,7 @@ button.view-tab {
   cursor: pointer;
 }
 .filter-more:hover, .filter-more.open { color: var(--ink); border-color: var(--ink); }
-.filter-more.on { color: var(--ink); border-style: solid; border-color: var(--ink); }
+.filter-more.on { color: var(--ink); border-style: solid; border-color: var(--accent-ink); }
 .filter-count {
   min-width: 18px;
   padding: 0 5px;
@@ -1403,7 +1403,7 @@ td.cell-actions > * + * { margin-left: 4px; }
 .home-block-scope { display: flex; gap: 12px; font-size: 0.8125rem; }
 .home-block-scope a { color: var(--dim); text-decoration: none; padding-bottom: 2px; border-bottom: 1px solid transparent; }
 .home-block-scope a:hover { color: var(--ink); }
-.home-block-scope a[aria-current='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.home-block-scope a[aria-current='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent-ink); }
 .home-block-scope a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 /* Títulos que se leen enteros: hasta dos líneas. */
 .home-row-label.home-row-wrap {

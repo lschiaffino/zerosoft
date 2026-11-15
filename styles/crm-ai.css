@@ -136,7 +136,7 @@ body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 24px; }
 .ai-section-title { margin: 0 0 8px; font-family: var(--font-signage); font-weight: var(--signage-weight); font-size: 1.25rem; }
 .ai-agent-pick { border: 0; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
 .ai-agent-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-xs); cursor: pointer; }
-.ai-agent-option:has(input:checked) { border-color: var(--ink); }
+.ai-agent-option:has(input:checked) { border-color: var(--accent-ink); }
 .ai-agent-option span { display: flex; flex-direction: column; gap: 2px; font-size: 0.875rem; }
 .ai-agent-option .muted { font-size: 0.8125rem; }
 .ai-status-running { color: var(--info-ink, var(--ink)); }

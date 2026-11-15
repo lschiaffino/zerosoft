@@ -90,7 +90,7 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
   cursor: pointer;
 }
 .hr-template input { grid-row: span 2; margin-top: 3px; }
-.hr-template.is-on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hr-template.is-on { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-ink); }
 .hr-template:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 .hr-template-name { font-weight: 600; }
 .hr-template-meta { color: var(--muted); font-size: 0.8125rem; }
@@ -204,7 +204,7 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 .hr-criterion { border: 0; padding: 0; margin: 0; min-width: 0; }
 .hr-rating { display: flex; flex-wrap: wrap; gap: 6px; }
 .hr-rating-opt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); cursor: pointer; font-size: 0.875rem; }
-.hr-rating-opt:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hr-rating-opt:has(input:checked) { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-ink); }
 .hr-rating-opt:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 .hr-scorecards { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .hr-scorecard,

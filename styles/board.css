@@ -164,7 +164,7 @@
 .board-status.is-error { color: var(--bad-ink); }
 
 .board-share-wrap { position: relative; margin-left: auto; }
-.app-frame .board-share-wrap .btn.is-on { background: var(--ui-hover); border-color: var(--ink); }
+.app-frame .board-share-wrap .btn.is-on { background: var(--ui-hover); border-color: var(--accent-ink); }
 
 .board-pop {
   position: absolute;
@@ -353,7 +353,7 @@ section.board-templates { padding: 0; }
 
 .board-bar-first { margin-left: auto; }
 .board-bar-first ~ .board-share-wrap { margin-left: 0; }
-.app-frame .board-bar .btn.is-on { background: var(--ui-hover); border-color: var(--ink); }
+.app-frame .board-bar .btn.is-on { background: var(--ui-hover); border-color: var(--accent-ink); }
 
 .board-bar-count {
   min-width: 18px;
@@ -479,7 +479,7 @@ section.board-templates { padding: 0; }
 }
 
 .board-pin:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.board-pin.is-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.board-pin.is-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-ink); }
 .board-pin.is-resolved { background: var(--bg); color: var(--brand-gray-2); border-color: var(--line); }
 .board-pin.is-draft { width: 26px; pointer-events: none; }
 
@@ -870,7 +870,7 @@ section.board-templates { padding: 0; }
   margin-bottom: -1px;
 }
 .board-folder-tab:hover { color: var(--ink); }
-.board-folder-tab[aria-current='page'] { color: var(--ink); border-bottom-color: var(--ink); }
+.board-folder-tab[aria-current='page'] { color: var(--ink); border-bottom-color: var(--accent-ink); }
 .board-folder-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .board-folder-count { color: var(--brand-gray-2); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
 .board-folder-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; position: relative; }
@@ -987,7 +987,7 @@ section.board-templates { padding: 0; }
 .board-reaction:disabled { cursor: default; }
 .board-reaction:focus-visible, .board-reaction-pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .board-reaction.is-add { color: var(--brand-gray-1); }
-.board-reaction.is-add.is-on { color: var(--ink); border-color: var(--ink); }
+.board-reaction.is-add.is-on { color: var(--ink); border-color: var(--accent-ink); }
 .board-reaction-wrap { position: relative; display: inline-flex; }
 .board-reaction-picker {
   position: absolute;

@@ -121,7 +121,7 @@ body:has(.dz-editor) .fl-root { display: none; }
 .dz-move { display: flex; flex-direction: column; gap: 4px; }
 .dz-move-opt { text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
 .dz-move-opt:hover, .dz-move-opt:focus-visible { border-color: var(--ink); outline: none; }
-.dz-move-opt.is-on { border-color: var(--ink); background: var(--ui-selected); }
+.dz-move-opt.is-on { border-color: var(--accent-ink); background: var(--ui-selected); }
 .dz-wh { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dz-wh .ui-error { grid-column: 1 / -1; margin: 0; }
 

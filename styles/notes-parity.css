@@ -68,7 +68,7 @@
   background: var(--bg);
   color: var(--bg);
 }
-.notes-item-check.is-on { background: var(--ink); border-color: var(--ink); }
+.notes-item-check.is-on { background: var(--accent-ink); border-color: var(--accent-ink); }
 .notes-item.is-selected { background: var(--ui-hover); }
 
 /* Diálogos: campos, plantillas, escaneo. */

@@ -200,7 +200,7 @@
   transition: border-color var(--ui-dur) var(--ease);
 }
 .flow-node:hover { border-color: var(--ui-field); }
-.flow-node.is-selected { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.flow-node.is-selected { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-ink); }
 .flow-node-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 16px; }
 .flow-node-cat { font-size: 0.75rem; font-weight: 500; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flow-node-status { flex-shrink: 0; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
@@ -621,7 +621,7 @@
 .flow-note-card[data-color='blue'] { background: var(--bg-soft); }
 .flow-note-card[data-color='green'] { background: var(--ok-soft); }
 .flow-note-card[data-color='pink'] { background: var(--bad-soft); }
-.flow-note-card.is-selected { box-shadow: inset 0 0 0 1px var(--ink); border-color: var(--ink); }
+.flow-note-card.is-selected { box-shadow: inset 0 0 0 1px var(--accent-ink); border-color: var(--accent-ink); }
 .flow-note-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; max-height: 240px; overflow: hidden; }
 .flow-note-text.is-empty { color: var(--brand-gray-2); }
 

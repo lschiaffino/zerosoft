@@ -29,7 +29,7 @@ section.rec-edit-block { padding-bottom: 20px; }
 }
 .rec-mode input { position: absolute; opacity: 0; pointer-events: none; }
 .rec-mode:hover { border-color: var(--ink); }
-.rec-mode.active { border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--c-rec); font-weight: 600; }
+.rec-mode.active { border-color: var(--accent-ink); box-shadow: inset 0 -3px 0 var(--c-rec); font-weight: 600; }
 .rec-mode:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .rec-devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .rec-devices .select { width: 100%; }

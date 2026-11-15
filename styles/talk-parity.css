@@ -256,7 +256,7 @@
 
 .talk-tab[aria-selected='true'],
 .talk-tab[aria-current='true'] {
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent-ink);
   color: var(--ink);
   font-weight: 600;
 }

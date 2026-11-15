@@ -1646,8 +1646,8 @@ a.track-issue-link .track-status-glyph {
 }
 
 .track-keymenu-box.is-on {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
 }
 
 .track-keymenu-hint,
@@ -1788,7 +1788,7 @@ a.track-issue-link .track-status-glyph {
 .track-display-layout.is-on {
   color: var(--ink);
   background: var(--ui-hover);
-  border-color: var(--ink);
+  border-color: var(--accent-ink);
 }
 
 .track-display-row {
@@ -1865,7 +1865,7 @@ a.track-issue-link .track-status-glyph {
 }
 
 .track-display-switch.is-on {
-  background: var(--ink);
+  background: var(--accent-ink);
 }
 
 .track-display-switch.is-on > span {

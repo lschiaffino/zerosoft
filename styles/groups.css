@@ -98,7 +98,7 @@
   cursor: pointer;
 }
 .gr-label-toggle:hover { background: var(--ui-hover); }
-.gr-label-toggle.is-on { border-color: var(--ink); background: var(--bg-soft); }
+.gr-label-toggle.is-on { border-color: var(--accent-ink); background: var(--bg-soft); }
 /* En el teléfono cada etiqueta para elegir (plantillas, detalles del chat, lista) tiene alto de dedo. */
 @media (max-width: 720px) {
   .gr-label-toggle { display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; padding: 4px 10px; }
@@ -149,7 +149,7 @@
   cursor: pointer;
 }
 .gr-filter:hover { color: var(--ink); background: var(--ui-hover); }
-.gr-filter.is-on { color: var(--ink); font-weight: 600; border-color: var(--ink); }
+.gr-filter.is-on { color: var(--ink); font-weight: 600; border-color: var(--accent-ink); }
 .gr-list-loading { padding: 12px 16px; }
 .gr-list-empty { padding: 24px 16px; font-size: 0.875rem; color: var(--brand-gray-2); }
 /* Cambio de carpeta o filtro: las filas anteriores quedan atenuadas hasta que llegan las nuevas. */
@@ -437,7 +437,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   cursor: pointer;
 }
 .gr-provider > span { display: flex; flex-direction: column; gap: 2px; }
-.gr-provider.is-on { border-color: var(--ink); background: var(--bg-soft); }
+.gr-provider.is-on { border-color: var(--accent-ink); background: var(--bg-soft); }
 .gr-provider input { margin-top: 3px; }
 .gr-recommended { margin-left: 6px; font-size: 0.75rem; font-weight: 500; color: var(--ok-ink); }
 .gr-advanced { border-top: 1px solid var(--line); padding-top: 8px; }
@@ -625,7 +625,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-presence.is-on { color: var(--ink); }
 .gr-presence.is-on i,
 .gr-presence-dot.is-on { background: var(--ok); }
-.gr-thread-actions .btn[aria-pressed='true'] { color: var(--app-btn-on, var(--bg)); background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--ink)); }
+.gr-thread-actions .btn[aria-pressed='true'] { color: var(--app-btn-on, var(--bg)); background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--accent-ink)); }
 .gr-thread-actions .btn[aria-pressed='true'] .kbd { color: inherit; border-color: currentColor; }
 .gr-bulkbar {
   display: flex;
@@ -697,7 +697,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   border-radius: var(--radius-1);
 }
 .gr-view:hover { background: var(--ui-hover); color: var(--ink); }
-.gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+.gr-view.is-on { color: var(--ink); border-color: var(--accent-ink); font-weight: 600; }
 .gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 /* Con el dedo, las listas guardadas son objetivos de 40px, como las pestañas de abajo. */
 @media (pointer: coarse) {
@@ -717,7 +717,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   cursor: pointer;
 }
 .gr-multi-opt:hover { background: var(--ui-hover); }
-.gr-multi-opt.is-on { border-color: var(--ink); background: var(--bg-soft); font-weight: 600; }
+.gr-multi-opt.is-on { border-color: var(--accent-ink); background: var(--bg-soft); font-weight: 600; }
 .gr-multi-opt:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-cascade { display: flex; flex-direction: column; gap: 6px; }
 .gr-file-prop { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
@@ -840,7 +840,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-folder { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: start; background: none; border: 1px solid transparent; color: inherit; padding: 4px 8px; cursor: pointer; font: inherit; }
 .gr-folder:hover { background: var(--ui-hover); }
-.gr-folder.is-on { border-color: var(--ink); font-weight: 600; }
+.gr-folder.is-on { border-color: var(--accent-ink); font-weight: 600; }
 .gr-folder.is-over { background: var(--ui-hover); border-color: var(--ink); border-style: dashed; }
 .gr-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-folder-pick { max-height: 50vh; }

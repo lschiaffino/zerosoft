@@ -52,7 +52,7 @@
 .docs-db-tab-btn:hover,
 .docs-db-tab-add:hover,
 .docs-db-tool:hover { background: var(--ui-hover); color: var(--ink); }
-.docs-db-tab.active .docs-db-tab-btn { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ink); }
+.docs-db-tab.active .docs-db-tab-btn { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent-ink); }
 .docs-db-tab-input {
   width: 140px;
   height: 28px;
@@ -192,7 +192,7 @@
   outline: none;
 }
 .docs-db-td:hover { background: var(--ui-hover); }
-.docs-db-td.active { box-shadow: inset 0 0 0 2px var(--ink); }
+.docs-db-td.active { box-shadow: inset 0 0 0 2px var(--accent-ink); }
 .docs-db-td.editing { box-shadow: inset 0 0 0 2px var(--ink); background: var(--bg); }
 .docs-db-td-title { font-weight: 500; }
 .docs-db-td-actions { width: 40px; justify-content: center; padding: 0; }

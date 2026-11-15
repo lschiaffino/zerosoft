@@ -10,7 +10,7 @@
 /* ---------- De crm.css ---------- */
 .app-tab.active {
   color: var(--ink);
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent-ink);
 }
 .app-page { display: flex; flex-direction: column; gap: 28px; }
 .panel .section-label { margin-bottom: 20px; font-size: 12px; }
@@ -103,7 +103,7 @@
 }
 .chip.active {
   background: var(--app-btn, var(--ink));
-  border-color: var(--app-btn, var(--ink));
+  border-color: var(--app-btn, var(--accent-ink));
   color: var(--app-btn-on, var(--bg));
 }
 .filter-select {
@@ -714,7 +714,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   button.track-display-switch { width: 44px; height: 40px; background: transparent; flex: none; }
   button.track-display-switch::before { content: ''; position: absolute; left: 8px; top: 12px; width: 28px; height: 16px; background: var(--line); border-radius: var(--radius-1); }
   button.track-display-switch.is-on { background: transparent; }
-  button.track-display-switch.is-on::before { background: var(--ink); }
+  button.track-display-switch.is-on::before { background: var(--accent-ink); }
   button.track-display-switch > span { top: 14px; left: 10px; }
   /* Selector de tema del sidebar y carpetas de Lines: objetivos de 40px. */
   :is(.theme-switcher button, .gr-folder) { min-height: 40px !important; min-width: 40px !important; }
