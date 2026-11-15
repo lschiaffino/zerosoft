@@ -652,11 +652,23 @@ export default function DocsEditor({
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     const left = hi - lo <= w ? (lo + hi) / 2 : Math.max(lo + w / 2, Math.min(hi - w / 2, toolbar.left));
-    // Sin lugar arriba (la barra fija de la página): va debajo de la selección.
-    const bar = document.querySelector('.docs-top-bar')?.getBoundingClientRect().bottom ?? 56;
-    const top = toolbar.selTop - h - 8 > bar ? toolbar.selTop - h - 8 : toolbar.selBottom + 8;
+    // Donde empieza lo que se ve del editor: debajo de la barra fija de la página (Docs)
+    // o del borde del contenedor que hace scroll (Notes).
+    let floor = document.querySelector('.docs-top-bar')?.getBoundingClientRect().bottom ?? 56;
+    for (let n = rootRef.current?.parentElement ?? null; n; n = n.parentElement) {
+      const oy = getComputedStyle(n).overflowY;
+      if (oy === 'auto' || oy === 'scroll') {
+        floor = Math.max(floor, n.getBoundingClientRect().top);
+        break;
+      }
+    }
+    // La selección quedó fuera de la vista al hacer scroll: la barra no flota sobre el encabezado.
+    const gone = toolbar.selBottom < floor || toolbar.selTop > window.innerHeight;
+    // Sin lugar arriba: va debajo de la selección.
+    const top = toolbar.selTop - h - 8 > floor ? toolbar.selTop - h - 8 : Math.max(floor + 8, toolbar.selBottom + 8);
     el.style.left = `${Math.round(left)}px`;
     el.style.top = `${Math.round(top)}px`;
+    el.style.visibility = gone ? 'hidden' : '';
   });
   /** Popover de link: offsets de texto plano ya capturados + href de prefill. */
   const [linkDialog, setLinkDialog] = useState<{
@@ -3533,6 +3545,7 @@ export default function DocsEditor({
   /** Abre el popover de link desde la toolbar (expande al <a> que cubre la selección). */
   const openLinkFromToolbar = () => {
     if (!toolbar) return;
+    const bar = toolbarRef.current?.getBoundingClientRect();
     const block = blocks[toolbar.index];
     const link = block ? getLinkAt(block.content, toolbar.start, toolbar.end) : null;
     setLinkDialog({
@@ -3540,8 +3553,9 @@ export default function DocsEditor({
       start: link?.start ?? toolbar.start,
       end: link?.end ?? toolbar.end,
       href: link?.href ?? '',
-      top: toolbar.top,
-      left: toolbar.left,
+      // Donde quedó la barra (ya ubicada adentro del editor), no la posición sin corregir.
+      top: bar ? bar.top : toolbar.top,
+      left: bar ? bar.left + bar.width / 2 : toolbar.left,
     });
     setToolbar(null);
   };
