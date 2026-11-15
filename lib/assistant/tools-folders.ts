@@ -521,7 +521,9 @@ function folderPaths(rows: ExistingFolder[]): Map<string, string> {
 }
 
 const proposeInput = z.object({
-  target: z.enum(['inbox', 'lines']).describe('inbox = the person\'s own Inbox (default). lines = the shared Lines folders of the workspace.'),
+  target: z
+    .enum(['inbox', 'lines', 'both'])
+    .describe('inbox = the person\'s own Inbox (default). lines = the shared Lines folders of the workspace. both = Inbox and Lines in one card (chat or WhatsApp folders in general).'),
   attachment: z.string().max(64).optional().describe('Id of an attached .json file (att_...). Omit to use the latest JSON in this chat.'),
   json: z.string().max(20_000).optional().describe('Only for a short JSON the person typed in a different way. Normally omit: the tool reads the JSON from the chat itself.'),
   line: z.string().max(100).optional().describe('Lines only: match chats of this line (id, name or phone).'),
@@ -546,6 +548,89 @@ export function newChatJid(phone: string | undefined): string | null {
   if (d.length < 11 || d.length > 15) return null;
   if (/^54(?!9)\d{10}$/.test(d)) d = `549${d.slice(2)}`;
   return `${d}@s.whatsapp.net`;
+}
+
+interface PlannedTarget {
+  target: 'inbox' | 'lines';
+  changes: number;
+  card: ReturnType<typeof planCard>;
+  stored: Stored;
+  destructive: boolean;
+  forModel: Record<string, unknown>;
+}
+
+/** El plan de un destino (Inbox o Lines): lee el JSON, mira lo que hay y arma tarjeta y lo que se guarda. */
+async function planTarget(ctx: ToolCtx, input: z.infer<typeof proposeInput>, target: 'inbox' | 'lines'): Promise<PlannedTarget | { error: string; hint?: unknown }> {
+  if (!userCanUseApp(ctx.user, target === 'inbox' ? 'inbox' : 'groups')) return { error: 'app_not_available' };
+  if (target === 'inbox' && delegatedIdentity()) return { error: 'not_available_here' };
+  const src = await readFoldersJson(ctx, input);
+  if ('error' in src) return src;
+  let snap: Snapshot;
+  let lineId: string | null = null;
+  if (target === 'inbox') snap = await inboxSnapshot(ctx.personId);
+  else {
+    const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
+    const line = await resolveLine(viewer, input.line);
+    if ('error' in line) return line;
+    lineId = line.id;
+    snap = await linesSnapshot(ctx.workspaceId, viewer, lineId);
+  }
+  const plan = buildFoldersPlan({
+    target,
+    normalized: src.data,
+    existing: snap.existing,
+    chats: snap.chats,
+    removeFromOthers: Boolean(input.removeFromOtherFolders),
+    maxDepth: MAX_FOLDER_DEPTH,
+    room: snap.room,
+  });
+  // Chats nuevos: solo Inbox, con id de WhatsApp o teléfono completo.
+  const newChats: PlanExtras['newChats'] = [];
+  let notYet: string | null = null;
+  if (input.createMissingChats) {
+    if (target === 'lines') {
+      notYet =
+        'Creating chats in Lines is not available yet: Lines chats come from the connected WhatsApp line and appear when someone writes or the line syncs. Needed: the chat has to exist on the line. Tell the person; the rest of the plan is ready.';
+    } else {
+      const seen = new Set<string>();
+      for (const u of plan.unmatched) {
+        const jid = u.ref?.jid ?? newChatJid(u.ref?.phone);
+        if (!jid || !u.path || /@(lid|broadcast|newsletter)$/.test(jid)) continue;
+        const k = `${pathKey(u.path)}|${jid}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        newChats.push({ jid, name: u.ref?.name ?? u.chat, path: u.path });
+      }
+    }
+  }
+  const changes = plan.toCreate + plan.assign + newChats.length + (plan.removeFromOthers ? plan.removals.length : 0);
+  const extras: PlanExtras = { newChats, source: src.source };
+  return {
+    target,
+    changes,
+    card: planCard(plan, extras, ctx.locale),
+    stored: {
+      target,
+      lineId,
+      removeFromOthers: plan.removeFromOthers,
+      folders: plan.folders.filter((f) => !f.tooDeep).map((f) => ({ path: f.path, ...(f.color ? { color: f.color } : {}), add: f.add })),
+      removals: plan.removeFromOthers ? plan.removals : [],
+      newChats: newChats.map((n) => ({ ...n, jid: n.jid })),
+    },
+    // Mover chats de otra carpeta (o sacarlos) es destructivo: la tarjeta va en rojo, con botones (sin tipear).
+    destructive: plan.removeFromOthers && (plan.moves.length > 0 || plan.removals.length > 0),
+    forModel: { ...modelView(plan, extras), ...(notYet ? { notYet } : {}) },
+  };
+}
+
+/** Aplica un plan guardado con la sesión del clic (null: ya no tiene permiso). */
+async function applyStored(ctx: ToolCtx, s: Stored): Promise<Outcome | null> {
+  if (!userCanUseApp(ctx.user, s.target === 'inbox' ? 'inbox' : 'groups')) return null;
+  if (s.target === 'inbox' && delegatedIdentity()) return null;
+  if (s.target === 'inbox') return applyInbox(ctx.personId, s);
+  const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
+  if (s.lineId && !(await canSeeNumber(viewer, s.lineId))) return null;
+  return applyLines(ctx.workspaceId, ctx.personId, viewer, s);
 }
 
 export const folderTools: AssistantTool[] = [
@@ -607,98 +692,80 @@ export const folderTools: AssistantTool[] = [
     name: 'propose_folders_from_json',
     app: null,
     description:
-      'Plan creating folders and subfolders from a JSON the person pasted or attached (exported from another inbox) and putting their chats in them, in Inbox (default) or Lines. It reads the JSON from this chat by itself: do NOT copy the JSON into the call. Accepts trees, maps, "A/B" paths, rows and inbox-zero exports, with chats by name, phone, WhatsApp id or email. Nothing changes until the person clicks Confirm on the plan card; repeating it after a partial failure only does what is missing. If it returns an error with a hint, ask the person what the hint says.',
+      'Plan creating ALL the folders and subfolders at once (one card) from a JSON the person pasted or attached (exported from another inbox: Inbox Zero, Superhuman, Gmail labels and filters...) and putting their chats in them, in Inbox (default), Lines or both. It reads the JSON from this chat by itself: do NOT copy the JSON into the call. Accepts trees, maps, "A/B" paths, rows, labels with rules and inbox-zero exports, with chats by name, phone, WhatsApp id or email. For folders the person just names in the chat, pass a short JSON like {"Clients/VIP": [], "Suppliers": []} in json. Nothing changes until the person clicks Confirm on the plan card; repeating it after a partial failure only does what is missing. If it returns an error with a hint, ask the person what the hint says.',
     input: proposeInput,
     prepare: async (ctx, input) => {
-      const target = input.target ?? 'inbox';
-      // Cada destino exige su app (la herramienta es de la plataforma porque sirve a las dos).
-      if (!userCanUseApp(ctx.user, target === 'inbox' ? 'inbox' : 'groups')) return { error: 'app_not_available' };
-      if (target === 'inbox' && delegatedIdentity()) return { error: 'not_available_here' };
-      const src = await readFoldersJson(ctx, input);
-      if ('error' in src) return src;
-      let snap: Snapshot;
-      let lineId: string | null = null;
-      if (target === 'inbox') snap = await inboxSnapshot(ctx.personId);
-      else {
-        const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
-        const line = await resolveLine(viewer, input.line);
-        if ('error' in line) return line;
-        lineId = line.id;
-        snap = await linesSnapshot(ctx.workspaceId, viewer, lineId);
+      const asked = input.target ?? 'inbox';
+      // "both": Inbox y Lines en una sola tarjeta. Cada destino exige su app; sin Lines queda solo Inbox (y al revés).
+      const targets: Array<'inbox' | 'lines'> =
+        asked === 'both' ? (['inbox', 'lines'] as const).filter((t) => userCanUseApp(ctx.user, t === 'inbox' ? 'inbox' : 'groups')) : [asked];
+      if (!targets.length) return { error: 'app_not_available' };
+      const plans: PlannedTarget[] = [];
+      const problems: Array<{ target: string; error: string; hint?: unknown }> = [];
+      for (const target of targets) {
+        const r = await planTarget(ctx, input, target);
+        if ('error' in r) problems.push({ target, ...r });
+        else plans.push(r);
       }
-      const plan = buildFoldersPlan({
-        target,
-        normalized: src.data,
-        existing: snap.existing,
-        chats: snap.chats,
-        removeFromOthers: Boolean(input.removeFromOtherFolders),
-        maxDepth: MAX_FOLDER_DEPTH,
-        room: snap.room,
-      });
-      // Chats nuevos: solo Inbox, con id de WhatsApp o teléfono completo.
-      const newChats: PlanExtras['newChats'] = [];
-      let notYet: string | null = null;
-      if (input.createMissingChats) {
-        if (target === 'lines') {
-          notYet =
-            'Creating chats in Lines is not available yet: Lines chats come from the connected WhatsApp line and appear when someone writes or the line syncs. Needed: the chat has to exist on the line. Tell the person; the rest of the plan is ready.';
-        } else {
-          const seen = new Set<string>();
-          for (const u of plan.unmatched) {
-            const jid = u.ref?.jid ?? newChatJid(u.ref?.phone);
-            if (!jid || !u.path || /@(lid|broadcast|newsletter)$/.test(jid)) continue;
-            const k = `${pathKey(u.path)}|${jid}`;
-            if (seen.has(k)) continue;
-            seen.add(k);
-            newChats.push({ jid, name: u.ref?.name ?? u.chat, path: u.path });
-          }
-        }
+      const ready = plans.filter((p) => p.changes > 0);
+      if (!ready.length) {
+        // Un error de lectura del JSON es el mismo para los dos destinos: se devuelve tal cual.
+        const real = problems.find((p) => p.error !== 'nothing_to_do');
+        if (real && targets.length === 1) return { error: real.error, hint: real.hint };
+        if (real && !plans.length) return { error: real.error, hint: real.hint };
+        return {
+          error: 'nothing_to_do',
+          hint: {
+            ...(plans.length === 1 ? plans[0].forModel : { targets: plans.map((p) => p.forModel) }),
+            ...(problems.length ? { problems } : {}),
+            note: 'Everything in the JSON is already in place (or could not be matched). Tell the person; nothing to confirm.',
+          },
+        };
       }
-      const changes = plan.toCreate + plan.assign + newChats.length + (plan.removeFromOthers ? plan.removals.length : 0);
-      const extras: PlanExtras = { newChats, source: src.source };
-      if (!changes) {
-        return { error: 'nothing_to_do', hint: { ...modelView(plan, extras), note: 'Everything in the JSON is already in place (or could not be matched). Tell the person; nothing to confirm.', ...(notYet ? { notYet } : {}) } };
+      const skippedTargets = [...plans.filter((p) => p.changes === 0).map((p) => ({ target: p.target, error: 'nothing_to_do' })), ...problems];
+      if (ready.length === 1) {
+        const p = ready[0];
+        return {
+          summary: p.card.summary,
+          details: p.card.details,
+          working: p.card.working,
+          destructive: p.destructive,
+          confirmText: null,
+          input: p.stored as unknown as Record<string, unknown>,
+          forModel: { ...p.forModel, ...(skippedTargets.length ? { otherTargets: skippedTargets } : {}) },
+        };
       }
-      const card = planCard(plan, extras, ctx.locale);
-      const input2: Stored = {
-        target,
-        lineId,
-        removeFromOthers: plan.removeFromOthers,
-        folders: plan.folders.filter((f) => !f.tooDeep).map((f) => ({ path: f.path, ...(f.color ? { color: f.color } : {}), add: f.add })),
-        removals: plan.removeFromOthers ? plan.removals : [],
-        newChats: newChats.map((n) => ({ ...n, jid: n.jid })),
-      };
+      // Dos destinos: una tarjeta, los renglones de cada app con su nombre adelante.
+      const t = translator(ctx.locale);
       return {
-        summary: card.summary,
-        details: card.details,
-        working: card.working,
-        // Mover chats de otra carpeta (o sacarlos) es destructivo: la tarjeta va en rojo, con botones (sin tipear).
-        destructive: plan.removeFromOthers && (plan.moves.length > 0 || plan.removals.length > 0),
+        summary: ready.map((p) => p.card.summary).join(' · '),
+        details: ready.flatMap((p) => p.card.details.map((d) => ({ ...d, label: `${t(`app.${p.target}`)} · ${d.label}` }))),
+        working: ready[0].card.working,
+        destructive: ready.some((p) => p.destructive),
         confirmText: null,
-        input: input2 as unknown as Record<string, unknown>,
-        forModel: { ...modelView(plan, extras), ...(notYet ? { notYet } : {}) },
+        input: { multi: ready.map((p) => p.stored) } as unknown as Record<string, unknown>,
+        forModel: { targets: ready.map((p) => p.forModel), ...(skippedTargets.length ? { otherTargets: skippedTargets } : {}) },
       };
     },
     execute: async (ctx, raw) => {
-      const parsed = stored.safeParse(raw);
-      if (!parsed.success) return { ok: false, error: 'invalid_plan' };
-      const s = parsed.data;
-      if (!userCanUseApp(ctx.user, s.target === 'inbox' ? 'inbox' : 'groups')) return { ok: false, error: 'forbidden' };
-      if (s.target === 'inbox' && delegatedIdentity()) return { ok: false, error: 'forbidden' };
-      let o: Outcome;
-      if (s.target === 'inbox') o = await applyInbox(ctx.personId, s);
-      else {
-        const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
-        if (s.lineId && !(await canSeeNumber(viewer, s.lineId))) return { ok: false, error: 'forbidden' };
-        o = await applyLines(ctx.workspaceId, ctx.personId, viewer, s);
-      }
-      const did = o.created + o.added + o.moved + o.removed + o.newChats > 0 || o.reused + o.already > 0;
+      const multi = z.object({ multi: z.array(stored).min(1).max(2) }).safeParse(raw);
+      const list = multi.success ? multi.data.multi : [stored.safeParse(raw)].flatMap((r) => (r.success ? [r.data] : []));
+      if (!list.length) return { ok: false, error: 'invalid_plan' };
+      const t = translator(ctx.locale);
+      const done: Array<{ s: Stored; o: Outcome | null }> = [];
+      for (const s of list) done.push({ s, o: await applyStored(ctx, s) });
+      const message = (s: Stored, o: Outcome) => (list.length > 1 ? `${t(`app.${s.target}`)}: ${resultMessage(o, ctx.locale)}` : resultMessage(o, ctx.locale));
+      if (done.every((d) => !d.o)) return { ok: false, error: 'forbidden' };
+      const outs = done.filter((d): d is { s: Stored; o: Outcome } => Boolean(d.o));
+      const did = outs.some(({ o }) => o.created + o.added + o.moved + o.removed + o.newChats > 0 || o.reused + o.already > 0);
+      const failed = outs.some(({ o }) => o.failed.length > 0) || outs.length < done.length;
+      const text = outs.map(({ s, o }) => message(s, o)).join(' ');
       return {
-        ok: o.failed.length === 0 || did,
-        partial: o.failed.length > 0,
-        message: resultMessage(o, ctx.locale),
-        ...(o.failed.length && !did ? { error: resultMessage(o, ctx.locale) } : {}),
-        href: s.target === 'inbox' ? '/app/inbox' : '/app/lines/inbox',
+        ok: !failed || did,
+        partial: failed,
+        message: text,
+        ...(failed && !did ? { error: text } : {}),
+        href: list[0].target === 'inbox' ? '/app/inbox' : '/app/lines/inbox',
       };
     },
   }),

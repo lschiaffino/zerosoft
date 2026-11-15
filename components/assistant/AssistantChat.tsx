@@ -15,7 +15,7 @@ import {
   type StoredMessage,
 } from './client';
 import { MessageAttachments, PendingTray, useAttachments } from './Attachments';
-import { AssistantMarkdown, Reasoning, Thinking, ToolCard, UserText } from './Parts';
+import { Activity, AssistantMarkdown, UserText, type StepPart } from './Parts';
 
 export interface PageInfo {
   path: string;
@@ -32,6 +32,17 @@ function errorKey(code: string | undefined): string {
 /** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
 function DetailValue({ value }: { value: string }) {
   const t = useTranslations('assistant');
+  // Una lista (una carpeta o un chat por renglón): entera, en una caja que scrollea si es larga.
+  const lines = value.split('\n');
+  if (lines.length > 1 && lines.length <= 300 && lines.every((l) => l.length <= 300)) {
+    return (
+      <ul className="asst-detail-list" data-testid="assistant-action-list">
+        {lines.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
+    );
+  }
   // Hasta unos 600 caracteres se ve entero (un mensaje común); más largo, se abre con el expansor.
   if (value.length <= 600) return <span className="asst-detail-full">{value}</span>;
   return (
@@ -268,6 +279,15 @@ export default function AssistantChat({
     };
   }, [status?.state]);
   const [pastedNote, setPastedNote] = useState(false);
+  /** El campo crece con el texto hasta un tope (después scrollea), como en ChatGPT. */
+  const grow = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  }, []);
+  useEffect(() => {
+    if (!draft) grow(inputRef.current);
+  }, [draft, grow, inputRef]);
   const pastedCount = useRef(0);
 
   const updateAction = useCallback((a: ActionView) => {
@@ -440,32 +460,32 @@ export default function AssistantChat({
               {loadingEarlier ? t('loading') : t('loadEarlier')}
             </button>
           )}
-          {items.map((m) => (
-            <div key={m.id} className={`asst-msg asst-msg-${m.role}`} data-testid={`assistant-msg-${m.role}`}>
-              {m.parts.map((p) =>
-                p.type === 'tool' ? (
-                  <ToolCard key={p.callId} part={p} />
-                ) : p.type === 'reasoning' ? (
-                  <Reasoning key={p.key} part={p} />
-                ) : (
+          {items.map((m) => {
+            const steps = m.parts.filter((p): p is StepPart => p.type !== 'action');
+            const actions = m.parts.filter((p): p is Extract<ChatPart, { type: 'action' }> => p.type === 'action');
+            // Trabajando: antes de la primera palabra, entre herramientas o con una herramienta corriendo.
+            const live = Boolean(m.streaming) && !m.error && (Boolean(m.waiting) || !m.content || steps.some((p) => (p.type === 'tool' ? p.running : p.ms === null)));
+            return (
+              <div key={m.id} className={`asst-msg asst-msg-${m.role}`} data-testid={`assistant-msg-${m.role}`}>
+                {m.role === 'assistant' && (steps.length > 0 || live) && <Activity parts={steps} live={live} />}
+                {m.attachments && m.attachments.length > 0 && <MessageAttachments files={m.attachments} />}
+                {m.notice === 'no_vision' && (
+                  <p className="asst-notice muted" role="status" data-testid="assistant-notice">
+                    {t('attach.noVision')}
+                  </p>
+                )}
+                {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
+                {actions.map((p) => (
                   <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />
-                ),
-              )}
-              {m.attachments && m.attachments.length > 0 && <MessageAttachments files={m.attachments} />}
-              {m.notice === 'no_vision' && (
-                <p className="asst-notice muted" role="status" data-testid="assistant-notice">
-                  {t('attach.noVision')}
-                </p>
-              )}
-              {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
-              {m.streaming && m.waiting && !m.error && <Thinking label={t('thinking')} />}
-              {m.error && (
-                <p className="form-error" role="alert">
-                  {t(errorKey(m.error))}
-                </p>
-              )}
-            </div>
-          ))}
+                ))}
+                {m.error && (
+                  <p className="form-error" role="alert">
+                    {t(errorKey(m.error))}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           </>
         )}
       </div>
@@ -477,9 +497,9 @@ export default function AssistantChat({
         }}
       >
         {page?.selection && <p className="asst-context muted">{t('usingSelection')}</p>}
-        <PendingTray items={att.items} limitHit={att.limitHit} onRemove={att.remove} />
         {pastedNote && att.items.length > 0 && <p className="asst-context muted">{t('attach.pasted')}</p>}
-        <div className="asst-form-row">
+        <div className="asst-composer">
+          <PendingTray items={att.items} limitHit={att.limitHit} onRemove={att.remove} />
           <input
             ref={fileRef}
             type="file"
@@ -492,9 +512,6 @@ export default function AssistantChat({
               inputRef.current?.focus();
             }}
           />
-          <button type="button" className="btn btn-ghost btn-sm asst-attach" aria-label={t('attach.add')} title={t('attach.add')} onClick={() => fileRef.current?.click()}>
-            +
-          </button>
           <label className="sr-only" htmlFor={compact ? 'asst-input-panel' : 'asst-input-page'}>
             {t('placeholder')}
           </label>
@@ -503,12 +520,15 @@ export default function AssistantChat({
             // El panel tiene su propio + y poco lugar: sin el micrófono flotante del dictado.
             data-voice-off={compact ? '' : undefined}
             ref={inputRef}
-            className="textarea"
-            rows={2}
+            className="asst-input"
+            rows={1}
             value={draft}
             maxLength={4000}
             placeholder={t('placeholder')}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              grow(e.currentTarget);
+            }}
             onPaste={(e) => {
               // Una imagen o archivo copiado se adjunta; el texto se pega como siempre.
               const files = Array.from(e.clipboardData.files);
@@ -535,9 +555,16 @@ export default function AssistantChat({
               }
             }}
           />
-          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
-            {busy ? t('sending') : t('send')}
-          </button>
+          <div className="asst-composer-bar">
+            <button type="button" className="asst-icon-btn asst-attach" aria-label={t('attach.add')} title={t('attach.add')} onClick={() => fileRef.current?.click()}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm asst-send" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
+              {busy ? t('sending') : t('send')}
+            </button>
+          </div>
         </div>
         <p className="asst-foot muted">{t('foot')}</p>
       </form>

@@ -14,6 +14,9 @@
  * - Carpetas con id y padre: { folders: [{ id, name, parentId }], chats:
  *   [{ name, folderId | folder | folders }] }.
  * - Filas: [{ chat|name|phone, folder: "Clientes > VIP" }].
+ * - Etiquetas y reglas de un correo (Inbox Zero, Superhuman, filtros de
+ *   Gmail): { labels, rules: [{ conditions: { from }, actions: [{ type:
+ *   "LABEL", label }] }] }; los remitentes van como chats por email.
  * Un chat puede ser un nombre, un teléfono, un id de WhatsApp (JID) o un
  * email, suelto o como objeto { name, phone, jid, email }.
  */
@@ -535,6 +538,111 @@ function fromInboxZero(b: Builder, root: Record<string, unknown>): boolean {
   return true;
 }
 
+
+/**
+ * Etiquetas y reglas de un cliente de correo (Inbox Zero, Superhuman, filtros
+ * de Gmail): { labels: [...], rules: [{ name, conditions: { from }, actions:
+ * [{ type: "LABEL", label }] }] } o { filters: [{ criteria: { from }, action:
+ * { addLabel } }] }. Cada etiqueta es una carpeta ("A/B" anida); los
+ * remitentes de una regla son los chats de su carpeta (por email). Una regla
+ * sin etiqueta usa su nombre.
+ */
+const LABEL_LIST_KEYS = ['labels', 'etiquetas', 'tags', 'categories', 'splits'] as const;
+const RULE_LIST_KEYS = ['rules', 'filters', 'reglas', 'regras', 'filtros', 'automations'] as const;
+const SENDER_KEYS = ['from', 'sender', 'senders', 'fromEmail', 'from_address', 'emails', 'remitente', 'remitentes'] as const;
+const GMAIL_SYSTEM = /^(INBOX|SENT|DRAFT|SPAM|TRASH|STARRED|IMPORTANT|UNREAD|CHAT|CATEGORY_[A-Z]+)$/;
+
+function labelPath(v: unknown): string[] {
+  if (typeof v === 'string') return splitPath(v);
+  if (isObj(v)) {
+    const n = pickKey(v, ['name', 'label', 'labelName', 'title', 'value', 'displayName', 'nombre', 'nome']);
+    return typeof n === 'string' ? splitPath(n) : [];
+  }
+  return [];
+}
+
+/** Las etiquetas que pone una regla (acciones de tipo LABEL, addLabel, labels: [...]). */
+function ruleLabels(rule: Record<string, unknown>): string[][] {
+  const out: unknown[] = [];
+  const actions = pickKey(rule, ['actions', 'action', 'acciones', 'then']);
+  for (const a of Array.isArray(actions) ? actions : actions ? [actions] : []) {
+    if (!isObj(a)) continue;
+    const type = String(pickKey(a, ['type', 'kind']) ?? 'label');
+    if (!/label|tag|folder|move|categor/i.test(type)) continue;
+    const v = pickKey(a, ['label', 'labelName', 'addLabel', 'addLabelIds', 'addLabels', 'labels', 'folder', 'moveTo', 'value']);
+    if (v !== undefined) out.push(...(Array.isArray(v) ? v : [v]));
+  }
+  const own = pickKey(rule, ['label', 'labels', 'addLabel', 'folder']);
+  if (own !== undefined) out.push(...(Array.isArray(own) ? own : [own]));
+  return out.map(labelPath).filter((p) => p.length);
+}
+
+/** Remitentes de una regla: "a@x.com OR b@y.com", listas, { conditions: { from } }, { criteria: { from } }. */
+function ruleSenders(rule: Record<string, unknown>): ChatRef[] {
+  const from: unknown[] = [];
+  const add = (o: Record<string, unknown>) => {
+    const v = pickKey(o, SENDER_KEYS);
+    if (v !== undefined) from.push(...(Array.isArray(v) ? v : [v]));
+  };
+  add(rule);
+  for (const k of ['conditions', 'condition', 'criteria', 'when', 'if', 'match']) {
+    const c = pickKey(rule, [k]);
+    for (const x of Array.isArray(c) ? c : [c]) if (isObj(x)) add(x);
+  }
+  const out: ChatRef[] = [];
+  for (const v of from) {
+    if (isObj(v)) {
+      const c = chatFromObject(v);
+      if (c) out.push(c);
+      continue;
+    }
+    for (const part of String(v ?? '').split(/\s+OR\s+|[,;|\s]+/i)) {
+      const e = part.replace(/^[<({"']+|[>)}"']+$/g, '').trim();
+      // Solo direcciones completas: un dominio suelto (@acme.com) no es un chat.
+      if (EMAIL_RE.test(e)) out.push({ label: e.toLowerCase(), email: e.toLowerCase() });
+    }
+  }
+  return out;
+}
+
+function fromLabelsAndRules(b: Builder, root: Record<string, unknown>): boolean {
+  const labels = pickKey(root, LABEL_LIST_KEYS);
+  const rules = pickKey(root, RULE_LIST_KEYS);
+  const ruleList = Array.isArray(rules) ? rules.filter(isObj) : [];
+  const labelList = Array.isArray(labels) ? labels : [];
+  const rulesLook = ruleList.length > 0 && ruleList.some((r) => pickKey(r, ['actions', 'action', 'criteria', 'conditions']) !== undefined);
+  const labelsLook =
+    labelList.length > 0 &&
+    pickKey(root, CHATS_KEYS) === undefined &&
+    labelList.every((l) => typeof l === 'string' || (isObj(l) && labelPath(l).length > 0 && !hasChatIdentity(l) && pickKey(l, CHATS_KEYS) === undefined && pickKey(l, CHILD_KEYS) === undefined));
+  if (!rulesLook && !labelsLook) return false;
+  b.shapes.add(rulesLook ? 'rules' : 'labels');
+  for (const l of labelList) {
+    const path = labelPath(l);
+    // Etiquetas del sistema de Gmail (INBOX, SENT, CATEGORY_*): no son carpetas de la persona.
+    if (!path.length || (isObj(l) && /^system$/i.test(String(pickKey(l, ['type']) ?? '')))) continue;
+    if (path.length === 1 && GMAIL_SYSTEM.test(path[0])) continue;
+    const rawColor = isObj(l) ? pickKey(l, ['color', 'backgroundColor', 'colour']) : undefined;
+    const color = typeof rawColor === 'string' ? rawColor : isObj(rawColor) ? String(pickKey(rawColor, ['backgroundColor', 'background']) ?? '') : undefined;
+    b.folder(path, color);
+  }
+  for (const r of ruleList) {
+    if (pickKey(r, ['enabled']) === false) continue;
+    let targets = ruleLabels(r);
+    if (!targets.length) {
+      const name = pickKey(r, ['name', 'title', 'nombre', 'nome']);
+      if (typeof name === 'string' && name.trim()) targets = [splitPath(name)];
+    }
+    const senders = ruleSenders(r);
+    for (const path of targets) {
+      if (path.length === 1 && GMAIL_SYSTEM.test(path[0])) continue;
+      b.folder(path);
+      for (const c of senders) b.chat(path, c);
+    }
+  }
+  return true;
+}
+
 const WRAPPER_KEYS = ['data', 'export', 'result', 'inbox', 'tree', 'structure', 'estructura', 'estrutura'];
 /** Datos del archivo que no son carpetas ({ version, exportedAt, ... }). */
 const META_KEYS = /^(version|format|exported_?at|created_?at|updated_?at|generated_?at|date|source|app|count|total|schema|\$schema|id|name|title)$/i;
@@ -552,6 +660,7 @@ export function normalizeFoldersJson(raw: unknown): NormalizedFolders {
     else break;
   }
   if (isObj(root) && fromInboxZero(b, root)) return finish(b);
+  if (isObj(root) && fromLabelsAndRules(b, root)) return finish(b);
   if (isObj(root) && fromIdList(b, root)) {
     b.shapes.add('ids');
     return finish(b);

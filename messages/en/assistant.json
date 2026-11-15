@@ -336,5 +336,57 @@
     "foldersOk": "Plan ready: {summary}",
     "foldersFailed": "Could not read the folders",
     "foldersNothing": "Everything in the JSON is already in place"
+  },
+  "wrapUp": {
+    "stopped": "I stopped after {steps, plural, one {# step} other {# steps}} without finishing my answer.",
+    "failed": "The model stopped responding before I could finish.",
+    "pending": "{count, plural, one {One change is waiting for your confirmation on the card above.} other {# changes are waiting for your confirmation on the cards above.}}",
+    "nothingPending": "I did not get to prepare any change yet.",
+    "next": "Tell me if I should keep going, or what to adjust."
+  },
+  "activity": {
+    "verbs": [
+      "Thinking",
+      "Reading",
+      "Sorting",
+      "Checking",
+      "Planning",
+      "Matching",
+      "Arranging",
+      "Reviewing"
+    ],
+    "done": "{count, plural, one {Did # step} other {Did # steps}}",
+    "thoughtAndDone": "Thought for {seconds}s, {count, plural, one {# step} other {# steps}}",
+    "steps": "Steps",
+    "details": "Details",
+    "thought": "Thought for {seconds, plural, one {# second} other {# seconds}}",
+    "thinking": "Thinking"
+  },
+  "step": {
+    "find": "Looking for a way to do it: {query}",
+    "get": "Reading how {op} works",
+    "run": "Checking {op}",
+    "proposeRunning": "Preparing the change",
+    "proposeOk": "Ready to confirm: {summary}",
+    "proposeFailed": "Could not prepare the change",
+    "foldersRunning": "Reading {source} and matching the chats",
+    "foldersOk": "Plan ready: {summary}",
+    "foldersNothing": "Everything in the file is already in place",
+    "foldersFailed": "Could not read the folders",
+    "yourFile": "your file",
+    "failed": "did not work",
+    "app": "Checking {app}",
+    "workspace": "Checking the workspace",
+    "running": "Checking {tool}",
+    "ok": "Checked {tool}"
+  },
+  "panel": {
+    "pin": "Keep open at the side",
+    "unpin": "Float over the page",
+    "expand": "Full screen",
+    "collapse": "Exit full screen",
+    "resize": "Assistant panel width",
+    "resizeHint": "Drag to resize. Double click to reset.",
+    "more": "More"
   }
 }

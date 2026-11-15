@@ -7,89 +7,189 @@
 }
 
 /* ---------- Panel lateral ---------- */
+/* Tres modos (components/assistant/AssistantPanel.tsx): flota sobre la página,
+   fijo al costado (la app se corre) o a pantalla completa. El ancho sale de
+   --asst-w (se arrastra el borde izquierdo). En el teléfono, hoja completa. */
 .asst-panel {
+  --asst-w: 440px;
   position: fixed;
   top: var(--band-h, 48px);
   right: 0;
   bottom: 0;
   z-index: var(--z-side-panel);
-  width: min(440px, 100vw);
+  width: min(var(--asst-w), 100vw);
   display: flex;
   flex-direction: column;
   background: var(--surface-1);
   border-left: 1px solid var(--line);
   box-shadow: -8px 0 24px var(--ui-shadow);
 }
-.asst-panel-head { display: flex; align-items: center; gap: 4px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+/* Fijo: de arriba a abajo, sin sombra; la página deja su lugar. */
+.asst-panel.is-pinned { top: 0; box-shadow: none; }
+html[data-assistant-pinned] .app-frame { padding-right: var(--asst-w, 440px); }
+html[data-assistant-pinned] body .fl-root { right: calc(var(--asst-w, 440px) + 16px); }
+/* Pantalla completa: arriba de todo, la charla en una columna centrada. */
+.asst-panel.is-full { top: 0; left: 0; width: auto; border-left: 0; box-shadow: none; z-index: var(--z-drawer); }
+.asst-panel.is-full .asst-panel-head { padding-inline: max(16px, calc((100% - 820px) / 2)); }
+.asst-panel.is-full .asst-messages,
+.asst-panel.is-full .asst-form { padding-inline: max(16px, calc((100% - 760px) / 2)); }
+
+/* El borde que se arrastra (components/ui/PanelSplitter.tsx). */
+.asst-splitter { left: -4px; }
+
+.asst-panel-head { display: flex; align-items: center; gap: 2px; min-height: 48px; padding: 6px 8px 6px 16px; border-bottom: 1px solid var(--line); }
+.asst-panel.is-pinned .asst-panel-head { min-height: var(--band-h, 48px); }
 .asst-panel-title {
   margin: 0 auto 0 0;
   font-family: var(--font-signage);
   font-weight: var(--signage-weight);
   letter-spacing: var(--signage-tracking);
   font-size: 1.0625rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* En el teléfono el panel es una hoja a pantalla completa. */
+/* Botones de ícono de la cabecera y del campo: cuadrados de 32px, gris al pasar. */
+.asst-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-decoration: none;
+}
+.asst-icon-btn:hover { background: var(--ui-hover); color: var(--ink); }
+.asst-icon-btn[aria-pressed='true'] { background: var(--ui-selected, var(--ui-hover)); color: var(--ink); }
+.asst-icon-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* En el teléfono el panel es una hoja a pantalla completa: sin fijar, sin ensanchar. */
 @media (max-width: 640px) {
-  .asst-panel { top: 0; width: 100vw; border-left: 0; box-shadow: none; z-index: var(--z-drawer); }
+  .asst-panel,
+  .asst-panel.is-pinned,
+  .asst-panel.is-full { top: 0; left: 0; width: 100vw; border-left: 0; box-shadow: none; z-index: var(--z-drawer); }
+  .asst-panel .asst-only-wide,
+  .asst-panel .asst-splitter { display: none; }
+  html[data-assistant-pinned] .app-frame { padding-right: 0; }
+  .asst-panel .asst-messages,
+  .asst-panel .asst-form { padding-inline: 12px; }
 }
 
 /* El launcher de feedback no tapa el panel. */
-body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
+body:has(.asst-panel.is-float) .fl-root { right: calc(min(var(--asst-w, 440px), 100vw) + 16px); }
+body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: none; }
 @media (max-width: 760px) {
   body:has(.asst-panel) .fl-root { visibility: hidden; pointer-events: none; }
 }
 
 /* ---------- Charla ---------- */
 .asst-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.asst-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.asst-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
 .asst-state { padding: 24px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; }
 .asst-state-title { margin: 0; font-weight: 600; }
 .asst-state p { margin: 0; }
 .asst-empty { display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; }
 .asst-empty p { margin: 0; }
 .asst-empty-title { font-weight: 600; font-size: 1rem; }
-.asst-suggestions { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.asst-suggestions .btn { justify-content: flex-start; text-align: left; white-space: normal; height: auto; min-height: 32px; width: 100%; border: 1px solid var(--line); }
+.asst-suggestions { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.asst-suggestions .btn { justify-content: flex-start; text-align: left; white-space: normal; height: auto; min-height: 34px; padding: 6px 10px; width: 100%; border: 1px solid var(--line); line-height: 1.4; }
 
-.asst-msg { display: flex; flex-direction: column; gap: 8px; max-width: 100%; font-size: 0.875rem; }
+.asst-msg { display: flex; flex-direction: column; gap: 10px; max-width: 100%; min-width: 0; font-size: 0.875rem; }
 .asst-msg-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
-.asst-msg-user { align-self: flex-end; max-width: 85%; padding: 8px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--r-xs); }
+/* La persona: a la derecha, el texto en una burbuja y los archivos arriba, sueltos. */
+.asst-msg-user { align-self: flex-end; align-items: flex-end; max-width: 85%; gap: 6px; }
+.asst-msg-user .asst-msg-text { padding: 8px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--r-xs); }
+.asst-msg-assistant { align-self: stretch; }
 
-/* Herramienta: una línea con su estado (girando, ✓ o ✗) y una etiqueta; se abre con los detalles. */
-.asst-tool { font-size: 0.8125rem; }
-.asst-tool > summary {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 2px 0;
+/* ---------- Actividad: lo que hizo el modelo en un bloque ---------- */
+.asst-activity { font-size: 0.8125rem; color: var(--ink-2); min-width: 0; }
+/* Trabajando: el verbo que brilla y la caja de pasos de alto fijo (no hace crecer la charla). */
+.asst-activity-head { display: flex; align-items: center; gap: 8px; margin: 0; min-height: 22px; }
+.asst-shimmer {
+  font-weight: 500;
+  color: var(--ink-2);
+  background: linear-gradient(90deg, var(--ink-2) 0%, var(--ink-2) 35%, var(--ink) 50%, var(--ink-2) 65%, var(--ink-2) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: asst-shimmer 1.8s linear infinite, asst-fade-in 0.25s ease-out;
+}
+@keyframes asst-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+@keyframes asst-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+.asst-activity-feed {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  height: calc(4 * 1.6em + 12px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--bg-soft);
+  /* Los pasos viejos se desvanecen arriba. */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+}
+.asst-activity-feed::-webkit-scrollbar { display: none; }
+/* La caja en vivo: una línea por paso, sin abrir detalles. */
+.asst-activity-feed .asst-step > details > summary { pointer-events: none; }
+.asst-activity-feed .asst-step-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asst-activity-feed .asst-step { animation: asst-fade-in 0.2s ease-out; }
+
+/* Terminado: plegado en una línea ("Hizo 9 pasos"); se abre con la lista. */
+.asst-activity[data-state='done'] > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; padding: 2px 0; border-radius: var(--r-xs); }
+.asst-activity > summary::-webkit-details-marker { display: none; }
+.asst-activity[data-state='done'] > summary::after { content: '›'; color: var(--brand-gray-3); transition: transform 0.15s ease; }
+.asst-activity[open] > summary::after { transform: rotate(90deg); }
+.asst-activity[data-state='done'] > summary:hover { color: var(--ink); }
+.asst-activity > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.asst-activity-list { list-style: none; margin: 6px 0 0; padding: 4px 0 4px 12px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+
+/* Un paso: ícono de estado y la etiqueta, en una grilla (el ícono no se corre si la etiqueta baja de línea). */
+.asst-step { min-width: 0; }
+.asst-step > details > summary {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 8px;
+  padding: 1px 0;
   cursor: pointer;
   list-style: none;
-  color: var(--ink-2);
+  line-height: 1.6;
   border-radius: var(--r-xs);
 }
-.asst-tool > summary::-webkit-details-marker { display: none; }
-.asst-tool > summary:hover { color: var(--ink); }
-.asst-tool > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.asst-tool-text { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
-/* Después de la etiqueta, el chevron que dice que se abre. */
-/* El espacio duro deja el chevron pegado a la última palabra (no baja solo a otra línea). */
-.asst-tool-text::after { content: '\00a0\00a0›'; color: var(--brand-gray-3); }
-.asst-tool[open] .asst-tool-text::after { content: '\00a0\00a0⌄'; }
-.asst-tool-icon {
-  flex: none;
+.asst-step > details > summary::-webkit-details-marker { display: none; }
+.asst-step > details > summary:hover { color: var(--ink); }
+.asst-step > details > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.asst-step-text { min-width: 0; overflow-wrap: anywhere; }
+.asst-step-icon {
   width: 16px;
-  height: 1.45em;
+  height: 1.6em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-data);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   line-height: 1;
 }
-.asst-tool-icon[data-state='ok'] { color: var(--ok-ink); }
-.asst-tool-icon[data-state='failed'] { color: var(--bad-ink); }
+.asst-step-icon[data-state='ok'] { color: var(--ok-ink); }
+.asst-step-icon[data-state='failed'] { color: var(--bad-ink); }
+.asst-step-icon[data-state='thought']::before { content: '∴'; color: var(--brand-gray-3); }
 /* Girando: la rampa del toroide (·°o0Ø) en el lugar del ícono. */
-.asst-tool-icon[data-state='running']::before { content: '0'; animation: asst-ramp 0.9s steps(1, end) infinite; color: var(--ink); }
+.asst-step-icon[data-state='running']::before { content: '0'; animation: asst-ramp 0.9s steps(1, end) infinite; color: var(--ink); }
 @keyframes asst-ramp {
   0% { content: '·'; }
   14% { content: '°'; }
@@ -99,12 +199,11 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
   71% { content: '0'; }
   85% { content: 'o'; }
 }
-.asst-tool-name { font-family: var(--font-data); font-size: 0.6875rem; text-transform: none; letter-spacing: 0; overflow-wrap: anywhere; }
-.asst-tool-body { margin: 4px 0 2px 24px; padding: 0 0 0 10px; border-left: 1px solid var(--line); }
-.asst-tool-label { margin: 8px 0 4px; font-size: 0.6875rem; letter-spacing: 0.02em; color: var(--ink-2); }
-.asst-tool-body pre {
+.asst-step-body { margin: 4px 0 6px 24px; padding: 0 0 0 10px; border-left: 1px solid var(--line); }
+.asst-step-label { margin: 6px 0 4px; font-size: 0.6875rem; letter-spacing: 0.02em; color: var(--ink-2); }
+.asst-step-body pre {
   margin: 0;
-  max-height: 220px;
+  max-height: 200px;
   overflow: auto;
   padding: 8px;
   background: var(--bg-soft);
@@ -114,28 +213,7 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-
-/* Esperando al modelo: tres ceros que laten de a uno. */
-.asst-thinking { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink-2); font-size: 0.8125rem; min-height: 22px; }
-.asst-zeros { display: inline-flex; gap: 3px; font-family: var(--font-data); font-size: 0.8125rem; line-height: 1; }
-.asst-zeros > span::before { content: '0'; }
-.asst-zeros > span { opacity: 0.25; animation: asst-pulse 1.2s ease-in-out infinite; }
-.asst-zeros > span:nth-child(2) { animation-delay: 0.2s; }
-.asst-zeros > span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes asst-pulse {
-  0%, 100% { opacity: 0.25; }
-  40% { opacity: 1; }
-}
-
-/* Razonamiento: plegado, "Pensó N segundos". */
-.asst-reason { font-size: 0.8125rem; color: var(--ink-2); }
-.asst-reason > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 2px 0; border-radius: var(--r-xs); }
-.asst-reason > summary::-webkit-details-marker { display: none; }
-.asst-reason > summary::after { content: '›'; color: var(--brand-gray-3); }
-.asst-reason[open] > summary::after { content: '⌄'; }
-.asst-reason > summary:hover { color: var(--ink); }
-.asst-reason > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.asst-reason-body { margin: 6px 0 2px; padding: 0 0 0 12px; border-left: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 320px; overflow-y: auto; }
+.asst-step-reason { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 280px; overflow-y: auto; }
 
 /* Respuesta en Markdown. */
 .asst-md { line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
@@ -202,19 +280,52 @@ body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 .asst-action-result.is-failed { color: var(--bad-ink); }
 .asst-action-result.is-cancelled { color: var(--ink-2); }
 
-.asst-form { padding: 10px 16px 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
-.asst-form-row { display: flex; gap: 8px; align-items: flex-end; }
-.asst-form .textarea { flex: 1; min-width: 0; min-height: 44px; resize: vertical; }
+/* ---------- Campo para escribir ---------- */
+/* Una caja: los archivos arriba, el texto (crece con lo escrito) y una barra con + a la izquierda y Enviar a la derecha. */
+.asst-form { padding: 8px 16px 10px; display: flex; flex-direction: column; gap: 6px; }
+.asst-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--surface-1);
+  transition: border-color 0.12s ease;
+}
+.asst-composer:focus-within { border-color: var(--ink-2); }
+.asst-composer .asst-tray { padding: 0 2px 4px; }
+.asst-input {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  max-height: 220px;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.asst-input::placeholder { color: var(--brand-gray-3); }
+.asst-composer-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.asst-composer-bar .asst-attach { width: 30px; height: 30px; border: 1px solid var(--line); }
+.asst-send { flex: none; }
 .asst-context, .asst-foot { margin: 0; font-size: 0.75rem; }
+.asst-foot { text-align: center; }
 
 /* ---------- Adjuntos ---------- */
 .asst-chat { position: relative; }
 .asst-drop { position: absolute; inset: 8px; z-index: 5; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--ink-2); border-radius: var(--r-xs); background: color-mix(in srgb, var(--bg) 88%, transparent); pointer-events: none; }
 .asst-drop p { margin: 0; font-size: 0.875rem; font-weight: 600; }
-.asst-attach { flex: none; width: 32px; min-width: 32px; padding: 0; font-size: 1.125rem; line-height: 1; border: 1px solid var(--line); }
 .asst-tray { display: flex; flex-direction: column; gap: 4px; }
 .asst-tray-list, .asst-msg-files { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .asst-msg-user .asst-msg-files { justify-content: flex-end; }
+.asst-msg-user .asst-more { align-self: flex-end; }
 .asst-file { display: flex; align-items: center; gap: 8px; max-width: 220px; min-width: 0; padding: 4px 6px 4px 4px; border: 1px solid var(--line); border-radius: var(--r-xs); background: var(--bg); color: inherit; text-decoration: none; font-size: 0.75rem; }
 a.asst-file:hover { border-color: var(--ink-2); }
 .asst-file.is-error { border-color: var(--bad-ink); }
@@ -227,7 +338,7 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-file-sub.is-error { color: var(--bad-ink); white-space: normal; }
 .asst-file-remove { flex: none; width: 22px; height: 22px; margin-left: 2px; border: 0; background: none; color: var(--ink-2); font-size: 1rem; line-height: 1; cursor: pointer; border-radius: 2px; }
 .asst-file-remove:hover { color: var(--ink); background: var(--bg-soft); }
-.asst-file-remove:focus-visible, .asst-attach:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.asst-file-remove:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .asst-file-limit { margin: 0; font-size: 0.75rem; }
 .asst-notice { margin: 0; font-size: 0.8125rem; }
 /* Confirmar deshabilitado (falta tipear la palabra): la etiqueta se lee en claro y en oscuro. */
@@ -288,9 +399,10 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-load-earlier { align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .asst-zeros > span { animation: none; opacity: 0.6; }
-  .asst-zeros > span:nth-child(2) { opacity: 1; }
-  .asst-tool-icon[data-state='running']::before { animation: none; content: '0'; }
+  .asst-shimmer { animation: none; -webkit-text-fill-color: currentColor; background: none; }
+  .asst-step-icon[data-state='running']::before { animation: none; content: '0'; }
+  .asst-activity-feed .asst-step { animation: none; }
+  .asst-activity > summary::after { transition: none; }
   .asst-cursor { animation: none; }
 }
 
@@ -300,3 +412,9 @@ a.asst-file:hover { border-color: var(--ink-2); }
 }
 .asst-home-pending > * { visibility: hidden; }
 .asst-detail-full { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Listas de la tarjeta (carpetas, chats): enteras, con scroll propio si son largas. */
+.asst-detail-list { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow-y: auto; overscroll-behavior: contain; }
+.asst-detail-list li { padding: 1px 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .asst-action-details > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

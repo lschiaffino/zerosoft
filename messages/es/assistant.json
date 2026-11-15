@@ -336,5 +336,57 @@
     "foldersOk": "Plan listo: {summary}",
     "foldersFailed": "No se pudieron leer las carpetas",
     "foldersNothing": "Todo lo del JSON ya está en su lugar"
+  },
+  "wrapUp": {
+    "stopped": "Me detuve después de {steps, plural, one {# paso} other {# pasos}} sin terminar la respuesta.",
+    "failed": "El modelo dejó de responder antes de que pudiera terminar.",
+    "pending": "{count, plural, one {Hay un cambio esperando tu confirmación en la tarjeta de arriba.} other {Hay # cambios esperando tu confirmación en las tarjetas de arriba.}}",
+    "nothingPending": "Todavía no llegué a preparar ningún cambio.",
+    "next": "Decime si sigo o qué querés ajustar."
+  },
+  "activity": {
+    "verbs": [
+      "Pensando",
+      "Leyendo",
+      "Ordenando",
+      "Revisando",
+      "Planeando",
+      "Buscando",
+      "Acomodando",
+      "Comparando"
+    ],
+    "done": "{count, plural, one {Hizo # paso} other {Hizo # pasos}}",
+    "thoughtAndDone": "Pensó {seconds} s, {count, plural, one {# paso} other {# pasos}}",
+    "steps": "Pasos",
+    "details": "Detalles",
+    "thought": "Pensó {seconds, plural, one {# segundo} other {# segundos}}",
+    "thinking": "Pensando"
+  },
+  "step": {
+    "find": "Buscando cómo hacerlo: {query}",
+    "get": "Leyendo cómo funciona {op}",
+    "run": "Consultando {op}",
+    "proposeRunning": "Preparando el cambio",
+    "proposeOk": "Listo para confirmar: {summary}",
+    "proposeFailed": "No se pudo preparar el cambio",
+    "foldersRunning": "Leyendo {source} y buscando los chats",
+    "foldersOk": "Plan listo: {summary}",
+    "foldersNothing": "Todo lo del archivo ya está en su lugar",
+    "foldersFailed": "No se pudieron leer las carpetas",
+    "yourFile": "tu archivo",
+    "failed": "no funcionó",
+    "app": "Revisando {app}",
+    "workspace": "Revisando el workspace",
+    "running": "Revisando {tool}",
+    "ok": "Revisó {tool}"
+  },
+  "panel": {
+    "pin": "Fijar al costado",
+    "unpin": "Flotar sobre la página",
+    "expand": "Pantalla completa",
+    "collapse": "Salir de pantalla completa",
+    "resize": "Ancho del panel del asistente",
+    "resizeHint": "Arrastrá para cambiar el ancho. Doble clic lo vuelve al original.",
+    "more": "Más"
   }
 }
