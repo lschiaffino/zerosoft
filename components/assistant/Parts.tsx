@@ -18,6 +18,8 @@ import { useRouter } from '@/i18n/navigation';
 import { renderAssistantMarkdown } from '@/lib/assistant/markdown';
 import { PRODUCT_CONFIG } from '@/lib/products';
 import type { ChatPart } from './client';
+import { useRevealLabel } from './Rows';
+import { useHoldScroll } from './useFollow';
 
 function short(value: unknown): string {
   try {
@@ -253,10 +255,40 @@ export function AssistantMarkdown({ text, streaming }: { text: string; streaming
   const router = useRouter();
   const shown = useSmoothText(text, streaming);
   const writing = streaming || shown.length < text.length;
-  const html = useMemo(() => renderAssistantMarkdown(shown, { cursor: writing, copy: t('code.copy') }), [shown, writing, t]);
+  // Tablas y listas largas: cuántos renglones se ven de cada una ("Mostrar las 27" suma el resto en el lugar).
+  const [rowsShown, setRowsShown] = useState<Record<string, number>>({});
+  const revealLabel = useRevealLabel();
+  const hold = useHoldScroll();
+  const html = useMemo(
+    () => renderAssistantMarkdown(shown, { cursor: writing, copy: t('code.copy'), rows: { shown: rowsShown, label: revealLabel } }),
+    [shown, writing, t, rowsShown, revealLabel],
+  );
   const onClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const el = e.target as HTMLElement;
+      const more = el.closest<HTMLButtonElement>('[data-rows-more]');
+      if (more) {
+        hold();
+        const key = more.dataset.rowsMore ?? '';
+        const to = Number(more.dataset.to);
+        const root = e.currentTarget;
+        // La fila o el ítem que recibe el foco: el primero nuevo de esa tabla o lista.
+        const target = (): HTMLElement | undefined => {
+          const n = Number(key.slice(1));
+          if (key.startsWith('t')) return root.querySelectorAll<HTMLTableElement>('.asst-table table')[n]?.tBodies[0];
+          return root.querySelectorAll<HTMLElement>('ul, ol')[n];
+        };
+        const from = target()?.children.length ?? 0;
+        setRowsShown((prev) => ({ ...prev, [key]: to }));
+        // El foco pasa al primer renglón nuevo (el HTML se vuelve a pintar), sin mover la charla.
+        requestAnimationFrame(() => {
+          const row = target()?.children[from] as HTMLElement | undefined;
+          if (!row) return;
+          row.tabIndex = -1;
+          row.focus({ preventScroll: true });
+        });
+        return;
+      }
       const copy = el.closest<HTMLButtonElement>('[data-copy-code]');
       if (copy) {
         const code = copy.closest('.asst-code')?.querySelector('code')?.textContent ?? '';
@@ -283,7 +315,7 @@ export function AssistantMarkdown({ text, streaming }: { text: string; streaming
         router.push(a.getAttribute('href')!.replace(/^\/(?:en|es|pt)(?=\/|$)/, '') || '/');
       }
     },
-    [router, t],
+    [router, t, hold],
   );
   if (!html) return null;
   // eslint-disable-next-line react/no-danger -- HTML armado por renderAssistantMarkdown: sin HTML crudo, links filtrados.

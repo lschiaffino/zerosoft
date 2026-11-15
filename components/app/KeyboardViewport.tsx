@@ -10,7 +10,7 @@ import { useEffect } from 'react';
  * Android (Chrome) achica la página solo con `interactive-widget=resizes-content` (viewport en
  * app/[locale]/layout.tsx). iOS (Safari) no: el teclado tapa la página y `100dvh` no cambia. Acá se
  * lee window.visualViewport y, con el teclado abierto, se publica el alto visible en
- * `--app-vh` (lo usan .gr-inbox de Lines e Inbox), se deshace el corrimiento que hace Safari al
+ * `--app-vh` (lo usan .gr-inbox de Lines, Inbox y la página del asistente), se deshace el corrimiento que hace Safari al
  * enfocar un campo y se vuelve al final de los chats que estaban al final.
  */
 
@@ -28,7 +28,7 @@ export default function KeyboardViewport() {
     // Los chats que estaban al final antes del cambio de alto (se mide antes de aplicarlo).
     let pinned: HTMLElement[] = [];
     const remember = () => {
-      pinned = Array.from(document.querySelectorAll<HTMLElement>('.wa-messages')).filter((el) => el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX);
+      pinned = Array.from(document.querySelectorAll<HTMLElement>('.wa-messages, .asst-messages')).filter((el) => el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX);
     };
     const apply = () => {
       frame = 0;

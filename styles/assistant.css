@@ -85,6 +85,8 @@ html[data-assistant-pinned] body .fl-root { right: calc(var(--asst-w, 440px) + 1
   .asst-send { min-height: 40px; }
   .asst-panel .asst-messages,
   .asst-panel .asst-form { padding-inline: 12px; }
+  /* Teclado abierto (components/app/KeyboardViewport.tsx): la hoja mide lo que se ve, el campo queda arriba del teclado. */
+  html[data-keyboard='open'] .asst-panel { bottom: auto; height: var(--app-vh, 100dvh); }
 }
 
 /* El launcher de feedback no tapa el panel. */
@@ -140,8 +142,8 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
   margin: 6px 0 0;
   padding: 6px 10px;
   height: calc(4 * 1.6em + 12px);
-  overflow-y: auto;
-  scrollbar-width: none;
+  /* Sin scroll a mano (la charla es la única barra): el código la deja en el último paso. */
+  overflow-y: hidden;
   border: 1px solid var(--line);
   border-radius: var(--r-xs);
   background: var(--bg-soft);
@@ -209,8 +211,6 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 .asst-step-label { margin: 6px 0 4px; font-size: 0.6875rem; letter-spacing: 0.02em; color: var(--ink-2); }
 .asst-step-body pre {
   margin: 0;
-  max-height: 200px;
-  overflow: auto;
   padding: 8px;
   background: var(--bg-soft);
   border-radius: var(--r-xs);
@@ -219,7 +219,7 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.asst-step-reason { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 280px; overflow-y: auto; }
+.asst-step-reason { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 
 /* Respuesta en Markdown. */
 .asst-md { line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
@@ -239,7 +239,10 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 .asst-md :not(pre) > code { padding: 1px 4px; background: var(--bg-soft); border-radius: 2px; font-family: var(--font-data); font-size: 0.8125em; }
 .asst-md .asst-table { margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-xs); }
 .asst-md .asst-table .table { font-size: 0.8125rem; }
-.asst-md .asst-table .table th { white-space: normal; }
+.asst-md .asst-table .table :is(th, td) { white-space: normal; overflow-wrap: break-word; }
+/* Tabla larga: "Mostrar las N" abajo (un <caption>, lib/assistant/markdown.ts). Sin scroll vertical propio. */
+.asst-md .asst-list-more { margin: -6px 0 10px; }
+.asst-md .asst-table .asst-table-more { caption-side: bottom; padding: 4px; text-align: left; border-top: 1px solid var(--line); }
 .asst-md .asst-table .table :is(th, td) { vertical-align: top; }
 .asst-md .asst-table tbody tr:last-child td { border-bottom: 0; }
 /* En el teléfono la primera columna queda fija: con el fondo del panel, no el de la página. */
@@ -268,7 +271,9 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 .asst-more { align-self: flex-end; height: 26px; min-height: 26px; }
 
 /* Tarjeta de confirmación. */
-.asst-action { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--ink); border-radius: var(--r-xs); }
+.asst-chat { --asst-bg: var(--bg); }
+.asst-panel .asst-chat { --asst-bg: var(--surface-1); }
+.asst-action { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--ink); border-radius: var(--r-xs); background: var(--asst-bg); }
 .asst-action.is-destructive { border-color: var(--bad-ink); }
 .asst-action-kicker { margin: 0; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
 .asst-action.is-destructive .asst-action-kicker { color: var(--bad-ink); }
@@ -280,6 +285,26 @@ body:has(.asst-panel.is-full) .fl-root { visibility: hidden; pointer-events: non
 .asst-action-details del { color: var(--ink-2); }
 .asst-action-typed { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; }
 .asst-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Confirmar / Cancelar: pegados abajo de la charla mientras se recorre una tarjeta larga; al final de la tarjeta, en su lugar. */
+.asst-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 -12px -12px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--r-xs) var(--r-xs);
+  background: inherit;
+}
+/* "Mostrar las 27": suma los renglones en el lugar. */
+.asst-show-rows { align-self: flex-start; height: 26px; min-height: 26px; padding-inline: 6px; margin-left: -6px; }
+
+/* "Ir al final": aparece si subiste a leer; a la derecha, arriba del campo (no tapa Confirmar). */
+.asst-jump-wrap { position: relative; height: 0; z-index: 2; }
+.asst-jump { position: absolute; right: 16px; bottom: 10px; box-shadow: 0 2px 8px var(--ui-shadow); }
 .asst-action-result { margin: 0; font-size: 0.8125rem; }
 .asst-action-result.is-done { color: var(--ok-ink); }
 .asst-action-result.is-partial { color: var(--warn-ink); }
@@ -351,10 +376,38 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-action-buttons .btn.btn-primary:disabled { --btn-bg: transparent; --btn-fg: var(--ink-2); --btn-bd: var(--line); color: var(--ink-2); background: transparent; border-color: var(--line); opacity: 1; }
 
 /* ---------- Página /app/assistant ---------- */
-.asst-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; height: max(440px, calc(100dvh - var(--band-h, 48px) - 188px)); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-xs); }
-.asst-page-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
-.asst-page-side-head { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
-.asst-page-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; flex: 1; }
+/* Como Inbox y Lines: ocupa el alto de la ventana (la ventana no scrollea). El historial scrollea
+   solo; la charla es el scroll principal, de borde a borde (la rueda funciona en todo el ancho) con
+   el texto centrado; el campo queda abajo. */
+.app-content:has(> .asst-page) { padding: 0; display: flex; min-height: 0; }
+.asst-page {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  height: calc(var(--app-vh, 100dvh) - var(--band-h, 48px));
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.asst-page-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--side-bg, var(--bg)); }
+.asst-page-side-head { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 10px; }
+.asst-page-titlebar { display: flex; align-items: center; gap: 6px; min-height: 32px; }
+.asst-page-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-signage);
+  font-weight: var(--signage-weight);
+  letter-spacing: var(--signage-tracking);
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.asst-page-toggle { display: none; }
+.asst-page-history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.asst-page-list { list-style: none; margin: 0; padding: 0 6px 8px; overflow-y: auto; flex: 1; }
 .asst-page-item { display: flex; align-items: center; gap: 2px; border-radius: var(--r-xs); }
 .asst-page-item:hover, .asst-page-item:focus-within { background: var(--ui-hover); }
 .asst-page-item.is-current { background: var(--ui-selected); }
@@ -368,11 +421,21 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-page-rename .input { flex: 1; min-width: 0; }
 .asst-page-note { margin: 0; padding: 12px; font-size: 0.8125rem; }
 .asst-page-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.asst-page-main .asst-chat { max-width: 820px; width: 100%; margin: 0 auto; }
+.asst-page-main > .asst-chat { width: 100%; }
+.asst-page-main :is(.asst-messages, .asst-form) { padding-inline: max(16px, calc((100% - 760px) / 2)); }
+.asst-page-main .asst-messages { padding-top: 20px; }
+/* Teléfono: arriba una barra (Charlas, título, Nueva charla); el historial se ve en lugar de la charla. */
 @media (max-width: 760px) {
-  .asst-page { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-  .asst-page-side { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; }
-  .asst-page-main .asst-messages { min-height: 320px; }
+  .asst-page { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .asst-page-side { border-right: 0; border-bottom: 1px solid var(--line); }
+  .asst-page-side-head { padding: 6px 8px; }
+  .asst-page-toggle { display: inline-flex; }
+  .asst-page:not(.is-list) :is(.asst-page-search, .asst-page-history) { display: none; }
+  .asst-page.is-list .asst-page-side { grid-row: 1 / -1; border-bottom: 0; }
+  .asst-page.is-list .asst-page-main { display: none; }
+  .asst-page-main .asst-messages { padding-top: 12px; }
+  .asst-page-main :is(.asst-messages, .asst-form) { padding-inline: 12px; }
+  .asst-page-link { padding-block: 11px; }
 }
 
 /* ---------- Bloque del inicio ---------- */
@@ -392,8 +455,6 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-action-long > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .asst-action-long pre {
   margin: 6px 0 0;
-  max-height: 280px;
-  overflow: auto;
   padding: 8px;
   background: var(--bg-soft);
   font-family: var(--font-data);
@@ -418,9 +479,11 @@ a.asst-file:hover { border-color: var(--ink-2); }
 }
 .asst-home-pending > * { visibility: hidden; }
 .asst-detail-full { white-space: pre-wrap; overflow-wrap: anywhere; }
-/* Listas de la tarjeta (carpetas, chats): enteras, con scroll propio si son largas. */
-.asst-detail-list { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow-y: auto; overscroll-behavior: contain; }
+/* Listas de la tarjeta (carpetas, chats): los primeros renglones y "Mostrar las N"; sin scroll propio. */
+.asst-detail-list { list-style: none; margin: 0; padding: 0; }
 .asst-detail-list li { padding: 1px 0; overflow-wrap: anywhere; }
+.asst-detail-list li:focus { outline: none; }
+.asst-detail-list li:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 @media (max-width: 640px) {
   .asst-action-details > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }

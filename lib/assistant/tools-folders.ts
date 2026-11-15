@@ -55,8 +55,11 @@ import { readTool, writeTool, type AssistantTool, type PreparedAction, type Tool
 
 /** Carpetas de Lines: las mismas 300 del workspace que deja crear la app. */
 const LINES_MAX_FOLDERS = 300;
-/** Cuántos renglones se listan por sección de la tarjeta (el resto, "y N más"). */
-const LIST_MAX = 40;
+/**
+ * Cuántos renglones se guardan por sección de la tarjeta (el resto, "y N más"). La tarjeta muestra
+ * los primeros 8 y suma el resto con "Mostrar las N" (components/assistant/Rows.tsx).
+ */
+const LIST_MAX = 500;
 
 const MESSAGES = { en: enMessages, es: esMessages, pt: ptMessages } as const;
 
@@ -278,7 +281,10 @@ export function planCard(plan: FoldersPlan, extras: PlanExtras, locale: string):
   details.push({ label: t('chats'), after: t('chatsValue', { assign, already: plan.alreadyAssigned }) });
   if (extras.newChats.length) details.push({ label: t('newChats', { count: extras.newChats.length }), after: t('newChatsValue', { names: listOf(t, extras.newChats.map((n) => n.name)).replace(/\n/g, ', ') }) });
   const newKeys = new Set(extras.newChats.map((n) => `${pathKey(n.path)}|${n.jid}`));
-  const unmatched = plan.unmatched.filter((u) => !(u.ref?.jid && u.path && newKeys.has(`${pathKey(u.path)}|${u.ref.jid}`)));
+  // Agrupados por carpeta (y por chat adentro): los de una misma carpeta quedan juntos en la lista.
+  const unmatched = plan.unmatched
+    .filter((u) => !(u.ref?.jid && u.path && newKeys.has(`${pathKey(u.path)}|${u.ref.jid}`)))
+    .sort((a, b) => a.folder.localeCompare(b.folder, undefined, { sensitivity: 'base', numeric: true }) || a.chat.localeCompare(b.chat, undefined, { sensitivity: 'base', numeric: true }));
   if (unmatched.length) {
     details.push({
       label: t('unmatched', { count: unmatched.length }),
