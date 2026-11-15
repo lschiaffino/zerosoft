@@ -113,7 +113,7 @@ export function offlineEvictions(entries: readonly OfflineEntry[], prefs: Offlin
 
 /** Uso por app a partir del índice del worker. */
 export function offlineUsage(entries: readonly OfflineEntry[]): Record<OfflineApp | 'static', { pages: number; bytes: number }> {
-  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of entries) {
     out[e.app].pages += 1;
     out[e.app].bytes += e.bytes;
