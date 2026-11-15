@@ -216,10 +216,10 @@ export default function AssistantPanel() {
     };
     const onCapture = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
-      const active = document.activeElement;
-      // Sin foco en ningún lado (el botón que se tocó desapareció, como "Confirmar"), el panel flotante es lo de arriba.
-      const lost = (!active || active === document.body) && mode !== 'pinned' && !document.querySelector('dialog[open], [aria-modal="true"]');
-      if (panelRef.current?.contains(active) || lost) handle(e, true);
+      // Flotante (o pantalla completa) es lo que está arriba de todo: Esc es suyo esté donde esté el foco
+      // (después de "Confirmar" el foco queda en la página), salvo que haya un modal de la página abierto.
+      const onTop = mode !== 'pinned' && !document.querySelector('dialog[open], [aria-modal="true"]');
+      if (panelRef.current?.contains(document.activeElement) || onTop) handle(e, true);
     };
     const onBubble = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
