@@ -402,26 +402,33 @@ async function save(job: ImportRow, patch: Partial<Pick<ImportRow, 'phase' | 'cu
   return r.changes > 0;
 }
 
+/** Baja una foto de perfil de WhatsApp (JPEG, PNG o WebP, con tope). null si no se pudo. */
+export async function downloadPicture(url: string): Promise<{ name: string; type: string; data: Buffer } | null> {
+  if (!/^https?:\/\//.test(url)) return null;
+  const res = await defaultBridgeFetch(url, { method: 'GET' });
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    return null;
+  }
+  const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+  if (!/^image\/(jpeg|png|webp)$/.test(type) || Number(res.headers.get('content-length') ?? 0) > MAX_PICTURE) {
+    await res.body?.cancel().catch(() => {});
+    return null;
+  }
+  const data = Buffer.from(await res.arrayBuffer());
+  if (data.length === 0 || data.length > MAX_PICTURE) return null;
+  return { name: `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data };
+}
+
 /**
  * Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp
  * vencen). Se ve por /api/files solo con acceso a ese chat.
  */
 export async function storePicture(url: string, owner: { ws: string; chatId: string }): Promise<string> {
-  if (!/^https?:\/\//.test(url)) return '';
-  const res = await defaultBridgeFetch(url, { method: 'GET' });
-  if (!res.ok) {
-    await res.body?.cancel().catch(() => {});
-    return '';
-  }
-  const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
-  if (!/^image\/(jpeg|png|webp)$/.test(type) || Number(res.headers.get('content-length') ?? 0) > MAX_PICTURE) {
-    await res.body?.cancel().catch(() => {});
-    return '';
-  }
-  const data = Buffer.from(await res.arrayBuffer());
-  if (data.length === 0 || data.length > MAX_PICTURE) return '';
+  const pic = await downloadPicture(url);
+  if (!pic) return '';
   const { saveUpload } = await import('./uploads');
-  return saveUpload('chat', `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data, {
+  return saveUpload('chat', pic.name, pic.type, pic.data, {
     workspaceId: owner.ws,
     userId: null,
     app: 'groups',
