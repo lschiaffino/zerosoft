@@ -9,6 +9,7 @@ import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
+import { sendUnarchiveMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
@@ -343,10 +344,15 @@ const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
  * chat). "Es el más nuevo" se decide en la base, contra la fila como está en
  * ese momento: last_message_at vacío o anterior o igual a la hora del mensaje.
  */
-function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[]): BatchStatement {
+function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[], fromHere = false): BatchStatement {
   const preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   const newer = '(last_message_at IS NULL OR last_message_at <= ?)';
   const live = !m.fromMe && !m.history ? 1 : 0;
+  // Un mensaje mío en vivo (desde acá, programado, por la API o desde el teléfono) saca el chat de WhatsApp de
+  // Archivados, también si estaba "hecho". Como WhatsApp, que lo desarchiva solo: no se le manda nada. El que llega
+  // del teléfono, solo si es el más nuevo del chat (uno viejo que llega tarde no desarchiva); el que sale de acá, siempre.
+  const out = outgoingLive(m) ? 1 : 0;
+  const sure = fromHere ? 1 : 0;
   const now = nowIso();
   return {
     sql: `UPDATE inbox_threads SET
@@ -359,8 +365,8 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_inbound_at = CASE WHEN ? = 0 AND (last_inbound_at IS NULL OR last_inbound_at < ?) THEN ? ELSE last_inbound_at END,
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
-         done_at = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ? = 1 AND ${newer} AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
+         done_at = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ((? = 1 AND (muted_until IS NULL OR muted_until <= ?)) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
          snoozed_until = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE snoozed_until END,
          follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
@@ -389,11 +395,15 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
       !m.fromMe && !m.history && !m.read ? 1 : 0,
       // Llega algo nuevo de la otra persona: vuelve a la bandeja.
       live,
+      out,
+      sure,
       sentAt,
       // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
       live,
-      sentAt,
       now,
+      out,
+      sure,
+      sentAt,
       live,
       sentAt,
       live,
@@ -403,12 +413,28 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
   };
 }
 
+/** ¿Un mensaje mío en vivo (no del historial)? Es el que desarchiva el chat. */
+function outgoingLive(m: NewMessage): boolean {
+  return m.fromMe && !m.history;
+}
+
+/** Antes de tocar el chat: el desarchivado por envío queda anotado para el eco del teléfono (lib/wa-archive-sync.ts). */
+function unarchiveMark(m: NewMessage, sentAt: string, messageId: string, fromHere = false): BatchStatement[] {
+  if (!outgoingLive(m)) return [];
+  const mine = 'c.id = (SELECT thread_id FROM inbox_messages WHERE id = ?)';
+  return [fromHere ? sendUnarchiveMark('inbox', mine, [messageId]) : sendUnarchiveMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
+}
+
 /** Lo que cambia en la fila que ya tiene quien llama (así el próximo mensaje de la tanda compara contra lo nuevo). */
 function noteNewest(thread: ThreadRow, m: NewMessage, sentAt: string): void {
   if (thread.last_message_at && sentAt < thread.last_message_at) return;
   thread.last_message_at = sentAt;
   thread.preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   thread.last_from_me = m.fromMe ? 1 : 0;
+  if (outgoingLive(m) && thread.channel === 'whatsapp') {
+    thread.archived_at = null;
+    thread.done_at = null;
+  }
 }
 
 /**
@@ -426,8 +452,10 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
        ON CONFLICT DO NOTHING`,
       args: [id, thread.owner_id, thread.id, ...messageTail(m, sentAt)],
     },
+    // Lo guarda quien lo mandó desde acá (o la sincronización de Gmail y la importación, que no desarchivan).
+    ...unarchiveMark(m, sentAt, id, true),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id]),
+    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id], true),
   ]);
   if (res[0].changes === 0) return false;
   noteNewest(thread, m, sentAt);
@@ -457,6 +485,7 @@ export async function addMessageToChat(
        ON CONFLICT DO NOTHING`,
       args: [id, account.owner_id, account.id, external, ...messageTail(m, sentAt)],
     },
+    ...unarchiveMark(m, sentAt, id),
     threadTouch(m, sentAt, 'id = (SELECT thread_id FROM inbox_messages WHERE id = ?)', [id]),
   ]);
   const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);

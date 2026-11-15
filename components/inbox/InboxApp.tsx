@@ -430,15 +430,48 @@ export default function InboxApp(props: {
   // El texto que se acaba de mandar aparece ya en la conversación, y lo que vuelve del servidor al terminar un envío
   // entra SOLO en la conversación de ese chat (components/inbox/wa/pending.ts): si ya hay otro abierto, va a la copia
   // guardada del suyo y lo que está a la vista no se toca.
+  // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
+  // Archivados ya, el contador baja y la conversación sigue abierta. En Archivados, con aviso y Deshacer.
+  const unarchivedBySend = useRef(new Set<string>());
+  const inArchivedView = (view === 'archived' || view === 'done') && !q && !folder;
+  const unarchiveOnSend = useCallback(
+    (threadId: string) => {
+      const was = live.current.threads.find((x) => x.id === threadId) ?? (detailRef.current?.thread.id === threadId ? detailRef.current.thread : null);
+      if (!was || was.channel !== 'whatsapp' || !(was.archived || was.done)) return;
+      unarchivedBySend.current.add(threadId);
+      setThreads((xs) => (inArchivedView ? xs.filter((x) => x.id !== threadId) : xs.map((x) => (x.id === threadId ? { ...x, archived: false, done: false } : x))));
+      setDetail((d) => (d && d.thread.id === threadId ? { ...d, thread: { ...d.thread, archived: false, done: false } } : d));
+      setState((st) => ({ ...st, counts: { ...st.counts, archived: Math.max(0, (st.counts.archived ?? 0) - 1) } }));
+      if (!inArchivedView) return;
+      const back: ThreadAction = { action: was.archived ? 'archive' : 'done' };
+      toast(t('toast.unarchive', { n: 1 }), {
+        undo: () =>
+          void api('/api/inbox/threads', { method: 'POST', json: { ids: [threadId], ...back } }).then(() => {
+            void reloadList();
+            void reloadState();
+            if (openRef.current === threadId) void loadDetail(threadId, true);
+            notifyInboxChanged();
+          }),
+      });
+    },
+    [inArchivedView, toast, t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useEffect(
     () =>
       pendingSends.subscribe((e) => {
         const kept = detailCache.get(e.threadId);
         if (kept) detailCache.set(e.threadId, applyPending(kept, e) ?? kept);
         setDetail((d) => applyPending(d, e));
+        if (e.type !== 'drop') unarchiveOnSend(e.threadId);
         if (e.type === 'sent') void reloadList();
+        // El contador de Archivados se confirma con el servidor (también si el envío no salió y el chat sigue archivado).
+        if (e.type !== 'add' && unarchivedBySend.current.delete(e.threadId)) {
+          stateEtag.current = '';
+          void reloadState();
+          if (e.type === 'drop') void reloadList();
+        }
       }),
-    [detailCache, reloadList],
+    [detailCache, reloadList, unarchiveOnSend], // eslint-disable-line react-hooks/exhaustive-deps
   );
   /**
    * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El

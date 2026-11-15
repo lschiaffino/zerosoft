@@ -92,7 +92,7 @@ import LiveWaveform from './wa/LiveWaveform';
 import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
-import { notifyChatSent } from '@/lib/ui/chat-sent';
+import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -183,6 +183,10 @@ export default function ChatThread(props: ThreadProps) {
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
+  // Mandar desde un chat archivado lo desarchiva (como WhatsApp): el menú del chat lo refleja ya.
+  useOnChatSent((id) => {
+    if (id === props.chat.id) setChat((c) => (c.archived ? { ...c, archived: false } : c));
+  });
   const [messages, setMessages] = useState(props.messages);
   const [pinned, setPinned] = useState(props.pinned);
   const [text, setText] = useState('');

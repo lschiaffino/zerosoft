@@ -160,7 +160,13 @@ const parity: ProductParity = {
         'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
+    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have', {
+      detail: [
+        'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp',
+        'Sincronizado con el teléfono en los dos sentidos. Mandar un mensaje a un chat archivado lo desarchiva, como en WhatsApp',
+        'Sincronizado com o celular nos dois sentidos. Enviar uma mensagem para uma conversa arquivada a desarquiva, como no WhatsApp',
+      ],
+    }),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
       detail: ['QR lines (Evolution); 1:1 chats that WhatsApp identifies only by a hidden id do not show it', 'Líneas por QR (Evolution); los 1 a 1 que WhatsApp identifica solo con un id oculto no lo muestran', 'Linhas por QR (Evolution); conversas 1 a 1 que o WhatsApp identifica só por um id oculto não mostram'],
     }),

@@ -10,6 +10,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
+import { sendUnarchiveMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
@@ -1765,8 +1766,19 @@ function answeredStatements(chatId: string, at: string): BatchStatement[] {
   ];
 }
 
-/** Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). */
-function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[]): BatchStatement {
+/**
+ * Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). Uno que sale (`unarchive`: mandado
+ * desde acá o desde el teléfono, no uno que falló ni una llamada) saca el chat de Archivados, como WhatsApp.
+ */
+function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[], unarchive: boolean | 'newest' = !incoming): BatchStatement {
+  if (!incoming && unarchive) {
+    // 'newest': lo que llega del teléfono desarchiva solo si es lo más nuevo del chat (uno viejo que llega tarde no).
+    return {
+      sql: `UPDATE groups_chats SET archived_at = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN NULL ELSE archived_at END,
+           last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE ${where}`,
+      args: [unarchive === 'newest' ? 0 : 1, at, at, preview, at, ...whereArgs],
+    };
+  }
   return incoming
     ? {
         sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
@@ -1779,8 +1791,20 @@ function chatTouch(at: string, preview: string, incoming: boolean, where: string
       };
 }
 
-export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean): Promise<void> {
-  const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId]);
+/**
+ * Antes de tocar el chat: si está archivado y el mensaje que sale lo va a desarchivar, queda anotado para el eco del
+ * teléfono y para no mandarle nada a WhatsApp (lib/wa-archive-sync.ts). `where` elige el chat (alias c).
+ */
+function unarchiveMark(at: string, where: string, whereArgs: string[], newest = false): BatchStatement {
+  return newest ? sendUnarchiveMark('lines', `${where} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [...whereArgs, at]) : sendUnarchiveMark('lines', where, whereArgs);
+}
+
+export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean, unarchive = !incoming): Promise<void> {
+  const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId], unarchive);
+  if (!incoming && unarchive) {
+    await dbBatch([unarchiveMark(at, 'c.id = ?', [chatId]), stmt]);
+    return;
+  }
   await getDb()
     .prepare(stmt.sql)
     .run(...stmt.args);
@@ -1812,12 +1836,13 @@ async function saveInbound(
          ${m.replyToProviderId ? '(SELECT id FROM groups_messages WHERE number_id = ? AND provider_message_id = ?)' : 'NULL'}, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
       args: [...v.head, number.id, chat.providerChatId, ...v.mid, ...(m.replyToProviderId ? [number.id, m.replyToProviderId] : []), ...v.tail],
     },
+    ...(m.direction === 'out' ? [unarchiveMark(at, 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], true)] : []),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id]),
+    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
   ];
   if (withSettings) stmts.push({ sql: 'SELECT data FROM groups_settings WHERE user_id = ?', args: [number.user_id] });
   const res = await dbBatch(stmts);
-  const data = withSettings ? (res[4].rows[0] as { data: string } | undefined) : undefined;
+  const data = withSettings ? (res[res.length - 1].rows[0] as { data: string } | undefined) : undefined;
   return {
     chat: res[1].rows[0] as unknown as ChatRow,
     created: res[0].changes > 0,
@@ -2045,7 +2070,9 @@ export async function sendMessage(
           },
         ]
       : []),
-    chatTouch(at, preview, false, 'id = ?', [chatId]),
+    // Lo que salió desarchiva el chat (lo que falló no).
+    ...(status === 'sent' ? [unarchiveMark(at, 'c.id = ?', [chatId])] : []),
+    chatTouch(at, preview, false, 'id = ?', [chatId], status === 'sent'),
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
     ...(status === 'sent' && input.authorKind !== 'broadcast' ? answeredStatements(chatId, at) : []),
   ];
@@ -2195,7 +2222,7 @@ async function sendMediaMessage(
   }
   await settleOutgoing(row.id, chat.number_id, providerId, status, error);
   const saved = ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(row.id)) as MessageRow | undefined) ?? row;
-  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false);
+  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false, false);
   if (status === 'sent') {
     await touchChat(chat.id, at, previewOfRow(saved), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando.

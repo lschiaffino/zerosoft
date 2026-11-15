@@ -753,6 +753,16 @@ export default function InboxShell({
     );
   }
 
+  // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
+  // Archivados ya, el contador baja y el chat sigue abierto. En Archivados, con aviso y Deshacer.
+  useOnChatSent((chatId) => {
+    const c = rowsRef.current.find((r) => r.id === chatId);
+    if (!c?.archived) return;
+    setRows((rs) => (archivedView ? rs.filter((r) => r.id !== chatId) : rs.map((r) => (r.id === chatId ? { ...r, archived: false } : r))));
+    setArchivedInfo((cur) => ({ total: Math.max(0, cur.total - 1), unread: Math.max(0, cur.unread - (c.unread > 0 ? 1 : 0)) }));
+    if (archivedView) showToast(t('wa.unarchived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: true }) });
+  });
+
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
       { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
