@@ -19,8 +19,9 @@
   --kbd-ring: var(--brand-gray-2);
   --kbd-ring-w: 2px;
 }
-/* Sobre superficies siempre oscuras (visor de fotos, avisos) el anillo es claro. */
-:root[data-kbd-nav] :is(.wa-viewer, .ui-toast, .zs-swipe-action) { --kbd-ring: var(--brand-on-ink); }
+/* Sobre superficies de tinta (avisos, acciones al deslizar) el anillo es claro. */
+:root[data-kbd-nav] .ui-toast { --kbd-ring: var(--brand-on-ink); }
+:root[data-kbd-nav] .zs-swipe-action { --kbd-ring: var(--bg); }
 @media (prefers-contrast: more) {
   :root[data-kbd-nav] { --kbd-ring: var(--ink); --kbd-ring-w: 3px; }
 }
@@ -32,6 +33,9 @@
 /* Los que marcan el foco con una sombra o desde el contenedor. */
 :root[data-kbd-nav='0'] :is(.wa-stk-send, .band-menu-item, .side-menu-item):focus-visible { box-shadow: none !important; }
 :root[data-kbd-nav='0'] :is(.ib-swatch-pick, .wa-pick):has(:focus-visible) { outline: none !important; }
+/* El divisor de paneles toma el foco al arrastrarlo, y la barra de un audio al tocarla: su marca no queda prendida. */
+:root[data-kbd-nav='0'] .ui-splitter:focus-visible:not(.is-dragging):not(:hover)::after { opacity: 0 !important; }
+:root[data-kbd-nav='0'] .wa-voice-seek:focus-visible { opacity: 0 !important; }
 
 /* Teclado: el mismo anillo en todos lados, fino y gris. Cada regla conserva su separación y su radio. */
 :root[data-kbd-nav='1'] :focus-visible:not(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='file'], [type='color'], [type='image']), textarea, [contenteditable]:not([contenteditable='false'])) {
@@ -50,4 +54,4 @@
 
 /* Cursor del teclado en la lista de Inbox (j/k, flechas): el fondo suave de la fila y, mientras el teclado
    maneja, una marca fina al costado. Nunca un recuadro. El chat abierto ya tiene su fondo. */
-:root[data-kbd-last='key'] li.ib-item.is-cursor:not(.is-open) > .ib-row-btn { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--kbd-ring) 60%, transparent); }
+:root[data-kbd-last='key'] li.ib-item.is-cursor:not(.is-open) > .ib-row-btn { box-shadow: inset 3px 0 0 var(--kbd-ring); }

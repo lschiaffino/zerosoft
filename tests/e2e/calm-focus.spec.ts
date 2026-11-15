@@ -184,6 +184,14 @@ test.describe('Inbox', () => {
     await page.keyboard.press('k');
     await expect(page.locator('.ib-item.is-cursor')).toHaveAttribute('data-idx', '0');
     expect(await outlined(page)).toEqual([]);
+
+    // Un control que conserva el foco tras el clic (la casilla de una fila): una tecla no le dibuja un recuadro.
+    const check = page.locator('.ib-item').nth(2).locator('.ib-check');
+    await page.locator('.ib-item').nth(2).hover();
+    await check.click();
+    await page.keyboard.press('g');
+    expect(await check.evaluate((el) => el === document.activeElement && el.matches(':focus-visible'))).toBe(true);
+    expect(await outlined(page)).toEqual([]);
   });
 
   test('Tab muestra un anillo fino en el control enfocado; un clic lo apaga; el campo del mensaje conserva su borde', async ({ page, request }) => {
@@ -254,15 +262,20 @@ test.describe('Inbox', () => {
 
 test.describe('Lines', () => {
   test('clic en una carpeta y después una letra y una flecha: ningún recuadro', async ({ page, request }) => {
-    const { folderName } = await linesWithChats(request, uid());
+    const tag = uid();
+    const { folderName } = await linesWithChats(request, tag);
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    // Con un chat abierto, como en el reporte: después se toca la carpeta y el teclado sigue en la lista.
+    await page.locator('.gr-row', { hasText: `Chat dos ${tag}` }).first().click();
+    await expect(page.locator('textarea.wa-input')).toBeVisible({ timeout: 20_000 });
+    const opened = new URL(page.url()).pathname;
     const link = page.locator('#side-branch').getByTestId('lines-folder').filter({ hasText: folderName });
     await link.click();
     await expect(link).toHaveAttribute('aria-current', 'page', { timeout: 20_000 });
     await expect(page.locator('.gr-row')).toHaveCount(3, { timeout: 20_000 });
 
     await page.keyboard.press('j');
-    await expect(page).toHaveURL(/\/app\/lines\/inbox\/[^/?]+/, { timeout: 20_000 });
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 20_000 }).not.toBe(opened);
     await page.keyboard.press('ArrowDown');
     expect(await outlined(page)).toEqual([]);
     expect(await link.evaluate((el) => el === document.activeElement)).toBe(false);
@@ -281,6 +294,8 @@ test.describe('Lines', () => {
     await expect(page.locator('textarea.wa-input')).toBeVisible({ timeout: 20_000 });
     // El foco no quedó en la fila: Enter no vuelve a abrirla.
     expect(await rows.nth(0).evaluate((el) => el === document.activeElement)).toBe(false);
+    // Abrir el chat lleva el foco al campo del mensaje; un clic en los mensajes devuelve el teclado a los atajos.
+    await page.locator('.gr-messages').click({ position: { x: 300, y: 300 } });
 
     await page.keyboard.press('j');
     await expect(rows.nth(1)).toHaveAttribute('aria-current', 'page', { timeout: 20_000 });
@@ -289,6 +304,14 @@ test.describe('Lines', () => {
     await expect(rows.nth(0)).toHaveAttribute('aria-current', 'page', { timeout: 20_000 });
     expect(await outlined(page)).toEqual([]);
     expect(await rows.nth(0).evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
+    // Un control que conserva el foco tras el clic (la casilla de una fila): una tecla no le dibuja un recuadro.
+    const item = page.locator('.gr-row-item').nth(2);
+    await item.hover();
+    await item.locator('.gr-row-check').click();
+    await page.keyboard.press('g');
+    expect(await item.locator('.gr-row-check').evaluate((el) => el === document.activeElement && el.matches(':focus-visible'))).toBe(true);
+    expect(await outlined(page)).toEqual([]);
   });
 
   test('Tab muestra un anillo fino en el control enfocado; un clic lo apaga; el campo del mensaje conserva su borde', async ({ page, request }) => {

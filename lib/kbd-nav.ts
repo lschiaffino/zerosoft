@@ -44,7 +44,8 @@ export const KBD_ATTR = 'data-kbd-nav';
 export const KBD_LAST_ATTR = 'data-kbd-last';
 
 /** Campos donde las teclas son texto. */
-export const TEXT_ENTRY = 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]), textarea, [contenteditable]:not([contenteditable="false"])';
+export const TEXT_ENTRY =
+  'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="color"]):not([type="image"]), textarea, [contenteditable]:not([contenteditable="false"])';
 
 /** Qué estado sigue a un foco que llegó después de una tecla que no es Tab. */
 export function modeAfterFocus(mode: KbdMode, inOverlay: boolean): KbdMode {
@@ -71,6 +72,8 @@ export function installKbdNav(doc: Document = document): () => void {
     const root = doc.documentElement;
     let mode: KbdMode = 'pointer';
     let lastInput: 'key' | 'pointer' = 'pointer';
+    // Solo un clic de mouse suelta el foco: un toque o una tecnología de asistencia lo dejan donde está.
+    let mouseDown = false;
     const set = (m: KbdMode) => {
       mode = m;
       root.setAttribute(KBD_ATTR, m === 'pointer' ? '0' : '1');
@@ -79,14 +82,17 @@ export function installKbdNav(doc: Document = document): () => void {
       lastInput = v;
       root.setAttribute(KBD_LAST_ATTR, v);
     };
-    const onPointer = () => {
+    const onPointer = (e: PointerEvent) => {
+      mouseDown = e.pointerType === 'mouse';
       setLast('pointer');
       if (mode !== 'pointer') set('pointer');
     };
     const onKey = (e: KeyboardEvent) => {
       if (MODIFIERS.has(e.key)) return;
-      const typing = e.target instanceof Element && e.target.matches(TEXT_ENTRY);
+      mouseDown = false;
+      const typing = e.key.length === 1 && e.target instanceof Element && e.target.matches(TEXT_ENTRY);
       // Escribir en un campo no es manejar la pantalla con el teclado: el cursor de la lista no se marca por eso.
+      // Una flecha o Enter desde la búsqueda sí.
       if (typing) lastInput = 'key';
       else setLast('key');
       // El diálogo o el menú que abrió un atajo ya se cerró y el foco no volvió a ningún lado: se apagan los anillos.
@@ -102,12 +108,21 @@ export function installKbdNav(doc: Document = document): () => void {
     };
     const onClick = (e: MouseEvent) => {
       // detail 0: el "clic" de Enter o Espacio. Ese foco se queda donde está.
-      if (mode !== 'pointer' || e.detail === 0) return;
+      if (mode !== 'pointer' || e.detail === 0 || !mouseDown) return;
+      mouseDown = false;
       const hit = e.target instanceof Element ? e.target.closest<HTMLElement>(RELEASE) : null;
       if (hit && hit === doc.activeElement) hit.blur();
     };
-    set('pointer');
-    setLast('pointer');
+    // Si se llegó con el teclado (Enter en un link del sidebar, de una app a la otra), los anillos siguen prendidos.
+    const active = doc.activeElement;
+    let arrived = false;
+    try {
+      arrived = !!active && active !== doc.body && active.matches(':focus-visible') && !active.matches(TEXT_ENTRY);
+    } catch {
+      arrived = false;
+    }
+    set(arrived ? 'tab' : 'pointer');
+    setLast(arrived ? 'key' : 'pointer');
     doc.addEventListener('pointerdown', onPointer, true);
     doc.addEventListener('keydown', onKey, true);
     doc.addEventListener('focusin', onFocusIn, true);
