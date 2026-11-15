@@ -6,6 +6,8 @@ export const boardCreateSchema = z.object({
   template: z.enum(BOARD_TEMPLATES).optional(),
   locale: z.string().max(8).optional(),
   folderId: z.string().max(64).nullish(),
+  /** Id elegido en el dispositivo (pizarra creada sin red): reintentar no la duplica. */
+  id: z.string().uuid().optional(),
 });
 
 export const boardRenameSchema = z.object({
