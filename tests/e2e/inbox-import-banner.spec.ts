@@ -30,8 +30,12 @@ test('Inbox: avance de la importación en la lista y aviso final que se cierra',
   await expect(banner.getByRole('progressbar')).toHaveCount(0, { timeout: 15_000 });
   await banner.getByRole('button', { name: 'Close' }).click();
   await expect(banner).toHaveCount(0);
+  // Tras recargar, el aviso ya cerrado no vuelve aunque la lista de importaciones lo traiga.
+  // Se espera esa respuesta (no la lista de chats, que depende de lo que haya en la base).
+  const read = page.waitForResponse((r) => r.url().endsWith('/api/inbox/import') && r.request().method() === 'GET', { timeout: 45_000 });
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.ib-list')).toBeVisible();
+  await read;
+  await expect(page.locator('.ib-list-pane')).toBeVisible();
   await expect(page.getByTestId('inbox-import-banner')).toHaveCount(0);
 
   // En el teléfono también.
