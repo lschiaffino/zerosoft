@@ -92,7 +92,7 @@
 .wc-note.is-bad { color: var(--bad-ink); }
 
 @media (max-width: 1023px) {
-  .wc-chip,
+  /* Solo lo que se toca mide 40px; las líneas (chips) son texto. */
   .wc-link,
   .wc-list-item .btn { min-height: 40px; }
   .wc-link { display: inline-flex; align-items: center; }
