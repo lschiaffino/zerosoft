@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play, Smiley } from './icons';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
+import { mediaBox, mediaBoxStyle, placeholderBox } from './media-box';
 
 const SPEEDS = [1, 1.5, 2];
 const POS_KEY = 'wa-voice-pos:';
@@ -220,19 +221,30 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   );
 }
 
-/** Caja de la foto desde su ancho y alto (hasta 300 de ancho y alto, igual que .wa-image en styles/groups-wa.css). */
-function boxFor(width?: number, height?: number): { width: number; height: number } | null {
-  if (!width || !height) return null;
-  const scale = Math.min(300 / width, 300 / height, 1);
-  return { width: Math.max(100, Math.round(width * scale)), height: Math.max(60, Math.round(height * scale)) };
-}
+const boxFor = mediaBox;
+const boxStyle = mediaBoxStyle;
 
 /**
- * Estilo de la caja: el ancho en proporción a --wa-media-w (300px por
- * defecto; Visualización lo cambia a chico o grande) y la proporción real.
+ * Foto o video que no está (no se pudo bajar, o el archivo ya no carga): el
+ * mismo lugar que ocuparía la foto (sus medidas si se saben, si no el
+ * estándar), con la miniatura borrosa de WhatsApp si vino y el aviso al
+ * centro. La burbuja mantiene el ancho y el texto de abajo se lee normal.
  */
-function boxStyle(box: { width: number; height: number } | null): CSSProperties | undefined {
-  return box ? { width: `calc(var(--wa-media-w, 300px) * ${+(box.width / 300).toFixed(4)})`, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+export function MediaUnavailable({ kind = 'image', width, height, thumbnail }: { kind?: 'image' | 'video'; width?: number; height?: number; thumbnail?: string }) {
+  const t = useTranslations('groups');
+  const label = t('thread.fileUnavailable');
+  return (
+    <span className={`wa-media-ph is-${kind}`} style={mediaBoxStyle(placeholderBox(width, height))} role="img" aria-label={label} data-testid="wa-media-unavailable">
+      {thumbnail && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="wa-thumb" src={thumbnail} alt="" aria-hidden="true" />
+      )}
+      <span className="wa-media-ph-note">
+        {kind === 'video' ? <Play size={18} /> : <PhotoIcon size={18} />}
+        <span>{label}</span>
+      </span>
+    </span>
+  );
 }
 
 /**
@@ -267,9 +279,11 @@ export function ImageView({
   }, [url]);
   const t = useTranslations('groups');
   if (failed) {
-    return <span className="wa-media-off">{t('thread.fileUnavailable')}</span>;
+    if (sticker) return <StickerMissing label={t('thread.fileUnavailable')} />;
+    return <MediaUnavailable width={width} height={height} thumbnail={thumbnail} />;
   }
-  const box = sticker ? null : boxFor(width, height);
+  // Sin medidas, mientras carga: el lugar estándar (la burbuja no queda angosta); al cargar, su tamaño real.
+  const box = sticker ? null : (boxFor(width, height) ?? (loaded ? null : placeholderBox()));
   const style = boxStyle(box);
   const img = (
     <>
@@ -332,8 +346,7 @@ export function StickerMissing({ label }: { label: string }) {
 export function GifView({ url, thumbnail, width, height, onOpen }: { url: string; thumbnail?: string; width?: number; height?: number; onOpen?: () => void }) {
   const t = useTranslations('groups');
   const ref = useRef<HTMLVideoElement>(null);
-  const box = boxFor(width, height);
-  const style = box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+  const style = boxStyle(boxFor(width, height));
   useEffect(() => {
     const v = ref.current;
     if (!v) return;

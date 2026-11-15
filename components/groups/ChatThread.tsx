@@ -48,7 +48,7 @@ import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
 import MediaAlbum from './wa/MediaAlbum';
 import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
@@ -1610,7 +1610,8 @@ export default function ChatThread(props: ThreadProps) {
     for (const r of (album ?? [m]).flatMap((x) => x.reactions)) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
     const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
-    const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url) && !(m.deletedAt && !revealed.has(m.id));
+    // Foto o video (aunque no esté disponible: su lugar ocupa el mismo ancho) al ras de la burbuja.
+    const flush = (kind === 'image' || kind === 'video') && !media?.viewOnce && !(m.deletedAt && !revealed.has(m.id));
     const groupIn = m.direction === 'in' && chat.kind === 'group';
     const starred = (m.meta as Record<string, unknown>).starred === true;
     // Borrado: "Se eliminó este mensaje"; un admin puede ver el original.
@@ -1772,6 +1773,8 @@ export default function ChatThread(props: ThreadProps) {
                 </span>
               ) : sticker && !media.url ? (
                 <StickerMissing label={t('wa.stickers.missing')} />
+              ) : !media.url && (kind === 'image' || kind === 'video') ? (
+                <MediaUnavailable kind={kind} width={media.width} height={media.height} thumbnail={media.thumbnail} />
               ) : !media.url ? (
                 <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
               ) : kind === 'image' || kind === 'sticker' ? (

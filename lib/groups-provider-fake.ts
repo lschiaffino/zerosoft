@@ -291,6 +291,8 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  // "gone-": el gateway ya no tiene el mensaje (Evolution: "Message not found" tras volver a vincular la línea).
+  if (id.startsWith('gone-')) throw new ProviderError('not_found');
   if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
   if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
@@ -511,7 +513,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
     },
-    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },

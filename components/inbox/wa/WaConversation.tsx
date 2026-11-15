@@ -12,7 +12,7 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
@@ -546,7 +546,8 @@ const WaConversation = forwardRef<
     const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     // Lo que se mandó desde esta pestaña se ve con su copia local (al instante, y sin volver a bajarlo al guardarse).
     const url = inboxMediaUrl(m);
-    const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
+    // Foto o video (aunque no esté disponible: su lugar ocupa el mismo ancho) al ras de la burbuja.
+    const flush = (kind === 'image' || kind === 'video') && !hidden && !meta.viewOnce;
     const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
@@ -650,6 +651,8 @@ const WaConversation = forwardRef<
                 <span className="wa-viewonce">{w('viewOnce')}</span>
               ) : sticker && !url ? (
                 <StickerMissing label={ws('missing')} />
+              ) : !url && (kind === 'image' || kind === 'video') ? (
+                <MediaUnavailable kind={kind} width={meta.width} height={meta.height} thumbnail={meta.thumb} />
               ) : !url ? (
                 <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} />
               ) : kind === 'image' || sticker ? (
