@@ -725,3 +725,38 @@ test('recorte: quien no es el autor recibe la copia cortada y la transcripción 
   expect(vtt).not.toContain('secreto');
   expect(await page.content()).not.toContain('secreto');
 });
+
+test('reproducir: el reproductor pasa al MP4 con índice al principio y adelanta sin leer todo', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const video = await uploadVideo(page.request, await makeWebm(page, 4200), `Seek ${uid()}`, 4);
+  // El MP4 de reproducción se arma solo al terminar de subir (ffmpeg local en dev y CI).
+  let playVer = '';
+  for (let i = 0; i < 60 && !playVer; i++) {
+    playVer = (await ok<{ video: { playVer: string } }>(page.request.get(`/api/rec/videos/${video.id}`))).video.playVer;
+    if (!playVer) await page.waitForTimeout(500);
+  }
+  test.skip(!playVer, 'Sin ffmpeg no hay MP4 de reproducción');
+  const mp4 = page.waitForResponse((r) => r.url().includes(`/api/rec/videos/${video.id}/file?kind=play&v=${playVer}`));
+  await page.goto(`/en/app/rec/${video.id}`);
+  const res = await mp4;
+  expect(res.headers()['content-type']).toBe('video/mp4');
+  expect(res.headers()['cache-control']).toContain('immutable');
+  // Adelantar al final: llega el cuadro.
+  const seeked = await page.getByTestId('rec-video').evaluate(
+    (v: HTMLVideoElement) =>
+      new Promise<boolean>((done) => {
+        const go = () => {
+          v.onseeked = () => done(true);
+          v.currentTime = 3.5;
+        };
+        if (v.readyState >= 1) go();
+        else v.onloadedmetadata = go;
+        setTimeout(() => done(false), 10_000);
+      }),
+  );
+  expect(seeked).toBe(true);
+  // Sin versión en la URL sigue el original: un reproductor a mitad de camino no mezcla dos archivos.
+  const orig = await page.request.get(`/api/rec/videos/${video.id}/file?kind=play`);
+  expect(orig.headers()['content-type']).toBe('video/webm');
+});

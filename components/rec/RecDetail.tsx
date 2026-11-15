@@ -363,7 +363,7 @@ export default function RecDetail({
         <div className="rec-detail-main">
           <RecPlayer
             ref={player}
-            src={file}
+            src={`${file}?kind=play${video.playVer ? `&v=${video.playVer}` : ''}`}
             captionsSrc={video.transcript.length ? `${file}?kind=captions` : null}
             poster={video.hasThumb ? `${file}?kind=thumb&v=${thumbVer}` : null}
             title={video.title}

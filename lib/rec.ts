@@ -261,6 +261,8 @@ export interface RecVideoDto {
   trimCut: boolean;
   hasThumb: boolean;
   hasGif: boolean;
+  /** Versión del MP4 de reproducción ('' sin MP4): va en la URL del reproductor (caché larga). */
+  playVer: string;
   /** Segundo del original de donde sale la miniatura (null = no se sabe). */
   thumbAt: number | null;
   views: number;
@@ -336,6 +338,7 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     trimCut: !isTrimmed(row.trim_start, row.trim_end) || row.trimmed_for === trimKey(row.trim_start, row.trim_end),
     hasThumb: !!row.thumb_url && (manager || assetVisible(row, 'thumb')),
     hasGif: !!row.gif_url && (manager || assetVisible(row, 'gif')),
+    playVer: row.mp4_url && row.mp4_for ? row.mp4_for : '',
     thumbAt: row.thumb_at,
     views: row.views,
     lastViewedAt: row.last_viewed_at,
@@ -1264,6 +1267,8 @@ export interface PublicVideoDto {
   ctaUrl: string;
   ctaMode: RecCtaMode;
   hasThumb: boolean;
+  /** Versión del MP4 de reproducción ('' sin MP4). */
+  playVer: string;
   overlays: RecOverlay[];
 }
 
@@ -1291,6 +1296,7 @@ export function toPublicDto(v: RecVideoRow & { author_name: string | null }, isA
     ctaUrl: v.cta_url ?? '',
     ctaMode: v.cta_mode,
     hasThumb: !!v.thumb_url && (isAuthor || assetVisible(v, 'thumb')),
+    playVer: v.mp4_url && v.mp4_for ? v.mp4_for : '',
     overlays: isAuthor ? parseJson<RecOverlay[]>(v.overlays, []) : overlaysInTrim(parseJson<RecOverlay[]>(v.overlays, []), v.trim_start, v.trim_end),
   };
 }
