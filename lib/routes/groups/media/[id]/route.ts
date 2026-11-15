@@ -3,6 +3,8 @@ import { getChatRow, getMessageRow, getNumberRow, mediaRefFor, readConfig, retry
 import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from '@/lib/groups-provider';
 import { safeFetch } from '@/lib/safe-fetch';
+import { getDb } from '@/lib/db';
+import { isPdf, validDocThumb, validPages } from '@/lib/wa-doc-thumb';
 import { mediaErrorKind } from '@/lib/wa-media-wire';
 import { linkHqBytes, type StoredLink } from '@/lib/wa-link-thumb';
 import { chatGuard, groupsError, groupsSession } from '@/lib/groups-http';
@@ -102,4 +104,33 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if ('url' in r) return NextResponse.json({ url: r.url });
   if ('gone' in r) return NextResponse.json({ gone: true }, { status: 410 });
   return NextResponse.json({ pending: true }, { status: 503 });
+}
+
+/**
+ * Guarda la vista previa de la primera página de un PDF (la dibujó el
+ * navegador de quien lo vio primero): un JPEG chico validado por sus bytes,
+ * solo en un PDF que todavía no tiene. Después llega con el mensaje.
+ */
+export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const s = await groupsSession();
+  if (s instanceof NextResponse) return s;
+  const msg = await getMessageRow(s.ws, (await ctx.params).id);
+  if (!msg) return groupsError(404, 'not_found');
+  const guard = await chatGuard(s, msg.chat_id);
+  if (guard instanceof NextResponse) return guard;
+  const body = (await req.json().catch(() => null)) as { thumb?: unknown; pages?: unknown } | null;
+  const thumb = validDocThumb(body?.thumb);
+  if (!thumb || !isPdf(msg.media_type, msg.media_name)) return groupsError(400, 'invalid_input');
+  let meta: { media?: Record<string, unknown> } & Record<string, unknown> = {};
+  try {
+    meta = JSON.parse(msg.meta || '{}') as typeof meta;
+  } catch {
+    meta = {};
+  }
+  if (!meta.media?.thumbnail) {
+    const pages = validPages(body?.pages);
+    const media = { kind: 'document', ...(meta.media ?? {}), thumbnail: thumb, ...(pages && !meta.media?.pages ? { pages } : {}) };
+    await getDb().prepare('UPDATE groups_messages SET meta = ? WHERE id = ? AND user_id = ?').run(JSON.stringify({ ...meta, media }), msg.id, s.ws);
+  }
+  return NextResponse.json({ ok: true });
 }

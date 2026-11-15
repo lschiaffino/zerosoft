@@ -189,7 +189,25 @@ export function VoicePlayer({
  * nombre en un renglón (cortado en el medio si es largo, para que se vea la
  * extensión) y abajo "45 kB • html". Toda la tarjeta abre o baja el archivo.
  */
-export function DocCard({ url, name, type, size, pages }: { url: string; name: string; type: string; size?: number; pages?: number }) {
+export function DocCard({
+  url,
+  name,
+  type,
+  size,
+  pages,
+  thumbnail,
+  saveThumbTo,
+}: {
+  url: string;
+  name: string;
+  type: string;
+  size?: number;
+  pages?: number;
+  /** Vista previa de la primera página: la que mandó WhatsApp con el mensaje o la que ya se guardó. */
+  thumbnail?: string;
+  /** Ruta del mensaje donde guardar la vista previa la primera vez que se dibuja (PDF sin miniatura). */
+  saveThumbTo?: string;
+}) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const ext = extensionOf(name, type);
@@ -200,7 +218,14 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   const shownName = name || t('media.file');
   const inner = (
     <>
-      {url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} />}
+      {isPdf && thumbnail ? (
+        <span className="wa-doc-thumb is-on" aria-hidden="true" data-testid="wa-doc-thumb">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnail} alt="" />
+        </span>
+      ) : (
+        url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} saveTo={saveThumbTo} />
+      )}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
         <DocIcon size={30} strokeWidth={1.5} />
         {ext && <b>{ext.slice(0, 4)}</b>}
