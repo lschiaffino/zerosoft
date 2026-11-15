@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { checkAnswer, computePath, isEmptyAnswer, pipe, type AnswerError } from '@/lib/forms/engine';
+import { checkAnswer, computePath, isEmptyAnswer, pipe, shuffleChoices, type AnswerError } from '@/lib/forms/engine';
 import type { AnswerValue, Answers, FileAnswer, FormDefinition, FormSettings, Question } from '@/lib/forms/types';
 import { QuestionInput } from './QuestionInputs';
 
@@ -52,7 +52,11 @@ function readSaved(slug: string): { answers: Answers; at: string | null; partial
  * el servidor. Todo el texto se muestra como texto (nunca HTML).
  */
 export default function FormRunner(props: RunnerProps) {
-  const { slug, definition: def, settings, embed, preview } = props;
+  const { slug, settings, embed, preview } = props;
+  // La mezcla se hace después de montar para no romper la hidratación.
+  const [seed, setSeed] = useState<number | null>(null);
+  useEffect(() => setSeed(Math.floor(Math.random() * 2 ** 32)), []);
+  const def = useMemo(() => (seed === null ? props.definition : shuffleChoices(props.definition, seed)), [props.definition, seed]);
   const t = useTranslations('forms.public');
   const labels = useMemo(() => ({ yes: t('yes'), no: t('no'), file: t('file'), signed: t('signed') }), [t]);
   const [answers, setAnswers] = useState<Answers>({});
