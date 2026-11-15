@@ -80,3 +80,23 @@ describe('Agents: conversaciones que vienen de un chat de Lines', () => {
     expect(ids).toContain(convId);
   });
 });
+
+describe('Lines: con acceso por etiqueta, solo quien no está restringido cambia etiquetas', () => {
+  it('anónimo 401, member restringido 403, owner sí', async () => {
+    const { updatePlatformSettings } = await import('@/lib/groups-access');
+    const { createLabel } = await import('@/lib/groups');
+    const labelRoute = await import('@/lib/routes/groups/labels/[id]/route');
+    const w = await workspaceWithMember('lbl-lock');
+    await updatePlatformSettings(w.owner.id, { labelAccess: true, maskRoles: [] });
+    const label = await createLabel(w.owner.id, { name: 'VIP', color: 'red' });
+    const patch = () => new Request('http://x', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'renamed' }) });
+
+    session.user = null;
+    expect((await labelRoute.DELETE(new Request('http://x'), ctx({ id: label.id }))).status).toBe(401);
+    session.user = asMember(w.owner, w.member);
+    expect((await labelRoute.PATCH(patch(), ctx({ id: label.id }))).status).toBe(403);
+    expect((await labelRoute.DELETE(new Request('http://x'), ctx({ id: label.id }))).status).toBe(403);
+    session.user = { ...w.owner, role: 'owner', apps: '*' } as SessionUser;
+    expect((await labelRoute.PATCH(patch(), ctx({ id: label.id }))).status).toBe(200);
+  });
+});
