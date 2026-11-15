@@ -155,7 +155,8 @@ test('Lines: la nota de voz se programa desde la grabadora, queda en la tira con
   // Se programa: la grabadora se cierra y la nota queda en la tira del chat.
   await later.click();
   await pickTomorrow(dialog);
-  await expect(bar).toHaveCount(0, { timeout: 20_000 });
+  // Sube el audio y lo programa (con next dev, la primera vez compila las rutas de subida).
+  await expect(bar).toHaveCount(0, { timeout: 90_000 });
   const strip = page.getByTestId('lines-scheduled-strip');
   const voice = strip.getByTestId('scheduled-voice');
   await expect(voice).toBeVisible();
@@ -243,7 +244,8 @@ test('Inbox: la nota de voz se programa desde la grabadora, queda en los program
   // Se programa: la grabadora se cierra y la nota queda en los programados del chat.
   await later.click();
   await pickTomorrow(dialog);
-  await expect(bar).toHaveCount(0, { timeout: 20_000 });
+  // Sube el audio y lo programa (con next dev, la primera vez compila las rutas de subida).
+  await expect(bar).toHaveCount(0, { timeout: 90_000 });
   const list = thread.locator('.ib-scheduled');
   const voice = list.getByTestId('scheduled-voice');
   await expect(voice).toBeVisible();
