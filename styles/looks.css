@@ -199,9 +199,8 @@
   border-radius: var(--radius-item);
 }
 
-/* Classic: menús con aire, como el del chat (íconos a la izquierda, filas de 36px). */
+/* Classic: menús con aire, como el del chat. El alto de las filas lo pone cada menú (en el teléfono, 40-44px). */
 :root[data-look='classic'] :is(.zs-ctx-menu, [role='menu']) { padding: 6px; }
-:root[data-look='classic'] :is([role='menu'] > [role='menuitem'], [role='menu'] > [role='menuitemradio'], [role='menu'] > [role='menuitemcheckbox']) { min-height: 36px; }
 
 /* Classic: los botones de ícono son círculos con un relleno gris al pasar y al estar activos. */
 :root[data-look='classic'] :is(.btn-icon, .band-btn) { border-radius: 50%; }
