@@ -170,6 +170,28 @@ test('grabar con la cámara: pausa, sube por partes, miniatura, GIF, duración y
   expect(duration).toBeGreaterThan(2);
   expect(duration).toBeLessThan(8);
 
+  // El original (WebM) trae el índice (Cues) al principio: se adelanta aunque el MP4 todavía no exista.
+  const head = await page.request.get(`/api/rec/videos/${id}/file?kind=play`, { headers: { range: 'bytes=0-65535' } });
+  expect(head.headers()['content-type']).toBe('video/webm');
+  expect((await head.body()).indexOf(Buffer.from([0x1c, 0x53, 0xbb, 0x6b]))).toBeGreaterThan(0);
+  const webmSeek = await page.evaluate(
+    (src) =>
+      new Promise<boolean>((done) => {
+        const v = document.createElement('video');
+        v.muted = true;
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => {
+          v.onseeked = () => done(v.currentTime > 2);
+          v.currentTime = v.duration - 0.5;
+        };
+        v.onerror = () => done(false);
+        v.src = src;
+        setTimeout(() => done(false), 10_000);
+      }),
+    `/api/rec/videos/${id}/file?kind=play`,
+  );
+  expect(webmSeek).toBe(true);
+
   const thumb = await page.request.get(`/api/rec/videos/${id}/file?kind=thumb`);
   expect(thumb.headers()['content-type']).toContain('image/jpeg');
   const gif = await page.request.get(`/api/rec/videos/${id}/file?kind=gif`);

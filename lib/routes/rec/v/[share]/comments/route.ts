@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { noStore } from '@/lib/no-store';
 import { z } from 'zod';
 import { addComment, canCommentAs, canManage, listComments } from '@/lib/rec';
 import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie, sameSiteJson } from '@/lib/rec-http';
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Moderar (borrar comentarios ajenos): quien administra el video.
   const canModerate = !!user && canManage(actorOf(user), r.v);
   return withViewerCookie(
-    NextResponse.json({ ...page, me: { name: viewer.name, signedIn: !!viewer.userId, canModerate, requireAccount: !!r.v.comments_require_account, canComment: canCommentAs(r.v, r.viewer) } }),
+    noStore(NextResponse.json({ ...page, me: { name: viewer.name, signedIn: !!viewer.userId, canModerate, requireAccount: !!r.v.comments_require_account, canComment: canCommentAs(r.v, r.viewer) } })),
     newKey,
   );
 }

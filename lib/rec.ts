@@ -86,25 +86,33 @@ export async function dropRecFiles(urls: string[]): Promise<void> {
   const blobs = urls.filter((u) => /^https:\/\//.test(u));
   const local = urls.filter((u) => !/^https:\/\//.test(u));
   if (local.length) await deleteUploads(local);
-  if (!blobs.length || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  if (!blobs.length) return;
   const { del } = await import('@vercel/blob');
-  try {
-    await del(blobs);
-  } catch {
-    for (const u of blobs) await getDb().prepare('INSERT OR IGNORE INTO rec_file_deletes (url) VALUES (?)').run(u).catch(() => undefined);
+  const { recBlobOpts } = await import('./rec-upload');
+  // Las del store privado con su token; las de antes con el de siempre.
+  for (const u of blobs) {
+    const token = recBlobOpts(u).token;
+    if (!token && !process.env.BLOB_READ_WRITE_TOKEN) continue;
+    try {
+      await del(u, token ? { token } : undefined);
+    } catch {
+      await getDb().prepare('INSERT OR IGNORE INTO rec_file_deletes (url) VALUES (?)').run(u).catch(() => undefined);
+    }
   }
 }
 
 /** Cron: reintenta lo que Blob no pudo borrar. Hasta 20 intentos por archivo. */
 export async function retryRecFileDeletes(limit = 20): Promise<number> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return 0;
+  const { recBlobOpts, recPrivateToken } = await import('./rec-upload');
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !recPrivateToken()) return 0;
   const rows = (await getDb().prepare('SELECT url FROM rec_file_deletes ORDER BY attempts LIMIT ?').all(limit)) as Array<{ url: string }>;
   if (!rows.length) return 0;
   const { del } = await import('@vercel/blob');
   let done = 0;
   for (const r of rows) {
     try {
-      await del(r.url);
+      const token = recBlobOpts(r.url).token;
+      await del(r.url, token ? { token } : undefined);
       await getDb().prepare('DELETE FROM rec_file_deletes WHERE url = ?').run(r.url);
       done++;
     } catch {

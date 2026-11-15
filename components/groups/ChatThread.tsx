@@ -18,6 +18,7 @@ import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } fro
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
+import { knownPrivateQuote, peekPendingPrivateReply, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
@@ -191,6 +192,8 @@ export default function ChatThread(props: ThreadProps) {
   const [caret, setCaret] = useState(0);
   const [mode, setMode] = useState<'reply' | 'note'>('reply');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
+  // Respondiendo en privado: el mensaje citado es de un grupo (su nombre va en la cita).
+  const [replyChat, setReplyChat] = useState<{ msgId: string; chatName: string } | null>(null);
   const tray = useAttachTray();
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -354,6 +357,22 @@ export default function ChatThread(props: ThreadProps) {
   const taskMessage = useMemo(() => (taskFor ? { id: taskFor.id, body: waText(taskFor) } : null), [taskFor, waText]);
   const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
   const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
+
+  // "Responder en privado" desde un grupo: este chat 1:1 se abre respondiendo al mensaje del grupo.
+  useEffect(() => {
+    if (!peekPendingPrivateReply(props.chat.id)) return;
+    // Después de lo que limpia el composer al cambiar de chat. Se toma recién acá: un montaje que se desarma
+    // antes (StrictMode, navegación) no la gasta.
+    const id = window.setTimeout(() => {
+      const pr = takePendingPrivateReply(props.chat.id);
+      if (!pr) return;
+      setReplyTo(pr.message);
+      setReplyChat({ msgId: pr.message.id, chatName: pr.quote.chatName });
+      setMode('reply');
+      inputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [props.chat.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir el chat lo marca leído.
   useEffect(() => {
@@ -1301,6 +1320,8 @@ export default function ChatThread(props: ThreadProps) {
         { key: 'remove', label: t('common.remove'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) },
       ];
     }
+    // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, fijar, reenviar, copiar, editar |
+    // responder en privado, mensaje a quien lo mandó | eliminar | seleccionar. Debajo, la capa del equipo.
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
     if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
     if (live)
@@ -1309,32 +1330,47 @@ export default function ChatThread(props: ThreadProps) {
         label: t('thread.reply'),
         onSelect: () => {
           setReplyTo(m);
+          setReplyChat(null);
           setMode('reply');
           inputRef.current?.focus();
         },
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
-    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
-    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
-    if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
-    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
+    if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
+    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (m.body.trim() && !m.deletedAt) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
-    items.push({ key: 'select', label: t('wa.select'), onSelect: () => setSelecting(new Set([m.id])) });
+    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
+    if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
+    // Grupo, mensaje de otra persona: escribirle por privado (con la cita o sin ella), como en WhatsApp.
+    if (chat.kind === 'group' && m.direction === 'in' && !m.deletedAt && m.senderPhone) {
+      items.push({ key: 'replyPrivately', label: t('wa.replyPrivately'), divider: true, onSelect: () => void openPrivateChat(m, true) });
+      items.push({ key: 'messageSender', label: t('wa.messageName', { name: inName(m) }), onSelect: () => void openPrivateChat(m, false) });
+    }
     if (can.delete)
       items.push({
         key: 'delete',
         label: m.direction === 'note' ? t('thread.deleteNote') : t('thread.deleteForAll'),
         onSelect: () => setDeleting(m),
         danger: true,
+        divider: true,
       });
+    items.push({ key: 'select', label: t('wa.select'), divider: !can.delete, onSelect: () => setSelecting(new Set([m.id])) });
     // Capa del equipo, debajo.
     const team: MenuItem[] = [];
     if (live && !m.ticketId) team.push({ key: 'ticket', label: t('wa.createTicket'), onSelect: () => openTicket(m) });
     team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (team.length) team[0] = { ...team[0], divider: true };
     return [...items, ...team];
+  }
+
+  /** "Mensaje a <persona>" o "Responder en privado": su chat 1:1 en la misma línea (se crea si no existe). */
+  async function openPrivateChat(m: MessageDto, quote: boolean) {
+    const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id } });
+    if (!res.data) return showToast(errText(res.error), true);
+    if (quote) setPendingPrivateReply(res.data.id, m, { id: chat.id, name: chat.name });
+    router.push(`/app/lines/inbox/${res.data.id}${window.location.search}`);
   }
 
   async function favoriteSticker(messageId: string) {
@@ -1552,6 +1588,8 @@ export default function ChatThread(props: ThreadProps) {
   /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
   function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
+    // Respuesta en privado: el citado es de un grupo (viene del servidor o, recién mandado, de acá).
+    const privateQuote = !quoted && m.replyToId ? (m.replyQuote ?? knownPrivateQuote(m.replyToId)) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
     const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
@@ -1599,7 +1637,21 @@ export default function ChatThread(props: ThreadProps) {
           openMenuIn(e.currentTarget);
         }}
         {...longPress((el) => openMenuIn(el))}
-        onClick={selecting ? () => toggleSelected(m.id) : undefined}
+        onClick={
+          selecting
+            ? () => toggleSelected(m.id)
+            : chat.kind === 'group'
+              ? (e) => {
+                  // Una mención ("@Nombre") abre la ficha de esa persona, como en WhatsApp.
+                  const el = (e.target as HTMLElement).closest<HTMLElement>('.wa-mention[data-mention]');
+                  const d = el?.dataset.mention ?? '';
+                  const phone = (m.mentionNames?.[d]?.phone || (memberNames.has(d) || memberPics.has(d) ? d : '')).replace(/\D/g, '');
+                  if (!el || !/^\d{8,15}$/.test(phone)) return;
+                  e.stopPropagation();
+                  personSheet.open({ phone }, memberNames.get(phone) || (el.textContent ?? '').replace(/^@/, ''), memberPics.get(phone));
+                }
+              : undefined
+        }
       >
         {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
@@ -1648,6 +1700,20 @@ export default function ChatThread(props: ThreadProps) {
             <p className="gr-forwarded">
               <Forwarded size={13} /> {t('thread.forwarded')}
             </p>
+          )}
+          {privateQuote && (
+            <button
+              type="button"
+              className={`gr-quote ${privateQuote.direction === 'in' ? `wa-q${colorIndex(privateQuote.senderPhone || privateQuote.senderName)}` : 'wa-q-me'}`}
+              onClick={() => router.push(`/app/lines/inbox/${privateQuote.chatId}#m-${privateQuote.id}`)}
+              data-testid="wa-private-quote"
+            >
+              <strong>
+                {privateQuote.direction === 'in' ? privateQuote.senderName || (privateQuote.senderPhone ? `+${privateQuote.senderPhone}` : chat.name) : t('wa.you')}
+                <span className="wa-quote-chat"> · {privateQuote.chatName}</span>
+              </strong>
+              <span>{privateQuote.deleted ? t('wa.deletedMessage') : privateQuote.body.slice(0, 160) || mediaText({ media: privateQuote.mediaType ? { type: privateQuote.mediaType, name: '' } : null })}</span>
+            </button>
           )}
           {quoted && (
             <button
@@ -2123,7 +2189,10 @@ export default function ChatThread(props: ThreadProps) {
           {replyTo && (
             <div className="wa-replying">
               <span className={`gr-quote ${replyTo.direction === 'in' ? 'wa-q-them' : 'wa-q-me'}`}>
-                <strong>{t('thread.replyingTo')} {quoteAuthor(replyTo)}</strong>
+                <strong>
+                  {t('thread.replyingTo')} {quoteAuthor(replyTo)}
+                  {replyChat?.msgId === replyTo.id && <span className="wa-quote-chat"> · {replyChat.chatName}</span>}
+                </strong>
                 <span>{quoteLine(replyTo)}</span>
               </span>
               <button type="button" className="wa-icon-btn" onClick={() => setReplyTo(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>

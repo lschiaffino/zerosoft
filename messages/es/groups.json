@@ -1364,7 +1364,8 @@
       "members": "Miembros",
       "ticket_created": "Ticket creado",
       "ticket_updated": "Ticket actualizado",
-      "ticket_deleted": "Ticket borrado"
+      "ticket_deleted": "Ticket borrado",
+      "hubspot_company": "Empresa de HubSpot"
     },
     "actions": {
       "assigned": "asignó el chat a {to}",
@@ -1385,7 +1386,8 @@
       "ticket_deleted": "borró el ticket #{n}",
       "labelsAdded": "sumó etiquetas: {added}",
       "labelsRemoved": "sacó etiquetas: {removed}",
-      "assignedSelf": "se asignó el chat"
+      "assignedSelf": "se asignó el chat",
+      "hubspot_company": "reemplazó la empresa de HubSpot {previous} por {company}, la que este grupo tiene en sus otras líneas"
     },
     "memberActions": {
       "add": "sumó",
@@ -1929,7 +1931,9 @@
       "loadFailed": "No se pudo cargar este contacto",
       "openFailed": "No se pudo abrir el chat",
       "openFor": "Info. del contacto de {name}"
-    }
+    },
+    "replyPrivately": "Responder en privado",
+    "messageName": "Enviar mensaje a {name}"
   },
   "swipe": {
     "read": "Leído",
@@ -2393,5 +2397,47 @@
       "desc": "Agregar o editar tus respuestas rápidas",
       "keys": "rápidas guardadas atajos ajustes"
     }
+  },
+  "gt": {
+    "lines": "Líneas",
+    "allLines": "Todas las líneas",
+    "nLines": "{n, plural, one {# línea} other {# líneas}}",
+    "linesLabel": "Filtrar por línea",
+    "colLines": "Líneas",
+    "colCompany": "Empresa en HubSpot",
+    "colCreated": "En Lines desde",
+    "colStatus": "Estado",
+    "open": "Abierto",
+    "closed": "Cerrado",
+    "notLinked": "Sin vincular",
+    "openInHubspot": "Abrir {name} en HubSpot",
+    "broken": "Borrada o fusionada en HubSpot",
+    "openInLine": "Abrir en {line}",
+    "secGroup": "Grupo",
+    "secProps": "Propiedades de zerosoft",
+    "secHubspot": "Propiedades de la empresa en HubSpot",
+    "searchColumns": "Buscar columnas",
+    "noColumns": "Ninguna columna coincide.",
+    "sortBy": "Ordenar por",
+    "sortNone": "Actividad más reciente",
+    "sortAsc": "Ascendente",
+    "sortDesc": "Descendente",
+    "sortDir": "Sentido",
+    "sortHeader": "Ordenar por {col}",
+    "reset": "Volver a la vista inicial",
+    "truncated": "Se muestran los {n} grupos con actividad más reciente. Acotá los filtros para ver el resto.",
+    "count": "{n, plural, one {# grupo} other {# grupos}}",
+    "statusField": "Estado del grupo",
+    "filterEmpty": "Ningún grupo cumple estos filtros.",
+    "more": "Más acciones",
+    "moreLines": "{n, plural, one {# línea más} other {# líneas más}}",
+    "colDeal": "Negocio de HubSpot",
+    "colStage": "Etapa del negocio",
+    "editCell": "Editar {col} de {name}",
+    "addValue": "Agregar",
+    "newColumn": "Columna nueva",
+    "newColumnAdd": "Agregar columna",
+    "newColumnHelp": "Una propiedad nueva de zerosoft para todos los grupos del workspace. Se completa desde la tabla o desde cada grupo.",
+    "propCreated": "Columna {name} agregada"
   }
 }
