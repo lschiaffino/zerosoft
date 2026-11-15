@@ -30,6 +30,9 @@ jobs:
       # SPDX header on every ee/ file, and core only imports ee/lib/license.ts.
       - run: npx tsx scripts/check-ee-boundary.ts
       - run: npm run typecheck
+        env:
+          # tsc pasa el heap por defecto de Node con el tamaño actual del proyecto (el runner tiene 16 GB).
+          NODE_OPTIONS: --max-old-space-size=6144
       - run: npm run lint
       # ffmpeg: Rec arma el MP4 de descarga con él (lib/rec-mp4.ts); los tests lo verifican con ffprobe.
       - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
