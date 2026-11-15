@@ -1069,7 +1069,8 @@
     "unknownTitle": "Not sent",
     "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them.",
     "needsConnection": "Needs connection",
-    "boardDrafts": "Board: {count, plural, one {# board with changes} other {# boards with changes}}"
+    "boardDrafts": "Board: {count, plural, one {# board with changes} other {# boards with changes}}",
+    "switcherHint": "You are offline. Dimmed apps need a connection."
   },
   "comingSoon": {
     "badge": "Coming soon",

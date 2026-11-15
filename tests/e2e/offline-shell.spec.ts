@@ -50,9 +50,9 @@ test.describe('Sin conexión: abrir la app y navegar', () => {
 
     // El selector de apps: las que necesitan conexión, marcadas.
     await page.locator('.band-product').click();
-    const lines = page.locator('.band-switcher-panel [data-needs-network][href*="/app/lines"]');
-    await expect(lines.locator('.app-offline-tag')).toBeVisible();
-    await expect(page.locator('.band-switcher-panel a[href$="/app/docs"] .app-offline-tag')).toHaveCount(0);
+    await expect(page.getByTestId('switcher-offline-hint')).toBeVisible();
+    await expect(page.locator('.band-switcher-panel [data-needs-network][href*="/app/lines"]')).toHaveCount(1);
+    await expect(page.locator('.band-switcher-panel [data-needs-network][href$="/app/docs"]')).toHaveCount(0);
     await shot(page, 'offline-switcher');
     await page.keyboard.press('Escape');
 

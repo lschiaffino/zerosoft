@@ -1069,7 +1069,8 @@
     "unknownTitle": "Sin enviar",
     "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás.",
     "needsConnection": "Necesita conexión",
-    "boardDrafts": "Board: {count, plural, one {# pizarra con cambios} other {# pizarras con cambios}}"
+    "boardDrafts": "Board: {count, plural, one {# pizarra con cambios} other {# pizarras con cambios}}",
+    "switcherHint": "Sin conexión. Las apps atenuadas necesitan red."
   },
   "comingSoon": {
     "badge": "Próximamente",

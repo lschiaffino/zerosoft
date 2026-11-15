@@ -1447,6 +1447,8 @@ td.cell-actions > * + * { margin-left: 4px; }
 [data-network='offline'] [data-needs-network] { color: var(--muted); }
 [data-network='offline'] [data-needs-network] .app-offline-tag { display: inline; margin-left: auto; padding: 0 4px; font-size: 11px; line-height: 16px; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
 [data-network='offline'] [data-needs-network] .app-soon-tag { display: none; }
+.band-menu-offline-hint { display: none; margin: 4px 8px 8px; font-size: 12px; color: var(--muted); }
+[data-network='offline'] .band-menu-offline-hint { display: block; }
 .home-tile[data-needs-network] { position: relative; }
 [data-network='offline'] .home-tile[data-needs-network] .home-tile-offline { position: absolute; top: 12px; right: 12px; }
 [data-network='offline'] .home-tile[data-needs-network] .home-tile-icon { opacity: 0.5; }
