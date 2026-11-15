@@ -19,7 +19,9 @@ export function parseRange(header: string | null, size: number): ByteRange {
   }
   const start = Number(m[1]);
   const end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
-  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= size || end < start) return 'unsatisfiable';
+  // Un rango al revés no es válido: se ignora y va el archivo entero (RFC 9110).
+  if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && end < start && start < size) return null;
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= size) return 'unsatisfiable';
   return { start, end };
 }
 

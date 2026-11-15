@@ -567,7 +567,21 @@ export function secretColumn(col: string): boolean {
   return /(secret|token|password|hash|_key$|^key$|^auth$|^p256dh$|^config$|^secrets$|^mfa_|salt$|verifier$)/i.test(col);
 }
 
-function exportValue(col: string, v: unknown): unknown {
+/** La clave del archivo de WhatsApp (meta.mediaWire en Lines, media_ref.wire en Inbox) no sale; el resto del valor sí. */
+function withoutMediaKey(col: string, v: string): string {
+  if ((col !== 'meta' && col !== 'media_ref') || !/"(mediaWire|wire)"/.test(v)) return v;
+  try {
+    const o = JSON.parse(v) as Record<string, unknown>;
+    delete o.mediaWire;
+    delete o.wire;
+    return JSON.stringify(o);
+  } catch {
+    return v;
+  }
+}
+
+function exportValue(col: string, raw: unknown): unknown {
+  const v = typeof raw === 'string' ? withoutMediaKey(col, raw) : raw;
   if (secretColumn(col)) return v === null || v === undefined ? v : '[omitted]';
   if (typeof v === 'string' && /enc:v[12]:|cred:v[12]:/.test(v)) return '[encrypted secret omitted]';
   if (typeof v === 'bigint') return Number(v);

@@ -9,6 +9,7 @@ import { fetchCloudMedia } from './groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from './groups-provider';
 import { safeFetch } from './safe-fetch';
 import { localUploadPath } from './uploads';
+import { fetchStateOf, mediaErrorKind } from './wa-media-wire';
 import { readTranscript, retryableTranscript, transcribeMessage, TRANSCRIBE_MAX_BYTES, type TranscriptDto } from './wa-extras';
 
 async function readCapped(res: Response): Promise<Buffer> {
@@ -38,7 +39,11 @@ async function loadAudio(ws: string, msg: MessageRow): Promise<{ data: Buffer; m
   if (!number || !chat) throw new Error('media_unavailable');
   if (url.startsWith('evo:')) {
     const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
-    const stored = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: url.slice(4) });
+    const stored = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: url.slice(4) }).catch((err) => {
+      // El motivo, para que la transcripción sepa si vale la pena volver a pedirlo sola (lib/wa-extras.ts).
+      const state = number.status !== 'connected' ? 'offline' : fetchStateOf(mediaErrorKind(err, !!ref.wire));
+      throw Object.assign(new Error('media_unavailable'), { code: state === 'gone' ? 'media_gone' : state === 'offline' ? 'not_connected' : 'media_unavailable' });
+    });
     url = stored?.url ?? (await getMessageRow(ws, msg.id))?.media_url ?? '';
     if (!url || url.startsWith('evo:')) throw new Error('media_unavailable');
   }
