@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'DocSend',
-  lastReviewed: '2026-11-03',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'content', label: loc(['Content', 'Contenido', 'Conteúdo']) },
     { id: 'links', label: loc(['Links', 'Links', 'Links']) },
@@ -99,7 +99,13 @@ const parity: ProductParity = {
     row('custom-url', 'links', ['Custom link URL', 'URL propia del link', 'URL própria do link'], 'missing', {
       detail: ['Links are random on purpose; DocSend warns custom ones are easier to guess', 'Los links son al azar a propósito; DocSend avisa que los propios se adivinan más fácil', 'Os links são aleatórios de propósito; o DocSend avisa que os próprios são mais fáceis de adivinhar'],
     }),
-    row('custom-button', 'links', ['Custom button in the viewer', 'Botón propio en el visor', 'Botão próprio no visor'], 'missing'),
+    row('custom-button', 'links', ['Custom button in the viewer', 'Botón propio en el visor', 'Botão próprio no visor'], 'have', {
+      detail: [
+        'Text and a web address per link, on documents and spaces. It opens in a new tab, and clicks show in the numbers per document and per visit',
+        'Texto y dirección web por link, en documentos y espacios. Abre en otra pestaña, y los clics aparecen en los números por documento y por visita',
+        'Texto e endereço web por link, em documentos e espaços. Abre em outra aba, e os cliques aparecem nos números por documento e por visita',
+      ],
+    }),
     row('embed', 'links', ['Embed a link on a website', 'Incrustar un link en un sitio', 'Incorporar um link em um site'], 'missing'),
     row('contact-card', 'links', ['Contact card and contact the owner', 'Tarjeta de contacto y contactar al dueño', 'Cartão de contato e contatar o dono'], 'missing'),
     row('view-as-visitor', 'links', ['See it as a visitor', 'Verlo como visitante', 'Ver como visitante'], 'partial', {

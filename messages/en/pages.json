@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "20 open-source business apps: CRM, docs, links and more",
-      "description": "Twenty open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
+      "description": "Twenty-one open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty apps.",
+      "title1": "Twenty-one apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty apps.",
+      "title1": "Try all twenty-one apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2374,6 +2374,92 @@
         "button": "Open Calls"
       }
     },
+    "fleet": {
+      "meta": {
+        "title": "Fleet: a control room for your coding agents",
+        "description": "See your Claude Code sessions, GitHub pull requests and Vercel deploys from several accounts on one board, and answer your agents from a WhatsApp-style chat."
+      },
+      "hero": {
+        "sub": "Every Claude Code session on your computers, also inside Orca, shows up as a card with its status, its pull request and its deploy. Answer an agent from a chat and it gets your message the next time it stops. Reads GitHub and Vercel, never writes to them."
+      },
+      "featuresTitle": "Everything your agents are doing.",
+      "featuresTitleDim": "On one board, live.",
+      "f1": {
+        "t": "A card per agent session",
+        "d": "Working, waiting for you, done or failed, with the last thing it said, its folder and branch, and the pull request and deploy of that branch. Grouped by project, with filters."
+      },
+      "f2": {
+        "t": "Now, at a glance",
+        "d": "How many agents are working, how many are waiting for you, open pull requests, failing checks and deploys in progress. The board updates live as the hook sends events."
+      },
+      "f3": {
+        "t": "Several GitHub accounts",
+        "d": "Connect accounts and organizations with read-only tokens and pick the repositories. Open pull requests with author, checks, auto-merge and conflicts, recent workflow runs and releases."
+      },
+      "f4": {
+        "t": "Several Vercel teams",
+        "d": "Deploys from every account and team with their state, branch, commit and pull request, and the deploy that serves production in each project."
+      },
+      "f5": {
+        "t": "Talk to your agents",
+        "d": "Each session is a WhatsApp-style conversation with your prompts and its answers. Reply and the Claude Code Stop hook hands your message to the agent, with ticks for queued and delivered."
+      },
+      "f6": {
+        "t": "In Inbox, Lines and on your phone",
+        "d": "An Agents row at the top of Inbox and Lines, and an optional WhatsApp message to yourself when an agent finishes or waits for you. Reply quoting it and the answer goes to that agent."
+      },
+      "steps": {
+        "s1": {
+          "t": "Install the hook",
+          "d": "One command per computer. It keeps your other Claude Code hooks, Orca's included."
+        },
+        "s2": {
+          "t": "Connect GitHub and Vercel",
+          "d": "Read-only tokens, as many accounts and teams as you use."
+        },
+        "s3": {
+          "t": "Watch and answer",
+          "d": "Cards update live, and your replies reach the agent when it stops."
+        }
+      },
+      "compare": {
+        "rival": "GitHub · Vercel",
+        "price": "$0",
+        "per": "to look at each dashboard",
+        "teamLabel": "One person with several accounts",
+        "team": "$0",
+        "zero": "$0",
+        "note": "GitHub and Vercel show their own data one account at a time. Fleet reads them with your tokens and puts them next to your local agents."
+      },
+      "faq": {
+        "f1": {
+          "q": "What does the hook send from my computer?",
+          "a": "The event type, the session id, the folder name and git branch, Orca's ids when present, and your prompt and the agent's last message cut to a few thousand characters with common secrets removed. Never file contents, full paths or the transcript."
+        },
+        "f2": {
+          "q": "Does it work with Orca?",
+          "a": "Yes. Orca runs Claude Code with its own hooks, and Claude Code runs every hook of an event, so both work at once. When the agent runs inside Orca, sessions carry the pane and worktree."
+        },
+        "f3": {
+          "q": "How does my reply reach the agent?",
+          "a": "It waits in a queue. When the agent finishes its turn, the Claude Code Stop hook asks Fleet for queued messages and, if there is one, tells Claude to keep going with it. If you write while it is idle, it gets it with your next prompt."
+        },
+        "f4": {
+          "q": "Can Fleet change my repositories or deploys?",
+          "a": "No. It reads pull requests, checks, workflow runs, releases, projects and deploys with the tokens you give it, and never writes to GitHub or Vercel."
+        },
+        "f5": {
+          "q": "Who sees my agents?",
+          "a": "Only you. Tokens, sessions and conversations belong to your person in the workspace, and the ingest token is stored as a hash."
+        }
+      },
+      "cta": {
+        "title1": "See your agents.",
+        "title2": "Answer them from one chat.",
+        "sub": "Open Fleet, install the hook and connect your GitHub and Vercel accounts.",
+        "button": "Open Fleet"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: open-source questions and dashboards over your data",
@@ -2474,7 +2560,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty apps, same login.",
+    "suiteTitleDim": "Twenty-one apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2572,7 +2658,8 @@
       "forms": "fig. 0 · a form being filled in",
       "send": "fig. 0 · pages being read, with the time on each",
       "inbox": "fig. 0 · a chat and an email in the same list",
-      "calls": "fig. 0 · two voices, transcribed line by line"
+      "calls": "fig. 0 · two voices, transcribed line by line",
+      "fleet": "fig. 0 · agent cards that move from working to done"
     },
     "heroFigHint": "drag to rotate",
     "desktop": {
@@ -3147,6 +3234,30 @@
       "s2": "Pain · 11:50",
       "s3": "Impact · partly",
       "s4": "Critical event · not covered"
+    },
+    "fleet": {
+      "t1": "Working",
+      "t1n": "3",
+      "t2": "Waiting for you",
+      "t2n": "1",
+      "t3": "Open PRs",
+      "t3n": "5",
+      "t4": "Deploying",
+      "t4n": "2",
+      "c1status": "Working",
+      "c1title": "Fix login redirect",
+      "c1branch": "agent/fix-login",
+      "c1foot": "PR #42 · checks running",
+      "c2status": "Waiting for you",
+      "c2title": "Migrate the billing table",
+      "c2branch": "agent/billing",
+      "c2foot": "Needs permission to run a migration",
+      "c3status": "Done",
+      "c3title": "Dark mode for settings",
+      "c3branch": "agent/dark-settings",
+      "c3foot": "PR #41 · deploy ready",
+      "agentMsg": "The migration is ready. Should I run it on the staging database?",
+      "myMsg": "Yes, staging only."
     }
   },
   "status": {
