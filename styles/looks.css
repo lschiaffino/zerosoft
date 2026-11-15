@@ -285,7 +285,7 @@
 /* ---------- Campos ---------- */
 
 /* Foco: el borde en el color de la app y un halo suave del mismo color. */
-:root:is([data-look='classic'], [data-look='liquid']) :is(.input, .select, .textarea):focus {
+:root:is([data-look='classic'], [data-look='liquid']) :is(.input, .select, .textarea, .qm-input, .qm-field :is(input, select, textarea)):focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 :root:is([data-look='classic'], [data-look='liquid']) :is(.input, .select, .textarea)[aria-invalid='true']:focus {

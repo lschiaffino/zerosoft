@@ -141,8 +141,8 @@
 .qm-field input:focus,
 .qm-field select:focus,
 .qm-field textarea:focus {
-  border-color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--ink);
+  border-color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent-ink);
 }
 
 .qm-prefix {
