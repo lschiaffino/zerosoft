@@ -16,6 +16,30 @@ html:has(.gr-inbox), body:has(.gr-inbox) { overscroll-behavior-y: none; }
 .gr-inbox .wa-composer { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 html[data-keyboard='open'] .gr-inbox .wa-composer { padding-bottom: 8px; }
 
+/* ---------- Lo que estorba en el teléfono ---------- */
+
+/* Con el dedo, los botones de ícono del chat miden 44px (la cabecera y la barra del campo). */
+@media (pointer: coarse) {
+  :root { --wa-btn: 44px; --wa-bar-btn: 44px; }
+}
+/* La flecha de cada mensaje es para el mouse: con el dedo está el toque largo. Un toque no la deja pintada
+   (el foco que queda adentro del mensaje la mostraba). */
+@media (hover: none) {
+  .gr-inbox .gr-msg .wa-hover, .gr-inbox .gr-msg:is(:hover, :focus-within) .wa-hover { opacity: 0; pointer-events: none; }
+}
+/* Cabecera del chat de Inbox en el teléfono: atrás, foto, nombre, listo, posponer y ⋯ (seguimiento, mover y notas
+   están en el menú ⋯). Sin esto, los íconos se comían el nombre. */
+@media (max-width: 640px) {
+  .gr-inbox .wa-head .gr-thread-actions .ib-hide-sm { display: none; }
+  .gr-inbox .wa-head .gr-thread-actions { gap: 0; }
+  .gr-inbox .wa-head .wa-head-who { min-width: 0; flex: 1 1 auto; }
+}
+/* La pestaña de comentarios flotaba sobre la columna de la hora y los no leídos de la lista y sobre los mensajes.
+   En el chat del teléfono no se muestra (como en WhatsApp, nada flota sobre la conversación). */
+@media (max-width: 760px) {
+  body:has(.gr-inbox) .fl-root:not(:focus-within), body:has(.gr-inbox) #zs-chat-btn { visibility: hidden; pointer-events: none; }
+}
+
 /* Teléfono con el teclado abierto: el chat usa todo lo que queda a la vista, como WhatsApp (sin la banda de la
    app ni el aviso de "esperando respuesta"; vuelven al cerrar el teclado). */
 @media (max-width: 720px) {
