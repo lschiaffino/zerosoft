@@ -64,7 +64,8 @@ async function checkRetry(page: Page, thread: Locator, app: string, release: () 
   expect((await retry.locator('.gr-bubble').boundingBox())!.width).toBeGreaterThanOrEqual(280);
   // El gateway vuelve a responder: "Bajar de nuevo" la trae.
   await release();
-  await button.click();
+  // Si la pantalla se refrescó sola en el medio, la foto ya volvió a pedirse y no hay botón que tocar.
+  await button.click({ timeout: 5000 }).catch(() => null);
   await expect(retry.locator('.wa-image img.is-loaded')).toBeVisible({ timeout: 30_000 });
   await expect(retry.getByTestId('wa-media-unavailable')).toHaveCount(0);
 

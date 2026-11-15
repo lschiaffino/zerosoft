@@ -393,7 +393,12 @@ export function ImageView({
   const ref = useRef<HTMLImageElement>(null);
   // Una imagen que ya estaba en caché termina de cargar antes de que React escuche onLoad.
   useEffect(() => {
-    if (ref.current?.complete && ref.current.naturalWidth > 0) setLoaded(true);
+    const el = ref.current;
+    if (!el?.complete) return;
+    if (el.naturalWidth > 0) setLoaded(true);
+    // Lo mismo si falló antes (la página llegó dibujada del servidor y el error pasó antes de que React escuchara):
+    // sin esto la foto rota quedaba en blanco, sin el aviso.
+    else if (el.currentSrc || el.getAttribute('src')) setFailed(true);
   }, [src]);
   const t = useTranslations('groups');
   if (failed) {
