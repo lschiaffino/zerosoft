@@ -1519,6 +1519,8 @@ function mediaDtoFor(row: MessageRow, stored: MediaInfo | undefined): MessageMed
  */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
+  // Públicos por diseño (los datos de ejemplo: una imagen inline o un archivo estático de public/): tal cual.
+  if (/^data:image\/(png|jpeg|gif|webp|svg\+xml);/.test(row.media_url) || /^\/groups-sample\/[\w.-]+$/.test(row.media_url)) return row.media_url;
   return `/api/groups/media/${row.id}`;
 }
 

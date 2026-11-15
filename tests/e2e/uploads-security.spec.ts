@@ -28,9 +28,9 @@ test('Uploads: .xht se rechaza; lo privado no sale por /uploads ni sin acceso', 
   });
   expect(up.status()).toBe(201);
   const { url } = (await up.json()) as { url: string };
-  expect(url).toMatch(/^\/uploads\/docs\//);
+  expect(url).toMatch(/^\/api\/files\//);
 
-  // La URL del storage no sirve nada: Docs solo sale por /api/docs/files.
+  // La URL del archivo no sirve nada (es 'internal'): Docs solo sale por /api/docs/files.
   expect((await request.get(url)).status()).toBe(404);
 
   await request.patch(`/api/docs/pages/${doc.id}`, {
