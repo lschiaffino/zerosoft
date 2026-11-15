@@ -174,6 +174,10 @@ describe('Lines: nota de voz programada', () => {
     expect(voiceOf({ url: media.url, mimetype: 'audio/webm', filename: 'a.weba' })).toBeNull();
     expect(voiceOf(null)).toBeNull();
     expect(() => voiceOf({ ...media, duration: 0.2 })).toThrow(/voice_too_short/);
+    // Por la API pública puede venir sin duración: queda en 0 (no se sabe).
+    expect(voiceOf({ url: media.url, mimetype: 'audio/ogg', filename: 'a.ogg', kind: 'voice' })).toEqual({ duration: 0 });
+    // Otro tipo de archivo (kind de la API) no es una nota de voz.
+    expect(voiceOf({ url: media.url, mimetype: 'application/pdf', filename: 'a.pdf', kind: 'document' })).toBeNull();
     expect(() => voiceOf({ ...media, mimetype: 'image/png' })).toThrow(/invalid_media/);
     expect(() => voiceOf(media, true)).toThrow(/invalid_media/);
   });

@@ -112,7 +112,7 @@ export interface CreateBroadcastInput {
   name?: string;
   body: string;
   /** `kind: 'voice'` + `duration` (segundos): nota de voz grabada; sale como nota de voz, sin texto. */
-  media?: { url: string; mimetype: string; filename: string; kind?: 'voice'; duration?: number } | null;
+  media?: { url: string; mimetype: string; filename: string; kind?: string; duration?: number } | null;
   chatIds: string[];
   scheduledAt?: string | null;
   perMinute?: number;
@@ -207,15 +207,16 @@ export const MIN_VOICE_SECONDS = 1;
 
 /**
  * Si la media de un envío es una nota de voz, sus segundos (validados): un
- * audio de al menos un segundo, y nunca junto a una encuesta. null si es un
- * archivo común.
+ * audio de al menos un segundo (0 si no se sabe cuánto dura), y nunca junto a
+ * una encuesta. null si es un archivo común.
  */
 export function voiceOf(media: CreateBroadcastInput['media'], poll = false): { duration: number } | null {
   if (!media || media.kind !== 'voice') return null;
   if (poll || !String(media.mimetype ?? '').toLowerCase().startsWith('audio/')) throw new GroupsError('invalid_media');
-  const duration = Math.round(Number(media.duration) || 0);
-  if (!(duration >= MIN_VOICE_SECONDS) || duration > 86_400) throw new GroupsError('voice_too_short');
-  return { duration };
+  // Sin duración (la API pública puede no mandarla) queda en 0, "no se sabe"; una que vino y no llega al segundo, no.
+  const raw = Number(media.duration) || 0;
+  if ((raw > 0 && raw < MIN_VOICE_SECONDS) || raw > 86_400) throw new GroupsError('voice_too_short');
+  return { duration: Math.round(raw) };
 }
 
 /**
