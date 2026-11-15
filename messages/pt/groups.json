@@ -1890,7 +1890,46 @@
       "notSetupTitle": "A pesquisa de GIFs não está configurada",
       "notSetupBody": "Um administrador adiciona uma chave do GIPHY ou do Tenor no servidor (GIPHY_API_KEY ou TENOR_API_KEY). Emojis e figurinhas funcionam normalmente."
     },
-    "openGif": "Abrir GIF"
+    "openGif": "Abrir GIF",
+    "contactSheet": {
+      "title": "Dados do contato",
+      "close": "Fechar",
+      "back": "Voltar",
+      "viewPhoto": "Ver foto",
+      "you": "Você",
+      "admin": "Admin. do grupo",
+      "message": "Mensagem",
+      "retry": "Tentar de novo",
+      "about": "Recado",
+      "shared": "Mídia, links e docs",
+      "starred": "Mensagens favoritas",
+      "mute": "Silenciar notificações",
+      "commonGroups": "{n, plural, one {# grupo em comum} other {# grupos em comum}}",
+      "group": "Grupo",
+      "blockTitle": "Bloquear {name}?",
+      "blockBody": "Contatos bloqueados não podem mais ligar para você nem mandar mensagens. {name} não é avisado.",
+      "cancel": "Cancelar",
+      "block": "Bloquear",
+      "blockName": "Bloquear {name}",
+      "unblockName": "Desbloquear {name}",
+      "tabs": {
+        "media": "Mídia",
+        "docs": "Docs",
+        "links": "Links"
+      },
+      "empty": {
+        "media": "Nenhuma foto ou vídeo na sua conversa com essa pessoa",
+        "docs": "Nenhum documento na sua conversa com essa pessoa",
+        "links": "Nenhum link na sua conversa com essa pessoa",
+        "starred": "Nenhuma mensagem favorita"
+      },
+      "document": "Documento",
+      "photo": "Foto",
+      "video": "Vídeo",
+      "loadFailed": "Não foi possível carregar este contato",
+      "openFailed": "Não foi possível abrir a conversa",
+      "openFor": "Dados do contato de {name}"
+    }
   },
   "swipe": {
     "read": "Lida",

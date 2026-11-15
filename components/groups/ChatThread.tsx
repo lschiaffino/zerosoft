@@ -17,6 +17,7 @@ import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/w
 import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
+import { useLinesPersonSheet } from './person-sheet';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
@@ -340,6 +341,9 @@ export default function ChatThread(props: ThreadProps) {
   const outImage = useCallback((id: string | null | undefined) => (id && imageOf.get(id)) || imageOf.get(props.me) || undefined, [imageOf, props.me]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
+  // "Info del contacto" de alguien del grupo (su foto o su nombre en un mensaje): la ficha de WhatsApp.
+  const tsheet = useTranslations('groups.wa.contactSheet');
+  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -1599,8 +1603,19 @@ export default function ChatThread(props: ThreadProps) {
       >
         {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
-          <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={inName(m)} kind="dm" size={26} src={memberPics.get(m.senderPhone) || undefined} seed={m.senderPhone || m.senderName} />}
+          <span className="wa-sender-avatar">
+            {!cont && (
+              <button
+                type="button"
+                className="wa-person"
+                tabIndex={-1}
+                aria-label={tsheet('openFor', { name: inName(m) })}
+                onClick={() => personSheet.open({ messageId: m.id }, inName(m), memberPics.get(m.senderPhone))}
+                data-testid="wa-sender-avatar"
+              >
+                <Avatar name={inName(m)} kind="dm" size={26} src={memberPics.get(m.senderPhone) || undefined} seed={m.senderPhone || m.senderName} />
+              </button>
+            )}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -1612,7 +1627,18 @@ export default function ChatThread(props: ThreadProps) {
                 </>
               ) : (
                 <>
-                  <span className="wa-author-name">{author}</span>
+                  {m.direction === 'in' && chat.kind === 'group' && m.senderPhone ? (
+                    <button
+                      type="button"
+                      className="wa-person wa-author-name"
+                      onClick={() => personSheet.open({ messageId: m.id }, author, memberPics.get(m.senderPhone))}
+                      data-testid="wa-sender-name"
+                    >
+                      {author}
+                    </button>
+                  ) : (
+                    <span className="wa-author-name">{author}</span>
+                  )}
                   {m.direction === 'in' && chat.kind === 'group' && m.senderName && m.senderPhone && <span className="wa-phone">+{m.senderPhone}</span>}
                 </>
               )}
@@ -2357,6 +2383,8 @@ export default function ChatThread(props: ThreadProps) {
           compact
         />
       </aside>
+
+      {personSheet.sheet}
 
       <TaskModal
         open={!!taskFor}

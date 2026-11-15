@@ -293,9 +293,9 @@ const parity: ProductParity = {
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
-        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. Leaving or editing a group is done on the phone',
-        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. Salir o editar un grupo se hace en el teléfono',
-        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. Sair ou editar um grupo é feito no celular',
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. Salir o editar un grupo se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. Sair ou editar um grupo é feito no celular',
       ],
     }),
     row('wa-ai-summary', 'whatsapp', ['AI summary of a chat', 'Resumen con IA de un chat', 'Resumo com IA de uma conversa'], 'better', {
