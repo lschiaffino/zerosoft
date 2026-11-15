@@ -1934,7 +1934,9 @@
       "loadFailed": "Não foi possível carregar este contato",
       "openFailed": "Não foi possível abrir a conversa",
       "openFor": "Dados do contato de {name}"
-    }
+    },
+    "replyPrivately": "Responder em particular",
+    "messageName": "Enviar mensagem para {name}"
   },
   "swipe": {
     "read": "Lida",

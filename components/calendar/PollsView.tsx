@@ -69,7 +69,7 @@ export function PollsList({ items, pollBase, openNew }: { items: PollListView[];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useKeyShortcut('c', () => setOpen(true), !open);
+  useKeyShortcut('c', () => navigator.onLine && setOpen(true), !open);
   const valid = times.map((v) => new Date(v)).filter((d) => !Number.isNaN(d.getTime()) && d.getTime() > Date.now());
 
   async function submit() {

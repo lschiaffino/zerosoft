@@ -138,6 +138,7 @@ export function MessageMenu({
           key={it.key}
           type="button"
           role="menuitem"
+          data-testid={`menu-${it.key}`}
           className={`gr-menu-item${it.danger ? ' gr-danger' : ''}${it.divider ? ' has-divider' : ''}`}
           onClick={() => {
             setOpen(false);

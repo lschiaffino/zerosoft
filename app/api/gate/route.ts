@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { limitByIp } from '@/lib/rate-limit';
+import { isRateLimited, limitByIp, rateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { gateCookieName, gateToken, getLinkForHost, verifyPassword } from '@/lib/links';
 
@@ -26,13 +26,18 @@ export async function POST(req: NextRequest) {
   if (!link || !link.password_hash) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
+  // Tope por link para todas las IPs juntas: muchas IPs en paralelo no adivinan la contraseña.
+  const failKey = `gate-fail:${link.id}`;
+  if (await isRateLimited(failKey, 50, 3600)) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   if (!(await verifyPassword(password, link.password_hash))) {
+    await rateLimit(failKey, 50, 3600);
     return NextResponse.json({ error: 'wrong_password' }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true, redirect: `/${slug}` });
   res.cookies.set(gateCookieName(slug), gateToken(slug, link.password_hash), {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 24 * 7, // 7 days

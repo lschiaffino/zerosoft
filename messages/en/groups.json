@@ -1934,7 +1934,9 @@
       "loadFailed": "Could not load this contact",
       "openFailed": "Could not open the chat",
       "openFor": "Contact info of {name}"
-    }
+    },
+    "replyPrivately": "Reply privately",
+    "messageName": "Message {name}"
   },
   "swipe": {
     "read": "Read",
