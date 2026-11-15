@@ -234,7 +234,7 @@ export function MediaUnavailable({ kind = 'image', width, height, thumbnail }: {
   const t = useTranslations('groups');
   const label = t('thread.fileUnavailable');
   return (
-    <span className={`wa-media-ph is-${kind}`} style={mediaBoxStyle(placeholderBox(width, height))} role="img" aria-label={label} data-testid="wa-media-unavailable">
+    <span className={`wa-media-ph is-${kind}`} style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))} role="img" aria-label={label} data-testid="wa-media-unavailable">
       {thumbnail && (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="wa-thumb" src={thumbnail} alt="" aria-hidden="true" />
