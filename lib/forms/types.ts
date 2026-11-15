@@ -103,6 +103,8 @@ export const questionSchema = z.object({
   /** Fecha: rango permitido (YYYY-MM-DD). */
   minDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   maxDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Opciones en orden distinto para cada persona que responde. */
+  randomize: z.boolean().optional(),
   /** Texto del botón (enunciado). */
   button: text(60).optional(),
 });
