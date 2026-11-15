@@ -10,6 +10,7 @@ import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { readHiddenInWhatsapp } from '../wa-privacy';
+import { publicLink } from '../wa-link-thumb';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -444,7 +445,7 @@ export async function addMessageToChat(
   account: Pick<AccountRow, 'id' | 'owner_id' | 'kind'>,
   input: ThreadInput,
   m: NewMessage,
-): Promise<{ thread: ThreadRow; added: boolean }> {
+): Promise<{ thread: ThreadRow; added: boolean; id: string }> {
   const sentAt = validIso(m.sentAt) ?? nowIso();
   const id = newId('ibm');
   const external = input.externalId.slice(0, 300);
@@ -462,7 +463,7 @@ export async function addMessageToChat(
   const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);
   const added = res[2].changes > 0;
   if (added) noteNewest(thread, m, sentAt);
-  return { thread, added };
+  return { thread, added, id };
 }
 
 function validIso(s: string | undefined | null): string | null {
@@ -820,6 +821,12 @@ interface MessageRow {
   starred_at?: string | null;
 }
 
+/** Meta para el navegador: la imagen grande del link va por la ruta del mensaje, sin la clave ni los bytes. */
+function publicMeta(meta: WaMessageMeta | null, id: string): WaMessageMeta | null {
+  if (!meta?.link) return meta;
+  return { ...meta, link: publicLink(meta.link, `/api/inbox/media/${id}?link=1`) };
+}
+
 function parseJson<T>(raw: string | undefined | null): T | null {
   if (!raw) return null;
   try {
@@ -836,7 +843,7 @@ function messageDto(r: MessageRow, reply: MessageQuote | null = null): MessageDt
     reactions: Array.isArray(reactions) ? reactions.filter((x) => x && typeof x.emoji === 'string' && x.emoji) : [],
     forwarded: r.forwarded === 1,
     starred: !!r.starred_at,
-    meta: parseJson<WaMessageMeta>(r.meta),
+    meta: publicMeta(parseJson<WaMessageMeta>(r.meta), r.id),
     id: r.id,
     fromMe: r.from_me === 1,
     senderName: r.sender_name,

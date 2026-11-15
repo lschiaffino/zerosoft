@@ -28,6 +28,7 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
+import { linkFromMeta } from './wa/link-preview-data';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
@@ -1840,7 +1841,7 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} given={linkFromMeta(m.meta)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (

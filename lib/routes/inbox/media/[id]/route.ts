@@ -3,6 +3,7 @@ import { getAccount, getMessageRow, getThreadRow } from '@/lib/inbox/core';
 import { withOwner } from '@/lib/inbox/http';
 import { InboxError } from '@/lib/inbox/types';
 import { fetchWhatsappMedia } from '@/lib/inbox/whatsapp';
+import { linkHqBytes, type StoredLink } from '@/lib/wa-link-thumb';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,20 @@ export async function GET(req: Request, ctx: Ctx) {
   const thumbOnly = new URL(req.url).searchParams.get('thumb') === '1';
   return withOwner(async (owner) => {
     const msg = await getMessageRow(owner, id);
+    // ?link=1: la imagen grande de la vista previa del link (la bajó el servidor al llegar el mensaje).
+    if (new URL(req.url).searchParams.get('link') === '1') {
+      let link: StoredLink | undefined;
+      try {
+        link = msg.meta ? ((JSON.parse(msg.meta) as { link?: StoredLink }).link ?? undefined) : undefined;
+      } catch {
+        link = undefined;
+      }
+      const img = linkHqBytes(link);
+      if (!img) throw new InboxError('not_found', 404);
+      return new NextResponse(new Uint8Array(img.bytes), {
+        headers: { 'content-type': img.type, 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox" },
+      });
+    }
     // ?thumb=1: la miniatura que mandó WhatsApp (sin bajar el archivo), para la lista y lo compartido.
     if (thumbOnly) {
       let thumb = '';
