@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-10',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -161,9 +161,9 @@ const parity: ProductParity = {
     row('watch-page', 'sharing', ['Video page with player and transcript', 'Página del video con reproductor y transcripción', 'Página do vídeo com player e transcrição'], 'have', {
       weight: 2,
       detail: [
-        '/v/<id>: player with speed, captions, chapters and keyboard shortcuts, summary, transcript and comments',
-        '/v/<id>: reproductor con velocidad, subtítulos, capítulos y atajos de teclado, resumen, transcripción y comentarios',
-        '/v/<id>: player com velocidade, legendas, capítulos e atalhos de teclado, resumo, transcrição e comentários',
+        '/v/<id>: player with speed, captions, chapters and keyboard shortcuts, summary, transcript and comments. Hovering or dragging on the timeline shows a frame preview with the time and chapter. Jumps are immediate once the playback copy (index first, keyframe every 2 s) is ready, which happens after the upload',
+        '/v/<id>: reproductor con velocidad, subtítulos, capítulos y atajos de teclado, resumen, transcripción y comentarios. Al pasar o arrastrar por la línea de tiempo se ve un cuadro de vista previa con el tiempo y el capítulo. Saltar es inmediato cuando está la copia para reproducir (índice al principio, keyframe cada 2 s), que se arma después de subir',
+        '/v/<id>: player com velocidade, legendas, capítulos e atalhos de teclado, resumo, transcrição e comentários. Ao passar ou arrastar pela linha do tempo aparece um quadro de prévia com o tempo e o capítulo. Pular é imediato quando a cópia para reprodução (índice no começo, keyframe a cada 2 s) está pronta, o que acontece depois do envio',
       ],
     }),
     row('embed-player', 'sharing', ['Embed the player in other sites', 'Insertar el reproductor en otros sitios', 'Incorporar o player em outros sites'], 'have', {

@@ -89,7 +89,7 @@ export async function issueBlobToken(
 }
 
 /** Miniatura o GIF: a Blob (con el acceso de Rec y path al azar) o al disco local. */
-export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 'gif', type: string, body: Buffer): Promise<string> {
+export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 'gif' | 'sprite', type: string, body: Buffer): Promise<string> {
   const ext = type === 'image/gif' ? 'gif' : type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
   if (blobUploadEnabled()) {
     const { put } = await import('@vercel/blob');

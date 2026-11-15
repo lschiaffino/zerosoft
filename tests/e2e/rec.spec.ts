@@ -689,6 +689,14 @@ test('reproducir: el reproductor pasa al MP4 con índice al principio y adelanta
       }),
   );
   expect(seeked).toBe(true);
+  // Vista previa al pasar por la línea de tiempo: el cuadro de la tira y el tiempo; se va al salir.
+  const timeline = page.getByTestId('rec-timeline');
+  const box = (await timeline.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+  await expect(page.getByTestId('rec-scrub')).toBeVisible();
+  await expect(page.getByTestId('rec-scrub-frame')).toHaveCSS('background-image', /kind=sprite/);
+  await page.mouse.move(box.x + box.width / 2, box.y - 200);
+  await expect(page.getByTestId('rec-scrub')).toHaveCount(0);
   // Sin versión en la URL sigue el original: un reproductor a mitad de camino no mezcla dos archivos.
   const orig = await page.request.get(`/api/rec/videos/${video.id}/file?kind=play`);
   expect(orig.headers()['content-type']).toBe('video/webm');

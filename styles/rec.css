@@ -159,6 +159,35 @@ section.rec-edit-block { padding-bottom: 20px; }
 }
 .rec-player-big:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
 .rec-player-cta { position: absolute; right: 12px; top: 12px; max-width: calc(100% - 24px); }
+/* Vista previa al pasar por la línea de tiempo: cuadro de la tira, capítulo y tiempo, sobre el borde de abajo del video. */
+.rec-scrub {
+  position: absolute;
+  bottom: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.rec-scrub-frame {
+  display: block;
+  background-color: #000000;
+  background-repeat: no-repeat;
+  border: 2px solid #ffffff;
+  border-radius: var(--radius-1);
+  box-sizing: content-box;
+}
+.rec-scrub-chapter {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+.rec-scrub-time { padding: 1px 6px; font-size: 0.75rem; color: #ffffff; background: rgb(0 0 0 / 0.72); border-radius: var(--radius-1); }
 .rec-player-bar {
   display: flex;
   align-items: center;

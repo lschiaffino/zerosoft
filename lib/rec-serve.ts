@@ -4,7 +4,7 @@ import { assetVisible, videoFileFor, type RecVideoRow } from './rec';
 import type { serveRecFile as ServeFn } from './rec-upload';
 
 /**
- * Archivo pedido de un video ya autorizado: ?kind=video|play|thumb|gif|captions
+ * Archivo pedido de un video ya autorizado: ?kind=video|play|thumb|gif|captions|sprite
  * y ?download=1 (solo si el video deja descargar). `play` es para el
  * reproductor: el MP4 con índice al principio si ya está (adelantar es
  * inmediato), si no el original (y se lanza el MP4); `video` es siempre el
@@ -20,7 +20,7 @@ export async function serveRecKind(
 ): Promise<NextResponse> {
   const sp = req.nextUrl.searchParams;
   const kind = sp.get('kind') ?? 'video';
-  if (!['video', 'play', 'thumb', 'gif', 'captions'].includes(kind)) return NextResponse.json({ error: 'invalid_kind' }, { status: 400 });
+  if (!['video', 'play', 'thumb', 'gif', 'captions', 'sprite'].includes(kind)) return NextResponse.json({ error: 'invalid_kind' }, { status: 400 });
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (kind === 'captions') {
     let segments: RecSegment[] = [];
@@ -33,6 +33,13 @@ export async function serveRecKind(
     return new NextResponse(segmentsToVtt(segments), {
       headers: { 'content-type': 'text/vtt; charset=utf-8', 'cache-control': 'private, max-age=60', 'x-content-type-options': 'nosniff' },
     });
+  }
+  if (kind === 'sprite') {
+    // Tira de miniaturas de la línea de tiempo: de la versión que ven los demás (ya recortada), así que no muestra lo cortado.
+    const { currentSprite } = await import('./rec-mp4');
+    const sprite = currentSprite(v);
+    if (!sprite) return notFound();
+    return opts.serveRecFile(req, sprite.url, 'image/jpeg', { cache: sp.get('v') === sprite.key ? 'private, max-age=31536000, immutable' : undefined });
   }
   if (kind === 'thumb' || kind === 'gif') {
     const url = kind === 'thumb' ? v.thumb_url : v.gif_url;

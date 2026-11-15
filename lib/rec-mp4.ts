@@ -26,7 +26,7 @@ import os from 'os';
 import path from 'path';
 import { getDb } from './db';
 import { dropRecFiles, nowDb, videoFileFor, type RecVideoRow } from './rec';
-import { isTrimmed } from './rec-schema';
+import { isTrimmed, parseSpriteMeta, spritePlan, trimmedDuration, type RecSpriteMeta } from './rec-schema';
 
 /** Un armado que no avisó en este tiempo se puede volver a lanzar. */
 const STALE_MIN = 45;
@@ -38,7 +38,8 @@ const SANDBOX_ROOT = '/vercel/sandbox/mp4';
 type Row = Pick<
   RecVideoRow,
   'id' | 'workspace_id' | 'url' | 'content_type' | 'trim_start' | 'trim_end' | 'trimmed_url' | 'trimmed_for' | 'mp4_url' | 'mp4_size' | 'mp4_for' | 'mp4_status' | 'mp4_started_at'
->;
+> &
+  Partial<Pick<RecVideoRow, 'duration_sec' | 'sprite_url' | 'sprite_meta' | 'mp4_job'>>;
 
 /** De qué versión es el MP4: el archivo que ven los demás y el recorte que hay que aplicarle. */
 export function mp4Plan(v: Row): { source: string; key: string; trim: { start: number; end: number | null } | null } | null {
@@ -97,6 +98,48 @@ export function ffmpegArgs(input: string, output: string, trim: { start: number;
     '+faststart',
     output,
   ];
+}
+
+/**
+ * Tira de miniaturas desde el MP4 ya armado: solo los keyframes (uno cada 2 s, sin decodificar el
+ * resto), un cuadro cada `every` s, de 160×90 con bandas si el video no es 16:9, en una grilla.
+ */
+export function spriteArgs(input: string, output: string, m: RecSpriteMeta): string[] {
+  const rows = Math.ceil(m.count / m.cols);
+  return [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-protocol_whitelist',
+    'file,pipe',
+    '-skip_frame',
+    'nokey',
+    '-i',
+    input,
+    '-an',
+    '-vf',
+    `fps=1/${m.every},scale=${m.w}:${m.h}:force_original_aspect_ratio=decrease,pad=${m.w}:${m.h}:(ow-iw)/2:(oh-ih)/2,tile=${m.cols}x${rows}`,
+    '-frames:v',
+    '1',
+    '-q:v',
+    '5',
+    output,
+  ];
+}
+
+/** Tira de esta versión: cada cuántos segundos y cuántos cuadros, según lo que dura lo que se ve. */
+export function spriteFor(v: Row): RecSpriteMeta {
+  const d = Number(v.duration_sec) || 0;
+  return spritePlan(isTrimmed(v.trim_start, v.trim_end) ? trimmedDuration(d, v.trim_start, v.trim_end) : d);
+}
+
+/** Tira de la versión vigente (la misma del MP4), o null. */
+export function currentSprite(v: Row): { url: string; meta: RecSpriteMeta; key: string } | null {
+  const plan = mp4Plan(v);
+  const meta = parseSpriteMeta(v.sprite_meta);
+  if (!plan || !v.sprite_url || !meta || v.mp4_for !== plan.key || !v.mp4_url) return null;
+  return { url: v.sprite_url, meta, key: plan.key };
 }
 
 export function mp4Filename(title: string): string {
@@ -187,18 +230,19 @@ async function failJob(id: string, key: string, err: unknown): Promise<void> {
   await getDb().prepare("UPDATE rec_videos SET mp4_status = 'failed' WHERE id = ? AND mp4_for = ? AND mp4_status = 'processing'").run(id, key);
 }
 
-/** Guarda el MP4 si sigue siendo de la versión vigente; si no (otro recorte mientras tanto), lo borra. */
-export async function finishJob(id: string, key: string, url: string, size: number): Promise<boolean> {
+/** Guarda el MP4 (y la tira de miniaturas) si sigue siendo de la versión vigente; si no (otro recorte mientras tanto), lo borra. */
+export async function finishJob(id: string, key: string, url: string, size: number, sprite: { url: string; meta: RecSpriteMeta } | null = null): Promise<boolean> {
   const db = getDb();
-  const prev = (await db.prepare('SELECT mp4_url FROM rec_videos WHERE id = ?').get(id)) as { mp4_url: string | null } | undefined;
+  const prev = (await db.prepare('SELECT mp4_url, sprite_url FROM rec_videos WHERE id = ?').get(id)) as { mp4_url: string | null; sprite_url: string | null } | undefined;
   const res = await db
-    .prepare("UPDATE rec_videos SET mp4_url = ?, mp4_size = ?, mp4_status = 'none', mp4_job = NULL WHERE id = ? AND mp4_for = ? AND mp4_status = 'processing'")
-    .run(url, Math.max(0, Math.round(size)), id, key);
+    .prepare("UPDATE rec_videos SET mp4_url = ?, mp4_size = ?, sprite_url = ?, sprite_meta = ?, mp4_status = 'none', mp4_job = NULL WHERE id = ? AND mp4_for = ? AND mp4_status = 'processing'")
+    .run(url, Math.max(0, Math.round(size)), sprite?.url ?? null, sprite ? JSON.stringify(sprite.meta) : null, id, key);
   if (!res.changes) {
-    await dropRecFiles([url]).catch(() => undefined);
+    await dropRecFiles([url, ...(sprite ? [sprite.url] : [])]).catch(() => undefined);
     return false;
   }
-  if (prev?.mp4_url && prev.mp4_url !== url) await dropRecFiles([prev.mp4_url]).catch(() => undefined);
+  const old = [prev?.mp4_url, prev?.sprite_url].filter((u): u is string => !!u && u !== url && u !== sprite?.url);
+  if (old.length) await dropRecFiles(old).catch(() => undefined);
   return true;
 }
 
@@ -253,7 +297,18 @@ async function runLocal(id: string, key: string): Promise<void> {
     const out = path.join(dir, 'out.mp4');
     await run(ffmpeg, ffmpegArgs(input, out, plan.trim, v.content_type));
     const size = (await stat(out)).size;
-    await finishJob(id, key, await storeMp4(v, await readFile(out)), size);
+    // La tira de miniaturas no es imprescindible: si falla, el MP4 se guarda igual.
+    const meta = spriteFor(v);
+    const spriteFile = path.join(dir, 'sprite.jpg');
+    let sprite: { url: string; meta: RecSpriteMeta } | null = null;
+    try {
+      await run(ffmpeg, spriteArgs(out, spriteFile, meta));
+      const { saveRecAsset } = await import('./rec-upload');
+      sprite = { url: await saveRecAsset(v.workspace_id, v.id, 'sprite', 'image/jpeg', await readFile(spriteFile)), meta };
+    } catch (err) {
+      console.error('[rec-mp4] sprite', err instanceof Error ? err.message.slice(0, 200) : err);
+    }
+    await finishJob(id, key, await storeMp4(v, await readFile(out)), size, sprite);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => undefined);
   }
@@ -307,7 +362,17 @@ async function main() {
   const { put } = require('@vercel/blob/client');
   const size = fs.statSync('${SANDBOX_ROOT}/out.mp4').size;
   const blob = await put(job.pathname, fs.createReadStream('${SANDBOX_ROOT}/out.mp4'), { access: job.access, token: job.token, contentType: 'video/mp4', multipart: true });
-  await fetch(job.done, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: blob.url, size }) });
+  // Tira de miniaturas (si falla, el MP4 sirve igual).
+  let sprite = null;
+  if (job.sprite) {
+    const sargs = job.sprite.args.map((a) => a === '__IN__' ? '${SANDBOX_ROOT}/out.mp4' : a === '__OUT__' ? '${SANDBOX_ROOT}/sprite.jpg' : a);
+    const sr = spawnSync(ff, sargs, { stdio: ['ignore', 'ignore', 'pipe'] });
+    if (sr.status === 0) {
+      const sb = await put(job.sprite.pathname, fs.readFileSync('${SANDBOX_ROOT}/sprite.jpg'), { access: job.access, token: job.sprite.token, contentType: 'image/jpeg' }).catch(() => null);
+      if (sb) sprite = sb.url;
+    }
+  }
+  await fetch(job.done, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: blob.url, size, sprite }) });
 }
 main().catch(async (e) => {
   await fetch(job.done, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ error: String(e && e.message || e).slice(0, 300) }) }).catch(() => {});
@@ -364,6 +429,13 @@ async function runSandbox(id: string, key: string): Promise<void> {
     validUntil: Date.now() + 2 * 3600_000,
     addRandomSuffix: false,
   });
+  const spritePathname = `rec/${v.workspace_id}/${v.id}/${randomBytes(9).toString('base64url')}-sprite.jpg`;
+  const spriteToken = await generateClientTokenFromReadWriteToken({
+    pathname: spritePathname,
+    allowedContentTypes: ['image/jpeg'],
+    validUntil: Date.now() + 2 * 3600_000,
+    addRandomSuffix: false,
+  });
   let snapshotId = await sandboxSnapshot(Sandbox);
   const create = (sid: string) =>
     Sandbox.create({
@@ -389,6 +461,7 @@ async function runSandbox(id: string, key: string): Promise<void> {
     token,
     access: recBlobAccess(),
     args: ffmpegArgs('__IN__', '__OUT__', plan.trim, v.content_type),
+    sprite: { pathname: spritePathname, token: spriteToken, args: spriteArgs('__IN__', '__OUT__', spriteFor(v)) },
   };
   await sbx.writeFiles([
     { path: `${SANDBOX_ROOT}/run.cjs`, content: Buffer.from(sandboxRunner()) },
@@ -399,12 +472,16 @@ async function runSandbox(id: string, key: string): Promise<void> {
 }
 
 /** Aviso de la microVM: guarda el MP4 (o marca el fallo) y la apaga. */
-export async function sandboxDone(id: string, key: string, body: { url?: string; size?: number; error?: string }): Promise<void> {
-  const row = (await getDb().prepare('SELECT workspace_id, mp4_job FROM rec_videos WHERE id = ?').get(id)) as { workspace_id: string; mp4_job: string | null } | undefined;
+export async function sandboxDone(id: string, key: string, body: { url?: string; size?: number; sprite?: string | null; error?: string }): Promise<void> {
+  const row = await sourceRow(id);
   if (!row) return;
   const { isOwnRecUrl } = await import('./rec-upload');
-  if (body.url && isOwnRecUrl(body.url, row.workspace_id, id) && /-mp4\.mp4$/.test(body.url)) await finishJob(id, key, body.url, Number(body.size) || 0);
-  else await failJob(id, key, new Error(body.error || 'sandbox_failed'));
+  const sprite = body.sprite && isOwnRecUrl(body.sprite, row.workspace_id, id) && /-sprite\.jpg$/.test(body.sprite) ? { url: body.sprite, meta: spriteFor(row) } : null;
+  if (body.url && isOwnRecUrl(body.url, row.workspace_id, id) && /-mp4\.mp4$/.test(body.url)) await finishJob(id, key, body.url, Number(body.size) || 0, sprite);
+  else {
+    await failJob(id, key, new Error(body.error || 'sandbox_failed'));
+    if (sprite) await dropRecFiles([sprite.url]).catch(() => undefined);
+  }
   if (row.mp4_job) {
     try {
       const { Sandbox } = await import('@vercel/sandbox');
