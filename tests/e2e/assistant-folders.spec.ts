@@ -152,10 +152,10 @@ test('pegar un JSON de carpetas: plan con tabla, confirmar con el botón y verla
 
   // Inbox se pone al día solo: la carpeta y su subcarpeta en el lateral, el chat adentro.
   const side = page.locator('#side-branch');
-  await expect(side.getByRole('link', { name: clients, exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(side.getByRole('link', { name: new RegExp(`^${clients}\\b`) })).toBeVisible({ timeout: 20_000 });
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
-  await side.getByRole('link', { name: vip, exact: true }).click();
+  await side.getByRole('link', { name: new RegExp(`^${vip}\\b`) }).click();
   await expect(page.getByRole('heading', { level: 1, name: vip })).toBeVisible();
   await expect(page.locator('.ib-item', { hasText: beto.name })).toBeVisible();
   const rows = await sql(
@@ -255,7 +255,7 @@ test('adjuntar inboxzero.json y pedir las carpetas de Inbox y Lines: un bloque d
 
   // Inbox: las carpetas en el lateral sin recargar, la subcarpeta con su chat.
   const side = page.locator('#side-branch');
-  await expect(side.getByRole('link', { name: `Clientes ${tag}`, exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(side.getByRole('link', { name: new RegExp(`^Clientes ${tag}\\b`) })).toBeVisible({ timeout: 20_000 });
   expect(await sql('SELECT COUNT(*) AS n FROM inbox_folders WHERE name LIKE ?', [`% ${tag}`])).toEqual([{ n: 23 }]);
   const vip = await sql(
     'SELECT t.title FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id JOIN inbox_threads t ON t.id = tf.thread_id WHERE f.name = ?',
