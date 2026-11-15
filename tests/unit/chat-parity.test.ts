@@ -328,7 +328,7 @@ describe('Chat: mensajes salientes y encuestas', () => {
 
     const res = await visitorPost(post('http://x/api/chat/messages', { widgetId: widget.id, visitorId: 'ob-visitor', body: 'Sí, el Pro', outboundId: hello.id }));
     const data = (await res.json()) as { conversation: { id: string; outbound_id: string } };
-    expect(data.conversation.outbound_id).toBe(hello.id);
+    expect((await getChatConversation(data.conversation.id))?.outbound_id).toBe(hello.id);
     const bodies = (await getDb().prepare('SELECT sender_type, body FROM chat_messages WHERE conversation_id = ? ORDER BY created_at').all(data.conversation.id)) as Array<{
       sender_type: string;
       body: string;
@@ -342,7 +342,7 @@ describe('Chat: mensajes salientes y encuestas', () => {
     // Un mensaje de otro widget no se cuela.
     const res2 = await visitorPost(post('http://x/api/chat/messages', { widgetId: widget.id, visitorId: 'ob-visitor-2', body: 'hola', outboundId: foreign.id }));
     const d2 = (await res2.json()) as { conversation: { id: string; outbound_id: string | null } };
-    expect(d2.conversation.outbound_id ?? null).toBeNull();
+    expect((await getChatConversation(d2.conversation.id))?.outbound_id ?? null).toBeNull();
   });
 });
 
