@@ -37,7 +37,9 @@ export default function ScheduledVoice({ src, seconds, labels }: { src: string; 
       return;
     }
     setFailed(false);
-    a.play().catch(() => {
+    a.play().catch((err: unknown) => {
+      // Pausar enseguida corta el play() (AbortError): no es un audio roto.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setPlaying(false);
       setFailed(true);
     });
