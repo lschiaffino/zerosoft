@@ -3,7 +3,7 @@ import { getChatRow, getMessageRow, getNumberRow, mediaRefFor, readConfig, retry
 import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from '@/lib/groups-provider';
 import { safeFetch } from '@/lib/safe-fetch';
-import { mediaErrorKind } from '@/lib/wa-media-wire';
+import { fetchStateOf, mediaErrorKind } from '@/lib/wa-media-wire';
 import { chatGuard, groupsError, groupsSession } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
@@ -26,8 +26,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!number) return groupsError(404, 'not_found');
   // Evolution: el archivo no se pudo guardar al llegar. Se baja ahora, se guarda y se redirige ahí.
   if (msg.media_url.startsWith('evo:') && (number.provider === 'evolution' || number.provider === 'managed' || number.provider === 'fake') && chat) {
+    const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: msg.media_url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
     try {
-      const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: msg.media_url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
       const stored = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: msg.media_url.slice(4) });
       // Otro pedido pudo guardarlo recién: se usa lo que quedó.
       const saved = stored?.url ?? (await getMessageRow(s.ws, msg.id))?.media_url ?? '';
@@ -35,7 +35,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.redirect(new URL(saved, _req.url), 302);
     } catch (err) {
       // Si quedó marcado como definitivo, la próxima vez ya no se pide. 410: WhatsApp ya no lo tiene.
-      return mediaErrorKind(err) === 'gone' ? groupsError(410, 'media_gone') : groupsError(502, 'provider_error');
+      const state = number.status !== 'connected' ? 'offline' : fetchStateOf(mediaErrorKind(err, !!ref.wire));
+      return state === 'gone' ? groupsError(410, 'media_gone') : state === 'offline' ? groupsError(409, 'not_connected') : groupsError(502, 'provider_error');
     }
   }
   let upstream: Response;
@@ -84,5 +85,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const r = await retryInboundMedia(number, msg, chat.provider_chat_id);
   if ('url' in r) return NextResponse.json({ url: r.url });
   if ('gone' in r) return NextResponse.json({ gone: true }, { status: 410 });
+  if ('offline' in r) return NextResponse.json({ offline: true }, { status: 409 });
   return NextResponse.json({ pending: true }, { status: 503 });
 }

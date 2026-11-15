@@ -511,6 +511,8 @@ export class ProviderError extends Error {
     super(code);
     this.name = 'ProviderError';
   }
+  /** Motivo que dio el gateway, reducido a una etiqueta (lib/wa-media-wire.ts); nunca el texto. */
+  reason?: 'message_not_found' | 'offline' | 'media_gone' | 'timeout';
 }
 
 /** Status HTTP del proveedor → código nuestro (sin leer ni repetir el cuerpo). */

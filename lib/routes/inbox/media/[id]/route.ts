@@ -3,6 +3,7 @@ import { getAccount, getMessageRow, getThreadRow } from '@/lib/inbox/core';
 import { withOwner } from '@/lib/inbox/http';
 import { InboxError } from '@/lib/inbox/types';
 import { fetchWhatsappMedia } from '@/lib/inbox/whatsapp';
+import { rangedResponse } from '@/lib/byte-range';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,14 +39,14 @@ export async function GET(req: Request, ctx: Ctx) {
     const mime = (file.mimetype || 'application/octet-stream').split(';')[0].trim().toLowerCase();
     const inline = INLINE.test(mime);
     const name = (file.filename || msg.media_name || 'file').replace(/[^\w.-]+/g, '_').slice(0, 120);
-    return new NextResponse(new Uint8Array(file.data), {
-      headers: {
-        'content-type': inline ? mime : 'application/octet-stream',
-        'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${name}"`,
-        'x-content-type-options': 'nosniff',
-        'content-security-policy': "default-src 'none'; sandbox",
-        'cache-control': 'private, max-age=3600',
-      },
+    // Con Range (206): el audio y el video se pueden adelantar, y Safari los reproduce.
+    const res = rangedResponse(req, file.data, {
+      'content-type': inline ? mime : 'application/octet-stream',
+      'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${name}"`,
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'none'; sandbox",
+      'cache-control': 'private, max-age=3600',
     });
+    return new NextResponse(res.body, { status: res.status, headers: res.headers });
   });
 }

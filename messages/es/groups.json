@@ -1952,7 +1952,13 @@
     "downloadAgain": "Bajar de nuevo",
     "downloadingAgain": "Bajando…",
     "mediaGoneImage": "Esta foto ya no está disponible en WhatsApp",
-    "mediaGoneVideo": "Este video ya no está disponible en WhatsApp"
+    "mediaGoneVideo": "Este video ya no está disponible en WhatsApp",
+    "askPhoneAgain": "Pedirlo de nuevo al teléfono",
+    "mediaGoneAudio": "Este audio ya no está disponible en WhatsApp",
+    "mediaGoneShort": "Ya no está en WhatsApp",
+    "mediaOffline": "La línea está desconectada. Vinculala de nuevo para bajarlo.",
+    "mediaOfflineShort": "Línea desconectada",
+    "mediaRetryFailed": "No se pudo bajar"
   },
   "swipe": {
     "read": "Leído",

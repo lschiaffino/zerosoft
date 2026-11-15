@@ -64,10 +64,10 @@ async function checkRetry(page: Page, thread: Locator, app: string) {
   await expect(retry.locator('.wa-image img.is-loaded')).toBeVisible({ timeout: 20_000 });
   await expect(retry.getByTestId('wa-media-unavailable')).toHaveCount(0);
 
-  // La que WhatsApp ya no tiene: el aviso final, sin botón.
+  // La que WhatsApp ya no tiene: lo dice, y queda el botón para pedírsela de nuevo al teléfono (nunca un callejón sin salida).
   const gone = msgWith(thread, 'Foto que ya no está');
   await expect(gone.getByTestId('wa-media-unavailable')).toHaveAttribute('data-state', 'gone', { timeout: 30_000 });
-  await expect(gone.getByTestId('wa-media-retry')).toHaveCount(0);
+  await expect(gone.getByTestId('wa-media-retry')).toBeEnabled();
   await shot(page, `${app}-gone`, gone);
 }
 

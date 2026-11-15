@@ -13,7 +13,7 @@ import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { forwardWhatsappMedia } from './wa-media';
 import { fetchWhatsappMedia, sendWhatsappText, waProviderFor } from './whatsapp';
-import { readTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
+import { readTranscript, retryableTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
 import { storeReaction } from './wa-meta';
 
 /** WhatsApp deja editar 15 minutos y borrar para todos unas 60 horas. */
@@ -242,11 +242,12 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
  * Transcripción (y resumen si es largo) de un audio del chat. `start`: si
  * no está, se hace ahora; si no, solo se lee lo guardado. Privada de la dueña.
  */
-export async function messageTranscript(owner: string, messageId: string, start: boolean): Promise<TranscriptDto | null> {
+export async function messageTranscript(owner: string, messageId: string, start: boolean, force = false): Promise<TranscriptDto | null> {
   const { msg, account } = await context(owner, messageId);
   if (msg.media_type !== 'audio' || !msg.media_ref) throw new InboxError('unsupported', 400);
   const saved = await readTranscript('inbox', owner, msg.id);
-  if (saved && (saved.status === 'done' || saved.status === 'failed' || !start)) return saved;
+  // Lo que falló porque el audio no se pudo bajar se vuelve a intentar (el audio pudo haber vuelto).
+  if (saved && (saved.status === 'done' || (saved.status === 'failed' && !retryableTranscript(saved)) || !start)) return saved;
   if (!start) return null;
   let seconds: number | undefined;
   try {
@@ -257,7 +258,7 @@ export async function messageTranscript(owner: string, messageId: string, start:
   return transcribeMessage('inbox', owner, msg.id, async () => {
     const f = await fetchWhatsappMedia(account, msg.media_ref);
     return { data: f.data, mimetype: f.mimetype, seconds };
-  });
+  }, new Date(), { force });
 }
 
 /**

@@ -25,7 +25,7 @@ export interface TranscriptLabels {
  * POST transcribe), se muestra plegada en tres líneas y, si es largo, con
  * su resumen arriba. Solo la ve quien la pidió (lo controla la ruta).
  */
-export default function Transcript({ endpoint, labels, auto = true }: { endpoint: string; labels: TranscriptLabels; auto?: boolean }) {
+export default function Transcript({ endpoint, labels, auto = true, retryKey = 0 }: { endpoint: string; labels: TranscriptLabels; auto?: boolean; /** Cambia cuando el audio se volvió a bajar: se transcribe de nuevo si había fallado por eso. */ retryKey?: number }) {
   const [data, setData] = useState<TranscriptData | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
@@ -38,13 +38,16 @@ export default function Transcript({ endpoint, labels, auto = true }: { endpoint
       const r = await fetch(endpoint).catch(() => null);
       const saved = r?.ok ? ((await r.json()) as { transcript: TranscriptData | null }).transcript : null;
       if (!alive) return;
-      if (saved && saved.status !== 'pending') {
+      // Falló porque el audio no se pudo bajar: se vuelve a pedir (el servidor decide si ya toca).
+      const again = saved?.status === 'failed' && saved.error === 'media_unavailable';
+      if (saved && saved.status !== 'pending' && !again) {
         setData(saved);
         return;
       }
       if (!auto) return;
-      setBusy(true);
-      const p = await fetch(endpoint, { method: 'POST' }).catch(() => null);
+      // Sin el cartel de "transcribiendo" cuando es un reintento callado de un audio que no estaba.
+      setBusy(!again || retryKey > 0);
+      const p = await fetch(`${endpoint}${retryKey > 0 ? `${endpoint.includes('?') ? '&' : '?'}force=1` : ''}`, { method: 'POST' }).catch(() => null);
       const made = p?.ok ? ((await p.json()) as { transcript: TranscriptData | null }).transcript : null;
       if (!alive) return;
       setBusy(false);
@@ -53,12 +56,13 @@ export default function Transcript({ endpoint, labels, auto = true }: { endpoint
     return () => {
       alive = false;
     };
-  }, [endpoint, auto]);
+  }, [endpoint, auto, retryKey]);
 
   if (busy) return <p className="wa-transcript is-busy">{labels.working}</p>;
   if (!data) return null;
   if (data.status === 'failed' || (data.status === 'done' && !data.text)) {
-    return data.error && /disabled/.test(data.error) ? null : <p className="wa-transcript is-off">{labels.failed}</p>;
+    // Sin audio no hay qué transcribir: el aviso ya está en la burbuja del audio.
+    return data.error && /disabled|media_unavailable/.test(data.error) ? null : <p className="wa-transcript is-off">{labels.failed}</p>;
   }
   if (data.status !== 'done') return null;
   const long = data.text.length > 180;

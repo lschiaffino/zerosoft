@@ -334,6 +334,10 @@ export interface TranscriptDto {
 /** Audios más largos que esto llevan un resumen. */
 export const SUMMARY_MIN_SECONDS = 45;
 export const SUMMARY_MIN_CHARS = 400;
+/** Cada cuánto se vuelve a intentar una transcripción que falló porque el audio no estaba. */
+export const MEDIA_RETRY_MS = 10 * 60_000;
+/** ¿Falló solo porque no se pudo bajar el audio? Entonces se reintenta cuando el audio vuelve. */
+export const retryableTranscript = (t: Pick<TranscriptDto, 'status' | 'error'> | null): boolean => !!t && t.status === 'failed' && t.error === 'media_unavailable';
 /** Lo más largo que se transcribe solo. */
 export const TRANSCRIBE_MAX_BYTES = 16 * 1024 * 1024;
 
@@ -384,17 +388,22 @@ export async function transcribeMessage(
   messageId: string,
   load: () => Promise<{ data: Buffer; mimetype: string; seconds?: number }>,
   now = new Date(),
+  /** force: el audio se acaba de bajar (la persona tocó reintentar): no espera el intervalo. */
+  opts: { force?: boolean } = {},
 ): Promise<TranscriptDto> {
   const db = getDb();
   const nowS = now.toISOString();
   await db
     .prepare("INSERT INTO wa_transcripts (scope, message_id, owner_id, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?) ON CONFLICT DO NOTHING")
     .run(scope, messageId, ownerId, nowS, nowS);
+  // Lo que falló porque el audio no se pudo bajar no es definitivo: cuando el audio vuelve, se transcribe. Como
+  // mucho un intento cada MEDIA_RETRY_MS (un audio que no está no se pide en cada vista).
   const claim = await db
     .prepare(
-      "UPDATE wa_transcripts SET claimed_until = ?, updated_at = ? WHERE scope = ? AND owner_id = ? AND message_id = ? AND status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)",
+      `UPDATE wa_transcripts SET status = 'pending', error = '', claimed_until = ?, updated_at = ? WHERE scope = ? AND owner_id = ? AND message_id = ?
+         AND ((status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)) OR (status = 'failed' AND error = 'media_unavailable' AND updated_at < ?))`,
     )
-    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS);
+    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS, opts.force ? '9999' : new Date(now.getTime() - MEDIA_RETRY_MS).toISOString());
   if (!claim.changes) return (await readTranscript(scope, ownerId, messageId))!;
   const finish = async (patch: Partial<Row> & { status: TranscriptStatus }) => {
     await db
