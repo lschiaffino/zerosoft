@@ -1019,6 +1019,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 /* "Traer mensajes que faltan": la misma franja, con lo que está pasando, reintentar y cerrar. */
 .gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh { flex-wrap: nowrap; min-height: 34px; }
 .gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh.is-warn { color: var(--wa-text); background: var(--warn-soft); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh .btn { --btn-fg: var(--wa-text); --btn-bd: color-mix(in srgb, var(--wa-text) 30%, transparent); font-weight: 600; }
 .wa-refresh-text { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .wa-refresh-text svg { flex: none; }
 .wa-refresh-text .is-spinning { animation: wa-upring-spin 1s linear infinite; }

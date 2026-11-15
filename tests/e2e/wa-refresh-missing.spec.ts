@@ -193,14 +193,16 @@ test('Inbox: trae lo que faltaba antes del último mensaje y dice qué pasó en 
   // Con la línea desvinculada.
   await sql("UPDATE inbox_accounts SET status = 'disconnected' WHERE id = ?", [String(acc.id)]);
   try {
+    // En el teléfono (390), abierto así desde el principio.
+    await page.setViewportSize({ width: 390, height: 860 });
     await open(outdated.name);
     await fetchMissing(page, 'More actions');
     await expect(bar(page)).toHaveAttribute('data-state', 'offline', { timeout: 60_000 });
     await expect(bar(page)).toContainText('The line is disconnected');
-    await page.setViewportSize({ width: 390, height: 860 });
     await noSideScroll(page);
     await themes(page, context, baseURL!, 'inbox-offline-390');
   } finally {
+    await page.setViewportSize({ width: 1280, height: 860 });
     await sql("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?", [String(acc.id)]);
   }
 });
@@ -263,8 +265,12 @@ test('Lines: trae lo que faltaba antes del último mensaje y dice qué pasó en 
     await fetchMissing(page, 'More chat actions');
     await expect(bar(page)).toHaveAttribute('data-state', 'noanswer', { timeout: 90_000 });
     await expect(bar(page).getByRole('button', { name: 'Try again' })).toBeVisible();
-    await shot(page, 'lines-noanswer');
+    await themes(page, context, baseURL!, 'lines-noanswer');
+    // En el teléfono (390): pedirlo de nuevo vuelve a decir que no respondió.
     await page.setViewportSize({ width: 390, height: 860 });
+    await open(await chatOf(silent.jid));
+    await fetchMissing(page, 'More chat actions');
+    await expect(bar(page)).toHaveAttribute('data-state', 'noanswer', { timeout: 90_000 });
     await noSideScroll(page);
     await themes(page, context, baseURL!, 'lines-noanswer-390');
     await page.setViewportSize({ width: 1280, height: 860 });

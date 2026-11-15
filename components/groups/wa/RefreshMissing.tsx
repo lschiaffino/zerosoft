@@ -33,19 +33,24 @@ export function useRefreshMissing(chatKey: string, request: () => Promise<Refres
   const [state, setState] = useState<RefreshState>('idle');
   const [count, setCount] = useState(0);
   const run_ = useRef(0);
+  const alive = useRef(true);
+  const key = useRef(chatKey);
   const fns = useRef({ request, progress, reload });
   fns.current = { request, progress, reload };
+  // Solo cuando cambia el chat de verdad (los efectos se vuelven a correr también al recargar el código en desarrollo).
   useEffect(() => {
+    if (key.current === chatKey) return;
+    key.current = chatKey;
     run_.current++;
     setState('idle');
     setCount(0);
   }, [chatKey]);
-  useEffect(
-    () => () => {
-      run_.current++;
-    },
-    [],
-  );
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   // Lo que salió bien se va solo.
   useEffect(() => {
     if (state !== 'done' && state !== 'none') return;
@@ -60,7 +65,7 @@ export function useRefreshMissing(chatKey: string, request: () => Promise<Refres
 
   const run = useCallback(async () => {
     const mine = ++run_.current;
-    const still = () => run_.current === mine;
+    const still = () => alive.current && run_.current === mine;
     setState('loading');
     setCount(0);
     const r = await fns.current.request().catch((): RefreshReply => ({ status: 0 }));
@@ -69,11 +74,14 @@ export function useRefreshMissing(chatKey: string, request: () => Promise<Refres
     if (early) return setState(early);
     let added = 0;
     let answered = !!r.answered;
+    /** El servidor dejó de esperar al teléfono (pasó su tiempo): no hace falta seguir mirando. */
+    let over = false;
     const look = async (): Promise<boolean> => {
       const p = await fns.current.progress().catch(() => null);
       if (!still()) return false;
       if (p && p.state !== 'idle') {
         answered ||= !!p.answered;
+        over ||= p.state === 'done';
         const n = Math.max(0, p.added ?? 0);
         if (n > added) {
           added = n;
@@ -88,7 +96,7 @@ export function useRefreshMissing(chatKey: string, request: () => Promise<Refres
     for (const ms of waits) {
       if (ms) await sleep(ms);
       if (!still() || !(await look())) return;
-      if (answered) break;
+      if (answered || over) break;
     }
     // Respondió: se espera un poco por si llegan más tandas (una por ancla).
     if (answered) {
