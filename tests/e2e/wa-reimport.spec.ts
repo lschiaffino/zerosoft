@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 
 /**
@@ -14,7 +14,39 @@ import { e2eDb } from './helpers/db';
 
 test.describe.configure({ timeout: 180_000 });
 
+/**
+ * Con `next dev` (como corre esto en una máquina local), la primera vez que se pide una ruta se compila, y las rutas
+ * agrupadas de Inbox y Lines tardan: se piden una vez antes, con margen, para que la pantalla no se quede esperando.
+ * Con el build de CI responden al instante.
+ */
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(600_000);
+  const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
+  try {
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/media/warm', '/api/inbox/messages/warm', '/api/groups/media/warm', '/api/groups/messages/warm/transcript', '/api/groups/chats/warm/messages']) {
+      await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    }
+  } finally {
+    await ctx.dispose();
+  }
+});
+
 const uid = () => Math.random().toString(36).slice(2, 8);
+
+/**
+ * El chat abierto, con su encabezado. En una máquina cargada el pedido del chat puede pasar el tiempo que espera la
+ * pantalla, que entonces ofrece "Try again": se toca y se sigue esperando (con el build de CI abre a la primera).
+ */
+async function openedThread(page: Page, name: string) {
+  const heading = page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name });
+  const again = page.getByRole('button', { name: 'Try again' });
+  for (let i = 0; i < 6; i++) {
+    await expect(heading.or(again).first()).toBeVisible({ timeout: 40_000 });
+    if (await heading.isVisible()) return;
+    await again.click();
+  }
+  await expect(heading).toBeVisible({ timeout: 40_000 });
+}
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -55,7 +87,7 @@ async function expectSame(thread: Locator, tag: string) {
 test('Inbox: lo mismo que vuelve a llegar no duplica mensajes ni vuelve a marcar el chat como no leído', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
   const chatId = `${phone}@s.whatsapp.net`;
@@ -73,7 +105,7 @@ test('Inbox: lo mismo que vuelve a llegar no duplica mensajes ni vuelve a marcar
   const open = async () => {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
-    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible();
+    await openedThread(page, name);
   };
   await open();
   const thread = page.locator('.ib-wa-thread');
@@ -99,7 +131,7 @@ test('Lines: lo mismo que vuelve a llegar no duplica mensajes, no pierde el arch
   try {
     await request.post(`/api/groups/numbers/${numberId}/connect`, { data: { action: 'connect' } });
     await expect
-      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 30_000 })
       .toBe('connected');
     const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${numberId}`)).json()) as { webhookUrl: string };
     const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
