@@ -22,6 +22,7 @@ import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
 import { useBackLayer } from '@/components/groups/wa/backLayer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -1024,7 +1025,7 @@ const WaConversation = forwardRef<
         </div>
       )}
       <div className="wa-scroll">
-        <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} ref={scroller} onScroll={onScroll} tabIndex={-1}>
+        <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} ref={scroller} onScroll={onScroll} onClick={tapClosesKeyboard} tabIndex={-1}>
           {detail.more && (
             <div className="wa-older">
               <button type="button" className="btn btn-sm" onClick={() => void props.loadOlder()}>
