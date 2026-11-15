@@ -3,7 +3,7 @@ import { e2eDb } from './helpers/db';
 
 /**
  * Fotos que no se pudieron bajar, en Inbox y en Lines, con el WhatsApp falso:
- * "failN-" falla las primeras N veces (el gateway no responde) y después baja;
+ * "hold-" no baja (el gateway no responde) hasta que se lo libera;
  * "gone-" ya no está en WhatsApp. Se reintenta solo una vez al aparecer, queda
  * "Bajar de nuevo" y, si WhatsApp ya no la tiene, lo dice sin ofrecer
  * reintentar. Con MR_SHOTS=<carpeta> guarda capturas.
@@ -51,7 +51,7 @@ function photo(app: 'inbox' | 'lines', chatId: string, phone: string, name: stri
 const msgWith = (thread: Locator, text: string) => thread.locator('.gr-msg', { hasText: text });
 
 /** Lo mismo en las dos apps: el reintento automático no alcanzó, "Bajar de nuevo" la trae; la que no está, lo dice. */
-async function checkRetry(page: Page, thread: Locator, app: string) {
+async function checkRetry(page: Page, thread: Locator, app: string, release: () => Promise<unknown>) {
   const retry = msgWith(thread, 'Foto que tarda');
   const ph = retry.getByTestId('wa-media-unavailable');
   // El reintento automático corre solo una vez y vuelve a fallar: queda el botón.
@@ -60,8 +60,10 @@ async function checkRetry(page: Page, thread: Locator, app: string) {
   await expect(button).toBeVisible();
   await shot(page, `${app}-retry`, retry);
   expect((await retry.locator('.gr-bubble').boundingBox())!.width).toBeGreaterThanOrEqual(280);
+  // El gateway vuelve a responder: "Bajar de nuevo" la trae.
+  await release();
   await button.click();
-  await expect(retry.locator('.wa-image img.is-loaded')).toBeVisible({ timeout: 20_000 });
+  await expect(retry.locator('.wa-image img.is-loaded')).toBeVisible({ timeout: 30_000 });
   await expect(retry.getByTestId('wa-media-unavailable')).toHaveCount(0);
 
   // La que WhatsApp ya no tiene: el aviso final, sin botón.
@@ -80,8 +82,8 @@ test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
   const chatId = `${phone}@s.whatsapp.net`;
   const name = `Tomás Reintento ${uid()}`;
   const tag = uid();
-  // Inbox baja el archivo al mostrarlo: falla al cargar (1) y en el reintento automático (2); "Bajar de nuevo" la trae.
-  const events = [photo('inbox', chatId, phone, name, `fail2-r-${tag}`, 'Foto que tarda en bajar', 0), photo('inbox', chatId, phone, name, `gone-g-${tag}`, 'Foto que ya no está', 10)];
+  // Inbox baja el archivo al mostrarlo: falla al cargar y en el reintento automático; "Bajar de nuevo" la trae.
+  const events = [photo('inbox', chatId, phone, name, `hold-r-${tag}`, 'Foto que tarda en bajar', 0), photo('inbox', chatId, phone, name, `gone-g-${tag}`, 'Foto que ya no está', 10)];
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
   expect(res.ok(), await res.text()).toBe(true);
 
@@ -89,7 +91,7 @@ test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
   const thread = page.locator('.ib-wa-thread');
   await expect(thread.getByRole('heading', { level: 2, name })).toBeVisible();
-  await checkRetry(page, thread, 'inbox');
+  await checkRetry(page, thread, 'inbox', () => request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: [{ type: 'fake_media_release', id: `hold-r-${tag}` }] } }));
 });
 
 test('Lines: una foto que no bajó se reintenta y se puede bajar de nuevo', async ({ page, request }) => {
@@ -107,9 +109,9 @@ test('Lines: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
     const chatId = `${phone}@s.whatsapp.net`;
     const name = `Tomás Reintento ${uid()}`;
     const tag = uid();
-    // Lines la baja al llegar (2 intentos), al mostrarla (3) y en el reintento automático (4); "Bajar de nuevo" (5) la trae.
+    // Lines la baja al llegar (2 intentos), al mostrarla y en el reintento automático; "Bajar de nuevo" la trae.
     const events = [
-      photo('lines', chatId, phone, name, `fail4-r-${tag}`, 'Foto que tarda en bajar', 0),
+      photo('lines', chatId, phone, name, `hold-r-${tag}`, 'Foto que tarda en bajar', 0),
       photo('lines', chatId, phone, name, `gone-g-${tag}`, 'Foto que ya no está', 10),
       photo('lines', chatId, phone, name, `img-m-${tag}`, 'Foto sin archivo guardado', 20),
     ];
@@ -122,14 +124,13 @@ test('Lines: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
     await expect
       .poll(async () => String((await sql('SELECT media_url FROM groups_messages WHERE provider_message_id = ?', [`img-m-${tag}`]))[0]?.media_url ?? ''), { timeout: 20_000 })
       .not.toMatch(/^(evo:)?$/);
-    await page.waitForTimeout(2500);
     // Una que quedó sin archivo guardado (falla definitiva de antes, sin "ya no está"): "Bajar de nuevo" la pide otra vez.
     await sql("UPDATE groups_messages SET media_url = '' WHERE provider_message_id = ?", [`img-m-${tag}`]);
     const [chat] = await sql('SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', [numberId, chatId]);
 
     await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
     const thread = page.locator('.wa-thread');
-    await checkRetry(page, thread, 'lines');
+    await checkRetry(page, thread, 'lines', () => request.post(new URL(webhookUrl).pathname, { data: { events: [{ type: 'fake_media_release', id: `hold-r-${tag}` }] } }));
 
     // Sin archivo guardado: el reintento automático la trae sola (POST al servidor, que la vuelve a pedir).
     const missing = msgWith(thread, 'Foto sin archivo guardado');
