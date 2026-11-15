@@ -56,6 +56,8 @@ export interface ThreadDto {
   done: boolean;
   /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
   archived: boolean;
+  /** "Mantener archivado": ni los mensajes ni el teléfono lo sacan de Archivados. */
+  keepArchived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
   followUpAt: string | null;

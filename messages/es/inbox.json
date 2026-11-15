@@ -229,6 +229,8 @@
     "unpin": "{n, plural, one {Soltado} other {# chats soltados}}",
     "archive": "{n, plural, one {Archivado} other {# chats archivados}}",
     "unarchive": "{n, plural, one {Desarchivado} other {# chats desarchivados}}",
+    "keepArchivedOn": "Se mantiene archivado",
+    "keepArchivedOff": "Ya no se mantiene archivado",
     "snooze": "{n, plural, one {Pospuesto} other {# chats pospuestos}}",
     "unsnooze": "{n, plural, one {Ya no está pospuesto} other {# chats ya no están pospuestos}}",
     "followUp": "{n, plural, one {Te aviso si no contesta} other {Recordatorio para # chats}}",

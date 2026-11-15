@@ -162,9 +162,9 @@ const parity: ProductParity = {
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have', {
       detail: [
-        'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp',
-        'Sincronizado con el teléfono en los dos sentidos. Mandar un mensaje a un chat archivado lo desarchiva, como en WhatsApp',
-        'Sincronizado com o celular nos dois sentidos. Enviar uma mensagem para uma conversa arquivada a desarquiva, como no WhatsApp',
+        'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp, and Keep archived holds a chosen chat in Archived',
+        'Sincronizado con el teléfono en los dos sentidos. Mandar un mensaje a un chat archivado lo desarchiva, como en WhatsApp, y Mantener archivado deja un chat elegido en Archivados',
+        'Sincronizado com o celular nos dois sentidos. Enviar uma mensagem para uma conversa arquivada a desarquiva, como no WhatsApp, e Manter arquivada deixa uma conversa escolhida em Arquivadas',
       ],
     }),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {

@@ -759,7 +759,7 @@ export default function InboxShell({
   const unarchivedBySend = useRef(new Map<string, { chat: ChatDto; notice: boolean }>());
   useOnChatSent((chatId) => {
     const c = rowsRef.current.find((r) => r.id === chatId);
-    if (!c?.archived || unarchivedBySend.current.has(chatId)) return;
+    if (!c?.archived || c.keepArchived || unarchivedBySend.current.has(chatId)) return;
     unarchivedBySend.current.set(chatId, { chat: c, notice: archivedView });
     setRows((rs) => (archivedView ? rs.filter((r) => r.id !== chatId) : rs.map((r) => (r.id === chatId ? { ...r, archived: false } : r))));
     setArchivedInfo((cur) => ({ total: Math.max(0, cur.total - 1), unread: Math.max(0, cur.unread - (c.unread > 0 ? 1 : 0)) }));
@@ -960,6 +960,7 @@ export default function InboxShell({
                 )}
               </span>
               <span className="gr-row-icons">
+                {c.keepArchived && c.archived && <ArchiveIcon size={16} label={t('wa.keptArchived')} className="wa-row-kept" />}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (

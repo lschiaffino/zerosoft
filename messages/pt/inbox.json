@@ -229,6 +229,8 @@
     "unpin": "{n, plural, one {Desafixada} other {# conversas desafixadas}}",
     "archive": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
     "unarchive": "{n, plural, one {Desarquivada} other {# conversas desarquivadas}}",
+    "keepArchivedOn": "Mantida arquivada",
+    "keepArchivedOff": "Não é mais mantida arquivada",
     "snooze": "{n, plural, one {Adiada} other {# conversas adiadas}}",
     "unsnooze": "{n, plural, one {Não está mais adiada} other {# conversas não estão mais adiadas}}",
     "followUp": "{n, plural, one {Aviso se não responder} other {Lembrete para # conversas}}",

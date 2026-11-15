@@ -174,6 +174,8 @@ export interface ThreadRow {
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
+  /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
+  keep_archived?: number;
   woke_at: string | null;
   woke_reason: string;
   follow_up_at: string | null;
@@ -537,7 +539,7 @@ export interface ListOptions {
 /** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
 const LIST_COLS = [
   'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'done_at',
-  'archived_at', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
+  'archived_at', 'keep_archived', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
   'presence', 'presence_who', 'presence_at', 'last_seen_at',
 ]
   .map((c) => `t.${c}`)
@@ -753,6 +755,7 @@ export function threadDto(
     pinned: !!r.pinned_at,
     done: !!r.done_at,
     archived: !!r.archived_at,
+    keepArchived: r.keep_archived === 1,
     snoozedUntil: snoozed,
     woke: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_reason : '',
     followUpAt: r.follow_up_at,
@@ -1042,6 +1045,8 @@ export type ThreadAction =
   | { action: 'unpin' }
   | { action: 'archive' }
   | { action: 'unarchive' }
+  /** Mantener archivado: prenderlo archiva el chat; apagarlo lo deja donde está. */
+  | { action: 'keepArchived'; on: boolean }
   | { action: 'snooze'; until: string }
   | { action: 'unsnooze' }
   | { action: 'followUp'; at: string }
@@ -1079,8 +1084,8 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'undone':
-      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar".
-      sql = 'done_at = NULL, archived_at = NULL';
+      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar" (y apaga "Mantener archivado").
+      sql = 'done_at = NULL, archived_at = NULL, keep_archived = 0';
       break;
     case 'read':
       sql = 'unread = 0';
@@ -1101,7 +1106,12 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'unarchive':
-      sql = 'archived_at = NULL, done_at = NULL';
+      // Desarchivar a mano apaga "Mantener archivado" (en el mismo UPDATE: el trigger lo deja pasar).
+      sql = 'archived_at = NULL, done_at = NULL, keep_archived = 0';
+      break;
+    case 'keepArchived':
+      sql = a.on ? 'keep_archived = 1, archived_at = COALESCE(archived_at, ?), pinned_at = NULL' : 'keep_archived = 0';
+      extra = a.on ? [nowS] : [];
       break;
     case 'snooze':
       sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
@@ -1142,7 +1152,18 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     }
   }
   const marks = unique.map(() => '?').join(',');
+  // "Mantener archivado" en un chat que no estaba en Archivados: lo archiva, también en WhatsApp.
+  const toArchive =
+    a.action === 'keepArchived' && a.on
+      ? ((await db
+          .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND archived_at IS NULL AND done_at IS NULL AND id IN (${marks})`)
+          .all(owner, ...unique)) as Array<{ id: string }>)
+      : [];
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
+  if (toArchive.length) {
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, toArchive.map((r) => r.id), true);
+  }
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
   // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
   // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.

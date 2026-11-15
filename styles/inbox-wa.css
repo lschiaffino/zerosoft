@@ -229,3 +229,7 @@
 
 /* Miniatura de la foto o el video del último mensaje en la fila. */
 .wa-row-thumb { flex: none; width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
+/* "Mantener archivado": fila con interruptor (el texto de ayuda en dos líneas como mucho). */
+.ib-wa-keep { cursor: pointer; }
+.ib-wa-keep .ib-wa-row-main { min-width: 0; }
+.ib-wa-keep .ui-switch { flex: none; margin-left: auto; }
