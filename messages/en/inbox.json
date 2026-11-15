@@ -73,6 +73,13 @@
     "retry": "Try again"
   },
   "list": {
+    "importWa": "Importing messages: {done} of {total} chats.",
+    "importGmail": "Importing mail: {done} of {total} threads.",
+    "importWaiting": "Waiting for WhatsApp to send the history…",
+    "importDone": "Import finished: {chats} chats and {messages} messages.",
+    "importDoneGmail": "Import finished: {chats} threads and {messages} messages.",
+    "importProgress": "Import progress",
+    "importClose": "Close",
     "group": "Group",
     "snoozedUntil": "Snoozed until {when}",
     "followUpAt": "Reminder {when}",

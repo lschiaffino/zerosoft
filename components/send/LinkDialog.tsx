@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LinkDto } from '@/lib/send/core';
 import { cleanAccessList, entriesFromCsv, MAX_ACCESS_CSV_BYTES, MAX_ACCESS_ENTRIES } from '@/lib/send/access-list';
+import { MAX_BUTTON_LABEL } from '@/lib/send/types';
 import { api, SendDialog, useErrorText } from './ui';
 
 function toLocalInput(iso: string | null): string {
@@ -55,6 +56,8 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
   const [watermark, setWatermark] = useState(link?.watermark ?? false);
   const [nda, setNda] = useState(link?.ndaTemplateId ?? '');
   const [message, setMessage] = useState(link?.message ?? '');
+  const [buttonLabel, setButtonLabel] = useState(link?.buttonLabel ?? '');
+  const [buttonUrl, setButtonUrl] = useState(link?.buttonUrl ?? '');
   const [notify, setNotify] = useState(link?.notify ?? true);
   const [useBranding, setUseBranding] = useState(link?.useBranding ?? true);
   const [busy, setBusy] = useState(false);
@@ -89,6 +92,8 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
     setError('');
     if (usePasscode && !link?.hasPasscode && passcode.trim().length < 6) return setError(errorText('invalid_passcode'));
     if (hasExpiry && !expiresAt) return setError(errorText('invalid_expiry'));
+    if (buttonUrl.trim() && !buttonLabel.trim()) return setError(errorText('invalid_button_label'));
+    if (buttonLabel.trim() && !buttonUrl.trim()) return setError(errorText('invalid_button_url'));
     setBusy(true);
     const body = {
       name: name.trim(),
@@ -103,6 +108,8 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
       watermark,
       ndaTemplateId: nda || null,
       message,
+      buttonLabel: buttonLabel.trim(),
+      buttonUrl: buttonUrl.trim(),
       notify,
       useBranding,
     };
@@ -239,6 +246,34 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
             <label htmlFor="sl-message">{t('message')}</label>
             <textarea id="sl-message" className="input" rows={2} maxLength={1000} value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
+          <div className="sd-field">
+            <label htmlFor="sl-button-label">{t('buttonLabel')}</label>
+            <input
+              id="sl-button-label"
+              className="input"
+              value={buttonLabel}
+              maxLength={MAX_BUTTON_LABEL}
+              onChange={(e) => setButtonLabel(e.target.value)}
+              placeholder={t('buttonLabelPlaceholder')}
+              data-testid="link-button-label"
+            />
+          </div>
+          <div className="sd-field">
+            <label htmlFor="sl-button-url">{t('buttonUrl')}</label>
+            <input
+              id="sl-button-url"
+              className="input"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              value={buttonUrl}
+              maxLength={2000}
+              onChange={(e) => setButtonUrl(e.target.value)}
+              placeholder="https://cal.acme.com/demo"
+              data-testid="link-button-url"
+            />
+            <p className="sd-help">{t('buttonHelp')}</p>
+          </div>
           <label className="sd-check">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} data-testid="link-notify" />
             <span>{t('notify')}</span>
@@ -249,7 +284,7 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
           </label>
         </fieldset>
         {error && (
-          <p className="sd-error" role="alert">
+          <p className="sd-error" role="alert" data-testid="link-error">
             {error}
           </p>
         )}

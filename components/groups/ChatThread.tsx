@@ -34,7 +34,7 @@ import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentio
 import WhenDialog from '@/components/ui/WhenDialog';
 import { longWhen } from '@/lib/when-presets';
 import { ScheduledStrip, notifyScheduledChanged, useWhenLabels } from './Scheduled';
-import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
+import { DEFAULT_RULE, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
@@ -58,7 +58,6 @@ import {
   Chevron,
   ClockIcon,
   Close,
-  DocIcon,
   Forwarded,
   Lock,
   Mic,
@@ -69,10 +68,6 @@ import {
   Smiley,
   Ticks,
   Trash,
-  PhotoIcon,
-  CameraIcon,
-  MusicIcon,
-  PollIcon,
   CheckIcon,
   Pause,
   UserPlus,
@@ -80,7 +75,6 @@ import {
   GroupIcon,
   ViewOnce,
   Retry,
-  Person,
   InfoIcon,
   TranslateIcon,
   UnreadIcon,
@@ -91,6 +85,9 @@ import {
   DisplayIcon,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
+import PollDialog, { type PollDraft } from './wa/PollDialog';
+import { createSticker } from './wa/StickerPanel';
 import LiveWaveform from './wa/LiveWaveform';
 import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
@@ -198,10 +195,6 @@ export default function ChatThread(props: ThreadProps) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLInputElement>(null);
-  const [hasCamera, setHasCamera] = useState(false);
-  useEffect(() => setHasCamera(window.matchMedia('(pointer: coarse)').matches && Boolean(navigator.mediaDevices)), []);
   const previewOpen = mode === 'reply' && tray.items.length > 0;
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -250,9 +243,6 @@ export default function ChatThread(props: ThreadProps) {
   const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
   // "Escribiendo…" no queda pegado si la otra persona deja de escribir sin más avisos.
   useExpiry(presence?.state === 'composing' || presence?.state === 'recording', presence?.at, PRESENCE_EXPIRY_MS, () => setPresence(null));
-  const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
-  const [pollBusy, setPollBusy] = useState(false);
-  const [pollError, setPollError] = useState('');
   const [repeat, setRepeat] = useState(false);
   const [rule, setRule] = useState<RecurrenceRule>(DEFAULT_RULE);
   const [timezone, setTimezone] = useState(browserTimezone);
@@ -286,8 +276,7 @@ export default function ChatThread(props: ThreadProps) {
   useFocusOnOpen(inputRef, props.chat.id);
   const boxRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<AttachMenuHandle>(null);
   const requested = useRef<Set<string>>(new Set());
   const pendingCaret = useRef<number | null>(null);
   const keepOffset = useRef<number | null>(null);
@@ -700,8 +689,8 @@ export default function ChatThread(props: ThreadProps) {
       openTicket,
       openTask: setTaskFor,
       openLater,
-      attach: () => fileRef.current?.click(),
-      openPoll: () => (setPollError(''), setPollOpen(true)),
+      attach: () => attachRef.current?.pickFiles(),
+      openPoll: () => setPollOpen(true),
       openContact: () => setContactOpen(true),
       openEmoji: () => setEmojiOpen(true),
       toggleMute: () => void toggleMute(),
@@ -1138,20 +1127,31 @@ export default function ChatThread(props: ThreadProps) {
     setSummary({ text: res.data?.summary ?? '', error: res.error ? errText(res.error) : '', busy: false });
   }
 
-  async function sendPoll() {
-    const options = poll.options.map((o) => o.trim()).filter(Boolean);
-    if (!poll.question.trim()) return setPollError(errText('poll_question'));
-    if (options.length < 2) return setPollError(errText('poll_options'));
-    setPollBusy(true);
-    setPollError('');
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
-    setPollBusy(false);
-    if (!res.data) return setPollError(errText(res.error));
+  /** La encuesta del menú +: '' si salió (el diálogo se cierra), o el código de error. */
+  async function sendPoll(poll: PollDraft): Promise<string> {
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll } });
+    if (!res.data) return res.error || 'send_failed';
     merge([res.data]);
-    if (res.data.status === 'failed') return setPollError(errText(res.data.error || 'send_failed'));
+    if (res.data.status === 'failed') return res.data.error || 'send_failed';
     setPollOpen(false);
-    setPoll({ question: '', options: ['', ''], multi: false });
     refresh();
+    return '';
+  }
+
+  /** Dictar con Voice: el texto entra en el campo (como en Inbox). */
+  function dictate() {
+    inputRef.current?.focus();
+    window.dispatchEvent(new Event('zs:voice-dictate'));
+  }
+
+  /** "Sticker nuevo" del menú +: lo crea desde la imagen (queda en la colección) y lo manda. */
+  async function newSticker(file: File) {
+    const r = await createSticker('/api/groups/stickers', file);
+    if (!r.sticker) {
+      showToast(r.error === 'sticker_too_large' ? t('wa.stickers.tooLarge') : r.error === 'sticker_convert_unavailable' ? t('wa.stickers.convertUnavailable') : t('wa.stickers.createFailed'), true);
+      return;
+    }
+    await sendSticker(r.sticker.id);
   }
 
   function scheduledMedia() {
@@ -2290,48 +2290,19 @@ export default function ChatThread(props: ThreadProps) {
                 )}
               </span>
               {mode === 'reply' && (
-                <>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      addFiles([...(e.target.files ?? [])]);
-                      e.target.value = '';
-                    }}
-                  />
-                  <input
-                    ref={photoRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      addFiles([...(e.target.files ?? [])]);
-                      e.target.value = '';
-                    }}
-                  />
-                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
-                  <input ref={audioRef} type="file" accept="audio/*" multiple hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
-                  <MessageMenu
-                    label={t('thread.attach')}
-                    className="wa-icon-btn wa-attach"
-                    align="left"
-                    trigger={<Plus size={24} />}
-                    items={[
-                      { key: 'doc', icon: <DocIcon size={17} />, label: t('wa.document'), onSelect: () => fileRef.current?.click() },
-                      { key: 'photo', icon: <PhotoIcon size={17} />, label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
-                      ...(hasCamera ? [{ key: 'camera', icon: <CameraIcon size={17} />, label: t('wa.camera'), onSelect: () => cameraRef.current?.click() }] : []),
-                      { key: 'audio', icon: <MusicIcon size={17} />, label: t('wa.audio'), onSelect: () => audioRef.current?.click() },
-                      ...(props.caps.contacts ? [{ key: 'contact', icon: <Person size={17} />, label: t('wa.contact'), onSelect: () => setContactOpen(true) }] : []),
-                      { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
-                      { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
-                      { key: 'ai', icon: <PencilSparkle size={17} />, label: tc('open'), onSelect: ai.openBar },
-                      { key: 'commands', icon: <SlashIcon size={17} />, label: ts('menuItem'), onSelect: slash.openFromButton },
-                    ]}
-                  />
-                </>
+                <AttachMenu
+                  ref={attachRef}
+                  onFiles={addFiles}
+                  onContact={props.caps.contacts ? () => setContactOpen(true) : undefined}
+                  onPoll={props.caps.polls ? () => setPollOpen(true) : undefined}
+                  onNewSticker={(f) => void newSticker(f)}
+                  extra={[
+                    ...(aiAllowed ? [{ key: 'ai', glyph: <PencilSparkle size={18} />, label: tc('open'), onSelect: ai.openBar }] : []),
+                    { key: 'dictate', glyph: <Mic size={18} />, label: t('wa.dictate'), onSelect: dictate },
+                    { key: 'schedule', glyph: <ClockIcon size={18} />, label: t('later.title'), onSelect: openLater },
+                    { key: 'commands', glyph: <SlashIcon size={18} />, label: ts('menuItem'), onSelect: slash.openFromButton },
+                  ]}
+                />
               )}
               <MentionTextarea
                 ref={inputRef}
@@ -2419,7 +2390,7 @@ export default function ChatThread(props: ThreadProps) {
             onCaption={tray.setCaption}
             onRemove={tray.remove}
             onRetry={tray.retry}
-            onAdd={() => fileRef.current?.click()}
+            onAdd={() => attachRef.current?.pickFiles()}
             onSend={() => void send()}
             onClose={tray.clear}
             onFiles={addFiles}
@@ -2594,37 +2565,7 @@ export default function ChatThread(props: ThreadProps) {
         }}
       />
 
-      <Modal
-        open={pollOpen}
-        title={t('polls.title')}
-        onClose={() => setPollOpen(false)}
-        onSubmit={() => void sendPoll()}
-        busy={pollBusy}
-        foot={
-          <>
-            <button type="button" className="btn btn-ghost" onClick={() => setPollOpen(false)}>
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="btn btn-primary" aria-busy={pollBusy || undefined} disabled={!props.caps.polls}>
-              {t('polls.send')}
-            </button>
-          </>
-        }
-      >
-        <div className="ui-fields">
-          {!props.caps.polls && (
-            <p className="gr-banner is-bad" role="alert">
-              {t('polls.unsupported')}
-            </p>
-          )}
-          <PollFields question={poll.question} options={poll.options} multi={poll.multi} onChange={setPoll} idPrefix="chat" />
-          {pollError && (
-            <p className="ui-error" role="alert">
-              {pollError}
-            </p>
-          )}
-        </div>
-      </Modal>
+      <PollDialog open={pollOpen} supported={props.caps.polls} onClose={() => setPollOpen(false)} onSend={sendPoll} />
       <Modal open={!!infoFor} title={t('wa.messageInfo')} onClose={() => setInfoFor(null)} foot={<button type="button" className="btn btn-primary" onClick={() => setInfoFor(null)}>{t('common.close')}</button>}>
         {infoFor && (
           <dl className="wa-info">
