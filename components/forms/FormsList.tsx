@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -10,11 +10,19 @@ import { StatusBadge } from './ui';
 
 const STATUSES = ['', 'published', 'draft', 'closed'] as const;
 
-export default function FormsList({ forms, q, status }: { forms: FormListItem[]; q: string; status: string }) {
+export default function FormsList({ forms, q, status, serverNow }: { forms: FormListItem[]; q: string; status: string; serverNow: number }) {
   const t = useTranslations('forms');
   const format = useFormatter();
   const router = useRouter();
   const [query, setQuery] = useState(q);
+  // "Hace 2 minutos" con la hora del servidor en el primer render: si cada lado
+  // usaba su reloj, el texto cambiaba entre el HTML y la hidratación.
+  const [now, setNow] = useState(serverNow);
+  useEffect(() => {
+    setNow(Date.now());
+    const h = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(h);
+  }, []);
   const go = (next: { q?: string; status?: string }) => {
     const sp = new URLSearchParams();
     const nq = next.q ?? query;
@@ -88,7 +96,7 @@ export default function FormsList({ forms, q, status }: { forms: FormListItem[];
                       {f.responseCount}
                     </Link>
                   </td>
-                  <td className="fm-hide-sm fm-dim">{f.lastResponseAt ? format.relativeTime(new Date(f.lastResponseAt)) : '—'}</td>
+                  <td className="fm-hide-sm fm-dim">{f.lastResponseAt ? <time dateTime={f.lastResponseAt}>{format.relativeTime(new Date(f.lastResponseAt), now)}</time> : '—'}</td>
                 </tr>
               ))}
             </tbody>
