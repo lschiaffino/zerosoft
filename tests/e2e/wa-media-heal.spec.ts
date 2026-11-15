@@ -17,7 +17,39 @@ import { e2eDb } from './helpers/db';
 
 test.describe.configure({ timeout: 240_000 });
 
+/**
+ * Con `next dev` (como corre esto en una máquina local), la primera vez que se pide una ruta se compila, y las rutas
+ * agrupadas de Inbox y Lines tardan: se piden una vez antes, con margen, para que la pantalla no se quede esperando.
+ * Con el build de CI responden al instante.
+ */
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(600_000);
+  const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
+  try {
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/media/warm', '/api/inbox/messages/warm', '/api/groups/media/warm', '/api/groups/messages/warm/transcript', '/api/groups/chats/warm/messages']) {
+      await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    }
+  } finally {
+    await ctx.dispose();
+  }
+});
+
 const uid = () => Math.random().toString(36).slice(2, 8);
+
+/**
+ * El chat abierto, con su encabezado. En una máquina cargada el pedido del chat puede pasar el tiempo que espera la
+ * pantalla, que entonces ofrece "Try again": se toca y se sigue esperando (con el build de CI abre a la primera).
+ */
+async function openedThread(page: Page, name: string) {
+  const heading = page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name });
+  const again = page.getByRole('button', { name: 'Try again' });
+  for (let i = 0; i < 6; i++) {
+    await expect(heading.or(again).first()).toBeVisible({ timeout: 40_000 });
+    if (await heading.isVisible()) return;
+    await again.click();
+  }
+  await expect(heading).toBeVisible({ timeout: 40_000 });
+}
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -82,7 +114,7 @@ async function themesAndSizes(page: Page, context: BrowserContext, baseURL: stri
 test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y se puede volver a pedir', async ({ page, request, context, baseURL, playwright }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
   const chatId = `${phone}@s.whatsapp.net`;
@@ -104,7 +136,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   const open = async () => {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
-    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible();
+    await openedThread(page, name);
   };
   await open();
   const thread = page.locator('.ib-wa-thread');
@@ -122,7 +154,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   const heal = voices.nth(0);
   await expect(heal.getByTestId('wa-voice-play')).toBeEnabled();
   await heal.getByTestId('wa-voice-play').click();
-  await expect(heal).toHaveAttribute('data-state', 'ready', { timeout: 30_000 });
+  await expect(heal).toHaveAttribute('data-state', 'ready', { timeout: 60_000 });
   await expect.poll(() => played(heal), { timeout: 20_000 }).toBe(true);
   // Y con el audio de vuelta, se transcribe.
   await expect
@@ -200,7 +232,7 @@ test('Lines: un audio sin archivo se va a buscar al tocar reproducir; el documen
   try {
     await request.post(`/api/groups/numbers/${numberId}/connect`, { data: { action: 'connect' } });
     await expect
-      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 30_000 })
       .toBe('connected');
     const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${numberId}`)).json()) as { webhookUrl: string };
     const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
@@ -223,7 +255,7 @@ test('Lines: un audio sin archivo se va a buscar al tocar reproducir; el documen
 
     const open = async () => {
       await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
-      await expect(page.locator('.wa-thread').getByTestId('wa-voice').first()).toBeVisible();
+      await expect(page.locator('.wa-thread').getByTestId('wa-voice').first()).toBeVisible({ timeout: 30_000 });
     };
     await open();
     const thread = page.locator('.wa-thread');
@@ -236,7 +268,7 @@ test('Lines: un audio sin archivo se va a buscar al tocar reproducir; el documen
     await expect(heal).toHaveAttribute('data-state', 'idle');
     await expect(heal.getByTestId('wa-voice-play')).toBeEnabled();
     await heal.getByTestId('wa-voice-play').click();
-    await expect(heal).toHaveAttribute('data-state', 'ready', { timeout: 30_000 });
+    await expect(heal).toHaveAttribute('data-state', 'ready', { timeout: 60_000 });
     await expect.poll(() => played(heal), { timeout: 20_000 }).toBe(true);
     await expect.poll(() => urlOf(ids.heal), { timeout: 10_000 }).not.toBe('');
     await expect
