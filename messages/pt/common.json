@@ -1039,7 +1039,7 @@
     "syncing": "Sincronizando…",
     "synced": "Sincronizado",
     "panelTitle": "Status sem conexão",
-    "leadOffline": "O que você já abriu no CRM, Docs, Notes e Track continua visível. O que você mudar fica salvo neste dispositivo e é enviado quando a conexão voltar.",
+    "leadOffline": "O que você já abriu no CRM, Docs, Notes, Track e Board continua visível. O que você mudar fica salvo neste dispositivo e é enviado quando a conexão voltar.",
     "leadPending": "Há alterações salvas neste dispositivo que ainda não chegaram ao servidor.",
     "leadOnline": "Tudo o que você fez sem conexão já está no servidor.",
     "savedOnDevice": "Salvo neste dispositivo",
@@ -1068,7 +1068,9 @@
     "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
     "unknownTitle": "Não enviadas",
     "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas.",
-    "needsConnection": "Precisa de conexão"
+    "needsConnection": "Precisa de conexão",
+    "boardDrafts": "Board: {count, plural, one {# quadro com alterações} other {# quadros com alterações}}",
+    "switcherHint": "Sem conexão. Os apps esmaecidos precisam de rede."
   },
   "comingSoon": {
     "badge": "Em breve",

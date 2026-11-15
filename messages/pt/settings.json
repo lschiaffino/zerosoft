@@ -1733,7 +1733,7 @@
   },
   "offline": {
     "title": "Modo sem conexão",
-    "desc": "Guarda neste dispositivo o que você abriu no CRM, Docs, Track e Notes, para abrir e continuar trabalhando sem conexão.",
+    "desc": "Guarda neste dispositivo o que você abriu no CRM, Docs, Track, Notes e Board, para abrir e continuar trabalhando sem conexão.",
     "loading": "Carregando as configurações sem conexão",
     "enabled": "Manter os apps disponíveis sem conexão",
     "enabledHelp": "As páginas que você abre ficam guardadas neste dispositivo. O que você alterar sem conexão é enviado quando ela volta.",
@@ -1747,13 +1747,15 @@
       "crm": "CRM e Início",
       "docs": "Docs",
       "track": "Track",
-      "notes": "Notes"
+      "notes": "Notes",
+      "board": "Board"
     },
     "appsHelp": {
       "crm": "Contatos, empresas, negócios e a página inicial",
       "docs": "As páginas que você abriu ou marcou como disponíveis sem conexão",
       "track": "As listas, issues e projetos que você abriu",
-      "notes": "A lista de notas"
+      "notes": "A lista de notas",
+      "board": "Os quadros que você abriu e a lista de quadros"
     },
     "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
     "measuring": "Medindo…",
@@ -1786,7 +1788,8 @@
     "pendingQueue": "{n, plural, one {# alteração no CRM ou Track} other {# alterações no CRM ou Track}}",
     "pendingFailed": "{n, plural, one {# alteração que o servidor recusou (tente de novo pela barra de status)} other {# alterações que o servidor recusou (tente de novo pela barra de status)}}",
     "pendingDocs": "{n, plural, one {# rascunho do Docs} other {# rascunhos do Docs}}",
-    "pendingNotes": "{n, plural, one {# alteração no Notes} other {# alterações no Notes}}"
+    "pendingNotes": "{n, plural, one {# alteração no Notes} other {# alterações no Notes}}",
+    "pendingBoard": "{n, plural, one {# quadro com alterações} other {# quadros com alterações}}"
   },
   "desktopApp": {
     "title": "App de desktop",

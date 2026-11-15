@@ -87,11 +87,11 @@ const INDEX_KEY = '/__zs-offline-index';
 
 // ---------- Ajustes (las mismas reglas que lib/offline-prefs.ts) ----------
 
-const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes'];
+const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board'];
 const OFFLINE_SIZES = ['light', 'normal', 'max'];
 const OFFLINE_DAYS = [7, 30, 90];
 const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1024 } };
-const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true }, size: 'normal', days: 30 };
+const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true, board: true }, size: 'normal', days: 30 };
 
 function parseOfflinePrefs(raw) {
   const d = DEFAULT_PREFS;
@@ -112,6 +112,7 @@ function offlineAppOf(pathname) {
   if (/^\/app\/?$/.test(p) || /^\/app\/crm(\/|$)/.test(p) || /^\/api\/crm\//.test(p)) return 'crm';
   if (/^\/app\/docs(\/|$)/.test(p)) return 'docs';
   if (/^\/app\/track(\/|$)/.test(p)) return 'track';
+  if (/^\/app\/board(\/|$)/.test(p)) return 'board';
   return null;
 }
 
@@ -245,6 +246,11 @@ const CRM_ROOT = /^\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
 const TRACK_PAGE = /^\/(en|es|pt)\/app\/track(\/|$)/;
 const TRACK_ROOT = /^\/app\/track(\/|$)/;
 
+// Board: la lista y las pizarras que la persona abrió. Lo que dibuja sin red lo guarda el
+// editor en el dispositivo (borrador de lib/board-sync.ts) y lo combina al volver: acá no se encola.
+const BOARD_PAGE = /^\/(en|es|pt)\/app\/board(\/|$)/;
+const BOARD_ROOT = /^\/app\/board(\/|$)/;
+
 // Docs: el editor y la lista (D5).
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
 const DOCS_ROOT = /^\/app\/docs(\/|$)/;
@@ -270,7 +276,9 @@ function isOfflineNavigation(url) {
     DOCS_PAGE.test(url.pathname) ||
     DOCS_ROOT.test(url.pathname) ||
     TRACK_PAGE.test(url.pathname) ||
-    TRACK_ROOT.test(url.pathname)
+    TRACK_ROOT.test(url.pathname) ||
+    BOARD_PAGE.test(url.pathname) ||
+    BOARD_ROOT.test(url.pathname)
   );
 }
 
@@ -417,6 +425,7 @@ const OFFLINE_PRODUCTS = [
   ['notes', 'Notes', '/app/notes'],
   ['track', 'Track', '/app/track'],
   ['crm', 'CRM', '/app/crm'],
+  ['board', 'Board', '/app/board'],
 ];
 
 const OFFLINE_TEXT = {
@@ -448,7 +457,7 @@ const OFFLINE_TEXT = {
 
 /** Nombre de la app de una ruta /app/<path> (para "X necesita conexión"); null si no se sabe. */
 const APP_NAMES = {
-  lines: 'Lines', inbox: 'Inbox', calendar: 'Cal', board: 'Board', talk: 'Talk', voice: 'Voice', rec: 'Rec', links: 'Link', flow: 'Flow',
+  lines: 'Lines', inbox: 'Inbox', calendar: 'Cal', talk: 'Talk', voice: 'Voice', rec: 'Rec', links: 'Link', flow: 'Flow',
   forms: 'Forms', send: 'Send', calls: 'Calls', sign: 'Sign', people: 'People', pulse: 'Pulse', analytics: 'Analytics', chat: 'Chat',
   agents: 'Agents', robots: 'Robots', design: 'Design', shop: 'Shop', social: 'Social', hiring: 'Hiring', books: 'Books', assistant: 'Assistant', settings: null,
 };
@@ -635,7 +644,7 @@ async function clearOffline() {
 async function broadcastUsage() {
   const meta = await getMeta();
   const mine = meta ? `${PAGES}-${encodeURIComponent(meta.id)}` : null;
-  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of await readIndex()) {
     if (!usage[e.app]) continue;
     if (e.app !== 'static' && e.cache !== mine) continue;
@@ -730,7 +739,7 @@ async function crmNavigation(request) {
     if (!offlineAllows(prefs, url.pathname)) return offlineResponse(localeOf(url.pathname), 'not-cached', null, prefs);
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname)) {
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname) || BOARD_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;
