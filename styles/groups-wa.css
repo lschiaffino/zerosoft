@@ -10,7 +10,8 @@
 .gr-inbox,
 .wa-viewer,
 .wa-contact-sheet,
-.wa-rx-pop {
+.wa-rx-pop,
+.ib-wa-react-full.is-floating {
   --wa-panel: #ffffff;
   --wa-panel-header: #f0f2f5;
   --wa-conv-bg: #efeae2;
@@ -89,7 +90,8 @@
   :root:not([data-theme='light']) .gr-inbox,
   :root:not([data-theme='light']) .wa-viewer,
   :root:not([data-theme='light']) .wa-contact-sheet,
-  :root:not([data-theme='light']) .wa-rx-pop {
+  :root:not([data-theme='light']) .wa-rx-pop,
+  :root:not([data-theme='light']) .ib-wa-react-full.is-floating {
     --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
     --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
     --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -105,7 +107,8 @@
 :root[data-theme='dark'] .gr-inbox,
 :root[data-theme='dark'] .wa-viewer,
 :root[data-theme='dark'] .wa-contact-sheet,
-:root[data-theme='dark'] .wa-rx-pop {
+:root[data-theme='dark'] .wa-rx-pop,
+:root[data-theme='dark'] .ib-wa-react-full.is-floating {
   --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
   --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
   --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -1083,7 +1086,8 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
    :root sube la especificidad por encima de los bloques oscuros de arriba).
    ============================================================ */
 :root .gr-inbox[data-chat-style='zerosoft'],
-:root .wa-rx-pop[data-chat-style='zerosoft'] {
+:root .wa-rx-pop[data-chat-style='zerosoft'],
+:root .ib-wa-react-full.is-floating[data-chat-style='zerosoft'] {
   --wa-panel: var(--bg);
   --wa-panel-header: var(--bg);
   --wa-conv-bg: var(--bg-soft);
@@ -1397,6 +1401,7 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
 .gr-msg-in .ib-wa-react-full { left: 0; }
 .gr-msg-out .ib-wa-react-full { right: 0; }
 .ib-wa-react-full .wa-emoji { position: static; }
+.ib-wa-react-full.is-floating { position: fixed; bottom: auto; right: auto; z-index: 2000; }
 .gr-inbox .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
 /* La barra de emojis abierta desde el cuadro se ve aunque el mouse no esté encima (y con el dedo). */
 .gr-inbox .gr-msg-actions:has(.gr-emoji-picker) { opacity: 1; }

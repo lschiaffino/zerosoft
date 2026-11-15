@@ -98,10 +98,12 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
         await openQuick();
         await press(quick().getByRole('button', { name: 'More emoji' }));
       },
-      el: () => bubble().locator('.ib-wa-react-full .wa-emoji'),
+      el: () => page.getByTestId('wa-react-full').locator('.wa-emoji'),
       pick: async () => {
-        await expect(bubble().locator('.ib-wa-react-full button[data-emoji]').first()).toBeVisible({ timeout: 15_000 });
-        await press(bubble().locator('.ib-wa-react-full button[data-emoji]').first());
+        // Entra entero en la ventana aunque el mensaje esté arriba de todo.
+        const first = page.getByTestId('wa-react-full').locator('button[data-emoji]').first();
+        await expect(first).toBeInViewport({ timeout: 15_000 });
+        await press(first);
       },
       outside: true,
     },
@@ -174,14 +176,25 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
 async function checkAll(page: Page, thread: Locator, text: string, touch: boolean) {
   const press = (l: Locator) => (touch ? l.tap() : l.click());
   const list = overlays(page, thread, text, touch);
-  // Un lugar neutro "afuera": la fecha arriba de los mensajes (por coordenadas: un modal la tapa).
+  // Un lugar neutro "afuera" (por coordenadas: un modal lo tapa): la fecha arriba de los mensajes o el
+  // mensaje de abajo, el que no quede debajo del overlay. Para la ficha (modal), la esquina de la pantalla.
   const outside = async (o: Overlay) => {
     let x = 5;
     let y = 5;
     if (o.name !== 'contact sheet') {
-      const box = (await thread.locator('.wa-day').first().boundingBox())!;
-      x = box.x + box.width / 2;
-      y = box.y + box.height / 2;
+      const over = await o.el().first().boundingBox();
+      const spots = [thread.locator('.wa-day').first(), thread.locator('.gr-msg', { hasText: 'segundo' }).locator('.gr-bubble').first()];
+      for (const s of spots) {
+        const b = await s.boundingBox();
+        if (!b) continue;
+        const px = b.x + b.width / 2;
+        const py = b.y + b.height / 2;
+        if (over && px >= over.x && px <= over.x + over.width && py >= over.y && py <= over.y + over.height) continue;
+        x = px;
+        y = py;
+        break;
+      }
+      expect(x !== 5 || y !== 5, `${o.name}: hay un lugar afuera para tocar`).toBe(true);
     }
     if (touch) await page.touchscreen.tap(x, y);
     else await page.mouse.click(x, y);
@@ -250,7 +263,7 @@ for (const view of VIEWS) {
     test('Inbox: cada overlay se cierra afuera, con Esc y al elegir; uno cierra al otro', async ({ page, request }) => {
       test.setTimeout(300_000);
       await request.post('/api/inbox/whatsapp');
-      await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+      await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
       const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
       const send = async (list: unknown[]) => expect((await request.post(`/api/inbox/webhook/${row.id}/${row.webhook_secret}`, { data: { events: list } })).ok()).toBe(true);
       const { title, text } = await seed(send, uid());
@@ -269,7 +282,7 @@ for (const view of VIEWS) {
       const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Overlays ${uid()}` } });
       const id = ((await created.json()) as { id: string }).id;
       await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
-      await expect.poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 }).toBe('connected');
+      await expect.poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 30_000 }).toBe('connected');
       const info = (await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string };
       const send = async (list: unknown[]) => expect((await request.post(new URL(info.webhookUrl).pathname, { data: { events: list } })).ok()).toBe(true);
       const { title, text } = await seed(send, uid());

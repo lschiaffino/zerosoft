@@ -12,7 +12,7 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
@@ -797,9 +797,9 @@ const WaConversation = forwardRef<
           </span>
         )}
         {fullFor && (
-          <span className="ib-wa-react-full">
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.fromMe ? 'right' : 'left'}>
             <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
-          </span>
+          </FloatingReactPicker>
         )}
       </article>
     );

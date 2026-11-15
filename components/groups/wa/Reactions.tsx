@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { filterReactors, reactionTabs, sortReactors, type WaReactor } from '@/lib/wa-reactions';
@@ -398,6 +398,40 @@ export function ReactionDetails({
     ) : (
       body
     ),
+    document.body,
+  );
+}
+
+/**
+ * Todos los emojis para reaccionar (el "+" de la barra rápida), flotando sobre
+ * el mensaje: arriba si entra, si no abajo, siempre dentro de la ventana (sobre
+ * el primer mensaje del chat ya no queda cortado por la cabecera).
+ */
+export function FloatingReactPicker({ anchorId, align, children }: { anchorId: string; align: 'left' | 'right'; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [chatStyle, setChatStyle] = useState<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    const anchor = document.getElementById(anchorId)?.querySelector<HTMLElement>('.gr-bubble') ?? document.getElementById(anchorId);
+    const el = box.current;
+    if (!anchor || !el) return;
+    setChatStyle(anchor.closest<HTMLElement>('[data-chat-style]')?.dataset.chatStyle);
+    const a = anchor.getBoundingClientRect();
+    const p = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 6;
+    const above = a.top - gap - p.height >= 8;
+    const top = above ? a.top - gap - p.height : Math.min(a.bottom + gap, vh - p.height - 8);
+    let left = align === 'left' ? a.left : a.right - p.width;
+    left = Math.min(Math.max(8, left), vw - p.width - 8);
+    setPos({ top: Math.max(8, top), left });
+  }, [anchorId, align]);
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div ref={box} className="ib-wa-react-full is-floating" data-chat-style={chatStyle} data-testid="wa-react-full" style={pos ?? { top: -9999, left: -9999 }}>
+      {children}
+    </div>,
     document.body,
   );
 }

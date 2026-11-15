@@ -38,7 +38,7 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
-import { ReactionChip, ReactionDetails } from './wa/Reactions';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from './wa/Reactions';
 import { useDismiss } from './wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
 import MentionTextarea from './wa/MentionTextarea';
@@ -1994,9 +1994,9 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
         {fullFor && (
-          <span className="ib-wa-react-full">
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.direction === 'out' ? 'right' : 'left'}>
             <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
-          </span>
+          </FloatingReactPicker>
         )}
       </article>
     );
