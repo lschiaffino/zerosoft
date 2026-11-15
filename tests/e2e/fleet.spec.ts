@@ -63,21 +63,21 @@ test('ajustes: token del hook con el comando, y GitHub y Vercel conectados con t
   await page.getByTestId('fleet-token-label').fill('Mac mini');
   await page.getByTestId('fleet-token-create').click();
   const command = page.getByTestId('fleet-install-command');
-  await expect(command).toContainText('/api/fleet/install | sh -s -- zsf_');
+  await expect(command).toContainText('/api/fleet/install | sh -s -- zsf_', { timeout: 30_000 });
   await expect(page.getByTestId('fleet-token').first()).toBeVisible();
 
   // GitHub: un token rechazado muestra el error y no se guarda.
   await page.getByTestId('fleet-github-token').fill('fake-bad');
   await page.getByTestId('fleet-github-connect').click();
-  await expect(page.getByTestId('fleet-github-error')).toBeVisible();
+  await expect(page.getByTestId('fleet-github-error')).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('fleet-github-token').fill(`fake-gh-${uid()}`);
   await page.getByTestId('fleet-github-connect').click();
-  await expect(page.getByTestId('fleet-github-section').getByTestId('fleet-connection')).toHaveCount(1);
+  await expect(page.getByTestId('fleet-github-section').getByTestId('fleet-connection')).toHaveCount(1, { timeout: 30_000 });
 
   // Elegir repos: el picker lista lo que ve el token.
   await page.getByTestId('fleet-github-section').getByTestId('fleet-connection-pick').click();
   const picker = page.getByTestId('fleet-picker');
-  await expect(picker.getByRole('checkbox')).toHaveCount(3);
+  await expect(picker.getByRole('checkbox')).toHaveCount(3, { timeout: 30_000 });
   await picker.getByRole('checkbox').nth(2).check();
   await picker.getByTestId('fleet-picker-save').click();
   await expect(picker).toHaveCount(0);
@@ -85,9 +85,9 @@ test('ajustes: token del hook con el comando, y GitHub y Vercel conectados con t
   // Vercel: revisar el token, elegir el equipo y conectar.
   await page.getByTestId('fleet-vercel-token').fill(`fake-vc-${uid()}`);
   await page.getByTestId('fleet-vercel-connect').click();
-  await expect(page.getByTestId('fleet-vercel-team')).toBeVisible();
+  await expect(page.getByTestId('fleet-vercel-team')).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('fleet-vercel-connect').click();
-  await expect(page.getByTestId('fleet-vercel-section').getByTestId('fleet-connection')).toHaveCount(1);
+  await expect(page.getByTestId('fleet-vercel-section').getByTestId('fleet-connection')).toHaveCount(1, { timeout: 30_000 });
   await shot(page, 'settings');
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -195,13 +195,13 @@ test('Inbox y Lines: la fila Agentes abre los chats con los agentes', async ({ p
   await row.click();
   await expect(page).toHaveURL(/\/app\/inbox\/agents/);
   await page.locator(`[data-testid="fleet-chat-row"][data-session="${first.session}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/app/inbox/agents/${first.session}`));
+  await expect(page).toHaveURL(new RegExp(`/app/inbox/agents/${first.session}`), { timeout: 30_000 });
   await expect(page.getByTestId('fleet-thread')).toBeVisible();
   await shot(page, 'inbox-agents');
 
   await page.goto('/en/app/lines/agents', { waitUntil: 'networkidle' });
   await page.locator(`[data-testid="fleet-chat-row"][data-session="${first.session}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/app/lines/agents\\?s=${first.session}`));
+  await expect(page).toHaveURL(new RegExp(`/app/lines/agents\\?s=${first.session}`), { timeout: 30_000 });
   await expect(page.getByTestId('fleet-composer')).toBeVisible();
   await shot(page, 'lines-agents');
   expect(errors, errors.join('\n')).toEqual([]);

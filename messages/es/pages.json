@@ -2452,6 +2452,12 @@
           "q": "¿Quién ve mis agentes?",
           "a": "Solo vos. Los tokens, las sesiones y las conversaciones son de tu persona en el workspace, y el token de ingesta se guarda como hash."
         }
+      },
+      "cta": {
+        "title1": "Mirá a tus agentes.",
+        "title2": "Respondeles desde un chat.",
+        "sub": "Abrí Fleet, instalá el hook y conectá tus cuentas de GitHub y Vercel.",
+        "button": "Abrir Fleet"
       }
     },
     "analytics": {

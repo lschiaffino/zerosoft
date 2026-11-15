@@ -1270,7 +1270,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'calls':
       return [item('/app/calls?new=1', labels.calls.newCall, 'calls')];
     case 'fleet':
-      return [item('/app/fleet/settings#agents', labels.fleet.connect, 'plug')];
+      return [item('/app/fleet/settings?new=1#agents', labels.fleet.connect, 'plug')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':

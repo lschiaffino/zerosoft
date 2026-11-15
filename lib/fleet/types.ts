@@ -60,6 +60,15 @@ export function clip(text: unknown, max: number): string {
   return `${t.slice(0, end)}…`;
 }
 
+/** Vista previa sin Markdown: sin bloques de código, marcas de negrita, código en línea ni viñetas. */
+export function plainPreview(text: string): string {
+  return text
+    .replace(/```[\s\S]*?(```|$)/g, ' ')
+    .replace(/`([^`\n]*)`/g, '$1')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/^\s*(?:[-*]|\d+\.|#{1,6})\s+/gm, '');
+}
+
 /** Una línea (para títulos y vistas previas). */
 export function oneLine(text: string, max: number): string {
   return clip(text.replace(/\s+/g, ' ').trim(), max);

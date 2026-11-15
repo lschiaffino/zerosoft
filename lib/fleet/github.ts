@@ -73,7 +73,8 @@ function iso(v: unknown): string | null {
 
 /** "owner/name" válido de GitHub. */
 export function isRepoName(v: unknown): v is string {
-  return typeof v === 'string' && /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/.test(v);
+  // Dueño: letras, números y guiones (nunca '.' ni '..'); repo: también puntos y _, salvo '.' y '..'.
+  return typeof v === 'string' && /^[A-Za-z0-9-]{1,39}\/(?!\.\.?$)[A-Za-z0-9_.-]{1,100}$/.test(v);
 }
 
 /** statusCheckRollup.state de GitHub → éxito, falla o en curso. */

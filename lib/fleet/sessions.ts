@@ -18,6 +18,7 @@ import {
   clip,
   hookOutput,
   oneLine,
+  plainPreview,
   redactSecrets,
   sessionRank,
   statusAfter,
@@ -185,7 +186,7 @@ export async function ingestEvent(owner: IngestOwner, ev: IngestEvent, now = new
       .run(randomUUID(), row.id, owner.ws, owner.person, role, ev.detail ? `${ev.event}:${ev.detail}` : ev.event, text, '', 'hook', '', ts);
   }
   const title = row.title || (ev.event === 'UserPromptSubmit' && text ? oneLine(text, LIMITS.title) : '');
-  const lastText = role === 'agent' || role === 'prompt' ? oneLine(text, 300) : ev.event === 'Notification' && text ? oneLine(text, 300) : row.last_text;
+  const lastText = role === 'agent' || role === 'prompt' ? oneLine(plainPreview(text), 300) : ev.event === 'Notification' && text ? oneLine(text, 300) : row.last_text;
   // Sin leer: lo que dice el agente (respuesta, aviso que te espera o falla).
   const unreadInc = ev.event === 'Stop' || (ev.event === 'Notification' && status === 'waiting') || ev.event === 'StopFailure' ? 1 : 0;
   await db()

@@ -66,9 +66,6 @@
 .flt-card { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
 .flt-card:hover { border-color: var(--ink-3, var(--brand-gray-2)); }
 .flt-card:focus-within { outline: 2px solid var(--ink); outline-offset: 1px; }
-.flt-card[data-status='waiting'] { border-left: 3px solid var(--warn-ink); }
-.flt-card[data-status='failed'] { border-left: 3px solid var(--bad-ink); }
-.flt-card[data-status='working'] { border-left: 3px solid var(--c-fleet); }
 .flt-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .flt-card-title { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .flt-card-link { color: inherit; text-decoration: none; }
@@ -271,8 +268,17 @@ a.flt-row-title:hover { text-decoration: underline; }
 .flt-send:disabled { opacity: 0.45; cursor: default; }
 .flt-composer-hint { margin: 0; padding: 0 16px 8px; font-size: 0.75rem; color: var(--flt-wa-text-2); background: var(--flt-wa-head); flex: none; }
 
-/* La fila "Agentes" en Inbox y Lines usa la de "Archivados" (styles/groups-wa.css). */
-.flt-agents-row { text-decoration: none; }
+/* La fila "Agentes" en Inbox y Lines: la forma de la de "Archivados" (styles/groups-wa.css), con sus propios valores
+   por si la lista no define los tokens --wa-* (Inbox con cara de zerosoft). */
+a.flt-agents-row {
+  display: grid; grid-template-columns: var(--wa-avatar, 40px) minmax(0, 1fr) auto; gap: var(--wa-row-gap, 12px); align-items: center;
+  width: 100%; min-height: 48px; padding: 0 var(--wa-pad-x, 14px) 0 var(--wa-row-pad, 12px);
+  color: var(--wa-text, var(--ink)); background: var(--wa-panel, var(--bg)); text-decoration: none; font-size: 0.9375rem;
+}
+a.flt-agents-row:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+.flt-agents-row .wa-archived-icon { display: inline-flex; justify-content: center; color: var(--c-fleet); }
+.flt-agents-row .wa-archived-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flt-agents-row .wa-archived-count { min-width: 20px; height: 20px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #fff; background: var(--wa-badge, #25d366); border-radius: 10px; }
 .flt-agents-row-sub { color: var(--wa-text-2, var(--brand-gray-2)); font-weight: 400; }
 .ib-list-empty .flt-agents-row { margin-bottom: 8px; }
 
@@ -285,3 +291,8 @@ a.flt-row-title:hover { text-decoration: underline; }
   .flt-msg { max-width: 88%; }
   .flt-thread-links { display: none; }
 }
+
+/* Tildes de components/groups/wa/icons.tsx dentro de Fleet (Inbox y Lines las estilan en groups-wa.css). */
+.flt-chat .wa-ticks { display: inline-flex; align-items: center; flex: none; color: var(--flt-wa-text-2); }
+.flt-chat .wa-ticks.is-read { color: var(--wa-tick-blue); }
+.flt-chat .wa-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

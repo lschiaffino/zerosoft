@@ -2452,6 +2452,12 @@
           "q": "Who sees my agents?",
           "a": "Only you. Tokens, sessions and conversations belong to your person in the workspace, and the ingest token is stored as a hash."
         }
+      },
+      "cta": {
+        "title1": "See your agents.",
+        "title2": "Answer them from one chat.",
+        "sub": "Open Fleet, install the hook and connect your GitHub and Vercel accounts.",
+        "button": "Open Fleet"
       }
     },
     "analytics": {

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: NextRequest) {
   return withFleet(async ({ actor }) => {
-    if (req.nextUrl.searchParams.get('archived') === '1') return fJson({ sessions: await listSessions(actor, { archived: true }) });
+    if (new URL(req.url).searchParams.get('archived') === '1') return fJson({ sessions: await listSessions(actor, { archived: true }) });
     return fJson(await loadBoard(actor));
   });
 }

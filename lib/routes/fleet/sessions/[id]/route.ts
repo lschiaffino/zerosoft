@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: Ctx) {
   return withFleet(async ({ actor }) => {
     const { id } = await ctx.params;
-    if (req.nextUrl.searchParams.get('read') === '1') await markRead(actor, id);
+    if (new URL(req.url).searchParams.get('read') === '1') await markRead(actor, id);
     const [session, messages] = await Promise.all([getSession(actor, id), listMessages(actor, id)]);
     return fJson({ session, messages });
   });

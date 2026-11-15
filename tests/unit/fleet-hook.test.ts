@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { mkdtempSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -59,12 +59,18 @@ afterAll(async () => {
   await new Promise((r) => server.close(r));
 });
 
-function sh(script: string, env: Record<string, string>, input = ''): string {
-  return execFileSync('sh', ['-c', script], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env } as unknown as NodeJS.ProcessEnv, input, encoding: 'utf8', timeout: 30_000 });
+/** Async: el servidor de las rutas corre en este mismo proceso y un exec sincrónico lo trabaría. */
+function sh(script: string, env: Record<string, string>, input = ''): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile('sh', ['-c', script], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env } as unknown as NodeJS.ProcessEnv, encoding: 'utf8', timeout: 30_000 }, (err, stdout) =>
+      err ? reject(err) : resolve(stdout),
+    );
+    child.stdin?.end(input);
+  });
 }
 
 describe.skipIf(!hasTools)('Fleet: instalador y hook (sh + perl + curl)', () => {
-  it('instala sin tocar los hooks de Orca, entrega una respuesta en el Stop y se desinstala', async () => {
+  it('instala sin tocar los hooks de Orca, entrega una respuesta en el Stop y se desinstala', { timeout: 90_000 }, async () => {
     const u = await makeUser('fleet-hook');
     session.user = { id: u.id, email: u.email, name: 'x', role: 'owner', actingUser: null, team: null, apps: '*' };
     const created = (await (await tokensRoute.POST(new Request(`${base}/api/fleet/tokens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"label":"test"}' }) as never)).json()) as { token: string };
@@ -78,9 +84,9 @@ describe.skipIf(!hasTools)('Fleet: instalador y hook (sh + perl + curl)', () => 
 
     const installer = await (await fetch(`${base}/api/fleet/install`)).text();
     writeFileSync(join(home, 'install.sh'), installer);
-    sh(`sh "$HOME/install.sh" ${created.token}`, env);
+    await sh(`sh "$HOME/install.sh" ${created.token}`, env);
     // Dos veces: no duplica.
-    sh(`sh "$HOME/install.sh" ${created.token}`, env);
+    await sh(`sh "$HOME/install.sh" ${created.token}`, env);
 
     const settings = JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8')) as { model: string; hooks: Record<string, Array<{ hooks: Array<{ command: string; timeout?: number }> }>> };
     expect(settings.model).toBe('opus');
@@ -98,7 +104,7 @@ describe.skipIf(!hasTools)('Fleet: instalador y hook (sh + perl + curl)', () => 
     const cwd = join(home, 'projects', 'web');
     mkdirSync(cwd, { recursive: true });
     const prompt = JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'hook-1', cwd, transcript_path: `${home}/.claude/projects/x.jsonl`, prompt: 'Fix it, token ghp_abcdefghijklmnopqrstuvwxyz012345' });
-    expect(JSON.parse(sh(hook, { ...env, ORCA_PANE_KEY: 'pane-9', ORCA_WORKTREE_ID: 'wt-1' }, prompt))).toEqual({});
+    expect(JSON.parse(await sh(hook, { ...env, ORCA_PANE_KEY: 'pane-9', ORCA_WORKTREE_ID: 'wt-1' }, prompt))).toEqual({});
     const sent = received.at(-1) as Record<string, unknown>;
     // Solo lo de la lista: nada de rutas, transcript ni el secreto.
     expect(Object.keys(sent).sort()).toEqual(['branch', 'detail', 'event', 'orca_pane', 'orca_tab', 'orca_worktree', 'project', 'session', 'stop_hook_active', 'text']);
@@ -111,15 +117,15 @@ describe.skipIf(!hasTools)('Fleet: instalador y hook (sh + perl + curl)', () => 
     const s = (await row.prepare('SELECT id FROM fleet_sessions WHERE workspace_id = ? AND session_key = ?').get(u.id, 'hook-1')) as { id: string };
     await messagesRoute.POST(new Request(`${base}/x`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'Run the tests before you stop' }) }) as never, { params: Promise.resolve({ id: s.id }) });
     const stop = JSON.stringify({ hook_event_name: 'Stop', session_id: 'hook-1', cwd, stop_hook_active: false, last_assistant_message: 'Fixed.' });
-    expect(JSON.parse(sh(hook, env, stop))).toEqual({ decision: 'block', reason: 'Run the tests before you stop' });
-    expect(JSON.parse(sh(hook, env, stop))).toEqual({});
+    expect(JSON.parse(await sh(hook, env, stop))).toEqual({ decision: 'block', reason: 'Run the tests before you stop' });
+    expect(JSON.parse(await sh(hook, env, stop))).toEqual({});
 
     // Eventos que no son del hook y zerosoft caído: {} sin trabar al agente.
-    expect(JSON.parse(sh(hook, env, JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'hook-1' })))).toEqual({});
+    expect(JSON.parse(await sh(hook, env, JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'hook-1' })))).toEqual({});
     writeFileSync(join(home, '.zerosoft', 'fleet.env'), 'ZEROSOFT_FLEET_URL=http://127.0.0.1:9\nZEROSOFT_FLEET_WAIT=0\n');
-    expect(JSON.parse(sh(hook, env, stop))).toEqual({});
+    expect(JSON.parse(await sh(hook, env, stop))).toEqual({});
 
-    sh(`sh "$HOME/install.sh" --uninstall`, env);
+    await sh(`sh "$HOME/install.sh" --uninstall`, env);
     const after = JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8')) as { hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> };
     expect(after.hooks.Stop.flatMap((g) => g.hooks).map((h) => h.command)).toEqual([orcaHook.command]);
     expect(after.hooks.SessionStart).toBeUndefined();

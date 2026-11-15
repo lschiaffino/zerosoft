@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { createAccount, setAccountState, getAccountById } from '@/lib/inbox/core';
-import { ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
+import { ingestWhatsappEvents, waProviderFor } from '@/lib/inbox/whatsapp';
 import { fakeSent } from '@/lib/groups-provider-fake';
 import { createToken, ingestEvent, ownerOfToken, listMessages } from '@/lib/fleet/sessions';
 import { setPrefs } from '@/lib/fleet/core';
@@ -31,6 +31,9 @@ async function setup(label: string) {
   const acc = await createAccount(u.id, { kind: 'whatsapp', provider: 'fake', label: 'WhatsApp' });
   const phone = `549110000${Math.floor(1000 + Math.random() * 8999)}`;
   await setAccountState(acc.id, { status: 'connected', address: phone });
+  // El WhatsApp falso queda conectado a los 1,5 s de vincularse.
+  await waProviderFor((await getAccountById(acc.id))!).connect('http://127.0.0.1/hook');
+  await new Promise((r) => setTimeout(r, 1600));
   const { token } = await createToken(actor, 'Mac');
   const owner = (await ownerOfToken(`Bearer ${token}`))!;
   return { u, actor, acc: (await getAccountById(acc.id))!, phone, owner };
