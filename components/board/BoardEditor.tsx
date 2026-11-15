@@ -376,6 +376,9 @@ export default function BoardEditor({
       }
     } catch {
       pendingRef.current = pendingRef.current ?? scene;
+      // Sin red: lo dibujado queda en el dispositivo ya (no solo al salir), así una recarga o un
+      // cierre sin conexión no lo pierde y la banda de la app lo cuenta como cambio pendiente.
+      writeDraft(storage(), board.id, { baseVersion: versionRef.current, scene: pendingRef.current, savedAt: Date.now() });
       setState('error');
     } finally {
       inFlightRef.current = false;
@@ -387,6 +390,15 @@ export default function BoardEditor({
     }
     if (conflictBy !== undefined && !unmountedRef.current) onConflictRef.current(conflictBy);
   }, [board.id, apiBase, withUploadedFiles, scheduleThumbnail, setState]);
+
+  // Volvió la red: lo pendiente se manda ya, sin esperar el próximo reintento.
+  useEffect(() => {
+    const onOnline = () => {
+      if (pendingRef.current && !blockedRef.current) void save();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [save]);
 
   /** Suma las imágenes que ya tiene el servidor (escena de otra pestaña o persona). */
   function rememberUploaded(files: Record<string, unknown>) {

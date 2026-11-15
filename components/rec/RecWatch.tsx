@@ -28,6 +28,7 @@ export interface RecWatchVideo {
   ctaUrl: string;
   ctaMode: 'always' | 'end';
   hasThumb: boolean;
+  playVer: string;
   overlays: RecOverlay[];
 }
 
@@ -62,7 +63,7 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
         )}
         <RecPlayer
           ref={player}
-          src={file}
+          src={`${file}?kind=play${video.playVer ? `&v=${video.playVer}` : ''}`}
           captionsSrc={video.transcript.length ? `${file}?kind=captions` : null}
           poster={video.hasThumb ? `${file}?kind=thumb` : null}
           title={video.title}

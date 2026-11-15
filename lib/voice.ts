@@ -181,7 +181,33 @@ export async function getVoiceSettings(owner: VoiceOwner): Promise<VoiceSettings
   return normalizeSettings(parseJson(row?.settings, {}));
 }
 
+/**
+ * Ajustes y diccionario para un dictado, guardados un rato por instancia: el
+ * dictado espera esto antes de transcribir y la app de escritorio dicta varias
+ * veces seguidas. Cambiar los ajustes o el diccionario en esta instancia lo
+ * borra; en otra instancia, lo viejo dura como mucho DICTATION_PROFILE_TTL_MS.
+ */
+export const DICTATION_PROFILE_TTL_MS = 15_000;
+const dictationProfiles = new Map<string, { at: number; value: Promise<{ settings: VoiceSettings; dictionary: VoiceDictionaryEntry[] }> }>();
+
+export function getDictationProfile(owner: VoiceOwner, now = Date.now()): Promise<{ settings: VoiceSettings; dictionary: VoiceDictionaryEntry[] }> {
+  const key = `${owner.workspaceId}:${owner.personId}`;
+  const hit = dictationProfiles.get(key);
+  if (hit && now - hit.at < DICTATION_PROFILE_TTL_MS) return hit.value;
+  const value = Promise.all([getVoiceSettings(owner), listDictionary(owner)]).then(([settings, dictionary]) => ({ settings, dictionary }));
+  dictationProfiles.set(key, { at: now, value });
+  value.catch(() => dictationProfiles.delete(key));
+  if (dictationProfiles.size > 2000) dictationProfiles.delete(dictationProfiles.keys().next().value!);
+  return value;
+}
+
+/** Olvida lo guardado del workspace (el diccionario del equipo es de todos). */
+export function forgetDictationProfiles(workspaceId: string): void {
+  for (const key of dictationProfiles.keys()) if (key.startsWith(`${workspaceId}:`)) dictationProfiles.delete(key);
+}
+
 export async function saveVoiceSettings(owner: VoiceOwner, patch: Partial<VoiceSettings>): Promise<VoiceSettings> {
+  forgetDictationProfiles(owner.workspaceId);
   const current = await getVoiceSettings(owner);
   const next = normalizeSettings({ ...current, ...patch, styles: { ...current.styles, ...(patch.styles ?? {}) } });
   await getDb()
@@ -190,6 +216,7 @@ export async function saveVoiceSettings(owner: VoiceOwner, patch: Partial<VoiceS
        ON CONFLICT(workspace_id, person_id) DO UPDATE SET settings = excluded.settings, updated_at = excluded.updated_at`,
     )
     .run(owner.workspaceId, owner.personId, JSON.stringify(next), nowIso());
+  forgetDictationProfiles(owner.workspaceId);
   return next;
 }
 
@@ -671,6 +698,7 @@ export async function addDictionaryEntry(
     )
     .run(id, owner.workspaceId, shared ? `team:${owner.personId}` : owner.personId, input.kind, phrase, replacement, shared, nowIso());
   if (!res.changes) throw new VoiceError('duplicate');
+  forgetDictationProfiles(owner.workspaceId);
   return { id, kind: input.kind, phrase, replacement, ...(shared ? { shared: true } : {}) };
 }
 
@@ -683,6 +711,7 @@ export async function deleteDictionaryEntry(owner: VoiceOwner, id: string, opts:
         : 'DELETE FROM voice_dictionary WHERE id = ? AND workspace_id = ? AND person_id = ? AND shared = 0',
     )
     .run(id, owner.workspaceId, owner.personId);
+  forgetDictationProfiles(owner.workspaceId);
   return res.changes > 0;
 }
 

@@ -10,6 +10,12 @@
  * - assemblyai: ASSEMBLYAI_API_KEY, con separación de hablantes.
  * - fake: texto fijo para tests (nunca en un deploy de producción).
  *
+ * Dictado (`purpose: 'dictation'`, alguien espera para pegar): con el proveedor
+ * gateway prueba en orden Groq whisper-large-v3-turbo si hay GROQ_API_KEY (el
+ * más rápido), VOICE_DICTATION_TRANSCRIBE_MODEL por el Gateway (default
+ * openai/gpt-4o-mini-transcribe: más preciso y más barato que whisper-1) y el
+ * modelo de siempre. Si uno falla, sigue con el próximo.
+ *
  * Aparte, `tier: 'economy'` (Calls en modo económico) usa Groq con GROQ_API_KEY
  * (whisper-large-v3-turbo, GROQ_TRANSCRIBE_MODEL lo cambia): unas diez veces más
  * barato que whisper-1. Sin la clave sigue con el proveedor de arriba.
@@ -141,6 +147,54 @@ export interface TranscribeInput {
   fakeSpeakers?: boolean;
   /** 'economy': Groq si hay GROQ_API_KEY (Calls en modo económico). */
   tier?: 'economy' | 'premium';
+  /** Un dictado: el modelo más rápido disponible, con respaldo (ver arriba). */
+  purpose?: 'dictation';
+  /** La cuota y el rate limit ya se miraron (transcribePrecheck, en paralelo con otra cosa). */
+  prechecked?: boolean;
+  /** Registrar el consumo después (p. ej. después de contestar) en vez de esperarlo. */
+  deferUsage?: (job: () => Promise<unknown>) => void;
+}
+
+/** Cuota del mes y rate limit de la transcripción, juntos (dos consultas en paralelo). */
+export async function transcribePrecheck(workspaceId: string): Promise<void> {
+  await Promise.all([
+    assertTranscribeQuota(workspaceId),
+    (async () => {
+      if (process.env.RATE_LIMIT_DISABLED === 'true') return;
+      const res = await rateLimit(`ai:transcribe:${workspaceId}`, transcribeRatePerMinute(), 60);
+      if (!res.ok) throw new AiError('rate_limited');
+    })(),
+  ]);
+}
+
+/** Modelo de dictado por el Gateway (VOICE_DICTATION_TRANSCRIBE_MODEL lo cambia). */
+export const DICTATION_TRANSCRIBE_MODEL = 'openai/gpt-4o-mini-transcribe';
+
+export function dictationTranscribeModel(): string {
+  return process.env.VOICE_DICTATION_TRANSCRIBE_MODEL?.trim() || DICTATION_TRANSCRIBE_MODEL;
+}
+
+/** Un modelo que falló (no por tiempo) se saltea un rato en esta instancia: no se paga la falla en cada dictado. */
+const SKIP_FAILED_MS = 10 * 60_000;
+const failedAt = new Map<string, number>();
+
+/**
+ * Proveedores y modelos a probar, en orden, para este pedido. Un dictado con el
+ * proveedor gateway prueba primero los rápidos; el resto, uno solo.
+ */
+export function transcribeAttempts(input: Pick<TranscribeInput, 'tier' | 'purpose'>, now = Date.now()): Array<{ provider: TranscribeProvider; model: string }> {
+  const base = providerFor(input.tier);
+  if (input.purpose !== 'dictation' || base !== 'gateway') return [{ provider: base, model: transcribeModel(base) }];
+  const all: Array<{ provider: TranscribeProvider; model: string }> = [];
+  if (transcriptionConfigured('groq')) all.push({ provider: 'groq', model: transcribeModel('groq') });
+  if (aiEnabled()) {
+    all.push({ provider: 'gateway', model: dictationTranscribeModel() });
+    all.push({ provider: 'gateway', model: transcribeModel('gateway') });
+  }
+  const unique = all.filter((a, i) => all.findIndex((b) => b.provider === a.provider && b.model === a.model) === i);
+  const fresh = unique.filter((a) => now - (failedAt.get(`${a.provider}/${a.model}`) ?? 0) > SKIP_FAILED_MS);
+  // Si todos fallaron hace poco, se prueban igual (mejor intentar que no transcribir).
+  return fresh.length ? fresh : unique.length ? unique : [{ provider: base, model: transcribeModel(base) }];
 }
 
 /** Proveedor de este pedido: el económico solo si está configurado y no estamos en modo fake. */
@@ -176,12 +230,17 @@ function fakeResult(input: TranscribeInput): TranscriptResult {
   };
 }
 
-async function viaGateway(input: TranscribeInput, model: string): Promise<Omit<TranscriptResult, 'provider'>> {
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError' || /timeout|aborted/i.test(err.message));
+}
+
+async function viaGateway(input: TranscribeInput, model: string, timeoutMs = 120_000): Promise<Omit<TranscriptResult, 'provider'>> {
   const language = lang(input);
   const res = await transcribe({
     model: gateway.transcription(model),
     audio: input.audio,
-    maxRetries: 1,
+    maxRetries: input.purpose === 'dictation' ? 0 : 1,
+    abortSignal: AbortSignal.timeout(timeoutMs),
     providerOptions: {
       openai: {
         ...(language ? { language } : {}),
@@ -207,7 +266,12 @@ function extFor(mime: string): string {
   return 'webm';
 }
 
-async function viaOpenAi(input: TranscribeInput, model: string, api = { url: 'https://api.openai.com/v1/audio/transcriptions', key: process.env.OPENAI_API_KEY }): Promise<Omit<TranscriptResult, 'provider'>> {
+async function viaOpenAi(
+  input: TranscribeInput,
+  model: string,
+  api = { url: 'https://api.openai.com/v1/audio/transcriptions', key: process.env.OPENAI_API_KEY },
+  timeoutMs = 120_000,
+): Promise<Omit<TranscriptResult, 'provider'>> {
   const form = new FormData();
   const type = input.mimeType.split(';')[0];
   form.append('file', new Blob([input.audio as BlobPart], { type }), `audio.${extFor(type)}`);
@@ -221,7 +285,7 @@ async function viaOpenAi(input: TranscribeInput, model: string, api = { url: 'ht
     method: 'POST',
     headers: { authorization: `Bearer ${api.key}` },
     body: form,
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new VoiceTranscribeError('transcribe_failed');
   const data = (await res.json()) as {
@@ -324,38 +388,47 @@ async function viaAssembly(input: TranscribeInput, model: string): Promise<Omit<
  */
 export async function transcribeAudio(input: TranscribeInput): Promise<TranscriptResult> {
   if (!input.audio.byteLength) throw new VoiceTranscribeError('empty_audio');
-  const provider = providerFor(input.tier);
-  if (!transcriptionConfigured(provider)) {
-    throw provider === 'gateway' ? new AiError('ai_disabled') : new VoiceTranscribeError('transcribe_disabled');
+  const attempts = transcribeAttempts(input);
+  const configured = attempts.filter((a) => transcriptionConfigured(a.provider));
+  if (!configured.length) {
+    throw attempts[0].provider === 'gateway' ? new AiError('ai_disabled') : new VoiceTranscribeError('transcribe_disabled');
   }
-  await assertTranscribeQuota(input.workspaceId);
   // Rate limit propio de la transcripción (más alto que el del chat): una reunión
   // con dos pistas manda unos 6 trozos por minuto por persona.
-  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
-    const res = await rateLimit(`ai:transcribe:${input.workspaceId}`, transcribeRatePerMinute(), 60);
-    if (!res.ok) throw new AiError('rate_limited');
+  if (!input.prechecked) await transcribePrecheck(input.workspaceId);
+  let result: Omit<TranscriptResult, 'provider'> | null = null;
+  let used = configured[0];
+  for (const attempt of configured) {
+    used = attempt;
+    const { provider, model } = attempt;
+    // Un dictado no espera dos minutos a un proveedor colgado: pasa al siguiente.
+    const timeoutMs = input.purpose === 'dictation' && attempt !== configured[configured.length - 1] ? 15_000 : 120_000;
+    try {
+      if (provider === 'fake') result = fakeResult(input);
+      else if (provider === 'openai') result = await viaOpenAi(input, model, undefined, timeoutMs);
+      else if (provider === 'deepgram') result = await viaDeepgram(input, model);
+      else if (provider === 'assemblyai') result = await viaAssembly(input, model);
+      else if (provider === 'groq') result = await viaOpenAi(input, model, { url: 'https://api.groq.com/openai/v1/audio/transcriptions', key: process.env.GROQ_API_KEY }, timeoutMs);
+      else result = await viaGateway(input, model, timeoutMs);
+      break;
+    } catch (err) {
+      if (err instanceof AiError) throw err;
+      console.error('[voice] transcribe failed', provider, model, err instanceof Error ? err.message : 'error');
+      if (!isTimeoutError(err)) failedAt.set(`${provider}/${model}`, Date.now());
+    }
   }
-  const model = transcribeModel(provider);
-  let result: Omit<TranscriptResult, 'provider'>;
-  try {
-    if (provider === 'fake') result = fakeResult(input);
-    else if (provider === 'openai') result = await viaOpenAi(input, model);
-    else if (provider === 'deepgram') result = await viaDeepgram(input, model);
-    else if (provider === 'assemblyai') result = await viaAssembly(input, model);
-    else if (provider === 'groq') result = await viaOpenAi(input, model, { url: 'https://api.groq.com/openai/v1/audio/transcriptions', key: process.env.GROQ_API_KEY });
-    else result = await viaGateway(input, model);
-  } catch (err) {
-    if (err instanceof VoiceTranscribeError || err instanceof AiError) throw err;
-    console.error('[voice] transcribe failed', provider, err instanceof Error ? err.message : 'error');
-    throw new VoiceTranscribeError('transcribe_failed');
-  }
-  await recordAiUsage({
-    workspaceId: input.workspaceId,
-    feature: 'voice_transcribe',
-    model: `${provider}/${model}`,
-    inputTokens: Math.ceil((result.durationMs || 1000) / 1000) * TOKENS_PER_AUDIO_SECOND,
-    outputTokens: 0,
-  }).catch(() => {});
+  if (!result) throw new VoiceTranscribeError('transcribe_failed');
+  const usage = () =>
+    recordAiUsage({
+      workspaceId: input.workspaceId,
+      feature: 'voice_transcribe',
+      model: `${used.provider}/${used.model}`,
+      inputTokens: Math.ceil((result!.durationMs || 1000) / 1000) * TOKENS_PER_AUDIO_SECOND,
+      outputTokens: 0,
+    }).catch(() => {});
+  if (input.deferUsage) input.deferUsage(usage);
+  else await usage();
+  const provider = used.provider;
   // Lo que el modelo inventa en el silencio (créditos de subtítulos, saludos de noticiero) no es del hablante.
   const pieces = result.pieces.map((p) => ({ ...p, text: stripHallucinations(p.text) })).filter((p) => p.text);
   return { ...result, text: stripHallucinations(result.text), pieces, provider };

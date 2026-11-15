@@ -402,12 +402,12 @@ export default function AppSidebar({
         onClick={() => setSwitcherOpen(false)}
         aria-current={key === product ? 'page' : undefined}
         data-needs-network={worksOffline(line) ? undefined : ''}
+        title={worksOffline(line) ? undefined : tOffline('needsConnection')}
       >
         <ProductGlyph product={line} size={14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
         {isComingSoon(line) && <span className="app-soon-tag">{labels.preview ?? labels.soon}</span>}
-        {/* Sin red (<html data-network="offline">) se ve: esta app necesita conexión. */}
-        {!worksOffline(line) && <span className="app-offline-tag">{tOffline('needsConnection')}</span>}
+        {/* Sin red (<html data-network="offline">) queda atenuada; el aviso va una vez arriba del panel. */}
       </Link>
     );
   };
@@ -502,6 +502,9 @@ export default function AppSidebar({
                 <Icon name="overview" size={14} />
                 <span>{labels.platformHome}</span>
               </Link>
+              <p className="band-menu-offline-hint" data-testid="switcher-offline-hint">
+                {tOffline('switcherHint')}
+              </p>
               {more.length > 0 && (
                 <div className="band-menu-grid" role="group" aria-label={labels.moreApps}>
                   {more.map(({ category, apps }) => (

@@ -1039,7 +1039,7 @@
     "syncing": "Syncing…",
     "synced": "Synced",
     "panelTitle": "Offline status",
-    "leadOffline": "What you already opened in CRM, Docs, Notes and Track stays readable. Your changes are saved on this device and sent when the connection is back.",
+    "leadOffline": "What you already opened in CRM, Docs, Notes, Track and Board stays readable. Your changes are saved on this device and sent when the connection is back.",
     "leadPending": "Some changes are saved on this device and have not reached the server yet.",
     "leadOnline": "Everything you did offline is on the server.",
     "savedOnDevice": "Saved on this device",
@@ -1068,7 +1068,9 @@
     "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
     "unknownTitle": "Not sent",
     "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them.",
-    "needsConnection": "Needs connection"
+    "needsConnection": "Needs connection",
+    "boardDrafts": "Board: {count, plural, one {# board with changes} other {# boards with changes}}",
+    "switcherHint": "You are offline. Dimmed apps need a connection."
   },
   "comingSoon": {
     "badge": "Coming soon",

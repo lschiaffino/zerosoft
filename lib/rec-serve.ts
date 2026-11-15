@@ -4,8 +4,11 @@ import { assetVisible, videoFileFor, type RecVideoRow } from './rec';
 import type { serveRecFile as ServeFn } from './rec-upload';
 
 /**
- * Archivo pedido de un video ya autorizado: ?kind=video|thumb|gif|captions
- * y ?download=1 (solo si el video deja descargar). Lo usan la ruta de la app
+ * Archivo pedido de un video ya autorizado: ?kind=video|play|thumb|gif|captions
+ * y ?download=1 (solo si el video deja descargar). `play` es para el
+ * reproductor: el MP4 con índice al principio si ya está (adelantar es
+ * inmediato), si no el original (y se lanza el MP4); `video` es siempre el
+ * original (lo usan el recorte y la edición en el navegador). Lo usan la ruta de la app
  * y la pública. `privileged` (quien administra el video, o el autor en la
  * página pública) recibe el original y la transcripción entera; los demás,
  * la copia recortada y los subtítulos de lo que queda dentro del recorte.
@@ -17,7 +20,7 @@ export async function serveRecKind(
 ): Promise<NextResponse> {
   const sp = req.nextUrl.searchParams;
   const kind = sp.get('kind') ?? 'video';
-  if (!['video', 'thumb', 'gif', 'captions'].includes(kind)) return NextResponse.json({ error: 'invalid_kind' }, { status: 400 });
+  if (!['video', 'play', 'thumb', 'gif', 'captions'].includes(kind)) return NextResponse.json({ error: 'invalid_kind' }, { status: 400 });
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (kind === 'captions') {
     let segments: RecSegment[] = [];
@@ -41,7 +44,17 @@ export async function serveRecKind(
   }
   const url = videoFileFor(v, opts.privileged);
   if (!url) return NextResponse.json({ error: 'processing' }, { status: 409 });
-  const wantDownload = sp.get('download') === '1';
+  if (kind === 'play') {
+    const { playbackMp4, preparePlayback } = await import('./rec-mp4');
+    const mp4 = playbackMp4(v, opts.privileged);
+    // El MP4 solo con su versión en la URL (?v=): una misma URL siempre da el mismo archivo (un
+    // reproductor que ya pidió rangos del original no recibe de golpe bytes de otro), y así se
+    // puede guardar en caché para siempre. Sin versión, o con una vieja, el original.
+    if (mp4 && sp.get('v') === mp4.key) return opts.serveRecFile(req, mp4.url, 'video/mp4', { size: mp4.size || undefined, cache: 'private, max-age=31536000, immutable' });
+    // Primer pedido de la reproducción (no cada rango): se lanza el MP4 una vez y se sirve el original.
+    if (!mp4 && !/^bytes=[1-9]/.test(req.headers.get('range') ?? '')) await preparePlayback(v).catch(() => undefined);
+  }
+  const wantDownload = kind === 'video' && sp.get('download') === '1';
   if (wantDownload && !opts.allowDownload) return NextResponse.json({ error: 'download_disabled' }, { status: 403 });
   if (wantDownload) {
     // Se descarga en MP4 (H.264/AAC), la versión que ven los demás; la primera vez se arma y responde 202.

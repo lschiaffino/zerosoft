@@ -80,6 +80,9 @@ export function ffmpegArgs(input: string, output: string, trim: { start: number;
     'veryfast',
     '-crf',
     '23',
+    // Un keyframe cada 2 s: el reproductor adelanta a cualquier punto leyendo poco.
+    '-force_key_frames',
+    'expr:gte(t,n_forced*2)',
     '-pix_fmt',
     'yuv420p',
     '-vf',
@@ -118,6 +121,32 @@ function sandboxAvailable(): boolean {
 }
 
 export type Mp4State = { state: 'ready'; url: string; size: number } | { state: 'preparing' } | { state: 'original' };
+
+/**
+ * MP4 para reproducir (no solo para bajar): el WebM del grabador no trae índice (Cues), así que
+ * para adelantar el navegador lo lee entero hasta ese punto, de a 4 MB por pedido. El MP4 tiene
+ * el índice al principio y un keyframe cada 2 s: adelantar lee unos cientos de KB.
+ *
+ * Solo si muestra exactamente lo mismo que el archivo que recibiría quien mira: sin recorte
+ * aplicado al convertir (el reproductor aplica el recorte sobre el original) y de la versión
+ * vigente. `key` versiona la URL (caché larga).
+ */
+export function playbackMp4(v: Row, privileged: boolean): { url: string; size: number; key: string } | null {
+  const plan = mp4Plan(v);
+  if (!plan || plan.trim || !v.mp4_url || v.mp4_for !== plan.key) return null;
+  if (videoFileFor(v as RecVideoRow, privileged) !== plan.source) return null;
+  return { url: v.mp4_url, size: Number(v.mp4_size) || 0, key: plan.key };
+}
+
+/**
+ * Lanza el MP4 de reproducción si hace falta (al terminar de subir, o la primera vez que se mira
+ * un video viejo). No espera: el reproductor sigue con el original hasta que está.
+ */
+export async function preparePlayback(v: Row): Promise<void> {
+  const plan = mp4Plan(v);
+  if (!plan || plan.trim || (v.mp4_url && v.mp4_for === plan.key)) return;
+  await downloadMp4(v);
+}
 
 /**
  * Qué bajar: el MP4 si ya está; si la fuente ya es un MP4 sin recorte, ese

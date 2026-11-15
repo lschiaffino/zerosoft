@@ -243,6 +243,7 @@ fn content_webview(app: &AppHandle, id: u64, path: &str) -> WebviewBuilder<Wry> 
             if payload.event() != PageLoadEvent::Finished {
                 return;
             }
+            crate::offline::mark_loaded(wv.label());
             crate::first_load_timing();
             if let Some(id) = tab_id(wv.label()) {
                 if st(&load_app).palette.lock().unwrap().remove(&id) {
@@ -283,6 +284,8 @@ fn ensure_webview(app: &AppHandle, id: u64, visible: bool) -> Option<Webview> {
     let r = content_rect(&win);
     let (pos, size) = (r.position.to_logical::<f64>(1.0), r.size.to_logical::<f64>(1.0));
     let wv = win.add_child(content_webview(app, id, &path), pos, size).ok()?;
+    // Sin red y sin la copia del service worker la carga falla en blanco: "sin conexión" (offline.rs).
+    crate::offline::watch(app, &tab_label(id), &format!("{}{}", crate::api::server(app), path));
     if !visible {
         let _ = wv.hide();
     }
