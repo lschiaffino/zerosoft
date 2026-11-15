@@ -113,10 +113,12 @@ describe('Inbox: posponer archiva', () => {
   it('cuando vence: vuelve a la bandeja marcado, sale de Archivados y se desarchiva en WhatsApp (una sola vez)', async () => {
     const c = await inboxChat('sz-in-wake', '5491100008002');
     await c.snooze();
-    expect(await wakeSnoozed(new Date())).toBe(0);
+    // El cron mira toda la base (otros tests dejan pospuestos): se mira este chat.
+    await wakeSnoozed(new Date());
+    expect(await c.state()).toEqual(SNOOZED);
     const at = later();
-    expect(await wakeSnoozed(at)).toBe(1);
-    expect(await wakeSnoozed(at)).toBe(0);
+    await wakeSnoozed(at);
+    await wakeSnoozed(at);
     expect(await c.state()).toEqual(BACK);
     expect(await c.inView('inbox', at)).toBe(true);
     expect(await c.inView('archived', at)).toBe(false);
@@ -162,7 +164,8 @@ describe('Inbox: posponer archiva', () => {
     expect(await c.inView('snoozed')).toBe(false);
     expect(c.calls()).toEqual([true, false]);
     // Y no vuelve a "despertar" más tarde.
-    expect(await wakeSnoozed(later())).toBe(0);
+    await wakeSnoozed(later());
+    expect((await getThreadRow(c.owner, c.id)).woke_reason).not.toBe('snooze');
   });
 
   it.each(['archive', 'done'] as const)('uno que ya estaba archivado (%s): posponer no manda nada, cancelar lo deja archivado, y al vencer vuelve', async (how) => {
@@ -191,7 +194,8 @@ describe('Inbox: posponer archiva', () => {
     expect(await c.inView('inbox')).toBe(true);
     expect(c.calls()).toEqual([true]);
     expect(await getArchivePush('inbox', c.id)).toMatchObject({ archived: 0, last_error: UNARCHIVED_BY_SEND });
-    expect(await wakeSnoozed(later())).toBe(0);
+    await wakeSnoozed(later());
+    expect((await getThreadRow(c.owner, c.id)).woke_reason).not.toBe('snooze');
   });
 
   it('un chat de email pospuesto sigue pospuesto y archivado al responder (responder no desarchiva email), y vuelve al vencer', async () => {
@@ -283,10 +287,11 @@ describe('Lines: posponer archiva', () => {
     const c = await linesChat('sz-li-wake', '5491100008103');
     await c.patch({ read: true });
     await c.snooze();
-    expect(await wakeSnoozedChats(new Date())).toBe(0);
+    await wakeSnoozedChats(new Date());
+    expect(await c.state()).toEqual(SNOOZED);
     const at = later();
-    expect(await wakeSnoozedChats(at)).toBe(1);
-    expect(await wakeSnoozedChats(at)).toBe(0);
+    await wakeSnoozedChats(at);
+    await wakeSnoozedChats(at);
     expect(await c.state()).toEqual(BACK);
     expect(await c.inList()).toBe(true);
     expect((await getChat(c.ws, c.id))!).toMatchObject({ unread: 1, markedUnread: true });
@@ -329,7 +334,8 @@ describe('Lines: posponer archiva', () => {
     await c.patch({ archived: false });
     expect(await c.state()).toEqual(BACK);
     expect(c.calls()).toEqual([true, false]);
-    expect(await wakeSnoozedChats(later())).toBe(0);
+    await wakeSnoozedChats(later());
+    expect(await c.state()).toEqual(BACK);
   });
 
   it('uno que ya estaba archivado: posponer no manda nada, cancelar lo deja archivado, y al vencer vuelve', async () => {
@@ -357,7 +363,8 @@ describe('Lines: posponer archiva', () => {
     expect(await c.inList()).toBe(true);
     expect(c.calls()).toEqual([true]);
     expect((await getChatRow(c.ws, c.id))!.snooze_archived).toBe(0);
-    expect(await wakeSnoozedChats(later())).toBe(0);
+    await wakeSnoozedChats(later());
+    expect(await c.state()).toEqual(BACK);
   });
 
   it('desarchivar y posponer enseguida: el desarchivado que avisa el teléfono es eco viejo y no deshace el pospuesto', async () => {
@@ -390,6 +397,7 @@ describe('Lines: posponer archiva', () => {
     await c.snooze();
     await c.patch({ hidden: true });
     expect(await c.state()).toEqual(BACK);
-    expect(await wakeSnoozedChats(later())).toBe(0);
+    await wakeSnoozedChats(later());
+    expect(await c.state()).toEqual(BACK);
   });
 });
