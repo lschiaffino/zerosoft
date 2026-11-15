@@ -61,7 +61,7 @@ doubles as the draft Statement of Applicability for ISO 27001.
 | O3 | Monitoring and alerting on errors and availability | CC7.2, A1.1 | 8.16 | Owner | /status, Vercel | Configure uptime alerts (e.g. Vercel monitoring or an external checker) and on-call contact |
 | O4 | SAST on every PR (CodeQL security-extended) | CC7.1, CC8.1 | 8.28, 8.29 | Yes | `.github/workflows/codeql.yml`, Security › Code scanning | Triage alerts weekly |
 | O5 | Secret scanning in CI (gitleaks) and on GitHub (push protection) | CC6.1, CC7.1 | 8.4, 8.28 | Yes | `.github/workflows/security.yml`, repository settings | - |
-| O6 | Dependency scanning: Dependabot alerts and updates, `npm audit` blocks critical | CC7.1 | 8.8 | Yes | `.github/dependabot.yml`, security.yml | Fix high within 30 days; accepted exceptions in the risk register |
+| O6 | Dependency scanning: Dependabot alerts and updates, `npm audit` blocks critical | CC7.1 | 8.8 | Yes | `.github/dependabot.yml`, `.github/workflows/dependency-audit.yml` | Fix high within 30 days; accepted exceptions in the risk register |
 | O7 | Penetration test yearly | CC4.1, CC7.1 | 8.8, 8.29 | Owner | - | Commission one before the SOC 2 Type I |
 | O8 | Incident response plan with 72-hour breach notification | CC7.3–CC7.5 | 5.24–5.28, 6.8 | Partial | [policies/incident-response.md](policies/incident-response.md) | Yearly tabletop; keep the breach log |
 | O9 | Malware protection on endpoints | CC6.8 | 8.7 | Owner | asset-inventory.md | macOS XProtect/Gatekeeper on, record in inventory |
