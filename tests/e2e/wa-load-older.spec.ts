@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { ownWorkspace } from './helpers/own-workspace';
 
 /**
  * "Cargar mensajes anteriores" en Inbox y en Lines, con el WhatsApp falso: un
@@ -16,12 +17,15 @@ import { e2eDb } from './helpers/db';
 
 test.describe.configure({ timeout: 300_000 });
 
+// Una persona y un workspace propios: la prueba desvincula la línea, y eso no puede tocar la cuenta de otras pruebas.
+const EMAIL = ownWorkspace('wa-older');
+
 /** Con `next dev` la primera vez que se pide una ruta se compila: se piden una vez antes, con margen. */
 test.beforeAll(async ({ playwright }) => {
   test.setTimeout(600_000);
   const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
   try {
-    for (const url of ['/api/inbox/threads/warm', '/api/inbox/threads/warm/messages', '/api/groups/chats/warm/messages']) await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/threads/warm/messages', '/api/inbox/threads/warm/wa', '/api/groups/chats/warm', '/api/groups/chats/warm/messages']) await ctx.get(url, { timeout: 280_000 }).catch(() => null);
   } finally {
     await ctx.dispose();
   }
@@ -94,7 +98,8 @@ async function loadsOlder(page: Page, thread: Locator, scroller: Locator, tag: s
   await c.getByRole('button').click();
   await expect(c).toHaveAttribute('data-state', 'none', { timeout: 90_000 });
   await expect(c).toHaveText('No older messages on WhatsApp');
-  await expect(c.getByRole('button')).toHaveCount(0);
+  // Queda como aviso: el mismo botón, sin nada que apretar.
+  await expect(c.getByRole('button')).toHaveAttribute('aria-disabled', 'true');
   // Nada repetido.
   await expect(thread.getByText('Mensaje anterior 50', { exact: true })).toHaveCount(1);
   await shot(page, `${app}-none`);
@@ -121,7 +126,7 @@ test('Inbox: la ficha carga los mensajes anteriores del teléfono, dice cuando n
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
-  const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
+  const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = ?", [EMAIL]);
   const post = async (events: unknown[]) => {
     const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
     expect(res.ok(), await res.text()).toBe(true);
@@ -156,7 +161,7 @@ test('Inbox: la ficha carga los mensajes anteriores del teléfono, dice cuando n
   const bad = await open(badName);
   await chip(bad).getByRole('button').click();
   await expect(chip(bad)).toHaveAttribute('data-state', 'error', { timeout: 60_000 });
-  await expect(chip(bad).getByRole('button')).toBeEnabled();
+  await expect(chip(bad).getByRole('button')).not.toHaveAttribute('aria-disabled', 'true');
   await shot(page, 'inbox-error');
 
   await themes(page, context, baseURL!, 'inbox-idle', async () => chip(await open(badName)));
@@ -166,7 +171,7 @@ test('Inbox: la ficha carga los mensajes anteriores del teléfono, dice cuando n
   try {
     const off = await open(badName);
     await expect(chip(off)).toHaveAttribute('data-state', 'offline', { timeout: 30_000 });
-    await expect(chip(off).getByRole('button')).toBeDisabled();
+    await expect(chip(off).getByRole('button')).toHaveAttribute('aria-disabled', 'true');
     await expect(chip(off)).toContainText('Line disconnected');
     await themes(page, context, baseURL!, 'inbox-offline', async () => chip(await open(badName)));
   } finally {
@@ -212,11 +217,8 @@ test('Lines: la ficha carga los mensajes anteriores del teléfono, y solo quien 
       await ctx.dispose();
     }
 
-    // Con la línea desvinculada: no se puede tocar y dice por qué.
-    await sql("UPDATE groups_numbers SET status = 'disconnected' WHERE id = ?", [numberId]);
-    // Otro chat de la misma línea, sin pedidos anteriores.
+    // Con la línea desvinculada: no se puede tocar y dice por qué. En otro chat de la misma línea, sin pedidos anteriores.
     const phone2 = `1777${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
-    await sql("UPDATE groups_numbers SET status = 'connected' WHERE id = ?", [numberId]);
     const res2 = await request.post(new URL(webhookUrl).pathname, { data: { events: stored(`${phone2}@s.whatsapp.net`, phone2, `Omar Historial ${uid()}`, `c${tag}`).slice(0, 4) } });
     expect(res2.ok()).toBe(true);
     const [chat2] = await sql('SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', [numberId, `${phone2}@s.whatsapp.net`]);
@@ -228,7 +230,7 @@ test('Lines: la ficha carga los mensajes anteriores del teléfono, y solo quien 
     await sql("UPDATE groups_numbers SET status = 'disconnected' WHERE id = ?", [numberId]);
     const off = await open2();
     await expect(off).toHaveAttribute('data-state', 'offline', { timeout: 30_000 });
-    await expect(off.getByRole('button')).toBeDisabled();
+    await expect(off.getByRole('button')).toHaveAttribute('aria-disabled', 'true');
     await themes(page, context, baseURL!, 'lines-offline', open2);
   } finally {
     await request.delete(`/api/groups/numbers/${numberId}`).catch(() => null);

@@ -463,6 +463,7 @@ export default function ChatThread(props: ThreadProps) {
   firstRef.current = messages[0];
   const olderHistory = useOlderHistory(
     chat.id,
+    messages[0]?.id ?? '',
     async (): Promise<OlderReply> => {
       const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
       const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};

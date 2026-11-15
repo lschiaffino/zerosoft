@@ -63,6 +63,7 @@ describe('esperas entre pedidos', () => {
     expect(olderResponse({ ok: false, error: 'not_connected' }).status).toBe(409);
     expect(olderResponse({ ok: false, error: 'rate_limited' }).status).toBe(429);
     expect(olderResponse({ ok: false, error: 'failed' }).status).toBe(502);
+    expect(olderResponse({ ok: false, error: 'anchor' })).toEqual({ status: 502, body: { error: 'history_anchor' } });
     expect(olderResponse({ ok: false, error: 'empty_chat' }).body).toEqual({ ok: true, none: true });
   });
 });
@@ -176,15 +177,42 @@ describe('Inbox', () => {
     // El teléfono no responde (1778): error, se puede reintentar.
     const target = (await fetchTarget('inbox', u.id, thread.id))!;
     expect(await loadOlderHistory(target, clock)).toEqual({ ok: false, error: 'failed' });
-    now += OLDER_MIN_INTERVAL_MS + 1;
+    // Un pedido que falló no corre la espera: se puede reintentar enseguida.
+    now += 500;
     expect(await loadOlderHistory(target, clock)).toEqual({ ok: false, error: 'failed' });
-    const row = (await getDb().prepare("SELECT older_empty FROM wa_history_fetch WHERE app = 'inbox' AND chat_id = ?").get(thread.id)) as { older_empty: number };
+    const row = (await getDb().prepare("SELECT older_empty, older_at, claimed_until FROM wa_history_fetch WHERE app = 'inbox' AND chat_id = ?").get(thread.id)) as { older_empty: number; older_at: string | null; claimed_until: string | null };
     expect(Number(row.older_empty)).toBe(0);
+    expect(row.older_at).toBeNull();
+    expect(row.claimed_until).toBeNull();
     // Desvinculada.
     await getDb().prepare("UPDATE inbox_accounts SET status = 'disconnected' WHERE id = ?").run(acc.id);
     expect(await loadOlderHistory((await fetchTarget('inbox', u.id, thread.id))!, clock)).toEqual({ ok: false, error: 'not_connected' });
     // Otra persona no llega al chat.
     expect(await fetchTarget('inbox', 'otra-persona', thread.id)).toBeNull();
+  });
+});
+
+describe('un gateway que no puede pedir desde nuestro mensaje', () => {
+  it('si ancla en otro mensaje, no es "no hay más": es un error y no cuenta como pedido sin nada', async () => {
+    const u = await makeUser('lo-anchor');
+    const { account: a } = await connectWhatsapp(u.id);
+    await getDb().prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(a.id);
+    linked(`inbox-${a.id}`);
+    const acc = (await getAccountById(a.id))!;
+    const chatId = `${phoneWithHistory()}@s.whatsapp.net`;
+    await ingestWhatsappEvents(acc, [msg(chatId, `m1-${uniq()}`, 30, 'uno')]);
+    const thread = (await findThread(acc.id, chatId))!;
+    const target = (await fetchTarget('inbox', u.id, thread.id))!;
+    // El gateway (sin el parche del ancla y sin ese mensaje guardado) pide desde uno más nuevo suyo.
+    const real = target.provider();
+    const wrong = { ...target, provider: () => ({ ...real, caps: real.caps, fetchHistory: async () => ({ requestId: 'r', anchorId: 'otro-mensaje' }) }) as typeof real };
+    expect(await loadOlderHistory(wrong)).toEqual({ ok: false, error: 'anchor' });
+    const row = (await getDb().prepare("SELECT older_empty, older_at FROM wa_history_fetch WHERE app = 'inbox' AND chat_id = ?").get(thread.id)) as { older_empty: number; older_at: string | null };
+    expect(Number(row.older_empty)).toBe(0);
+    expect(row.older_at).toBeNull();
+    // Lo que llega por el webhook (el proveedor no lo devuelve en el momento) queda pendiente.
+    const later = { ...target, provider: () => ({ ...real, caps: real.caps, fetchHistory: async () => ({ requestId: 'r' }) }) as typeof real };
+    expect(await loadOlderHistory(later)).toEqual({ ok: true, delivered: 0, pending: true });
   });
 });
 

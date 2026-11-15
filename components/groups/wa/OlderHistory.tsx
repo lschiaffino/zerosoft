@@ -11,8 +11,12 @@ import { Retry } from './icons';
  * suman arriba sin mover lo que se está leyendo.
  */
 
-/** Sin pedir, pidiendo, el teléfono no tiene más, falló (se puede reintentar), hay que esperar, o la línea está desvinculada. */
-export type OlderState = 'idle' | 'loading' | 'none' | 'error' | 'limited' | 'offline';
+/**
+ * Sin pedir, pidiendo, el teléfono no tiene más, falló (se puede reintentar),
+ * el teléfono no contestó a tiempo (se puede reintentar), la línea llegó a su
+ * tope de pedidos, o la línea está desvinculada.
+ */
+export type OlderState = 'idle' | 'loading' | 'none' | 'error' | 'noanswer' | 'limited' | 'offline';
 
 /** Lo que respondió el servidor al pedido. */
 export interface OlderReply {
@@ -28,40 +32,63 @@ export interface OlderReply {
   retryInMs?: number;
 }
 
-/** Cada cuánto se mira si llegó lo pedido (ms desde el pedido). Unos 25 s en total. */
+/** Cada cuánto se mira si llegó lo pedido (ms entre miradas). Unos 34 s en total. */
 const WAITS = [1200, 2500, 4000, 6000, 8000, 12000];
 
 /**
  * El pedido y su estado. `request` le pide al servidor; `loadStored` trae de
- * nuestra base lo anterior a lo que hay en pantalla y devuelve cuántos sumó.
- * `chatKey` cambia con el chat: el estado no pasa de uno a otro.
+ * nuestra base lo anterior a lo que hay en pantalla. `firstId` es el mensaje
+ * más viejo en pantalla: si cambia, llegaron anteriores (por este pedido o por
+ * la relectura periódica del chat), y eso es lo que decide que el pedido
+ * trajo algo. `chatKey` cambia con el chat: el estado no pasa de uno a otro.
  */
-export function useOlderHistory(chatKey: string, request: () => Promise<OlderReply>, loadStored: () => Promise<number>) {
+export function useOlderHistory(chatKey: string, firstId: string, request: () => Promise<OlderReply>, loadStored: () => Promise<number>) {
   const [state, setState] = useState<OlderState>('idle');
   const busy = useRef(false);
+  const alive = useRef(true);
   const key = useRef(chatKey);
+  const first = useRef(firstId);
+  first.current = firstId;
   const fns = useRef({ request, loadStored });
   fns.current = { request, loadStored };
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   useEffect(() => {
     key.current = chatKey;
     busy.current = false;
     setState('idle');
   }, [chatKey]);
+  // Entraron mensajes anteriores (por donde sea): lo que decía la ficha ("no hay más", un error) ya no vale.
+  useEffect(() => {
+    if (!busy.current) setState((s) => (s === 'none' || s === 'error' || s === 'noanswer' ? 'idle' : s));
+  }, [firstId]);
 
   const run = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
     const mine = key.current;
-    const still = () => key.current === mine;
+    const start = first.current;
+    const still = () => alive.current && key.current === mine;
+    /** ¿Hay mensajes anteriores a los que había al tocar? Los trae de lo guardado si todavía no están en pantalla. */
+    const arrived = async () => {
+      if (first.current !== start) return true;
+      const added = await fns.current.loadStored().catch(() => 0);
+      return added > 0 || first.current !== start;
+    };
     setState('loading');
     try {
       let r = await fns.current.request().catch((): OlderReply => ({ status: 0 }));
       // Dos toques seguidos: el servidor espacia los pedidos de un chat. Se espera lo que diga y se pide de nuevo
-      // (lo que ya haya llegado del pedido anterior entra igual, abajo).
+      // (lo que ya haya llegado del pedido anterior entra igual).
       for (let i = 0; i < 2 && still() && r.recent && r.retryInMs && r.retryInMs <= 20_000; i++) {
         await new Promise((res) => setTimeout(res, (r.retryInMs ?? 0) + 150));
         if (!still()) return;
-        if ((await fns.current.loadStored().catch(() => 0)) > 0) return setState('idle');
+        if (await arrived()) return void (still() && setState('idle'));
+        if (!still()) return;
         r = await fns.current.request().catch((): OlderReply => ({ status: 0 }));
       }
       if (!still()) return;
@@ -73,13 +100,14 @@ export function useOlderHistory(chatKey: string, request: () => Promise<OlderRep
       for (const ms of waits) {
         if (ms) await new Promise((res) => setTimeout(res, ms));
         if (!still()) return;
-        const added = await fns.current.loadStored().catch(() => 0);
+        if (await arrived()) return void (still() && setState('idle'));
         if (!still()) return;
-        if (added > 0) return setState('idle');
       }
-      setState('none');
+      // "No hay más" solo cuando lo dijo el servidor o el proveedor contestó en el momento sin nada. Si había que
+      // esperar al teléfono y no llegó nada, no contestó (apagado, sin señal): se puede reintentar.
+      setState(r.none || !r.pending ? 'none' : 'noanswer');
     } finally {
-      if (still()) busy.current = false;
+      if (key.current === mine) busy.current = false;
     }
   }, []);
 
@@ -96,22 +124,28 @@ export default function OlderHistoryChip({ state, offline, onLoad }: { state: Ol
         ? tw('olderNone')
         : shown === 'error'
           ? tw('olderError')
-          : shown === 'limited'
-            ? tw('olderLimited')
-            : shown === 'offline'
-              ? tw('olderOffline')
-              : tw('olderLoad');
+          : shown === 'noanswer'
+            ? tw('olderNoAnswer')
+            : shown === 'limited'
+              ? tw('olderLimited')
+              : shown === 'offline'
+                ? tw('olderOffline')
+                : tw('olderLoad');
+  // Siempre el mismo botón (el foco del teclado no se pierde al cambiar de estado). Cuando no hay nada que apretar
+  // ("no hay más", línea desvinculada) queda como aviso: aria-disabled, sin acción, y el texto dice por qué.
+  const inert = shown === 'none' || shown === 'offline' || shown === 'loading';
   return (
-    <div className="wa-older-history" data-testid="wa-older-history" data-state={shown} aria-live="polite">
-      {shown === 'none' ? (
-        // No hay más: un aviso, no un botón (no hay nada que apretar).
-        <span className="wa-older-chip is-note">{label}</span>
-      ) : (
-        <button type="button" className={`wa-older-chip is-${shown}`} onClick={onLoad} disabled={shown === 'loading' || shown === 'offline'} aria-busy={shown === 'loading' || undefined}>
-          <Retry size={14} className={shown === 'loading' ? 'is-spinning' : undefined} />
-          <span>{label}</span>
-        </button>
-      )}
+    <div className="wa-older-history" data-testid="wa-older-history" data-state={shown}>
+      <button
+        type="button"
+        className={`wa-older-chip is-${shown}`}
+        onClick={inert ? undefined : onLoad}
+        aria-disabled={inert || undefined}
+        aria-busy={shown === 'loading' || undefined}
+      >
+        {shown !== 'none' && <Retry size={14} className={shown === 'loading' ? 'is-spinning' : undefined} />}
+        <span>{label}</span>
+      </button>
     </div>
   );
 }

@@ -274,7 +274,8 @@ export type OlderOutcome =
   | { ok: true; delivered: number; pending: boolean }
   /** El teléfono ya no trajo nada las últimas veces: no hay mensajes anteriores (se vuelve a probar pasada la espera). */
   | { ok: true; none: true }
-  | { ok: false; error: 'rate_limited' | 'unsupported' | 'not_connected' | 'busy' | 'failed' | 'empty_chat'; retryInMs?: number };
+  /** `anchor`: el gateway no pudo pedir desde nuestro mensaje más viejo (no lo tiene y no acepta el ancla): lo que mande ya lo tenemos. */
+  | { ok: false; error: 'rate_limited' | 'unsupported' | 'not_connected' | 'busy' | 'failed' | 'empty_chat' | 'anchor'; retryInMs?: number };
 
 /** Cuánto hay que esperar entre pedidos de un chat según cuántos seguidos no trajeron nada. */
 export function olderInterval(empty: number): number {
@@ -333,38 +334,48 @@ export async function loadOlderHistory(target: FetchTarget, nowFn = () => Date.n
     .prepare('UPDATE wa_history_fetch SET claimed_until = ? WHERE app = ? AND chat_id = ? AND (claimed_until IS NULL OR claimed_until < ?)')
     .run(iso(now + CLAIM_MS), app, chatId, iso(now));
   if (claim.changes === 0) return { ok: false, error: 'busy', retryInMs: 3000 };
-  await rateLimit(`wa-history-older:${app}:${target.accountId}`, OLDER_LINE_HOURLY_CAP, 3600);
 
   let outcome: OlderOutcome;
   try {
+    await rateLimit(`wa-history-older:${app}:${target.accountId}`, OLDER_LINE_HOURLY_CAP, 3600);
     // `after`: para un gateway sin el parche del ancla, que busca en su base el primer mensaje posterior.
     const opts = { count: OLDER_COUNT, after: Math.max(1, anchor.timestamp - 1), anchor };
+    // El gateway puede conocer el chat 1:1 por el otro id (lid ↔ teléfono): si el pedido anterior no trajo nada, este
+    // va con el otro; y también si dice que no conoce el chat.
+    const alt = async () => (target.altJid ? await target.altJid().catch(() => '') : '');
+    const first = empty % 2 === 1 ? (await alt()) || target.jid : target.jid;
     let res: { requestId?: string; events?: InboundEvent[]; anchorId?: string };
     try {
-      res = await provider.fetchHistory(target.jid, opts);
+      res = await provider.fetchHistory(first, opts);
     } catch (err) {
-      // El gateway puede conocer el chat 1:1 solo por el otro id (lid ↔ teléfono).
-      const alt = err instanceof ProviderError && err.code === 'not_found' && target.altJid ? await target.altJid().catch(() => '') : '';
-      if (!alt) throw err;
-      res = await provider.fetchHistory(alt, opts);
+      const other = err instanceof ProviderError && err.code === 'not_found' && first === target.jid ? await alt() : '';
+      if (!other) throw err;
+      res = await provider.fetchHistory(other, opts);
     }
     const events = (res.events ?? []).map((e) => (e.type === 'message' ? { ...e, history: true } : e));
     if (events.length) await target.ingest(events);
     const delivered = events.filter((e) => e.type === 'message').length;
+    // El gateway dijo desde qué mensaje pidió y no es el nuestro (no lo tiene guardado y no acepta el ancla): el
+    // teléfono va a mandar lo que ya tenemos. No es "no hay más": es que desde acá no se puede pedir.
+    const anchored = !res.anchorId || res.anchorId === anchor.id;
     // Lo trae el webhook: `pending`. Si el proveedor ya respondió (con o sin mensajes), no hay nada que esperar.
-    outcome = { ok: true, delivered, pending: res.events === undefined };
+    outcome = anchored ? { ok: true, delivered, pending: res.events === undefined } : { ok: false, error: 'anchor' };
     // eslint-disable-next-line no-console
-    console.info(`[wa-history] ${app} older requested, anchored ${res.anchorId ? res.anchorId === anchor.id : 'unknown'}, delivered ${delivered}`);
+    console.info(`[wa-history] ${app} older requested, anchored ${res.anchorId ? anchored : 'unknown'}, delivered ${delivered}`);
   } catch (err) {
     const code = err instanceof ProviderError ? err.code : 'error';
     // eslint-disable-next-line no-console
     console.warn(`[wa-history] ${app} older failed: ${code}`);
     outcome = { ok: false, error: code === 'not_connected' ? 'not_connected' : 'failed' };
   }
-  // Un pedido que falló no cuenta como "no trajo nada".
-  await db
-    .prepare('UPDATE wa_history_fetch SET claimed_until = NULL, older_at = ?, older_anchor = ?, older_empty = ? WHERE app = ? AND chat_id = ?')
-    .run(iso(nowFn()), outcome.ok ? anchor.id : (row?.older_anchor ?? ''), outcome.ok ? empty : Number(row?.older_empty ?? 0), app, chatId);
+  // Un pedido que falló no cuenta como "no trajo nada" ni corre la espera: se puede reintentar enseguida.
+  if (outcome.ok) {
+    await db
+      .prepare('UPDATE wa_history_fetch SET claimed_until = NULL, older_at = ?, older_anchor = ?, older_empty = ? WHERE app = ? AND chat_id = ?')
+      .run(iso(nowFn()), anchor.id, empty, app, chatId);
+  } else {
+    await db.prepare('UPDATE wa_history_fetch SET claimed_until = NULL WHERE app = ? AND chat_id = ?').run(app, chatId);
+  }
   return outcome;
 }
 
@@ -390,6 +401,8 @@ export function olderResponse(out: OlderOutcome): { status: number; body: Record
       return { status: 409, body: { error: 'not_connected' } };
     case 'unsupported':
       return { status: 400, body: { error: 'unsupported' } };
+    case 'anchor':
+      return { status: 502, body: { error: 'history_anchor' } };
     default:
       return { status: 502, body: { error: 'history_failed' } };
   }
@@ -401,12 +414,11 @@ export async function fetchTarget(app: GapApp, scopeId: string, chatId: string):
 }
 
 /** El ancla de un mensaje guardado (la hora, en segundos; en un grupo, quién lo mandó si hay teléfono). */
-function anchorOf(id: string, fromMe: boolean, at: string, senderPhone: string): HistoryAnchor | null {
+function anchorOf(id: string, fromMe: boolean, at: string): HistoryAnchor | null {
   // Las fechas de Lines pueden venir como "YYYY-MM-DD HH:MM:SS" (UTC).
   const ms = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(at) ? at : `${at.replace(' ', 'T')}Z`);
   if (!id || !Number.isFinite(ms)) return null;
-  const phone = senderPhone.replace(/\D/g, '');
-  return { id, fromMe, timestamp: Math.floor(ms / 1000), ...(phone.length >= 6 ? { participant: `${phone}@s.whatsapp.net` } : {}) };
+  return { id, fromMe, timestamp: Math.floor(ms / 1000) };
 }
 
 async function linesTarget(ws: string, chatId: string): Promise<FetchTarget | null> {
@@ -433,10 +445,10 @@ async function linesTarget(ws: string, chatId: string): Promise<FetchTarget | nu
         .prepare(
           `SELECT provider_message_id AS id, direction, created_at, sender_phone FROM groups_messages
            WHERE chat_id = ? AND provider_message_id IS NOT NULL AND provider_message_id <> '' AND direction IN ('in', 'out')
-           ORDER BY created_at ASC LIMIT 1`,
+           ORDER BY created_at ASC, rowid ASC LIMIT 1`,
         )
         .get(chat.id)) as { id: string; direction: string; created_at: string; sender_phone: string } | undefined;
-      return m ? anchorOf(m.id, m.direction === 'out', m.created_at, chat.provider_chat_id.endsWith('@g.us') && m.direction === 'in' ? m.sender_phone : '') : null;
+      return m ? anchorOf(m.id, m.direction === 'out', m.created_at) : null;
     },
   };
 }
@@ -463,9 +475,9 @@ async function inboxTarget(owner: string, threadId: string): Promise<FetchTarget
     ingest: async (events) => void (await ingestWhatsappEvents(account, events, { history: true })),
     oldest: async () => {
       const m = (await getDb()
-        .prepare("SELECT external_id AS id, from_me, sent_at, sender_handle FROM inbox_messages WHERE thread_id = ? AND external_id <> '' AND external_id NOT LIKE 'local-%' ORDER BY sent_at ASC LIMIT 1")
+        .prepare("SELECT external_id AS id, from_me, sent_at, sender_handle FROM inbox_messages WHERE thread_id = ? AND external_id <> '' AND external_id NOT LIKE 'local-%' ORDER BY sent_at ASC, rowid ASC LIMIT 1")
         .get(t.id)) as { id: string; from_me: number; sent_at: string; sender_handle: string } | undefined;
-      return m ? anchorOf(m.id, Number(m.from_me) === 1, m.sent_at, t.external_id.endsWith('@g.us') && Number(m.from_me) !== 1 ? m.sender_handle : '') : null;
+      return m ? anchorOf(m.id, Number(m.from_me) === 1, m.sent_at) : null;
     },
   };
 }

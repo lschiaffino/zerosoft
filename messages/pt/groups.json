@@ -1785,9 +1785,6 @@
     "emojiNone": "Nenhum emoji encontrado",
     "sendFiles": "{n, plural, one {Enviar # arquivo} other {Enviar # arquivos}}",
     "importNothingNew": "Já estava tudo importado ({chats} conversas).",
-    "historyOnPhone": "As mensagens anteriores estão no celular.",
-    "historyFetch": "Trazer mais",
-    "historyAll": "Este é o começo do histórico que temos.",
     "online": "online",
     "typing": "digitando…",
     "typingBy": "{name} está digitando…",
@@ -1963,8 +1960,9 @@
     "olderLoading": "Carregando mensagens anteriores…",
     "olderNone": "Não há mensagens anteriores no WhatsApp",
     "olderError": "Não foi possível carregar. Tentar de novo",
-    "olderLimited": "Espere um momento e tente de novo",
-    "olderOffline": "Linha desconectada: vincule para carregar mensagens anteriores"
+    "olderLimited": "Muitos pedidos para esta linha. Tente mais tarde",
+    "olderOffline": "Linha desconectada: vincule para carregar mensagens anteriores",
+    "olderNoAnswer": "O celular não respondeu. Tentar de novo"
   },
   "swipe": {
     "read": "Lida",

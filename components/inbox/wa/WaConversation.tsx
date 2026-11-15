@@ -281,6 +281,7 @@ const WaConversation = forwardRef<
   // (components/groups/wa/OlderHistory.tsx). Lo que llega entra por loadOlder, como al subir en la conversación.
   const olderHistory = useOlderHistory(
     thread.id,
+    messages[0]?.id ?? '',
     async (): Promise<OlderReply> => {
       const r = await fetch(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
       const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
