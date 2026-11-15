@@ -48,6 +48,8 @@ export const GUARDS = [
   '@/lib/design-http#designActor',
   '@/lib/docs-meetings-http#meetingFor',
   '@/lib/docs-v1#docsApi',
+  '@/lib/fleet/api#fleetActor',
+  '@/lib/fleet/api#withFleet',
   '@/lib/forms/http#formsActor',
   '@/lib/groups-http#groupsSession',
   '@/lib/hiring/http#hiringActor',

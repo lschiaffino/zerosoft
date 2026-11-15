@@ -52,11 +52,16 @@ test('⌘J abre el panel, pregunta, tarjeta de herramienta, confirmar un pipelin
   await expect(input).toBeFocused();
   await input.fill('Show deals closing this month');
   await input.press('Enter');
-  const readCard = panel.locator('[data-testid="assistant-tool-card"][data-tool="crm_list_deals"]');
+  // Lo que hizo queda plegado en un bloque ("Did 1 step"); se abre y cada paso muestra su detalle.
+  const activity = panel.getByTestId('assistant-msg-assistant').last().getByTestId('assistant-activity');
+  await expect(activity).toHaveAttribute('data-state', 'done', { timeout: 30_000 });
+  await expect(activity).not.toHaveAttribute('open', '');
+  await activity.locator('> summary').click();
+  const readCard = activity.locator('[data-testid="assistant-tool-card"][data-tool="crm_list_deals"]');
   await expect(readCard).toBeVisible();
-  await expect(readCard).not.toHaveAttribute('open', '');
+  await expect(readCard).toHaveAttribute('data-state', 'ok');
   await readCard.locator('summary').click();
-  await expect(readCard.getByText('Result')).toBeVisible();
+  await expect(readCard.locator('pre')).toHaveCount(2);
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText(/deals|No deals match/);
 
   // Escritura: queda una tarjeta para confirmar; nada cambia hasta el clic.
@@ -222,13 +227,13 @@ test('catálogo del MCP y contexto de la página: "what is this" en un doc, en o
   await input.press('Enter');
   // Lee la página abierta por el catálogo, con la misma operación que usa el servidor MCP.
   const cards = panel.locator('[data-testid="assistant-tool-card"][data-tool="run_operation"]');
-  await expect(cards.first()).toBeVisible();
+  await expect(cards.first()).toBeAttached({ timeout: 30_000 });
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText(`This is "${title}"`);
 
   await replyDone(panel);
   await input.fill('list group chats');
   await input.press('Enter');
-  await expect(cards.nth(1)).toBeVisible();
+  await expect(cards.nth(1)).toBeAttached({ timeout: 30_000 });
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText('Found');
   expect(errors, errors.join('\n')).toEqual([]);
 });

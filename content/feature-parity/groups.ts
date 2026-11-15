@@ -127,9 +127,9 @@ const parity: ProductParity = {
     }),
     row('wa-stickers', 'inbox', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {
       detail: [
-        'Received stickers show small and without a bubble (animated ones move), GIFs play inside the bubble. The Stickers tab of the emoji panel has recent ones, favorites and your collection; WhatsApp does not let linked devices read the stickers saved on the phone, so the collection is built from the stickers in your chats (one click to import, then it stays up to date) and from images you turn into stickers. Lottie stickers show as a placeholder. Tested with the fake provider',
-        'Los stickers que llegan se ven chicos y sin burbuja (los animados se mueven) y los GIF se reproducen en la burbuja. La pestaña Stickers del panel de emojis tiene recientes, favoritos y tu colección; WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en el teléfono, así que la colección se arma con los stickers de tus chats (un clic para importarlos y después se mantiene sola) y con imágenes que convertís en sticker. Los stickers Lottie se ven como un lugar vacío. Probado con el proveedor falso',
-        'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (um clique para importar e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
+        'Received stickers show small and without a bubble (animated ones move), GIFs play inside the bubble. The Stickers tab of the emoji panel has recent ones, favorites and your collection; WhatsApp does not let linked devices read the stickers saved on the phone, so the collection is built from the stickers in your chats (imported on their own the first time you open the tab, then it stays up to date) and from images you turn into stickers. Lottie stickers show as a placeholder. Tested with the fake provider',
+        'Los stickers que llegan se ven chicos y sin burbuja (los animados se mueven) y los GIF se reproducen en la burbuja. La pestaña Stickers del panel de emojis tiene recientes, favoritos y tu colección; WhatsApp no deja que los dispositivos vinculados lean los stickers guardados en el teléfono, así que la colección se arma con los stickers de tus chats (se importan solos la primera vez que abrís la pestaña y después se mantiene sola) y con imágenes que convertís en sticker. Los stickers Lottie se ven como un lugar vacío. Probado con el proveedor falso',
+        'As figurinhas recebidas aparecem pequenas e sem balão (as animadas se mexem) e os GIFs tocam no balão. A aba Figurinhas do painel de emojis tem recentes, favoritas e a sua coleção; o WhatsApp não deixa aparelhos vinculados lerem as figurinhas salvas no celular, então a coleção é montada com as figurinhas das suas conversas (importadas sozinhas na primeira vez que você abre a aba e depois se atualiza sozinha) e com imagens que você transforma em figurinha. Figurinhas Lottie aparecem como um espaço vazio. Testado com o provedor falso',
       ],
     }),
     row('wa-gifs', 'inbox', ['Search and send GIFs', 'Buscar y mandar GIF', 'Pesquisar e enviar GIFs'], 'partial', {
@@ -166,6 +166,13 @@ const parity: ProductParity = {
     }),
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
+    row('wa-attach-menu', 'inbox', ['Attach menu like WhatsApp (camera, poll, new sticker)', 'Menú de adjuntar como WhatsApp (cámara, encuesta, sticker nuevo)', 'Menu de anexar como o WhatsApp (câmera, enquete, nova figurinha)'], 'partial', {
+      detail: [
+        'Document, photos and videos, camera (the computer camera too), audio, contact, poll and new sticker, in the WhatsApp order with colored icons; poll and contact only show when the line can send them. Help me write, dictate, send later and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',
+        'Documento, fotos y videos, cámara (también la de la computadora), audio, contacto, encuesta y sticker nuevo, en el orden de WhatsApp con íconos de color; encuesta y contacto aparecen solo si la línea los puede mandar. Ayudame a escribir, dictar, enviar más tarde y comandos van debajo de una línea. Faltan los eventos: nuestro servidor de WhatsApp todavía no los puede mandar. Probado con el proveedor falso',
+        'Documento, fotos e vídeos, câmera (também a do computador), áudio, contato, enquete e nova figurinha, na ordem do WhatsApp com ícones coloridos; enquete e contato só aparecem se a linha pode enviá-los. Me ajude a escrever, ditar, enviar depois e comandos ficam abaixo de uma linha. Faltam os eventos: nosso servidor de WhatsApp ainda não consegue enviá-los. Testado com o provedor falso',
+      ],
+    }),
     row('line-health', 'numbers', ['Warning when a line disconnects, with QR re-scan', 'Aviso cuando una línea se desconecta, con QR de nuevo', 'Aviso quando uma linha desconecta, com QR de novo'], 'have'),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have', {
       detail: [
@@ -346,6 +353,14 @@ const parity: ProductParity = {
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
+    }),
+    row('folders-json', 'automation', ['Folders from a JSON with the assistant', 'Carpetas desde un JSON con el asistente', 'Pastas a partir de um JSON com o assistente'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Paste a JSON exported from another tool and the assistant plans the shared folders and which chats go in each, only with chats you can see. Chats already in another folder stay there unless you ask to move them; you confirm before anything changes. It cannot create chats that are not on a line yet. Tested with the fake model',
+        'Pegá un JSON exportado de otra herramienta y el asistente arma el plan de carpetas compartidas y qué chats van en cada una, solo con los chats que ves. Los que ya están en otra carpeta se quedan ahí salvo que pidas moverlos; confirmás antes de que cambie algo. No puede crear chats que todavía no están en una línea. Probado con el modelo falso',
+        'Cole um JSON exportado de outra ferramenta e o assistente monta o plano de pastas compartilhadas e quais conversas vão em cada uma, só com as conversas que você vê. As que já estão em outra pasta ficam lá a menos que você peça para movê-las; você confirma antes de qualquer mudança. Não consegue criar conversas que ainda não estão numa linha. Testado com o modelo falso',
+      ],
     }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
       detail: [

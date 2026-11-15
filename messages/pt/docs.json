@@ -1895,9 +1895,16 @@
       "direction_to_notion": "Direção: do Docs para o Notion"
     },
     "webhookTitle": "Webhooks do Notion",
-    "webhookHelp": "Ajuste do servidor. Na integração pública, adicione uma assinatura de webhook para este caminho do seu domínio. O Notion envia aqui um token de verificação: cole-o no Notion para verificar.",
+    "webhookHelp": "Ajuste do servidor. Na integração pública, adicione uma assinatura de webhook para este caminho do seu domínio. O Notion envia aqui um token de verificação: cole-o no Notion e, quando o Notion aceitar, confirme-o aqui.",
     "webhookWaiting": "Esperando o Notion enviar o token de verificação (15 minutos).",
     "webhookClear": "Apagar token",
+    "webhookCandidatesHelp": "Cole este token no Notion (Webhooks, Verify). Quando o Notion aceitar, confirme-o aqui. Só então os eventos são aceitos.",
+    "webhookMany": "Chegou mais de um token. Confirme só o que o Notion aceitar.",
+    "webhookConfirm": "Confirmar",
+    "webhookConfirmed": "Verificado. Cada evento do Notion é validado contra o token confirmado.",
+    "webhookFromEnv": "Definido no servidor com NOTION_WEBHOOK_SECRET.",
+    "webhookElsewhere": "Outro admin está verificando o webhook agora. Se você começar aqui, o dele é cancelado.",
+    "webhookStop": "Parar de esperar",
     "notice": {
       "connected": "O Notion está conectado. A importação começa agora.",
       "denied": "A conexão foi cancelada no Notion.",
@@ -1921,6 +1928,9 @@
       "source_unreachable": "Não foi possível chegar ao Notion.",
       "source_error": "O Notion devolveu um erro.",
       "internal_error": "Erro inesperado.",
+      "webhook_confirmed": "Já existe um token confirmado. Apague-o primeiro.",
+      "webhook_no_window": "A espera acabou. Comece de novo.",
+      "webhook_unknown_token": "Esse token não está mais disponível. Comece a espera de novo.",
       "failed": "Algo deu errado. Tente de novo."
     },
     "privacy": "As páginas importadas ficam visíveis para todo o workspace, ou para o teamspace que você escolher. Subpáginas com acesso mais restrito ficam só no Docs.",

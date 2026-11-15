@@ -15,6 +15,7 @@ import {
   type StoredMessage,
 } from './client';
 import { MessageAttachments, PendingTray, useAttachments } from './Attachments';
+import { Activity, AssistantMarkdown, UserText, type StepPart } from './Parts';
 
 export interface PageInfo {
   path: string;
@@ -28,42 +29,20 @@ function errorKey(code: string | undefined): string {
   return `errors.${code && ERROR_KEYS.has(code) ? code : 'provider_error'}`;
 }
 
-function short(value: unknown): string {
-  try {
-    const s = JSON.stringify(value, null, 2) ?? '';
-    return s.length > 4000 ? `${s.slice(0, 4000)}\n…` : s;
-  } catch {
-    return String(value);
-  }
-}
-
-/** Tarjeta de una herramienta: colapsada, se expande con lo que pidió y lo que volvió. */
-function ToolCard({ part }: { part: Extract<ChatPart, { type: 'tool' }> }) {
-  const t = useTranslations('assistant');
-  const status = part.running ? t('tool.running') : part.ok ? t('tool.ok') : t('tool.failed');
-  return (
-    <details className="asst-tool" data-testid="assistant-tool-card" data-tool={part.tool}>
-      <summary>
-        <span className="asst-tool-name">{t('tool.used', { tool: part.tool })}</span>
-        <span className={`asst-tool-status${part.running ? ' is-running' : part.ok ? '' : ' is-failed'}`}>{status}</span>
-      </summary>
-      <div className="asst-tool-body">
-        <p className="asst-tool-label">{t('tool.input')}</p>
-        <pre>{short(part.input)}</pre>
-        {!part.running && (
-          <>
-            <p className="asst-tool-label">{t('tool.output')}</p>
-            <pre>{short(part.output)}</pre>
-          </>
-        )}
-      </div>
-    </details>
-  );
-}
-
 /** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
 function DetailValue({ value }: { value: string }) {
   const t = useTranslations('assistant');
+  // Una lista (una carpeta o un chat por renglón): entera, en una caja que scrollea si es larga.
+  const lines = value.split('\n');
+  if (lines.length > 1 && lines.length <= 300 && lines.every((l) => l.length <= 300)) {
+    return (
+      <ul className="asst-detail-list" data-testid="assistant-action-list">
+        {lines.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
+    );
+  }
   // Hasta unos 600 caracteres se ve entero (un mensaje común); más largo, se abre con el expansor.
   if (value.length <= 600) return <span className="asst-detail-full">{value}</span>;
   return (
@@ -159,7 +138,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
               onClick={() => void decide('confirm')}
               disabled={busy || !matches}
             >
-              {busy ? t('action.working') : t('action.confirm')}
+              {busy ? (action.working ?? t('action.working')) : t('action.confirm')}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void decide('cancel')} disabled={busy}>
               {t('action.cancel')}
@@ -167,13 +146,14 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
           </div>
         </>
       ) : (
-        <p className={`asst-action-result is-${action.status}`} role="status">
+        <p className={`asst-action-result is-${action.status}${action.result?.partial ? ' is-partial' : ''}`} role="status">
+          {action.status === 'done' && action.result?.partial && <strong>{t('action.partial')}. </strong>}
           {action.status === 'done'
             ? action.result?.message || t('action.done')
             : action.status === 'cancelled'
               ? t('action.cancelled')
               : action.status === 'running'
-                ? t('action.working')
+                ? (action.working ?? t('action.working'))
                 : t('action.failed', { error: action.result?.error ?? '' })}
           {action.status === 'done' && action.result?.href && (
             <>
@@ -276,9 +256,39 @@ export default function AssistantChat({
     void load(conversationId);
   }, [conversationId, load]);
 
+  // Pegado abajo mientras llega la respuesta, salvo que la persona haya subido a leer.
+  const stick = useRef(true);
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    const el = listRef.current;
+    if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [items, busy]);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof MutationObserver === 'undefined') return;
+    const onScroll = () => {
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    const mo = new MutationObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      mo.disconnect();
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [status?.state]);
+  const [pastedNote, setPastedNote] = useState(false);
+  /** El campo crece con el texto hasta un tope (después scrollea), como en ChatGPT. */
+  const grow = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  }, []);
+  useEffect(() => {
+    if (!draft) grow(inputRef.current);
+  }, [draft, grow, inputRef]);
+  const pastedCount = useRef(0);
 
   const updateAction = useCallback((a: ActionView) => {
     setItems((prev) => prev.map((m) => ({ ...m, parts: m.parts.map((p) => (p.type === 'action' && p.action.id === a.id ? { ...p, action: a } : p)) })));
@@ -291,9 +301,10 @@ export default function AssistantChat({
       if ((!text && !files.length) || busy || att.uploading || att.failed) return;
       setDraft('');
       setBusy(true);
+      stick.current = true;
       const userItem: ChatItem = { id: `u-${Date.now()}`, role: 'user', content: text, parts: [], attachments: files };
       const replyId = `a-${Date.now()}`;
-      setItems((prev) => [...prev, userItem, { id: replyId, role: 'assistant', content: '', parts: [], streaming: true }]);
+      setItems((prev) => [...prev, userItem, { id: replyId, role: 'assistant', content: '', parts: [], streaming: true, waiting: true }]);
       const patch = (fn: (m: ChatItem) => ChatItem) => setItems((prev) => prev.map((m) => (m.id === replyId ? fn(m) : m)));
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
@@ -312,6 +323,7 @@ export default function AssistantChat({
       }
       // El servidor la tomó: la bandeja se vacía y los avisos de los intentos que no llegaron se van.
       att.clear();
+      setPastedNote(false);
       setItems((prev) => prev.filter((m) => !m.failedSend));
       await readEvents(res, (e) => {
         if (e.type === 'conversation') {
@@ -319,12 +331,21 @@ export default function AssistantChat({
           onConversation(e.id, e.title);
           window.dispatchEvent(new CustomEvent(ASSISTANT_CHATS_EVENT));
         } else if (e.type === 'text') {
-          patch((m) => ({ ...m, content: m.content + e.delta }));
+          patch((m) => ({ ...m, content: m.content + e.delta, waiting: false }));
+        } else if (e.type === 'reasoning') {
+          patch((m) => {
+            const last = m.parts[m.parts.length - 1];
+            if (last?.type === 'reasoning' && last.ms === null) return { ...m, waiting: false, parts: [...m.parts.slice(0, -1), { ...last, text: last.text + e.delta }] };
+            return { ...m, waiting: false, parts: [...m.parts, { type: 'reasoning', key: `${replyId}-r${m.parts.length}`, text: e.delta, ms: null }] };
+          });
+        } else if (e.type === 'reasoning-end') {
+          patch((m) => ({ ...m, waiting: true, parts: m.parts.map((p) => (p.type === 'reasoning' && p.ms === null ? { ...p, ms: e.ms } : p)) }));
         } else if (e.type === 'tool') {
-          patch((m) => ({ ...m, parts: [...m.parts, { type: 'tool', callId: e.callId, tool: e.tool, input: e.input, running: true }] }));
+          patch((m) => ({ ...m, waiting: false, parts: [...m.parts, { type: 'tool', callId: e.callId, tool: e.tool, input: e.input, running: true }] }));
         } else if (e.type === 'tool-result') {
           patch((m) => ({
             ...m,
+            waiting: true,
             parts: m.parts.map((p) => (p.type === 'tool' && p.callId === e.callId ? { ...p, output: e.output, ok: e.ok, running: false } : p)),
           }));
         } else if (e.type === 'action') {
@@ -332,12 +353,17 @@ export default function AssistantChat({
         } else if (e.type === 'notice') {
           patch((m) => ({ ...m, notice: e.code }));
         } else if (e.type === 'error') {
-          patch((m) => ({ ...m, error: e.code }));
+          patch((m) => ({ ...m, error: e.code, waiting: false }));
         } else if (e.type === 'done') {
-          patch((m) => ({ ...m, streaming: false }));
+          patch((m) => ({ ...m, streaming: false, waiting: false }));
         }
       }).catch(() => patch((m) => ({ ...m, error: m.error ?? 'network' })));
-      patch((m) => ({ ...m, streaming: false, parts: m.parts.map((p) => (p.type === 'tool' && p.running ? { ...p, running: false } : p)) }));
+      patch((m) => ({
+        ...m,
+        streaming: false,
+        waiting: false,
+        parts: m.parts.map((p) => (p.type === 'tool' && p.running ? { ...p, running: false } : p.type === 'reasoning' && p.ms === null ? { ...p, ms: 0 } : p)),
+      }));
       setBusy(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     },
@@ -434,30 +460,32 @@ export default function AssistantChat({
               {loadingEarlier ? t('loading') : t('loadEarlier')}
             </button>
           )}
-          {items.map((m) => (
-            <div key={m.id} className={`asst-msg asst-msg-${m.role}`} data-testid={`assistant-msg-${m.role}`}>
-              {m.parts.map((p) =>
-                p.type === 'tool' ? <ToolCard key={p.callId} part={p} /> : <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />,
-              )}
-              {m.attachments && m.attachments.length > 0 && <MessageAttachments files={m.attachments} />}
-              {m.notice === 'no_vision' && (
-                <p className="asst-notice muted" role="status" data-testid="assistant-notice">
-                  {t('attach.noVision')}
-                </p>
-              )}
-              {m.content && <p className="asst-msg-text">{m.content}</p>}
-              {m.streaming && !m.content && !m.error && (
-                <p className="muted asst-thinking" role="status">
-                  {t('thinking')}
-                </p>
-              )}
-              {m.error && (
-                <p className="form-error" role="alert">
-                  {t(errorKey(m.error))}
-                </p>
-              )}
-            </div>
-          ))}
+          {items.map((m) => {
+            const steps = m.parts.filter((p): p is StepPart => p.type !== 'action');
+            const actions = m.parts.filter((p): p is Extract<ChatPart, { type: 'action' }> => p.type === 'action');
+            // Trabajando: antes de la primera palabra, entre herramientas o con una herramienta corriendo.
+            const live = Boolean(m.streaming) && !m.error && (Boolean(m.waiting) || !m.content || steps.some((p) => (p.type === 'tool' ? p.running : p.ms === null)));
+            return (
+              <div key={m.id} className={`asst-msg asst-msg-${m.role}`} data-testid={`assistant-msg-${m.role}`}>
+                {m.role === 'assistant' && (steps.length > 0 || live) && <Activity parts={steps} live={live} />}
+                {m.attachments && m.attachments.length > 0 && <MessageAttachments files={m.attachments} />}
+                {m.notice === 'no_vision' && (
+                  <p className="asst-notice muted" role="status" data-testid="assistant-notice">
+                    {t('attach.noVision')}
+                  </p>
+                )}
+                {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
+                {actions.map((p) => (
+                  <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />
+                ))}
+                {m.error && (
+                  <p className="form-error" role="alert">
+                    {t(errorKey(m.error))}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           </>
         )}
       </div>
@@ -469,8 +497,9 @@ export default function AssistantChat({
         }}
       >
         {page?.selection && <p className="asst-context muted">{t('usingSelection')}</p>}
-        <PendingTray items={att.items} limitHit={att.limitHit} onRemove={att.remove} />
-        <div className="asst-form-row">
+        {pastedNote && att.items.length > 0 && <p className="asst-context muted">{t('attach.pasted')}</p>}
+        <div className="asst-composer">
+          <PendingTray items={att.items} limitHit={att.limitHit} onRemove={att.remove} />
           <input
             ref={fileRef}
             type="file"
@@ -483,9 +512,6 @@ export default function AssistantChat({
               inputRef.current?.focus();
             }}
           />
-          <button type="button" className="btn btn-ghost btn-sm asst-attach" aria-label={t('attach.add')} title={t('attach.add')} onClick={() => fileRef.current?.click()}>
-            +
-          </button>
           <label className="sr-only" htmlFor={compact ? 'asst-input-panel' : 'asst-input-page'}>
             {t('placeholder')}
           </label>
@@ -494,18 +520,33 @@ export default function AssistantChat({
             // El panel tiene su propio + y poco lugar: sin el micrófono flotante del dictado.
             data-voice-off={compact ? '' : undefined}
             ref={inputRef}
-            className="textarea"
-            rows={2}
+            className="asst-input"
+            rows={1}
             value={draft}
             maxLength={4000}
             placeholder={t('placeholder')}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              grow(e.currentTarget);
+            }}
             onPaste={(e) => {
               // Una imagen o archivo copiado se adjunta; el texto se pega como siempre.
               const files = Array.from(e.clipboardData.files);
-              if (!files.length) return;
-              e.preventDefault();
-              att.add(files);
+              if (files.length) {
+                e.preventDefault();
+                att.add(files);
+                return;
+              }
+              // Un texto largo (un JSON exportado) no entra en el mensaje: va como archivo, entero.
+              const pasted = e.clipboardData.getData('text/plain');
+              if (pasted.length > 3000 || draft.length + pasted.length > 4000) {
+                e.preventDefault();
+                const json = /^\s*[[{]/.test(pasted);
+                pastedCount.current += 1;
+                const name = t('attach.pastedName', { n: pastedCount.current, ext: json ? 'json' : 'txt' });
+                att.add([new File([pasted], name, { type: json ? 'application/json' : 'text/plain' })]);
+                setPastedNote(true);
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -514,9 +555,16 @@ export default function AssistantChat({
               }
             }}
           />
-          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
-            {busy ? t('sending') : t('send')}
-          </button>
+          <div className="asst-composer-bar">
+            <button type="button" className="asst-icon-btn asst-attach" aria-label={t('attach.add')} title={t('attach.add')} onClick={() => fileRef.current?.click()}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm asst-send" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
+              {busy ? t('sending') : t('send')}
+            </button>
+          </div>
         </div>
         <p className="asst-foot muted">{t('foot')}</p>
       </form>
