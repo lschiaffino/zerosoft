@@ -32,6 +32,11 @@ import { inboxMediaUrl, pendingSends } from './pending';
 import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
 import UploadRing from '@/components/groups/wa/UploadRing';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
+import type { AttachMenuHandle } from '@/components/groups/wa/AttachMenu';
+import ContactPicker, { type ContactSource } from '@/components/groups/wa/ContactPicker';
+import PollDialog, { type PollDraft } from '@/components/groups/wa/PollDialog';
+import { createSticker } from '@/components/groups/wa/StickerPanel';
+import { newClientId } from '@/lib/optimistic-send';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
 import { useInboxThreadCommands } from '../slash-commands';
@@ -137,6 +142,44 @@ const WaConversation = forwardRef<
     props.onSent(msgs);
   };
   const tray = useSendTray(thread.id, onError);
+  const attachRef = useRef<AttachMenuHandle>(null);
+  // Menú + de WhatsApp: contacto y encuesta (diálogos compartidos con Lines) y sticker nuevo.
+  const [contactOpen, setContactOpen] = useState(false);
+  const [pollOpen, setPollOpen] = useState(false);
+  /** Encuesta o tarjetas de contacto: '' si salió; si no, el código de error (el diálogo lo muestra). */
+  const sendCard = async (card: { poll: PollDraft } | { contacts: Array<{ name: string; phone: string }> }): Promise<string> => {
+    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
+      method: 'POST',
+      json: { ...card, clientId: newClientId() },
+    });
+    if (!r.ok) return r.data.error ?? 'send_failed';
+    sentHere(r.data.messages);
+    return '';
+  };
+  const contactSource = useMemo<ContactSource>(
+    () => ({
+      list: async (q) => {
+        const r = await api<{ frequent?: Array<{ key: string; name: string; phone: string; pictureUrl?: string }>; contacts?: Array<{ key: string; name: string; phone: string; pictureUrl?: string }> }>(
+          `/api/inbox/contacts?${new URLSearchParams({ q, limit: '40' })}`,
+        );
+        if (!r.ok) return null;
+        const seen = new Set<string>();
+        return [...(r.data.frequent ?? []), ...(r.data.contacts ?? [])]
+          .filter((c) => c.phone && !seen.has(c.phone) && (seen.add(c.phone), true))
+          .map((c) => ({ id: c.key, name: c.name, phone: c.phone, pictureUrl: c.pictureUrl }));
+      },
+      send: (contacts) => sendCard({ contacts }),
+    }),
+    [thread.id], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  /** "Sticker nuevo": se crea desde la imagen (queda en la colección) y sale al chat. */
+  const newSticker = async (file: File) => {
+    const made = await createSticker('/api/inbox/stickers', file);
+    if (!made.sticker) return onError(made.error === 'sticker_too_large' ? 'sticker_too_large' : made.error === 'sticker_convert_unavailable' ? 'sticker_convert_unavailable' : 'send_failed');
+    const r = await api<{ messages: MessageDto[] }>('/api/inbox/stickers', { method: 'POST', json: { action: 'send', id: made.sticker.id, threadId: thread.id, clientId: newClientId() } });
+    if (!r.ok) return onError(r.data.error ?? 'send_failed');
+    sentHere(r.data.messages);
+  };
   // Al dejar el chat, lo ya guardado que se mandó desde acá suelta su copia local (lo que sigue saliendo la conserva).
   useEffect(() => () => localPreviews.releaseScope(`inbox:${thread.id}`), [thread.id]);
   // El texto que se acaba de mandar aparece ya (burbuja provisoria, ./pending.ts): la conversación va abajo de todo.
@@ -866,7 +909,17 @@ const WaConversation = forwardRef<
           banner={banner}
           editing={editing}
           replyToId={replyTo?.id ?? null}
-          attach={(extra) => <AttachButton onFiles={tray.add} disabled={!connected} extra={extra} />}
+          attach={(extra) => (
+            <AttachButton
+              ref={attachRef}
+              onFiles={tray.add}
+              disabled={!connected}
+              onContact={() => setContactOpen(true)}
+              onPoll={() => setPollOpen(true)}
+              onNewSticker={(f) => void newSticker(f)}
+              extra={extra}
+            />
+          )}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
           mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
@@ -890,7 +943,7 @@ const WaConversation = forwardRef<
           onCaption={tray.setCaption}
           onRemove={tray.remove}
           onRetry={tray.retry}
-          onAdd={() => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click()}
+          onAdd={() => attachRef.current?.pickFiles()}
           onClose={tray.clear}
           onSend={() => {
             if (tray.sendAll(replyTo?.id)) setReplyTo(null);
@@ -907,6 +960,16 @@ const WaConversation = forwardRef<
         </div>
       )}
       {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
+      <ContactPicker open={contactOpen} chatId={thread.id} onClose={() => setContactOpen(false)} source={contactSource} />
+      <PollDialog
+        open={pollOpen}
+        onClose={() => setPollOpen(false)}
+        onSend={async (poll) => {
+          const err = await sendCard({ poll });
+          if (!err) setPollOpen(false);
+          return err;
+        }}
+      />
       <Modal open={!!infoFor} title={w('info')} onClose={() => setInfoFor(null)}>
         {infoFor && (
           <>

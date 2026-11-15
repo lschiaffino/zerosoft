@@ -6,7 +6,8 @@
  */
 import { ProviderError } from '../groups-provider';
 import { getDb } from '../db';
-import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
+import { addMessage, getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
+import { pokeLive } from '../wa-live';
 import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { forwardWhatsappMedia } from './wa-media';
@@ -65,6 +66,54 @@ export async function sendWaMessage(owner: string, threadId: string, body: strin
     async () => '',
   );
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
+}
+
+/**
+ * Encuesta o tarjetas de contacto (el menú + del chat, como WhatsApp). Sale por el proveedor (Evolution:
+ * /message/sendPoll y /message/sendContact) y queda guardada con su meta, como las que llegan: la burbuja
+ * es la misma. Un reintento con el mismo clientId no sale dos veces.
+ */
+export async function sendWaCard(
+  owner: string,
+  threadId: string,
+  card: { poll: { question: string; options: string[]; multi?: boolean } } | { contacts: Array<{ name?: string; phone: string }> },
+  clientId?: string,
+): Promise<void> {
+  const [thread, sent] = await Promise.all([getThreadRow(owner, threadId), sentWithClientId(owner, threadId, clientId)]);
+  if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
+  if (sent) return;
+  const account = await getAccount(owner, thread.account_id);
+  const provider = connected(account);
+  const poll = 'poll' in card ? { question: card.poll.question.trim(), options: [...new Set(card.poll.options.map((o) => o.trim()).filter(Boolean))], multi: !!card.poll.multi } : null;
+  const contacts =
+    'contacts' in card
+      ? card.contacts
+          .map((c) => ({ name: (c.name ?? '').trim().slice(0, 100), phone: c.phone.replace(/\D/g, '') }))
+          .filter((c) => c.phone.length >= 8 && c.phone.length <= 15)
+      : [];
+  if (poll && (poll.options.length < 2 || !poll.question)) throw new InboxError('invalid_input', 400);
+  if (!poll && !contacts.length) throw new InboxError('invalid_contact_card', 400);
+  if (poll ? !provider.caps.polls || !provider.sendPoll : !provider.sendContact) throw new InboxError('unsupported', 400);
+  let id: string;
+  try {
+    id = poll ? (await provider.sendPoll!(thread.external_id, poll)).id : (await provider.sendContact!(thread.external_id, contacts)).id;
+  } catch (err) {
+    providerFail(err);
+  }
+  const meta = {
+    ...(poll ? { poll } : { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) }),
+    ...(clientId ? { cid: clientId } : {}),
+  };
+  await addMessage(thread, {
+    externalId: id || `local-${Date.now()}`,
+    fromMe: true,
+    body: poll ? poll.question : contacts.map((c) => c.name || `+${c.phone}`).join(', '),
+    status: 'sent',
+    kind: poll ? 'poll' : 'contact',
+    meta: JSON.stringify(meta),
+    ...(clientId ? { clientId } : {}),
+  });
+  pokeLive('inbox', owner);
 }
 
 /** Respuesta citando un mensaje del mismo chat. */

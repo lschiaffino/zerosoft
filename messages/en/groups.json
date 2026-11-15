@@ -1890,7 +1890,22 @@
       "notSetupTitle": "GIF search isn't set up",
       "notSetupBody": "An admin adds a GIPHY or Tenor key to the server (GIPHY_API_KEY or TENOR_API_KEY). Emoji and stickers work as usual."
     },
-    "openGif": "Open GIF"
+    "openGif": "Open GIF",
+    "newSticker": "New sticker",
+    "dictate": "Dictate",
+    "cameraCapture": {
+      "title": "Take photo",
+      "close": "Close camera",
+      "preview": "Photo you took",
+      "starting": "Starting the camera…",
+      "denied": "The browser didn't allow the camera. Allow it in the site settings and try again.",
+      "none": "No camera found on this device.",
+      "snap": "Take photo",
+      "retake": "Retake",
+      "use": "Use photo"
+    },
+    "contactLoadError": "Could not load your contacts.",
+    "contactNoResults": "No contact matches that search."
   },
   "swipe": {
     "read": "Read",

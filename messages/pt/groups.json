@@ -1890,7 +1890,22 @@
       "notSetupTitle": "A pesquisa de GIFs não está configurada",
       "notSetupBody": "Um administrador adiciona uma chave do GIPHY ou do Tenor no servidor (GIPHY_API_KEY ou TENOR_API_KEY). Emojis e figurinhas funcionam normalmente."
     },
-    "openGif": "Abrir GIF"
+    "openGif": "Abrir GIF",
+    "newSticker": "Nova figurinha",
+    "dictate": "Ditar",
+    "cameraCapture": {
+      "title": "Tirar foto",
+      "close": "Fechar a câmera",
+      "preview": "A foto que você tirou",
+      "starting": "Abrindo a câmera…",
+      "denied": "O navegador não permitiu a câmera. Permita nas configurações do site e tente de novo.",
+      "none": "Nenhuma câmera encontrada neste dispositivo.",
+      "snap": "Tirar foto",
+      "retake": "Tirar outra",
+      "use": "Usar foto"
+    },
+    "contactLoadError": "Não foi possível carregar seus contatos.",
+    "contactNoResults": "Nenhum contato corresponde à pesquisa."
   },
   "swipe": {
     "read": "Lida",
