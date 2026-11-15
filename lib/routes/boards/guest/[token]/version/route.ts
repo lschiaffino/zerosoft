@@ -10,5 +10,5 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ token: str
   const { token } = await ctx.params;
   const info = await getGuestBoardVersion(token);
   if (!info) return jsonError(404, 'not_found');
-  return NextResponse.json(info);
+  return NextResponse.json(info, { headers: { 'cache-control': 'private, no-store' } });
 }

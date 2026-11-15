@@ -690,22 +690,22 @@
    "host": "server",
    "en": {
     "feature": "Dictation",
-    "sent": "The audio of what you said (WAV, 16 kHz, mono), its duration, a category (email, chat, note, other) worked out from the name of the app in front, that app's name (macOS, if the switch is on; otherwise the word \"desktop\") and the session cookie. The server transcribes it and saves the text in your Voice history. One request without a cookie (HEAD /robots.txt) opens the connection when you start. Two fixed fields go with it: capture=desktop (so your history says it came from the desktop app) and fast=1 (a faster cleanup for short phrases).",
+    "sent": "The audio of what you said (WAV, 16 kHz, mono), its duration, a category (email, chat, note, other) worked out from the name of the app in front, that app's name (macOS, if the switch is on; otherwise the word \"desktop\") and the session cookie. The server transcribes it and saves the text in your Voice history. One request without a cookie (GET /api/voice/dictate, which answers with nothing) opens the connection and wakes the server when you start. Two fixed fields go with it: capture=desktop (so your history says it came from the desktop app) and fast=1 (a faster cleanup for short phrases).",
     "when": "When you finish a dictation or resend a saved one."
    },
    "es": {
     "feature": "Dictado",
-    "sent": "El audio de lo que dijiste (WAV, 16 kHz, mono), su duración, una categoría (email, chat, nota, otro) que sale del nombre de la app de adelante, el nombre de esa app (macOS, si la llave está prendida; si no, la palabra \"desktop\") y la cookie de sesión. El servidor lo transcribe y guarda el texto en tu historial de Voice. Un pedido sin cookie (HEAD /robots.txt) abre la conexión cuando empezás. Van dos campos fijos: capture=desktop (para que tu historial diga que vino de la app de escritorio) y fast=1 (una limpieza más rápida para frases cortas).",
+    "sent": "El audio de lo que dijiste (WAV, 16 kHz, mono), su duración, una categoría (email, chat, nota, otro) que sale del nombre de la app de adelante, el nombre de esa app (macOS, si la llave está prendida; si no, la palabra \"desktop\") y la cookie de sesión. El servidor lo transcribe y guarda el texto en tu historial de Voice. Un pedido sin cookie (GET /api/voice/dictate, que no devuelve nada) abre la conexión y despierta al servidor cuando empezás. Van dos campos fijos: capture=desktop (para que tu historial diga que vino de la app de escritorio) y fast=1 (una limpieza más rápida para frases cortas).",
     "when": "Cuando terminás un dictado o mandás de nuevo uno guardado."
    },
    "pt": {
     "feature": "Ditado",
-    "sent": "O áudio do que você disse (WAV, 16 kHz, mono), a duração, uma categoria (email, chat, nota, outro) tirada do nome do app da frente, o nome desse app (macOS, se a chave estiver ligada; senão, a palavra \"desktop\") e o cookie de sessão. O servidor transcreve e salva o texto no seu histórico do Voice. Um pedido sem cookie (HEAD /robots.txt) abre a conexão quando você começa. Vão dois campos fixos: capture=desktop (para o histórico dizer que veio do app de desktop) e fast=1 (uma limpeza mais rápida para frases curtas).",
+    "sent": "O áudio do que você disse (WAV, 16 kHz, mono), a duração, uma categoria (email, chat, nota, outro) tirada do nome do app da frente, o nome desse app (macOS, se a chave estiver ligada; senão, a palavra \"desktop\") e o cookie de sessão. O servidor transcreve e salva o texto no seu histórico do Voice. Um pedido sem cookie (GET /api/voice/dictate, que não devolve nada) abre a conexão e acorda o servidor quando você começa. Vão dois campos fixos: capture=desktop (para o histórico dizer que veio do app de desktop) e fast=1 (uma limpeza mais rápida para frases curtas).",
     "when": "Quando você termina um ditado ou reenvia um salvo."
    },
    "endpoints": [
     "POST /api/voice/dictate",
-    "HEAD /robots.txt"
+    "GET /api/voice/dictate"
    ]
   },
   {

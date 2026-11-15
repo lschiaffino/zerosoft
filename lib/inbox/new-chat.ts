@@ -5,6 +5,7 @@
  * como en WhatsApp) y crear un grupo. Todo queda dentro de las cuentas de
  * quien pide (owner). Server-only.
  */
+import { contactPicture } from '../wa-picture-url';
 import { getDb } from '../db';
 import { phoneDigits } from '../groups-provider';
 import { displayName } from '../wa-contacts';
@@ -89,7 +90,7 @@ export async function inboxNewChatDirectory(owner: string, opts: { q?: string; c
     .all(account.id, owner, NEW_CHAT_MAX_ROWS)) as Array<{ id: string; phone: string; saved_name: string; push_name: string; picture_url: string; about: string }>;
   const book = bookRows
     .filter((r) => r.phone !== me)
-    .map((r) => entry(`contact:${r.id}`, { name: displayName(r), phone: r.phone, picture: r.picture_url ?? '', about: r.about }, { contactId: r.id }));
+    .map((r) => entry(`contact:${r.id}`, { name: displayName(r), phone: r.phone, picture: contactPicture('inbox', r.id, r.picture_url), about: r.about }, { contactId: r.id }));
 
   const all = mergeNewChat(chats, book, phoneOf)
     .filter((e) => matchesNewChat(e, q, { phone: true, rawPhone: phoneOf(e) }))

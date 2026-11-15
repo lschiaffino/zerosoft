@@ -17,5 +17,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const raw = req.nextUrl.searchParams.get('channel');
   const channel = CHANNELS.includes(raw as AgentChannel) ? (raw as AgentChannel) : undefined;
   const needsReview = req.nextUrl.searchParams.get('review') === '1';
-  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100, needsReview, viewer: { personId: user.actingUser?.id ?? user.id, isAdmin: isWorkspaceAdmin(user) } }) });
+  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100, needsReview, viewer: { personId: user.actingUser?.id ?? user.id, isAdmin: isWorkspaceAdmin(user), role: user.role } }) });
 }
