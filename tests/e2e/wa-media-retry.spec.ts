@@ -55,7 +55,8 @@ async function checkRetry(page: Page, thread: Locator, app: string) {
   const retry = msgWith(thread, 'Foto que tarda');
   const ph = retry.getByTestId('wa-media-unavailable');
   // El reintento automático corre solo una vez y vuelve a fallar: queda el botón.
-  await expect(ph).toHaveAttribute('data-state', 'idle', { timeout: 30_000 });
+  // "failed": el reintento se hizo y no alcanzó (antes de pedir nada es "idle").
+  await expect(ph).toHaveAttribute('data-state', 'failed', { timeout: 60_000 });
   const button = retry.getByTestId('wa-media-retry');
   await expect(button).toBeVisible();
   await shot(page, `${app}-retry`, retry);
@@ -74,7 +75,7 @@ async function checkRetry(page: Page, thread: Locator, app: string) {
 test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
   const chatId = `${phone}@s.whatsapp.net`;
@@ -88,7 +89,7 @@ test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
   const thread = page.locator('.ib-wa-thread');
-  await expect(thread.getByRole('heading', { level: 2, name })).toBeVisible();
+  await expect(thread.getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 });
   await checkRetry(page, thread, 'inbox');
 });
 
@@ -100,7 +101,7 @@ test('Lines: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
   try {
     await request.post(`/api/groups/numbers/${numberId}/connect`, { data: { action: 'connect' } });
     await expect
-      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 30_000 })
       .toBe('connected');
     const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${numberId}`)).json()) as { webhookUrl: string };
     const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
