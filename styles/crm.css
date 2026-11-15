@@ -2211,6 +2211,11 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   /* Archivar y borrar, uno sobre otro: cada uno con su área de toque de 40 px. */
   .prod-actions .link-btn { min-height: 40px; min-width: 40px; padding: 0 4px; }
 }
+/* Con el dedo: Archivar y Borrar con 40px de alto, para no tocar el vecino. */
+@media (pointer: coarse) {
+  .prod-actions .link-btn { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 40px; min-height: 40px; }
+  .prod-actions { gap: 4px; }
+}
 
 /* Line items del deal */
 .li-panel { display: flex; flex-direction: column; gap: 14px; }

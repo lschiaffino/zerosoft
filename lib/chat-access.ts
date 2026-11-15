@@ -152,6 +152,9 @@ export async function getApiConversation(auth: Pick<ApiKeyAuth, 'user' | 'person
 /** Una conversación de Agents que viene de un widget de Chat respeta la lista de esa bandeja. */
 export async function canSeeAgentConversation(user: ChatAccessUser, agentConversationId: string): Promise<boolean> {
   if (isAdmin(user)) return true;
+  // Las que vienen de un chat de Lines siguen el acceso por línea y por etiqueta de ese chat.
+  const { canSeeLinesAgentConversation } = await import('./groups-access');
+  if (!(await canSeeLinesAgentConversation(user.id, person(user), user.role ?? 'member', agentConversationId))) return false;
   const row = (await getDb().prepare('SELECT chat_conversation_id AS id FROM agent_conversations WHERE id = ?').get(agentConversationId)) as { id: string | null } | undefined;
   if (!row?.id) return true;
   const conv = await getChatConversation(row.id);

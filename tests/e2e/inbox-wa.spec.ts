@@ -202,7 +202,7 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   // Responder desde el menú (flecha): la cita queda arriba del campo y sale con el mensaje.
   await incoming.hover();
   await incoming.locator('.wa-chevron').click();
-  await page.getByRole('menuitem', { name: 'Reply' }).click();
+  await page.getByTestId('menu-reply').click();
   await expect(thread.locator('.wa-replying .gr-quote')).toContainText('¿Me pasás el link?');
   const field = page.getByRole('textbox', { name: 'Message' });
   await field.fill('Sí, ahí va: https://example.test/x');

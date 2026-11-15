@@ -166,6 +166,8 @@ export interface MessageQuote {
   mediaType: string;
   /** A quién son las menciones del texto citado ("@<dígitos>" → nombre y teléfono), si se sabe. */
   mentionNames?: MentionNames;
+  /** Respuesta en privado: el mensaje citado es de otro chat (el grupo), con su nombre y su id. */
+  chat?: { id: string; title: string };
 }
 
 export interface MessageDto {

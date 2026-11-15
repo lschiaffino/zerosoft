@@ -518,7 +518,8 @@ export async function getGuestBoardVersion(token: string): Promise<BoardVersionI
        FROM boards b LEFT JOIN users u ON u.id = b.updated_by WHERE b.edit_token = ? AND b.deleted_at IS NULL`,
     )
     .get(token)) as VersionRow | undefined;
-  return row ? toVersionInfo(row) : null;
+  // Quien tiene el link de invitado no ve el email de la persona del workspace: el nombre o la parte antes de la @.
+  return row ? { version: Number(row.version), updated_by: row.name ?? (row.email ? row.email.split('@')[0] : null) } : null;
 }
 
 export async function getGuestBoard(token: string): Promise<{ board: BoardDetail; workspaceId: string } | null> {
@@ -528,7 +529,7 @@ export async function getGuestBoard(token: string): Promise<{ board: BoardDetail
   const detail = toDetail(row);
   // El invitado no ve el link público de solo lectura (no lo gestiona).
   return {
-    board: { ...detail, share_token: null, scene: { ...detail.scene, files: withShareToken(detail.scene.files, row.id, token) } },
+    board: { ...detail, share_token: null, updated_by: null, scene: { ...detail.scene, files: withShareToken(detail.scene.files, row.id, token) } },
     workspaceId: row.workspace_id,
   };
 }
