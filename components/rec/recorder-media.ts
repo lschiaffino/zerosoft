@@ -45,21 +45,23 @@ export function isBlackPixels(data: Uint8ClampedArray, threshold = 10): boolean 
 }
 
 /**
- * La captura de pantalla llega en negro: en Mac, sin el permiso de "Grabación de pantalla" el
- * sistema no corta, manda cuadros negros. Mira varios cuadros durante `ms` (los primeros pueden
- * venir negros mientras arranca): negro solo si todos lo son.
+ * La captura de pantalla no trae imagen: en Mac, sin el permiso de "Grabación de pantalla" (o con
+ * un permiso que quedó atado a otra versión de la app) el sistema no corta: manda cuadros negros
+ * o no manda ninguno. Mira varios cuadros durante `ms` (los primeros pueden venir negros mientras
+ * arranca): negra si todos lo son, y también si en todo ese tiempo no llegó ni un cuadro (antes
+ * eso pasaba como "bien" y se grababa un video negro).
  */
-export async function screenLooksBlack(track: MediaStreamTrack, ms = 1500): Promise<boolean> {
+export async function screenLooksBlack(track: MediaStreamTrack, ms = 2500): Promise<boolean> {
   if (typeof document === 'undefined' || track.readyState !== 'live') return false;
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
   video.srcObject = new MediaStream([track]);
-  try {
-    await video.play();
-  } catch {
-    return false;
-  }
+  // Sin esperar a play(): sin cuadros, la promesa no se resuelve nunca.
+  let blocked = false;
+  video.play().catch(() => {
+    blocked = true;
+  });
   const canvas = document.createElement('canvas');
   canvas.width = 48;
   canvas.height = 27;
@@ -70,16 +72,43 @@ export async function screenLooksBlack(track: MediaStreamTrack, ms = 1500): Prom
   try {
     while (Date.now() < until) {
       await new Promise((r) => setTimeout(r, 250));
+      // El navegador no dejó reproducir: no se puede saber, se sigue como antes.
+      if (blocked) return false;
       if (video.videoWidth === 0) continue;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       sampled++;
       if (!isBlackPixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data)) return false;
     }
-    return sampled > 0;
+    // Todos negros, o ninguno: sin imagen. Cuenta solo si la pista sigue viva (si la cortaron, es otro error).
+    return sampled > 0 || track.readyState === 'live';
   } finally {
     video.pause();
     video.srcObject = null;
   }
+}
+
+/**
+ * Espera a que el <video> tenga un cuadro para dibujar (hasta `ms`). Devuelve cuánto esperó, o
+ * null si no llegó. Antes de arrancar la grabación: si el primer cuadro del archivo sale vacío,
+ * el codificador VP9 de WebKit (Safari y la app de escritorio) no vuelve a mandar las partes de
+ * la pantalla que no cambian hasta el próximo keyframe, y el video queda negro.
+ */
+export async function waitForFrame(video: HTMLVideoElement, ms = 2000): Promise<number | null> {
+  const t0 = performance.now();
+  const ready = () => video.readyState >= 2 && video.videoWidth > 0;
+  while (!ready()) {
+    if (performance.now() - t0 > ms) return null;
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  return Math.round(performance.now() - t0);
+}
+
+/**
+ * Contexto del canvas que compone pantalla y cámara: opaco. Con alfa, el canvas arranca
+ * transparente (sale negro) y Chrome además graba un canal alfa en el WebM.
+ */
+export function compositorContext(c: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  return c.getContext('2d', { alpha: false });
 }
 
 export function recorderSupported(): boolean {

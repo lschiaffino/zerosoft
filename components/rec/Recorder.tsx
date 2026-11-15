@@ -11,8 +11,10 @@ import {
   QUALITY,
   audioLevel,
   canvasToBlob,
+  compositorContext,
   createTicker,
   drawBubble,
+  isBlackPixels,
   micConstraints,
   mixAudio,
   pickAudioMime,
@@ -21,6 +23,7 @@ import {
   screenLooksBlack,
   screenSupported,
   snapshot,
+  waitForFrame,
   type QualityKey,
 } from './recorder-media';
 
@@ -127,6 +130,9 @@ export default function Recorder({
   const [bubble, setBubble] = useState<Bubble>({ x: 0.14, y: 0.78, d: 0.3 });
   const [supported, setSupported] = useState(true);
   const [muted, setMuted] = useState(false);
+  /** La pantalla llega negra mientras se graba. */
+  const [liveBlack, setLiveBlack] = useState(false);
+  const blackChecked = useRef(false);
   /** App de escritorio con barra flotante. */
   const [desktop, setDesktop] = useState(false);
   /** Cámara de la burbuja flotante de escritorio ('' = la de siempre); null = la cara va dibujada en el video. */
@@ -281,6 +287,20 @@ export default function Recorder({
     return camVideo.current;
   }
 
+  /** Pantalla y cámara en el canvas. false si la pantalla todavía no tiene cuadro. */
+  function compose(): boolean {
+    const c = canvasRef.current;
+    const g = c ? compositorContext(c) : null;
+    const sv = screenVideo.current;
+    if (!c || !g || !sv || !sv.videoWidth) return false;
+    g.drawImage(sv, 0, 0, c.width, c.height);
+    const b = bubbleRef.current;
+    const cam = camVideo.current;
+    // Con la burbuja flotante de escritorio la cara ya sale en la captura de pantalla.
+    if (cam && camStream.current && !nativeBubble.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height);
+    return true;
+  }
+
   function tick() {
     const level = audioLevel(analyser.current, levelBuf.current);
     if (meterRef.current) meterRef.current.style.transform = `scaleX(${level.toFixed(2)})`;
@@ -291,18 +311,7 @@ export default function Recorder({
         void desktopBridge()?.recLevel?.(Math.round(level * 100) / 100)?.catch(() => undefined);
       }
     }
-    if (mode === 'screen_camera') {
-      const c = canvasRef.current;
-      const g = c?.getContext('2d');
-      const sv = screenVideo.current;
-      if (c && g && sv && sv.videoWidth) {
-        g.drawImage(sv, 0, 0, c.width, c.height);
-        const b = bubbleRef.current;
-        const cam = camVideo.current;
-        // Con la burbuja flotante de escritorio la cara ya sale en la captura de pantalla.
-        if (cam && camStream.current && !nativeBubble.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height);
-      }
-    }
+    if (mode === 'screen_camera') compose();
     if (recorder.current?.state !== 'recording') return;
     const ms = currentActiveMs();
     const src = previewSource();
@@ -314,6 +323,13 @@ export default function Recorder({
         gifFrames.current.push({ width: shot.width, height: shot.height, rgba: g.getImageData(0, 0, shot.width, shot.height).data });
         lastGifAt.current = ms;
       }
+    }
+    // A los 2 s: si la pantalla llega negra (permiso que se cayó a mitad de camino), se avisa mientras se graba.
+    if (usesScreen && !blackChecked.current && ms >= 2000) {
+      blackChecked.current = true;
+      const s = snapshot(screenVideo.current ?? src, 48);
+      const g = s?.getContext('2d', { willReadFrequently: true });
+      if (s && g && isBlackPixels(g.getImageData(0, 0, s.width, s.height).data)) setLiveBlack(true);
     }
     if (!thumb.current && !thumbPending.current && ms >= 1000) {
       const shot = snapshot(src, 960);
@@ -439,6 +455,18 @@ export default function Recorder({
     let videoTrack: MediaStreamTrack | undefined;
     let width = 0;
     let height = 0;
+    // El primer cuadro del archivo tiene que tener imagen: se espera a que la fuente lo tenga
+    // antes de grabar (ver waitForFrame: en WebKit, un primer cuadro vacío deja el video negro).
+    const source = usesScreen ? screenVideo.current : camVideo.current;
+    const firstFrameMs = source ? await waitForFrame(source) : null;
+    if (usesScreen && firstFrameMs === null) {
+      // La pantalla no mandó ni un cuadro: grabar daría un video negro.
+      setError(t(desktop ? 'errors.screen_black_desktop' : 'errors.screen_black'));
+      releaseScreen();
+      resetLive();
+      setPhase('setup');
+      return;
+    }
     if (mode === 'screen_camera') {
       const c = canvasRef.current;
       const settings = screenStream.current?.getVideoTracks()[0]?.getSettings() ?? {};
@@ -453,6 +481,14 @@ export default function Recorder({
       if (c) {
         c.width = width;
         c.height = height;
+        // Fondo opaco y la pantalla ya dibujada antes de captureStream: Chrome toma el primer
+        // cuadro en el momento de crear la pista.
+        const g = compositorContext(c);
+        if (g) {
+          g.fillStyle = '#000';
+          g.fillRect(0, 0, width, height);
+        }
+        compose();
         videoTrack = c.captureStream(30).getVideoTracks()[0];
       }
     } else if (mode === 'screen') {
@@ -494,6 +530,8 @@ export default function Recorder({
     gifFrames.current = [];
     lastGifAt.current = -Infinity;
     thumb.current = null;
+    blackChecked.current = false;
+    setLiveBlack(false);
     clock.current = clockIdle();
     // Un keyframe cada 2 s (Chrome 125+): cada cluster WebM arranca decodificable y el recorte
     // puede cortar por clusters sin recodificar (lib/rec-webm.ts cutWebm).
@@ -526,6 +564,9 @@ export default function Recorder({
     clock.current = clockStart(performance.now());
     setElapsed(0);
     sizeRef.current = { width, height };
+    // Diagnóstico de la captura (consola del navegador o de la app de escritorio) si un video sale negro.
+    const surface = (screenStream.current?.getVideoTracks()[0]?.getSettings() as { displaySurface?: string } | undefined)?.displaySurface ?? null;
+    console.info('[rec] capture', { mode, mime, width, height, surface, firstFrameMs, desktop, nativeBubble: nativeBubble.current });
     setPhase('recording');
   }
 
@@ -947,6 +988,12 @@ export default function Recorder({
           )}
         </div>
       </div>
+
+      {liveBlack && (phase === 'recording' || phase === 'paused') && (
+        <p className="ui-error" role="alert" data-testid="rec-black-warning">
+          {t(desktop ? 'errors.screen_black_desktop' : 'errors.screen_black')}
+        </p>
+      )}
 
       {(phase === 'recording' || phase === 'paused' || phase === 'finishing') && (
         <div className="rec-bar" role="toolbar" aria-label={t('controls')}>
