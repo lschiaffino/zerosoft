@@ -157,7 +157,7 @@
   overflow-y: auto;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 

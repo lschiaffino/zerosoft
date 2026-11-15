@@ -129,7 +129,7 @@ body {
 
 /* Foco visible y consistente en todo el sitio (teclado). */
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 .lp-end :focus-visible,

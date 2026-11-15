@@ -432,7 +432,7 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   overflow-y: auto;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .chat-picker button {
@@ -851,7 +851,7 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   width: min(300px, calc(100vw - 32px));
   padding: 12px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .chat-alerts-panel .ui-help { margin: 0; }
@@ -886,7 +886,7 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   padding: 4px 0;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .chat-copilot-menu button {
@@ -913,7 +913,7 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   width: min(420px, calc(100vw - 48px));
   padding: 12px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .chat-copilot-summary-title { margin: 0 0 4px; font-size: 0.8125rem; font-weight: 600; }

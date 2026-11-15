@@ -176,7 +176,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
 }
@@ -359,8 +359,8 @@ section.board-templates { padding: 0; }
   min-width: 18px;
   padding: 0 4px;
   border-radius: var(--radius-1);
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--app-btn, var(--ink));
+  color: var(--app-btn-on, var(--bg));
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;
   line-height: 18px;
@@ -490,7 +490,7 @@ section.board-templates { padding: 0; }
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
   color: var(--ink);
@@ -538,7 +538,7 @@ section.board-templates { padding: 0; }
   top: calc(100% + 4px);
   z-index: 6;
   list-style: none;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
 }

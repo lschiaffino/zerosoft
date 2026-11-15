@@ -755,9 +755,9 @@ a.ppl-home-row:hover {
   outline-offset: 2px;
 }
 .ppl-score-on {
-  background: var(--brand-ink);
-  border-color: var(--brand-ink);
-  color: var(--brand-on-ink);
+  background: var(--app-btn, var(--ink));
+  border-color: var(--app-btn, var(--ink));
+  color: var(--app-btn-on, var(--brand-on-ink));
 }
 .ppl-survey-score {
   display: flex;

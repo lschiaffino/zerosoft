@@ -111,8 +111,8 @@ div.wa-nc-msg { display: flex; flex-direction: column; align-items: flex-start; 
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: var(--bg);
-  background: var(--ink);
+  color: var(--app-btn-on, var(--bg));
+  background: var(--app-btn, var(--ink));
   border: 2px solid var(--bg);
   border-radius: 50%;
 }

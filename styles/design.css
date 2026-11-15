@@ -137,7 +137,7 @@ body:has(.dz-editor) .fl-root { display: none; }
   padding: 8px;
   background: var(--surface-1);
   color: var(--ink);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   box-shadow: 0 8px 24px var(--ui-shadow);
 }
@@ -472,7 +472,7 @@ body:has(.dz-editor) .fl-root { display: none; }
 .dz-seg-opt { position: relative; padding: 6px 16px; cursor: pointer; font-size: 0.9375rem; }
 .dz-seg-opt + .dz-seg-opt { border-left: 1px solid var(--ui-field); }
 .dz-seg-opt input { position: absolute; opacity: 0; pointer-events: none; }
-.dz-seg-opt.is-on { background: var(--ink); color: var(--bg); }
+.dz-seg-opt.is-on { background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .dz-seg-opt:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .dz-export-board { border-top: 1px solid var(--line); padding-top: 12px; }
 .dz-magic-actions { display: flex; flex-wrap: wrap; gap: 6px; }

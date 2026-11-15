@@ -14,7 +14,7 @@
 
 /* ---------- Controles con el color de la app ---------- */
 .filter-select.on, .filter-more.on { border-color: var(--ink); color: var(--ink); background-color: var(--brand-enamel); }
-.filter-count { background: var(--ink); color: var(--bg); }
+.filter-count { background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .chip.active, .kb-view-btn.active { border-color: var(--ink); color: var(--ink); background: var(--ui-hover); }
 .app-tab.active { border-bottom-color: var(--accent); }
 .app-content a.cell-name:hover, .app-content .kb-card-name:hover { color: var(--accent-ink); }
@@ -78,6 +78,6 @@
 .next-task-banner .next-task-label { color: var(--ink); font-weight: 600; }
 .next-task-banner.overdue { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad-ink) 35%, var(--bg)) !important; }
 .next-task-banner .bulk-btn { color: var(--ink); border-color: var(--ui-field); background: var(--bg); }
-.next-task-banner .bulk-btn:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.next-task-banner .bulk-btn:hover:not(:disabled) { background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .track-calendar-day.today .track-calendar-day-number { color: var(--accent-on); }
 .docs-tree-link.active { color: #fff; }

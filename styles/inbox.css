@@ -174,10 +174,10 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-composer-send { gap: 6px; margin-left: auto; }
 .ib-composer-hint { margin: 0; font-size: 0.6875rem; color: var(--brand-gray-2); }
 .ib-menu-wrap { position: relative; }
-.ib-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 20; min-width: 200px; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); }
+.ib-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 20; min-width: 200px; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--accent-ink); border-radius: var(--radius-1); }
 .ib-menu-item { display: block; width: 100%; padding: 8px 10px; background: none; border: 0; font: inherit; font-size: 0.875rem; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-1); }
 .ib-menu-item:hover, .ib-menu-item:focus-visible { background: var(--ui-hover); }
-.ib-snippets { position: absolute; bottom: calc(100% - 4px); left: 16px; right: 16px; z-index: 20; max-height: 260px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); }
+.ib-snippets { position: absolute; bottom: calc(100% - 4px); left: 16px; right: 16px; z-index: 20; max-height: 260px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--accent-ink); border-radius: var(--radius-1); }
 .ib-snippet { display: grid; grid-template-columns: minmax(0, auto) auto; gap: 2px 8px; width: 100%; padding: 8px 10px; background: none; border: 0; font: inherit; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-1); }
 .ib-snippet.is-active, .ib-snippet:hover { background: var(--ui-hover); }
 .ib-snippet-title { font-weight: 600; font-size: 0.875rem; }

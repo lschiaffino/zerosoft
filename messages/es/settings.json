@@ -1725,11 +1725,30 @@
   },
   "appearance": {
     "title": "Apariencia",
-    "desc": "Cómo se ve zerosoft en este navegador.",
+    "desc": "Modo claro u oscuro en este navegador.",
     "themeHelp": "Sistema sigue el modo claro u oscuro de tu compu. Es la misma opción que el selector al pie del sidebar.",
     "languageTitle": "Idioma",
     "languageDesc": "El idioma de la interfaz y de los emails que te manda zerosoft.",
-    "languageLink": "Se cambia en Perfil"
+    "languageLink": "Se cambia en Perfil",
+    "lookTitle": "Aspecto",
+    "lookDesc": "Cómo se dibujan los menús, botones, popovers y ventanas en todas las apps. Se guarda en tu cuenta.",
+    "lookLabel": "Aspecto",
+    "lookSaved": "Guardado en tu cuenta.",
+    "lookError": "No se pudo guardar. El aspecto queda solo en este navegador.",
+    "looks": {
+      "lines": {
+        "name": "Líneas",
+        "desc": "Líneas finas, plano y recto. El color de la app en bordes y botones principales."
+      },
+      "classic": {
+        "name": "Clásico",
+        "desc": "Esquinas redondeadas, sombras suaves y rellenos al pasar, como las apps que ya usás."
+      },
+      "liquid": {
+        "name": "Líquido",
+        "desc": "Capas translúcidas con desenfoque, esquinas más grandes y menús que flotan."
+      }
+    }
   },
   "offline": {
     "title": "Modo sin conexión",

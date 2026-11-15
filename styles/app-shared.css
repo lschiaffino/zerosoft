@@ -102,9 +102,9 @@
   gap: 12px;
 }
 .chip.active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
+  background: var(--app-btn, var(--ink));
+  border-color: var(--app-btn, var(--ink));
+  color: var(--app-btn-on, var(--bg));
 }
 .filter-select {
   min-height: 32px;
@@ -468,7 +468,7 @@
   padding: 4px;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .track-label-options button {
@@ -504,7 +504,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   display: flex;
   flex-direction: column;
   padding: 4px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
 }

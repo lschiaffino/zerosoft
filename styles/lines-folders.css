@@ -26,7 +26,7 @@
 .grf-branch-count { margin-left: auto; padding-left: 6px; font-size: 0.75rem; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .grf-branch-new { display: block; width: 100%; margin: 2px 0 6px; padding: 4px 8px 4px 28px; background: none; border: 0; font: inherit; font-size: 0.8125rem; color: var(--brand-gray-2); text-align: left; cursor: pointer; border-radius: var(--radius-1); }
 .grf-branch-new:hover, .grf-branch-new:focus-visible { background: var(--chrome-hover, var(--ui-hover)); color: var(--ink); }
-.grf-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 20; min-width: 200px; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); }
+.grf-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 20; min-width: 200px; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--accent-ink); border-radius: var(--radius-1); }
 .grf-menu-item { display: block; width: 100%; padding: 8px 10px; background: none; border: 0; font: inherit; font-size: 0.875rem; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-1); }
 .grf-menu-item:hover, .grf-menu-item:focus-visible { background: var(--ui-hover); }
 .grf-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }

@@ -103,7 +103,7 @@
 .cl-menu { position: relative; }
 .cl-menu > summary { list-style: none; }
 .cl-menu > summary::-webkit-details-marker { display: none; }
-.cl-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 260px; border: 1px solid var(--ink); background: var(--bg); padding: 4px; }
+.cl-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 260px; border: 1px solid var(--accent-ink); background: var(--bg); padding: 4px; }
 .cl-menu-list a { padding: 8px 10px; color: inherit; text-decoration: none; font-size: 0.875rem; }
 .cl-menu-list a:hover, .cl-menu-list a:focus-visible { background: var(--ui-hover); }
 

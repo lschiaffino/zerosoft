@@ -227,7 +227,7 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
   padding: 4px;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .vc-recipe-option { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border-radius: var(--radius-1); cursor: pointer; font-size: 0.875rem; }

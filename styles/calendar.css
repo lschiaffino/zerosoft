@@ -461,7 +461,7 @@
   transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
 .cal-step[data-done] .cal-step-n { border-color: var(--ink); color: var(--ink); }
-.cal-step[aria-selected='true'] .cal-step-n { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.cal-step[aria-selected='true'] .cal-step-n { border-color: var(--app-btn, var(--ink)); background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .cal-step-text { display: flex; flex-direction: column; gap: 2px; }
 .cal-step-label { font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
 .cal-step[aria-selected='false'] .cal-step-label { font-weight: 500; color: var(--brand-gray-1); }

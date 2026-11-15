@@ -309,7 +309,7 @@
   max-height: 320px;
   padding: 6px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .flow-var-menu ul { margin: 0; padding: 0; list-style: none; overflow-y: auto; }

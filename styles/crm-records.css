@@ -218,7 +218,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   min-width: 200px;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .record-more-item {
@@ -641,7 +641,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .lead-path-step:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); }
 .lead-path-step:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.lead-path-step.current { border-color: var(--ink); background: var(--ink); color: var(--bg); cursor: default; }
+.lead-path-step.current { border-color: var(--app-btn, var(--ink)); background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); cursor: default; }
 .lead-path-step:disabled:not(.current) { cursor: progress; }
 
 /* Ajustes: pipeline de leads. */
@@ -735,7 +735,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   overflow-y: auto;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
 }
 .crm-combo-options button {
   display: block;

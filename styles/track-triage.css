@@ -135,7 +135,7 @@ a.track-request-customer:hover { text-decoration: underline; text-underline-offs
   padding: 4px 0;
   list-style: none;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   max-height: 260px;
   overflow-y: auto;

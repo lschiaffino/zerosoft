@@ -18,6 +18,7 @@ import BrandProvider from '@/components/brand/BrandProvider';
 import { DEFAULT_BRAND } from '@/lib/brand-theme';
 import ThemeProvider from '@/components/theme/ThemeProvider';
 import { THEME_INIT_SCRIPT } from '@/lib/color-theme';
+import { LOOK_INIT_SCRIPT } from '@/lib/look';
 import { SESSION_HINT_SCRIPT } from '@/lib/session-hint';
 import { localeCookieScript } from '@/lib/locale-cookie';
 import { TZ_COOKIE_SCRIPT } from '@/lib/tz-client';
@@ -109,6 +110,7 @@ export default async function LocaleLayout(
   // las páginas del sitio salen estáticas del CDN. Lo que depende de la
   // request se resuelve en otro lado:
   // - modo de color: THEME_INIT_SCRIPT antes del primer paint (cookie zs_theme);
+  // - aspecto (lines, classic, liquid): LOOK_INIT_SCRIPT, cookie zs_look (lib/look.ts);
   // - chrome de feedback.zerosoft.ai, branding.zerosoft.ai y los sitios de Docs:
   //   ChromeGate mira la ruta real (reescrita por el middleware);
   // - el header logueado: HeaderClient, con la cookie zs_who.
@@ -116,10 +118,10 @@ export default async function LocaleLayout(
   const brand = DEFAULT_BRAND;
 
   return (
-    // data-theme lo pone el script antes de hidratar: no es un desajuste.
+    // data-theme y data-look los pone el script antes de hidratar: no es un desajuste.
     <html lang={locale} data-brand={brand} className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(locale) }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT + LOOK_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(locale) }} />
         <BrandProvider brand={brand}>
         <ThemeProvider>
         {/* Al cliente va solo lo común (header, launcher de feedback); cada app

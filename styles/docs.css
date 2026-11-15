@@ -394,8 +394,8 @@
   height: 18px;
   padding: 0 4px;
   border-radius: var(--radius-1);
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--app-btn, var(--ink));
+  color: var(--app-btn-on, var(--bg));
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;
 }
@@ -960,7 +960,7 @@
 .docs-link-popover {
   z-index: 70;
   padding: 4px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
   color: var(--ink);
@@ -1111,7 +1111,7 @@
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
 }
@@ -1136,7 +1136,7 @@
   cursor: pointer;
 }
 .docs-format-btn:hover { background: var(--brand-enamel); }
-.docs-format-btn.active { background: var(--ink); color: var(--bg); }
+.docs-format-btn.active { background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .docs-format-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .docs-format-btn-mono { font-family: var(--font-data); font-size: 0.6875rem; }
 .docs-format-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--line); }
@@ -1169,7 +1169,7 @@
   cursor: pointer;
 }
 .docs-link-btn:hover { background: var(--brand-enamel); border-color: var(--ink); }
-.docs-link-btn.primary { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.docs-link-btn.primary { border-color: var(--app-btn, var(--ink)); background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .docs-link-btn.primary:hover { background: var(--brand-gray-1); }
 
 /* Selector de ícono. */
@@ -1296,7 +1296,7 @@
   max-height: 220px;
   overflow-y: auto;
   padding: 4px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   background: var(--bg);
   color: var(--ink);

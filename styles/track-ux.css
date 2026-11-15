@@ -641,7 +641,7 @@
   overflow-y: auto;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 
@@ -1751,7 +1751,7 @@ a.track-issue-link .track-status-glyph {
   max-width: calc(100vw - 32px);
   padding: 10px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 
@@ -1834,7 +1834,7 @@ a.track-issue-link .track-status-glyph {
   z-index: 2;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 

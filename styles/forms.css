@@ -94,9 +94,9 @@
   font: inherit;
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--bg);
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  color: var(--app-btn-on, var(--bg));
+  background: var(--app-btn, var(--ink));
+  border: 1px solid var(--app-btn, var(--ink));
   border-radius: var(--radius-1);
   padding: 0 20px;
   cursor: pointer;

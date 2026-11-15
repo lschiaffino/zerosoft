@@ -1725,11 +1725,30 @@
   },
   "appearance": {
     "title": "Appearance",
-    "desc": "How zerosoft looks in this browser.",
+    "desc": "Light or dark mode in this browser.",
     "themeHelp": "System follows your computer’s light or dark setting. It is the same choice as the switch at the bottom of the sidebar.",
     "languageTitle": "Language",
     "languageDesc": "The language of the interface and of the emails zerosoft sends you.",
-    "languageLink": "Change it in Profile"
+    "languageLink": "Change it in Profile",
+    "lookTitle": "Look",
+    "lookDesc": "How menus, buttons, popovers and windows are drawn in every app. Saved to your account.",
+    "lookLabel": "Look",
+    "lookSaved": "Saved to your account.",
+    "lookError": "Could not save. The look applies in this browser only.",
+    "looks": {
+      "lines": {
+        "name": "Lines",
+        "desc": "Thin lines, flat and square. The app's color on borders and main buttons."
+      },
+      "classic": {
+        "name": "Classic",
+        "desc": "Rounded corners, soft shadows and filled hovers, like the apps you already use."
+      },
+      "liquid": {
+        "name": "Liquid",
+        "desc": "Translucent layers with blur, larger corners and floating menus."
+      }
+    }
   },
   "offline": {
     "title": "Offline mode",

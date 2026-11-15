@@ -168,8 +168,8 @@
   padding: 0 4px;
   font-family: var(--font-data);
   font-size: 0.6875rem;
-  color: var(--bg);
-  background: var(--ink);
+  color: var(--app-btn-on, var(--bg));
+  background: var(--app-btn, var(--ink));
   border-radius: var(--radius-1);
 }
 
@@ -186,7 +186,7 @@
   overflow: auto;
   padding: 6px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 
@@ -275,7 +275,7 @@
   overflow: auto;
   padding: 6px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 
@@ -1892,7 +1892,7 @@ dialog.tp-modal:has(.track-attach-preview-img, .track-attach-preview-pdf) {
   overflow-y: auto;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 
@@ -2774,8 +2774,8 @@ a.track-board-card-title:hover {
     font-variant-numeric: tabular-nums;
     line-height: 16px;
     text-align: center;
-    color: var(--bg);
-    background: var(--ink);
+    color: var(--app-btn-on, var(--bg));
+    background: var(--app-btn, var(--ink));
     border-radius: var(--radius-1);
   }
 

@@ -23,6 +23,8 @@ export interface UserRow {
   mfa_last_step?: number | null;
   /** "Cerrar todas las sesiones": invalida también los JWT de antes de las sesiones del servidor. */
   sessions_revoked_at?: string | null;
+  /** Aspecto de la interfaz: lines, classic o liquid (lib/look.ts, 20261115_0130_user_look). */
+  look?: string | null;
   created_at: string;
 }
 

@@ -132,7 +132,7 @@
   transition: border-color 0.25s, color 0.25s, background 0.25s;
 }
 .chip:hover { border-color: var(--ink); color: var(--ink); }
-.chip.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip.active { background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .filter-sort { width: auto; padding: 8px 12px; font-size: 12px; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md); }

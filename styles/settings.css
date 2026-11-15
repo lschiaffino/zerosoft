@@ -533,7 +533,7 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .st-lc-templates ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .st-lc-template { display: block; padding: 5px 8px; font-family: var(--font-data); font-size: 0.8125rem; color: var(--ink-2, var(--ink)); text-decoration: none; border-radius: var(--radius-1); overflow-wrap: anywhere; }
 .st-lc-template:hover { background: var(--ui-hover); color: var(--ink); }
-.st-lc-template[aria-current='page'] { background: var(--ink); color: var(--bg); }
+.st-lc-template[aria-current='page'] { background: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg)); }
 .st-lc-template:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .st-lc-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .st-lc-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; }

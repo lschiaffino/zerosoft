@@ -7,6 +7,8 @@ import '@/styles/globals.css';
 import '@/styles/ui.css';
 // Modo oscuro (sistema o data-theme="dark", ver lib/color-theme.ts).
 import '@/styles/themes/dark.css';
+// Aspecto de la interfaz (lines, classic, liquid; ver lib/look.ts). Después del modo oscuro: sus bloques oscuros ganan.
+import '@/styles/looks.css';
 
 // El <html> real vive en app/[locale]/layout.tsx (patrón next-intl).
 export default function RootLayout({ children }: { children: ReactNode }) {

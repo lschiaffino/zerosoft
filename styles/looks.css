@@ -1,0 +1,413 @@
+/* ============================================================
+   Aspectos de la interfaz (lib/look.ts): <html data-look="lines|classic|liquid">.
+   Solo en las páginas de la app; el sitio y las páginas públicas quedan en lines.
+
+   - lines (default): no redefine nada. Los componentes ya dibujan este aspecto
+     y sus bordes y botones fuertes usan el color de la app (--accent-ink,
+     --app-btn), tinta fuera de una app.
+   - classic: menús, popovers y modales con esquinas redondeadas, borde suave y
+     sombra; rellenos al pasar; botones sólidos sin invertir.
+   - liquid: superficies translúcidas con desenfoque, brillo en el borde
+     superior, radios grandes y un fondo con un tinte del color de la app.
+     Sin backdrop-filter, o con prefers-reduced-transparency, las superficies
+     son opacas.
+
+   Tokens (los lee el resto del CSS, con el valor de lines como respaldo):
+     --radius-1      controles (botones, campos, filas)
+     --radius-pop    menús, popovers, listas flotantes, tooltips
+     --radius-modal  modales y ⌘K
+     --radius-sheet  la hoja de abajo del teléfono
+     --radius-item   ítems dentro de un menú
+     --pop-bg --pop-edge --pop-shadow --pop-blur   superficie flotante
+     --modal-bg --modal-shadow                     modal
+   Las superficies flotantes de cada app están listadas abajo (:is(...)): una
+   nueva se suma a la lista o lleva role="menu".
+   ============================================================ */
+
+/* ---------- Classic: tokens ---------- */
+
+:root[data-look='classic'] {
+  --radius-1: 6px;
+  --radius-pop: 8px;
+  --radius-modal: 12px;
+  --radius-sheet: 14px;
+  --radius-item: 5px;
+  --pop-bg: var(--bg);
+  --pop-edge: color-mix(in srgb, var(--ink) 12%, transparent);
+  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 12px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.1);
+  --modal-bg: var(--bg);
+  --modal-shadow: 0 2px 8px rgb(0 0 0 / 0.08), 0 24px 72px rgb(0 0 0 / 0.22);
+  --ui-backdrop: rgb(17 17 17 / 0.32);
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look='classic']:not([data-theme='light']) {
+    --pop-bg: #1b1a19;
+    --modal-bg: #171615;
+    --pop-edge: rgb(255 255 255 / 0.1);
+    --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.5);
+    --modal-shadow: 0 2px 8px rgb(0 0 0 / 0.3), 0 24px 72px rgb(0 0 0 / 0.6);
+    --ui-backdrop: rgb(0 0 0 / 0.55);
+    --card-shadow: none;
+  }
+}
+:root[data-look='classic'][data-theme='dark'] {
+  --pop-bg: #1b1a19;
+  --modal-bg: #171615;
+  --pop-edge: rgb(255 255 255 / 0.1);
+  --pop-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.5);
+  --modal-shadow: 0 2px 8px rgb(0 0 0 / 0.3), 0 24px 72px rgb(0 0 0 / 0.6);
+  --ui-backdrop: rgb(0 0 0 / 0.55);
+  --card-shadow: none;
+}
+
+/* ---------- Liquid: tokens ---------- */
+
+:root[data-look='liquid'] {
+  --radius-1: 10px;
+  --radius-pop: 14px;
+  --radius-modal: 22px;
+  --radius-sheet: 22px;
+  --radius-item: 8px;
+  /* Vidrio: blanco translúcido; el texto de tinta queda por encima de 12:1 sobre cualquier fondo claro. */
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-strong: rgb(255 255 255 / 0.86);
+  --glass-line: rgb(0 0 0 / 0.08);
+  --glass-hi: rgb(255 255 255 / 0.85);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 42%);
+  --glass-blur: blur(24px) saturate(180%);
+  --pop-bg: var(--glass-strong);
+  --pop-edge: var(--glass-line);
+  --pop-blur: var(--glass-blur);
+  --pop-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.06), 0 10px 36px rgb(0 0 0 / 0.14);
+  --modal-bg: var(--glass-strong);
+  --modal-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.06), 0 30px 90px rgb(0 0 0 / 0.24);
+  --ui-backdrop: rgb(20 20 24 / 0.22);
+  --wall: #f1f1f3;
+  --wall-tint: 9%;
+  --side-bg: rgb(255 255 255 / 0.5);
+  --chrome-bg: rgb(255 255 255 / 0.6);
+  --card-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 3px rgb(0 0 0 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look='liquid']:not([data-theme='light']) {
+    --glass: rgb(36 35 34 / 0.55);
+    --glass-strong: rgb(30 29 28 / 0.82);
+    --glass-line: rgb(255 255 255 / 0.1);
+    --glass-hi: rgb(255 255 255 / 0.12);
+    --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 42%);
+    --pop-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 14px 44px rgb(0 0 0 / 0.5);
+    --modal-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 30px 90px rgb(0 0 0 / 0.6);
+    --ui-backdrop: rgb(0 0 0 / 0.45);
+    --wall: #0c0b0b;
+    --wall-tint: 12%;
+    --side-bg: rgb(22 21 20 / 0.55);
+    --chrome-bg: rgb(18 17 16 / 0.6);
+    --card-shadow: inset 0 1px 0 var(--glass-hi);
+  }
+}
+:root[data-look='liquid'][data-theme='dark'] {
+  --glass: rgb(36 35 34 / 0.55);
+  --glass-strong: rgb(30 29 28 / 0.82);
+  --glass-line: rgb(255 255 255 / 0.1);
+  --glass-hi: rgb(255 255 255 / 0.12);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 42%);
+  --pop-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 14px 44px rgb(0 0 0 / 0.5);
+  --modal-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 0.5px rgb(0 0 0 / 0.5), 0 30px 90px rgb(0 0 0 / 0.6);
+  --ui-backdrop: rgb(0 0 0 / 0.45);
+  --wall: #0c0b0b;
+  --wall-tint: 12%;
+  --side-bg: rgb(22 21 20 / 0.55);
+  --chrome-bg: rgb(18 17 16 / 0.6);
+  --card-shadow: inset 0 1px 0 var(--glass-hi);
+}
+
+/* Sin desenfoque (navegador viejo) o con transparencia reducida: el vidrio es opaco. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-look='liquid'] {
+    --glass: var(--brand-enamel);
+    --glass-strong: var(--bg);
+    --pop-blur: none;
+    --glass-blur: none;
+    --side-bg: var(--brand-enamel);
+    --chrome-bg: var(--bg);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-look='liquid'] {
+    --glass: var(--brand-enamel) !important;
+    --glass-strong: var(--bg) !important;
+    --glass-sheen: none !important;
+    --pop-blur: none !important;
+    --glass-blur: none !important;
+    --side-bg: var(--brand-enamel) !important;
+    --chrome-bg: var(--bg) !important;
+    --wall-tint: 0% !important;
+  }
+}
+
+/* ---------- Superficies flotantes (classic y liquid) ---------- */
+
+:root:is([data-look='classic'], [data-look='liquid']) :is(
+  [role='menu'],
+  .zs-ctx-menu, .zs-msel-list, .band-menu-panel, .band-offline-panel, .side-menu, .side-bell-panel, .column-toggle-menu,
+  .row-menu, .track-label-options, .bi-suggest, .board-pop, .board-thread, .board-mention-list, .board-reaction-picker,
+  .board-canvas-tools, .board-table-bar, .cl-menu-list, .chat-picker, .chat-alerts-panel, .chat-copilot-menu,
+  .record-more-menu, .crm-combo-options, .rb-menu, .member-results, .dash-add-menu, .book-meeting-menu, .crm-mention-menu,
+  .bulk-multi-menu, .wq-menu, .cp-list, .dz-pop-body, .docs-db-popover, .docs-ai-menu, .docs-menu, .docs-block-menu,
+  .docs-bmenu-sub, .docs-command-menu, .docs-mention-popover, .docs-format-toolbar, .docs-link-popover, .docs-format-menu,
+  .docs-comment-mentions, .docs-media-toolbar, .flow-var-menu, .gr-menu-list, .gr-columns-menu, .gr-emoji-picker,
+  .wa-emoji-suggest, .wa-mention-pop, .gr-crm-results, .gr-hs-suggest, .gr-hs-results, .ib-menu, .ib-snippets, .grf-menu,
+  .notes-pop, .notes-nav-menu, .rec-menu, .robots-menu, .slash-menu, .talk-bookmark-menu, .talk-bookmark-overflow,
+  .talk-msg-actions, .talk-menu, .talk-suggest, .track-rte-toolbar, .track-bulk-bar, .track-request-options, .track-menu,
+  .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu, .track-filter-menu,
+  .track-saved-views-menu, .track-mention-dropdown, .vc-rec-indicator-menu, .vc-transforms, .vc-recipe-menu, .vc-pop,
+  .an-sv-pop, .flow-groups-results, dialog.ui-filter-panel
+) {
+  background-color: var(--pop-bg);
+  border: 1px solid var(--pop-edge);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--pop-shadow);
+}
+
+:root[data-look='liquid'] :is(
+  [role='menu'],
+  .zs-ctx-menu, .zs-msel-list, .band-menu-panel, .band-offline-panel, .side-menu, .side-bell-panel, .column-toggle-menu,
+  .row-menu, .track-label-options, .bi-suggest, .board-pop, .board-thread, .board-mention-list, .board-reaction-picker,
+  .board-canvas-tools, .board-table-bar, .cl-menu-list, .chat-picker, .chat-alerts-panel, .chat-copilot-menu,
+  .record-more-menu, .crm-combo-options, .rb-menu, .member-results, .dash-add-menu, .book-meeting-menu, .crm-mention-menu,
+  .bulk-multi-menu, .wq-menu, .cp-list, .dz-pop-body, .docs-db-popover, .docs-ai-menu, .docs-menu, .docs-block-menu,
+  .docs-bmenu-sub, .docs-command-menu, .docs-mention-popover, .docs-format-toolbar, .docs-link-popover, .docs-format-menu,
+  .docs-comment-mentions, .docs-media-toolbar, .flow-var-menu, .gr-menu-list, .gr-columns-menu, .gr-emoji-picker,
+  .wa-emoji-suggest, .wa-mention-pop, .gr-crm-results, .gr-hs-suggest, .gr-hs-results, .ib-menu, .ib-snippets, .grf-menu,
+  .notes-pop, .notes-nav-menu, .rec-menu, .robots-menu, .slash-menu, .talk-bookmark-menu, .talk-bookmark-overflow,
+  .talk-msg-actions, .talk-menu, .talk-suggest, .track-rte-toolbar, .track-bulk-bar, .track-request-options, .track-menu,
+  .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu, .track-filter-menu,
+  .track-saved-views-menu, .track-mention-dropdown, .vc-rec-indicator-menu, .vc-transforms, .vc-recipe-menu, .vc-pop,
+  .an-sv-pop, .flow-groups-results, dialog.ui-filter-panel, .cmdk
+) {
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--pop-blur);
+  backdrop-filter: var(--pop-blur);
+}
+
+/* Ítems de un menú o una lista: el relleno al pasar lleva su propia esquina. */
+:root:is([data-look='classic'], [data-look='liquid']) :is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'], .zs-ctx-item, .zs-msel-opt, .cmdk-item, .band-menu-item) {
+  border-radius: var(--radius-item);
+}
+
+/* ---------- Modales, ⌘K y drawers ---------- */
+
+:root:is([data-look='classic'], [data-look='liquid']) :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .modal-card, .fc-dialog, .cmdk) {
+  background-color: var(--modal-bg);
+  border: 1px solid var(--pop-edge);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--modal-shadow);
+}
+:root[data-look='liquid'] :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .modal-card, .fc-dialog) {
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+/* El pie gris del modal sigue la esquina; el modal no recorta (su cuerpo scrollea). */
+:root:is([data-look='classic'], [data-look='liquid']) dialog .ui-modal-foot {
+  border-radius: 0 0 calc(var(--radius-modal) - 1px) calc(var(--radius-modal) - 1px);
+}
+:root[data-look='liquid'] dialog .ui-modal-foot { background: transparent; }
+:root[data-look='liquid'] .cmdk-input { background: transparent; }
+:root[data-look='liquid'] dialog::backdrop,
+:root[data-look='liquid'] .cmdk-backdrop {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+:root:is([data-look='classic'], [data-look='liquid']) dialog.ui-drawer {
+  border-color: var(--pop-edge);
+  box-shadow: -16px 0 48px rgb(0 0 0 / 0.14);
+}
+:root[data-look='liquid'] dialog.ui-drawer {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+@media (max-width: 640px) {
+  :root:is([data-look='classic'], [data-look='liquid']) dialog.ui-modal { border-width: 1px 0 0; }
+  :root:is([data-look='classic'], [data-look='liquid']) dialog .ui-modal-foot { border-radius: 0; }
+}
+
+/* ---------- Botones ---------- */
+
+/* Classic: la primaria se oscurece al pasar (no se invierte); la secundaria es una placa con borde suave. */
+:root[data-look='classic'] .btn-primary,
+:root[data-look='classic'] .btn-solid {
+  --btn-bg-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-fg-hover: var(--bg);
+}
+:root[data-look='classic'] :is(.btn-secondary, .btn-outline, .btn:not(.btn-primary):not(.btn-solid):not(.btn-ghost):not(.btn-chrome):not(.btn-invert):not(.btn-invert-solid):not(.btn-chrome-outline)) {
+  --btn-bd: color-mix(in srgb, var(--ink) 22%, var(--bg));
+  --btn-bg-hover: var(--ui-hover);
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 34%, var(--bg));
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
+}
+:root[data-look='classic'] :is(.btn-primary, .btn-solid):not(:disabled) { box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+
+/* Liquid: la primaria lleva brillo arriba y una sombra de su color; la secundaria es vidrio. */
+:root[data-look='liquid'] :is(.btn-primary, .btn-solid):not(:disabled):not([aria-disabled='true']) {
+  --btn-bg-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 84%, var(--bg));
+  --btn-fg-hover: var(--bg);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 1px 2px rgb(0 0 0 / 0.14), 0 6px 16px color-mix(in srgb, var(--btn-bg) 28%, transparent);
+}
+:root[data-look='liquid'] :is(.btn-secondary, .btn-outline, .btn:not(.btn-primary):not(.btn-solid):not(.btn-ghost):not(.btn-chrome):not(.btn-invert):not(.btn-invert-solid):not(.btn-chrome-outline):not(.btn-danger)) {
+  --btn-bg: var(--glass);
+  --btn-bd: var(--glass-line);
+  --btn-bg-hover: var(--glass-strong);
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px rgb(0 0 0 / 0.06);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* ---------- Campos ---------- */
+
+/* Foco: el borde en el color de la app y un halo suave del mismo color. */
+:root:is([data-look='classic'], [data-look='liquid']) :is(.input, .select, .textarea):focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+:root:is([data-look='classic'], [data-look='liquid']) :is(.input, .select, .textarea)[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad-ink) 24%, transparent);
+}
+:root[data-look='liquid'] :is(.input, .select, .textarea):not(:disabled):not([readonly]) {
+  background-color: var(--glass-strong);
+}
+
+/* ---------- Checkbox y switch ---------- */
+
+:root[data-look='classic'] .ui-check input[type='checkbox'] { border-radius: 4px; }
+:root[data-look='liquid'] .ui-check input[type='checkbox'] { border-radius: 5px; }
+:root:is([data-look='classic'], [data-look='liquid']) .ui-switch input { border-radius: 6px; }
+:root:is([data-look='classic'], [data-look='liquid']) .ui-switch input::before { border-radius: 4px; }
+
+/* ---------- Toasts ---------- */
+
+:root:is([data-look='classic'], [data-look='liquid']) .ui-toast {
+  border-radius: var(--radius-pop);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.2);
+}
+:root[data-look='liquid'] .ui-toast:not([data-tone='error']) {
+  color: #f5f5f5;
+  background: rgb(24 24 26 / 0.8);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 12px 32px rgb(0 0 0 / 0.24);
+}
+:root[data-look='liquid'] .ui-toast:not([data-tone='error']) .ui-toast-action:focus-visible { outline-color: #f5f5f5; }
+
+/* ---------- Página, tablas, paneles ---------- */
+
+:root:is([data-look='classic'], [data-look='liquid']) .ui-page-header { border-bottom-color: var(--line); }
+:root:is([data-look='classic'], [data-look='liquid']) .table th { border-bottom-color: var(--line); }
+:root:is([data-look='classic'], [data-look='liquid']) :is(.panel, .ui-section, .ui-empty) {
+  box-shadow: var(--card-shadow);
+}
+:root[data-look='liquid'] :is(.panel, .ui-section, .ui-empty, .table-wrap) {
+  background-color: var(--glass);
+  border-color: var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+:root[data-look='liquid'] .table th { background: transparent; }
+:root[data-look='liquid'] .ui-section-foot { background: transparent; }
+
+/* ---------- Shell ---------- */
+
+/* Liquid: un fondo con un tinte del color de la app detrás del vidrio; banda y sidebar translúcidos. */
+:root[data-look='liquid'] .app-frame {
+  background:
+    radial-gradient(1100px 640px at 0% 0%, color-mix(in srgb, var(--accent) var(--wall-tint), transparent), transparent 70%),
+    radial-gradient(900px 700px at 100% 100%, color-mix(in srgb, var(--accent) calc(var(--wall-tint) * 0.7), transparent), transparent 70%),
+    var(--wall);
+  background-attachment: fixed;
+}
+:root[data-look='liquid'] .app-band {
+  border-bottom-color: var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+:root[data-look='liquid'] .side {
+  border-right-color: var(--glass-line);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+:root[data-look='liquid'] .side-link.active {
+  background: var(--glass-strong);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-look='liquid'] :is([role='menu'], .zs-msel-list, .band-menu-panel, .side-menu) {
+    animation: look-glass-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+}
+@keyframes look-glass-in { from { opacity: 0; transform: scale(0.97); } }
+
+/* ---------- Ajustes › Apariencia: muestras ---------- */
+
+.st-look-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .st-look-options { grid-template-columns: 1fr; } }
+.st-look-option { display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.st-look-option input { position: absolute; opacity: 0; pointer-events: none; }
+.st-look-swatch {
+  position: relative;
+  display: block;
+  height: 112px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--brand-enamel);
+}
+.st-look-option input:checked + .st-look-swatch { border-color: var(--accent-ink); box-shadow: 0 0 0 1px var(--accent-ink); }
+.st-look-option input:focus-visible + .st-look-swatch { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.st-look-name { font-weight: 600; font-size: 0.875rem; }
+.st-look-desc { font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-2); }
+/* Dentro de cada muestra: una barra, un botón y un menú abierto. */
+.st-look-swatch i { position: absolute; display: block; }
+.st-look-swatch .s-bar { left: 0; right: 0; top: 0; height: 18px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.st-look-swatch .s-btn { left: 12px; top: 30px; width: 54px; height: 16px; background: var(--ink); }
+.st-look-swatch .s-menu { left: 40px; top: 52px; width: 96px; height: 50px; background: var(--bg); }
+.st-look-swatch .s-row { left: 46px; height: 6px; width: 70px; background: var(--ui-selected); }
+.st-look-swatch .s-row.r1 { top: 60px; }
+.st-look-swatch .s-row.r2 { top: 74px; width: 54px; background: var(--line); }
+.st-look-swatch .s-row.r3 { top: 88px; width: 62px; background: var(--line); }
+.st-look-swatch[data-look='lines'] .s-btn { border-radius: 2px; }
+.st-look-swatch[data-look='lines'] .s-menu { border: 1px solid var(--ink); border-radius: 2px; }
+.st-look-swatch[data-look='classic'] { background: var(--bg); }
+.st-look-swatch[data-look='classic'] .s-btn { border-radius: 4px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.15); }
+.st-look-swatch[data-look='classic'] .s-menu { border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius: 6px; box-shadow: 0 8px 20px rgb(0 0 0 / 0.14); }
+.st-look-swatch[data-look='classic'] .s-row { border-radius: 3px; }
+.st-look-swatch[data-look='liquid'] {
+  background:
+    radial-gradient(120px 90px at 10% 0%, rgb(47 107 255 / 0.35), transparent 70%),
+    radial-gradient(120px 90px at 100% 100%, rgb(226 61 127 / 0.3), transparent 70%),
+    var(--brand-enamel);
+}
+.st-look-swatch[data-look='liquid'] .s-bar { background: rgb(255 255 255 / 0.4); border-bottom-color: rgb(0 0 0 / 0.06); }
+.st-look-swatch[data-look='liquid'] .s-btn { border-radius: 8px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 4px 10px rgb(0 0 0 / 0.18); }
+.st-look-swatch[data-look='liquid'] .s-menu {
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.25));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.16);
+}
+.st-look-swatch[data-look='liquid'] .s-row { border-radius: 4px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .st-look-swatch[data-look='liquid'] .s-bar { background: rgb(0 0 0 / 0.3); }
+  :root:not([data-theme='light']) .st-look-swatch[data-look='liquid'] .s-menu { background: linear-gradient(180deg, rgb(60 60 60 / 0.6), rgb(30 30 30 / 0.5)); border-color: rgb(255 255 255 / 0.12); }
+}
+:root[data-theme='dark'] .st-look-swatch[data-look='liquid'] .s-bar { background: rgb(0 0 0 / 0.3); }
+:root[data-theme='dark'] .st-look-swatch[data-look='liquid'] .s-menu { background: linear-gradient(180deg, rgb(60 60 60 / 0.6), rgb(30 30 30 / 0.5)); border-color: rgb(255 255 255 / 0.12); }

@@ -538,7 +538,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   min-width: 180px;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
 }
 .gr-msg-in .gr-menu-list,
@@ -625,7 +625,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-presence.is-on { color: var(--ink); }
 .gr-presence.is-on i,
 .gr-presence-dot.is-on { background: var(--ok); }
-.gr-thread-actions .btn[aria-pressed='true'] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+.gr-thread-actions .btn[aria-pressed='true'] { color: var(--app-btn-on, var(--bg)); background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--ink)); }
 .gr-thread-actions .btn[aria-pressed='true'] .kbd { color: inherit; border-color: currentColor; }
 .gr-bulkbar {
   display: flex;

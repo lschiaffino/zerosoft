@@ -69,7 +69,7 @@
 }
 .btn:hover:not(:disabled):not([aria-disabled='true']) { background: var(--btn-bg-hover); border-color: var(--btn-bd-hover); }
 .btn:active:not(:disabled):not([aria-disabled='true']) { transform: scale(0.98); }
-.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 .btn:disabled,
 .btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
 /* Primario deshabilitado: contorno y texto tenue, sin el bloque gris con texto oscuro. */
@@ -281,10 +281,10 @@
 .input:hover:not(:disabled):not(:focus),
 .select:hover:not(:disabled):not(:focus),
 .textarea:hover:not(:disabled):not(:focus) { border-color: var(--brand-gray-2); }
-/* Foco: el borde pasa a tinta y se engrosa hacia adentro (sin mover el layout). */
+/* Foco: el borde pasa al color de la app (tinta fuera de una app) y se engrosa hacia adentro (sin mover el layout). */
 .input:focus,
 .select:focus,
-.textarea:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.textarea:focus { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-ink); }
 .input::placeholder,
 .textarea::placeholder { color: var(--brand-gray-3); opacity: 1; }
 .input:disabled,
@@ -380,21 +380,21 @@ select.select,
 }
 .ui-check input[type='checkbox']:hover:not(:disabled) { border-color: var(--ink); }
 .ui-check input[type='checkbox']:checked {
-  background-color: var(--ink);
-  border-color: var(--ink);
+  background-color: var(--accent-ink);
+  border-color: var(--accent-ink);
   /* El tilde va en el color del fondo (--check-img: blanco en claro, tinta oscura en oscuro):
      sobre el relleno de tinta, que en oscuro es claro, un tilde blanco casi no se veía. */
   background-image: var(--check-img);
 }
 .ui-check input[type='checkbox']:indeterminate {
-  background-color: var(--ink);
-  border-color: var(--ink);
+  background-color: var(--accent-ink);
+  border-color: var(--accent-ink);
   /* La raya en el color del fondo, igual que el tilde (--check-dash-img). */
   background-image: var(--check-dash-img);
 }
 .ui-check input:disabled { background-color: var(--brand-enamel); border-color: var(--line); cursor: not-allowed; }
 .ui-check:has(input:disabled) { color: var(--brand-gray-3); cursor: not-allowed; }
-.ui-check input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui-check input:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 
 /* <label class="ui-switch"><input type="checkbox" role="switch"> Texto</label>
    Riel recto; la pieza que se mueve es una placa, no un círculo. */
@@ -431,10 +431,10 @@ select.select,
   background: var(--brand-gray-2);
   transition: transform var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease);
 }
-.ui-switch input:checked { background: var(--ink); border-color: var(--ink); }
+.ui-switch input:checked { background: var(--accent-ink); border-color: var(--accent-ink); }
 .ui-switch input:checked::before { transform: translateX(14px); background: var(--bg); }
 .ui-switch input:disabled { opacity: 0.4; cursor: not-allowed; }
-.ui-switch input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui-switch input:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 
 /* ---------- 4. Paneles, badges, teclas ---------- */
 
@@ -649,7 +649,7 @@ dialog.ui-modal,
 dialog.ui-drawer {
   color: var(--ink);
   background: var(--bg);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius-1);
   padding: 0;
   max-width: none;
@@ -725,7 +725,7 @@ dialog.ui-drawer:not([open]) { display: none; }
     max-height: 92dvh !important;
     margin: auto 0 0 !important;
     border-width: 1px 0 0 !important;
-    border-radius: var(--radius-1) var(--radius-1) 0 0 !important;
+    border-radius: var(--radius-sheet, var(--radius-1)) var(--radius-sheet, var(--radius-1)) 0 0 !important;
   }
   dialog.ui-modal[open] { display: flex; flex-direction: column; }
   dialog.ui-modal[open] > * { flex-shrink: 0; }
@@ -885,7 +885,7 @@ dialog.ui-drawer:not([open]) { display: none; }
   flex-wrap: wrap;
   gap: 12px 24px;
   padding-bottom: 16px;
-  border-bottom: var(--stroke-rule) solid var(--ink);
+  border-bottom: var(--stroke-rule) solid var(--accent-ink);
 }
 .ui-page-header-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 /* Con un título editable el bloque toma el ancho libre: un <textarea> no tiene ancho propio que dar. */
@@ -1291,7 +1291,7 @@ dialog.ui-filter-panel::backdrop { background: transparent; }
 }
 .ui-filter-panel .btn-sm { --btn-h: 30px; --btn-px: 12px; --btn-fs: 0.8125rem; }
 .ui-filter-panel .input { min-height: 34px; padding: 6px 10px; font-size: 0.875rem; }
-.ui-filter-panel :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui-filter-panel :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 .ui-filter-panel .input:focus-visible { outline: none; }
 
 /* El título está para lectores de pantalla; a la vista solo en la hoja del teléfono. */
@@ -1331,7 +1331,7 @@ dialog.ui-filter-panel::backdrop { background: transparent; }
 .ui-filter-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-filter-mark {
   flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
-  font-family: var(--font-data); font-size: 0.6875rem; font-weight: 600; line-height: 1; color: var(--bg); background: var(--ink); border-radius: var(--radius-1);
+  font-family: var(--font-data); font-size: 0.6875rem; font-weight: 600; line-height: 1; color: var(--app-btn-on, var(--bg)); background: var(--app-btn, var(--ink)); border-radius: var(--radius-1);
 }
 .ui-filter-go { display: none; flex: none; color: var(--ink-3); }
 
