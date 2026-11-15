@@ -35,6 +35,7 @@ import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import InboxNewChat from './InboxNewChat';
+import ImportBanner from './ImportBanner';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
@@ -1256,6 +1257,8 @@ export default function InboxApp(props: {
             </div>
           )}
         </div>
+        {/* El avance de la importación, como en Lines. */}
+        {!q && <ImportBanner />}
         {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
           <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />

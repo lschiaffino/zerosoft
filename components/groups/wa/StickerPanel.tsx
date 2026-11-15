@@ -150,6 +150,14 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
     }
   }
 
+  // La primera vez, con la colección vacía, se importan solos los stickers de los chats: la pestaña no abre vacía.
+  const autoImport = useRef(false);
+  useEffect(() => {
+    if (items === null || items.length > 0 || imported || autoImport.current || error) return;
+    autoImport.current = true;
+    void importFromChats();
+  }, [items, imported, error]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sections = useMemo(() => {
     const list = items ?? [];
     const recent = list
