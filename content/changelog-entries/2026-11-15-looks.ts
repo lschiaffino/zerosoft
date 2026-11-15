@@ -4,16 +4,16 @@ export default {
   id: '2026-11-15-looks',
   date: '2026-11-15',
   title: {
-    en: 'Three looks for the whole app: Lines, Classic and Liquid',
-    es: 'Tres aspectos para toda la app: Líneas, Clásico y Líquido',
-    pt: 'Três visuais para o app inteiro: Linhas, Clássico e Líquido',
+    en: 'Choose how the app looks: Classic, Lines or Liquid',
+    es: 'Elegí el aspecto de la app: Clásico, Líneas o Líquido',
+    pt: 'Escolha o visual do app: Clássico, Linhas ou Líquido',
   },
   items: [
     {
       product: 'platform',
-      en: 'Settings › Appearance has a new Look choice next to light and dark. Lines is the look you know: thin lines and square corners, and now borders of menus and windows, checkboxes, switches, focus rings and the New button take the color of the app you are in instead of black. Classic draws menus, popovers and windows with rounded corners and soft shadows, like the apps you already use. Liquid uses translucent, blurred layers with larger corners. The look is saved to your account and applies in every app, in light and dark mode.',
-      es: 'Ajustes › Apariencia tiene una opción nueva, Aspecto, al lado de claro y oscuro. Líneas es el aspecto de siempre: líneas finas y esquinas rectas, y ahora los bordes de menús y ventanas, las casillas, los interruptores, el foco y el botón Nuevo toman el color de la app en la que estás en lugar del negro. Clásico dibuja menús, popovers y ventanas con esquinas redondeadas y sombras suaves, como las apps que ya usás. Líquido usa capas translúcidas con desenfoque y esquinas más grandes. El aspecto se guarda en tu cuenta y vale en todas las apps, en modo claro y oscuro.',
-      pt: 'Configurações › Aparência tem uma opção nova, Visual, ao lado de claro e escuro. Linhas é o visual de sempre: linhas finas e cantos retos, e agora as bordas de menus e janelas, as caixas de seleção, os interruptores, o foco e o botão Novo usam a cor do app em que você está em vez do preto. Clássico desenha menus, popovers e janelas com cantos arredondados e sombras suaves, como os apps que você já usa. Líquido usa camadas translúcidas com desfoque e cantos maiores. O visual fica salvo na sua conta e vale em todos os apps, no modo claro e no escuro.',
+      en: 'Settings › Appearance has a new Look choice next to light and dark, saved to your account and applied in every app. Classic is the new default: rounded white menus, popovers and windows with soft shadows, menus with icons and filled hovers, and round icon buttons, the same style the WhatsApp screens in Lines already had. Lines is the previous look, thin lines and square corners, now with the app color on active borders, main buttons, focus rings and section rules. Liquid uses translucent, blurred layers with larger corners.',
+      es: 'Ajustes › Apariencia tiene una opción nueva, Aspecto, al lado de claro y oscuro; se guarda en tu cuenta y vale en todas las apps. Clásico es el nuevo aspecto por defecto: menús, popovers y ventanas blancos y redondeados con sombras suaves, menús con íconos y rellenos al pasar, y botones de ícono redondos, el mismo estilo que ya tenían las pantallas de WhatsApp en Lines. Líneas es el aspecto anterior, líneas finas y esquinas rectas, ahora con el color de la app en los bordes activos, los botones principales, el foco y los filetes. Líquido usa capas translúcidas con desenfoque y esquinas más grandes.',
+      pt: 'Configurações › Aparência tem uma opção nova, Visual, ao lado de claro e escuro; fica salva na sua conta e vale em todos os apps. Clássico é o novo padrão: menus, popovers e janelas brancos e arredondados com sombras suaves, menus com ícones e preenchimento ao passar o mouse, e botões de ícone redondos, o mesmo estilo que as telas de WhatsApp no Lines já tinham. Linhas é o visual anterior, linhas finas e cantos retos, agora com a cor do app nas bordas ativas, nos botões principais, no foco e nos filetes. Líquido usa camadas translúcidas com desfoque e cantos maiores.',
     },
   ],
 } satisfies ChangelogEntry;

@@ -3,10 +3,11 @@
  * superficies de toda la app. Independiente del modo de color
  * (lib/color-theme.ts) y del tema de marca (lib/brand-theme.ts).
  *
- * - `lines` (default): líneas finas, plano, esquinas chicas; el color de la
- *   app en los bordes y botones fuertes.
- * - `classic`: el aspecto de las apps de siempre (Linear, WhatsApp): menús y
- *   popovers con sombra suave, esquinas redondeadas, rellenos al pasar.
+ * - `classic` (default): el aspecto de las apps de siempre (Linear, WhatsApp):
+ *   superficies blancas redondeadas con sombra suave, menús con íconos,
+ *   rellenos al pasar, botones de ícono redondos.
+ * - `lines`: líneas finas, plano, esquinas chicas (el aspecto original); el
+ *   color de la app en los bordes activos, botones principales y filetes.
  * - `liquid`: superficies translúcidas con desenfoque, radios grandes y
  *   barras y menús que flotan (Liquid Glass de Apple).
  *
@@ -17,10 +18,13 @@
  * Sin imports de Node ni de React: lo usan el layout y el cliente.
  */
 
-export const LOOKS = ['lines', 'classic', 'liquid'] as const;
+export const LOOKS = ['classic', 'lines', 'liquid'] as const;
 export type Look = (typeof LOOKS)[number];
 
-export const DEFAULT_LOOK: Look = 'lines';
+export const DEFAULT_LOOK: Look = 'classic';
+
+/** El sitio y las páginas públicas (fuera de la app) siempre se dibujan así. */
+export const SITE_LOOK: Look = 'lines';
 
 /** Cookie que guarda el aspecto en este navegador (copia de users.look). */
 export const LOOK_COOKIE = 'zs_look';
@@ -59,18 +63,19 @@ export function lookCookieString(look: Look): string {
   return `${LOOK_COOKIE}=${look}; Path=/; Max-Age=${LOOK_COOKIE_MAX_AGE}; SameSite=Lax`;
 }
 
-/** Las páginas de la app (/en/app, /es/app/…): el aspecto se aplica solo ahí; el sitio y las páginas públicas quedan en lines. */
+/** Las páginas de la app (/en/app, /es/app/…): el aspecto se aplica solo ahí; el sitio y las páginas públicas quedan en SITE_LOOK. */
 export const APP_PATH_RE = /^\/(?:en|es|pt)\/app(?:\/|$)/;
 
 /**
  * Script en línea al principio del <body>: en una página de la app lee
- * zs_look y pone <html data-look> antes del primer paint (sin cookie, lines).
+ * zs_look y pone <html data-look> antes del primer paint (sin cookie,
+ * DEFAULT_LOOK); fuera de la app, SITE_LOOK.
  * Va junto a THEME_INIT_SCRIPT.
  */
 export const LOOK_INIT_SCRIPT =
   "try{var l=document.cookie.match(/(?:^|;\\s*)zs_look=([^;]*)/),w=l?decodeURIComponent(l[1]).trim().toLowerCase():'';" +
-  "if(!/^\\/(?:en|es|pt)\\/app(?:\\/|$)/.test(location.pathname))w='';" +
-  "document.documentElement.setAttribute('data-look',w==='classic'||w==='liquid'?w:'lines')}catch(e){}";
+  `var a=/^\\/(?:en|es|pt)\\/app(?:\\/|$)/.test(location.pathname),k=${JSON.stringify(LOOKS)};` +
+  `document.documentElement.setAttribute('data-look',a?(k.indexOf(w)>=0?w:'${DEFAULT_LOOK}'):'${SITE_LOOK}')}catch(e){}`;
 
 /**
  * Script de la app (que sí conoce users.look): si la cookie de este navegador

@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
  * <html data-look> al momento, lo guarda en la cuenta (users.look) y en la
  * cookie zs_look, y cada aspecto cambia los tokens (esquinas, sombra de los
  * menús). Una muestra de pantallas por app carga sin errores en cada aspecto.
- * El sitio público queda siempre en lines.
+ * Classic es el default; el sitio público queda siempre en lines.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -19,7 +19,7 @@ async function setLook(page: Page, look: 'lines' | 'classic' | 'liquid') {
 
 test.afterAll(async ({ request }) => {
   // El usuario demo es compartido: vuelve al aspecto por defecto.
-  await request.put('/api/profile/look', { data: { look: 'lines' } });
+  await request.put('/api/profile/look', { data: { look: 'classic' } });
 });
 
 test('Apariencia: el selector cambia el aspecto al momento y lo guarda', async ({ page, context }) => {
@@ -64,7 +64,7 @@ test('la API rechaza un aspecto desconocido', async ({ page }) => {
 
 const SAMPLE = ['/en/app', '/en/app/crm/contacts', '/en/app/track', '/en/app/docs', '/en/app/calendar', '/en/app/lines', '/en/app/inbox', '/en/app/links', '/en/app/notes', '/en/app/board'];
 
-for (const look of ['classic', 'liquid', 'lines'] as const) {
+for (const look of ['lines', 'liquid', 'classic'] as const) {
   test(`muestra de apps en ${look}: atributo, tokens y sin errores`, async ({ page }) => {
     test.setTimeout(180_000);
     await setLook(page, look);

@@ -1738,11 +1738,11 @@
     "looks": {
       "lines": {
         "name": "Lines",
-        "desc": "Thin lines, flat and square. The app's color on borders and main buttons."
+        "desc": "The original look: thin lines and square corners. The app's color on active borders, main buttons and section rules."
       },
       "classic": {
         "name": "Classic",
-        "desc": "Rounded corners, soft shadows and filled hovers, like the apps you already use."
+        "desc": "The default. Rounded white surfaces with soft shadows, menus with icons and filled hovers, like the apps you already use."
       },
       "liquid": {
         "name": "Liquid",

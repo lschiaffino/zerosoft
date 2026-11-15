@@ -13,23 +13,25 @@ function runInit(path: string, cookie: string): string | null {
 }
 
 describe('look', () => {
-  it('parsea y cae en lines', () => {
+  it('parsea y cae en classic', () => {
     expect(parseLook('classic')).toBe('classic');
     expect(parseLook(' LIQUID ')).toBe('liquid');
-    expect(parseLook('neon')).toBe('lines');
-    expect(parseLook(undefined)).toBe('lines');
+    expect(parseLook('neon')).toBe('classic');
+    expect(parseLook(undefined)).toBe('classic');
+    expect(parseLook('lines')).toBe('lines');
     expect(lookFromCookieHeader('a=1; zs_look=liquid; b=2')).toBe('liquid');
-    expect(lookFromCookieHeader('zs_theme=dark')).toBe('lines');
+    expect(lookFromCookieHeader('zs_theme=dark')).toBe('classic');
     expect(lookCookieString('classic')).toMatch(/^zs_look=classic; Path=\/; Max-Age=\d+; SameSite=Lax$/);
   });
 
   it('el script inicial aplica la cookie solo en la app', () => {
     expect(runInit('/en/app/crm', 'zs_look=classic')).toBe('classic');
     expect(runInit('/es/app', 'x=1; zs_look=liquid')).toBe('liquid');
-    expect(runInit('/en/app', '')).toBe('lines');
+    expect(runInit('/en/app', '')).toBe('classic');
+    expect(runInit('/en/app', 'zs_look=lines')).toBe('lines');
     expect(runInit('/en', 'zs_look=liquid')).toBe('lines');
     expect(runInit('/en/apps-page', 'zs_look=liquid')).toBe('lines');
-    expect(runInit('/en/app', 'zs_look=<script>')).toBe('lines');
+    expect(runInit('/en/app', 'zs_look=<script>')).toBe('classic');
   });
 
   it('el script de la app escapa el valor', () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DEFAULT_LOOK, lookCookieString, lookFromDocument, type Look } from '@/lib/look';
+import { DEFAULT_LOOK, SITE_LOOK, lookCookieString, lookFromDocument, type Look } from '@/lib/look';
 
 interface LookCtx {
   look: Look;
@@ -36,12 +36,12 @@ export default function LookProvider({ initial, children }: { initial?: Look; ch
   }, [initial]);
 
   // Entrar a la app con una navegación del cliente (desde el sitio) no corre el script del
-  // layout: el atributo se pone acá. Al salir de la app, el sitio vuelve a lines.
+  // layout: el atributo se pone acá. Al salir de la app, el sitio vuelve a SITE_LOOK.
   useEffect(() => {
     if (initial === undefined) return;
     const root = document.documentElement;
     if (root.getAttribute('data-look') !== initial) root.setAttribute('data-look', initial);
-    return () => root.setAttribute('data-look', DEFAULT_LOOK);
+    return () => root.setAttribute('data-look', SITE_LOOK);
   }, [initial]);
 
   const setLook = useCallback(async (next: Look) => {

@@ -1738,11 +1738,11 @@
     "looks": {
       "lines": {
         "name": "Líneas",
-        "desc": "Líneas finas, plano y recto. El color de la app en bordes y botones principales."
+        "desc": "El aspecto original: líneas finas y esquinas rectas. El color de la app en los bordes activos, los botones principales y los filetes."
       },
       "classic": {
         "name": "Clásico",
-        "desc": "Esquinas redondeadas, sombras suaves y rellenos al pasar, como las apps que ya usás."
+        "desc": "El aspecto por defecto. Superficies blancas redondeadas con sombras suaves, menús con íconos y rellenos al pasar, como las apps que ya usás."
       },
       "liquid": {
         "name": "Líquido",
