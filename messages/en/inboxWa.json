@@ -230,6 +230,7 @@
   },
   "retry": "Retry",
   "removeUnsent": "Remove",
+  "deleteQueued": "Delete before it sends",
   "uploading": "Uploading {name}",
   "newChat": {
     "title": "New chat",

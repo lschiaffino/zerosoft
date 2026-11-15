@@ -204,6 +204,7 @@
     "fetchMissingToast": "We asked your phone for this chat’s messages. They may take a moment."
   },
   "status": {
+    "queued": "Waiting for connection",
     "pending": "Sending",
     "sent": "Sent",
     "delivered": "Delivered",
@@ -859,6 +860,7 @@
     "pageTitle": "This page did not load",
     "pageBody": "Something failed on our side. Try again.",
     "generic": "Something went wrong. Try again.",
+    "offline_files": "Files need a connection. They stay here and you can send them when you are back online. Text messages are queued and go out on their own.",
     "unauthorized": "Your session ended. Sign in again.",
     "forbidden": "You don’t have permission to do that.",
     "not_found": "It no longer exists.",
@@ -1744,6 +1746,7 @@
     "liveLocation": "Live location",
     "retry": "Retry sending",
     "unsent": "A message to {name} was not sent. Open the chat to try again.",
+    "deleteQueued": "Delete before it sends",
     "unreadCount": "{n, plural, one {# unread message} other {# unread messages}}",
     "filtersMenu": "Filters and lists",
     "clearFilters": "Clear filters",

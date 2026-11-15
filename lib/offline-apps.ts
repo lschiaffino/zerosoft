@@ -10,7 +10,10 @@
 import { PRODUCT_CONFIG, type ProductKey } from './products';
 
 /** Apps con modo sin conexión, en el orden en que la página "necesita conexión" las ofrece. */
-export const OFFLINE_PRODUCTS = ['docs', 'notes', 'track', 'crm', 'board', 'cal'] as const satisfies readonly ProductKey[];
+export const OFFLINE_PRODUCTS = ['docs', 'notes', 'track', 'crm', 'board', 'cal', 'groups', 'inbox'] as const satisfies readonly ProductKey[];
+
+/** El inicio que se guarda, si no es el de la app: /app/lines redirige a su bandeja (lo guardado es la bandeja). */
+const OFFLINE_HOME: Partial<Record<ProductKey, string>> = { groups: '/app/lines/inbox' };
 
 export function worksOffline(key: ProductKey | string | null | undefined): boolean {
   return (OFFLINE_PRODUCTS as readonly string[]).includes(String(key));
@@ -18,7 +21,7 @@ export function worksOffline(key: ProductKey | string | null | undefined): boole
 
 /** Rutas de inicio de cada app sin conexión (sin locale): se guardan para abrirlas sin red. */
 export function offlineRoots(locale: string): string[] {
-  return [`/${locale}/app`, ...OFFLINE_PRODUCTS.map((k) => `/${locale}${PRODUCT_CONFIG[k].launch}`)];
+  return [`/${locale}/app`, ...OFFLINE_PRODUCTS.map((k) => `/${locale}${OFFLINE_HOME[k] ?? PRODUCT_CONFIG[k].launch}`)];
 }
 
 /** Cada cuánto se vuelven a guardar los inicios de las apps sin conexión (con red). */

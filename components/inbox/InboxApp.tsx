@@ -19,7 +19,8 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { PRESENCE_EXPIRY_MS, useExpiry, useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
 import { isTempId } from '@/lib/optimistic-send';
-import { applyPending, keepPending, pendingSends, withoutStale } from './wa/pending';
+import { applyPending, keepPending, pendingSends, showQueued, unsentInbox, withoutStale } from './wa/pending';
+import { inboxOutbox } from './wa/outbox';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -126,6 +127,8 @@ function viewHref(v: InboxView): string {
 export default function InboxApp(props: {
   /** Foto de la cuenta: va en los audios propios, como WhatsApp. */
   meImage?: string;
+  /** Id de la persona (el real): lo escrito sin red es suyo y solo sale con su sesión. */
+  me?: string;
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
@@ -440,6 +443,14 @@ export default function InboxApp(props: {
       }),
     [detailCache, reloadList],
   );
+  // Lo escrito sin red (en esta pestaña o en otra, también antes de recargar) sale solo al volver la conexión.
+  useEffect(() => {
+    if (!props.me) return;
+    unsentInbox.setOwner(props.me);
+    // La conversación pudo cargarse antes de saber quién es la persona: sus burbujas en cola aparecen ahora.
+    showQueued();
+    inboxOutbox.start();
+  }, [props.me]);
   /**
    * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El
    * envío pudo haber empezado con ese chat abierto y terminar con otro a la vista, así que va con su id.

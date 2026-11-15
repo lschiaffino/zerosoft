@@ -103,7 +103,7 @@ describe('modo sin conexión: ajustes', () => {
     const entries = [entry('old', 'crm', 1, 10, now), entry('a', 'docs', 30, 3, now), entry('b', 'track', 30, 2, now)];
     expect(sw.offlineEvictions(entries, prefs, now)).toEqual(offlineEvictions(entries, prefs, now));
     expect(sw.parseOfflinePrefs({ enabled: false, apps: { notes: false } })).toEqual(parseOfflinePrefs({ enabled: false, apps: { notes: false } }));
-    for (const p of ['/es/app', '/app/crm/x', '/app/docs/a', '/app/track', '/app/notes', '/app/notes/x', '/app/chat', '/app/board/x', '/es/app/calendar', '/app/calendar/bookings']) expect(sw.offlineAppOf(p), p).toBe(offlineAppOf(p));
+    for (const p of ['/es/app', '/app/crm/x', '/app/docs/a', '/app/track', '/app/notes', '/app/notes/x', '/app/chat', '/app/board/x', '/es/app/calendar', '/app/calendar/bookings', '/es/app/lines/inbox/c1', '/app/inbox', '/api/groups/chats', '/api/inbox/threads/t1', '/app/talk']) expect(sw.offlineAppOf(p), p).toBe(offlineAppOf(p));
     expect(sw.OFFLINE_LIMITS).toEqual(OFFLINE_LIMITS);
     expect(sw.DEFAULT_PREFS).toEqual(DEFAULT_OFFLINE_PREFS);
   });

@@ -1078,6 +1078,7 @@
     "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas.",
     "needsConnection": "Precisa de conexão",
     "boardDrafts": "Board: {count, plural, one {# quadro com alterações} other {# quadros com alterações}}",
+    "messagesQueued": "Lines e Inbox: {count, plural, one {# mensagem esperando para sair} other {# mensagens esperando para sair}}",
     "switcherHint": "Sem conexão. Os apps esmaecidos precisam de rede."
   },
   "comingSoon": {
