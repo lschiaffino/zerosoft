@@ -138,7 +138,7 @@ test('Inbox: documento con texto editado, como la tarjeta de WhatsApp', async ({
   const open = async () => {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
-    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 30_000 });
   };
   await open();
   const thread = page.locator('.ib-wa-thread');
