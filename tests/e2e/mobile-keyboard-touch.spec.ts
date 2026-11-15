@@ -84,13 +84,13 @@ test('Inbox en el teléfono: el teclado como en WhatsApp', async ({ page, reques
   const dm = `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}8@s.whatsapp.net`;
   const events = Array.from({ length: 14 }, (_, i) => ({
     type: 'message', chatId: dm, isGroup: false, fromMe: false, senderPhone: dm.replace(/@.*/, ''), senderName: `Tecla ${tag}`,
-    providerMessageId: `kt-${tag}-${i}`, body: `mensaje ${tag} ${i}`, timestamp: new Date(Date.now() - (20 - i) * 60_000).toISOString(),
+    providerMessageId: `kt-${tag}-${i}`, body: `m${i}-${tag}`, timestamp: new Date(Date.now() - (20 - i) * 60_000).toISOString(),
   }));
   expect((await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } })).ok()).toBe(true);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const cdp = await context.newCDPSession(page);
   await page.locator('.ib-item', { hasText: `Tecla ${tag}` }).locator('.ib-row-btn').click();
-  await keyboardFlow(page, cdp, `mensaje ${tag} 13`);
+  await keyboardFlow(page, cdp, `m13-${tag}`);
 });
 
 async function fakeLine(request: APIRequestContext, name: string) {
@@ -112,11 +112,11 @@ test('Lines en el teléfono: el teclado como en WhatsApp', async ({ page, reques
   const chatId = `54911${Math.floor(Math.random() * 1e7)}@c.us`;
   for (let i = 0; i < 14; i++) {
     await request.post(new URL(url).pathname, {
-      data: { events: [{ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: '5491155550000', senderName: `Tecla ${tag}`, providerMessageId: `lk-${tag}-${i}`, body: `mensaje ${tag} ${i}` }] },
+      data: { events: [{ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: '5491155550000', senderName: `Tecla ${tag}`, providerMessageId: `lk-${tag}-${i}`, body: `m${i}-${tag}` }] },
     });
   }
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const cdp = await context.newCDPSession(page);
   await page.locator('[data-chat-row]', { hasText: `Tecla ${tag}` }).first().click();
-  await keyboardFlow(page, cdp, `mensaje ${tag} 13`);
+  await keyboardFlow(page, cdp, `m13-${tag}`);
 });
