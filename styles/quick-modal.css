@@ -23,7 +23,7 @@
 
 .qm {
   width: 100%;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--accent-ink);
   border-radius: 0;
   background: var(--bg);
   animation: qm-in 0.15s var(--ease);

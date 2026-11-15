@@ -211,22 +211,22 @@
 
 /* ---------- Modales, ⌘K y drawers ---------- */
 
-:root:is([data-look='classic'], [data-look='liquid']) :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .modal-card, .fc-dialog, .cmdk) {
+:root:is([data-look='classic'], [data-look='liquid']) :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .qm, .modal-card, .fc-dialog, .cmdk) {
   background-color: var(--modal-bg);
   border: 1px solid var(--pop-edge);
   border-radius: var(--radius-modal);
   box-shadow: var(--modal-shadow);
 }
-:root[data-look='liquid'] :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .modal-card, .fc-dialog) {
+:root[data-look='liquid'] :is(dialog:not(.ui-drawer):not(.ui-filter-panel), .qm, .modal-card, .fc-dialog) {
   background-image: var(--glass-sheen);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
 /* El pie gris del modal sigue la esquina; el modal no recorta (su cuerpo scrollea). */
-:root:is([data-look='classic'], [data-look='liquid']) dialog .ui-modal-foot {
+:root:is([data-look='classic'], [data-look='liquid']) :is(dialog .ui-modal-foot, .qm-foot) {
   border-radius: 0 0 calc(var(--radius-modal) - 1px) calc(var(--radius-modal) - 1px);
 }
-:root[data-look='liquid'] dialog .ui-modal-foot { background: transparent; }
+:root[data-look='liquid'] :is(dialog .ui-modal-foot, .qm-foot) { background: transparent; }
 :root[data-look='liquid'] .cmdk-input { background: transparent; }
 :root[data-look='liquid'] dialog::backdrop,
 :root[data-look='liquid'] .cmdk-backdrop {
@@ -343,15 +343,23 @@
     var(--wall);
   background-attachment: fixed;
 }
-:root[data-look='liquid'] .app-band {
-  border-bottom-color: var(--glass-line);
+/* El desenfoque de la banda va en un ::before: con backdrop-filter en la banda, los menús que abren
+   adentro (switcher, avisos) solo verían la banda y no desenfocarían la página. El sidebar no lleva
+   desenfoque (nada pasa por debajo): es vidrio sobre el fondo; como cajón en el teléfono, opaco. */
+:root[data-look='liquid'] .app-band { background: transparent; border-bottom-color: var(--glass-line); }
+:root[data-look='liquid'] .app-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--chrome-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
-:root[data-look='liquid'] .side {
-  border-right-color: var(--glass-line);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+:root[data-look='liquid'] .side { border-right-color: var(--glass-line); }
+@media (max-width: 1023px) {
+  :root[data-look='liquid'] .side { background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 }
 :root[data-look='liquid'] .side-link.active {
   background: var(--glass-strong);
