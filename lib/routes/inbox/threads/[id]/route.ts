@@ -18,6 +18,8 @@ import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
 import { refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
 import { waProviderFor } from '@/lib/inbox/whatsapp';
 import { refreshPrivacyIfStale } from '@/lib/wa-privacy';
+import { refreshPicturesSoon } from '@/lib/wa-contact-pictures';
+import { inboxScope } from '@/lib/inbox/wa-names';
 import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
 
 export const runtime = 'nodejs';
@@ -59,6 +61,15 @@ async function buildDetail(owner: string, id: string, around: string | undefined
   const wa = account ? await waDetails(owner, row, account) : null;
   // Las confirmaciones de lectura de la cuenta: si el dato tiene más de un día, se relee después de responder.
   if (account?.status === 'connected') await refreshPrivacyIfStale('inbox', account, () => waProviderFor(account));
+  // Grupo: las fotos de perfil de quienes escriben (los de la pantalla primero) y del resto, después de responder.
+  if (account?.status === 'connected' && wa && row.kind === 'group') {
+    const senders = page.messages
+      .filter((m) => !m.fromMe)
+      .map((m) => m.senderHandle)
+      .reverse();
+    const phones = [...senders, ...wa.participants.filter((p) => !p.me).map((p) => p.phone)];
+    await refreshPicturesSoon(inboxScope(account), () => waProviderFor(account), phones);
+  }
   return {
     thread,
     messages: page.messages,

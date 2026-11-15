@@ -104,9 +104,21 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
   }
 }
 
+/** Para logs: solo el dominio de cada destinatario. */
+function maskAddress(to: string | string[]): string {
+  return (Array.isArray(to) ? to : [to]).map((a) => `***@${String(a).split('@')[1] ?? ''}`).join(',');
+}
+
 function sendMock(opts: SendOptions): { ok: true; provider: string } {
   const provider = 'console';
   captureEmail(opts);
+  // En un deploy sin proveedor de email, el cuerpo (códigos de acceso, links mágicos) y la
+  // dirección no van a los logs: solo que no se mandó.
+  if (process.env.VERCEL || (process.env.NODE_ENV === 'production' && !process.env.CI && !process.env.EMAIL_CAPTURE_FILE)) {
+    // eslint-disable-next-line no-console
+    console.warn('[email:console] no email provider configured (RESEND_API_KEY): email not sent');
+    return { ok: true, provider };
+  }
   // eslint-disable-next-line no-console
   console.log(`[email:${provider}] to=${opts.to} from=${opts.from ?? fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
@@ -139,7 +151,7 @@ export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provi
     const resend = await sendResend(opts);
     if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
     // eslint-disable-next-line no-console
-    console.error(`[email:resend] failed to=${opts.to} error=${resend.error ?? 'unknown'}`);
+    console.error(`[email:resend] failed to=${maskAddress(opts.to)} error=${resend.error ?? 'unknown'}`);
     return { ok: false, provider: 'resend', error: resend.error ?? 'resend_error', status: resend.status, retryAfter: resend.retryAfter };
   }
 

@@ -16,7 +16,7 @@ import { ownerScopeFor } from './crm-visibility';
 import { closeRecording, UNTOUCHED_SQL, VoiceError, type VoiceSessionRow } from './voice';
 import { enhance } from './voice-service';
 import { meetingLabels, voiceMessages } from './voice-http';
-import { voiceBlobEnabled } from './voice-blob';
+import { voiceBlobEnabled, voiceBlobToken } from './voice-blob';
 
 export const STALE_RECORDING_MS = 10 * 60_000;
 const EMPTY_MEETING_MS = 24 * 3_600_000;
@@ -164,10 +164,10 @@ export async function runVoiceCron(opts: { budgetMs?: number; now?: Date; cleanu
       const cutoff = now.getTime() - ORPHAN_BLOB_MS;
       let cursor: string | undefined;
       for (let page = 0; page < 5; page++) {
-        const res = await list({ prefix: 'voice/', limit: 500, cursor });
+        const res = await list({ prefix: 'voice/', limit: 500, cursor, ...voiceBlobToken() });
         const old = res.blobs.filter((b) => new Date(b.uploadedAt).getTime() < cutoff).map((b) => b.url);
         if (old.length) {
-          await del(old);
+          await del(old, voiceBlobToken());
           out.blobsDeleted += old.length;
         }
         if (!res.hasMore || !res.cursor) break;
