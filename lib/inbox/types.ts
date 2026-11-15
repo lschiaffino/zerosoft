@@ -155,6 +155,8 @@ export interface MessageReaction {
   /** Teléfono de quien reaccionó ('me' si fui yo). */
   by: string;
   name: string;
+  /** Cuándo reaccionó (las guardadas antes no lo tienen). */
+  at?: string;
 }
 
 export interface MessageQuote {

@@ -17,7 +17,8 @@ const ACTIONS: ParticipantAction[] = ['add', 'remove', 'promote', 'demote'];
 
 /**
  * Los miembros; ?phone=<dígitos> o ?message=<id> (quien lo mandó): la ficha de
- * esa persona; con &shared=media|docs|links|starred, lo compartido en su chat 1:1.
+ * esa persona; con &shared=media|docs|links|starred, lo compartido en su chat 1:1;
+ * ?reactions=<id>,<id>: quién reaccionó a esos mensajes del chat.
  */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
@@ -26,6 +27,16 @@ export async function GET(req: Request, ctx: Ctx) {
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
   const sp = new URL(req.url).searchParams;
+  // Quién reaccionó a esos mensajes del chat (el cuadro de reacciones), con los teléfonos ocultos si corresponde.
+  if (sp.has('reactions')) {
+    try {
+      const { reactionDetails } = await import('@/lib/groups-person');
+      const ids = (sp.get('reactions') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
+      return NextResponse.json({ reactions: await reactionDetails(guard.viewer, id, ids) });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   if (sp.has('phone') || sp.has('message')) {
     try {
       const { personCard, personPhone, sharedContent } = await import('@/lib/groups-person');

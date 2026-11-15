@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useDismiss } from './useDismiss';
 
 export interface MenuItem {
   key: string;
@@ -50,6 +51,16 @@ export function MessageMenu({
       return next;
     });
 
+  // Clic o toque afuera, Esc (devuelve el foco al botón) u otro overlay que se abre: se cierra (./useDismiss.ts).
+  useDismiss(
+    open,
+    (reason) => {
+      setOpen(false);
+      if (reason === 'escape') button.current?.focus();
+    },
+    [button, list],
+  );
+
   // Posición: debajo del botón si entra; si no, arriba. Siempre dentro de la ventana.
   useLayoutEffect(() => {
     if (!open || !button.current || !list.current) return;
@@ -76,13 +87,7 @@ export function MessageMenu({
     }
     // Sin mover el scroll: la lista todavía puede estar fuera de la pantalla hasta que se ubica.
     list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (button.current?.contains(t) || list.current?.contains(t)) return;
-      setOpen(false);
-    };
     const close = () => setOpen(false);
-    document.addEventListener('mousedown', onDown);
     window.addEventListener('resize', close);
     // Si se scrollea algo que mueve el botón (la página o un contenedor suyo), se cierra: la posición dejó de
     // valer. Otro scroll no lo mueve y no lo cierra: la lista de mensajes que se queda abajo sola cuando llega
@@ -95,7 +100,6 @@ export function MessageMenu({
     };
     window.addEventListener('scroll', onScroll, true);
     return () => {
-      document.removeEventListener('mousedown', onDown);
       window.removeEventListener('resize', close);
       window.removeEventListener('scroll', onScroll, true);
     };

@@ -161,3 +161,17 @@ export function firstUrl(text: string): string {
   const m = /\bhttps?:\/\/[^\s<>"']+/i.exec(text ?? '');
   return m ? m[0].replace(/[).,;:!?]+$/, '') : '';
 }
+
+/** Teléfono con formato, como lo muestra WhatsApp: "+54 9 11 5555-0000" (lo enmascarado queda como vino). */
+export function formatWaPhone(phone: string, masked = false): string {
+  if (masked) return phone;
+  const d = String(phone ?? '').replace(/\D/g, '');
+  if (!d) return '';
+  const ar = /^549(11|\d{3})(\d{3,4})(\d{4})$/.exec(d);
+  if (ar) return `+54 9 ${ar[1]} ${ar[2]}-${ar[3]}`;
+  const us = /^1(\d{3})(\d{3})(\d{4})$/.exec(d);
+  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
+  const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(d);
+  if (br) return `+55 ${br[1]} ${br[2]}-${br[3]}`;
+  return `+${d}`;
+}

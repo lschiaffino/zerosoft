@@ -6,6 +6,7 @@ import type { EmojiCategory } from './emoji-data';
 import StickerPanel, { type StickerTab } from './StickerPanel';
 import GifPanel, { type GifTab } from './GifPanel';
 import { recentWithDefaults } from './emoji-recent';
+import { useDismiss } from './useDismiss';
 
 export const RECENT_KEY = 'zs-groups-emoji-recent';
 /** Última pestaña del panel (Emoji, GIFs o Stickers), como WhatsApp Web la recuerda. */
@@ -69,7 +70,18 @@ function readPanel(has: { gifs: boolean; stickers: boolean }): Panel {
  * Con `gifs` o `stickers`, arriba van las pestañas Emoji | GIFs | Stickers
  * (GifPanel, StickerPanel).
  */
-export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPick: (emoji: string) => void; onClose: () => void; stickers?: StickerTab; gifs?: GifTab }) {
+export default function EmojiPicker({
+  onPick,
+  onClose,
+  stickers,
+  gifs,
+}: {
+  onPick: (emoji: string) => void;
+  /** 'escape' (el foco vuelve al campo), 'outside' (un toque afuera: el foco queda ahí) o 'pick' (mandó un GIF). */
+  onClose: (reason: 'escape' | 'outside' | 'pick') => void;
+  stickers?: StickerTab;
+  gifs?: GifTab;
+}) {
   const t = useTranslations('groups.wa');
   const ref = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(() => readPanel({ gifs: Boolean(gifs), stickers: Boolean(stickers) }));
@@ -88,21 +100,19 @@ export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPic
   const [recent, setRecent] = useState<string[]>([]);
   const [active, setActive] = useState<'recent' | EmojiCategory>('smileys');
 
+  // Solo al abrir: un onClose nuevo en cada render del padre no vuelve a la pestaña de recientes ni roba el foco.
   useEffect(() => {
     let alive = true;
     void import('./emoji-data').then((m) => alive && setData(m.EMOJI_DATA));
     setRecent(readRecent());
     setActive('recent');
     searchRef.current?.focus();
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-emoji-toggle]')) onClose();
-    };
-    document.addEventListener('mousedown', onDown);
     return () => {
       alive = false;
-      document.removeEventListener('mousedown', onDown);
     };
-  }, [onClose]);
+  }, []);
+  // Toque o clic afuera (el botón que lo abre no cuenta: lo alterna), Esc u otro overlay que se abre: se cierra.
+  useDismiss(true, (reason) => onClose(reason === 'escape' ? 'escape' : 'outside'), [ref, '[data-emoji-toggle]']);
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -120,12 +130,6 @@ export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPic
   }
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-      return;
-    }
     const all = [...(gridRef.current?.querySelectorAll<HTMLButtonElement>('button[data-emoji]') ?? [])];
     const i = all.indexOf(document.activeElement as HTMLButtonElement);
     const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 9, ArrowUp: -9 }[e.key];
@@ -153,7 +157,7 @@ export default function EmojiPicker({ onPick, onClose, stickers, gifs }: { onPic
     return (
       <div className="wa-emoji is-gifs" data-voice-off role="dialog" aria-label={t('gifs.tab')} ref={ref} onKeyDown={onKey}>
         {panelTabs}
-        <GifPanel api={gifs.api} onSend={gifs.onSend} onSent={onClose} />
+        <GifPanel api={gifs.api} onSend={gifs.onSend} onSent={() => onClose('pick')} />
       </div>
     );
   }

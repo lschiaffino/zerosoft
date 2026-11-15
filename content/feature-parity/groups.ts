@@ -95,7 +95,13 @@ const parity: ProductParity = {
       ],
     }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
-    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', {
+      detail: [
+        'Any emoji, and a click on the reactions shows who reacted (photo, name, number hidden for people who cannot see numbers) and removes your own. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Cualquier emoji, y un clic en las reacciones muestra quién reaccionó (foto, nombre, número oculto para quien no puede ver números) y saca la propia. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Qualquer emoji, e um clique nas reações mostra quem reagiu (foto, nome, número oculto para quem não pode ver números) e remove a sua. Testado contra um gateway simulado; falta testar com WhatsApp real',
+      ],
+    }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
         'The message menu follows the WhatsApp order and, in groups, has Reply privately (the one on one chat on the same line opens replying, with the group in the quote) and Message plus the name of the sender. Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Lines elsewhere. Forward is native on WAHA and a copy elsewhere, for any message: a voice note goes as a voice note with its length, and what arrived through Evolution is copied too. On Evolution the copy reaches the other phone without the Forwarded label. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',

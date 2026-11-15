@@ -133,10 +133,6 @@
 .ib-wa-thread .gr-emoji-picker { bottom: calc(100% - 6px); }
 .ib-wa-thread .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
 .ib-wa-thread .gr-emoji-picker button.is-mine { background: var(--wa-row-active); }
-.ib-wa-react-full { position: absolute; bottom: 100%; z-index: 30; }
-.gr-msg-in .ib-wa-react-full { left: 0; }
-.gr-msg-out .ib-wa-react-full { right: 0; }
-.ib-wa-react-full .wa-emoji { position: static; }
 
 
 /* Encuesta (solo lectura: se vota en el teléfono). */

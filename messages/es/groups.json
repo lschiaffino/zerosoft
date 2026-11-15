@@ -1933,7 +1933,23 @@
       "openFor": "Info. del contacto de {name}"
     },
     "replyPrivately": "Responder en privado",
-    "messageName": "Enviar mensaje a {name}"
+    "messageName": "Enviar mensaje a {name}",
+    "reactions": {
+      "title": "{count, plural, one {# reacción} other {# reacciones}}",
+      "chip": "{count, plural, one {# reacción} other {# reacciones}}: {list}. Ver quién reaccionó",
+      "react": "Reaccionar",
+      "all": "Todas",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filtrar por emoji",
+      "list": "Personas que reaccionaron",
+      "you": "Vos",
+      "clickToRemove": "Clic para quitar",
+      "remove": "Quitar tu reacción {emoji}",
+      "loading": "Cargando quién reaccionó",
+      "error": "No se pudo cargar quién reaccionó.",
+      "retry": "Reintentar",
+      "more": "Más emojis"
+    }
   },
   "swipe": {
     "read": "Leído",

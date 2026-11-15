@@ -315,9 +315,9 @@ const parity: ProductParity = {
     }),
     row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {
       detail: [
-        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Typing depends on WhatsApp sending presence',
-        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). "Escribiendo" depende de que WhatsApp mande la presencia',
-        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). "Digitando" depende de o WhatsApp enviar a presença',
+        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Clicking the reactions shows who reacted with what (photo, name, number) and removes your own, as in WhatsApp. Typing depends on WhatsApp sending presence',
+        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). Un clic en las reacciones muestra quién reaccionó y con qué (foto, nombre, número) y saca la propia, como en WhatsApp. "Escribiendo" depende de que WhatsApp mande la presencia',
+        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). Um clique nas reações mostra quem reagiu e com o quê (foto, nome, número) e remove a sua, como no WhatsApp. "Digitando" depende de o WhatsApp enviar a presença',
       ],
     }),
   ],
