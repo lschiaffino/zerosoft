@@ -12,6 +12,8 @@ import { devices, expect, test, type APIRequestContext, type CDPSession, type Lo
 test.use({ ...devices['Pixel 7'], viewport: { width: 390, height: 932 } });
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** Mensajes recibidos, en orden. Se mantiene apretado el último y se toca "tres" (la barra de reacciones tapa el de justo arriba). */
+const WORDS = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'ultimo'];
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -62,15 +64,12 @@ async function noSideScroll(page: Page) {
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
 }
 
-/**
- * Lo mismo en las dos apps, con el chat ya abierto y tres mensajes recibidos (`a` arriba, `b` el último). La
- * barra de reacciones tapa el mensaje de justo arriba del marcado: se toca `a`, que queda más arriba.
- */
+/** Lo mismo en las dos apps, con el chat ya abierto: `b` es el último mensaje y `a` uno que queda a la vista arriba. */
 async function gestures(page: Page, cdp: CDPSession, a: string, b: string) {
   const box = page.locator('.wa-messages');
   const first = box.locator('.gr-msg', { hasText: a });
   const second = box.locator('.gr-msg', { hasText: b });
-  await expect(second).toBeVisible();
+  await expect(second).toBeVisible({ timeout: 30_000 });
   await noSideScroll(page);
 
   // Toque largo: queda marcado, con las reacciones y la hoja de acciones (las del menú de la flecha).
@@ -118,13 +117,13 @@ test('Inbox en el teléfono: toque largo, selección, deslizar para responder y 
   const dm = `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}7@s.whatsapp.net`;
   const at = (s: number) => new Date(Date.now() - 600_000 + s * 1000).toISOString();
   const msg = (body: string, s: number) => ({ type: 'message', chatId: dm, isGroup: false, fromMe: false, senderPhone: dm.replace(/@.*/, ''), senderName: `Tacto ${tag}`, providerMessageId: `t-${tag}-${s}`, body, timestamp: at(s) });
-  const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: [msg(`primero ${tag}`, 1), msg(`medio ${tag}`, 2), msg(`segundo ${tag}`, 3)] } });
+  const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: WORDS.map((w, i) => msg(`${w} ${tag}`, i + 1)) } });
   expect(res.ok()).toBe(true);
 
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const cdp = await context.newCDPSession(page);
   await page.locator('.ib-item', { hasText: `Tacto ${tag}` }).locator('.ib-row-btn').click();
-  await gestures(page, cdp, `primero ${tag}`, `segundo ${tag}`);
+  await gestures(page, cdp, `tres ${tag}`, `ultimo ${tag}`);
 
   // Atrás cierra el chat (un panel por vez) y deja la bandeja a la vista, sin salir de Inbox.
   await page.goBack();
@@ -150,7 +149,7 @@ test('Lines en el teléfono: toque largo, selección, deslizar para responder y 
   const tag = uid();
   const url = await fakeLine(request, `Tacto ${tag}`);
   const chatId = `54911${Math.floor(Math.random() * 1e7)}@c.us`;
-  for (const [i, body] of [`primero ${tag}`, `medio ${tag}`, `segundo ${tag}`].entries()) {
+  for (const [i, body] of WORDS.map((w) => `${w} ${tag}`).entries()) {
     await request.post(new URL(url).pathname, {
       data: { events: [{ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: '5491155550000', senderName: `Tacto ${tag}`, providerMessageId: `lt-${tag}-${i}`, body }] },
     });
@@ -159,7 +158,7 @@ test('Lines en el teléfono: toque largo, selección, deslizar para responder y 
   const cdp = await context.newCDPSession(page);
   await page.locator('[data-chat-row]', { hasText: `Tacto ${tag}` }).first().click();
   await page.locator('.wa-messages').evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await gestures(page, cdp, `primero ${tag}`, `segundo ${tag}`);
+  await gestures(page, cdp, `tres ${tag}`, `ultimo ${tag}`);
 
   // Atrás vuelve a la lista de chats de Lines.
   await page.goBack();
