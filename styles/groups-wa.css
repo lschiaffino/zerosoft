@@ -1403,9 +1403,6 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
 .ib-wa-react-full .wa-emoji { position: static; }
 .ib-wa-react-full.is-floating { position: fixed; bottom: auto; right: auto; z-index: 2000; }
 .gr-inbox .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
-/* La barra de emojis abierta desde el cuadro se ve aunque el mouse no esté encima (y con el dedo). */
-.gr-inbox .gr-msg-actions:has(.gr-emoji-picker) { opacity: 1; }
-@media (hover: none) { .gr-inbox .gr-msg-actions:has(.gr-emoji-picker) { display: flex; } }
 
 .wa-rx-pop {
   position: fixed; z-index: 2000; display: flex; flex-direction: column; width: 340px; max-width: calc(100vw - 16px); max-height: min(460px, 72vh);

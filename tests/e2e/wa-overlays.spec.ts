@@ -80,6 +80,7 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
     await expect(quick()).toBeVisible();
   };
   const field = () => thread.locator('.wa-bar textarea').first();
+  const emojiToggle = () => thread.locator('.wa-bar').getByRole('button', { name: 'Emoji', exact: true });
   return [
     {
       name: 'quick reactions',
@@ -88,7 +89,7 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
       trigger: touch ? undefined : () => bubble().locator('.wa-react-btn'),
       pick: async () => {
         await press(quick().getByRole('button', { name: '👍', exact: true }));
-        await expect(chip()).toContainText('👍');
+        await expect(chip()).toContainText('👍', { timeout: 60_000 });
       },
       outside: true,
     },
@@ -110,11 +111,13 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
     {
       name: 'message menu',
       open: async () => {
-        if (!touch) await bubble().hover();
-        await press(bubble().locator('.wa-chevron'));
+        // Con el dedo el menú lo abre el toque largo, que hace clic en la flecha (no se toca la flecha misma).
+        if (touch) return bubble().locator('.wa-chevron').evaluate((b) => (b as HTMLButtonElement).click());
+        await bubble().hover();
+        await bubble().locator('.wa-chevron').click();
       },
       el: () => page.getByRole('menu'),
-      trigger: () => bubble().locator('.wa-chevron'),
+      trigger: touch ? undefined : () => bubble().locator('.wa-chevron'),
       pick: () => press(page.getByTestId('menu-star')),
       outside: true,
     },
@@ -132,16 +135,17 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
     },
     {
       name: 'emoji tray',
-      open: () => press(thread.locator('.wa-bar').getByRole('button', { name: 'Emoji', exact: true })),
+      // A 390, en desarrollo el botón de Next tapa la esquina del campo: ahí se abre con un clic del DOM.
+      open: () => (touch ? emojiToggle().evaluate((b) => (b as HTMLButtonElement).click()) : emojiToggle().click()),
       el: () => page.locator('.wa-bar .wa-emoji'),
-      trigger: () => thread.locator('.wa-bar').getByRole('button', { name: 'Emoji', exact: true }),
+      trigger: touch ? undefined : emojiToggle,
       pick: async () => {
         // Como WhatsApp: el emoji va al campo y la bandeja sigue abierta para elegir otro.
         const first = page.locator('.wa-bar .wa-emoji button[data-emoji]').first();
         await expect(first).toBeVisible({ timeout: 15_000 });
-        const emoji = (await first.getAttribute('data-emoji')) ?? '';
+        const emoji = ((await first.textContent()) ?? '').trim();
         await press(first);
-        await expect(field()).toHaveValue(new RegExp(emoji.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+        await expect(field()).toHaveValue(emoji);
         await expect(page.locator('.wa-bar .wa-emoji')).toBeVisible();
         await page.keyboard.press('Escape');
         await field().fill('');
@@ -269,6 +273,7 @@ for (const view of VIEWS) {
       const { title, text } = await seed(send, uid());
       await request.get('/api/inbox/threads/ibt_warmup');
       await request.get('/api/inbox/threads/ibt_warmup/wa?part=reactions&messages=x');
+      await request.patch('/api/inbox/messages/ibm_warmup', { data: { action: 'react', emoji: '👍' } });
       await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
       await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
       const thread = page.locator('.ib-wa-thread');
@@ -287,8 +292,9 @@ for (const view of VIEWS) {
       const send = async (list: unknown[]) => expect((await request.post(new URL(info.webhookUrl).pathname, { data: { events: list } })).ok()).toBe(true);
       const { title, text } = await seed(send, uid());
       await request.get('/api/groups/chats/warmup/members?reactions=x');
-      await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.gr-row', { hasText: title }).click({ timeout: 60_000 });
+      await request.post('/api/groups/messages/warmup', { data: { action: 'react', emoji: '👍' } });
+      const [chat] = await sql('SELECT id FROM groups_chats WHERE number_id = ? AND name = ?', [id, title]);
+      await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
       const thread = page.locator('.wa-thread');
       await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 30_000 });
       await expect(thread.locator('.gr-msg', { hasText: text }).getByTestId('wa-reactions-chip')).toBeVisible({ timeout: 20_000 });

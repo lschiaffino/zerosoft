@@ -1971,27 +1971,28 @@ export default function ChatThread(props: ThreadProps) {
             >
               <Smiley size={18} />
             </button>
-            {reactTo && (
-              <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} ref={quickBar} data-testid="wa-quick-react">
-                {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
-                  <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
-                    {e}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPickerFor(null);
-                    setFullPickerFor(reactTo.id);
-                  }}
-                  aria-label={t('wa.reactions.more')}
-                  title={t('wa.reactions.more')}
-                >
-                  <Plus size={20} />
-                </button>
-              </span>
-            )}
           </div>
+        )}
+        {/* La barra rápida va sobre el mensaje (no al costado, donde con el dedo quedaba fuera de la pantalla). */}
+        {reactTo && (
+          <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} ref={quickBar} data-testid="wa-quick-react">
+            {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
+              <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
+                {e}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setPickerFor(null);
+                setFullPickerFor(reactTo.id);
+              }}
+              aria-label={t('wa.reactions.more')}
+              title={t('wa.reactions.more')}
+            >
+              <Plus size={20} />
+            </button>
+          </span>
         )}
         {fullFor && (
           <FloatingReactPicker anchorId={`m-${m.id}`} align={m.direction === 'out' ? 'right' : 'left'}>
