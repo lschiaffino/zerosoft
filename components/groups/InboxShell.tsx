@@ -755,13 +755,29 @@ export default function InboxShell({
 
   // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
   // Archivados ya, el contador baja y el chat sigue abierto. En Archivados, con aviso y Deshacer.
+  // El aviso sale cuando el envío terminó: antes, el envío que llega después lo volvería a desarchivar.
+  const unarchivedBySend = useRef(new Map<string, { chat: ChatDto; notice: boolean }>());
   useOnChatSent((chatId) => {
     const c = rowsRef.current.find((r) => r.id === chatId);
-    if (!c?.archived) return;
+    if (!c?.archived || unarchivedBySend.current.has(chatId)) return;
+    unarchivedBySend.current.set(chatId, { chat: c, notice: archivedView });
     setRows((rs) => (archivedView ? rs.filter((r) => r.id !== chatId) : rs.map((r) => (r.id === chatId ? { ...r, archived: false } : r))));
     setArchivedInfo((cur) => ({ total: Math.max(0, cur.total - 1), unread: Math.max(0, cur.unread - (c.unread > 0 ? 1 : 0)) }));
-    if (archivedView) showToast(t('wa.unarchived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: true }) });
   });
+  useEffect(
+    () =>
+      unsentLines.subscribe((e) => {
+        // 'removed': el chat ya trajo el mensaje guardado antes que la respuesta del envío (también salió).
+        if (e.type !== 'saved' && e.type !== 'failed' && e.type !== 'removed') return;
+        const done = unarchivedBySend.current.get(e.chatId);
+        if (!done) return;
+        unarchivedBySend.current.delete(e.chatId);
+        // No salió: el chat sigue archivado y vuelve a su lista.
+        if (e.type === 'failed' || (e.type === 'saved' && e.saved.status === 'failed')) return void load(true);
+        if (done.notice) showToast(t('wa.unarchived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(done.chat, { archived: true }) });
+      }),
+    [showToast, t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   function rowMenu(c: ChatDto): MenuItem[] {
     return [

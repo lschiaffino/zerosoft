@@ -431,22 +431,36 @@ export default function InboxApp(props: {
   // entra SOLO en la conversación de ese chat (components/inbox/wa/pending.ts): si ya hay otro abierto, va a la copia
   // guardada del suyo y lo que está a la vista no se toca.
   // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
-  // Archivados ya, el contador baja y la conversación sigue abierta. En Archivados, con aviso y Deshacer.
-  const unarchivedBySend = useRef(new Set<string>());
+  // Archivados ya, el contador baja y la conversación sigue abierta. En Archivados, cuando el envío terminó, un aviso
+  // con Deshacer (antes, el envío que llega después lo volvería a desarchivar).
+  const unarchivedBySend = useRef(new Map<string, { back: ThreadAction; notice: boolean }>());
   const inArchivedView = (view === 'archived' || view === 'done') && !q && !folder;
   const unarchiveOnSend = useCallback(
     (threadId: string) => {
+      if (unarchivedBySend.current.has(threadId)) return;
       const was = live.current.threads.find((x) => x.id === threadId) ?? (detailRef.current?.thread.id === threadId ? detailRef.current.thread : null);
       if (!was || was.channel !== 'whatsapp' || !(was.archived || was.done)) return;
-      unarchivedBySend.current.add(threadId);
+      unarchivedBySend.current.set(threadId, { back: { action: was.archived ? 'archive' : 'done' }, notice: inArchivedView });
       setThreads((xs) => (inArchivedView ? xs.filter((x) => x.id !== threadId) : xs.map((x) => (x.id === threadId ? { ...x, archived: false, done: false } : x))));
       setDetail((d) => (d && d.thread.id === threadId ? { ...d, thread: { ...d.thread, archived: false, done: false } } : d));
       setState((st) => ({ ...st, counts: { ...st.counts, archived: Math.max(0, (st.counts.archived ?? 0) - 1) } }));
-      if (!inArchivedView) return;
-      const back: ThreadAction = { action: was.archived ? 'archive' : 'done' };
+    },
+    [inArchivedView],
+  );
+  /** El envío terminó: el contador se confirma con el servidor y, si se mandó desde Archivados, el aviso con Deshacer. */
+  const settleUnarchive = useCallback(
+    (threadId: string, sent: boolean) => {
+      const done = unarchivedBySend.current.get(threadId);
+      if (!done) return;
+      unarchivedBySend.current.delete(threadId);
+      stateEtag.current = '';
+      void reloadState();
+      // No salió: el chat sigue archivado y vuelve a su lista.
+      if (!sent) return void reloadList();
+      if (!done.notice) return;
       toast(t('toast.unarchive', { n: 1 }), {
         undo: () =>
-          void api('/api/inbox/threads', { method: 'POST', json: { ids: [threadId], ...back } }).then(() => {
+          void api('/api/inbox/threads', { method: 'POST', json: { ids: [threadId], ...done.back } }).then(() => {
             void reloadList();
             void reloadState();
             if (openRef.current === threadId) void loadDetail(threadId, true);
@@ -454,7 +468,7 @@ export default function InboxApp(props: {
           }),
       });
     },
-    [inArchivedView, toast, t], // eslint-disable-line react-hooks/exhaustive-deps
+    [toast, t], // eslint-disable-line react-hooks/exhaustive-deps
   );
   useEffect(
     () =>
@@ -464,14 +478,9 @@ export default function InboxApp(props: {
         setDetail((d) => applyPending(d, e));
         if (e.type !== 'drop') unarchiveOnSend(e.threadId);
         if (e.type === 'sent') void reloadList();
-        // El contador de Archivados se confirma con el servidor (también si el envío no salió y el chat sigue archivado).
-        if (e.type !== 'add' && unarchivedBySend.current.delete(e.threadId)) {
-          stateEtag.current = '';
-          void reloadState();
-          if (e.type === 'drop') void reloadList();
-        }
+        if (e.type !== 'add') settleUnarchive(e.threadId, e.type === 'sent');
       }),
-    [detailCache, reloadList, unarchiveOnSend], // eslint-disable-line react-hooks/exhaustive-deps
+    [detailCache, reloadList, unarchiveOnSend, settleUnarchive],
   );
   /**
    * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El

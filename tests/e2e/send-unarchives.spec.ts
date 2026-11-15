@@ -117,9 +117,13 @@ test.describe('Inbox', () => {
     await entry.click();
     // Primera vez en esta vista y en este chat: con `next dev` se compilan recién ahí.
     await expect(page.locator('.ib-list')).toHaveAttribute('data-list', 'v:archived|', { timeout: FIRST_MS });
-    await row.locator('.ib-row-btn').click();
+    await expect(page.locator('.ib-list')).not.toHaveAttribute('aria-busy', 'true', { timeout: FIRST_MS });
     const head = page.locator('.ib-wa-thread .gr-thread-head');
-    await expect(head).toContainText(name, { timeout: FIRST_MS });
+    // La lista recién cargada puede volver a dibujarse con el aviso en vivo: se abre el chat hasta que el panel lo muestra.
+    await expect(async () => {
+      await row.locator('.ib-row-btn').click();
+      await expect(head).toContainText(name, { timeout: 5_000 });
+    }).toPass({ timeout: FIRST_MS });
     await shots(page, 'inbox-before');
 
     // Mandar: el chat sale de Archivados ya, sigue abierto y hay aviso con Deshacer.
@@ -127,15 +131,16 @@ test.describe('Inbox', () => {
     await field.fill(`ahí va ${tag}`);
     await field.press('Enter');
     await expect(row).toHaveCount(0);
+    // El aviso sale cuando el envío terminó (el chat ya está desarchivado en el servidor).
     const toast = page.locator('.ib-toast', { hasText: 'Unarchived' });
-    await expect(toast).toBeVisible();
+    await expect(toast).toBeVisible({ timeout: FIRST_MS });
     await expect(head).toContainText(name);
     await expect(page.locator('.ib-wa-thread').getByText(`ahí va ${tag}`)).toBeVisible();
-    await expect.poll(() => archivedState(threadId), { timeout: FIRST_MS }).toBe(false);
-    await shots(page, 'inbox-after');
+    expect(await archivedState(threadId)).toBe(false);
     // A WhatsApp no salió ningún desarchivado: solo el archivado de antes, y la cuenta sin error de archivado.
     expect(await pushRow('inbox', threadId)).toMatchObject({ archived: 0, last_error: 'by_send', sent_count: 1 });
     expect((await sql('SELECT archive_sync_error FROM inbox_accounts WHERE id = ?', [acc.id]))[0].archive_sync_error).toBe('');
+    await shots(page, 'inbox-after');
 
     // Deshacer lo vuelve a archivar (eso sí sale a WhatsApp).
     await toast.getByRole('button', { name: 'Undo' }).click();
@@ -165,14 +170,14 @@ test.describe('Inbox', () => {
     expect(await archivedState(threadId)).toBe(true);
     expect((await request.post(`/api/inbox/scheduled/${scheduled.id}`)).ok()).toBe(true);
     expect(await archivedState(threadId)).toBe(false);
-    await expect(row).toBeVisible({ timeout: LIVE_MS });
+    await expect(row).toBeVisible({ timeout: FIRST_MS });
 
     // Mandado desde el teléfono (el eco fromMe): también.
     await archive();
     await expect(row).toHaveCount(0, { timeout: LIVE_MS });
     await events(request, acc, [message(jid, `desde el teléfono ${tag}`, name, { fromMe: true })]);
     expect(await archivedState(threadId)).toBe(false);
-    await expect(row).toBeVisible({ timeout: LIVE_MS });
+    await expect(row).toBeVisible({ timeout: FIRST_MS });
     // El aviso de desarchivado que manda el teléfono después no cambia nada.
     await events(request, acc, [{ type: 'archive', chatId: jid, archived: false }]);
     expect(await pushRow('inbox', threadId)).toMatchObject({ archived: 0, last_error: 'by_send' });
@@ -235,15 +240,16 @@ test.describe('Lines', () => {
     await composer.fill(`ahí va ${tag}`);
     await composer.press('Enter');
     await expect(row).toHaveCount(0);
+    // El aviso sale cuando el envío terminó (el chat ya está desarchivado en el servidor).
     const toast = page.locator('.ui-toast', { hasText: 'Chat unarchived' });
-    await expect(toast).toBeVisible();
+    await expect(toast).toBeVisible({ timeout: FIRST_MS });
     await expect(heading).toBeVisible();
     await expect(page.locator('.gr-msg-out', { hasText: `ahí va ${tag}` })).toBeVisible();
-    await expect.poll(() => archivedState(chatId), { timeout: FIRST_MS }).toBe(false);
-    await shots(page, 'lines-after');
+    expect(await archivedState(chatId)).toBe(false);
     // A WhatsApp no salió ningún desarchivado: solo el archivado de antes, y el número sin error de archivado.
     expect(await pushRow('lines', chatId)).toMatchObject({ archived: 0, last_error: 'by_send', sent_count: 1 });
     expect((await sql('SELECT archive_sync_error FROM groups_numbers WHERE id = ?', [n.id]))[0].archive_sync_error).toBe('');
+    await shots(page, 'lines-after');
 
     // Deshacer lo vuelve a archivar (eso sí sale a WhatsApp).
     await toast.getByRole('button', { name: 'Undo' }).click();
@@ -271,14 +277,14 @@ test.describe('Lines', () => {
     expect(await archivedState(chatId)).toBe(true);
     expect((await request.patch(`/api/groups/broadcasts/${broadcastId}`, { data: { action: 'send_now' } })).ok()).toBe(true);
     await expect.poll(() => archivedState(chatId), { timeout: 15_000 }).toBe(false);
-    await expect(row).toBeVisible({ timeout: LIVE_MS });
+    await expect(row).toBeVisible({ timeout: FIRST_MS });
 
     // Mandado desde el teléfono (el eco fromMe): también.
     await archive();
     await expect(row).toHaveCount(0, { timeout: LIVE_MS });
     await events(request, n, [message(jid, `desde el teléfono ${tag}`, name, { fromMe: true })]);
     expect(await archivedState(chatId)).toBe(false);
-    await expect(row).toBeVisible({ timeout: LIVE_MS });
+    await expect(row).toBeVisible({ timeout: FIRST_MS });
     await events(request, n, [{ type: 'archive', chatId: jid, archived: false }]);
     expect(await pushRow('lines', chatId)).toMatchObject({ archived: 0, last_error: 'by_send' });
     expect(errors, errors.join('\n')).toEqual([]);
