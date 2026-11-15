@@ -20,7 +20,12 @@ async function cached<T>(key: string, load: () => Promise<T | null>): Promise<T 
   const hit = cache.get(key);
   if (hit && hit.until > Date.now()) return hit.value as T;
   const value = await load();
-  // Lo que falla se reintenta al minuto, no a los 10.
+  // Si GitHub falla (cupo de la API, caída) se sigue sirviendo lo último que anduvo: las apps
+  // instaladas no ven un error por eso. Lo que falla se reintenta al minuto, no a los 10.
+  if (value === null && hit && hit.value !== null) {
+    cache.set(key, { until: Date.now() + 60_000, value: hit.value });
+    return hit.value as T;
+  }
   cache.set(key, { until: Date.now() + (value === null ? 60_000 : CACHE_MS), value });
   return value;
 }
@@ -74,6 +79,45 @@ export function pickDesktopRelease(releases: readonly GhRelease[]): GhRelease | 
   return best?.r ?? null;
 }
 
+/**
+ * El último release estable que trae `file`. Un release a medio publicar (falló una plataforma y
+ * todavía no tiene latest.json) no deja a las apps instaladas sin feed: siguen con el anterior.
+ */
+export function pickReleaseWithAsset(releases: readonly GhRelease[], file: string): GhRelease | null {
+  return pickDesktopRelease(releases.filter((r) => r.assets.some((a) => a.name === file)));
+}
+
+export interface UpdateManifest {
+  version: string;
+  notes?: string;
+  pub_date?: string;
+  platforms: Record<string, { signature: string; url: string }>;
+}
+
+/**
+ * latest.json del updater de Tauri, validado: versión X.Y.Z (la del tag si se pasa) y, por
+ * plataforma, una URL https y una firma. null si no sirve (el updater fallaría con algo peor).
+ */
+export function parseUpdateManifest(text: string, expectedVersion?: string): UpdateManifest | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const m = data as Partial<UpdateManifest>;
+  if (typeof m.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(m.version)) return null;
+  if (expectedVersion && m.version !== expectedVersion) return null;
+  if (!m.platforms || typeof m.platforms !== 'object') return null;
+  const entries = Object.entries(m.platforms);
+  if (!entries.length) return null;
+  for (const [, p] of entries) {
+    if (!p || typeof p.signature !== 'string' || !p.signature || typeof p.url !== 'string' || !p.url.startsWith('https://')) return null;
+  }
+  return m as UpdateManifest;
+}
+
 /** Instaladores por sistema, por nombre de archivo (artifactName de desktop/electron-builder.yml). */
 export function desktopDownloads(r: GhRelease): DesktopDownloads {
   const asset = (re: RegExp) => r.assets.find((a) => re.test(a.name)) ?? null;
@@ -112,7 +156,7 @@ const FAKE: GhRelease = {
   prerelease: false,
   html_url: `https://github.com/${DESKTOP_REPO}/releases/tag/desktop-v0.1.0`,
   published_at: '2026-10-29T12:00:00Z',
-  assets: ['zerosoft-0.1.0-mac-arm64.dmg', 'zerosoft-0.1.0-mac-x64.dmg', 'zerosoft-0.1.0-win-x64.exe', 'latest-mac.yml', 'latest.yml'].map((name) => ({
+  assets: ['zerosoft-0.1.0-mac-arm64.dmg', 'zerosoft-0.1.0-mac-x64.dmg', 'zerosoft-0.1.0-win-x64.exe', 'latest-mac.yml', 'latest.yml', 'latest.json'].map((name) => ({
     name,
     size: 1,
     browser_download_url: `https://github.com/${DESKTOP_REPO}/releases/download/desktop-v0.1.0/${name}`,
@@ -150,9 +194,18 @@ export async function latestDesktopRelease(): Promise<GhRelease | null> {
  * absolutas) o los latest*.yml de la app de Electron anterior, con URLs absolutas. null si no hay.
  */
 export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml' | 'latest.json'): Promise<string | null> {
-  const release = await latestDesktopRelease();
+  const releases = await fetchReleases();
+  const release = releases ? pickReleaseWithAsset(releases, file) : null;
   const asset = release?.assets.find((a) => a.name === file);
   if (!release || !asset) return null;
+  const version = release.tag_name.slice(DESKTOP_TAG_PREFIX.length);
+  if (process.env.DESKTOP_RELEASES_FAKE === '1' && file === 'latest.json') {
+    const base = `https://github.com/${DESKTOP_REPO}/releases/download/${release.tag_name}`;
+    const platforms = Object.fromEntries(
+      [['darwin-aarch64', 'mac-arm64.app.tar.gz'], ['darwin-x86_64', 'mac-x64.app.tar.gz'], ['windows-x86_64', 'win-x64.exe']].map(([k, f]) => [k, { signature: 'fake', url: `${base}/zerosoft-${version}-${f}` }]),
+    );
+    return JSON.stringify({ version, notes: 'https://zerosoft.ai/changelog', pub_date: '2026-10-29T12:00:00Z', platforms });
+  }
   if (process.env.DESKTOP_RELEASES_FAKE === '1') {
     return rewriteUpdateYml(`version: 0.1.0\nfiles:\n  - url: zerosoft-0.1.0-mac-arm64.zip\n    sha512: x\n    size: 1\npath: zerosoft-0.1.0-mac-arm64.zip\nsha512: x\n`, [
       ...release.assets,
@@ -165,7 +218,8 @@ export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml' | 'latest
       const res = await safeFetch(asset.browser_download_url, {}, 5000, { maxRedirects: 3 });
       if (!res.ok) return null;
       const text = await res.text();
-      return file === 'latest.json' ? text : rewriteUpdateYml(text, release.assets);
+      if (file !== 'latest.json') return rewriteUpdateYml(text, release.assets);
+      return parseUpdateManifest(text, version) ? text : null;
     } catch {
       return null;
     }

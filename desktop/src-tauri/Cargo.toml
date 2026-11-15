@@ -1,6 +1,6 @@
 [package]
 name = "zerosoft-desktop"
-version = "0.3.9"
+version = "0.3.10"
 description = "zerosoft for Mac and Windows: the whole platform in a native window and dictation in any app."
 authors = ["zerosoft <hello@zerosoft.ai>"]
 license = "AGPL-3.0-only"
@@ -38,6 +38,8 @@ base64 = "0.22"
 rand = "0.8"
 url = "2"
 log = "0.4"
+# Diálogos nativos de las actualizaciones (updater.rs). No tauri-plugin-dialog: pisa window.alert y confirm en las páginas.
+rfd = { version = "0.17", default-features = false, features = ["common-controls-v6"] }
 
 [target.'cfg(windows)'.dependencies]
 enigo = "0.2"
