@@ -297,7 +297,7 @@ export function MediaUnavailable({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey, goneAtStart]);
-  const label = state === 'gone' ? t(kind === 'video' ? 'wa.mediaGoneVideo' : 'wa.mediaGoneImage') : state === 'busy' ? t('wa.downloadingAgain') : t('thread.fileUnavailable');
+  const label = state === 'gone' ? (kind === 'video' ? t('wa.mediaGoneVideo') : t('wa.mediaGoneImage')) : state === 'busy' ? t('wa.downloadingAgain') : t('thread.fileUnavailable');
   return (
     <span
       className={`wa-media-ph is-${kind}${state === 'gone' ? ' is-gone' : ''}`}
