@@ -1016,6 +1016,16 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .gr-inbox .gr-thread > .gr-banner.wa-strip { margin: 0; padding: 4px var(--wa-pad-x); font-size: var(--wa-fs-small); border: 0; border-bottom: 1px solid var(--wa-border); border-radius: 0; background: var(--wa-panel-header); color: var(--wa-text-2); }
 .gr-inbox .gr-thread > .gr-banner.wa-strip.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
 .gr-inbox .gr-thread > .gr-banner.wa-strip .btn { --btn-h: 24px; }
+/* "Traer mensajes que faltan": la misma franja, con lo que está pasando, reintentar y cerrar. */
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh { flex-wrap: nowrap; min-height: 34px; }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh.is-warn { color: var(--wa-text); background: var(--warn-soft); }
+.wa-refresh-text { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.wa-refresh-text svg { flex: none; }
+.wa-refresh-text .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-refresh.is-done .wa-refresh-text svg, .wa-refresh.is-none .wa-refresh-text svg { color: var(--wa-primary); }
+.wa-refresh-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.gr-inbox .wa-refresh .wa-refresh-close { width: 28px; height: 28px; }
+@media (prefers-reduced-motion: reduce) { .wa-refresh-text .is-spinning { animation: none; } }
 /* Historial: lo anterior quedó en el teléfono. */
 /* Lista: borrado y nota de voz en la vista previa. */
 .gr-row-deleted { display: inline-flex; align-items: center; gap: 4px; font-style: italic; }

@@ -266,7 +266,6 @@
     "createGroup": "Criar grupo"
   },
   "fetchMissing": "Buscar mensagens que faltam",
-  "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco.",
   "replyPrivately": "Responder em particular",
   "messageName": "Enviar mensagem para {name}",
   "download": "Baixar"

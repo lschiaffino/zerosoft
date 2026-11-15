@@ -379,6 +379,9 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
   for (const id of groupsTouched) await refreshMemberCount(id);
   // La misma persona con dos chats (lid y teléfono): se juntan (lib/wa-dedupe.ts).
   await dedupeLinesBatch(number, events, dups).catch(() => null);
+  // Llegó historial de estos chats: si se había pedido "Traer mensajes que faltan", el teléfono respondió.
+  const pastChats = events.flatMap((e) => (e.type === 'message' ? [e.chatId] : []));
+  if (pastChats.length) await import('./wa-history-gaps').then((g) => g.noteHistoryArrived('lines', number.id, pastChats)).catch(() => null);
   return res;
 }
 

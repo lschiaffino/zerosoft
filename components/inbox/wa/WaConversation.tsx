@@ -30,6 +30,7 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from '@/components/groups/wa/RefreshMissing';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
 import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
@@ -372,12 +373,23 @@ const WaConversation = forwardRef<
     onRefresh();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(onRefresh, ms));
   }, [onRefresh]);
-  const fetchMissing = useCallback(async () => {
-    const r = await api<{ ok?: boolean }>(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', json: { action: 'fetchMissing' } });
-    if (!r.ok) return onError(r.data.error ?? 'generic');
-    props.onToast(w('fetchMissingToast'));
-    watchHistory();
-  }, [detail.thread.id, onError, props, w, watchHistory]);
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postWa = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [detail.thread.id]);
+  const refreshMissing = useRefreshMissing(
+    detail.thread.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postWa({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postWa({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    onRefresh,
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -556,7 +568,7 @@ const WaConversation = forwardRef<
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
     { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
-    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void fetchMissing() },
+    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void refreshMissing.run() },
     ...(thread.mutedUntil
       ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]
       : [
@@ -977,6 +989,7 @@ const WaConversation = forwardRef<
           </div>
         </div>
       )}
+      <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
       <div className="wa-scroll">
         <div className="gr-messages wa-messages" ref={scroller} onScroll={onScroll} tabIndex={-1}>
           {detail.more && (
