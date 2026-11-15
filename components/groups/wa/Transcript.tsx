@@ -39,7 +39,8 @@ export default function Transcript({ endpoint, labels, auto = true, retryKey = 0
       const saved = r?.ok ? ((await r.json()) as { transcript: TranscriptData | null }).transcript : null;
       if (!alive) return;
       // Falló porque el audio no se pudo bajar: se vuelve a pedir (el servidor decide si ya toca).
-      const again = saved?.status === 'failed' && saved.error === 'media_unavailable';
+      // Lo que WhatsApp ya no tiene solo se vuelve a pedir si el audio acaba de volver (retryKey).
+      const again = saved?.status === 'failed' && (/^(media_unavailable|not_connected)$/.test(saved.error ?? '') || (saved.error === 'media_gone' && retryKey > 0));
       if (saved && saved.status !== 'pending' && !again) {
         setData(saved);
         return;
@@ -62,7 +63,7 @@ export default function Transcript({ endpoint, labels, auto = true, retryKey = 0
   if (!data) return null;
   if (data.status === 'failed' || (data.status === 'done' && !data.text)) {
     // Sin audio no hay qué transcribir: el aviso ya está en la burbuja del audio.
-    return data.error && /disabled|media_unavailable/.test(data.error) ? null : <p className="wa-transcript is-off">{labels.failed}</p>;
+    return data.error && /disabled|media_unavailable|media_gone|not_connected/.test(data.error) ? null : <p className="wa-transcript is-off">{labels.failed}</p>;
   }
   if (data.status !== 'done') return null;
   const long = data.text.length > 180;

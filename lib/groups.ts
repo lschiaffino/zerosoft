@@ -2405,12 +2405,10 @@ async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: st
 }
 
 /** Fallas que no se arreglan reintentando: tipo no permitido, más grande que el tope, el gateway no lo tiene. */
-function permanentMediaError(err: unknown): boolean {
-  if (err instanceof ProviderError) {
-    // La sesión cerrada o un pedido que tardó de más no son definitivos: se reintenta al volver a vincular o al abrirlo.
-    if (err.reason === 'offline' || err.reason === 'timeout') return false;
-    return err.code === 'not_found' || err.httpStatus === 413 || err.httpStatus === 400;
-  }
+function permanentMediaError(err: unknown, withWire = false): boolean {
+  // Lo que dijo el gateway: la misma clasificación que ve la pantalla (lib/wa-media-wire.ts). La sesión cerrada, un
+  // pedido que tardó de más o un 400 sin motivo con clave no son definitivos: se reintenta al abrirlo.
+  if (err instanceof ProviderError) return ['gone', 'too_big'].includes(mediaErrorKind(err, withWire));
   const code = (err as { code?: string })?.code;
   return code === 'file_type_not_allowed';
 }
@@ -2493,7 +2491,7 @@ export async function storeInboundMedia(
   if (!provider.fetchMedia) return null;
   const { saveUpload } = await import('./uploads');
   const max = Math.max(0, Math.min(MAX_INBOUND_MEDIA, opts.budget ?? MAX_INBOUND_MEDIA));
-  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así y no ofrece reintentar.
+  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así (y se puede volver a pedir).
   const markFailed = (gone: boolean) =>
     getDb()
       .prepare(
@@ -2508,7 +2506,8 @@ export async function storeInboundMedia(
       file = await provider.fetchMedia(ref, max);
     } catch (err) {
       // El gateway puede guardar el mensaje un instante después de avisarlo: un reintento corto.
-      if (!opts.retry || permanentMediaError(err)) throw err;
+      // Si ya esperó al teléfono (tardó de más), no se vuelve a esperar acá: queda para cuando se abra.
+      if (!opts.retry || permanentMediaError(err, !!ref.wire) || (err instanceof ProviderError && (err.reason === 'timeout' || err.reason === 'offline'))) throw err;
       await new Promise((r) => setTimeout(r, 2000));
       file = await provider.fetchMedia(ref, max);
     }
@@ -2534,7 +2533,7 @@ export async function storeInboundMedia(
     const fromGateway = err instanceof ProviderError;
     const kind = logMediaFailure('lines', err, !!ref.wire, !fromGateway || number.status === 'connected');
     // Sin conexión o pasajera: queda pendiente (se reintenta). Solo lo definitivo deja el mensaje sin archivo.
-    if (permanentMediaError(err) && !overBudget && kind !== 'offline') await markFailed(kind === 'gone');
+    if (permanentMediaError(err, !!ref.wire) && !overBudget && kind !== 'offline') await markFailed(kind === 'gone');
     throw err;
   }
 }

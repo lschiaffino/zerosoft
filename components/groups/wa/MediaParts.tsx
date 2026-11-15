@@ -181,8 +181,11 @@ export function VoicePlayer({
     const a = ref.current;
     if (!a || !autoPlay.current || !url || missing) return;
     autoPlay.current = false;
+    // Una sola a la vez, como al tocar reproducir.
+    document.querySelectorAll<HTMLAudioElement>('audio.wa-audio-el').forEach((x) => x !== a && x.pause());
     a.playbackRate = speed;
-    void a.play().catch(() => setMissing(true));
+    // Si el navegador no deja arrancar solo (pasó mucho desde el toque), el archivo ya está: queda listo para reproducir.
+    void a.play().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, missing]);
 
@@ -207,7 +210,12 @@ export function VoicePlayer({
       }
       a.playbackRate = speed;
       wantPlay.current = true;
-      void a.play().catch(() => onLoadError());
+      // play() también se rechaza cuando se pausa mientras carga (o empieza otro audio): eso no es un archivo que
+      // falta. Solo cuenta el error del elemento (onError lo avisa igual).
+      void a.play().catch(() => {
+        if (a.error) onLoadError();
+        else wantPlay.current = false;
+      });
     } else a.pause();
   }
 
@@ -368,7 +376,7 @@ export function DocCard({
   const note = problem ? missLabel(miss.state, t('thread.fileUnavailable')) : meta;
   const inner = (
     <>
-      {href && !verify && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={href} onPages={setPdfPages} />}
+      {href && (!verify || got) && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={href} onPages={setPdfPages} />}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
         <DocIcon size={26} />
         <b>{ext.slice(0, 4)}</b>
@@ -432,7 +440,7 @@ const autoRetried = new Set<string>();
  *
  * Con `onRetry`: se reintenta solo una vez al aparecer (el servidor le pide el
  * archivo a WhatsApp, y si venció, al teléfono) y queda "Bajar de nuevo". Si
- * WhatsApp ya no lo tiene, lo dice así y no ofrece reintentar.
+ * WhatsApp ya no lo tiene, lo dice así y ofrece pedírselo de nuevo al teléfono.
  */
 export function MediaUnavailable({
   kind = 'image',

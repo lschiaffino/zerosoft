@@ -101,7 +101,7 @@ export type GatewayReason = 'message_not_found' | 'offline' | 'media_gone' | 'ti
 export function gatewayReason(text: string): GatewayReason | undefined {
   const t = String(text ?? '').slice(0, 2000).toLowerCase();
   if (!t) return undefined;
-  if (/connection closed|connection lost|not connected|is not open|closed session|logged out|precondition required/.test(t)) return 'offline';
+  if (/connection closed|connection lost|not connected|is not open|closed session|logged out|precondition required|instance.{0,60}(not exist|not found)/.test(t)) return 'offline';
   if (/timed? ?out|timeout/.test(t)) return 'timeout';
   if (/re-?upload|media.{0,40}(expired|gone|not found|unavailable)|status code 4(04|10)|\b4(04|10)\b.{0,20}media/.test(t)) return 'media_gone';
   if (/message not found|not found/.test(t)) return 'message_not_found';

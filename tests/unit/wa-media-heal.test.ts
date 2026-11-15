@@ -30,6 +30,7 @@ describe('por qué falló (lo que ve la pantalla)', () => {
     expect(gatewayReason('Precondition Required')).toBe('offline');
     expect(gatewayReason('Media re-upload failed by device (404)')).toBe('media_gone');
     expect(gatewayReason('Request timed out')).toBe('timeout');
+    expect(gatewayReason('The "zs-x" instance does not exist')).toBe('offline');
     expect(gatewayReason('')).toBeUndefined();
     expect(gatewayReason('anything else')).toBeUndefined();
   });
@@ -142,7 +143,7 @@ describe('Range', () => {
   it('416 fuera del archivo; lo que no se entiende va entero', () => {
     expect(get('bytes=100-').status).toBe(416);
     expect(get('bytes=100-').headers.get('content-range')).toBe('bytes */100');
-    expect(get('bytes=5-2').status).toBe(416);
+    expect(get('bytes=5-2').status).toBe(200);
     expect(get('bytes=0-1,5-6').status).toBe(200);
     expect(parseRange('items=0-1', 100)).toBeNull();
     expect(parseRange('bytes=0-', 0)).toBe('unsatisfiable');
@@ -183,6 +184,26 @@ describe('transcripción cuando el audio vuelve', () => {
     await transcribeMessage('inbox', owner, other, audio, new Date(Date.now() + 3_600_000), { force: true });
     expect(loads).toBe(1);
     expect((await readTranscript('inbox', owner, other))?.error).toBe('audio_too_large');
+  });
+
+  it('lo que WhatsApp ya no tiene no se vuelve a pedir solo, solo cuando el audio vuelve', async () => {
+    vi.stubEnv('VOICE_TRANSCRIBE_PROVIDER', 'fake');
+    const owner = `u_${Math.random().toString(36).slice(2)}`;
+    const id = `m_${Math.random().toString(36).slice(2)}`;
+    const gone = async () => {
+      throw Object.assign(new Error('x'), { code: 'media_gone' });
+    };
+    expect(await transcribeMessage('inbox', owner, id, gone)).toMatchObject({ status: 'failed', error: 'media_gone' });
+    let loads = 0;
+    const audio = async () => {
+      loads++;
+      return { data: Buffer.from('RIFF....WAVE'), mimetype: 'audio/wav', seconds: 2 };
+    };
+    await transcribeMessage('inbox', owner, id, audio, new Date(Date.now() + 3_600_000));
+    expect(loads).toBe(0);
+    const done = await transcribeMessage('inbox', owner, id, audio, new Date(), { force: true });
+    expect(loads).toBe(1);
+    expect(done.status).toBe('done');
   });
 
   it('pasado el intervalo, se reintenta solo', async () => {

@@ -88,13 +88,14 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   const chatId = `${phone}@s.whatsapp.net`;
   const name = `Vera Audio ${uid()}`;
   const tag = uid();
-  const ids = { heal: `fail2-aud-${tag}`, gone: `gone-aud-${tag}`, doc: `fail1-doc-${tag}`, docGone: `gone-doc-${tag}`, ok: `aud-ok-${tag}` };
+  const ids = { heal: `fail2-aud-${tag}`, gone: `gone-aud-${tag}`, doc: `fail1-doc-${tag}`, docGone: `gone-doc-${tag}`, ok: `aud-ok-${tag}`, off: `off-aud-${tag}` };
   const events = [
     media('inbox', chatId, phone, name, ids.heal, 'voice', 0),
     media('inbox', chatId, phone, name, ids.gone, 'voice', 10),
     media('inbox', chatId, phone, name, ids.doc, 'document', 20),
     media('inbox', chatId, phone, name, ids.docGone, 'document', 30),
     media('inbox', chatId, phone, name, ids.ok, 'voice', 40),
+    media('inbox', chatId, phone, name, ids.off, 'voice', 50),
   ];
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
   expect(res.ok(), await res.text()).toBe(true);
@@ -108,7 +109,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   await open();
   const thread = page.locator('.ib-wa-thread');
   const voices = thread.getByTestId('wa-voice');
-  await expect(voices).toHaveCount(3);
+  await expect(voices).toHaveCount(4);
 
   // La transcripción se pide sola al ver el audio: como el audio no está, falla y no muestra nada (el aviso va en el audio).
   const healId = (await row(ids.heal)).id;
@@ -127,7 +128,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   await expect
     .poll(async () => String((await sql("SELECT status FROM wa_transcripts WHERE scope = 'inbox' AND message_id = ?", [healId]))[0]?.status ?? ''), { timeout: 30_000 })
     .toBe('done');
-  await expect(thread.locator('.wa-transcript').first()).toBeVisible();
+  await expect(thread.locator('.gr-msg').filter({ has: heal }).locator('.wa-transcript')).toBeVisible();
 
   // 2. Nota de voz que WhatsApp ya no tiene: lo dice, y el botón queda para pedírsela de nuevo al teléfono.
   const gone = voices.nth(1);
@@ -138,6 +139,12 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   await gone.getByTestId('wa-voice-play').click();
   await expect(gone).toHaveAttribute('data-state', 'gone', { timeout: 30_000 });
   await shot(page, 'inbox-voice-states', gone);
+
+  // 2b. El gateway dice que la sesión está cerrada: "línea desconectada", no "ya no está".
+  const off = voices.nth(3);
+  await off.getByTestId('wa-voice-play').click();
+  await expect(off).toHaveAttribute('data-state', 'offline', { timeout: 30_000 });
+  await expect(off.getByTestId('wa-voice-play')).toBeEnabled();
 
   // 3. Documento: la tarjeta lo va a buscar; la primera vez falla (pasajero) y dice que no se pudo; la segunda lo baja.
   const docs = thread.getByTestId('wa-doc-retry');

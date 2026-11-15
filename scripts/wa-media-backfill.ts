@@ -41,7 +41,7 @@ async function main() {
     sticker: "m.media_type = 'sticker'",
     document: "m.media_type <> '' AND m.media_type NOT LIKE 'image/%' AND m.media_type NOT LIKE 'video/%' AND m.media_type NOT LIKE 'audio/%' AND m.media_type NOT IN ('image', 'video', 'audio', 'sticker')",
   };
-  const kinds = (arg('kinds') || Object.keys(KINDS).join(',')).split(',').map((k) => k.trim()).filter((k) => k in KINDS);
+  const kinds = (arg('kinds') || Object.keys(KINDS).join(',')).split(',').map((k) => k.trim()).filter((k) => Object.hasOwn(KINDS, k));
   if (!kinds.length) throw new Error('kinds');
   const kindSql = kinds.map((k) => `(${KINDS[k]})`).join(' OR ');
   const since = new Date(Date.now() - days * 86_400_000).toISOString().replace('T', ' ').slice(0, 19);
@@ -86,7 +86,7 @@ async function main() {
         // Sin apurar al gateway ni al teléfono.
         await new Promise((res) => setTimeout(res, pause));
       }
-      console.log(`[lines] número ${numberId.slice(0, 6)}…: ${local.ok} bajadas, ${local.gone} ya no están en WhatsApp, ${local.pending} para más tarde`);
+      console.log(`[lines] número ${numberId.slice(0, 6)}…: ${local.ok} bajadas, ${local.gone} ya no están en WhatsApp, ${local.offline} sin conexión, ${local.pending} para más tarde`);
     }
     console.log(`[lines] total: ${tally.ok} bajadas, ${tally.gone} ya no están, ${tally.offline} con la línea desvinculada, ${tally.pending} para más tarde`);
   }

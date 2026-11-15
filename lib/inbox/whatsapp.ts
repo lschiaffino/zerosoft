@@ -600,14 +600,8 @@ export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string):
   const ref = readMediaRef(mediaRef);
   if (!ref) throw new InboxError('not_found', 404);
   const connected = account.status === 'connected';
-  let p: GroupsProvider;
-  try {
-    p = waProviderFor(account);
-  } catch (err) {
-    // Desvinculada (sin instancia): no es que el archivo no exista.
-    if (err instanceof InboxError && err.code === 'not_connected') throw err;
-    throw err;
-  }
+  // Desvinculada (sin instancia): tira not_connected (409), no es que el archivo no exista.
+  const p = waProviderFor(account);
   if (!p.fetchMedia) throw new InboxError('not_found', 404);
   try {
     return await p.fetchMedia(ref, MAX_MEDIA_BYTES);

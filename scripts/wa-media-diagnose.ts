@@ -70,7 +70,7 @@ async function inbox(sinceIso: string, probe: number): Promise<Array<{ account: 
       .prepare(
         `SELECT COUNT(*) AS n FROM (
            SELECT m.external_id FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
-           WHERE t.account_id = ? AND m.sent_at >= ? AND m.external_id NOT LIKE 'local-%' GROUP BY m.external_id HAVING COUNT(*) > 1)`,
+           WHERE t.account_id = ? AND m.sent_at >= ? AND m.external_id <> '' AND m.external_id NOT LIKE 'local-%' GROUP BY m.external_id HAVING COUNT(*) > 1)`,
       )
       .get(a.id, sinceIso)) as { n: number } | undefined;
     counts.repetidos_en_dos_chats = Number(twins?.n ?? 0);

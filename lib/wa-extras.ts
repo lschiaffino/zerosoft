@@ -337,7 +337,12 @@ export const SUMMARY_MIN_CHARS = 400;
 /** Cada cuánto se vuelve a intentar una transcripción que falló porque el audio no estaba. */
 export const MEDIA_RETRY_MS = 10 * 60_000;
 /** ¿Falló solo porque no se pudo bajar el audio? Entonces se reintenta cuando el audio vuelve. */
-export const retryableTranscript = (t: Pick<TranscriptDto, 'status' | 'error'> | null): boolean => !!t && t.status === 'failed' && t.error === 'media_unavailable';
+export const retryableTranscript = (t: Pick<TranscriptDto, 'status' | 'error'> | null): boolean => !!t && t.status === 'failed' && MEDIA_ERRORS.includes(t.error);
+/**
+ * Por qué no se pudo bajar el audio: pasajero (se reintenta solo cada MEDIA_RETRY_MS), la línea desvinculada (igual)
+ * o WhatsApp ya no lo tiene (solo se vuelve a pedir cuando la persona lo pide y el audio vuelve).
+ */
+export const MEDIA_ERRORS = ['media_unavailable', 'not_connected', 'media_gone'];
 /** Lo más largo que se transcribe solo. */
 export const TRANSCRIBE_MAX_BYTES = 16 * 1024 * 1024;
 
@@ -401,9 +406,11 @@ export async function transcribeMessage(
   const claim = await db
     .prepare(
       `UPDATE wa_transcripts SET status = 'pending', error = '', claimed_until = ?, updated_at = ? WHERE scope = ? AND owner_id = ? AND message_id = ?
-         AND ((status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)) OR (status = 'failed' AND error = 'media_unavailable' AND updated_at < ?))`,
+         AND ((status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?))
+           OR (status = 'failed' AND error IN ('media_unavailable', 'not_connected') AND updated_at < ?)
+           OR (status = 'failed' AND error = 'media_gone' AND ? = 1))`,
     )
-    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS, opts.force ? '9999' : new Date(now.getTime() - MEDIA_RETRY_MS).toISOString());
+    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS, opts.force ? '9999' : new Date(now.getTime() - MEDIA_RETRY_MS).toISOString(), opts.force ? 1 : 0);
   if (!claim.changes) return (await readTranscript(scope, ownerId, messageId))!;
   const finish = async (patch: Partial<Row> & { status: TranscriptStatus }) => {
     await db
@@ -414,8 +421,10 @@ export async function transcribeMessage(
   let audio: { data: Buffer; mimetype: string; seconds?: number };
   try {
     audio = await load();
-  } catch {
-    return finish({ status: 'failed', error: 'media_unavailable' });
+  } catch (err) {
+    // El motivo, si quien baja el audio lo dijo: lo que ya no está en WhatsApp no se vuelve a pedir solo.
+    const code = String((err as { code?: unknown })?.code ?? '');
+    return finish({ status: 'failed', error: MEDIA_ERRORS.includes(code) ? code : 'media_unavailable' });
   }
   if (audio.data.length > TRANSCRIBE_MAX_BYTES) return finish({ status: 'failed', error: 'audio_too_large' });
   try {
