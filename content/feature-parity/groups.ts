@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-13',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -137,6 +137,13 @@ const parity: ProductParity = {
         'GIFs tab in the emoji panel, between Emoji and Stickers: trending when empty, categories like WhatsApp (Haha, Sad, Love...), search in your language, and a click sends it as a WhatsApp GIF (MP4 that plays muted on a loop). Needs a GIPHY or Tenor key on the server. With Evolution 2.3.7 and earlier it arrives as a regular video, because that version does not pass gifPlayback. Tested with sample GIFs and the fake provider',
         'Pestaña GIF en el panel de emojis, entre Emoji y Stickers: tendencias al abrirla, categorías como WhatsApp (Jaja, Triste, Amor...), búsqueda en tu idioma, y un clic lo manda como GIF de WhatsApp (MP4 que se reproduce sin sonido y en bucle). Necesita una clave de GIPHY o Tenor en el servidor. Con Evolution 2.3.7 o anterior llega como video común, porque esa versión no pasa gifPlayback. Probado con GIF de ejemplo y el proveedor falso',
         'Aba GIFs no painel de emojis, entre Emoji e Figurinhas: em alta ao abrir, categorias como no WhatsApp (Haha, Triste, Amor...), pesquisa no seu idioma, e um clique envia como GIF do WhatsApp (MP4 que toca sem som e em loop). Precisa de uma chave do GIPHY ou do Tenor no servidor. Com o Evolution 2.3.7 ou anterior chega como vídeo comum, porque essa versão não repassa gifPlayback. Testado com GIFs de exemplo e o provedor falso',
+      ],
+    }),
+    row('wa-photos', 'inbox', ['Profile photos of chats and group members', 'Fotos de perfil de chats y miembros de grupos', 'Fotos de perfil de conversas e membros de grupos'], 'partial', {
+      detail: [
+        'Chats and every group member (next to their messages, in the member list and when mentioning), fetched a few at a time, stored so they do not expire and checked again every week. Tested with the fake provider',
+        'Los chats y cada miembro de un grupo (al lado de sus mensajes, en la lista de miembros y al mencionar), pedidas de a pocas, guardadas para que no venzan y revisadas cada semana. Probado con el proveedor falso',
+        'As conversas e cada membro de um grupo (ao lado das mensagens, na lista de membros e ao mencionar), buscadas poucas por vez, guardadas para não expirar e conferidas toda semana. Testado com o provedor falso',
       ],
     }),
     row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {

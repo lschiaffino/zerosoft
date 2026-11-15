@@ -178,6 +178,9 @@ const WaConversation = forwardRef<
     return m;
   }, [wa, messages, w]);
 
+  // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
+  const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
+
   // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
   const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
   // Solo el teléfono: "@+teléfono"; nada (un lid sin resolver): "@alguien", nunca los dígitos.
@@ -370,9 +373,9 @@ const WaConversation = forwardRef<
           caption: m.body,
           author: m.fromMe ? w('you') : group ? names.get(m.senderHandle) || senderLabel(m.senderName, m.senderHandle) : name,
           createdAt: m.sentAt,
-          avatar: m.fromMe ? undefined : group ? { src: '', seed: m.senderHandle || m.senderName, kind: 'dm' as const } : { src: thread.avatar, seed: thread.id, kind: 'dm' as const },
+          avatar: m.fromMe ? undefined : group ? { src: avatars.get(m.senderHandle) ?? '', seed: m.senderHandle || m.senderName, kind: 'dm' as const } : { src: thread.avatar, seed: thread.id, kind: 'dm' as const },
         })),
-    [messages, names, group, name, thread.avatar, thread.id, w],
+    [messages, names, avatars, group, name, thread.avatar, thread.id, w],
   );
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
 
@@ -510,7 +513,7 @@ const WaConversation = forwardRef<
         </span>
         {groupIn && (
           <span className="wa-sender-avatar" aria-hidden="true">
-            {!cont && <Avatar name={author} kind="dm" size={26} seed={m.senderHandle || m.senderName} />}
+            {!cont && <Avatar name={author} kind="dm" size={26} src={avatars.get(m.senderHandle) || undefined} seed={m.senderHandle || m.senderName} />}
           </span>
         )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
@@ -581,7 +584,7 @@ const WaConversation = forwardRef<
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
-                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
+                  avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), src: avatars.get(m.senderHandle) || undefined, seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
@@ -869,7 +872,7 @@ const WaConversation = forwardRef<
           attach={(extra) => <AttachButton onFiles={tray.add} disabled={!connected} extra={extra} />}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
-          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
+          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined}
           onTyping={() => presence('composing')}
           commands={slashCommands}
           onCancelBanner={() => {
