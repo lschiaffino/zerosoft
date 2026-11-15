@@ -253,6 +253,7 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
   const nowS = nowIso(now);
 
   if (part.part === 'messages') {
+    const dm: string[] = [];
     for (const m of part.messages) {
       const t = await threadFor(account, cache, m.chatId);
       if (!t) continue;
@@ -268,6 +269,14 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
         history: true,
       });
       if (added) out.messages++;
+      if (t.kind === 'dm') dm.push(stanzaIdOf(m.id));
+    }
+    // La misma persona con dos chats (uno por lid que llegó en vivo, otro por teléfono de lo importado): el mismo
+    // mensaje en los dos los junta (lib/wa-dedupe.ts). Nunca frena la importación.
+    if (dm.length) {
+      const { inboxTwinsFromMessages, mergeLidChats } = await import('../wa-dedupe-run');
+      const pairs = await inboxTwinsFromMessages(account, dm).catch(() => []);
+      if (pairs.length) await mergeLidChats('inbox', account.id, { pairs });
     }
     return out;
   }

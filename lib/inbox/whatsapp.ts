@@ -31,7 +31,7 @@ import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './type
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
 import { contactInput, inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
 import { contactsFromMessage, lidPhonePairs, lookupContacts, displayName, phoneForLid, resolveLidChats, type ContactInput } from '../wa-contacts';
-import { inboxTwinsFromMessages, mergeLidChats } from '../wa-dedupe-run';
+import { inboxTwinsFromMessages, mergeLidChats, routeLidByKnownMessages } from '../wa-dedupe-run';
 import { pokeLive } from '../wa-live';
 import { transientError } from '../transient-error';
 
@@ -313,6 +313,10 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   else learning = learnFromEvents(account, slice).catch(() => null);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   slice = await resolveLidChats(inboxScope(account), slice).catch(() => slice);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono (el eco de lo que mandé) es de esa
+  // persona; va a ese chat y la libreta aprende el par (lib/wa-dedupe-run.ts).
+  const resolved = slice;
+  slice = await routeLidByKnownMessages('inbox', { ...inboxScope(account), ownerId: account.owner_id }, slice).catch(() => resolved);
   // Mensajes ya guardados: lo que falle después de guardarlos (el nombre del chat) no pide reintento.
   const stored = new Set<string>();
   for (const e of slice) {
@@ -419,18 +423,19 @@ async function afterResponse(job: () => Promise<unknown>): Promise<void> {
 /** Después de una tanda: juntar los chats por lid con el del teléfono que esta tanda dejó a la vista. */
 async function dedupeBatch(account: AccountRow, events: InboundEvent[]): Promise<void> {
   const items: ContactInput[] = [];
-  const inbound: string[] = [];
+  const dm: string[] = [];
   for (const e of events) {
     if (e.type === 'message') {
       items.push(...contactsFromMessage(e));
-      if (!e.fromMe && !(e.isGroup || waKindOf(e.chatId) === 'group')) inbound.push(e.providerMessageId);
+      // Recibidos y propios: el eco de lo que mandé también llega a veces solo con el lid.
+      if (!(e.isGroup || waKindOf(e.chatId) === 'group')) dm.push(e.providerMessageId);
     } else if (e.type === 'contact') {
       const c = contactInput(e);
       if (c) items.push(c);
     }
   }
   const lids = lidPhonePairs(items).map((p) => p.lid);
-  const pairs = await inboxTwinsFromMessages(account, inbound).catch(() => []);
+  const pairs = await inboxTwinsFromMessages(account, dm).catch(() => []);
   if (lids.length || pairs.length) await mergeLidChats('inbox', account.id, { lids, pairs });
 }
 

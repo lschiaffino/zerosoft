@@ -249,7 +249,11 @@ export type InboundEvent =
       /** Cuándo reaccionó (si el proveedor lo dice): una reacción vieja que llega tarde (un reintento) no pisa una nueva. */
       at?: string;
     }
-  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed' }
+  /**
+   * Tildes de un mensaje. `chatId` solo cuando la confirmación vino de un chat 1:1 por lid ("<lid>@lid"): si el
+   * mensaje está en el chat de un teléfono, ese lid es de ese teléfono (lib/wa-dedupe-run.ts).
+   */
+  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed'; chatId?: string }
   /** Alguien editó un mensaje (texto nuevo). `at`: cuándo, si el proveedor lo dice (una edición vieja no pisa una nueva). */
   | { type: 'edit'; chatId: string; providerMessageId: string; body: string; at?: string }
   /** Alguien borró un mensaje para todos. */

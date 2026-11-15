@@ -231,8 +231,11 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
   // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
   const learned = await learnLinesEvents(number, incoming.slice(0, 2000));
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
-  const events = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
-  // Mensajes recibidos repetidos que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
+  const resolved = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono es de esa persona (lib/wa-dedupe-run.ts).
+  const { routeLidByKnownMessages } = await import('./wa-dedupe-run');
+  const events = await routeLidByKnownMessages('lines', { app: 'lines', accountId: number.id, userId: number.user_id }, resolved).catch(() => resolved);
+  // Mensajes repetidos (recibidos o propios) que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
   const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   const db = getDb();
   const ws = number.user_id;
@@ -294,7 +297,7 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
         });
         if (!row) {
           res.duplicates++;
-          if (chat.kind === 'dm' && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
+          if (chat.kind === 'dm') dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
           continue;
         }
         res.messages++;
