@@ -305,12 +305,12 @@ test.describe('Lines', () => {
     expect(await outlined(page)).toEqual([]);
     expect(await rows.nth(0).evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
 
-    // Un control que conserva el foco tras el clic (la casilla de una fila): una tecla no le dibuja un recuadro.
-    const item = page.locator('.gr-row-item').nth(2);
-    await item.hover();
-    await item.locator('.gr-row-check').click();
+    // Un control que conserva el foco tras el clic (el botón de seleccionar, arriba de la lista): una tecla no le dibuja un recuadro.
+    const selectBtn = page.locator('.wa-filter-btn[aria-pressed]');
+    await selectBtn.click();
+    await expect(selectBtn).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('g');
-    expect(await item.locator('.gr-row-check').evaluate((el) => el === document.activeElement && el.matches(':focus-visible'))).toBe(true);
+    expect(await selectBtn.evaluate((el) => el === document.activeElement && el.matches(':focus-visible'))).toBe(true);
     expect(await outlined(page)).toEqual([]);
   });
 
