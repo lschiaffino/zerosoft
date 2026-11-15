@@ -29,6 +29,7 @@
  *
  * Server-only.
  */
+import { eagerWorthy, queueMediaJob } from './wa-media-jobs';
 import { getDb } from './db';
 import {
   applyReaction,
@@ -301,6 +302,8 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
           continue;
         }
         res.messages++;
+        // El archivo de un mensaje del historial se baja por la cola (solo lo reciente; lo más viejo, al abrirlo).
+        if (row.media_url.startsWith('evo:') && eagerWorthy(at)) await queueMediaJob('lines', number.id, row.id).catch(() => null);
         byProvider.set(ev.providerMessageId, row.id);
         const prev = latest.get(chat.id);
         if (!prev || at >= prev.at) {

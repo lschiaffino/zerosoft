@@ -83,6 +83,8 @@ export async function GET(req: NextRequest) {
   const waArchive = await import('@/lib/wa-archive-sync').then((m) => m.runArchivePushes({ limit: 100, deadline: start + 30_000 })).catch(() => null);
   // Inbox y Lines: el historial de los chats con mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts).
   const waHistory = await import('@/lib/wa-history-gaps').then((m) => m.runHistoryFetches({ limit: 20, deadline: start + 35_000 })).catch(() => null);
+  // Inbox y Lines: los archivos de WhatsApp que no se pudieron bajar al llegar (reintentos espaciados, claim por fila).
+  const waMedia = await import('@/lib/wa-media-jobs').then((m) => m.runMediaJobs({ limit: 8, deadline: start + 45_000 })).catch(() => null);
   await import('@/lib/wa-live').then((m) => m.pruneLiveEvents()).catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const noteTasks = await fireNoteTasksDue({ limit: 200 }).catch(() => null);
@@ -145,5 +147,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

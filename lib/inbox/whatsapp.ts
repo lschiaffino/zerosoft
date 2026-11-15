@@ -14,6 +14,7 @@ import { cleanPushName } from '../groups-provider-bridge';
 import { ProviderError, type MediaRef, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import { fetchStateOf, logMediaFailure } from '../wa-media-wire';
+import { eagerWorthy } from '../wa-media-jobs';
 import { openWire, sealWire } from '../wa-media-wire-seal';
 import {
   addMessage,
@@ -252,6 +253,18 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
+  // El archivo se baja y se guarda aparte (cola con reintentos, lib/wa-media-jobs.ts): desde ahí no depende de que el
+  // servidor de WhatsApp siga teniendo el mensaje. Solo lo reciente; lo más viejo se guarda al abrirlo.
+  if (added && media?.fetchRef && e.providerMessageId && eagerWorthy(e.timestamp)) {
+    await getDb()
+      .prepare(
+        `INSERT INTO wa_media_jobs (app, message_id, scope_id, attempts, next_at, created_at)
+         SELECT 'inbox', m.id, ?, 0, ?, ? FROM inbox_messages m WHERE m.thread_id = ? AND m.external_id = ? ON CONFLICT (app, message_id) DO NOTHING`,
+      )
+      // Unos segundos después: el gateway puede guardar el mensaje un instante después de avisarlo.
+      .run(account.id, new Date(Date.now() + 5000).toISOString(), new Date().toISOString(), thread.id, e.providerMessageId)
+      .catch(() => null);
+  }
   // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta. Si falla, el
   // mensaje ya está guardado: se loguea y se sigue.
   if (input.kind === 'dm' && thread.handle && (!thread.title || thread.title === thread.handle)) {

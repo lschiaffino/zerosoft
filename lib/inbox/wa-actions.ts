@@ -12,7 +12,8 @@ import { pokeLive } from '../wa-live';
 import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { forwardWhatsappMedia } from './wa-media';
-import { fetchWhatsappMedia, sendWhatsappText, waProviderFor } from './whatsapp';
+import { sendWhatsappText, waProviderFor } from './whatsapp';
+import { inboxMedia } from './media-store';
 import { readTranscript, retryableTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
 import { storeReaction } from './wa-meta';
 
@@ -214,7 +215,7 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
   const text = msg.body.trim();
   if (!msg.media_type && !text) throw new InboxError('invalid_input', 400);
   if (msg.media_type && !msg.media_ref) throw new InboxError('media_unavailable', 400);
-  let file: ReturnType<typeof fetchWhatsappMedia> | null = null;
+  let file: ReturnType<typeof inboxMedia> | null = null;
   const out: ForwardOutcome = { sent: [], failed: [] };
   for (const id of [...new Set(targetIds)].slice(0, 5)) {
     try {
@@ -224,7 +225,7 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
       if (!msg.media_type) {
         await sendWhatsappText(target, thread, text, { forwarded: true });
       } else {
-        file ??= fetchWhatsappMedia(account, msg.media_ref);
+        file ??= inboxMedia(account, owner, msg);
         const src = { mediaType: msg.media_type, mediaName: msg.media_name, body: msg.body, meta };
         await forwardWhatsappMedia(target, thread, src, await file);
         // WhatsApp no muestra texto en un audio o un sticker: va aparte, como lo manda Lines.
@@ -256,7 +257,7 @@ export async function messageTranscript(owner: string, messageId: string, start:
     seconds = undefined;
   }
   return transcribeMessage('inbox', owner, msg.id, async () => {
-    const f = await fetchWhatsappMedia(account, msg.media_ref);
+    const f = await inboxMedia(account, owner, msg);
     return { data: f.data, mimetype: f.mimetype, seconds };
   }, new Date(), { force });
 }

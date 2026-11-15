@@ -105,6 +105,8 @@ export async function GET(req: NextRequest) {
   const docAuditPruned = await pruneDocsAudit().catch(() => null);
   // Feed en vivo de Docs: operaciones de más de una hora y el resto (cursores, avisos) de más de dos minutos.
   await pruneDocsLiveEvents().catch(() => null);
+  // Inbox: copias de archivos de WhatsApp cuyo mensaje ya no existe o se borró para todos.
+  await import('@/lib/inbox/media-store').then((m) => m.sweepOrphanMedia(500)).catch(() => null);
   // Track: lo que corre solo. Los recordatorios van antes que los emails.
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);
