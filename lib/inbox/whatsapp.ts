@@ -14,7 +14,7 @@ import { cleanPushName } from '../groups-provider-bridge';
 import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import { logMediaFailure, parseMediaWire, type MediaWire } from '../wa-media-wire';
-import { afterResponse, storeLinkHq } from '../wa-link-thumb';
+import { storeLinkHq } from '../wa-link-thumb';
 import {
   addMessage,
   addMessageToChat,
@@ -250,7 +250,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   if (added && e.link?.hq && !(history || e.history)) {
     const ref = e.link.hq;
     await afterResponse(async () => {
-      if (await storeLinkHq('inbox_messages', savedId, ref)) pokeLive('inbox', account.owner_id);
+      if (await storeLinkHq('inbox_messages', savedId, ref).catch(() => false)) pokeLive('inbox', account.owner_id);
     });
   }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).

@@ -169,13 +169,3 @@ export async function storeLinkHq(table: 'inbox_messages' | 'groups_messages', i
   await db.prepare(`UPDATE ${table} SET meta = json_set(json_remove(meta, '$.link.hqRef'), '$.link.hq', json(?)) WHERE id = ? AND json_valid(meta)`).run(JSON.stringify(hq), id);
   return true;
 }
-
-/** Después de responder (next/server after); fuera de un request, en el momento. Nunca tira. */
-export async function afterResponse(job: () => Promise<unknown>): Promise<void> {
-  try {
-    const { after } = await import('next/server');
-    after(() => job().catch(() => null));
-  } catch {
-    await job().catch(() => null);
-  }
-}
