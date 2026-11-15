@@ -1,0 +1,37 @@
+{
+  "app": "mail-export",
+  "exportedAt": "2026-11-14T12:00:00.000Z",
+  "labels": [
+    { "name": "INBOX", "type": "system" },
+    { "name": "Clientes", "color": { "backgroundColor": "#2f80ed" } },
+    { "name": "Clientes/VIP" },
+    { "name": "Facturas" },
+    { "name": "Newsletters" }
+  ],
+  "rules": [
+    {
+      "name": "VIP",
+      "enabled": true,
+      "conditions": { "from": "ana@example.com OR beto@example.com" },
+      "actions": [{ "type": "LABEL", "label": "Clientes/VIP" }, { "type": "ARCHIVE" }]
+    },
+    {
+      "name": "Facturas",
+      "enabled": true,
+      "conditions": { "from": "facturas@example.org", "subject": "factura" },
+      "actions": [{ "type": "LABEL", "label": "Facturas" }]
+    },
+    {
+      "name": "Proveedores",
+      "enabled": true,
+      "conditions": { "from": "@example.net" },
+      "actions": [{ "type": "LABEL", "label": "Proveedores/Insumos" }]
+    },
+    {
+      "name": "Apagada",
+      "enabled": false,
+      "conditions": { "from": "nadie@example.com" },
+      "actions": [{ "type": "LABEL", "label": "No crear" }]
+    }
+  ]
+}

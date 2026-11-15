@@ -3,12 +3,20 @@ import {
   ambiguousToServer,
   baseFrom,
   clearDraft,
+  clearLocalBoard,
+  createLocalBoard,
+  draftAction,
   draftDiffers,
   flushOnLeave,
+  listLocalBoards,
   mergeBoardScenes,
+  NEW_BOARD_VERSION,
   readDraft,
+  readLocalBoard,
   remoteAction,
+  syncLocalBoard,
   writeDraft,
+  writeLocalBoard,
   type PutResult,
   type Reconcile,
   type SyncEl,
@@ -327,5 +335,75 @@ describe('remoteAction: sondeo de cambios de otros', () => {
     expect(ids(applied)).toEqual(['b', 'c']);
     expect(byId(applied, 'b')?.version).toBe(2);
     expect(ambiguousToServer({ elements: local, ambiguous: [] }, server.elements)).toBe(local);
+  });
+});
+
+describe('borrador al abrir y pizarras creadas sin red', () => {
+  function listable() {
+    const s = memoryStorage();
+    return {
+      ...s,
+      key: (i: number) => [...s.m.keys()][i] ?? null,
+      get length() {
+        return s.m.size;
+      },
+    };
+  }
+
+  it('el borrador vuelve solo si se hizo sobre la versión que se abre; si no, se ofrece', () => {
+    const server = scene([el('a', 1)]);
+    const mine = { baseVersion: 4, scene: scene([el('a', 1), el('b', 1)]), savedAt: Date.now() };
+    expect(draftAction(null, server, 4)).toBe('none');
+    expect(draftAction({ ...mine, scene: server }, server, 4)).toBe('drop');
+    expect(draftAction(mine, server, 4)).toBe('restore');
+    expect(draftAction(mine, server, 5)).toBe('ask');
+  });
+
+  it('guarda, lista (la más nueva primero) y borra las pizarras del dispositivo', () => {
+    const s = listable();
+    writeLocalBoard(s, { id: 'x1', name: 'Uno', folderId: null, createdAt: 1 });
+    writeLocalBoard(s, { id: 'x2', name: 'Dos', folderId: 'f', createdAt: 2 });
+    writeDraft(s, 'x2', { baseVersion: 1, scene: scene([]), savedAt: 0 });
+    expect(listLocalBoards(s).map((b) => b.id)).toEqual(['x2', 'x1']);
+    expect(readLocalBoard(s, 'x2')).toEqual({ id: 'x2', name: 'Dos', folderId: 'f', createdAt: 2 });
+    clearLocalBoard(s, 'x1');
+    expect(listLocalBoards(s).map((b) => b.id)).toEqual(['x2']);
+    expect(listLocalBoards(null)).toEqual([]);
+  });
+
+  it('sube una vez: crea con el mismo id, manda lo dibujado y limpia; sin red no toca nada', async () => {
+    const s = listable();
+    writeLocalBoard(s, { id: 'x1', name: 'Uno', folderId: null, createdAt: 1 });
+    writeDraft(s, 'x1', { baseVersion: NEW_BOARD_VERSION, scene: scene([el('a', 1)]), savedAt: Date.now() });
+
+    const offline = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    expect(await syncLocalBoard(s, 'x1', offline)).toBe('offline');
+    expect(readLocalBoard(s, 'x1')).not.toBeNull();
+    expect(readDraft(s, 'x1')).not.toBeNull();
+
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const ok = vi.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init.body)) });
+      return new Response(JSON.stringify({ id: 'x1', version: 1 }), { status: url === '/api/boards' ? 201 : 200 });
+    });
+    expect(await syncLocalBoard(s, 'x1', ok)).toBe('synced');
+    expect(calls.map((c) => c.url)).toEqual(['/api/boards', '/api/boards/x1/scene']);
+    expect(calls[0].body).toEqual({ id: 'x1', name: 'Uno', folderId: null });
+    expect((calls[1].body as { version: number }).version).toBe(1);
+    expect(readLocalBoard(s, 'x1')).toBeNull();
+    expect(readDraft(s, 'x1')).toBeNull();
+    // Ya subida: no queda nada que mandar.
+    expect(await syncLocalBoard(s, 'x1', ok)).toBe('missing');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('si el servidor la rechaza queda en el dispositivo', async () => {
+    const s = listable();
+    writeLocalBoard(s, { id: 'x1', name: 'Uno', folderId: null, createdAt: 1 });
+    const rejected = vi.fn(async () => new Response('{}', { status: 409 }));
+    expect(await createLocalBoard(s, 'x1', rejected)).toEqual({ result: 'failed' });
+    expect(readLocalBoard(s, 'x1')).not.toBeNull();
   });
 });

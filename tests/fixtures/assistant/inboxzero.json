@@ -1,0 +1,779 @@
+{
+  "format": "inbox-zero-export",
+  "version": 1,
+  "exportedAt": "2026-11-14T12:00:00.000Z",
+  "folders": [
+    {
+      "id": 1,
+      "name": "Clientes",
+      "color": "#2f80ed",
+      "icon": "",
+      "position": 0,
+      "parentId": null
+    },
+    {
+      "id": 2,
+      "name": "VIP",
+      "color": "#eb5757",
+      "icon": "",
+      "position": 1,
+      "parentId": 1
+    },
+    {
+      "id": 3,
+      "name": "Potenciales",
+      "color": "",
+      "icon": "",
+      "position": 2,
+      "parentId": 1
+    },
+    {
+      "id": 4,
+      "name": "Ex clientes",
+      "color": "",
+      "icon": "",
+      "position": 3,
+      "parentId": 1
+    },
+    {
+      "id": 5,
+      "name": "Proveedores",
+      "color": "#27ae60",
+      "icon": "",
+      "position": 4,
+      "parentId": null
+    },
+    {
+      "id": 6,
+      "name": "Insumos",
+      "color": "",
+      "icon": "",
+      "position": 5,
+      "parentId": 5
+    },
+    {
+      "id": 7,
+      "name": "Logística",
+      "color": "",
+      "icon": "",
+      "position": 6,
+      "parentId": 5
+    },
+    {
+      "id": 8,
+      "name": "Equipo",
+      "color": "#9b51e0",
+      "icon": "",
+      "position": 7,
+      "parentId": null
+    },
+    {
+      "id": 9,
+      "name": "Ventas",
+      "color": "",
+      "icon": "",
+      "position": 8,
+      "parentId": 8
+    },
+    {
+      "id": 10,
+      "name": "Soporte",
+      "color": "",
+      "icon": "",
+      "position": 9,
+      "parentId": 8
+    },
+    {
+      "id": 11,
+      "name": "Diseño",
+      "color": "",
+      "icon": "",
+      "position": 10,
+      "parentId": 8
+    },
+    {
+      "id": 12,
+      "name": "Familia",
+      "color": "#f2994a",
+      "icon": "",
+      "position": 11,
+      "parentId": null
+    },
+    {
+      "id": 13,
+      "name": "Amigos",
+      "color": "",
+      "icon": "",
+      "position": 12,
+      "parentId": null
+    },
+    {
+      "id": 14,
+      "name": "Fútbol",
+      "color": "",
+      "icon": "",
+      "position": 13,
+      "parentId": 13
+    },
+    {
+      "id": 15,
+      "name": "Facultad",
+      "color": "",
+      "icon": "",
+      "position": 14,
+      "parentId": 13
+    },
+    {
+      "id": 16,
+      "name": "Trámites",
+      "color": "",
+      "icon": "",
+      "position": 15,
+      "parentId": null
+    },
+    {
+      "id": 17,
+      "name": "Banco",
+      "color": "",
+      "icon": "",
+      "position": 16,
+      "parentId": 16
+    },
+    {
+      "id": 18,
+      "name": "Seguros",
+      "color": "",
+      "icon": "",
+      "position": 17,
+      "parentId": 16
+    },
+    {
+      "id": 19,
+      "name": "Viajes",
+      "color": "#56ccf2",
+      "icon": "",
+      "position": 18,
+      "parentId": null
+    },
+    {
+      "id": 20,
+      "name": "Newsletters",
+      "color": "",
+      "icon": "",
+      "position": 19,
+      "parentId": null
+    },
+    {
+      "id": 21,
+      "name": "Pendientes",
+      "color": "#f2c94c",
+      "icon": "",
+      "position": 20,
+      "parentId": null
+    },
+    {
+      "id": 22,
+      "name": "Archivo 2025",
+      "color": "",
+      "icon": "",
+      "position": 21,
+      "parentId": null
+    },
+    {
+      "id": 23,
+      "name": "Grupos",
+      "color": "",
+      "icon": "",
+      "position": 22,
+      "parentId": null
+    }
+  ],
+  "chatFolders": [
+    {
+      "chatId": "5491155500001@c.us",
+      "folderId": 1
+    },
+    {
+      "chatId": "5491155500002@c.us",
+      "folderId": 1
+    },
+    {
+      "chatId": "5491155500003@c.us",
+      "folderId": 1
+    },
+    {
+      "chatId": "5491155500004@c.us",
+      "folderId": 2
+    },
+    {
+      "chatId": "5491155500005@c.us",
+      "folderId": 2
+    },
+    {
+      "chatId": "5491155500006@c.us",
+      "folderId": 3
+    },
+    {
+      "chatId": "5491155500007@c.us",
+      "folderId": 3
+    },
+    {
+      "chatId": "5491155500008@c.us",
+      "folderId": 4
+    },
+    {
+      "chatId": "5491155500009@c.us",
+      "folderId": 4
+    },
+    {
+      "chatId": "5491155500010@c.us",
+      "folderId": 4
+    },
+    {
+      "chatId": "5491155500011@c.us",
+      "folderId": 5
+    },
+    {
+      "chatId": "5491155500012@c.us",
+      "folderId": 5
+    },
+    {
+      "chatId": "5491155500013@c.us",
+      "folderId": 6
+    },
+    {
+      "chatId": "5491155500014@c.us",
+      "folderId": 6
+    },
+    {
+      "chatId": "5491155500015@c.us",
+      "folderId": 7
+    },
+    {
+      "chatId": "5491155500016@c.us",
+      "folderId": 7
+    },
+    {
+      "chatId": "5491155500017@c.us",
+      "folderId": 7
+    },
+    {
+      "chatId": "5491155500018@c.us",
+      "folderId": 8
+    },
+    {
+      "chatId": "5491155500019@c.us",
+      "folderId": 8
+    },
+    {
+      "chatId": "5491155500020@c.us",
+      "folderId": 9
+    },
+    {
+      "chatId": "5491155500021@c.us",
+      "folderId": 9
+    },
+    {
+      "chatId": "5491155500022@c.us",
+      "folderId": 10
+    },
+    {
+      "chatId": "5491155500023@c.us",
+      "folderId": 10
+    },
+    {
+      "chatId": "5491155500024@c.us",
+      "folderId": 10
+    },
+    {
+      "chatId": "5491155500025@c.us",
+      "folderId": 11
+    },
+    {
+      "chatId": "5491155500026@c.us",
+      "folderId": 11
+    },
+    {
+      "chatId": "5491155500027@c.us",
+      "folderId": 12
+    },
+    {
+      "chatId": "5491155500028@c.us",
+      "folderId": 12
+    },
+    {
+      "chatId": "5491155500029@c.us",
+      "folderId": 13
+    },
+    {
+      "chatId": "5491155500030@c.us",
+      "folderId": 13
+    },
+    {
+      "chatId": "5491155500031@c.us",
+      "folderId": 13
+    },
+    {
+      "chatId": "5491155500032@c.us",
+      "folderId": 14
+    },
+    {
+      "chatId": "5491155500033@c.us",
+      "folderId": 14
+    },
+    {
+      "chatId": "5491155500034@c.us",
+      "folderId": 15
+    },
+    {
+      "chatId": "5491155500035@c.us",
+      "folderId": 15
+    },
+    {
+      "chatId": "5491155500036@c.us",
+      "folderId": 16
+    },
+    {
+      "chatId": "5491155500037@c.us",
+      "folderId": 16
+    },
+    {
+      "chatId": "5491155500038@c.us",
+      "folderId": 16
+    },
+    {
+      "chatId": "5491155500039@c.us",
+      "folderId": 17
+    },
+    {
+      "chatId": "5491155500040@c.us",
+      "folderId": 17
+    },
+    {
+      "chatId": "5491155500041@c.us",
+      "folderId": 18
+    },
+    {
+      "chatId": "5491155500042@c.us",
+      "folderId": 18
+    },
+    {
+      "chatId": "5491155500043@c.us",
+      "folderId": 19
+    },
+    {
+      "chatId": "5491155500044@c.us",
+      "folderId": 19
+    },
+    {
+      "chatId": "5491155500045@c.us",
+      "folderId": 19
+    },
+    {
+      "chatId": "5491155500046@c.us",
+      "folderId": 20
+    },
+    {
+      "chatId": "5491155500047@c.us",
+      "folderId": 20
+    },
+    {
+      "chatId": "5491155500048@c.us",
+      "folderId": 21
+    },
+    {
+      "chatId": "5491155500049@c.us",
+      "folderId": 21
+    },
+    {
+      "chatId": "5491155500050@c.us",
+      "folderId": 22
+    },
+    {
+      "chatId": "5491155500051@c.us",
+      "folderId": 22
+    },
+    {
+      "chatId": "5491155500052@c.us",
+      "folderId": 22
+    },
+    {
+      "chatId": "5491155500053@c.us",
+      "folderId": 23
+    },
+    {
+      "chatId": "5491155500054@c.us",
+      "folderId": 23
+    },
+    {
+      "chatId": "120363000000000000@g.us",
+      "folderId": 23
+    },
+    {
+      "chatId": "120363000000000001@g.us",
+      "folderId": 23
+    },
+    {
+      "chatId": "120363000000000002@g.us",
+      "folderId": 23
+    },
+    {
+      "chatId": "120363000000000003@g.us",
+      "folderId": 23
+    }
+  ],
+  "chats": [
+    {
+      "chatId": "5491155500001@c.us",
+      "name": "Beto Núñez 1",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500002@c.us",
+      "name": "Caro Pérez 2",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500003@c.us",
+      "name": "Dani Ríos 3",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500004@c.us",
+      "name": "Eli Sosa 4",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500005@c.us",
+      "name": "Fede Vega 5",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500006@c.us",
+      "name": "Gabi Luna 6",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500007@c.us",
+      "name": "Hugo Paz 7",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500008@c.us",
+      "name": "Inés Gómez 8",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500009@c.us",
+      "name": "Juli Núñez 9",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500010@c.us",
+      "name": "Kari Pérez 10",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500011@c.us",
+      "name": "Lucho Ríos 11",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500012@c.us",
+      "name": "Male Sosa 12",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500013@c.us",
+      "name": "Nico Vega 13",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500014@c.us",
+      "name": "Oli Luna 14",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500015@c.us",
+      "name": "Pato Paz 15",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500016@c.us",
+      "name": "Quique Gómez 16",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500017@c.us",
+      "name": "Rocío Núñez 17",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500018@c.us",
+      "name": "Santi Pérez 18",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500019@c.us",
+      "name": "Tati Ríos 19",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500020@c.us",
+      "name": "Ana Sosa 20",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500021@c.us",
+      "name": "Beto Vega 21",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500022@c.us",
+      "name": "Caro Luna 22",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500023@c.us",
+      "name": "Dani Paz 23",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500024@c.us",
+      "name": "Eli Gómez 24",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500025@c.us",
+      "name": "Fede Núñez 25",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500026@c.us",
+      "name": "Gabi Pérez 26",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500027@c.us",
+      "name": "Hugo Ríos 27",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500028@c.us",
+      "name": "Inés Sosa 28",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500029@c.us",
+      "name": "Juli Vega 29",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500030@c.us",
+      "name": "Kari Luna 30",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500031@c.us",
+      "name": "Lucho Paz 31",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500032@c.us",
+      "name": "Male Gómez 32",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500033@c.us",
+      "name": "Nico Núñez 33",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500034@c.us",
+      "name": "Oli Pérez 34",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500035@c.us",
+      "name": "Pato Ríos 35",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500036@c.us",
+      "name": "Quique Sosa 36",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500037@c.us",
+      "name": "Rocío Vega 37",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500038@c.us",
+      "name": "Santi Luna 38",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500039@c.us",
+      "name": "Tati Paz 39",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500040@c.us",
+      "name": "Ana Gómez 40",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500041@c.us",
+      "name": "Beto Núñez 41",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500042@c.us",
+      "name": "Caro Pérez 42",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500043@c.us",
+      "name": "Dani Ríos 43",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500044@c.us",
+      "name": "Eli Sosa 44",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500045@c.us",
+      "name": "Fede Vega 45",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500046@c.us",
+      "name": "Gabi Luna 46",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500047@c.us",
+      "name": "Hugo Paz 47",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500048@c.us",
+      "name": "Inés Gómez 48",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500049@c.us",
+      "name": "Juli Núñez 49",
+      "isGroup": false,
+      "archived": true
+    },
+    {
+      "chatId": "5491155500050@c.us",
+      "name": "Kari Pérez 50",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500051@c.us",
+      "name": "Lucho Ríos 51",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500052@c.us",
+      "name": "Male Sosa 52",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500053@c.us",
+      "name": "Nico Vega 53",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "5491155500054@c.us",
+      "name": "Oli Luna 54",
+      "isGroup": false,
+      "archived": false
+    },
+    {
+      "chatId": "120363000000000000@g.us",
+      "name": "Grupo de prueba 1",
+      "isGroup": true,
+      "archived": false
+    },
+    {
+      "chatId": "120363000000000001@g.us",
+      "name": "Grupo de prueba 2",
+      "isGroup": true,
+      "archived": false
+    },
+    {
+      "chatId": "120363000000000002@g.us",
+      "name": "Grupo de prueba 3",
+      "isGroup": true,
+      "archived": false
+    },
+    {
+      "chatId": "120363000000000003@g.us",
+      "name": "Grupo de prueba 4",
+      "isGroup": true,
+      "archived": false
+    }
+  ],
+  "scheduled": [],
+  "drafts": [],
+  "snoozes": [],
+  "notes": []
+}

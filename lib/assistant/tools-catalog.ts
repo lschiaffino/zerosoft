@@ -18,6 +18,11 @@ import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registr
 import { wrapUntrusted } from '../mcp/untrusted';
 import { AttachmentRefError, AttachmentUseError, getAttachments, isSendOperation, publicRefIds, referencedAttachmentIds, resolveAttachmentRefs } from './files';
 
+/** Cuántos resultados de find_operations vuelven con su esquema de entrada. */
+const SCHEMA_TOP = 5;
+/** Búsquedas de carpetas: la herramienta propia las crea todas en una tarjeta. */
+const FOLDERS_QUERY = /folder|carpeta|pasta|label|etiqueta/i;
+
 /** El asistente no se llama a sí mismo ni toca sus propias charlas por el catálogo. */
 const SELF = /^\/api\/assistant(\/|$)/;
 
@@ -228,7 +233,7 @@ export const catalogTools: AssistantTool[] = [
     name: 'find_operations',
     app: null,
     description:
-      'Search every operation of every app the person can use (the same catalog as the zerosoft MCP server): group chat messages, issues and comments, doc pages, boards, contacts and about 1,800 more. Use it whenever no other tool fits. Returns ids for get_operation, run_operation and propose_operation.',
+      'Search every operation of every app the person can use (the same catalog as the zerosoft MCP server): group chat messages, issues and comments, doc pages, boards, contacts and about 1,800 more. Use it whenever no other tool fits. Returns ids for run_operation and propose_operation, with the full input schema of the best matches (so you rarely need get_operation). Search once with good words instead of many times.',
     input: z.object({
       query: z.string().trim().max(120).describe('Words, such as "groups messages", "issue comment" or "docs page update".'),
       app: z.string().max(30).optional().describe('Limit to one app key, such as groups, track, docs, board or crm.'),
@@ -236,7 +241,15 @@ export const catalogTools: AssistantTool[] = [
     }),
     run: async (ctx, input: { query: string; app?: string; access?: 'read' | 'write' | 'destructive' }) => {
       const found = searchOperations({ query: input.query, app: input.app, access: input.access, allowed: (op) => usable(ctx.user, op) });
-      return { total: found.length, operations: found.slice(0, 15).map(summarize) };
+      // Los primeros con su esquema: el modelo no gasta un paso por operación en get_operation.
+      const operations = found.slice(0, 15).map((op, i) => (i < SCHEMA_TOP ? { ...summarize(op), inputSchema: op.inputSchema } : summarize(op)));
+      return {
+        total: found.length,
+        operations,
+        ...(FOLDERS_QUERY.test(input.query)
+          ? { hint: 'To create Inbox or Lines folders (from a JSON, a file or a list of names), use propose_folders_from_json: one card for all of them. Do not create folders one by one with operations.' }
+          : {}),
+      };
     },
   }),
   readTool({
