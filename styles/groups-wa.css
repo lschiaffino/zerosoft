@@ -1383,3 +1383,9 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
 /* Una mención en un grupo abre la ficha de esa persona. */
 .gr-msg .wa-mention[data-mention] { cursor: pointer; }
 .gr-msg .wa-mention[data-mention]:hover { text-decoration: underline; }
+
+/* La lista de mensajes recibe el foco (tabIndex -1) para que el teclado la mueva: sin recuadro al tocar
+   una tecla después de hacer clic en ella (Chrome activa :focus-visible y quedaba un borde verde alrededor
+   de todo el chat). Ni en Inbox ni en Lines; WhatsApp tampoco lo muestra. */
+.gr-inbox .gr-messages:focus, .gr-inbox .gr-messages:focus-visible,
+.ib-app .gr-messages:focus, .ib-app .gr-messages:focus-visible { outline: none; }
