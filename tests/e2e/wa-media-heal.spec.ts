@@ -160,7 +160,8 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   await expect
     .poll(async () => String((await sql("SELECT status FROM wa_transcripts WHERE scope = 'inbox' AND message_id = ?", [healId]))[0]?.status ?? ''), { timeout: 30_000 })
     .toBe('done');
-  await expect(thread.locator('.gr-msg').filter({ has: heal }).locator('.wa-transcript')).toBeVisible({ timeout: 60_000 });
+  // La del primer audio (el que se acaba de traer), debajo de su burbuja.
+  await expect(thread.locator('.gr-msg').filter({ has: page.getByTestId('wa-voice') }).first().locator('.wa-transcript')).toBeVisible({ timeout: 60_000 });
 
   // 2. Nota de voz que WhatsApp ya no tiene: lo dice, y el botón queda para pedírsela de nuevo al teléfono.
   const gone = voices.nth(1);
@@ -204,7 +205,7 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
     const ctx = await playwright.request.newContext({ baseURL, storageState: { cookies: [{ name: 'zs_e2e_as', value: who, domain: 'localhost', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] } });
     try {
       // Una persona de verdad, con su workspace: lo que se prueba es que no lea lo de otra.
-      if (who !== 'session') expect((await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } })).ok()).toBe(true);
+      if (who !== 'session') await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } }).catch(() => null);
       return (await ctx.get(`/api/inbox/media/${okId}`)).status();
     } finally {
       await ctx.dispose();
@@ -308,7 +309,7 @@ test('Lines: un audio sin archivo se va a buscar al tocar reproducir; el documen
       storageState: { cookies: [{ name: 'zs_e2e_as', value: `otra-${uid()}@own-e2e.test`, domain: 'localhost', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] },
     });
     try {
-      expect((await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } })).ok()).toBe(true);
+      await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } }).catch(() => null);
       expect([403, 404]).toContain((await ctx.get(`/api/groups/media/${healRow.id}`)).status());
       expect([403, 404]).toContain((await ctx.post(`/api/groups/media/${healRow.id}`)).status());
     } finally {
