@@ -545,6 +545,62 @@ function books(): Figure {
   };
 }
 
+/** Fleet: tres columnas de tarjetas de agentes; la que trabaja carga su barra y pasa a "listo". */
+function fleet(): Figure {
+  const rand = seeded(71);
+  const CW = 22;
+  const GAP = 3;
+  const CH = 6;
+  const PERIOD = 12;
+  const cards = Array.from({ length: 7 }, () => ({ a: words(rand, 10 + Math.floor(rand() * 8)), b: words(rand, 6 + Math.floor(rand() * 10)) }));
+  // Columna (0 trabajando, 1 te espera, 2 listo) y fila de cada tarjeta al empezar.
+  const start: Array<[number, number]> = [
+    [0, 0],
+    [0, 1],
+    [1, 0],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+    [0, 2],
+  ];
+  return {
+    cols: COLS,
+    rows: ROWS,
+    fps: 20,
+    still: 6.2,
+    draw(c, time) {
+      c.clear();
+      const t = time % PERIOD;
+      const fade = 1 - smooth((t - PERIOD + 1) / 1);
+      for (let col = 0; col < 3; col++) {
+        const x = col * (CW + GAP);
+        for (let i = 0; i < 8; i++) c.lift(x + i, 1, col === 0 ? 0.8 : 0.4);
+      }
+      // La tarjeta 0 trabaja (barra que se llena) y a los 6 s se muda a "listo", abajo de todo.
+      const move = smooth((t - 6) / 1.2);
+      cards.forEach((card, n) => {
+        const [col0, row0] = start[n];
+        let x = col0 * (CW + GAP);
+        let y = 4 + row0 * (CH + 1);
+        if (n === 0) {
+          x = lerp(0, 2 * (CW + GAP), move);
+          y = lerp(4, 4 + 3 * (CH + 1), move);
+        } else if (col0 === 0 && move > 0) {
+          y -= (CH + 1) * move;
+        }
+        const working = n === 0 ? move < 1 : col0 === 0;
+        c.slab(x, y, CW, CH, col0 === 1 && n !== 0 ? 0.5 : 0.3, true);
+        run(c, Math.round(x) + 2, Math.round(y) + 1, card.a, 0.75 * fade + 0.1);
+        run(c, Math.round(x) + 2, Math.round(y) + 3, card.b, 0.4 * fade + 0.06);
+        if (working) {
+          const p = n === 0 ? clamp(t / 6) : 0.3 + 0.2 * Math.sin(time * 2 + n);
+          for (let i = 0; i < Math.round((CW - 4) * p); i++) c.lift(Math.round(x) + 2 + i, Math.round(y) + 4, 0.95 * fade);
+        }
+      });
+    },
+  };
+}
+
 export function paperFigure(variant: string): Figure {
   switch (variant) {
     case 'books':
@@ -557,6 +613,8 @@ export function paperFigure(variant: string): Figure {
       return send();
     case 'calls':
       return calls();
+    case 'fleet':
+      return fleet();
     case 'chat':
       return chat();
     case 'talk':
