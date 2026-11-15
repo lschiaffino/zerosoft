@@ -35,9 +35,15 @@ export function mediaBox(width?: number, height?: number): MediaBox | null {
   return { width: boxW, height: Math.round(boxW / ratio) };
 }
 
-/** El lugar de una media que no cargó (o no se pudo bajar): el de la foto si se saben las medidas, si no el estándar. */
-export function placeholderBox(width?: number, height?: number): MediaBox {
-  return mediaBox(width, height) ?? { ...PLACEHOLDER_BOX };
+/**
+ * El lugar de una media que no cargó (o no se pudo bajar): el ancho de la foto si se saben las medidas, si no el
+ * estándar. Con la miniatura de WhatsApp de fondo lleva la proporción de la foto; sin ella no pasa de 4:3 de alto
+ * (una foto vertical no deja un cuadro gris enorme).
+ */
+export function placeholderBox(width?: number, height?: number, withThumb = false): MediaBox {
+  const box = mediaBox(width, height);
+  if (!box) return { ...PLACEHOLDER_BOX };
+  return withThumb ? box : { width: box.width, height: Math.min(box.height, Math.round(box.width * 0.75)) };
 }
 
 /**

@@ -30,8 +30,10 @@ describe('mediaBox: tamaño de una foto o un video en la burbuja', () => {
 });
 
 describe('placeholderBox: el lugar de la media que no cargó o no está', () => {
-  it('con medidas usa las de la foto', () => {
-    expect(placeholderBox(1080, 1920)).toEqual({ width: MEDIA_W, height: 400 });
+  it('con medidas usa el ancho de la foto; la proporción entera solo con la miniatura de fondo', () => {
+    expect(placeholderBox(1080, 1920, true)).toEqual({ width: MEDIA_W, height: 400 });
+    expect(placeholderBox(1080, 1920)).toEqual({ width: MEDIA_W, height: 225 });
+    expect(placeholderBox(1920, 1080)).toEqual({ width: MEDIA_W, height: 169 });
   });
 
   it('sin medidas usa el lugar estándar (ancho entero, 4:3), nunca angosto', () => {
