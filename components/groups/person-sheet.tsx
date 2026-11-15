@@ -22,6 +22,9 @@ interface SharedRow {
   urls?: string[];
 }
 
+/** La persona en la URL: ?message=<id> o ?phone=<dígitos>. */
+const query = (ref: PersonRef) => (ref.messageId ? `message=${encodeURIComponent(ref.messageId)}` : `phone=${encodeURIComponent(ref.phone ?? '')}`);
+
 /**
  * Lines: la ficha "Info del contacto" de una persona de un grupo (al tocar su
  * foto o su nombre en un mensaje, o un miembro de la lista). Mensaje abre (o
@@ -35,8 +38,6 @@ export function useLinesPersonSheet(groupId: string, onError: (code: string) => 
   const [card, setCard] = useState<(WaPersonCard & { masked?: boolean }) | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const query = (ref: PersonRef) => (ref.messageId ? `message=${encodeURIComponent(ref.messageId)}` : `phone=${encodeURIComponent(ref.phone ?? '')}`);
 
   const load = useCallback(
     async (ref: PersonRef) => {
