@@ -1637,7 +1637,21 @@ export default function ChatThread(props: ThreadProps) {
           openMenuIn(e.currentTarget);
         }}
         {...longPress((el) => openMenuIn(el))}
-        onClick={selecting ? () => toggleSelected(m.id) : undefined}
+        onClick={
+          selecting
+            ? () => toggleSelected(m.id)
+            : chat.kind === 'group'
+              ? (e) => {
+                  // Una mención ("@Nombre") abre la ficha de esa persona, como en WhatsApp.
+                  const el = (e.target as HTMLElement).closest<HTMLElement>('.wa-mention[data-mention]');
+                  const d = el?.dataset.mention ?? '';
+                  const phone = (m.mentionNames?.[d]?.phone || (memberNames.has(d) || memberPics.has(d) ? d : '')).replace(/\D/g, '');
+                  if (!el || !/^\d{8,15}$/.test(phone)) return;
+                  e.stopPropagation();
+                  personSheet.open({ phone }, memberNames.get(phone) || (el.textContent ?? '').replace(/^@/, ''), memberPics.get(phone));
+                }
+              : undefined
+        }
       >
         {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
         {groupIn && (
