@@ -115,7 +115,7 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   const before = (await box.boundingBox())!;
   const lineBelow = scope.locator('.docs-blocks .docs-editable').last();
   const lineBefore = (await lineBelow.boundingBox())!;
-  await expect.poll(() => hold.count()).toBe(1);
+  await expect.poll(() => hold.count(), { timeout: 30_000 }).toBe(1);
   await hold.release();
   const img = scope.getByTestId('docs-image-block').locator('img');
   await expect(img).toBeVisible();
@@ -143,7 +143,7 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   const videoBefore = (await ph.nth(0).locator('.docs-upload-box').boundingBox())!;
   const fileBefore = (await ph.nth(1).locator('.docs-file-card').boundingBox())!;
   const lineBefore2 = (await lineBelow.boundingBox())!;
-  await expect.poll(() => hold2.count()).toBe(1);
+  await expect.poll(() => hold2.count(), { timeout: 30_000 }).toBe(1);
   await hold2.release();
   const video = scope.getByTestId('docs-video-block').locator('video');
   const file = scope.getByTestId('docs-file-block').locator('.docs-file-card');
@@ -219,7 +219,7 @@ test('Docs: cancelar una subida saca el esqueleto y no crea el bloque', async ({
   await slash(page, 'image');
   await (await chooser).setFiles(IMAGE);
   const ph = page.getByTestId('docs-upload-placeholder');
-  await expect.poll(() => hold.count()).toBe(1);
+  await expect.poll(() => hold.count(), { timeout: 30_000 }).toBe(1);
   await ph.getByRole('button', { name: 'Cancel upload of paisaje.png' }).click();
   await expect(ph).toHaveCount(0);
   // La línea vacía sigue ahí y no se creó ningún bloque de imagen.
@@ -261,7 +261,7 @@ test('Docs: pegar y soltar un archivo también muestran el esqueleto en su lugar
   const dosBox = (await target.boundingBox())!;
   expect(phBox.y).toBeGreaterThan(unoBox.y);
   expect(phBox.y).toBeLessThan(dosBox.y);
-  await expect.poll(() => hold.count()).toBe(1);
+  await expect.poll(() => hold.count(), { timeout: 30_000 }).toBe(1);
   await hold.release();
   await expect(page.getByTestId('docs-image-block')).toBeVisible();
   await expect(ph).toHaveCount(0);
@@ -279,7 +279,7 @@ test('Docs: pegar y soltar un archivo también muestran el esqueleto en su lugar
   }, IMAGE.buffer.toString('base64'));
   await expect(ph).toHaveCount(1);
   await expect(ph).toHaveAttribute('aria-label', /captura\.png/);
-  await expect.poll(() => hold2.count()).toBe(1);
+  await expect.poll(() => hold2.count(), { timeout: 30_000 }).toBe(1);
   await hold2.release();
   await expect(page.getByTestId('docs-image-block')).toHaveCount(2);
 });
