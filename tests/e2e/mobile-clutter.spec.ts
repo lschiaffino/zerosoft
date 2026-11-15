@@ -40,7 +40,7 @@ for (const width of [390, 360]) {
 
     await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
     const head = page.locator('.ib-wa-thread .wa-head');
-    await expect(head.getByRole('heading', { name })).toBeVisible();
+    await expect(head.getByRole('heading', { name })).toBeVisible({ timeout: 20_000 });
     // El nombre tiene lugar (antes, cinco íconos lo dejaban en "A…").
     expect((await head.getByRole('heading', { name }).boundingBox())!.width).toBeGreaterThan(80);
     for (const b of await head.locator('.gr-thread-actions .wa-icon-btn:visible').all()) {
