@@ -6,7 +6,7 @@ import type { ThreadDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import { listTime } from '@/components/groups/wa/format';
 import { plainWa } from '@/components/groups/wa/rich';
-import { CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArchiveIcon, CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { chatName, formatPhone, previewKind, previewText, type PreviewKind } from './util';
 import { useDraft } from '@/components/ui/useDraft';
 
@@ -88,6 +88,7 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
             )}
           </span>
           <span className="wa-row-icons">
+            {th.keepArchived && th.archived && <ArchiveIcon size={16} label={w('keptArchived')} className="wa-row-kept" />}
             {muted && <MuteIcon size={16} label={w('muted')} />}
             {unread && (
               <span className={`wa-unread${muted ? ' is-muted' : ''}`} aria-label={w('unread', { n: th.unread })}>

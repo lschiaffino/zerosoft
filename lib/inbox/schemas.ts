@@ -11,6 +11,7 @@ export const actionSchema: z.ZodType<ThreadAction> = z.discriminatedUnion('actio
   z.object({ action: z.literal('snooze'), until: iso }),
   z.object({ action: z.literal('followUp'), at: iso }),
   z.object({ action: z.literal('mute'), until: iso.nullable() }),
+  z.object({ action: z.literal('keepArchived'), on: z.boolean() }),
   z.object({ action: z.enum(['addFolder', 'removeFolder']), folderId: id }),
 ]) as z.ZodType<ThreadAction>;
 

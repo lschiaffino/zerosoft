@@ -526,6 +526,7 @@ const WaConversation = forwardRef<
     { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
     { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
+    ...(thread.archived ? [{ key: 'keepArchived', label: thread.keepArchived ? w('keepArchivedOff') : w('keepArchived'), onSelect: () => onAction('keepArchived') }] : []),
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
     { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void fetchMissing() },
     ...(thread.mutedUntil

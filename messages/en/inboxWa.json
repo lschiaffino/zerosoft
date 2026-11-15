@@ -3,6 +3,10 @@
   "typing": "typing…",
   "recording": "recording audio…",
   "muted": "Muted",
+  "keepArchived": "Keep archived",
+  "keepArchivedOff": "Stop keeping archived",
+  "keepArchivedHint": "New messages, and the ones you send, don't take it out of Archived.",
+  "keptArchived": "Kept archived",
   "unread": "{n, plural, one {# unread message} other {# unread messages}}",
   "kind": {
     "image": "Photo",

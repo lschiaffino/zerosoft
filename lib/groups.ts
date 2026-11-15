@@ -536,6 +536,8 @@ export interface ChatRow {
   muted_until?: string | null;
   marked_unread?: number;
   archived_at?: string | null;
+  /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
+  keep_archived?: number;
   hidden_at?: string | null;
   presence?: string | null;
   presence_who?: string | null;
@@ -591,6 +593,8 @@ export interface ChatDto {
   markedUnread: boolean;
   /** Archivado: fuera de la lista principal, en "Archivados". */
   archived: boolean;
+  /** "Mantener archivado": ni los mensajes ni el teléfono lo sacan de Archivados. */
+  keepArchived: boolean;
   /** Lo que hace el contacto ahora (escribiendo, grabando, en línea), si es reciente. */
   presence?: ChatPresence | null;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
@@ -688,6 +692,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
+    keepArchived: Boolean(row.keep_archived),
     presence: chatPresence(row),
     ...(row.history_gap_at ? { historyGap: true } : {}),
   };
@@ -1255,6 +1260,8 @@ export interface ChatPatch {
   muted?: boolean;
   /** Archivar o desarchivar (como WhatsApp). */
   archived?: boolean;
+  /** "Mantener archivado": prenderlo archiva el chat; desarchivar lo apaga. */
+  keepArchived?: boolean;
   /** "Eliminar chat": sale de la lista hasta que llegue o salga un mensaje nuevo. */
   hidden?: boolean;
 }
@@ -1310,13 +1317,18 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
   if (patch.muted !== undefined) set('muted_until', patch.muted ? '9999-12-31T00:00:00.000Z' : null);
+  // "Mantener archivado" implica archivado; desarchivar a mano lo apaga (en el mismo UPDATE: el trigger lo deja pasar).
+  if (patch.keepArchived === true) patch = { ...patch, archived: patch.archived ?? true };
+  if (patch.keepArchived !== undefined && patch.archived !== false) set('keep_archived', patch.keepArchived ? 1 : 0);
   if (patch.archived !== undefined) set('archived_at', patch.archived ? row.archived_at || nowIso() : null);
+  if (patch.archived === false) set('keep_archived', 0);
   if (patch.hidden !== undefined) {
     set('hidden_at', patch.hidden ? nowIso() : null);
     // Oculto no queda fijado ni archivado (como "Eliminar chat" en WhatsApp).
     if (patch.hidden) {
       set('pinned_at', null);
       set('archived_at', null);
+      set('keep_archived', 0);
     }
   }
   if (patch.crmContactId !== undefined) {

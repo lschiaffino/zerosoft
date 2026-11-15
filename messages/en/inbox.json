@@ -229,6 +229,8 @@
     "unpin": "{n, plural, one {Unpinned} other {# chats unpinned}}",
     "archive": "{n, plural, one {Archived} other {# chats archived}}",
     "unarchive": "{n, plural, one {Unarchived} other {# chats unarchived}}",
+    "keepArchivedOn": "Kept archived",
+    "keepArchivedOff": "No longer kept archived",
     "snooze": "{n, plural, one {Snoozed} other {# chats snoozed}}",
     "unsnooze": "{n, plural, one {Unsnoozed} other {# chats unsnoozed}}",
     "followUp": "{n, plural, one {You will be reminded if there is no reply} other {Reminder set for # chats}}",

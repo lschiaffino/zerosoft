@@ -83,6 +83,7 @@ import {
   Bell,
   Sparkle,
   DisplayIcon,
+  ArchiveIcon,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
 import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
@@ -185,7 +186,7 @@ export default function ChatThread(props: ThreadProps) {
   const [chat, setChat] = useState(props.chat);
   // Mandar desde un chat archivado lo desarchiva (como WhatsApp): el menú del chat lo refleja ya.
   useOnChatSent((id) => {
-    if (id === props.chat.id) setChat((c) => (c.archived ? { ...c, archived: false } : c));
+    if (id === props.chat.id) setChat((c) => (c.archived && !c.keepArchived ? { ...c, archived: false } : c));
   });
   const [messages, setMessages] = useState(props.messages);
   const [pinned, setPinned] = useState(props.pinned);
@@ -2062,6 +2063,19 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
+                ...(chat.archived
+                  ? [
+                      {
+                        key: 'keepArchived',
+                        glyph: <ArchiveIcon size={18} />,
+                        label: chat.keepArchived ? t('wa.keepArchivedOff') : t('wa.keepArchived'),
+                        onSelect: () => {
+                          const on = !chat.keepArchived;
+                          void patchChat({ keepArchived: on }).then((res) => res && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
+                        },
+                      },
+                    ]
+                  : []),
                 { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
                 { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
                 ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void fetchMissing() }] : []),

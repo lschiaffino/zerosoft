@@ -132,8 +132,8 @@ export const UNARCHIVED_BY_SEND = 'by_send';
 export function sendUnarchiveMark(app: ArchiveApp, chatWhere: string, whereArgs: Array<string | number>, at = new Date().toISOString()): BatchStatement {
   const from =
     app === 'inbox'
-      ? "SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, ?, ? FROM inbox_threads c WHERE c.channel = 'whatsapp' AND (c.archived_at IS NOT NULL OR c.done_at IS NOT NULL)"
-      : "SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, ?, ? FROM groups_chats c WHERE c.archived_at IS NOT NULL";
+      ? "SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, ?, ? FROM inbox_threads c WHERE c.channel = 'whatsapp' AND (c.archived_at IS NOT NULL OR c.done_at IS NOT NULL) AND c.keep_archived = 0"
+      : "SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, ?, ? FROM groups_chats c WHERE c.archived_at IS NOT NULL AND c.keep_archived = 0";
   return {
     sql: `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
        ${from} AND ${chatWhere}
