@@ -203,7 +203,10 @@ async function inboxChat(page: Page, request: APIRequestContext, title: string) 
   expect((await request.get(`/api/inbox/threads/${row.id}`, { timeout: 90_000 })).ok()).toBe(true);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await expect(async () => {
-    await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+    // Con next dev compilando, la primera lectura del chat puede pasar el tiempo de la pantalla: "Reintentar".
+    const retry = page.getByRole('button', { name: 'Try again' });
+    if (await retry.isVisible()) await retry.click();
+    else await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
     await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 60_000 });
   return String(row.id);
