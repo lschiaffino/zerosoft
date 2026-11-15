@@ -6,7 +6,8 @@ import path from 'path';
 import { getDb, upsertUser } from '@/lib/db';
 import { createVideo, finalizeVideo, getVideoRow, setVideoFile, type RecActor } from '@/lib/rec';
 import { assembleLocal, saveLocalPart } from '@/lib/rec-upload';
-import { checkMp4Sig, downloadMp4, ffmpegArgs, mp4Filename, mp4Plan, mp4Sig, playbackMp4 } from '@/lib/rec-mp4';
+import { checkMp4Sig, currentSprite, downloadMp4, ffmpegArgs, mp4Filename, mp4Plan, mp4Sig, playbackMp4, spriteArgs } from '@/lib/rec-mp4';
+import { parseSpriteMeta, spritePlan, spriteTile } from '@/lib/rec-schema';
 import { localUploadPath } from '@/lib/uploads';
 
 const has = (bin: string) => {
@@ -55,6 +56,35 @@ function probe(file: string): { v: string; a: string; duration: number; pix: str
     duration: Number(j.format.duration),
   };
 }
+
+describe('tira de miniaturas de la línea de tiempo', () => {
+  it('un cuadro cada 2 s en videos cortos, a lo sumo 120 en los largos', () => {
+    expect(spritePlan(30)).toEqual({ every: 2, cols: 10, count: 15, w: 160, h: 90 });
+    const long = spritePlan(3600);
+    expect(long.every).toBe(30);
+    expect(long.count).toBeLessThanOrEqual(120);
+    expect(spritePlan(0).count).toBe(1);
+  });
+
+  it('el segundo elige la celda de la grilla, sin salirse', () => {
+    const m = spritePlan(60);
+    expect(spriteTile(m, 0)).toEqual({ x: 0, y: 0 });
+    expect(spriteTile(m, 5)).toEqual({ x: 320, y: 0 });
+    expect(spriteTile(m, 21)).toEqual({ x: 0, y: 90 });
+    expect(spriteTile(m, 9999)).toEqual(spriteTile(m, 59));
+    expect(spriteTile(m, -3)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('la meta guardada se valida', () => {
+    expect(parseSpriteMeta('{"every":2,"cols":10,"count":5,"w":160,"h":90}')).toEqual({ every: 2, cols: 10, count: 5, w: 160, h: 90 });
+    expect(parseSpriteMeta('{"every":0,"cols":10,"count":5,"w":160,"h":90}')).toBeNull();
+    expect(parseSpriteMeta('nope')).toBeNull();
+    expect(parseSpriteMeta(null)).toBeNull();
+    const args = spriteArgs('in.mp4', 'out.jpg', spritePlan(30));
+    expect(args).toEqual(expect.arrayContaining(['-skip_frame', 'nokey']));
+    expect(args[args.indexOf('-vf') + 1]).toContain('tile=10x2');
+  });
+});
 
 describe('MP4 de descarga: reglas', () => {
   it('nombre del archivo, firma de las URLs de la microVM y argumentos', () => {
@@ -130,6 +160,11 @@ describe.skipIf(!FFMPEG)('MP4 de descarga con ffmpeg local', () => {
     expect([p.v, p.a, p.pix]).toEqual(['h264', 'aac', 'yuv420p']);
     expect(p.duration).toBeGreaterThan(2.5);
     expect(p.duration).toBeLessThan(3.5);
+    // La tira de miniaturas sale con el MP4: 2 cuadros de 160×90 (3 s, uno cada 2 s) en una fila de 10.
+    const sprite = currentSprite(row);
+    expect(sprite?.meta).toEqual({ every: 2, cols: 10, count: 2, w: 160, h: 90 });
+    const dims = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', localUploadPath(sprite!.url, 'rec')!]).toString().trim();
+    expect(dims).toBe('1600,90');
     // Índice (moov) antes de los datos (mdat): el navegador sabe dónde está cada segundo con el primer pedido.
     const bytes = await readFile(file);
     expect(bytes.indexOf('moov')).toBeGreaterThan(0);
