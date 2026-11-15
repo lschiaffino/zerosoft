@@ -2525,9 +2525,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           }
         })().catch(logAfterError);
         post.push(async () => {
-          // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
+          // Grupo que no conocíamos: se traen sus miembros una vez (best effort). Como mucho una vez cada
+          // MEMBERS_RETRY_SEC por chat: si WhatsApp no los da (límite, grupo con solo lids), el conteo sigue en 0
+          // y sin este tope se pedían en cada mensaje del grupo (cientos de groupMetadata, 429 de WhatsApp).
           if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
-            await syncMembers(ws, chat.id).catch(() => null);
+            if (await membersFetchAllowed(chat.id)) await syncMembers(ws, chat.id).catch(() => null);
           }
           // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
           if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
@@ -2885,6 +2887,17 @@ export async function groupContext(ws: string, chatId: string): Promise<{ chat: 
   return { chat, provider };
 }
 
+/** Cada cuánto, como mucho, se piden solos los miembros de un grupo que todavía no tiene ninguno. */
+export const MEMBERS_RETRY_SEC = 6 * 3600;
+/** Pausa entre pedidos de miembros de varios grupos seguidos. */
+export const MEMBERS_GAP_MS = 400;
+
+/** ¿Se pueden pedir ya los miembros de este chat sin que nadie lo pidiera? Cuenta el intento (compartido entre instancias). */
+export async function membersFetchAllowed(chatId: string): Promise<boolean> {
+  const { rateLimit } = await import('./rate-limit');
+  return (await rateLimit(`groups-members:${chatId}`, 1, MEMBERS_RETRY_SEC)).ok;
+}
+
 /** Vuelve a leer los miembros desde WhatsApp. */
 export async function syncMembers(ws: string, chatId: string): Promise<MemberDto[]> {
   const { chat, provider } = await groupContext(ws, chatId);
@@ -3115,7 +3128,11 @@ export async function syncGroups(ws: string, numberId: string): Promise<{ groups
         .prepare('UPDATE groups_chats SET announce = COALESCE(?, announce), locked = COALESCE(?, locked), left_at = NULL WHERE id = ?')
         .run(g.announce === undefined ? null : Number(g.announce), g.locked === undefined ? null : Number(g.locked), chat.id);
     }
-    if (n < 50) await syncMembers(ws, chat.id).catch(() => null);
+    if (n < 50) {
+      // Pausa entre grupos: 50 groupMetadata seguidos le ganan un 429 a la cuenta.
+      if (n > 0) await new Promise((r) => setTimeout(r, MEMBERS_GAP_MS));
+      await syncMembers(ws, chat.id).catch(() => null);
+    }
     n++;
   }
   return { groups: n };
