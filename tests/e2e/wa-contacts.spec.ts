@@ -190,7 +190,9 @@ test('Lines › Contactos: una fila por persona, crear en HubSpot con la empresa
   const linked = await request.post('/api/groups/hubspot/links', { data: { chatId: groupChat, type: 'company', objectId: '9003' } });
   expect(linked.ok(), await linked.text()).toBe(true);
 
+  // Con `next dev` cada ruta compila en su primer pedido (puede tardar más que un expect): se piden antes.
   await page.request.get('/api/groups/people', { timeout: 120_000 });
+  await page.request.get('/api/groups/people/person?id=0', { timeout: 120_000 });
   await page.goto('/en/app/lines/contacts', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('contacts-view')).toBeVisible();
   // En el sidebar, Contactos marcado.
@@ -218,7 +220,8 @@ test('Lines › Contactos: una fila por persona, crear en HubSpot con la empresa
   const dialog = page.getByRole('dialog');
   await row.getByTestId('contact-open').click();
   await expect(dialog.getByTestId('contact-groups')).toContainText(groupName);
-  await expect(dialog.getByTestId('contact-hs-create')).toBeVisible();
+  // La búsqueda por teléfono en HubSpot.
+  await expect(dialog.getByTestId('contact-hs-create')).toBeVisible({ timeout: 30_000 });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/lines-ficha-1280-light.png` });
   await dialog.getByTestId('contact-hs-create').click();
   await expect(dialog.getByTestId('contact-hs-contact')).toContainText(`Rita ${tag}`);
@@ -239,7 +242,7 @@ test('Lines › Contactos: una fila por persona, crear en HubSpot con la empresa
   // Desvincular y volver: aparece el contacto que ya existe (no se ofrece crear otro).
   await row.getByTestId('contact-open').click();
   await dialog.getByTestId('contact-hs-unlink').click();
-  await expect(dialog.getByTestId('contact-hs-matches')).toContainText(`Rita ${tag}`);
+  await expect(dialog.getByTestId('contact-hs-matches')).toContainText(`Rita ${tag}`, { timeout: 30_000 });
   await expect(dialog.getByTestId('contact-hs-create')).toHaveCount(0);
   await dialog.getByTestId('contact-hs-link').click();
   await expect(dialog.getByTestId('contact-hs-contact')).toBeVisible();
@@ -302,6 +305,7 @@ test('Inbox › Contactos: una fila por persona entre grupo y chat, su grupo en 
   await connectHubspot(request);
 
   await page.request.get('/api/inbox/people', { timeout: 120_000 });
+  await page.request.get('/api/inbox/people/person?id=0', { timeout: 120_000 });
   await page.goto('/en/app/inbox/contacts', { waitUntil: 'networkidle' });
   await expect(page.locator('a[href$="/app/inbox/contacts"][aria-current="page"]').first()).toBeVisible();
   await page.getByTestId('contacts-search').fill(person.slice(-8));
@@ -318,12 +322,12 @@ test('Inbox › Contactos: una fila por persona entre grupo y chat, su grupo en 
   const dialog = page.getByRole('dialog');
   await row.getByTestId('contact-open').click();
   // El grupo sale si WhatsApp ya dio sus participantes (fake_contacts lo pone en el grupo).
-  await expect(dialog.getByTestId('contact-hs-create')).toBeVisible();
+  await expect(dialog.getByTestId('contact-hs-create')).toBeVisible({ timeout: 30_000 });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-ficha-1280-light.png` });
   await dialog.getByTestId('contact-hs-create').click();
   await expect(dialog.getByTestId('contact-hs-contact')).toContainText(`Tomás ${tag}`);
   await dialog.getByTestId('contact-hs-unlink').click();
-  await expect(dialog.getByTestId('contact-hs-matches')).toContainText(`Tomás ${tag}`);
+  await expect(dialog.getByTestId('contact-hs-matches')).toContainText(`Tomás ${tag}`, { timeout: 30_000 });
   await expect(dialog.getByTestId('contact-hs-create')).toHaveCount(0);
   await dialog.getByTestId('contact-message').click();
   await expect(page).toHaveURL(/\/app\/inbox\?t=ibt_/);
