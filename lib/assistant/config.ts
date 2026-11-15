@@ -65,6 +65,21 @@ export function resolveAssistantModel(fake: () => LanguageModel): { model: Langu
  * Modelo de chat de OpenRouter con la key del entorno (OPENROUTER_API_KEY).
  * Lo usan el asistente y la IA de Inbox. Sin key tira: el llamador chequea antes.
  */
+/** Agrega `reasoning: { enabled: false }` al pedido a OpenRouter (si el llamador no pidió otra cosa). */
+export const withoutReasoning: typeof fetch = (input, init) => {
+  if (init && typeof init.body === 'string') {
+    try {
+      const body = JSON.parse(init.body) as Record<string, unknown>;
+      if (body && typeof body === 'object' && !('reasoning' in body) && !('reasoning_effort' in body && body.reasoning_effort)) {
+        init = { ...init, body: JSON.stringify({ ...body, reasoning: { enabled: false } }) };
+      }
+    } catch {
+      /* no es JSON: va tal cual */
+    }
+  }
+  return fetch(input, init);
+};
+
 export function openRouterChatModel(modelId: string, title: string): LanguageModel {
   const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) throw new Error('openrouter_not_configured');
@@ -78,6 +93,8 @@ export function openRouterChatModel(modelId: string, title: string): LanguageMod
       'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://zerosoft.ai',
       'X-Title': title,
     },
+    // Sin razonamiento: un modelo que razona (DeepSeek) gastaba todos los tokens pensando y la respuesta llegaba vacía.
+    fetch: withoutReasoning,
   });
   return provider.chatModel(modelId);
 }

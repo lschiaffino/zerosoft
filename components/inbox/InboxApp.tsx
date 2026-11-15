@@ -783,6 +783,17 @@ export default function InboxApp(props: {
   };
   moreActionRef.current = moreAction;
 
+  /** Abre (o crea) el chat 1:1 de WhatsApp con un teléfono (participantes de un grupo, su ficha). */
+  const startChatWith = async (phone: string) => {
+    const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
+    if (!r.ok) {
+      toast(errText(r.data.error), { bad: true });
+      return;
+    }
+    setInfoOpen(false);
+    setThreads((xs) => [r.data.thread, ...xs.filter((x) => x.id !== r.data.thread.id)]);
+    setOpenId(r.data.thread.id);
+  };
   const modalOpen = !!when || !!plan || !!moveIds || moreOpen || !!compose || newChat || help || qrOpen || !!folderEdit;
 
   // Atajos de una letra (fuera de los campos y sin modales abiertos).
@@ -1103,7 +1114,8 @@ export default function InboxApp(props: {
       />
       <div className="ib-list-pane">
         <div className="ib-list-head">
-          <div className="ib-list-title">
+          <div className={`ib-list-title${folder ? ' has-folder' : ''}`}>
+            {/* En escritorio la miga ya dice "Bandeja" y el lateral tiene "Nuevo": se ocultan (styles/inbox.css, como Lines). En una carpeta queda su nombre. */}
             <h1 className="ib-h1">{viewTitle}</h1>
             {folder && (
               <span className="ib-row">
@@ -1357,6 +1369,11 @@ export default function InboxApp(props: {
               void reloadList();
             }}
             loadOlder={loadOlder}
+            onOpenThread={(id) => {
+              setInfoOpen(false);
+              open(id);
+            }}
+            onStartChat={startChatWith}
           />
         ) : detail && openId ? (
           <Conversation
@@ -1402,16 +1419,7 @@ export default function InboxApp(props: {
             setInfoOpen(false);
             open(id);
           }}
-          onStartChat={async (phone) => {
-            const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
-            if (!r.ok) {
-              toast(errText(r.data.error), { bad: true });
-              return;
-            }
-            setInfoOpen(false);
-            setThreads((xs) => [r.data.thread, ...xs.filter((x) => x.id !== r.data.thread.id)]);
-            setOpenId(r.data.thread.id);
-          }}
+          onStartChat={startChatWith}
           onMute={(until) => void runAction([detail.thread.id], { action: 'mute', until })}
           onError={(code) => toast(errText(code), { bad: true })}
           onToast={(text) => toast(text)}

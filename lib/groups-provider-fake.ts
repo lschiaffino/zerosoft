@@ -375,8 +375,9 @@ function fakeHistory(s: FakeState): HistorySource {
         ...(c.phone ? { phone: c.phone } : {}),
       }));
     },
-    async picture() {
-      return '';
+    async picture(chatId) {
+      const digits = chatId.replace(/@.*/, '').replace(/\D/g, '');
+      return /[02468]$/.test(digits) && !chatId.endsWith('@g.us') ? fakePicture(digits) : '';
     },
   };
 }
@@ -444,6 +445,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       }
       const known = findContact(s, { phone: digits });
       return { name: known?.name ?? '', about: known?.about ?? (digits.endsWith('1') ? '' : 'Disponible'), pictureUrl: pic };
+    },
+    /** Foto de una persona: la misma que su chat 1:1 (solo números que terminan en par). */
+    async profilePicture(chatId) {
+      requireConnected();
+      const digits = chatId.replace(/@.*/, '').replace(/\D/g, '');
+      return /[02468]$/.test(digits) && !chatId.endsWith('@g.us') ? fakePicture(digits) : '';
     },
     async connect() {
       s.connectedAt = s.connectedAt ?? Date.now();

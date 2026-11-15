@@ -138,7 +138,7 @@ test('cambiar de carpeta o de vista solo cambia la lista: el chat abierto y lo e
   // Atrás: la bandeja.
   await page.goBack();
   await expect(page).toHaveURL(/\/en\/app\/inbox(\?|$)/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible();
+  // En escritorio la lista no repite "Inbox" (la miga lo dice): se mira qué lista está.
   await expect(list).toHaveAttribute('data-list', 'v:inbox|');
   await expect(page.locator('.ib-item', { hasText: beto })).toBeVisible();
   await untouched();
@@ -161,7 +161,6 @@ test('cambiar de carpeta o de vista solo cambia la lista: el chat abierto y lo e
   await expect(tabs.getByRole('link', { name: 'Unread' })).toHaveAttribute('aria-current', 'page');
   await page.goBack();
   await expect(page).toHaveURL(/\/en\/app\/inbox(\?|$)/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible();
   await page.goForward();
   await expect(page).toHaveURL(/\/en\/app\/inbox\/v\/unread/);
   await page.goForward();
