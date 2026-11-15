@@ -39,6 +39,7 @@ import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -136,6 +137,8 @@ export default function InboxApp(props: {
   /** Mensaje al que ir al abrir (desde Cmd+K). */
   initialFocusId?: string | null;
   composeOnLoad: boolean;
+  /** Fila "Agentes" de Fleet arriba de la bandeja (si la persona prendió el espejo en Fleet). */
+  agentsRow?: AgentsRowProps | null;
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
@@ -1228,6 +1231,7 @@ export default function InboxApp(props: {
           </div>
         ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
           <div className="ib-list-empty">
+            {props.agentsRow && view === 'inbox' && !folder && !q.trim() && <AgentsRow {...props.agentsRow} />}
             {noAccounts && !q ? (
               <EmptyState
                 product="inbox"
@@ -1264,6 +1268,11 @@ export default function InboxApp(props: {
           </div>
         ) : (
           <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list>
+            {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
+              <li>
+                <AgentsRow {...props.agentsRow} />
+              </li>
+            )}
             {threads.map(rowFor)}
             {next && !switching && (
               <li ref={moreRef} className="ib-list-more" role="presentation" aria-busy={loadingMore || undefined} data-testid="inbox-list-more">

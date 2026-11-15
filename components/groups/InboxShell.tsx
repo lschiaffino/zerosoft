@@ -65,6 +65,7 @@ import DebouncedInput from '@/components/app/DebouncedInput';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {
@@ -201,6 +202,7 @@ export default function InboxShell({
   numbers = [],
   initialLine = 'all',
   banner = null,
+  agentsRow = null,
   children,
 }: {
   labels: LabelDto[];
@@ -215,6 +217,8 @@ export default function InboxShell({
   initialLine?: string;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
+  /** Fila "Agentes" de Fleet arriba de la lista (si la persona prendió el espejo en Fleet). */
+  agentsRow?: AgentsRowProps | null;
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
@@ -981,6 +985,7 @@ export default function InboxShell({
         {archivedInfo.unread > 0 && <span className="wa-archived-count">{archivedInfo.unread}</span>}
       </button>
     ) : null;
+  const agentsRowEl = agentsRow && !archivedView && !debounced && !activeList && isEmptyFilters(filters) ? <AgentsRow {...agentsRow} /> : null;
   // Lo que guarda una lista: los filtros puestos más la búsqueda.
   const listFilters: SavedListFilters = parseLinesFilters({ ...filters, q: debounced });
   const dirty = activeList ? serializeLinesFilters(listFilters) !== serializeLinesFilters(activeList.filters) : false;
@@ -1456,11 +1461,13 @@ export default function InboxShell({
             </div>
           ) : rows.length === 0 && !error ? (
             <>
+              {agentsRowEl}
               {archivedRow}
               <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
             <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
+              {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (
                 <>

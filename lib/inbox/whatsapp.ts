@@ -238,6 +238,12 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   onSaved();
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
+  // Fleet: lo que escribiste en tu propio chat citando el aviso de un agente va a la cola de ese agente.
+  if (added && e.fromMe && e.replyToProviderId && !history && !e.history) {
+    await import('../fleet/link')
+      .then((m) => m.routeWhatsappReply(account, e))
+      .catch((err) => console.error('[inbox] fleet reply', (err as Error)?.name ?? 'error'));
+  }
   // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta. Si falla, el
   // mensaje ya está guardado: se loguea y se sigue.
   if (input.kind === 'dm' && thread.handle && (!thread.title || thread.title === thread.handle)) {
