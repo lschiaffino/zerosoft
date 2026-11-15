@@ -40,7 +40,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       url = parsed.data.url;
       // El tamaño real (la parte 1 crece unos bytes al escribirle la duración): se sirve por rangos contra este número.
       const { head } = await import('@vercel/blob');
-      const meta = await head(url).catch(() => null);
+      const { recBlobOpts } = await import('@/lib/rec-upload');
+      const token = recBlobOpts(url).token;
+      const meta = await head(url, token ? { token } : undefined).catch(() => null);
       if (!meta) return recJson({ error: 'upload_incomplete' }, 409);
       size = meta.size;
     } else {

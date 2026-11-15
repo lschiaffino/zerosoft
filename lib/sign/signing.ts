@@ -114,13 +114,15 @@ export async function publicView(r: Resolved, sessionOk: boolean) {
   const state = publicState(r, sessionOk);
   const sender = await personName(r.env.created_by);
   const fields = state === 'ready' ? (await listFields(r.env.id)).filter((f) => f.recipient_id === r.recipient.id) : [];
+  // Antes del código por email (link reenviado o filtrado), solo lo mínimo: ni el mensaje ni el email entero.
+  const locked = state === 'otp';
   return {
     state,
     title: r.env.title,
-    message: r.env.message,
+    message: locked ? '' : r.env.message,
     senderName: sender.name,
     senderEmail: sender.email,
-    recipient: { name: r.recipient.name, email: r.recipient.email, role: r.recipient.role, maskedEmail: maskEmail(r.recipient.email) },
+    recipient: { name: r.recipient.name, email: locked ? maskEmail(r.recipient.email) : r.recipient.email, role: r.recipient.role, maskedEmail: maskEmail(r.recipient.email) },
     expiresAt: r.env.expires_at,
     pages: state === 'ready' ? parseJson<PageBox[]>(r.env.pages, []) : [],
     fields: fields.map((f) => ({ id: f.id, kind: f.kind, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, required: f.required === 1, label: f.label, options: parseJson<string[]>(f.options, []) })),

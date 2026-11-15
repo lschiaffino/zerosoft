@@ -1,6 +1,6 @@
 'use client';
 
-import { patchWebmDuration } from '@/lib/rec-webm';
+import { patchWebmDuration, WebmScanner, webmHeadWithCues } from '@/lib/rec-webm';
 import { extraKey, forget, loadBlob, loadMeta, partKey, recScope, saveBlob, saveMeta, type RecPendingMeta } from './recStore';
 
 /**
@@ -53,6 +53,12 @@ function fatal(err: unknown): boolean {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Pasa un Blob al lector de WebM de a 4 MB (no se carga entero en memoria). */
+async function feedBlob(scanner: WebmScanner, blob: Blob): Promise<void> {
+  const STEP = 4 * 1024 * 1024;
+  for (let at = 0; at < blob.size; at += STEP) scanner.feed(new Uint8Array(await blob.slice(at, at + STEP).arrayBuffer()));
+}
+
 /** Espera `ms` o hasta que el navegador vuelva a tener red, lo que pase primero. */
 function waitOnline(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -85,6 +91,9 @@ export class LiveUpload {
   private listeners = new Set<(s: UploadStatus) => void>();
   private sizes = new Map<number, number>();
   private saving: Promise<unknown> = Promise.resolve();
+  /** Índice (Cues) armado mientras se graba, parte por parte; null si se retomó de IndexedDB o falló. */
+  private scanner: WebmScanner | null = null;
+  private scanned = 0;
   uploadedBytes = 0;
 
   private constructor(private meta: RecPendingMeta) {
@@ -111,7 +120,9 @@ export class LiveUpload {
       meta.blob = { pathname, key, uploadId, access };
     }
     await saveMeta(meta).catch(() => undefined);
-    return new LiveUpload(meta);
+    const up = new LiveUpload(meta);
+    if (info.contentType.startsWith('video/webm')) up.scanner = new WebmScanner();
+    return up;
   }
 
   /** Sigue una grabación guardada en este navegador (después de recargar o de volver la red). */
@@ -182,7 +193,7 @@ export class LiveUpload {
     this.sizes.set(n, part.size);
     const meta = { ...this.meta };
     // Primero a IndexedDB; recién después a la cola (si se cae la red, la parte no se pierde).
-    this.saving = this.saving.then(() => saveBlob(partKey(this.meta.videoId, n), part).then(() => saveMeta(meta)).catch(() => undefined));
+    this.saving = this.saving.then(() => saveBlob(partKey(this.meta.videoId, n), part).then(() => saveMeta(meta)).catch(() => undefined)).then(() => this.scan(n, part));
     if (n === 1) return;
     void this.saving.then(() => this.enqueue(n));
   }
@@ -258,9 +269,11 @@ export class LiveUpload {
       let first = await loadBlob(partKey(this.meta.videoId, 1));
       if (!first) throw new Error('empty_recording');
       if (this.meta.contentType.startsWith('video/webm')) {
-        first = new Blob([patchWebmDuration(new Uint8Array(await first.arrayBuffer()), r.durationMs) as Uint8Array<ArrayBuffer>]);
+        const before = first.size;
+        first = new Blob([(await this.indexedFirstPart(first, r.durationMs)) as Uint8Array<ArrayBuffer>]);
         await saveBlob(partKey(this.meta.videoId, 1), first);
         this.sizes.set(1, first.size);
+        this.meta.bytes += first.size - before;
       }
       if (r.audio) await saveBlob(extraKey(this.meta.videoId, 'audio'), r.audio).catch(() => undefined);
       if (r.thumb) await saveBlob(extraKey(this.meta.videoId, 'thumb'), r.thumb).catch(() => undefined);
@@ -269,6 +282,55 @@ export class LiveUpload {
       await saveMeta(this.meta).catch(() => undefined);
     }
     this.enqueue(1);
+  }
+
+  /**
+   * Parte 1 con la duración y el índice (Cues) al principio, para que el video se pueda
+   * adelantar apenas se sube, sin esperar al MP4. Los clusters se anotan mientras se graba
+   * (`scan`); si la grabación se retomó después de recargar, se recorren las partes guardadas
+   * en IndexedDB de a una (solo se anotan, no se copian). Las demás partes no cambian: el
+   * índice va en la parte 1, que es la que se guarda hasta el final. Si algo no se entiende,
+   * solo la duración, como antes.
+   */
+  private async indexedFirstPart(first: Blob, durationMs: number): Promise<Uint8Array> {
+    const bytes = new Uint8Array(await first.arrayBuffer());
+    try {
+      let scanner = this.scanner && this.scanned === this.meta.next - 1 ? this.scanner : null;
+      if (!scanner) {
+        scanner = new WebmScanner();
+        scanner.feed(bytes);
+        for (let n = 2; n < this.meta.next; n++) {
+          const part = await loadBlob(partKey(this.meta.videoId, n));
+          if (!part) return patchWebmDuration(bytes, durationMs);
+          await feedBlob(scanner, part);
+        }
+      }
+      this.scanner = null;
+      const scan = scanner.finish();
+      const head = scan && scan.head.length <= bytes.length ? webmHeadWithCues(scan, durationMs) : null;
+      if (!scan || !head) return patchWebmDuration(bytes, durationMs);
+      const out = new Uint8Array(head.length + bytes.length - scan.head.length);
+      out.set(head, 0);
+      out.set(bytes.subarray(scan.head.length), head.length);
+      return out;
+    } catch {
+      return patchWebmDuration(bytes, durationMs);
+    }
+  }
+
+  /** Anota los clusters de la parte `n` en el índice (en orden; si se salteó una, se rehace al cerrar). */
+  private async scan(n: number, part: Blob): Promise<void> {
+    if (!this.scanner) return;
+    if (n !== this.scanned + 1) {
+      this.scanner = null;
+      return;
+    }
+    try {
+      await feedBlob(this.scanner, part);
+      this.scanned = n;
+    } catch {
+      this.scanner = null;
+    }
   }
 
   /** Espera a que suba todo lo pendiente (reintentando sin límite) y cierra el archivo en el servidor. */

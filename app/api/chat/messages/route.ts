@@ -1,4 +1,5 @@
 import { after, NextResponse } from 'next/server';
+import { noStore } from '@/lib/no-store';
 import { limitByIp } from '@/lib/rate-limit';
 import {
   cleanVisitorIdentity,
@@ -45,13 +46,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ visitor: null, conversation: null, messages: [], csat: null, office });
   }
 
-  return NextResponse.json({
-    ...result,
-    conversation: toPublicConversation(result.conversation),
-    messages: result.messages.map(toPublicMessage),
-    visitor: toPublicVisitor(result.visitor),
-    office,
-  });
+  return noStore(
+    NextResponse.json({
+      ...result,
+      conversation: toPublicConversation(result.conversation),
+      messages: result.messages.map(toPublicMessage),
+      visitor: toPublicVisitor(result.visitor),
+      office,
+    }),
+  );
 }
 
 export async function POST(req: Request) {
@@ -145,13 +148,15 @@ export async function POST(req: Request) {
     schedule: after,
   });
 
-  return NextResponse.json(
-    {
-      message: toPublicMessage(message),
-      conversation: toPublicConversation(result.conversation),
-      visitor: toPublicVisitor(visitor),
-      bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
-    },
-    { status: 201 },
+  return noStore(
+    NextResponse.json(
+      {
+        message: toPublicMessage(message),
+        conversation: toPublicConversation(result.conversation),
+        visitor: toPublicVisitor(visitor),
+        bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
+      },
+      { status: 201 },
+    ),
   );
 }

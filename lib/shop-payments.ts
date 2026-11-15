@@ -28,7 +28,8 @@ const STRIPE_API = 'https://api.stripe.com/v1';
 const MP_API = 'https://api.mercadopago.com';
 
 export function paymentsFake(): boolean {
-  return process.env.SHOP_PAYMENTS_FAKE === '1';
+  // Solo fuera de producción o en el deploy de demo, como los demás proveedores falsos.
+  return process.env.SHOP_PAYMENTS_FAKE === '1' && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true');
 }
 
 function appBase(): string {

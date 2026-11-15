@@ -1,4 +1,5 @@
 import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
+import { noStore } from '@/lib/no-store';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getChatWidget } from '@/lib/chat-data';
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   if (typeof body.conversationId === 'string' && body.conversationId) {
     const found = await getVisitorHistoryConversation(widgetId, ids, body.conversationId.slice(0, 64));
     if (!found) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-    return NextResponse.json(found);
+    return noStore(NextResponse.json(found));
   }
-  return NextResponse.json({ conversations: await listVisitorHistory(widgetId, ids) });
+  return noStore(NextResponse.json({ conversations: await listVisitorHistory(widgetId, ids) }));
 }

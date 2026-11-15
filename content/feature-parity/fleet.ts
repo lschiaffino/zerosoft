@@ -74,7 +74,7 @@ const parity: ProductParity = {
       competitorHas: false,
       detail: ['Through the WhatsApp you connected in Inbox', 'Con el WhatsApp que conectaste en Inbox', 'Com o WhatsApp que você conectou no Inbox'],
     }),
-    row('other-agents', 'agents', ['Other agents (Codex, Cursor, cloud routines)', 'Otros agentes (Codex, Cursor, rutinas en la nube)', 'Outros agentes (Codex, Cursor, rotinas na nuvem)'], 'missing', { competitorHas: false }),
+    row('other-agents', 'agents', ['Other agents (Codex, Cursor, cloud routines)', 'Otros agentes (Codex, Cursor, rutinas en la nube)', 'Outros agentes (Codex, Cursor, rotinas na nuvem)'], 'missing'),
 
     // Tablero
     row('board', 'platform', ['A board of everything in progress', 'Un tablero de todo lo que está en curso', 'Um painel de tudo o que está em andamento'], 'better', { competitorHas: false }),

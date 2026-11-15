@@ -1365,6 +1365,17 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
       return { name, about: about.trim().slice(0, 1000), pictureUrl, isBusiness: r.isBusiness === true };
     },
+    async profilePicture(chatId) {
+      try {
+        const r = (await api(`/chat/fetchProfilePictureUrl/${instance}`, 'POST', { number: chatId })) as Json;
+        const url = r && typeof r === 'object' ? String(r.profilePictureUrl ?? '') : '';
+        return /^https:\/\//.test(url) ? url.slice(0, 2000) : '';
+      } catch (err) {
+        // Sin foto o número que no existe: Evolution responde 400/404. Lo demás (429, caído) se informa.
+        if (err instanceof ProviderError && (err.code === 'not_found' || err.httpStatus === 400)) return '';
+        throw err;
+      }
+    },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
     },

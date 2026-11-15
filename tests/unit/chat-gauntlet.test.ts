@@ -197,7 +197,8 @@ describe('Chat: adjunto como primer mensaje del visitante', () => {
     );
     expect(res.status).toBe(201);
     const data = (await res.json()) as { conversation: { id: string; assigned_to: string | null } };
-    expect(data.conversation.assigned_to).toBe(owner.id);
+    // El visitante no ve a quién se asignó; la asignación queda en la base.
+    expect(data.conversation.assigned_to).toBeUndefined();
     expect((await getChatConversation(data.conversation.id))?.assigned_to).toBe(owner.id);
     expect(await notificationsFor(owner.id, data.conversation.id)).toHaveLength(1);
   });
