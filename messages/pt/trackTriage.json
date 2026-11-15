@@ -318,7 +318,9 @@
     "save": "Salvar regra",
     "cancel": "Cancelar",
     "missingAction": "Escolha pelo menos uma coisa para a regra fazer.",
-    "saveError": "Não foi possível salvar a regra."
+    "saveError": "Não foi possível salvar a regra.",
+    "moveToTeam": "Mover para outro team",
+    "keepTeam": "Manter neste team"
   },
   "notifications": {
     "triage_owner": "{identifier} está esperando triage",

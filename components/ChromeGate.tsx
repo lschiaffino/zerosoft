@@ -52,6 +52,8 @@ export default function ChromeGate({
     pathname === '/brand' ||
     pathname.startsWith('/brand/') ||
     pathname.startsWith('/nuevo-branding/') ||
+    // Página de estado (status.zerosoft.ai o /status): su propio chrome mínimo.
+    pathname === '/status' ||
     // Pantallas de permisos de OAuth: nada más que la decisión, sin links que la distraigan.
     pathname.startsWith('/oauth/')
   ) {

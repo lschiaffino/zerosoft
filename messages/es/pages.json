@@ -3152,66 +3152,71 @@
   "status": {
     "meta": {
       "title": "Estado de zerosoft.ai",
-      "description": "Qué corre zerosoft.ai y cómo vamos a reportar su salud. Sin números inventados."
+      "description": "Estado en vivo de zerosoft.ai: el sitio, las apps, WhatsApp y el email, chequeados cada minuto, con 90 días de historial y cada incidente."
     },
-    "title": "Estado.",
-    "sub": "El monitoreo en vivo todavía no está conectado. Hasta que lo esté, no te vamos a mostrar números que no medimos.",
-    "s1": {
-      "name": "Link",
-      "desc": "Dashboard, redirects y códigos QR"
+    "title": "Estado",
+    "backToSite": "Volver a zerosoft.ai",
+    "updated": "Se chequea cada minuto. Última actualización {time} UTC.",
+    "banner": {
+      "up": "Todo funciona",
+      "degraded": "Algunos servicios funcionan con fallas",
+      "down": "Algunos servicios están caídos",
+      "unknown": "Sin datos recientes"
     },
-    "s2": {
-      "name": "CRM",
-      "desc": "Contactos, empresas, deals, workflows"
+    "componentsTitle": "Componentes",
+    "components": {
+      "website": {
+        "name": "Sitio",
+        "desc": "zerosoft.ai, el ingreso y las páginas públicas"
+      },
+      "apps": {
+        "name": "Apps y API",
+        "desc": "Todas las apps, sus datos y la API pública"
+      },
+      "whatsapp": {
+        "name": "WhatsApp (Lines e Inbox)",
+        "desc": "Enviar y recibir mensajes de WhatsApp"
+      },
+      "email": {
+        "name": "Email",
+        "desc": "Avisos, recordatorios y códigos de ingreso"
+      }
     },
-    "s3": {
-      "name": "Track",
-      "desc": "Proyectos, issues, ciclos"
+    "state": {
+      "up": "Funciona",
+      "degraded": "Con fallas",
+      "down": "Caído",
+      "unknown": "Sin datos"
     },
-    "s4": {
-      "name": "Cal",
-      "desc": "Tipos de evento y páginas públicas de reserva"
+    "uptime": "{pct}% disponible",
+    "noUptime": "Todavía sin datos",
+    "daysAgo": "Hace 90 días",
+    "today": "Hoy",
+    "dayOk": "{date}: sin problemas",
+    "dayIssues": "{date}: {down} min caído, {degraded} min con fallas",
+    "dayNone": "{date}: sin datos",
+    "current": "Incidentes en curso",
+    "past": "Incidentes anteriores",
+    "noPast": "Ningún incidente en los últimos 90 días.",
+    "incidentTitle": {
+      "down": "{component}: caído",
+      "degraded": "{component}: funciona con fallas"
     },
-    "s5": {
-      "name": "Docs",
-      "desc": "Páginas, compartir, comentarios"
+    "started": "Empezó {time}",
+    "ongoing": "Lleva {duration}",
+    "resolvedAfter": "Resuelto después de {duration}",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "kinds": {
+      "opened": "Detectamos el problema y estamos trabajando en él.",
+      "reopened": "El problema volvió.",
+      "now_down": "Empeoró: el servicio está caído.",
+      "now_degraded": "El servicio funciona con fallas.",
+      "resolved": "Resuelto. Los chequeos pasan de nuevo.",
+      "note": "Novedad"
     },
-    "s6": {
-      "name": "Chat",
-      "desc": "Widget, inbox, bot de respuestas automáticas"
-    },
-    "s7": {
-      "name": "API v1",
-      "desc": "API REST pública para Link, CRM y Cal"
-    },
-    "s8": {
-      "name": "Auth",
-      "desc": "Login con Google"
-    },
-    "s9": {
-      "name": "Agents",
-      "desc": "Agentes, conocimiento, herramientas"
-    },
-    "s10": {
-      "name": "Flow",
-      "desc": "Workflows, disparadores, corridas"
-    },
-    "s11": {
-      "name": "Robots",
-      "desc": "Robots del navegador, schedules, runner"
-    },
-    "s12": {
-      "name": "Notes",
-      "desc": "Notas, libretas, búsqueda"
-    },
-    "s13": {
-      "name": "Board",
-      "desc": "Pizarras, autosave, links para compartir"
-    },
-    "noData": "Sin datos aún",
-    "monitoringTitle": "Próximamente.",
-    "monitoringBody": "Chequeos reales de uptime y un registro público de incidentes están en camino. Si algo se rompe antes, lo vamos a decir acá, en criollo.",
-    "contact": "¿Algo caído? Escribinos a hola@zerosoft.ai."
+    "timeline": "Línea de tiempo",
+    "contact": "¿Algo roto que no aparece acá? Escribinos a hola@zerosoft.ai."
   },
   "docs": {
     "meta": {

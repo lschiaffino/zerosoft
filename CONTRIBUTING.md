@@ -53,7 +53,7 @@ One Next.js 15 App Router app. Every product follows the same layout:
 | UI components | `components/<app>/` |
 | UI strings | `messages/<locale>/<app>.json` for `en`, `es` and `pt` |
 | Styles | `styles/` with tokens in `styles/themes/default.css` (light) and `styles/themes/dark.css` (dark) |
-| Database schema | `lib/schema/migrations.ts` (some apps keep their `up` function in `lib/schema/<app>-migration.ts`) |
+| Database schema | One file per migration in `lib/schema/migration-files/` (the older numbered list is `lib/schema/migrations.ts`) |
 | Database client | `lib/db.ts` (libSQL: a local SQLite file, or Turso) |
 | Session, workspace and permissions | `lib/session.ts`, `lib/workspace.ts`, `lib/teams.ts` |
 | App registry (names, paths, categories) | `lib/products.ts` |
@@ -128,10 +128,11 @@ current workspace (the session from `lib/session.ts`). Never trust an id from
 the request without checking it belongs to that workspace. Add a test when you
 touch access control.
 
-**Migrations.** Schema changes go in a new entry at the end of the list in
-`lib/schema/migrations.ts`, with the next string id (`NNN_short_name`, for
-example `200_crm_quotes`). Never edit, reorder or delete a published
-migration, and never edit `lib/schema/baseline.ts`. Migrations must be safe to
+**Migrations.** Schema changes go in a new file in
+`lib/schema/migration-files/`, named and with the id
+`YYYYMMDD_HHMM_short_name` (UTC, for example `20261113_0415_crm_quotes`).
+Never edit, reorder or delete a published migration, and never edit
+`lib/schema/baseline.ts`. Migrations must be safe to
 run twice and in parallel (`IF NOT EXISTS`, `addColumn`).
 
 **Crons.** Anything that runs from a cron claims each row first (a

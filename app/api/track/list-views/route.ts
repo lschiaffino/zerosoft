@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { createListView, deleteListView, isListKey, listListViews, updateListView, listAllListViews } from '@/lib/track-list-views';
+import { createListView, deleteListView, isListKey, isShareableListKey, listListViews, updateListView, listAllListViews } from '@/lib/track-list-views';
 import { ISSUE_SORTS } from '@/lib/track-views';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
 
@@ -9,9 +9,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Vistas guardadas personales de las listas de Track que no son de un team
- * (Issues, My issues, Issues de un project). Una sola ruta estática (no suma
- * rutas dinámicas): el id va en el cuerpo (PATCH) o en ?id= (DELETE).
+ * Vistas guardadas de las listas de Track que no son de un team (Issues, My
+ * issues, Issues de un project): personales o compartidas con el workspace.
+ * Una sola ruta estática (no suma rutas dinámicas): el id va en el cuerpo
+ * (PATCH) o en ?id= (DELETE). Solo quien creó una vista la edita o la borra.
  */
 const viewType = z.enum(['list', 'board', 'calendar', 'gantt']);
 const createSchema = z.object({
@@ -20,6 +21,7 @@ const createSchema = z.object({
   viewType: viewType.default('list'),
   filters: z.record(z.unknown()).default({}),
   sort: z.enum(ISSUE_SORTS).default('manual'),
+  shared: z.boolean().optional(),
 });
 const updateSchema = z.object({
   id: z.string().min(1).max(64),
@@ -27,12 +29,14 @@ const updateSchema = z.object({
   viewType: viewType.optional(),
   filters: z.record(z.unknown()).optional(),
   sort: z.enum(ISSUE_SORTS).optional(),
+  shared: z.boolean().optional(),
 });
 
 async function who() {
   const user = await getCurrentUser();
   if (!user) return null;
-  return { me: realUserId(user), scope: user.team?.id ?? '' };
+  // scope: la clave de siempre de las vistas propias; workspace: con quién se comparten.
+  return { me: realUserId(user), scope: user.team?.id ?? '', workspace: user.workspace?.id ?? user.team?.id ?? '' };
 }
 
 export async function GET(req: NextRequest) {
@@ -40,8 +44,8 @@ export async function GET(req: NextRequest) {
   if (!u) return unauthorized();
   if (req.nextUrl.searchParams.get('all') === '1') return NextResponse.json({ rows: await listAllListViews(u.me, u.scope) });
   const key = req.nextUrl.searchParams.get('key');
-  if (!isListKey(key)) return NextResponse.json({ rows: [] });
-  return NextResponse.json({ rows: await listListViews(u.me, u.scope, key) });
+  if (!isListKey(key)) return NextResponse.json({ rows: [], shareable: false });
+  return NextResponse.json({ rows: await listListViews(u.me, u.scope, key, u.workspace), shareable: isShareableListKey(key, u.workspace) });
 }
 
 export async function POST(req: NextRequest) {
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const { key, ...input } = parsed.data;
-  return NextResponse.json(await createListView(u.me, u.scope, key, input), { status: 201 });
+  return NextResponse.json(await createListView(u.me, u.scope, key, input, u.workspace), { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -59,7 +63,7 @@ export async function PATCH(req: NextRequest) {
   const parsed = updateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const { id, ...patch } = parsed.data;
-  const view = await updateListView(id, u.me, patch);
+  const view = await updateListView(id, u.me, patch, u.workspace);
   return view ? NextResponse.json(view) : notFound();
 }
 

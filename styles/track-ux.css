@@ -899,7 +899,8 @@ a.track-issue-link .track-status-glyph {
   cursor: pointer;
 }
 
-.track-filter-prop > span:first-child {
+/* Crece el texto, no el ícono: con el ícono primero, el texto quedaba corrido 40px a la derecha. */
+.track-filter-prop > .track-keymenu-label {
   flex: 1;
 }
 
@@ -1307,11 +1308,18 @@ a.track-issue-link .track-status-glyph {
   text-overflow: ellipsis;
 }
 
+/* Una sola línea, como Linear: con poco ancho las etiquetas ceden antes que el título
+   (antes pasaban a dos renglones, la fila crecía y el título se cortaba con lugar libre). */
 .track-table-wrap.is-linear .track-title-labels {
-  flex-shrink: 1;
+  flex: 0 10 auto;
+  flex-wrap: nowrap;
   min-width: 0;
   margin-left: auto;
   overflow: hidden;
+}
+
+.track-table-wrap.is-linear .track-title-labels > * {
+  flex-shrink: 0;
 }
 
 .track-table-wrap.is-linear .track-table td.track-col-project {

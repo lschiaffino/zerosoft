@@ -18,6 +18,8 @@ const actions = z.object({
   labelIds: z.array(z.string().trim().min(1).max(64)).max(10).optional(),
   cycleId: z.string().trim().min(1).max(64).optional(),
   acceptStatusId: z.string().trim().min(1).max(64).optional(),
+  /** Mover a la cola de triage de otro team del workspace. */
+  moveToProjectId: z.string().trim().min(1).max(64).optional(),
 });
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),

@@ -1812,6 +1812,7 @@
     "deleteChatBody": "It leaves the list for the whole team. Nothing changes on WhatsApp, and if a new message comes in, the chat shows up again with its history.",
     "chatDeleted": "Chat deleted",
     "lineDropped": "{name} lost its WhatsApp connection. New messages won’t arrive until you reconnect it.",
+    "archiveBroken": "WhatsApp archiving is not syncing on this line: archiving here doesn't reach the phone, and archiving on the phone doesn't show up here. Disconnect the line and link it again to fix it.",
     "line": "Your line",
     "rescan": "Scan the QR again",
     "reconnect": "Reconnect",

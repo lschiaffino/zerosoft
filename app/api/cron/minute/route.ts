@@ -30,6 +30,7 @@ import { processPendingSitemaps } from '@/lib/agents-knowledge';
 import { processPendingSources } from '@/lib/agents-sources';
 import { warmAgentEmbeddings } from '@/lib/agents-semantic';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
+import { cronAuthError } from '@/lib/status/agent-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,12 @@ const CRM_IMPORT_BUDGET_MS = 200_000;
  */
 export async function GET(req: NextRequest) {
   const start = Date.now();
+  // status.zerosoft.ai primero y antes de cualquier lectura: si la base está bloqueada, el resto falla pero el aviso sale igual.
+  const denied = cronAuthError(req);
+  if (denied) return denied;
+  const status = await import('@/lib/status/store')
+    .then(async (m) => m.runStatusCron({ runChecks: (await import('@/lib/status/checks')).runChecks }))
+    .catch(() => null);
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
@@ -128,5 +135,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

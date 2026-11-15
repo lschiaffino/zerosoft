@@ -23,6 +23,7 @@ import { PLAN_ISSUE_GROUPS } from '@/lib/track-views';
 import { api, copyText, fmtDay, fmtInstantDay, HealthDot, initialsOf, LoadingRows, PlanStatusIcon, personName } from './shared';
 import type { PlansMeta } from './PlansList';
 import PlanUpdates, { updateAuthor } from './PlanUpdates';
+import { SaveTemplateDialog } from './PlanTemplates';
 import TitleInput from '@/components/ui/TitleInput';
 
 type Tab = 'overview' | 'issues' | 'updates';
@@ -70,6 +71,7 @@ export default function PlanPage({ planId }: { planId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [name, setName] = useState('');
   const [issueCount, setIssueCount] = useState<number | null>(null);
   // Esc descarta: el blur que le sigue no guarda (leería el borrador de antes de restaurarlo).
@@ -226,6 +228,7 @@ export default function PlanPage({ planId }: { planId: string }) {
               { value: 'follow', label: data.following ? t('plan.unfollow') : t('plan.followAction'), icon: <TrackIcon name="bell" size={13} /> },
               { value: 'update', label: t('plan.writeUpdate'), icon: <TrackIcon name="pencil" size={13} /> },
               { value: 'copy', label: t('common.copyLink'), icon: <TrackIcon name="link" size={13} /> },
+              { value: 'template', label: t('templates.saveAction'), icon: <TrackIcon name="plans" size={13} /> },
               plan.archived_at
                 ? { value: 'unarchive', label: t('plan.unarchive'), icon: <TrackIcon name="archive" size={13} /> }
                 : { value: 'archive', label: t('plan.archive'), icon: <TrackIcon name="archive" size={13} /> },
@@ -235,6 +238,7 @@ export default function PlanPage({ planId }: { planId: string }) {
               if (v === 'follow') void follow(!data.following);
               else if (v === 'update') writeUpdate();
               else if (v === 'copy') void copyText(window.location.href.split('?')[0]).then((ok) => setNotice(ok ? t('common.linkCopied') : null));
+              else if (v === 'template') setSavingTemplate(true);
               else if (v === 'archive' || v === 'unarchive') void archive(v === 'archive');
               else if (v === 'delete') setConfirmDelete(true);
             }}
@@ -331,6 +335,16 @@ export default function PlanPage({ planId }: { planId: string }) {
         danger
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <SaveTemplateDialog
+        open={savingTemplate}
+        planId={plan.id}
+        planName={plan.name}
+        onClose={() => setSavingTemplate(false)}
+        onSaved={(tpl) => {
+          setSavingTemplate(false);
+          setNotice(t('templates.saved', { name: tpl.name }));
+        }}
       />
       <TrackToast message={notice} onDismiss={() => setNotice(null)} dismissLabel={t('common.dismiss')} />
     </div>

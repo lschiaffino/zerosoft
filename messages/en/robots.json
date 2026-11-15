@@ -169,6 +169,7 @@
       "click": "Click",
       "fill": "Fill field",
       "select": "Select option",
+      "check": "Check or uncheck",
       "press": "Press key",
       "wait": "Wait",
       "extract": "Extract",
@@ -194,6 +195,7 @@
       "ms": "Milliseconds",
       "waitSelector": "Or until this selector appears",
       "waitUntil": "Wait until the element",
+      "checkState": "Final state",
       "name": "Save as variable",
       "mode": "What to extract",
       "attribute": "Attribute",
@@ -234,6 +236,10 @@
       "aiFieldDesc": "Description (optional)",
       "aiScope": "Only inside this selector (optional)",
       "origin": "Login site"
+    },
+    "checkState": {
+      "checked": "Checked",
+      "unchecked": "Unchecked"
     },
     "waitUntil": {
       "appears": "Appears in the page",

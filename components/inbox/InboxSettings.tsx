@@ -144,12 +144,17 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
         </div>
         <span className={`badge ${connected ? 'badge-ok' : 'badge-warn'}`}>{connected ? t('statusOn') : t('statusOff')}</span>
       </div>
+      {connected && account?.archiveSyncBroken && (
+        <p className="ui-error" role="status" data-testid="inbox-wa-archive-broken">
+          {t('archiveBroken')}
+        </p>
+      )}
       {!available ? (
         <p className="ib-help">{t('unavailable')}</p>
       ) : (
         <div className="ib-row">
           {!connected && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking('link')}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking('link')} data-testid="inbox-wa-link">
               {t('connect')}
             </button>
           )}
@@ -159,7 +164,7 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
             </button>
           )}
           {connected && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirm('unlink')}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirm('unlink')} data-testid="inbox-wa-unlink">
               {t('unlink')}
             </button>
           )}
@@ -198,7 +203,12 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
               {t('resyncYes')}
             </button>
           ) : (
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => void (confirm === 'remove' ? remove() : unlink())}>
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              onClick={() => void (confirm === 'remove' ? remove() : unlink())}
+              data-testid={confirm === 'remove' ? 'inbox-wa-remove-yes' : 'inbox-wa-unlink-yes'}
+            >
               {confirm === 'remove' ? t('removeYes') : t('unlinkYes')}
             </button>
           )}

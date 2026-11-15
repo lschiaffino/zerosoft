@@ -1606,7 +1606,15 @@
       "shareOnSave": "Compartilhar com a equipe",
       "shareHelp": "Toda a equipe vê as visualizações da equipe. Só você as edita.",
       "updateView": "Atualizar visualização",
-      "saveAsNew": "Salvar como nova visualização"
+      "saveAsNew": "Salvar como nova visualização",
+      "workspace": {
+        "team": "Workspace",
+        "share": "Compartilhar com o workspace",
+        "teamViews": "Compartilhadas com o workspace",
+        "sharedOn": "Todo o workspace já vê esta visualização",
+        "shareOnSave": "Compartilhar com o workspace",
+        "shareHelp": "Todo o workspace vê aqui as visualizações compartilhadas, com os issues a que tem acesso. Só você as edita."
+      }
     },
     "filter": {
       "fields": {

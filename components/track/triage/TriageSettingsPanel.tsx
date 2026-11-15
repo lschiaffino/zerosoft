@@ -23,6 +23,11 @@ interface Label {
   id: string;
   name: string;
 }
+interface TeamOption {
+  id: string;
+  name: string;
+}
+
 interface Cycle {
   id: string;
   name: string;
@@ -273,6 +278,7 @@ function RuleEditor({
   statuses,
   labels,
   cycles,
+  teams,
   onSave,
   onCancel,
   busy,
@@ -284,6 +290,8 @@ function RuleEditor({
   statuses: TrackStatusRow[];
   labels: Label[];
   cycles: Cycle[];
+  /** Otros teams del workspace (para "Mover a otro team"). */
+  teams: TeamOption[];
   onSave: () => void;
   onCancel: () => void;
   busy: boolean;
@@ -406,6 +414,7 @@ function RuleEditor({
             <span className="label">{t('rules.setAssignee')}</span>
             <select
               className="select"
+              disabled={Boolean(draft.actions.moveToProjectId)}
               value={draft.actions.assigneeId ?? ''}
               onChange={(e) => setDraft({ ...draft, actions: { ...draft.actions, assigneeId: e.target.value || undefined } })}
               data-testid="track-rule-assignee"
@@ -418,9 +427,41 @@ function RuleEditor({
               ))}
             </select>
           </label>
+          {teams.length > 0 && (
+            <label className="ui-field">
+              <span className="label">{t('rules.moveToTeam')}</span>
+              <select
+                className="select"
+                value={draft.actions.moveToProjectId ?? ''}
+                onChange={(e) => {
+                  const moveToProjectId = e.target.value || undefined;
+                  // Estado, cycle y asignado son de este team: al mover no se aplican.
+                  setDraft({
+                    ...draft,
+                    actions: moveToProjectId
+                      ? { ...draft.actions, moveToProjectId, acceptStatusId: undefined, cycleId: undefined, assigneeId: undefined }
+                      : { ...draft.actions, moveToProjectId },
+                  });
+                }}
+                data-testid="track-rule-move"
+              >
+                <option value="">{t('rules.keepTeam')}</option>
+                {teams.map((tm) => (
+                  <option key={tm.id} value={tm.id}>
+                    {tm.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="ui-field">
             <span className="label">{t('rules.setCycle')}</span>
-            <select className="select" value={draft.actions.cycleId ?? ''} onChange={(e) => setDraft({ ...draft, actions: { ...draft.actions, cycleId: e.target.value || undefined } })}>
+            <select
+              className="select"
+              disabled={Boolean(draft.actions.moveToProjectId)}
+              value={draft.actions.cycleId ?? ''}
+              onChange={(e) => setDraft({ ...draft, actions: { ...draft.actions, cycleId: e.target.value || undefined } })}
+            >
               <option value="">{t('rules.keep')}</option>
               {cycles.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -433,6 +474,7 @@ function RuleEditor({
             <span className="label">{t('rules.accept')}</span>
             <select
               className="select"
+              disabled={Boolean(draft.actions.moveToProjectId)}
               value={draft.actions.acceptStatusId ?? ''}
               onChange={(e) => setDraft({ ...draft, actions: { ...draft.actions, acceptStatusId: e.target.value || undefined } })}
             >
@@ -484,13 +526,21 @@ function RuleEditor({
   );
 }
 
-function ruleSummary(t: ReturnType<typeof useTranslations>, r: TriageRule, members: ProjectMember[], statuses: TrackStatusRow[], labels: Label[]): string {
+function ruleSummary(
+  t: ReturnType<typeof useTranslations>,
+  r: TriageRule,
+  members: ProjectMember[],
+  statuses: TrackStatusRow[],
+  labels: Label[],
+  teams: TeamOption[],
+): string {
   const parts: string[] = [];
   if (r.actions.priority) parts.push(`${t('rules.setPriority')}: ${t(`priorities.${r.actions.priority}`)}`);
   if (r.actions.assigneeId) parts.push(`${t('rules.setAssignee')}: ${memberName(members.find((m) => m.id === r.actions.assigneeId))}`);
   if (r.actions.labelIds?.length) parts.push(`${t('rules.addLabels')}: ${r.actions.labelIds.map((id) => labels.find((l) => l.id === id)?.name ?? '?').join(', ')}`);
   if (r.actions.acceptStatusId) parts.push(`${t('rules.accept')}: ${statuses.find((s) => s.id === r.actions.acceptStatusId)?.name ?? '?'}`);
   if (r.actions.cycleId) parts.push(t('rules.setCycle'));
+  if (r.actions.moveToProjectId) parts.push(`${t('rules.moveToTeam')}: ${teams.find((tm) => tm.id === r.actions.moveToProjectId)?.name ?? '?'}`);
   const textual = (f: string) => f === 'text' || f === 'customer';
   const value = (field: string, v: string) =>
     field === 'label' ? (labels.find((l) => l.id === v)?.name ?? v) : field === 'priority' ? t(`priorities.${v}`) : field === 'source' ? t(`rules.sources.${v}`) : `"${v}"`;
@@ -520,6 +570,7 @@ function RulesSettings({
   const [rules, setRules] = useState<TriageRule[] | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -527,15 +578,17 @@ function RulesSettings({
   const [confirm, setConfirm] = useState<TriageRule | null>(null);
 
   const load = useCallback(async () => {
-    const [r, l, c] = await Promise.all([
+    const [r, l, c, tm] = await Promise.all([
       call<{ rows: TriageRule[] }>(`/api/track/projects/${projectId}/triage-rules`),
       call<{ rows: Label[] }>('/api/track/labels'),
       call<{ rows: Cycle[] }>(`/api/track/projects/${projectId}/cycles`),
+      call<{ rows: Array<TeamOption & { status?: string }> }>('/api/track/projects?pageSize=100'),
     ]);
     if (r.ok) setRules(r.data.rows);
     else setLoadError(true);
     if (l.ok) setLabels(l.data.rows);
     if (c.ok) setCycles(c.data.rows);
+    if (tm.ok) setTeams(tm.data.rows.filter((x) => x.id !== projectId && x.status !== 'archived').map((x) => ({ id: x.id, name: x.name })));
   }, [projectId]);
 
   useEffect(() => {
@@ -594,7 +647,7 @@ function RulesSettings({
             <li key={r.id} className="track-x-rule" data-testid="track-rule">
               <div className="track-x-rule-main">
                 <span className="track-x-rule-name">{r.name}</span>
-                <span className="ui-help">{ruleSummary(t, r, members, statuses, labels)}</span>
+                <span className="ui-help">{ruleSummary(t, r, members, statuses, labels, teams)}</span>
               </div>
               {isAdmin && (
                 <span className="track-x-row-actions">
@@ -627,6 +680,7 @@ function RulesSettings({
           statuses={statuses}
           labels={labels}
           cycles={cycles}
+          teams={teams}
           onSave={() => void save()}
           onCancel={() => {
             setDraft(null);

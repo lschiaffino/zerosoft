@@ -1067,7 +1067,8 @@
     "signOutCancel": "Cancelar",
     "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
     "unknownTitle": "Não enviadas",
-    "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas."
+    "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas.",
+    "needsConnection": "Precisa de conexão"
   },
   "comingSoon": {
     "badge": "Em breve",

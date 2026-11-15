@@ -149,7 +149,7 @@ export function CyclesIndex() {
   return (
     <>
       {toolbar}
-      <div className="tp-list" data-testid="tp-cycles">
+      <div className="tp-list tp-cycles-list" data-testid="tp-cycles">
         {sections
           .filter((s) => s.rows.length)
           .map((s) => (

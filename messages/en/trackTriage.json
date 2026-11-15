@@ -318,7 +318,9 @@
     "save": "Save rule",
     "cancel": "Cancel",
     "missingAction": "Choose at least one thing for the rule to do.",
-    "saveError": "Could not save the rule."
+    "saveError": "Could not save the rule.",
+    "moveToTeam": "Move to team",
+    "keepTeam": "Keep in this team"
   },
   "notifications": {
     "triage_owner": "{identifier} is waiting for triage",

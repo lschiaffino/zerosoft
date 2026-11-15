@@ -204,7 +204,8 @@
 }
 
 .track-menu-label {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -216,6 +217,12 @@
 }
 
 .track-menu-meta {
+  /* Sin lugar (390px), el detalle cede antes que el nombre de la opción. */
+  flex: 0 3 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--brand-gray-2);

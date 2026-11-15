@@ -19,7 +19,7 @@ commit with your own name and email, and open a PR as CONTRIBUTING.md says.
   `main` automatically, and only `main` (`vercel.json` turns off branch
   previews).
 - **Backlog, feature parity and security bugs:** follow the Conventions in
-  AGENTS.md (`research/ideas.json`, `content/changelog.ts`,
+  AGENTS.md (`research/ideas.json`, `content/changelog-entries/`,
   `content/feature-parity/<app>.ts`).
 - **Routine prompts:** the daily blog routine is `docs/blog-routine.md`.
   Internal material (product strategy, brand drafts, design reviews) lives in

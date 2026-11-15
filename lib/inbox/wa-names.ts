@@ -7,7 +7,8 @@
  */
 import { getDb } from '../db';
 import { isGroupJid, lidDigits, phoneDigits, type ChatInfo, type HistoryContact, type InboundEvent } from '../groups-provider';
-import { contactsFromMessage, mentionTargets, phoneForLid, rememberContacts, type ContactInput, type ContactScope, type Renamed } from '../wa-contacts';
+import { contactsFromMessage, lidPhonePairs, mentionTargets, phoneForLid, rememberContacts, type ContactInput, type ContactScope, type Renamed } from '../wa-contacts';
+import { mergeLidChats } from '../wa-dedupe-run';
 import type { MentionMap } from '../wa-mentions';
 import type { AccountRow } from './core';
 
@@ -84,6 +85,9 @@ export async function learnFromHistoryContacts(account: Pick<AccountRow, 'id' | 
   if (!items.length) return 0;
   const renamed = await rememberContacts(inboxScope(account), items);
   if (renamed.length) await applyInboxRenames(account.id, renamed);
+  // Los chats que entraron por lid de quien la libreta ya sabe el teléfono: se juntan con el del teléfono.
+  const lids = lidPhonePairs(items).map((p) => p.lid);
+  if (lids.length) await mergeLidChats('inbox', account.id, { lids });
   return items.length;
 }
 

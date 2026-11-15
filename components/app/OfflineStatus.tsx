@@ -8,6 +8,7 @@ import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client'
 import { whoCookie } from '@/lib/docs-offline';
 import { notesDbName } from '@/components/notes/notesOffline';
 import { readOfflinePrefs } from '@/lib/offline-prefs-client';
+import { rootsDue, safeStorage } from '@/lib/offline-apps';
 
 /**
  * Estado sin conexión en la banda de la app (toda la suite).
@@ -94,7 +95,8 @@ function describe(b: Brief, fallback: string): string {
 
 export default function OfflineStatus({ owner }: { owner: string }) {
   const t = useTranslations('common.offline');
-  const helpHref = `/${useLocale()}/download#offline`;
+  const locale = useLocale();
+  const helpHref = `/${locale}/download#offline`;
   const router = useRouter();
   const pathname = usePathname() ?? '';
   const [online, setOnline] = useState(true);
@@ -144,9 +146,12 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     return () => sw.removeEventListener('message', onMessage);
   }, [router]);
 
-  // Registro y "guardar esta vista" en las apps que andan sin red.
+  // Registro y "guardar esta vista" en las apps que andan sin red. En las demás también se
+  // registra (fuera de los e2e, como AppPwa): sin red, el worker muestra "necesita conexión" en
+  // vez del error del navegador, y guarda el inicio de las apps que andan sin red.
   useEffect(() => {
-    if (!offlineApp || !('serviceWorker' in navigator) || !serviceWorkerEnabled()) return;
+    if (!('serviceWorker' in navigator) || !serviceWorkerEnabled()) return;
+    if (!offlineApp && navigator.webdriver) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       registerAppServiceWorker()
@@ -165,8 +170,12 @@ export default function OfflineStatus({ owner }: { owner: string }) {
             warmedStatics.current = true;
             for (const r of performance.getEntriesByType('resource')) if (r.name.includes('/_next/static/')) urls.push(r.name);
           }
-          urls.push(location.href);
+          if (offlineApp) urls.push(location.href);
           target?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls });
+          // El inicio de cada app sin conexión, con su JS y CSS, aunque la persona no lo haya abierto
+          // en este dispositivo: así sin red se puede abrir y navegar. Cada 6 horas como mucho.
+          const roots = rootsDue(safeStorage(), owner, locale, location.origin, Date.now(), Boolean(navigator.webdriver));
+          if (roots.length) target?.postMessage({ type: 'zs-warm', user: owner, who: whoCookie(), urls: roots, withStatics: true });
           target?.postMessage({ type: 'zs-sync' });
         })
         .catch(() => null);
@@ -175,9 +184,13 @@ export default function OfflineStatus({ owner }: { owner: string }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [offlineApp, pathname, owner]);
+  }, [offlineApp, pathname, owner, locale]);
 
-  // Red que va y viene.
+  // Red que va y viene. <html data-network="offline">: el selector de apps marca las que necesitan conexión.
+  useEffect(() => {
+    document.documentElement.dataset.network = online ? 'online' : 'offline';
+  }, [online]);
+
   useEffect(() => {
     function goOnline() {
       setOnline(true);

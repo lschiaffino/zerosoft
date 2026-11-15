@@ -261,6 +261,12 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [items, setItems] = useState<ResultItem[]>([]);
+  // Lo tipeado a lo que corresponden `items`: mientras no coincide con `q`, la lista es vieja.
+  const [itemsQ, setItemsQ] = useState('');
+  const latestQ = useRef('');
+  // Enter antes de que lleguen los resultados de lo tipeado: se elige el primero cuando llegan
+  // (antes elegía una acción vieja y oculta, p. ej. "Nuevo issue" vacío).
+  const pendingEnter = useRef(false);
   const [loading, setLoading] = useState(false);
   const [sel, setSel] = useState(0);
   // Páginas abiertas dentro de las acciones en contexto (ids), p. ej. ["status"].
@@ -576,6 +582,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       if (!query.trim()) {
         const actions = actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app));
         setItems(actions);
+        setItemsQ(query);
         setLoading(false);
         // En Docs, sin tipear, primero las páginas editadas hace poco (como Notion).
         if (inDocs) {
@@ -593,6 +600,8 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&locale=${locale}`);
         const data = (await res.json()) as SearchResponse;
+        // Una respuesta que llega tarde (ya se tipeó otra cosa) no pisa la lista nueva.
+        if (query !== latestQ.current) return;
         const needle = fold(query.trim());
         // Las acciones cuyo texto empieza (o una palabra empieza) con lo buscado van
         // primero: "Ask" pone "Ask the CRM assistant" arriba de "New task".
@@ -616,20 +625,33 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
             ? [...matchingActions.sort((a, b) => rankItem(a) - rankItem(b) || byGroup(a, b)), ...results]
             : [...matchingActions, ...results].sort(byGroup),
         );
+        setItemsQ(query);
       } catch {
+        if (query !== latestQ.current) return;
         setItems([]);
+        setItemsQ(query);
       } finally {
-        setLoading(false);
-        setSel(0);
+        if (query === latestQ.current) {
+          setLoading(false);
+          setSel(0);
+        }
       }
     },
     [appItems, actionItems, settingsItems, groupOrder, locale, allowedApps, inDocs, t],
   );
 
   useEffect(() => {
+    latestQ.current = q;
     const id = setTimeout(() => search(q), 200);
     return () => clearTimeout(id);
   }, [q, search]);
+
+  const stale = !pageItems && itemsQ !== q;
+  useEffect(() => {
+    if (!pendingEnter.current || stale) return;
+    pendingEnter.current = false;
+    if (visible.length > 0) go(visible[0]);
+  });
 
   // Las páginas con `load` piden opciones al servidor según lo tipeado.
   const loadRef = useRef(pageLoad);
@@ -712,6 +734,9 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
         e.preventDefault();
         go(hit);
       }
+    } else if (e.key === 'Enter' && stale) {
+      e.preventDefault();
+      pendingEnter.current = true;
     } else if (e.key === 'Enter' && visible.length > 0) {
       e.preventDefault();
       go(visible[Math.min(sel, visible.length - 1)]);
@@ -766,7 +791,10 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
           aria-activedescendant={visible[sel] ? `cmdk-option-${sel}` : undefined}
           aria-autocomplete="list"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            pendingEnter.current = false;
+            setQ(e.target.value);
+          }}
           placeholder={page?.placeholder ?? t('searchPlaceholder')}
           aria-label={t('search')}
         />

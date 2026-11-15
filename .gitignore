@@ -28,3 +28,8 @@ public/uploads/
 /.impeccable/
 /screenshots/
 /PRODUCT.md
+e2e-results/
+
+# Armados por scripts/gen-fragments.mjs (un archivo por entrada de changelog y por migración).
+content/changelog-entries.generated.ts
+lib/schema/migration-files.generated.ts
