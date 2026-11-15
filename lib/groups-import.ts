@@ -550,7 +550,8 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         }
         // Los grupos traen sus miembros de WhatsApp (los del historial son solo quienes escribieron).
         if (c.kind === 'group') {
-          const { syncMembers } = await import('./groups');
+          const { syncMembers, MEMBERS_GAP_MS } = await import('./groups');
+          await new Promise((r) => setTimeout(r, MEMBERS_GAP_MS));
           await syncMembers(number.user_id, c.id).catch(() => null);
         }
       }
