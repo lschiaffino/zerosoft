@@ -16,8 +16,8 @@ export interface FakeToolCall {
   input: Record<string, unknown>;
 }
 
-/** Lo que el modelo falso devuelve en una llamada: texto o una tool call. */
-export type FakeStep = { text: string } | FakeToolCall;
+/** Lo que el modelo falso devuelve en una llamada: texto o una tool call (con razonamiento antes, opcional). */
+export type FakeStep = ({ text: string } | FakeToolCall) & { reasoning?: string };
 
 export interface FakeCallInfo {
   /** Instrucciones de sistema. */
@@ -139,10 +139,24 @@ export function fakeModel(respond: (info: FakeCallInfo) => FakeStep): LanguageMo
     supportedUrls: {},
     doGenerate: generate,
     doStream: async (options: { prompt: unknown }) => {
-      const res = await generate(options);
+      const step = respond(callInfo(options.prompt));
+      const content = contentFor(step, calls++);
+      const res = {
+        content: [content],
+        finishReason: { unified: content.type === 'text' ? ('stop' as const) : ('tool-calls' as const), raw: undefined },
+      };
       const c = res.content[0];
-      const chunks: unknown[] =
-        c.type === 'text'
+      // Razonamiento (como DeepSeek): de a pocas palabras, antes de la respuesta.
+      const thinking: unknown[] = step.reasoning
+        ? [
+            { type: 'reasoning-start', id: 'r' },
+            ...(step.reasoning.match(/\S+\s*/g) ?? [step.reasoning]).map((delta) => ({ type: 'reasoning-delta', id: 'r', delta })),
+            { type: 'reasoning-end', id: 'r' },
+          ]
+        : [];
+      const chunks: unknown[] = [
+        ...thinking,
+        ...(c.type === 'text'
           ? [
               { type: 'text-start', id: 't' },
               // De a pocas palabras, como un modelo real (la UI muestra el texto mientras llega).
@@ -153,7 +167,7 @@ export function fakeModel(respond: (info: FakeCallInfo) => FakeStep): LanguageMo
               }, []).map((delta) => ({ type: 'text-delta', id: 't', delta })),
               { type: 'text-end', id: 't' },
             ]
-          : [c];
+          : [c])];
       chunks.push({ type: 'finish', finishReason: res.finishReason, usage: USAGE });
       return {
         stream: new ReadableStream({

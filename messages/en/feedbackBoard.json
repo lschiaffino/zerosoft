@@ -79,7 +79,8 @@
     "forms": "Forms",
     "send": "Send",
     "inbox": "Inbox",
-    "calls": "Calls"
+    "calls": "Calls",
+    "fleet": "Fleet"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",
@@ -158,7 +159,8 @@
       "ideas": "Ideas",
       "send": "Send",
       "news": "What's new",
-      "calls": "Calls"
+      "calls": "Calls",
+      "fleet": "Fleet"
     },
     "unread": "{count, plural, one {# unread update} other {# unread updates}}",
     "searchPlaceholder": "Search ideas to vote",

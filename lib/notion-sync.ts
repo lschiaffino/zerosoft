@@ -24,7 +24,7 @@
  * A 3 pedidos por segundo como mucho (el límite de Notion) y, ante un 429,
  * se espera lo que pide Notion.
  */
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getDb, type DocsPageRow } from './db';
 import { open, seal } from './secret-box';
 import { getExternalId, ImportError, ImportRetryError } from './import-jobs';
@@ -283,12 +283,11 @@ export interface NotionSyncStatus {
   progress: { total: number; synced: number; pending: number; errors: number; skipped: number };
   roots: Array<{ id: string; title: string; kind: string; enabled: boolean }>;
   log: Array<{ id: string; dir: string; action: string; title: string; pageId: string | null; detail: string | null; at: string }>;
-  /** Solo para quien administra la instancia (ADMIN_EMAILS): el token de verificación del webhook. */
-  webhookToken?: string | null;
-  webhookWaiting?: boolean;
+  /** Solo para quien administra la instancia (ADMIN_EMAILS): la verificación del webhook. */
+  webhook?: WebhookVerificationState;
 }
 
-export async function getNotionSyncStatus(ws: string, opts: { operator?: boolean } = {}): Promise<NotionSyncStatus> {
+export async function getNotionSyncStatus(ws: string, opts: { operator?: boolean; userId?: string } = {}): Promise<NotionSyncStatus> {
   const db = getDb();
   const conn = await getConnection(ws);
   const counts = (await db
@@ -320,7 +319,7 @@ export async function getNotionSyncStatus(ws: string, opts: { operator?: boolean
     progress: { total: counts.reduce((a, c) => a + Number(c.n), 0) - by('gone'), synced: by('synced'), pending: by('pending'), errors: by('error'), skipped: by('skipped') },
     roots: roots.map((r) => ({ id: r.notion_id, title: r.title, kind: r.kind, enabled: r.enabled === 1 })),
     log: log.map((l) => ({ id: l.id, dir: l.dir, action: l.action, title: l.title, pageId: l.local_page_id, detail: l.detail, at: l.created_at })),
-    ...(opts.operator ? { webhookToken: await pendingWebhookToken(), webhookWaiting: await webhookWindowOpen() } : {}),
+    ...(opts.operator ? { webhook: await webhookVerificationState(ws, opts.userId ?? ws) } : {}),
   };
 }
 
@@ -765,51 +764,155 @@ export async function syncNotionNow(ws: string, budgetMs = 8_000): Promise<boole
 
 // ---------- Webhooks ----------
 
-/** Token de verificación del webhook de la integración pública (NOTION_WEBHOOK_SECRET o el que mandó Notion). */
+/*
+ * La suscripción de webhooks es de la integración pública (una por instancia).
+ * Al crearla, Notion manda a la ruta un POST sin firma con `verification_token`
+ * y espera que alguien lo pegue en su panel ("Verify"). Desde entonces firma
+ * cada evento con HMAC-SHA256 usando ese token como clave.
+ *
+ * Como ese primer POST no viene firmado, cualquiera puede mandar uno. Por eso:
+ *   - solo se escucha mientras hay una verificación pendiente que abrió, desde
+ *     Ajustes, alguien que administra la instancia (ADMIN_EMAILS) y es admin de
+ *     su workspace; la ventana queda atada a ese workspace y a esa persona y
+ *     dura 15 minutos;
+ *   - lo que llega en esa ventana es solo un candidato (hasta 5): nunca sirve
+ *     para validar firmas. Se le muestra únicamente a quien abrió la ventana,
+ *     que pega en Notion el que Notion acepta y lo confirma acá;
+ *   - un secreto confirmado (o NOTION_WEBHOOK_SECRET) no se pisa desde la ruta:
+ *     hay que borrarlo a mano antes de abrir otra ventana;
+ *   - todo evento sin firma válida contra el secreto confirmado se rechaza.
+ * Filas de notion_sync_webhook: 'public' (confirmado), 'window' (pendiente),
+ * 'cand:<id>' (candidatos de esa ventana).
+ */
+
+const WEBHOOK_WINDOW_MS = 15 * 60_000;
+const WEBHOOK_MAX_CANDIDATES = 5;
+/** Forma de los tokens de verificación de Notion (`secret_…`). */
+const VERIFICATION_TOKEN_RE = /^secret_[A-Za-z0-9_-]{16,200}$/;
+
+/** El secreto confirmado (NOTION_WEBHOOK_SECRET o el que confirmó quien administra la instancia). */
 async function webhookSecret(): Promise<string | null> {
   if (process.env.NOTION_WEBHOOK_SECRET) return process.env.NOTION_WEBHOOK_SECRET;
   const row = (await getDb().prepare(`SELECT token FROM notion_sync_webhook WHERE id = 'public'`).get()) as { token: string } | undefined;
   return row ? open(row.token) || null : null;
 }
 
-/** Para quien administra la instancia (ADMIN_EMAILS): el token que mandó Notion al verificar. */
-export async function pendingWebhookToken(): Promise<string | null> {
-  if (process.env.NOTION_WEBHOOK_SECRET) return null;
-  return webhookSecret();
+interface WebhookWindow {
+  workspaceId: string;
+  openedBy: string;
+  createdAt: string;
 }
 
+async function openWindow(): Promise<WebhookWindow | null> {
+  const win = (await getDb()
+    .prepare(`SELECT workspace_id, opened_by, created_at FROM notion_sync_webhook WHERE id = 'window'`)
+    .get()) as { workspace_id: string | null; opened_by: string | null; created_at: string } | undefined;
+  if (!win || !win.workspace_id || !win.opened_by) return null;
+  if (!(Date.now() - Date.parse(win.created_at) < WEBHOOK_WINDOW_MS)) return null;
+  return { workspaceId: win.workspace_id, openedBy: win.opened_by, createdAt: win.created_at };
+}
+
+export interface WebhookVerificationState {
+  /** Hay un secreto confirmado (o NOTION_WEBHOOK_SECRET): los eventos se validan contra él. */
+  confirmed: boolean;
+  /** Fijado por variable de entorno: no se toca desde Ajustes. */
+  fromEnv: boolean;
+  /** Ventana abierta por esta persona en este workspace. */
+  waiting: boolean;
+  /** Ventana abierta por otra persona u otro workspace (no se muestran sus tokens). */
+  waitingElsewhere: boolean;
+  /** Tokens que llegaron en la ventana (solo a quien la abrió). */
+  candidates: Array<{ id: string; token: string; at: string }>;
+}
+
+/** Para quien administra la instancia: estado de la verificación del webhook, visto desde su workspace. */
+export async function webhookVerificationState(ws: string, userId: string): Promise<WebhookVerificationState> {
+  const fromEnv = Boolean(process.env.NOTION_WEBHOOK_SECRET);
+  const confirmed = Boolean(await webhookSecret());
+  const win = confirmed ? null : await openWindow();
+  const mine = Boolean(win && win.workspaceId === ws && win.openedBy === userId);
+  let candidates: WebhookVerificationState['candidates'] = [];
+  if (mine) {
+    const rows = (await getDb()
+      .prepare(`SELECT id, token, created_at FROM notion_sync_webhook WHERE id LIKE 'cand:%' AND workspace_id = ? ORDER BY created_at`)
+      .all(ws)) as Array<{ id: string; token: string; created_at: string }>;
+    candidates = rows.map((r) => ({ id: r.id.slice(5), token: open(r.token) || '', at: r.created_at })).filter((c) => c.token);
+  }
+  return { confirmed, fromEnv, waiting: mine, waitingElsewhere: Boolean(win) && !mine, candidates };
+}
+
+/** Borra el secreto confirmado, la ventana y los candidatos (para volver a verificar). */
 export async function clearWebhookToken(): Promise<void> {
-  await getDb().prepare(`DELETE FROM notion_sync_webhook WHERE id = 'public'`).run();
-}
-
-const WEBHOOK_WINDOW_MS = 15 * 60_000;
-
-/** Quien administra la instancia: "esperar el token de Notion" (15 minutos). Borra el anterior. */
-export async function openWebhookWindow(): Promise<void> {
-  const db = getDb();
-  await db.prepare(`DELETE FROM notion_sync_webhook WHERE id IN ('public', 'window')`).run();
-  await db.prepare(`INSERT INTO notion_sync_webhook (id, token, created_at) VALUES ('window', '', ?)`).run(new Date().toISOString());
-}
-
-/** ¿Hay una ventana abierta esperando el token? */
-export async function webhookWindowOpen(): Promise<boolean> {
-  const win = (await getDb().prepare(`SELECT created_at FROM notion_sync_webhook WHERE id = 'window'`).get()) as { created_at: string } | undefined;
-  return Boolean(win && Date.now() - Date.parse(win.created_at) < WEBHOOK_WINDOW_MS);
-}
-
-export function verifyNotionSignature(raw: string, signature: string | null, secret: string): boolean {
-  if (!signature) return false;
-  const expected = `sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`;
-  const a = Buffer.from(expected);
-  const b = Buffer.from(signature.trim());
-  return a.length === b.length && timingSafeEqual(a, b);
+  await getDb().prepare(`DELETE FROM notion_sync_webhook WHERE id IN ('public', 'window') OR id LIKE 'cand:%'`).run();
 }
 
 /**
- * POST de Notion. La primera vez trae `verification_token` (queda guardado
- * cifrado para pegarlo en Notion, solo si no había uno). Los eventos van
- * firmados (X-Notion-Signature); son solo un aviso: marcan el ítem como
- * pendiente y adelantan el sondeo. Lo que importa se vuelve a leer de la API.
+ * "Esperar el token de Notion" (15 minutos), atado al workspace y a quien la
+ * abre. Descarta candidatos anteriores; un secreto ya confirmado no se toca
+ * (409 webhook_confirmed: hay que borrarlo antes).
+ */
+export async function openWebhookWindow(ws: string, userId: string): Promise<void> {
+  if (await webhookSecret()) throw new NotionSyncError('webhook_confirmed', 409);
+  const db = getDb();
+  await db.prepare(`DELETE FROM notion_sync_webhook WHERE id = 'window' OR id LIKE 'cand:%'`).run();
+  await db
+    .prepare(`INSERT INTO notion_sync_webhook (id, token, created_at, workspace_id, opened_by) VALUES ('window', '', ?, ?, ?)`)
+    .run(new Date().toISOString(), ws, userId);
+}
+
+/**
+ * Confirma el candidato que Notion aceptó: pasa a ser el secreto de las firmas
+ * y se cierra la ventana. Solo quien abrió la ventana, desde ese workspace y
+ * mientras sigue abierta; nunca pisa un secreto confirmado.
+ */
+export async function confirmWebhookToken(ws: string, userId: string, candidateId: string): Promise<void> {
+  if (await webhookSecret()) throw new NotionSyncError('webhook_confirmed', 409);
+  const win = await openWindow();
+  if (!win || win.workspaceId !== ws || win.openedBy !== userId) throw new NotionSyncError('webhook_no_window', 409);
+  const db = getDb();
+  const row = (await db
+    .prepare(`SELECT token FROM notion_sync_webhook WHERE id = ? AND workspace_id = ?`)
+    .get(`cand:${candidateId}`, ws)) as { token: string } | undefined;
+  if (!row || !open(row.token)) throw new NotionSyncError('webhook_unknown_token', 404);
+  const res = await db
+    .prepare(`INSERT OR IGNORE INTO notion_sync_webhook (id, token, created_at, workspace_id, opened_by) VALUES ('public', ?, ?, ?, ?)`)
+    .run(row.token, new Date().toISOString(), ws, userId);
+  if (!res.changes) throw new NotionSyncError('webhook_confirmed', 409);
+  await db.prepare(`DELETE FROM notion_sync_webhook WHERE id = 'window' OR id LIKE 'cand:%'`).run();
+}
+
+/** Guarda un `verification_token` sin firma como candidato, si hay una verificación pendiente. */
+async function storeVerificationCandidate(token: string): Promise<void> {
+  if (process.env.NOTION_WEBHOOK_SECRET || !notionOAuthConfigured()) return;
+  if (!VERIFICATION_TOKEN_RE.test(token)) return;
+  if (await webhookSecret()) return;
+  const win = await openWindow();
+  if (!win) return;
+  const db = getDb();
+  const rows = (await db
+    .prepare(`SELECT token FROM notion_sync_webhook WHERE id LIKE 'cand:%' AND workspace_id = ?`)
+    .all(win.workspaceId)) as Array<{ token: string }>;
+  if (rows.length >= WEBHOOK_MAX_CANDIDATES) return;
+  if (rows.some((r) => open(r.token) === token)) return; // "Resend token" de Notion: el mismo.
+  await db
+    .prepare(`INSERT INTO notion_sync_webhook (id, token, created_at, workspace_id, opened_by) VALUES (?, ?, ?, ?, ?)`)
+    .run(`cand:${randomBytes(9).toString('base64url')}`, seal(token), new Date().toISOString(), win.workspaceId, win.openedBy);
+}
+
+export function verifyNotionSignature(raw: string, signature: string | null, secret: string): boolean {
+  if (!signature || !secret) return false;
+  const expected = Buffer.from(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`);
+  const got = Buffer.from(signature.trim());
+  // Mismo largo antes de timingSafeEqual (que si no tira); el largo no depende del secreto.
+  return expected.length === got.length && timingSafeEqual(expected, got);
+}
+
+/**
+ * POST de Notion. El de verificación (sin firma, con `verification_token`)
+ * solo deja un candidato si hay una verificación pendiente; los eventos van
+ * firmados (X-Notion-Signature) y sin firma válida se rechazan. Son solo un
+ * aviso: marcan el ítem como pendiente y adelantan el sondeo. Lo que importa
+ * se vuelve a leer de la API.
  */
 export async function handleNotionWebhook(raw: string, signature: string | null): Promise<{ status: number; body: Record<string, unknown> }> {
   if (raw.length > 256 * 1024) return { status: 413, body: { error: 'too_large' } };
@@ -820,15 +923,8 @@ export async function handleNotionWebhook(raw: string, signature: string | null)
     return { status: 400, body: { error: 'invalid_json' } };
   }
   if (typeof body.verification_token === 'string' && !signature) {
-    // Solo mientras quien administra la instancia lo espera (ventana de 15 minutos abierta desde Ajustes) y una vez.
-    if (!process.env.NOTION_WEBHOOK_SECRET && notionOAuthConfigured() && body.verification_token.length <= 200) {
-      const db = getDb();
-      const win = (await db.prepare(`SELECT created_at FROM notion_sync_webhook WHERE id = 'window'`).get()) as { created_at: string } | undefined;
-      if (win && Date.now() - Date.parse(win.created_at) < WEBHOOK_WINDOW_MS) {
-        const res = await db.prepare(`INSERT OR IGNORE INTO notion_sync_webhook (id, token, created_at) VALUES ('public', ?, ?)`).run(seal(body.verification_token), new Date().toISOString());
-        if (res.changes) await db.prepare(`DELETE FROM notion_sync_webhook WHERE id = 'window'`).run();
-      }
-    }
+    // Misma respuesta haya o no ventana: desde afuera no se distingue.
+    await storeVerificationCandidate(body.verification_token);
     return { status: 200, body: { ok: true } };
   }
   const secret = await webhookSecret();

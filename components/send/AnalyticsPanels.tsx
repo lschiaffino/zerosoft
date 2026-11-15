@@ -260,11 +260,12 @@ function Activity({ a, kind, bucketSec }: { a: DocumentAnalytics; kind: string; 
               </thead>
               <tbody>
                 {a.linkClicks.map((c, i) => (
-                  <tr key={i}>
+                  <tr key={i} data-kind={c.button !== null ? 'button' : 'link'}>
                     <th scope="row">
-                      <span className="sd-rowtitle sd-wrap">{c.url ?? t('toPage', { page: c.toPage ?? 1 })}</span>
+                      <span className="sd-rowtitle sd-wrap">{c.button !== null ? t('buttonClick', { label: c.button }) : (c.url ?? t('toPage', { page: c.toPage ?? 1 }))}</span>
+                      {c.button !== null && c.url && <span className="sd-rowmeta sd-wrap">{c.url}</span>}
                     </th>
-                    <td className="num">{c.page}</td>
+                    <td className="num">{c.button !== null ? '' : c.page}</td>
                     <td className="num">{c.clicks}</td>
                     <td className="num sd-hide-sm">{c.people}</td>
                   </tr>
@@ -325,7 +326,7 @@ function VisitDetail({ v, kind, bucketSec }: { v: VisitDto; kind: string; bucket
         <ul className="sd-clicks" data-testid="send-visit-clicks">
           {v.clicks.map((c, i) => (
             <li key={i} className="sd-rowmeta sd-wrap">
-              {t('clickedOn', { page: c.page, target: c.url ?? t('toPage', { page: c.toPage ?? 1 }) })}
+              {c.button !== null ? t('clickedButton', { label: c.button }) : t('clickedOn', { page: c.page, target: c.url ?? t('toPage', { page: c.toPage ?? 1 }) })}
             </li>
           ))}
         </ul>
