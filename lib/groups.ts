@@ -2725,9 +2725,10 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
+  if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
