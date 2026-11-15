@@ -173,6 +173,8 @@ export type ViewerState =
       state: 'open';
       brand: ViewerBrand;
       message: string;
+      /** Botón propio del link, o null. */
+      button: { label: string; url: string } | null;
       email: string | null;
       emailVerified: boolean;
       watermark: boolean;
@@ -276,7 +278,8 @@ export async function viewerState(link: LinkRow, session: SessionRow | null): Pr
     const s = (await getDb().prepare('SELECT title, description FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string; description: string } | undefined;
     if (s) space = s;
   }
-  return { state: 'open', brand, message: link.message, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };
+  const button = link.button_label && link.button_url ? { label: link.button_label, url: link.button_url } : null;
+  return { state: 'open', brand, message: link.message, button, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };
 }
 
 /** Sesión que puede ver, o el motivo por el que no. Lo usa cada imagen, video y descarga. */
@@ -416,6 +419,46 @@ export async function recordDenied(link: LinkRow, session: SessionRow): Promise<
     sourceType: 'send_link',
     sourceId: link.id,
   }).catch(() => undefined);
+}
+
+/**
+ * Alguien abrió en un navegador un link deshabilitado o vencido. Lo manda la página
+ * cerrada con un POST (un previsualizador de links no llega). Queda registrado una
+ * vez por día por persona (la sesión si la había, si no la IP), y quien mandó el link
+ * recibe un aviso con el mismo tope por hora que el resto.
+ */
+export async function recordClosedOpen(link: LinkRow, session: SessionRow | null, meta: RequestMeta & { ip: string; webdriver?: boolean }): Promise<boolean> {
+  const state = linkState(link);
+  if (state === 'active') return false;
+  if (isAutomated(meta, meta.webdriver)) return false;
+  const who = session?.id ?? createHash('sha256').update(`${link.id}|${meta.ip}`).digest('base64url').slice(0, 24);
+  // La suma es atómica: de dos pedidos a la vez, solo el primero pasa.
+  if (!(await rateLimit(`send:closed:${link.id}:${who}`, 1, 86_400)).ok) return false;
+  const email = session?.email ?? null;
+  await logEvent(link, 'closed_open', email, state);
+  if (!link.notify || !(await claimAlert(link))) return true;
+  const title = await targetTitle(link);
+  const db = getDb();
+  const owner = link.document_id
+    ? ((await db.prepare('SELECT owner_id FROM send_documents WHERE id = ?').get(link.document_id)) as { owner_id: string } | undefined)?.owner_id
+    : ((await db.prepare('SELECT owner_id FROM send_spaces WHERE id = ?').get(link.space_id)) as { owner_id: string } | undefined)?.owner_id;
+  const heading = localized(state === 'expired' ? 'sendExpiredOpened' : 'sendDisabledOpened', { who: email, title });
+  const body = localized('sendReadingBody', { link: link.name || null });
+  for (const userId of await activeRecipients(link.workspace_id, [owner ?? link.created_by, link.created_by])) {
+    await createNotification({ userId, type: 'send_activity', title: heading, body, href: linkHref(link), sourceType: 'send_link', sourceId: link.id }).catch(() => undefined);
+    const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string | null } | undefined;
+    if (!user?.email) continue;
+    const [subject, text] = await renderForRecipient(userId, [heading, body]);
+    const url = `${appOrigin()}${linkHref(link)}`;
+    await sendEmail({
+      to: user.email,
+      from: appSender(),
+      subject: subject ?? '',
+      text: `${text ?? ''}\n\n${url}`,
+      html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [escapeHtml(text ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
+    }).catch(() => undefined);
+  }
+  return true;
 }
 
 // ---------- Avisos del navegador ----------
@@ -710,6 +753,40 @@ export async function recordLinkClick(link: LinkRow, session: SessionRow, input:
   await db
     .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .run(newId('se'), link.workspace_id, link.id, input.documentId, 'link_click', session.email, JSON.stringify({ url: hit.url ?? null, toPage: hit.page ?? null, page: input.page, visitId: visit?.id ?? null, versionId: input.versionId }).slice(0, 2400), nowIso());
+  return true;
+}
+
+/**
+ * Un clic en el botón propio del link. La URL sale del link guardado; si el botón
+ * cambió o se sacó, no cuenta. Con un documento abierto queda en sus números.
+ */
+export async function recordButtonClick(link: LinkRow, session: SessionRow, input: { documentId?: string | null }, meta: RequestMeta): Promise<boolean> {
+  if (isAutomated(meta, false)) return false;
+  if (!link.button_label || !link.button_url) return false;
+  let documentId: string | null = null;
+  if (input.documentId) {
+    const docs = await linkDocuments(link, session.email);
+    if (!docs.some((d) => d.doc.id === input.documentId)) throw new SendError('not_found', 404);
+    documentId = input.documentId;
+  }
+  const db = getDb();
+  const visit = documentId
+    ? ((await db
+        .prepare("SELECT id, version_id FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, '') = ? ORDER BY started_at DESC LIMIT 1")
+        .get(session.id, documentId, session.email ?? '')) as { id: string; version_id: string } | undefined)
+    : undefined;
+  await db
+    .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(
+      newId('se'),
+      link.workspace_id,
+      link.id,
+      documentId,
+      'button_click',
+      session.email,
+      JSON.stringify({ label: link.button_label, url: link.button_url, visitId: visit?.id ?? null, versionId: visit?.version_id ?? null }).slice(0, 2400),
+      nowIso(),
+    );
   return true;
 }
 

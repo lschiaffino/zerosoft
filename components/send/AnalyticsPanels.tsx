@@ -128,7 +128,12 @@ export default function AnalyticsPanels({
           <span>{t('kDownloads')}</span>
         </div>
       </div>
-      {a.totals.visits === 0 ? <EmptyState compact body={t('empty')} /> : mode === 'activity' ? <Activity a={a} kind={kind} bucketSec={bucketSec} /> : <Pages a={a} kind={kind} bucketSec={bucketSec} />}
+      {a.totals.visits === 0 ? (
+        <>
+          <EmptyState compact body={t('empty')} />
+          {mode === 'activity' && <Denied a={a} />}
+        </>
+      ) : mode === 'activity' ? <Activity a={a} kind={kind} bucketSec={bucketSec} /> : <Pages a={a} kind={kind} bucketSec={bucketSec} />}
       <p className="sd-help">{t('howMeasured')}</p>
     </section>
   );
@@ -260,11 +265,12 @@ function Activity({ a, kind, bucketSec }: { a: DocumentAnalytics; kind: string; 
               </thead>
               <tbody>
                 {a.linkClicks.map((c, i) => (
-                  <tr key={i}>
+                  <tr key={i} data-kind={c.button !== null ? 'button' : 'link'}>
                     <th scope="row">
-                      <span className="sd-rowtitle sd-wrap">{c.url ?? t('toPage', { page: c.toPage ?? 1 })}</span>
+                      <span className="sd-rowtitle sd-wrap">{c.button !== null ? t('buttonClick', { label: c.button }) : (c.url ?? t('toPage', { page: c.toPage ?? 1 }))}</span>
+                      {c.button !== null && c.url && <span className="sd-rowmeta sd-wrap">{c.url}</span>}
                     </th>
-                    <td className="num">{c.page}</td>
+                    <td className="num">{c.button !== null ? '' : c.page}</td>
                     <td className="num">{c.clicks}</td>
                     <td className="num sd-hide-sm">{c.people}</td>
                   </tr>
@@ -275,22 +281,31 @@ function Activity({ a, kind, bucketSec }: { a: DocumentAnalytics; kind: string; 
         </>
       )}
 
-      {a.denied.length > 0 && (
-        <>
-          <h3 className="sd-h3">{t('deniedTitle')}</h3>
-          <ul className="sd-denied" data-testid="send-denied">
-            {a.denied.map((d, i) => (
-              <li key={i}>
-                <span className="sd-wrap">{d.email ?? t('anonymous')}</span>
-                <span className="sd-rowmeta">
-                  {d.linkName ? `${d.linkName} · ` : ''}
-                  {date(d.at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <Denied a={a} />
+    </>
+  );
+}
+
+/** Intentos sin acceso o con el link cerrado: se ven aunque todavía no haya visitas. */
+function Denied({ a }: { a: DocumentAnalytics }) {
+  const t = useTranslations('send.visits');
+  const date = useDate();
+  if (!a.denied.length) return null;
+  return (
+    <>
+      <h3 className="sd-h3">{t('deniedTitle')}</h3>
+      <ul className="sd-denied" data-testid="send-denied">
+        {a.denied.map((d, i) => (
+          <li key={i} data-reason={d.reason}>
+            <span className="sd-wrap">{d.email ?? t('anonymous')}</span>
+            <span className="sd-rowmeta">
+              {d.reason === 'disabled' ? `${t('closedDisabled')} · ` : d.reason === 'expired' ? `${t('closedExpired')} · ` : ''}
+              {d.linkName ? `${d.linkName} · ` : ''}
+              {date(d.at)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </>
   );
 }
@@ -325,7 +340,7 @@ function VisitDetail({ v, kind, bucketSec }: { v: VisitDto; kind: string; bucket
         <ul className="sd-clicks" data-testid="send-visit-clicks">
           {v.clicks.map((c, i) => (
             <li key={i} className="sd-rowmeta sd-wrap">
-              {t('clickedOn', { page: c.page, target: c.url ?? t('toPage', { page: c.toPage ?? 1 }) })}
+              {c.button !== null ? t('clickedButton', { label: c.button }) : t('clickedOn', { page: c.page, target: c.url ?? t('toPage', { page: c.toPage ?? 1 }) })}
             </li>
           ))}
         </ul>

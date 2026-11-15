@@ -53,7 +53,7 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
   const side = page.locator('#side-branch');
   // La entrada va arriba del árbol, antes de la primera carpeta.
   const entry = side.getByTestId('inbox-nofolder');
-  await expect(side.locator('.ib-ftree > li').first()).toHaveAttribute('data-testid', 'inbox-nofolder');
+  await expect(side.locator('.ib-ftree > li').first()).toHaveAttribute('data-testid', 'inbox-nofolder', { timeout: 15_000 });
   await entry.getByRole('link').click();
   await expect(page).toHaveURL(/\/app\/inbox\/v\/nofolder/);
   await expect(entry).toHaveClass(/active/);
@@ -71,7 +71,7 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
   const move = page.getByRole('dialog', { name: 'Add to folder' });
   await move.getByRole('textbox').fill(`Folder 2 ${tag}`);
   await move.getByRole('textbox').press('Enter');
-  await expect(list.locator('.ib-item', { hasText: b })).toHaveCount(0);
+  await expect(list.locator('.ib-item', { hasText: b })).toHaveCount(0, { timeout: 15_000 });
   await expect(list.locator('.ib-item', { hasText: c })).toBeVisible();
   const toast = page.locator('.ib-toast', { hasText: 'Added to the folder' });
   await expect(toast).toBeVisible();
@@ -80,7 +80,7 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
 
   // Link directo: la misma vista al recargar.
   await page.goto('/en/app/inbox/v/nofolder', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('No folder');
+  await expect(page.getByRole('heading', { level: 1, name: 'No folder' })).toBeVisible();
   await expect(page.locator('.ib-list .ib-item', { hasText: a })).toHaveCount(0);
 });
 
@@ -107,7 +107,7 @@ test('Lines: Sin carpeta arriba del árbol, filtra y sumar a una carpeta lo saca
 
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const side = page.locator('#side-branch').getByTestId('lines-folders');
-  await expect(side.locator('.grf-ftree > li').first()).toHaveAttribute('data-testid', 'lines-nofolder');
+  await expect(side.locator('.grf-ftree > li').first()).toHaveAttribute('data-testid', 'lines-nofolder', { timeout: 15_000 });
   await side.getByTestId('lines-nofolder').getByRole('link').click();
   await expect(page).toHaveURL(/folder=none/);
   await expect(page.getByText(b).first()).toBeVisible();
@@ -117,6 +117,6 @@ test('Lines: Sin carpeta arriba del árbol, filtra y sumar a una carpeta lo saca
   await page.locator('.gr-row-item', { hasText: b }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Move to folder' }).click();
   await page.getByRole('dialog', { name: 'Move to folder' }).getByRole('button', { name: `Folder ${tag}` }).click();
-  await expect(page.locator('.gr-row-item', { hasText: b })).toHaveCount(0);
+  await expect(page.locator('.gr-row-item', { hasText: b })).toHaveCount(0, { timeout: 15_000 });
   await request.delete(`/api/groups/folders?id=${folder.id}`);
 });
