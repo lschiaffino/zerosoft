@@ -62,7 +62,7 @@ describe('refreshContactPictures', () => {
   it('pide una por persona, guarda la copia y no vuelve a pedir hasta que venza', async () => {
     const scope = await scopeFor();
     const asked: string[] = [];
-    const provider = {
+    const provider: { profilePicture: (jid: string) => Promise<string> } = {
       profilePicture: async (jid: string) => {
         asked.push(jid);
         return jid.startsWith(B) ? '' : pic(Number(jid.replace(/@.*/, '').slice(-1)));
@@ -105,7 +105,7 @@ describe('refreshContactPictures', () => {
   it('un 429 frena la tanda, no cuenta como "sin foto" y pausa la cuenta', async () => {
     const scope = await scopeFor();
     let calls = 0;
-    const provider = {
+    const provider: { profilePicture: (jid: string) => Promise<string> } = {
       profilePicture: async () => {
         calls++;
         throw new ProviderError('rate_limited', 429);
@@ -126,7 +126,7 @@ describe('refreshContactPictures', () => {
 
   it('otro error deja a la persona pendiente y sigue con la próxima', async () => {
     const scope = await scopeFor();
-    const provider = {
+    const provider: { profilePicture: (jid: string) => Promise<string> } = {
       profilePicture: async (jid: string) => {
         if (jid.startsWith(A)) throw new ProviderError('provider_error', 500);
         return pic(4);
