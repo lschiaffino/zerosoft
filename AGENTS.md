@@ -174,8 +174,13 @@ it should be here too.
 - Tests find elements by role, label or `data-testid`, not by visible copy
   that may change (a word on a badge, a heading), and don't depend on the
   time of day or on rows other tests left in the shared database.
-- CI splits e2e by duration (`scripts/e2e-shard.mjs`, `tests/e2e/timings.json`)
-  and skips e2e when a pull request only touches `desktop/`, `docs/`,
-  `content/blog/` or Markdown.
+- On a pull request CI runs only the e2e of the areas the change touches,
+  plus a core set (`scripts/e2e-select.mjs`, map in `scripts/e2e-areas.json`).
+  Shared code, or a file the map doesn't know, runs the full suite; content,
+  docs, `desktop/` and Markdown run no e2e. Every push to `main` and a nightly
+  run test everything, and a failure there opens the issue "CI: main is red".
+  A new spec needs a home in `scripts/e2e-areas.json`
+  (`tests/unit/e2e-select.test.ts` fails otherwise). Parts are split by
+  duration (`scripts/e2e-shard.mjs`, `tests/e2e/timings.json`).
 - Disclose AI assistance in the template.
 - The author signs the [CLA](CLA.md) once, through the bot comment.
