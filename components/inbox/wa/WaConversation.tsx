@@ -12,7 +12,7 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ContactCard, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import { ContactCards, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
@@ -682,7 +682,12 @@ const WaConversation = forwardRef<
             />
           )}
           {meta.location && !hidden && <LocationCard lat={meta.location.lat} lng={meta.location.lng} name={meta.location.name ?? ''} address={meta.location.address} url={meta.location.url} live={meta.location.live} />}
-          {!hidden && meta.contacts?.map((c, i) => <ContactCard key={i} name={c.name} phone={(c.phones[0] ?? '').replace(/\D/g, '')} />)}
+          {!hidden && meta.contacts?.length ? (
+            <ContactCards
+              cards={meta.contacts}
+              onMessage={props.onStartChat ? (i) => void props.onStartChat?.((meta.contacts?.[i]?.phones[0] ?? '').replace(/\D/g, '')) : undefined}
+            />
+          ) : null}
           {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
               url={meta.link?.url ?? firstUrl(m.body)}
