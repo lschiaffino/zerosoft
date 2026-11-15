@@ -73,9 +73,7 @@ async function importAndSend(page: Page, composer: Locator, thread: Locator, sho
   await composer.getByRole('button', { name: 'Emoji', exact: true }).click();
   const panel = page.locator('.wa-emoji');
   await panel.getByRole('tab', { name: 'Stickers' }).click();
-  await expect(panel.getByText('No stickers yet')).toBeVisible({ timeout: 30_000 });
-  await panel.getByRole('button', { name: 'Import stickers from my chats' }).click();
-  // Dos archivos distintos (el animado y el quieto).
+  // Con la colección vacía, la pestaña importa sola los stickers de los chats: dos archivos distintos (el animado y el quieto).
   await expect(panel.locator('section[aria-label="Your stickers"] .wa-stk')).toHaveCount(2, { timeout: 20_000 });
   await expect.poll(() => panel.locator('.wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
   await shot(page, shotName);

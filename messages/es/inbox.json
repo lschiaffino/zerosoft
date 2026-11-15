@@ -73,6 +73,13 @@
     "retry": "Reintentar"
   },
   "list": {
+    "importWa": "Importando mensajes: {done} de {total} chats.",
+    "importGmail": "Importando correo: {done} de {total} hilos.",
+    "importWaiting": "Esperando que WhatsApp mande el historial…",
+    "importDone": "Importación lista: {chats} chats y {messages} mensajes.",
+    "importDoneGmail": "Importación lista: {chats} hilos y {messages} mensajes.",
+    "importProgress": "Avance de la importación",
+    "importClose": "Cerrar",
     "group": "Grupo",
     "snoozedUntil": "Pospuesto hasta {when}",
     "followUpAt": "Recordatorio {when}",
