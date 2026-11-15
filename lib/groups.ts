@@ -38,6 +38,7 @@ import {
   type ProviderKind,
 } from './groups-provider';
 import { cloudProvider } from './groups-provider-cloud';
+import { privateQuoteAllowed } from './wa-person';
 import { bridgeProvider, MAX_INBOUND_MEDIA } from './groups-provider-bridge';
 import {
   baseMime,
@@ -1455,6 +1456,8 @@ export interface MessageDto {
   /** Tarjetas de contacto (nombre, teléfonos). */
   contacts?: ContactCard[];
   replyToId: string | null;
+  /** Respuesta en privado: el mensaje citado es de otro chat de la línea (el grupo), con lo necesario para mostrarlo. */
+  replyQuote?: ReplyQuote | null;
   reactions: Reaction[];
   status: string;
   error: string;
@@ -1475,6 +1478,19 @@ export interface MessageDto {
   seq?: number;
   /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono, de la libreta del número). */
   mentionNames?: MentionMap;
+}
+
+/** Un mensaje citado de otro chat (respuesta en privado a un mensaje de un grupo). */
+export interface ReplyQuote {
+  id: string;
+  chatId: string;
+  chatName: string;
+  direction: MessageRow['direction'];
+  senderName: string;
+  senderPhone: string;
+  body: string;
+  mediaType: string;
+  deleted: boolean;
 }
 
 /**
@@ -1588,7 +1604,37 @@ export async function listMessages(
   const out = rows.map(toMessageDto);
   // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
   if (rows.length) await withLinesMentions(rows[0].number_id, out, rows[0].chat_id).catch(() => null);
+  await withReplyQuotes(ws, out).catch(() => null);
   return out;
+}
+
+/** Respuestas que citan un mensaje de otro chat (en privado, desde un grupo): el citado va en replyQuote. */
+export async function withReplyQuotes(ws: string, messages: MessageDto[]): Promise<void> {
+  const ids = [...new Set(messages.filter((m) => m.replyToId).map((m) => m.replyToId!))].filter((id) => !messages.some((m) => m.id === id)).slice(0, 200);
+  if (!ids.length) return;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT m.id, m.chat_id, m.direction, m.sender_name, m.sender_phone, m.body, m.media_type, m.deleted_at, c.name AS chat_name
+       FROM groups_messages m JOIN groups_chats c ON c.id = m.chat_id
+       WHERE m.user_id = ? AND m.id IN (${ids.map(() => '?').join(',')})`,
+    )
+    .all(ws, ...ids)) as Array<{ id: string; chat_id: string; direction: MessageRow['direction']; sender_name: string; sender_phone: string; body: string; media_type: string; deleted_at: string | null; chat_name: string }>;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  for (const m of messages) {
+    const q = m.replyToId ? byId.get(m.replyToId) : undefined;
+    if (!q || q.chat_id === m.chatId) continue;
+    m.replyQuote = {
+      id: q.id,
+      chatId: q.chat_id,
+      chatName: q.chat_name,
+      direction: q.direction,
+      senderName: q.sender_name,
+      senderPhone: q.sender_phone,
+      body: q.deleted_at ? '' : q.body.slice(0, 300),
+      mediaType: q.media_type,
+      deleted: !!q.deleted_at,
+    };
+  }
 }
 
 export async function getMessageRow(ws: string, id: string): Promise<MessageRow | null> {
@@ -1907,7 +1953,18 @@ export async function sendMessage(
   let replyProviderId: string | undefined;
   if (input.replyToId) {
     const target = await getMessageRow(ws, input.replyToId);
-    if (!target || target.chat_id !== chatId) throw new GroupsError('invalid_reply');
+    if (!target) throw new GroupsError('invalid_reply');
+    if (target.chat_id !== chatId) {
+      // "Responder en privado": un mensaje de esta persona en un grupo de la misma línea, citado en su chat 1:1.
+      const from = await getChatRow(ws, target.chat_id);
+      const ok =
+        !!from &&
+        privateQuoteAllowed(
+          { accountId: from.number_id, groupKind: from.kind, fromMe: target.direction !== 'in', senderPhone: phoneDigits(target.sender_phone), deleted: !!target.deleted_at },
+          { accountId: chat.number_id, kind: chat.kind, phone: chat.phone || phoneDigits(chat.provider_chat_id) },
+        );
+      if (!ok) throw new GroupsError('invalid_reply');
+    }
     replyProviderId = target.provider_message_id ?? undefined;
   }
   const provider = providerFor(number);
