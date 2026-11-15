@@ -700,6 +700,22 @@ export function linkPreviewOf(ext: Json): LinkPreview | undefined {
  * `topContext`: el contextInfo que Evolution guarda afuera (y en el que
  * convierte extendedTextMessage en conversation).
  */
+/**
+ * El texto nuevo de una edición: el de un mensaje de texto, o el pie de una
+ * foto, un video o un documento (WhatsApp manda el mensaje entero con el pie
+ * cambiado: imageMessage.caption, documentMessage.caption…).
+ */
+export function editedText(edited: Json): string {
+  if (typeof edited.conversation === 'string') return edited.conversation;
+  const ext = edited.extendedTextMessage as Json | undefined;
+  if (ext && typeof ext.text === 'string') return ext.text;
+  for (const key of BAILEYS_MEDIA) {
+    const m = edited[key] as Json | undefined;
+    if (m && typeof m === 'object' && typeof m.caption === 'string') return m.caption;
+  }
+  return '';
+}
+
 export function baileysContent(raw: Json, topContext?: unknown): BaileysContent {
   const { message, viewOnce } = unwrapBaileys(raw);
   const proto = (message.protocolMessage ?? ((((message.editedMessage ?? {}) as Json).message ?? {}) as Json).protocolMessage) as Json | undefined;
@@ -708,8 +724,9 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const type = String(proto.type ?? '').toUpperCase();
     if (target && (type === 'REVOKE' || type === '0')) return { body: '', protocol: { kind: 'revoke', target, body: '' } };
     if (target && (type === 'MESSAGE_EDIT' || type === '14')) {
-      const edited = unwrapBaileys((proto.editedMessage ?? {}) as Json).message;
-      const text = typeof edited.conversation === 'string' ? edited.conversation : String(((edited.extendedTextMessage ?? {}) as Json).text ?? '');
+      const text = editedText(unwrapBaileys((proto.editedMessage ?? {}) as Json).message);
+      // Una edición sin texto que se pueda leer no borra el que había (WhatsApp no deja dejar un texto vacío).
+      if (!text) return { body: '' };
       return { body: text, protocol: { kind: 'edit', target, body: text } };
     }
     return { body: '' };
