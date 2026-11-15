@@ -160,7 +160,16 @@
       "fileLabel": "File: {name}",
       "videoLabel": "Video: {name}",
       "imageUnavailable": "This image couldn't be loaded",
-      "imageUnavailableHelp": "The file isn't in storage or the upload didn't finish. Upload it again or remove the block."
+      "imageUnavailableHelp": "The file isn't in storage or the upload didn't finish. Upload it again or remove the block.",
+      "uploadingNamed": "Uploading {name}",
+      "progressLabel": "Upload progress for {name}",
+      "percent": "{percent}%",
+      "queued": "Waiting",
+      "cancel": "Cancel",
+      "cancelNamed": "Cancel upload of {name}",
+      "retry": "Retry",
+      "remove": "Remove",
+      "removeNamed": "Remove {name}"
     },
     "togglePlaceholder": "Toggle",
     "calloutPlaceholder": "Write a note…",

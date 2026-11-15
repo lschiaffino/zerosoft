@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type MutableRefObject,
   type ReactNode,
@@ -16,7 +17,7 @@ import {
 } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
@@ -40,6 +41,7 @@ import {
 } from '@/lib/docs-caret';
 import {
   acceptFor,
+  cleanFileName,
   ICON_IMAGE_PREFIX,
   iconImageUrl,
   pageImageHref,
@@ -47,12 +49,13 @@ import {
   fileKindForRequest,
   isFileBlockType,
   docsFileHref,
-  formatFileSize,
   type DocsFileKind,
   type DocsFileSource,
 } from '@/lib/docs-files';
 import { DocsUploadError, uploadDocsFile, uploadLimit } from '@/lib/docs-upload-client';
 import { expandButtonShorthand } from '@/lib/docs-button-markdown';
+import { createUploadQueue, placeUploadedBlock, uploadSlots, type PendingUpload, type UploadErrorCode } from '@/lib/docs-upload-queue';
+import DocsUploadPlaceholder, { localMediaSize } from './DocsUploadPlaceholder';
 import {
   containerOf,
   columnRatio,
@@ -134,7 +137,7 @@ import EmojiPicker from './EmojiPicker';
 import DocsGlyph, { type DocsGlyphName } from './DocsGlyphs';
 import DocsBlockMenu from './DocsBlockMenu';
 import DbRowPanel, { type DbRowPanelMode } from './database/DbRowPanel';
-import { rememberUploadPreview, uploadPreview } from './DocsEditorImage';
+import { rememberUploadPreview, rememberUploadSize, uploadPreview } from './DocsEditorImage';
 import DocsEditorPlugins, { type DocsPluginApi, type DocsPluginHandle } from './DocsEditorPlugins';
 
 /** Lo que el servidor fusionó (una automatización, una base, otra pestaña): se suma a lo que hay en pantalla. */
@@ -666,6 +669,12 @@ export default function DocsEditor({
   /** Destino del selector de archivos abierto desde el menú `/`. */
   const uploadTarget = useRef<{ anchorId: string | null; replaceId: string | null; kind: DocsFileKind } | null>(null);
   const [uploading, setUploading] = useState(0);
+  /** Subidas de archivos en curso: cada una con su esqueleto en el lugar del bloque (lib/docs-upload-queue). */
+  const uploadQueue = useMemo(() => createUploadQueue(), []);
+  const pendingUploads = useSyncExternalStore(uploadQueue.subscribe, uploadQueue.get, uploadQueue.get);
+  const uploadSources = useRef(new Map<string, File>());
+  const uploadAborts = useRef(new Map<string, AbortController>());
+  const uploadMax = useRef<number | undefined>(undefined);
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Línea de drop (px, relativa a .docs-blocks) al arrastrar archivos del sistema. */
   const [fileDropLine, setFileDropLine] = useState<DropLine | null>(null);
@@ -1288,11 +1297,89 @@ export default function DocsEditor({
   /** Teclas del modo sugerir (se define más abajo, junto al cambio de bloque). */
   const suggestKeyDownRef = useRef<(index: number, e: React.KeyboardEvent<HTMLElement>) => boolean>(() => false);
 
+  /** Línea para seguir escribiendo debajo del último bloque subido: la vacía que ya estaba ahí o una nueva, con el foco adentro. */
+  const focusBelowUpload = useCallback(
+    (last: string) => {
+      setBlocks((prev) => {
+        const i = prev.findIndex((b) => b.id === last);
+        if (i === -1) return prev;
+        const after = prev[i + 1];
+        const level = blockIndent(prev[i]);
+        if (after && after.type === 'paragraph' && after.content === '' && blockIndent(after) === level) {
+          pendingFocusId.current = after.id;
+          return prev;
+        }
+        const para = setIndent({ id: newId(), type: 'paragraph', content: '' }, level);
+        pendingFocusId.current = para.id;
+        const next = [...prev];
+        next.splice(i + 1, 0, para);
+        triggerSaveRef.current(next);
+        return next;
+      });
+      setFocusTick((v) => v + 1);
+    },
+    [setBlocks],
+  );
+
   /**
-   * Sube archivos y crea un bloque image/file por cada uno, después de
-   * `anchorId` (null = al principio). `replaceId`: párrafo vacío que se
-   * reemplaza por el primer bloque (ej. "/imagen" en una línea vacía). Se
-   * ubica por id: mientras sube, la persona puede seguir editando.
+   * Sube un archivo de la cola. Al terminar, el bloque real (con el mismo id
+   * que el esqueleto) entra en su lugar en el mismo cuadro en que el esqueleto
+   * sale: sin salto. Devuelve si quedó ubicado.
+   */
+  const runUpload = useCallback(
+    async (id: string): Promise<boolean> => {
+      const file = uploadSources.current.get(id);
+      if (!file || !uploadQueue.find(id)) return false;
+      const ctrl = new AbortController();
+      uploadAborts.current.set(id, ctrl);
+      uploadQueue.start(id);
+      try {
+        const up = await uploadDocsFile(file, { uploadUrl, signal: ctrl.signal, onProgress: (p) => uploadQueue.progress(id, p) });
+        const cur = uploadQueue.find(id);
+        if (!cur) return false;
+        rememberUploadPreview(up.url, file);
+        rememberUploadSize(up.url, cur);
+        // "/imagen" (o video, PDF) con algo que no se muestra así: queda con el tipo que le corresponde.
+        const newBlock = { ...fileBlockFromUpload(up, fileKindForRequest(cur.requested, up.mime)), id };
+        flushSync(() => {
+          setBlocks((prev) => {
+            const next = placeUploadedBlock(prev, newBlock, cur);
+            triggerSaveRef.current(next);
+            return next;
+          });
+          uploadQueue.done(id, id);
+        });
+        uploadSources.current.delete(id);
+        return true;
+      } catch (err) {
+        if (!uploadQueue.find(id)) return false;
+        const code = err instanceof DocsUploadError ? err.code : 'failed';
+        if (code === 'aborted') {
+          uploadQueue.remove(id);
+          uploadSources.current.delete(id);
+          return false;
+        }
+        const map: Record<string, UploadErrorCode> = {
+          file_type_not_allowed: 'typeNotAllowed',
+          storage_unavailable: 'storageUnavailable',
+          file_too_large: 'tooLarge',
+          rate_limited: 'rateLimited',
+        };
+        uploadQueue.fail(id, map[code] ?? 'failed', uploadMax.current);
+        return false;
+      } finally {
+        uploadAborts.current.delete(id);
+      }
+    },
+    [uploadQueue, uploadUrl, setBlocks],
+  );
+
+  /**
+   * Sube archivos y crea un bloque por cada uno, después de `anchorId` (null =
+   * al principio). `replaceId`: párrafo vacío que se reemplaza por el primero
+   * (ej. "/imagen" en una línea vacía). Cada archivo tiene su esqueleto desde
+   * el primer momento, en el lugar y con el tamaño del bloque que va a quedar;
+   * se ubica por id: mientras sube, la persona puede seguir editando.
    */
   const uploadFiles = useCallback(
     async (
@@ -1302,88 +1389,74 @@ export default function DocsEditor({
     ) => {
       if (!uploadsEnabled || files.length === 0) return;
       setUploadError(null);
-      let anchor = anchorId;
-      let replaceId = opts.replaceId ?? null;
-      let placedAny = false;
+      const group = newId();
+      const items: PendingUpload[] = files.map((file) => ({
+        id: newId(),
+        group,
+        anchorId,
+        replaceId: opts.replaceId ?? null,
+        indent: opts.indent,
+        kind: fileKindForRequest(opts.kind, file.type || 'application/octet-stream'),
+        requested: opts.kind,
+        name: cleanFileName(file.name) || file.name || 'file',
+        size: file.size,
+        status: 'queued',
+        progress: 0,
+      }));
+      items.forEach((u, i) => uploadSources.current.set(u.id, files[i]));
+      uploadQueue.add(items);
+      // La forma real (imagen o video) apenas se lee del archivo local: el esqueleto la toma.
+      items.forEach((u, i) => {
+        if (u.kind === 'image' || u.kind === 'video') {
+          void localMediaSize(files[i], u.kind).then((size) => size && uploadQueue.measure(u.id, size.width, size.height));
+        }
+      });
       const max = await uploadLimit(uploadUrl);
-      for (const file of files) {
-        if (file.size > max) {
-          setUploadError(t('editor.upload.tooLarge', { name: file.name, max: formatFileSize(max) }));
+      uploadMax.current = max;
+      let last: string | null = null;
+      for (const u of items) {
+        if (!uploadQueue.find(u.id)) continue;
+        if (u.size > max) {
+          uploadQueue.fail(u.id, 'tooLarge', max);
           continue;
         }
-        setUploading((n) => n + 1);
-        try {
-          const up = await uploadDocsFile(file, { uploadUrl });
-          rememberUploadPreview(up.url, file);
-          // "/imagen" (o video, PDF) con algo que no se muestra así: queda con el tipo que le corresponde.
-          const kind = fileKindForRequest(opts.kind, up.mime);
-          const newBlock = fileBlockFromUpload(up, kind);
-          const rid = replaceId;
-          const aid = anchor;
-          setBlocks((prev) => {
-            const next = [...prev];
-            const ri = rid ? next.findIndex((b) => b.id === rid) : -1;
-            if (ri !== -1 && next[ri].type === 'paragraph' && next[ri].content === '') {
-              next[ri] = setIndent(newBlock, blockIndent(next[ri]));
-            } else {
-              const ai = aid ? next.findIndex((b) => b.id === aid) : -1;
-              // Ancla borrada mientras subía: al final. Toma el nivel pedido o el
-              // del ancla (adentro de una columna o un sincronizado si el ancla es el contenedor).
-              const anchorBlock = ai === -1 ? null : next[ai];
-              const level =
-                opts.indent ??
-                (anchorBlock ? blockIndent(anchorBlock) + (anchorBlock.type === 'column' || anchorBlock.type === 'synced' ? 1 : 0) : 0);
-              const placed = ai === -1 && opts.indent === undefined ? newBlock : setIndent(newBlock, level);
-              next.splice(aid === null ? 0 : ai === -1 ? next.length : ai + 1, 0, placed);
-            }
-            triggerSaveRef.current(next);
-            return next;
-          });
-          anchor = newBlock.id;
-          replaceId = null;
-          placedAny = true;
-        } catch (err) {
-          const code = err instanceof DocsUploadError ? err.code : 'failed';
-          const key =
-            code === 'file_type_not_allowed'
-              ? 'editor.upload.typeNotAllowed'
-              : code === 'storage_unavailable'
-                ? 'editor.upload.storageUnavailable'
-                : code === 'file_too_large'
-                  ? 'editor.upload.tooLarge'
-                  : code === 'rate_limited'
-                    ? 'editor.upload.rateLimited'
-                    : 'editor.upload.failed';
-          setUploadError(t(key, { name: file.name, max: formatFileSize(max) }));
-        } finally {
-          setUploading((n) => n - 1);
-        }
+        if (await runUpload(u.id)) last = u.id;
       }
-      // Una línea para seguir escribiendo debajo del último bloque subido: la
-      // vacía que ya estaba ahí o una nueva, con el foco adentro.
-      const last = anchor;
-      if (placedAny && last) {
-        setBlocks((prev) => {
-          const i = prev.findIndex((b) => b.id === last);
-          if (i === -1) return prev;
-          const after = prev[i + 1];
-          const level = blockIndent(prev[i]);
-          if (after && after.type === 'paragraph' && after.content === '' && blockIndent(after) === level) {
-            pendingFocusId.current = after.id;
-            return prev;
-          }
-          const para = setIndent({ id: newId(), type: 'paragraph', content: '' }, level);
-          pendingFocusId.current = para.id;
-          const next = [...prev];
-          next.splice(i + 1, 0, para);
-          triggerSaveRef.current(next);
-          return next;
-        });
-        setFocusTick((v) => v + 1);
+      if (last) focusBelowUpload(last);
+    },
+    [uploadsEnabled, uploadQueue, uploadUrl, runUpload, focusBelowUpload],
+  );
+
+  const cancelUpload = useCallback(
+    (id: string) => {
+      const ctrl = uploadAborts.current.get(id);
+      if (ctrl) ctrl.abort();
+      else {
+        uploadQueue.remove(id);
+        uploadSources.current.delete(id);
       }
     },
-    [uploadUrl, t, uploadsEnabled, setBlocks],
+    [uploadQueue],
   );
+  const retryUpload = useCallback(
+    (id: string) => {
+      uploadQueue.retry(id);
+      void runUpload(id);
+    },
+    [uploadQueue, runUpload],
+  );
+  const removeUpload = useCallback(
+    (id: string) => {
+      uploadQueue.remove(id);
+      uploadSources.current.delete(id);
+    },
+    [uploadQueue],
+  );
+  // Al salir del editor, lo que sigue subiendo se corta.
+  useEffect(() => {
+    const aborts = uploadAborts.current;
+    return () => aborts.forEach((c) => c.abort());
+  }, []);
 
   /** Pegar archivos en un bloque: si es un párrafo vacío, lo reemplaza. */
   const handlePasteFiles = useCallback(
@@ -4282,25 +4355,45 @@ export default function DocsEditor({
   };
 
   /** Bloques [start, end] en orden; los contenedores dibujan su subárbol adentro. */
+  const slots = uploadSlots(blocks, pendingUploads);
+  /** Esqueletos de subidas, con la sangría que va a tener el bloque. */
+  const renderUploads = (list: readonly PendingUpload[] | undefined, at: number, extra = 0) =>
+    (list ?? []).map((u) => {
+      const base = at >= 0 && at < blocks.length ? visualIndent(blocks, at) : 0;
+      const level = u.indent !== undefined && at >= 0 && at < blocks.length ? base + u.indent - blockIndent(blocks[at]) : base + extra;
+      return (
+        <DocsUploadPlaceholder key={u.id} upload={u} indent={Math.max(0, level)} onCancel={cancelUpload} onRetry={retryUpload} onRemove={removeUpload} />
+      );
+    });
   function renderRange(start: number, end: number): ReactNode[] {
     const out: ReactNode[] = [];
     let i = start;
+    if (start === 0) out.push(...renderUploads(slots.top, -1));
     while (i <= end && i < blocks.length) {
       const b = blocks[i];
       if (b.type === 'columns') {
         out.push(renderColumns(i));
+        out.push(...renderUploads(slots.after.get(b.id), i));
         i = subtreeEnd(blocks, i) + 1;
       } else if (b.type === 'synced') {
         out.push(renderSynced(i));
+        out.push(...renderUploads(slots.after.get(b.id), i));
         i = subtreeEnd(blocks, i) + 1;
       } else if (b.type === 'column') {
         // Columna suelta (no debería quedar: normalizeStructure la deshace).
         i = subtreeEnd(blocks, i) + 1;
+      } else if (slots.replace.has(b.id)) {
+        // "/imagen" en una línea vacía: el esqueleto ocupa esa línea (el bloque la va a reemplazar).
+        out.push(...renderUploads(slots.replace.get(b.id), i));
+        out.push(...renderUploads(slots.after.get(b.id), i));
+        i++;
       } else {
         out.push(renderLeaf(b, i));
+        out.push(...renderUploads(slots.after.get(b.id), i));
         i++;
       }
     }
+    if (end >= blocks.length - 1 && start === 0) out.push(...renderUploads(slots.end, blocks.length - 1));
     return out;
   }
   return (

@@ -160,7 +160,16 @@
       "fileLabel": "Arquivo: {name}",
       "videoLabel": "Vídeo: {name}",
       "imageUnavailable": "Não foi possível carregar esta imagem",
-      "imageUnavailableHelp": "O arquivo não está no armazenamento ou o envio não terminou. Envie de novo ou remova o bloco."
+      "imageUnavailableHelp": "O arquivo não está no armazenamento ou o envio não terminou. Envie de novo ou remova o bloco.",
+      "uploadingNamed": "Enviando {name}",
+      "progressLabel": "Progresso do envio de {name}",
+      "percent": "{percent}%",
+      "queued": "Na fila",
+      "cancel": "Cancelar",
+      "cancelNamed": "Cancelar o envio de {name}",
+      "retry": "Tentar de novo",
+      "remove": "Remover",
+      "removeNamed": "Remover {name}"
     },
     "togglePlaceholder": "Recolhível",
     "calloutPlaceholder": "Escreva uma nota…",

@@ -1,0 +1,127 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { DocsBlock } from '@/lib/docs-types';
+import { canRetry, createUploadQueue, placeUploadedBlock, uploadSlots, type PendingUpload } from '@/lib/docs-upload-queue';
+
+const up = (id: string, p: Partial<PendingUpload> = {}): PendingUpload => ({
+  id,
+  group: 'g',
+  anchorId: 'a',
+  replaceId: null,
+  kind: 'image',
+  name: `${id}.png`,
+  size: 10,
+  status: 'queued',
+  progress: 0,
+  ...p,
+});
+
+const para = (id: string, content = '', indent?: number): DocsBlock => ({ id, type: 'paragraph', content, ...(indent ? { indent } : {}) });
+const img = (id: string): DocsBlock => ({ id, type: 'image', content: '', url: `/u/${id}` });
+
+describe('cola de subidas', () => {
+  it('pasa por en cola, subiendo, error, reintento y listo', () => {
+    const q = createUploadQueue();
+    const fn = vi.fn();
+    q.subscribe(fn);
+    q.add([up('x')]);
+    expect(q.find('x')?.status).toBe('queued');
+    q.start('x');
+    q.progress('x', 41.6);
+    expect(q.find('x')).toMatchObject({ status: 'uploading', progress: 42 });
+    // El progreso no retrocede ni pasa de 100.
+    q.progress('x', 10);
+    expect(q.find('x')?.progress).toBe(42);
+    q.progress('x', 180);
+    expect(q.find('x')?.progress).toBe(100);
+    q.fail('x', 'failed');
+    expect(q.find('x')).toMatchObject({ status: 'error', error: 'failed' });
+    expect(canRetry(q.find('x')!)).toBe(true);
+    q.retry('x');
+    expect(q.find('x')).toMatchObject({ status: 'queued', progress: 0, error: undefined });
+    q.start('x');
+    q.done('x', 'x');
+    expect(q.get()).toEqual([]);
+    expect(fn).toHaveBeenCalled();
+  });
+
+  it('un archivo que no entra o de un tipo no permitido no ofrece reintentar', () => {
+    const q = createUploadQueue();
+    q.add([up('a1'), up('a2')]);
+    q.fail('a1', 'tooLarge');
+    q.fail('a2', 'typeNotAllowed');
+    expect(canRetry(q.find('a1')!)).toBe(false);
+    expect(canRetry(q.find('a2')!)).toBe(false);
+  });
+
+  it('al terminar una, las que esperan en el grupo van debajo del bloque nuevo; una con error queda donde estaba', () => {
+    const q = createUploadQueue();
+    q.add([up('one', { replaceId: 'p' }), up('two', { replaceId: 'p' }), up('three', { replaceId: 'p' }), up('other', { group: 'h' })]);
+    q.fail('two', 'failed');
+    q.done('one', 'one');
+    expect(q.find('two')).toMatchObject({ anchorId: 'a', replaceId: 'p' });
+    expect(q.find('three')).toMatchObject({ anchorId: 'one', replaceId: null });
+    expect(q.find('other')).toMatchObject({ anchorId: 'a' });
+  });
+
+  it('quitar o cancelar saca la subida', () => {
+    const q = createUploadQueue();
+    q.add([up('x')]);
+    q.remove('x');
+    expect(q.get()).toEqual([]);
+    // Operaciones sobre una que ya no está no hacen nada.
+    q.progress('x', 50);
+    q.fail('x', 'failed');
+    expect(q.get()).toEqual([]);
+  });
+});
+
+describe('placeUploadedBlock', () => {
+  it('reemplaza el párrafo vacío en su lugar y con su nivel', () => {
+    const out = placeUploadedBlock([para('a', 'hola'), para('p', '', 1), para('z', 'fin')], img('i'), { anchorId: 'a', replaceId: 'p' });
+    expect(out.map((b) => [b.id, b.indent ?? 0])).toEqual([
+      ['a', 0],
+      ['i', 1],
+      ['z', 0],
+    ]);
+  });
+
+  it('si el párrafo ya tiene texto, va después del ancla', () => {
+    const out = placeUploadedBlock([para('a', 'hola'), para('p', 'escribí'), para('z', 'fin')], img('i'), { anchorId: 'p', replaceId: 'p' });
+    expect(out.map((b) => b.id)).toEqual(['a', 'p', 'i', 'z']);
+  });
+
+  it('al principio con ancla null, al final si el ancla se borró', () => {
+    expect(placeUploadedBlock([para('a', 'x')], img('i'), { anchorId: null, replaceId: null }).map((b) => b.id)).toEqual(['i', 'a']);
+    expect(placeUploadedBlock([para('a', 'x')], img('i'), { anchorId: 'gone', replaceId: null }).map((b) => b.id)).toEqual(['a', 'i']);
+  });
+
+  it('toma el nivel del ancla o el pedido, y entra en una columna si el ancla es el contenedor', () => {
+    expect(placeUploadedBlock([para('a', 'x', 2)], img('i'), { anchorId: 'a', replaceId: null })[1].indent).toBe(2);
+    expect(placeUploadedBlock([para('a', 'x', 2)], img('i'), { anchorId: 'a', replaceId: null, indent: 0 })[1].indent ?? 0).toBe(0);
+    const col: DocsBlock = { id: 'c', type: 'column', content: '', indent: 1 };
+    expect(placeUploadedBlock([col], img('i'), { anchorId: 'c', replaceId: null })[1].indent).toBe(2);
+  });
+});
+
+describe('uploadSlots', () => {
+  it('reparte cada esqueleto en su lugar, en orden', () => {
+    const blocks = [para('a', 'x'), para('p'), para('b', 'y')];
+    const s = uploadSlots(blocks, [
+      up('r1', { replaceId: 'p', anchorId: 'a' }),
+      up('r2', { replaceId: 'p', anchorId: 'a' }),
+      up('af', { anchorId: 'b' }),
+      up('t', { anchorId: null }),
+      up('lost', { anchorId: 'gone' }),
+    ]);
+    expect(s.replace.get('p')?.map((u) => u.id)).toEqual(['r1', 'r2']);
+    expect(s.after.get('b')?.map((u) => u.id)).toEqual(['af']);
+    expect(s.top.map((u) => u.id)).toEqual(['t']);
+    expect(s.end.map((u) => u.id)).toEqual(['lost']);
+  });
+
+  it('si el párrafo a reemplazar ya no está vacío, va después del ancla', () => {
+    const s = uploadSlots([para('a', 'x'), para('p', 'texto')], [up('r', { replaceId: 'p', anchorId: 'a' })]);
+    expect(s.replace.size).toBe(0);
+    expect(s.after.get('a')?.map((u) => u.id)).toEqual(['r']);
+  });
+});
