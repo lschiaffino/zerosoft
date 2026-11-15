@@ -75,6 +75,8 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   archived: ['unarchive', 'undone'],
   snoozed: ['unsnooze', 'done'],
   done: ['undone', 'unarchive', 'snooze'],
+  // "Sin carpeta": sumarlo a una carpeta también lo saca de la lista.
+  nofolder: ['done', 'snooze', 'archive', 'addFolder'],
 };
 
 interface Toast {
@@ -722,6 +724,11 @@ export default function InboxApp(props: {
         return;
       }
       setSelected(new Set());
+      // En "Sin carpeta" los chats ya tienen carpeta: salen de la lista sin esperar a que vuelva.
+      if (view === 'nofolder' && !folder && !q) {
+        const gone = new Set(ids);
+        setThreads((list) => list.filter((x) => !gone.has(x.id)));
+      }
       const refresh = () => {
         void reloadList();
         void reloadState();
@@ -734,7 +741,7 @@ export default function InboxApp(props: {
           .then(refresh);
       toast(t(from ? 'toast.movedTo' : 'toast.addedTo', { n: ids.length, name: folderName }), { undo });
     },
-    [folder, threads, toast, errText, t, reloadList, reloadState],
+    [folder, view, q, threads, toast, errText, t, reloadList, reloadState],
   );
 
   const open = (id: string) => {
@@ -1208,6 +1215,7 @@ export default function InboxApp(props: {
                   {t(`views.${v}`)}
                 </option>
               ))}
+              {state.folders.length > 0 && <option value="v:nofolder">{t('views.nofolder')}</option>}
               {state.folders.map((f) => (
                 <option key={f.id} value={`f:${f.id}`}>
                   {f.name}
@@ -1236,7 +1244,7 @@ export default function InboxApp(props: {
             </div>
           )}
         </div>
-        {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
+        {!q && !folder && view !== 'archived' && view !== 'nofolder' && (state.counts.archived ?? 0) > 0 && (
           <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />
             <span>{t('list.archivedEntry')}</span>

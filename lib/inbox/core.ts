@@ -645,6 +645,17 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
       case 'scheduled':
         where.push("EXISTS (SELECT 1 FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed'))");
         break;
+      case 'nofolder': {
+        // Lo de la bandeja que no está en ninguna carpeta: ni puesto a mano (clave primaria thread_id, folder_id de
+        // inbox_thread_folders) ni por la regla de alguna. Mismo filtro que los contadores (matchesRuleSql).
+        where.push(active, 'NOT EXISTS (SELECT 1 FROM inbox_thread_folders tf JOIN inbox_folders fo ON fo.id = tf.folder_id WHERE tf.thread_id = t.id)');
+        args.push(nowS);
+        for (const r of await folderRules(owner)) {
+          where.push(`NOT COALESCE((${r.sql}), 0)`);
+          args.push(...r.args);
+        }
+        break;
+      }
       // "Hecho" y "Archivado" son una sola cosa para quien usa Inbox: la vista Archivados muestra los dos.
       case 'done':
       case 'archived':
@@ -1198,6 +1209,12 @@ function parseRuleText(raw: string): FolderRule | null {
   }
 }
 
+/** Condiciones SQL de las reglas de todas las carpetas de la persona. */
+async function folderRules(owner: string): Promise<Array<{ sql: string; args: string[] }>> {
+  const rows = (await getDb().prepare("SELECT rule FROM inbox_folders WHERE owner_id = ? AND rule <> ''").all(owner)) as Array<{ rule: string }>;
+  return rows.map((f) => ruleSql(parseRuleText(f.rule))).filter((r): r is NonNullable<typeof r> => r !== null);
+}
+
 async function getFolderRow(owner: string, id: string): Promise<FolderRow> {
   const r = (await getDb().prepare('SELECT * FROM inbox_folders WHERE id = ? AND owner_id = ?').get(id, owner)) as FolderRow | undefined;
   if (!r) throw new InboxError('not_found', 404);
@@ -1233,9 +1250,18 @@ function matchesRuleSql(rule: FolderRule | null, t: { channel: string; kind: str
 const MAX_UNREAD_SCAN = 5000;
 
 export async function listFolders(owner: string, now = new Date()): Promise<FolderDto[]> {
+  return (await folderOverview(owner, now)).folders;
+}
+
+/**
+ * Las carpetas con sus no leídos y, aparte, los no leídos de "Sin carpeta"
+ * (chats de la bandeja que no están en ninguna, ni por regla). Sin carpetas,
+ * "Sin carpeta" no se muestra: cuenta 0.
+ */
+export async function folderOverview(owner: string, now = new Date()): Promise<{ folders: FolderDto[]; noFolderUnread: number }> {
   const db = getDb();
   const rows = (await db.prepare('SELECT * FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(owner)) as unknown as FolderRow[];
-  if (!rows.length) return [];
+  if (!rows.length) return { folders: [], noFolderUnread: 0 };
   const nowS = now.toISOString();
   // Chats sin leer de la bandeja, una sola consulta (índice idx_inbox_threads_unread), con sus carpetas a mano.
   // Las reglas se evalúan acá sobre esas filas; después los no leídos suben a los padres sin repetir.
@@ -1254,13 +1280,25 @@ export async function listFolders(owner: string, now = new Date()): Promise<Fold
     else own.set(folderId, new Set([threadId]));
   };
   const rules = rows.map((f) => ({ id: f.id, rule: parseRuleText(f.rule) })).filter((f) => f.rule !== null);
+  const ids = new Set(rows.map((f) => f.id));
+  let loose = 0;
   for (const t of unread) {
-    if (t.folder_ids) for (const fid of String(t.folder_ids).split(',')) add(fid, t.id);
-    for (const f of rules) if (matchesRuleSql(f.rule, t)) add(f.id, t.id);
+    let filed = false;
+    if (t.folder_ids)
+      for (const fid of String(t.folder_ids).split(',')) {
+        add(fid, t.id);
+        if (ids.has(fid)) filed = true;
+      }
+    for (const f of rules)
+      if (matchesRuleSql(f.rule, t)) {
+        add(f.id, t.id);
+        filed = true;
+      }
+    if (!filed) loose++;
   }
   const tree = rows.map((f) => ({ id: f.id, parentId: f.parent_id, position: f.position }));
   const total = rollupUnread(tree, own);
-  return rows.map((f) => ({
+  const folders = rows.map((f) => ({
     id: f.id,
     name: f.name,
     color: f.color,
@@ -1271,6 +1309,7 @@ export async function listFolders(owner: string, now = new Date()): Promise<Fold
     count: total.get(f.id) ?? 0,
     ownCount: own.get(f.id)?.size ?? 0,
   }));
+  return { folders, noFolderUnread: loose };
 }
 
 async function folderTree(owner: string) {
