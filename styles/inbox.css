@@ -279,3 +279,12 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 
 /* Teclado abierto en el teléfono (components/app/KeyboardViewport.tsx): el chat entra en lo que se ve. */
 html[data-keyboard="open"] .ib-app { min-height: 0; }
+
+/* Programados: el horario y las acciones en letra chica y sin negrita, a un costado (lo importante es el
+   mensaje). En el teléfono los botones siguen con su tamaño para el dedo. */
+.ib-sched-when { font-weight: 500; font-size: 0.75rem; color: var(--ink-2); }
+@media (min-width: 768px) {
+  .ib-sched > .ib-row { gap: 0; }
+  .ib-sched > .ib-row .btn { min-height: 0; height: auto; padding: 2px 6px; font-size: 0.75rem; font-weight: 400; color: var(--ink-3, var(--ink-2)); }
+  .ib-sched > .ib-row .btn:hover:not(:disabled), .ib-sched > .ib-row .btn:focus-visible { color: var(--ink); background: var(--ui-hover); }
+}

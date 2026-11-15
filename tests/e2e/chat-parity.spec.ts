@@ -107,7 +107,8 @@ test('bandeja: equipos, seguir, colisión, variables, AI, Track y vistas guardad
   await page.setViewportSize({ width: 1440, height: 900 });
   const w = await widget(request);
   const visitor = `v-${uid()}`;
-  // Nombre único: otras specs dejan personas "Ana Pérez" (Inbox) que ⌘K también encuentra.
+  // Nombre único: "Ana Pérez" a secas chocaba en Cmd+K con hilos de Inbox de otros specs
+  // en la base compartida, y el reintento encontraba la fila del primer intento.
   const person = `Ana Pérez ${uid()}`;
   await ok(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: visitor, body: 'No me llega la factura', name: person, email: 'ana@example.com' } }));
   const { rows } = await ok<{ rows: Array<{ id: string }> }>(request.get(`/api/chat/conversations?widgetIds=${w.id}`));
