@@ -16,8 +16,8 @@ import {
 import { isComingSoon } from '@/lib/products';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'fleet', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'calls', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics', 'pulse'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'calls', 'fleet'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'fleet', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'calls', 'time', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'calls', 'time', 'fleet'];
 
 
 /**
@@ -34,7 +34,7 @@ const appDir = join(root, 'app', '[locale]');
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'bi', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'calls', 'fleet', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'bi', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'calls', 'time', 'fleet', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });

@@ -2460,6 +2460,92 @@
         "button": "Open Fleet"
       }
     },
+    "time": {
+      "meta": {
+        "title": "Time: track hours by project and report what you can bill",
+        "description": "A timer and a weekly timesheet by project and task, with clients, hourly rates, budgets and reports you can export to CSV. Open source alternative to Harvest."
+      },
+      "hero": {
+        "sub": "Start a timer or type the hours, against a project and a task. See the week at a glance, how much of each budget is used, and the billable hours and amount for each client."
+      },
+      "featuresTitle": "Know where the hours go.",
+      "featuresTitleDim": "Project by project.",
+      "f1": {
+        "t": "Timer or by hand",
+        "d": "Start a timer from the timesheet or type 1:30, 1.5 or 90m. One timer runs at a time: starting another stops the first."
+      },
+      "f2": {
+        "t": "The week at a glance",
+        "d": "Day totals for the week above your day, with the week total. Move between weeks and jump back to today."
+      },
+      "f3": {
+        "t": "Projects and clients",
+        "d": "Each project with its client, code, hourly rate and a budget in hours. The list shows how much of each budget is used."
+      },
+      "f4": {
+        "t": "Billable or not",
+        "d": "A project and its task decide whether an hour is billable. The amount is the billable hours times the project's rate."
+      },
+      "f5": {
+        "t": "Reports by what you need",
+        "d": "Hours, billable hours and amount for a week, a month or any range, grouped by project, client, task or person."
+      },
+      "f6": {
+        "t": "Export to CSV",
+        "d": "The detail of every entry in the range, one row each, ready for a spreadsheet or your invoicing."
+      },
+      "steps": {
+        "s1": {
+          "t": "Add a project",
+          "d": "With its client, rate and budget."
+        },
+        "s2": {
+          "t": "Track time",
+          "d": "With the timer or by typing the hours."
+        },
+        "s3": {
+          "t": "Report",
+          "d": "Billable hours and amount by client, and a CSV."
+        }
+      },
+      "compare": {
+        "rival": "Harvest",
+        "price": "Plans per seat",
+        "per": "per seat, after a free plan for 1 seat and 2 projects",
+        "teamLabel": "A team of 5 tracking time",
+        "team": "see Harvest's pricing",
+        "zero": "$0",
+        "note": "Harvest changed its plans in 2026 and its pricing page couldn't be read when we checked, so we don't quote a price: look at getharvest.com/pricing. Time on your own server costs $0 plus your database."
+      },
+      "faq": {
+        "f1": {
+          "q": "Who sees whose hours?",
+          "a": "Each person tracks, edits and deletes only their own entries. In reports, a member sees their own hours and an admin sees everyone's."
+        },
+        "f2": {
+          "q": "Who can create projects?",
+          "a": "Owners and admins create and edit clients, projects and tasks, and set the currency. Members track time on any active project."
+        },
+        "f3": {
+          "q": "What happens if I forget a timer running?",
+          "a": "It keeps counting up to 24 hours, the limit for one entry. Open the entry and type the right duration."
+        },
+        "f4": {
+          "q": "Can I send invoices from Time?",
+          "a": "Not yet. Export the report to CSV, or use the hours in Books."
+        },
+        "f5": {
+          "q": "What's missing compared to Harvest?",
+          "a": "Timesheet approvals, expenses, invoices, assigning people to projects, rates per person or task, reminders, a phone app and integrations, among others. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Track it.",
+        "title2": "Bill it.",
+        "sub": "Open Time, add a project and start your first timer.",
+        "button": "Open Time"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: open-source questions and dashboards over your data",
@@ -2659,7 +2745,8 @@
       "send": "fig. 0 · pages being read, with the time on each",
       "inbox": "fig. 0 · a chat and an email in the same list",
       "calls": "fig. 0 · two voices, transcribed line by line",
-      "fleet": "fig. 0 · agent cards that move from working to done"
+      "fleet": "fig. 0 · agent cards that move from working to done",
+      "time": "fig. 0 · a week of hours, day by day"
     },
     "heroFigHint": "drag to rotate",
     "desktop": {
@@ -3258,6 +3345,25 @@
       "c3foot": "PR #41 · deploy ready",
       "agentMsg": "The migration is ready. Should I run it on the staging database?",
       "myMsg": "Yes, staging only."
+    },
+    "time": {
+      "listTitle": "This week",
+      "d1": "Mon",
+      "d2": "Tue",
+      "d3": "Wed",
+      "d4": "Thu",
+      "d5": "Fri",
+      "total": "Total",
+      "r1name": "Website redesign",
+      "r1meta": "Estudio Norte · Design",
+      "r1time": "2:15",
+      "r2name": "Onboarding app",
+      "r2meta": "Acme · Development",
+      "r2time": "3:40",
+      "r3name": "Weekly sync",
+      "r3meta": "Internal · Meetings",
+      "r3time": "0:30",
+      "running": "Running"
     }
   },
   "status": {
