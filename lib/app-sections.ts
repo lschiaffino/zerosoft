@@ -6,8 +6,9 @@
 export const APP_SECTIONS = {
   sign: ['new', 'envelopes', 'templates', 'settings'],
   send: ['new', 'documents', 'spaces', 'settings'],
-  inbox: ['v', 'f', 'analytics', 'settings'],
+  inbox: ['v', 'f', 'agents', 'analytics', 'settings'],
   calls: ['call', 'upcoming', 'deals', 'ask', 'analytics', 'settings'],
+  fleet: ['chats', 'prs', 'deploys', 'settings'],
   shop: ['orders', 'products', 'collections', 'inventory', 'customers', 'discounts', 'analytics', 'settings'],
   books: ['invoices', 'credit-notes', 'bills', 'recurring', 'quotes', 'contacts', 'items', 'expenses', 'purchase-orders', 'banking', 'accounts', 'journal', 'reports', 'settings'],
   people: ['me', 'u', 'org', 'time-off', 'onboarding', 'reviews', 'reports', 'settings', 'welcome'],
@@ -29,6 +30,7 @@ const NO_ID: Record<keyof typeof APP_SECTIONS, readonly string[]> = {
   send: ['new', 'settings'],
   inbox: ['analytics', 'settings'],
   calls: ['upcoming', 'deals', 'ask', 'analytics', 'settings'],
+  fleet: ['prs', 'deploys', 'settings'],
   shop: ['inventory', 'analytics', 'settings'],
   books: ['quotes', 'accounts', 'settings'],
   people: ['org', 'time-off', 'reports', 'settings', 'welcome'],

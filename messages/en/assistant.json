@@ -193,6 +193,11 @@
       "a": "What objections came up in this week's calls?",
       "b": "Which deals have no call in the last two weeks?",
       "c": "Summarize my last call with next steps"
+    },
+    "fleet": {
+      "a": "Which agents are waiting for me?",
+      "b": "Which pull requests have failing checks?",
+      "c": "What is deploying right now?"
     }
   },
   "page": {

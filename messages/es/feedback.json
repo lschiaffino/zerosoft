@@ -40,7 +40,8 @@
       "forms": "Forms",
       "send": "Send",
       "inbox": "Inbox",
-      "calls": "Calls"
+      "calls": "Calls",
+      "fleet": "Fleet"
     },
     "messageLabel": "Mensaje",
     "placeholder": {

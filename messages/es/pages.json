@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "20 apps open source para empresas: CRM, docs, links y más",
-      "description": "Veinte apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "description": "Veintiuna apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veinte apps.",
+      "title1": "Veintiuna apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veinte apps.",
+      "title1": "Probá las veintiuna apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2374,6 +2374,86 @@
         "button": "Abrir Calls"
       }
     },
+    "fleet": {
+      "meta": {
+        "title": "Fleet: una sala de control para tus agentes de código",
+        "description": "Mirá tus sesiones de Claude Code, pull requests de GitHub y deploys de Vercel de varias cuentas en un tablero, y respondé a tus agentes desde un chat tipo WhatsApp."
+      },
+      "hero": {
+        "sub": "Cada sesión de Claude Code en tus computadoras, también dentro de Orca, aparece como una tarjeta con su estado, su pull request y su deploy. Respondele a un agente desde un chat y le llega tu mensaje la próxima vez que se detiene. Lee GitHub y Vercel, nunca escribe en ellos."
+      },
+      "featuresTitle": "Todo lo que hacen tus agentes.",
+      "featuresTitleDim": "En un tablero, en vivo.",
+      "f1": {
+        "t": "Una tarjeta por sesión",
+        "d": "Trabajando, esperándote, lista o con error, con lo último que dijo, su carpeta y rama, y el pull request y el deploy de esa rama. Agrupadas por proyecto, con filtros."
+      },
+      "f2": {
+        "t": "Ahora, de un vistazo",
+        "d": "Cuántos agentes trabajan, cuántos te esperan, pull requests abiertos, checks en rojo y deploys en curso. El tablero se actualiza en vivo con cada evento del hook."
+      },
+      "f3": {
+        "t": "Varias cuentas de GitHub",
+        "d": "Conectá cuentas y organizaciones con tokens de solo lectura y elegí los repositorios. Pull requests abiertos con autor, checks, auto-merge y conflictos, corridas de workflows y releases."
+      },
+      "f4": {
+        "t": "Varios equipos de Vercel",
+        "d": "Deploys de todas las cuentas y equipos con su estado, rama, commit y pull request, y el deploy que sirve producción en cada proyecto."
+      },
+      "f5": {
+        "t": "Hablá con tus agentes",
+        "d": "Cada sesión es una conversación tipo WhatsApp con tus prompts y sus respuestas. Respondé y el Stop hook de Claude Code le pasa tu mensaje al agente, con tildes de en cola y entregado."
+      },
+      "f6": {
+        "t": "En Inbox, Lines y en tu teléfono",
+        "d": "Una fila Agentes arriba de Inbox y de Lines, y si querés un WhatsApp a vos mismo cuando un agente termina o te espera. Respondelo citándolo y la respuesta le llega a ese agente."
+      },
+      "steps": {
+        "s1": {
+          "t": "Instalá el hook",
+          "d": "Un comando por computadora. Deja tus otros hooks de Claude Code, los de Orca incluidos."
+        },
+        "s2": {
+          "t": "Conectá GitHub y Vercel",
+          "d": "Tokens de solo lectura, todas las cuentas y equipos que uses."
+        },
+        "s3": {
+          "t": "Mirá y respondé",
+          "d": "Las tarjetas se actualizan en vivo y tus respuestas le llegan al agente cuando se detiene."
+        }
+      },
+      "compare": {
+        "rival": "GitHub · Vercel",
+        "price": "$0",
+        "per": "para mirar cada panel",
+        "teamLabel": "Una persona con varias cuentas",
+        "team": "$0",
+        "zero": "$0",
+        "note": "GitHub y Vercel muestran lo suyo de a una cuenta. Fleet los lee con tus tokens y los pone al lado de tus agentes locales."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué manda el hook desde mi computadora?",
+          "a": "El tipo de evento, el id de la sesión, el nombre de la carpeta y la rama de git, los ids de Orca si están, y tu prompt y el último mensaje del agente cortados a unos miles de caracteres y sin los secretos comunes. Nunca el contenido de archivos, rutas completas ni el transcript."
+        },
+        "f2": {
+          "q": "¿Funciona con Orca?",
+          "a": "Sí. Orca corre Claude Code con sus propios hooks, y Claude Code corre todos los hooks de un evento, así que los dos andan a la vez. Cuando el agente corre dentro de Orca, las sesiones llevan el panel y el worktree."
+        },
+        "f3": {
+          "q": "¿Cómo le llega mi respuesta al agente?",
+          "a": "Espera en una cola. Cuando el agente termina su turno, el Stop hook de Claude Code le pide a Fleet los mensajes en cola y, si hay uno, le dice a Claude que siga con eso. Si escribís mientras está quieto, le llega con tu próximo prompt."
+        },
+        "f4": {
+          "q": "¿Fleet puede cambiar mis repositorios o deploys?",
+          "a": "No. Lee pull requests, checks, corridas, releases, proyectos y deploys con los tokens que le das, y nunca escribe en GitHub ni en Vercel."
+        },
+        "f5": {
+          "q": "¿Quién ve mis agentes?",
+          "a": "Solo vos. Los tokens, las sesiones y las conversaciones son de tu persona en el workspace, y el token de ingesta se guarda como hash."
+        }
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: preguntas y tableros de código abierto sobre tus datos",
@@ -2474,7 +2554,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veinte apps, el mismo login.",
+    "suiteTitleDim": "Veintiuna apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2572,7 +2652,8 @@
       "forms": "fig. 0 · un formulario que se completa",
       "send": "fig. 0 · páginas que se leen, con el tiempo de cada una",
       "inbox": "fig. 0 · un chat y un correo en la misma lista",
-      "calls": "fig. 0 · dos voces, transcriptas línea por línea"
+      "calls": "fig. 0 · dos voces, transcriptas línea por línea",
+      "fleet": "fig. 0 · tarjetas de agentes que pasan de trabajando a listas"
     },
     "heroFigHint": "arrastrá para girar",
     "desktop": {
@@ -3147,6 +3228,30 @@
       "s2": "Dolor · 11:50",
       "s3": "Impacto · en parte",
       "s4": "Evento crítico · sin cubrir"
+    },
+    "fleet": {
+      "t1": "Trabajando",
+      "t1n": "3",
+      "t2": "Te esperan",
+      "t2n": "1",
+      "t3": "PRs abiertos",
+      "t3n": "5",
+      "t4": "Deploys en curso",
+      "t4n": "2",
+      "c1status": "Trabajando",
+      "c1title": "Arreglar el redirect del login",
+      "c1branch": "agent/fix-login",
+      "c1foot": "PR #42 · checks corriendo",
+      "c2status": "Te espera",
+      "c2title": "Migrar la tabla de facturación",
+      "c2branch": "agent/billing",
+      "c2foot": "Pide permiso para correr una migración",
+      "c3status": "Listo",
+      "c3title": "Modo oscuro en ajustes",
+      "c3branch": "agent/dark-settings",
+      "c3foot": "PR #41 · deploy listo",
+      "agentMsg": "La migración está lista. ¿La corro en la base de staging?",
+      "myMsg": "Sí, solo en staging."
     }
   },
   "status": {

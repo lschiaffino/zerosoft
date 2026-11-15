@@ -193,6 +193,11 @@
       "a": "Quais objeções apareceram nas chamadas desta semana?",
       "b": "Quais negócios não têm chamada nas últimas duas semanas?",
       "c": "Resuma minha última chamada com os próximos passos"
+    },
+    "fleet": {
+      "a": "Quais agentes estão esperando por mim?",
+      "b": "Quais pull requests têm checks falhando?",
+      "c": "O que está em deploy agora?"
     }
   },
   "page": {
