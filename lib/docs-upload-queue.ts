@@ -100,7 +100,8 @@ export function createUploadQueue(): UploadQueue {
     start: (id) => patch(id, { status: 'uploading', progress: 0, error: undefined }),
     progress(id, percent) {
       const u = items.find((x) => x.id === id);
-      const p = Math.max(0, Math.min(100, Math.round(percent)));
+      // Hasta 99: con todos los bytes enviados falta que el servidor guarde el archivo.
+      const p = Math.max(0, Math.min(99, Math.round(percent)));
       // El progreso no retrocede (las partes de Blob pueden informar fuera de orden).
       if (u && u.status === 'uploading' && p > u.progress) patch(id, { progress: p });
     },
@@ -156,22 +157,45 @@ export function placeUploadedBlock(
 }
 
 /**
- * Dónde se dibuja cada esqueleto: arriba de una línea (`before`), debajo de
- * un bloque (`after`), al principio de la página (`top`) o, si su ancla ya no
- * está, al final (`end`). En cada lugar, en el orden en que se eligieron.
+ * Dónde se dibuja cada esqueleto, con la misma regla que placeUploadedBlock
+ * (si no, se vería en un lugar y el bloque caería en otro):
+ * - `before`: arriba de una línea;
+ * - `inside`: primero adentro de una columna o un sincronizado (el ancla es el contenedor);
+ * - `after`: debajo de un bloque. Con un nivel pedido menor que el del ancla
+ *   (soltar en la página justo después de unas columnas), debajo del
+ *   antecesor de ese nivel, o sea debajo de todo el contenedor;
+ * - `top`: al principio de la página; `end`: al final, si su ancla ya no está.
+ * En cada lugar, en el orden en que se eligieron.
  */
 export function uploadSlots(blocks: readonly DocsBlock[], pending: readonly PendingUpload[]) {
-  const ids = new Set(blocks.map((b) => b.id));
+  const index = new Map(blocks.map((b, i) => [b.id, i] as const));
   const before = new Map<string, PendingUpload[]>();
+  const inside = new Map<string, PendingUpload[]>();
   const after = new Map<string, PendingUpload[]>();
   const top: PendingUpload[] = [];
   const end: PendingUpload[] = [];
   const push = (m: Map<string, PendingUpload[]>, k: string, u: PendingUpload) => m.set(k, [...(m.get(k) ?? []), u]);
   for (const u of pending) {
-    if (u.beforeId && ids.has(u.beforeId)) push(before, u.beforeId, u);
-    else if (u.anchorId === null) top.push(u);
-    else if (ids.has(u.anchorId)) push(after, u.anchorId, u);
-    else end.push(u);
+    if (u.beforeId && index.has(u.beforeId)) {
+      push(before, u.beforeId, u);
+      continue;
+    }
+    if (u.anchorId === null) {
+      top.push(u);
+      continue;
+    }
+    let i = index.get(u.anchorId);
+    if (i === undefined) {
+      end.push(u);
+      continue;
+    }
+    const anchor = blocks[i];
+    if (u.indent === undefined && (anchor.type === 'column' || anchor.type === 'synced')) {
+      push(inside, anchor.id, u);
+      continue;
+    }
+    if (u.indent !== undefined) while (i > 0 && blockIndent(blocks[i]) > u.indent) i--;
+    push(after, blocks[i].id, u);
   }
-  return { before, after, top, end };
+  return { before, inside, after, top, end };
 }

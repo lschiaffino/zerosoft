@@ -675,6 +675,7 @@ export default function DocsEditor({
   const uploadSources = useRef(new Map<string, File>());
   const uploadAborts = useRef(new Map<string, AbortController>());
   const uploadMax = useRef<number | undefined>(undefined);
+  const uploadsDisposed = useRef(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Línea de drop (px, relativa a .docs-blocks) al arrastrar archivos del sistema. */
   const [fileDropLine, setFileDropLine] = useState<DropLine | null>(null);
@@ -1304,10 +1305,14 @@ export default function DocsEditor({
   /** Línea para seguir escribiendo debajo del último bloque subido: la vacía que ya estaba ahí o una nueva, con el foco adentro. */
   const focusBelowUpload = useCallback(
     (last: string) => {
-      // Si la persona ya está escribiendo en otro lado, no se le saca el foco.
+      // El foco baja a esa línea solo si quedó suelto (en la página o en el selector de archivos)
+      // o en una línea vacía del editor. Si la persona está escribiendo en otro lado (un párrafo,
+      // una celda, un campo), no se le saca.
       const active = document.activeElement;
-      const typing = active instanceof HTMLElement && active.isContentEditable && (active.textContent ?? '') !== '';
-      if (typing) return;
+      const loose = !active || active === document.body || active === fileInputRef.current;
+      const emptyLine =
+        active instanceof HTMLElement && active.isContentEditable && (active.textContent ?? '') === '' && Boolean(blocksWrapRef.current?.contains(active));
+      if (!loose && !emptyLine) return;
       setBlocks((prev) => {
         const i = prev.findIndex((b) => b.id === last);
         if (i === -1) return prev;
@@ -1337,14 +1342,14 @@ export default function DocsEditor({
   const runUpload = useCallback(
     async (id: string): Promise<boolean> => {
       const file = uploadSources.current.get(id);
-      if (!file || !uploadQueue.find(id)) return false;
+      if (!file || !uploadQueue.find(id) || uploadsDisposed.current) return false;
       const ctrl = new AbortController();
       uploadAborts.current.set(id, ctrl);
       uploadQueue.start(id);
       try {
         const up = await uploadDocsFile(file, { uploadUrl, signal: ctrl.signal, onProgress: (p) => uploadQueue.progress(id, p) });
         const cur = uploadQueue.find(id);
-        if (!cur) return false;
+        if (!cur || uploadsDisposed.current) return false;
         rememberUploadPreview(up.url, file);
         rememberUploadSize(up.url, cur);
         // "/imagen" (o video, PDF) con algo que no se muestra así: queda con el tipo que le corresponde.
@@ -1407,7 +1412,7 @@ export default function DocsEditor({
         indent: opts.indent,
         kind: fileKindForRequest(opts.kind, file.type || 'application/octet-stream'),
         requested: opts.kind,
-        name: cleanFileName(file.name) || file.name || 'file',
+        name: cleanFileName(file.name) || t('editor.upload.untitledFile'),
         size: file.size,
         status: 'queued',
         progress: 0,
@@ -1424,6 +1429,8 @@ export default function DocsEditor({
       uploadMax.current = max;
       let last: string | null = null;
       for (const u of items) {
+        // Editor cerrado mientras subía: lo que estaba en cola no arranca.
+        if (uploadsDisposed.current) return;
         if (!uploadQueue.find(u.id)) continue;
         if (u.size > max) {
           uploadQueue.fail(u.id, 'tooLarge', max);
@@ -1433,11 +1440,16 @@ export default function DocsEditor({
       }
       if (last) focusBelowUpload(last);
     },
-    [uploadsEnabled, uploadQueue, uploadUrl, runUpload, focusBelowUpload],
+    [uploadsEnabled, uploadQueue, uploadUrl, runUpload, focusBelowUpload, t],
   );
 
+  /** El botón que se apretó desaparece con el esqueleto: el foco pasa a los bloques (no a la página, donde corren los atajos globales). */
+  const keepFocusInEditor = () => {
+    if (document.activeElement?.closest('[data-testid="docs-upload-placeholder"]')) blocksWrapRef.current?.focus();
+  };
   const cancelUpload = useCallback(
     (id: string) => {
+      keepFocusInEditor();
       const ctrl = uploadAborts.current.get(id);
       if (ctrl) ctrl.abort();
       else {
@@ -1456,15 +1468,20 @@ export default function DocsEditor({
   );
   const removeUpload = useCallback(
     (id: string) => {
+      keepFocusInEditor();
       uploadQueue.remove(id);
       uploadSources.current.delete(id);
     },
     [uploadQueue],
   );
-  // Al salir del editor, lo que sigue subiendo se corta.
+  // Al salir del editor, lo que sigue subiendo se corta y lo que esperaba no arranca.
   useEffect(() => {
     const aborts = uploadAborts.current;
-    return () => aborts.forEach((c) => c.abort());
+    uploadsDisposed.current = false;
+    return () => {
+      uploadsDisposed.current = true;
+      aborts.forEach((c) => c.abort());
+    };
   }, []);
 
   /** Pegar archivos en un bloque: si es un párrafo vacío, lo reemplaza. */
@@ -4384,6 +4401,9 @@ export default function DocsEditor({
     const out: ReactNode[] = [];
     let i = start;
     if (start === 0) out.push(...renderUploads(slots.top, -1));
+    // Adentro de una columna o un sincronizado: lo que se subió con el contenedor de ancla va primero.
+    const parent = start > 0 ? blocks[start - 1] : null;
+    if (parent && (parent.type === 'column' || parent.type === 'synced')) out.push(...renderUploads(slots.inside.get(parent.id), -1));
     while (i <= end && i < blocks.length) {
       const b = blocks[i];
       if (b.type === 'columns') {

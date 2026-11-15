@@ -65,7 +65,8 @@ async function holdUploads(page: Page, pattern: string) {
     count: () => held.length,
     release: async () => {
       open = true;
-      for (const r of held.splice(0)) await r.continue();
+      // Una subida cancelada ya no espera respuesta: se ignora.
+      for (const r of held.splice(0)) await r.continue().catch(() => {});
     },
   };
 }
@@ -112,6 +113,8 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   // El texto de "Subiendo" ya no aparece abajo, pegado al borde.
   await expect(scope.locator('.docs-upload-status')).toHaveCount(0);
   const before = (await box.boundingBox())!;
+  const lineBelow = scope.locator('.docs-blocks .docs-editable').last();
+  const lineBefore = (await lineBelow.boundingBox())!;
   await expect.poll(() => hold.count()).toBe(1);
   await hold.release();
   const img = scope.getByTestId('docs-image-block').locator('img');
@@ -122,6 +125,8 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
   expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2);
   expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+  // Y la línea de abajo no se movió.
+  expect(Math.abs((await lineBelow.boundingBox())!.y - lineBefore.y)).toBeLessThanOrEqual(1);
   await p.unroute(uploadPattern);
 
   // 2. Video y archivo a la vez desde el botón de subir: cada uno con su esqueleto, en orden.
@@ -135,11 +140,24 @@ async function uploadFlow(p: Page, scope: Locator, uploadPattern: string) {
   await expect(ph.nth(1)).toHaveAttribute('data-status', 'queued');
   await insideColumn(scope, ph.nth(0));
   await insideColumn(scope, ph.nth(1));
+  const videoBefore = (await ph.nth(0).locator('.docs-upload-box').boundingBox())!;
+  const fileBefore = (await ph.nth(1).locator('.docs-file-card').boundingBox())!;
+  const lineBefore2 = (await lineBelow.boundingBox())!;
   await expect.poll(() => hold2.count()).toBe(1);
   await hold2.release();
-  await expect(scope.getByTestId('docs-video-block')).toBeVisible();
-  await expect(scope.getByTestId('docs-file-block')).toBeVisible();
+  const video = scope.getByTestId('docs-video-block').locator('video');
+  const file = scope.getByTestId('docs-file-block').locator('.docs-file-card');
+  await expect(video).toBeVisible();
+  await expect(file).toBeVisible();
   await expect(ph).toHaveCount(0);
+  // El video y la ficha del archivo quedan del tamaño y en el lugar de sus esqueletos.
+  const videoAfter = (await video.boundingBox())!;
+  const fileAfter = (await file.boundingBox())!;
+  expect(Math.abs(videoAfter.y - videoBefore.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(videoAfter.height - videoBefore.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs(fileAfter.y - fileBefore.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(fileAfter.height - fileBefore.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs((await lineBelow.boundingBox())!.y - lineBefore2.y)).toBeLessThanOrEqual(2);
   await p.unroute(uploadPattern);
 }
 
@@ -160,7 +178,7 @@ async function failFlow(p: Page, scope: Locator, uploadPattern: string) {
   await expect(ph).toContainText('paisaje.png');
   await insideColumn(scope, ph);
   fail = false;
-  await ph.getByRole('button', { name: 'Retry' }).click();
+  await ph.getByRole('button', { name: 'Retry upload of paisaje.png' }).click();
   await expect(scope.getByTestId('docs-image-block').last().locator('img')).toBeVisible();
   await expect(ph).toHaveCount(0);
 
@@ -207,6 +225,17 @@ test('Docs: cancelar una subida saca el esqueleto y no crea el bloque', async ({
   // La línea vacía sigue ahí y no se creó ningún bloque de imagen.
   await expect(page.getByTestId('docs-image-block')).toHaveCount(0);
   await expect(page.locator('.docs-blocks .docs-editable')).toHaveCount(2);
+  // Aunque el servidor conteste después, no aparece nada ni se guarda un bloque.
+  await hold.release();
+  await page.locator('.docs-blocks .docs-editable').last().click();
+  await page.keyboard.type('sigo');
+  await expect
+    .poll(async () => ((await (await request.get(`/api/docs/pages/${doc.id}`)).json()) as { content: Block[] }).content.map((b) => [b.type, b.content]))
+    .toEqual([
+      ['paragraph', 'Texto'],
+      ['paragraph', 'sigo'],
+    ]);
+  await expect(page.getByTestId('docs-image-block')).toHaveCount(0);
 });
 
 test('Docs: pegar y soltar un archivo también muestran el esqueleto en su lugar', async ({ request, page }) => {

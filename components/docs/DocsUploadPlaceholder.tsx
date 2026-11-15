@@ -41,7 +41,7 @@ function DocsUploadPlaceholder({ upload: u, indent, onCancel, onRetry, onRemove 
           <span className="docs-upload-error-text">{t(`editor.upload.${u.error ?? 'failed'}`, { name: u.name, max: formatFileSize(u.max ?? 0) })}</span>
           <span className="docs-upload-actions">
             {canRetry(u) && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => onRetry(u.id)}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => onRetry(u.id)} aria-label={t('editor.upload.retryNamed', { name: u.name })}>
                 {t('editor.upload.retry')}
               </button>
             )}
@@ -89,13 +89,28 @@ function DocsUploadPlaceholder({ upload: u, indent, onCancel, onRetry, onRemove 
     boxStyle = u.width && u.height ? { aspectRatio: `${u.width} / ${u.height}`, minHeight: MIN_H } : undefined;
   } else if (u.kind === 'video') {
     frameStyle = { width: '100%' };
-    boxStyle = u.width && u.height ? { aspectRatio: `${u.width} / ${u.height}` } : undefined;
+    // Sin medidas (un formato que el navegador no lee): el alto con el que se dibuja un <video> sin metadatos.
+    boxStyle = u.width && u.height ? { aspectRatio: `${u.width} / ${u.height}`, height: 'auto' } : undefined;
   } else if (u.kind === 'pdf') {
     frameStyle = { width: '100%' };
   }
 
+  const center = (
+    <span className="docs-upload-center">
+      <span className="docs-upload-name">{u.name}</span>
+      {progress}
+      <span className="docs-upload-meta">
+        <span className="docs-upload-percent">{statusText}</span>
+        <button type="button" className="docs-upload-cancel-text" onClick={() => onCancel(u.id)} aria-label={t('editor.upload.cancelNamed', { name: u.name })}>
+          {t('editor.upload.cancel')}
+        </button>
+      </span>
+    </span>
+  );
+
   return (
-    <div className="docs-block-outer" style={outerStyle} data-indent={indent || undefined}>
+    <>
+      <div className="docs-block-outer" style={outerStyle} data-indent={indent || undefined}>
       <div
         className={`docs-block docs-file-block docs-file-block-${u.kind} docs-media-align-center docs-upload-ph`}
         role="group"
@@ -107,18 +122,29 @@ function DocsUploadPlaceholder({ upload: u, indent, onCancel, onRetry, onRemove 
       >
         {media ? (
           <div className="docs-media-frame" style={frameStyle}>
-            <div className={`docs-skel docs-upload-box docs-upload-box-${u.kind}`} style={boxStyle}>
-              <span className="docs-upload-center">
-                <span className="docs-upload-name">{u.name}</span>
-                {progress}
-                <span className="docs-upload-meta">
-                  <span className="docs-upload-percent">{statusText}</span>
-                  <button type="button" className="docs-upload-cancel-text" onClick={() => onCancel(u.id)} aria-label={t('editor.upload.cancelNamed', { name: u.name })}>
-                    {t('editor.upload.cancel')}
-                  </button>
+            {u.kind === 'pdf' ? (
+              // Como el bloque: el visor y, debajo, el renglón del link para abrirlo.
+              <div className="docs-pdf">
+                <div className="docs-skel docs-upload-box docs-upload-box-pdf">{center}</div>
+                <span className="docs-pdf-open docs-upload-ghost" aria-hidden="true">
+                  {u.name}
                 </span>
-              </span>
-            </div>
+              </div>
+            ) : (
+              <div className={`docs-skel docs-upload-box docs-upload-box-${u.kind}`} style={boxStyle}>
+                {center}
+              </div>
+            )}
+          </div>
+        ) : u.kind === 'audio' ? (
+          // Como el bloque de audio: el nombre y, debajo, el lugar del reproductor.
+          <div className="docs-audio docs-skel docs-upload-card">
+            <span className="docs-audio-name">{u.name}</span>
+            <span className="docs-upload-audio">
+              <span className="docs-file-size">{statusText}</span>
+              {cancel}
+            </span>
+            {progress}
           </div>
         ) : (
           <div className="docs-file-card docs-skel docs-upload-card">
@@ -133,7 +159,10 @@ function DocsUploadPlaceholder({ upload: u, indent, onCancel, onRetry, onRemove 
           </div>
         )}
       </div>
-    </div>
+      </div>
+      {/* El mismo espacio que queda debajo de cada bloque. */}
+      <div className="docs-gap" aria-hidden="true" />
+    </>
   );
 }
 
@@ -165,7 +194,13 @@ export function localMediaSize(file: Blob, kind: 'image' | 'video'): Promise<{ w
       const v = document.createElement('video');
       v.preload = 'metadata';
       v.muted = true;
-      v.onloadedmetadata = () => finish({ width: v.videoWidth, height: v.videoHeight });
+      v.onloadedmetadata = () => {
+        const size = { width: v.videoWidth, height: v.videoHeight };
+        // Se suelta el archivo (si no, el <video> suelto lo retiene).
+        v.removeAttribute('src');
+        v.load();
+        finish(size);
+      };
       v.onerror = () => finish(null);
       v.src = url;
     }
