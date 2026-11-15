@@ -301,7 +301,7 @@ export function MediaUnavailable({
   return (
     <span
       className={`wa-media-ph is-${kind}${state === 'gone' ? ' is-gone' : ''}`}
-      style={mediaBoxStyle(placeholderBox(width, height))}
+      style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))}
       data-testid="wa-media-unavailable"
       data-state={state}
     >
@@ -313,9 +313,10 @@ export function MediaUnavailable({
         {kind === 'video' ? <Play size={18} /> : <PhotoIcon size={18} />}
         <span>{label}</span>
       </span>
-      {onRetry && state !== 'gone' && (
-        <button type="button" className="wa-media-ph-retry" onClick={() => void run()} disabled={state === 'busy'} data-testid="wa-media-retry">
-          <Retry size={16} className={state === 'busy' ? 'is-spinning' : undefined} />
+      {/* Mientras baja queda solo el aviso "Bajando…": el botón vuelve si no se pudo. */}
+      {onRetry && state === 'idle' && (
+        <button type="button" className="wa-media-ph-retry" onClick={() => void run()} data-testid="wa-media-retry">
+          <Retry size={16} />
           {t('wa.downloadAgain')}
         </button>
       )}
