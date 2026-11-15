@@ -21,8 +21,14 @@ export const VISITOR_KEY_MAX = 128;
 const RESERVED = ['mail.', 'email:'];
 const SIGNED = /^v1\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/;
 
+/** Sin secreto configurado: una clave fija solo sirve para desarrollo; en producción, error. */
+function devFallback(value: string): string {
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new Error('NEXTAUTH_SECRET is required');
+  return value;
+}
+
 function key(): string {
-  return process.env.CHAT_VISITOR_SECRET || process.env.NEXTAUTH_SECRET || 'zerosoft-chat-visitor';
+  return process.env.CHAT_VISITOR_SECRET || process.env.NEXTAUTH_SECRET || devFallback('zerosoft-chat-visitor');
 }
 
 function sign(widgetId: string, rand: string): string {
