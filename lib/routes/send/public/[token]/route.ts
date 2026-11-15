@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { clearEmail, createSession, loadSession, recordDenied, SESSION_MAX_AGE, submitEmail, submitPasscode, viewerState } from '@/lib/send/viewer';
+import { clearEmail, createSession, loadSession, recordClosedOpen, recordDenied, SESSION_MAX_AGE, submitEmail, submitPasscode, viewerState } from '@/lib/send/viewer';
 import { parseBody, publicLink, sendLimit, sFail, sJson, type PublicCtx } from '@/lib/send/http';
 import { linkState, sessionCookie } from '@/lib/send/types';
 
@@ -12,6 +12,9 @@ const schema = z.object({
   email: z.string().max(254).optional(),
   /** Volver atrás desde el código o desde "sin acceso", para escribir otro email. */
   resetEmail: z.boolean().optional(),
+  /** La página de un link cerrado avisa que alguien lo abrió en un navegador. */
+  closedOpen: z.boolean().optional(),
+  webdriver: z.boolean().optional(),
 });
 
 /** GET: en qué paso está esta sesión. Solo lee. */
@@ -34,7 +37,12 @@ export async function POST(req: NextRequest, ctx: PublicCtx) {
   if (limited) return limited;
   try {
     const input = await parseBody(req, schema);
-    if (linkState(p.link) !== 'active') return sJson(await viewerState(p.link, null));
+    if (linkState(p.link) !== 'active') {
+      if (input.closedOpen) {
+        await recordClosedOpen(p.link, await loadSession(p.link, p.cookie), { headers: req.headers, ua: req.headers.get('user-agent') ?? '', ip: p.ip, webdriver: input.webdriver });
+      }
+      return sJson(await viewerState(p.link, null));
+    }
     let session = await loadSession(p.link, p.cookie);
     let setCookie: string | null = null;
     if (!session) {
