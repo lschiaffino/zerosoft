@@ -121,6 +121,8 @@ const variants = (d: ReturnType<typeof dataset>): Array<{ name: string; events: 
       name: 'con menos datos',
       events: d.events.map((e) => ({ ...e, body: '', senderName: '', chatName: undefined, status: undefined, media: e.media ? { url: '', type: '', name: '' } : undefined }) as unknown as InboundEvent),
     },
+    // El historial trae el nombre de perfil que la persona tenía antes: no le cambia el nombre al chat.
+    { name: 'historial con el nombre de perfil de antes', events: d.events.map((e) => ({ ...e, senderName: e.senderName ? 'Nombre De Antes' : '', history: true })), history: true },
     // Por el id anónimo en vez del teléfono (la libreta ya sabe quién es quién).
     {
       name: 'por lid en vez de teléfono',

@@ -328,7 +328,8 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   let failed = 0;
   // La libreta (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero: los mensajes
   // ya la usan. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
-  let slice = events.slice(0, 2000);
+  // Lo que llega como historial lleva la marca en cada mensaje (la libreta no pisa nombres con los de mensajes viejos).
+  let slice = opts.history ? events.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e)) : events.slice(0, 2000);
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) await learnFromEvents(account, slice).catch(() => null);
   else learning = learnFromEvents(account, slice).catch(() => null);

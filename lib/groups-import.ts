@@ -230,7 +230,9 @@ export async function applyContact(number: Pick<NumberRow, 'id' | 'user_id'>, ev
 export async function ingestHistory(number: NumberRow, incoming: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
-  const learned = await learnLinesEvents(number, incoming.slice(0, 2000));
+  // Todo esto es historial: la libreta completa nombres que faltan, no pisa los que hay con los de mensajes viejos.
+  const marked = incoming.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e));
+  const learned = await learnLinesEvents(number, marked);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   const events = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
   // Mensajes recibidos repetidos que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
