@@ -73,10 +73,12 @@ test.describe('Inbox', () => {
     await send([{ type: 'fake_contacts', contacts: [{ phone: ana, name: `Ana ${tag}`, groups: [gid] }] }]);
     await send([message(gid, { chatName: title, senderPhone: ana, senderName: `Ana ${tag}`, body: `traigo hielo ${tag}` })]);
 
+    // Con `next dev`, la primera vez que se abre un chat compila su ruta: se compila antes (un 404 alcanza).
+    await request.get('/api/inbox/threads/ibt_warmup');
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
     const thread = page.locator('.ib-wa-thread');
-    await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 30_000 });
+    await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 45_000 });
 
     // Abrir el grupo pide la foto de Ana (después de responder) y queda guardada.
     await expect
