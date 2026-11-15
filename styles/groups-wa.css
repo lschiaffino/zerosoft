@@ -684,6 +684,19 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
   font-size: var(--wa-fs-preview); line-height: 1.3; color: var(--wa-text-2); background: color-mix(in srgb, var(--wa-panel) 88%, transparent); border-radius: 4px;
 }
 .wa-media-ph-note svg { flex: none; }
+.wa-media-ph:has(> .wa-media-ph-retry) { flex-direction: column; gap: 10px; }
+/* "Bajar de nuevo": un botón tranquilo debajo del aviso (como el de descargar de WhatsApp). */
+.wa-media-ph-retry {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 12px;
+  font: inherit; font-size: var(--wa-fs-preview); color: var(--wa-text); background: var(--wa-panel);
+  border: 1px solid var(--wa-border); border-radius: 4px; cursor: pointer;
+}
+.wa-media-ph-retry:hover:not(:disabled) { border-color: var(--wa-border-strong); }
+.wa-media-ph-retry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.wa-media-ph-retry:disabled { cursor: progress; opacity: 0.8; }
+.wa-media-ph-retry .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-media-ph.is-gone .wa-media-ph-note { max-width: calc(100% - 32px); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .wa-media-ph-retry .is-spinning { animation: none; } }
 .wa-media-ph:has(> .wa-thumb) .wa-media-ph-note { color: #fff; background: rgba(11, 20, 26, 0.6); }
 .gr-inbox[data-chat-style='zerosoft'] .wa-media-ph { border-radius: var(--radius-1); }
 

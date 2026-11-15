@@ -14,6 +14,7 @@
  * self-host con ALLOW_PRIVATE_WEBHOOKS=true. Los errores no llevan la key.
  */
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
+import { mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import {
   evolutionFileName,
   infoFromBaileys,
@@ -666,7 +667,7 @@ export function cleanPushName(raw: unknown): string {
 
 interface BaileysContent {
   body: string;
-  media?: { url: string; type: string; name: string; size: number; info: MediaInfo };
+  media?: { url: string; type: string; name: string; size: number; info: MediaInfo; wire?: MediaWire };
   location?: LocationInfo;
   contacts?: ContactCard[];
   replyTo?: string;
@@ -749,7 +750,10 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
         {
           body: String(m.caption ?? ''),
           // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
-          media: { url: '', type: String(m.mimetype ?? '') || fallbackType, name: name.slice(0, 200), size: byteLength(m.fileLength), info },
+          media: (() => {
+            const wire = mediaWireOf(key, m);
+            return { url: '', type: String(m.mimetype ?? '') || fallbackType, name: name.slice(0, 200), size: byteLength(m.fileLength), info, ...(wire ? { wire } : {}) };
+          })(),
         },
         m.contextInfo,
       );
@@ -784,7 +788,7 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
  * nombre y los datos, sin bajarlo.
  */
 function inboundEvolutionMedia(
-  media: { type: string; name: string; size: number; info: MediaInfo },
+  media: { type: string; name: string; size: number; info: MediaInfo; wire?: MediaWire },
   id: string,
   remoteJid: string,
   fromMe: boolean,
@@ -796,7 +800,7 @@ function inboundEvolutionMedia(
     type: media.type,
     name: media.name,
     info: media.info,
-    ...(fetchable ? { fetchRef: { providerMessageId: id, chatId: remoteJid, fromMe } } : {}),
+    ...(fetchable ? { fetchRef: { providerMessageId: id, chatId: remoteJid, fromMe, ...(media.wire ? { wire: media.wire } : {}) } } : {}),
   };
 }
 
@@ -1149,13 +1153,20 @@ async function evolutionMedia(
   ref: MediaRef,
   maxBytes: number,
 ): Promise<FetchedMedia> {
-  const message = { key: { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe } };
-  const r = (await api(
-    `/chat/getBase64FromMediaMessage/${instance}`,
-    'POST',
-    { message, convertToMp4: false },
-    { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024 },
-  )) as Json;
+  const key = { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe };
+  const ask = (message: Json) =>
+    api(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false }, { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024 }) as Promise<Json>;
+  let r: Json;
+  try {
+    r = await ask({ key });
+  } catch (err) {
+    // "Message not found" (400): el gateway no guardó el mensaje (llegó por la sincronización del historial al
+    // volver a vincular). Con la clave del archivo se baja directo de WhatsApp; si el enlace venció, Baileys le pide
+    // al teléfono que lo vuelva a subir (updateMediaMessage).
+    const missing = err instanceof ProviderError && (err.code === 'not_found' || err.httpStatus === 400);
+    if (!missing || !ref.wire) throw err;
+    r = await ask({ key, message: wireMessage(ref.wire) });
+  }
   const b64 = typeof r.base64 === 'string' ? r.base64.replace(/^data:[^,]*,/, '') : '';
   if (!b64) throw new ProviderError('not_found');
   if (Math.floor((b64.length * 3) / 4) > maxBytes) throw new ProviderError('provider_error', 413);

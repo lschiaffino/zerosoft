@@ -1933,7 +1933,11 @@
       "openFor": "Contact info of {name}"
     },
     "replyPrivately": "Reply privately",
-    "messageName": "Message {name}"
+    "messageName": "Message {name}",
+    "downloadAgain": "Download again",
+    "downloadingAgain": "Downloading…",
+    "mediaGoneImage": "This photo is no longer available on WhatsApp",
+    "mediaGoneVideo": "This video is no longer available on WhatsApp"
   },
   "swipe": {
     "read": "Read",

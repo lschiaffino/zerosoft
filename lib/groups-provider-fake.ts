@@ -290,9 +290,18 @@ function fakeWav(seconds = 2): Buffer {
   return b;
 }
 
+const fakeMediaTries = new Map<string, number>();
+
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
   // "gone-": el gateway ya no tiene el mensaje (Evolution: "Message not found" tras volver a vincular la línea).
   if (id.startsWith('gone-')) throw new ProviderError('not_found');
+  // "failN-": las primeras N veces el gateway no responde (falla pasajera), después baja bien. Para probar el reintento.
+  const failN = /^fail(\d)-/.exec(id);
+  if (failN) {
+    const seen = (fakeMediaTries.get(id) ?? 0) + 1;
+    fakeMediaTries.set(id, seen);
+    if (seen <= Number(failN[1])) throw new ProviderError('unreachable');
+  }
   if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
   if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
