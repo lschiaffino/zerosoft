@@ -44,6 +44,24 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   clave, `Invalid patch mac`) la línea deja de recibir los cambios del teléfono hasta volver a vincularla. La primera
   versión lo corría sola en cada conexión y el 14/11 rompió así el archivado desde el teléfono; ya no lo hace.
 
+- `0004-group-metadata-pace-app-state-guard.patch`:
+  - **Metadata de grupos sin 429.** Al conectar, Baileys trae todos los grupos de una y Evolution los volvía a pedir
+    uno por uno (`groupMetadata`), con decenas de `rate-overlimit` por línea en cada reinicio. Ahora la metadata que
+    ya vino se guarda en la caché; cada grupo tiene un solo pedido en vuelo; un cambio de participantes hace un pedido
+    (antes dos); `/group/participants` responde desde la caché (1 h, renovada con cada evento del grupo); y después de
+    un `rate-overlimit` no se le pide metadata a WhatsApp por un minuto.
+  - **Archivar no miente.** `/chat/archiveChat` y `/chat/markChatUnread` responden `409` con
+    `app_state_unavailable: missing_key | sync_failed | not_connected` (en `response.message`) cuando la línea no
+    tiene su clave de app-state o no puede sincronizar `regular_low`. Antes Baileys armaba el cambio sobre un estado
+    vacío, WhatsApp no lo aplicaba y Evolution respondía "archivado". zerosoft lo muestra como "volvé a vincular la
+    línea". Una cuenta cuyo `regular_low` nunca tuvo cambios también da `sync_failed` (caso raro).
+
+**Las claves viven en el disco del contenedor.** Con `CACHE_REDIS_ENABLED=false`, Evolution guarda en Postgres solo
+`creds`; las sesiones de Signal, las pre-keys y las claves de app-state quedan en `/evolution/instances`, que no
+tiene volumen: cada deploy las borra. Por eso, después de un deploy, las líneas vinculadas antes no pueden leer ni
+mandar archivado (`failed to find key`) hasta volver a vincularse, y llegan mensajes que no se pueden descifrar
+(parche 0002). Falta montar un volumen de Railway en `/evolution/instances` (o Redis).
+
 ## Mantenimiento (automático)
 
 El workflow corre todos los lunes:
