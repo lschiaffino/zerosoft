@@ -31,8 +31,14 @@ export const APPROVAL_COMMENT_LIMIT = 2000;
 /** Destinatarios por aprobación. */
 export const MAX_APPROVERS = 10;
 
+/** Sin secreto configurado: una clave fija solo sirve para desarrollo; en producción, error. */
+function devFallback(value: string): string {
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new Error('NEXTAUTH_SECRET is required');
+  return value;
+}
+
 function secret(): string {
-  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'zerosoft-flow-waits';
+  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || devFallback('zerosoft-flow-waits');
 }
 
 function sign(value: string): string {
