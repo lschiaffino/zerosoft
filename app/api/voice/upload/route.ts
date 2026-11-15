@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { getCurrentUser } from '@/lib/session';
 import { voiceOwner } from '@/lib/voice';
-import { voiceBlobEnabled, voiceBlobPrefix } from '@/lib/voice-blob';
+import { voiceBlobEnabled, voiceBlobPrefix, voiceBlobToken } from '@/lib/voice-blob';
 import { VOICE_AUDIO_TYPES, VOICE_FILE_MAX_BYTES } from '@/lib/voice-types';
 import { limitWrites } from '@/lib/write-limit';
 
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     const result = await handleUpload({
       body,
       request: req,
+      ...voiceBlobToken(),
       onBeforeGenerateToken: async (pathname) => {
         const user = await getCurrentUser();
         if (!user) throw new Error('unauthorized');
