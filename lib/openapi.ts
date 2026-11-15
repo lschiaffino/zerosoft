@@ -4,8 +4,14 @@
  */
 import { API_BASE_URL, API_ENDPOINTS, API_SECTIONS, endpointScope, type ApiEndpoint } from './api-docs';
 import docsEn from '@/messages/en/pages.json';
+import { icuPlainText } from './icu-text';
 
-const text = (docsEn as unknown as { docs: Record<string, string> }).docs;
+/** Los textos de pages.json están en formato ICU ('<key>', '{{vars}}'): la spec lleva el texto que muestra /docs. */
+const text: Record<string, string> = Object.fromEntries(
+  Object.entries((docsEn as unknown as { docs: Record<string, unknown> }).docs).flatMap(([k, v]) =>
+    typeof v === 'string' ? [[k, icuPlainText(v)]] : [],
+  ),
+);
 
 function schemaType(type: string): Record<string, unknown> {
   const t = type.toLowerCase();
