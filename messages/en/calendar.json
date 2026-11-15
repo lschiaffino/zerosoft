@@ -1049,5 +1049,9 @@
     "changeVote": "Change my vote",
     "publicBooked": "This meeting is already booked. Check your email for the invitation.",
     "publicClosed": "This poll is closed."
+  },
+  "offline": {
+    "title": "You are offline. Cal is read only.",
+    "body": "You are seeing what was last loaded on this device. Creating or changing bookings, event types and availability needs a connection."
   }
 }

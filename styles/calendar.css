@@ -52,6 +52,21 @@
 /* Envoltorio de Cal (layout.tsx): sin caja. */
 .cal-app { display: contents; }
 
+/* Sin conexión (components/calendar/CalOffline): un fieldset sin caja que deshabilita lo que edita. */
+.cal-offline-scope { display: contents; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.cal-offline-banner {
+  margin: 0;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.cal-offline-banner strong { color: var(--ink); font-weight: 600; }
+.cal-offline-scope:disabled :is(button, input, select, textarea) { cursor: not-allowed; }
+@media (max-width: 640px) { .cal-offline-banner { padding: 10px 16px; } }
+
 /* Números que no son datos para copiar (duraciones, márgenes): Archivo con cifras tabulares. */
 .cal-num,
 .input.cal-num { font-family: var(--font-ui); font-variant-numeric: tabular-nums; }

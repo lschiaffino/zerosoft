@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Calendly',
   alsoCompared: ['Cal.com'],
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'event-types', label: { en: 'Event types and availability', es: 'Tipos de evento y disponibilidad', pt: 'Tipos de evento e disponibilidade' } },
     { id: 'booking', label: { en: 'Booking page and payments', es: 'Página de reserva y cobros', pt: 'Página de reserva e cobranças' } },
@@ -553,6 +553,18 @@ const parity: ProductParity = {
       area: 'ux',
       label: { en: 'Create from the keyboard', es: 'Crear con el teclado', pt: 'Criar pelo teclado' },
       detail: { en: 'C opens the form and Ctrl+Enter creates the event type', es: 'C abre el formulario y Ctrl+Enter crea el tipo de evento', pt: 'C abre o formulário e Ctrl+Enter cria o tipo de evento' },
+      status: 'better',
+      competitorHas: false,
+    },
+    {
+      id: 'offline-read',
+      area: 'mobile-ai',
+      label: { en: 'Read offline', es: 'Leer sin conexión', pt: 'Ler sem conexão' },
+      detail: {
+        en: 'Bookings, event types and availability you opened open without a connection, read only; editing waits for the connection',
+        es: 'Las reservas, tipos de evento y disponibilidad que abriste se abren sin red, en solo lectura; para editar hace falta conexión',
+        pt: 'As reservas, tipos de evento e disponibilidade que você abriu abrem sem conexão, somente leitura; para editar é preciso conexão',
+      },
       status: 'better',
       competitorHas: false,
     },
