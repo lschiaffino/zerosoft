@@ -206,7 +206,12 @@ export default function ContactSheet({
                 {card.dm && (sharedTotal(card) > 0 || card.shared.starred > 0 || onMute) && (
                   <section className="wa-sheet-card wa-sheet-rows">
                     {sharedTotal(card) > 0 && (
-                      <button type="button" className="wa-sheet-row" onClick={() => setView('shared')} data-testid="wa-sheet-shared">
+                      <button type="button" className="wa-sheet-row" onClick={() => {
+                          // Como WhatsApp, en la pestaña que tiene algo (fotos, si no documentos, si no enlaces).
+                          setTab(card.shared.media > 0 ? 'media' : card.shared.docs > 0 ? 'docs' : 'links');
+                          setView('shared');
+                        }}
+                        data-testid="wa-sheet-shared">
                         <PhotoIcon size={20} />
                         <span className="wa-sheet-row-main">{t('shared')}</span>
                         <span className="wa-sheet-count">{sharedTotal(card)}</span>

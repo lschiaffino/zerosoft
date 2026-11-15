@@ -1312,6 +1312,8 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
    computadora y pantalla entera en el teléfono. Inbox y Lines. */
 dialog.ui-modal.wa-contact-sheet { width: min(420px, calc(100vw - 32px)); padding: 0; display: flex; flex-direction: column; background: var(--wa-panel-header); color: var(--wa-text); font-family: var(--wa-font); overflow: hidden; }
 dialog.ui-modal.wa-contact-sheet:not([open]) { display: none; }
+/* La misma altura al pasar a lo compartido o los destacados (la hoja no salta). */
+@media (min-width: 641px) { dialog.ui-modal.wa-contact-sheet { min-height: min(560px, calc(100dvh - 64px)); } }
 .wa-contact-sheet .wa-sheet-head { justify-content: flex-start; gap: 12px; min-height: 52px; padding: 8px 12px; background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
 .wa-contact-sheet .wa-sheet-head .ui-modal-title { font-family: var(--wa-font); font-size: 1rem; font-weight: 500; letter-spacing: normal; font-stretch: normal; }
 .wa-contact-sheet .wa-icon-btn { color: var(--wa-icon); }
