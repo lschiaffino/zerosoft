@@ -54,7 +54,7 @@ async function setup(label: string) {
   return { w, agent, convId };
 }
 
-const ctx = (params: Record<string, string>) => ({ params: Promise.resolve(params) });
+const ctx = <T extends Record<string, string>>(params: T) => ({ params: Promise.resolve(params) });
 
 describe('Agents: conversaciones que vienen de un chat de Lines', () => {
   it('anónimo, otro workspace y compañero sin la línea no la ven; owner y quien tiene la línea, sí', async () => {
