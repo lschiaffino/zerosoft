@@ -15,6 +15,8 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 async function deniedElsewhere(browser: Browser, baseURL: string, url: string) {
   const anon = await browser.newContext({ baseURL });
   try {
+    // El e2e corre en DEMO_MODE (sin cookies, todo pedido es el usuario demo): zs_e2e_as=session es "sin sesión de verdad".
+    await anon.addCookies([{ name: 'zs_e2e_as', value: 'session', url: baseURL }]);
     const res = await anon.request.get(url, { maxRedirects: 0 });
     expect([401, 404], `${url} sin sesión`).toContain(res.status());
     expect(await res.text()).not.toContain('blob.vercel-storage.com');

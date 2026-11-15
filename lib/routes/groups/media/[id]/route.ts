@@ -45,6 +45,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       return groupsError(502, 'provider_error');
     }
   }
+  // Lo mandado antes se guardaba absoluto (origen propio + /uploads/…): se sirve igual que el relativo.
+  stored = ownUploadPath(stored, req) ?? stored;
   const download = new URL(req.url).searchParams.get('download') === '1';
   // Guardado por nosotros (storage privado): solo si el archivo es de este workspace.
   if (isFileUrl(stored)) return (await ownedFileResponse(req, stored, { workspaceId: s.ws }, { download })) ?? groupsError(404, 'not_found');
@@ -89,4 +91,22 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       'content-disposition': `inline; filename="${(msg.media_name || 'file').replace(/[^\w.-]/g, '_')}"`,
     },
   });
+}
+
+/** /uploads/… de una URL absoluta de nuestro origen (NEXTAUTH_URL o el del pedido); null si no lo es. */
+function ownUploadPath(url: string, req: Request): string | null {
+  if (!/^https?:\/\//.test(url)) return null;
+  try {
+    const u = new URL(url);
+    const own = [process.env.NEXTAUTH_URL, new URL(req.url).origin].flatMap((o) => {
+      try {
+        return o ? [new URL(o).host.toLowerCase()] : [];
+      } catch {
+        return [];
+      }
+    });
+    return own.includes(u.host.toLowerCase()) && u.pathname.startsWith('/uploads/') && !u.search ? u.pathname : null;
+  } catch {
+    return null;
+  }
 }
