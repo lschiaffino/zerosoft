@@ -1,4 +1,5 @@
 import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
+import { noStore } from '@/lib/no-store';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getChatVisitorByExternalId, getChatWidget, toPublicVisitor } from '@/lib/chat-data';
@@ -19,6 +20,6 @@ export async function GET(req: Request) {
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const visitor = await getChatVisitorByExternalId(widgetId, externalId);
-  if (!visitor) return NextResponse.json({ visitor: null });
-  return NextResponse.json({ visitor: toPublicVisitor(visitor) });
+  if (!visitor) return noStore(NextResponse.json({ visitor: null }));
+  return noStore(NextResponse.json({ visitor: toPublicVisitor(visitor) }));
 }
