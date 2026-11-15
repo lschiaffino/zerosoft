@@ -217,6 +217,139 @@ export function draftDiffers(draft: BoardDraft, server: BoardScene): boolean {
   );
 }
 
+/**
+ * Qué hacer con un borrador al abrir: 'restore' si se hizo sobre la misma
+ * versión que se abre (nadie guardó otra desde entonces: es lo último de esta
+ * persona y vuelve solo), 'ask' si el servidor cambió (se ofrece recuperarlo),
+ * 'drop' si no trae nada distinto.
+ */
+export function draftAction(draft: BoardDraft | null, server: BoardScene, serverVersion: number): 'none' | 'drop' | 'restore' | 'ask' {
+  if (!draft) return 'none';
+  if (!draftDiffers(draft, server)) return 'drop';
+  return draft.baseVersion === serverVersion ? 'restore' : 'ask';
+}
+
+// ---------------------------------------------------------------------------
+// Pizarras creadas sin red: viven en el dispositivo hasta que vuelve la red.
+
+/** Pizarra nueva que todavía no existe en el servidor (su escena va en el borrador de su id). */
+export interface LocalBoard {
+  id: string;
+  name: string;
+  folderId: string | null;
+  createdAt: number;
+}
+
+/** La versión con la que nace una pizarra en el servidor (lib/boards.ts, createBoard). */
+export const NEW_BOARD_VERSION = 1;
+
+const LOCAL_PREFIX = 'zs:board-new:';
+export const localBoardKey = (id: string) => `${LOCAL_PREFIX}${id}`;
+
+type ListableStorage = StorageLike & Pick<Storage, 'key' | 'length'>;
+
+export function writeLocalBoard(storage: StorageLike | null | undefined, board: LocalBoard): boolean {
+  if (!storage) return false;
+  try {
+    storage.setItem(localBoardKey(board.id), JSON.stringify(board));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readLocalBoard(storage: StorageLike | null | undefined, id: string): LocalBoard | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(localBoardKey(id));
+    if (!raw) return null;
+    const b = JSON.parse(raw) as LocalBoard;
+    return b && b.id === id && typeof b.name === 'string' ? { id, name: b.name, folderId: b.folderId ?? null, createdAt: Number(b.createdAt) || 0 } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Las pizarras de este dispositivo que esperan la red, la más nueva primero. */
+export function listLocalBoards(storage: ListableStorage | null | undefined): LocalBoard[] {
+  if (!storage) return [];
+  const out: LocalBoard[] = [];
+  try {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (!key?.startsWith(LOCAL_PREFIX)) continue;
+      const b = readLocalBoard(storage, key.slice(LOCAL_PREFIX.length));
+      if (b) out.push(b);
+    }
+  } catch {
+    return out;
+  }
+  return out.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function clearLocalBoard(storage: StorageLike | null | undefined, id: string): void {
+  try {
+    storage?.removeItem(localBoardKey(id));
+  } catch {
+    /* sin storage */
+  }
+}
+
+type DoFetch = (url: string, init: RequestInit) => Promise<Response>;
+
+/**
+ * Crea en el servidor una pizarra hecha sin red, con su id: si ya llegó, el
+ * servidor responde la misma (un reintento no la duplica). Lo dibujado sigue
+ * en el borrador de su id. 'offline' si no hubo red (todo queda como estaba);
+ * 'failed' si el servidor la rechazó (queda en el dispositivo).
+ */
+export async function createLocalBoard(
+  storage: StorageLike | null | undefined,
+  id: string,
+  doFetch: DoFetch = (url, init) => fetch(url, init),
+): Promise<{ result: 'created'; version: number } | { result: 'offline' | 'failed' | 'missing' }> {
+  const local = readLocalBoard(storage, id);
+  if (!local) return { result: 'missing' };
+  try {
+    const res = await doFetch('/api/boards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, name: local.name, folderId: local.folderId }),
+    });
+    if (!res.ok) return { result: 'failed' };
+    const created = (await res.json()) as { version?: number };
+    clearLocalBoard(storage, id);
+    return { result: 'created', version: created.version ?? NEW_BOARD_VERSION };
+  } catch {
+    return { result: 'offline' };
+  }
+}
+
+/** Sube una pizarra creada sin red y lo dibujado en ella (desde la lista, sin el editor abierto). */
+export async function syncLocalBoard(
+  storage: StorageLike | null | undefined,
+  id: string,
+  doFetch: DoFetch = (url, init) => fetch(url, init),
+): Promise<'synced' | 'offline' | 'failed' | 'missing'> {
+  const created = await createLocalBoard(storage, id, doFetch);
+  if (created.result !== 'created') return created.result;
+  try {
+    const draft = readDraft(storage, id);
+    if (draft && draft.scene.elements.length > 0) {
+      const put = await doFetch(`/api/boards/${encodeURIComponent(id)}/scene`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ version: created.version, scene: draft.scene }),
+      });
+      // Si no entró, el borrador queda: el editor lo ofrece (o lo vuelve a mandar) al abrirla.
+      if (put.ok) clearDraft(storage, id);
+    }
+  } catch {
+    /* sin red justo después de crearla: lo dibujado sigue en el borrador */
+  }
+  return 'synced';
+}
+
 // ---------------------------------------------------------------------------
 // Último guardado al salir del editor.
 
