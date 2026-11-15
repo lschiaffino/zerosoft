@@ -1,6 +1,7 @@
 'use client';
 
 import { MessageMenu } from './ThreadParts';
+import Avatar from './wa/Avatar';
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -439,6 +440,7 @@ export default function ChatDetails({
               <ul className="gr-members">
                 {shownMembers.slice(0, compact && !memberQ ? 30 : memberLimit).map((m) => (
                   <li key={m.phone}>
+                    <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
                     <span className="gr-member-who">
                       <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
                       {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}

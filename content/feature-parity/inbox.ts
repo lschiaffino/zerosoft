@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-13',
+  lastReviewed: '2026-11-15',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -194,9 +194,9 @@ const parity: ProductParity = {
     }),
     row('wa-photos', 'whatsapp', ['Profile photos', 'Fotos de perfil', 'Fotos de perfil'], 'partial', {
       detail: [
-        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. Tested with the fake provider',
-        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. Probado con el proveedor falso',
-        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Testado com o provedor falso',
+        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. In groups, every participant has their photo (next to their messages, in the participant list and when mentioning), fetched a few at a time, stored so it does not expire and checked again every week. Tested with the fake provider',
+        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. En los grupos, cada participante tiene su foto (al lado de sus mensajes, en la lista de participantes y al mencionar), pedida de a pocas, guardada para que no venza y revisada cada semana. Probado con el proveedor falso',
+        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Nos grupos, cada participante tem sua foto (ao lado das mensagens, na lista de participantes e ao mencionar), buscada poucas por vez, guardada para não expirar e conferida toda semana. Testado com o provedor falso',
       ],
     }),
     row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'partial', {
