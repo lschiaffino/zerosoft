@@ -90,6 +90,8 @@ export function fromGiven(given: LinkPreviewData | null | undefined): LinkPrevie
 export function pickPreview(given: LinkPreviewData | null, fetched: LinkPreviewData | null): LinkPreviewData | null {
   if (!given) return fetched?.title ? fetched : null;
   if (fetched?.title && linkLayout(fetched) === 'large' && linkLayout(given) !== 'large') return fetched;
+  // La de WhatsApp sin imagen (solo el nombre del sitio) y la del servidor con imagen: la del servidor.
+  if (fetched?.title && fetched.image && !given.image) return fetched;
   return given;
 }
 
@@ -97,6 +99,7 @@ export function pickPreview(given: LinkPreviewData | null, fetched: LinkPreviewD
 export function needsFetch(given: LinkPreviewData | null, pref: 'large' | 'compact' | 'off'): boolean {
   if (pref === 'off') return false;
   if (!given) return true;
+  if (!given.image) return true;
   return pref === 'large' && linkLayout(given) !== 'large';
 }
 

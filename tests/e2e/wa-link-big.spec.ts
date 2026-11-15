@@ -27,6 +27,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 }
 
 const PLACE = 'https://maps.test/place/no-image/salon-de-prueba';
+const SHORT = `https://short.test/silla-${Math.random().toString(36).slice(2, 7)}`;
 const LONG = `https://example.test/no-image/${'segmento-muy-largo-sin-espacios-'.repeat(8)}fin?utm_source=prueba&utm_medium=whatsapp`;
 
 function events(phone: string, name: string): Array<Record<string, unknown>> {
@@ -48,6 +49,8 @@ function events(phone: string, name: string): Array<Record<string, unknown>> {
       timestamp: new Date(t0).toISOString(),
     },
     { ...base, providerMessageId: `long-${tag}`, body: `El link largo ${LONG}`, timestamp: new Date(t0 + 10_000).toISOString() },
+    // Link corto sin vista previa de WhatsApp (o solo con el nombre del sitio): nuestro lector lo sigue hasta el producto.
+    { ...base, providerMessageId: `short-${tag}`, body: `Mirá esta silla ${SHORT}`, link: { url: SHORT, title: 'Tienda' }, timestamp: new Date(t0 + 20_000).toISOString() },
   ];
 }
 
@@ -65,6 +68,14 @@ async function checkCard(page: Page, thread: Locator, app: 'inbox' | 'groups') {
   const [cb, ib] = [(await card.boundingBox())!, (await card.locator('.wa-linkcard-media').boundingBox())!];
   expect(Math.abs(cb.width - ib.width)).toBeLessThan(2);
   expect(ib.y).toBeLessThanOrEqual(cb.y + 1);
+
+  // Link corto: se sigue hasta la página del producto y sale la tarjeta grande con imagen, título y descripción.
+  const short = thread.locator('.gr-msg', { hasText: 'Mirá esta silla' }).locator('.wa-linkcard');
+  await expect(short).toHaveAttribute('data-layout', 'large', { timeout: 45_000 });
+  await expect(short.locator('.wa-linkcard-media img')).toHaveAttribute('src', /^\/api\/wa\/link-preview\/image\?url=/);
+  await expect(short.locator('strong')).toHaveText('shop.test page');
+  await expect(short.locator('.wa-linkcard-desc')).toHaveText('Preview of shop.test');
+  await expect(short.locator('.wa-linkcard-domain')).toContainText('short.test');
 
   // El link largo no se sale de la burbuja.
   const long = thread.locator('.gr-msg', { hasText: 'El link largo' });
