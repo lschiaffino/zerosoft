@@ -102,7 +102,8 @@ async function checkBubbles(thread: Locator, minWidth: number) {
   // Sin medidas: el lugar estándar; el video, igual.
   for (const text of ['Y esta otra', 'El video del recorrido']) {
     const msg = thread.locator('.gr-msg', { hasText: text });
-    await expect(msg.getByTestId('wa-media-unavailable')).toBeVisible();
+    // El video de Inbox se baja al reproducirlo: mientras tanto queda su cuadro, del mismo ancho.
+    await expect(msg.locator('[data-testid="wa-media-unavailable"], .wa-video-thumb').first()).toBeVisible();
     expect((await msg.locator('.gr-bubble').boundingBox())!.width).toBeGreaterThanOrEqual(minWidth);
   }
 
