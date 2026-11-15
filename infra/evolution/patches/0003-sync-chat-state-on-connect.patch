@@ -17,31 +17,26 @@ index 09a3575..bba2ec5 100644
    public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
      const instance = this.waMonitor.waInstances[instanceName];
 diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-index 906ba69..c23d153 100644
+index 906ba69..fd1ce5b 100644
 --- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 +++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-@@ -514,6 +514,15 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -514,6 +514,7 @@ export class BaileysStartupService extends ChannelStartupService {
          profilePictureUrl: this.instance.profilePictureUrl,
          ...this.stateConnection,
        });
 +
-+      // zerosoft: al conectar (vincular o reconectar), el estado de archivado y fijado de cada chat. En la primera
-+      // sincronización Baileys deja esos cambios esperando el historial del chat y casi nunca salen; acá se relee
-+      // la colección entera como un cambio normal, y cada chat sale por CHATS_UPDATE. Una vez por conexión.
-+      const client = this.client;
-+      setTimeout(() => {
-+        if (this.client !== client || this.stateConnection.state !== 'open') return;
-+        this.syncChatState().catch((error) => this.logger.warn(`syncChatState failed: ${error?.message ?? error}`));
-+      }, 45_000);
      }
  
      if (connection === 'connecting') {
-@@ -3741,6 +3750,15 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -3741,6 +3742,18 @@ export class BaileysStartupService extends ChannelStartupService {
    // zerosoft: on-demand history for a chat. WhatsApp sends `count` messages older than the anchor (a message stored
    // here); they arrive through messaging-history.set (ON_DEMAND) and go out as MESSAGES_SET. Anchor: the oldest
    // stored message newer than `after` (seconds) when given, if not the newest stored message of the chat.
 +  // zerosoft: relee la colección de WhatsApp donde viven archivado y fijado (regular_low) desde cero, sin el modo
 +  // "primera sincronización", para que Baileys emita un chats.update por cada chat con su estado actual.
++  // Solo a mano: borra el estado guardado y, si rearmarlo falla (falta una clave, "Invalid patch mac"), la línea deja
++  // de recibir los cambios del teléfono hasta volver a vincularla. No se corre solo al conectar (lo hizo y rompió
++  // el archivado desde el teléfono el 14/11).
 +  public async syncChatState() {
 +    if (this.stateConnection.state !== 'open') throw new BadRequestException('Instance is not connected');
 +    await this.client.authState.keys.set({ 'app-state-sync-version': { regular_low: null } } as any);
