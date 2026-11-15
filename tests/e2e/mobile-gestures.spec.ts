@@ -8,7 +8,8 @@ import { devices, expect, test, type APIRequestContext, type CDPSession, type Lo
  * el chat (components/groups/wa/backLayer.ts). Toques reales por CDP (touchStart/touchMove/touchEnd).
  */
 
-test.use({ ...devices['Pixel 7'], viewport: { width: 390, height: 800 } });
+// Alto de un teléfono grande: con la hoja abierta tienen que verse el mensaje marcado y otro más arriba.
+test.use({ ...devices['Pixel 7'], viewport: { width: 390, height: 932 } });
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 
@@ -41,8 +42,10 @@ async function hold(page: Page, cdp: CDPSession, target: Locator) {
   await touchAt(cdp, 'touchEnd', p.x, p.y);
 }
 
+/** Un toque donde está ahora (sin mover el chat: con el menú abierto, la barra de reacciones sigue al mensaje). */
 async function tap(cdp: CDPSession, target: Locator) {
-  const p = await point(target);
+  const b = (await target.boundingBox())!;
+  const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
   await touchAt(cdp, 'touchStart', p.x, p.y);
   await touchAt(cdp, 'touchEnd', p.x, p.y);
 }
