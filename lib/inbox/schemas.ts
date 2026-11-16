@@ -105,7 +105,19 @@ export const snippetPatchSchema = snippetCreateSchema.partial();
 const part = z.object({
   body: z.string().max(LIMITS.message),
   delaySec: z.number().int().min(0).max(7 * 86_400).optional(),
-  media: z.object({ url: z.string().min(1).max(500), name: z.string().max(200), type: z.string().max(100) }).nullable().optional(),
+  media: z
+    .object({
+      url: z.string().min(1).max(500),
+      name: z.string().max(200),
+      type: z.string().max(100),
+      /** Nota de voz grabada: sale como nota de voz, con su duración en segundos. */
+      voice: z.boolean().optional(),
+      duration: z.number().min(0).max(86_400).optional(),
+    })
+    .nullable()
+    .optional(),
+  /** Mensaje del chat (nuestro id) que cita. */
+  replyTo: id.optional(),
 });
 const parts = z.array(part).min(1).max(10);
 

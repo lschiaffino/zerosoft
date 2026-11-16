@@ -47,7 +47,8 @@ import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
-import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
+import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
+import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
 
@@ -303,7 +304,10 @@ export default function ChatThread(props: ThreadProps) {
   // La respuesta a la vista cuando termina una grabación (el cierre de la grabadora es de cuando empezó).
   const replyToRef = useRef(replyTo);
   replyToRef.current = replyTo;
-  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
+  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean; mime: string; chatId: string } | null>(null);
+  // "Enviar más tarde" desde la grabadora: el selector de cuándo abierto, y la nota subiéndose para quedar programada.
+  const [voiceLater, setVoiceLater] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
   const leaving = useLeavingChat(props.chat.id);
@@ -978,17 +982,19 @@ export default function ChatThread(props: ThreadProps) {
     }
     const mime = recorderMime();
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-    const state = { rec, chunks: [] as Blob[], stream, cancel: false };
-    rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     // El chat y la respuesta de cuando se grabó: la nota va ahí aunque se cambie de chat mientras se sube.
     const chatId = chat.id;
+    const state = { rec, chunks: [] as Blob[], stream, cancel: false, mime, chatId };
+    rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     rec.onstop = () => {
       const seconds = Math.max(1, Math.round(recSecs() || 1));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
+      setVoiceLater(false);
+      setVoiceBusy(false);
       if (state.cancel || state.chunks.length === 0) return;
-      const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
+      const type = recordedType(rec, mime);
       const name = `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`;
       const file = new File(state.chunks, name, { type });
       // La burbuja aparece ya, con el reloj y el audio que se puede escuchar; la subida y el envío siguen por detrás.
@@ -1027,6 +1033,46 @@ export default function ChatThread(props: ThreadProps) {
     if (!r) return;
     r.cancel = cancel;
     if (r.rec.state !== 'inactive') r.rec.stop();
+  }
+  /** El reloj de la grabadora: la grabación queda en pausa y se elige cuándo sale. Menos de un segundo no se programa. */
+  function openVoiceLater() {
+    if (!recorder.current || !recordingRef.current || voiceBusy) return;
+    if (!longEnough(recSecs())) return showToast(t('later.voiceTooShort'), true);
+    if (!recordingRef.current.paused) togglePause();
+    setVoiceLater(true);
+  }
+  /**
+   * Sube lo grabado y lo programa para `iso` como nota de voz. Recién cuando quedó programado se cierra la grabadora:
+   * si algo falla, la grabación sigue ahí, en pausa.
+   */
+  async function scheduleVoice(iso: string) {
+    setVoiceLater(false);
+    const r = recorder.current;
+    if (!r || voiceBusy) return;
+    setVoiceBusy(true);
+    const seconds = recSecs();
+    const quote = replyToRef.current;
+    const fail = (code?: string | null) => {
+      setVoiceBusy(false);
+      showToast(errText(code || 'upload_failed'), true);
+    };
+    const file = await recordedSoFar(r.rec, r.chunks, recordedType(r.rec, r.mime));
+    if (!file) return fail('voice_too_short');
+    let up: Awaited<ReturnType<typeof uploadWithProgress>['done']>;
+    try {
+      up = await uploadWithProgress(file, () => {}).done;
+    } catch (err) {
+      return fail((err as Error).message || 'upload_failed');
+    }
+    const res = await api<{ id: string }>('/api/groups/broadcasts', {
+      body: linesVoicePayload({ chatId: r.chatId, scheduledAt: iso, media: { url: up.url, mimetype: up.mimetype || file.type, filename: up.filename || file.name }, seconds, replyToId: quote?.id ?? null }),
+    });
+    if (!res.data) return fail(res.error);
+    // Programada: la grabadora se cierra sin mandar nada ahora.
+    stopRecording(true);
+    setReplyTo(null);
+    notifyScheduledChanged();
+    showToast(t('later.toast', { when: longWhen(iso, locale) }));
   }
   useEffect(() => {
     if (!recording) return;
@@ -2284,8 +2330,8 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </div>
           ) : recording ? (
-            <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')}>
-              <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
+            <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')} aria-busy={voiceBusy || undefined}>
+              <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} disabled={voiceBusy} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
                 <Trash />
               </button>
               <span className={`wa-rec-dot${recording.paused ? ' is-paused' : ''}`} aria-hidden="true" />
@@ -2294,10 +2340,15 @@ export default function ChatThread(props: ThreadProps) {
               </span>
               <span className="sr-only">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
               <LiveWaveform stream={recorder.current?.stream} paused={recording.paused} />
-              <button type="button" className="wa-icon-btn" onClick={togglePause} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
+              <button type="button" className="wa-icon-btn" onClick={togglePause} disabled={voiceBusy} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
                 {recording.paused ? <Mic size={22} /> : <Pause size={22} />}
               </button>
-              <button type="button" className="wa-send" onClick={() => stopRecording(false)} aria-label={t('wa.sendVoice')} title={t('wa.sendVoice')}>
+              {mode === 'reply' && (
+                <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-voice-later" onClick={openVoiceLater} disabled={voiceBusy} aria-busy={voiceBusy || undefined} aria-label={t('later.voiceButton')} title={t('later.voiceButton')}>
+                  <ClockIcon size={20} />
+                </button>
+              )}
+              <button type="button" className="wa-send" onClick={() => stopRecording(false)} disabled={voiceBusy} aria-label={t('wa.sendVoice')} title={t('wa.sendVoice')}>
                 <SendIcon />
               </button>
             </div>
@@ -2537,6 +2588,22 @@ export default function ChatThread(props: ThreadProps) {
         }
         onPick={(iso) => void scheduleLater(iso)}
         onClose={() => setLater(false)}
+      />
+      {/* "Enviar más tarde" de la nota de voz que se está grabando: al cerrarlo (Esc o clic afuera) la grabación sigue, en pausa. */}
+      <WhenDialog
+        open={voiceLater}
+        title={t('later.title')}
+        labels={whenLabels}
+        help={
+          voiceLater && recording ? (
+            <>
+              <span className="gr-later-preview">{t('later.voiceTag', { time: `${Math.floor(recording.elapsed / 60)}:${String(recording.elapsed % 60).padStart(2, '0')}` })}</span>
+              {replyTo && <span className="gr-later-note">{t('later.asReply', { text: quoteLine(replyTo).slice(0, 80) })}</span>}
+            </>
+          ) : undefined
+        }
+        onPick={(iso) => void scheduleVoice(iso)}
+        onClose={() => setVoiceLater(false)}
       />
 
       <Modal

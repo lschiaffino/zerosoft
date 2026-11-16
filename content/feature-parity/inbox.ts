@@ -109,9 +109,9 @@ const parity: ProductParity = {
     row('send-later', 'writing', ['Send later', 'Enviar más tarde', 'Enviar mais tarde'], 'have', {
       weight: 2,
       detail: [
-        'From the reply field, one message or a sequence where each one is its own bubble, with waits between them and a file (WhatsApp). Edit, send now or cancel. Sent by the server even with the tab closed',
-        'Desde el campo, un mensaje o una secuencia donde cada uno es su burbuja, con esperas entre ellos y un archivo (WhatsApp). Editar, enviar ya o cancelar. Lo manda el servidor aunque cierres la pestaña',
-        'Pelo campo, uma mensagem ou uma sequência em que cada uma é sua bolha, com esperas entre elas e um arquivo (WhatsApp). Editar, enviar agora ou cancelar. O servidor envia mesmo com a aba fechada',
+        'From the reply field, one message or a sequence where each one is its own bubble, with waits between them and a file (WhatsApp). Edit, send now or cancel. Sent by the server even with the tab closed. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
+        'Desde el campo, un mensaje o una secuencia donde cada uno es su burbuja, con esperas entre ellos y un archivo (WhatsApp). Editar, enviar ya o cancelar. Lo manda el servidor aunque cierres la pestaña. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
+        'Pelo campo, uma mensagem ou uma sequência em que cada uma é sua bolha, com esperas entre elas e um arquivo (WhatsApp). Editar, enviar agora ou cancelar. O servidor envia mesmo com a aba fechada. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
       ],
     }),
     row('snippets', 'writing', ['Snippets', 'Snippets', 'Snippets'], 'have', {

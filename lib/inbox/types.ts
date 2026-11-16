@@ -261,6 +261,12 @@ export interface ScheduledDto {
   mediaName: string;
   mediaType: string;
   mediaUrl: string;
+  /** El archivo es una nota de voz grabada: sale como nota de voz (ptt), no como adjunto. */
+  mediaVoice: boolean;
+  /** Segundos de la nota de voz (0 si no se sabe). */
+  mediaDuration: number;
+  /** Mensaje (nuestro id) que cita ('' si no cita). */
+  replyTo: string;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;
