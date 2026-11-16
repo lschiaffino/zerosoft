@@ -39,4 +39,5 @@ export const PRODUCT_FIGURES: Record<ProductKey, FigureRef> = {
   inbox: ['paper', 'groups'],
   calls: ['paper', 'calls'],
   fleet: ['paper', 'fleet'],
+  time: ['days', 'cal'],
 };

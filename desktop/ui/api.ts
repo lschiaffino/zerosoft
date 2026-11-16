@@ -52,7 +52,8 @@ export interface SettingsView {
   allowSystemAudio: boolean;
   permissions: Record<PermissionKind, PermissionStatus>;
   /** Qué decir si falta Accesibilidad: ok, off, adhoc (la llave puede ser de otra build) o updated. */
-  accessibilityHint: 'ok' | 'off' | 'adhoc' | 'updated';
+  /** restart: la app en disco ya no es la que corre (se actualizó abierta); se arregla reiniciando. */
+  accessibilityHint: 'ok' | 'off' | 'adhoc' | 'updated' | 'restart';
   signature: 'adhoc' | 'stable' | 'unknown';
   account: AccountView;
   pending: PendingMeta[];

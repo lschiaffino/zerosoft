@@ -263,8 +263,8 @@ async function storeMp4(v: Row, bytes: Buffer): Promise<string> {
     });
     return res.url;
   }
-  const { saveUpload } = await import('./uploads');
-  return saveUpload('rec', `${v.id}-download.mp4`, 'video/mp4', bytes);
+  const { saveRecLocal } = await import('./rec-upload');
+  return saveRecLocal(`${v.id}-download-${randomBytes(6).toString('hex')}.mp4`, bytes);
 }
 
 function run(cmd: string, args: string[]): Promise<void> {

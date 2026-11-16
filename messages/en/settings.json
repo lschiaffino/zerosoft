@@ -1749,7 +1749,9 @@
       "track": "Track",
       "notes": "Notes",
       "board": "Board",
-      "cal": "Cal (read only)"
+      "cal": "Cal (read only)",
+      "lines": "Lines",
+      "inbox": "Inbox"
     },
     "appsHelp": {
       "crm": "Contacts, companies, deals and the home page",
@@ -1757,7 +1759,9 @@
       "track": "Lists, issues and projects you opened",
       "notes": "The list of notes",
       "board": "Boards you opened and the list of boards",
-      "cal": "Bookings, event types and availability you opened. Editing needs a connection"
+      "cal": "Bookings, event types and availability you opened. Editing needs a connection",
+      "lines": "Chats you opened. Messages written offline are sent in order when the connection is back",
+      "inbox": "Chats you opened. Messages written offline are sent in order when the connection is back"
     },
     "appUsage": "{pages, plural, one {# page} other {# pages}}, {size}",
     "measuring": "Measuring…",

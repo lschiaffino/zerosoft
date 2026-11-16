@@ -9,6 +9,8 @@
  */
 
 /** Imágenes que se suben al storage. SVG queda en línea (uploads.ts lo rechaza). */
+import { isFileUrlPath } from './files/url';
+
 const UPLOADABLE_MIME = /^image\/(png|jpe?g|gif|webp|avif|bmp)$/i;
 
 /** Tope por imagen: el body de una función de Vercel no pasa de 4.5 MB. */
@@ -23,7 +25,7 @@ const LOCAL_URL = /^\/uploads\/boards\/[A-Za-z0-9._-]+$/;
 const BLOB_URL = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/boards\/[A-Za-z0-9._-]+$/;
 
 export function isBoardUploadUrl(url: unknown): url is string {
-  return typeof url === 'string' && (LOCAL_URL.test(url) || BLOB_URL.test(url));
+  return typeof url === 'string' && (isFileUrlPath(url) || LOCAL_URL.test(url) || BLOB_URL.test(url));
 }
 
 /** Archivos adjuntos (tarjeta en el lienzo): documentos, planillas, presentaciones, texto y zip. */

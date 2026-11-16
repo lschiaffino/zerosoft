@@ -288,7 +288,7 @@ test('Docs: ícono y portada subidos, galería de colores y reposicionar', async
   await picker.getByRole('tab', { name: 'Upload' }).click();
   await picker.getByTestId('docs-cover-file').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: PNG });
   await expect(p.getByTestId('docs-cover').locator('img')).toBeVisible();
-  await expect.poll(async () => (await page(request, doc.id)).cover_url ?? '').toMatch(/^\/uploads\/docs\//);
+  await expect.poll(async () => (await page(request, doc.id)).cover_url ?? '').toMatch(/^\/api\/files\//);
   await p.getByTestId('docs-cover').hover();
   await p.getByRole('button', { name: 'Reposition' }).click();
   await p.keyboard.press('ArrowUp');
@@ -301,7 +301,7 @@ test('Docs: ícono y portada subidos, galería de colores y reposicionar', async
   await p.locator('.docs-page-header').hover();
   await p.getByRole('button', { name: 'Add icon' }).click();
   await p.getByTestId('docs-icon-file').setInputFiles({ name: 'icon.png', mimeType: 'image/png', buffer: PNG });
-  await expect.poll(async () => (await page(request, doc.id)).icon ?? '').toMatch(/^img:\/uploads\/docs\//);
+  await expect.poll(async () => (await page(request, doc.id)).icon ?? '').toMatch(/^img:\/api\/files\//);
   await expect(p.locator('.docs-page-header img.docs-icon-img')).toBeVisible();
   await p.reload({ waitUntil: 'networkidle' });
   await expect(p.getByTestId('docs-tree-row').filter({ hasText: title }).locator('img.docs-page-icon-img')).toBeVisible();

@@ -9,7 +9,7 @@ import AttachMenu, { type AttachMenuHandle } from '@/components/groups/wa/Attach
 import { SendIcon, Trash } from '@/components/groups/wa/icons';
 import { MEDIA_SEND_TIMEOUT_MS, inboxQueue, pendingSends, tempInboxMedia } from './pending';
 import { withTimeout } from '@/lib/conditional-fetch';
-import { TEMP_PREFIX, localPreviews, mediaKindOf, newClientId, uploadProgress, type UnsentMedia, type UnsentMediaKind } from '@/lib/optimistic-send';
+import { TEMP_PREFIX, isOffline, localPreviews, mediaKindOf, newClientId, uploadProgress, type UnsentMedia, type UnsentMediaKind } from '@/lib/optimistic-send';
 import { duration } from '@/components/groups/wa/format';
 import LiveWaveform from '@/components/groups/wa/LiveWaveform';
 
@@ -57,16 +57,11 @@ async function sendOne(
       xhr.send(form);
     }));
   }
-  const { upload } = await import('@vercel/blob/client');
-  const safe = (f.name || 'file').replace(/[^\w.-]+/g, '_').slice(-120) || 'file';
+  // Grande: directo al storage, privado (lib/files/direct-upload-client.ts); el servidor de WhatsApp lo baja con una URL firmada que vence.
+  const { directUpload } = await import('@/lib/files/direct-upload-client');
   let url: string;
   try {
-    const blob = await upload(`inbox/${crypto.randomUUID()}-${safe}`, f.file, {
-      access: 'public',
-      handleUploadUrl: '/api/inbox/upload/blob',
-      onUploadProgress: (e) => onProgress(e.percentage / 100),
-    });
-    url = blob.url;
+    url = (await directUpload(f.file, { purpose: 'inbox-media', name: f.name, onProgress })).url;
   } catch {
     throw new Error('file_too_large');
   }
@@ -222,6 +217,11 @@ export function useSendTray(threadId: string, onError?: (code: string) => void) 
   const sendAll = useCallback(
     (replyTo?: string) => {
       const list = itemsRef.current;
+      // Sin red los archivos no se encolan (necesitan subirse): quedan en la bandeja y se avisa. Los textos sí.
+      if (list.length && isOffline()) {
+        onError?.('offline_files');
+        return false;
+      }
       list.forEach((it, i) =>
         sendInboxMedia({ threadId, file: it.file, name: it.name, caption: it.caption?.trim(), width: it.width, height: it.height, replyTo: i === 0 ? replyTo : undefined, preview: it.preview, onError }),
       );

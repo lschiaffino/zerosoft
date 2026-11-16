@@ -310,7 +310,8 @@ describe('file-attachments: Blob privado', () => {
       legacy.upload.POST(req(`/x/upload?name=${name}`, { method: 'POST', body: new Uint8Array(body), headers: { 'content-type': type } }), ctx());
     const ok = await up('informe.pdf', Buffer.from('%PDF-1.4'), 'application/pdf');
     expect(ok.status).toBe(201);
-    expect(await ok.json()).toMatchObject({ ref: expect.stringMatching(/^https:\/\/store\.public\.blob\.vercel-storage\.com\/track\//), filename: 'informe.pdf', size: 8 });
+    // Ya no queda pública: va cifrada al store de la suite y se guarda la URL de /api/files.
+    expect(await ok.json()).toMatchObject({ ref: expect.stringMatching(/^\/api\/files\//), filename: 'informe.pdf', size: 8 });
     expect((await up('setup.exe', Buffer.from('MZ'), 'application/x-msdownload')).status).toBe(415);
     expect((await up('grande.zip', Buffer.alloc(fa.LEGACY_MAX_BYTES + 1), 'application/zip')).status).toBe(413);
     expect(saved).toHaveLength(1);

@@ -493,6 +493,14 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/shop/discounts/${i.id}`))),
   },
   {
+    app: 'Time projects',
+    list: '/en/app/time/projects',
+    create: async (request, name) => ({ id: (await ok<{ project: { id: string } }>(request.post('/api/time/projects', { data: { name } }))).project.id, name }),
+    detail: (i) => `/en/app/time/projects/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/time/projects/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/time/projects/${i.id}`))),
+  },
+  {
     app: 'Sign envelopes',
     list: '/en/app/sign',
     create: async (request, name) => ({ id: (await ok<{ envelope: { id: string } }>(request.post('/api/sign/envelopes', { data: { title: name } }))).envelope.id, name }),

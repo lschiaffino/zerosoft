@@ -112,40 +112,29 @@ function uploadSmall(file: File, onProgress: (p: number) => void): { done: Promi
   return { done, abort: () => xhr.abort() };
 }
 
-/** Archivo grande: sube directo a Blob (con progreso); si el servidor no lo permite, por la ruta común. */
+/**
+ * Archivo grande: sube directo al storage, privado (lib/files/direct-upload-client.ts),
+ * con progreso; si el servidor no tiene Blob, por la ruta común.
+ */
 function uploadLarge(file: File, onProgress: (p: number) => void): { done: Promise<UploadedFile>; abort: () => void } {
   const ctrl = new AbortController();
   let fallback: { abort: () => void } | null = null;
   const done = (async () => {
-    const { upload } = await import('@vercel/blob/client');
-    const safe = (file.name || 'file').replace(/[^\w.-]+/g, '_').slice(-120);
+    const { directUpload, DirectUploadUnavailable } = await import('@/lib/files/direct-upload-client');
     try {
-      const blob = await upload(`chat/${crypto.randomUUID()}-${safe}`, file, {
-        access: 'public',
-        handleUploadUrl: '/api/groups/upload/blob',
-        abortSignal: ctrl.signal,
-        onUploadProgress: (e) => onProgress(e.percentage / 100),
-      });
-      return { url: blob.url, mimetype: file.type || 'application/octet-stream', filename: file.name, size: file.size };
+      const up = await directUpload(file, { purpose: 'lines-media', abortSignal: ctrl.signal, onProgress });
+      return { url: up.url, mimetype: file.type || up.mimetype || 'application/octet-stream', filename: file.name, size: file.size };
     } catch (err) {
       if (ctrl.signal.aborted) throw new Error('aborted');
-      const msg = String((err as Error)?.message ?? '');
-      // El cliente de Blob no siempre dice el código: se pregunta si el servidor tiene Blob.
-      const probe = await fetch('/api/groups/upload/blob', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null);
-      if (probe?.status === 501) {
-        if (file.size > SMALL_UPLOAD) throw new Error('file_too_large_local');
-        const small = uploadSmall(file, onProgress);
-        fallback = small;
-        return small.done;
-      }
-      if (/client_upload_unavailable|501/.test(msg)) {
+      if (err instanceof DirectUploadUnavailable) {
         // Sin Blob en el servidor: hasta 4,5 MB por la ruta común; más, un aviso claro.
         if (file.size > SMALL_UPLOAD) throw new Error('file_too_large_local');
         const small = uploadSmall(file, onProgress);
         fallback = small;
         return small.done;
       }
-      throw new Error(/too large|size/i.test(msg) ? 'file_too_large' : 'upload_failed');
+      const code = (err as { code?: string })?.code;
+      throw new Error(code === 'file_too_large' ? 'file_too_large' : 'upload_failed');
     }
   })();
   return { done, abort: () => (ctrl.abort(), fallback?.abort()) };

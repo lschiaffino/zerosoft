@@ -7,7 +7,8 @@
     "analytics": "Análises",
     "settings": "Configurações",
     "tasks": "Tarefas",
-    "templates": "Modelos"
+    "templates": "Modelos",
+    "contacts": "Contatos"
   },
   "common": {
     "retry": "Tente de novo",
@@ -204,6 +205,7 @@
     "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco."
   },
   "status": {
+    "queued": "Aguardando conexão",
     "pending": "Enviando",
     "sent": "Enviada",
     "delivered": "Entregue",
@@ -859,6 +861,7 @@
     "pageTitle": "Esta página não carregou",
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
     "generic": "Algo deu errado. Tente de novo.",
+    "offline_files": "Arquivos precisam de conexão. Ficam aqui e você pode enviá-los quando a conexão voltar. Os textos ficam na fila e saem sozinhos.",
     "unauthorized": "Sua sessão terminou. Entre de novo.",
     "forbidden": "Você não tem permissão para fazer isso.",
     "not_found": "Isso não existe mais.",
@@ -1744,6 +1747,7 @@
     "liveLocation": "Localização em tempo real",
     "retry": "Tentar enviar de novo",
     "unsent": "Uma mensagem para {name} não foi enviada. Abra a conversa para tentar de novo.",
+    "deleteQueued": "Apagar antes de enviar",
     "unreadCount": "{n, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
     "filtersMenu": "Filtros e listas",
     "clearFilters": "Limpar filtros",
@@ -1896,6 +1900,11 @@
       "notSetupBody": "Um administrador adiciona uma chave do GIPHY ou do Tenor no servidor (GIPHY_API_KEY ou TENOR_API_KEY). Emojis e figurinhas funcionam normalmente."
     },
     "openGif": "Abrir GIF",
+    "messagesN": "{n, plural, one {# mensagem} other {# mensagens}}",
+    "deleteSelectedTitle": "{n, plural, one {Apagar # mensagem?} other {Apagar # mensagens?}}",
+    "deleteSelectedForMe": "Elas somem desta conversa para você. As outras pessoas da conversa continuam com elas.",
+    "deleteSelectedForAll": "Elas são apagadas no WhatsApp para todas as pessoas da conversa.",
+    "deleteSelectedDone": "{n, plural, one {# mensagem apagada} other {# mensagens apagadas}}",
     "newSticker": "Nova figurinha",
     "dictate": "Ditar",
     "cameraCapture": {

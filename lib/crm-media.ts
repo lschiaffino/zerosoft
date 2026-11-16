@@ -14,6 +14,7 @@
  * Los archivos se sirven por URL pública del almacenamiento (como los
  * adjuntos); el seguimiento cuenta las aperturas por la página del token.
  */
+import { isFileUrlPath } from './files/url';
 import { localized } from './notification-copy';
 import { createHash, randomBytes } from 'crypto';
 import { getDb } from './db';
@@ -52,8 +53,13 @@ async function assertContact(userId: string, contactId: string | null | undefine
   return contactId;
 }
 
-/** URL guardada válida: subida local (/uploads/crm/…) o a nuestro Blob (…blob.vercel-storage.com/crm/…). */
+/**
+ * URL guardada válida: /api/files/… (lo de ahora; al servirlo se chequea que
+ * sea del workspace del registro), subida local (/uploads/crm/…) o nuestro
+ * Blob (…blob.vercel-storage.com/crm/…).
+ */
 export function isOwnUploadUrl(url: string): boolean {
+  if (isFileUrlPath(url)) return true;
   if (url.startsWith('/uploads/crm/') && !url.includes('..')) return true;
   try {
     const u = new URL(url);
@@ -235,9 +241,9 @@ export async function getPublicDocument(token: string): Promise<PublicDocument |
 }
 
 /** El archivo del link (para servirlo desde nuestro dominio). */
-export async function documentFileUrl(token: string): Promise<{ url: string; name: string } | null> {
+export async function documentFileUrl(token: string): Promise<{ url: string; name: string; workspaceId: string } | null> {
   const link = await linkByToken(token);
-  return link ? { url: link.url, name: link.name } : null;
+  return link ? { url: link.url, name: link.name, workspaceId: link.user_id } : null;
 }
 
 async function contactLabel(contactId: string | null): Promise<{ label: string; owner: string | null } | null> {
@@ -464,19 +470,21 @@ export interface PublicVideo {
   message: string;
   senderName: string;
   contactFirstName: string;
+  /** Workspace del video (para chequear que el archivo sea suyo). Nunca va al navegador. */
+  workspaceId: string;
 }
 
 export async function getPublicVideo(token: string): Promise<PublicVideo | null> {
   if (!/^[\w-]{8,40}$/.test(token)) return null;
   const v = (await getDb()
     .prepare(
-      `SELECT v.title, v.url, v.content_type, v.message, COALESCE(u.name, '') AS sender, COALESCE(c.first_name, '') AS first_name
+      `SELECT v.title, v.url, v.content_type, v.message, v.user_id, COALESCE(u.name, '') AS sender, COALESCE(c.first_name, '') AS first_name
        FROM crm_videos v LEFT JOIN users u ON u.id = v.created_by LEFT JOIN crm_contacts c ON c.id = v.contact_id
        WHERE v.token = ?`,
     )
-    .get(token)) as { title: string; url: string; content_type: string; message: string; sender: string; first_name: string } | undefined;
+    .get(token)) as { title: string; url: string; content_type: string; message: string; user_id: string; sender: string; first_name: string } | undefined;
   return v
-    ? { title: v.title, url: v.url, contentType: v.content_type, message: v.message, senderName: v.sender, contactFirstName: v.first_name }
+    ? { title: v.title, url: v.url, contentType: v.content_type, message: v.message, senderName: v.sender, contactFirstName: v.first_name, workspaceId: v.user_id }
     : null;
 }
 

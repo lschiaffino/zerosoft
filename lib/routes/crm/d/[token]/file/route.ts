@@ -13,5 +13,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   if (limited) return limited;
   const file = await documentFileUrl(token);
   if (!file) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  return servePdf(req, file.url, file.name);
+  return servePdf(req, file.url, file.name, file.workspaceId);
 }

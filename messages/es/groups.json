@@ -7,7 +7,8 @@
     "analytics": "Analítica",
     "settings": "Ajustes",
     "tasks": "Tareas",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "contacts": "Contactos"
   },
   "common": {
     "retry": "Probá de nuevo",
@@ -204,6 +205,7 @@
     "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
   },
   "status": {
+    "queued": "Esperando conexión",
     "pending": "Enviando",
     "sent": "Enviado",
     "delivered": "Entregado",
@@ -859,6 +861,7 @@
     "pageTitle": "Esta página no cargó",
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
     "generic": "Algo salió mal. Probá de nuevo.",
+    "offline_files": "Los archivos necesitan conexión. Quedan acá y los podés mandar cuando vuelva la red. Los textos quedan en cola y salen solos.",
     "unauthorized": "Tu sesión terminó. Iniciá sesión de nuevo.",
     "forbidden": "No tenés permiso para hacer eso.",
     "not_found": "Ya no existe.",
@@ -1744,6 +1747,7 @@
     "liveLocation": "Ubicación en tiempo real",
     "retry": "Reintentar envío",
     "unsent": "Un mensaje para {name} no se envió. Abrí el chat para reintentar.",
+    "deleteQueued": "Borrar antes de que salga",
     "unreadCount": "{n, plural, one {# mensaje sin leer} other {# mensajes sin leer}}",
     "filtersMenu": "Filtros y listas",
     "clearFilters": "Limpiar filtros",
@@ -1896,6 +1900,11 @@
       "notSetupBody": "Un administrador agrega una clave de GIPHY o de Tenor en el servidor (GIPHY_API_KEY o TENOR_API_KEY). Los emojis y los stickers funcionan igual."
     },
     "openGif": "Abrir GIF",
+    "messagesN": "{n, plural, one {# mensaje} other {# mensajes}}",
+    "deleteSelectedTitle": "{n, plural, one {¿Borrar # mensaje?} other {¿Borrar # mensajes?}}",
+    "deleteSelectedForMe": "Desaparecen de este chat para vos. Las demás personas del chat los siguen teniendo.",
+    "deleteSelectedForAll": "Se borran en WhatsApp para todas las personas del chat.",
+    "deleteSelectedDone": "{n, plural, one {# mensaje borrado} other {# mensajes borrados}}",
     "newSticker": "Sticker nuevo",
     "dictate": "Dictar",
     "cameraCapture": {
