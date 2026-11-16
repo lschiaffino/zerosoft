@@ -26,14 +26,14 @@ test('API: las rutas públicas cacheables conservan su cabecera', async ({ reque
   const changelog = await request.get('/api/board/changelog');
   expect(changelog.status()).toBe(200);
   expect(changelog.headers()['cache-control']).toBe('public, max-age=60');
-  // Feed de escritorio sin latest.json en el release falso: 404 sin cabecera agregada.
+  // Feed de escritorio (el release falso trae latest.json desde el updater de Tauri): la caché la decide la ruta.
   const feed = await request.get('/api/desktop/update/latest.json');
-  expect(feed.status()).toBe(404);
-  expect(feed.headers()['cache-control']).toBeUndefined();
+  expect(feed.status()).toBe(200);
+  expect(feed.headers()['cache-control']).toBe('public, max-age=300');
 });
 
-test('API: un 404 que la página no lee no deja la red ocupada', async ({ page }) => {
-  // El ajuste de la app de escritorio pide el feed y no lee el cuerpo del 404.
+test('API: un feed que la página no lee no deja la red ocupada', async ({ page }) => {
+  // El ajuste de la app de escritorio pide el feed y no siempre lee el cuerpo.
   await page.goto('/en/app/settings/desktop', { waitUntil: 'networkidle', timeout: 30_000 });
   await expect(page.getByTestId('desktop-app-settings')).toBeVisible();
 });
