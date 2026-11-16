@@ -260,7 +260,7 @@ describe('robots: pasos nuevos', () => {
     });
     const res = await startRobotRun(ws, r.robot.id, {}, { trigger: 'manual' });
     const out = res.ok ? (res.run.output.report as { url: string; filename: string }) : null;
-    expect(out?.url).toMatch(/^\/uploads\/robots\/.+-r\.csv$/);
+    expect(out?.url).toMatch(/^\/api\/files\/.+\/r\.csv$/);
     expect(out?.filename).toBe('r.csv');
   });
 });

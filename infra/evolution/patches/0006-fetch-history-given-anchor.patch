@@ -1,0 +1,64 @@
+--- a/src/api/dto/chat.dto.ts
++++ b/src/api/dto/chat.dto.ts
+@@ -86,6 +86,8 @@
+   remoteJid: string;
+   count?: number;
+   after?: number;
++  // zerosoft: the message to anchor on (the oldest one the caller has), when it may not be stored here.
++  anchor?: { id: string; fromMe?: boolean; timestamp: number; participant?: string };
+ }
+ 
+ export class MarkChatUnreadDto {
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -3765,6 +3765,23 @@
+     const sameChat = {
+       OR: [{ key: { path: ['remoteJid'], equals: jid } }, { key: { path: ['remoteJidAlt'], equals: jid } }],
+     };
++    const count = Math.min(Math.max(Math.floor(Number(data.count) || 50), 1), 100);
++    // zerosoft: an explicit anchor (the oldest message the caller has). It does not need to be stored here: after a
++    // re-link the instance is new and has none of the older messages, so the lookup below would anchor on a newer
++    // message and WhatsApp would send again what the caller already has.
++    const given = data.anchor;
++    if (given && typeof given.id === 'string' && given.id && Number(given.timestamp) > 0) {
++      const givenKey: proto.IMessageKey = {
++        remoteJid: jid,
++        id: given.id,
++        fromMe: given.fromMe === true,
++        ...(given.participant ? { participant: given.participant } : {}),
++      };
++      const ts = Math.floor(Number(given.timestamp));
++      const requestId = await this.client.fetchMessageHistory(count, givenKey, ts * 1000);
++      this.logger.info(`zerosoft: on-demand history for ${jid} (${count} before the given anchor), request ${requestId}`);
++      return { requestId, anchor: { id: given.id, fromMe: givenKey.fromMe, timestamp: ts }, count, given: true };
++    }
+     const after = Number(data.after) > 0 ? Math.floor(Number(data.after)) : 0;
+     const anchor =
+       (after
+@@ -3780,7 +3797,6 @@
+     if (!anchor) throw new NotFoundException('No stored message in this chat to anchor the history request');
+ 
+     const key = anchor.key as proto.IMessageKey;
+-    const count = Math.min(Math.max(Math.floor(Number(data.count) || 50), 1), 100);
+     const requestId = await this.client.fetchMessageHistory(count, key, Number(anchor.messageTimestamp) * 1000);
+     this.logger.info(`zerosoft: on-demand history for ${jid} (${count} before ${key.id}), request ${requestId}`);
+     return { requestId, anchor: { id: key.id, fromMe: key.fromMe, timestamp: anchor.messageTimestamp }, count };
+--- a/src/validate/chat.schema.ts
++++ b/src/validate/chat.schema.ts
+@@ -99,6 +99,16 @@
+     remoteJid: { type: 'string' },
+     count: { type: 'integer', minimum: 1, maximum: 100 },
+     after: { type: 'integer', minimum: 0 },
++    anchor: {
++      type: 'object',
++      properties: {
++        id: { type: 'string' },
++        fromMe: { type: 'boolean' },
++        timestamp: { type: 'integer', minimum: 1 },
++        participant: { type: 'string' },
++      },
++      required: ['id', 'timestamp'],
++    },
+   },
+   required: ['remoteJid'],
+   ...isNotEmpty('remoteJid'),

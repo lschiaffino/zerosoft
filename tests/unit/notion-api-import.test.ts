@@ -422,7 +422,7 @@ describe('Notion API: job de punta a punta (workspace falso)', () => {
     expect(blocks.find((b) => b.type === 'paragraph' && b.content.includes('Important'))?.content).toContain(`data-page="${onboarding.id}"`);
     const img = blocks.find((b) => b.type === 'image');
     expect(img).toMatchObject({ name: 'diagram.png', mime: 'image/png', caption: 'Org chart' });
-    expect(img?.url).toMatch(/^\/uploads\/docs\//);
+    expect(img?.url).toMatch(/^\/api\/files\//);
     const onbBlocks = JSON.parse(onboarding.content) as DocsBlock[];
     expect(onbBlocks[0].content).toContain('<span data-date="2025-04-01">');
     expect(onbBlocks[0].content).toContain('@Bo Chen');
@@ -464,7 +464,7 @@ describe('Notion API: job de punta a punta (workspace falso)', () => {
     };
     await importOnce({ pages: true, databases: true, files: true });
     const { readdir } = await import('fs/promises');
-    const filesAfterFirst = (await readdir(path.join(dir, 'docs'))).length;
+    const filesAfterFirst = (await readdir(path.join(dir, 'files'))).length;
     // Alguien edita Onboarding en zerosoft después del import.
     const onb = (await pages(u.id)).find((p) => p.title === 'Onboarding')!;
     await getDb().prepare('UPDATE docs_pages SET title = ?, updated_at = ? WHERE id = ?').run('Onboarding (ours)', '2999-01-01T00:00:00.000Z', onb.id);
@@ -474,7 +474,7 @@ describe('Notion API: job de punta a punta (workspace falso)', () => {
     expect(second.done.report).toMatchObject({ kept: 1, updated: 2, created: 0 });
     expect((await pages(u.id)).find((p) => p.id === onb.id)?.title).toBe('Onboarding (ours)');
     // Los archivos ya copiados se reusan.
-    expect((await readdir(path.join(dir, 'docs'))).length).toBe(filesAfterFirst);
+    expect((await readdir(path.join(dir, 'files'))).length).toBe(filesAfterFirst);
 
     const third = await importOnce({ pages: true, databases: true, files: true, overwrite: true });
     expect(third.done.report).toMatchObject({ kept: 0, updated: 3 });

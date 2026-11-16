@@ -18,7 +18,7 @@
  * Server-only.
  */
 import { after } from 'next/server';
-import { getDb } from './db';
+import { getDb, type BatchStatement } from './db';
 import { ProviderError, isGroupJid, isLidJid, lidDigits, phoneDigits, type ArchiveRef, type GroupsProvider } from './groups-provider';
 
 export type ArchiveApp = 'inbox' | 'lines';
@@ -116,6 +116,63 @@ export async function requestArchivePush(app: ArchiveApp, scopeId: string, chatI
   } catch {
     // Sin request (tests, cron, scripts): en el momento.
     await job();
+  }
+}
+
+/** El motivo con que queda anotado un desarchivado que hizo un mensaje enviado (nada salió a WhatsApp). */
+export const UNARCHIVED_BY_SEND = 'by_send';
+
+/**
+ * Un mensaje que sale desarchiva el chat, acá y en WhatsApp (lo hace WhatsApp solo): no se le manda nada. Queda
+ * anotado como pedido ya cumplido ("no archivado"), en la misma ida a la base que el mensaje y ANTES de tocar el
+ * chat: cancela un archivado que esperaba su turno y, si la persona vuelve a archivar enseguida (Deshacer), el aviso
+ * de desarchivado que el teléfono manda por el mensaje se reconoce como eco viejo (isArchiveEcho) y no lo pisa.
+ * `chatWhere` elige el chat (alias c), solo si está archivado.
+ */
+export function sendUnarchiveMark(app: ArchiveApp, chatWhere: string, whereArgs: Array<string | number>, at = new Date().toISOString()): BatchStatement {
+  const from =
+    app === 'inbox'
+      ? "SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, ?, ? FROM inbox_threads c WHERE c.channel = 'whatsapp' AND (c.archived_at IS NOT NULL OR c.done_at IS NOT NULL) AND c.keep_archived = 0"
+      : "SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, ?, ? FROM groups_chats c WHERE c.archived_at IS NOT NULL AND c.keep_archived = 0";
+  return {
+    sql: `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
+       ${from} AND ${chatWhere}
+       ON CONFLICT(app, chat_id) DO UPDATE SET prev_archived = wa_archive_push.archived, prev_at = wa_archive_push.requested_at,
+         archived = 0, scope_id = excluded.scope_id, version = wa_archive_push.version + 1, requested_at = excluded.requested_at,
+         attempts = 0, next_at = excluded.next_at, claimed_until = NULL, done_at = excluded.done_at, last_error = excluded.last_error`,
+    args: [at, at, at, UNARCHIVED_BY_SEND, ...whereArgs],
+  };
+}
+
+/**
+ * Un mensaje que llega a un chat pospuesto lo trae de vuelta (termina el pospuesto y lo saca de Archivados). Si fue
+ * el pospuesto el que lo archivó, el desarchivado también va a WhatsApp: con "mantener archivados" el teléfono lo deja
+ * archivado aunque llegue el mensaje. Queda como pedido pendiente, en la misma ida a la base que el mensaje y ANTES de
+ * tocar el chat; lo manda el cron del minuto. Si el teléfono ya lo desarchivó solo, su aviso coincide con lo de acá y
+ * no cambia nada. `chatWhere` elige el chat (alias c).
+ */
+export function snoozeWakeMark(app: ArchiveApp, chatWhere: string, whereArgs: Array<string | number>, at = new Date().toISOString()): BatchStatement {
+  const snoozed = 'c.snoozed_until IS NOT NULL AND c.snooze_archived = 1 AND c.archived_at IS NOT NULL';
+  const from =
+    app === 'inbox'
+      ? `SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, NULL, '' FROM inbox_threads c WHERE c.channel = 'whatsapp' AND ${snoozed}`
+      : `SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, NULL, '' FROM groups_chats c WHERE ${snoozed}`;
+  return {
+    sql: `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
+       ${from} AND ${chatWhere}
+       ON CONFLICT(app, chat_id) DO UPDATE SET prev_archived = wa_archive_push.archived, prev_at = wa_archive_push.requested_at,
+         archived = 0, scope_id = excluded.scope_id, version = wa_archive_push.version + 1, requested_at = excluded.requested_at,
+         attempts = 0, next_at = excluded.next_at, claimed_until = NULL, done_at = NULL, last_error = ''`,
+    args: [at, at, ...whereArgs],
+  };
+}
+
+/** Anota y manda lo que se pueda ya, sin esperar el ritmo (lo demás, el cron). Para el cron que despierta pospuestos. */
+export async function queueAndFlushArchivePush(app: ArchiveApp, scopeId: string, chatIds: string[], archived: boolean, now = new Date()): Promise<void> {
+  if (!chatIds.length) return;
+  await queueArchivePush(app, scopeId, chatIds, archived, now);
+  for (const id of [...new Set(chatIds)].slice(0, 20)) {
+    await flushArchivePush(app, id, () => Math.max(Date.now(), now.getTime())).catch((err) => logFailure(app, 'flush_error', err));
   }
 }
 
@@ -298,6 +355,17 @@ export async function altJid(contacts: Target['contacts'], jid: string): Promise
   return r?.lid ? `${r.lid}@lid` : '';
 }
 
+/**
+ * Con qué id va el archivado de un chat (y con cuál se reintenta si ese falla). WhatsApp guarda el archivado de un
+ * 1:1 con el lid del chat cuando la cuenta ya pasó a lids: así llega el estado que manda el teléfono (al vincular la
+ * línea el 15/11, 305 de los 346 avisos de 1:1 archivados vinieron por lid). Mandado con el número de teléfono, el
+ * teléfono lo toma como otro chat y no archiva nada. Si la libreta conoce el lid va ese; si no, el id que tenemos.
+ */
+export async function archiveJids(contacts: Target['contacts'], chatJid: string): Promise<[string, string]> {
+  const other = await altJid(contacts, chatJid).catch(() => '');
+  return isLidJid(other) ? [other, chatJid] : [chatJid, other];
+}
+
 async function attempt(row: PushRow): Promise<Attempt> {
   const target = row.app === 'inbox' ? await inboxTarget(row) : await linesTarget(row);
   if (!target || target.archived === null) return { kind: 'skip', reason: 'gone' };
@@ -312,18 +380,18 @@ async function attempt(row: PushRow): Promise<Attempt> {
     return { kind: 'fail', error: 'not_connected', retry: true };
   }
   if (!provider.archiveChat) return { kind: 'skip', reason: 'unsupported' };
-  const ref = await target.ref(target.chatJid);
   // Una sola orden por chat. Antes se mandaba también con el otro id del mismo 1:1 (teléfono ↔ lid), y WhatsApp
   // recibía dos cambios para dos "chats" que son el mismo: el 14/11 desvinculó todos los dispositivos de la cuenta
   // 30 s después de un par así. El otro id solo se usa si el principal falla.
+  const [main, alt] = await archiveJids(target.contacts, target.chatJid);
+  const ref = await target.ref(main);
   try {
     try {
-      await provider.archiveChat(target.chatJid, want, ref);
+      await provider.archiveChat(main, want, ref);
       await target.setSyncError('').catch(() => null);
-      return { kind: 'sent', sent: JSON.stringify({ jid: target.chatJid, archive: want, ts: ref?.timestamp ?? null }) };
+      return { kind: 'sent', sent: JSON.stringify({ jid: main, archive: want, ts: ref?.timestamp ?? null }) };
     } catch (err) {
       if (isAppStateError(err)) throw err;
-      const alt = await altJid(target.contacts, target.chatJid).catch(() => '');
       if (!alt) throw err;
       await provider.archiveChat(alt, want, await target.ref(alt));
       await target.setSyncError('').catch(() => null);

@@ -46,7 +46,8 @@ describe('apps sin conexión', () => {
   it('worksOffline', () => {
     expect(worksOffline('docs')).toBe(true);
     expect(worksOffline('track')).toBe(true);
-    expect(worksOffline('groups')).toBe(false);
+    expect(worksOffline('groups')).toBe(true);
+    expect(worksOffline('inbox')).toBe(true);
     expect(worksOffline('talk')).toBe(false);
     expect(worksOffline('board')).toBe(true);
     expect(worksOffline('cal')).toBe(true);
@@ -117,17 +118,17 @@ describe('rootsDue', () => {
   it('devuelve los inicios una vez cada 6 horas por persona', () => {
     const s = mem();
     const first = rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000);
-    expect(first).toEqual(['https://app.test/en/app', 'https://app.test/en/app/docs', 'https://app.test/en/app/notes', 'https://app.test/en/app/track', 'https://app.test/en/app/crm', 'https://app.test/en/app/board', 'https://app.test/en/app/calendar']);
+    expect(first).toEqual(['https://app.test/en/app', 'https://app.test/en/app/docs', 'https://app.test/en/app/notes', 'https://app.test/en/app/track', 'https://app.test/en/app/crm', 'https://app.test/en/app/board', 'https://app.test/en/app/calendar', 'https://app.test/en/app/lines/inbox', 'https://app.test/en/app/inbox']);
     expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + 1000)).toEqual([]);
-    expect(rootsDue(s, "otra:w", "en", "https://app.test", 1_000_000 + 1000)).toHaveLength(7);
-    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + OFFLINE_ROOTS_EVERY_MS)).toHaveLength(7);
+    expect(rootsDue(s, "otra:w", "en", "https://app.test", 1_000_000 + 1000)).toHaveLength(9);
+    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1_000_000 + OFFLINE_ROOTS_EVERY_MS)).toHaveLength(9);
   });
 
   it('en un navegador automatizado solo si el test lo pide; sin storage ni persona, nada', () => {
     const s = mem();
     expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toEqual([]);
     s.setItem('zs-e2e-warm-roots', '1');
-    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toHaveLength(7);
+    expect(rootsDue(s, 'u:w', 'en', 'https://app.test', 1, true)).toHaveLength(9);
     expect(rootsDue(null, 'u:w', 'en', 'https://app.test', 1)).toEqual([]);
     expect(rootsDue(mem(), '', 'en', 'https://app.test', 1)).toEqual([]);
   });

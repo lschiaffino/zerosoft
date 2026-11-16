@@ -8,6 +8,7 @@
  * fila (nunca se lee y se escribe aparte), así dos compras a la vez no venden
  * la misma unidad.
  */
+import { isFileUrlPath } from './files/url';
 import { randomBytes } from 'crypto';
 import { getDb } from './db';
 import { sanitizeDocsHtml } from './docs-sanitize';
@@ -273,6 +274,8 @@ export async function revalidateWs(ws: string): Promise<void> {
 
 /** URL de una imagen subida por Shop (disco local o Blob): lo único que se acepta en el catálogo. */
 export function isOwnShopImage(url: string): boolean {
+  // Lo de ahora: /api/files/… (público por diseño, se sirve por nuestro dominio).
+  if (isFileUrlPath(url)) return true;
   if (/^\/uploads\/shop\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/.test(url) && !url.includes('..')) return true;
   const host = ownBlobHost();
   if (!host) return false;

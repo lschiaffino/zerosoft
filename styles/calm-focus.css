@@ -51,3 +51,5 @@
 
 /* El link de una carpeta termina justo en su contador: el anillo va por fuera del texto, no encima. */
 :root[data-kbd-nav='1'] .docs-tree-link:focus-visible { outline-offset: 0 !important; }
+
+/* Cursor del teclado en la lista de Inbox (j/k, flechas): alcanza el fondo suave de la fila (inbox.css). Sin filete ni recuadro. */

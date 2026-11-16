@@ -97,7 +97,7 @@ describe('adjuntos del asistente: subida', () => {
     expect(isSendOperation('v1.docs.pages.update')).toBe(false);
     const r = (await resolveAttachmentRefs(owner, args, { allowPublic: true })) as { body: { media: Record<string, unknown>; link: string }; files: Array<Record<string, unknown>> };
     // Solo para la acción confirmada: una copia pública aparte (como las subidas de Groups); el original sigue privado.
-    expect(r.body.media).toMatchObject({ url: expect.stringMatching(/^\/uploads\/chat\/[0-9a-f-]{36}-p\.png$/), mimetype: 'image/png', filename: 'p.png' });
+    expect(r.body.media).toMatchObject({ url: expect.stringMatching(/\/api\/files\/[A-Za-z0-9_-]{22}\/p\.png$/), mimetype: 'image/png', filename: 'p.png' });
     expect(r.body.link).toBe(`https://zerosoft.test${r.body.media.url as string}`);
     expect(r.files[0]).toMatchObject({ field: 'file', filename: 'p.png', contentType: 'image/png', base64: PNG.toString('base64') });
   });
@@ -240,7 +240,7 @@ describe('adjuntos del asistente: acciones de punta a punta (rutas reales)', () 
     const toPage = (await attachTool().prepare(ctx, { target: 'docs_page', id: page.id, attachment: att.id })) as { input: Record<string, unknown> };
     expect(await attachTool().execute(ctx, toPage.input)).toMatchObject({ ok: true });
     const blocks = ((await call('v1.docs.pages.blocks.list', { path: { id: page.id } })) as { data: Array<{ type: string; url?: string }> }).data;
-    expect(blocks.find((b) => b.type === 'image')?.url).toMatch(/^\/uploads\/docs\/.+-drop\.png$/);
+    expect(blocks.find((b) => b.type === 'image')?.url).toMatch(/^\/api\/files\/.+\/drop\.png$/);
 
     // Un adjunto ajeno no se puede usar.
     const other = await person();

@@ -10,8 +10,12 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
+import { sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
+import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
+import { openWire, sealWire } from './wa-media-wire-seal';
+import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -379,7 +383,7 @@ async function inboundUploads(where: string, args: string[]): Promise<string[]> 
   const rows = (await getDb()
     .prepare(
       `SELECT m.media_url FROM groups_messages m WHERE ${where} AND m.direction = 'in'
-         AND (m.media_url LIKE '/uploads/chat/%' OR m.media_url LIKE 'https://%.public.blob.vercel-storage.com/chat/%')`,
+         AND (m.media_url LIKE '/api/files/%' OR m.media_url LIKE '/uploads/chat/%' OR m.media_url LIKE 'https://%.public.blob.vercel-storage.com/chat/%')`,
     )
     .all(...args)) as Array<{ media_url: string }>;
   return [...new Set(rows.map((r) => r.media_url))];
@@ -535,6 +539,12 @@ export interface ChatRow {
   muted_until?: string | null;
   marked_unread?: number;
   archived_at?: string | null;
+  /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
+  keep_archived?: number;
+  /** Pospuesto hasta esta fecha: archivado hasta que vuelve (vence, llega un mensaje o se cancela). */
+  snoozed_until?: string | null;
+  /** 1: el pospuesto archivó el chat (no estaba archivado); al cancelarlo vuelve a la lista. */
+  snooze_archived?: number;
   hidden_at?: string | null;
   presence?: string | null;
   presence_who?: string | null;
@@ -590,6 +600,12 @@ export interface ChatDto {
   markedUnread: boolean;
   /** Archivado: fuera de la lista principal, en "Archivados". */
   archived: boolean;
+  /** "Mantener archivado": ni los mensajes ni el teléfono lo sacan de Archivados. */
+  keepArchived: boolean;
+  /** Pospuesto hasta esta fecha (está en Archivados hasta que vuelve). null: no está pospuesto. */
+  snoozedUntil: string | null;
+  /** Eliminado de Lines ("Eliminar chat"): cuándo. Solo en la lista de eliminados. */
+  hiddenAt?: string | null;
   /** Lo que hace el contacto ahora (escribiendo, grabando, en línea), si es reciente. */
   presence?: ChatPresence | null;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
@@ -688,6 +704,9 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
+    keepArchived: Boolean(row.keep_archived),
+    snoozedUntil: row.snoozed_until && row.snoozed_until > new Date().toISOString() ? row.snoozed_until : null,
+    ...(row.hidden_at ? { hiddenAt: row.hidden_at } : {}),
     presence: chatPresence(row),
     ...(row.history_gap_at ? { historyGap: true } : {}),
   };
@@ -785,6 +804,11 @@ export interface ChatQuery {
   viewer?: GroupsViewer;
   /** Solo los archivados (sin esto, la lista los deja afuera salvo al buscar). */
   archived?: boolean;
+  /**
+   * Solo los eliminados con "Eliminar chat" (con historial; los chats nuevos que nacen ocultos y sin mensajes
+   * no cuentan): la lista para recuperarlos, dentro de Archivados.
+   */
+  hidden?: boolean;
   /** Vinculados (o no) a un registro de HubSpot. */
   hubspot?: 'linked' | 'unlinked';
   /**
@@ -883,11 +907,13 @@ function likeArg(q: string): string {
 }
 
 export async function listChats(ws: string, me: string, query: ChatQuery = {}): Promise<{ rows: ChatDto[]; total: number; next?: string | null; pinned?: number }> {
-  const where: string[] = ['c.user_id = ?', 'c.hidden_at IS NULL'];
+  const where: string[] = ['c.user_id = ?', query.hidden ? HIDDEN_WITH_HISTORY_SQL : 'c.hidden_at IS NULL'];
   const args: Array<string | number> = [ws];
   const filter = query.filter ?? 'all';
-  // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra.
-  if (query.archived) where.push('c.archived_at IS NOT NULL');
+  // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra. Los eliminados, solo en su lista.
+  if (query.hidden) {
+    /* eliminados: abiertos o cerrados, archivados o no */
+  } else if (query.archived) where.push('c.archived_at IS NOT NULL');
   else if (!(query.q ?? '').trim()) where.push('c.archived_at IS NULL');
   if (query.filters) {
     // Estado, tipo, líneas, asignación, etiquetas, sí o no, fechas y propiedades. El acceso de quien mira va aparte, más abajo.
@@ -896,7 +922,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push(...fx.where);
     args.push(...fx.args);
   } else if (filter === 'closed') where.push("c.status = 'closed'");
-  else where.push("c.status = 'open'");
+  else if (!query.hidden) where.push("c.status = 'open'");
   if (filter === 'unread') where.push('c.unread_count > 0');
   if (filter === 'unanswered') where.push('c.awaiting_since IS NOT NULL');
   if (filter === 'flagged') where.push('c.flagged_at IS NOT NULL');
@@ -1157,6 +1183,22 @@ export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promi
   return Number(r.n);
 }
 
+/** Eliminados con "Eliminar chat" que todavía tienen historial (alias c de groups_chats). */
+const HIDDEN_WITH_HISTORY_SQL = 'c.hidden_at IS NOT NULL AND c.last_message_at IS NOT NULL';
+
+/** Eliminados que ve quien mira (la fila "Eliminados" dentro de Archivados). */
+export async function countHiddenChats(ws: string, viewer?: GroupsViewer): Promise<number> {
+  const where = ['c.user_id = ?', HIDDEN_WITH_HISTORY_SQL];
+  const args: Array<string | number> = [ws];
+  const access = chatAccessSql(viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
+  const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE ${where.join(' AND ')}`).get(...args)) as { n: number };
+  return Number(r.n);
+}
+
 /** Archivados que ve quien mira: cuántos hay y cuántos tienen algo sin leer (la fila "Archivados"). */
 export async function countArchivedChats(ws: string, viewer?: GroupsViewer): Promise<{ total: number; unread: number }> {
   const where = ['c.user_id = ?', 'c.archived_at IS NOT NULL', 'c.hidden_at IS NULL'];
@@ -1257,8 +1299,15 @@ export interface ChatPatch {
   flagged?: boolean;
   /** Silenciar (sin push) o volver a avisar. */
   muted?: boolean;
-  /** Archivar o desarchivar (como WhatsApp). */
+  /** Archivar o desarchivar (como WhatsApp). Desarchivar cancela el pospuesto. */
   archived?: boolean;
+  /** "Mantener archivado": prenderlo archiva el chat; desarchivar lo apaga. */
+  keepArchived?: boolean;
+  /**
+   * Posponer hasta esa fecha (ISO, en el futuro): el chat queda archivado, acá y en WhatsApp, hasta que vuelve.
+   * null cancela el pospuesto y deja el chat como estaba antes de posponerlo.
+   */
+  snoozedUntil?: string | null;
   /** "Eliminar chat": sale de la lista hasta que llegue o salga un mensaje nuevo. */
   hidden?: boolean;
 }
@@ -1296,6 +1345,10 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
       } catch (err) {
         throw new GroupsError(providerErrorCode(err), 502);
       }
+      // "Cambiaste el nombre/la descripción del grupo" en el chat (WhatsApp no nos avisa estos cambios).
+      const { linesOwnGroupEvent } = await import('./wa-group-system');
+      if (name !== undefined && name !== row.name) await linesOwnGroupEvent(row, { t: 'subject', by: { p: 'me' }, subject: name }).catch(() => false);
+      if (description !== undefined && description !== row.description) await linesOwnGroupEvent(row, { t: 'description', by: { p: 'me' } }).catch(() => false);
     }
     if (name !== undefined) set('name', name);
     if (description !== undefined) set('description', description);
@@ -1314,14 +1367,43 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
   if (patch.muted !== undefined) set('muted_until', patch.muted ? '9999-12-31T00:00:00.000Z' : null);
-  if (patch.archived !== undefined) set('archived_at', patch.archived ? row.archived_at || nowIso() : null);
+  // "Mantener archivado" implica archivado; desarchivar a mano lo apaga (en el mismo UPDATE: el trigger lo deja pasar).
+  if (patch.keepArchived === true) patch = { ...patch, archived: patch.archived ?? true };
+  if (patch.keepArchived !== undefined && patch.archived !== false) set('keep_archived', patch.keepArchived ? 1 : 0);
+  // Cómo queda el archivado (undefined: no cambia). Posponer archiva; cancelar el pospuesto desarchiva solo lo que
+  // archivó el pospuesto; desarchivar a mano cancela el pospuesto.
+  let archivedNext: boolean | undefined = patch.archived;
+  const snoozeArchived = Boolean(row.snoozed_until && row.snooze_archived);
+  let snoozeNext: { until: string | null; archived: boolean } | undefined;
+  if (patch.archived === false && row.snoozed_until) snoozeNext = { until: null, archived: false };
+  if (patch.snoozedUntil !== undefined) {
+    if (patch.snoozedUntil) {
+      const t = Date.parse(patch.snoozedUntil);
+      if (!Number.isFinite(t) || t <= Date.now() + 30_000) throw new GroupsError('date_in_past');
+      if (t > Date.now() + 3 * 365 * 86_400_000) throw new GroupsError('invalid_input');
+      const wasArchived = archivedNext ?? !!row.archived_at;
+      snoozeNext = { until: new Date(t).toISOString(), archived: snoozeArchived || !wasArchived };
+      archivedNext = true;
+    } else {
+      snoozeNext = { until: null, archived: false };
+      if (snoozeArchived && archivedNext === undefined) archivedNext = false;
+    }
+  }
+  if (archivedNext !== undefined) set('archived_at', archivedNext ? row.archived_at || nowIso() : null);
+  if (archivedNext === false) set('keep_archived', 0);
   if (patch.hidden !== undefined) {
     set('hidden_at', patch.hidden ? nowIso() : null);
-    // Oculto no queda fijado ni archivado (como "Eliminar chat" en WhatsApp).
+    // Oculto no queda fijado, archivado ni pospuesto (como "Eliminar chat" en WhatsApp).
     if (patch.hidden) {
       set('pinned_at', null);
       set('archived_at', null);
+      set('keep_archived', 0);
+      snoozeNext = { until: null, archived: false };
     }
+  }
+  if (snoozeNext) {
+    set('snoozed_until', snoozeNext.until);
+    set('snooze_archived', snoozeNext.archived ? 1 : 0);
   }
   if (patch.crmContactId !== undefined) {
     if (patch.crmContactId) {
@@ -1367,9 +1449,9 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.labelIds !== undefined) await setChatLabels(ws, id, patch.labelIds);
   // Archivar o desarchivar también se manda a WhatsApp (después de responder, con reintentos: lib/wa-archive-sync.ts).
   // "Eliminar chat" (hidden) saca el archivado solo acá: en el teléfono el chat queda como estaba.
-  if (patch.archived !== undefined && patch.hidden === undefined && patch.archived !== !!row.archived_at) {
+  if (archivedNext !== undefined && patch.hidden === undefined && archivedNext !== !!row.archived_at) {
     const { requestArchivePush } = await import('./wa-archive-sync');
-    await requestArchivePush('lines', ws, [id], patch.archived);
+    await requestArchivePush('lines', ws, [id], archivedNext);
   }
   const { afterChatChange } = await import('./groups-inbox');
   await afterChatChange(ws, actor, row, patch);
@@ -1548,16 +1630,25 @@ function mediaDtoFor(row: MessageRow, stored: MediaInfo | undefined): MessageMed
   };
 }
 
-/** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
+/**
+ * URL de la media para el navegador: siempre la ruta del mensaje, que chequea
+ * el acceso al chat (la del proveedor, la guardada por nosotros y las de
+ * antes). Nunca la del storage ni la del proveedor.
+ */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
-  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:') || row.media_url.startsWith('evo:')) return `/api/groups/media/${row.id}`;
-  return row.media_url;
+  // Públicos por diseño (los datos de ejemplo: una imagen inline o un archivo estático de public/): tal cual.
+  if (/^data:image\/(png|jpeg|gif|webp|svg\+xml);/.test(row.media_url) || /^\/groups-sample\/[\w.-]+$/.test(row.media_url)) return row.media_url;
+  return `/api/groups/media/${row.id}`;
 }
 
 export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; rn?: number }): MessageDto {
   const poll = parsePoll(row.poll);
+  // mediaWire (la clave del archivo en WhatsApp) no sale del servidor.
   const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
+  delete meta.mediaWire;
+  // La imagen grande del link va por la ruta del mensaje: sin la clave ni los bytes.
+  if (meta.link) meta.link = publicLink(meta.link as StoredLink, `/api/groups/media/${row.id}?link=1`);
   return {
     id: row.id,
     chatId: row.chat_id,
@@ -1775,12 +1866,31 @@ function answeredStatements(chatId: string, at: string): BatchStatement[] {
   ];
 }
 
-/** Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). */
-function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[]): BatchStatement {
+/**
+ * Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). Uno que sale (`unarchive`: mandado
+ * desde acá o desde el teléfono, no uno que falló ni una llamada) saca el chat de Archivados, como WhatsApp.
+ */
+function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[], unarchive: boolean | 'newest' = !incoming): BatchStatement {
+  if (!incoming && unarchive) {
+    // 'newest': lo que llega del teléfono desarchiva solo si es lo más nuevo del chat (uno viejo que llega tarde no).
+    const sure = unarchive === 'newest' ? 0 : 1;
+    return {
+      // El pospuesto termina cuando el chat sale de Archivados.
+      sql: `UPDATE groups_chats SET archived_at = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN NULL ELSE archived_at END,
+           snoozed_until = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN NULL ELSE snoozed_until END,
+           snooze_archived = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN 0 ELSE snooze_archived END,
+           last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE ${where}`,
+      args: [sure, at, sure, at, sure, at, at, preview, at, ...whereArgs],
+    };
+  }
   return incoming
     ? {
+        // Un mensaje que llega a un chat pospuesto lo trae de vuelta: termina el pospuesto y, si fue el que lo archivó,
+        // sale de Archivados (aunque el workspace mantenga archivados los que archivó a mano).
         sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
-           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL, updated_at = ? WHERE ${where}`,
+           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL,
+           archived_at = CASE WHEN snoozed_until IS NOT NULL AND snooze_archived = 1 THEN NULL ELSE archived_at END, snoozed_until = NULL, snooze_archived = 0,
+           updated_at = ? WHERE ${where}`,
         args: [at, preview, at, at, ...whereArgs],
       }
     : {
@@ -1789,8 +1899,24 @@ function chatTouch(at: string, preview: string, incoming: boolean, where: string
       };
 }
 
-export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean): Promise<void> {
-  const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId]);
+/**
+ * Antes de tocar el chat: si está archivado y el mensaje que sale lo va a desarchivar, queda anotado para el eco del
+ * teléfono y para no mandarle nada a WhatsApp (lib/wa-archive-sync.ts). `where` elige el chat (alias c).
+ */
+function unarchiveMark(at: string, where: string, whereArgs: string[], newest = false): BatchStatement {
+  return newest ? sendUnarchiveMark('lines', `${where} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [...whereArgs, at]) : sendUnarchiveMark('lines', where, whereArgs);
+}
+
+export async function touchChat(chatId: string, at: string, preview: string, incoming: boolean, unarchive = !incoming): Promise<void> {
+  const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId], unarchive);
+  if (!incoming && unarchive) {
+    await dbBatch([unarchiveMark(at, 'c.id = ?', [chatId]), stmt]);
+    return;
+  }
+  if (incoming) {
+    await dbBatch([snoozeWakeMark('lines', 'c.id = ?', [chatId]), stmt]);
+    return;
+  }
   await getDb()
     .prepare(stmt.sql)
     .run(...stmt.args);
@@ -1822,12 +1948,15 @@ async function saveInbound(
          ${m.replyToProviderId ? '(SELECT id FROM groups_messages WHERE number_id = ? AND provider_message_id = ?)' : 'NULL'}, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
       args: [...v.head, number.id, chat.providerChatId, ...v.mid, ...(m.replyToProviderId ? [number.id, m.replyToProviderId] : []), ...v.tail],
     },
+    ...(m.direction === 'out' ? [unarchiveMark(at, 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], true)] : []),
+    // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
+    ...(m.direction === 'in' ? [snoozeWakeMark('lines', 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id])] : []),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id]),
+    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
   ];
   if (withSettings) stmts.push({ sql: 'SELECT data FROM groups_settings WHERE user_id = ?', args: [number.user_id] });
   const res = await dbBatch(stmts);
-  const data = withSettings ? (res[4].rows[0] as { data: string } | undefined) : undefined;
+  const data = withSettings ? (res[res.length - 1].rows[0] as { data: string } | undefined) : undefined;
   return {
     chat: res[1].rows[0] as unknown as ChatRow,
     created: res[0].changes > 0,
@@ -2055,7 +2184,9 @@ export async function sendMessage(
           },
         ]
       : []),
-    chatTouch(at, preview, false, 'id = ?', [chatId]),
+    // Lo que salió desarchiva el chat (lo que falló no).
+    ...(status === 'sent' ? [unarchiveMark(at, 'c.id = ?', [chatId])] : []),
+    chatTouch(at, preview, false, 'id = ?', [chatId], status === 'sent'),
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
     ...(status === 'sent' && input.authorKind !== 'broadcast' ? answeredStatements(chatId, at) : []),
   ];
@@ -2106,6 +2237,44 @@ async function localChatUpload(url: string): Promise<{ path: string; size: numbe
   return st?.isFile() ? { path: file, size: st.size } : null;
 }
 
+/** Hasta acá un archivo propio sale en base64; más grande, el proveedor lo baja de una URL firmada nuestra. */
+const INLINE_SEND_MAX = 16 * 1024 * 1024;
+
+/**
+ * De dónde saca el proveedor el archivo a mandar. Un archivo de /api/files
+ * tiene que ser de este workspace (la URL la manda el cliente): se manda en
+ * base64 o, si es grande, con una URL firmada de nuestro dominio que vence en
+ * minutos. Lo de antes, como antes (disco local en base64 a los bridged; la
+ * URL de Blob tal cual).
+ */
+async function outgoingMedia(ws: string, url: string, bridged: boolean): Promise<{ url: string; base64?: string; size?: number }> {
+  const { fileIdFromUrl, ownedFileRow, readFileBytes, signedFileUrl } = await import('./files/store');
+  if (fileIdFromUrl(url)) {
+    const row = await ownedFileRow(url, { workspaceId: ws });
+    if (!row) throw new GroupsError('invalid_media', 400);
+    // En base64 solo a los proveedores que lo aceptan (Evolution y el administrado); la Cloud API y WAHA
+    // bajan el archivo de una URL: la firmada de nuestro dominio, que vence.
+    if (bridged && row.size <= INLINE_SEND_MAX) {
+      const data = await readFileBytes(row, INLINE_SEND_MAX);
+      if (!data) throw new GroupsError('invalid_media', 400);
+      return { url: '', base64: data.toString('base64'), size: row.size };
+    }
+    const origin = (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, '');
+    return { url: signedFileUrl(row, origin, 30 * 60), size: row.size };
+  }
+  const local = bridged ? await localChatUpload(url) : null;
+  if (local) return { url, base64: (await (await import('fs/promises')).readFile(local.path)).toString('base64'), size: local.size };
+  return { url };
+}
+
+/** URL de la media para un webhook o la API (afuera no hay sesión): firmada y absoluta si es de /api/files. */
+async function externalMediaUrl(url: string): Promise<string> {
+  const { fileRowForUrl, signedFileUrl } = await import('./files/store');
+  const row = await fileRowForUrl(url).catch(() => null);
+  if (!row) return url;
+  return signedFileUrl(row, (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, ''), 60 * 60);
+}
+
 const posNum = (v: unknown, max: number): number | undefined => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : undefined;
@@ -2132,8 +2301,8 @@ async function sendMediaMessage(
 ): Promise<MessageDto> {
   const media = input.media!;
   const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
-  const local = bridged ? await localChatUpload(media.url) : null;
-  const size = local?.size ?? posNum(media.size, 2 ** 40);
+  const source = await outgoingMedia(ws, media.url, bridged);
+  const size = source.size ?? posNum(media.size, 2 ** 40);
   let kind: MediaKind;
   try {
     kind = planOutboundKind(media.mimetype, size, media.kind ?? null);
@@ -2187,9 +2356,9 @@ async function sendMediaMessage(
   let status = 'sent';
   let error = '';
   try {
-    const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
+    const base64 = source.base64;
     const res = await provider.sendMedia(chat.provider_chat_id, {
-      url: media.url,
+      url: source.url,
       mimetype: media.mimetype,
       filename: media.filename,
       caption,
@@ -2205,7 +2374,7 @@ async function sendMediaMessage(
   }
   await settleOutgoing(row.id, chat.number_id, providerId, status, error);
   const saved = ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(row.id)) as MessageRow | undefined) ?? row;
-  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false);
+  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false, false);
   if (status === 'sent') {
     await touchChat(chat.id, at, previewOfRow(saved), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando.
@@ -2218,7 +2387,7 @@ async function sendMediaMessage(
         authorKind,
         status,
         createdAt: at,
-        media: { url: media.url, type: media.mimetype, name: media.filename, kind },
+        media: { url: await externalMediaUrl(media.url), type: media.mimetype, name: media.filename, kind },
       },
       chat: chatEventInfo(chat),
     });
@@ -2261,13 +2430,13 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
     } else if (row.media_url) {
       const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
-      const local = bridged ? await localChatUpload(row.media_url) : null;
-      const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
-      const kind = stored?.kind ?? planOutboundKind(row.media_type, local?.size ?? stored?.size, null);
+      const source = await outgoingMedia(ws, row.media_url, bridged);
+      const base64 = source.base64;
+      const kind = stored?.kind ?? planOutboundKind(row.media_type, source.size ?? stored?.size, null);
       providerId =
         (
           await provider.sendMedia(chat.provider_chat_id, {
-            url: row.media_url,
+            url: source.url,
             mimetype: row.media_type,
             filename: row.media_name,
             caption: row.body,
@@ -2330,7 +2499,7 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
   } catch (err) {
     throw new GroupsError(providerErrorCode(err), 502);
   }
-  await applyReaction(msg, { emoji: clean, by: actor, fromMe: true });
+  await applyReaction(msg, { emoji: clean, by: actor, fromMe: true, at: new Date().toISOString() });
   if (clean) await maybeTicketFromReaction(ws, msg, clean, actor);
   return toMessageDto((await getMessageRow(ws, messageId)) as MessageRow);
 }
@@ -2338,11 +2507,14 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
 /** Aplica una reacción. false si no cambió nada: la misma otra vez, o una más vieja que la que ya hay de esa persona. */
 export async function applyReaction(msg: MessageRow, r: Reaction): Promise<boolean> {
   const current = parseJson<Reaction[]>(msg.reactions, []);
-  const prev = current.find((x) => x.by === r.by);
+  // El número reacciona una sola vez (como cualquier cuenta de WhatsApp): desde la app, por cualquier
+  // persona del equipo, o desde el teléfono. La nueva pisa a la anterior y sacarla saca la del número.
+  const same = (x: Reaction) => (r.fromMe ? x.fromMe : !x.fromMe && x.by === r.by);
+  const prev = current.find(same);
   if (prev && r.at && prev.at && prev.at > r.at) return false;
   // La misma reacción otra vez, o sacar una que no está.
-  if ((prev?.emoji ?? '') === r.emoji) return false;
-  const list = current.filter((x) => x.by !== r.by);
+  if ((prev?.emoji ?? '') === r.emoji && current.filter(same).length <= 1) return false;
+  const list = current.filter((x) => !same(x));
   if (r.emoji) list.push(r);
   await getDb().prepare('UPDATE groups_messages SET reactions = ? WHERE id = ?').run(JSON.stringify(list.slice(-50)), msg.id);
   return true;
@@ -2370,8 +2542,15 @@ export async function lidChatName(ws: string): Promise<string> {
 export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): StoredMeta | undefined {
   const meta: StoredMeta = {};
   if (ev.media?.info) meta.media = compactInfo(ev.media.info);
+  // La clave del archivo (nunca va al navegador): para volver a bajarlo aunque el gateway no tenga el mensaje.
+  if (ev.media?.fetchRef?.wire) meta.mediaWire = sealWire(ev.media.fetchRef.wire);
   if (ev.location) meta.location = ev.location;
   if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
+  // La vista previa del link que mandó WhatsApp (título, descripción, miniatura y la referencia a la imagen grande).
+  if (ev.link) {
+    const l = ev.link;
+    meta.link = { url: l.url, title: l.title, ...(l.description ? { description: l.description } : {}), ...(l.thumbnail ? { thumb: l.thumbnail } : {}), ...(l.hq ? { hqRef: l.hq } : {}) } satisfies StoredLink;
+  }
   // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
   const mentions = (ev.mentions ?? []).filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
   if (mentions.length) meta.mentions = mentions;
@@ -2400,19 +2579,85 @@ function logAfterError(err: unknown): null {
 
 /** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
 async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: string; ref: MediaRef }>): Promise<void> {
+  // Todo queda en la cola antes de empezar (lib/wa-media-jobs.ts): si esta tanda se corta, o algo no se baja (falla
+  // pasajera, la línea caída, pasó el tope de la tanda), se reintenta solo. Lo que acá sí se baja, o falla para
+  // siempre, la cola lo descarta al mirarlo.
+  const { dropMediaJob, queueMediaJob } = await import('./wa-media-jobs');
+  for (const it of items) await queueMediaJob('lines', number.id, it.messageId, 90_000).catch(() => null);
   let budget = INBOUND_MEDIA_BUDGET;
   for (const it of items.slice(0, INBOUND_MEDIA_PER_WEBHOOK)) {
     if (budget <= 0) break;
     const res = await storeInboundMedia(number, it.messageId, it.ref, { budget, retry: true }).catch(() => null);
-    if (res) budget -= res.bytes;
+    if (res) {
+      budget -= res.bytes;
+      await dropMediaJob('lines', it.messageId).catch(() => null);
+    }
   }
 }
 
 /** Fallas que no se arreglan reintentando: tipo no permitido, más grande que el tope, el gateway no lo tiene. */
-function permanentMediaError(err: unknown): boolean {
-  if (err instanceof ProviderError) return err.code === 'not_found' || err.httpStatus === 413 || err.httpStatus === 400;
+function permanentMediaError(err: unknown, withWire = false): boolean {
+  // Lo que dijo el gateway: la misma clasificación que ve la pantalla (lib/wa-media-wire.ts). La sesión cerrada, un
+  // pedido que tardó de más o un 400 sin motivo con clave no son definitivos: se reintenta al abrirlo.
+  if (err instanceof ProviderError) return ['gone', 'too_big'].includes(mediaErrorKind(err, withWire));
   const code = (err as { code?: string })?.code;
   return code === 'file_type_not_allowed';
+}
+
+/** La referencia para bajar el archivo de un mensaje guardado (con la clave de WhatsApp si se guardó). */
+export function mediaRefFor(msg: MessageRow, providerChatId: string): MediaRef | null {
+  if (!msg.provider_message_id) return null;
+  const wire = openWire(parseJson<StoredMeta>(msg.meta ?? '', {}).mediaWire);
+  return { providerMessageId: msg.provider_message_id, chatId: providerChatId, fromMe: msg.direction === 'out', ...(wire ? { wire } : {}) };
+}
+
+/** Lo que responde "bajar de nuevo": la URL (ya está), o por qué no (lib/wa-media-wire.ts, MediaFetchState). */
+export type MediaRetryOutcome = { url: string } | { gone: true } | { offline: true } | { pending: true };
+
+/**
+ * "Bajar de nuevo" un archivo recibido que quedó sin archivo (o pendiente): lo
+ * vuelve a pedir al gateway, que con la clave del archivo lo baja de WhatsApp
+ * y, si el enlace venció, le pide al teléfono que lo vuelva a subir. `url`: ya
+ * está; `gone`: WhatsApp ya no lo tiene; `offline`: la línea no está
+ * conectada (se puede pedir al volver a vincularla); `pending`: falla
+ * pasajera, queda para el próximo intento. Nunca deja el mensaje peor que
+ * antes: sin conexión no se marca nada como perdido.
+ */
+export async function retryInboundMedia(number: NumberRow, msg: MessageRow, providerChatId: string): Promise<MediaRetryOutcome> {
+  if (msg.media_url && !msg.media_url.startsWith('evo:')) return { url: mediaUrlFor(msg) };
+  const ref = mediaRefFor(msg, providerChatId);
+  if (!ref || !msg.media_type) return { gone: true };
+  if (number.status !== 'connected') return { offline: true };
+  await getDb()
+    .prepare(
+      "UPDATE groups_messages SET media_url = ?, meta = CASE WHEN json_valid(meta) THEN json_remove(meta, '$.mediaGone') ELSE meta END WHERE id = ? AND number_id = ? AND media_url = ''",
+    )
+    .run(`evo:${ref.providerMessageId}`, msg.id, number.id);
+  try {
+    const stored = await storeInboundMedia(number, msg.id, ref, { retry: true });
+    // Al navegador, la ruta del mensaje (chequea el acceso al chat): el archivo guardado es 'internal'.
+    if (stored) return { url: `/api/groups/media/${msg.id}` };
+    const row = await getMessageRow(msg.user_id, msg.id);
+    return row?.media_url && !row.media_url.startsWith('evo:') ? { url: mediaUrlFor(row) } : { pending: true };
+  } catch (err) {
+    const state = fetchStateOf(mediaErrorKind(err, !!ref.wire));
+    return state === 'gone' ? { gone: true } : state === 'offline' ? { offline: true } : { pending: true };
+  }
+}
+
+/**
+ * Un mensaje repetido (el historial que WhatsApp vuelve a mandar al vincular la línea) que trae la clave del
+ * archivo: si el guardado no la tenía, se completa. Nada más del mensaje se toca. Con la clave, un archivo que
+ * había quedado "ya no está" se puede volver a pedir.
+ */
+export async function completeMediaWire(numberId: string, providerMessageId: string, wire: NonNullable<MediaRef['wire']>): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE groups_messages SET meta = json_remove(json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaWire', json(?)), '$.mediaGone')
+       WHERE number_id = ? AND provider_message_id = ? AND media_type <> ''
+         AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaWire') IS NULL`,
+    )
+    .run(JSON.stringify(sealWire(wire)), numberId, providerMessageId);
 }
 
 /**
@@ -2438,9 +2683,14 @@ export async function storeInboundMedia(
   if (!provider.fetchMedia) return null;
   const { saveUpload } = await import('./uploads');
   const max = Math.max(0, Math.min(MAX_INBOUND_MEDIA, opts.budget ?? MAX_INBOUND_MEDIA));
-  const markFailed = () =>
+  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así (y se puede volver a pedir).
+  const markFailed = (gone: boolean) =>
     getDb()
-      .prepare("UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
+      .prepare(
+        gone
+          ? "UPDATE groups_messages SET media_url = '', meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaGone', json('true')) WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'"
+          : "UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'",
+      )
       .run(messageId, number.id);
   try {
     let file;
@@ -2448,13 +2698,15 @@ export async function storeInboundMedia(
       file = await provider.fetchMedia(ref, max);
     } catch (err) {
       // El gateway puede guardar el mensaje un instante después de avisarlo: un reintento corto.
-      if (!opts.retry || permanentMediaError(err)) throw err;
+      // Si ya esperó al teléfono (tardó de más), no se vuelve a esperar acá: queda para cuando se abra.
+      if (!opts.retry || permanentMediaError(err, !!ref.wire) || (err instanceof ProviderError && (err.reason === 'timeout' || err.reason === 'offline'))) throw err;
       await new Promise((r) => setTimeout(r, 2000));
       file = await provider.fetchMedia(ref, max);
     }
     const mimetype = file.mimetype.split(';')[0].trim() || 'application/octet-stream';
     const filename = file.filename || `whatsapp-${ref.providerMessageId.slice(0, 24)}`;
-    const url = await saveUpload('chat', filename, mimetype, file.data);
+    // 'internal': se ve solo por /api/groups/media/<mensaje>, con el acceso al chat.
+    const url = await saveUpload('chat', filename, mimetype, file.data, { workspaceId: number.user_id, userId: null, app: 'groups', access: 'internal' });
     const r = await getDb()
       .prepare("UPDATE groups_messages SET media_url = ?, media_type = CASE WHEN media_type = '' THEN ? ELSE media_type END WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
       .run(url, mimetype, messageId, number.id);
@@ -2469,7 +2721,12 @@ export async function storeInboundMedia(
   } catch (err) {
     // Más grande que lo que quedaba del presupuesto del webhook (no del tope): queda para cuando se abra.
     const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_INBOUND_MEDIA;
-    if (permanentMediaError(err) && !overBudget) await markFailed();
+    // Lo que dijo el gateway con la línea desvinculada no es definitivo (no puede pedirle nada al teléfono). Lo que
+    // no depende del gateway (un tipo de archivo que no se guarda) sí.
+    const fromGateway = err instanceof ProviderError;
+    const kind = logMediaFailure('lines', err, !!ref.wire, !fromGateway || number.status === 'connected');
+    // Sin conexión o pasajera: queda pendiente (se reintenta). Solo lo definitivo deja el mensaje sin archivo.
+    if (permanentMediaError(err, !!ref.wire) && !overBudget && kind !== 'offline') await markFailed(kind === 'gone');
     throw err;
   }
 }
@@ -2531,6 +2788,13 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   else learning = learnLinesEvents(number, slice).catch(() => null);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   batch = await resolveLidChats({ app: 'lines', accountId: number.id }, batch).catch(() => batch);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono (el eco de lo que mandé) va a ese
+  // chat, y no abre uno vacío por lid (lib/wa-dedupe-run.ts).
+  {
+    const resolved = batch;
+    const { routeLidByKnownMessages } = await import('./wa-dedupe-run');
+    batch = await routeLidByKnownMessages('lines', { app: 'lines', accountId: number.id, userId: number.user_id }, batch).catch(() => resolved);
+  }
   // Mensajes repetidos que querían entrar a otro chat (uno por lid y otro por teléfono): la misma persona.
   const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   for (const ev of batch) {
@@ -2577,7 +2841,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (row) pokeLive('lines', ws);
         if (!row) {
           res.duplicates++;
-          if (!isGroup && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
+          if (ev.media?.fetchRef?.wire) await completeMediaWire(number.id, ev.providerMessageId, ev.media.fetchRef.wire).catch(logAfterError);
+          if (!isGroup) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
           // Repetido (un reintento del proveedor): lo de antes de responder se vuelve a aplicar, porque todo es
           // idempotente; lo de después (asignación, avisos) ya corrió la primera vez.
           await finishChat(number, stored.chat, chatInput, false).catch(logAfterError);
@@ -2592,6 +2857,13 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (ev.media?.fetchRef && row.media_url.startsWith('evo:')) {
           const ref = ev.media.fetchRef;
           later.push({ messageId: row.id, ref });
+        }
+        // La imagen grande de la vista previa del link (Maps, notas): se baja una vez, después de responder.
+        if (ev.link?.hq) {
+          const hq = ev.link.hq;
+          post.push(async () => {
+            if (await storeLinkHq('groups_messages', row.id, hq)) pokeLive('lines', ws);
+          });
         }
         // Lo de antes de responder. Si algo de esto falla, el mensaje ya está guardado: se loguea y se sigue.
         await (async () => {
@@ -2724,7 +2996,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         const { ingestCall } = await import('./groups-inbox');
         await ingestCall(number, ev);
         res.messages++;
-      } else if (ev.type === 'participants') {
+      } else if (ev.type === 'participants' || ev.type === 'group') {
+        // El aviso en el chat ("Ana te agregó", "Beto salió") y, si me agregaron a un grupo nuevo, el chat (lib/wa-group-system.ts).
+        const { linesGroupEvent } = await import('./wa-group-system');
+        await linesGroupEvent(number, ev).catch((err: unknown) => console.error('[groups] aviso del grupo', err instanceof Error ? err.name : 'error'));
+        if (ev.type === 'group') continue;
         const chat = (await getDb()
           .prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?')
           .get(number.id, ev.chatId)) as ChatRow | undefined;
@@ -2815,8 +3091,12 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
   await db
-    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+    .prepare(
+      `UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END,
+         snoozed_until = CASE WHEN ? THEN snoozed_until ELSE NULL END, snooze_archived = CASE WHEN ? THEN snooze_archived ELSE 0 END, updated_at = ? WHERE id = ?`,
+    )
+    // Desarchivarlo desde el teléfono cancela el pospuesto, como desarchivarlo acá.
+    .run(archived ? now : null, archived ? 1 : 0, archived ? 1 : 0, archived ? 1 : 0, now, chat.id);
   return true;
 }
 
@@ -3140,6 +3420,9 @@ export async function createGroups(ws: string, numberId: string, rows: CreateGro
       }
       if (r.labelIds?.length) await setChatLabels(ws, chat.id, r.labelIds);
       if (r.crmCompanyId) await updateChat(ws, chat.id, { crmCompanyId: r.crmCompanyId }).catch(() => null);
+      // "Creaste el grupo «…»" como primera línea del chat y vista previa de la lista.
+      const { linesOwnGroupEvent } = await import('./wa-group-system');
+      await linesOwnGroupEvent(chat, { t: 'create', by: { p: 'me' }, subject: name }, now).catch(() => false);
       out.push({ name, ok: true, chatId: chat.id, notAdded });
     } catch (err) {
       out.push({ name, ok: false, error: providerErrorCode(err) });

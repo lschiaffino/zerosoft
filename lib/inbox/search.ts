@@ -15,7 +15,7 @@ export async function searchInbox(owner: string, q: string, limit = 8): Promise<
   const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, handle, channel FROM inbox_threads WHERE owner_id = ?
+      `SELECT id, title, handle, channel FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL
          AND (title LIKE ? ESCAPE '\\' OR handle LIKE ? ESCAPE '\\' OR preview LIKE ? ESCAPE '\\')
        ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT ?`,
     )

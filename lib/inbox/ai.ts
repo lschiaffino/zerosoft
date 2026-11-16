@@ -129,7 +129,7 @@ async function styleSamples(owner: string, channel: string, threadId: string | n
     const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
     others = (await db
       .prepare(
-        "SELECT m.body FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE m.owner_id = ? AND m.from_me = 1 AND m.body <> '' AND m.thread_id <> ? AND t.channel = ? AND m.sent_at >= ? ORDER BY m.sent_at DESC LIMIT 40",
+        "SELECT m.body FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE m.owner_id = ? AND m.from_me = 1 AND m.body <> '' AND m.thread_id <> ? AND t.channel = ? AND t.removed_at IS NULL AND m.sent_at >= ? ORDER BY m.sent_at DESC LIMIT 40",
       )
       .all(owner, threadId ?? '', channel, since)) as Array<{ body: string }>;
   }
@@ -153,7 +153,7 @@ export interface InboxAiContext {
 
 async function threadContext(owner: string, t: ThreadRow): Promise<InboxAiContext> {
   const rows = ((await getDb()
-    .prepare('SELECT from_me, sender_name, subject, body, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? ORDER BY sent_at DESC LIMIT 30')
+    .prepare("SELECT from_me, sender_name, subject, body, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND media_type <> 'system' ORDER BY sent_at DESC LIMIT 30")
     .all(t.id, owner)) as unknown as Array<Line & { meta?: string | null }>).reverse();
   if (t.channel === 'whatsapp') await nameMentions(owner, t.account_id, rows);
   return {

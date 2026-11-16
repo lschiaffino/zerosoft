@@ -116,8 +116,9 @@ describe('Inbox: la lista por páginas (cursor)', () => {
     expect((await allPages(u.id, { view: 'snoozed', limit: 4 })).flat()).toEqual([...ts.slice(6, 12)].reverse().map((t) => t.id));
     await applyThreadAction(u.id, ts.slice(0, 5).map((t) => t.id), { action: 'done' });
     const done = (await allPages(u.id, { view: 'done', limit: 2 })).flat();
-    expect([...done].sort()).toEqual(ts.slice(0, 5).map((t) => t.id).sort());
-    expect(new Set(done).size).toBe(5);
+    // Archivados trae los hechos y también los pospuestos (posponer archiva).
+    expect([...done].sort()).toEqual([...ts.slice(0, 5), ...ts.slice(6, 12)].map((t) => t.id).sort());
+    expect(new Set(done).size).toBe(11);
   });
 
   it('las consultas nuevas siguen filtrando por dueño: páginas, búsqueda, contadores y carpetas', async () => {

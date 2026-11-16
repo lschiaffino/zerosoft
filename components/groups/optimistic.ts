@@ -7,7 +7,7 @@
  */
 import type { MessageDto } from '@/lib/groups';
 import { withTimeout } from '@/lib/conditional-fetch';
-import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY, isTempId, localPreviews, sendQueueFor, tempIdFor, unsentStore, uploadProgress, type Unsent, type UnsentMedia } from '@/lib/optimistic-send';
+import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY, isOffline, isTempId, localPreviews, offlineOutbox, sendQueueFor, tempIdFor, unsentStore, uploadProgress, type Unsent, type UnsentMedia } from '@/lib/optimistic-send';
 import { uploadWithProgress, type UploadedFile } from './wa/attachments';
 
 /** Con qué clientId se mandó un mensaje (provisorio o ya guardado: viene en meta.cid). */
@@ -16,8 +16,11 @@ export function cidOf(m: Pick<MessageDto, 'meta'>): string | undefined {
   return typeof cid === 'string' ? cid : undefined;
 }
 
-/** Lo que no salió de cada chat de Lines en esta pestaña (de la persona que lo escribió: ver `setOwner`). */
-export const unsentLines = unsentStore<MessageDto>(UNSENT_LINES_KEY);
+/**
+ * Lo que no salió de cada chat de Lines, o espera la red (de la persona que lo escribió: ver `setOwner`). En
+ * localStorage: lo escrito sin conexión sobrevive a recargar y lo ven las otras pestañas.
+ */
+export const unsentLines = unsentStore<MessageDto>(UNSENT_LINES_KEY, { persist: 'local' });
 
 /**
  * El borrador de un chat de Lines en esta pestaña, de esta persona. Otra persona que entre en la misma pestaña (o el
@@ -171,7 +174,7 @@ export function sendLinesMedia(input: {
     uploads.set(cid, input.upload);
     input.upload.catch(() => uploads.get(cid) === input.upload && uploads.delete(cid));
   } else if (!input.media.url) upload(cid);
-  sendLinesText(cid);
+  void sendLinesText(cid);
   return cid;
 }
 
@@ -192,12 +195,22 @@ export function discardLinesSend(clientId: string): void {
  * que ya está en curso); un reintento después de una subida que falló la
  * vuelve a empezar con el mismo archivo.
  */
-export function sendLinesText(clientId: string): void {
+export function sendLinesText(clientId: string, fromQueue = false): Promise<void> {
+  const current = unsentLines.get(clientId);
+  if (current && !current.media) {
+    // Sin red, o con algo de este chat esperando la red: a la cola (sale solo y en orden cuando vuelva).
+    const behind = !fromQueue && unsentLines.queued(current.chatId).some((x) => x.clientId !== clientId);
+    if (isOffline() || behind) {
+      unsentLines.queue(clientId);
+      if (!isOffline()) void linesOutbox.flush();
+      return Promise.resolve();
+    }
+  }
   const entry = unsentLines.pending(clientId);
-  if (!entry) return;
+  if (!entry) return Promise.resolve();
   // La subida empieza ya (no espera su turno en la cola); el envío sí sale en orden.
   const up = entry.media && !entry.media.url ? upload(clientId) : null;
-  void linesQueue(entry.chatId)(async () => {
+  return linesQueue(entry.chatId)(async () => {
     let media = entry.media;
     if (media && !media.url) {
       let uploaded: UploadedFile | null = null;
@@ -243,6 +256,8 @@ export function sendLinesText(clientId: string): void {
     } catch {
       /* sin red */
     }
+    // Se cortó la red mientras salía un texto: a la cola, con el mismo clientId (si había llegado, no se duplica).
+    if (!saved && error === 'network' && isOffline() && !entry.media) return unsentLines.queue(entry.clientId);
     if (saved) {
       files.delete(clientId);
       uploads.delete(clientId);
@@ -252,3 +267,9 @@ export function sendLinesText(clientId: string): void {
     } else unsentLines.fail(entry.clientId, error);
   });
 }
+
+/**
+ * La cola sin conexión de Lines: lo escrito sin red sale solo al volver la conexión, en orden y una vez (una pestaña
+ * a la vez; el mismo clientId en cada intento). La arranca la bandeja (InboxShell) cuando sabe quién es la persona.
+ */
+export const linesOutbox = offlineOutbox(unsentLines, 'zs-outbox:lines', (clientId) => sendLinesText(clientId, true));

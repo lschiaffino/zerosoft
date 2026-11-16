@@ -207,13 +207,13 @@ function ownBlobHost(): string | null {
   return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
-const PRIVATE_APPS = ['hiring', 'sign', 'send', 'calls', 'books', 'assistant'] as const;
+const PRIVATE_APPS = ['hiring', 'sign', 'send', 'calls', 'books', 'assistant', 'inbox'] as const;
 type PrivateApp = (typeof PRIVATE_APPS)[number];
 const UUID_BIN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.bin';
 
 /** Referencia exacta de un archivo privado (lib/private-files.ts): nombres aleatorios, nunca públicos. */
 function privateRef(app: PrivateApp, value: string): boolean {
-  const folder = app === 'books' ? 'books-private' : app;
+  const folder = app === 'books' ? 'books-private' : app === 'inbox' ? 'inbox-media' : app;
   return (
     new RegExp(`^local:${UUID_BIN}$`).test(value) ||
     new RegExp(`^blobp:${folder}/${UUID_BIN}$`).test(value) ||
@@ -223,10 +223,26 @@ function privateRef(app: PrivateApp, value: string): boolean {
 
 function uploadPattern(): RegExp {
   const host = ownBlobHost();
-  return host ? new RegExp(`https://${host.replace(/\./g, '\\.')}/[A-Za-z0-9._/-]+|/uploads/[a-z]+/[A-Za-z0-9._-]+`, 'g') : /\/uploads\/[a-z]+\/[A-Za-z0-9._-]+/g;
+  // /api/files/<id>/<nombre>: los archivos de ahora (lib/files/store.ts); deleteUploads borra fila y bytes.
+  const files = '/api/files/[A-Za-z0-9_-]{22}/[A-Za-z0-9._-]+';
+  return host
+    ? new RegExp(`https://${host.replace(/\./g, '\\.')}/[A-Za-z0-9._/-]+|/uploads/[a-z]+/[A-Za-z0-9._-]+|${files}`, 'g')
+    : new RegExp(`/uploads/[a-z]+/[A-Za-z0-9._-]+|${files}`, 'g');
 }
 
 function collectFiles(table: string, row: Record<string, unknown>, out: Map<string, string>): void {
+  // Archivos de lib/files/store.ts: se borran por su ref (la fila se va con el workspace).
+  if (table === 'stored_files') {
+    if (typeof row.ref === 'string' && row.ref && row.ref !== 'gone:') out.set(row.ref, 'files');
+    // Un archivo migrado: el original público de antes se borra también.
+    if (typeof row.legacy_key === 'string' && row.legacy_key && typeof row.ref === 'string' && !row.ref.startsWith('legacy:')) {
+      const key = row.legacy_key;
+      const host = ownBlobHost();
+      if (key.startsWith('uploads/')) out.set(`/${key}`, 'public');
+      else if (host && /^[A-Za-z0-9._/-]+$/.test(key) && !key.includes('..')) out.set(`https://${host}/${key}`, 'public');
+    }
+    return;
+  }
   const app = table.split('_')[0] as PrivateApp;
   const re = uploadPattern();
   for (const v of Object.values(row)) {
@@ -253,6 +269,9 @@ async function privateRemover(app: string): Promise<((refs: string[]) => Promise
       return (await import('./books-files')).deleteBooksFiles;
     case 'assistant':
       return (await import('./assistant/files')).deleteAssistantFiles;
+    case 'inbox':
+      // La copia privada de los archivos de WhatsApp (inbox_media_files.file_ref).
+      return (await import('./inbox/media-store')).deleteInboxMediaFiles;
     default:
       return null;
   }
@@ -276,7 +295,7 @@ async function stillReferenced(client: Client, schema: Schema, urls: Set<string>
               await client
                 .execute({
                   sql: `SELECT rowid AS rid, ${quote(col)} AS v FROM ${quote(table)} WHERE ${last === null ? '1' : 'rowid > ?'} AND typeof(${quote(col)}) = 'text'
-                          AND (${quote(col)} LIKE '%/uploads/%'${host ? ` OR ${quote(col)} LIKE ?` : ''}) ORDER BY rowid LIMIT 500`,
+                          AND (${quote(col)} LIKE '%/uploads/%' OR ${quote(col)} LIKE '%/api/files/%'${host ? ` OR ${quote(col)} LIKE ?` : ''}) ORDER BY rowid LIMIT 500`,
                   args: [...(last === null ? [] : [last as InValue]), ...(host ? [`%${host}%`] : [])],
                 })
                 .catch(() => null)
@@ -306,6 +325,12 @@ async function drainFiles(client: Client, schema: Schema, erasureId: string): Pr
     const { deleteUploads } = await import('./uploads');
     for (let i = 0; i < publics.length; i += 200) await deleteUploads(publics.slice(i, i + 200));
     deleted += publics.length;
+  }
+  const stored = toDelete.filter((q) => q.app === 'files').map((q) => q.ref);
+  if (stored.length) {
+    const { discardBytes } = await import('./files/store');
+    for (const ref of stored) await discardBytes(ref);
+    deleted += stored.length;
   }
   for (const app of PRIVATE_APPS) {
     const refs = toDelete.filter((q) => q.app === app).map((q) => q.ref);
@@ -567,7 +592,21 @@ export function secretColumn(col: string): boolean {
   return /(secret|token|password|hash|_key$|^key$|^auth$|^p256dh$|^config$|^secrets$|^mfa_|salt$|verifier$)/i.test(col);
 }
 
-function exportValue(col: string, v: unknown): unknown {
+/** La clave del archivo de WhatsApp (meta.mediaWire en Lines, media_ref.wire en Inbox) no sale; el resto del valor sí. */
+function withoutMediaKey(col: string, v: string): string {
+  if ((col !== 'meta' && col !== 'media_ref') || !/"(mediaWire|wire)"/.test(v)) return v;
+  try {
+    const o = JSON.parse(v) as Record<string, unknown>;
+    delete o.mediaWire;
+    delete o.wire;
+    return JSON.stringify(o);
+  } catch {
+    return v;
+  }
+}
+
+function exportValue(col: string, raw: unknown): unknown {
+  const v = typeof raw === 'string' ? withoutMediaKey(col, raw) : raw;
   if (secretColumn(col)) return v === null || v === undefined ? v : '[omitted]';
   if (typeof v === 'string' && /enc:v[12]:|cred:v[12]:/.test(v)) return '[encrypted secret omitted]';
   if (typeof v === 'bigint') return Number(v);

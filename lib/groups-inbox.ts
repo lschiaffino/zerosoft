@@ -11,6 +11,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
+import { isFileUrlPath } from './files/url';
 import { createNotification } from './notifications';
 import { findMentions, newMentions } from './crm-mentions';
 import {
@@ -327,7 +328,8 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
     const saved = await storeInboundMedia(number, msg.id, { providerMessageId: mediaUrl.slice(4), chatId: source.provider_chat_id, fromMe: msg.direction === 'out' }).catch(() => null);
     mediaUrl = saved?.url ?? (await getMessageRow(ws, msg.id))?.media_url ?? '';
   }
-  const copyableMedia = msg.media_type && /^(https:\/\/|\/uploads\/)/.test(mediaUrl) ? forwardMedia(mediaUrl, msg, info) : null;
+  // Un archivo de /api/files sale por outgoingMedia (lib/groups.ts), que chequea que sea de este workspace.
+  const copyableMedia = msg.media_type && (isFileUrlPath(mediaUrl) || /^(https:\/\/|\/uploads\/)/.test(mediaUrl)) ? forwardMedia(mediaUrl, msg, info) : null;
   const out: ForwardResult[] = [];
   for (const id of ids) {
     const target = await getChatRow(ws, id);
@@ -797,7 +799,7 @@ export async function ingestCall(number: NumberRow, ev: Extract<InboundEvent, { 
       createdAt: at,
       meta: meta as unknown as Record<string, unknown>,
     });
-    await touchChat(chat.id, at, '[call]', ev.direction === 'in');
+    await touchChat(chat.id, at, '[call]', ev.direction === 'in', false);
   }
   if (meta.answeredAt || (meta.durationSec ?? 0) > 0) await markAnswered(chat.id, at);
 }

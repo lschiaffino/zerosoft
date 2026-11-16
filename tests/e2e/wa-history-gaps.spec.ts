@@ -6,13 +6,18 @@ import { e2eDb } from './helpers/db';
  * Inbox y en Lines. El número falso hace de Evolution con el parche 0002:
  * `fake_withheld` avisa que falta un mensaje y se lo guarda; el historial que
  * se le pide lo devuelve.
- * - Con el chat abierto: "Fetch missing messages" en el menú del chat avisa
- *   que se le pidió al teléfono y el mensaje aparece en su lugar.
+ * - Con el chat abierto: "Fetch missing messages" en el menú del chat trae
+ *   el mensaje en su lugar y la franja dice cuántos trajo.
  * - Abrir un chat que ya tenía el hueco lo pide solo, sin tocar nada.
  * Nombres y números inventados.
  */
 
-const TOAST = 'We asked your phone for this chat’s messages. They may take a moment.';
+/** La franja de "Traer mensajes que faltan" cuando terminó: dice cuántos trajo. */
+async function broughtOne(page: Page) {
+  const bar = page.getByTestId('wa-refresh-missing');
+  await expect(bar).toHaveAttribute('data-state', 'done', { timeout: 60_000 });
+  await expect(bar).toContainText('Brought 1 missing message');
+}
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 const phone = () => `54911${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
@@ -109,7 +114,7 @@ test.describe('Inbox', () => {
     await expect(thread.getByText(`dos ${tag}`)).toHaveCount(0);
     await thread.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Fetch missing messages' }).click();
-    await expect(page.getByText(TOAST)).toBeVisible({ timeout: 30_000 });
+    await broughtOne(page);
     await expectInOrder(thread, tag);
     await expect.poll(async () => (await sql('SELECT history_gap_at FROM inbox_threads WHERE account_id = ? AND external_id = ?', [acc.id, jid]))[0]?.history_gap_at ?? null).toBeNull();
 
@@ -170,7 +175,7 @@ test.describe('Lines', () => {
     await expect(thread.getByText(`dos ${tag}`)).toHaveCount(0);
     await page.getByRole('button', { name: 'More chat actions' }).click();
     await page.getByRole('menuitem', { name: 'Fetch missing messages' }).click();
-    await expect(page.getByText(TOAST)).toBeVisible({ timeout: 30_000 });
+    await broughtOne(page);
     await expectInOrder(thread, tag);
     await expect.poll(async () => (await sql('SELECT history_gap_at FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', [n.id, jid]))[0]?.history_gap_at ?? null).toBeNull();
 

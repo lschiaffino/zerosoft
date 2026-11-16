@@ -1749,7 +1749,9 @@
       "track": "Track",
       "notes": "Notes",
       "board": "Board",
-      "cal": "Cal (solo lectura)"
+      "cal": "Cal (solo lectura)",
+      "lines": "Lines",
+      "inbox": "Inbox"
     },
     "appsHelp": {
       "crm": "Contactos, empresas, negocios y la página de inicio",
@@ -1757,7 +1759,9 @@
       "track": "Las listas, issues y proyectos que abriste",
       "notes": "La lista de notas",
       "board": "Las pizarras que abriste y la lista de pizarras",
-      "cal": "Las reservas, tipos de evento y disponibilidad que abriste. Para editar hace falta conexión"
+      "cal": "Las reservas, tipos de evento y disponibilidad que abriste. Para editar hace falta conexión",
+      "lines": "Los chats que abriste. Los mensajes que escribas sin red salen en orden cuando vuelve la conexión",
+      "inbox": "Los chats que abriste. Los mensajes que escribas sin red salen en orden cuando vuelve la conexión"
     },
     "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
     "measuring": "Midiendo…",

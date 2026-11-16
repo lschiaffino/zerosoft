@@ -15,6 +15,17 @@ export function rememberUploadPreview(storageUrl: string, file: Blob): void {
   if (!previews.has(storageUrl)) previews.set(storageUrl, URL.createObjectURL(file));
 }
 
+const sizes = new Map<string, { width: number; height: number }>();
+
+/** Medidas del archivo recién subido (imagen o video): el bloque real toma la forma del esqueleto sin saltar. */
+export function rememberUploadSize(storageUrl: string, size: { width?: number; height?: number }): void {
+  if (size.width && size.height) sizes.set(storageUrl, { width: size.width, height: size.height });
+}
+
+export function uploadSize(storageUrl: string | undefined): { width: number; height: number } | undefined {
+  return storageUrl ? sizes.get(storageUrl) : undefined;
+}
+
 /** blob: local de lo recién subido (video, audio, PDF), si lo hay. */
 export function uploadPreview(storageUrl: string | undefined): string | undefined {
   return storageUrl ? previews.get(storageUrl) : undefined;
@@ -32,6 +43,7 @@ const RETRIES = 3;
 export default function DocsEditorImage({ storageUrl, href, alt }: { storageUrl: string; href: string; alt: string }) {
   const t = useTranslations('docs');
   const local = previews.get(storageUrl);
+  const size = sizes.get(storageUrl);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -55,6 +67,9 @@ export default function DocsEditorImage({ storageUrl, href, alt }: { storageUrl:
       className="docs-image"
       src={src}
       alt={alt}
+      // Recién subida: ya ocupa su lugar antes de decodificarse (sin salto al reemplazar el esqueleto).
+      width={size?.width}
+      height={size?.height}
       draggable={false}
       data-failed={failed || undefined}
       onError={() => {

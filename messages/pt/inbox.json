@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
-  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
+  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "snooze": "Adiar…", "unsnooze": "Cancelar adiamento", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",
@@ -15,7 +15,8 @@
     "scheduled": "Agendados",
     "done": "Arquivados",
     "archived": "Arquivadas",
-    "nofolder": "Sem pasta"
+    "nofolder": "Sem pasta",
+    "removed": "Removidos do Inbox"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
   "when": {
@@ -50,7 +51,7 @@
     "showQuote": "Ver texto citado",
     "revoked": "Apagada para todos · guardada aqui",
     "edited": "Editada",
-    "status": { "pending": "Enviando", "sent": "Enviada", "delivered": "Entregue", "read": "Lida", "failed": "Não enviada", "readHidden": "Lida. Seu WhatsApp não mostra porque suas confirmações de leitura estão desativadas; o zerosoft sabe porque recebe o aviso." },
+    "status": { "pending": "Enviando", "queued": "Aguardando conexão", "sent": "Enviada", "delivered": "Entregue", "read": "Lida", "failed": "Não enviada", "readHidden": "Lida. Seu WhatsApp não mostra porque suas confirmações de leitura estão desativadas; o zerosoft sabe porque recebe o aviso." },
     "older": "Ver mensagens anteriores",
     "empty": "Ainda não há mensagens. Diga oi.",
     "today": "Hoje",
@@ -83,6 +84,7 @@
     "importClose": "Fechar",
     "group": "Grupo",
     "snoozedUntil": "Adiado até {when}",
+    "snoozedShort": "Adiada · {when}",
     "followUpAt": "Lembrete {when}",
     "archivedEntry": "Arquivadas",
     "archivedBack": "Voltar para a caixa",
@@ -95,6 +97,7 @@
     "scheduled": "{n, plural, one {# agendada} other {# agendadas}}",
     "dragMany": "{n} conversas",
     "searchResults": "Resultados",
+    "archivedTag": "Arquivado",
     "messagesFound": "Mensagens",
     "moreMessages": "Mais mensagens",
     "search": "Buscar conversas e mensagens",
@@ -126,6 +129,7 @@
     "not_connected": "A conta não está conectada. Vincule de novo nas configurações do Inbox.",
     "send_failed": "A mensagem não saiu. Tente de novo.",
     "interrupted": "O envio foi interrompido. Confira se saiu antes de tentar de novo.",
+    "offline_files": "Arquivos precisam de conexão. Ficam aqui e você pode enviá-los quando a conexão voltar. Os textos ficam na fila e saem sozinhos.",
     "whatsapp_unavailable": "A vinculação do WhatsApp não está configurada neste servidor.",
     "whatsapp_unreachable": "O servidor do WhatsApp não respondeu. Tente em um minuto.",
     "whatsapp_error": "O WhatsApp não aceitou a vinculação. Tente de novo.",
@@ -184,7 +188,8 @@
       "done": "Nada arquivado ainda",
       "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
       "nofolder": "Todas as conversas estão em uma pasta",
-      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
+      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la.",
+      "removed": "Nada removido. As conversas que você remove do Inbox ficam aqui por 30 dias."
     }
   },
   "help": {
@@ -231,6 +236,8 @@
     "unpin": "{n, plural, one {Desafixada} other {# conversas desafixadas}}",
     "archive": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
     "unarchive": "{n, plural, one {Desarquivada} other {# conversas desarquivadas}}",
+    "keepArchivedOn": "Mantida arquivada",
+    "keepArchivedOff": "Não é mais mantida arquivada",
     "snooze": "{n, plural, one {Adiada} other {# conversas adiadas}}",
     "unsnooze": "{n, plural, one {Não está mais adiada} other {# conversas não estão mais adiadas}}",
     "followUp": "{n, plural, one {Aviso se não responder} other {Lembrete para # conversas}}",
@@ -260,7 +267,7 @@
   },
   "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar" },
   "more": {
-    "deleteConfirm": "A conversa e as mensagens salvas saem do Inbox. Nada é apagado no WhatsApp nem no Gmail.",
+    "deleteConfirm": "A conversa sai do Inbox e fica 30 dias em Removidos do Inbox (dentro de Arquivadas) caso você queira recuperá-la. Nada é apagado no WhatsApp nem no Gmail.",
     "cancel": "Cancelar",
     "deleteYes": "Remover do Inbox",
     "pin": "Fixar",
@@ -656,5 +663,21 @@
     "channel": "Canal",
     "emptyTitle": "Nenhuma mensagem neste período",
     "emptyBody": "Conecte o WhatsApp ou o Gmail nos ajustes do Inbox e seus números aparecem aqui."
+  },
+  "removed": {
+    "title": "Removidos do Inbox",
+    "entry": "Removidos do Inbox",
+    "back": "Arquivadas",
+    "note": "As conversas que você remove do Inbox ficam aqui por {days} dias e depois são apagadas de vez. Recuperar devolve a conversa para onde estava, com o que chegou nesse meio-tempo.",
+    "removedAt": "Removida em {date}",
+    "purgeAt": "Apagada em {date}",
+    "restore": "Recuperar",
+    "purge": "Apagar de vez",
+    "purgeTitle": "Apagar de vez a conversa com {name}?",
+    "purgeBody": "As mensagens salvas no Inbox são apagadas e isso não pode ser desfeito. Nada muda no WhatsApp nem no Gmail.",
+    "cancel": "Cancelar",
+    "restored": "Conversa recuperada",
+    "purged": "Conversa apagada",
+    "list": "Conversas removidas"
   }
 }
