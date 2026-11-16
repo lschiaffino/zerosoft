@@ -2114,6 +2114,23 @@
     "ownerFixed": "You are the owner of this line. Only an admin can pass it to someone else."
   },
   "hubspot": {
+    "createContact": "Create contact in HubSpot",
+    "createContactHelp": "Uses this chat's name and number. If the number is already in HubSpot, you link that contact instead.",
+    "createContactNoScope": "To create contacts, the HubSpot private app needs the {scope} scope.",
+    "contactCreated": "Contact created in HubSpot",
+    "contactExists": "That number is already in HubSpot. Link the existing contact.",
+    "mine": {
+      "open": "Choose properties",
+      "title": "Properties you see",
+      "help": "Pick up to {n} company properties to show in the chat details and at the top of the HubSpot panel, in Lines and in Inbox. Only you see this choice.",
+      "custom": "Showing your own choice.",
+      "workspace": "Showing the workspace defaults. Change any to start your own list.",
+      "list": "Properties you see",
+      "up": "Move {label} up",
+      "down": "Move {label} down",
+      "none": "No properties chosen. The chat details show the basic company fields.",
+      "reset": "Use the workspace defaults"
+    },
     "title": "HubSpot",
     "loadError": "Could not load HubSpot for this chat.",
     "notConnected": "Connect HubSpot to link this chat to a company, a deal or a contact.",
@@ -2167,6 +2184,9 @@
     "filterUnlinked": "Not linked to HubSpot",
     "rowLabel": "HubSpot: {name}",
     "card": {
+      "autoCreate": "Create the HubSpot contact when a new 1:1 chat comes in",
+      "autoCreateHelp": "Covers chats that start after you turn this on, on lines the whole workspace can see. If a HubSpot contact already has that number, nothing is created and the chat suggests it.",
+      "autoCreateNeedsScope": "The saved token is missing these scopes to create contacts: {scopes}.",
       "desc": "Links each chat or group to a HubSpot company, deal and contact, and syncs the company properties both ways.",
       "connectedTo": "Connected to HubSpot account {id}",
       "help": "In HubSpot, create a private app (Settings, Integrations, Private Apps; newer accounts list it under Legacy Apps), give it the scopes below and paste its access token here. We check the token when you save.",
@@ -2202,6 +2222,8 @@
     "brokenMerged": "This company was merged into {name} in HubSpot.",
     "relink": "Link {name}",
     "screen": {
+      "pinPanel": "Pin to the side",
+      "pinPanelHelp": "Keep this panel open next to the chat. It follows the chat you open.",
       "open": "All properties",
       "title": "HubSpot",
       "no": "No",

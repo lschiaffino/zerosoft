@@ -16,6 +16,7 @@ import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
+import HubspotDock from '@/components/groups/HubspotDock';
 import { ArchiveIcon, ArrowLeft, Trash } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
@@ -1650,6 +1651,8 @@ export default function InboxApp(props: {
           </div>
         )}
       </div>
+      {/* El panel de HubSpot fijado al costado sigue al chat 1:1 de WhatsApp abierto. */}
+      {detail && detail.thread.channel === 'whatsapp' && detail.thread.kind !== 'group' && <HubspotDock source={{ app: 'inbox', threadId: detail.thread.id }} isAdmin={false} />}
       {showInfo && detail && (
         <ContactPanel
           thread={detail.thread}

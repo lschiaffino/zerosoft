@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
-import { contactHubspotMatches, contactMessageTarget, createContactHubspot, linesContact, linkContactHubspot, unlinkContactHubspot } from '@/lib/groups-contacts';
+import { chatContact, contactHubspotMatches, contactMessageTarget, createContactHubspot, linesContact, linkContactHubspot, unlinkContactHubspot } from '@/lib/groups-contacts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,9 @@ export async function GET(req: Request) {
   const id = (sp.get('id') ?? '').slice(0, 64);
   try {
     const viewer = await sessionViewer(s);
+    // ?chat=<id>: la persona de ese chat 1:1 (el panel de HubSpot del chat).
+    const chat = sp.get('chat');
+    if (chat) return NextResponse.json(await chatContact(viewer, chat.slice(0, 100)), { headers: NO_STORE });
     if (sp.get('hubspot') === 'matches') return NextResponse.json({ matches: await contactHubspotMatches(viewer, id) }, { headers: NO_STORE });
     return NextResponse.json(await linesContact(viewer, id), { headers: NO_STORE });
   } catch (err) {

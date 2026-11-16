@@ -2114,6 +2114,23 @@
     "ownerFixed": "Você é o dono desta linha. Só um admin pode passá-la para outra pessoa."
   },
   "hubspot": {
+    "createContact": "Criar contato no HubSpot",
+    "createContactHelp": "Usa o nome e o número desta conversa. Se o número já está no HubSpot, você vincula esse contato.",
+    "createContactNoScope": "Para criar contatos, a private app do HubSpot precisa da permissão {scope}.",
+    "contactCreated": "Contato criado no HubSpot",
+    "contactExists": "Esse número já está no HubSpot. Vincule o contato que já existe.",
+    "mine": {
+      "open": "Escolher propriedades",
+      "title": "Propriedades que você vê",
+      "help": "Escolha até {n} propriedades da empresa para ver nos detalhes da conversa e no topo do painel do HubSpot, no Lines e no Inbox. Só você vê essa escolha.",
+      "custom": "Mostrando a sua escolha.",
+      "workspace": "Mostrando as do workspace. Mude qualquer uma para montar a sua lista.",
+      "list": "Propriedades que você vê",
+      "up": "Subir {label}",
+      "down": "Descer {label}",
+      "none": "Nenhuma propriedade escolhida. Os detalhes da conversa mostram os dados básicos da empresa.",
+      "reset": "Usar as do workspace"
+    },
     "title": "HubSpot",
     "loadError": "Não foi possível carregar o HubSpot desta conversa.",
     "notConnected": "Conecte o HubSpot para vincular esta conversa a uma empresa, um negócio ou um contato.",
@@ -2167,6 +2184,9 @@
     "filterUnlinked": "Sem vínculo com o HubSpot",
     "rowLabel": "HubSpot: {name}",
     "card": {
+      "autoCreate": "Criar o contato no HubSpot quando chega uma conversa 1 a 1 nova",
+      "autoCreateHelp": "Vale para as conversas que começarem depois de ligar, nas linhas que todo o workspace vê. Se um contato do HubSpot já tem esse número, nada é criado e a conversa o sugere.",
+      "autoCreateNeedsScope": "O token salvo não tem estas permissões para criar contatos: {scopes}.",
       "desc": "Vincula cada conversa ou grupo a uma empresa, um negócio e um contato do HubSpot, e sincroniza as propriedades da empresa nos dois sentidos.",
       "connectedTo": "Conectado à conta {id} do HubSpot",
       "help": "No HubSpot, crie um private app (Configurações, Integrações, Private Apps; em contas novas aparece como Legacy Apps), dê a ele as permissões abaixo e cole aqui o token de acesso. Conferimos o token ao salvar.",
@@ -2202,6 +2222,8 @@
     "brokenMerged": "Esta empresa foi mesclada com {name} no HubSpot.",
     "relink": "Vincular {name}",
     "screen": {
+      "pinPanel": "Fixar ao lado",
+      "pinPanelHelp": "Deixa este painel aberto ao lado da conversa. Ele acompanha a conversa que você abrir.",
       "open": "Todas as propriedades",
       "title": "HubSpot",
       "no": "Não",

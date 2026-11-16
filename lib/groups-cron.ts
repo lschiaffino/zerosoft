@@ -77,6 +77,9 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   const { sweepHubspotAutoLink, syncHubspotNotes } = await import('./groups-hubspot');
   const hubspotLinked = await sweepHubspotAutoLink().catch(() => null);
   const hubspotNotes = await syncHubspotNotes().catch(() => null);
+  // Alta automática del contacto de los chats 1:1 nuevos, en Lines y en Inbox (si se prendió).
+  const { sweepHubspotAutoContacts } = await import('./hubspot-auto-contacts');
+  const hubspotCreated = await sweepHubspotAutoContacts().catch(() => null);
   // HubSpot → Lines: empresas vinculadas que cambiaron, las borradas o fusionadas y, cada 6 horas, el esquema de propiedades.
   const { syncHubspotCompanies } = await import('./groups-hubspot-sync');
   const hubspotSync = await syncHubspotCompanies().catch(() => null);
@@ -90,5 +93,5 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Repaso diario de cada número: contactos, nombres, info, asuntos, descripciones, miembros y fotos (despacio, retoma donde quedó).
   const { refreshLinesDaily } = await import('./wa-contacts-refresh');
   const daily = await refreshLinesDaily(new Date(), Date.now() + (opts.dailyBudgetMs ?? 10_000)).catch(() => null);
-  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotSync, assigned, imports, daily };
+  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, daily };
 }

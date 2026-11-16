@@ -12,6 +12,7 @@ import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
+import InboxHubspotCard from './InboxHubspotCard';
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -187,6 +188,8 @@ export default function ContactPanel({
             {group && wa?.createdAt && <p className="ib-wa-muted">{w('createdOn', { date: new Date(wa.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}</p>}
           </section>
         )}
+
+        {!group && thread.channel === 'whatsapp' && <InboxHubspotCard threadId={thread.id} />}
 
         <section className="ib-wa-card ib-wa-summary" aria-busy={summaryBusy || undefined}>
           <h3 className="ib-wa-card-title">
@@ -444,3 +447,4 @@ export default function ContactPanel({
     </aside>
   );
 }
+

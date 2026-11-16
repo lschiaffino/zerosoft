@@ -90,6 +90,11 @@ export interface ContactsQuery {
 
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',');
 
+/** Lo que identifica a una persona para su vínculo con HubSpot. */
+export type PersonKey = Pick<Person, 'phone' | 'lid'>;
+/** Lo que hace falta para crear su contacto (sus grupos dan la empresa). */
+export type PersonLite = Pick<Person, 'phone' | 'lid' | 'name' | 'groups'>;
+
 interface ChatLite {
   id: string;
   number_id: string;
@@ -330,7 +335,7 @@ export async function personHubspotMatches(ws: string, mask: boolean, person: Pe
 }
 
 /** Los chats 1:1 de Lines de la persona en todo el workspace (por teléfono o por su lid). */
-async function personDmIds(ws: string, p: Person): Promise<string[]> {
+async function personDmIds(ws: string, p: PersonKey): Promise<string[]> {
   const ids = [...(p.phone ? [`${p.phone}@s.whatsapp.net`, `${p.phone}@c.us`] : []), ...(p.lid ? [`${p.lid}@lid`] : [])];
   if (!ids.length) return [];
   const rows = (await getDb()
@@ -339,7 +344,7 @@ async function personDmIds(ws: string, p: Person): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-async function saveContactLink(ws: string, actor: string | null, p: Person, contact: HubspotRecord, company: HubspotRecord | null): Promise<void> {
+async function saveContactLink(ws: string, actor: string | null, p: PersonKey, contact: HubspotRecord, company: HubspotRecord | null): Promise<void> {
   const db = getDb();
   const now = new Date().toISOString();
   const existing = (await db
@@ -383,7 +388,7 @@ async function saveContactLink(ws: string, actor: string | null, p: Person, cont
 }
 
 /** Vincula la persona a un contacto de HubSpot (y a su empresa principal). */
-export async function linkPersonHubspot(ws: string, actor: string, person: Person, contactId: string): Promise<void> {
+export async function linkPersonHubspot(ws: string, actor: string, person: PersonKey, contactId: string): Promise<void> {
   if (!/^\d{1,20}$/.test(contactId)) throw new HubspotError('invalid_input');
   const contact = await readHubspotRecord(ws, 'contact', contactId);
   let company: HubspotRecord | null = null;
@@ -392,7 +397,7 @@ export async function linkPersonHubspot(ws: string, actor: string, person: Perso
 }
 
 /** Quita el vínculo de la persona (y la copia en sus chats 1:1 de Lines que tenían ese mismo contacto). */
-export async function unlinkPersonHubspot(ws: string, person: Person): Promise<void> {
+export async function unlinkPersonHubspot(ws: string, person: PersonKey): Promise<void> {
   const db = getDb();
   const row = (await db
     .prepare("SELECT contact_id FROM groups_contact_links WHERE user_id = ? AND ((phone <> '' AND phone = ?) OR (lid <> '' AND lid = ?)) LIMIT 1")
@@ -416,21 +421,42 @@ export async function unlinkPersonHubspot(ws: string, person: Person): Promise<v
 }
 
 /** La empresa de HubSpot de los grupos de la persona, si es una sola ('' si no hay o hay varias). */
-async function groupsCompany(ws: string, person: Person): Promise<string> {
+async function groupsCompany(ws: string, person: PersonLite): Promise<string> {
   const jids = person.groups.map((g) => g.key).filter((k) => k.endsWith('@g.us'));
-  if (!jids.length) return '';
-  const rows = (await getDb()
-    .prepare(`SELECT DISTINCT company_id FROM groups_identities WHERE user_id = ? AND company_id <> '' AND jid IN (${marks(jids.length)})`)
-    .all(ws, ...jids)) as Array<{ company_id: string }>;
+  const db = getDb();
+  if (jids.length) {
+    const rows = (await db
+      .prepare(`SELECT DISTINCT company_id FROM groups_identities WHERE user_id = ? AND company_id <> '' AND jid IN (${marks(jids.length)})`)
+      .all(ws, ...jids)) as Array<{ company_id: string }>;
+    return rows.length === 1 ? rows[0].company_id : '';
+  }
+  // Sin sus grupos a mano (un chat que recién entra): los grupos de Lines del workspace donde está su teléfono.
+  if (!person.phone) return '';
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT i.company_id FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
+       JOIN groups_identities i ON i.user_id = c.user_id AND i.jid = c.provider_chat_id
+       WHERE c.user_id = ? AND c.kind = 'group' AND c.left_at IS NULL AND m.phone = ? AND i.company_id <> '' LIMIT 2`,
+    )
+    .all(ws, person.phone)) as Array<{ company_id: string }>;
   return rows.length === 1 ? rows[0].company_id : '';
+}
+
+/** ¿La persona ya tiene contacto de HubSpot en el workspace (por teléfono o lid)? */
+export async function personHasHubspotLink(ws: string, person: PersonKey): Promise<boolean> {
+  const row = await getDb()
+    .prepare("SELECT 1 AS x FROM groups_contact_links WHERE user_id = ? AND ((phone <> '' AND phone = ?) OR (lid <> '' AND lid = ?)) LIMIT 1")
+    .get(ws, person.phone, person.lid);
+  return Boolean(row);
 }
 
 /**
  * "Crear en HubSpot": busca por teléfono primero; si ya hay contactos con ese
  * teléfono no crea nada y los devuelve para elegir. Si no, lo crea (asociado a
- * la empresa de sus grupos si es una sola) y lo vincula.
+ * la empresa de sus grupos si es una sola) y lo vincula. `actor` null: lo creó
+ * el alta automática (lib/hubspot-auto-contacts.ts).
  */
-export async function createPersonHubspot(ws: string, actor: string, mask: boolean, person: Person): Promise<{ created: boolean; existing: HubspotSuggestion[] }> {
+export async function createPersonHubspot(ws: string, actor: string | null, mask: boolean, person: PersonLite): Promise<{ created: boolean; existing: HubspotSuggestion[] }> {
   if (!person.phone) throw new GroupsError('invalid_phone');
   const companyId = await groupsCompany(ws, person);
   const res = await createHubspotContact(ws, { name: person.name, phone: person.phone, companyId });
@@ -463,4 +489,18 @@ export async function createContactHubspot(viewer: GroupsViewer, actor: string, 
   const { person } = await findPerson(viewer, id);
   const res = await createPersonHubspot(viewer.ws, actor, viewer.mask, person);
   return { row: res.created ? (await linesContact(viewer, id)).row : null, existing: res.existing };
+}
+
+/**
+ * La persona de un chat 1:1 que quien mira ve (la ficha, para el panel de
+ * HubSpot del chat). 404 si el chat no es 1:1 o no lo ve.
+ */
+export async function chatContact(viewer: GroupsViewer, chatId: string): Promise<{ row: ContactRowDto }> {
+  const { people, chats } = await collect(viewer);
+  const chat = chats.get(chatId);
+  if (!chat || chat.kind !== 'dm') throw new GroupsError('not_found', 404);
+  const person = people.find((p) => p.dms.some((d) => d.chatId === chatId));
+  if (!person) throw new GroupsError('not_found', 404);
+  const hs = await peopleHubspot(viewer.ws, [person], true);
+  return { row: toRow(viewer, person, hsRow(hs, person), chats, true) };
 }

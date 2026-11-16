@@ -1,16 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import LocalText from '@/components/ui/LocalText';
 import type { ChatCompanyDto } from '@/lib/groups-hubspot-sync';
 import { HUBSPOT_MAX_PINNED, formatHubspotValue, hubspotMulti, hubspotTime, type HubspotOwner, type HubspotPropDef, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import { parseDbUtc } from '@/lib/utils';
 import { setHubspotSchema, useHubspotSchema } from './hubspot-client';
-import { api, useErrorText, useRelativeTime } from './ui';
+import { setHubspotPanelPinned } from './hubspot-dock';
+import { api, useErrorText } from './dialog-kit';
+import { useRelativeTime } from './relative-time';
 import { PinIcon } from './wa/icons';
 
 type CompanyData = ChatCompanyDto & { canEdit?: boolean };
+
+/** De qué chat es el panel: uno de Lines o uno 1:1 de Inbox (la empresa de su contacto, solo lectura). */
+export type HubspotSource = { app: 'lines'; chatId: string } | { app: 'inbox'; threadId: string };
+
+const sourceKey = (s: HubspotSource) => (s.app === 'lines' ? `lines:${s.chatId}` : `inbox:${s.threadId}`);
 
 /** datetime-local ↔ ISO: el campo trabaja en la hora de la persona. */
 function toLocalInput(value: string): string {
@@ -140,18 +148,22 @@ function Editor({
  * búsqueda por nombre, un editor por tipo (el cambio va a HubSpot en el
  * momento), "Sincronizar ahora", el registro de cambios y el link a HubSpot.
  * Las vacías quedan detrás de "Mostrar vacías". Es un panel a pantalla
- * completa en el teléfono y una hoja lateral ancha en el escritorio.
+ * completa en el teléfono y una hoja lateral ancha en el escritorio, que se
+ * puede fijar al costado del chat (`docked`, components/groups/hubspot-dock.ts):
+ * ahí no tapa la conversación y sigue al chat que se abre.
  */
 export default function HubspotScreen({
-  chatId,
+  source,
   open,
   onClose,
   isAdmin,
+  docked = false,
 }: {
-  chatId: string;
+  source: HubspotSource;
   open: boolean;
   onClose: () => void;
   isAdmin: boolean;
+  docked?: boolean;
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
@@ -159,7 +171,15 @@ export default function HubspotScreen({
   const rel = useRelativeTime();
   const ref = useRef<HTMLDialogElement>(null);
   const panelId = useId();
-  const { schema, failed: schemaFailed, reload: reloadSchema } = useHubspotSchema(open);
+  const shown = open || docked;
+  const { schema, failed: schemaFailed, reload: reloadSchema } = useHubspotSchema(shown);
+  const key = sourceKey(source);
+  const base = source.app === 'lines' ? '/api/groups/hubspot/company' : '/api/inbox/hubspot/company';
+  const query = source.app === 'lines' ? `chat=${encodeURIComponent(source.chatId)}` : `thread=${encodeURIComponent(source.threadId)}&fresh=1`;
+  const chatId = source.app === 'lines' ? source.chatId : '';
+  const syncBody = source.app === 'lines' ? { chatId: source.chatId } : { threadId: source.threadId };
+  const syncBodyRef = useRef(syncBody);
+  syncBodyRef.current = syncBody;
   const [data, setData] = useState<CompanyData | null>(null);
   const [failed, setFailed] = useState(false);
   const [q, setQ] = useState('');
@@ -182,31 +202,55 @@ export default function HubspotScreen({
   editingRef.current = editing;
 
   const load = useCallback(async () => {
-    const res = await api<CompanyData>(`/api/groups/hubspot/company?chat=${encodeURIComponent(chatId)}`);
+    const res = await api<CompanyData>(`${base}?${query}`);
     if (res.data) {
       setData(res.data);
       setFailed(false);
     } else setFailed(true);
-  }, [chatId]);
+  }, [base, query]);
+
+  const reset = useCallback(() => {
+    setData(null);
+    setFailed(false);
+    setQ('');
+    setTab('props');
+    setEditing(null);
+    setErrors({});
+    setNotice(null);
+  }, []);
 
   useEffect(() => {
+    if (docked) return;
     const d = ref.current;
     if (!d) return;
     if (open && !d.open) {
       d.showModal();
-      setData(null);
-      setFailed(false);
-      setQ('');
-      setTab('props');
-      setEditing(null);
-      setErrors({});
-      setNotice(null);
+      reset();
       void load();
     }
     if (!open && d.open) d.close();
-  }, [open, load]);
+  }, [open, load, docked, reset]);
 
-  const format = useMemo(() => ({ locale, owners: schema?.owners ?? [], yes: t('props.yes'), no: t('hubspot.screen.no') }), [locale, schema?.owners, t]);
+  // Fijado: carga el chat que se abre (y vuelve a cargar al cambiar de chat). La app deja su lugar al panel.
+  useEffect(() => {
+    if (!docked) return;
+    reset();
+    void load();
+  }, [docked, key, load, reset]);
+  useEffect(() => {
+    if (!docked) return;
+    const root = document.documentElement;
+    root.dataset.hubspotPinned = '';
+    return () => {
+      delete root.dataset.hubspotPinned;
+    };
+  }, [docked]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const yesText = t('props.yes');
+  const noText = t('hubspot.screen.no');
+  const format = useMemo(() => ({ locale, owners: schema?.owners ?? [], yes: yesText, no: noText }), [locale, schema?.owners, yesText, noText]);
   const defs = useMemo(() => new Map((schema?.props ?? []).map((p) => [p.name, p])), [schema]);
   const values = data?.values ?? {};
   const canEdit = Boolean(data?.canEdit) && !data?.company?.broken;
@@ -254,7 +298,7 @@ export default function HubspotScreen({
 
   async function syncNow() {
     setSyncing(true);
-    const res = await api<CompanyData>('/api/groups/hubspot/company', { body: { chatId } });
+    const res = await api<CompanyData>(base, { body: syncBodyRef.current });
     setSyncing(false);
     if (!res.data) return showToast(errText(res.error), true);
     setData(res.data);
@@ -262,12 +306,17 @@ export default function HubspotScreen({
     showToast(t('hubspot.screen.synced'));
   }
 
+  // Fijar una propiedad: un admin sin lista propia cambia las del workspace; el resto (o un admin que ya
+  // eligió las suyas) cambia las que ve en los detalles del chat y en este panel.
+  const personal = Boolean(schema && (schema.mine || !isAdmin));
+  const shownNames = schema ? (schema.mine ?? schema.pinned) : [];
   async function togglePin(def: HubspotPropDef) {
     if (!schema || pinning) return;
-    const on = schema.pinned.includes(def.name);
-    if (!on && schema.pinned.length >= HUBSPOT_MAX_PINNED) return showToast(t('hubspot.screen.pinMax', { n: HUBSPOT_MAX_PINNED }), true);
+    const on = shownNames.includes(def.name);
+    if (!on && shownNames.length >= HUBSPOT_MAX_PINNED) return showToast(t('hubspot.screen.pinMax', { n: HUBSPOT_MAX_PINNED }), true);
     setPinning(true);
-    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', { body: { pinned: on ? schema.pinned.filter((n) => n !== def.name) : [...schema.pinned, def.name] } });
+    const next = on ? shownNames.filter((n) => n !== def.name) : [...shownNames, def.name];
+    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', { body: personal ? { mine: next } : { pinned: next } });
     setPinning(false);
     if (!res.data) return showToast(errText(res.error), true);
     setHubspotSchema(res.data);
@@ -275,8 +324,8 @@ export default function HubspotScreen({
 
   const text = q.trim().toLowerCase();
   const matches = (def: HubspotPropDef) => !text || def.label.toLowerCase().includes(text) || def.name.toLowerCase().includes(text);
-  const pinned = (schema?.pinned ?? []).map((n) => defs.get(n)).filter((d): d is HubspotPropDef => Boolean(d) && matches(d as HubspotPropDef));
-  const pinnedNames = new Set(schema?.pinned ?? []);
+  const pinned = shownNames.map((n) => defs.get(n)).filter((d): d is HubspotPropDef => Boolean(d) && matches(d as HubspotPropDef));
+  const pinnedNames = new Set(shownNames);
   const rest = (schema?.props ?? []).filter((d) => !pinnedNames.has(d.name) && matches(d));
   // Con una búsqueda escrita se ven también las vacías: se busca una propiedad para completarla.
   const withEmpty = showEmpty || text !== '';
@@ -291,7 +340,7 @@ export default function HubspotScreen({
     const busy = saving.includes(def.name);
     const isPinned = pinnedNames.has(def.name);
     return (
-      <li key={def.name} className={`gr-hsx-row${isAdmin ? ' has-pin' : ''}`} data-prop={def.name}>
+      <li key={def.name} className="gr-hsx-row has-pin" data-prop={def.name}>
         <div className="gr-hsx-label">
           <span>{def.label}</span>
           {def.readOnly && <span className="gr-hsx-tag">{def.calculated ? t('hubspot.screen.calculated') : t('hubspot.screen.readOnly')}</span>}
@@ -312,7 +361,7 @@ export default function HubspotScreen({
             </p>
           )}
         </div>
-        {isAdmin && (
+        {schema && (
           <button
             type="button"
             className="gr-hsx-pin"
@@ -332,26 +381,7 @@ export default function HubspotScreen({
   const company = data?.company ?? null;
   const logValue = (name: string, v: string) => formatHubspotValue(defs.get(name), v, format) || t('hubspot.screen.empty');
 
-  return (
-    <dialog
-      ref={ref}
-      className="ui-drawer gr-hsx"
-      // El nombre va directo y no por aria-labelledby: el <dialog> sale del servidor y el título solo se pinta
-      // abierto, en el cliente. Si el id de useId del servidor y el del cliente no coinciden (en la bandeja pasa),
-      // React deja el del servidor en el <dialog> y el diálogo se queda sin nombre.
-      aria-label={t('hubspot.screen.title')}
-      aria-modal="true"
-      onCancel={(e) => {
-        e.preventDefault();
-        // Esc con un editor abierto lo cierra a él, no a la pantalla.
-        if (editingRef.current) setEditing(null);
-        else onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {open && (
+  const body = shown ? (
         <>
           <div className="ui-drawer-head gr-hsx-head">
             <div className="gr-hsx-heading">
@@ -360,9 +390,26 @@ export default function HubspotScreen({
               </h2>
               {company && <p className="gr-hsx-company">{company.name}</p>}
             </div>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
-              {t('common.close')}
-            </button>
+            <div className="gr-hsx-head-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm gr-hsx-dock-btn"
+                aria-pressed={docked}
+                title={t('hubspot.screen.pinPanelHelp')}
+                data-testid="hubspot-pin-panel"
+                onClick={() => {
+                  setHubspotPanelPinned(!docked);
+                  // Al fijarlo, el panel fijo toma el lugar de esta hoja.
+                  if (!docked) onClose();
+                }}
+              >
+                <PinIcon size={16} />
+                <span>{t('hubspot.screen.pinPanel')}</span>
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={onClose}>
+                {t('common.close')}
+              </button>
+            </div>
           </div>
           {company && (
             <div className="gr-hsx-bar">
@@ -492,7 +539,38 @@ export default function HubspotScreen({
             )}
           </div>
         </>
-      )}
+  ) : null;
+
+  if (docked) {
+    if (!mounted) return null;
+    return createPortal(
+      <aside className="ui-drawer gr-hsx gr-hsx-dock" aria-label={t('hubspot.screen.title')} data-testid="hubspot-dock">
+        {body}
+      </aside>,
+      document.body,
+    );
+  }
+
+  return (
+    <dialog
+      ref={ref}
+      className="ui-drawer gr-hsx"
+      // El nombre va directo y no por aria-labelledby: el <dialog> sale del servidor y el encabezado solo se pinta
+      // abierto, en el cliente. Si el id de useId del servidor y el del cliente no coinciden (en la bandeja pasa),
+      // React deja el del servidor en el <dialog> y el diálogo se queda sin nombre.
+      aria-label={t('hubspot.screen.title')}
+      aria-modal="true"
+      onCancel={(e) => {
+        e.preventDefault();
+        // Esc con un editor abierto lo cierra a él, no a la pantalla.
+        if (editingRef.current) setEditing(null);
+        else onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {body}
     </dialog>
   );
 }

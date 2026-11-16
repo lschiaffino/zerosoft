@@ -343,6 +343,17 @@
     "moveFilter": "Filtrar carpetas"
   },
   "settings": {
+    "hubspot": {
+      "intro": "El HubSpot de tu workspace. Vinculá o creá contactos desde cada chat 1 a 1.",
+      "notConnected": "Tu workspace no tiene HubSpot conectado. Lo conecta un admin en los ajustes de Lines.",
+      "linesLink": "Abrir integraciones de Lines",
+      "statusOn": "Conectado",
+      "statusOff": "Sin conectar",
+      "autoCreate": "Crear el contacto en HubSpot cuando entra un chat 1 a 1 nuevo",
+      "autoCreateHelp": "Solo para tu Inbox y para los chats que empiecen después de prenderlo. Si un contacto de HubSpot ya tiene ese número, no se crea nada.",
+      "needsScope": "Al token del workspace le faltan estos permisos para crear contactos: {scopes}.",
+      "saved": "Guardado"
+    },
     "title": "Ajustes de Inbox",
     "subtitle": "Tus cuentas, carpetas, snippets e importaciones. Todo esto es privado: el workspace y sus admins no lo ven.",
     "gmailResult": {
