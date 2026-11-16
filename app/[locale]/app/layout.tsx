@@ -638,6 +638,7 @@ export default async function AppLayout(
             groups: {
               inbox: tGroups('sidebar.inbox'),
               groups: tGroups('sidebar.groups'),
+              contacts: tGroups('sidebar.contacts'),
               tickets: tGroups('sidebar.tickets'),
               tasks: tGroups('sidebar.tasks'),
               templates: tGroups('sidebar.templates'),
@@ -725,6 +726,7 @@ export default async function AppLayout(
               done: tInbox('nav.done'),
               compose: tInbox('nav.compose'),
               analytics: tInbox('nav.analytics'),
+              contacts: tInbox('nav.contacts'),
             },
             time: { timesheet: tTime('nav.timesheet'), projects: tTime('nav.projects'), reports: tTime('nav.reports'), track: tTime('nav.track') },
             fleet: { now: tFleet('nav.now'), chats: tFleet('nav.chats'), prs: tFleet('nav.prs'), deploys: tFleet('nav.deploys'), connect: tFleet('nav.connect') },

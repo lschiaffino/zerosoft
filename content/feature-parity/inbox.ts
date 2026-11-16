@@ -155,6 +155,13 @@ const parity: ProductParity = {
     row('contact-context', 'navigation', ['Context about the person', 'Contexto de la persona', 'Contexto da pessoa'], 'partial', {
       detail: ['Private notes per chat, used by the AI drafts. No social profiles', 'Notas privadas por chat, que usan los borradores con IA. Sin perfiles sociales', 'Notas privadas por conversa, usadas pelos rascunhos com IA. Sem perfis sociais'],
     }),
+    row('wa-contacts', 'navigation', ['Contacts list', 'Lista de contactos', 'Lista de contatos'], 'partial', {
+      detail: [
+        'Contacts lists each person of your WhatsApp accounts once (phone and WhatsApp id joined), with their accounts, groups and last message, filters by account and chat, and their HubSpot contact and company from the workspace connection. Tested with the fake provider and a simulated HubSpot',
+        'Contactos muestra cada persona de tus cuentas de WhatsApp una vez (teléfono e id de WhatsApp unidos), con sus cuentas, grupos y último mensaje, filtros por cuenta y por chat, y su contacto y empresa de HubSpot de la conexión del workspace. Probado con el proveedor falso y un HubSpot simulado',
+        'Contatos mostra cada pessoa das suas contas de WhatsApp uma vez (telefone e id do WhatsApp unidos), com contas, grupos e última mensagem, filtros por conta e por chat, e o contato e a empresa no HubSpot da conexão do workspace. Testado com o provedor falso e um HubSpot simulado',
+      ],
+    }),
     row('calendar', 'navigation', ['Calendar in the inbox', 'Calendario en la bandeja', 'Calendário na caixa'], 'missing'),
 
     // Plataforma
