@@ -23,6 +23,7 @@ import { ingestHistory } from '@/lib/groups-import';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { localUploadPath } from '@/lib/uploads';
+import { fileRowForUrl, readFileBytes } from '@/lib/files/store';
 import { mergeLidChats } from '@/lib/wa-dedupe-run';
 import { readTranscript, transcribeMessage } from '@/lib/wa-extras';
 import { mediaWireOf } from '@/lib/wa-media-wire';
@@ -382,8 +383,15 @@ describe('Lines: importar, usar y volver a importar', () => {
   async function storedFiles(numberId: string): Promise<string[]> {
     const rows = (await getDb().prepare("SELECT media_url FROM groups_messages WHERE number_id = ? AND media_type <> '' ORDER BY provider_message_id").all(numberId)) as Array<{ media_url: string }>;
     for (const r of rows) {
-      expect(r.media_url, 'el archivo quedó guardado').toMatch(/^\/uploads\//);
-      expect(existsSync(localUploadPath(r.media_url)!), 'los bytes siguen en disco').toBe(true);
+      // Guardado en el storage privado (/api/files/…) o, en instalaciones viejas, en /uploads/.
+      expect(r.media_url, 'el archivo quedó guardado').toMatch(/^\/(uploads|api\/files)\//);
+      if (r.media_url.startsWith('/uploads/')) {
+        expect(existsSync(localUploadPath(r.media_url)!), 'los bytes siguen en disco').toBe(true);
+      } else {
+        const file = await fileRowForUrl(r.media_url);
+        expect(file, 'el archivo privado sigue registrado').toBeTruthy();
+        expect((await readFileBytes(file!))?.length ?? 0, 'los bytes siguen guardados').toBeGreaterThan(0);
+      }
     }
     return rows.map((r) => r.media_url);
   }
