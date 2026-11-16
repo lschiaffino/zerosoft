@@ -43,6 +43,7 @@ import SocialMockup from './mockups/SocialMockup';
 import HiringMockup from './mockups/HiringMockup';
 import PeopleMockup from './mockups/PeopleMockup';
 import BooksMockup from './mockups/BooksMockup';
+import TimeMockup from './mockups/TimeMockup';
 import SignMockup from './mockups/SignMockup';
 import FormsMockup from './mockups/FormsMockup';
 import SendMockup from './mockups/SendMockup';
@@ -85,6 +86,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   inbox: InboxMockup,
   calls: CallsMockup,
   fleet: FleetMockup,
+  time: TimeMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;

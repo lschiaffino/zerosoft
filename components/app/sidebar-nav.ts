@@ -274,6 +274,8 @@ export interface SidebarLabels {
   inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
+  /** Time (Harvest): hoja de horas, proyectos y reportes. */
+  time: { timesheet: string; projects: string; reports: string; track: string };
   /** Fleet: tablero de agentes, chats, PRs y deploys. */
   fleet: { now: string; chats: string; prs: string; deploys: string; connect: string };
   /** Sign (DocuSign): sobres, plantillas. */
@@ -350,6 +352,7 @@ export type AppProduct =
   | 'send'
   | 'inbox'
   | 'calls'
+  | 'time'
   | 'fleet';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -380,6 +383,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/send', 'send'],
   ['/app/inbox', 'inbox'],
   ['/app/calls', 'calls'],
+  ['/app/time', 'time'],
   ['/app/fleet', 'fleet'],
 ];
 
@@ -432,6 +436,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   send: 'send',
   inbox: 'inbox',
   calls: 'calls',
+  time: 'clock',
   fleet: 'fleet',
 };
 
@@ -1000,6 +1005,18 @@ export function buildNav(
       ];
     }
 
+    case 'time':
+      return [
+        {
+          items: [
+            { href: '/app/time', label: labels.time.timesheet, active: pathname === '/app/time', icon: 'clock' },
+            { href: '/app/time/projects', label: labels.time.projects, active: at('/app/time/projects'), icon: 'folder' },
+            { href: '/app/time/reports', label: labels.time.reports, active: at('/app/time/reports'), icon: 'reports' },
+          ],
+        },
+        appSettingsGroup('/app/time/settings'),
+      ];
+
     case 'send':
       return [
         {
@@ -1263,6 +1280,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'time':
+      return [item('/app/time?new=1', labels.time.track, 'clock')];
     case 'send':
       return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'inbox':

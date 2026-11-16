@@ -50,7 +50,8 @@
       "send": "Share documents by link and see who read what",
       "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox",
       "calls": "Record sales calls and see what moves deals",
-      "fleet": "See and answer your coding agents, PRs and deploys"
+      "fleet": "See and answer your coding agents, PRs and deploys",
+      "time": "Track hours by project and see what you can bill"
     },
     "building": "Coming soon",
     "downloadMac": "Download for Mac",
@@ -227,6 +228,7 @@
     "groupInbox": "Inbox",
     "groupCalls": "Calls",
     "groupFleet": "Agent sessions",
+    "groupTimeProjects": "Time projects",
     "preview": "Preview",
     "comingSoon": "Coming soon",
     "disabledApps": "Turned off for this account",
@@ -337,6 +339,9 @@
     },
     "fleet": {
       "desc": "One board for your coding agents: Claude Code sessions (also inside Orca), GitHub pull requests and Vercel deploys from several accounts, and a chat to answer your agents."
+    },
+    "time": {
+      "desc": "Track hours with a timer or by hand, by project and task, and report billable hours and amounts by client."
     }
   },
   "model": {
@@ -607,6 +612,9 @@
       },
       "fleet": {
         "line": "Watch your coding agents and answer them from one chat."
+      },
+      "time": {
+        "line": "Track hours by project and see what you can bill."
       },
       "analytics": {
         "line": "Questions, SQL and dashboards over your data."
