@@ -6,8 +6,11 @@ export type InboxChannel = 'whatsapp' | 'gmail';
 export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
-/** Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte. */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as const;
+/**
+ * Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte.
+ * `nofolder` ("Sin carpeta") son los chats de la bandeja que no están en ninguna carpeta (ni a mano ni por regla).
+ */
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -113,7 +116,8 @@ export interface WaMessageMeta {
   /** Forma de onda de la nota de voz (0 a 100). */
   waveform?: number[];
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
-  contacts?: Array<{ name: string; phones: string[] }>;
+  /** Tarjetas de contacto; `picture`: la foto guardada de esa persona (lib/wa-contact-pictures.ts), si hay. */
+  contacts?: Array<{ name: string; phones: string[]; picture?: string }>;
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
   link?: { url: string; title: string; description?: string; thumb?: string };

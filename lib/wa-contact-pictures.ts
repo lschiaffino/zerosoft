@@ -12,6 +12,10 @@
  * - un 429 frena la tanda, devuelve el reclamo y pausa la cuenta un rato;
  * - una foto que no cambió (misma URL sin la firma) no se vuelve a bajar.
  *
+ * Chats 1:1: al abrirlos y en el repaso diario se pide la foto de la persona
+ * del chat (refreshDmPicture), y la pantalla la muestra antes que la del chat
+ * (dmAvatar). La URL que vino con el chat se aprovecha sin pedir otra.
+ *
  * Dónde se guardan: la URL de WhatsApp vence a las semanas, así que la foto se
  * baja una vez a nuestro storage (como la de los chats de Lines,
  * lib/groups-import.ts storePicture) y la pantalla usa esa copia.
@@ -101,6 +105,13 @@ export interface PictureRefreshOptions {
   limit?: number;
   gapMs?: number;
   store?: StorePicture;
+  /**
+   * Personas que solo se conocen por lid (un chat 1:1 "@lid"): se piden si la libreta las tiene con
+   * ese lid. A diferencia de `phones`, unos dígitos que la libreta no conoce no entran como teléfono.
+   */
+  lids?: string[];
+  /** Pausa también antes del primer pedido (el repaso diario acaba de pedirle otra cosa al servidor). */
+  gapFirst?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -125,20 +136,23 @@ export async function refreshContactPictures(
   const gap = opts.gapMs ?? PICTURE_GAP_MS;
   const store = opts.store ?? defaultStorePicture;
   const list = [...new Set(phones.filter((p) => /^\d{8,15}$/.test(p)))].slice(0, 2000);
-  if (!list.length) return 0;
+  const lids = [...new Set((opts.lids ?? []).filter((d) => /^\d{5,20}$/.test(d)))].slice(0, 200);
+  if (!list.length && !lids.length) return 0;
   const db = getDb();
-  let rows = await lookupContacts(scope, list);
+  let rows = await lookupContacts(scope, [...list, ...lids]);
   const missing = list.filter((p) => !rows.has(p));
   if (missing.length) {
     await rememberContacts(scope, missing.slice(0, 500).map((phone) => ({ phone })), now).catch(() => []);
-    rows = await lookupContacts(scope, list);
+    rows = await lookupContacts(scope, [...list, ...lids]);
   }
   const seen = new Set<string>();
   const due: PictureRow[] = [];
-  for (const p of list) {
+  const wanted: Array<[string, 'phone' | 'lid']> = [...list.map((p): [string, 'phone'] => [p, 'phone']), ...lids.map((d): [string, 'lid'] => [d, 'lid'])];
+  for (const [p, as] of wanted) {
     const r = rows.get(p) as PictureRow | undefined;
-    // Solo teléfonos: unos dígitos que la libreta conoce como lid no son un número al que pedirle la foto.
-    if (!r || seen.has(r.id) || r.phone !== p) continue;
+    // Un teléfono tiene que ser el de la fila: unos dígitos que la libreta conoce como lid no son un número al
+    // que pedirle la foto. Un lid, el lid de la fila (se pide por teléfono si la libreta lo sabe).
+    if (!r || seen.has(r.id) || (as === 'phone' ? r.phone !== p : r.lid !== p)) continue;
     seen.add(r.id);
     if (pictureDue(r, now)) due.push(r);
     if (due.length >= limit) break;
@@ -153,7 +167,7 @@ export async function refreshContactPictures(
     if (!claim.changes) continue;
     let url: string;
     try {
-      if (asked++ > 0 && gap > 0) await sleep(gap);
+      if ((asked++ > 0 || opts.gapFirst) && gap > 0) await sleep(gap);
       url = await provider.profilePicture(r.phone ? `${r.phone}@s.whatsapp.net` : `${r.lid}@lid`);
     } catch (err) {
       // No se supo: se devuelve el reclamo (se vuelve a pedir en la próxima). Un 429 frena la cuenta un rato.
@@ -171,8 +185,11 @@ export async function refreshContactPictures(
   return checked;
 }
 
+/** Qué pasó con la foto: se guardó una nueva, era la misma, no tiene, o no se pudo bajar. */
+export type PictureOutcome = 'stored' | 'same' | 'none' | 'failed';
+
 /** Guarda lo que dijo WhatsApp de la foto de una persona: nueva, la misma o ninguna. */
-export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'picture_src'>, url: string, store: StorePicture = defaultStorePicture): Promise<void> {
+export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'picture_src'>, url: string, store: StorePicture = defaultStorePicture): Promise<PictureOutcome> {
   const db = getDb();
   if (!url) {
     // Sin foto (la sacó, o su privacidad no deja verla): como en WhatsApp, iniciales.
@@ -183,17 +200,104 @@ export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'pictu
         await deleteUploads([r.picture]).catch(() => null);
       }
     }
-    return;
+    return 'none';
   }
   const src = pictureSource(url);
-  if (src && src === r.picture_src && r.picture) return;
+  if (src && src === r.picture_src && r.picture) return 'same';
   const stored = await store(url).catch(() => '');
-  if (!stored) return;
+  if (!stored) return 'failed';
   await db.prepare('UPDATE wa_contacts SET picture = ?, picture_src = ? WHERE id = ?').run(stored.slice(0, 64_000), src, r.id);
   if (ours(r.picture) && r.picture !== stored) {
     const { deleteUploads } = await import('./uploads');
     await deleteUploads([r.picture]).catch(() => null);
   }
+  return 'stored';
+}
+
+// ---------------------------------------------------------------------------
+// Chats 1:1
+// ---------------------------------------------------------------------------
+
+/** La persona de un chat 1:1: por teléfono, o por lid si el chat es "@lid". Vacío si no se sabe. */
+export interface DmPerson {
+  phone?: string;
+  lid?: string;
+}
+
+export function dmPerson(handle: string, chatId: string): DmPerson {
+  if (chatId.endsWith('@g.us')) return {};
+  const d = (handle || chatId.replace(/@.*/, '')).replace(/\D/g, '');
+  if (chatId.endsWith('@lid')) return /^\d{5,20}$/.test(d) ? { lid: d } : {};
+  return /^\d{8,15}$/.test(d) ? { phone: d } : {};
+}
+
+/** La foto que muestra un chat 1:1: la guardada de la persona (copia nuestra, al día) y, si no hay, la del chat. */
+export function dmAvatar(stored: string | undefined | null, chatPicture: string): string {
+  return stored || chatPicture;
+}
+
+/** ¿Una URL de foto que se puede bajar? (https, o la data URL del proveedor falso) */
+const pictureUrlOk = (url: string) => url.startsWith('https://') || url.startsWith('data:image/');
+
+/**
+ * Una URL de foto que vino con el chat 1:1 (chatInfo o el historial) pasa a la libreta: se baja una
+ * copia a nuestro storage sin pedirle nada más a WhatsApp. `fresh`: la URL se acaba de pedir (el
+ * repaso diario), así que una foto distinta de la guardada la reemplaza; si no (la que quedó en el
+ * chat), solo sirve cuando la persona todavía no tiene foto guardada (puede ser más vieja).
+ * Devuelve true si la persona quedó con su foto al día (no hace falta pedirla a WhatsApp).
+ */
+export async function adoptChatPicture(scope: ContactScope, who: DmPerson, url: string, opts: { now?: Date; fresh?: boolean; store?: StorePicture } = {}): Promise<boolean> {
+  const digits = who.phone || who.lid;
+  if (!digits || !url || !pictureUrlOk(url)) return false;
+  const now = opts.now ?? new Date();
+  let r = (await lookupContacts(scope, [digits])).get(digits) as PictureRow | undefined;
+  if (!r && who.phone) {
+    await rememberContacts(scope, [{ phone: who.phone }], now).catch(() => []);
+    r = (await lookupContacts(scope, [digits])).get(digits) as PictureRow | undefined;
+  }
+  if (!r || (who.phone ? r.phone !== who.phone : r.lid !== who.lid)) return false;
+  const src = pictureSource(url);
+  const changed = !!src && src !== r.picture_src;
+  const due = pictureDue(r, now);
+  if (!opts.fresh) {
+    // La del chat solo sirve si la persona no tiene foto guardada y no se le pidió hace poco (si se le pidió y
+    // no tenía, eso manda). Con foto vencida se pide a WhatsApp.
+    if (!due) return !!r.picture;
+    if (r.picture) return false;
+  } else if (r.picture && !due && !changed) return true;
+  const db = getDb();
+  const at = now.toISOString();
+  const claim = await db.prepare('UPDATE wa_contacts SET picture_at = ? WHERE id = ? AND picture_at IS ?').run(at, r.id, r.picture_at ?? null);
+  if (!claim.changes) return true;
+  if ((await applyPicture(r, url, opts.store ?? defaultStorePicture)) === 'failed') {
+    // Venció o no se pudo bajar: se devuelve el reclamo y se pide a WhatsApp.
+    await db.prepare('UPDATE wa_contacts SET picture_at = ? WHERE id = ? AND picture_at = ?').run(r.picture_at ?? null, r.id, at);
+    return false;
+  }
+  return true;
+}
+
+async function storedPicture(scope: Pick<ContactScope, 'app' | 'accountId'>, who: DmPerson): Promise<string> {
+  const d = who.phone || who.lid;
+  return d ? ((await contactPictures(scope, [d]).catch(() => new Map<string, string>())).get(d) ?? '') : '';
+}
+
+/**
+ * La foto de la persona de un chat 1:1. Primero la URL que vino con el chat (`chatPicture`, sin otro
+ * pedido); si no sirve, se pide a WhatsApp con los mismos topes de siempre (cada 7 días, pausa por un
+ * 429). Devuelve true si la foto guardada cambió.
+ */
+export async function refreshDmPicture(
+  scope: ContactScope,
+  provider: Pick<GroupsProvider, 'profilePicture'> | null,
+  who: DmPerson,
+  opts: PictureRefreshOptions & { chatPicture?: string; fresh?: boolean } = {},
+): Promise<boolean> {
+  if (!who.phone && !who.lid) return false;
+  const before = await storedPicture(scope, who);
+  const adopted = opts.chatPicture ? await adoptChatPicture(scope, who, opts.chatPicture, { now: opts.now, fresh: opts.fresh, store: opts.store }).catch(() => false) : false;
+  if (!adopted && provider) await refreshContactPictures(scope, provider, who.phone ? [who.phone] : [], { ...opts, limit: 1, lids: who.lid ? [who.lid] : [] });
+  return (await storedPicture(scope, who)) !== before;
 }
 
 /**
@@ -201,14 +305,75 @@ export async function applyPicture(r: Pick<PictureRow, 'id' | 'picture' | 'pictu
  * respuesta. Una tanda por cuenta a la vez.
  */
 export async function refreshPicturesSoon(scope: ContactScope, provider: () => Pick<GroupsProvider, 'profilePicture'> | null, phones: string[], opts: PictureRefreshOptions = {}): Promise<void> {
+  if (!phones.length && !opts.lids?.length) return;
+  await soon(scope, async () => {
+    const p = provider();
+    if (p) await refreshContactPictures(scope, p, phones, opts);
+  });
+}
+
+/**
+ * Al abrir un chat 1:1 sin foto guardada o vencida: la de la persona, después de responder. Si
+ * cambió, `onChange` avisa a la pantalla (la lista y el chat la muestran sin recargar).
+ */
+export async function refreshDmPictureSoon(
+  scope: ContactScope,
+  provider: () => Pick<GroupsProvider, 'profilePicture'> | null,
+  who: DmPerson,
+  opts: { chatPicture?: string; onChange?: () => Promise<unknown>; alsoPhones?: string[] } = {},
+): Promise<void> {
+  const also = opts.alsoPhones ?? [];
+  if (!who.phone && !who.lid && !also.length) return;
+  await soon(scope, async () => {
+    const p = provider();
+    if ((who.phone || who.lid) && (await refreshDmPicture(scope, p, who, { chatPicture: opts.chatPicture }))) await opts.onChange?.();
+    // De paso, las personas de las tarjetas de contacto del chat (en la misma tanda, con los mismos topes).
+    if (also.length && p && (await refreshContactPictures(scope, p, also, { gapFirst: true })) > 0) await opts.onChange?.();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tarjetas de contacto (vCard)
+// ---------------------------------------------------------------------------
+
+/** Una tarjeta de contacto de un mensaje: el primer teléfono es el de WhatsApp (waid) si la vCard lo trae. */
+export interface CardLike {
+  phones?: string[];
+  picture?: string;
+}
+
+/** Los teléfonos de las tarjetas de contacto de unos mensajes (para pedir sus fotos). */
+export function cardPhones(cards: Array<CardLike[] | undefined | null>, limit = 40): string[] {
+  const out = new Set<string>();
+  for (const list of cards) for (const c of list ?? []) {
+    const d = (c.phones?.[0] ?? '').replace(/\D/g, '');
+    if (/^\d{8,15}$/.test(d)) out.add(d);
+    if (out.size >= limit) return [...out];
+  }
+  return [...out];
+}
+
+/** Cada tarjeta de contacto lleva la foto guardada de esa persona, si hay (la pantalla muestra el ícono si no). */
+export async function withCardPictures(scope: Pick<ContactScope, 'app' | 'accountId'>, cards: Array<CardLike[] | undefined | null>): Promise<void> {
+  const phones = cardPhones(cards, 500);
+  if (!phones.length) return;
+  const pics = await contactPictures(scope, phones);
+  for (const list of cards)
+    for (const c of list ?? []) {
+      const pic = pics.get((c.phones?.[0] ?? '').replace(/\D/g, ''));
+      if (pic) c.picture = pic;
+    }
+}
+
+/** Una tanda por cuenta a la vez, después de responder (fuera de un pedido, enseguida). */
+async function soon(scope: Pick<ContactScope, 'app' | 'accountId'>, work: () => Promise<void>): Promise<void> {
   const key = `${scope.app}:${scope.accountId}`;
-  if (!phones.length || running.has(key) || (paused.get(key) ?? 0) > Date.now()) return;
+  if (running.has(key) || (paused.get(key) ?? 0) > Date.now()) return;
   const job = async () => {
     if (running.has(key)) return;
     running.add(key);
     try {
-      const p = provider();
-      if (p) await refreshContactPictures(scope, p, phones, opts);
+      await work();
     } catch {
       // Una foto que no llegó no rompe nada: queda para la próxima.
     } finally {
