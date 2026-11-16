@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InboxBranch from '@/components/inbox/InboxBranch';
+import CalmFocus from '@/components/app/CalmFocus';
 import { ChatStyleProvider } from '@/components/chat-style/ChatStyle';
 import { getChatDisplay, getChatStyle } from '@/lib/chat-style';
 import { realUserId, requireUser } from '@/lib/session';
@@ -23,6 +24,7 @@ export default async function InboxLayout(props: { children: ReactNode; params: 
       <ChatStyleProvider initial={chatStyle} initialDisplay={chatDisplay}>
         {props.children}
         <InboxBranch />
+        <CalmFocus />
       </ChatStyleProvider>
     </ClientMessages>
   );
