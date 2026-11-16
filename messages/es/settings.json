@@ -1833,6 +1833,8 @@
     "title": "Hay una versión nueva de zerosoft.",
     "body": "Recargá para usarla. Antes guardá lo que estés escribiendo.",
     "reload": "Recargar",
-    "dismiss": "Ahora no"
+    "dismiss": "Ahora no",
+    "news": "Novedades: {titles}.",
+    "seeNews": "Ver novedades"
   }
 }

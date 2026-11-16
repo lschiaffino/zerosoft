@@ -175,7 +175,15 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
     <div key={`${section}-${s.id}`} className="wa-stk" data-sticker={s.id}>
       <button type="button" className="wa-stk-send" onClick={() => void send(s)} aria-label={t('send')} title={t('send')} aria-busy={sending === s.id || undefined} disabled={!!sending && sending !== s.id}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={s.url} alt="" loading="lazy" draggable={false} />
+        <img
+          src={s.url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onLoad={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+          onError={(e) => e.currentTarget.setAttribute('data-loaded', '')}
+        />
         {s.favorite && <span className="wa-stk-star" aria-hidden="true">★</span>}
       </button>
       <MessageMenu

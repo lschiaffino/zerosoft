@@ -346,15 +346,16 @@
 .docs-branch .docs-sidebar-empty { padding: 4px 8px 8px 12px; }
 .sidebar-collapsed .side-branch { display: none; }
 /* Carpetas como íconos en el sidebar colapsado (components/ui/FolderRail.tsx). */
-.sidebar-collapsed .side-branch:has(.folder-rail) { display: block; }
-.folder-rail { padding: 6px 0 4px; margin: 2px 8px 0; border-top: 1px solid var(--line); max-height: min(40vh, 300px); overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; }
+/* Sin scroll de costado: la tira mide lo que el riel (56px) y las carpetas van centradas; solo corre hacia abajo. */
+.sidebar-collapsed .side-branch:has(.folder-rail) { display: block; padding: 0; margin: 0; min-width: 0; max-width: 100%; overflow-x: hidden; }
+.folder-rail { box-sizing: border-box; min-width: 0; max-width: calc(100% - 8px); padding: 6px 0 4px; margin: 2px 4px 0; border-top: 1px solid var(--line); max-height: min(40vh, 300px); overflow-x: hidden; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; touch-action: pan-y; }
 /* Muchas carpetas: la tira no crece más de ~8 y se desplaza; el borde de abajo se desvanece para que se note que hay más. */
 .folder-rail:has(li:nth-child(9)) { mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
 .folder-rail::-webkit-scrollbar { display: none; }
-.folder-rail ul { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.folder-rail ul { list-style: none; margin: 0; padding: 4px 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .folder-rail-btn {
   --fr-bg: var(--fr-c, hsl(var(--fr-h, 220) 55% 45%));
-  position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
+  position: relative; display: grid; place-items: center; flex: none; box-sizing: border-box; width: 32px; height: 32px; min-width: 0 !important; min-height: 0 !important; max-width: 100%; overflow: hidden; white-space: nowrap; border-radius: 8px;
   background: color-mix(in srgb, var(--fr-bg) 14%, transparent); color: var(--fr-bg);
   font-size: 11.5px; font-weight: 650; letter-spacing: 0.02em; text-decoration: none;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
