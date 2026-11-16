@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { devices, expect, test, type APIRequestContext, type CDPSession, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * El chat con el dedo, como WhatsApp en el teléfono (Inbox y Lines): mantener apretado un mensaje lo marca y
@@ -110,7 +111,7 @@ async function gestures(page: Page, cdp: CDPSession, a: string, b: string) {
 
 test('Inbox en el teléfono: toque largo, selección, deslizar para responder y "atrás"', async ({ page, request, context }) => {
   test.setTimeout(120_000);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const tag = uid();

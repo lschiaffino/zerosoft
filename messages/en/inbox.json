@@ -22,11 +22,10 @@
   "when": {
     "title": { "snooze": "Snooze until", "followUp": "Remind me if there is no reply", "sendLater": "Send later" },
     "followUpHelp": "If they have not written back by then, the chat comes back to the top of your inbox.",
-    "preset": { "later": "Later today", "tonight": "This evening", "tomorrow": "Tomorrow morning", "weekend": "This weekend", "nextWeek": "Next week", "inWeek": "In a week" },
-    "custom": "Pick a date and time",
     "confirm": "Set",
-    "cancel": "Cancel",
-    "pastError": "Pick a time in the future."
+    "confirmSend": "Schedule",
+    "confirmSnooze": "Snooze",
+    "cancel": "Cancel"
   },
   "composer": {
     "snippets": "Snippets",
@@ -90,6 +89,10 @@
     "archivedBack": "Back to the inbox",
     "woke": "Back",
     "noReply": "No reply",
+    "overdueSnooze": "Overdue: back from snooze",
+    "overdueSnoozeSince": "Overdue: back from snooze since {when}",
+    "overdueFollowUp": "Overdue: no reply by the reminder",
+    "overdueFollowUpSince": "Overdue: no reply by the reminder on {when}",
     "select": "Select {name}",
     "pinned": "Pinned",
     "draft": "Draft:",
@@ -259,6 +262,8 @@
     "unread": "Unread",
     "pin": "Pin",
     "unpin": "Unpin",
+    "snooze": "Snooze",
+    "unsnooze": "Unsnooze",
     "more": "More",
     "archive": "Archive",
     "unarchive": "Unarchive",

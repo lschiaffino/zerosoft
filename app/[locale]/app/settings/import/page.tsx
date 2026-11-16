@@ -263,7 +263,7 @@ async function SourceDetail({
         canWorkspace || teamspaces.length > 0 ? (
           <ClientMessages locale={locale} namespaces={['docs.notionImport']}>
             <NotionImportPanel
-              blobUpload={Boolean(process.env.BLOB_READ_WRITE_TOKEN)}
+              blobUpload={Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.FILES_BLOB_READ_WRITE_TOKEN)}
               teamspaces={teamspaces}
               canWorkspace={canWorkspace}
               initialSource={(def.panelSource ?? 'notion') as DocsZipSource}

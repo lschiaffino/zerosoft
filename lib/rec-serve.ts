@@ -31,7 +31,7 @@ export async function serveRecKind(
     }
     if (!opts.privileged) segments = segmentsInTrim(segments, v.trim_start, v.trim_end);
     return new NextResponse(segmentsToVtt(segments), {
-      headers: { 'content-type': 'text/vtt; charset=utf-8', 'cache-control': 'private, max-age=60', 'x-content-type-options': 'nosniff' },
+      headers: { 'content-type': 'text/vtt; charset=utf-8', 'cache-control': 'private, max-age=60', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox" },
     });
   }
   if (kind === 'sprite') {

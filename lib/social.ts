@@ -33,6 +33,7 @@ import {
   type ValidationIssue,
 } from './social-networks';
 import { nextSlots, type Slot } from './social-schedule';
+import { BULK_CHUNK, bulkPostText } from './social-bulk';
 import { blueskySession, pkcePair, REAL_PROVIDERS, SocialApiError, type AccountCreds, type DiscoveredAccount, type SocialProvider } from './social-providers';
 import { FAKE_PROVIDER, fakeBlueskySession } from './social-fake';
 
@@ -917,6 +918,47 @@ export async function createPost(actor: SocialActor, input: PostInput): Promise<
   return savePost(actor, input, null);
 }
 
+// ---------- Programación masiva (CSV) ----------
+
+export interface BulkPostInput {
+  accountIds: string[];
+  /** schedule = programar (o mandar a aprobación si la persona lo necesita); draft = borradores. */
+  action: 'schedule' | 'draft';
+  rows: Array<{ text: string; linkUrl?: string | null; scheduledAt: string | null }>;
+}
+
+/**
+ * Crea una tanda de publicaciones de un CSV (la pantalla manda de a
+ * BULK_CHUNK). Se valida toda la tanda antes de crear nada: si una fila no
+ * pasa, el error dice cuál (`details.row`, desde 0) y no se crea ninguna.
+ */
+export async function createPostsBulk(actor: SocialActor, input: BulkPostInput): Promise<{ ids: string[] }> {
+  if (!input.rows.length) return { ids: [] };
+  if (input.rows.length > BULK_CHUNK * 2) throw new SocialError(400, 'too_many_rows');
+  const accounts = await checkAccounts(actor, input.accountIds);
+  if (!accounts.length) throw new SocialError(400, 'no_accounts');
+  const broken = accounts.find((a) => a.status !== 'connected');
+  if (input.action === 'schedule' && broken) throw new SocialError(400, 'account_needs_reconnect', { accountId: broken.id });
+  const targets = accounts.map((a) => ({ id: a.id, network: a.network as SocialNetwork }));
+  const rows = input.rows.map((r) => ({ text: bulkPostText({ text: String(r.text ?? '').trim(), linkUrl: r.linkUrl?.trim() || null }), linkUrl: r.linkUrl?.trim() || null, scheduledAt: r.scheduledAt }));
+  rows.forEach((r, row) => {
+    if (!r.text) throw new SocialError(400, 'text_required', { row });
+    const at = r.scheduledAt ? new Date(r.scheduledAt) : null;
+    if (r.scheduledAt && Number.isNaN(at!.getTime())) throw new SocialError(400, 'invalid_date', { row });
+    if (input.action === 'draft') return;
+    if (!at) throw new SocialError(400, 'invalid_date', { row });
+    if (at.getTime() < Date.now() - 60_000) throw new SocialError(400, 'date_in_past', { row });
+    const issues = validatePost(targets, { text: r.text });
+    if (issues.length) throw new SocialError(400, 'validation', { row, issues });
+  });
+  const ids: string[] = [];
+  for (const r of rows) {
+    const post = await savePost(actor, { text: r.text, accountIds: accounts.map((a) => a.id), linkUrl: r.linkUrl, action: input.action, scheduledAt: r.scheduledAt }, null);
+    ids.push(post.id);
+  }
+  return { ids };
+}
+
 async function editableRow(actor: SocialActor, id: string): Promise<PostRow> {
   const row = await postRow(actor, id);
   const [dto] = await postDtos(actor, [row]);
@@ -1108,7 +1150,9 @@ export async function setSlots(actor: SocialActor, accountId: string, slots: Slo
 
 // ---------- Biblioteca ----------
 
-export type LibraryKind = 'snippet' | 'hashtags' | 'asset';
+/** reply = respuesta guardada para la bandeja (no aparece en el compositor). */
+export type LibraryKind = 'snippet' | 'hashtags' | 'asset' | 'reply';
+export const LIBRARY_KINDS: readonly LibraryKind[] = ['snippet', 'hashtags', 'asset', 'reply'];
 
 export interface LibraryItem {
   id: string;
@@ -1123,7 +1167,7 @@ export interface LibraryItem {
 
 const libDto = (r: { id: string; kind: string; name: string; body: string; media: string; created_by: string; created_at: string; updated_at: string }): LibraryItem => ({
   id: r.id,
-  kind: (['snippet', 'hashtags', 'asset'].includes(r.kind) ? r.kind : 'snippet') as LibraryKind,
+  kind: ((LIBRARY_KINDS as readonly string[]).includes(r.kind) ? r.kind : 'snippet') as LibraryKind,
   name: r.name,
   body: r.body,
   media: json<MediaItem[]>(r.media, []),

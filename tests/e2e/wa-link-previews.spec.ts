@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Vista previa de links en los chats de WhatsApp (Lines e Inbox), como en
@@ -245,7 +246,7 @@ test('Visualización: se elige en Ajustes de Lines e Inbox y se ve al instante e
 
 test('Inbox: vista previa al escribir; con la X sale sin vista previa y la burbuja tampoco la muestra', async ({ page, request }) => {
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const db = e2eDb();
   try {

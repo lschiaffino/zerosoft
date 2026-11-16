@@ -10,6 +10,7 @@ import { ArchiveIcon, Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/c
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
+import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
@@ -163,7 +164,12 @@ export default function ContactPanel({
             {name}
           </p>
           <p className="ib-wa-hero-sub">
-            {group ? (wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')) : formatPhone(thread.handle)}
+            {group ? (
+              wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')
+            ) : (
+              // El teléfono, aunque el chat esté guardado por lid (lo resuelve el servidor); un toque lo copia.
+              <PhoneCopy phone={wa?.phone || thread.handle} copyLabel={w('copyPhone')} onCopied={() => onToast(w('phoneCopied'))} />
+            )}
             {!group && wa?.isBusiness && <span className="ib-wa-badge">{w('business')}</span>}
           </p>
         </section>

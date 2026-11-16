@@ -40,7 +40,7 @@ export default async function DocsImportPage(props: { params: Promise<{ locale: 
       <PageHeader title={t('notionImport.title')} description={t('notionImport.lead')} />
       {canWorkspace || teamspaces.length > 0 ? (
         <NotionImportPanel
-          blobUpload={Boolean(process.env.BLOB_READ_WRITE_TOKEN)}
+          blobUpload={Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.FILES_BLOB_READ_WRITE_TOKEN)}
           teamspaces={teamspaces}
           canWorkspace={canWorkspace}
           initialSource={initialSource}

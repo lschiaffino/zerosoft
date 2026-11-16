@@ -139,3 +139,13 @@ describe('subida directa privada', () => {
     expect(cfg).toMatchObject({ mode: 'sealed-blob', access: 'public', prefix: du.incomingPrefix(PERSON), max: 100 * 1024 * 1024 });
   });
 });
+
+describe('subida directa de archivos de importación', () => {
+  it('cada propósito solo acepta su extensión', () => {
+    expect(du.tokenConstraints('inbox-import', 'incoming/x/abc-export.ndjson').maximumSizeInBytes).toBe(2 * 1024 * 1024 * 1024);
+    expect(() => du.tokenConstraints('inbox-import', 'incoming/x/abc-export.html')).toThrow(/file_type_not_allowed/);
+    expect(() => du.tokenConstraints('inbox-import', 'incoming/x/abc-export.zip')).toThrow(/file_type_not_allowed/);
+    expect(du.tokenConstraints('import-zip', 'incoming/x/abc-notion.zip').allowedContentTypes).toContain('application/zip');
+    expect(() => du.tokenConstraints('import-zip', 'incoming/x/abc-notion.ndjson')).toThrow(/file_type_not_allowed/);
+  });
+});

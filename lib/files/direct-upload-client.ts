@@ -10,7 +10,7 @@
  * llama sube por la ruta de su app.
  */
 
-export type DirectPurpose = 'lines-media' | 'inbox-media' | 'inbox-schedule' | 'crm-media' | 'docs' | 'notes';
+export type DirectPurpose = 'lines-media' | 'inbox-media' | 'inbox-schedule' | 'crm-media' | 'docs' | 'notes' | 'inbox-import' | 'import-zip';
 
 export class DirectUploadUnavailable extends Error {
   constructor() {

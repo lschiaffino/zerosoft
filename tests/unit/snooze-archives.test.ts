@@ -312,11 +312,11 @@ describe('Lines: posponer archiva', () => {
     expect(await c.state()).toEqual(BACK);
   });
 
-  it('uno archivado a mano (sin posponer) sigue archivado con un mensaje nuevo, como antes', async () => {
+  it('uno archivado a mano (sin posponer) vuelve con un mensaje nuevo, sin mandar nada a WhatsApp', async () => {
     const c = await linesChat('sz-li-keep', '5491100008105');
     await c.patch({ archived: true });
     await ingestEvents(c.number, [fresh(c.jid)]);
-    expect(await c.state()).toEqual(ARCHIVED);
+    expect(await c.state()).toEqual(BACK);
     expect(c.calls()).toEqual([true]);
   });
 

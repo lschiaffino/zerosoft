@@ -1,6 +1,7 @@
 import path from 'path';
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Mantener archivado" por chat, en Inbox y en Lines (WhatsApp falso), a 1280 y a 390:
@@ -72,7 +73,7 @@ for (const width of [1280, 390]) {
 
     test('Inbox: mantener archivado desde la info del chat; los mensajes no lo sacan; desarchivar lo apaga', async ({ page, request }) => {
       const errors = watchErrors(page);
-      await request.post('/api/inbox/whatsapp');
+      await request.post('/api/inbox/whatsapp', waLinkIp());
       await expect
         .poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 })
         .toBe('connected');

@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { devices, expect, test, type APIRequestContext, type CDPSession, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * El chat en el teléfono tiene el ancho fijo, como WhatsApp (Inbox y Lines, a 390 y 360): un chat largo y variado
@@ -38,7 +39,8 @@ type Ev = Record<string, unknown>;
 
 /** El chat de prueba: lo mismo en las dos apps. `src` es cómo cada app guarda la foto (Lines: "evo:<id>"; Inbox la baja con fetchRef). */
 function chatEvents(chatId: string, tag: string, src: (id: string) => string): Ev[] {
-  const t0 = Date.now() - 3_600_000;
+  // Recientes: el chat queda arriba de la lista aunque otras specs del shard hayan dejado muchos chats.
+  const t0 = Date.now() - 60_000;
   const at = (sec: number) => new Date(t0 + sec * 1000).toISOString();
   const who = { senderPhone: chatId.replace(/@.*/, ''), senderName: `Ancho ${tag}` };
   const base = { type: 'message', chatId, isGroup: false, fromMe: false, ...who };
@@ -223,7 +225,7 @@ async function fakeLine(request: APIRequestContext, name: string) {
   await expect
     .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
     .toBe('connected');
-  return ((await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string }).webhookUrl;
+  return { id, url: ((await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string }).webhookUrl };
 }
 
 async function open(page: Page, row: Locator) {
@@ -237,7 +239,7 @@ async function open(page: Page, row: Locator) {
 }
 
 test('Inbox en el teléfono: el chat no se corre de costado', async ({ page, request, context }) => {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const tag = uid();
@@ -255,16 +257,20 @@ test('Inbox en el teléfono: el chat no se corre de costado', async ({ page, req
 test('Lines en el teléfono: el chat no se corre de costado', async ({ page, request, context }) => {
   await request.put('/api/groups/prefs', { data: { line: 'all' } });
   const tag = uid();
-  const url = await fakeLine(request, `Ancho ${tag}`);
+  const { id: numberId, url } = await fakeLine(request, `Ancho ${tag}`);
   const chatId = `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}9@c.us`;
   const res = await request.post(new URL(url).pathname, { data: { events: chatEvents(chatId, tag, (id) => `evo:${id}`) } });
   expect(res.ok(), await res.text()).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 800 });
-  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const cdp = await context.newCDPSession(page);
-  const row = page.locator('[data-chat-row]', { hasText: `Ancho ${tag}` }).first().locator('a[href*="/lines/inbox/"]').first();
-  await page.goto((await row.getAttribute('href'))!, { waitUntil: 'load' });
+  // El chat se abre por su id (la línea es nueva y tiene solo este chat): buscarlo en la lista dependía de
+  // cuántos chats más recientes dejaban las otras specs del shard en la misma base.
+  let openId = '';
+  await expect
+    .poll(async () => (openId = String((await sql('SELECT id FROM groups_chats WHERE number_id = ?', [numberId]))[0]?.id ?? '')), { timeout: 20_000 })
+    .not.toBe('');
+  await page.goto(`/en/app/lines/inbox/${openId}`, { waitUntil: 'load' });
   await expect(page.locator('.wa-messages')).toBeVisible({ timeout: 60_000 });
   await page.locator('.wa-messages').evaluate((el) => (el.scrollTop = el.scrollHeight));
   await checkChat(page, cdp, tag, 'lines', true);

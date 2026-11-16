@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { deflateSync } from 'zlib';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Editar una foto antes de mandarla, como en WhatsApp, en Lines e Inbox (components/groups/wa/ImageEditor.tsx),
@@ -240,7 +241,7 @@ test('Lines: editar una foto pegada (dibujar, texto, emoji, recortar) y mandarla
 
 test('Inbox: editar una foto pegada (dibujar, texto, emoji, recortar) y mandarla', async ({ page, request, baseURL }) => {
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const tag = uid();

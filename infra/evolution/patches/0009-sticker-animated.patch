@@ -1,0 +1,30 @@
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -2994,6 +2994,13 @@
+     if (lowerCaseImage.includes('.gif')) return true;
+ 
+     if (lowerCaseImage.includes('.webp')) return this.isAnimatedWebp(buffer);
++
++    // zerosoft: en base64 (o en una URL sin extension) no hay nombre que mirar; se mira el archivo. Antes un WebP
++    // animado mandado en base64 se convertia con sharp sin `animated` y salia solo el primer cuadro.
++    if (buffer.length >= 6 && buffer.toString('ascii', 0, 4) === 'GIF8') return true;
++    if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
++      return this.isAnimatedWebp(buffer);
++    }
+ 
+     return false;
+   }
+@@ -3007,9 +3014,12 @@
+       ? Buffer.from(data.sticker, 'base64')
+       : await this.convertToWebP(data.sticker);
+     const gifPlayback = data.sticker.includes('.gif');
++    // zerosoft: WhatsApp reproduce el sticker solo si el mensaje dice que es animado (`isAnimated` del
++    // StickerMessage). Baileys lo copia del contenido, pero Evolution no lo mandaba y llegaba quieto.
++    const isAnimated = this.isAnimatedWebp(convert);
+     const result = await this.sendMessageWithTyping(
+       data.number,
+-      { sticker: convert, gifPlayback },
++      { sticker: convert, gifPlayback, ...(isAnimated ? { isAnimated: true } : {}) } as any,
+       {
+         delay: data?.delay,
+         presence: 'composing',

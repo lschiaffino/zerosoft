@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Volver a importar una línea no rompe nada, visto en la pantalla (Inbox y
@@ -60,7 +61,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 type Ev = Record<string, unknown>;
 
 function events(app: 'inbox' | 'lines', chatId: string, phone: string, name: string, tag: string): Ev[] {
-  const at = (sec: number) => new Date(Date.now() - 3_600_000 + sec * 1000).toISOString();
+  const at = (sec: number) => new Date(Date.now() - 60_000 + sec * 1000).toISOString();
   const base = (pid: string, body: string, sec: number): Ev => ({ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: phone, senderName: name, providerMessageId: pid, body, timestamp: at(sec) });
   return [
     base(`t1-${tag}`, `Primer mensaje ${tag}`, 0),
@@ -86,7 +87,7 @@ async function expectSame(thread: Locator, tag: string) {
 
 test('Inbox: lo mismo que vuelve a llegar no duplica mensajes ni vuelve a marcar el chat como no leído', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;

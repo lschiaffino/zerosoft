@@ -1,6 +1,7 @@
 import { e2eDb } from './helpers/db';
 import { ownWorkspace } from './helpers/own-workspace';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * WhatsApp con las "Confirmaciones de lectura" apagadas en el teléfono
@@ -105,7 +106,7 @@ test('Lines: 1:1 leído con las confirmaciones apagadas sigue azul y explica por
 test('Inbox: 1:1 leído con las confirmaciones apagadas sigue azul y explica por qué; el grupo dice "Read"', async ({ page, request }) => {
   test.setTimeout(120_000);
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const accountId = ((await (await request.get('/api/inbox/whatsapp')).json()) as { account: { id: string } }).account.id;
   const [acc] = await sql('SELECT id, webhook_secret FROM inbox_accounts WHERE id = ?', [accountId]);

@@ -88,6 +88,17 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
 
   zerosoft lo lee en `parseEvolutionWebhook` (`groups.update` → `{ type: 'group' }`, lib/wa-group-events.ts).
 
+- `0009-sticker-animated.patch`: los stickers animados llegaban quietos.
+  - `/message/sendSticker` pasa el archivo por sharp y decidía si era animado mirando si el texto del pedido decía
+    `.webp` o `.gif`: en base64 nunca lo dice, así que convertía sin `animated` y salía solo el primer cuadro. Ahora,
+    sin nombre que mirar, se fija en el archivo (GIF, o WebP con el chunk `ANIM`).
+  - El `StickerMessage` salía sin `isAnimated` (Evolution no se lo pasaba a Baileys), y WhatsApp lo dibuja quieto.
+    Ahora va `isAnimated: true` cuando el WebP que sale es animado.
+
+  zerosoft además manda los WebP ya listos de la colección en base64 con `notConvertSticker: true` (lo acepta la
+  versión oficial; `evolutionStickerBody` en lib/groups-media.ts), así salen tal cual. Sin este parche ese camino ya
+  conserva la animación del archivo, pero el mensaje no lleva `isAnimated`.
+
 **Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
 workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
 después de publicarse `zs6`. Para ver cuál corre: `railway deployment list -p <proyecto> -s evolution --json`

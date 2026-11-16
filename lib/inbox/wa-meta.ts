@@ -10,7 +10,8 @@
  * deja en la caché privada del navegador; si venció, se pide una nueva.
  */
 import type { InboundEvent, ChatInfo, MemberRole } from '../groups-provider';
-import { phoneDigits } from '../groups-provider';
+import { isLidJid, lidDigits, phoneDigits } from '../groups-provider';
+import { contactPhone } from '../wa-contact-phone';
 import { safeFetch } from '../safe-fetch';
 import { getDb } from '../db';
 import { listAccounts, nowIso, type AccountRow, type ThreadRow } from './core';
@@ -19,7 +20,7 @@ import { waProviderFor } from './whatsapp';
 import { inboxScope, learnFromChatInfo } from './wa-names';
 import type { WaPersonCard } from '../wa-person';
 import { reactorName, reactorPhone, type WaReactor } from '../wa-reactions';
-import { displayName, lookupContacts, type ContactRow } from '../wa-contacts';
+import { displayName, lookupContacts, phoneForLid, type ContactRow } from '../wa-contacts';
 
 type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
 
@@ -373,7 +374,15 @@ export async function waDetails(owner: string, thread: ThreadRow, account: Accou
     infoAt: thread.info_at ?? null,
     blocked: !!info.blocked,
     commonGroups: thread.kind === 'dm' && thread.handle ? await commonGroups(owner, thread) : [],
+    phone: thread.kind === 'dm' ? await threadPhone(owner, thread) : '',
   };
+}
+
+/** El teléfono de un chat 1:1 para la ficha: el guardado o, si el chat es por lid, el que la libreta conoce. */
+async function threadPhone(owner: string, thread: Pick<ThreadRow, 'handle' | 'external_id' | 'account_id'>): Promise<string> {
+  const lid = isLidJid(thread.external_id) ? lidDigits(thread.external_id) : '';
+  const lidPhone = lid && !thread.handle ? await phoneForLid(inboxScope({ id: thread.account_id, owner_id: owner }), lid).catch(() => '') : '';
+  return contactPhone({ phone: thread.handle, chatId: thread.external_id, lidPhone });
 }
 
 /** Grupos en común: los grupos de la cuenta donde está este teléfono (según los participantes guardados). */

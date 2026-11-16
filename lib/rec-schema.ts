@@ -57,6 +57,32 @@ export function parseClock(text: string): number | null {
 }
 
 /**
+ * Parámetro `t` de un link: "90", "90s", "1m30s", "1h2m3s" o "1:30" → segundos
+ * (del video recortado); null si no se entiende o es 0.
+ */
+export function parseStartParam(raw: string | null | undefined): number | null {
+  const t = String(raw ?? '').trim().toLowerCase();
+  if (!t) return null;
+  let sec: number | null = null;
+  if (/^\d{1,6}s?$/.test(t)) sec = parseInt(t, 10);
+  else if (t.includes(':')) sec = parseClock(t);
+  else {
+    const m = /^(?:(\d{1,3})h)?(?:(\d{1,4})m)?(?:(\d{1,5})s)?$/.exec(t);
+    if (m && (m[1] || m[2] || m[3])) sec = Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
+  }
+  return sec && sec > 0 ? sec : null;
+}
+
+/** El link del video que arranca en el segundo `sec` (entero, ≥ 1); sin `sec` válido, el link tal cual. */
+export function withStartParam(url: string, sec: number): string {
+  const n = Math.floor(Number(sec) || 0);
+  if (n < 1) return url;
+  const u = new URL(url, 'https://x.invalid');
+  u.searchParams.set('t', String(n));
+  return /^https?:/i.test(url) ? u.toString() : `${u.pathname}${u.search}${u.hash}`;
+}
+
+/**
  * Capítulos como en Loom: una línea por capítulo, "0:00 Intro". Tienen que
  * empezar en 0:00 y durar al menos 5 s; se ordenan y se descartan los que no.
  */
