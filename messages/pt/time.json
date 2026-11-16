@@ -56,7 +56,28 @@
     "started": "Cronômetro iniciado",
     "stopped": "Cronômetro parado",
     "loadError": "A folha de horas não carregou.",
-    "entryLabel": "{project}, {task}, {duration}"
+    "entryLabel": "{project}, {task}, {duration}",
+    "view": "Visualização",
+    "day": "Dia"
+  },
+  "week": {
+    "projectTask": "Projeto e tarefa",
+    "total": "Total",
+    "addRow": "Adicionar linha",
+    "addRowTitle": "Adicionar uma linha",
+    "copyRows": "Copiar as linhas da última folha",
+    "copied": "{count, plural, one {# linha copiada} other {# linhas copiadas}}",
+    "nothingToCopy": "Não há uma folha anterior com horas para copiar.",
+    "emptyTitle": "Sem linhas nesta semana",
+    "emptyBody": "Adicione uma linha por projeto e tarefa e digite as horas embaixo de cada dia.",
+    "cellLabel": "{project}, {task}, {day}",
+    "lockedLabel": "{project}, {task}, {day}. Vários registros ou um cronômetro rodando: abra o dia para editar",
+    "removeRow": "Remover linha",
+    "removeTitle": "Apagar esta linha da semana?",
+    "removeBody": "{count, plural, one {# registro} other {# registros}} ({duration}) desta semana serão apagados.",
+    "removed": "Linha removida",
+    "rowExists": "Esse projeto com essa tarefa já tem uma linha nesta semana.",
+    "hint": "Digite 1:30, 1.5 ou 90m. As notas e o cronômetro ficam na visão do dia."
   },
   "projects": {
     "desc": "Cada projeto com seu cliente, valor por hora e orçamento.",

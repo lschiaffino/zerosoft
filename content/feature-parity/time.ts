@@ -23,7 +23,7 @@ function row(id: string, area: string, label: L, status: ParityStatus, opts: { d
 const parity: ProductParity = {
   competitor: 'Harvest',
   alsoCompared: ['Toggl Track', 'Clockify'],
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'tracking', label: loc(['Tracking time', 'Registrar horas', 'Registrar horas']) },
     { id: 'projects', label: loc(['Projects, clients and tasks', 'Proyectos, clientes y tareas', 'Projetos, clientes e tarefas']) },
@@ -47,17 +47,23 @@ const parity: ProductParity = {
       detail: ['1:30, 1.5, 1,5, 90m or 1h 30m', '1:30, 1.5, 1,5, 90m o 1h 30m', '1:30, 1.5, 1,5, 90m ou 1h 30m'],
     }),
     row('day-view', 'tracking', ['Day view', 'Vista del día', 'Visão do dia'], 'have', { weight: 2 }),
-    row('week-view', 'tracking', ['Week timesheet', 'Hoja de horas semanal', 'Folha de horas semanal'], 'partial', {
+    row('week-view', 'tracking', ['Week timesheet', 'Hoja de horas semanal', 'Folha de horas semanal'], 'have', {
       detail: [
-        'Totals per day and for the week; hours are edited in the day, not in a week grid',
-        'Totales por día y de la semana; las horas se editan en el día, sin grilla semanal',
-        'Totais por dia e da semana; as horas são editadas no dia, sem grade semanal',
+        'A grid with a row per project and task: type the hours of each day, with totals per row, day and week. A row without hours is kept until you reload',
+        'Grilla con una fila por proyecto y tarea: se escriben las horas de cada día, con totales por fila, día y semana. Una fila sin horas queda hasta que recargás',
+        'Grade com uma linha por projeto e tarefa: digitam-se as horas de cada dia, com totais por linha, dia e semana. Uma linha sem horas fica até você recarregar',
       ],
     }),
     row('notes', 'tracking', ['Notes on an entry', 'Notas en una entrada', 'Notas em um registro'], 'have'),
     row('edit-entry', 'tracking', ['Edit, move and delete entries', 'Editar, mover y borrar entradas', 'Editar, mover e apagar registros'], 'have'),
     row('start-end', 'tracking', ['Start and end times', 'Hora de inicio y de fin', 'Hora de início e de fim'], 'missing'),
-    row('copy-rows', 'tracking', ['Copy rows from the last timesheet', 'Copiar filas de la hoja anterior', 'Copiar linhas da folha anterior'], 'missing'),
+    row('copy-rows', 'tracking', ['Copy rows from the last timesheet', 'Copiar filas de la hoja anterior', 'Copiar linhas da folha anterior'], 'have', {
+      detail: [
+        'From the last week with hours, on demand. Harvest also copies them on its own',
+        'De la última semana con horas, cuando lo pedís. Harvest además las copia solo',
+        'Da última semana com horas, quando você pede. O Harvest também as copia sozinho',
+      ],
+    }),
     row('calendar-pull', 'tracking', ['Pull events from a calendar', 'Traer eventos de un calendario', 'Trazer eventos de uma agenda'], 'missing'),
     row('idle', 'tracking', ['Idle time detection', 'Detectar tiempo inactivo', 'Detectar tempo ocioso'], 'missing'),
     // Proyectos

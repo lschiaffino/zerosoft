@@ -5,6 +5,7 @@ import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 import {
   addDays,
   billableCents,
+  cellPlan,
   entriesCsv,
   formatMinutes,
   isIsoDate,
@@ -14,6 +15,7 @@ import {
   summarize,
   weekDays,
   weekStart,
+  weekRows,
   TimeError,
   type ReportEntry,
 } from '@/lib/time/types';
@@ -30,6 +32,7 @@ import {
   listMyEntries,
   listProjects,
   listTasks,
+  recentWeekRows,
   reportEntries,
   searchTime,
   stopRunning,
@@ -108,6 +111,34 @@ describe('Time: reglas puras', () => {
     expect(billableCents(45, 10000)).toBe(7500);
   });
 
+  it('arma las filas de la semana por proyecto y tarea, con las agregadas a mano al final', () => {
+    const days = weekDays('2026-11-11');
+    const e = (id: string, date: string, projectId: string, taskId: string, minutes = 60) => ({ id, date, projectId, taskId, notes: '', minutes, timerStartedAt: null });
+    const rows = weekRows(
+      [e('a', '2026-11-10', 'p1', 't1'), e('b', '2026-11-10', 'p1', 't1', 30), e('c', '2026-11-12', 'p2', 't1'), e('old', '2026-11-02', 'p3', 't1')],
+      days,
+      [{ projectId: 'p2', taskId: 't1' }, { projectId: 'p4', taskId: 't2' }],
+    );
+    expect(rows.map((r) => r.key)).toEqual(['p1|t1', 'p2|t1', 'p4|t2']);
+    expect(rows[0].cells['2026-11-10'].map((x) => x.id)).toEqual(['a', 'b']);
+    expect(Object.keys(rows[2].cells)).toEqual(days);
+    expect(rows[2].cells['2026-11-09']).toEqual([]);
+  });
+
+  it('decide qué hace una celda editada', () => {
+    const one = { id: 'a', date: '2026-11-10', projectId: 'p', taskId: 't', notes: '', minutes: 60, timerStartedAt: null };
+    expect(cellPlan([], null)).toEqual({ kind: 'none' });
+    expect(cellPlan([], 0)).toEqual({ kind: 'none' });
+    expect(cellPlan([], 90)).toEqual({ kind: 'create', minutes: 90 });
+    expect(cellPlan([one], 60)).toEqual({ kind: 'none' });
+    expect(cellPlan([one], 30)).toEqual({ kind: 'update', id: 'a', minutes: 30 });
+    expect(cellPlan([one], null)).toEqual({ kind: 'delete', id: 'a' });
+    // Con notas, vaciarla deja la entrada en 0 en lugar de borrar lo escrito.
+    expect(cellPlan([{ ...one, notes: 'llamada' }], null)).toEqual({ kind: 'update', id: 'a', minutes: 0 });
+    expect(cellPlan([one, { ...one, id: 'b' }], 30)).toEqual({ kind: 'locked' });
+    expect(cellPlan([{ ...one, timerStartedAt: '2026-11-10T10:00:00Z' }], 30)).toEqual({ kind: 'locked' });
+  });
+
   it('el CSV escapa comas y neutraliza fórmulas', () => {
     const csv = entriesCsv(
       [{ id: 'a', date: '2026-11-10', personId: 'p', personName: 'Ana', projectId: 'x', projectName: 'Web, v2', clientId: null, clientName: null, taskId: 't', taskName: '=cmd()', notes: 'say "hi"', minutes: 90, billable: true, rateCents: 1000 }],
@@ -174,6 +205,30 @@ describe('Time: datos y permisos', () => {
     await expect(createEntry(stranger, { date: '2026-11-10', projectId: project.id, taskId: strangerTask.id, minutes: 5 })).rejects.toMatchObject({ code: 'not_found' });
     await expect(updateProject(stranger, project.id, { name: 'X' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(updateEntry(stranger, e.id, { minutes: 1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('copia las filas de la última semana con horas de la persona, sin archivados', async () => {
+    const { member, friend, owner, tasks, project } = await setup('time-copy-rows');
+    const other = await createProject(owner, { name: 'Viejo' });
+    expect(await recentWeekRows(member, '2026-11-16')).toEqual({ week: null, rows: [] });
+    // Dos semanas atrás y la última (lunes 9): copia la última.
+    await createEntry(member, { date: '2026-10-27', projectId: project.id, taskId: tasks[2].id, minutes: 30 });
+    await createEntry(member, { date: '2026-11-13', projectId: project.id, taskId: tasks[1].id, minutes: 30 });
+    await createEntry(member, { date: '2026-11-10', projectId: other.id, taskId: tasks[0].id, minutes: 30 });
+    await createEntry(member, { date: '2026-11-11', projectId: other.id, taskId: tasks[0].id, minutes: 15 });
+    // Lo de la semana pedida no cuenta, ni lo de otra persona.
+    await createEntry(member, { date: '2026-11-17', projectId: project.id, taskId: tasks[3].id, minutes: 30 });
+    await createEntry(friend, { date: '2026-11-12', projectId: project.id, taskId: tasks[4].id, minutes: 30 });
+    const got = await recentWeekRows(member, '2026-11-18');
+    expect(got.week).toBe('2026-11-09');
+    expect(got.rows).toEqual([
+      { projectId: other.id, taskId: tasks[0].id },
+      { projectId: project.id, taskId: tasks[1].id },
+    ]);
+    await updateProject(owner, other.id, { archived: true });
+    expect((await recentWeekRows(member, '2026-11-18')).rows).toEqual([{ projectId: project.id, taskId: tasks[1].id }]);
+    expect(await recentWeekRows(friend, '2026-11-09')).toEqual({ week: null, rows: [] });
+    await expect(recentWeekRows(member, 'nope')).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
   it('el reporte de un miembro trae solo sus horas; el del admin, las de todos', async () => {
@@ -262,5 +317,11 @@ describe('Time: rutas por rol', () => {
     const theirs = (await (await projects.GET(req('/api/time/projects'))).json()) as { projects: Array<{ id: string }> };
     expect(theirs.projects).toHaveLength(0);
     expect((await entries.POST(req('/api/time/entries', { date: '2026-11-10', projectId: project.id, taskId: 'nope', minutes: 1 }))).status).toBe(404);
+    const rows = await entries.GET(req('/api/time/entries?rowsBefore=2026-11-16'));
+    expect(rows.status).toBe(200);
+    expect(await rows.json()).toEqual({ week: null, rows: [] });
+    expect((await entries.GET(req('/api/time/entries?rowsBefore=bad'))).status).toBe(400);
+    session.user = null;
+    expect((await entries.GET(req('/api/time/entries?rowsBefore=2026-11-16'))).status).toBe(401);
   });
 });

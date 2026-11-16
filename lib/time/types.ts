@@ -206,3 +206,71 @@ export function cleanName(raw: unknown, max = MAX_NAME): string {
     .trim()
     .slice(0, max);
 }
+
+/* ---------- Hoja semanal (vista Week de Harvest) ---------- */
+
+/** Lo mínimo de una entrada que la grilla necesita. */
+export interface GridEntry {
+  id: string;
+  date: string;
+  projectId: string;
+  taskId: string;
+  notes: string;
+  minutes: number;
+  timerStartedAt: string | null;
+}
+
+/** Una fila de la grilla: un proyecto con una tarea. */
+export interface RowKey {
+  projectId: string;
+  taskId: string;
+}
+
+export interface WeekRow<E extends GridEntry = GridEntry> extends RowKey {
+  key: string;
+  /** Entradas de cada día de la semana (puede haber varias en un día). */
+  cells: Record<string, E[]>;
+}
+
+export const rowKey = (r: RowKey) => `${r.projectId}|${r.taskId}`;
+
+/**
+ * Filas de la semana: una por proyecto y tarea con horas, en el orden en que se
+ * cargaron, y después las agregadas a mano (sin horas todavía) que no estén.
+ */
+export function weekRows<E extends GridEntry>(entries: E[], days: string[], extra: RowKey[] = []): WeekRow<E>[] {
+  const map = new Map<string, WeekRow<E>>();
+  const blank = (r: RowKey): WeekRow<E> => ({
+    key: rowKey(r),
+    projectId: r.projectId,
+    taskId: r.taskId,
+    cells: Object.fromEntries(days.map((d) => [d, [] as E[]])),
+  });
+  for (const e of entries) {
+    if (!days.includes(e.date)) continue;
+    const k = rowKey(e);
+    const row = map.get(k) ?? blank(e);
+    row.cells[e.date].push(e);
+    map.set(k, row);
+  }
+  for (const r of extra) if (!map.has(rowKey(r))) map.set(rowKey(r), blank(r));
+  return [...map.values()];
+}
+
+/**
+ * Qué hacer al escribir en una celda (`minutes` null = la vació):
+ * - varias entradas o un cronómetro corriendo: se edita en el día (`locked`);
+ * - vacía y sin horas: nada; vacía con horas: entrada nueva;
+ * - una entrada: se cambia; vaciarla la borra, salvo que tenga notas (queda en 0).
+ */
+export type CellPlan = { kind: 'none' } | { kind: 'locked' } | { kind: 'create'; minutes: number } | { kind: 'update'; id: string; minutes: number } | { kind: 'delete'; id: string };
+
+export function cellPlan(cell: GridEntry[], minutes: number | null): CellPlan {
+  if (cell.length > 1 || cell.some((e) => e.timerStartedAt)) return { kind: 'locked' };
+  const next = minutes ?? 0;
+  const cur = cell[0];
+  if (!cur) return next > 0 ? { kind: 'create', minutes: next } : { kind: 'none' };
+  if (next === cur.minutes) return { kind: 'none' };
+  if (next === 0 && !cur.notes.trim()) return { kind: 'delete', id: cur.id };
+  return { kind: 'update', id: cur.id, minutes: next };
+}
