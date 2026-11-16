@@ -1,8 +1,8 @@
 import type { ChangelogEntry } from '../changelog';
 
 export default {
-  id: '2026-11-15-chat-phone-clutter',
-  date: '2026-11-15',
+  id: '2026-11-16-chat-phone-clutter',
+  date: '2026-11-16',
   title: {
     en: 'Inbox and Lines on the phone: less in the way',
     es: 'Inbox y Lines en el teléfono: menos cosas en el medio',
@@ -17,9 +17,9 @@ export default {
     },
     {
       product: 'groups',
-      en: 'Lines gets the same 44px buttons, no arrow left on tapped messages and no floating feedback tab on the phone.',
-      es: 'Lines tiene los mismos botones de 44px, sin la flecha en los mensajes tocados y sin la pestaña de comentarios flotando en el teléfono.',
-      pt: 'O Lines ganha os mesmos botões de 44px, sem a seta nas mensagens tocadas e sem a aba de comentários flutuando no celular.',
+      en: 'Lines gets the same 44px buttons, no arrow left on tapped messages and no floating feedback tab on the phone. In both apps, you send feedback from the account menu (Send feedback).',
+      es: 'Lines tiene los mismos botones de 44px, sin la flecha en los mensajes tocados y sin la pestaña de comentarios flotando en el teléfono. En las dos apps, el feedback se manda desde el menú de la cuenta (Enviar feedback).',
+      pt: 'O Lines ganha os mesmos botões de 44px, sem a seta nas mensagens tocadas e sem a aba de comentários flutuando no celular. Nos dois apps, o feedback é enviado pelo menu da conta (Enviar feedback).',
     },
   ],
 } satisfies ChangelogEntry;

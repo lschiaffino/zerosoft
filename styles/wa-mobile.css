@@ -35,9 +35,11 @@ html[data-keyboard='open'] .gr-inbox .wa-composer { padding-bottom: 8px; }
   .gr-inbox .wa-head .wa-head-who { min-width: 0; flex: 1 1 auto; }
 }
 /* La pestaña de comentarios flotaba sobre la columna de la hora y los no leídos de la lista y sobre los mensajes.
-   En el chat del teléfono no se muestra (como en WhatsApp, nada flota sobre la conversación). */
+   En el chat del teléfono no se muestra (como en WhatsApp, nada flota sobre la conversación). El feedback se manda
+   desde el menú de la cuenta ("Enviar feedback"), que abre el mismo panel: abierto, se ve aunque haya un chat. */
 @media (max-width: 760px) {
-  body:has(.gr-inbox) .fl-root:not(:focus-within), body:has(.gr-inbox) #zs-chat-btn { visibility: hidden; pointer-events: none; }
+  body:has(.gr-inbox) .fl-root:not(.is-open), body:has(.gr-inbox) #zs-chat-btn { visibility: hidden; pointer-events: none; }
+  body:has(.gr-inbox) .fl-root.is-open { display: block !important; }
 }
 
 /* Teléfono con el teclado abierto: el chat usa todo lo que queda a la vista, como WhatsApp (sin la banda de la

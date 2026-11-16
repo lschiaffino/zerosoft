@@ -54,5 +54,55 @@ for (const width of [390, 360]) {
     await msg.locator('.gr-bubble').tap();
     await expect(msg.locator('.wa-hover')).toHaveCSS('opacity', '0');
     await noSideScroll(page);
+
+    await feedbackFromMenu(page);
   });
 }
+
+/** Sin la pestaña flotante, el feedback se manda desde el menú de la cuenta (en el drawer): abre el mismo panel. */
+async function feedbackFromMenu(page: Page) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none; }' });
+  await page.locator('.band-menu').click();
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('side-feedback').click();
+  const panel = page.locator('.fl-root .fl-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('tab', { selected: true })).toHaveCount(1);
+  const box = (await panel.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator('.fl-root')).toBeHidden();
+}
+
+test('Lines a 390px con el dedo: sin flotantes y feedback desde el menú de la cuenta', async ({ page, request }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 780 });
+  await request.put('/api/groups/prefs', { data: { line: 'all' } });
+  const tag = uid();
+  const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Clutter ${tag}` } });
+  const { id } = (await created.json()) as { id: string };
+  await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
+  await expect
+    .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+    .toBe('connected');
+  const url = ((await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string }).webhookUrl;
+  const chatId = `54911${Math.floor(Math.random() * 1e7)}@c.us`;
+  const name = `Clutter ${tag}`;
+  await request.post(new URL(url).pathname, {
+    data: { events: [{ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: '5491155550000', senderName: name, providerMessageId: `cl-${tag}`, body: `hola ${tag}` }] },
+  });
+
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+  const row = page.locator('[data-chat-row]', { hasText: name }).first();
+  await expect(row).toBeVisible();
+  await expect(page.locator('.fl-root')).toBeHidden();
+  await noSideScroll(page);
+  await row.click();
+  await expect(page.locator('.gr-msg', { hasText: `hola ${tag}` })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.fl-root')).toBeHidden();
+  await noSideScroll(page);
+
+  await feedbackFromMenu(page);
+});

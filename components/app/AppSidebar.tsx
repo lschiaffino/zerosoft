@@ -40,6 +40,7 @@ import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import { inDesktopApp } from '@/lib/desktop-detect';
 import { useLayer } from '@/lib/ui/layers';
+import { openFeedback } from '@/lib/ui/feedback-open';
 
 export type { SidebarLabels };
 
@@ -847,6 +848,11 @@ export default function AppSidebar({
                 <Icon name="help" size={14} />
                 {labels.docsSite}
               </Link>
+              {/* En el teléfono la pestaña de feedback no flota sobre el chat (styles/wa-mobile.css): esta es la vía. */}
+              <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={openFeedback} data-testid="side-feedback">
+                <Icon name="feedback" size={14} />
+                {t('sendFeedback')}
+              </button>
               <Link href="/" role="menuitem" className="side-menu-item">
                 <Icon name="back" size={14} />
                 {labels.backToSite}
