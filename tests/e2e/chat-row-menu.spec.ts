@@ -93,7 +93,7 @@ test('Inbox: clic derecho en un chat abre el menú de WhatsApp en el puntero, co
   const box = (await menu(page).boundingBox())!;
   expect(Math.abs(box.x - at.x)).toBeLessThanOrEqual(2);
   expect(Math.abs(box.y - at.y)).toBeLessThanOrEqual(2);
-  await expect(menu(page).getByRole('menuitem')).toHaveText(['Open in new window', 'Mark read', 'Archive chat', 'Pin chat', 'Mute notifications', 'Add to folder', 'Contact info', 'Remove from Inbox']);
+  await expect(menu(page).getByRole('menuitem')).toHaveText(['Open in new window', 'Mark read', 'Archive chat', 'Snooze…', 'Pin chat', 'Mute notifications', 'Add to folder', 'Contact info', 'Remove from Inbox']);
   await expect(menu(page).getByRole('menuitem').first()).toBeFocused();
   await page.screenshot({ path: info.outputPath('inbox-menu-1280-light.png') });
 
@@ -132,7 +132,7 @@ test('Inbox: clic derecho en un chat abre el menú de WhatsApp en el puntero, co
   await page.keyboard.press('Shift+F10');
   await expect(menu(page)).toBeVisible();
   await expect(menu(page).getByRole('menuitem').first()).toBeFocused();
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown'); // "Posponer…" va antes de Fijar
   await expect(menu(page).getByRole('menuitem', { name: 'Mute notifications' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(sub.getByRole('menuitem').first()).toBeFocused();

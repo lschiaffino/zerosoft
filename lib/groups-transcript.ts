@@ -4,12 +4,13 @@
  * el audio de donde lo haya guardado Lines. Server-only.
  */
 import { readFile } from 'fs/promises';
-import { getChatRow, getMessageRow, getNumberRow, readConfig, storeInboundMedia, type MessageRow } from './groups';
+import { getChatRow, getMessageRow, getNumberRow, mediaRefFor, readConfig, storeInboundMedia, type MessageRow } from './groups';
 import { fetchCloudMedia } from './groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from './groups-provider';
 import { safeFetch } from './safe-fetch';
 import { localUploadPath } from './uploads';
-import { readTranscript, transcribeMessage, TRANSCRIBE_MAX_BYTES, type TranscriptDto } from './wa-extras';
+import { fetchStateOf, mediaErrorKind } from './wa-media-wire';
+import { readTranscript, retryableTranscript, transcribeMessage, TRANSCRIBE_MAX_BYTES, type TranscriptDto } from './wa-extras';
 
 async function readCapped(res: Response): Promise<Buffer> {
   if (!res.ok || !res.body) throw new Error('media_unavailable');
@@ -37,7 +38,12 @@ async function loadAudio(ws: string, msg: MessageRow): Promise<{ data: Buffer; m
   const number = chat ? await getNumberRow(ws, chat.number_id) : null;
   if (!number || !chat) throw new Error('media_unavailable');
   if (url.startsWith('evo:')) {
-    const stored = await storeInboundMedia(number, msg.id, { providerMessageId: url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' });
+    const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
+    const stored = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: url.slice(4) }).catch((err) => {
+      // El motivo, para que la transcripción sepa si vale la pena volver a pedirlo sola (lib/wa-extras.ts).
+      const state = number.status !== 'connected' ? 'offline' : fetchStateOf(mediaErrorKind(err, !!ref.wire));
+      throw Object.assign(new Error('media_unavailable'), { code: state === 'gone' ? 'media_gone' : state === 'offline' ? 'not_connected' : 'media_unavailable' });
+    });
     url = stored?.url ?? (await getMessageRow(ws, msg.id))?.media_url ?? '';
     if (!url || url.startsWith('evo:')) throw new Error('media_unavailable');
   }
@@ -61,11 +67,12 @@ async function loadAudio(ws: string, msg: MessageRow): Promise<{ data: Buffer; m
 }
 
 /** Transcripción de un audio de Lines (`start`: la hace si no está). El que llama ya chequeó el acceso al chat. */
-export async function linesTranscript(ws: string, messageId: string, start: boolean): Promise<TranscriptDto | null | 'not_audio'> {
+export async function linesTranscript(ws: string, messageId: string, start: boolean, force = false): Promise<TranscriptDto | null | 'not_audio'> {
   const msg = await getMessageRow(ws, messageId);
   if (!msg || !msg.media_url || !/^audio\//.test(msg.media_type || '')) return 'not_audio';
   const saved = await readTranscript('lines', ws, msg.id);
-  if (saved && (saved.status !== 'pending' || !start)) return saved;
+  // Lo que falló porque el audio no se pudo bajar se vuelve a intentar (el audio pudo haber vuelto).
+  if (saved && ((saved.status !== 'pending' && !retryableTranscript(saved)) || !start)) return saved;
   if (!start) return null;
   let seconds: number | undefined;
   try {
@@ -73,5 +80,5 @@ export async function linesTranscript(ws: string, messageId: string, start: bool
   } catch {
     seconds = undefined;
   }
-  return transcribeMessage('lines', ws, msg.id, async () => ({ ...(await loadAudio(ws, msg)), seconds }));
+  return transcribeMessage('lines', ws, msg.id, async () => ({ ...(await loadAudio(ws, msg)), seconds }), new Date(), { force });
 }

@@ -28,6 +28,15 @@ const SECRET_IN_TEXT: RegExp[] = [
 
 export const REDACTED = '[hidden]';
 
+/** Tope de un texto suelto. */
+export const TEXT_CAP = 2000;
+/**
+ * Tope de un resultado de operación ya marcado (<untrusted_data …>). Lo arma
+ * fitUntrusted en tools-catalog ya dentro del tope: cortarlo acá dejaría el
+ * JSON a medias y la etiqueta sin cerrar.
+ */
+export const UNTRUSTED_CAP = 12000;
+
 export function isSecretKey(key: string): boolean {
   return SECRET_KEY.test(key);
 }
@@ -43,7 +52,8 @@ export function redact(value: unknown, depth = 0): unknown {
   if (value == null) return value;
   if (typeof value === 'string') {
     const clean = redactText(value);
-    return clean.length > 2000 ? `${clean.slice(0, 2000)}…` : clean;
+    const cap = clean.startsWith('<untrusted_data ') ? UNTRUSTED_CAP : TEXT_CAP;
+    return clean.length > cap ? `${clean.slice(0, cap)}…` : clean;
   }
   if (typeof value === 'number' || typeof value === 'boolean') return value;
   if (depth > 6) return '…';

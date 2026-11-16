@@ -20,7 +20,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json({ chat: maskChat(guard.viewer, chat), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído. */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar y posponer. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -44,6 +44,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
   if (typeof b.muted === 'boolean') patch.muted = b.muted;
   if (typeof b.archived === 'boolean') patch.archived = b.archived;
+  if (typeof b.keepArchived === 'boolean') patch.keepArchived = b.keepArchived;
+  if (b.snoozedUntil === null || typeof b.snoozedUntil === 'string') patch.snoozedUntil = (b.snoozedUntil as string | null) || null;
   if (typeof b.hidden === 'boolean') patch.hidden = b.hidden;
   try {
     if (b.folderId === null || typeof b.folderId === 'string') {
@@ -58,9 +60,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 /**
  * { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado.
- * { action: 'fetchMissing', auto? }: le pide al teléfono el historial del chat (mensajes que WhatsApp no pudo
- * entregar, lib/wa-history-gaps.ts). `auto`: lo pide la pantalla al abrir un chat con la marca; responde 200 igual
- * si no sale (topes, sin huecos).
+ * { action: 'loadOlder' }: "Cargar mensajes anteriores": lo que guardó el gateway y, si no hay más, el teléfono.
+ * { action: 'fetchMissing' }: "Traer mensajes que faltan": le pide al teléfono lo anterior a los huecos y al último
+ * mensaje (lib/wa-history-gaps.ts, refreshChatHistory); { action: 'fetchMissingStatus' } dice cómo va.
+ * { action: 'fetchMissing', auto: true }: lo pide la pantalla al abrir un chat con la marca de mensajes que WhatsApp no
+ * pudo entregar; responde 200 igual si no sale (topes, sin huecos).
  */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
@@ -69,12 +73,51 @@ export async function POST(req: Request, ctx: Ctx) {
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
   const b = (await req.json().catch(() => ({}))) as { action?: string; auto?: unknown };
+  if (b.action === 'fetchMissing' && b.auto !== true) {
+    // "Traer mensajes que faltan" a mano: anclas exactas alrededor de los huecos y antes del último mensaje.
+    try {
+      const { requestRefresh, refreshResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestRefresh('lines', s.ws, id);
+      if (!out) return groupsError(404, 'not_found');
+      const r = refreshResponse(out);
+      return NextResponse.json(r.body, { status: r.status });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  if (b.action === 'fetchMissingStatus') {
+    // Cómo va el último "Traer mensajes que faltan" del chat (cuántos trajo, si el teléfono respondió).
+    try {
+      const { requestRefreshStatus } = await import('@/lib/wa-history-gaps');
+      const st = await requestRefreshStatus('lines', s.ws, id);
+      if (!st) return groupsError(404, 'not_found');
+      return NextResponse.json(st);
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   if (b.action === 'fetchMissing') {
     try {
       const { requestChatHistory, historyResponse } = await import('@/lib/wa-history-gaps');
       const out = await requestChatHistory('lines', s.ws, id, { auto: b.auto === true });
       if (!out) return groupsError(404, 'not_found');
       const r = historyResponse(out, b.auto === true);
+      return NextResponse.json(r.body, { status: r.status });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  if (b.action === 'loadOlder') {
+    // "Cargar mensajes anteriores": primero lo que guardó el gateway (la importación trae los últimos N); si no hay
+    // más ahí, se le pide al teléfono (lib/wa-history-gaps.ts). Solo quien ve el chat (chatGuard, arriba).
+    try {
+      const { importOlder } = await import('@/lib/groups-import');
+      const stored = await importOlder(s.ws, id).catch(() => ({ added: 0, done: true }));
+      if (stored.added > 0) return NextResponse.json({ ok: true, delivered: stored.added, pending: false });
+      const { requestOlderHistory, olderResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestOlderHistory('lines', s.ws, id);
+      if (!out) return groupsError(404, 'not_found');
+      const r = olderResponse(out);
       return NextResponse.json(r.body, { status: r.status });
     } catch (err) {
       return handleGroupsError(err);

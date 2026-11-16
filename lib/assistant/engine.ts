@@ -28,6 +28,8 @@ import { redact } from './redact';
 import { assistantVision, attachmentKind, attachmentLine, getAttachments, modelParts } from './files';
 import { toolCtx, type AssistantTool, type ToolCtx } from './registry';
 import { toolsFor } from './tools';
+import { hasChatGrant, type ChatApp } from './chat-access';
+import { consentCard } from './tools-chats';
 import {
   addMessage,
   audit,
@@ -125,7 +127,8 @@ function instructions(ctx: ToolCtx, tools: AssistantTool[], page: PageContext | 
   return [
     'You are the zerosoft assistant, built into a suite of business apps (CRM, Docs, Track, Talk, Voice, Cal, Flow, Robots, Agents, Link, Notes, Board, Chat, Lines, settings).',
     'You help the person find information, diagnose problems and configure the workspace using the tools you have.',
-    `Today is ${new Date().toISOString().slice(0, 10)}. Reply in ${LOCALE_NAME[ctx.locale] ?? 'English'}, briefly. Format with Markdown when it helps (short lists, a table to compare, inline code); no long headings, no HTML.`,
+    "You can see the person's own Inbox (their WhatsApp and email) and Lines (shared WhatsApp lines) chats: inbox_attention and lines_attention list what is waiting (names and times, no message text); inbox_read_chats and lines_read_chats read messages after the person allows it on a card. For 'what am I behind on', 'what do I owe', recommendations or a chat summary: look at the attention list first, read the chats you need (they ask for permission by themselves), then recommend concrete next steps and offer them as ONE propose_inbox_actions card (reply drafts, snooze, follow-up, archive, done, folder). Never say you cannot read chats: ask for permission instead. A short message like 'Allowed. Go ahead.' right after a permission card comes from the card's button: continue the previous request and keep using the language of the person's earlier messages.",
+    `Today is ${new Date().toISOString().slice(0, 10)}. ALWAYS reply in the language the person writes in (the language of their last message), even if the app is in another language; only if you cannot tell, use ${LOCALE_NAME[ctx.locale] ?? 'English'}. Be brief. Format with Markdown when it helps (short lists, a table to compare, inline code); no long headings, no HTML.`,
     `The person is ${person.name ?? person.email} (${ctx.user.role ?? 'owner'} of this workspace). Apps they can use here: ${apps}.`,
     'Always use tools to look things up. Never invent records, ids, numbers or settings. If a tool returns nothing, say so.',
     'If the person asks for something no tool covers (for example an app they do not have access to), say you cannot do it here and point to the page in the app.',
@@ -213,6 +216,7 @@ function sdkTools(
 ): ToolSet {
   const set: ToolSet = {};
   const turnCtx: ToolCtx = { ...ctx, conversationId };
+  const askedConsent = new Set<ChatApp>();
   for (const t of tools) {
     set[t.name] = tool({
       description: t.description,
@@ -220,6 +224,21 @@ function sdkTools(
       execute: async (raw: unknown) => {
         const input = (raw ?? {}) as Record<string, unknown>;
         if (t.kind === 'read') {
+          // Chats de la persona: sin su permiso no se lee nada; queda la tarjeta que lo pide (una por app y turno).
+          if (t.consent && !(await hasChatGrant(owner, t.consent, conversationId))) {
+            await audit({ owner, conversationId, tool: t.name, kind: 'denied', input: redact(input), outcome: 'needs_permission' });
+            if (!askedConsent.has(t.consent)) {
+              askedConsent.add(t.consent);
+              const card = consentCard(ctx, t.consent);
+              const action = await createAction({ conversationId, owner, tool: 'grant_chat_access', input: card.input, summary: card.summary, details: card.details, destructive: false, confirmText: null });
+              actions.push(action);
+            }
+            return {
+              status: 'awaiting_permission',
+              app: t.consent,
+              note: 'Nothing was read. A card asks the person to allow reading these chats (this time / always / no). In one or two sentences, in their language, tell them why you need it and that they can choose on the card. Then stop and wait; do not call this tool again in this turn.',
+            };
+          }
           try {
             const out = redact(await t.run(turnCtx, input));
             await audit({ owner, conversationId, tool: t.name, kind: 'read', input: redact(input), outcome: 'ok' });
@@ -289,6 +308,7 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
   }
   const tools = toolsFor(opts.user);
   const toolNames = new Set(tools.map((t) => t.name));
+  const sensitive = new Set(tools.filter((t) => t.kind === 'read' && t.sensitive).map((t) => t.name));
   const resolved = resolveAssistantModel(() => fakeModel(fakeAssistantStep));
   if (!resolved) {
     yield { type: 'error', code: 'not_configured' };
@@ -362,8 +382,10 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
         const output = raw.type === 'tool-result' ? raw.output : { error: 'tool_failed' };
         const ok = raw.type === 'tool-result' && !(output && typeof output === 'object' && 'error' in (output as object));
         const call = pendingCalls.get(callId);
-        parts.push({ type: 'tool', tool: toolName, input: (call?.input ?? {}) as Record<string, unknown>, output, ok });
-        yield { type: 'tool-result', callId, tool: toolName, ok, output };
+        // Texto de chats de otros: no se guarda en la charla ni vuelve a la pantalla; solo cuántos se leyeron.
+        const shown = sensitive.has(toolName) && ok && output && typeof output === 'object' && 'chats' in output ? { read: (output as { read?: unknown } | null)?.read ?? 0, withheld: true } : output;
+        parts.push({ type: 'tool', tool: toolName, input: (call?.input ?? {}) as Record<string, unknown>, output: shown, ok });
+        yield { type: 'tool-result', callId, tool: toolName, ok, output: shown };
         while (emittedActions < actions.length) {
           const a = actions[emittedActions++];
           parts.push({ type: 'action', actionId: a.id });

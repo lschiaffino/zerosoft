@@ -76,7 +76,10 @@
     "unmute": "Unmute",
     "mute": "Mute",
     "fullscreen": "Full screen",
-    "skipSilences": "Skip silences"
+    "skipSilences": "Skip silences",
+    "reaction": "{name} reacted with {emoji}",
+    "reactionAt": "At {time}",
+    "removeReaction": "Remove reaction"
   },
   "comments": {
     "title": "Comments",
@@ -103,13 +106,17 @@
       "invalid_reaction": "That reaction is not available.",
       "name_taken": "That name belongs to someone in the workspace. Use another one or sign in.",
       "signin_required": "Sign in to comment on this video.",
-      "rate_limited": "Too many comments on this video right now. Try again in a few minutes."
+      "rate_limited": "Too many comments on this video right now. Try again in a few minutes.",
+      "remove_reaction": "The reaction could not be removed. Try again."
     },
     "guest": "Guest",
     "authorBadge": "Author",
     "more": "Show older comments ({shown} of {total})",
     "signinToComment": "Sign in to comment on this video.",
-    "viewOnly": "You can watch this video. Commenting is off for you."
+    "viewOnly": "You can watch this video. Commenting is off for you.",
+    "yours": "Your reactions",
+    "removeReactionAt": "Remove your {emoji} at {time}",
+    "removeYour": "Remove your {emoji}"
   },
   "common": {
     "copied": "Copied",

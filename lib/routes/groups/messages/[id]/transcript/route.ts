@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function handle(ctx: Ctx, start: boolean) {
+async function handle(ctx: Ctx, start: boolean, force = false) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
@@ -16,7 +16,7 @@ async function handle(ctx: Ctx, start: boolean) {
   if (!msg) return groupsError(404, 'not_found');
   const guard = await chatGuard(s, msg.chat_id);
   if (guard instanceof NextResponse) return guard;
-  const t = await linesTranscript(s.ws, id, start);
+  const t = await linesTranscript(s.ws, id, start, force);
   if (t === 'not_audio') return groupsError(400, 'invalid_input');
   return NextResponse.json({ transcript: t }, { headers: { 'cache-control': 'private, no-store' } });
 }
@@ -27,6 +27,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 /** Transcribe el audio (una sola vez por workspace; los largos con resumen). */
-export async function POST(_req: Request, ctx: Ctx) {
-  return handle(ctx, true);
+export async function POST(req: Request, ctx: Ctx) {
+  // ?force=1: el audio se acaba de volver a bajar.
+  return handle(ctx, true, new URL(req.url).searchParams.get('force') === '1');
 }

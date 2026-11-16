@@ -201,8 +201,7 @@
     "task": "Tarea",
     "question": "Pide respuesta",
     "fileUnavailable": "No disponible",
-    "fetchMissing": "Traer mensajes que faltan",
-    "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
+    "fetchMissing": "Traer mensajes que faltan"
   },
   "status": {
     "queued": "Esperando conexión",
@@ -1023,7 +1022,8 @@
     "not_on_whatsapp": "Ese número no tiene WhatsApp. Revisalo, con el código de país.",
     "chat_no_access": "Esta línea ya tiene un chat con ese número y no tenés acceso. Pedíselo a un admin.",
     "history_rate_limited": "Ya pediste los mensajes de este chat hace un momento. Probá de nuevo en un minuto.",
-    "history_failed": "Tu teléfono no respondió. Fijate que tenga internet y probá de nuevo."
+    "history_failed": "Tu teléfono no respondió. Fijate que tenga internet y probá de nuevo.",
+    "voice_too_short": "Grabá al menos un segundo para programarla."
   },
   "media": {
     "image": "Imagen",
@@ -1631,7 +1631,13 @@
     "openChat": "Abrir el chat con {name}",
     "loadError": "No se cargaron los mensajes programados. Probá de nuevo.",
     "retry": "Probar de nuevo",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "voiceButton": "Enviar la nota de voz más tarde",
+    "voiceTag": "🎤 Nota de voz ({time})",
+    "voicePlay": "Escuchar la nota de voz",
+    "voiceStop": "Pausar",
+    "voicePlayFailed": "No se pudo reproducir el audio.",
+    "voiceTooShort": "Grabá al menos un segundo para programarla."
   },
   "polls": {
     "button": "Encuesta",
@@ -1670,6 +1676,8 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "events": {"someone": "Alguien", "createdMe": "Creaste el grupo «{subject}»", "created": "{by} creó el grupo «{subject}»", "createdUnknown": "Se creó el grupo «{subject}»", "createdMeNoName": "Creaste este grupo", "createdNoName": "{by} creó este grupo", "createdUnknownNoName": "Se creó este grupo", "addedYou": "{by} te agregó", "addedYouUnknown": "Te agregaron", "addedMe": "Agregaste a {who}", "added": "{by} agregó a {who}", "addedUnknown": "Se agregó a {who}", "removedYou": "{by} te sacó", "removedYouUnknown": "Te sacaron del grupo", "removedMe": "Sacaste a {who}", "removed": "{by} sacó a {who}", "removedUnknown": "Sacaron a {who}", "leftMe": "Saliste", "left": "{who} salió", "joinedMe": "Te uniste con el link de invitación", "joined": "{who} se unió con el link de invitación", "promotedYou": "Ahora sos admin", "promoted": "{who} ahora es admin", "demotedYou": "Ya no sos admin", "demoted": "{who} ya no es admin", "subjectMe": "Cambiaste el nombre del grupo a «{subject}»", "subject": "{by} cambió el nombre del grupo a «{subject}»", "subjectUnknown": "El grupo ahora se llama «{subject}»", "descriptionMe": "Cambiaste la descripción del grupo", "description": "{by} cambió la descripción del grupo", "descriptionUnknown": "Cambió la descripción del grupo", "iconMe": "Cambiaste la foto del grupo", "icon": "{by} cambió la foto del grupo", "iconUnknown": "Cambió la foto del grupo"},
+    "newGroup": {"label": "Grupo nuevo", "members": "Grupo · {n, plural, one {# miembro} other {# miembros}}", "groupOnly": "Grupo", "addMembers": "Agregar miembros", "invite": "Invitar con link", "inviteCopied": "Link de invitación copiado", "description": "Agregar descripción", "info": "Info del grupo", "hint": "Saludá para arrancar la conversación."},
     "pause": "Pausar",
     "play": "Reproducir",
     "seek": "Posición en el audio",
@@ -1792,9 +1800,6 @@
     "emojiNone": "No hay emojis con esa búsqueda",
     "sendFiles": "{n, plural, one {Mandar # archivo} other {Mandar # archivos}}",
     "importNothingNew": "Ya estaba todo importado ({chats} chats).",
-    "historyOnPhone": "Los mensajes anteriores están en el teléfono.",
-    "historyFetch": "Traer más",
-    "historyAll": "Este es el principio del historial que tenemos.",
     "online": "en línea",
     "typing": "escribiendo…",
     "typingBy": "{name} está escribiendo…",
@@ -1814,12 +1819,23 @@
     "unarchive": "Desarchivar chat",
     "archived": "Chat archivado",
     "unarchived": "Chat desarchivado",
+    "keepArchived": "Mantener archivado",
+    "keepArchivedOff": "Dejar de mantener archivado",
+    "keepArchivedHint": "Los mensajes nuevos, y los que mandás, no lo sacan de Archivados.",
+    "keptArchived": "Se mantiene archivado",
+    "keepArchivedOn": "Se mantiene archivado",
+    "keepArchivedOffToast": "Ya no se mantiene archivado",
     "archivedTitle": "Archivados",
     "archivedEmpty": "No hay chats archivados.",
     "deleteChat": "Eliminar chat",
     "deleteChatTitle": "¿Eliminar el chat con {name}?",
-    "deleteChatBody": "Sale de la lista para todo el equipo. En WhatsApp no cambia nada y, si llega un mensaje nuevo, el chat vuelve a aparecer con su historial.",
+    "deleteChatBody": "Sale de la lista para todo el equipo y queda en Archivados › Eliminados por si lo querés recuperar. En WhatsApp no cambia nada y, si llega un mensaje nuevo, el chat vuelve a aparecer con su historial.",
     "chatDeleted": "Chat eliminado",
+    "deletedTitle": "Eliminados",
+    "deletedEmpty": "No hay chats eliminados.",
+    "deletedNote": "Los chats eliminados de Lines guardan su historial. Recuperar devuelve uno a la lista; un mensaje nuevo también lo trae de vuelta. Un admin puede borrarlo del todo desde su info.",
+    "restoreChat": "Recuperar chat",
+    "chatRestored": "Chat recuperado",
     "lineDropped": "{name} perdió la conexión con WhatsApp. Los mensajes nuevos no llegan hasta que la reconectes.",
     "archiveBroken": "El archivado de WhatsApp no se está sincronizando en esta línea: lo que archivás acá no llega al teléfono y lo que archivás en el teléfono no aparece acá. Desconectá la línea y volvé a vincularla para arreglarlo.",
     "line": "Tu línea",
@@ -1985,7 +2001,51 @@
       "openFor": "Info. del contacto de {name}"
     },
     "replyPrivately": "Responder en privado",
-    "messageName": "Enviar mensaje a {name}"
+    "messageName": "Enviar mensaje a {name}",
+    "downloadAgain": "Bajar de nuevo",
+    "downloadingAgain": "Bajando…",
+    "mediaGoneImage": "Esta foto ya no está disponible en WhatsApp",
+    "mediaGoneVideo": "Este video ya no está disponible en WhatsApp",
+    "askPhoneAgain": "Pedirlo de nuevo al teléfono",
+    "mediaGoneAudio": "Este audio ya no está disponible en WhatsApp",
+    "mediaGoneShort": "Ya no está en WhatsApp",
+    "mediaOffline": "La línea está desconectada. Vinculala de nuevo para bajarlo.",
+    "mediaOfflineShort": "Línea desconectada",
+    "mediaRetryFailed": "No se pudo bajar",
+    "olderLoad": "Cargar mensajes anteriores",
+    "olderLoading": "Cargando mensajes anteriores…",
+    "olderNone": "No hay mensajes anteriores en WhatsApp",
+    "olderError": "No se pudieron cargar. Reintentar",
+    "olderLimited": "Muchos pedidos para esta línea. Probá más tarde",
+    "olderOffline": "Línea desconectada: vinculala para cargar mensajes anteriores",
+    "olderNoAnswer": "El teléfono no respondió. Reintentar",
+    "refreshLoading": "Pidiéndole al teléfono los mensajes que faltan…",
+    "refreshDone": "{count, plural, one {Se trajo # mensaje que faltaba} other {Se trajeron # mensajes que faltaban}}",
+    "refreshNone": "No faltaba ningún mensaje reciente",
+    "refreshNoAnswer": "El teléfono no respondió. Revisá que tenga conexión",
+    "refreshOffline": "La línea está desconectada. Vinculala de nuevo para traer mensajes",
+    "refreshLimited": "Demasiados pedidos en esta línea. Probá en un rato",
+    "refreshOutdated": "El gateway de WhatsApp necesita una actualización para traer estos mensajes",
+    "refreshError": "No se pudo pedir los mensajes al teléfono",
+    "refreshRetry": "Reintentar",
+    "refreshDismiss": "Cerrar",
+    "archivedTag": "Archivado",
+    "reactions": {
+      "title": "{count, plural, one {# reacción} other {# reacciones}}",
+      "chip": "{count, plural, one {# reacción} other {# reacciones}}: {list}. Ver quién reaccionó",
+      "react": "Reaccionar",
+      "all": "Todas",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filtrar por emoji",
+      "list": "Personas que reaccionaron",
+      "you": "Vos",
+      "clickToRemove": "Clic para quitar",
+      "remove": "Quitar tu reacción {emoji}",
+      "loading": "Cargando quién reaccionó",
+      "error": "No se pudo cargar quién reaccionó.",
+      "retry": "Reintentar",
+      "more": "Más emojis"
+    }
   },
   "swipe": {
     "read": "Leído",
@@ -2492,5 +2552,14 @@
     "newColumnAdd": "Agregar columna",
     "newColumnHelp": "Una propiedad nueva de zerosoft para todos los grupos del workspace. Se completa desde la tabla o desde cada grupo.",
     "propCreated": "Columna {name} agregada"
+  },
+  "snooze": {
+    "action": "Posponer chat",
+    "cancel": "Cancelar pospuesto",
+    "title": "Posponer hasta",
+    "confirm": "Posponer",
+    "done": "Pospuesto hasta {when}. Hasta entonces queda en Archivados.",
+    "cancelled": "Pospuesto cancelado",
+    "until": "Pospuesto hasta {when}"
   }
 }

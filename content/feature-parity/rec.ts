@@ -245,9 +245,9 @@ const parity: ProductParity = {
     }),
     row('emoji-reactions', 'engagement', ['Emoji reactions', 'Reacciones con emoji', 'Reações com emoji'], 'have', {
       detail: [
-        'Six reactions with the second of the video, shown on the timeline. They float up over the video when playback reaches their second, and yours floats up as you react',
-        'Seis reacciones con el segundo del video, marcadas en la línea de tiempo. Suben sobre el video cuando la reproducción llega a su segundo, y la tuya sube al reaccionar',
-        'Seis reações com o segundo do vídeo, marcadas na linha do tempo. Sobem sobre o vídeo quando a reprodução chega ao segundo delas, e a sua sobe ao reagir',
+        'Six reactions with the second of the video, shown on the timeline. They float up over the video when playback reaches their second, and yours floats up as you react. A click on a reaction on the timeline shows who left it and lets you remove your own (whoever manages the video can remove any)',
+        'Seis reacciones con el segundo del video, marcadas en la línea de tiempo. Suben sobre el video cuando la reproducción llega a su segundo, y la tuya sube al reaccionar. Un clic en una reacción de la línea de tiempo muestra quién la dejó y permite quitar la propia (quien administra el video puede quitar cualquiera)',
+        'Seis reações com o segundo do vídeo, marcadas na linha do tempo. Sobem sobre o vídeo quando a reprodução chega ao segundo delas, e a sua sobe ao reagir. Um clique em uma reação na linha do tempo mostra quem a deixou e permite remover a própria (quem administra o vídeo remove qualquer uma)',
       ],
     }),
     row('transcript-captions', 'engagement', ['Transcript and captions', 'Transcripción y subtítulos', 'Transcrição e legendas'], 'have', {

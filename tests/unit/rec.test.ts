@@ -565,6 +565,58 @@ describe('vistas, comentarios y avisos', () => {
     const off = (await getVideoRow(owner, v.id))!;
     await expect(addComment(off, ana, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'comments_off' });
   });
+  it('quitar una reacción: quien la puso (con cuenta o invitado) o quien administra; nadie más', async () => {
+    const v = await readyVideo(owner, 'Quitar reacciones', 100);
+    const guest = { key: 'a:guest-one', userId: null, name: 'Guest One', isAuthor: false };
+    const otherGuest = { key: 'a:guest-two', userId: null, name: 'Guest Two', isAuthor: false };
+    const member = { key: 'u:rec-mate', userId: 'rec-mate', name: 'Mate', isAuthor: false };
+    const author = { key: 'u:rec-owner', userId: 'rec-owner', name: 'Owner', isAuthor: true };
+    const g1 = await addComment(v, guest, { kind: 'reaction', emoji: '❤️', atSec: 5 });
+    const g2 = await addComment(v, guest, { kind: 'reaction', emoji: '❤️', atSec: 30 });
+    const m1 = await addComment(v, member, { kind: 'reaction', emoji: '🎉', atSec: 12 });
+    const a1 = await addComment(v, author, { kind: 'reaction', emoji: '👏', atSec: 20 });
+    expect([g1.kind, g1.mine]).toEqual(['reaction', true]);
+    // Otro invitado, alguien sin clave propia y un miembro que no administra: no pueden.
+    await expect(deleteComment(v, g1.id, otherGuest, null)).rejects.toMatchObject({ code: 'forbidden', status: 403 });
+    await expect(deleteComment(v, g1.id, { ...otherGuest, key: '' }, null)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, g1.id, member, mateActor())).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, a1.id, member, mateActor())).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, m1.id, guest, null)).rejects.toMatchObject({ code: 'forbidden' });
+    // Quien administra otro workspace tampoco.
+    await expect(deleteComment(v, g1.id, { key: 'u:stranger', userId: 'stranger', name: 'Stranger', isAuthor: false }, { ws: 'other-ws', actor: 'stranger', admin: true, name: 'Stranger' })).rejects.toMatchObject({ code: 'forbidden' });
+    // La reacción de otro video no se borra por este.
+    const v2 = await readyVideo(owner, 'Otro video', 100);
+    await expect(deleteComment(v2, g1.id, guest, null)).rejects.toMatchObject({ code: 'not_found', status: 404 });
+    expect((await listComments(v, guest.key)).reactions).toEqual({ '❤️': 2, '🎉': 1, '👏': 1 });
+    // La invitada quita una de las suyas: la otra queda (varias reacciones en distintos segundos).
+    await deleteComment(v, g1.id, guest, null);
+    let page = await listComments(v, guest.key);
+    expect(page.reactions).toEqual({ '❤️': 1, '🎉': 1, '👏': 1 });
+    expect(page.reactionMarks.filter((r) => r.mine).map((r) => r.id)).toEqual([g2.id]);
+    // Con cuenta, la propia; y quien administra, la de cualquiera.
+    await deleteComment(v, m1.id, member, mateActor());
+    await deleteComment(v, g2.id, author, owner);
+    await deleteComment(v, a1.id, author, owner);
+    page = await listComments(v, guest.key);
+    expect(page.reactions).toEqual({});
+    expect(page.reactionMarks).toEqual([]);
+    // Borrar dos veces: ya no está.
+    await expect(deleteComment(v, g1.id, guest, null)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('las reacciones propias vienen siempre, aunque haya más de 50 después', async () => {
+    const v = await readyVideo(owner, 'Muchas reacciones', 100);
+    const early = { key: 'a:early-bird', userId: null, name: 'Early', isAuthor: false };
+    const mine = await addComment(v, early, { kind: 'reaction', emoji: '😮', atSec: 1 });
+    const crowd = { key: 'a:crowd', userId: null, name: 'Crowd', isAuthor: false };
+    for (let i = 0; i < 52; i++) await addComment(v, crowd, { kind: 'reaction', emoji: '🎉', atSec: i });
+    const anon = await listComments(v, null);
+    expect(anon.reactionMarks.length).toBe(50);
+    expect(anon.reactionMarks.some((r) => r.id === mine.id)).toBe(false);
+    const own = await listComments(v, early.key);
+    expect(own.reactionMarks.length).toBe(51);
+    expect(own.reactionMarks.filter((r) => r.mine).map((r) => r.id)).toEqual([mine.id]);
+  });
 });
 
 describe('transcripción y resumen', () => {

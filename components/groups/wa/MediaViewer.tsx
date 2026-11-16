@@ -8,6 +8,7 @@ import Avatar from './Avatar';
 import { Close, Download } from './icons';
 import { posterFrame } from './format';
 import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './backLayer';
+import { MediaUnavailable, refetchMedia } from './MediaParts';
 
 export interface ViewerItem {
   id: string;
@@ -47,6 +48,9 @@ export default function MediaViewer({
   // Teléfono: "atrás" cierra el visor y vuelve al chat.
   useBackLayer(true, onClose, { enabled: useMediaQuery(TOUCH_QUERY) });
   const it = items[index];
+  // Lo que no cargó (el archivo ya no está donde estaba) y lo que volvió con "bajar de nuevo", por elemento.
+  const [broken, setBroken] = useState<Record<string, boolean>>({});
+  const [fresh, setFresh] = useState<Record<string, string>>({});
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -63,6 +67,8 @@ export default function MediaViewer({
   }, [index, items.length, onClose, onIndex]);
 
   if (!it || typeof document === 'undefined') return null;
+  const src = fresh[it.id] ?? it.url;
+  const markBroken = () => setBroken((b) => ({ ...b, [it.id]: true }));
   const when = parseDbUtc(it.createdAt).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   return createPortal(
     <div className="wa-viewer" role="dialog" aria-modal="true" aria-label={t('viewer')}>
@@ -77,7 +83,7 @@ export default function MediaViewer({
         <span className="wa-viewer-count">
           {index + 1} / {items.length}
         </span>
-        <a className="wa-icon-btn" href={it.url} download={it.name || undefined} target="_blank" rel="noreferrer" aria-label={t('download')} title={t('download')}>
+        <a className="wa-icon-btn" href={src} download={it.name || undefined} target="_blank" rel="noreferrer" aria-label={t('download')} title={t('download')}>
           <Download />
         </a>
         <button ref={closeRef} type="button" className="wa-icon-btn" onClick={onClose} aria-label={t('closeViewer')} title={t('closeViewer')}>
@@ -88,13 +94,25 @@ export default function MediaViewer({
         <button type="button" className="wa-viewer-nav is-prev" onClick={() => onIndex(index - 1)} disabled={index === 0} aria-label={t('previous')}>
           ‹
         </button>
-        {it.type.startsWith('video/') ? (
-          <video key={it.id} src={it.url} controls autoPlay playsInline />
+        {broken[it.id] ? (
+          // No cargó: se puede volver a pedir acá mismo (y dice si ya no está), en vez de un visor en negro.
+          <MediaUnavailable
+            key={it.id}
+            kind={it.type.startsWith('video/') ? 'video' : 'image'}
+            onRetry={it.url.startsWith('/') ? refetchMedia(it.url) : undefined}
+            onRecovered={(u) => {
+              setFresh((f) => ({ ...f, [it.id]: u }));
+              setBroken((b) => ({ ...b, [it.id]: false }));
+            }}
+          />
+        ) : it.type.startsWith('video/') ? (
+          <video key={it.id} src={src} controls autoPlay playsInline onError={markBroken} />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={it.id}
-            src={it.url}
+            src={src}
+            onError={markBroken}
             alt={it.caption || it.name}
             className={zoom ? 'is-zoomed' : ''}
             style={zoom ? { transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}

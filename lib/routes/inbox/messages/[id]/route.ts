@@ -19,7 +19,9 @@ export async function POST(req: Request, ctx: Ctx) {
   const limited = await limitByIp(req, 'inbox-transcribe', 60, 60).catch(() => null);
   if (limited) return limited;
   const { id } = await ctx.params;
-  return withOwner(async (owner) => iJson({ transcript: await messageTranscript(owner, id, true) }));
+  // ?force=1: el audio se acaba de volver a bajar.
+  const force = new URL(req.url).searchParams.get('force') === '1';
+  return withOwner(async (owner) => iJson({ transcript: await messageTranscript(owner, id, true, force) }));
 }
 
 /** Reaccionar, editar, destacar, borrar para mí o reenviar un mensaje de WhatsApp. */

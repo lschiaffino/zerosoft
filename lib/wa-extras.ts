@@ -40,7 +40,9 @@ export interface LinkPreviewDto {
 
 const PREVIEW_TTL_MS = 7 * 86_400_000;
 /** Versión del lector: las filas guardadas con una anterior se vuelven a leer (no tenían medidas ni ícono). */
-const PREVIEW_VERSION = 2;
+const PREVIEW_VERSION = 3;
+/** Una vista previa pobre (sin imagen ni descripción: solo el nombre del sitio) se vuelve a leer al día, no a la semana. */
+const WEAK_TTL_MS = 86_400_000;
 /** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB). */
 export const IMAGE_MAX = 700 * 1024;
 const FAVICON_MAX = 24 * 1024;
@@ -152,7 +154,10 @@ const inflight = new Map<string, Promise<PreviewRow>>();
 
 async function readPreview(url: string, now: Date): Promise<PreviewRow> {
   const hit = (await getDb().prepare('SELECT * FROM wa_link_previews WHERE url = ?').get(url)) as PreviewRow | undefined;
-  if (hit && Number(hit.version) >= PREVIEW_VERSION && now.getTime() - Date.parse(hit.fetched_at) < PREVIEW_TTL_MS) return hit;
+  if (hit && Number(hit.version) >= PREVIEW_VERSION) {
+    const age = now.getTime() - Date.parse(hit.fetched_at);
+    if (age < (hit.image || hit.description ? PREVIEW_TTL_MS : WEAK_TTL_MS)) return hit;
+  }
   let p = inflight.get(url);
   if (!p) {
     p = fetchPreview(url, now).finally(() => inflight.delete(url));
@@ -237,6 +242,8 @@ export async function linkPreviewImage(raw: string, n: 0 | 1): Promise<{ type: s
 
 function fakeHtml(url: string): string {
   const u = new URL(url);
+  // Link corto de prueba: "short.test/<lo que sea>" manda (meta refresh) a la página del producto, que tiene og:image.
+  if (u.hostname === 'short.test') return `<html><head><title>Short</title><meta http-equiv="refresh" content="0; url=https://shop.test/producto/${u.pathname.slice(1)}"></head></html>`;
   const site = u.hostname.replace(/^www\./, '');
   const path = u.pathname.toLowerCase();
   const long = path.includes('long');
@@ -334,6 +341,15 @@ export interface TranscriptDto {
 /** Audios más largos que esto llevan un resumen. */
 export const SUMMARY_MIN_SECONDS = 45;
 export const SUMMARY_MIN_CHARS = 400;
+/** Cada cuánto se vuelve a intentar una transcripción que falló porque el audio no estaba. */
+export const MEDIA_RETRY_MS = 10 * 60_000;
+/** ¿Falló solo porque no se pudo bajar el audio? Entonces se reintenta cuando el audio vuelve. */
+export const retryableTranscript = (t: Pick<TranscriptDto, 'status' | 'error'> | null): boolean => !!t && t.status === 'failed' && MEDIA_ERRORS.includes(t.error);
+/**
+ * Por qué no se pudo bajar el audio: pasajero (se reintenta solo cada MEDIA_RETRY_MS), la línea desvinculada (igual)
+ * o WhatsApp ya no lo tiene (solo se vuelve a pedir cuando la persona lo pide y el audio vuelve).
+ */
+export const MEDIA_ERRORS = ['media_unavailable', 'not_connected', 'media_gone'];
 /** Lo más largo que se transcribe solo. */
 export const TRANSCRIBE_MAX_BYTES = 16 * 1024 * 1024;
 
@@ -384,17 +400,24 @@ export async function transcribeMessage(
   messageId: string,
   load: () => Promise<{ data: Buffer; mimetype: string; seconds?: number }>,
   now = new Date(),
+  /** force: el audio se acaba de bajar (la persona tocó reintentar): no espera el intervalo. */
+  opts: { force?: boolean } = {},
 ): Promise<TranscriptDto> {
   const db = getDb();
   const nowS = now.toISOString();
   await db
     .prepare("INSERT INTO wa_transcripts (scope, message_id, owner_id, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?) ON CONFLICT DO NOTHING")
     .run(scope, messageId, ownerId, nowS, nowS);
+  // Lo que falló porque el audio no se pudo bajar no es definitivo: cuando el audio vuelve, se transcribe. Como
+  // mucho un intento cada MEDIA_RETRY_MS (un audio que no está no se pide en cada vista).
   const claim = await db
     .prepare(
-      "UPDATE wa_transcripts SET claimed_until = ?, updated_at = ? WHERE scope = ? AND owner_id = ? AND message_id = ? AND status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?)",
+      `UPDATE wa_transcripts SET status = 'pending', error = '', claimed_until = ?, updated_at = ? WHERE scope = ? AND owner_id = ? AND message_id = ?
+         AND ((status = 'pending' AND (claimed_until IS NULL OR claimed_until < ?))
+           OR (status = 'failed' AND error IN ('media_unavailable', 'not_connected') AND updated_at < ?)
+           OR (status = 'failed' AND error = 'media_gone' AND ? = 1))`,
     )
-    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS);
+    .run(new Date(now.getTime() + 3 * 60_000).toISOString(), nowS, scope, ownerId, messageId, nowS, opts.force ? '9999' : new Date(now.getTime() - MEDIA_RETRY_MS).toISOString(), opts.force ? 1 : 0);
   if (!claim.changes) return (await readTranscript(scope, ownerId, messageId))!;
   const finish = async (patch: Partial<Row> & { status: TranscriptStatus }) => {
     await db
@@ -405,8 +428,10 @@ export async function transcribeMessage(
   let audio: { data: Buffer; mimetype: string; seconds?: number };
   try {
     audio = await load();
-  } catch {
-    return finish({ status: 'failed', error: 'media_unavailable' });
+  } catch (err) {
+    // El motivo, si quien baja el audio lo dijo: lo que ya no está en WhatsApp no se vuelve a pedir solo.
+    const code = String((err as { code?: unknown })?.code ?? '');
+    return finish({ status: 'failed', error: MEDIA_ERRORS.includes(code) ? code : 'media_unavailable' });
   }
   if (audio.data.length > TRANSCRIBE_MAX_BYTES) return finish({ status: 'failed', error: 'audio_too_large' });
   try {

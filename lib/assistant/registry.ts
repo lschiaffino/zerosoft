@@ -16,6 +16,7 @@
 import type { z } from 'zod';
 import type { SessionUser } from '../session';
 import type { ProductKey } from '../products';
+import type { ChatApp } from './chat-access';
 import { roleAtLeast } from '../teams';
 import { hasAllApps, userCanUseApp } from '../workspace';
 
@@ -70,6 +71,14 @@ interface BaseTool<S extends z.ZodTypeAny> {
 
 export interface ReadTool<S extends z.ZodTypeAny = z.ZodTypeAny> extends BaseTool<S> {
   kind: 'read';
+  /**
+   * Lee el texto de chats de la persona: necesita su permiso para esa app
+   * (lib/assistant/chat-access.ts). Sin permiso el motor no corre la
+   * herramienta y muestra la tarjeta que lo pide.
+   */
+  consent?: ChatApp;
+  /** Lo que devuelve no se guarda en la charla (texto de mensajes de otros): solo un resumen. */
+  sensitive?: boolean;
   run(ctx: ToolCtx, input: z.infer<S>): Promise<unknown>;
 }
 

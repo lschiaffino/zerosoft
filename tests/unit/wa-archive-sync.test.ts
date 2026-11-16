@@ -202,7 +202,7 @@ describe('Inbox → WhatsApp', () => {
 });
 
 describe('una orden por chat y con ritmo', () => {
-  it('un 1:1 con teléfono y lid conocidos se archiva con una sola orden (nunca con los dos ids)', async () => {
+  it('un 1:1 con teléfono y lid conocidos se archiva con una sola orden, con el lid (nunca con los dos ids)', async () => {
     const { owner, account } = await inboxSetup('wa-arch-one');
     const phone = '5491100004301';
     await ingestWhatsappEvents(account, [
@@ -211,7 +211,8 @@ describe('una orden por chat y con ritmo', () => {
     ]);
     const [t] = await listThreads(owner);
     await applyThreadAction(owner, [t.id], { action: 'archive' });
-    expect(fakeArchives(`inbox-${account.id}`).map((a) => a.chatId)).toEqual([`${phone}@s.whatsapp.net`]);
+    // WhatsApp guarda el archivado de ese chat con el lid (lib/wa-archive-sync.ts, archiveJids).
+    expect(fakeArchives(`inbox-${account.id}`).map((a) => a.chatId)).toEqual(['204700000004301@lid']);
   });
 
   it('un cambio pegado al anterior de la misma cuenta espera su turno (no salen ráfagas)', async () => {
