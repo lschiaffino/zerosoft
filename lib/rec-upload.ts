@@ -236,7 +236,18 @@ export async function deleteRecParts(videoId: string): Promise<void> {
   await rm(partsDir(videoId), { recursive: true, force: true });
 }
 
-const COMMON = { 'cache-control': 'private, max-age=300', 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff' };
+const COMMON = {
+  'cache-control': 'private, max-age=300',
+  'x-robots-tag': 'noindex',
+  'x-content-type-options': 'nosniff',
+  // Aislado aunque se abra suelto en una pestaña: nada corre en nuestro origen.
+  'content-security-policy': "default-src 'none'; sandbox",
+};
+
+/** Video, audio o imagen raster se muestran; cualquier otro tipo se descarga como application/octet-stream. */
+function servedType(type: string): string | null {
+  return /^(video|audio)\/[\w.+-]+$/.test(type) || /^image\/(png|jpeg|gif|webp|avif)$/.test(type) ? type : null;
+}
 
 function attachment(filename: string): string {
   const safe = filename.replace(/[^\w .-]/g, '_').slice(0, 120) || 'video';
@@ -256,7 +267,10 @@ export async function serveRecFile(
   opts: { download?: string | null; size?: number; cache?: string } = {},
 ): Promise<NextResponse> {
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const type = contentType.split(';')[0] || 'application/octet-stream';
+  const declared = (contentType.split(';')[0] || '').trim().toLowerCase();
+  const type = servedType(declared) ?? 'application/octet-stream';
+  // Lo que no se muestra en línea, siempre como descarga.
+  if (type === 'application/octet-stream' && !opts.download) opts = { ...opts, download: 'file' };
   const local = localUploadPath(url, 'rec');
   if (local) {
     const info = await stat(local).catch(() => null);
