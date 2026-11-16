@@ -150,10 +150,10 @@ test.describe('Inbox', () => {
     // "Actual" es solo un fondo.
     const row = page.locator('#side-branch .docs-tree-row.active');
     expect(await row.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-    // El cursor del teclado: fondo de fila y una marca al costado, sin contorno.
+    // El cursor del teclado: solo el fondo de fila, sin contorno ni filete de color (regla de app-nav.test.ts).
     const cursor = page.locator('.ib-item.is-cursor .ib-row-btn');
     expect(await cursor.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-    expect(await cursor.evaluate((el) => getComputedStyle(el).boxShadow)).toContain('inset');
+    expect(await cursor.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
 
     // Un atajo de una letra tampoco prende nada.
     await page.keyboard.press('g');
