@@ -9,6 +9,8 @@ import { plainWa } from '@/components/groups/wa/rich';
 import { ArchiveIcon, CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { chatName, formatPhone, previewKind, previewText, type PreviewKind } from './util';
 import { useDraft } from '@/components/ui/useDraft';
+import { useGroupEventText } from '@/components/groups/wa/GroupEvent';
+import { decodeSysPreview } from '@/lib/wa-group-events';
 
 const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => ReactNode> = {
   image: PhotoIcon,
@@ -52,6 +54,9 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
   const typing = th.presence === 'typing' || th.presence === 'recording';
   // Lo que se acaba de escribir en el composer, sin esperar a que se guarde (lib/draft-store.ts).
   const draft = useDraft('inbox', th.id, th.draft);
+  // Lo último del grupo es un aviso ("Creaste el grupo", "Ana te agregó"): esa es la vista previa, como en WhatsApp.
+  const sys = th.lastKind === 'system' ? decodeSysPreview(th.preview) : null;
+  const sysText = useGroupEventText();
   return (
     <>
       <Avatar name={name} kind={th.kind === 'group' ? 'group' : 'dm'} src={th.avatar || undefined} seed={th.id} />
@@ -72,6 +77,8 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
                 <span className="wa-row-draft">{t('list.draft')}</span>
                 <span className="wa-row-text">{draft}</span>
               </>
+            ) : sys ? (
+              <span className="wa-row-text wa-row-sys">{sysText(sys)}</span>
             ) : (
               <>
                 {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(th.lastStatus === 'read' && th.readHidden ? 'message.status.readHidden' : `message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}

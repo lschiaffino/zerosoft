@@ -202,6 +202,11 @@ export async function refreshChatInfo(account: AccountRow, thread: ThreadRow, no
     return false;
   }
   await applyChatInfo(thread, info, now);
+  // Un grupo vacío: el aviso de creación con la hora y el creador de WhatsApp (su lugar en la lista; lib/wa-group-system.ts).
+  if (thread.kind === 'group' && !thread.last_message_at && info.createdAt) {
+    const { inboxCreatedFromInfo } = await import('../wa-group-system');
+    await inboxCreatedFromInfo(account, thread, info).catch(() => false);
+  }
   // La libreta aprende del grupo (lid ↔ teléfono y nombres de los participantes) o del contacto (nombre e info).
   await learnFromChatInfo(account, thread.external_id, info).catch(() => null);
   return true;

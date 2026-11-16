@@ -100,11 +100,15 @@ import {
   StarIcon,
   CopyIcon,
   ArrowLeft,
+  LinkIcon,
+  Note,
 } from './wa/icons';
 import TouchMessageMenu from './wa/TouchMessageMenu';
 import SelectionBar from './wa/SelectionBar';
 import { useBackLayer } from './wa/backLayer';
 import { swipeAndHold } from '@/components/inbox/wa/gestures';
+import { NewGroupCard } from './wa/GroupEvent';
+import { parseEvent } from '@/lib/wa-group-events';
 import ContactPicker from './wa/ContactPicker';
 import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
 import PollDialog, { type PollDraft } from './wa/PollDialog';
@@ -256,6 +260,35 @@ export default function ChatThread(props: ThreadProps) {
   // Más angosta: es un cajón que se abre encima.
   const side = useDetailsHidden();
   const detailsShown = side.wide ? !side.hidden : detailsOpen;
+  const tg = useTranslations('groups.wa.newGroup');
+  // El aviso de creación (quién creó el grupo) para la tarjeta del grupo sin mensajes.
+  const createdEvent = useMemo(() => {
+    for (const m of messages) {
+      const e = m.direction === 'system' && m.authorKind === 'wa' ? parseEvent((m.meta as Record<string, unknown>).sys) : null;
+      if (e?.t === 'create') return e;
+    }
+    return null;
+  }, [messages]);
+  /** Abre el panel del chat y lleva el foco al campo (agregar miembros, descripción). */
+  function openDetailsAt(target: string) {
+    if (!detailsShown) toggleDetails();
+    let tries = 0;
+    const focus = () => {
+      const el = document.querySelector<HTMLElement>(`[data-focus-target="${target}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center' });
+        el.focus();
+      } else if (tries++ < 30) requestAnimationFrame(focus);
+    };
+    requestAnimationFrame(focus);
+  }
+  /** "Invitar con link": pide el link a WhatsApp y lo copia. */
+  async function copyInvite() {
+    const res = await api<{ link: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'invite', revoke: false } });
+    if (!res.data) return showToast(errText(res.error), true);
+    await navigator.clipboard?.writeText(res.data.link).catch(() => null);
+    showToast(tg('inviteCopied'));
+  }
   const toggleDetails = () => (side.wide ? side.setHidden(!side.hidden) : setDetailsOpen((v) => !v));
   const setDetailsHidden = side.setHidden;
   // "Info del contacto" desde el menú de la fila (clic derecho en la lista): abre los detalles.
@@ -2324,10 +2357,29 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
               </p>
             )}
-            {messages.length === 0 && (
-              <p className="wa-empty-thread">
-                <Lock size={13} /> {t('thread.noMessages')}
-              </p>
+            {chat.kind === 'group' && !hasOlder && !messages.some((m) => m.direction !== 'system') ? (
+              <NewGroupCard
+                name={chat.name}
+                avatar={chat.pictureUrl || undefined}
+                seed={chat.id}
+                created={createdEvent}
+                members={chat.memberCount || props.members.length}
+                actions={
+                  props.caps.groups
+                    ? [
+                        { key: 'add', label: tg('addMembers'), icon: <UserPlus size={18} />, onSelect: () => openDetailsAt('add-members') },
+                        { key: 'invite', label: tg('invite'), icon: <LinkIcon size={18} />, onSelect: () => void copyInvite() },
+                        { key: 'description', label: tg('description'), icon: <Note size={18} />, onSelect: () => openDetailsAt('description') },
+                      ]
+                    : []
+                }
+              />
+            ) : (
+              messages.length === 0 && (
+                <p className="wa-empty-thread">
+                  <Lock size={13} /> {t('thread.noMessages')}
+                </p>
+              )
             )}
             {rows}
             <div ref={endRef} />

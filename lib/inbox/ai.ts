@@ -153,7 +153,7 @@ export interface InboxAiContext {
 
 async function threadContext(owner: string, t: ThreadRow): Promise<InboxAiContext> {
   const rows = ((await getDb()
-    .prepare('SELECT from_me, sender_name, subject, body, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? ORDER BY sent_at DESC LIMIT 30')
+    .prepare("SELECT from_me, sender_name, subject, body, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND media_type <> 'system' ORDER BY sent_at DESC LIMIT 30")
     .all(t.id, owner)) as unknown as Array<Line & { meta?: string | null }>).reverse();
   if (t.channel === 'whatsapp') await nameMentions(owner, t.account_id, rows);
   return {

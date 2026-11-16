@@ -1494,3 +1494,27 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
    de todo el chat). Ni en Inbox ni en Lines; WhatsApp tampoco lo muestra. */
 .gr-inbox .gr-messages:focus, .gr-inbox .gr-messages:focus-visible,
 .ib-app .gr-messages:focus, .ib-app .gr-messages:focus-visible { outline: none; }
+
+/* ---------- Grupos: avisos del sistema y grupo nuevo sin mensajes (lib/wa-group-events.ts) ---------- */
+.gr-inbox .wa-sys-event { text-align: center; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-sys-event { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); color: var(--ink-3); font-family: var(--font-data); font-size: var(--wa-fs-meta); box-shadow: none; }
+.wa-row-sys, .gr-row-sys { color: var(--wa-text-2); font-style: normal; }
+.wa-newgroup {
+  align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: min(340px, 100%); margin: 16px 0 8px; padding: 18px 16px 14px; text-align: center;
+  color: var(--wa-text); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble);
+}
+.wa-newgroup-who { margin: 4px 0 0; font-weight: 500; overflow-wrap: anywhere; }
+.wa-newgroup-meta { margin: 0; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.wa-newgroup-actions { display: flex; flex-direction: column; align-self: stretch; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--wa-border); }
+.wa-newgroup-action {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 8px; text-align: left;
+  font: inherit; font-size: var(--wa-fs-small); color: var(--wa-text); background: none; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-newgroup-action:hover { background: color-mix(in srgb, var(--wa-text) 6%, transparent); }
+.wa-newgroup-action:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: 1px; }
+.wa-newgroup-icon { display: inline-flex; color: var(--wa-text-2); }
+.wa-newgroup-hint { margin: 6px 0 0; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); box-shadow: none; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-meta,
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-hint { font-family: var(--font-data); font-size: var(--wa-fs-meta); }

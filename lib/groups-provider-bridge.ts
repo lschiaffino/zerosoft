@@ -156,6 +156,19 @@ function participantPhone(raw: unknown): string {
   return '';
 }
 
+/**
+ * Quién hizo algo en un grupo (author/owner de Baileys): el teléfono (dígitos) si alguno de los ids lo
+ * trae, si no "<dígitos>@lid", o '' si no viene nada.
+ */
+export function groupPerson(...ids: unknown[]): string {
+  for (const v of ids) {
+    const d = typeof v === 'string' ? phoneDigits(v) : '';
+    if (d) return d;
+  }
+  const lid = firstLid(...ids);
+  return lid ? `${lid}@lid` : '';
+}
+
 /** Lid (dígitos) de un participante de grupo (string o { id, lid, jid }), '' si no trae. */
 function participantLid(raw: unknown): string {
   if (typeof raw === 'string') return lidDigits(raw);
@@ -588,12 +601,34 @@ export const EVOLUTION_EVENTS = [
   'PRESENCE_UPDATE',
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
+  // Grupo nuevo para la cuenta (creado desde el teléfono o al incluirla otra persona): sin esto el grupo no
+  // aparecía hasta su primer mensaje.
+  'GROUPS_UPSERT',
+  // Asunto, descripción y foto cambiados en el teléfono (groups.update). Llega con el parche 0008 de
+  // infra/evolution; sin él Evolution 2.3.7 no lo manda (su filtro compara contra GROUPS_UPDATE).
+  'GROUP_UPDATE',
   'CALL',
   // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
   // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
   'CHATS_UPDATE',
   'CHATS_UPSERT',
 ];
+
+/**
+ * Suma al webhook de una instancia de Evolution los eventos de EVOLUTION_EVENTS que le falten, con su
+ * misma URL (la instancia se vinculó antes de sumarlos). No toca nada si ya están o si no hay webhook.
+ */
+export async function syncEvolutionWebhook(call: (path: string, method: string, body?: unknown) => Promise<unknown>, instance: string): Promise<boolean> {
+  const found = (await call(`/webhook/find/${instance}`, 'GET')) as Json | null;
+  const url = typeof found?.url === 'string' ? found.url : '';
+  if (!url || !/^https?:\/\//.test(url)) return false;
+  const have = new Set(Array.isArray(found?.events) ? (found!.events as unknown[]).map(String) : []);
+  if (EVOLUTION_EVENTS.every((e) => have.has(e))) return false;
+  await call(`/webhook/set/${instance}`, 'POST', {
+    webhook: { enabled: found?.enabled !== false, url, byEvents: found?.webhookByEvents === true, base64: found?.webhookBase64 === true, events: EVOLUTION_EVENTS },
+  });
+  return true;
+}
 
 /** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */
 const EVOLUTION_CALL: Record<string, CallStatus> = {
@@ -1160,9 +1195,50 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
     case 'group-participants.update': {
       const action = String(d.action ?? '') as ParticipantAction;
       if (!['add', 'remove', 'promote', 'demote'].includes(action) || !d.id) return [];
-      const parts = Array.isArray(d.participants) ? (d.participants as unknown[]) : [];
+      // participantsData (Evolution 2.3): los mismos participantes con el teléfono resuelto (participants pueden ser lids).
+      const resolved = Array.isArray(d.participantsData) ? (d.participantsData as unknown[]) : [];
+      const parts = resolved.length ? resolved : Array.isArray(d.participants) ? (d.participants as unknown[]) : [];
       const phones = parts.map(participantPhone).filter(Boolean);
-      return phones.length ? [{ type: 'participants', chatId: String(d.id), action, phones }] : [];
+      const author = groupPerson(d.authorPn, d.author);
+      return phones.length ? [{ type: 'participants', chatId: String(d.id), action, phones, ...(author ? { author } : {}) }] : [];
+    }
+    case 'groups.upsert': {
+      // Un grupo nuevo para la cuenta (lo creó ella o la incluyeron al crearlo): la metadata completa.
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      return rows.flatMap((g): InboundEvent[] => {
+        const id = String(g.id ?? '');
+        if (!isGroupJid(id)) return [];
+        const creation = Number(g.creation);
+        const owner = groupPerson(g.ownerPn, g.owner);
+        const author = groupPerson(g.authorPn, g.author);
+        const parts = Array.isArray(g.participants) ? (g.participants as unknown[]) : [];
+        return [
+          {
+            type: 'group',
+            chatId: id,
+            event: 'create',
+            ...(typeof g.subject === 'string' && g.subject.trim() ? { subject: g.subject.replace(/\s+/g, ' ').trim().slice(0, 200) } : {}),
+            ...(owner ? { owner } : {}),
+            ...(author ? { author } : {}),
+            ...(Number.isFinite(creation) && creation > 0 ? { creation } : {}),
+            phones: parts.map(participantPhone).filter(Boolean).slice(0, 2000),
+          },
+        ];
+      });
+    }
+    case 'groups.update': {
+      // Solo los cambios con autor: al conectar llega la metadata completa de todos los grupos (sin autor), que no es un aviso.
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      return rows.flatMap((g): InboundEvent[] => {
+        const id = String(g.id ?? '');
+        const author = groupPerson(g.authorPn, g.author);
+        if (!isGroupJid(id) || !author || Array.isArray(g.participants)) return [];
+        if (typeof g.subject === 'string' && g.subject.trim()) return [{ type: 'group', chatId: id, event: 'subject', subject: g.subject.replace(/\s+/g, ' ').trim().slice(0, 200), author }];
+        if (typeof g.desc === 'string') return [{ type: 'group', chatId: id, event: 'description', author }];
+        // La foto (parche 0008: el mensaje de sistema GROUP_CHANGE_ICON sale como groups.update con `picture`).
+        if (g.picture === 'changed' || g.picture === 'removed') return [{ type: 'group', chatId: id, event: 'icon', author }];
+        return [];
+      });
     }
     default:
       return [];
@@ -1353,6 +1429,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
       return start();
     },
+    syncWebhookEvents: () => syncEvolutionWebhook((path, method, body) => api(path, method, body), instance),
     state,
     start,
     /**
@@ -1390,6 +1467,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
             }),
           size: Number.isFinite(size) && size > 0 ? size : parts.length,
           ...(Number.isFinite(creation) && creation > 0 ? { createdAt: creation } : {}),
+          ...(groupPerson(r.ownerPn, r.owner) ? { owner: groupPerson(r.ownerPn, r.owner) } : {}),
         };
       }
       const r = (await api(`/chat/fetchProfile/${instance}`, 'POST', { number: chatId })) as Json;

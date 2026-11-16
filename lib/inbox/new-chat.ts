@@ -22,7 +22,7 @@ import {
   type NewChatDirectory,
   type NewChatEntry,
 } from '../wa-new-chat';
-import { avatarVersion, listAccounts, upsertThread, type AccountRow, type ThreadRow } from './core';
+import { avatarVersion, findThread, listAccounts, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
 import { InboxError } from './types';
 import { waProviderFor } from './whatsapp';
 
@@ -156,5 +156,9 @@ export async function createWhatsappGroup(owner: string, input: { name: string; 
     throw new InboxError('group_failed', 502);
   }
   if (!info?.id) throw new InboxError('group_failed', 502);
-  return upsertThread(account, { externalId: info.id, kind: 'group', title: info.name || name, forceTitle: true });
+  const thread = await upsertThread(account, { externalId: info.id, kind: 'group', title: info.name || name, forceTitle: true });
+  // "Creaste el grupo «…»": el grupo queda arriba de la lista con su hora aunque todavía no tenga mensajes.
+  const { addInboxGroupEvent } = await import('../wa-group-system');
+  await addInboxGroupEvent(thread, { t: 'create', by: { p: 'me' }, subject: info.name || name }, nowIso());
+  return (await findThread(account.id, thread.external_id)) ?? thread;
 }

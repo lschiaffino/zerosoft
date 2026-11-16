@@ -41,6 +41,8 @@ import { longWhen } from '@/lib/when-presets';
 import { ScheduledAllButton, useWhenLabels } from './Scheduled';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useSwitchingTo, useToast } from './ui';
 import Avatar from './wa/Avatar';
+import { useGroupEventText } from './wa/GroupEvent';
+import { decodeSysPreview } from '@/lib/wa-group-events';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
@@ -226,6 +228,7 @@ export default function InboxShell({
   const [toast, showToast] = useToast();
   const rel = useRelativeTime();
   const mediaText = useMediaText();
+  const sysText = useGroupEventText();
   const locale = useLocale();
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [archivedView, setArchivedView] = useState(false);
@@ -977,6 +980,8 @@ export default function InboxShell({
                       ? t(c.presence.state === 'recording' ? 'wa.recordingBy' : 'wa.typingBy', { name: c.presence.name })
                       : t(c.presence.state === 'recording' ? 'wa.recordingAudio' : 'wa.typing')}
                   </span>
+                ) : decodeSysPreview(c.lastMessagePreview) ? (
+                  <span className="gr-row-sys">{sysText(decodeSysPreview(c.lastMessagePreview)!)}</span>
                 ) : c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]' ? (
                   <span className="gr-row-deleted">
                     <Ban size={14} /> {c.lastDirection === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}

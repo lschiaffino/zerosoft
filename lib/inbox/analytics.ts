@@ -122,7 +122,7 @@ export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8
                CASE WHEN m.sent_at >= ? THEN 1 ELSE 0 END AS cur, ${CHANNEL_SQL} AS ch
         FROM inbox_messages m
         JOIN inbox_threads t ON t.id = m.thread_id
-        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND t.owner_id = m.owner_id
+        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND m.media_type <> 'system' AND t.owner_id = m.owner_id
       ) x
     ),
     s AS (

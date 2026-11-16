@@ -258,6 +258,7 @@ export default function ChatDetails({
           >
             <textarea
               className="input gr-description"
+              data-focus-target="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={2000}
@@ -438,7 +439,7 @@ export default function ChatDetails({
                   if (list.length) void memberAction('add', list);
                 }}
               >
-                <input className="input" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={t('details.addPlaceholder')} aria-label={t('details.addMembers')} />
+                <input className="input" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={t('details.addPlaceholder')} aria-label={t('details.addMembers')} data-focus-target="add-members" />
                 <button type="submit" className="btn btn-secondary btn-sm" disabled={!phones.trim() || memberBusy}>
                   {t('details.add')}
                 </button>
