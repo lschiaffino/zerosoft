@@ -112,6 +112,7 @@ import { useBackLayer } from './wa/backLayer';
 import { swipeAndHold } from '@/components/inbox/wa/gestures';
 import { NewGroupCard } from './wa/GroupEvent';
 import { parseEvent } from '@/lib/wa-group-events';
+import { keepFocus, tapClosesKeyboard } from './wa/keyboard';
 import ContactPicker from './wa/ContactPicker';
 import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
 import PollDialog, { type PollDraft } from './wa/PollDialog';
@@ -2403,7 +2404,7 @@ export default function ChatThread(props: ThreadProps) {
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">
-          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
+          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} onClick={tapClosesKeyboard} data-voice-off>
             {!hasOlder && messages.length > 0 && props.caps.fetchHistory && !props.sample && (
               <OlderHistoryChip state={olderHistory.state} offline={props.numberConnected === false} onLoad={() => void olderHistory.run()} />
             )}
@@ -2661,6 +2662,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className="wa-send"
+                  {...keepFocus}
                   onClick={() => void saveEdit()}
                   disabled={editing.busy || !editing.text.trim()}
                   aria-busy={editing.busy || undefined}
@@ -2673,6 +2675,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
+                  {...keepFocus}
                   onClick={() => void send()}
                   onContextMenu={(e) => {
                     // Clic derecho en Enviar: programar el envío (como en Inbox).
