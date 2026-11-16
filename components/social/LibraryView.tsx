@@ -12,7 +12,8 @@ import { api, fmtDateTime, useErrorText, useToast } from './shared';
 
 /**
  * Biblioteca del workspace: textos guardados, grupos de hashtags y archivos
- * (fotos y videos) para usar en el compositor. ?kind= elige la pestaña y
+ * (fotos y videos) para usar en el compositor, y respuestas guardadas para la
+ * bandeja. ?kind= elige la pestaña y
  * ?item= abre uno para renombrarlo, editarlo o borrarlo.
  */
 export default function LibraryView({ items, kind }: { items: LibraryItem[]; kind: LibraryKind | 'all' }) {
@@ -110,7 +111,7 @@ export default function LibraryView({ items, kind }: { items: LibraryItem[]; kin
   return (
     <div className="sc-page">
       <nav className="ui-tabs" aria-label={t('title')}>
-        {(['all', 'snippet', 'hashtags', 'asset'] as const).map((k) => (
+        {(['all', 'snippet', 'hashtags', 'asset', 'reply'] as const).map((k) => (
           <Link key={k} className="ui-tab" href={tabHref(k)} aria-current={kind === k ? 'page' : undefined}>
             {t(`kind_${k}`)}
           </Link>
@@ -129,10 +130,11 @@ export default function LibraryView({ items, kind }: { items: LibraryItem[]; kin
         <div className="ui-fields ui-fields-2">
           <label className="ui-field">
             <span className="label">{t('kind')}</span>
-            <select className="select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as LibraryKind, media: [] })}>
+            <select className="select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as LibraryKind, media: [] })} data-testid="library-kind">
               <option value="snippet">{t('kind_snippet')}</option>
               <option value="hashtags">{t('kind_hashtags')}</option>
               <option value="asset">{t('kind_asset')}</option>
+              <option value="reply">{t('kind_reply')}</option>
             </select>
           </label>
           <label className="ui-field">
@@ -151,11 +153,12 @@ export default function LibraryView({ items, kind }: { items: LibraryItem[]; kin
         ) : (
           <label className="ui-field">
             <span className="label">{form.kind === 'hashtags' ? t('hashtags') : t('text')}</span>
-            <textarea className="textarea" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder={form.kind === 'hashtags' ? '#launch #product' : ''} />
+            <textarea className="textarea" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder={form.kind === 'hashtags' ? '#launch #product' : ''} data-testid="library-body" />
+            {form.kind === 'reply' && <span className="sc-muted sc-small">{t('replyHint')}</span>}
           </label>
         )}
         <div className="sc-actions">
-          <button type="submit" className="btn btn-primary" disabled={!form.name.trim() || busy === 'create' || (form.kind === 'asset' && !form.media.length)} aria-busy={busy === 'create'}>
+          <button type="submit" className="btn btn-primary" disabled={!form.name.trim() || busy === 'create' || (form.kind === 'asset' && !form.media.length)} aria-busy={busy === 'create'} data-testid="library-save">
             {t('save')}
           </button>
         </div>
@@ -164,7 +167,7 @@ export default function LibraryView({ items, kind }: { items: LibraryItem[]; kin
       {shown.length === 0 ? (
         <div className="ui-empty">
           <p className="ui-empty-title">{t('emptyTitle')}</p>
-          <p className="ui-empty-body">{t('emptyBody')}</p>
+          <p className="ui-empty-body">{kind === 'reply' ? t('emptyBodyReply') : t('emptyBody')}</p>
         </div>
       ) : (
         <div className="sc-list" data-testid="library-list">
