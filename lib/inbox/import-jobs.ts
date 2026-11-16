@@ -28,6 +28,7 @@ import { createHash } from 'crypto';
 import { getDb } from '../db';
 import { ProviderError, type GroupsProvider } from '../groups-provider';
 import { deleteUploads } from '../uploads';
+import { isFileUrlPath } from '../files/url';
 import { listAccounts, newId, nowIso, upsertThread, type AccountRow } from './core';
 import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmail';
 import { importPart, parseImport, type ImportResult } from './import';
@@ -234,8 +235,13 @@ export async function ensureAutoImport(account: Pick<AccountRow, 'id' | 'owner_i
   return r.changes > 0;
 }
 
-/** ¿La URL es una exportación subida para Inbox? (Blob, bajo inbox-import/, .json o .ndjson). */
+/**
+ * ¿La URL es una exportación subida para Inbox? Lo de ahora: /api/files/…
+ * (privada; al leerla se chequea que sea de la persona). Las de antes: Blob,
+ * bajo inbox-import/, .ndjson.
+ */
 export function isInboxImportUrl(url: string): boolean {
+  if (isFileUrlPath(url)) return true;
   try {
     const u = new URL(url);
     return u.protocol === 'https:' && /\.public\.blob\.vercel-storage\.com$/.test(u.hostname) && /^\/inbox-import\/[A-Za-z0-9._%-]{1,200}\.ndjson$/.test(u.pathname);
@@ -247,6 +253,13 @@ export function isInboxImportUrl(url: string): boolean {
 /** Importación de un archivo NDJSON de inbox-zero ya subido a Blob. */
 export async function startFileImport(owner: string, input: { url: string; name: string; size: number }, now = new Date()): Promise<ImportJobDto> {
   if (!isInboxImportUrl(input.url)) throw new InboxError('invalid_input', 400);
+  if (isFileUrlPath(input.url)) {
+    // El archivo tiene que ser de esta persona; el tamaño es el que quedó guardado.
+    const { ownedFileRow } = await import('../files/store');
+    const row = await ownedFileRow(input.url, { userId: owner });
+    if (!row || row.app !== 'inbox') throw new InboxError('invalid_input', 400);
+    input = { ...input, size: row.size };
+  }
   if (!(input.size > 0) || input.size > MAX_IMPORT_BYTES) throw new InboxError('too_large', 413);
   const db = getDb();
   const dup = (await db.prepare(`SELECT id FROM inbox_imports WHERE owner_id = ? AND source_url = ? AND status IN ${ACTIVE}`).get(owner, input.url)) as { id: string } | undefined;
@@ -455,8 +468,14 @@ async function stepGmail(job: JobRow, deadline: number, now: Date): Promise<void
   await save(job, { status: done ? 'done' : failed ? 'failed' : wait ? 'waiting' : 'running', cursor, progress, error }, now);
 }
 
-/** Lee `size` bytes desde `offset` (Range; si el servidor lo ignora, salta lo leído). */
-async function readRange(url: string, offset: number, size: number): Promise<Buffer> {
+/** Lee `size` bytes desde `offset` (Range; si el servidor lo ignora, salta lo leído). `owner`: de quién es el archivo. */
+async function readRange(url: string, offset: number, size: number, owner: string): Promise<Buffer> {
+  if (isFileUrlPath(url)) {
+    const { ownedFileRow, readFileRange } = await import('../files/store');
+    const row = await ownedFileRow(url, { userId: owner });
+    if (!row) throw new InboxError('media_unavailable', 410);
+    return readFileRange(row, offset, size);
+  }
   const res = await fetch(url, { headers: { range: `bytes=${offset}-${offset + size - 1}` }, signal: AbortSignal.timeout(30_000) });
   if (!res.ok || !res.body) throw new InboxError('media_unavailable', 410);
   const skip = res.status === 206 ? 0 : offset;
@@ -494,7 +513,7 @@ async function stepFile(job: JobRow, deadline: number, now: Date): Promise<void>
   let chunk = FILE_CHUNK;
   try {
     while (cursor.offset < size && Date.now() + 5_000 < deadline) {
-      const buf = await readRange(job.source_url, cursor.offset, Math.min(chunk, size - cursor.offset));
+      const buf = await readRange(job.source_url, cursor.offset, Math.min(chunk, size - cursor.offset), job.owner_id);
       if (!buf.length) break;
       const atEnd = cursor.offset + buf.length >= size;
       const cut = atEnd ? buf.length : buf.lastIndexOf(0x0a) + 1;
