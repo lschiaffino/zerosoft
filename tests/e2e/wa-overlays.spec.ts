@@ -135,8 +135,8 @@ function overlays(page: Page, thread: Locator, text: string, touch: boolean): Ov
     },
     {
       name: 'emoji tray',
-      // A 390, en desarrollo el botón de Next tapa la esquina del campo: ahí se abre con un clic del DOM.
-      open: () => (touch ? emojiToggle().evaluate((b) => (b as HTMLButtonElement).click()) : emojiToggle().click()),
+      // A 390 con `next dev` el botón de Next tapa la esquina del campo: ahí se abre con un clic del DOM; en CI, con el dedo.
+      open: () => (touch && !process.env.CI ? emojiToggle().evaluate((b) => (b as HTMLButtonElement).click()) : press(emojiToggle())),
       el: () => page.locator('.wa-bar .wa-emoji'),
       trigger: touch ? undefined : emojiToggle,
       pick: async () => {
