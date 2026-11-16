@@ -5,7 +5,8 @@ import { requestLocale } from '@/lib/request-locale';
 import { createImportJob, jobView, listImportJobs, updateImportJob, type ImportApp } from '@/lib/import-jobs';
 import { runImportJob } from '@/lib/import-runner';
 import { importCreateSchema, importError, importUser, importZodCode, viewFor } from '@/lib/import-http';
-import { isImportBlobUrl, localZipRef } from '@/lib/docs-notion-import';
+import { isImportBlobUrl, localZipRef, storedZipRef } from '@/lib/docs-notion-import';
+import { isFileUrlPath } from '@/lib/files/url';
 import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { canCreateDocPage } from '@/lib/docs-guard';
 
@@ -93,6 +94,12 @@ export async function POST(req: NextRequest) {
       const open = (await listImportJobs(user.id, 'docs', 20)).find((j) => j.source === 'notion_api' && ['fetching', 'preview', 'importing'].includes(j.status));
       if (open) return importError(409, 'import_running');
       job = await createImportJob({ ...base, secret: input.token, options });
+    } else if (input.blobUrl && isFileUrlPath(input.blobUrl)) {
+      // El zip subido directo y privado (/api/files): tiene que ser de este workspace y de una importación.
+      const { ownedFileRow } = await import('@/lib/files/store');
+      const row = await ownedFileRow(input.blobUrl, { workspaceId: user.id });
+      if (!row || row.folder !== 'imports' || row.access !== 'internal') return importError(400, 'invalid_upload');
+      job = await createImportJob({ ...base, payload: storedZipRef(row.id), options });
     } else if (input.blobUrl) {
       if (!isImportBlobUrl(input.blobUrl)) return importError(400, 'invalid_upload');
       job = await createImportJob({ ...base, payload: `blob:${input.blobUrl}`, options });
