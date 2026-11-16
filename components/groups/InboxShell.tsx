@@ -1691,6 +1691,7 @@ export default function InboxShell({
       <WhenDialog
         open={!!snoozeFor}
         title={t('snooze.title')}
+        mode="snooze"
         labels={snoozeLabels}
         onPick={(iso) => {
           const c = snoozeFor;

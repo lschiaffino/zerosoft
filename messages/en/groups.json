@@ -1579,18 +1579,8 @@
     "title": "Send later",
     "button": "Send later",
     "hint": "Send later (⌘⇧Enter). You can also right-click Send.",
-    "preset": {
-      "later": "Later today",
-      "tonight": "This evening",
-      "tomorrow": "Tomorrow morning",
-      "weekend": "This weekend",
-      "nextWeek": "Next week",
-      "inWeek": "In a week"
-    },
-    "custom": "Pick a date and time",
     "confirm": "Schedule",
     "cancel": "Cancel",
-    "pastError": "Pick a time in the future.",
     "repeat": "Repeat…",
     "withFile": "With the file {name}",
     "asReply": "Sent as a reply to: {text}",

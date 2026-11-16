@@ -1264,5 +1264,29 @@
         "empty": "No language matches. Press Esc to keep it as text."
       }
     }
+  },
+  "when": {
+    "preset": {
+      "later": "Later today",
+      "tonight": "This evening",
+      "tomorrow": "Tomorrow morning",
+      "tomorrowAfternoon": "Tomorrow afternoon",
+      "twoDays": "In two days",
+      "midweek": "Midweek",
+      "friday": "Friday afternoon",
+      "weekend": "This weekend",
+      "monday": "Monday morning",
+      "nextWeek": "Next week"
+    },
+    "custom": "Pick a date and time",
+    "back": "Back to the options",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "time": "Time",
+    "quickTimes": "Common times",
+    "timePlaceholder": "9, 9:30 or 9pm",
+    "timeError": "Type a time like 9, 9:30 or 9pm.",
+    "zone": "{city} time",
+    "pastError": "Pick a time in the future."
   }
 }

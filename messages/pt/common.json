@@ -1264,5 +1264,29 @@
         "empty": "Nenhum idioma corresponde. Pressione Esc para deixar como texto."
       }
     }
+  },
+  "when": {
+    "preset": {
+      "later": "Mais tarde hoje",
+      "tonight": "Hoje à noite",
+      "tomorrow": "Amanhã de manhã",
+      "tomorrowAfternoon": "Amanhã à tarde",
+      "twoDays": "Em dois dias",
+      "midweek": "No meio da semana",
+      "friday": "Sexta à tarde",
+      "weekend": "Neste fim de semana",
+      "monday": "Segunda de manhã",
+      "nextWeek": "Na semana que vem"
+    },
+    "custom": "Escolher dia e hora",
+    "back": "Voltar às opções",
+    "prevMonth": "Mês anterior",
+    "nextMonth": "Próximo mês",
+    "time": "Hora",
+    "quickTimes": "Horários comuns",
+    "timePlaceholder": "9, 9:30 ou 21",
+    "timeError": "Digite uma hora, como 9, 9:30 ou 21.",
+    "zone": "Horário de {city}",
+    "pastError": "Escolha um horário no futuro."
   }
 }

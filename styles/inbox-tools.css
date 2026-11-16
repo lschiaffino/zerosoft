@@ -20,7 +20,6 @@
 .ib-plan-file .ib-media-tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ib-plan-add { justify-self: start; }
 .ib-plan-h { margin: 6px 0 0; }
-.ib-when-opt:disabled { opacity: 0.5; cursor: not-allowed; }
 .ib-sched.is-batch { align-items: flex-start; }
 .ib-sched-count { margin-left: 6px; font-weight: 500; color: var(--ink-2); }
 .ib-sched-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; flex: 1; min-width: 0; }
