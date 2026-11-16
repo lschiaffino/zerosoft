@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Los overlays pasajeros del chat de Inbox y de Lines (WhatsApp falso,
@@ -267,7 +268,7 @@ for (const view of VIEWS) {
 
     test('Inbox: cada overlay se cierra afuera, con Esc y al elegir; uno cierra al otro', async ({ page, request }) => {
       test.setTimeout(300_000);
-      await request.post('/api/inbox/whatsapp');
+      await request.post('/api/inbox/whatsapp', waLinkIp());
       await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
       const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
       const send = async (list: unknown[]) => expect((await request.post(`/api/inbox/webhook/${row.id}/${row.webhook_secret}`, { data: { events: list } })).ok()).toBe(true);

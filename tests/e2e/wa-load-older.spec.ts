@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { ownWorkspace } from './helpers/own-workspace';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Cargar mensajes anteriores" en Inbox y en Lines, con el WhatsApp falso: un
@@ -124,7 +125,7 @@ async function themes(page: Page, context: BrowserContext, baseURL: string, name
 
 test('Inbox: la ficha carga los mensajes anteriores del teléfono, dice cuando no hay más, y sin línea no se puede', async ({ page, request, context, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   // La cuenta de WhatsApp de la persona de esta prueba.
   const { account } = (await (await request.get('/api/inbox/whatsapp')).json()) as { account: { id: string } };

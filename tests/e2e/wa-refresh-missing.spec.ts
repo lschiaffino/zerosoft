@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { ownWorkspace } from './helpers/own-workspace';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Fetch missing messages" en el menú del chat, Inbox y Lines, con el
@@ -141,7 +142,7 @@ async function bringsTheMissingOne(page: Page, thread: Locator, tag: string, men
 
 test('Inbox: trae lo que faltaba antes del último mensaje y dice qué pasó en cada caso', async ({ page, request, context, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const { account } = (await (await request.get('/api/inbox/whatsapp')).json()) as { account: { id: string } };
   const [acc] = await sql('SELECT id, webhook_secret FROM inbox_accounts WHERE id = ?', [account.id]);

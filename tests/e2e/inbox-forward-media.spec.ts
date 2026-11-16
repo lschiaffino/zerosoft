@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox con la cara de WhatsApp (WhatsApp falso, GROUPS_FAKE=1): el menú de
@@ -12,7 +13,7 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 const phone = (end: string) => `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}${end}`;
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const db = e2eDb();
   try {
