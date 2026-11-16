@@ -340,7 +340,7 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
         // Foto: se baja de nuevo solo si cambió (la guardamos nosotros: la de WhatsApp vence).
         const key = info.pictureUrl ? pictureKey(info.pictureUrl) : '';
         if (key && key !== (chat.picture_src ?? '')) {
-          const stored = await storePicture(info.pictureUrl).catch(() => '');
+          const stored = await storePicture(info.pictureUrl, { ws: number.user_id, chatId: chat.id }).catch(() => '');
           if (stored) {
             await db.prepare('UPDATE groups_chats SET picture_url = ?, picture_src = ? WHERE id = ?').run(stored, key, chat.id);
             if (chat.picture_url && chat.picture_url !== stored) {

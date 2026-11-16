@@ -22,13 +22,14 @@ let blockSeq = 0;
 const block = (type: DocsBlock['type'], content: string, extra: Partial<DocsBlock> = {}): DocsBlock => ({ id: `b${++blockSeq}`, type, content, ...extra }) as DocsBlock;
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-async function logoBytes(url: string | null): Promise<PdfImageData | null> {
+async function logoBytes(url: string | null, ws: string | null = null): Promise<PdfImageData | null> {
   if (!url) return null;
   try {
-    const { localUploadPath } = await import('./uploads');
-    const local = url.startsWith('/') ? localUploadPath(url) : null;
+    const { isOwnUploadUrl, localUploadPath, readUploadBytes } = await import('./uploads');
+    const local = url.startsWith('/uploads/') ? localUploadPath(url) : null;
     let bytes: Buffer | null = null;
-    if (local) bytes = await (await import('fs/promises')).readFile(local);
+    if (url.startsWith('/api/files/') || (isOwnUploadUrl(url) && !local)) bytes = await readUploadBytes(url, ws ? { workspaceId: ws } : null, 2_000_000);
+    else if (local) bytes = await (await import('fs/promises')).readFile(local);
     else if (url.startsWith('https://')) {
       const { safeFetch } = await import('./safe-fetch');
       const res = await safeFetch(url, {}, 8_000);

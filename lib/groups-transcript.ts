@@ -41,6 +41,12 @@ async function loadAudio(ws: string, msg: MessageRow): Promise<{ data: Buffer; m
     url = stored?.url ?? (await getMessageRow(ws, msg.id))?.media_url ?? '';
     if (!url || url.startsWith('evo:')) throw new Error('media_unavailable');
   }
+  if (url.startsWith('/api/files/')) {
+    const { readUploadBytes } = await import('./uploads');
+    const data = await readUploadBytes(url, { workspaceId: ws }, TRANSCRIBE_MAX_BYTES);
+    if (!data) throw new Error('media_unavailable');
+    return { data, mimetype };
+  }
   const local = localUploadPath(url);
   if (local) return { data: await readFile(local), mimetype };
   if (url.startsWith('meta:') && number.provider === 'cloud') return { data: await readCapped(await fetchCloudMedia(readConfig(number) as CloudConfig, url.slice(5))), mimetype };

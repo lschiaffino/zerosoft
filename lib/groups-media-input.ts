@@ -1,5 +1,6 @@
 import { GroupsError } from './groups';
 import { parseMediaKind, type MediaKind } from './groups-media';
+import { isFileUrlPath } from './files/url';
 
 export interface MediaBody {
   url: string;
@@ -66,11 +67,13 @@ export function mediaFromBody(raw: unknown, req: Request): MediaBody | null {
   if (typeof raw !== 'object' || Array.isArray(raw)) throw new GroupsError('invalid_media', 400);
   const m = raw as Record<string, unknown>;
   const url = typeof m.url === 'string' ? m.url.slice(0, 2000) : '';
-  if (!/^(\/uploads\/|https:\/\/)/.test(url)) throw new GroupsError('invalid_media', 400);
+  // /api/files/…: queda relativa; al mandar se chequea que el archivo sea de este workspace (lib/groups.ts).
+  const stored = isFileUrlPath(url);
+  if (!stored && !/^(\/uploads\/|https:\/\/)/.test(url)) throw new GroupsError('invalid_media', 400);
   const base = (process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '');
   if (!url.startsWith('/') && !allowedMediaHost(url, base)) throw new GroupsError('invalid_media', 400);
   const out: MediaBody = {
-    url: url.startsWith('/') ? `${base}${url}` : url,
+    url: stored ? url : url.startsWith('/') ? `${base}${url}` : url,
     mimetype: (typeof m.mimetype === 'string' && m.mimetype.slice(0, 100)) || 'application/octet-stream',
     filename: (typeof m.filename === 'string' && m.filename.slice(0, 200)) || 'file',
   };

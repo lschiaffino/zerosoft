@@ -57,16 +57,11 @@ async function sendOne(
       xhr.send(form);
     }));
   }
-  const { upload } = await import('@vercel/blob/client');
-  const safe = (f.name || 'file').replace(/[^\w.-]+/g, '_').slice(-120) || 'file';
+  // Grande: directo al storage, privado (lib/files/direct-upload-client.ts); el servidor de WhatsApp lo baja con una URL firmada que vence.
+  const { directUpload } = await import('@/lib/files/direct-upload-client');
   let url: string;
   try {
-    const blob = await upload(`inbox/${crypto.randomUUID()}-${safe}`, f.file, {
-      access: 'public',
-      handleUploadUrl: '/api/inbox/upload/blob',
-      onUploadProgress: (e) => onProgress(e.percentage / 100),
-    });
-    url = blob.url;
+    url = (await directUpload(f.file, { purpose: 'inbox-media', name: f.name, onProgress })).url;
   } catch {
     throw new Error('file_too_large');
   }

@@ -43,7 +43,6 @@ test('Tabla de projects: nombre entero, celdas editables y soltar issues en una 
     }),
   );
   await page.goto(`/en/app/track/projects?team=${t.id}`, { waitUntil: 'networkidle' });
-  // exact: otro spec deja un team "Filter …" en el sidebar del workspace demo.
   await expect(page.getByRole('button', { name: 'Filter', exact: true })).toBeVisible();
   const row = page.getByTestId('tp-plan-row').filter({ hasText: name });
   await expect(row).toHaveAttribute('data-track-drop', `plan:${plan.id}`);

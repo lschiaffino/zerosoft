@@ -50,7 +50,7 @@ export async function GET(req: Request) {
     NextResponse.json({
       ...result,
       conversation: toPublicConversation(result.conversation),
-      messages: result.messages.map(toPublicMessage),
+      messages: await Promise.all(result.messages.map(toPublicMessage)),
       visitor: toPublicVisitor(result.visitor),
       office,
     }),
@@ -151,10 +151,10 @@ export async function POST(req: Request) {
   return noStore(
     NextResponse.json(
       {
-        message: toPublicMessage(message),
+        message: await toPublicMessage(message),
         conversation: toPublicConversation(result.conversation),
         visitor: toPublicVisitor(visitor),
-        bot: result.botMessage ? toPublicMessage(result.botMessage) : null,
+        bot: result.botMessage ? await toPublicMessage(result.botMessage) : null,
       },
       { status: 201 },
     ),

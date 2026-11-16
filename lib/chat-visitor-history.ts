@@ -76,6 +76,6 @@ export async function getVisitorHistoryConversation(
     .prepare(`SELECT id, status, subject, created_at FROM chat_conversations WHERE id = ? AND widget_id = ? AND visitor_id IN ${inClause(visitorIds.length)}`)
     .get(conversationId, widgetId, ...visitorIds)) as Pick<ChatConversationRow, 'id' | 'status' | 'subject' | 'created_at'> | undefined;
   if (!c) return null;
-  const messages = (await listChatMessages(c.id)).filter((m) => m.sender_type !== 'system').map(toPublicMessage);
+  const messages = await Promise.all((await listChatMessages(c.id)).filter((m) => m.sender_type !== 'system').map(toPublicMessage));
   return { conversation: c, messages };
 }

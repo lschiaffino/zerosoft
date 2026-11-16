@@ -783,7 +783,12 @@ export function transcriptText(raw: string): string {
     .trim();
 }
 
-async function readTranscriptFile(url: string): Promise<string> {
+async function readTranscriptFile(url: string, ws: string): Promise<string> {
+  if (url.startsWith('/api/files/')) {
+    const { readUploadBytes } = await import('./uploads');
+    const buf = await readUploadBytes(url, { workspaceId: ws }, MAX_TRANSCRIPT_BYTES);
+    return buf ? buf.toString('utf8').slice(0, MAX_TRANSCRIPT_BYTES) : '';
+  }
   if (url.startsWith('/uploads/')) {
     const file = localUploadPath(url);
     if (!file) return '';
@@ -804,13 +809,16 @@ async function readTranscriptFile(url: string): Promise<string> {
 
 async function activityTranscripts(activityId: string): Promise<string[]> {
   const files = (await getDb()
-    .prepare('SELECT filename, size, url FROM crm_task_files WHERE activity_id = ? ORDER BY created_at ASC')
-    .all(activityId)) as Array<{ filename: string; size: number; url: string }>;
+    .prepare(
+      `SELECT f.filename, f.size, f.url, a.user_id AS ws FROM crm_task_files f JOIN crm_activities a ON a.id = f.activity_id
+       WHERE f.activity_id = ? ORDER BY f.created_at ASC`,
+    )
+    .all(activityId)) as Array<{ filename: string; size: number; url: string; ws: string }>;
   const out: string[] = [];
   for (const f of files) {
     const ext = f.filename.toLowerCase().split('.').pop() ?? '';
     if (!TRANSCRIPT_EXT.has(ext) || f.size > MAX_TRANSCRIPT_BYTES) continue;
-    const text = transcriptText(await readTranscriptFile(f.url));
+    const text = transcriptText(await readTranscriptFile(f.url, f.ws));
     if (text) out.push(`Transcript file ${f.filename}:\n${text}`);
   }
   return out;
