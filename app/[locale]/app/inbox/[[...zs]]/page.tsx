@@ -9,6 +9,12 @@ import { whatsappAvailable } from '@/lib/inbox/whatsapp';
 import InboxApp from '@/components/inbox/InboxApp';
 import InboxSettings from '@/components/inbox/InboxSettings';
 import InboxAnalytics from '@/components/inbox/InboxAnalytics';
+import FleetChats from '@/components/fleet/FleetChats';
+import { mirrorSummary } from '@/lib/fleet/link';
+import { userCanUseApp } from '@/lib/workspace';
+import { fleetActorOf } from '@/lib/fleet/api';
+import { feedCursor } from '@/lib/fleet/core';
+import { listMessages, listSessions, markRead } from '@/lib/fleet/sessions';
 import InboxContacts from '@/components/inbox/InboxContacts';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +48,28 @@ export default async function InboxPage(props: Props) {
   if (section === 'analytics') return <InboxAnalytics locale={locale} owner={owner} search={{ days: sp.days, from: sp.from, to: sp.to }} />;
   // Contactos: las personas de tus WhatsApp, una vez cada una (lib/inbox/contacts.ts).
   if (section === 'contacts') return <InboxContacts locale={locale} owner={owner} />;
-  const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner), listSnippets(owner)]);
+  // Fleet: los chats con los agentes dentro de Inbox (la fila "Agentes" de la bandeja).
+  if (section === 'agents') {
+    if (!userCanUseApp(user, 'fleet') || user.role === 'guest') notFound();
+    const actor = fleetActorOf(user);
+    const cursor = await feedCursor(actor);
+    if (id) await markRead(actor, id).catch(() => notFound());
+    const [sessions, archived, messages] = await Promise.all([listSessions(actor), listSessions(actor, { archived: true }), id ? listMessages(actor, id).catch(() => null) : Promise.resolve(null)]);
+    if (id && !messages) notFound();
+    return (
+      <div className="flt-embed">
+        <FleetChats sessions={sessions} archived={archived} activeId={id ?? null} initialMessages={messages} cursor={cursor} base="/app/inbox/agents" realtimeMode={process.env.FLEET_REALTIME === 'poll' ? 'poll' : 'sse'} />
+      </div>
+    );
+  }
+  const [accounts, folders, counts, snippets, agents, tf] = await Promise.all([
+    listAccounts(owner),
+    listFolders(owner),
+    inboxCounts(owner),
+    listSnippets(owner),
+    mirrorSummary(user, 'inbox'),
+    getTranslations({ locale, namespace: 'fleet' }),
+  ]);
   const state = { accounts: accounts.map(accountDto), folders, counts, snippets, available: { whatsapp: whatsappAvailable(), gmail: gmailAvailable() } };
 
   let view: InboxView = 'inbox';
@@ -78,6 +105,7 @@ export default async function InboxPage(props: Props) {
       initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
       composeOnLoad={sp.new === '1'}
       meImage={user.image ?? ''}
+      agentsRow={agents ? { href: '/app/inbox/agents', label: tf('mirror.row'), unread: agents.unread, waiting: agents.waiting, waitingLabel: tf('mirror.waiting', { n: agents.waiting }) } : null}
       me={owner}
     />
   );

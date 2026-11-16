@@ -6,7 +6,7 @@
 export const APP_SECTIONS = {
   sign: ['new', 'envelopes', 'templates', 'settings'],
   send: ['new', 'documents', 'spaces', 'settings'],
-  inbox: ['v', 'f', 'analytics', 'contacts', 'settings'],
+  inbox: ['v', 'f', 'agents', 'analytics', 'contacts', 'settings'],
   calls: ['call', 'upcoming', 'deals', 'ask', 'analytics', 'settings'],
   fleet: ['chats', 'prs', 'deploys', 'settings'],
   time: ['projects', 'reports', 'settings'],

@@ -245,7 +245,7 @@ test('Lines: eliminar chat, deshacer, Archivados › Eliminados y recuperar (128
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').first().click();
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').first().click();
       await page.getByTestId('lines-deleted-entry').click();
       await expect(row).toBeVisible();
       expect(await overflow(page)).toBeLessThanOrEqual(1);

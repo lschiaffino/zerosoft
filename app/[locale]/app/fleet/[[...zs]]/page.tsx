@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { fleetActorOf } from '@/lib/fleet/api';
 import { loadBoard } from '@/lib/fleet/board';
-import { feedCursor, listConnections } from '@/lib/fleet/core';
+import { feedCursor, getPrefs, listConnections } from '@/lib/fleet/core';
 import { listMessages, listSessions, listTokens, markRead } from '@/lib/fleet/sessions';
 import { FLEET_NAME } from '@/lib/fleet/name';
 import FleetBoard from '@/components/fleet/FleetBoard';
@@ -14,6 +14,8 @@ import FleetChats from '@/components/fleet/FleetChats';
 import FleetPrs from '@/components/fleet/FleetPrs';
 import FleetDeploys from '@/components/fleet/FleetDeploys';
 import FleetSettings from '@/components/fleet/FleetSettings';
+import FleetLinkSection from '@/components/fleet/FleetLinkSection';
+import { linkOptions } from '@/lib/fleet/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,8 +67,8 @@ export default async function FleetPage(props: Props) {
       return <FleetChats sessions={sessions} archived={archived} activeId={id ?? null} initialMessages={messages} cursor={cursor} realtimeMode={realtimeMode()} />;
     }
     case 'settings': {
-      const [connections, tokens, url] = await Promise.all([listConnections(actor), listTokens(actor), installUrl()]);
-      return <FleetSettings connections={connections} tokens={tokens} installUrl={url} />;
+      const [connections, tokens, prefs, options, url] = await Promise.all([listConnections(actor), listTokens(actor), getPrefs(actor), linkOptions(actor, user), installUrl()]);
+      return <FleetSettings connections={connections} tokens={tokens} installUrl={url} linkSection={<FleetLinkSection prefs={prefs} options={options} />} />;
     }
     default:
       notFound();

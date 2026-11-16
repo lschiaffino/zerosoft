@@ -17,6 +17,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
 import GetStarted from '@/components/groups/GetStarted';
+import { mirrorSummary } from '@/lib/fleet/link';
 import SampleBanner from '@/components/groups/SampleBanner';
 
 export const dynamic = 'force-dynamic';
@@ -30,13 +31,15 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const viewer = await pageViewer(user);
   // Admins, o members con permiso para conectar números: ven el camino para conectar uno.
   const canConnect = numberManager(user).canAdd;
-  const [numbers, labels, people, teams, properties, lists] = await Promise.all([
+  const [numbers, labels, people, teams, properties, lists, agents, tf] = await Promise.all([
     listNumbers(user.id, viewer),
     listLabels(user.id, viewer),
     listPeople(user.id),
     listTeams(user.id),
     listPropertyDefs(user.id),
     listSavedLists(user.id, me, { viewer }),
+    mirrorSummary(user, 'lines'),
+    getTranslations({ locale, namespace: 'fleet' }),
   ]);
 
   if (numbers.length === 0) {
@@ -85,6 +88,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         initialLists={lists}
         numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName }))}
         initialLine={await getSelectedLine(viewer)}
+        agentsRow={agents ? { href: '/app/lines/agents', label: tf('mirror.row'), unread: agents.unread, waiting: agents.waiting, waitingLabel: tf('mirror.waiting', { n: agents.waiting }) } : null}
       >
         {props.children}
       </InboxShell>
