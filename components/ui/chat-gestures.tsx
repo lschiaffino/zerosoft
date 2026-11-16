@@ -304,6 +304,16 @@ export interface ChatGestures {
   closeSwipe: () => void;
 }
 
+/** Traga el próximo clic (el que el navegador manda al soltar un toque largo), si llega enseguida. */
+function swallowNextClick(ms = 600) {
+  const swallow = (ev: MouseEvent) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+  };
+  document.addEventListener('click', swallow, { capture: true, once: true });
+  window.setTimeout(() => document.removeEventListener('click', swallow, true), ms);
+}
+
 export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
   const opts = useRef(options);
   useEffect(() => {
@@ -462,7 +472,11 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
       if (moved || touch) swallowUntil.current = Date.now() + 400;
       if (!drop) return;
       if (target && moved) opts.current.onDrop(ids, target.dataset.chatDrop ?? '', target.dataset.chatDropName ?? '');
-      else if (!moved && touch && row) opts.current.onHoldTap?.(id, row);
+      else if (!moved && touch && row) {
+        // El navegador manda un clic al soltar el dedo: caería sobre el menú que se acaba de abrir (o su telón) y lo cerraría.
+        swallowNextClick();
+        opts.current.onHoldTap?.(id, row);
+      }
     },
     [dropVisuals, hitTest],
   );

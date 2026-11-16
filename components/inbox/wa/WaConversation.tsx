@@ -17,7 +17,11 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
+import SelectionBar from '@/components/groups/wa/SelectionBar';
+import { useBackLayer } from '@/components/groups/wa/backLayer';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -120,6 +124,7 @@ const WaConversation = forwardRef<
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const ws = useTranslations('groups.wa.stickers');
+  const gw = useTranslations('groups.wa');
   const tsheet = useTranslations('groups.wa.contactSheet');
   const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
@@ -138,7 +143,12 @@ const WaConversation = forwardRef<
   const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
-  const [forwardFor, setForwardFor] = useState<MessageDto | null>(null);
+  const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
+  // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
+  const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
+  const [selecting, setSelecting] = useState<Set<string> | null>(null);
+  const [deletingSel, setDeletingSel] = useState(false);
+  useBackLayer(!!selecting, () => setSelecting(null));
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
@@ -224,6 +234,8 @@ const WaConversation = forwardRef<
     setFullPickerFor(null);
     setRevealed(new Set());
     setNotesOpen(false);
+    setHeld(null);
+    setSelecting(null);
   }, [thread.id]);
 
   // "Responder en privado": este chat 1:1 se abre respondiendo al mensaje del grupo (una vez).
@@ -459,6 +471,52 @@ const WaConversation = forwardRef<
     return items;
   };
 
+  // Selección (toque largo y después tocar otros, como WhatsApp): tocar un mensaje lo suma o lo saca; sin ninguno, se sale.
+  const toggleSelected = (id: string) =>
+    setSelecting((prev) => {
+      const next = new Set(prev ?? []);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next.size ? next : null;
+    });
+  const selectedMsgs = () => messages.filter((m) => selecting?.has(m.id) && !isTempId(m.id));
+  const copySelected = async () => {
+    const list = selectedMsgs().filter((m) => m.body && !m.revoked);
+    setSelecting(null);
+    // Varios: cada uno con su hora y quién lo mandó, como lo copia WhatsApp.
+    const text =
+      list.length === 1
+        ? mentionText(list[0])
+        : list.map((m) => `[${new Date(m.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}] ${m.fromMe ? w('you') : group ? names.get(m.senderHandle) || senderLabel(m.senderName, m.senderHandle) : name}: ${mentionText(m)}`).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      props.onToast(w('copied'));
+    } catch {
+      onError('generic');
+    }
+  };
+  const starSelected = async () => {
+    const list = selectedMsgs().filter((m) => !m.revoked);
+    // Si alguno no está destacado, se destacan todos; si ya lo estaban todos, se sacan.
+    const star = list.some((m) => !m.starred);
+    setSelecting(null);
+    for (const m of list) if (Boolean(m.starred) !== star) await api(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: star ? 'star' : 'unstar' } });
+    onRefresh();
+  };
+  const deleteSelected = async () => {
+    const list = selectedMsgs();
+    setDeletingSel(false);
+    setSelecting(null);
+    let ok = 0;
+    for (const m of list) if ((await api(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'hide' } })).ok) ok++;
+    onRefresh();
+    props.onToast(gw('deleteSelectedDone', { n: ok }));
+  };
+  const heldMsg = held ? (messages.find((m) => m.id === held.id) ?? null) : null;
+  /** En el teléfono, el menú del toque largo también deja elegir varios (si el menú no lo trae ya). */
+  const withSelect = (items: MenuItem[], id: string): MenuItem[] =>
+    isTempId(id) || items.some((it) => it.key === 'select') ? items : [...items, { key: 'select', label: gw('select'), onSelect: () => setSelecting(new Set([id])) }];
+
   const quoteAuthor = (q: { fromMe: boolean; senderName: string; senderHandle: string }) => (q.fromMe ? w('you') : group ? names.get(q.senderHandle) || senderLabel(q.senderName, q.senderHandle) : name);
   const quoteText = (q: { body: string; mediaType: string }) => q.body || (q.mediaType ? w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(q.mediaType) ? q.mediaType : 'document'}`) : '');
 
@@ -595,22 +653,24 @@ const WaConversation = forwardRef<
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
     const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0));
     const gestures = swipeAndHold({
-      onSwipe: () => !m.revoked && startReply(m),
-      onHold: (el) => el.querySelector<HTMLButtonElement>('.wa-chevron')?.click(),
+      onSwipe: selecting || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
+      onHold: (el) => (selecting ? toggleSelected(m.id) : setHeld({ id: m.id, el })),
     });
+    const selected = !album && (selecting?.has(m.id) || held?.id === m.id);
     return (
       <article
         key={m.id}
         id={`m-${m.id}`}
-        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}`}
+        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}${selected ? ' is-selected' : ''}`}
         onContextMenu={(e) => {
-          if ((e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
+          if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
           e.currentTarget.querySelector<HTMLButtonElement>('.wa-chevron')?.click();
         }}
-        onClick={group ? (e) => openMention(e, m) : undefined}
         {...gestures}
+        onClick={selecting ? (album ? undefined : () => toggleSelected(m.id)) : group ? (e) => openMention(e, m) : undefined}
       >
+        {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly tabIndex={-1} aria-label={gw('selectMessage')} />}
         <span className="wa-swipe-reply" aria-hidden="true">
           <ArrowLeft size={18} />
         </span>
@@ -683,7 +743,11 @@ const WaConversation = forwardRef<
                     thumbnail: x.meta?.thumb,
                     seconds: x.meta?.duration,
                     menu: isTempId(x.id) ? [] : menuFor(x),
+                    selected: selecting?.has(x.id) || held?.id === x.id,
                   }))}
+                  selecting={Boolean(selecting)}
+                  onSelect={toggleSelected}
+                  onHold={(id, el) => (selecting ? toggleSelected(id) : setHeld({ id, el }))}
                   onOpen={setViewerAt}
                   menuLabel={w('messageMenu')}
                   align={m.fromMe ? 'right' : 'left'}
@@ -944,7 +1008,7 @@ const WaConversation = forwardRef<
         </div>
       )}
       <div className="wa-scroll">
-        <div className="gr-messages wa-messages" ref={scroller} onScroll={onScroll} tabIndex={-1}>
+        <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} ref={scroller} onScroll={onScroll} tabIndex={-1}>
           {detail.more && (
             <div className="wa-older">
               <button type="button" className="btn btn-sm" onClick={() => void props.loadOlder()}>
@@ -969,7 +1033,28 @@ const WaConversation = forwardRef<
         )}
       </div>
       <ScheduledList thread={thread} scheduled={scheduled} connected={connected} onChange={props.onScheduledChange} onError={onError} />
-      {recording ? (
+      {selecting ? (
+        <div className="wa-composer ib-wa-composer">
+          <SelectionBar
+            count={selecting.size}
+            label={gw('selectedN', { n: selecting.size })}
+            cancelLabel={w('cancel')}
+            onCancel={() => setSelecting(null)}
+            actions={[
+              { key: 'star', label: w('star'), icon: <StarIcon size={22} />, onClick: () => void starSelected(), disabled: !selectedMsgs().some((m) => !m.revoked) },
+              { key: 'copy', label: w('copy'), icon: <CopyIcon size={22} />, onClick: () => void copySelected(), disabled: !selectedMsgs().some((m) => m.body && !m.revoked) },
+              {
+                key: 'forward',
+                label: w('forward'),
+                icon: <Forwarded size={22} />,
+                onClick: () => setForwardFor(selectedMsgs().filter((m) => !m.revoked && (m.body || m.mediaType) && !m.meta?.viewOnce)),
+                disabled: !connected || !selectedMsgs().some((m) => !m.revoked && (m.body || m.mediaType) && !m.meta?.viewOnce),
+              },
+              { key: 'delete', label: w('deleteForMe'), icon: <Trash size={22} />, onClick: () => setDeletingSel(true), danger: true },
+            ]}
+          />
+        </div>
+      ) : recording ? (
         <div className="wa-composer ib-wa-composer">
           {banner}
           <VoiceBar
@@ -1112,18 +1197,37 @@ const WaConversation = forwardRef<
           </div>
         </form>
       </Modal>
-      <Modal open={!!forwardFor} title={w('forwardTo')} onClose={() => setForwardFor(null)}>
+      <Modal open={!!forwardFor && (!Array.isArray(forwardFor) || forwardFor.length > 0)} title={w('forwardTo')} onClose={() => setForwardFor(null)}>
         {forwardFor && (
           <ForwardPicker
             targets={targets}
             groupLabel={w('group')}
-            preview={forwardFor.body || w(`kind.${forwardFor.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(forwardFor.mediaType) ? forwardFor.mediaType : 'document'}`)}
+            preview={
+              Array.isArray(forwardFor)
+                ? forwardFor.length === 1
+                  ? forwardFor[0].body || w(`kind.${forwardFor[0].meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(forwardFor[0].mediaType) ? forwardFor[0].mediaType : 'document'}`)
+                  : gw('messagesN', { n: forwardFor.length })
+                : forwardFor.body || w(`kind.${forwardFor.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(forwardFor.mediaType) ? forwardFor.mediaType : 'document'}`)
+            }
             onCancel={() => setForwardFor(null)}
             onSend={async (ids) => {
-              const m = forwardFor;
+              // Varios mensajes elegidos: salen en orden, uno detrás del otro (como WhatsApp).
+              const list = Array.isArray(forwardFor) ? forwardFor : [forwardFor];
               setForwardFor(null);
-              const r = await api<{ sent: string[]; failed?: Array<{ id: string; error: string }> }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
-              const failed = r.ok ? (r.data.failed ?? []) : [];
+              setSelecting(null);
+              const sent = new Set<string>();
+              const failed: Array<{ id: string; error: string }> = [];
+              let error = '';
+              for (const m of list) {
+                const r = await api<{ sent: string[]; failed?: Array<{ id: string; error: string }> }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: 'forward', to: ids } });
+                if (!r.ok) {
+                  error = r.data.error ?? 'send_failed';
+                  break;
+                }
+                r.data.sent.forEach((x) => sent.add(x));
+                failed.push(...(r.data.failed ?? []).filter((f) => !failed.some((g) => g.id === f.id)));
+              }
+              const r = error ? { ok: false as const, data: { error } } : { ok: true as const, data: { sent: [...sent].filter((x) => !failed.some((f) => f.id === x)) } };
               if (!r.ok) onError(r.data.error ?? 'send_failed');
               else if (r.data.sent.length === 0 && failed.length) onError(failed[0].error);
               else if (failed.length) {
@@ -1136,6 +1240,45 @@ const WaConversation = forwardRef<
           />
         )}
       </Modal>
+      <ConfirmDialog
+        open={deletingSel && !!selecting}
+        title={gw('deleteSelectedTitle', { n: selecting?.size ?? 0 })}
+        body={gw('deleteSelectedForMe')}
+        confirmLabel={w('deleteForMe')}
+        cancelLabel={w('cancel')}
+        danger
+        onConfirm={() => void deleteSelected()}
+        onCancel={() => setDeletingSel(false)}
+      />
+      {held && heldMsg && (
+        <TouchMessageMenu
+          anchor={held.el}
+          label={w('messageMenu')}
+          items={withSelect(menuFor(heldMsg), heldMsg.id)}
+          reactions={
+            !heldMsg.revoked && connected && !isTempId(heldMsg.id)
+              ? {
+                  quick: QUICK,
+                  mine: (heldMsg.reactions ?? []).filter((r) => r.by === 'me').map((r) => r.emoji),
+                  onPick: (e) => void react(heldMsg, e),
+                  onMore: () => openFullPicker(heldMsg.id),
+                  label: w('react'),
+                  moreLabel: w('moreEmoji'),
+                }
+              : null
+          }
+          onClose={() => setHeld(null)}
+          onOutside={(target) => {
+            // Tocar otro mensaje lo suma a la selección, como WhatsApp (una foto de un álbum es su propio mensaje).
+            setHeld(null);
+            const other = target.closest<HTMLElement>('[data-msg-id], .gr-msg');
+            const otherId = other?.dataset.msgId ?? other?.id.replace(/^m-/, '');
+            if (!other || !otherId || otherId === held.id || !scroller.current?.contains(other) || isTempId(held.id) || isTempId(otherId)) return false;
+            setSelecting(new Set([held.id, otherId]));
+            return true;
+          }}
+        />
+      )}
     </section>
   );
 });

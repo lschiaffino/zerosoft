@@ -111,15 +111,15 @@ export function PinnedBar({
   );
 }
 
-/** Reenviar un mensaje: buscar chats, marcar hasta 10 y mandar. */
+/** Reenviar un mensaje (o varios elegidos, en orden): buscar chats, marcar hasta 10 y mandar. */
 export function ForwardModal({
-  message,
+  message: given,
   fromChatId,
   onClose,
   onDone,
   textOf = (m) => m.body,
 }: {
-  message: MessageDto | null;
+  message: MessageDto | MessageDto[] | null;
   /** El texto con las menciones nombradas ("@Nombre" en lugar de "@<dígitos>"). */
   textOf?: (m: MessageDto) => string;
   fromChatId: string;
@@ -134,13 +134,15 @@ export function ForwardModal({
   const [picked, setPicked] = useState<Map<string, string>>(new Map());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const list = given == null ? [] : Array.isArray(given) ? given : [given];
+  const message = list[0] ?? null;
 
   useEffect(() => {
     if (!message) return;
     setPicked(new Map());
     setError('');
     setQ('');
-  }, [message]);
+  }, [given]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!message) return;
@@ -151,21 +153,27 @@ export function ForwardModal({
       setRows((res.data?.rows ?? []).filter((r) => r.id !== fromChatId));
     }, 200);
     return () => clearTimeout(id);
-  }, [q, message, fromChatId]);
+  }, [q, given, fromChatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit() {
     if (!message || picked.size === 0) return;
     setBusy(true);
     setError('');
-    const res = await api<{ results: Array<{ chatId: string; name: string; ok: boolean; error?: string }> }>(`/api/groups/messages/${message.id}`, {
-      body: { action: 'forward', chatIds: [...picked.keys()] },
-    });
-    setBusy(false);
-    if (!res.data) {
-      setError(errText(res.error));
-      return;
+    // Por chat: salió si salieron todos los mensajes (el primer error es el que se cuenta).
+    const byChat = new Map<string, { chatId: string; name: string; ok: boolean; error?: string }>();
+    for (const m of list) {
+      const res = await api<{ results: Array<{ chatId: string; name: string; ok: boolean; error?: string }> }>(`/api/groups/messages/${m.id}`, {
+        body: { action: 'forward', chatIds: [...picked.keys()] },
+      });
+      if (!res.data) {
+        setBusy(false);
+        setError(errText(res.error));
+        return;
+      }
+      for (const r of res.data.results) if (!byChat.has(r.chatId) || (byChat.get(r.chatId)!.ok && !r.ok)) byChat.set(r.chatId, r);
     }
-    onDone(res.data.results);
+    setBusy(false);
+    onDone([...byChat.values()]);
   }
 
   return (
@@ -187,7 +195,11 @@ export function ForwardModal({
       }
     >
       <div className="ui-fields">
-        {message && <p className="gr-quote">{textOf(message).slice(0, 200) || mediaText({ media: message.media })}</p>}
+        {list.length > 1 ? (
+          <p className="gr-quote">{t('wa.messagesN', { n: list.length })}</p>
+        ) : (
+          message && <p className="gr-quote">{textOf(message).slice(0, 200) || mediaText({ media: message.media })}</p>
+        )}
         <label className="ui-field">
           <span className="label">{t('forward.search')}</span>
           <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />

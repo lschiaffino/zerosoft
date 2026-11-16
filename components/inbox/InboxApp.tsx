@@ -41,6 +41,7 @@ import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -374,6 +375,25 @@ export default function InboxApp(props: {
   const routeKey = `${view}:${folderId ?? ''}`;
   const lastRoute = useRef(routeKey);
   const closeRef = useRef<() => void>(() => {});
+  // Teléfono (un panel por vez), como WhatsApp: "atrás" cierra el panel de info y después el chat, sin salir de la
+  // bandeja.
+  const singlePane = useMediaQuery('(max-width: 1023px)');
+  useBackLayer(!!openId && singlePane, () => closeRef.current());
+  useBackLayer(infoOpen && !!openId && singlePane, () => setInfoOpen(false));
+  // Al volver a la entrada de antes de abrir el chat, esa entrada todavía dice ?t=: sin chat abierto, se saca.
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
+  useEffect(() => {
+    const onPop = () => {
+      if (openIdRef.current) return;
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('t')) return;
+      url.searchParams.delete('t');
+      window.history.replaceState(window.history.state, '', url.toString());
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   useEffect(() => {
     if (lastRoute.current === routeKey) return;
     lastRoute.current = routeKey;
