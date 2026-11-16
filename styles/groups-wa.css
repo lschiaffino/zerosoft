@@ -1651,3 +1651,8 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 @media (max-width: 768px) {
   .wa-newgroup-action, .wa-older-chip { min-height: 40px; }
 }
+
+/* Las pestañas Emoji, GIFs y Stickers miden 40px con el dedo. */
+@media (max-width: 768px) {
+  .wa-xp-tabs [role='tab'] { min-height: 40px; }
+}
