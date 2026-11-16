@@ -96,13 +96,13 @@ for (const width of [1280, 390]) {
     await linesInbound(request, n.webhookPath, late);
     await linesInbound(request, n.webhookPath, fine);
     const lateId = await linesChatId(request, late);
-    await linesChatId(request, fine);
+    const fineId = await linesChatId(request, fine);
     const past = new Date(Date.now() - 3 * 3600_000).toISOString();
     await sql('UPDATE groups_chats SET awaiting_since = ?, flagged_at = ? WHERE id = ?', [past, past, lateId]);
 
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-    const lateItem = page.locator('.gr-row-item', { hasText: late });
-    const fineItem = page.locator('.gr-row-item', { hasText: fine });
+    const lateItem = page.locator(`[data-testid="chat-row"][data-chat-id="${lateId}"]`);
+    const fineItem = page.locator(`[data-testid="chat-row"][data-chat-id="${fineId}"]`);
     await expect(lateItem).toHaveAttribute('data-overdue', 'true');
     await expect(fineItem).not.toHaveAttribute('data-overdue', /.*/);
     const edge = lateItem.getByTestId('row-overdue-edge');
@@ -136,10 +136,10 @@ test('Lines: Aplicar del panel de filtros y Enviar llevan el color de la app', a
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
 
-  const field = page.locator('.gr-thread .wa-input').first();
+  const field = page.getByTestId('composer-input').first();
   await field.click();
   await field.pressSequentially('hola');
-  await expectAppAccent(page.locator('.gr-thread .wa-send:not(.is-mic)').first());
+  await expectAppAccent(page.getByTestId('composer-send').first());
 });
 
 /* ---------- Inbox ---------- */
@@ -184,8 +184,8 @@ for (const width of [1280, 390]) {
     await sql("UPDATE inbox_threads SET woke_at = ?, woke_reason = 'snooze' WHERE account_id = ? AND handle = ?", [new Date(Date.now() - 3600_000).toISOString(), acc.id, late.phone]);
 
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-    const lateItem = page.locator('.ib-item', { hasText: late.name });
-    const fineItem = page.locator('.ib-item', { hasText: fine.name });
+    const lateItem = page.getByTestId('inbox-row').filter({ hasText: late.name });
+    const fineItem = page.getByTestId('inbox-row').filter({ hasText: fine.name });
     await expect(lateItem).toHaveAttribute('data-overdue', 'true');
     await expect(fineItem).not.toHaveAttribute('data-overdue', /.*/);
     const edge = lateItem.getByTestId('row-overdue-edge');
@@ -211,7 +211,7 @@ test('Inbox: Confirmar de posponer y Enviar llevan el color de la app', async ({
   const who = { phone: phone(), name: `Accent ${uid()}` };
   await inboxInbound(request, acc, who);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  const row = page.locator('.ib-item', { hasText: who.name });
+  const row = page.getByTestId('inbox-row').filter({ hasText: who.name });
   await row.locator('.ib-row-btn').focus();
   await page.keyboard.press('h');
   const dialog = page.locator('dialog.ui-when[open]');
@@ -220,8 +220,8 @@ test('Inbox: Confirmar de posponer y Enviar llevan el color de la app', async ({
   await expect(dialog).toHaveCount(0);
 
   await row.locator('.ib-row-btn').click();
-  const field = page.locator('.ib-wa-thread .wa-input').first();
+  const field = page.getByTestId('composer-input').first();
   await field.click();
   await field.pressSequentially('hola');
-  await expectAppAccent(page.locator('.wa-send:not(.is-mic)').first());
+  await expectAppAccent(page.getByTestId('composer-send').first());
 });

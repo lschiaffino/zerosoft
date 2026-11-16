@@ -864,6 +864,8 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        data-testid="chat-row"
+        data-chat-id={c.id}
         data-overdue={c.flagged ? 'true' : undefined}
         {...gestures.rowProps(c.id)}
         {...ctxMenu.handlers(c.id, t('wa.chatOptions', { name: c.name }), !showCheck)}

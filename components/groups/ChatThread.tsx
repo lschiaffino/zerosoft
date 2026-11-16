@@ -2314,6 +2314,7 @@ export default function ChatThread(props: ThreadProps) {
               <MentionTextarea
                 ref={inputRef}
                 className="textarea gr-input wa-input"
+                data-testid="composer-input"
                 rows={1}
                 highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
@@ -2363,6 +2364,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
+                  data-testid="composer-send"
                   onClick={() => void send()}
                   onContextMenu={(e) => {
                     // Clic derecho en Enviar: programar el envío (como en Inbox).

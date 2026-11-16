@@ -1089,6 +1089,7 @@ export default function InboxApp(props: {
         data-idx={i}
         data-thread-id={th.id}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        data-testid="inbox-row"
         data-overdue={th.woke ? 'true' : undefined}
         {...gestures.rowProps(th.id)}
         {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}
