@@ -10,6 +10,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
+import { deleteUploads } from './uploads';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
 import { maskPhoneText } from './groups-mask';
@@ -27,6 +28,10 @@ export interface BroadcastRow {
   media_url: string;
   media_type: string;
   media_name: string;
+  /** 'voice': el archivo es una nota de voz grabada y sale como nota de voz (ptt). */
+  media_kind: string;
+  /** Segundos de la nota de voz. */
+  media_duration: number;
   kind: 'broadcast' | 'scheduled';
   status: 'scheduled' | 'sending' | 'done' | 'cancelled';
   scheduled_at: string;
@@ -48,7 +53,8 @@ export interface BroadcastDto {
   numberId: string;
   name: string;
   body: string;
-  media: { url: string; type: string; name: string } | null;
+  /** `kind: 'voice'` y `duration` (segundos): una nota de voz programada desde la grabadora. */
+  media: { url: string; type: string; name: string; kind?: 'voice'; duration?: number } | null;
   kind: BroadcastRow['kind'];
   status: BroadcastRow['status'];
   scheduledAt: string;
@@ -81,7 +87,9 @@ export function toBroadcastDto(r: BroadcastRow): BroadcastDto {
     numberId: r.number_id,
     name: r.name,
     body: r.body,
-    media: r.media_type ? { url: r.media_url, type: r.media_type, name: r.media_name } : null,
+    media: r.media_type
+      ? { url: r.media_url, type: r.media_type, name: r.media_name, ...(r.media_kind === 'voice' ? { kind: 'voice' as const, duration: Number(r.media_duration) || 0 } : {}) }
+      : null,
     kind: r.kind,
     status: r.status,
     scheduledAt: r.scheduled_at,
@@ -103,7 +111,8 @@ export interface CreateBroadcastInput {
   numberId?: string;
   name?: string;
   body: string;
-  media?: { url: string; mimetype: string; filename: string } | null;
+  /** `kind: 'voice'` + `duration` (segundos): nota de voz grabada; sale como nota de voz, sin texto. */
+  media?: { url: string; mimetype: string; filename: string; kind?: string; duration?: number } | null;
   chatIds: string[];
   scheduledAt?: string | null;
   perMinute?: number;
@@ -112,6 +121,20 @@ export interface CreateBroadcastInput {
   poll?: unknown;
   /** Cita a un mensaje del chat. Solo para un programado a un único chat. */
   replyToId?: string | null;
+}
+
+/**
+ * El archivo de un programado o envío masivo, si es de /api/files: tiene que
+ * ser de este workspace y queda visible para quienes ven esa línea (lo ven en
+ * la lista de programados); al salir se manda en base64, nunca por una URL
+ * pública.
+ */
+export async function shareScheduledMedia(ws: string, numberId: string, url: string | null | undefined): Promise<void> {
+  if (!url) return;
+  const { fileIdFromUrl, shareFileWith } = await import('./files/store');
+  // También una URL absoluta de nuestro dominio: si apunta a /api/files, el archivo tiene que ser de acá.
+  if (!fileIdFromUrl(url)) return;
+  if (!(await shareFileWith(url, { workspaceId: ws }, { app: 'groups', scope: `groups-number:${numberId}` }))) throw new GroupsError('invalid_media', 400);
 }
 
 export async function createBroadcast(ws: string, actor: string, input: CreateBroadcastInput): Promise<BroadcastDto> {
@@ -123,7 +146,9 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
       throw new GroupsError((err as Error).message);
     }
   }
-  const body = poll ? poll.question : String(input.body ?? '').slice(0, 4096);
+  const voice = voiceOf(input.media, !!poll);
+  // Una nota de voz no lleva texto (WhatsApp no le pone pie).
+  const body = poll ? poll.question : voice ? '' : String(input.body ?? '').slice(0, 4096);
   if (!body.trim() && !input.media) throw new GroupsError('empty_message');
   const chatIds = [...new Set(input.chatIds ?? [])];
   if (chatIds.length === 0) throw new GroupsError('no_recipients');
@@ -148,6 +173,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
     if (t > Date.now() + 366 * 86_400_000) throw new GroupsError('invalid_date');
     scheduled = new Date(Math.max(t, Date.now()));
   }
+  await shareScheduledMedia(ws, numberId, input.media?.url);
   const id = randomUUID();
   const now = nowIso();
   const kind = input.kind === 'scheduled' ? 'scheduled' : 'broadcast';
@@ -161,9 +187,9 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
   }
   await db
     .prepare(
-      `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, kind, status, scheduled_at,
+      `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, media_kind, media_duration, kind, status, scheduled_at,
          per_minute, total, created_by, created_at, poll, reply_to_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -174,6 +200,8 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
       input.media?.url ?? '',
       input.media?.mimetype ?? '',
       input.media?.filename ?? '',
+      voice ? 'voice' : '',
+      voice?.duration ?? 0,
       kind,
       scheduled.toISOString(),
       clampPerMinute(input.perMinute ?? 20),
@@ -187,6 +215,44 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
     await db.prepare('INSERT OR IGNORE INTO groups_broadcast_recipients (id, broadcast_id, chat_id) VALUES (?, ?, ?)').run(randomUUID(), id, c.id);
   }
   return toBroadcastDto((await getBroadcastRow(ws, id)) as BroadcastRow);
+}
+
+/** Una nota de voz dura al menos esto (segundos): más corta no se programa (un toque sin querer). */
+export const MIN_VOICE_SECONDS = 1;
+
+/**
+ * Si la media de un envío es una nota de voz, sus segundos (validados): un
+ * audio de al menos un segundo (0 si no se sabe cuánto dura), y nunca junto a
+ * una encuesta. null si es un archivo común.
+ */
+export function voiceOf(media: CreateBroadcastInput['media'], poll = false): { duration: number } | null {
+  if (!media || media.kind !== 'voice') return null;
+  if (poll || !String(media.mimetype ?? '').toLowerCase().startsWith('audio/')) throw new GroupsError('invalid_media');
+  // Sin duración (la API pública puede no mandarla) queda en 0, "no se sabe"; una que vino y no llega al segundo, no.
+  const raw = Number(media.duration) || 0;
+  if ((raw > 0 && raw < MIN_VOICE_SECONDS) || raw > 86_400) throw new GroupsError('voice_too_short');
+  return { duration: Math.round(raw) };
+}
+
+/**
+ * Borra el audio guardado de una nota de voz programada que ya no va a salir
+ * (se canceló o se deshizo). Solo las notas de voz: su archivo es de ese
+ * programado y de nadie más (el de un envío común puede venir de uno que se
+ * repite). La URL guardada es absoluta: una subida local vuelve a /uploads/….
+ */
+async function dropVoiceUpload(row: Pick<BroadcastRow, 'media_kind' | 'media_url' | 'user_id'> | null): Promise<void> {
+  if (!row || row.media_kind !== 'voice' || !row.media_url) return;
+  // Un archivo de /api/files: solo si es de este workspace (se chequeó al programar; se vuelve a mirar al borrar).
+  const { fileIdFromUrl, ownedFileRow } = await import('./files/store');
+  if (fileIdFromUrl(row.media_url) && !(await ownedFileRow(row.media_url, { workspaceId: row.user_id }))) return;
+  let ref = row.media_url;
+  try {
+    const u = new URL(row.media_url);
+    if (u.pathname.startsWith('/uploads/')) ref = u.pathname;
+  } catch {
+    // Ya es una ruta (/uploads/…).
+  }
+  await deleteUploads([ref]).catch(() => undefined);
 }
 
 async function getBroadcastRow(ws: string, id: string): Promise<BroadcastRow | null> {
@@ -305,7 +371,10 @@ export async function cancelBroadcast(ws: string, id: string): Promise<Broadcast
     return toBroadcastDto(row);
   }
   await db.prepare("UPDATE groups_broadcast_recipients SET status = 'skipped' WHERE broadcast_id = ? AND status = 'pending'").run(id);
-  return toBroadcastDto((await getBroadcastRow(ws, id)) as BroadcastRow);
+  const cancelled = (await getBroadcastRow(ws, id)) as BroadcastRow;
+  // Una nota de voz que no salió a nadie: su audio no queda guardado.
+  if (Number(cancelled.sent ?? 0) === 0) await dropVoiceUpload(cancelled);
+  return toBroadcastDto(cancelled);
 }
 
 /**
@@ -398,7 +467,12 @@ export async function listScheduledMessages(
 }
 
 export async function deleteBroadcast(ws: string, id: string): Promise<boolean> {
-  return (await getDb().prepare("DELETE FROM groups_broadcasts WHERE id = ? AND user_id = ? AND status != 'sending'").run(id, ws)).changes > 0;
+  const row = await getBroadcastRow(ws, id);
+  const gone = (await getDb().prepare("DELETE FROM groups_broadcasts WHERE id = ? AND user_id = ? AND status != 'sending'").run(id, ws)).changes > 0;
+  // Un programado que se borra antes de salir (Deshacer): el audio de su nota de voz se va con él. Uno que ya salió lo
+  // sigue usando el mensaje del chat.
+  if (gone && row?.status === 'scheduled') await dropVoiceUpload(row);
+  return gone;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -496,7 +570,15 @@ export async function processBroadcasts(
               replyToId: quoted ? b.reply_to_id : null,
               poll: parsePoll(b.poll),
               body: text,
-              media: b.media_type ? { url: b.media_url, mimetype: b.media_type, filename: b.media_name } : null,
+              media: b.media_type
+                ? {
+                    url: b.media_url,
+                    mimetype: b.media_type,
+                    filename: b.media_name,
+                    // Nota de voz programada: sale como nota de voz (ptt), con su duración, igual que una mandada en el momento.
+                    ...(b.media_kind === 'voice' ? { kind: 'voice' as const, ...(Number(b.media_duration) > 0 ? { duration: Number(b.media_duration) } : {}) } : {}),
+                  }
+                : null,
               // Un programado a un chat es una respuesta; un envío masivo, no.
               authorKind: b.kind === 'scheduled' ? 'scheduled' : 'broadcast',
             });

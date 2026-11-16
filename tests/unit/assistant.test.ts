@@ -10,6 +10,7 @@ import { canUseTool } from '@/lib/assistant/registry';
 import { ALL_TOOLS, toolsFor } from '@/lib/assistant/tools';
 import { toolCtx } from '@/lib/assistant/registry';
 import { addMessage, createConversation, getAction, listConversations, renameConversation, deleteConversation } from '@/lib/assistant/store';
+import { fitUntrusted } from '@/lib/assistant/tools-catalog';
 import { makeUser } from './helpers';
 import { scriptedModel, type MockStep } from './ai-mock';
 
@@ -243,6 +244,22 @@ describe('asistente: secretos y charlas', () => {
     expect(out.title).toBe('Quarterly plan');
     expect(maskUrl('https://hooks.zapier.com/hooks/catch/123/abc')).toBe('https://hooks.zapier.com/…');
     expect(maskUrl('not a url')).toBe(REDACTED);
+  });
+
+  it('un resultado de operación largo se acorta por filas y sigue siendo JSON con la etiqueta cerrada', () => {
+    const rows = Array.from({ length: 25 }, (_, i) => ({ id: `chat-${i}`, name: `Chat ${i}`, description: 'x'.repeat(800) }));
+    const out = redact({ result: fitUntrusted('v1.groups.chats.list', redact({ data: { data: rows } }) as Record<string, unknown>) }) as { result: string };
+    expect(out.result).toMatch(/\n<\/untrusted_data nonce="[0-9a-f]+">$/);
+    const inner = JSON.parse(out.result.slice(out.result.indexOf('\n') + 1, out.result.lastIndexOf('\n</untrusted_data'))) as {
+      data: { data: Array<{ name: string }> };
+      truncated: { shown: number; of: number };
+    };
+    expect(inner.data.data.length).toBeGreaterThan(5);
+    expect(inner.data.data.length).toBeLessThan(25);
+    expect(inner.truncated).toMatchObject({ shown: inner.data.data.length, of: 25 });
+    // Un resultado chico queda entero y sin nota.
+    const small = fitUntrusted('v1.docs.pages.get', { data: { title: 'Plan' } });
+    expect(small).not.toContain('truncated');
   });
 
   it('list_webhooks devuelve solo el host de cada URL', async () => {

@@ -102,15 +102,30 @@ export function extensionOf(name: string, type: string): string {
   return t.replace(/^(x-|vnd\.)/, '').split(/[.+]/)[0].slice(0, 6).toUpperCase();
 }
 
+/**
+ * Un nombre de archivo en dos partes para cortarlo en el medio con CSS: el
+ * principio (que se achica con "…") y el final que siempre se ve (los últimos
+ * caracteres con la extensión). Los nombres cortos van enteros en la primera.
+ */
+export function splitFileName(name: string, tail = 10): [string, string] {
+  const chars = [...name];
+  if (chars.length <= tail * 2) return [name, ''];
+  return [chars.slice(0, -tail).join(''), chars.slice(-tail).join('')];
+}
+
 /** Texto con links: partes de texto y de URL (sin HTML). */
 export function linkify(text: string): Array<{ text: string; href?: string }> {
   const out: Array<{ text: string; href?: string }> = [];
-  const re = /\b(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/gi;
+  // Como WhatsApp: links con http(s), los que empiezan con www. y los mails (mailto:). El signo final de la
+  // oración (punto, coma, paréntesis) no entra en el link.
+  const re = /\b(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]|www\.[^\s<>"']+[^\s<>"'.,;:!?)\]]|[A-Z0-9._%+-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)*\.[A-Z]{2,})/gi;
   let last = 0;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ text: m[1], href: m[1] });
-    last = m.index + m[1].length;
+    const raw = m[1];
+    const href = /^https?:\/\//i.test(raw) ? raw : /^www\./i.test(raw) ? `https://${raw}` : `mailto:${raw}`;
+    out.push({ text: raw, href });
+    last = m.index + raw.length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
@@ -160,4 +175,18 @@ export function waveBars(wave: number[] | undefined, seed: string, n = 36): numb
 export function firstUrl(text: string): string {
   const m = /\bhttps?:\/\/[^\s<>"']+/i.exec(text ?? '');
   return m ? m[0].replace(/[).,;:!?]+$/, '') : '';
+}
+
+/** Teléfono con formato, como lo muestra WhatsApp: "+54 9 11 5555-0000" (lo enmascarado queda como vino). */
+export function formatWaPhone(phone: string, masked = false): string {
+  if (masked) return phone;
+  const d = String(phone ?? '').replace(/\D/g, '');
+  if (!d) return '';
+  const ar = /^549(11|\d{3})(\d{3,4})(\d{4})$/.exec(d);
+  if (ar) return `+54 9 ${ar[1]} ${ar[2]}-${ar[3]}`;
+  const us = /^1(\d{3})(\d{3})(\d{4})$/.exec(d);
+  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
+  const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(d);
+  if (br) return `+55 ${br[1]} ${br[2]}-${br[3]}`;
+  return `+${d}`;
 }

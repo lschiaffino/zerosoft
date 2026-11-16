@@ -110,8 +110,10 @@ describe('Lines: un mensaje que llega', () => {
     const saved = seen.sql.findIndex((q) => /INTO groups_messages/.test(q));
     const touched = seen.sql.findIndex((q) => /UPDATE groups_chats SET last_message_at/.test(q));
     expect(saved).toBeGreaterThanOrEqual(0);
-    // El aviso a las pantallas sale en la misma tanda que el mensaje.
-    expect(touched).toBe(saved + 1);
+    // El aviso a las pantallas sale en la misma tanda que el mensaje. Entre los dos solo puede ir la marca que
+    // desarchiva en WhatsApp un chat pospuesto (lee el chat antes de que el mensaje lo despierte).
+    expect(touched).toBeGreaterThan(saved);
+    expect(seen.sql.slice(saved + 1, touched).every((q) => /INTO wa_archive_push/.test(q))).toBe(true);
     // Y nada de eso recorre una tabla: el plan de CADA sentencia, con sus argumentos de verdad.
     expect(seen.seen).toHaveLength(seen.statements);
     expect(seen.seen.filter((x) => x.sql.includes('?')).length).toBeGreaterThanOrEqual(6);
@@ -191,7 +193,9 @@ describe('Inbox: un mensaje que llega', () => {
     expect(seen.trips).toBeLessThanOrEqual(4);
     expect(await scansOf(seen.seen)).toEqual([]);
     const saved = seen.sql.findIndex((q) => /INTO inbox_messages/.test(q));
-    expect(seen.sql[saved + 1]).toMatch(/UPDATE inbox_threads SET\s+preview/);
+    // Entre el mensaje y el chat solo puede ir la marca que desarchiva en WhatsApp un chat pospuesto.
+    const next = seen.sql.slice(saved + 1).find((q) => !/INTO wa_archive_push/.test(q));
+    expect(next).toMatch(/UPDATE inbox_threads SET\s+preview/);
   });
 
   it('repetido no suma no leídos; uno más viejo no pisa la vista previa ni la hora', async () => {

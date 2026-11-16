@@ -24,13 +24,29 @@ export interface PartMedia {
   url: string;
   name: string;
   type: string;
+  /** Nota de voz grabada en la pantalla: sale como nota de voz (ptt), sin pie. */
+  voice?: boolean;
+  /** Segundos grabados. */
+  duration?: number;
 }
 
 export interface PartInput {
   body: string;
   delaySec?: number;
   media?: PartMedia | null;
+  /** Mensaje del chat (nuestro id) que cita. */
+  replyTo?: string | null;
 }
+
+export interface CleanPart {
+  body: string;
+  delaySec: number;
+  media: PartMedia | null;
+  replyTo: string;
+}
+
+/** Una nota de voz dura al menos esto (segundos): más corta no se programa (un toque sin querer). */
+export const MIN_VOICE_SECONDS = 1;
 
 /**
  * ¿La URL es un archivo subido para Inbox? Solo las que guarda
@@ -50,7 +66,7 @@ export function isInboxMediaUrl(url: string): boolean {
 }
 
 /** Limpia y valida las partes: 1 a MAX_PARTS, cada una con texto o archivo. */
-export function cleanParts(parts: PartInput[], channel: string): Array<{ body: string; delaySec: number; media: PartMedia | null }> {
+export function cleanParts(parts: PartInput[], channel: string): CleanPart[] {
   if (!Array.isArray(parts) || parts.length === 0 || parts.length > MAX_PARTS) throw new InboxError('invalid_input', 400);
   return parts.map((p, i) => {
     const body = String(p.body ?? '').trim();
@@ -62,12 +78,30 @@ export function cleanParts(parts: PartInput[], channel: string): Array<{ body: s
     }
     if (!body && !media) throw new InboxError('invalid_input', 400);
     const delay = i === 0 ? 0 : Math.max(0, Math.min(MAX_DELAY_S, Math.floor(Number(p.delaySec) || 0)));
+    const type = String(media?.type || 'application/octet-stream').slice(0, 100);
+    const voice = media?.voice === true;
+    const seconds = Math.round(Number(media?.duration) || 0);
+    if (voice) {
+      // Una nota de voz es un audio de al menos un segundo; WhatsApp no le pone pie.
+      if (!type.startsWith('audio/')) throw new InboxError('invalid_input', 400);
+      if (!(seconds >= MIN_VOICE_SECONDS) || seconds > 86_400) throw new InboxError('voice_too_short', 400);
+    }
     return {
-      body,
+      body: voice ? '' : body,
       delaySec: delay,
-      media: media ? { url: media.url, name: String(media.name || 'archivo').slice(0, 200), type: String(media.type || 'application/octet-stream').slice(0, 100) } : null,
+      media: media ? { url: media.url, name: String(media.name || 'archivo').slice(0, 200), type, ...(voice ? { voice: true, duration: seconds } : {}) } : null,
+      replyTo: typeof p.replyTo === 'string' ? p.replyTo.slice(0, 60) : '',
     };
   });
+}
+
+/** Las citas de las partes son mensajes de ESE chat (de la persona); si no, 404. */
+async function checkReplies(owner: string, threadId: string, parts: CleanPart[]): Promise<void> {
+  for (const p of parts) {
+    if (!p.replyTo) continue;
+    const q = (await getDb().prepare('SELECT thread_id FROM inbox_messages WHERE id = ? AND owner_id = ?').get(p.replyTo, owner)) as { thread_id: string } | undefined;
+    if (!q || q.thread_id !== threadId) throw new InboxError('not_found', 404);
+  }
 }
 
 /** Hora prevista de cada parte: la primera a `base`, las demás sumando esperas. */
@@ -91,10 +125,27 @@ async function insertParts(owner: string, threadId: string, batchId: string, fir
     const p = parts[i];
     await db
       .prepare(
-        `INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, media_url, media_name, media_type, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, media_url, media_name, media_type, media_kind, media_duration, reply_to, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(newId('ibq'), owner, threadId, p.body, times[i], batchId, firstSeq + i, p.delaySec, p.media?.url ?? '', p.media?.name ?? '', p.media?.type ?? '', nowS, nowS);
+      .run(
+        newId('ibq'),
+        owner,
+        threadId,
+        p.body,
+        times[i],
+        batchId,
+        firstSeq + i,
+        p.delaySec,
+        p.media?.url ?? '',
+        p.media?.name ?? '',
+        p.media?.type ?? '',
+        p.media?.voice ? 'voice' : '',
+        p.media?.voice ? (p.media.duration ?? 0) : 0,
+        p.replyTo,
+        nowS,
+        nowS,
+      );
   }
 }
 
@@ -105,6 +156,7 @@ async function insertParts(owner: string, threadId: string, batchId: string, fir
 export async function createBatch(owner: string, input: { threadId: string; sendAt: string; parts: PartInput[]; key?: string }, now = new Date()): Promise<ScheduledDto[]> {
   const thread = await getThreadRow(owner, input.threadId);
   const parts = cleanParts(input.parts, thread.channel);
+  await checkReplies(owner, thread.id, parts);
   const at = futureIso(input.sendAt, now);
   const key = input.key && /^[A-Za-z0-9_-]{8,64}$/.test(input.key) ? `ibb_${input.key}` : newId('ibb');
   const existing = await batchRows(owner, key);
@@ -136,6 +188,7 @@ export async function replaceBatch(owner: string, id: string, input: { sendAt: s
   if (rows.some((r) => r.status === 'sending')) throw new InboxError('busy', 409);
   const thread = await getThreadRow(owner, row.thread_id);
   const parts = cleanParts(input.parts, thread.channel);
+  await checkReplies(owner, thread.id, parts);
   const at = futureIso(input.sendAt, now);
   const open = rows.filter((r) => OPEN.has(r.status));
   if (!open.length) throw new InboxError('not_found', 404);

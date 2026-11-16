@@ -53,8 +53,28 @@ export function longWhen(iso: string | null, locale: string): string {
   return d.toLocaleString(locale, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+/** Una fecha por venir, corta para una etiqueta en la fila: "lun 08:00" si es en la semana, si no "22 nov". */
+export function aheadWhen(iso: string | null, locale: string, now = new Date()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const soon = d.getTime() - now.getTime() < 6 * 86_400_000;
+  return soon ? d.toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+}
+
 /** Valor para <input type="datetime-local"> en la zona del navegador. */
 export function localInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Los presets a mostrar ahora: si dos caen en el mismo minuto, queda el primero. */
+export function visiblePresets(now = new Date()): SnoozePreset[] {
+  const seen = new Set<number>();
+  return SNOOZE_PRESETS.filter((p) => {
+    const t = Math.floor(presetDate(p, now).getTime() / 60_000);
+    if (seen.has(t)) return false;
+    seen.add(t);
+    return true;
+  });
 }

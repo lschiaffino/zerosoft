@@ -39,7 +39,7 @@ export async function makeSummary(owner: string, threadId: string, now = new Dat
   const t = await getThreadRow(owner, threadId);
   if (t.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   const rows = ((await getDb()
-    .prepare('SELECT from_me, sender_name, subject, body, media_type, sent_at, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL ORDER BY sent_at DESC LIMIT 120')
+    .prepare("SELECT from_me, sender_name, subject, body, media_type, sent_at, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND media_type <> 'system' ORDER BY sent_at DESC LIMIT 120")
     .all(threadId, owner)) as unknown as Array<{ from_me: number; sender_name: string; subject: string; body: string; media_type: string; sent_at: string; meta?: string | null }>).reverse();
   if (!rows.length) throw new InboxError('nothing_to_summarize', 400);
   // El resumen habla de personas: "@<dígitos>" → "@Nombre".
