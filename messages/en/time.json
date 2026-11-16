@@ -56,7 +56,28 @@
     "started": "Timer started",
     "stopped": "Timer stopped",
     "loadError": "The timesheet didn't load.",
-    "entryLabel": "{project}, {task}, {duration}"
+    "entryLabel": "{project}, {task}, {duration}",
+    "view": "View",
+    "day": "Day"
+  },
+  "week": {
+    "projectTask": "Project and task",
+    "total": "Total",
+    "addRow": "Add row",
+    "addRowTitle": "Add a row",
+    "copyRows": "Copy rows from last timesheet",
+    "copied": "{count, plural, one {# row copied} other {# rows copied}}",
+    "nothingToCopy": "There is no earlier timesheet with hours to copy.",
+    "emptyTitle": "No rows this week",
+    "emptyBody": "Add a row for each project and task, then type the hours under each day.",
+    "cellLabel": "{project}, {task}, {day}",
+    "lockedLabel": "{project}, {task}, {day}. Several entries or a running timer: open the day to edit",
+    "removeRow": "Remove row",
+    "removeTitle": "Delete this row for the week?",
+    "removeBody": "{count, plural, one {# entry} other {# entries}} ({duration}) are deleted from this week.",
+    "removed": "Row removed",
+    "rowExists": "That project and task already have a row this week.",
+    "hint": "Type 1:30, 1.5 or 90m. Notes and timers are in the day view."
   },
   "projects": {
     "desc": "Each project with its client, rate and budget.",

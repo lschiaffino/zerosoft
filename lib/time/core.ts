@@ -9,7 +9,7 @@
  */
 import { randomBytes } from 'crypto';
 import { getDb } from '../db';
-import { CURRENCIES, MAX_ENTRY_MINUTES, MAX_NOTES, TimeError, cleanName, isIsoDate, liveMinutes, type Currency, type ReportEntry, type TimeActor } from './types';
+import { CURRENCIES, MAX_ENTRY_MINUTES, MAX_NOTES, TimeError, addDays, cleanName, isIsoDate, liveMinutes, weekStart, type Currency, type ReportEntry, type TimeActor } from './types';
 
 const now = () => new Date().toISOString();
 
@@ -376,6 +376,42 @@ export async function listMyEntries(actor: TimeActor, from: string, to: string):
     .prepare(`${ENTRY_SELECT} WHERE e.workspace_id = ? AND e.person_id = ? AND e.spent_date BETWEEN ? AND ? ORDER BY e.spent_date, e.created_at`)
     .all(actor.ws, actor.person, from, to)) as unknown as EntryRow[];
   return rows.map(entryDto);
+}
+
+/**
+ * Filas (proyecto y tarea) de la última semana con horas de la persona antes de
+ * `before`, para "Copiar las filas de la última hoja". Sin proyectos ni tareas
+ * archivados. `week` es el lunes de esa semana, o null si no hay ninguna.
+ */
+export async function recentWeekRows(
+  actor: TimeActor,
+  before: string,
+): Promise<{
+  week: string | null;
+  rows: Array<{ projectId: string; taskId: string }>;
+}> {
+  if (!isIsoDate(before)) throw new TimeError('invalid_input', 400);
+  const db = getDb();
+  const last = (await db.prepare('SELECT MAX(spent_date) AS d FROM time_entries WHERE workspace_id = ? AND person_id = ? AND spent_date < ?').get(actor.ws, actor.person, weekStart(before))) as
+    | { d: string | null }
+    | undefined;
+  if (!last?.d) return { week: null, rows: [] };
+  const week = weekStart(last.d);
+  const rows = (await db
+    .prepare(
+      `SELECT e.project_id, e.task_id, MIN(e.spent_date || e.created_at) AS first
+       FROM time_entries e JOIN time_projects p ON p.id = e.project_id JOIN time_tasks t ON t.id = e.task_id
+       WHERE e.workspace_id = ? AND e.person_id = ? AND e.spent_date BETWEEN ? AND ? AND p.archived_at IS NULL AND t.archived_at IS NULL
+       GROUP BY e.project_id, e.task_id ORDER BY first`,
+    )
+    .all(actor.ws, actor.person, week, addDays(week, 6))) as Array<{
+    project_id: string;
+    task_id: string;
+  }>;
+  return {
+    week,
+    rows: rows.map((r) => ({ projectId: r.project_id, taskId: r.task_id })),
+  };
 }
 
 async function myEntryRow(actor: TimeActor, id: string) {

@@ -25,7 +25,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 /**
- * Time en una sola ruta (presupuesto de rutas): /app/time (?date, ?new=1),
+ * Time en una sola ruta (presupuesto de rutas): /app/time (?date, ?view=week, ?new=1),
  * /app/time/projects (?new=1), /app/time/projects/<id>, /app/time/reports
  * (?projectId) y /app/time/settings.
  */
@@ -42,7 +42,7 @@ export default async function TimePage(props: Props) {
   switch (section) {
     case undefined: {
       const [projects, tasks] = await Promise.all([listProjects(actor), listTasks(actor)]);
-      return <Timesheet projects={projects} tasks={tasks} admin={actor.admin} initialDate={sp.date ?? null} openNew={sp.new === '1'} />;
+      return <Timesheet projects={projects} tasks={tasks} admin={actor.admin} initialDate={sp.date ?? null} initialView={sp.view === 'week' ? 'week' : 'day'} openNew={sp.new === '1'} />;
     }
     case 'projects': {
       const [clients, currency] = await Promise.all([listClients(actor), getCurrency(actor.ws)]);
