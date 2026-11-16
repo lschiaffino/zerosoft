@@ -132,6 +132,12 @@ describe('voice dictation', () => {
     expect(fastCleanupTimeoutMs('word '.repeat(2000))).toBe(6000);
   });
 
+  it('GET precalienta el dictado: 204 sin sesión y sin cuerpo', async () => {
+    const res = await dictateRoute.GET();
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe('');
+  });
+
   it('applies dictionary replacements and falls back to rules without AI', async () => {
     await asUser();
     const add = await dictionaryRoute.POST(jsonReq('http://t', 'POST', { kind: 'replace', phrase: 'the demo', replacement: 'the Acme demo' }));

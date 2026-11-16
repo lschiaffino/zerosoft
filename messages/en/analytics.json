@@ -771,7 +771,7 @@
     "title": "Install and settings",
     "description": "Snippet, keys and privacy for {project}.",
     "installTitle": "Install on your site",
-    "installDesc": "Paste this before </head>. It captures pageviews, and clicks, field changes and form submits if autocapture is on.",
+    "installDesc": "Paste this before '</head>'. It captures pageviews, and clicks, field changes and form submits if autocapture is on.",
     "publicKey": "Public project key (safe to put in your site)",
     "snippetTitle": "Script tag",
     "moduleTitle": "As a module",

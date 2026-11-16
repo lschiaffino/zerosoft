@@ -771,7 +771,7 @@
     "title": "Instalar y ajustes",
     "description": "Snippet, keys y privacidad de {project}.",
     "installTitle": "Instalar en tu sitio",
-    "installDesc": "Pegalo antes de </head>. Captura pageviews y, si autocapture está prendido, clicks, cambios en campos y envíos de formularios.",
+    "installDesc": "Pegalo antes de '</head>'. Captura pageviews y, si autocapture está prendido, clicks, cambios en campos y envíos de formularios.",
     "publicKey": "Key pública del proyecto (se puede poner en tu sitio)",
     "snippetTitle": "Etiqueta script",
     "moduleTitle": "Como módulo",
