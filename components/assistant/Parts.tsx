@@ -83,6 +83,14 @@ function useStepLabel() {
       if (part.tool === 'find_operations') return failed(t('step.find', { query: String(input.query ?? '').slice(0, 80) }));
       if (part.tool === 'get_operation') return failed(t('step.get', { op: humanOperation(input.operation) }));
       if (part.tool === 'run_operation') return failed(t('step.run', { op: humanOperation(input.operation) }));
+      const chatApp = part.tool.startsWith('inbox_') ? 'Inbox' : part.tool.startsWith('lines_') ? 'Lines' : '';
+      if (part.tool === 'inbox_attention' || part.tool === 'lines_attention') return failed(t('step.attention', { app: chatApp }));
+      if (part.tool === 'inbox_read_chats' || part.tool === 'lines_read_chats') {
+        if ((part.output as { status?: unknown } | undefined)?.status === 'awaiting_permission') return t('step.waitingPermission', { app: chatApp });
+        return failed(t('step.readChats', { app: chatApp }));
+      }
+      if (part.tool === 'grant_chat_access') return t('step.waitingPermission', { app: String(input.app) === 'lines' ? 'Lines' : 'Inbox' });
+      if (part.tool === 'propose_inbox_actions' && state === 'running') return t('step.inboxActions');
       if (part.tool === 'propose_folders_from_json') {
         if (state === 'running') return t('step.foldersRunning', { source: t('step.yourFile') });
         if (out.error === 'nothing_to_do') return t('step.foldersNothing');

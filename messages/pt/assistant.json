@@ -383,7 +383,11 @@
     "app": "Verificando {app}",
     "workspace": "Verificando o workspace",
     "running": "Verificando {tool}",
-    "ok": "Verificou {tool}"
+    "ok": "Verificou {tool}",
+    "attention": "Verificando o que espera no {app}",
+    "readChats": "Lendo suas conversas do {app}",
+    "waitingPermission": "Esperando sua permissão para ler o {app}",
+    "inboxActions": "Preparando mudanças no Inbox"
   },
   "panel": {
     "pin": "Fixar ao lado",
@@ -393,5 +397,53 @@
     "resize": "Largura do painel do assistente",
     "resizeHint": "Arraste para mudar a largura. Clique duplo volta ao original.",
     "more": "Mais"
+  },
+  "chats": {
+    "summary": "{count, plural, one {Aplicar # mudança no Inbox} other {Aplicar # mudanças no Inbox}}",
+    "working": "Aplicando…",
+    "do": {
+      "draft": "Rascunhos de resposta, não enviados ({count})",
+      "snooze": "Adiar até ({count})",
+      "followUp": "Lembrar-me ({count})",
+      "archive": "Arquivar ({count})",
+      "done": "Marcar como feito ({count})",
+      "folder": "Adicionar à pasta ({count})"
+    },
+    "result": "Pronto: {done} de {total}.",
+    "resultFailed": "Não foi possível: {list}.",
+    "consent": {
+      "summary": "Permitir que o assistente leia suas conversas do {app}?",
+      "whatLabel": "O que ele lê",
+      "what": "As últimas mensagens das conversas do {app} de que precisa para este pedido, só as que você vê. Nada é salvo nesta conversa e nada é enviado.",
+      "notLabel": "Você pode mudar",
+      "not": "Configurações › Conta › Acesso do assistente. Sem permissão ele só vê nomes e horários.",
+      "app": {
+        "inbox": "Inbox",
+        "lines": "Lines"
+      },
+      "grantedOnce": "O assistente pode ler suas conversas do {app} nesta conversa.",
+      "grantedAlways": "O assistente pode ler suas conversas do {app} até você desligar em Configurações."
+    }
+  },
+  "consentCard": {
+    "kicker": "Permissão",
+    "once": "Permitir desta vez",
+    "always": "Permitir sempre",
+    "deny": "Não permitir",
+    "denied": "Não permitido. O assistente não leu suas conversas.",
+    "continue": "Permitido. Pode seguir."
+  },
+  "access": {
+    "title": "Acesso do assistente",
+    "desc": "As conversas que o assistente pode ler quando você pede ajuda. As permissões de \"desta vez\" terminam com cada conversa.",
+    "app": {
+      "inbox": "Conversas do Inbox",
+      "lines": "Conversas do Lines"
+    },
+    "always": "Permitido sempre",
+    "off": "Pergunta antes",
+    "revoke": "Desligar",
+    "revoked": "Desligado. O assistente vai perguntar antes de ler essas conversas.",
+    "error": "Não foi possível mudar. Tente de novo."
   }
 }

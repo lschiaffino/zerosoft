@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './wa/backLayer';
 
 /*
  * Lo mínimo de components/groups/ui.tsx que usan también los diálogos compartidos con Inbox (encuesta,
@@ -73,6 +74,8 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // Teléfono: "atrás" cierra el diálogo (no la pantalla de abajo).
+  useBackLayer(open, () => !busy && onClose(), { enabled: useMediaQuery(TOUCH_QUERY) });
   useEffect(() => {
     const d = ref.current;
     if (!d) return;

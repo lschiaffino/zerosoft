@@ -58,7 +58,8 @@ const CRM_IMPORT_BUDGET_MS = 200_000;
  * corridas se evitan con los claims por fila (compare-and-set de next_run_at,
  * locks de corridas y jobs, sent_at de recordatorios y pasos). Misma
  * autorización que /api/cron/tick (CRON_SECRET como Bearer, la valida el
- * cron de recordatorios antes de hacer nada).
+ * cron de recordatorios antes de hacer nada). También manda el mail de resumen del
+ * deploy de producción que está corriendo, una vez por deploy (lib/deploy-notify.ts).
  */
 export async function GET(req: NextRequest) {
   const start = Date.now();
@@ -68,6 +69,9 @@ export async function GET(req: NextRequest) {
   const status = await import('@/lib/status/store')
     .then(async (m) => m.runStatusCron({ runChecks: (await import('@/lib/status/checks')).runChecks }))
     .catch(() => null);
+  // Mail del deploy de producción que está corriendo, una sola vez por deploy (claim por sha). Corre en paralelo
+  // con el resto y se espera al final.
+  const deployNotifyRun = import('@/lib/deploy-notify').then((m) => m.runDeployNotify()).catch(() => null);
   // Voice: mantener despierta la función del dictado (GET sin sesión, 204) para que el primer dictado no espere el arranque en frío.
   const voiceWarm = fetch(new URL('/api/voice/dictate', req.nextUrl.origin), { cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
   const reminders = await remindersCron(req);
@@ -148,5 +152,6 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ status, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  const deployNotify = await deployNotifyRun;
+  return NextResponse.json({ status, deployNotify, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

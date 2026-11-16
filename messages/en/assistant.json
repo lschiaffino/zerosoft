@@ -383,7 +383,11 @@
     "app": "Checking {app}",
     "workspace": "Checking the workspace",
     "running": "Checking {tool}",
-    "ok": "Checked {tool}"
+    "ok": "Checked {tool}",
+    "attention": "Checking what is waiting in {app}",
+    "readChats": "Reading your {app} chats",
+    "waitingPermission": "Waiting for your permission to read {app}",
+    "inboxActions": "Preparing changes in Inbox"
   },
   "panel": {
     "pin": "Keep open at the side",
@@ -393,5 +397,53 @@
     "resize": "Assistant panel width",
     "resizeHint": "Drag to resize. Double click to reset.",
     "more": "More"
+  },
+  "chats": {
+    "summary": "{count, plural, one {Apply # change in Inbox} other {Apply # changes in Inbox}}",
+    "working": "Applying…",
+    "do": {
+      "draft": "Reply drafts, not sent ({count})",
+      "snooze": "Snooze until ({count})",
+      "followUp": "Remind me ({count})",
+      "archive": "Archive ({count})",
+      "done": "Mark as done ({count})",
+      "folder": "Add to folder ({count})"
+    },
+    "result": "Done: {done} of {total}.",
+    "resultFailed": "Could not: {list}.",
+    "consent": {
+      "summary": "Allow the assistant to read your {app} chats?",
+      "whatLabel": "What it reads",
+      "what": "The latest messages of the {app} chats it needs for this request, only the ones you can see. Nothing is saved in this chat and nothing is sent.",
+      "notLabel": "You can change it",
+      "not": "Settings › Account › Assistant access. Without permission it only sees names and times.",
+      "app": {
+        "inbox": "Inbox",
+        "lines": "Lines"
+      },
+      "grantedOnce": "The assistant can read your {app} chats in this conversation.",
+      "grantedAlways": "The assistant can read your {app} chats until you turn it off in Settings."
+    }
+  },
+  "consentCard": {
+    "kicker": "Permission",
+    "once": "Allow this time",
+    "always": "Always allow",
+    "deny": "Don't allow",
+    "denied": "Not allowed. The assistant did not read your chats.",
+    "continue": "Allowed. Go ahead."
+  },
+  "access": {
+    "title": "Assistant access",
+    "desc": "Chats the assistant can read when you ask it for help. \"This time\" permissions end with each conversation.",
+    "app": {
+      "inbox": "Inbox chats",
+      "lines": "Lines chats"
+    },
+    "always": "Allowed always",
+    "off": "Asks first",
+    "revoke": "Turn off",
+    "revoked": "Turned off. The assistant will ask before reading these chats.",
+    "error": "Could not change it. Try again."
   }
 }

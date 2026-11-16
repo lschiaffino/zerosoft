@@ -2460,6 +2460,92 @@
         "button": "Abrir o Fleet"
       }
     },
+    "time": {
+      "meta": {
+        "title": "Time: registre horas por projeto e relate o que é faturável",
+        "description": "Cronômetro e folha de horas semanal por projeto e tarefa, com clientes, valores por hora, orçamentos e relatórios exportáveis em CSV. Alternativa de código aberto ao Harvest."
+      },
+      "hero": {
+        "sub": "Inicie um cronômetro ou digite as horas, contra um projeto e uma tarefa. Veja a semana de relance, quanto de cada orçamento foi usado e as horas e o valor faturáveis de cada cliente."
+      },
+      "featuresTitle": "Saiba para onde vão as horas.",
+      "featuresTitleDim": "Projeto por projeto.",
+      "f1": {
+        "t": "Cronômetro ou à mão",
+        "d": "Inicie um cronômetro na folha de horas ou digite 1:30, 1,5 ou 90m. Roda um por vez: iniciar outro para o primeiro."
+      },
+      "f2": {
+        "t": "A semana de relance",
+        "d": "Os totais de cada dia da semana acima do dia, com o total semanal. Troque de semana e volte para hoje."
+      },
+      "f3": {
+        "t": "Projetos e clientes",
+        "d": "Cada projeto com seu cliente, código, valor por hora e um orçamento em horas. A lista mostra quanto de cada orçamento foi usado."
+      },
+      "f4": {
+        "t": "Faturável ou não",
+        "d": "O projeto e a tarefa decidem se uma hora é faturável. O valor é as horas faturáveis vezes o valor por hora do projeto."
+      },
+      "f5": {
+        "t": "Relatórios do jeito que precisar",
+        "d": "Horas, horas faturáveis e valor de uma semana, um mês ou qualquer período, por projeto, cliente, tarefa ou pessoa."
+      },
+      "f6": {
+        "t": "Exportar para CSV",
+        "d": "O detalhe de cada registro do período, uma linha por registro, pronto para uma planilha ou para faturar."
+      },
+      "steps": {
+        "s1": {
+          "t": "Crie um projeto",
+          "d": "Com seu cliente, valor por hora e orçamento."
+        },
+        "s2": {
+          "t": "Registre horas",
+          "d": "Com o cronômetro ou digitando as horas."
+        },
+        "s3": {
+          "t": "Relate",
+          "d": "Horas e valor faturáveis por cliente, e um CSV."
+        }
+      },
+      "compare": {
+        "rival": "Harvest",
+        "price": "Planos por usuário",
+        "per": "por usuário, depois de um plano grátis de 1 usuário e 2 projetos",
+        "teamLabel": "Uma equipe de 5 registrando horas",
+        "team": "veja os preços do Harvest",
+        "zero": "$0",
+        "note": "O Harvest mudou seus planos em 2026 e a página de preços não pôde ser lida quando verificamos, então não citamos um preço: veja getharvest.com/pricing. O Time no seu servidor custa $0 mais seu banco de dados."
+      },
+      "faq": {
+        "f1": {
+          "q": "Quem vê as horas de quem?",
+          "a": "Cada pessoa registra, edita e apaga só os próprios registros. Nos relatórios, um membro vê as próprias horas e um admin vê as de todos."
+        },
+        "f2": {
+          "q": "Quem cria projetos?",
+          "a": "Donos e admins criam e editam clientes, projetos e tarefas, e escolhem a moeda. Os membros registram horas em qualquer projeto ativo."
+        },
+        "f3": {
+          "q": "E se eu esquecer um cronômetro rodando?",
+          "a": "Ele continua contando até 24 horas, o limite de um registro. Abra o registro e digite a duração certa."
+        },
+        "f4": {
+          "q": "Posso mandar faturas pelo Time?",
+          "a": "Ainda não. Exporte o relatório em CSV ou use as horas no Books."
+        },
+        "f5": {
+          "q": "O que falta comparado ao Harvest?",
+          "a": "Aprovação de horas, despesas, faturas, atribuir pessoas a projetos, valores por pessoa ou tarefa, lembretes, app para celular e integrações, entre outros. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Registre.",
+        "title2": "Fature.",
+        "sub": "Abra o Time, crie um projeto e inicie seu primeiro cronômetro.",
+        "button": "Abrir o Time"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: perguntas e painéis open source sobre seus dados",
@@ -2659,7 +2745,8 @@
       "send": "fig. 0 · páginas sendo lidas, com o tempo de cada uma",
       "inbox": "fig. 0 · uma conversa e um e-mail na mesma lista",
       "calls": "fig. 0 · duas vozes, transcritas linha por linha",
-      "fleet": "fig. 0 · cartões de agentes que passam de trabalhando para prontos"
+      "fleet": "fig. 0 · cartões de agentes que passam de trabalhando para prontos",
+      "time": "fig. 0 · uma semana de horas, dia a dia"
     },
     "heroFigHint": "arraste para girar",
     "desktop": {
@@ -3258,6 +3345,25 @@
       "c3foot": "PR #41 · deploy pronto",
       "agentMsg": "A migração está pronta. Rodo no banco de staging?",
       "myMsg": "Sim, só em staging."
+    },
+    "time": {
+      "listTitle": "Esta semana",
+      "d1": "Seg",
+      "d2": "Ter",
+      "d3": "Qua",
+      "d4": "Qui",
+      "d5": "Sex",
+      "total": "Total",
+      "r1name": "Redesenho do site",
+      "r1meta": "Estudio Norte · Design",
+      "r1time": "2:15",
+      "r2name": "App de onboarding",
+      "r2meta": "Acme · Desenvolvimento",
+      "r2time": "3:40",
+      "r3name": "Reunião semanal",
+      "r3meta": "Interno · Reuniões",
+      "r3time": "0:30",
+      "running": "Rodando"
     }
   },
   "status": {
@@ -3693,7 +3799,7 @@
     "paramLinkMaxClicks": "Cliques permitidos antes de o link parar de redirecionar.",
     "paramLinkPassword": "O visitante precisa digitá-la antes do redirect. Fica salva com hash e nunca é devolvida; a resposta só diz has_password.",
     "paramLinkOg": "Título, descrição e imagem (URL http(s)) da prévia em redes sociais e apps de chat.",
-    "paramLinkExternalId": "Seu próprio id para o link, único por workspace (letras, números e . _ : @ -). Depois leia ou edite o link com /api/v1/links/ext_{externalId}.",
+    "paramLinkExternalId": "Seu próprio id para o link, único por workspace (letras, números e . _ : @ -). Depois leia ou edite o link com /api/v1/links/ext_'{externalId}'.",
     "paramLinkCreator": "Só os links criados por este id de usuário.",
     "paramLinkSearch": "Texto a buscar no slug, na URL de destino e no título.",
     "paramLinkTagFilter": "Só os links com esta tag.",
@@ -3837,7 +3943,7 @@
     "extensionTrackTitle": "Registrar e rastrear um email antes de enviar",
     "extensionTrackDesc": "Salva o email de saída e devolve o pixel de aberturas para adicionar ao corpo. Se nenhum destinatário for contato, o primeiro é criado como contato.",
     "paramExtMessageId": "Id da mensagem no Gmail (data-legacy-message-id)",
-    "paramExtFrom": "Remetente, como \"Ana <ana@acme.com>\"",
+    "paramExtFrom": "Remetente, como \"Ana '<ana@acme.com>'\"",
     "paramExtTo": "Destinatários, separados por vírgulas",
     "paramExtSubject": "Assunto do email",
     "paramExtBody": "Corpo em texto simples",
@@ -3971,9 +4077,9 @@
     "paramBoardsName": "Nome do quadro.",
     "paramBoardsTemplate": "Chave do modelo.",
     "paramBoardsScene": "1 para incluir a cena do Excalidraw.",
-    "paramBoardsStickies": "Post-its: { text, color?, tags? }. Cores: yellow, green, blue, pink, violet, orange.",
-    "paramBoardsElements": "Formas e textos: { kind, text?, x?, y?, width?, height?, fill? } com kind sticky, text, rectangle, ellipse ou diamond.",
-    "paramBoardsConnect": "Setas entre elementos por índice: { from, to }.",
+    "paramBoardsStickies": "Post-its: '{ text, color?, tags? }'. Cores: yellow, green, blue, pink, violet, orange.",
+    "paramBoardsElements": "Formas e textos: '{ kind, text?, x?, y?, width?, height?, fill? }' com kind sticky, text, rectangle, ellipse ou diamond.",
+    "paramBoardsConnect": "Setas entre elementos por índice: '{ from, to }'.",
     "scope_boards_read": "Ler quadros, o resumo e buscar dentro.",
     "scope_boards_write": "Criar quadros, adicionar post-its e formas, renomear, mover e mandar para a lixeira.",
     "docsApiTitle": "Docs",
@@ -3981,7 +4087,7 @@
     "docsPagesListTitle": "Listar páginas",
     "docsPagesListDesc": "Páginas que a key pode ler, mais novas primeiro. Com q procura em títulos e conteúdo.",
     "docsPagesCreateTitle": "Criar uma página",
-    "docsPagesCreateDesc": "Cria uma página a partir de Markdown ou blocos, dentro de outra (parentId) ou de um modelo (id de modelo do workspace ou builtin:<key>). As {{variáveis}} do modelo são preenchidas com vars.",
+    "docsPagesCreateDesc": "Cria uma página a partir de Markdown ou blocos, dentro de outra (parentId) ou de um modelo (id de modelo do workspace ou builtin:'<key>'). As '{{variáveis}}' do modelo são preenchidas com vars.",
     "docsPagesGetTitle": "Ler uma página",
     "docsPagesGetDesc": "A página com o conteúdo em Markdown e seus bancos. Com format=blocks traz também os blocos.",
     "docsPagesUpdateTitle": "Atualizar uma página",
@@ -4034,7 +4140,7 @@
     "paramDocsTitle": "Título da página.",
     "paramDocsMarkdown": "Conteúdo em Markdown (títulos, listas, to-dos, citações, código, tabelas).",
     "paramDocsParentId": "Criar como subpágina desta página.",
-    "paramDocsTemplate": "Id de modelo do workspace ou builtin:<key>.",
+    "paramDocsTemplate": "Id de modelo do workspace ou builtin:'<key>'.",
     "paramDocsFormat": "blocks para trazer também os blocos.",
     "paramDocsReplace": "Substitui todo o conteúdo (os bancos são mantidos).",
     "paramDocsArchived": "true manda para a lixeira, false restaura.",
@@ -4054,7 +4160,7 @@
     "paramDocsLimit": "Quantos retornar (1 a 100, padrão 50).",
     "paramDocsOffset": "Quantos pular, para paginar.",
     "linksTrackLeadTitle": "Registrar um lead",
-    "linksTrackLeadDesc": "Atribui um cadastro ao clique que trouxe a pessoa. O link precisa ter a medição de conversões ativada: as visitas chegam ao seu site com ?zs_id=<clickId> (o script /link-tracking.js guarda isso em um cookie zs_id do seu domínio). O mesmo cliente com o mesmo evento conta uma vez só.",
+    "linksTrackLeadDesc": "Atribui um cadastro ao clique que trouxe a pessoa. O link precisa ter a medição de conversões ativada: as visitas chegam ao seu site com ?zs_id='<clickId>' (o script /link-tracking.js guarda isso em um cookie zs_id do seu domínio). O mesmo cliente com o mesmo evento conta uma vez só.",
     "linksTrackSaleTitle": "Registrar uma venda",
     "linksTrackSaleDesc": "Soma receita ao link que trouxe o cliente: por customerExternalId (um lead registrado antes) ou por clickId em uma venda direta. Os valores vão em unidades menores. Um invoiceId repetido devolve duplicate: true e não conta duas vezes.",
     "linksTrackOpenTitle": "Deep link diferido (abertura do app)",
@@ -4122,7 +4228,7 @@
     "paramSocialTo": "Até esta data (ISO 8601).",
     "paramSocialText": "Texto da publicação.",
     "paramSocialAccounts": "Ids das contas conectadas onde publicar.",
-    "paramSocialOverrides": "Texto próprio por conta: { accountId: texto }.",
+    "paramSocialOverrides": "Texto próprio por conta: '{ accountId: texto }'.",
     "paramSocialAction": "draft, schedule, queue ou now. Padrão draft.",
     "paramSocialScheduledAt": "Data e hora de publicação (ISO 8601), com action schedule.",
     "scope_books_read": "Ler faturas do Books (com o papel no Books de quem criou a key).",

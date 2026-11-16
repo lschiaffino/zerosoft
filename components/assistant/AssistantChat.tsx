@@ -56,7 +56,7 @@ function DetailValue({ value }: { value: string }) {
 }
 
 /** Tarjeta de confirmación: resumen, qué cambia y Confirmar / Cancelar (tipeado si es destructiva). */
-function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: ActionView) => void }) {
+function ActionCard({ action, onDecided, onGranted }: { action: ActionView; onDecided: (a: ActionView) => void; onGranted?: () => void }) {
   const t = useTranslations('assistant');
   const locale = useLocale();
   const router = useRouter();
@@ -66,20 +66,28 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
   const needsText = action.destructive && action.confirmText;
   const matches = !needsText || typed.trim().toLowerCase() === action.confirmText!.trim().toLowerCase();
 
-  async function decide(decision: 'confirm' | 'cancel') {
+  /** El permiso para leer chats: "esta vez", "siempre" o "no" (no se tipea nada). */
+  const consent = action.tool === 'grant_chat_access';
+
+  async function decide(decision: 'confirm' | 'cancel', option?: 'once' | 'always') {
     if (busy) return;
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/assistant/actions/${action.id}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ decision, typed, locale }),
+      body: JSON.stringify({ decision, typed, locale, ...(option ? { option } : {}) }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { action?: ActionView; error?: string } | null;
     setBusy(false);
     if (data?.action) onDecided(data.action);
     if (!res?.ok) {
       setError(t(`actionErrors.${data?.error && ['forbidden', 'confirm_text_mismatch', 'not_pending', 'not_found'].includes(data.error) ? data.error : 'failed'}`));
+      return;
+    }
+    // Con el permiso dado, el asistente sigue solo con lo que se le había pedido.
+    if (consent && decision === 'confirm' && data?.action?.status === 'done') {
+      onGranted?.();
       return;
     }
     if (decision === 'confirm' && data?.action?.status === 'done') {
@@ -90,8 +98,13 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
 
   const pending = action.status === 'pending';
   return (
-    <div className={`asst-action${action.destructive ? ' is-destructive' : ''}`} data-testid="assistant-action" data-status={action.status}>
-      <p className="asst-action-kicker">{action.destructive ? t('action.destructive') : t('action.review')}</p>
+    <div
+      className={`asst-action${action.destructive ? ' is-destructive' : ''}${consent ? ' is-consent' : ''}`}
+      data-testid="assistant-action"
+      data-kind={consent ? 'consent' : 'change'}
+      data-status={action.status}
+    >
+      <p className="asst-action-kicker">{consent ? t('consentCard.kicker') : action.destructive ? t('action.destructive') : t('action.review')}</p>
       <p className="asst-action-summary">{action.summary}</p>
       {action.details.length > 0 && (
         <dl className="asst-action-details">
@@ -131,6 +144,19 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
               />
             </label>
           )}
+          {consent ? (
+            <div className="asst-action-buttons">
+              <button type="button" className="btn btn-sm btn-primary" data-testid="assistant-consent-once" onClick={() => void decide('confirm', 'once')} disabled={busy}>
+                {t('consentCard.once')}
+              </button>
+              <button type="button" className="btn btn-sm" data-testid="assistant-consent-always" onClick={() => void decide('confirm', 'always')} disabled={busy}>
+                {t('consentCard.always')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" data-testid="assistant-consent-deny" onClick={() => void decide('cancel')} disabled={busy}>
+                {t('consentCard.deny')}
+              </button>
+            </div>
+          ) : (
           <div className="asst-action-buttons">
             <button
               type="button"
@@ -144,6 +170,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
               {t('action.cancel')}
             </button>
           </div>
+          )}
         </>
       ) : (
         <p className={`asst-action-result is-${action.status}${action.result?.partial ? ' is-partial' : ''}`} role="status">
@@ -151,7 +178,9 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
           {action.status === 'done'
             ? action.result?.message || t('action.done')
             : action.status === 'cancelled'
-              ? t('action.cancelled')
+              ? consent
+                ? t('consentCard.denied')
+                : t('action.cancelled')
               : action.status === 'running'
                 ? (action.working ?? t('action.working'))
                 : t('action.failed', { error: action.result?.error ?? '' })}
@@ -476,7 +505,7 @@ export default function AssistantChat({
                 )}
                 {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
                 {actions.map((p) => (
-                  <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />
+                  <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} onGranted={() => void send(t('consentCard.continue'))} />
                 ))}
                 {m.error && (
                   <p className="form-error" role="alert">

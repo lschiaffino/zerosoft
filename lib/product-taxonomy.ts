@@ -31,6 +31,7 @@ export const PRODUCT_KEYS = [
   'inbox',
   'calls',
   'fleet',
+  'time',
   'platform',
   'site',
   'other',
@@ -73,6 +74,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   inbox: 'var(--c-inbox)',
   calls: 'var(--c-calls)',
   fleet: 'var(--c-fleet)',
+  time: 'var(--c-time)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
   other: 'var(--dim)',
@@ -148,6 +150,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'calls';
     case 'fleet':
       return 'fleet';
+    case 'time':
+      return 'time';
     default:
       return 'link';
   }

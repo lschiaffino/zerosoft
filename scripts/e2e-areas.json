@@ -44,7 +44,7 @@
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "calm-focus", "chat-keep-archived", "offline-lines-inbox"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "calm-focus", "chat-keep-archived", "offline-lines-inbox", "mobile-gestures"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
@@ -58,6 +58,7 @@
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
     "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
+    "time": { "names": ["time"], "specs": ["time"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
     "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
     "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },

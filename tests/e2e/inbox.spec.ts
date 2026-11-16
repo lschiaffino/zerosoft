@@ -163,6 +163,19 @@ test('posponer con H, recordatorio con F y la vista de pospuestos', async ({ pag
   await expect(row).toHaveCount(0);
   await page.goto('/en/app/inbox/v/snoozed', { waitUntil: 'networkidle' });
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
+  // Sin mouse: H abre, las flechas recorren los horarios (el primero arranca con el foco) y Esc cierra.
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').focus();
+  await page.keyboard.press('h');
+  const opts = dialog.locator('.ui-when-opt');
+  await expect(opts.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(opts.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  // Desde el primero, arriba da la vuelta a la fecha propia.
+  await expect(dialog.locator('.ui-when-custom input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
   // F sobre el pospuesto: recordame si no contesta (con fecha propia) y Esc cierra sin cambiar nada.
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').focus();
   await page.keyboard.press('f');

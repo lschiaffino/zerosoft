@@ -383,7 +383,11 @@
     "app": "Revisando {app}",
     "workspace": "Revisando el workspace",
     "running": "Revisando {tool}",
-    "ok": "Revisó {tool}"
+    "ok": "Revisó {tool}",
+    "attention": "Revisando qué espera en {app}",
+    "readChats": "Leyendo tus chats de {app}",
+    "waitingPermission": "Esperando tu permiso para leer {app}",
+    "inboxActions": "Preparando cambios en Inbox"
   },
   "panel": {
     "pin": "Fijar al costado",
@@ -393,5 +397,53 @@
     "resize": "Ancho del panel del asistente",
     "resizeHint": "Arrastrá para cambiar el ancho. Doble clic lo vuelve al original.",
     "more": "Más"
+  },
+  "chats": {
+    "summary": "{count, plural, one {Aplicar # cambio en Inbox} other {Aplicar # cambios en Inbox}}",
+    "working": "Aplicando…",
+    "do": {
+      "draft": "Borradores de respuesta, sin enviar ({count})",
+      "snooze": "Posponer hasta ({count})",
+      "followUp": "Recordarme ({count})",
+      "archive": "Archivar ({count})",
+      "done": "Marcar como hecho ({count})",
+      "folder": "Agregar a carpeta ({count})"
+    },
+    "result": "Listo: {done} de {total}.",
+    "resultFailed": "No se pudo: {list}.",
+    "consent": {
+      "summary": "¿Dejás que el asistente lea tus chats de {app}?",
+      "whatLabel": "Qué lee",
+      "what": "Los últimos mensajes de los chats de {app} que necesita para este pedido, solo los que vos ves. No se guarda nada en esta charla y no se envía nada.",
+      "notLabel": "Lo podés cambiar",
+      "not": "Ajustes › Cuenta › Acceso del asistente. Sin permiso solo ve nombres y horarios.",
+      "app": {
+        "inbox": "Inbox",
+        "lines": "Lines"
+      },
+      "grantedOnce": "El asistente puede leer tus chats de {app} en esta charla.",
+      "grantedAlways": "El asistente puede leer tus chats de {app} hasta que lo apagues en Ajustes."
+    }
+  },
+  "consentCard": {
+    "kicker": "Permiso",
+    "once": "Permitir esta vez",
+    "always": "Permitir siempre",
+    "deny": "No permitir",
+    "denied": "No permitido. El asistente no leyó tus chats.",
+    "continue": "Permitido. Seguí."
+  },
+  "access": {
+    "title": "Acceso del asistente",
+    "desc": "Los chats que el asistente puede leer cuando le pedís ayuda. Los permisos de \"esta vez\" terminan con cada charla.",
+    "app": {
+      "inbox": "Chats de Inbox",
+      "lines": "Chats de Lines"
+    },
+    "always": "Permitido siempre",
+    "off": "Pregunta antes",
+    "revoke": "Apagar",
+    "revoked": "Apagado. El asistente va a preguntar antes de leer estos chats.",
+    "error": "No se pudo cambiar. Probá de nuevo."
   }
 }

@@ -62,6 +62,8 @@ interface DocsBlockEditorProps {
   trail?: Array<{ id: string; title: string; icon: string | null }>;
   /** Clic en un bloque botón. */
   onRunButton?: (index: number, button: DocsButtonConfig) => void;
+  /** Borra el bloque (con deshacer); lo usa el botón "Eliminar" de la configuración del bloque botón. */
+  onDeleteBlock?: (index: number) => void;
   /** Clic en una ecuación en línea: offset plano donde empieza y su LaTeX. */
   onInlineEquation?: (index: number, start: number, tex: string) => void;
   /** Se pegó un link solo (queda como link; el editor ofrece bookmark o embed). */
@@ -103,7 +105,7 @@ function pastedBlocks(html: string, text: string, into: DocsBlockType): DocsBloc
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ readOnly = false, block, index, listIndex, listDepth = 0, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
+  ({ readOnly = false, block, index, listIndex, listDepth = 0, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onDeleteBlock, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -292,6 +294,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           onKeyDown={onKeyDown}
           onFocus={onFocus}
           onRun={(i, b) => onRunButton?.(i, b)}
+          onDelete={onDeleteBlock}
         />
       );
     }

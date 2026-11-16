@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { presetDate, SNOOZE_PRESETS, type ScheduledDto, type SnoozePreset } from '@/lib/inbox/types';
+import { visiblePresets } from '@/lib/when-presets';
 import { api, localInputValue, longWhen, typingIn } from './api';
 import { Modal } from './InboxDialogs';
 
@@ -164,6 +165,15 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
           if (!typingIn(e.target as Element) && n >= 1 && n <= SNOOZE_PRESETS.length && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             pick(SNOOZE_PRESETS[n - 1]);
+            return;
+          }
+          // Flechas arriba y abajo entre los horarios (Enter elige el que tiene el foco).
+          const opt = (e.target as Element).closest?.('.ib-when-opt');
+          if (opt && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('.ib-when-opt:not(:disabled)'));
+            const at = items.indexOf(opt as HTMLButtonElement);
+            e.preventDefault();
+            items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
           }
         }}
       >
@@ -238,11 +248,11 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
         )}
         <h3 className="label ib-plan-h">{t('whenFirst')}</h3>
         <ul className="ib-when-list">
-          {SNOOZE_PRESETS.map((p, i) => (
+          {visiblePresets(now).map((p) => (
             <li key={p}>
               <button type="button" className="ib-when-opt" onClick={() => pick(p)} disabled={busy || !ready}>
                 <span className="kbd" aria-hidden>
-                  {i + 1}
+                  {SNOOZE_PRESETS.indexOf(p) + 1}
                 </span>
                 <span className="ib-when-label">{tw(`preset.${p}`)}</span>
                 <span className="ib-when-at">{longWhen(presetDate(p, now).toISOString(), locale)}</span>

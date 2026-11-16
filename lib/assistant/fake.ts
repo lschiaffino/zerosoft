@@ -30,6 +30,8 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   if (DIG.test(asked)) return { tool: 'find_operations', input: { query: `folders ${info.toolResults.length}` } };
   // "Callado": el modelo termina sin texto después de una herramienta (el motor pide el cierre).
   if (done && /^(?:list|show) my inbox folders silently/i.test(asked)) return { text: '' };
+  const chats = chatsFlow(asked, done, info.userTexts);
+  if (chats) return chats;
   if (done) {
     const out = (done.output ?? {}) as Record<string, unknown>;
     if (done.tool === 'propose_folders_from_json') return foldersReply(out);
@@ -199,4 +201,106 @@ function foldersReply(out: Record<string, unknown>): FakeStep {
       'Click **Confirm** on the card to apply it.',
     ].join('\n'),
   };
+}
+
+// ---------------------------------------------------------------------------
+// "¿Qué tengo atrasado?": lista, permiso para leer, leer y proponer acciones.
+// Contesta en el idioma en que escribe la persona (como pide el motor).
+// ---------------------------------------------------------------------------
+
+type Lang = 'es' | 'pt' | 'en';
+
+function langOf(text: string): Lang {
+  if (/\b(você|tenho|leia|obrigad[oa]|conversas)\b|ç|ã|õ/i.test(text)) return 'pt';
+  if (/[¿¡ñ]|\b(qué|que tengo|tengo|leé|leelos|léelos|sí|dame|mis|seguí|permitido)\b/i.test(text)) return 'es';
+  return 'en';
+}
+
+const BEHIND = /qu[eé] tengo atrasado|what am i behind|what do i owe|o que (?:eu )?tenho atrasado|recomendaci|recommendations|recomenda[cç]/i;
+const READ_THEM = /^(?:s[ií],? )?(?:le[eé]los|leelos|léelos|read them|leia|lê)|^(?:yes,? )?read (?:them|my chats)/i;
+const CONTINUE = /^(?:permitido\. segu[ií]|allowed\. go ahead|permitido\. pode seguir)/i;
+
+const T: Record<Lang, Record<string, string>> = {
+  es: {
+    none: 'No tenés nada atrasado en Inbox.',
+    head: 'Esto es lo que tenés atrasado en Inbox:',
+    waiting: 'esperando tu respuesta hace {h}',
+    ask: '¿Querés que lea esos chats para recomendarte qué hacer?',
+    permission: 'Para recomendarte algo necesito leer esos chats. Elegí en la tarjeta si me dejás leerlos.',
+    proposed: 'Leí {n} chats. Te propongo un borrador de respuesta y posponer el resto hasta mañana. Revisalo y confirmá en la tarjeta.',
+    draft: '¡Hola! Perdón la demora, ya lo reviso y te respondo hoy.',
+  },
+  pt: {
+    none: 'Você não tem nada atrasado no Inbox.',
+    head: 'Isto é o que está atrasado no Inbox:',
+    waiting: 'esperando sua resposta há {h}',
+    ask: 'Quer que eu leia essas conversas para recomendar o que fazer?',
+    permission: 'Para recomendar algo preciso ler essas conversas. Escolha no cartão se você permite.',
+    proposed: 'Li {n} conversas. Proponho um rascunho de resposta e adiar o resto até amanhã. Revise e confirme no cartão.',
+    draft: 'Oi! Desculpe a demora, vou ver e te respondo hoje.',
+  },
+  en: {
+    none: 'Nothing is overdue in Inbox.',
+    head: 'This is what you are behind on in Inbox:',
+    waiting: 'waiting for your reply for {h}',
+    ask: 'Do you want me to read those chats and recommend what to do?',
+    permission: 'To recommend something I need to read those chats. Choose on the card if you allow it.',
+    proposed: 'I read {n} chats. I suggest a reply draft and snoozing the rest until tomorrow. Review it and confirm on the card.',
+    draft: 'Hi! Sorry for the delay, I will check and get back to you today.',
+  },
+};
+
+function unwrap(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  try {
+    return JSON.parse(v.slice(v.indexOf('\n') + 1, v.lastIndexOf('\n</untrusted_data')));
+  } catch {
+    return null;
+  }
+}
+
+function chatsFlow(asked: string, done: FakeCallInfo['toolResults'][number] | undefined, said: string[]): FakeStep | null {
+  // "Permitido. Seguí." lo manda la tarjeta en el idioma de la app: el idioma es el de lo que escribió la persona antes.
+  const lang = langOf([...said].reverse().find((u) => !CONTINUE.test(u) && !u.startsWith(WRAP_UP_MARK)) ?? asked);
+  const t = T[lang];
+  const out = (done?.output ?? {}) as Record<string, unknown>;
+  if (done?.tool === 'inbox_attention') {
+    const waiting = (out.waitingForReply as Array<{ name: string; waitingHours?: number }>) ?? [];
+    const overdue = (out.overdueFollowUps as Array<{ name: string }>) ?? [];
+    if (!waiting.length && !overdue.length) return { text: t.none };
+    return {
+      text: [t.head, '', ...waiting.slice(0, 8).map((c) => `- **${c.name}**: ${t.waiting.replace('{h}', span(c.waitingHours ?? 0, lang))}`), ...overdue.slice(0, 5).map((c) => `- **${c.name}**`), '', t.ask].join('\n'),
+    };
+  }
+  if (done?.tool === 'inbox_read_chats') {
+    if (out.status === 'awaiting_permission') return { text: t.permission };
+    const chats = (unwrap(out.chats) as Array<{ id: string; name: string }> | null) ?? [];
+    if (!chats.length) return { text: t.none };
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    tomorrow.setUTCHours(12, 0, 0, 0);
+    return {
+      tool: 'propose_inbox_actions',
+      input: {
+        actions: [
+          { chat: chats[0].id, do: 'draft', text: t.draft },
+          ...chats.slice(1, 4).map((c) => ({ chat: c.id, do: 'snooze', until: tomorrow.toISOString() })),
+        ],
+      },
+    };
+  }
+  if (done?.tool === 'propose_inbox_actions' && out.status === 'awaiting_user_confirmation') {
+    const n = ((out.plan as { planned?: unknown[] } | undefined)?.planned ?? []).length;
+    return { text: t.proposed.replace('{n}', String(n)) };
+  }
+  if (done) return null;
+  if (BEHIND.test(asked)) return { reasoning: 'Look at what is waiting in Inbox first (no message text needed).', tool: 'inbox_attention', input: {} };
+  if (READ_THEM.test(asked) || CONTINUE.test(asked)) return { tool: 'inbox_read_chats', input: {} };
+  return null;
+}
+
+/** "5 h" o, desde dos días, "3 días". */
+function span(h: number, lang: Lang): string {
+  if (h < 48) return `${h} h`;
+  const d = Math.round(h / 24);
+  return `${d} ${lang === 'en' ? 'days' : lang === 'pt' ? 'dias' : 'días'}`;
 }
