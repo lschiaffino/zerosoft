@@ -127,7 +127,13 @@ const parity: ProductParity = {
     row('best-time', 'calendar', ['Best time to post', 'Mejor horario para publicar', 'Melhor horário para publicar'], 'partial', {
       detail: ['From your own engagement once there are 10 posts with metrics; before that, starting times labeled as such', 'Con tus propias interacciones cuando hay 10 publicaciones con métricas; antes, horarios para empezar que lo dicen', 'Com suas próprias interações quando há 10 publicações com métricas; antes, horários para começar que dizem isso'],
     }),
-    row('bulk', 'calendar', ['Bulk scheduling from CSV', 'Programación masiva por CSV', 'Agendamento em massa por CSV'], 'missing'),
+    row('bulk', 'calendar', ['Bulk scheduling from CSV', 'Programación masiva por CSV', 'Agendamento em massa por CSV'], 'have', {
+      detail: [
+        'Up to 350 rows per file (date, time, text, link), with a preview that marks and skips bad rows; as scheduled posts or drafts. No photos per row: import as drafts and add them in the composer',
+        'Hasta 350 filas por archivo (fecha, hora, texto, link), con vista previa que marca y saltea las filas malas; como programadas o borradores. Sin fotos por fila: se importan como borradores y se suman en el compositor',
+        'Até 350 linhas por arquivo (data, hora, texto, link), com prévia que marca e pula as linhas ruins; como agendadas ou rascunhos. Sem fotos por linha: importe como rascunhos e adicione no editor',
+      ],
+    }),
 
     // Publicación
     row('scheduled', 'publishing', ['Scheduled publishing', 'Publicación programada', 'Publicação agendada'], 'have', { weight: 2 }),
