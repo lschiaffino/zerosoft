@@ -844,7 +844,7 @@
     "waiting": "No conversions yet. Add the tracking script and report leads from your server, as shown in <a>Conversions settings</a>.",
     "howTitle": "How it works",
     "howDesc": "Measure which links bring sign-ups and revenue, like Dub Conversions.",
-    "step1": "Turn on “Track leads and sales” on a link. Visits arrive at your site with ?zs_id=<click id>.",
+    "step1": "Turn on “Track leads and sales” on a link. Visits arrive at your site with ?zs_id='<click id>'.",
     "step2": "Add this script to your site. It keeps the click id in a cookie on your own domain for 90 days.",
     "step3": "When someone signs up or pays, send the click id and your customer id to the API, or connect Stripe or Shopify.",
     "snippetLabel": "Tracking script",

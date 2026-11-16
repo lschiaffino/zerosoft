@@ -183,7 +183,7 @@
     "description": "Description",
     "button": "Button text",
     "noQuestionsHelp": "This form has no questions yet. Pick a type on the left and add one.",
-    "pipingHelp": "Insert an earlier answer with its variable, like {{name}}, or the score with {{score}}.",
+    "pipingHelp": "Insert an earlier answer with its variable, like '{{name}}', or the score with '{{score}}'.",
     "redirectUrl": "Redirect to",
     "redirectHelp": "Optional. After this ending, send people to this https address.",
     "removeEnding": "Remove ending",

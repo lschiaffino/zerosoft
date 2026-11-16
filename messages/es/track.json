@@ -1094,7 +1094,7 @@
       "notConfigured": "Slack todavía no está configurado en este servidor (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET y SLACK_SIGNING_SECRET).",
       "connect": "Conectar Slack",
       "connectedTo": "Conectado a {team}.",
-      "howTo": "En Slack: /track <título> crea un issue en el equipo por defecto; en cualquier mensaje, Más acciones › Create Track issue abre un formulario y deja el hilo sincronizado con los comentarios del issue.",
+      "howTo": "En Slack: /track '<título>' crea un issue en el equipo por defecto; en cualquier mensaje, Más acciones › Create Track issue abre un formulario y deja el hilo sincronizado con los comentarios del issue.",
       "defaultProject": "Equipo por defecto de /track",
       "firstProject": "El primer equipo que veo",
       "unfurl": "Mostrar vista previa de los links de issues",

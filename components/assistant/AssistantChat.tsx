@@ -16,6 +16,8 @@ import {
 } from './client';
 import { MessageAttachments, PendingTray, useAttachments } from './Attachments';
 import { Activity, AssistantMarkdown, UserText, type StepPart } from './Parts';
+import { CollapsedRows } from './Rows';
+import { HoldScrollContext, useFollow } from './useFollow';
 
 export interface PageInfo {
   path: string;
@@ -32,17 +34,9 @@ function errorKey(code: string | undefined): string {
 /** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
 function DetailValue({ value }: { value: string }) {
   const t = useTranslations('assistant');
-  // Una lista (una carpeta o un chat por renglón): entera, en una caja que scrollea si es larga.
+  // Una lista (una carpeta o un chat por renglón): los primeros renglones y "Mostrar las N" (sin scroll propio).
   const lines = value.split('\n');
-  if (lines.length > 1 && lines.length <= 300 && lines.every((l) => l.length <= 300)) {
-    return (
-      <ul className="asst-detail-list" data-testid="assistant-action-list">
-        {lines.map((l, i) => (
-          <li key={i}>{l}</li>
-        ))}
-      </ul>
-    );
-  }
+  if (lines.length > 1 && lines.length <= 2000 && lines.every((l) => l.length <= 300)) return <CollapsedRows rows={lines} />;
   // Hasta unos 600 caracteres se ve entero (un mensaje común); más largo, se abre con el expansor.
   if (value.length <= 600) return <span className="asst-detail-full">{value}</span>;
   return (
@@ -93,6 +87,8 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
     <div className={`asst-action${action.destructive ? ' is-destructive' : ''}`} data-testid="assistant-action" data-status={action.status}>
       <p className="asst-action-kicker">{action.destructive ? t('action.destructive') : t('action.review')}</p>
       <p className="asst-action-summary">{action.summary}</p>
+      {/* El cuerpo: la barra de botones se pega abajo solo dentro de él, así nunca tapa el resumen de arriba. */}
+      <div className="asst-action-body">
       {action.details.length > 0 && (
         <dl className="asst-action-details">
           {action.details.map((d, i) => (
@@ -112,7 +108,8 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
         </dl>
       )}
       {pending ? (
-        <>
+        // La barra de Confirmar / Cancelar queda pegada abajo de la charla mientras se recorre una tarjeta larga.
+        <div className="asst-action-bar" data-testid="assistant-action-bar">
           {needsText && (
             <label className="asst-action-typed">
               <span>{t('action.typeToConfirm', { text: action.confirmText! })}</span>
@@ -144,7 +141,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
               {t('action.cancel')}
             </button>
           </div>
-        </>
+        </div>
       ) : (
         <p className={`asst-action-result is-${action.status}${action.result?.partial ? ' is-partial' : ''}`} role="status">
           {action.status === 'done' && action.result?.partial && <strong>{t('action.partial')}. </strong>}
@@ -163,6 +160,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
           )}
         </p>
       )}
+      </div>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -256,28 +254,8 @@ export default function AssistantChat({
     void load(conversationId);
   }, [conversationId, load]);
 
-  // Pegado abajo mientras llega la respuesta, salvo que la persona haya subido a leer.
-  const stick = useRef(true);
-  useEffect(() => {
-    const el = listRef.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [items, busy]);
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el || typeof MutationObserver === 'undefined') return;
-    const onScroll = () => {
-      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    };
-    const mo = new MutationObserver(() => {
-      if (stick.current) el.scrollTop = el.scrollHeight;
-    });
-    mo.observe(el, { childList: true, subtree: true, characterData: true });
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      mo.disconnect();
-      el.removeEventListener('scroll', onScroll);
-    };
-  }, [status?.state]);
+  // Una sola barra de scroll: la charla. Abre en el último mensaje y sigue lo nuevo solo si estabas al final.
+  const { hold: holdScroll, follow, showJump } = useFollow(listRef, status?.state === 'ready');
   const [pastedNote, setPastedNote] = useState(false);
   /** El campo crece con el texto hasta un tope (después scrollea), como en ChatGPT. */
   const grow = useCallback((el: HTMLTextAreaElement | null) => {
@@ -301,7 +279,7 @@ export default function AssistantChat({
       if ((!text && !files.length) || busy || att.uploading || att.failed) return;
       setDraft('');
       setBusy(true);
-      stick.current = true;
+      follow();
       const userItem: ChatItem = { id: `u-${Date.now()}`, role: 'user', content: text, parts: [], attachments: files };
       const replyId = `a-${Date.now()}`;
       setItems((prev) => [...prev, userItem, { id: replyId, role: 'assistant', content: '', parts: [], streaming: true, waiting: true }]);
@@ -367,7 +345,7 @@ export default function AssistantChat({
       setBusy(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     },
-    [busy, conversationId, page, locale, onConversation, inputRef, att],
+    [busy, conversationId, page, locale, onConversation, inputRef, att, follow],
   );
 
   // Pregunta que llega desde el inicio (?q=) o desde ⌘K: se manda una vez.
@@ -430,7 +408,8 @@ export default function AssistantChat({
           <p>{t('attach.drop')}</p>
         </div>
       )}
-      <div className="asst-messages" ref={listRef} aria-live="polite" aria-busy={busy || loading}>
+      <HoldScrollContext.Provider value={holdScroll}>
+      <div className="asst-messages" ref={listRef} aria-live="polite" aria-busy={busy || loading} data-testid="assistant-messages">
         {loading ? (
           <p className="muted" role="status">
             {t('loading')}
@@ -489,6 +468,20 @@ export default function AssistantChat({
           </>
         )}
       </div>
+      </HoldScrollContext.Provider>
+      {showJump && (
+        <div className="asst-jump-wrap">
+          <button type="button" className="btn btn-secondary btn-sm asst-jump" data-testid="assistant-jump"
+            onClick={() => {
+              follow();
+              // El botón se va: el foco pasa al campo.
+              inputRef.current?.focus({ preventScroll: true });
+            }}
+          >
+            <span aria-hidden="true">↓</span> {t('jumpToLatest')}
+          </button>
+        </div>
+      )}
       <form
         className="asst-form"
         onSubmit={(e) => {
