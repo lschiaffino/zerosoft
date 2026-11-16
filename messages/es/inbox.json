@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
-  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo", "analytics": "Analítica" },
+  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "removed": "Sacados de Inbox", "compose": "Mensaje nuevo", "analytics": "Analítica" },
   "views": {
     "inbox": "Bandeja",
     "unread": "No leídos",
@@ -14,7 +14,8 @@
     "snoozed": "Pospuestos",
     "scheduled": "Programados",
     "done": "Archivados",
-    "archived": "Archivados"
+    "archived": "Archivados",
+    "removed": "Sacados de Inbox"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "Correo", "groups": "Grupos", "unread": "No leídos" },
   "when": {
@@ -182,7 +183,8 @@
       "scheduled": "No hay nada programado. Usá Más tarde al lado de Enviar.",
       "done": "Todavía no archivaste nada",
       "archived": "No hay nada archivado. Archivá un chat desde su menú.",
-      "folder": "Esta carpeta está vacía. Apretá V en un chat para sumarlo."
+      "folder": "Esta carpeta está vacía. Apretá V en un chat para sumarlo.",
+      "removed": "No sacaste ningún chat. Los que sacás de Inbox quedan acá 30 días."
     }
   },
   "help": {
@@ -258,7 +260,7 @@
   },
   "move": { "title": "Sumar a carpeta", "filter": "Filtrar carpetas", "none": "Todavía no hay carpetas.", "remove": "Sacar", "newFolder": "Carpeta nueva", "close": "Cerrar" },
   "more": {
-    "deleteConfirm": "Se saca el chat y sus mensajes guardados de Inbox. No se borra nada en WhatsApp ni en Gmail.",
+    "deleteConfirm": "El chat sale de Inbox y queda 30 días en Sacados de Inbox (dentro de Archivados) por si lo querés recuperar. No se borra nada en WhatsApp ni en Gmail.",
     "cancel": "Cancelar",
     "deleteYes": "Sacar de Inbox",
     "pin": "Fijar",
@@ -653,5 +655,21 @@
     "channel": "Canal",
     "emptyTitle": "No hay mensajes en este período",
     "emptyBody": "Conectá WhatsApp o Gmail en los ajustes del Inbox y tus números aparecen acá."
+  },
+  "removed": {
+    "title": "Sacados de Inbox",
+    "entry": "Sacados de Inbox",
+    "back": "Archivados",
+    "note": "Los chats que sacás de Inbox quedan acá {days} días y después se borran del todo. Recuperar devuelve el chat a donde estaba, con lo que llegó mientras tanto.",
+    "removedAt": "Sacado el {date}",
+    "purgeAt": "Se borra el {date}",
+    "restore": "Recuperar",
+    "purge": "Borrar definitivamente",
+    "purgeTitle": "¿Borrar definitivamente el chat con {name}?",
+    "purgeBody": "Se borran sus mensajes guardados en Inbox y no se puede deshacer. En WhatsApp y Gmail no cambia nada.",
+    "cancel": "Cancelar",
+    "restored": "Chat recuperado",
+    "purged": "Chat borrado",
+    "list": "Chats sacados"
   }
 }

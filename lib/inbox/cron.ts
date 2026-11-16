@@ -12,12 +12,13 @@ import { sendDueScheduled } from './send';
 import { runWhatsappBackfill } from './whatsapp';
 import { refreshAllStaleInfo } from './wa-meta';
 import { refreshInboxDaily } from '../wa-contacts-refresh';
+import { purgeExpiredRemoved } from './removed';
 
 /** Pospuestos que vencieron: vuelven a la bandeja marcados como "volvió". */
 export async function wakeSnoozed(now = new Date()): Promise<number> {
   const nowS = now.toISOString();
   const r = await getDb()
-    .prepare("UPDATE inbox_threads SET snoozed_until = NULL, done_at = NULL, woke_at = ?, woke_reason = 'snooze', updated_at = ? WHERE snoozed_until IS NOT NULL AND snoozed_until <= ?")
+    .prepare("UPDATE inbox_threads SET snoozed_until = NULL, done_at = NULL, woke_at = ?, woke_reason = 'snooze', updated_at = ? WHERE snoozed_until IS NOT NULL AND snoozed_until <= ? AND removed_at IS NULL")
     .run(nowS, nowS, nowS);
   return r.changes;
 }
@@ -37,7 +38,7 @@ export async function fireFollowUps(now = new Date()): Promise<number> {
     .run(nowS);
   const r = await db
     .prepare(
-      "UPDATE inbox_threads SET follow_up_at = NULL, follow_up_since = NULL, done_at = NULL, snoozed_until = NULL, woke_at = ?, woke_reason = 'followup', updated_at = ? WHERE follow_up_at IS NOT NULL AND follow_up_at <= ?",
+      "UPDATE inbox_threads SET follow_up_at = NULL, follow_up_since = NULL, done_at = NULL, snoozed_until = NULL, woke_at = ?, woke_reason = 'followup', updated_at = ? WHERE follow_up_at IS NOT NULL AND follow_up_at <= ? AND removed_at IS NULL",
     )
     .run(nowS, nowS, nowS);
   return r.changes;
@@ -88,6 +89,8 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const deadline = Date.now() + budgetMs;
   const woke = await wakeSnoozed(now);
   const followUps = await fireFollowUps(now);
+  // Sacados de Inbox hace más de 30 días: se borran del todo (lib/inbox/removed.ts).
+  const purged = await purgeExpiredRemoved(now).catch(() => 0);
   const scheduled = await sendDueScheduled(now, deadline);
   const gmail = await syncStaleGmail(now, deadline).catch(() => 0);
   const backfill = await backfillWhatsapp(now, deadline).catch(() => 0);
@@ -96,5 +99,5 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const chatInfo = await refreshAllStaleInfo(now, Math.min(deadline, Date.now() + 15_000)).catch(() => 0);
   // Repaso diario de cada cuenta de WhatsApp: contactos, nombres, info, asuntos y fotos (despacio, retoma donde quedó).
   const daily = await refreshInboxDaily(now, Math.min(deadline, Date.now() + 10_000)).catch(() => 0);
-  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo, daily };
+  return { woke, followUps, purged, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo, daily };
 }

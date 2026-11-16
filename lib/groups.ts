@@ -590,6 +590,8 @@ export interface ChatDto {
   markedUnread: boolean;
   /** Archivado: fuera de la lista principal, en "Archivados". */
   archived: boolean;
+  /** Eliminado de Lines ("Eliminar chat"): cuándo. Solo en la lista de eliminados. */
+  hiddenAt?: string | null;
   /** Lo que hace el contacto ahora (escribiendo, grabando, en línea), si es reciente. */
   presence?: ChatPresence | null;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
@@ -687,6 +689,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
+    ...(row.hidden_at ? { hiddenAt: row.hidden_at } : {}),
     presence: chatPresence(row),
     ...(row.history_gap_at ? { historyGap: true } : {}),
   };
@@ -783,6 +786,11 @@ export interface ChatQuery {
   viewer?: GroupsViewer;
   /** Solo los archivados (sin esto, la lista los deja afuera salvo al buscar). */
   archived?: boolean;
+  /**
+   * Solo los eliminados con "Eliminar chat" (con historial; los chats nuevos que nacen ocultos y sin mensajes
+   * no cuentan): la lista para recuperarlos, dentro de Archivados.
+   */
+  hidden?: boolean;
   /** Vinculados (o no) a un registro de HubSpot. */
   hubspot?: 'linked' | 'unlinked';
   /**
@@ -881,11 +889,13 @@ function likeArg(q: string): string {
 }
 
 export async function listChats(ws: string, me: string, query: ChatQuery = {}): Promise<{ rows: ChatDto[]; total: number; next?: string | null; pinned?: number }> {
-  const where: string[] = ['c.user_id = ?', 'c.hidden_at IS NULL'];
+  const where: string[] = ['c.user_id = ?', query.hidden ? HIDDEN_WITH_HISTORY_SQL : 'c.hidden_at IS NULL'];
   const args: Array<string | number> = [ws];
   const filter = query.filter ?? 'all';
-  // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra.
-  if (query.archived) where.push('c.archived_at IS NOT NULL');
+  // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra. Los eliminados, solo en su lista.
+  if (query.hidden) {
+    /* eliminados: abiertos o cerrados, archivados o no */
+  } else if (query.archived) where.push('c.archived_at IS NOT NULL');
   else if (!(query.q ?? '').trim()) where.push('c.archived_at IS NULL');
   if (query.filters) {
     // Estado, tipo, líneas, asignación, etiquetas, sí o no, fechas y propiedades. El acceso de quien mira va aparte, más abajo.
@@ -894,7 +904,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push(...fx.where);
     args.push(...fx.args);
   } else if (filter === 'closed') where.push("c.status = 'closed'");
-  else where.push("c.status = 'open'");
+  else if (!query.hidden) where.push("c.status = 'open'");
   if (filter === 'unread') where.push('c.unread_count > 0');
   if (filter === 'unanswered') where.push('c.awaiting_since IS NOT NULL');
   if (filter === 'flagged') where.push('c.flagged_at IS NOT NULL');
@@ -1143,6 +1153,22 @@ async function presenceNames(rows: ChatRow[]): Promise<Map<string, ChatPresence 
 export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promise<number> {
   const where = ["c.user_id = ?", "c.status = 'open'", 'c.unread_count > 0', '(c.muted_until IS NULL OR c.muted_until < ?)', 'c.hidden_at IS NULL', 'c.archived_at IS NULL'];
   const args: Array<string | number> = [ws, nowIso()];
+  const access = chatAccessSql(viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
+  const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE ${where.join(' AND ')}`).get(...args)) as { n: number };
+  return Number(r.n);
+}
+
+/** Eliminados con "Eliminar chat" que todavía tienen historial (alias c de groups_chats). */
+const HIDDEN_WITH_HISTORY_SQL = 'c.hidden_at IS NOT NULL AND c.last_message_at IS NOT NULL';
+
+/** Eliminados que ve quien mira (la fila "Eliminados" dentro de Archivados). */
+export async function countHiddenChats(ws: string, viewer?: GroupsViewer): Promise<number> {
+  const where = ['c.user_id = ?', HIDDEN_WITH_HISTORY_SQL];
+  const args: Array<string | number> = [ws];
   const access = chatAccessSql(viewer);
   if (access) {
     where.push(access.sql);

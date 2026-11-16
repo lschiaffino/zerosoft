@@ -171,7 +171,7 @@ async function inboxSnapshot(owner: string): Promise<Snapshot> {
     .prepare(
       `SELECT t.id, t.channel, t.kind, t.title, t.handle, t.external_id,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids
-       FROM inbox_threads t WHERE t.owner_id = ? ORDER BY t.last_message_at DESC LIMIT 20000`,
+       FROM inbox_threads t WHERE t.owner_id = ? AND t.removed_at IS NULL ORDER BY t.last_message_at DESC LIMIT 20000`,
     )
     .all(owner)) as Array<{ id: string; channel: string; kind: string; title: string; handle: string; external_id: string; folder_ids: string | null }>;
   return {
@@ -409,7 +409,7 @@ async function applyInbox(owner: string, s: Stored): Promise<Outcome> {
       try {
         const res = await db
           .prepare(
-            'DELETE FROM inbox_thread_folders WHERE thread_id = ? AND folder_id = ? AND folder_id IN (SELECT id FROM inbox_folders WHERE owner_id = ?) AND thread_id IN (SELECT id FROM inbox_threads WHERE owner_id = ?)',
+            'DELETE FROM inbox_thread_folders WHERE thread_id = ? AND folder_id = ? AND folder_id IN (SELECT id FROM inbox_folders WHERE owner_id = ?) AND thread_id IN (SELECT id FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL)',
           )
           .run(r.chatId, r.folderId, owner, owner);
         out.removed += res.changes;
@@ -650,9 +650,9 @@ export const folderTools: AssistantTool[] = [
         parent_id: string | null;
       }>;
       const counts = (await db
-        .prepare('SELECT tf.folder_id AS id, COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id WHERE f.owner_id = ? GROUP BY tf.folder_id')
+        .prepare('SELECT tf.folder_id AS id, COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id JOIN inbox_threads t ON t.id = tf.thread_id WHERE f.owner_id = ? AND t.removed_at IS NULL GROUP BY tf.folder_id')
         .all(ctx.personId)) as Array<{ id: string; n: number }>;
-      const total = (await db.prepare('SELECT COUNT(*) AS n FROM inbox_threads WHERE owner_id = ?').get(ctx.personId)) as { n: number } | undefined;
+      const total = (await db.prepare('SELECT COUNT(*) AS n FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL').get(ctx.personId)) as { n: number } | undefined;
       const n = new Map(counts.map((c) => [c.id, Number(c.n)]));
       const paths = folderPaths(rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parent_id })));
       const ordered = flattenTree(rows.map((r, i) => ({ id: r.id, parentId: r.parent_id, position: i }))).map((x) => x.folder.id);

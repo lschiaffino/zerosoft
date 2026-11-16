@@ -158,7 +158,11 @@ export async function sendDueScheduled(now = new Date(), deadline = Date.now() +
   const missed = await db.prepare(`UPDATE inbox_scheduled AS s SET status = 'missed', updated_at = ? WHERE s.status = 'pending' AND s.send_at < ? AND NOT ${BLOCKED_SQL}`).run(nowS, late);
   out.missed = missed.changes;
   const due = (await db
-    .prepare(`SELECT s.id FROM inbox_scheduled s WHERE s.status = 'pending' AND s.send_at <= ? AND NOT ${BLOCKED_SQL} ORDER BY s.send_at, s.seq LIMIT 50`)
+    // Los de un chat sacado de Inbox esperan: si lo recuperan a tiempo salen; si no, quedan como no enviados.
+    .prepare(
+      `SELECT s.id FROM inbox_scheduled s WHERE s.status = 'pending' AND s.send_at <= ? AND NOT ${BLOCKED_SQL}
+         AND NOT EXISTS (SELECT 1 FROM inbox_threads rt WHERE rt.id = s.thread_id AND rt.removed_at IS NOT NULL) ORDER BY s.send_at, s.seq LIMIT 50`,
+    )
     .all(nowS)) as Array<{ id: string }>;
   for (const d of due) {
     if (Date.now() > deadline) break;

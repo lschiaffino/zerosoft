@@ -460,6 +460,7 @@ export default async function AppLayout(
                 { href: '/app/inbox/v/snoozed', label: tInbox('nav.snoozed') },
                 { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
                 { href: '/app/inbox/v/done', label: tInbox('nav.done') },
+                { href: '/app/inbox/v/removed', label: tInbox('nav.removed') },
                 { href: '/app/inbox/analytics', label: tInbox('nav.analytics') },
                 { href: '/app/calls', label: tCalls('nav.library') },
                 { href: '/app/calls/upcoming', label: tCalls('nav.upcoming') },

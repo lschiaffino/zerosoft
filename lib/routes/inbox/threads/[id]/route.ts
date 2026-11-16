@@ -1,6 +1,5 @@
 import { after } from 'next/server';
 import {
-  deleteThread,
   getAccount,
   getThread,
   getThreadRow,
@@ -21,6 +20,8 @@ import { refreshPrivacyIfStale } from '@/lib/wa-privacy';
 import { refreshPicturesSoon } from '@/lib/wa-contact-pictures';
 import { inboxScope } from '@/lib/inbox/wa-names';
 import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
+import { purgeThreads, removeThreads } from '@/lib/inbox/removed';
+import { InboxError } from '@/lib/inbox/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -105,11 +106,16 @@ export async function PATCH(req: Request, ctx: Ctx) {
   });
 }
 
-/** Saca el chat de Inbox (no lo borra de WhatsApp ni de Gmail). */
-export async function DELETE(_req: Request, ctx: Ctx) {
+/**
+ * Saca el chat de Inbox (no lo borra de WhatsApp ni de Gmail): queda en "Sacados de Inbox" para recuperarlo
+ * (lib/inbox/removed.ts). Con ?purge=1, un chat ya sacado se borra del todo.
+ */
+export async function DELETE(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
-    await deleteThread(owner, id);
+    const purge = new URL(req.url).searchParams.get('purge') === '1';
+    const done = purge ? await purgeThreads(owner, [id]) : await removeThreads(owner, [id]);
+    if (!done.length) throw new InboxError('not_found', 404);
     return iJson({ ok: true });
   });
 }

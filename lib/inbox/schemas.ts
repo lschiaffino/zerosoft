@@ -16,6 +16,9 @@ export const actionSchema: z.ZodType<ThreadAction> = z.discriminatedUnion('actio
 
 export const bulkActionSchema = z.object({ ids: z.array(id).min(1).max(500) }).and(actionSchema);
 
+/** Sacar de Inbox, recuperar o borrar del todo uno sacado (lib/inbox/removed.ts). */
+export const removedActionSchema = z.object({ ids: z.array(id).min(1).max(500), action: z.enum(['remove', 'restore', 'purge']) });
+
 export const threadPatchSchema = z.union([
   actionSchema,
   z.object({ draft: z.string().max(LIMITS.draft) }),

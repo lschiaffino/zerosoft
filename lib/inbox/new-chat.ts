@@ -65,7 +65,7 @@ export async function inboxNewChatDirectory(owner: string, opts: { q?: string; c
   const threadRows = (await db
     .prepare(
       `SELECT id, external_id, title, handle, avatar_url, last_message_at FROM inbox_threads
-       WHERE owner_id = ? AND account_id = ? AND channel = 'whatsapp' AND kind = 'dm'
+       WHERE owner_id = ? AND account_id = ? AND channel = 'whatsapp' AND kind = 'dm' AND removed_at IS NULL
        ORDER BY (last_message_at IS NULL), last_message_at DESC LIMIT ?`,
     )
     .all(owner, account.id, NEW_CHAT_MAX_ROWS)) as Array<Pick<ThreadRow, 'id' | 'external_id' | 'title' | 'handle' | 'last_message_at'> & { avatar_url: string | null }>;

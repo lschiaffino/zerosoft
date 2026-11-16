@@ -217,6 +217,9 @@
 .wa-archived-count { font-size: var(--wa-fs-meta); font-weight: 500; color: var(--wa-badge); }
 .wa-archived-head { display: flex; align-items: center; gap: 12px; margin: 0 8px 4px; }
 .wa-archived-head h3 { margin: 0; font-size: var(--wa-fs-name); font-weight: 500; color: var(--wa-text); }
+.wa-deleted-row .wa-archived-icon, .wa-deleted-row .wa-archived-label, .wa-deleted-row .wa-archived-count { color: var(--wa-text-2); }
+.wa-deleted-row .wa-archived-label { font-weight: 400; }
+.wa-deleted-note { margin: 0 var(--wa-pad-x) 8px; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
 .wa-import-bar { display: block; height: 4px; background: var(--wa-border-strong); border-radius: 2px; overflow: hidden; }
 .wa-import-bar i { display: block; height: 100%; background: var(--wa-primary); transition: width 0.4s ease; }
 
@@ -1154,6 +1157,19 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox .ib-archived-entry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
 .gr-inbox .ib-archived-entry > span:first-of-type { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
 .gr-inbox .ib-archived-n { flex: none; font-size: var(--wa-fs-meta); color: var(--wa-primary); }
+
+/* "Sacados de Inbox" (adentro de Archivados): más callado que Archivados; su lista con recuperar y borrar del todo. */
+.gr-inbox .ib-removed-entry > span:first-of-type { color: var(--wa-text-2); }
+.gr-inbox .ib-removed-entry .ib-archived-n { color: var(--wa-text-2); }
+.gr-inbox .ib-removed { overflow-y: auto; min-height: 0; }
+.gr-inbox .ib-removed-note { margin: 0; padding: 12px var(--wa-pad-x); font-size: var(--wa-fs-meta); color: var(--wa-text-2); border-bottom: 1px solid var(--wa-border); }
+.gr-inbox .ib-removed-list { list-style: none; margin: 0; padding: 0; }
+.gr-inbox .ib-removed-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px var(--wa-pad-x); border-bottom: 1px solid var(--wa-border); }
+.gr-inbox .ib-removed-main { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.gr-inbox .ib-removed-name { font-size: var(--wa-fs-ui); color: var(--wa-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-inbox .ib-removed-meta { font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.gr-inbox .ib-removed-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.gr-inbox .ib-removed-actions .ib-danger { color: var(--bad-ink); }
 
 /* ---------- Emojis por nombre (":che") encima del composer, como WhatsApp ---------- */
 .wa-emoji-suggest {

@@ -228,7 +228,7 @@ export async function addThreadsToFolder(owner: string, folderId: string, thread
     const seen = (await db
       .prepare(
         `SELECT COUNT(*) AS n, SUM(CASE WHEN EXISTS (SELECT 1 FROM inbox_thread_folders tf WHERE tf.thread_id = t.id AND tf.folder_id = ?) THEN 1 ELSE 0 END) AS here
-         FROM inbox_threads t WHERE t.owner_id = ? AND t.id IN (${marks})`,
+         FROM inbox_threads t WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.id IN (${marks})`,
       )
       .get(folderId, owner, ...chunk)) as { n: number; here: number | null } | undefined;
     out.missing += chunk.length - Number(seen?.n ?? 0);
@@ -237,7 +237,7 @@ export async function addThreadsToFolder(owner: string, folderId: string, thread
       .prepare(
         `INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id)
          SELECT t.id, f.id FROM inbox_threads t JOIN inbox_folders f ON f.id = ? AND f.owner_id = t.owner_id
-         WHERE t.owner_id = ? AND t.id IN (${chunk.map(() => '?').join(', ')})`,
+         WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.id IN (${chunk.map(() => '?').join(', ')})`,
       )
       .run(folderId, owner, ...chunk);
     out.added += r.changes;

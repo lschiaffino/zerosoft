@@ -128,6 +128,8 @@ interface ListData {
   imports?: ImportStatus[];
   unreadChats?: number;
   archived?: { total: number; unread: number };
+  /** Eliminados con "Eliminar chat" (con historial) que ve quien mira. */
+  hidden?: number;
   dropped?: DroppedNumber[];
   hubspot?: boolean;
 }
@@ -228,6 +230,9 @@ export default function InboxShell({
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [archivedView, setArchivedView] = useState(false);
   const [archivedInfo, setArchivedInfo] = useState({ total: 0, unread: 0 });
+  // "Eliminados" (dentro de Archivados): los chats que alguien sacó con "Eliminar chat", para recuperarlos.
+  const [deletedView, setDeletedView] = useState(false);
+  const [hiddenTotal, setHiddenTotal] = useState(0);
   const [dropped, setDropped] = useState<DroppedNumber[]>([]);
   const [hiding, setHiding] = useState<ChatDto | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -415,13 +420,14 @@ export default function InboxShell({
     if (filtersKey) p.set('f', filtersKey);
     // "Hoy" y "esta semana" empiezan a la medianoche de quien mira.
     if (filters.lastMessage || filters.created) p.set('tz', String(-new Date().getTimezoneOffset()));
-    if (archivedView) p.set('archived', '1');
+    if (deletedView) p.set('hidden', '1');
+    else if (archivedView) p.set('archived', '1');
     if (line !== 'all') p.set('number', line);
     if (folderSel) p.set('folder', folderSel);
     if (debounced) p.set('q', debounced);
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersKey, debounced, archivedView, line, folderSel]);
+  }, [filtersKey, debounced, archivedView, deletedView, line, folderSel]);
   live.current.unreadOnly = filters.unread === 'yes';
   live.current.current = current;
   const switching = loaded && shownKey !== query;
@@ -488,6 +494,7 @@ export default function InboxShell({
       showRows(key, reuseRows(prev, tail.length ? [...data.rows, ...tail] : data.rows), tail.length ? L.next : data.next, data.pinned ?? 0);
       setImports((cur) => (JSON.stringify(cur) === JSON.stringify(data.imports ?? []) ? cur : (data.imports ?? [])));
       if (data.archived) setArchivedInfo((cur) => (cur.total === data.archived!.total && cur.unread === data.archived!.unread ? cur : data.archived!));
+      if (typeof data.hidden === 'number') setHiddenTotal(data.hidden);
       setDropped((cur) => (JSON.stringify(cur) === JSON.stringify(data.dropped ?? []) ? cur : (data.dropped ?? [])));
       setHubspotOn(data.hubspot === true);
       if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
@@ -753,7 +760,13 @@ export default function InboxShell({
     );
   }
 
+  /** Recuperar un chat eliminado: vuelve a la lista con su historial. */
+  function restoreChat(c: ChatDto) {
+    void rowAction(c, { hidden: false }).then(() => showToast(t('wa.chatRestored')));
+  }
+
   function rowMenu(c: ChatDto): MenuItem[] {
+    if (deletedView) return [{ key: 'restore', glyph: <Retry size={18} />, label: t('wa.restoreChat'), onSelect: () => restoreChat(c) }];
     return [
       { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
       { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
@@ -777,6 +790,7 @@ export default function InboxShell({
     if (!c) return [];
     const by = Object.fromEntries(rowMenu(c).map((it) => [it.key, it]));
     const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, icon: by[key].glyph, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
+    if (deletedView) return [...from('restore'), { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) }];
     return [
       { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
       ...from('unread'),
@@ -808,7 +822,7 @@ export default function InboxShell({
    */
   function swipeActions(id: string): SwipeActions | null {
     const c = rowsRef.current.find((r) => r.id === id);
-    if (!c || selectMode || visibleSelected.length > 0) return null;
+    if (!c || selectMode || visibleSelected.length > 0 || deletedView) return null;
     return {
       right: [
         { key: 'unread', label: c.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: c.unread > 0 ? 'read' : 'unread', onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
@@ -970,9 +984,9 @@ export default function InboxShell({
       </li>
     );
   }
-  // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común.
+  // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común. También con solo eliminados: ahí adentro está "Eliminados".
   const archivedRow =
-    !archivedView && !debounced && !activeList && isEmptyFilters(filters) && archivedInfo.total > 0 ? (
+    !archivedView && !debounced && !activeList && isEmptyFilters(filters) && (archivedInfo.total > 0 || hiddenTotal > 0) ? (
       <button type="button" className="wa-archived-row" onClick={() => setArchivedView(true)}>
         <span className="wa-archived-icon">
           <ArchiveIcon size={20} />
@@ -1158,7 +1172,9 @@ export default function InboxShell({
   }
   const emptyText = debounced
     ? t('inbox.noResults')
-    : archivedView
+    : deletedView
+      ? t('wa.deletedEmpty')
+      : archivedView
       ? t('wa.archivedEmpty')
       : activeList
         ? t('lists.empty')
@@ -1405,13 +1421,43 @@ export default function InboxShell({
               </button>
             </div>
           ))}
-          {archivedView && (
+          {archivedView && !deletedView && (
             <div className="wa-archived-head">
-              <button type="button" className="wa-icon-btn" onClick={() => setArchivedView(false)} aria-label={t('thread.back')} title={t('thread.back')}>
+              <button
+                type="button"
+                className="wa-icon-btn"
+                onClick={() => {
+                  setArchivedView(false);
+                  setDeletedView(false);
+                }}
+                aria-label={t('thread.back')}
+                title={t('thread.back')}
+              >
                 <ArrowLeft size={22} />
               </button>
               <h3>{t('wa.archivedTitle')}</h3>
             </div>
+          )}
+          {/* "Eliminados": adentro de Archivados, solo si hay alguno. */}
+          {archivedView && !deletedView && !debounced && hiddenTotal > 0 && (
+            <button type="button" className="wa-archived-row wa-deleted-row" onClick={() => setDeletedView(true)} data-testid="lines-deleted-entry">
+              <span className="wa-archived-icon">
+                <Trash size={20} />
+              </span>
+              <span className="wa-archived-label">{t('wa.deletedTitle')}</span>
+              <span className="wa-archived-count">{hiddenTotal}</span>
+            </button>
+          )}
+          {deletedView && (
+            <>
+              <div className="wa-archived-head">
+                <button type="button" className="wa-icon-btn" onClick={() => setDeletedView(false)} aria-label={t('thread.back')} title={t('thread.back')} data-testid="lines-deleted-back">
+                  <ArrowLeft size={22} />
+                </button>
+                <h3>{t('wa.deletedTitle')}</h3>
+              </div>
+              <p className="wa-deleted-note">{t('wa.deletedNote')}</p>
+            </>
           )}
           {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
@@ -1533,7 +1579,8 @@ export default function InboxShell({
           setHiding(null);
           if (!c) return;
           void rowAction(c, { hidden: true }).then(() => {
-            showToast(t('wa.chatDeleted'));
+            // Deshacer: el chat vuelve a la lista con su historial (fijado y archivado no, como "Eliminar chat" en WhatsApp).
+            showToast(t('wa.chatDeleted'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { hidden: false }) });
             if (c.id === current) router.push(`/app/lines/inbox${listSuffix}`);
           });
         }}

@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
   "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem", "analytics": "Análise" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",
@@ -14,7 +14,8 @@
     "snoozed": "Adiados",
     "scheduled": "Agendados",
     "done": "Arquivados",
-    "archived": "Arquivadas"
+    "archived": "Arquivadas",
+    "removed": "Removidos do Inbox"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
   "when": {
@@ -182,7 +183,8 @@
       "scheduled": "Nada agendado. Use Mais tarde ao lado de Enviar.",
       "done": "Nada arquivado ainda",
       "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
-      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
+      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la.",
+      "removed": "Nada removido. As conversas que você remove do Inbox ficam aqui por 30 dias."
     }
   },
   "help": {
@@ -258,7 +260,7 @@
   },
   "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar" },
   "more": {
-    "deleteConfirm": "A conversa e as mensagens salvas saem do Inbox. Nada é apagado no WhatsApp nem no Gmail.",
+    "deleteConfirm": "A conversa sai do Inbox e fica 30 dias em Removidos do Inbox (dentro de Arquivadas) caso você queira recuperá-la. Nada é apagado no WhatsApp nem no Gmail.",
     "cancel": "Cancelar",
     "deleteYes": "Remover do Inbox",
     "pin": "Fixar",
@@ -653,5 +655,21 @@
     "channel": "Canal",
     "emptyTitle": "Nenhuma mensagem neste período",
     "emptyBody": "Conecte o WhatsApp ou o Gmail nos ajustes do Inbox e seus números aparecem aqui."
+  },
+  "removed": {
+    "title": "Removidos do Inbox",
+    "entry": "Removidos do Inbox",
+    "back": "Arquivadas",
+    "note": "As conversas que você remove do Inbox ficam aqui por {days} dias e depois são apagadas de vez. Recuperar devolve a conversa para onde estava, com o que chegou nesse meio-tempo.",
+    "removedAt": "Removida em {date}",
+    "purgeAt": "Apagada em {date}",
+    "restore": "Recuperar",
+    "purge": "Apagar de vez",
+    "purgeTitle": "Apagar de vez a conversa com {name}?",
+    "purgeBody": "As mensagens salvas no Inbox são apagadas e isso não pode ser desfeito. Nada muda no WhatsApp nem no Gmail.",
+    "cancel": "Cancelar",
+    "restored": "Conversa recuperada",
+    "purged": "Conversa apagada",
+    "list": "Conversas removidas"
   }
 }
