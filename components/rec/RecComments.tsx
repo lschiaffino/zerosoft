@@ -1,7 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { REC_REACTIONS, fmtClock } from '@/lib/rec-schema';
 import { parseDbUtc } from '@/lib/utils';
@@ -88,6 +88,10 @@ export default function RecComments({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** Error al quitar una reacción: se muestra junto a las reacciones, no al final de los comentarios. */
+  const [reactError, setReactError] = useState<string | null>(null);
+  const itemsRef = useRef<RecComment[] | null>(null);
+  itemsRef.current = items;
   const [busy, setBusy] = useState(false);
   const [, force] = useState(0);
 
@@ -118,14 +122,42 @@ export default function RecComments({
     return () => window.clearInterval(id);
   }, [load]);
 
+  /**
+   * Quitar una reacción (la propia, o cualquiera si se administra el video). Se va de la
+   * línea de tiempo y de la cuenta en el momento; si el servidor no la borra, vuelve con un aviso.
+   */
+  const removeReaction = useCallback(
+    async (id: string) => {
+      const target = itemsRef.current?.find((c) => c.id === id && c.kind === 'reaction');
+      if (!target) return;
+      const emoji = target.emoji;
+      setReactError(null);
+      setItems((prev) => (prev ?? []).filter((c) => c.id !== id));
+      if (emoji) setReactionCounts((c) => ({ ...c, [emoji]: Math.max(0, (c[emoji] ?? 0) - 1) }));
+      const res = await fetch(`${base}/${id}`, { method: 'DELETE' }).catch(() => null);
+      // 404: ya no estaba (la quitó quien administra el video): queda quitada.
+      if (res?.status === 204 || res?.status === 404) return;
+      setItems((prev) => ((prev ?? []).some((c) => c.id === id) ? prev : [...(prev ?? []), target]));
+      if (emoji) setReactionCounts((c) => ({ ...c, [emoji]: (c[emoji] ?? 0) + 1 }));
+      setReactError(t('errors.remove_reaction'));
+    },
+    [base, t],
+  );
+
+  // Quién puede quitar una reacción ajena lo dice el servidor (quien administra el video).
+  const serverModerator = me.canModerate;
   useEffect(() => {
     if (!items || !onMarkers) return;
     onMarkers(
       items
         .filter((c) => c.atSec !== null && !c.parentId)
-        .map((c) => ({ id: c.id, atSec: c.atSec as number, emoji: c.kind === 'reaction' ? c.emoji : null, label: c.kind === 'reaction' ? `${c.authorName || t('guest')} ${c.emoji}` : `${c.authorName || t('guest')}: ${c.body.slice(0, 60)}` })),
+        .map((c) => {
+          const who = c.authorName || t('guest');
+          if (c.kind !== 'reaction') return { id: c.id, atSec: c.atSec as number, emoji: null, label: `${who}: ${c.body.slice(0, 60)}` };
+          return { id: c.id, atSec: c.atSec as number, emoji: c.emoji, label: `${who} ${c.emoji}`, who, remove: c.mine || serverModerator ? () => void removeReaction(c.id) : undefined };
+        }),
     );
-  }, [items, onMarkers, t]);
+  }, [items, onMarkers, t, serverModerator, removeReaction]);
 
   const errorText = (code: string) => (t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
 
@@ -184,6 +216,11 @@ export default function RecComments({
     return m;
   }, [items]);
   const counts = useMemo(() => new Map(Object.entries(reactionCounts)), [reactionCounts]);
+  const myReactions = useMemo(
+    () => (items ?? []).filter((c) => c.kind === 'reaction' && c.mine && c.emoji).sort((a, b) => (a.atSec ?? Infinity) - (b.atSec ?? Infinity) || a.createdAt.localeCompare(b.createdAt)),
+    [items],
+  );
+  const myEmojis = useMemo(() => new Set(myReactions.map((r) => r.emoji)), [myReactions]);
   const moderator = canModerate || me.canModerate;
   const viewOnly = me.canComment === false;
   const formOpen = allowComments && !viewOnly && (me.signedIn || !me.requireAccount);
@@ -193,14 +230,64 @@ export default function RecComments({
 
   return (
     <section className="rec-comments" aria-label={t('title')} data-testid="rec-comments">
-      {formOpen && (
-        <div className="rec-reactions" role="group" aria-label={t('react')}>
-          {REC_REACTIONS.map((e) => (
-            <button key={e} type="button" className="rec-reaction" onClick={() => void react(e)} disabled={busy} aria-label={t('reactWith', { emoji: e })}>
-              <span aria-hidden="true">{e}</span>
-              {counts.get(e) ? <span className="rec-reaction-n data">{counts.get(e)}</span> : null}
-            </button>
-          ))}
+      {(formOpen || myReactions.length > 0 || reactError) && (
+        <div className="rec-react">
+          {formOpen && (
+            <div className="rec-reactions" role="group" aria-label={t('react')}>
+              {REC_REACTIONS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className={`rec-reaction${myEmojis.has(e) ? ' mine' : ''}`}
+                  onClick={() => void react(e)}
+                  disabled={busy}
+                  aria-label={t('reactWith', { emoji: e })}
+                  data-mine={myEmojis.has(e) ? 'true' : undefined}
+                >
+                  <span aria-hidden="true">{e}</span>
+                  {counts.get(e) ? <span className="rec-reaction-n data">{counts.get(e)}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
+          {myReactions.length > 0 && (
+            <div className="rec-my-reactions" role="group" aria-label={t('yours')} data-testid="rec-my-reactions">
+              <span className="rec-my-label" aria-hidden="true">
+                {t('yours')}
+              </span>
+              {myReactions.map((r) => {
+                const time = r.atSec === null ? null : fmtClock(rel(r.atSec));
+                return (
+                  <span key={r.id} className="rec-my-reaction" data-testid="rec-my-reaction">
+                    {time === null ? (
+                      <span className="rec-my-jump">{r.emoji}</span>
+                    ) : (
+                      <button type="button" className="rec-my-jump" onClick={() => onSeek(rel(r.atSec as number))} aria-label={`${r.emoji} ${t('jumpTo', { time })}`}>
+                        <span aria-hidden="true">{r.emoji}</span>
+                        <span className="data">{time}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="rec-my-remove"
+                      onClick={() => void removeReaction(r.id)}
+                      aria-label={time === null ? t('removeYour', { emoji: r.emoji ?? '' }) : t('removeReactionAt', { emoji: r.emoji ?? '', time })}
+                      title={time === null ? t('removeYour', { emoji: r.emoji ?? '' }) : t('removeReactionAt', { emoji: r.emoji ?? '', time })}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                        <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
+                      </svg>
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {reactError && (
+            <p className="ui-error" role="alert" data-testid="rec-react-error">
+              {reactError}
+            </p>
+          )}
         </div>
       )}
       {items === null ? (
