@@ -933,6 +933,9 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-contact-actions button { flex: 1; height: 38px; font: inherit; font-size: 0.875rem; color: var(--wa-primary-ink); background: none; border: 0; cursor: pointer; }
 .wa-contact-actions button + button { border-left: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
 .wa-contact-actions button:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-contact-list { display: flex; flex-direction: column; margin-top: 4px; }
+.wa-contact-list .wa-contact-card { padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-contact-list .wa-contact-card .wa-contact-actions { margin-bottom: 0; }
 
 /* Info del mensaje. */
 .wa-info { display: flex; flex-direction: column; gap: 10px; margin: 0; }

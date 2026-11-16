@@ -267,5 +267,5 @@ test('Lines en el teléfono: el chat no se corre de costado', async ({ page, req
   await page.goto((await row.getAttribute('href'))!, { waitUntil: 'load' });
   await expect(page.locator('.wa-messages')).toBeVisible({ timeout: 60_000 });
   await page.locator('.wa-messages').evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await checkChat(page, cdp, tag, 'lines', false);
+  await checkChat(page, cdp, tag, 'lines', true);
 });

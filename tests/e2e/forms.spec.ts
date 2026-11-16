@@ -140,6 +140,28 @@ test('Forms: plantilla con lógica, respuesta con teclado y archivo, resumen, CS
   }
 });
 
+test('Forms: la lista muestra la última respuesta con la hora del servidor (sin error de hidratación)', async ({ page, request }) => {
+  const { form } = (await (await request.post('/api/forms', { data: { name: `Last ${uid()}`, template: 'contact' } })).json()) as { form: { id: string } };
+  const at = new Date(Date.now() - 90_000).toISOString();
+  const ws = String((await sql('SELECT workspace_id FROM forms_forms WHERE id = ?', [form.id]))[0].workspace_id);
+  await sql(
+    `INSERT INTO forms_responses (id, form_id, workspace_id, status, answers, hidden, vars, created_at, updated_at, submitted_at)
+     VALUES (?, ?, ?, 'completed', '{}', '{}', '{}', ?, ?, ?)`,
+    [`fr_${uid()}`, form.id, ws, at, at, at],
+  );
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/en/app/forms', { waitUntil: 'networkidle' });
+  const row = page.getByRole('row').filter({ has: page.locator(`a[href$="/app/forms/${form.id}"]`) });
+  await expect(row.locator(`time[datetime="${at}"]`)).toBeVisible();
+  // Sin `now`, relativeTime usaba el reloj de cada lado: next-intl avisaba
+  // (ENVIRONMENT_FALLBACK) y el texto podía no coincidir al hidratar.
+  expect(errors.filter((e) => /ENVIRONMENT_FALLBACK|Hydration/i.test(e))).toEqual([]);
+});
+
 test('Forms: modo clásico, cierre por tope y pantalla de cerrado', async ({ page, request }) => {
   const { form } = (await (await request.post('/api/forms', { data: { name: `Classic ${uid()}`, template: 'contact' } })).json()) as { form: { id: string; slug: string } };
   expect((await request.patch(`/api/forms/${form.id}`, { data: { status: 'published', settings: { mode: 'classic', responseLimit: 1 } } })).ok()).toBe(true);
