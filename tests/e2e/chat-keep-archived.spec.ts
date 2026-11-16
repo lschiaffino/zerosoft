@@ -197,7 +197,7 @@ for (const width of [1280, 390]) {
 
       // En Archivados, con la marca.
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').click({ timeout: FIRST_MS });
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').click({ timeout: FIRST_MS });
       const row = page.locator('.gr-rows .gr-row', { hasText: name });
       await expect(row).toBeVisible({ timeout: FIRST_MS });
       await expect(row.getByRole('img', { name: 'Kept archived' })).toBeVisible();
@@ -219,7 +219,7 @@ for (const width of [1280, 390]) {
 
       // Desarchivar a mano (desde la lista de Archivados): sale y la marca se apaga.
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').click();
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').click();
       await page.getByRole('button', { name: `Options for ${name}` }).click();
       await page.getByRole('menuitem', { name: 'Unarchive chat' }).click();
       await expect(row).toHaveCount(0, { timeout: LIVE_MS });

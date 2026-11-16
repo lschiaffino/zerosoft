@@ -162,7 +162,7 @@ for (const width of [1280, 390]) {
       // Sale de la lista al instante; la fila de Archivados está.
       await expect(row).toHaveCount(0);
       await expect(page.locator('.ui-toast', { hasText: 'Snoozed until' })).toBeVisible({ timeout: SERVER_MS });
-      const archivedRow = page.locator('.wa-archived-row');
+      const archivedRow = page.locator('button.wa-archived-row:not(.wa-deleted-row)');
       await expect(archivedRow).toBeVisible();
       await expect.poll(async () => (await pushRow('lines', chatId))?.sent_count, { timeout: SERVER_MS }).toBe(1);
       await shot(page, 'lines-2-snoozed', width);

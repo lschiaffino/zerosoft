@@ -227,7 +227,7 @@ test.describe('Lines', () => {
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     const row = page.locator('.gr-rows .gr-row', { hasText: name });
     await expect(row).toHaveCount(0);
-    const archivedRow = page.locator('.wa-archived-row');
+    const archivedRow = page.locator('button.wa-archived-row:not(.wa-deleted-row)');
     await archivedRow.click();
     await expect(page.locator('.wa-archived-head')).toBeVisible();
     await row.click();
