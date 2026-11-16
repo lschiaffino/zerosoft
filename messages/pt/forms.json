@@ -183,7 +183,7 @@
     "description": "Descrição",
     "button": "Texto do botão",
     "noQuestionsHelp": "Este formulário ainda não tem perguntas. Escolha um tipo à esquerda e adicione uma.",
-    "pipingHelp": "Insira uma resposta anterior com a variável dela, como {{name}}, ou a pontuação com {{score}}.",
+    "pipingHelp": "Insira uma resposta anterior com a variável dela, como '{{name}}', ou a pontuação com '{{score}}'.",
     "redirectUrl": "Redirecionar para",
     "redirectHelp": "Opcional. Depois deste final, as pessoas são levadas a este endereço https.",
     "removeEnding": "Remover final",

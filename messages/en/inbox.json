@@ -14,7 +14,8 @@
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
     "done": "Archived",
-    "archived": "Archived"
+    "archived": "Archived",
+    "nofolder": "No folder"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
@@ -183,6 +184,7 @@
       "scheduled": "Nothing scheduled. Use Later next to Send.",
       "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
+      "nofolder": "Every chat is in a folder",
       "folder": "This folder is empty. Press V on a chat to add it."
     }
   },
@@ -290,6 +292,7 @@
   },
   "folders": {
     "title": "Folders",
+    "noFolder": "No folder",
     "edit": "Edit folder",
     "new": "New folder",
     "branchEmpty": "No folders yet.",

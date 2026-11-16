@@ -14,7 +14,8 @@
     "snoozed": "Pospuestos",
     "scheduled": "Programados",
     "done": "Archivados",
-    "archived": "Archivados"
+    "archived": "Archivados",
+    "nofolder": "Sin carpeta"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "Correo", "groups": "Grupos", "unread": "No leídos" },
   "when": {
@@ -183,6 +184,7 @@
       "scheduled": "No hay nada programado. Usá Más tarde al lado de Enviar.",
       "done": "Todavía no archivaste nada",
       "archived": "No hay nada archivado. Archivá un chat desde su menú.",
+      "nofolder": "Todos los chats están en una carpeta",
       "folder": "Esta carpeta está vacía. Apretá V en un chat para sumarlo."
     }
   },
@@ -290,6 +292,7 @@
   },
   "folders": {
     "title": "Carpetas",
+    "noFolder": "Sin carpeta",
     "edit": "Editar carpeta",
     "new": "Carpeta nueva",
     "branchEmpty": "Todavía no hay carpetas.",

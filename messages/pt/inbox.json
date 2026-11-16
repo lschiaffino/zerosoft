@@ -14,7 +14,8 @@
     "snoozed": "Adiados",
     "scheduled": "Agendados",
     "done": "Arquivados",
-    "archived": "Arquivadas"
+    "archived": "Arquivadas",
+    "nofolder": "Sem pasta"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
   "when": {
@@ -183,6 +184,7 @@
       "scheduled": "Nada agendado. Use Mais tarde ao lado de Enviar.",
       "done": "Nada arquivado ainda",
       "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
+      "nofolder": "Todas as conversas estão em uma pasta",
       "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
     }
   },
@@ -290,6 +292,7 @@
   },
   "folders": {
     "title": "Pastas",
+    "noFolder": "Sem pasta",
     "edit": "Editar pasta",
     "new": "Nova pasta",
     "branchEmpty": "Ainda não há pastas.",

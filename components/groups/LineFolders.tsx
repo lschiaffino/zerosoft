@@ -64,7 +64,7 @@ export function FolderSelect({ folders, value, onChange }: { folders: LineFolder
       label={t('folders')}
       value={value}
       onChange={onChange}
-      options={[{ value: '', label: t('allChats') }, ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth })), { value: 'none', label: t('unfiled') }]}
+      options={[{ value: '', label: t('allChats') }, { value: 'none', label: t('unfiled') }, ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth }))]}
     />
   );
 }
