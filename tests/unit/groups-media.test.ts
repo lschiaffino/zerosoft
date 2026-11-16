@@ -381,6 +381,23 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     expect(msg.media).toMatchObject({ kind: 'document', size: 2 * MB, name: 'Contrato.pdf' });
   });
 
+  it('archivo privado: a Evolution en base64; a la Cloud API, una URL firmada de nuestro dominio (nunca la del storage)', async () => {
+    const { saveUpload } = await import('@/lib/uploads');
+    const { user, chat, calls } = await setup('media-private');
+    const url = await saveUpload('chat', 'foto.png', 'image/png', PNG, { workspaceId: user.id, userId: user.id, app: 'groups', access: 'user' });
+    await sendMessage(user.id, user.id, chat.id, { body: '', media: { url, mimetype: 'image/png', filename: 'foto.png' } });
+    expect(calls.find((c) => c.url.endsWith('/message/sendMedia/s'))!.body).toMatchObject({ media: PNG.toString('base64') });
+
+    const n = await createNumber(user.id, user.id, { provider: 'cloud', config: { phoneNumberId: '123456', accessToken: 'tok', appSecret: 'sec', verifyToken: 'verify-123' } });
+    const cloud = (await getNumberRowById(n.id))!;
+    const cloudChat = await upsertChat(cloud, { providerChatId: '5491155550001', kind: 'dm', name: 'Beto', phone: '5491155550001' });
+    calls.length = 0;
+    await sendMessage(user.id, user.id, cloudChat.id, { body: '', media: { url, mimetype: 'image/png', filename: 'foto.png' } });
+    const link = String((calls.find((c) => c.url.includes('graph.facebook.com'))!.body.image as { link: string }).link);
+    expect(link).toMatch(/^http:\/\/localhost:3000\/api\/files\/[A-Za-z0-9_-]{22}\/foto\.png\?exp=\d+&sig=[A-Za-z0-9_-]{43}$/);
+    expect(link).not.toContain('blob.vercel-storage.com');
+  });
+
   it('nota de voz con texto: el audio por sendWhatsAppAudio y el texto aparte', async () => {
     const { user, chat, calls } = await setup('media-voice');
     const url = localUpload('22222222-2222-2222-2222-222222222222-voz.weba', Buffer.from('webm-opus'));
