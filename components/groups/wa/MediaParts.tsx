@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars } from './format';
-import { DocIcon, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
 import { mediaBox, mediaBoxStyle, placeholderBox } from './media-box';
