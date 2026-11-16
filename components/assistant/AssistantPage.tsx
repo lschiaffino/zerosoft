@@ -28,6 +28,8 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState<ConversationSummary | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Teléfono: el historial se ve en lugar de la charla (en la compu, siempre a la izquierda). */
+  const [showList, setShowList] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
@@ -54,6 +56,7 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
   }, [initialPrompt, initialId, router]);
 
   function open(id: string | null) {
+    setShowList(false);
     setCurrent(id);
     setPrompt(null);
     setChatKey((k) => k + 1);
@@ -107,17 +110,42 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
   const shown = (list ?? []).filter((c) => !q.trim() || c.title.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
-    <div className="asst-page" data-testid="assistant-page">
-      <aside className="asst-page-side" aria-label={t('page.chats')}>
+    <div className={`asst-page${showList ? ' is-list' : ''}`} data-testid="assistant-page">
+      <aside
+        className="asst-page-side"
+        aria-label={t('page.chats')}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && showList && !e.defaultPrevented) setShowList(false);
+        }}
+      >
         <div className="asst-page-side-head">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => open(null)}>
-            {t('newChat')}
-          </button>
+          {/* Cabecera compacta como Inbox y Lines. En el teléfono es la barra de arriba: Charlas abre el historial en lugar de la charla. */}
+          <div className="asst-page-titlebar">
+            <button
+              type="button"
+              className="asst-icon-btn asst-page-toggle"
+              aria-expanded={showList}
+              aria-controls="asst-page-history"
+              aria-label={showList ? t('page.hideChats') : t('page.showChats')}
+              title={showList ? t('page.hideChats') : t('page.showChats')}
+              onClick={() => setShowList((v) => !v)}
+            >
+              {/* Volver (flecha) o el reloj del historial, el mismo del panel. */}
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d={showList ? 'M10 3 5 8l5 5' : 'M8 3.5a4.5 4.5 0 1 1-4.3 3.2M3 3v3h3M8 5.5V8l1.8 1.2'} />
+              </svg>
+            </button>
+            <h1 className="asst-page-title">{t('page.title')}</h1>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => open(null)}>
+              {t('newChat')}
+            </button>
+          </div>
           <label className="sr-only" htmlFor="asst-search">
             {t('page.searchChats')}
           </label>
-          <input id="asst-search" className="input" type="search" placeholder={t('page.searchChats')} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="asst-search" className="input asst-page-search" type="search" placeholder={t('page.searchChats')} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+        <div className="asst-page-history" id="asst-page-history">
         {listError && (
           <p className="asst-page-note form-error" role="alert">
             {t('page.loadError')}{' '}
@@ -192,6 +220,7 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
             ))}
           </ul>
         )}
+        </div>
       </aside>
       <section className="asst-page-main" aria-label={t('title')}>
         <AssistantChat
