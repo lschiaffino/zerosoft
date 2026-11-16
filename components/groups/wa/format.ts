@@ -116,12 +116,16 @@ export function splitFileName(name: string, tail = 10): [string, string] {
 /** Texto con links: partes de texto y de URL (sin HTML). */
 export function linkify(text: string): Array<{ text: string; href?: string }> {
   const out: Array<{ text: string; href?: string }> = [];
-  const re = /\b(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/gi;
+  // Como WhatsApp: links con http(s), los que empiezan con www. y los mails (mailto:). El signo final de la
+  // oración (punto, coma, paréntesis) no entra en el link.
+  const re = /\b(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]|www\.[^\s<>"']+[^\s<>"'.,;:!?)\]]|[A-Z0-9._%+-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)*\.[A-Z]{2,})/gi;
   let last = 0;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ text: m[1], href: m[1] });
-    last = m.index + m[1].length;
+    const raw = m[1];
+    const href = /^https?:\/\//i.test(raw) ? raw : /^www\./i.test(raw) ? `https://${raw}` : `mailto:${raw}`;
+    out.push({ text: raw, href });
+    last = m.index + raw.length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
