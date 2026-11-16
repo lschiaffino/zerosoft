@@ -38,9 +38,10 @@ export function Ticks({ status, label }: { status: string; label: string }) {
       </span>
     );
   }
-  if (status === 'pending') {
+  // Saliendo, o esperando la red (en cola sin conexión): el reloj, como WhatsApp.
+  if (status === 'pending' || status === 'queued') {
     return (
-      <span className="wa-ticks" title={label}>
+      <span className={`wa-ticks${status === 'queued' ? ' is-queued' : ''}`} title={label}>
         <Svg size={14} strokeWidth={2}>
           <circle cx="12" cy="12" r="8.5" />
           <path d="M12 7.5V12l3 2" />

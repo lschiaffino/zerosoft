@@ -58,7 +58,7 @@ import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
-import { linesDraftKey, unsentLines } from './optimistic';
+import { linesDraftKey, linesOutbox, unsentLines } from './optimistic';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -554,7 +554,11 @@ export default function InboxShell({
   // cuando algo cambió.
   // Un texto que no salió de un chat que ya no está abierto: se avisa acá (la lista siempre está) y el texto queda
   // en ese chat como no enviado, con reintentar (./optimistic.ts).
-  useEffect(() => unsentLines.setOwner(me), [me]);
+  useEffect(() => {
+    unsentLines.setOwner(me);
+    // Lo escrito sin red (en esta pestaña o en otra) sale solo al volver la conexión.
+    linesOutbox.start();
+  }, [me]);
   useEffect(
     () =>
       unsentLines.subscribe((e) => {

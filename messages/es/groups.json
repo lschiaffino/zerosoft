@@ -205,6 +205,7 @@
     "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
   },
   "status": {
+    "queued": "Esperando conexión",
     "pending": "Enviando",
     "sent": "Enviado",
     "delivered": "Entregado",
@@ -860,6 +861,7 @@
     "pageTitle": "Esta página no cargó",
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
     "generic": "Algo salió mal. Probá de nuevo.",
+    "offline_files": "Los archivos necesitan conexión. Quedan acá y los podés mandar cuando vuelva la red. Los textos quedan en cola y salen solos.",
     "unauthorized": "Tu sesión terminó. Iniciá sesión de nuevo.",
     "forbidden": "No tenés permiso para hacer eso.",
     "not_found": "Ya no existe.",
@@ -1745,6 +1747,7 @@
     "liveLocation": "Ubicación en tiempo real",
     "retry": "Reintentar envío",
     "unsent": "Un mensaje para {name} no se envió. Abrí el chat para reintentar.",
+    "deleteQueued": "Borrar antes de que salga",
     "unreadCount": "{n, plural, one {# mensaje sin leer} other {# mensajes sin leer}}",
     "filtersMenu": "Filtros y listas",
     "clearFilters": "Limpiar filtros",

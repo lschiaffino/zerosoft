@@ -38,7 +38,7 @@
     "inbox": { "names": ["inbox", "inboxWa"], "specs": ["inbox", "inbox-*", "assistant-folders"], "with": ["chat-ui"] },
     "lines": {
       "names": ["groups", "lines"],
-      "specs": ["groups", "groups-*", "lines-*", "member-capabilities", "tasks-unified"],
+      "specs": ["groups", "groups-*", "lines-*", "offline-lines-inbox", "member-capabilities", "tasks-unified"],
       "with": ["chat-ui", "inbox"]
     },
     "chat-ui": {
