@@ -2394,6 +2394,8 @@ export default function ChatThread(props: ThreadProps) {
             onSend={() => void send()}
             onClose={tray.clear}
             onFiles={addFiles}
+            onReplace={tray.replace}
+            stickerApi="/api/groups/stickers"
             sending={sending}
           />
         )}

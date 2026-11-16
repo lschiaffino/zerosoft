@@ -1908,6 +1908,31 @@
     },
     "contactLoadError": "No se pudieron cargar tus contactos.",
     "contactNoResults": "Ningún contacto coincide con la búsqueda.",
+    "editor": {
+      "tools": "Editar foto",
+      "crop": "Recortar y rotar",
+      "rotate": "Rotar a la izquierda",
+      "reset": "Restablecer",
+      "done": "Listo",
+      "sticker": "Sticker o emoji",
+      "text": "Texto",
+      "textPlaceholder": "Escribí",
+      "draw": "Dibujar",
+      "undo": "Deshacer",
+      "color": "Color",
+      "brush": "Grosor del lápiz",
+      "brushSizes": {
+        "0": "Fino",
+        "1": "Mediano",
+        "2": "Grueso"
+      },
+      "size": "Tamaño",
+      "remove": "Quitar",
+      "photo": "Foto que se está editando",
+      "hd": "Calidad HD",
+      "hdOn": "HD: manda la foto en tamaño real",
+      "hdOff": "Calidad estándar: una foto más liviana, como WhatsApp. Activá HD para mandarla en tamaño real"
+    },
     "contactSheet": {
       "title": "Info. del contacto",
       "close": "Cerrar",
