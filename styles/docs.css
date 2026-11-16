@@ -1117,7 +1117,8 @@
 }
 
 /* Barra de formato y link (fixed; top/left desde JS). */
-.docs-format-toolbar { position: fixed; display: flex; align-items: center; gap: 2px; transform: translateX(-50%); }
+/* max-content: el ancho no depende de dónde quedó (con left + translate se achicaba contra el borde). */
+.docs-format-toolbar { position: fixed; display: flex; align-items: center; gap: 2px; width: max-content; max-width: calc(100vw - 16px); transform: translateX(-50%); }
 .docs-format-menu-wrap { position: relative; display: inline-flex; }
 .docs-format-menu {
   position: absolute;

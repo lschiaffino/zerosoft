@@ -635,7 +635,41 @@ export default function DocsEditor({
     end: number;
     top: number;
     left: number;
+    /** Borde de arriba y de abajo de la selección (para ubicar la barra según su alto real). */
+    selTop: number;
+    selBottom: number;
   } | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  // La barra se ubica con su tamaño real: centrada en la selección pero adentro del
+  // editor (antes se suponía de 220px y, con ~560px, tapaba el sidebar o se cortaba
+  // contra el borde en el teléfono), y arriba de la selección aunque ocupe dos renglones.
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || !toolbar) return;
+    const area = rootRef.current?.getBoundingClientRect();
+    const lo = Math.max(8, (area?.left ?? 0) + 8);
+    const hi = Math.min(window.innerWidth - 8, (area?.right ?? window.innerWidth) - 8);
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const left = hi - lo <= w ? (lo + hi) / 2 : Math.max(lo + w / 2, Math.min(hi - w / 2, toolbar.left));
+    // Donde empieza lo que se ve del editor: debajo de la barra fija de la página (Docs)
+    // o del borde del contenedor que hace scroll (Notes).
+    let floor = document.querySelector('.docs-top-bar')?.getBoundingClientRect().bottom ?? 56;
+    for (let n = rootRef.current?.parentElement ?? null; n; n = n.parentElement) {
+      const oy = getComputedStyle(n).overflowY;
+      if (oy === 'auto' || oy === 'scroll') {
+        floor = Math.max(floor, n.getBoundingClientRect().top);
+        break;
+      }
+    }
+    // La selección quedó fuera de la vista al hacer scroll: la barra no flota sobre el encabezado.
+    const gone = toolbar.selBottom < floor || toolbar.selTop > window.innerHeight;
+    // Sin lugar arriba: va debajo de la selección.
+    const top = toolbar.selTop - h - 8 > floor ? toolbar.selTop - h - 8 : Math.max(floor + 8, toolbar.selBottom + 8);
+    el.style.left = `${Math.round(left)}px`;
+    el.style.top = `${Math.round(top)}px`;
+    el.style.visibility = gone ? 'hidden' : '';
+  });
   /** Popover de link: offsets de texto plano ya capturados + href de prefill. */
   const [linkDialog, setLinkDialog] = useState<{
     index: number;
@@ -940,7 +974,7 @@ export default function DocsEditor({
       const center = rect.left + rect.width / 2;
       const left = Math.max(110, Math.min(window.innerWidth - 110, center));
       const top = rect.top > 64 ? rect.top - 46 : rect.bottom + 8;
-      setToolbar({ index: Number(indexAttr), start: offsets.start, end: offsets.end, top, left });
+      setToolbar({ index: Number(indexAttr), start: offsets.start, end: offsets.end, top, left, selTop: rect.top, selBottom: rect.bottom });
     };
     document.addEventListener('selectionchange', update);
     window.addEventListener('scroll', update, true);
@@ -3511,6 +3545,7 @@ export default function DocsEditor({
   /** Abre el popover de link desde la toolbar (expande al <a> que cubre la selección). */
   const openLinkFromToolbar = () => {
     if (!toolbar) return;
+    const bar = toolbarRef.current?.getBoundingClientRect();
     const block = blocks[toolbar.index];
     const link = block ? getLinkAt(block.content, toolbar.start, toolbar.end) : null;
     setLinkDialog({
@@ -3518,8 +3553,9 @@ export default function DocsEditor({
       start: link?.start ?? toolbar.start,
       end: link?.end ?? toolbar.end,
       href: link?.href ?? '',
-      top: toolbar.top,
-      left: toolbar.left,
+      // Donde quedó la barra (ya ubicada adentro del editor), no la posición sin corregir.
+      top: bar ? bar.top : toolbar.top,
+      left: bar ? bar.left + bar.width / 2 : toolbar.left,
     });
     setToolbar(null);
   };
@@ -4914,6 +4950,7 @@ export default function DocsEditor({
         createPortal(
         <div
           className="docs-format-toolbar"
+          ref={toolbarRef}
           style={{ top: toolbar.top, left: toolbar.left }}
           onMouseDown={(e) => e.preventDefault()}
         >
