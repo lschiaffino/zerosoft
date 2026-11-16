@@ -84,7 +84,13 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     if (done.tool === 'run_operation') {
       // El resultado llega marcado (<untrusted_data nonce=...>): el JSON va entre la primera línea y la última.
       const wrapped = typeof out.result === 'string' ? out.result : null;
-      const inner = (wrapped ? JSON.parse(wrapped.slice(wrapped.indexOf('\n') + 1, wrapped.lastIndexOf('\n</untrusted_data'))) : out) as Record<string, unknown>;
+      // Un resultado largo llega recortado (sin cierre ni JSON completo): un modelo de verdad lo lee igual, el falso no lo parsea.
+      let inner: Record<string, unknown>;
+      try {
+        inner = (wrapped ? JSON.parse(wrapped.slice(wrapped.indexOf('\n') + 1, wrapped.lastIndexOf('\n</untrusted_data'))) : out) as Record<string, unknown>;
+      } catch {
+        return { text: `Found more items than fit in one answer: ${(wrapped?.match(/"name":"([^"]*)"/g) ?? []).slice(0, 5).map((m) => m.slice(8, -1)).join(', ')}.` };
+      }
       const data = inner.data as Record<string, unknown> | unknown[] | undefined;
       const list = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? ((data as { data: unknown[] }).data) : null;
       if (list) return { text: `Found ${list.length} items: ${list.slice(0, 5).map((r) => String((r as Record<string, unknown>).name ?? (r as Record<string, unknown>).title ?? (r as Record<string, unknown>).body ?? '')).join(', ')}.` };
