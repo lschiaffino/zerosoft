@@ -1657,9 +1657,8 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
   .wa-xp-tabs [role='tab'] { min-height: 40px; }
 }
 
-/* Con el dedo, cada categoría de emoji mide al menos 40×40; si no entran, la fila de categorías se corre adentro del panel. */
+/* Con el dedo, cada categoría de emoji mide al menos 40×40; si no entran en un renglón, pasan al segundo (nada se sale de la pantalla). */
 @media (max-width: 768px) {
-  .wa-emoji-tabs { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
-  .wa-emoji-tabs::-webkit-scrollbar { display: none; }
+  .wa-emoji-tabs { flex-wrap: wrap; row-gap: 2px; }
   .wa-emoji-tabs button { flex: 1 0 40px; min-height: 40px; }
 }
