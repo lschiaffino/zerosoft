@@ -2116,7 +2116,9 @@ async function outgoingMedia(ws: string, url: string, bridged: boolean): Promise
   if (fileIdFromUrl(url)) {
     const row = await ownedFileRow(url, { workspaceId: ws });
     if (!row) throw new GroupsError('invalid_media', 400);
-    if (row.size <= INLINE_SEND_MAX) {
+    // En base64 solo a los proveedores que lo aceptan (Evolution y el administrado); la Cloud API y WAHA
+    // bajan el archivo de una URL: la firmada de nuestro dominio, que vence.
+    if (bridged && row.size <= INLINE_SEND_MAX) {
       const data = await readFileBytes(row, INLINE_SEND_MAX);
       if (!data) throw new GroupsError('invalid_media', 400);
       return { url: '', base64: data.toString('base64'), size: row.size };
