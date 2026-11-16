@@ -61,7 +61,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 type Ev = Record<string, unknown>;
 
 function events(app: 'inbox' | 'lines', chatId: string, phone: string, name: string, tag: string): Ev[] {
-  const at = (sec: number) => new Date(Date.now() - 3_600_000 + sec * 1000).toISOString();
+  const at = (sec: number) => new Date(Date.now() - 60_000 + sec * 1000).toISOString();
   const base = (pid: string, body: string, sec: number): Ev => ({ type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: phone, senderName: name, providerMessageId: pid, body, timestamp: at(sec) });
   return [
     base(`t1-${tag}`, `Primer mensaje ${tag}`, 0),

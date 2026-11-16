@@ -25,14 +25,30 @@ export interface MediaBox {
   height: number;
 }
 
-/** Caja de la foto desde su ancho y alto reales; null sin medidas. */
-export function mediaBox(width?: number, height?: number): MediaBox | null {
+/**
+ * Caja de la foto desde su ancho y alto reales; null sin medidas. Con texto
+ * abajo (`caption`) la caja ocupa siempre el ancho entero, como WhatsApp: una
+ * foto angosta o chica no deja la burbuja angosta con el texto cortado cada
+ * dos o tres palabras; la foto se recorta al centro (o, si es muy chica, se
+ * centra sin agrandarla, ver mediaFit).
+ */
+export function mediaBox(width?: number, height?: number, opts: { caption?: boolean } = {}): MediaBox | null {
   const w = Number(width) || 0;
   const h = Number(height) || 0;
   if (w <= 0 || h <= 0) return null;
-  const boxW = Math.round(Math.max(MEDIA_MIN_W, Math.min(MEDIA_W, w)));
+  const boxW = opts.caption ? MEDIA_W : Math.round(Math.max(MEDIA_MIN_W, Math.min(MEDIA_W, w)));
   const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, w / h));
   return { width: boxW, height: Math.round(boxW / ratio) };
+}
+
+/**
+ * Cómo se dibuja la foto en su caja: recortada al centro (cover) salvo una
+ * muy chica con texto, que queda centrada sobre el fondo sin agrandarse
+ * (contain), como WhatsApp.
+ */
+export function mediaFit(width?: number, height?: number, caption = false): 'cover' | 'contain' {
+  const w = Number(width) || 0;
+  return caption && w > 0 && Number(height) > 0 && w < MEDIA_W / 2 ? 'contain' : 'cover';
 }
 
 /**

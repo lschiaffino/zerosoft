@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -74,9 +74,9 @@ const parity: ProductParity = {
     row('snooze', 'triage', ['Snooze (remind me)', 'Posponer', 'Adiar'], 'have', {
       weight: 2,
       detail: [
-        'H with six presets or any date. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
-        'H con seis opciones o cualquier fecha. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
-        'H com seis opções ou qualquer data. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
+        'H with options that fit the moment (tomorrow morning, this weekend…) or a day and time from a calendar. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
+        'H con opciones según el momento (mañana a la mañana, este fin de semana…) o un día y hora del calendario. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
+        'H com opções conforme o momento (amanhã de manhã, neste fim de semana…) ou um dia e hora do calendário. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
       ],
     }),
     row('follow-up', 'triage', ['Remind me if there is no reply', 'Recordame si no contesta', 'Lembrar se não responder'], 'have', {

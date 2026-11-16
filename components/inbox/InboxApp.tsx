@@ -31,7 +31,7 @@ import Avatar from '@/components/groups/wa/Avatar';
 import { chatName } from './wa/util';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
-import { dragIds } from '@/lib/chat-gestures';
+import { dragIds, rowSwipeLayout, swipeActionKey, type RowSwipeKey } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
@@ -1085,23 +1085,28 @@ export default function InboxApp(props: {
 
   /**
    * Deslizar una fila, como WhatsApp (y como Lines): a la derecha, leído o no
-   * leído (la principal) y fijar; a la izquierda, archivar (la principal) y
+   * leído (la principal), fijar y posponer; a la izquierda, archivar (la principal) y
    * más. Con chats seleccionados no se desliza. Todo sigue en el menú y en los
    * atajos (U, P, V, M).
    */
   const swipeActions = (id: string): SwipeActions | null => {
     const th = threads.find((x) => x.id === id);
     if (!th || selected.size > 0) return null;
-    return {
-      right: [
-        { key: 'unread', label: th.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: th.unread > 0 ? 'read' : 'unread', onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
-        { key: 'pin', label: th.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: th.pinned ? 'unpin' : 'pin', onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
-      ],
-      left: [
-        { key: 'archive', label: th.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: th.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
-        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openMoreFor(id) },
-      ],
+    const run: Record<RowSwipeKey, () => void> = {
+      read: () => void runAction([id], { action: 'read' }),
+      unread: () => void runAction([id], { action: 'unread' }),
+      pin: () => void runAction([id], { action: 'pin' }),
+      unpin: () => void runAction([id], { action: 'unpin' }),
+      // Posponer abre el mismo diálogo que el menú y la tecla H (#393): elegir la hora archiva el chat hasta entonces.
+      snooze: () => setWhen({ kind: 'snooze', ids: [id] }),
+      unsnooze: () => void runAction([id], { action: 'unsnooze' }),
+      archive: () => void runAction([id], { action: 'archive' }),
+      unarchive: () => void runAction([id], { action: 'unarchive' }),
+      more: () => openMoreFor(id),
     };
+    const layout = rowSwipeLayout({ unread: th.unread > 0, pinned: Boolean(th.pinned), archived: Boolean(th.archived), snoozed: Boolean(th.snoozedUntil) });
+    const action = (key: RowSwipeKey) => ({ key: swipeActionKey(key), label: t(`swipe.${key}`), icon: key, onSelect: run[key], ...(key === 'archive' || key === 'unarchive' ? { leaves: true } : {}) });
+    return { right: layout.right.map(action), left: layout.left.map(action) };
   };
   /**
    * Clic derecho sobre un chat (o la tecla de menú), como WhatsApp: las

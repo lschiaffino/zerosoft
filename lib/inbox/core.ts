@@ -378,7 +378,7 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
          done_at = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ${kept}((? = 1 AND (muted_until IS NULL OR muted_until <= ? OR (snoozed_until IS NOT NULL AND snooze_archived = 1))) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
+         archived_at = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
          snoozed_until = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE snoozed_until END,
          snooze_archived = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN 0 ELSE snooze_archived END,
          follow_up_at = CASE WHEN ${kept}? = 1 THEN NULL ELSE follow_up_at END,
@@ -411,10 +411,9 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
       out,
       sure,
       sentAt,
-      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado; si lo archivó un
-      // pospuesto, vuelve igual).
+      // Como WhatsApp con "Mantener chats archivados" apagado: un mensaje nuevo saca el chat de Archivados, también si
+      // está silenciado. Solo "Mantener archivado" del chat lo deja ahí (trigger en la base).
       live,
-      now,
       out,
       sure,
       sentAt,

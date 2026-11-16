@@ -65,13 +65,14 @@ describe('Archivados y "Eliminar chat"', () => {
     expect((await listChats(user.id, user.id, { q: 'hola' })).rows[0]).toMatchObject({ id: a.id, archived: true });
     expect(await countArchivedChats(user.id)).toEqual({ total: 1, unread: 1 });
     expect(await countUnreadChats(user.id)).toBe(1);
-    // Llega otro mensaje: sigue archivado (por defecto, como WhatsApp hoy).
+    // Llega otro mensaje: vuelve a la lista (por defecto, como WhatsApp con "Mantener chats archivados" apagado).
     await ingestEvents(row, [inbound('5491100000001@s.whatsapp.net', 'A-3', 'sigo acá')]);
-    expect((await getChat(user.id, a.id))!.archived).toBe(true);
-    // Con "mantener archivados" apagado, vuelve a la lista.
-    await updateSettings(user.id, { keepArchived: false });
-    await ingestEvents(row, [inbound('5491100000001@s.whatsapp.net', 'A-4', 'hola?')]);
     expect((await getChat(user.id, a.id))!.archived).toBe(false);
+    // Con "mantener archivados" prendido en el workspace, sigue archivado.
+    await updateChat(user.id, a.id, { archived: true });
+    await updateSettings(user.id, { keepArchived: true });
+    await ingestEvents(row, [inbound('5491100000001@s.whatsapp.net', 'A-4', 'hola?')]);
+    expect((await getChat(user.id, a.id))!.archived).toBe(true);
   });
 
   it('eliminar oculta el chat (lista, no leídos, búsqueda) y vuelve con un mensaje nuevo, con su historial', async () => {

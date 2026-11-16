@@ -1833,6 +1833,8 @@
     "title": "A new version of zerosoft is ready.",
     "body": "Reload to get it. Save what you are writing first.",
     "reload": "Reload",
-    "dismiss": "Not now"
+    "dismiss": "Not now",
+    "news": "New: {titles}.",
+    "seeNews": "See what’s new"
   }
 }

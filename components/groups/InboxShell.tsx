@@ -54,7 +54,7 @@ import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderMod
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { requestChatInfo } from '@/lib/chat-info-request';
-import { dragIds } from '@/lib/chat-gestures';
+import { dragIds, rowSwipeLayout, swipeActionKey, type RowSwipeKey } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
@@ -792,6 +792,13 @@ export default function InboxShell({
 
   /** Archivar o desarchivar, con deshacer en el aviso. */
   function toggleArchived(c: ChatDto) {
+    // Sale de la lista al instante (como Inbox y WhatsApp): archivar espera a WhatsApp y la fila no se queda a la vista.
+    // Si falla, la recarga de rowAction la trae de vuelta.
+    if (archivedView === c.archived) {
+      setRows((rs) => rs.filter((r) => r.id !== c.id));
+      const d = c.archived ? -1 : 1;
+      setArchivedInfo((cur) => ({ total: Math.max(0, cur.total + d), unread: Math.max(0, cur.unread + (c.unread > 0 ? d : 0)) }));
+    }
     void rowAction(c, { archived: !c.archived }).then(() =>
       showToast(c.archived ? t('wa.unarchived') : t('wa.archived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: c.archived }) }),
     );
@@ -882,22 +889,27 @@ export default function InboxShell({
 
   /**
    * Deslizar una fila, como WhatsApp: a la derecha, leído o no leído (la
-   * principal) y fijar; a la izquierda, archivar (la principal) y más (el menú
-   * de la fila). Con chats seleccionados no se desliza.
+   * principal), fijar y posponer; a la izquierda, archivar (la principal) y más
+   * (el menú de la fila). Con chats seleccionados no se desliza.
    */
   function swipeActions(id: string): SwipeActions | null {
     const c = rowsRef.current.find((r) => r.id === id);
     if (!c || selectMode || visibleSelected.length > 0 || deletedView) return null;
-    return {
-      right: [
-        { key: 'unread', label: c.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: c.unread > 0 ? 'read' : 'unread', onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
-        { key: 'pin', label: c.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: c.pinned ? 'unpin' : 'pin', onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
-      ],
-      left: [
-        { key: 'archive', label: c.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: c.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => toggleArchived(c) },
-        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openRowMenu(id, 220) },
-      ],
+    const run: Record<RowSwipeKey, () => void> = {
+      read: () => void rowAction(c, { read: true }),
+      unread: () => void rowAction(c, { read: false }),
+      pin: () => void rowAction(c, { pinned: true }),
+      unpin: () => void rowAction(c, { pinned: false }),
+      // Posponer abre el mismo diálogo que el menú (#393): elegir la hora archiva el chat hasta entonces.
+      snooze: () => setSnoozeFor(c),
+      unsnooze: () => cancelSnooze(c),
+      archive: () => toggleArchived(c),
+      unarchive: () => toggleArchived(c),
+      more: () => openRowMenu(id, 220),
     };
+    const layout = rowSwipeLayout({ unread: c.unread > 0, pinned: c.pinned, archived: c.archived, snoozed: Boolean(c.snoozedUntil) });
+    const action = (key: RowSwipeKey) => ({ key: swipeActionKey(key), label: t(`swipe.${key}`), icon: key, onSelect: run[key], ...(key === 'archive' || key === 'unarchive' ? { leaves: true } : {}) });
+    return { right: layout.right.map(action), left: layout.left.map(action) };
   }
   // Desde el deslizado, el menú espera a que la fila vuelva a su lugar.
   const openRowMenu = (id: string, wait = 0) =>
@@ -1696,6 +1708,7 @@ export default function InboxShell({
       <WhenDialog
         open={!!snoozeFor}
         title={t('snooze.title')}
+        mode="snooze"
         labels={snoozeLabels}
         onPick={(iso) => {
           const c = snoozeFor;

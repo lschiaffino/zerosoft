@@ -22,7 +22,7 @@ export const notifyScheduledChanged = () => window.dispatchEvent(new Event(CHANG
 export function useWhenLabels(): WhenLabels {
   const t = useTranslations('groups.later');
   return useMemo(
-    () => ({ preset: (p) => t(`preset.${p}`), custom: t('custom'), confirm: t('confirm'), cancel: t('cancel'), pastError: t('pastError') }),
+    () => ({ confirm: t('confirm'), cancel: t('cancel') }),
     [t],
   );
 }
@@ -162,6 +162,7 @@ function ScheduledList({
       <WhenDialog
         open={!!retime}
         title={t('changeTitle')}
+        mode="send"
         labels={labels}
         initial={retime?.scheduledAt}
         help={retime?.body ? <span className="gr-later-preview">{retime.body.slice(0, 200)}</span> : retime && isVoice(retime) ? <span className="gr-later-preview">{voiceLabels.tag(clock(retime.media?.duration ?? 0))}</span> : undefined}

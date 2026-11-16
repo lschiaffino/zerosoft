@@ -88,7 +88,8 @@ export const DEFAULT_SETTINGS: GroupsSettings = {
   locale: 'en',
   defaultAgentId: null,
   readReceipts: false,
-  keepArchived: true,
+  // Como WhatsApp con "Mantener chats archivados" apagado: un mensaje nuevo desarchiva el chat.
+  keepArchived: false,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
