@@ -119,12 +119,12 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await trigger.click();
   const mega = page.locator('#hd-mega');
   await expect(mega.locator('.hd-group-title')).toHaveText(['Construir', 'Vender', 'Atender', 'Automatizar', 'Operar', 'Trabajo diario']);
-  await expect(mega.locator('a.hd-prod')).toHaveCount(29);
+  await expect(mega.locator('a.hd-prod')).toHaveCount(30);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
   const suite = page.locator('#productos .suite');
   await expect(suite.locator('.suite-group')).toHaveCount(6);
-  await expect(suite.locator('.suite-row')).toHaveCount(29);
+  await expect(suite.locator('.suite-row')).toHaveCount(30);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
   // Desde el sitio, Dashboard entra por Track; desde una landing, a esa app.
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/start');
