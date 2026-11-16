@@ -678,8 +678,9 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     flagged: Boolean(row.flagged_at),
     labels,
     createdAt: row.created_at,
-    // Un chat 1:1 sin foto propia todavía (recién abierto desde un grupo): la de la persona en la libreta.
-    pictureUrl: row.picture_url || (row as ChatRow & { contact_picture?: string | null }).contact_picture || '',
+    // Chat 1:1: la foto guardada de la persona en la libreta (al día, dmAvatar en lib/wa-contact-pictures.ts)
+    // y, si no hay, la del chat.
+    pictureUrl: (row.kind === 'dm' && (row as ChatRow & { contact_picture?: string | null }).contact_picture) || row.picture_url || '',
     announce: Boolean(row.announce),
     locked: Boolean(row.locked),
     ephemeral: Number(row.ephemeral ?? 0),
@@ -717,11 +718,12 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
 export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
-  if (row.kind === 'dm' && !row.picture_url && row.phone) {
-    const pic = (await getDb().prepare("SELECT picture FROM wa_contacts WHERE app = 'lines' AND account_id = ? AND phone = ? AND picture <> '' LIMIT 1").get(row.number_id, row.phone)) as
-      | { picture: string }
-      | undefined;
-    if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic.picture;
+  if (row.kind === 'dm') {
+    const { contactPictures, dmPerson } = await import('./wa-contact-pictures');
+    const who = dmPerson(row.phone, row.provider_chat_id);
+    const d = who.phone || who.lid;
+    const pic = d ? (await contactPictures({ app: 'lines', accountId: row.number_id }, [d])).get(d) : undefined;
+    if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic;
   }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   if (dto.lastMessagePreview.includes('@')) {
@@ -1002,8 +1004,11 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const db = getDb();
   const total = query.count === false ? { c: 0 } : ((await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number });
   const select = `SELECT c.*, ${matchSelect},
-         CASE WHEN c.kind = 'dm' AND COALESCE(c.picture_url, '') = '' AND c.phone <> '' THEN
-           (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = c.phone LIMIT 1) END AS contact_picture,
+         CASE WHEN c.kind = 'dm' AND c.phone <> '' THEN
+             (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = c.phone AND w.picture <> '' LIMIT 1)
+           WHEN c.kind = 'dm' AND c.provider_chat_id LIKE '%@lid' THEN
+             (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.lid = substr(c.provider_chat_id, 1, instr(c.provider_chat_id, '@') - 1) AND w.picture <> '' LIMIT 1)
+           END AS contact_picture,
          (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info,
          (SELECT zhl.name FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != ''
@@ -1625,6 +1630,11 @@ export async function listMessages(
   // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
   if (rows.length) await withLinesMentions(rows[0].number_id, out, rows[0].chat_id).catch(() => null);
   await withReplyQuotes(ws, out).catch(() => null);
+  // Tarjetas de contacto: la foto de cada persona, si está guardada en la libreta del número.
+  if (rows.length && out.some((m) => m.contacts?.length)) {
+    const { withCardPictures } = await import('./wa-contact-pictures');
+    await withCardPictures({ app: 'lines', accountId: rows[0].number_id }, out.map((m) => m.contacts)).catch(() => null);
+  }
   return out;
 }
 

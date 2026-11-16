@@ -335,6 +335,8 @@ describe('/api/files: sesión, permiso y rangos', () => {
     expect(left.legacy_key).toBe('chat/33333333-2222-4333-8444-555555555555-x.png');
     session.user = owner();
     expect((await get(store.fileUrl(row))).status).toBe(404);
+    // La base es compartida con la migración (tests/unit/files-migrate.test.ts): la marca no queda para su pasada.
+    await getDb().prepare('DELETE FROM stored_files WHERE id = ?').run(row.id);
   });
 
   it('borrar saca la fila y los bytes', async () => {

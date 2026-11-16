@@ -11,6 +11,7 @@ import type { FolderDto } from '@/lib/inbox/types';
 import { api, INBOX_CHANGED, notifyInboxChanged } from './api';
 import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import { FolderDialog, Modal } from './InboxDialogs';
+import { FolderIcon } from '@/components/groups/wa/icons';
 
 const FOLDER_MIME = 'application/x-zs-inbox-folder';
 const COLLAPSED_KEY = 'zs-inbox-folders-collapsed';
@@ -43,6 +44,7 @@ export default function InboxBranch() {
   const slot = useShellBranch();
   const rail = useCollapsedBranch();
   const [folders, setFolders] = useState<FolderDto[] | null>(null);
+  const [noFolderUnread, setNoFolderUnread] = useState(0);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState<{ parentId: string | null } | null>(null);
   const [editing, setEditing] = useState<FolderDto | null>(null);
@@ -56,8 +58,11 @@ export default function InboxBranch() {
   const navRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async () => {
-    const r = await api<{ folders: FolderDto[] }>('/api/inbox/folders');
-    if (r.ok) setFolders(r.data.folders);
+    const r = await api<{ folders: FolderDto[]; noFolderUnread?: number }>('/api/inbox/folders');
+    if (r.ok) {
+      setFolders(r.data.folders);
+      setNoFolderUnread(r.data.noFolderUnread ?? 0);
+    }
   }, []);
 
   useEffect(() => {
@@ -262,6 +267,7 @@ export default function InboxBranch() {
         <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
       ) : (
         <ul className="docs-tree ib-ftree" role="list" aria-label={t('title')}>
+          <NoFolderRow active={pathname === NO_FOLDER_HREF} unread={noFolderUnread} />
           {rows.map(({ folder: f, depth, hasChildren }) => {
             const href = `/app/inbox/f/${f.id}`;
             const active = pathname === href;
@@ -463,6 +469,34 @@ export default function InboxBranch() {
       />
     </nav>,
     slot,
+  );
+}
+
+const NO_FOLDER_HREF = '/app/inbox/v/nofolder';
+
+/**
+ * "Sin carpeta": arriba del árbol, los chats de la bandeja que no están en
+ * ninguna carpeta (la vista `nofolder`). No es una carpeta: sin menú, no se
+ * arrastra ni recibe chats.
+ */
+function NoFolderRow({ active, unread }: { active: boolean; unread: number }) {
+  const t = useTranslations('inbox.folders');
+  const name = t('noFolder');
+  return (
+    <li className={`docs-tree-row ib-ftree-loose${active ? ' active' : ''}`} data-testid="inbox-nofolder" style={{ ['--d' as string]: 0 }}>
+      <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+      <Link href={NO_FOLDER_HREF} prefetch={false} className="docs-tree-link" aria-current={active ? 'page' : undefined} draggable={false}>
+        <span className="docs-tree-icon" aria-hidden="true">
+          <FolderIcon size={15} />
+        </span>
+        <span className="docs-tree-title">{name}</span>
+        {unread > 0 && (
+          <span className="ib-branch-count" aria-label={t('unreadCount', { n: unread })}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </Link>
+    </li>
   );
 }
 

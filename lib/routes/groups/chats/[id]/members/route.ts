@@ -48,7 +48,7 @@ export async function GET(req: Request, ctx: Ctx) {
  * { action: add|remove|promote|demote, phones } en este grupo,
  * { action: 'sync' } para releer los miembros, o
  * { action: 'invite', revoke? } para el link de invitación, o
- * { action: 'message', phone? | messageId? } para abrir el chat 1:1 con esa persona.
+ * { action: 'message', phone? | messageId? (y card?: la tarjeta de contacto de ese mensaje) } para abrir el chat 1:1 con esa persona.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
@@ -66,7 +66,9 @@ export async function POST(req: Request, ctx: Ctx) {
       const { startChat } = await import('@/lib/groups-new-chat');
       const chat = await getChat(s.ws, id);
       if (!chat) return groupsError(404, 'not_found');
-      const phone = await personPhone(s.ws, id, { phone: typeof b.phone === 'string' ? b.phone : null, messageId: typeof b.messageId === 'string' ? b.messageId : null });
+      const phone = await personPhone(s.ws, id, { phone: typeof b.phone === 'string' ? b.phone : null, messageId: typeof b.messageId === 'string' ? b.messageId : null,
+        card: typeof b.card === 'number' && Number.isInteger(b.card) && b.card >= 0 && b.card < 20 ? b.card : null,
+      });
       const res = await startChat(guard.viewer, { numberId: chat.numberId, phone });
       return NextResponse.json(res, { status: res.created ? 201 : 200 });
     }
