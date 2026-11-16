@@ -65,7 +65,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   return (
     <>
       {/* Anchos de paneles guardados: se aplican antes del primer pintado. */}
-      <script nonce={(await headers()).get(CSP_NONCE_HEADER) ?? undefined} dangerouslySetInnerHTML={{ __html: linesPanelsScript(me) }} />
+      <script nonce={(await headers()).get(CSP_NONCE_HEADER) ?? undefined} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: linesPanelsScript(me) }} />
       <InboxShell
         banner={
           hasSample ? (
