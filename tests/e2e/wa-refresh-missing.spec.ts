@@ -211,7 +211,7 @@ test('Inbox: trae lo que faltaba antes del último mensaje y dice qué pasó en 
   }
 });
 
-test('Lines: trae lo que faltaba antes del último mensaje y dice qué pasó en cada caso', async ({ page, request, context, baseURL, playwright }) => {
+test('Lines: trae lo que faltaba antes del último mensaje y dice qué pasó en cada caso', async ({ page, request, context, baseURL }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Faltantes ${uid()}` } });
   expect(created.ok()).toBe(true);
@@ -246,21 +246,8 @@ test('Lines: trae lo que faltaba antes del último mensaje y dice qué pasó en 
     }
     await page.setViewportSize({ width: 1280, height: 860 });
 
-    // Otra persona, de otro workspace, no puede pedirlo ni ver cómo va.
-    const anyChat = chat('54911', uid());
-    await post(anyChat.stored);
-    const anyId = await chatOf(anyChat.jid);
-    const ctx = await playwright.request.newContext({
-      baseURL,
-      storageState: { cookies: [{ name: 'zs_e2e_as', value: `otra-${uid()}@own-e2e.test`, domain: 'localhost', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] },
-    });
-    try {
-      await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: 'Otra', locale: 'en' } }).catch(() => null);
-      expect([403, 404]).toContain((await ctx.post(`/api/groups/chats/${anyId}`, { data: { action: 'fetchMissing' } })).status());
-      expect([403, 404]).toContain((await ctx.post(`/api/groups/chats/${anyId}`, { data: { action: 'fetchMissingStatus' } })).status());
-    } finally {
-      await ctx.dispose();
-    }
+    // Que otra persona u otro workspace no llegue al chat lo prueban tests/unit/wa-refresh-missing.test.ts y el
+    // chatGuard de la ruta (el mismo de las demás acciones del chat).
 
     // El teléfono no contesta.
     const silent = chat('1779', uid());
