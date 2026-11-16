@@ -145,8 +145,13 @@ test('Lines: Aplicar del panel de filtros y Enviar llevan el color de la app', a
 /* ---------- Inbox ---------- */
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  const status = async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status;
+  // Vincular tiene tope por IP (20 cada 10 min, compartido por todo el shard): solo si hace falta.
+  if ((await status()) !== 'connected') {
+    const linked = await request.post('/api/inbox/whatsapp');
+    expect(linked.ok(), await linked.text()).toBe(true);
+  }
+  await expect.poll(status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
 }
