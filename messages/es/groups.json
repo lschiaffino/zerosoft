@@ -2008,6 +2008,7 @@
     "folderName": "Nombre de la carpeta",
     "foldersEmpty": "Todavía no hay carpetas. Creá una para ordenar los chats; todo el workspace ve las mismas carpetas.",
     "unfiled": "Sin carpeta",
+    "unfiledEmpty": "Todos los chats están en una carpeta",
     "folderUnread": "{n, plural, one {# chat sin leer} other {# chats sin leer}}",
     "folderOptions": "Opciones de la carpeta {name}",
     "expand": "Expandir {name}",
