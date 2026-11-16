@@ -6,6 +6,7 @@ import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
+import { formatPhone } from '@/components/inbox/wa/util';
 
 const SPEEDS = [1, 1.5, 2];
 const POS_KEY = 'wa-voice-pos:';
@@ -392,32 +393,102 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
   );
 }
 
-/** Contacto compartido, con "Enviar mensaje" (busca su chat) y "Guardar" (lo agrega al CRM). */
-export function ContactCard({ name, phone, onMessage, onSave }: { name: string; phone: string; onMessage?: () => void; onSave?: () => void }) {
-  const tw = useTranslations('groups.wa');
+/** Una tarjeta de contacto (vCard) como la ve la pantalla: el primer teléfono es el de WhatsApp. */
+export interface SharedContact {
+  name: string;
+  phones?: string[];
+  /** La foto guardada de esa persona (lib/wa-contact-pictures.ts), si hay. */
+  picture?: string;
+}
+
+/** El teléfono de una tarjeta como lo muestra WhatsApp; uno oculto (Lines, sin permiso) queda como vino. */
+export function cardPhoneLabel(raw: string): string {
+  const v = String(raw ?? '').trim();
+  if (!v) return '';
+  return /^\+?[\d\s-]+$/.test(v) ? formatPhone(v) : `+${v.replace(/^\+/, '')}`;
+}
+
+function ContactRow({ c }: { c: SharedContact }) {
+  const phone = cardPhoneLabel(c.phones?.[0] ?? '');
   return (
-    <span className="wa-contact-card">
-      <span className="wa-contact">
+    <span className="wa-contact">
+      {c.picture ? (
+        <Avatar name={c.name || phone} kind="dm" src={c.picture} seed={c.phones?.[0] || c.name} size={38} />
+      ) : (
         <span className="wa-contact-avatar" aria-hidden="true">
           <Person size={22} />
         </span>
+      )}
+      <span className="wa-contact-text">
+        <strong dir="auto">{c.name || phone}</strong>
+        {phone && c.name && <span>{phone}</span>}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Contactos compartidos, como en WhatsApp: la foto de la persona (o el ícono), el nombre y el teléfono con
+ * formato, y abajo "Enviar mensaje" (abre o crea su chat 1:1 en la misma cuenta o línea) y "Guardar contacto"
+ * si hay dónde. Varios contactos en un mensaje: "Ana y 2 contactos más" con "Ver todos".
+ */
+export function ContactCards({ cards, onMessage, onSave }: { cards: SharedContact[]; onMessage?: (index: number) => void; onSave?: (index: number) => void }) {
+  const tw = useTranslations('groups.wa');
+  const [all, setAll] = useState(false);
+  if (!cards.length) return null;
+  const actions = (i: number) => {
+    const has = !!cards[i].phones?.[0];
+    if (!has || (!onMessage && !onSave)) return null;
+    return (
+      <span className="wa-contact-actions">
+        {onMessage && (
+          <button type="button" onClick={() => onMessage(i)} data-testid="wa-contact-message">
+            {tw('contactMessage')}
+          </button>
+        )}
+        {onSave && (
+          <button type="button" onClick={() => onSave(i)}>
+            {tw('contactSave')}
+          </button>
+        )}
+      </span>
+    );
+  };
+  if (cards.length === 1)
+    return (
+      <span className="wa-contact-card" data-testid="wa-contact-card">
+        <ContactRow c={cards[0]} />
+        {actions(0)}
+      </span>
+    );
+  const first = cards[0];
+  return (
+    <span className="wa-contact-card" data-testid="wa-contact-card">
+      <span className="wa-contact">
+        {first.picture ? (
+          <Avatar name={first.name} kind="dm" src={first.picture} seed={first.phones?.[0] || first.name} size={38} />
+        ) : (
+          <span className="wa-contact-avatar" aria-hidden="true">
+            <Person size={22} />
+          </span>
+        )}
         <span className="wa-contact-text">
-          <strong>{name}</strong>
-          {phone && <span>+{phone}</span>}
+          <strong dir="auto">{tw('contactsMany', { name: first.name || cardPhoneLabel(first.phones?.[0] ?? ''), count: cards.length - 1 })}</strong>
         </span>
       </span>
-      {phone && (onMessage || onSave) && (
-        <span className="wa-contact-actions">
-          {onMessage && (
-            <button type="button" onClick={onMessage}>
-              {tw('contactMessage')}
-            </button>
-          )}
-          {onSave && (
-            <button type="button" onClick={onSave}>
-              {tw('contactSave')}
-            </button>
-          )}
+      <span className="wa-contact-actions">
+        <button type="button" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+          {all ? tw('contactsHide') : tw('contactsViewAll')}
+        </button>
+      </span>
+      {all && (
+        <span className="wa-contact-list">
+          {cards.map((c, i) => (
+            <span key={i} className="wa-contact-card">
+              <ContactRow c={c} />
+              {actions(i)}
+            </span>
+          ))}
         </span>
       )}
     </span>

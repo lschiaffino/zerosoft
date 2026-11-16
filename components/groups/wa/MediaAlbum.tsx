@@ -35,6 +35,7 @@ export default function MediaAlbum({
   menuLabel,
   align,
   onLoad,
+  onHold,
 }: {
   tiles: AlbumTile[];
   onOpen: (id: string) => void;
@@ -43,16 +44,18 @@ export default function MediaAlbum({
   menuLabel: string;
   align: 'left' | 'right';
   onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
+  /** Toque largo sobre una foto (teléfono): quien lo usa muestra el menú táctil de ese mensaje. Sin esto, abre la flecha. */
+  onHold?: (id: string, el: HTMLElement) => void;
 }) {
-  const t = useTranslations('groups');
+  const t = useTranslations('groups.wa');
   const { shape, shown, more } = albumLayout(tiles.length);
   const lastId = tiles.at(-1)?.id;
   return (
-    <div className={`wa-album is-${shape}`} role="group" aria-label={t('wa.album', { n: tiles.length })} data-count={tiles.length}>
+    <div className={`wa-album is-${shape}`} role="group" aria-label={t('album', { n: tiles.length })} data-count={tiles.length}>
       {tiles.slice(0, shown).map((tile, i) => {
         const cover = more > 0 && i === shown - 1;
         const openMenu = (el: HTMLElement) => el.querySelector<HTMLButtonElement>('.wa-album-chevron')?.click();
-        const hold = longPress(openMenu);
+        const hold = longPress((el) => (onHold ? onHold(tile.id, el) : openMenu(el)));
         return (
           <div
             key={tile.id}
@@ -81,7 +84,7 @@ export default function MediaAlbum({
                 if (selecting) onSelect?.(tile.id);
                 else onOpen(tile.id);
               }}
-              aria-label={cover ? t('wa.albumMore', { n: more }) : tile.kind === 'video' ? t('wa.playVideo') : t('wa.openMedia', { name: tile.alt })}
+              aria-label={cover ? t('albumMore', { n: more }) : tile.kind === 'video' ? t('playVideo') : t('openMedia', { name: tile.alt })}
               aria-pressed={selecting ? Boolean(tile.selected) : undefined}
             >
               <TileMedia tile={tile} onLoad={onLoad} />

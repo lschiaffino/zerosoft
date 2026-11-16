@@ -1094,7 +1094,7 @@
       "notConfigured": "Slack is not set up on this server yet (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET and SLACK_SIGNING_SECRET).",
       "connect": "Connect Slack",
       "connectedTo": "Connected to {team}.",
-      "howTo": "In Slack: /track <title> creates an issue in the default team; on any message, More actions › Create Track issue opens a form and keeps the thread in sync with the issue comments.",
+      "howTo": "In Slack: /track '<title>' creates an issue in the default team; on any message, More actions › Create Track issue opens a form and keeps the thread in sync with the issue comments.",
       "defaultProject": "Default team for /track",
       "firstProject": "First team I can see",
       "unfurl": "Show a preview of issue links",

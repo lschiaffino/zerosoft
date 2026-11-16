@@ -49,9 +49,9 @@ const parity: ProductParity = {
     }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
-        'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder',
-        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta',
-        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta',
+        'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
+        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna',
+        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma',
       ],
     }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
@@ -166,6 +166,13 @@ const parity: ProductParity = {
     }),
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
+    row('wa-image-editor', 'inbox', ['Edit a photo before sending (crop, draw, text, sticker, HD)', 'Editar una foto antes de mandarla (recortar, dibujar, texto, sticker, HD)', 'Editar uma foto antes de enviar (cortar, desenhar, texto, figurinha, HD)'], 'partial', {
+      detail: [
+        'Same editor as Inbox: crop and rotate, emoji or sticker, colored text, pencil, undo, caption emoji and HD. Missing: blur and filters. Tested with the fake provider',
+        'El mismo editor que Inbox: recortar y rotar, emoji o sticker, texto de color, lápiz, deshacer, emoji en el comentario y HD. Faltan desenfocar y filtros. Probado con el proveedor falso',
+        'O mesmo editor do Inbox: cortar e girar, emoji ou figurinha, texto colorido, lápis, desfazer, emoji na legenda e HD. Faltam desfoque e filtros. Testado com o provedor falso',
+      ],
+    }),
     row('wa-attach-menu', 'inbox', ['Attach menu like WhatsApp (camera, poll, new sticker)', 'Menú de adjuntar como WhatsApp (cámara, encuesta, sticker nuevo)', 'Menu de anexar como o WhatsApp (câmera, enquete, nova figurinha)'], 'partial', {
       detail: [
         'Document, photos and videos, camera (the computer camera too), audio, contact, poll and new sticker, in the WhatsApp order with colored icons; poll and contact only show when the line can send them. Help me write, dictate, send later and commands go below a line. Events are missing: our WhatsApp server cannot send them yet. Tested with the fake provider',

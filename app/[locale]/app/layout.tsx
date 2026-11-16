@@ -6,6 +6,7 @@ import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { CSP_NONCE_HEADER } from '@/lib/csp';
 import { appFromPath, isComingSoon, PRODUCT_KEYS } from '@/lib/products';
 import { isStaff } from '@/lib/workspace-apps';
 import PreviewBanner from '@/components/app/PreviewBanner';
@@ -84,6 +85,8 @@ export default async function AppLayout(
   const user = await requireUser(locale);
   // La cookie de sesión con la que se arma esta página (la revisa sessionGuardScript al abrirla).
   const whoCookie = (await cookies()).get(WHO_COOKIE_NAME)?.value ?? '';
+  // Nonce de la CSP de la app (middleware, lib/csp.ts) para los scripts en línea de este layout.
+  const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined;
   const real = user.actingUser ?? user;
   // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
   try {
@@ -128,7 +131,7 @@ export default async function AppLayout(
       <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
         <ThemeProvider initial={embedTheme}>
           <div className="st-embed">
-            <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <script nonce={nonce} dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
             <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
             <SettingsEmbedGuard />
             <PlatformSettingsNav
@@ -229,8 +232,8 @@ export default async function AppLayout(
       <div className="app-frame" suppressHydrationWarning>
         <AppAccent />
         {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
-        <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
-        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
         {/* La app de escritorio avisa una vez que se abrió con esta cuenta ("Primeros pasos"). */}
