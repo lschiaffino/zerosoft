@@ -59,7 +59,8 @@ const CRM_IMPORT_BUDGET_MS = 200_000;
  * locks de corridas y jobs, sent_at de recordatorios y pasos). Misma
  * autorización que /api/cron/tick (CRON_SECRET como Bearer, la valida el
  * cron de recordatorios antes de hacer nada). También manda el mail de resumen del
- * deploy de producción que está corriendo, una vez por deploy (lib/deploy-notify.ts).
+ * deploy de producción que está corriendo, una vez por deploy (lib/deploy-notify.ts), y los trabajos de
+ * mantenimiento de una vez que nombra MAINTENANCE_JOBS (lib/maintenance-jobs.ts).
  */
 export async function GET(req: NextRequest) {
   const start = Date.now();
@@ -154,6 +155,12 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
+  // Trabajos de mantenimiento de una vez que pide MAINTENANCE_JOBS (sin la variable no hace nada): una tanda de ~20 s
+  // con cursor en maintenance_jobs (lib/maintenance-jobs.ts). El informe es solo de estado y cuentas.
+  const maintenance = await import('@/lib/maintenance-jobs')
+    .then((m) => m.runMaintenanceJobs({ budgetMs: 20_000 }))
+    .then((r) => r?.map(({ job, mode, status }) => ({ job, mode, status })) ?? null)
+    .catch(() => null);
   const deployNotify = await deployNotifyRun;
-  return NextResponse.json({ status, deployNotify, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ status, deployNotify, maintenance, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

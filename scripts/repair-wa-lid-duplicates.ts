@@ -8,7 +8,8 @@
  * Usa las mismas variables que la app (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN).
  * Idempotente: se puede volver a correr; la segunda vez no encuentra nada.
  * El informe tiene solo cuentas (ni teléfonos, ni lids, ni nombres).
- * Detalle en lib/wa-dedupe-repair.ts.
+ * Detalle en lib/wa-dedupe-repair.ts. En producción, desde el cron: MAINTENANCE_JOBS=lid-repair:dry y después
+ * lid-repair:apply (lib/maintenance-jobs.ts).
  */
 import { ensureMigrated, getClient } from '../lib/db';
 import { repairLidDuplicates } from '../lib/wa-dedupe-repair';
