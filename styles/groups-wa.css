@@ -266,6 +266,12 @@
   background-size: 26px 26px;
   scroll-behavior: auto;
   overflow-anchor: none;
+  /* El chat tiene el ancho de la pantalla, como WhatsApp. Con overflow-y: auto el navegador deja overflow-x en auto:
+     una burbuja corrida al deslizar para responder, o un menú anclado al borde, hacían que la lista entera se
+     corriera de costado con el dedo. De costado, el dedo es de nuestros gestos (deslizar para responder). */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
 }
 .wa-older { display: flex; justify-content: center; margin: 4px 0 8px; }
 .wa-older .btn { background: var(--wa-system-chip); color: var(--wa-text-2); box-shadow: var(--wa-shadow-bubble); border: 0; }
@@ -532,6 +538,11 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .wa-input::placeholder { color: var(--wa-text-2); }
 .gr-inbox .wa-input:focus-visible { outline: 2px solid color-mix(in srgb, var(--wa-primary) 60%, transparent); outline-offset: 0; }
 .wa-composer.is-note .wa-input { background: var(--wa-note); }
+/* iOS agranda la página al enfocar un campo de menos de 16px y después se puede correr de costado: con el dedo,
+   los campos de Lines e Inbox (el del chat, buscar, filtros) miden 16px. */
+@media (pointer: coarse) {
+  .gr-inbox :is(textarea, select, input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])) { font-size: 16px; }
+}
 /*
  * @menciones en el campo (components/groups/wa/MentionTextarea.tsx): una capa encima con el mismo texto pinta la
  * mención en verde, como WhatsApp Web; el texto del textarea queda transparente y el cursor y la selección son los suyos.
