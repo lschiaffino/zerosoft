@@ -13,7 +13,7 @@
  *
  * El estado queda en `data-kbd-nav` de la raíz ("0" sin anillos, "1" con anillos) y
  * styles/calm-focus.css lo lee. `data-kbd-last` dice qué manejó la pantalla por última vez ("key" o
- * "pointer"): con el teclado, el cursor de la lista lleva una marca al costado. Sin JavaScript el atributo no existe y el foco se ve como siempre.
+ * "pointer"), para estilos que quieran distinguir el cursor del teclado. Sin JavaScript el atributo no existe y el foco se ve como siempre.
  *
  * Además, un clic de mouse sobre un link de navegación o una fila (RELEASE) suelta el foco: el
  * teclado maneja la lista, y Enter o la vuelta de un diálogo no reactivan lo último que se tocó.
@@ -40,7 +40,7 @@ export const RELEASE = [
 ].join(', ');
 
 export const KBD_ATTR = 'data-kbd-nav';
-/** Lo último que manejó la pantalla ("key" o "pointer"): con "key" se marca el cursor de la lista. */
+/** Lo último que manejó la pantalla ("key" o "pointer"). */
 export const KBD_LAST_ATTR = 'data-kbd-last';
 
 /** Campos donde las teclas son texto. */
