@@ -72,9 +72,12 @@ export async function GET(req: NextRequest) {
   // Mail del deploy de producción que está corriendo, una sola vez por deploy (claim por sha). Corre en paralelo
   // con el resto y se espera al final.
   const deployNotifyRun = import('@/lib/deploy-notify').then((m) => m.runDeployNotify()).catch(() => null);
+  // Voice: mantener despierta la función del dictado (GET sin sesión, 204) para que el primer dictado no espere el arranque en frío.
+  const voiceWarm = fetch(new URL('/api/voice/dictate', req.nextUrl.origin), { cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
+  await voiceWarm;
   // Send: descargas vencidas, resúmenes de avisos y sobras. El render va en /api/cron/send-render.
   await import('@/lib/send/viewer').then((m) => Promise.all([m.purgeDownloadCache(), m.flushAlertDigests()])).catch(() => null);
   await import('@/lib/send/core').then((m) => m.purgeSendLeftovers()).catch(() => null);
