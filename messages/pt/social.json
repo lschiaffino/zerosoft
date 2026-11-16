@@ -293,7 +293,15 @@
     "markDone": "Marcar como concluído",
     "reopen": "Reabrir",
     "markedDone": "Marcado como concluído",
-    "reopened": "Reaberto"
+    "reopened": "Reaberto",
+    "insertSavedReply": "Inserir resposta salva",
+    "noSavedReplies": "Adicionar respostas salvas",
+    "saveAsReply": "Salvar como resposta",
+    "savedReplyName": "Nome da resposta salva",
+    "savedReplySave": "Salvar",
+    "savedReplyCreated": "Resposta salva na biblioteca",
+    "cancel": "Cancelar",
+    "savedReplyNameShort": "Nome"
   },
   "analytics": {
     "title": "Métricas",
@@ -324,7 +332,7 @@
   },
   "library": {
     "title": "Biblioteca",
-    "description": "Textos salvos, grupos de hashtags e arquivos para todo o time.",
+    "description": "Textos salvos, grupos de hashtags, arquivos e respostas da caixa de entrada para todo o time.",
     "kind_all": "Tudo",
     "kind_snippet": "Textos salvos",
     "kind_hashtags": "Grupos de hashtags",
@@ -347,7 +355,10 @@
     "delete": "Apagar",
     "deleteTitle": "Apagar {name}?",
     "deleteBody": "Sai da biblioteca. As publicações que já usam não mudam.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "kind_reply": "Respostas salvas",
+    "replyHint": "Respostas da caixa de entrada. '{name}' vira o primeiro nome de quem escreveu e '{account}' o nome da sua conta.",
+    "emptyBodyReply": "Salve as respostas que você manda sempre na caixa de entrada, como prazos de entrega ou horários. Insira em qualquer comentário ou mensagem."
   },
   "accounts": {
     "title": "Contas",

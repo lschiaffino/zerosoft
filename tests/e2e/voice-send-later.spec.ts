@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Lines e Inbox: "Enviar más tarde" desde la grabadora de notas de voz. Se
@@ -188,7 +189,7 @@ test('Lines: la nota de voz se programa desde la grabadora, queda en la tira con
 // ---------- Inbox ----------
 
 async function inboxChat(page: Page, request: APIRequestContext, title: string) {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `54911${Math.floor(1_000_000 + Math.random() * 8_999_999)}1`;

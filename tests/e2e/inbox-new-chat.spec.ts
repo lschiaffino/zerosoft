@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox, "Chat nuevo" de WhatsApp con el WhatsApp falso (GROUPS_FAKE=1): el
@@ -25,7 +26,7 @@ const waStatus = async (request: APIRequestContext) => ((await (await request.ge
 /** Vincula el WhatsApp falso solo si hace falta: vincular tiene límite por IP y otros specs lo usan. */
 async function linkWhatsapp(request: APIRequestContext) {
   if ((await waStatus(request)) === 'connected') return;
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
 }
 

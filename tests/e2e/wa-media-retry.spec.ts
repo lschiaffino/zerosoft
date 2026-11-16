@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Fotos que no se pudieron bajar, en Inbox y en Lines, con el WhatsApp falso:
@@ -61,7 +62,7 @@ function photo(app: 'inbox' | 'lines', chatId: string, phone: string, name: stri
     providerMessageId: pid,
     body,
     media: { url: app === 'lines' ? `evo:${pid}` : '', type: 'image/png', name: '', fetchRef: { providerMessageId: pid, chatId, fromMe: false }, info: { kind: 'image', width: 480, height: 320 } },
-    timestamp: new Date(Date.now() - 3_600_000 + sec * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 60_000 + sec * 1000).toISOString(),
   };
 }
 
@@ -97,7 +98,7 @@ async function checkRetry(page: Page, thread: Locator, app: string, release: () 
 
 test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;

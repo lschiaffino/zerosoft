@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Smoke parejo para todas las apps con ítems creados por la persona. Cada
@@ -954,7 +955,7 @@ const APPS: AppCase[] = [
     app: 'Inbox chats',
     list: '/en/app/inbox',
     create: async (request, name) => {
-      await ok(request.post('/api/inbox/whatsapp'));
+      await ok(request.post('/api/inbox/whatsapp', waLinkIp()));
       // El proveedor falso queda vinculado a los 1,5 s; el GET guarda el estado.
       await expect.poll(async () => ((await ok<{ state: { status: string } }>(request.get('/api/inbox/whatsapp'))).state.status), { timeout: 10_000 }).toBe('connected');
       const phone = `5491${Math.floor(1e9 + Math.random() * 8e9)}`;
