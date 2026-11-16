@@ -160,7 +160,17 @@
       "fileLabel": "Archivo: {name}",
       "videoLabel": "Video: {name}",
       "imageUnavailable": "No se pudo cargar esta imagen",
-      "imageUnavailableHelp": "El archivo no está en el almacenamiento o la subida no terminó. Volvé a subirla o borrá el bloque."
+      "imageUnavailableHelp": "El archivo no está en el almacenamiento o la subida no terminó. Volvé a subirla o borrá el bloque.",
+      "uploadingNamed": "Subiendo {name}",
+      "progressLabel": "Progreso de la subida de {name}",
+      "percent": "{percent}%",
+      "queued": "En espera",
+      "cancel": "Cancelar",
+      "cancelNamed": "Cancelar la subida de {name}",
+      "retry": "Reintentar",
+      "remove": "Quitar",
+      "removeNamed": "Quitar {name}",
+      "retryNamed": "Reintentar la subida de {name}"
     },
     "togglePlaceholder": "Desplegable",
     "calloutPlaceholder": "Escribí una nota…",
