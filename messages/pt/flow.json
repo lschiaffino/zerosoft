@@ -961,7 +961,7 @@
     "forbidden": "Quem criou este flow não pode editar essa página.",
     "locked": "A página está bloqueada. Desbloqueie no Docs para o flow poder alterá-la.",
     "no_flow_owner": "Quem criou este flow não está mais no workspace. Alguém que possa editá-lo precisa mudar um passo e salvá-lo, para que rode com o seu acesso.",
-    "missing_page": "Este passo não tem página. Escolha uma ou use uma variável como {{trigger.page.id}}.",
+    "missing_page": "Este passo não tem página. Escolha uma ou use uma variável como '{{trigger.page.id}}'.",
     "missing_content": "Este passo não tem conteúdo para escrever.",
     "missing_title": "Este passo não tem título.",
     "missing_database": "Este passo não tem banco. Escolha um no editor.",
@@ -1258,7 +1258,7 @@
     "noTemplate": "Sem modelo",
     "workspaceTemplates": "Modelos do workspace",
     "builtinTemplates": "Modelos integrados",
-    "templateHelp": "Variáveis como {{page.title}} no modelo são preenchidas com os dados do gatilho."
+    "templateHelp": "Variáveis como '{{page.title}}' no modelo são preenchidas com os dados do gatilho."
   },
   "folders": {
     "title": "Pastas",

@@ -961,7 +961,7 @@
     "forbidden": "The person who created this flow cannot edit that page.",
     "locked": "The page is locked. Unlock it in Docs so the flow can change it.",
     "no_flow_owner": "The person who created this flow is no longer in the workspace. Someone who can edit it has to change a step and save it, so it runs with their access.",
-    "missing_page": "This step has no page. Pick one or use a variable like {{trigger.page.id}}.",
+    "missing_page": "This step has no page. Pick one or use a variable like '{{trigger.page.id}}'.",
     "missing_content": "This step has no content to write.",
     "missing_title": "This step has no title.",
     "missing_database": "This step has no database. Pick one in the editor.",
@@ -1258,7 +1258,7 @@
     "noTemplate": "No template",
     "workspaceTemplates": "Workspace templates",
     "builtinTemplates": "Built-in templates",
-    "templateHelp": "Variables like {{page.title}} in the template are filled with the trigger data."
+    "templateHelp": "Variables like '{{page.title}}' in the template are filled with the trigger data."
   },
   "folders": {
     "title": "Folders",
