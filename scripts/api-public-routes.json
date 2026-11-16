@@ -28,6 +28,7 @@
   "app/api/crm/voice/events/route.ts": "webhook: verified signature or secret",
   "app/api/crm/voice/inbound/route.ts": "webhook: verified signature or secret",
   "app/api/crm/voice/twiml/route.ts": "webhook: verified signature or secret",
+  "app/api/csp-report/route.ts": "browser CSP violation reports: no account data, logged only",
   "app/api/cron/calls/route.ts": "cron: CRON_SECRET",
   "app/api/cron/minute/route.ts": "cron: CRON_SECRET",
   "app/api/cron/robots/route.ts": "cron: CRON_SECRET",
