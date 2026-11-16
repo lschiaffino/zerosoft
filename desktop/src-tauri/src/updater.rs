@@ -1,12 +1,17 @@
 //! Actualizaciones con el updater de Tauri. Feed: <servidor>/api/desktop/update/latest.json, que
 //! sirve el latest.json del último release desktop-v* de GitHub. Cada paquete viene firmado con la
 //! clave del updater (minisign, independiente de la firma de Apple): por eso también se actualiza
-//! en Mac con firma ad hoc.
+//! en Mac con firma ad hoc. Se baja en segundo plano y se instala al elegir "Reiniciar para
+//! actualizar" (en Mac también al salir de la app).
+//!
+//! En Mac no se instala con la app abierta: el updater reemplaza el paquete en el lugar, y macOS
+//! valida los permisos (Accesibilidad, micrófono) contra el código en disco. Con el paquete nuevo
+//! debajo del proceso viejo, `AXIsProcessTrusted` daba false hasta reiniciar aunque la llave
+//! siguiera prendida: el pegado dejaba de andar horas después de cada actualización.
 //!
 //! Sola: busca 20 s después de abrir y cada 4 horas, baja en segundo plano y avisa sin cortar nada
-//! (un aviso del sistema y "Reiniciar para actualizar" en los menús). En Mac la versión nueva queda
-//! instalada en el lugar y vale en el próximo arranque; en Windows el instalador corre al elegir
-//! "Reiniciar para actualizar".
+//! (un aviso del sistema y "Reiniciar para actualizar" en los menús). Se instala al elegir
+//! "Reiniciar para actualizar" (en Mac también al salir de la app).
 //!
 //! Desde el menú ("Buscar actualizaciones"): siempre contesta con un diálogo nativo (al día, bajando,
 //! lista para reiniciar o el error en palabras). Antes solo mandaba un aviso del sistema, que macOS
@@ -26,7 +31,7 @@ use tauri_plugin_updater::UpdaterExt;
 use crate::state::{AppState, Phase};
 use crate::strings::{fill, t};
 
-/// Windows: el instalador bajado espera al reinicio.
+/// La versión bajada espera al reinicio (Windows: el instalador; Mac: el paquete, también hasta salir).
 static DOWNLOADED: Mutex<Option<(tauri_plugin_updater::Update, Vec<u8>)>> = Mutex::new(None);
 
 /// Alguien eligió "Buscar actualizaciones" mientras ya se buscaba (o bajaba): la búsqueda en curso
@@ -157,8 +162,9 @@ fn log_check(app: &AppHandle, interactive: bool, result: crate::privacy::Tag) {
     crate::privacy::record(app, Event::new(Kind::UpdateCheck).trigger(if interactive { Tag::Manual } else { Tag::Auto }).result(result).host_of(&crate::api::server(app)));
 }
 
-/// Busca una versión nueva y, si hay, la baja (Mac: la deja instalada para el próximo arranque).
-/// `interactive`: lo pidió la persona (menú o Ajustes con el menú): se le contesta siempre.
+/// Busca una versión nueva y, si hay, la baja y la deja esperando ("Reiniciar para actualizar";
+/// en Mac también al salir). `interactive`: lo pidió la persona (menú o Ajustes): se avisa
+/// también si está al día.
 pub async fn check(app: &AppHandle, interactive: bool) {
     if !enabled(app) {
         if interactive {
@@ -242,14 +248,9 @@ async fn run(app: &AppHandle, interactive: bool) -> (Outcome, bool) {
         Ok(b) => b,
         Err(e) => return (failed(&e), false),
     };
-    if cfg!(target_os = "macos") {
-        // Reemplaza la app en el lugar: lo que corre sigue igual hasta el próximo arranque.
-        if let Err(e) = update.install(&bytes) {
-            return (failed(&e), false);
-        }
-    } else {
-        *DOWNLOADED.lock().unwrap() = Some((update, bytes));
-    }
+    // Mac: no se instala con la app abierta (los permisos se validan contra el código en disco);
+    // queda bajada para "Reiniciar para actualizar" o para cuando se cierre la app.
+    *DOWNLOADED.lock().unwrap() = Some((update, bytes));
     *app.state::<AppState>().update_ready.lock().unwrap() = Some(version.clone());
     (Outcome::Ready(version), true)
 }
@@ -260,10 +261,23 @@ pub fn restart_to_update(app: &AppHandle) {
         return tell(app, Outcome::Busy);
     }
     if let Some((update, bytes)) = DOWNLOADED.lock().unwrap().take() {
-        // Windows: corre el instalador (pasivo) y la app se cierra; el instalador la vuelve a abrir.
+        // Mac: reemplaza el paquete y el reinicio abre el nuevo. Windows: corre el instalador
+        // (pasivo) y la app se cierra; el instalador la vuelve a abrir.
         let _ = update.install(bytes);
     }
     app.restart();
+}
+
+/// Mac: al salir, instala la versión que quedó bajada (el próximo arranque ya es la nueva).
+pub fn install_on_exit() {
+    if !cfg!(target_os = "macos") {
+        return;
+    }
+    // try_lock: si otro hilo la tiene (un reinicio en curso), ese se encarga.
+    let taken = DOWNLOADED.try_lock().ok().and_then(|mut d| d.take());
+    if let Some((update, bytes)) = taken {
+        let _ = update.install(bytes);
+    }
 }
 
 pub fn start(app: &AppHandle) {
