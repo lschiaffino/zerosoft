@@ -516,5 +516,6 @@ a.asst-file:hover { border-color: var(--ink-2); }
   .asst-access-state { grid-column: 1; grid-row: 2; }
   .asst-access-row .btn { grid-column: 2; grid-row: 1 / span 2; }
 }
+
 /* Un error después de la barra (que usa el relleno de la tarjeta): con aire. */
 .asst-action > .form-error { margin: 12px 0 0; }
