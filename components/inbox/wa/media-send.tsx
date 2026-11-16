@@ -6,7 +6,11 @@ import type { MessageDto } from '@/lib/inbox/types';
 import { measureImage, newFiles, type TrayItem } from '@/components/groups/wa/attachments';
 import type { MenuItem } from '@/components/groups/wa/Menu';
 import AttachMenu, { type AttachMenuHandle } from '@/components/groups/wa/AttachMenu';
-import { SendIcon, Trash } from '@/components/groups/wa/icons';
+import { ClockIcon, Mic, Pause, SendIcon, Trash } from '@/components/groups/wa/icons';
+import { inboxVoicePayload, longEnough, recordedSoFar, recordedType } from '@/components/groups/wa/voice-later';
+import { api } from '../api';
+import { uploadInboxFile } from '../ScheduleDialog';
+import WhenDialog from '../WhenDialog';
 import { MEDIA_SEND_TIMEOUT_MS, inboxQueue, pendingSends, tempInboxMedia } from './pending';
 import { withTimeout } from '@/lib/conditional-fetch';
 import { TEMP_PREFIX, isOffline, localPreviews, mediaKindOf, newClientId, uploadProgress, type UnsentMedia, type UnsentMediaKind } from '@/lib/optimistic-send';
@@ -282,12 +286,45 @@ function recorderMime(): string {
 
 /**
  * Nota de voz como en WhatsApp Web: graba al tocar el micrófono, muestra el
- * tiempo, la papelera descarta y la flecha manda. Salir del chat descarta.
+ * tiempo, la papelera descarta y la flecha manda. Se puede pausar y seguir.
+ * El reloj la programa ("Enviar más tarde", como el del campo de texto): la
+ * grabación queda en pausa mientras se elige cuándo, y si se cierra el
+ * selector (Esc o clic afuera) sigue ahí, en pausa, sin perderse. Salir del
+ * chat descarta.
  */
-export function VoiceBar({ threadId, replyTo, onQueued, onError, onDone, onStart }: { threadId: string; replyTo?: string; /** La nota ya está en el chat (con el reloj): la grabadora se cierra y el envío sigue por detrás. */ onQueued: () => void; onError: (code: string) => void; onDone: () => void; onStart?: () => void }) {
+export function VoiceBar({
+  threadId,
+  replyTo,
+  onQueued,
+  onScheduled,
+  onError,
+  onDone,
+  onStart,
+}: {
+  threadId: string;
+  replyTo?: string;
+  /** La nota ya está en el chat (con el reloj): la grabadora se cierra y el envío sigue por detrás. */
+  onQueued: () => void;
+  /** La nota quedó programada para esa hora (ya está en la tira de programados). */
+  onScheduled: (iso: string) => void;
+  onError: (code: string) => void;
+  onDone: () => void;
+  onStart?: () => void;
+}) {
   const w = useTranslations('inboxWa');
   const [secs, setSecs] = useState(0);
-  const rec = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; started: number; send: boolean } | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [when, setWhen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const rec = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; started: number; carried: number; paused: boolean; mime: string; send: boolean } | null>(null);
+  // Un mismo intento de programar (doble clic, reintento) no deja dos programados.
+  const laterKey = useRef('');
+
+  /** Segundos grabados, sin contar las pausas. */
+  const recorded = () => {
+    const r = rec.current;
+    return r ? r.carried + (r.paused ? 0 : (Date.now() - r.started) / 1000) : 0;
+  };
 
   useEffect(() => {
     let alive = true;
@@ -306,7 +343,7 @@ export function VoiceBar({ threadId, replyTo, onQueued, onError, onDone, onStart
       }
       const mime = recorderMime();
       const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      const state = { rec: r, chunks: [] as Blob[], stream, started: Date.now(), send: false };
+      const state = { rec: r, chunks: [] as Blob[], stream, started: Date.now(), carried: 0, paused: false, mime, send: false };
       r.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
       r.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
@@ -314,9 +351,9 @@ export function VoiceBar({ threadId, replyTo, onQueued, onError, onDone, onStart
           onDone();
           return;
         }
-        const type = (r.mimeType || mime || 'audio/webm').split(';')[0];
+        const type = recordedType(r, mime);
         const blob = new Blob(state.chunks, { type });
-        const seconds = Math.max(1, Math.round((Date.now() - state.started) / 1000));
+        const seconds = Math.max(1, Math.round(state.carried));
         // La nota aparece ya en el chat, con el reloj y lista para escuchar; la grabadora se cierra y el envío sigue solo.
         sendInboxMedia({ threadId, file: blob, name: `voice.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'webm'}`, kind: 'voice', duration: seconds, replyTo, onError });
         onQueued();
@@ -327,10 +364,11 @@ export function VoiceBar({ threadId, replyTo, onQueued, onError, onDone, onStart
       onStart?.();
     })();
     const id = window.setInterval(() => {
-      if (!rec.current) return;
-      setSecs(Math.floor((Date.now() - rec.current.started) / 1000));
-      // "grabando" sigue mientras dure (quien lo recibe limita la frecuencia).
-      onStart?.();
+      const r = rec.current;
+      if (!r) return;
+      setSecs(Math.floor(r.carried + (r.paused ? 0 : (Date.now() - r.started) / 1000)));
+      // "grabando" sigue mientras dure (quien lo recibe limita la frecuencia); en pausa no.
+      if (!r.paused) onStart?.();
     }, 250);
     return () => {
       alive = false;
@@ -340,30 +378,90 @@ export function VoiceBar({ threadId, replyTo, onQueued, onError, onDone, onStart
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const pause = () => {
+    const r = rec.current;
+    if (!r || r.paused || r.rec.state !== 'recording') return;
+    r.rec.pause();
+    r.carried += (Date.now() - r.started) / 1000;
+    r.paused = true;
+    setPaused(true);
+  };
+  const resume = () => {
+    const r = rec.current;
+    if (!r || !r.paused || r.rec.state !== 'paused') return;
+    r.rec.resume();
+    r.started = Date.now();
+    r.paused = false;
+    setPaused(false);
+  };
+
   const stop = (send: boolean) => {
     const r = rec.current;
     if (!r) {
       onDone();
       return;
     }
+    if (!r.paused) r.carried += (Date.now() - r.started) / 1000;
+    r.paused = true;
     r.send = send;
     if (r.rec.state !== 'inactive') r.rec.stop();
   };
 
+  /** El reloj: la grabación queda en pausa y se elige cuándo sale. Menos de un segundo no se programa. */
+  const openLater = () => {
+    if (busy || !rec.current) return;
+    if (!longEnough(recorded())) {
+      onError('voice_too_short');
+      return;
+    }
+    pause();
+    laterKey.current = newClientId();
+    setWhen(true);
+  };
+
+  /** Sube lo grabado y lo programa. Recién cuando quedó programado se cierra la grabadora: si algo falla, la grabación sigue ahí, en pausa. */
+  const schedule = async (iso: string) => {
+    setWhen(false);
+    const r = rec.current;
+    if (!r || busy) return;
+    setBusy(true);
+    try {
+      const type = recordedType(r.rec, r.mime);
+      const file = await recordedSoFar(r.rec, r.chunks, type);
+      if (!file) throw new Error('voice_too_short');
+      const media = await uploadInboxFile(file);
+      const res = await api('/api/inbox/scheduled', { method: 'POST', json: inboxVoicePayload({ threadId, sendAt: iso, media, seconds: recorded(), replyTo, key: laterKey.current }) });
+      if (!res.ok) throw new Error(res.data.error || 'generic');
+    } catch (err) {
+      setBusy(false);
+      onError(err instanceof Error && err.message ? err.message : 'generic');
+      return;
+    }
+    onScheduled(iso);
+    stop(false);
+  };
+
   return (
-    <div className="wa-bar wa-recording" role="group" aria-label={w('recordVoice')}>
-      <button type="button" className="wa-icon-btn" onClick={() => stop(false)} aria-label={w('discardVoice')} title={w('discardVoice')}>
+    <div className="wa-bar wa-recording" role="group" aria-label={w('recordVoice')} aria-busy={busy || undefined}>
+      <button type="button" className="wa-icon-btn" onClick={() => stop(false)} disabled={busy} aria-label={w('discardVoice')} title={w('discardVoice')}>
         <Trash size={22} />
       </button>
-      <span className="wa-rec-dot" aria-hidden="true" />
+      <span className={`wa-rec-dot${paused ? ' is-paused' : ''}`} aria-hidden="true" />
       <span className="wa-rec-time" aria-live="off">
         {duration(secs)}
       </span>
-      <span className="sr-only">{w('recording')}</span>
-      <LiveWaveform stream={rec.current?.stream} />
-      <button type="button" className="wa-send" onClick={() => stop(true)} aria-label={w('sendVoice')} title={w('sendVoice')}>
+      <span className="sr-only">{paused ? w('voicePaused') : w('recording')}</span>
+      <LiveWaveform stream={rec.current?.stream} paused={paused} />
+      <button type="button" className="wa-icon-btn" onClick={paused ? resume : pause} disabled={busy} aria-label={paused ? w('voiceResume') : w('voicePause')} title={paused ? w('voiceResume') : w('voicePause')}>
+        {paused ? <Mic size={22} /> : <Pause size={22} />}
+      </button>
+      <button type="button" className="wa-icon-btn wa-later-btn" data-testid="inbox-voice-later" onClick={openLater} disabled={busy} aria-busy={busy || undefined} aria-label={w('voiceLater')} title={w('voiceLater')}>
+        <ClockIcon size={20} />
+      </button>
+      <button type="button" className="wa-send" onClick={() => stop(true)} disabled={busy} aria-label={w('sendVoice')} title={w('sendVoice')}>
         <SendIcon size={20} />
       </button>
+      <WhenDialog kind={when ? 'sendLater' : null} onPick={(iso) => void schedule(iso)} onClose={() => setWhen(false)} />
     </div>
   );
 }

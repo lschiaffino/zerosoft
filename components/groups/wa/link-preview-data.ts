@@ -38,6 +38,8 @@ const DATA_IMG = /^data:image\/(jpeg|png|webp|gif|x-icon|vnd\.microsoft\.icon);b
 export function safeImage(raw: string | undefined): string {
   if (!raw) return '';
   if (raw.startsWith('/api/wa/link-preview/image?')) return raw;
+  // La imagen grande que mandó WhatsApp, guardada con el mensaje (Inbox y Lines).
+  if (/^\/api\/(inbox|groups)\/media\/[A-Za-z0-9_-]+\?link=1$/.test(raw)) return raw;
   return raw.length < 2_000_000 && DATA_IMG.test(raw) ? raw : '';
 }
 
@@ -57,6 +59,23 @@ export function dataUrlSize(src: string | undefined): { width: number; height: n
   }
 }
 
+/**
+ * La vista previa que mandó WhatsApp guardada en el meta de un mensaje de
+ * Lines (`link`): la imagen grande por la ruta del mensaje si se bajó, si no
+ * la miniatura chica.
+ */
+export function linkFromMeta(meta: Record<string, unknown> | undefined | null): LinkPreviewData | null {
+  const l = meta?.link as { url?: unknown; title?: unknown; description?: unknown; thumb?: unknown; image?: unknown; imageWidth?: unknown; imageHeight?: unknown } | undefined;
+  if (!l || typeof l.url !== 'string' || typeof l.title !== 'string' || !l.title) return null;
+  const image = typeof l.image === 'string' ? l.image : '';
+  return {
+    url: l.url,
+    title: l.title,
+    ...(typeof l.description === 'string' ? { description: l.description } : {}),
+    ...(image ? { image, imageWidth: Number(l.imageWidth) || undefined, imageHeight: Number(l.imageHeight) || undefined } : typeof l.thumb === 'string' ? { image: l.thumb } : {}),
+  };
+}
+
 /** La vista previa que mandó WhatsApp, con las medidas de su miniatura. */
 export function fromGiven(given: LinkPreviewData | null | undefined): LinkPreviewData | null {
   if (!given?.title) return null;
@@ -71,6 +90,8 @@ export function fromGiven(given: LinkPreviewData | null | undefined): LinkPrevie
 export function pickPreview(given: LinkPreviewData | null, fetched: LinkPreviewData | null): LinkPreviewData | null {
   if (!given) return fetched?.title ? fetched : null;
   if (fetched?.title && linkLayout(fetched) === 'large' && linkLayout(given) !== 'large') return fetched;
+  // La de WhatsApp sin imagen (solo el nombre del sitio) y la del servidor con imagen: la del servidor.
+  if (fetched?.title && fetched.image && !given.image) return fetched;
   return given;
 }
 
@@ -78,6 +99,7 @@ export function pickPreview(given: LinkPreviewData | null, fetched: LinkPreviewD
 export function needsFetch(given: LinkPreviewData | null, pref: 'large' | 'compact' | 'off'): boolean {
   if (pref === 'off') return false;
   if (!given) return true;
+  if (!given.image) return true;
   return pref === 'large' && linkLayout(given) !== 'large';
 }
 

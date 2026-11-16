@@ -1,4 +1,5 @@
 import { after, NextResponse } from 'next/server';
+import { isFileUrlPath } from '@/lib/files/url';
 import { createBroadcast, listBroadcasts, listScheduledMessages, processBroadcasts } from '@/lib/groups-broadcasts';
 import { chatGuard, groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
 import { maskChat, visibleChatIds } from '@/lib/groups-access';
@@ -53,11 +54,13 @@ export async function POST(req: Request) {
       name: str(b.name, 120),
       body: str(b.body) ?? '',
       media:
-        m && typeof m.url === 'string' && /^(https:\/\/|\/uploads\/)/.test(m.url)
+        m && typeof m.url === 'string' && (isFileUrlPath(m.url) || /^(https:\/\/|\/uploads\/)/.test(m.url))
           ? {
-              // El proveedor baja la media de una URL pública: un /uploads/ se completa con el origen.
-              url: m.url.startsWith('/') ? `${(process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '')}${m.url}` : m.url,
-              mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file' }
+              // /api/files/… queda relativa (privada: al salir se manda en base64). Uno de antes en /uploads/ se completa con el origen.
+              url: isFileUrlPath(m.url) || !m.url.startsWith('/') ? m.url : `${(process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '')}${m.url}`,
+              mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file',
+              // Nota de voz grabada ("Enviar más tarde" desde la grabadora): sale como nota de voz.
+              ...(m.kind === 'voice' || m.voice === true ? { kind: 'voice' as const, duration: Number(m.duration) || 0 } : {}) }
           : null,
       chatIds: strArr(b.chatIds, 2000).filter((id) => !visible || visible.has(id)),
       poll: b.poll ?? null,

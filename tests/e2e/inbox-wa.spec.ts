@@ -216,9 +216,11 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   await incoming.getByRole('button', { name: 'React' }).click();
   await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
   await expect(incoming.locator('.ib-wa-reactions')).toContainText('🙏');
+  // El globito abre quién reaccionó; un clic en la propia la saca.
   await incoming.locator('.ib-wa-reactions').click();
-  await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
+  await page.getByTestId('wa-reactions-popover').getByTestId('wa-reactor-me').click();
   await expect(incoming.locator('.ib-wa-reactions')).toHaveCount(0);
+  await expect(page.getByTestId('wa-reactions-popover')).toBeHidden();
 
   // Editar lo propio: el campo trae el texto, Enter guarda y queda "Edited".
   await reply.hover();

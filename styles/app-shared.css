@@ -747,7 +747,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .chat-row-check { width: 40px !important; height: 40px !important; top: 4px !important; left: 10px !important; }
   .gr-ticket-title .ui-help a { display: inline-flex; align-items: center; min-height: 40px; }
   /* Links de tabla y listas de links: la línea entera es el objetivo. */
-  td > a.cell-link { display: inline-flex; align-items: center; min-height: 40px; }
+  td > a.cell-link { display: inline-flex; align-items: center; min-height: 40px; min-width: 40px; }
   :is(.gr-ticket-title a, .an-link) { display: inline-flex; align-items: center; min-height: 40px; }
   /* Atajos de llamar y escribir del CRM: visibles con el dedo (sin hover) y de 40px. */
   .cell-quick { display: inline-flex !important; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }

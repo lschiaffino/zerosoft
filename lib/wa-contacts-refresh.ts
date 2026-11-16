@@ -213,6 +213,8 @@ export async function refreshInboxDaily(now = new Date(), deadline = Date.now() 
       continue;
     }
     if (privacyStale((account as { privacy_at?: string | null }).privacy_at, now)) await refreshPrivacy('inbox', account.id, provider, now).catch(() => null);
+    // Las cuentas vinculadas antes de sumar un evento al webhook (GROUPS_UPSERT: grupos nuevos) lo reciben desde acá.
+    await provider.syncWebhookEvents?.().catch(() => false);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnFromHistoryContacts(account, rows),
@@ -295,6 +297,7 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
       continue;
     }
     if (privacyStale(number.privacy_at, now)) await refreshPrivacy('lines', number.id, provider, now).catch(() => null);
+    await provider.syncWebhookEvents?.().catch(() => false);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnLinesContacts(number, rows),

@@ -57,15 +57,49 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         }
         b = b.item(&MenuItem::with_id(app, "history", t(l, "historyItem"), true, None::<&str>)?).separator();
     }
-    if let Some(v) = st.update_ready.lock().unwrap().clone() {
-        b = b.item(&MenuItem::with_id(app, "restart-update", format!("{} ({v})", t(l, "restartToUpdate")), true, None::<&str>)?);
+    if let Some(item) = restart_item(app)? {
+        b = b.item(&item);
     }
     b.item(&MenuItem::with_id(app, "settings", t(l, "settings"), true, None::<&str>)?)
-        .item(&MenuItem::with_id(app, "check-updates", t(l, "checkUpdates"), true, None::<&str>)?)
+        .item(&check_item(app)?)
         .item(&MenuItem::with_id(app, "sign-out", t(l, "signOut"), true, None::<&str>)?)
         .separator()
         .item(&MenuItem::with_id(app, "quit", t(l, "quit"), true, None::<&str>)?)
         .build()
+}
+
+/// "Reiniciar para actualizar (vX)", si hay una versión bajada.
+fn restart_item(app: &AppHandle) -> tauri::Result<Option<MenuItem<Wry>>> {
+    let st = app.state::<AppState>();
+    let Some(v) = st.update_ready.lock().unwrap().clone() else { return Ok(None) };
+    MenuItem::with_id(app, "restart-update", format!("{} ({v})", t(st.locale, "restartToUpdate")), true, None::<&str>).map(Some)
+}
+
+/// "Buscar actualizaciones", o "Bajando vX…" mientras baja (elegirlo igual contesta al terminar).
+fn check_item(app: &AppHandle) -> tauri::Result<MenuItem<Wry>> {
+    let st = app.state::<AppState>();
+    let l = st.locale;
+    let downloading = {
+        let info = st.update.lock().unwrap();
+        let ready = st.update_ready.lock().unwrap().clone();
+        info.available.clone().filter(|v| info.checking && ready.as_deref() != Some(v.as_str()))
+    };
+    let label = match downloading {
+        Some(v) => fill(&t(l, "updateDownloadingMenu"), &[("v", &v)]),
+        None => t(l, "checkUpdates"),
+    };
+    MenuItem::with_id(app, "check-updates", label, true, None::<&str>)
+}
+
+/// Rearma la bandeja y el menú de la app (cambió el estado de la actualización).
+pub fn refresh_menus(app: &AppHandle) {
+    rebuild(app);
+    let a = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Ok(m) = app_menu(&a) {
+            let _ = a.set_menu(m);
+        }
+    });
 }
 
 pub fn on_menu(app: &AppHandle, id: &str) {
@@ -171,11 +205,15 @@ pub fn rebuild(app: &AppHandle) {
 pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let l = app.state::<AppState>().locale;
     let settings = MenuItem::with_id(app, "settings", t(l, "settings"), true, Some("CmdOrCtrl+,"))?;
-    let app_sub = SubmenuBuilder::new(app, "zerosoft")
+    let mut app_sub = SubmenuBuilder::new(app, "zerosoft")
         .item(&PredefinedMenuItem::about(app, None, None)?)
         .separator()
         .item(&settings)
-        .item(&MenuItem::with_id(app, "check-updates", t(l, "checkUpdates"), true, None::<&str>)?)
+        .item(&check_item(app)?);
+    if let Some(item) = restart_item(app)? {
+        app_sub = app_sub.item(&item);
+    }
+    let app_sub = app_sub
         .separator()
         .item(&PredefinedMenuItem::hide(app, None)?)
         .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -235,12 +273,9 @@ pub fn on_app_menu(app: &AppHandle, id: &str) {
     // Lo que no depende de una pestaña anda también sin ventanas abiertas.
     match id {
         "settings" => return crate::commands::open_settings_window(app, None),
-        "check-updates" => {
-            let app = app.clone();
-            tauri::async_runtime::spawn(async move { crate::updater::check(&app, true).await });
-            return;
-        }
-        "restart-update" => return crate::updater::restart_to_update(app),
+        // "check-updates" y "restart-update" los atiende on_menu: el manejador de la bandeja recibe
+        // los eventos de todos los menús (también este), y atenderlos acá los corría dos veces.
+        "check-updates" | "restart-update" => return,
         _ => {}
     }
     let Some(win) = crate::tabs::active_webview(app) else { return };

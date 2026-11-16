@@ -87,6 +87,15 @@ export const Smiley = (p: P) => (
     <path d="M9 9.8v.01M15 9.8v.01" strokeWidth={2.6} />
   </Svg>
 );
+/** Carita con un "+" (agregar una reacción), como el botón del cuadro de reacciones de WhatsApp. */
+export const SmileyPlus = (p: P) => (
+  <Svg {...p}>
+    <path d="M20.6 10.3A9 9 0 1 1 13.7 3.2" />
+    <path d="M7.8 14.2c.9 1.3 2.2 2 3.7 2s2.8-.7 3.7-2" />
+    <path d="M8.6 9.6v.01M14.4 9.6v.01" strokeWidth={2.6} />
+    <path d="M19 2.5v6M16 5.5h6" />
+  </Svg>
+);
 export const Plus = (p: P) => (
   <Svg strokeWidth={2} {...p}>
     <path d="M12 5v14M5 12h14" />

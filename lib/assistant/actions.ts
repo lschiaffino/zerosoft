@@ -25,6 +25,8 @@ export async function decideAction(opts: {
   id: string;
   decision: 'confirm' | 'cancel';
   typed?: string | null;
+  /** Tarjetas con más de una forma de confirmar (el permiso de leer chats: 'once' o 'always'). */
+  option?: string | null;
 }): Promise<{ action: ActionView } | { error: DecideError; action?: ActionView }> {
   const ctx = toolCtx(opts.user, opts.locale);
   const owner: AssistantOwner = { workspaceId: ctx.workspaceId, personId: ctx.personId };
@@ -51,7 +53,8 @@ export async function decideAction(opts: {
   }
   let result;
   try {
-    result = await def.execute(ctx, action.input);
+    // La charla y la opción elegida viajan a execute (el permiso "esta vez" vale para esta charla).
+    result = await def.execute({ ...ctx, conversationId: action.conversation_id ?? undefined }, { ...action.input, ...(opts.option ? { _option: opts.option } : {}) });
   } catch (err) {
     result = { ok: false, error: String(err instanceof Error ? err.message : err).slice(0, 200) };
   }
