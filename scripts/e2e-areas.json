@@ -44,7 +44,7 @@
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-gestures"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
@@ -89,7 +89,7 @@
   },
 
   "full-only": [
-    "api-cache-control", "apps-coming-soon", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
+    "api-cache-control", "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
     "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "qa-followups", "qa-polish",
     "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
   ]

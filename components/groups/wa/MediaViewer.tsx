@@ -7,6 +7,7 @@ import { parseDbUtc } from '@/lib/utils';
 import Avatar from './Avatar';
 import { Close, Download } from './icons';
 import { posterFrame } from './format';
+import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './backLayer';
 
 export interface ViewerItem {
   id: string;
@@ -43,6 +44,8 @@ export default function MediaViewer({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => setZoom(null), [index]);
+  // Teléfono: "atrás" cierra el visor y vuelve al chat.
+  useBackLayer(true, onClose, { enabled: useMediaQuery(TOUCH_QUERY) });
   const it = items[index];
 
   useEffect(() => {

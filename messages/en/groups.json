@@ -1896,6 +1896,11 @@
       "notSetupBody": "An admin adds a GIPHY or Tenor key to the server (GIPHY_API_KEY or TENOR_API_KEY). Emoji and stickers work as usual."
     },
     "openGif": "Open GIF",
+    "messagesN": "{n, plural, one {# message} other {# messages}}",
+    "deleteSelectedTitle": "{n, plural, one {Delete # message?} other {Delete # messages?}}",
+    "deleteSelectedForMe": "They disappear from this chat for you. The other people in the chat still have them.",
+    "deleteSelectedForAll": "They are deleted in WhatsApp for everyone in the chat.",
+    "deleteSelectedDone": "{n, plural, one {# message deleted} other {# messages deleted}}",
     "newSticker": "New sticker",
     "dictate": "Dictate",
     "cameraCapture": {
@@ -2003,6 +2008,7 @@
     "folderName": "Folder name",
     "foldersEmpty": "No folders yet. Create one to sort chats; everyone in the workspace sees the same folders.",
     "unfiled": "No folder",
+    "unfiledEmpty": "Every chat is in a folder",
     "folderUnread": "{n, plural, one {# unread chat} other {# unread chats}}",
     "folderOptions": "Options for folder {name}",
     "expand": "Expand {name}",
