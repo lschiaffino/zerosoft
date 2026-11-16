@@ -240,7 +240,9 @@ test('Inbox: Confirmar de posponer y Enviar llevan el color de la app', async ({
   await row.locator('.ib-row-btn').focus();
   await page.keyboard.press('h');
   const dialog = page.locator('dialog.ui-when[open]');
-  await expectAppAccent(dialog.locator('.btn-primary'));
+  // El selector nuevo (WhenPicker) muestra Confirmar en el paso del calendario.
+  await dialog.getByTestId('when-custom').click();
+  await expectAppAccent(dialog.locator('.ui-when-confirm'));
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 
