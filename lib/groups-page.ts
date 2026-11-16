@@ -46,13 +46,30 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     listPinned(ws, chatId),
     listTeams(ws),
   ]);
+  // Las personas de las tarjetas de contacto (vCard) en la pantalla: sus fotos, como en WhatsApp.
+  const { cardPhones } = await import('./wa-contact-pictures');
+  const cards = cardPhones(messages.map((m) => m.contacts)).filter((p) => p !== number?.phone);
   // Grupo: las fotos de perfil de quienes escriben (los de la pantalla primero) y del resto, después de responder.
   if (raw.kind === 'group' && number?.status === 'connected') {
     const { refreshPicturesSoon } = await import('./wa-contact-pictures');
     const { providerFor } = await import('./groups');
     const senders = messages.filter((m) => m.direction === 'in' && m.senderPhone).map((m) => m.senderPhone).reverse();
-    const phones = [...senders, ...members.map((m) => m.phone)].filter((p) => p !== number.phone);
+    const phones = [...cards, ...senders, ...members.map((m) => m.phone)].filter((p) => p !== number.phone);
     await refreshPicturesSoon({ app: 'lines', accountId: number.id, userId: number.user_id }, () => providerFor(number), phones).catch(() => null);
+  }
+  // 1:1: la foto de la persona si todavía no hay o venció (antes solo llegaba con la importación o el repaso diario).
+  if (raw.kind === 'dm' && number?.status === 'connected') {
+    const { dmPerson, refreshDmPictureSoon } = await import('./wa-contact-pictures');
+    const { getChatRow, providerFor } = await import('./groups');
+    const row = await getChatRow(ws, chatId);
+    if (row) {
+      await refreshDmPictureSoon({ app: 'lines', accountId: number.id, userId: number.user_id }, () => providerFor(number), dmPerson(row.phone, row.provider_chat_id), {
+        // Avisa a las pantallas abiertas (la lista y el chat la muestran sin recargar). Solo ids.
+        onChange: () =>
+          db.prepare("INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) VALUES ('lines', ?, ?, ?)").run(row.user_id, row.id, row.number_id),
+        alsoPhones: cards,
+      }).catch(() => null);
+    }
   }
   const contact = chat.crmContactId
     ? ((await db

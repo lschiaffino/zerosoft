@@ -68,9 +68,12 @@ export async function GET(req: NextRequest) {
   const status = await import('@/lib/status/store')
     .then(async (m) => m.runStatusCron({ runChecks: (await import('@/lib/status/checks')).runChecks }))
     .catch(() => null);
+  // Voice: mantener despierta la función del dictado (GET sin sesión, 204) para que el primer dictado no espere el arranque en frío.
+  const voiceWarm = fetch(new URL('/api/voice/dictate', req.nextUrl.origin), { cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
+  await voiceWarm;
   // Send: descargas vencidas, resúmenes de avisos y sobras. El render va en /api/cron/send-render.
   await import('@/lib/send/viewer').then((m) => Promise.all([m.purgeDownloadCache(), m.flushAlertDigests()])).catch(() => null);
   await import('@/lib/send/core').then((m) => m.purgeSendLeftovers()).catch(() => null);
