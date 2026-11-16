@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync } from 'fs';
+import { mkdtempSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +12,11 @@ import { cancelBatch, cleanParts, createBatch } from '@/lib/inbox/schedule';
 import { scheduledCreateSchema } from '@/lib/inbox/schemas';
 import { sendScheduledNow } from '@/lib/inbox/send';
 import { connectWhatsapp } from '@/lib/inbox/whatsapp';
-import { localUploadPath, saveUpload } from '@/lib/uploads';
+import { saveUpload } from '@/lib/uploads';
+import { fileRowForUrl } from '@/lib/files/store';
+
+/** ¿Sigue guardado el archivo? (storage privado: la fila de /api/files). */
+const stored = async (url: string) => (await fileRowForUrl(url)) !== null;
 import { makeUser } from './helpers';
 
 /**
@@ -89,7 +93,7 @@ async function inboxChat() {
   return { owner, account, thread, sent };
 }
 
-const inboxVoice = async () => ({ url: await saveUpload('inbox', 'voice-note.weba', 'audio/webm', AUDIO), name: 'voice-note.weba', type: 'audio/webm', voice: true, duration: 5 });
+const inboxVoice = async (owner: string) => ({ url: await saveUpload('inbox', 'voice-note.weba', 'audio/webm', AUDIO, { workspaceId: owner, userId: owner, app: 'inbox', access: 'user' }), name: 'voice-note.weba', type: 'audio/webm', voice: true, duration: 5 });
 
 describe('Inbox: nota de voz programada', () => {
   it('una nota de voz es un audio de al menos un segundo, sin texto', () => {
@@ -106,10 +110,10 @@ describe('Inbox: nota de voz programada', () => {
     const { owner, thread, sent } = await inboxChat();
     await addMessage(thread, { externalId: 'wa-cita-1', fromMe: false, body: 'una pregunta', status: 'received' });
     const quoted = (await getDb().prepare("SELECT id FROM inbox_messages WHERE thread_id = ? AND external_id = 'wa-cita-1'").get(thread.id)) as { id: string };
-    const media = await inboxVoice();
+    const media = await inboxVoice(owner);
     const [s] = await createBatch(owner, { threadId: thread.id, sendAt: inHours(3), parts: [{ body: '', media, replyTo: quoted.id }], key: 'k-voz-ahora-1' });
     expect(s).toMatchObject({ body: '', mediaVoice: true, mediaDuration: 5, mediaType: 'audio/webm', replyTo: quoted.id, status: 'pending' });
-    expect(existsSync(localUploadPath(media.url, 'inbox')!)).toBe(true);
+    expect(await stored(media.url)).toBe(true);
 
     // Cambiar la hora (Editar) no toca el audio.
     await updateScheduled(owner, s.id, { sendAt: inHours(5) });
@@ -123,27 +127,27 @@ describe('Inbox: nota de voz programada', () => {
     expect(JSON.parse(msg.meta)).toMatchObject({ ptt: true, duration: 5, mime: 'audio/webm' });
     expect(msg.media_ref).toContain('providerMessageId');
     expect(await listScheduled(owner, thread.id)).toEqual([]);
-    expect(existsSync(localUploadPath(media.url, 'inbox')!)).toBe(false);
+    expect(await stored(media.url)).toBe(false);
   });
 
   it('la cita tiene que ser de ese chat', async () => {
     const { owner, thread } = await inboxChat();
-    await expect(createBatch(owner, { threadId: thread.id, sendAt: inHours(3), parts: [{ body: '', media: await inboxVoice(), replyTo: 'ibm_de_otro' }] })).rejects.toThrow(/not_found/);
+    await expect(createBatch(owner, { threadId: thread.id, sendAt: inHours(3), parts: [{ body: '', media: await inboxVoice(owner), replyTo: 'ibm_de_otro' }] })).rejects.toThrow(/not_found/);
   });
 
   it('con la línea desconectada queda como no enviada (con el audio, para reintentar); cancelar borra el audio', async () => {
     const { owner, account, thread, sent } = await inboxChat();
-    const media = await inboxVoice();
+    const media = await inboxVoice(owner);
     const [s] = await createBatch(owner, { threadId: thread.id, sendAt: inHours(3), parts: [{ body: '', media }] });
     await getDb().prepare("UPDATE inbox_accounts SET status = 'disconnected' WHERE id = ?").run(account.id);
     expect(await sendScheduledNow(s.id)).toMatchObject({ sent: 0, failed: 1 });
     expect(sent()).toEqual([]);
     expect((await listScheduled(owner, thread.id))[0]).toMatchObject({ status: 'failed', error: 'not_connected', mediaVoice: true });
-    expect(existsSync(localUploadPath(media.url, 'inbox')!)).toBe(true);
+    expect(await stored(media.url)).toBe(true);
 
     await cancelBatch(owner, s.id);
     expect(await listScheduled(owner, thread.id)).toEqual([]);
-    expect(existsSync(localUploadPath(media.url, 'inbox')!)).toBe(false);
+    expect(await stored(media.url)).toBe(false);
   });
 });
 
@@ -162,9 +166,9 @@ async function linesChat(label: string) {
   return { user, numberId: n.id, chat, inboundId: inbound.id };
 }
 
-async function linesVoice() {
-  const local = await saveUpload('chat', 'voice-note.weba', 'audio/webm', AUDIO);
-  return { local, media: { url: `https://app.example${local}`, mimetype: 'audio/webm', filename: 'voice-note.weba', kind: 'voice' as const, duration: 7 } };
+async function linesVoice(ws: string) {
+  const local = await saveUpload('chat', 'voice-note.weba', 'audio/webm', AUDIO, { workspaceId: ws, userId: ws, app: 'groups', access: 'user' });
+  return { local, media: { url: local, mimetype: 'audio/webm', filename: 'voice-note.weba', kind: 'voice' as const, duration: 7 } };
 }
 
 describe('Lines: nota de voz programada', () => {
@@ -184,7 +188,7 @@ describe('Lines: nota de voz programada', () => {
 
   it('queda en la tira como nota de voz con su duración y la cita; "Enviar ahora" la manda como nota de voz', async () => {
     const { user, numberId, chat, inboundId } = await linesChat('voice-later-lines');
-    const { media } = await linesVoice();
+    const { media } = await linesVoice(user.id);
     const b = await createBroadcast(user.id, user.id, { body: 'no va', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media, replyToId: inboundId });
     expect(b).toMatchObject({ body: '', replyToId: inboundId, media: { type: 'audio/webm', kind: 'voice', duration: 7 } });
     const [listed] = await listScheduledMessages(user.id, user.id, { chatId: chat.id });
@@ -206,26 +210,26 @@ describe('Lines: nota de voz programada', () => {
 
   it('cancelar (o deshacer) borra el audio guardado; el de un archivo común no se toca', async () => {
     const { user, chat } = await linesChat('voice-later-cancel');
-    const a = await linesVoice();
+    const a = await linesVoice(user.id);
     const cancelled = await createBroadcast(user.id, user.id, { body: '', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media: a.media });
-    expect(existsSync(localUploadPath(a.local, 'chat')!)).toBe(true);
+    expect(await stored(a.local)).toBe(true);
     await cancelBroadcast(user.id, cancelled.id);
-    expect(existsSync(localUploadPath(a.local, 'chat')!)).toBe(false);
+    expect(await stored(a.local)).toBe(false);
 
-    const b = await linesVoice();
+    const b = await linesVoice(user.id);
     const undone = await createBroadcast(user.id, user.id, { body: '', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media: b.media });
     expect(await deleteBroadcast(user.id, undone.id)).toBe(true);
-    expect(existsSync(localUploadPath(b.local, 'chat')!)).toBe(false);
+    expect(await stored(b.local)).toBe(false);
 
-    const file = await saveUpload('chat', 'lista.pdf', 'application/pdf', Buffer.from('pdf'));
-    const plain = await createBroadcast(user.id, user.id, { body: 'la lista', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media: { url: `https://app.example${file}`, mimetype: 'application/pdf', filename: 'lista.pdf' } });
+    const file = await saveUpload('chat', 'lista.pdf', 'application/pdf', Buffer.from('pdf'), { workspaceId: user.id, userId: user.id, app: 'groups', access: 'user' });
+    const plain = await createBroadcast(user.id, user.id, { body: 'la lista', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media: { url: file, mimetype: 'application/pdf', filename: 'lista.pdf' } });
     await cancelBroadcast(user.id, plain.id);
-    expect(existsSync(localUploadPath(file, 'chat')!)).toBe(true);
+    expect(await stored(file)).toBe(true);
   });
 
   it('con la línea desconectada el envío queda como fallido', async () => {
     const { user, numberId, chat } = await linesChat('voice-later-off');
-    const { media } = await linesVoice();
+    const { media } = await linesVoice(user.id);
     const b = await createBroadcast(user.id, user.id, { body: '', chatIds: [chat.id], kind: 'scheduled', scheduledAt: inHours(4), media });
     const s = (globalThis as unknown as { __groupsFake: Map<string, { connectedAt: number | null }> }).__groupsFake.get(numberId)!;
     s.connectedAt = null;

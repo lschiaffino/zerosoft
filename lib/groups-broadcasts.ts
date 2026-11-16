@@ -123,6 +123,20 @@ export interface CreateBroadcastInput {
   replyToId?: string | null;
 }
 
+/**
+ * El archivo de un programado o envío masivo, si es de /api/files: tiene que
+ * ser de este workspace y queda visible para quienes ven esa línea (lo ven en
+ * la lista de programados); al salir se manda en base64, nunca por una URL
+ * pública.
+ */
+export async function shareScheduledMedia(ws: string, numberId: string, url: string | null | undefined): Promise<void> {
+  if (!url) return;
+  const { fileIdFromUrl, shareFileWith } = await import('./files/store');
+  // También una URL absoluta de nuestro dominio: si apunta a /api/files, el archivo tiene que ser de acá.
+  if (!fileIdFromUrl(url)) return;
+  if (!(await shareFileWith(url, { workspaceId: ws }, { app: 'groups', scope: `groups-number:${numberId}` }))) throw new GroupsError('invalid_media', 400);
+}
+
 export async function createBroadcast(ws: string, actor: string, input: CreateBroadcastInput): Promise<BroadcastDto> {
   let poll: PollInput | null = null;
   if (input.poll != null && input.poll !== '') {
@@ -159,6 +173,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
     if (t > Date.now() + 366 * 86_400_000) throw new GroupsError('invalid_date');
     scheduled = new Date(Math.max(t, Date.now()));
   }
+  await shareScheduledMedia(ws, numberId, input.media?.url);
   const id = randomUUID();
   const now = nowIso();
   const kind = input.kind === 'scheduled' ? 'scheduled' : 'broadcast';
@@ -225,8 +240,11 @@ export function voiceOf(media: CreateBroadcastInput['media'], poll = false): { d
  * programado y de nadie más (el de un envío común puede venir de uno que se
  * repite). La URL guardada es absoluta: una subida local vuelve a /uploads/….
  */
-async function dropVoiceUpload(row: Pick<BroadcastRow, 'media_kind' | 'media_url'> | null): Promise<void> {
+async function dropVoiceUpload(row: Pick<BroadcastRow, 'media_kind' | 'media_url' | 'user_id'> | null): Promise<void> {
   if (!row || row.media_kind !== 'voice' || !row.media_url) return;
+  // Un archivo de /api/files: solo si es de este workspace (se chequeó al programar; se vuelve a mirar al borrar).
+  const { fileIdFromUrl, ownedFileRow } = await import('./files/store');
+  if (fileIdFromUrl(row.media_url) && !(await ownedFileRow(row.media_url, { workspaceId: row.user_id }))) return;
   let ref = row.media_url;
   try {
     const u = new URL(row.media_url);
