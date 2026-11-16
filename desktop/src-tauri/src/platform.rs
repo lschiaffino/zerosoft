@@ -340,6 +340,58 @@ pub fn classify_requirement(text: &str) -> &'static str {
     }
 }
 
+/// El ejecutable en disco: dispositivo, inodo y última modificación.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(unix), allow(dead_code))]
+pub struct ExeStamp {
+    dev: u64,
+    ino: u64,
+    mtime: i64,
+}
+
+pub fn exe_stamp(path: &std::path::Path) -> Option<ExeStamp> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let m = std::fs::metadata(path).ok()?;
+        Some(ExeStamp { dev: m.dev(), ino: m.ino(), mtime: m.mtime() })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+/// El ejecutable con que arrancó este proceso (`note_launch`).
+static LAUNCH_EXE: std::sync::OnceLock<Option<(std::path::PathBuf, ExeStamp)>> = std::sync::OnceLock::new();
+
+/// Anota el ejecutable de este arranque. Va primero en `run`, antes que nada pueda reemplazarlo.
+pub fn note_launch() {
+    LAUNCH_EXE.get_or_init(|| {
+        let path = std::env::current_exe().ok()?;
+        let stamp = exe_stamp(&path)?;
+        Some((path, stamp))
+    });
+}
+
+/// La app en disco ya no es la que corre: una actualización (o una copia nueva arrastrada a
+/// Aplicaciones) reemplazó el paquete con la app abierta. macOS valida los permisos de privacidad
+/// (TCC) contra el código en disco, y como no coincide con el proceso, Accesibilidad da false
+/// aunque la llave esté prendida y prenderla no cambia nada. Se arregla reiniciando la app;
+/// "Restablecer permiso" en ese estado borra la entrada buena.
+pub fn replaced_on_disk() -> bool {
+    match LAUNCH_EXE.get() {
+        Some(Some((path, launch))) => stamp_changed(*launch, exe_stamp(path)),
+        _ => false,
+    }
+}
+
+/// Distinto, o ya no está (se movió o se borró la app): tampoco es lo que corre.
+pub fn stamp_changed(launch: ExeStamp, now: Option<ExeStamp>) -> bool {
+    now != Some(launch)
+}
+
 /// Nombre de la app de adelante (Mac, con lsappinfo: no pide permiso de automatización).
 pub fn frontmost_app() -> String {
     #[cfg(target_os = "macos")]
@@ -510,6 +562,25 @@ mod tests {
         assert_eq!(tcc_service("screen"), Some("ScreenCapture"));
         assert_eq!(tcc_service("accessibility"), Some("Accessibility"));
         assert_eq!(tcc_service("all"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_bundle_swapped_under_the_running_app_is_noticed() {
+        // Como el updater: la versión nueva se escribe al lado y se mueve encima con un rename.
+        let dir = std::env::temp_dir().join(format!("zs-exe-stamp-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("zerosoft");
+        std::fs::write(&exe, b"0.3.9").unwrap();
+        let launch = exe_stamp(&exe).unwrap();
+        assert!(!stamp_changed(launch, exe_stamp(&exe)), "sin tocar, es la misma");
+        let staged = dir.join("zerosoft.new");
+        std::fs::write(&staged, b"0.3.10").unwrap();
+        std::fs::rename(&staged, &exe).unwrap();
+        assert!(stamp_changed(launch, exe_stamp(&exe)), "reemplazada en el lugar");
+        std::fs::remove_file(&exe).unwrap();
+        assert!(stamp_changed(launch, exe_stamp(&exe)), "ya no está");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
