@@ -850,7 +850,7 @@ const WaConversation = forwardRef<
               ) : !url ? (
                 <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} thumbnail={meta.thumb} />
               ) : kind === 'image' || sticker ? (
-                <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
+                <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} caption={!sticker && Boolean(m.body?.trim())} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' && meta.animated ? (
                 <GifView url={url} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (

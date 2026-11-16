@@ -745,6 +745,13 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic;
   }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
+  // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
+  if (row.kind === 'dm' && !dto.phone && isLidJid(row.provider_chat_id)) {
+    const { phoneForLid } = await import('./wa-contacts');
+    const { contactPhone } = await import('./wa-contact-phone');
+    const lidPhone = await phoneForLid({ app: 'lines', accountId: row.number_id }, lidDigits(row.provider_chat_id)).catch(() => '');
+    dto.phone = contactPhone({ phone: '', chatId: row.provider_chat_id, lidPhone });
+  }
   if (dto.lastMessagePreview.includes('@')) {
     const { mentionSelf, resolveTextMentions, someoneWord } = await import('./wa-contacts');
     dto.lastMessagePreview = (
@@ -2313,7 +2320,13 @@ async function sendMediaMessage(
   let status = 'sent';
   let error = '';
   try {
-    const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
+    // Un sticker en el Blob también va en bytes: así Evolution lo manda tal cual (animado) en vez de convertirlo.
+    const bytes = local
+      ? await (await import('fs/promises')).readFile(local.path)
+      : kind === 'sticker' && bridged
+        ? await (await import('./wa-stickers')).readStoredUpload(media.url).catch(() => null)
+        : null;
+    const base64 = bytes ? bytes.toString('base64') : undefined;
     const res = await provider.sendMedia(chat.provider_chat_id, {
       url: media.url,
       mimetype: media.mimetype,
@@ -2388,8 +2401,14 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
       const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
       const local = bridged ? await localChatUpload(row.media_url) : null;
-      const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
       const kind = stored?.kind ?? planOutboundKind(row.media_type, local?.size ?? stored?.size, null);
+      // Un sticker en el Blob también va en bytes: así Evolution lo manda tal cual (animado) en vez de convertirlo.
+      const bytes = local
+        ? await (await import('fs/promises')).readFile(local.path)
+        : kind === 'sticker' && bridged
+          ? await (await import('./wa-stickers')).readStoredUpload(row.media_url).catch(() => null)
+          : null;
+      const base64 = bytes ? bytes.toString('base64') : undefined;
       providerId =
         (
           await provider.sendMedia(chat.provider_chat_id, {

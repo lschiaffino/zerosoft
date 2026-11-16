@@ -18,6 +18,7 @@ import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-me
 import { linkHqOf } from './wa-link-thumb';
 import {
   evolutionFileName,
+  evolutionStickerBody,
   infoFromBaileys,
   locationFrom,
   parseVcard,
@@ -1575,7 +1576,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
      * Media según el tipo (lib/groups-media.ts), contra Evolution v2.3:
      * - nota de voz: /message/sendWhatsAppAudio con encoding (Evolution la
      *   convierte a OGG/Opus con ffmpeg: sirve el webm del navegador);
-     * - sticker: /message/sendSticker (Evolution la pasa a WebP);
+     * - sticker: /message/sendSticker; un WebP en base64 sale tal cual, sin la
+     *   conversión de Evolution que lo dejaba quieto (evolutionStickerBody);
      * - imagen, video, audio y documento: /message/sendMedia. Evolution saca el
      *   mimetype del nombre del archivo, así que el nombre lleva la extensión.
      * El archivo va como URL pública o, si no hay, en base64.
@@ -1588,7 +1590,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (kind === 'voice') {
         r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...quoted })) as Json;
       } else if (kind === 'sticker') {
-        r = (await mediaApi(`/message/sendSticker/${instance}`, { number: chatId, sticker: source, ...quoted })) as Json;
+        r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...quoted })) as Json;
       } else {
         const fileName = evolutionFileName(media.filename, media.mimetype, kind);
         r = (await mediaApi(`/message/sendMedia/${instance}`, {

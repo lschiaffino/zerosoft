@@ -259,6 +259,8 @@
     "unread": "Unread",
     "pin": "Pin",
     "unpin": "Unpin",
+    "snooze": "Snooze",
+    "unsnooze": "Unsnooze",
     "more": "More",
     "archive": "Archive",
     "unarchive": "Unarchive",
