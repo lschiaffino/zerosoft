@@ -349,7 +349,13 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
     if (!Number.isFinite(at.getTime()) || at.getTime() <= now.getTime()) continue;
     const t = await threadFor(account, cache, s.chatId);
     if (!t) continue;
-    await db.prepare('UPDATE inbox_threads SET snoozed_until = ?, done_at = NULL WHERE id = ?').run(at.toISOString(), t.id);
+    // Pospuesto es archivado hasta que vuelve (como al posponer acá). Al teléfono no se le manda nada desde una importación.
+    await db
+      .prepare(
+        `UPDATE inbox_threads SET snoozed_until = ?, snooze_archived = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN 1 ELSE snooze_archived END,
+           archived_at = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN ? ELSE archived_at END WHERE id = ?`,
+      )
+      .run(at.toISOString(), now.toISOString(), t.id);
     out.snoozes++;
   }
 

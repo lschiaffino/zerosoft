@@ -53,6 +53,15 @@ export function longWhen(iso: string | null, locale: string): string {
   return d.toLocaleString(locale, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+/** Una fecha por venir, corta para una etiqueta en la fila: "lun 08:00" si es en la semana, si no "22 nov". */
+export function aheadWhen(iso: string | null, locale: string, now = new Date()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const soon = d.getTime() - now.getTime() < 6 * 86_400_000;
+  return soon ? d.toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+}
+
 /** Valor para <input type="datetime-local"> en la zona del navegador. */
 export function localInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');

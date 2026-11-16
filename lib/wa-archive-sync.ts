@@ -144,6 +144,38 @@ export function sendUnarchiveMark(app: ArchiveApp, chatWhere: string, whereArgs:
   };
 }
 
+/**
+ * Un mensaje que llega a un chat pospuesto lo trae de vuelta (termina el pospuesto y lo saca de Archivados). Si fue
+ * el pospuesto el que lo archivó, el desarchivado también va a WhatsApp: con "mantener archivados" el teléfono lo deja
+ * archivado aunque llegue el mensaje. Queda como pedido pendiente, en la misma ida a la base que el mensaje y ANTES de
+ * tocar el chat; lo manda el cron del minuto. Si el teléfono ya lo desarchivó solo, su aviso coincide con lo de acá y
+ * no cambia nada. `chatWhere` elige el chat (alias c).
+ */
+export function snoozeWakeMark(app: ArchiveApp, chatWhere: string, whereArgs: Array<string | number>, at = new Date().toISOString()): BatchStatement {
+  const snoozed = 'c.snoozed_until IS NOT NULL AND c.snooze_archived = 1 AND c.archived_at IS NOT NULL';
+  const from =
+    app === 'inbox'
+      ? `SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, NULL, '' FROM inbox_threads c WHERE c.channel = 'whatsapp' AND ${snoozed}`
+      : `SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, NULL, '' FROM groups_chats c WHERE ${snoozed}`;
+  return {
+    sql: `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
+       ${from} AND ${chatWhere}
+       ON CONFLICT(app, chat_id) DO UPDATE SET prev_archived = wa_archive_push.archived, prev_at = wa_archive_push.requested_at,
+         archived = 0, scope_id = excluded.scope_id, version = wa_archive_push.version + 1, requested_at = excluded.requested_at,
+         attempts = 0, next_at = excluded.next_at, claimed_until = NULL, done_at = NULL, last_error = ''`,
+    args: [at, at, ...whereArgs],
+  };
+}
+
+/** Anota y manda lo que se pueda ya, sin esperar el ritmo (lo demás, el cron). Para el cron que despierta pospuestos. */
+export async function queueAndFlushArchivePush(app: ArchiveApp, scopeId: string, chatIds: string[], archived: boolean, now = new Date()): Promise<void> {
+  if (!chatIds.length) return;
+  await queueArchivePush(app, scopeId, chatIds, archived, now);
+  for (const id of [...new Set(chatIds)].slice(0, 20)) {
+    await flushArchivePush(app, id, () => Math.max(Date.now(), now.getTime())).catch((err) => logFailure(app, 'flush_error', err));
+  }
+}
+
 export async function getArchivePush(app: ArchiveApp, chatId: string): Promise<PushRow | undefined> {
   return (await getDb().prepare('SELECT * FROM wa_archive_push WHERE app = ? AND chat_id = ?').get(app, chatId)) as PushRow | undefined;
 }

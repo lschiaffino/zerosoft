@@ -181,6 +181,8 @@
 .gr-row-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gr-row-sender { flex: none; }
 .gr-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
+/* Pospuesto: el reloj en la fila de Archivados (la hora va en el title y en la etiqueta del ícono). */
+.gr-row-snoozed { display: inline-flex; align-items: center; }
 .gr-inbox .gr-pin-icon { margin: 0; color: var(--wa-text-2); }
 .gr-inbox .gr-unread {
   margin: 0; min-width: 18px; height: 18px; padding: 0 5px; font-family: var(--wa-font); font-size: var(--wa-fs-meta); font-weight: 500; line-height: 18px;

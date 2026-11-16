@@ -1,6 +1,6 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
-  "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
+  "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "snooze": "Posponer…", "unsnooze": "Cancelar pospuesto", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
   "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo", "analytics": "Analítica" },
   "views": {
     "inbox": "Bandeja",
@@ -83,6 +83,7 @@
     "importClose": "Cerrar",
     "group": "Grupo",
     "snoozedUntil": "Pospuesto hasta {when}",
+    "snoozedShort": "Pospuesto · {when}",
     "followUpAt": "Recordatorio {when}",
     "archivedEntry": "Archivados",
     "archivedBack": "Volver a la bandeja",

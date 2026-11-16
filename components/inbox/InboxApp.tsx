@@ -10,6 +10,7 @@ import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
+import { aheadWhen } from '@/lib/when-presets';
 import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
@@ -75,9 +76,10 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   reply: ['done', 'snooze', 'archive'],
   waiting: ['done', 'snooze', 'archive'],
   pinned: ['unpin', 'archive'],
+  // Posponer archiva: en Archivados el chat pospuesto sigue ahí; sacarlo de Archivados cancela el pospuesto.
   archived: ['unarchive', 'undone'],
-  snoozed: ['unsnooze', 'done'],
-  done: ['undone', 'unarchive', 'snooze'],
+  snoozed: ['unsnooze', 'done', 'unarchive', 'undone'],
+  done: ['undone', 'unarchive'],
   // "Sin carpeta": sumarlo a una carpeta también lo saca de la lista.
   nofolder: ['done', 'snooze', 'archive', 'addFolder'],
 };
@@ -686,12 +688,15 @@ export default function InboxApp(props: {
   const runAction = useCallback(
     async (ids: string[], action: ThreadAction, opts: { silent?: boolean } = {}): Promise<boolean> => {
       if (!ids.length) return false;
-      const r = await api('/api/inbox/threads', { method: 'POST', json: { ids, ...action } });
-      if (!r.ok) {
-        toast(errText(r.data.error), { bad: true });
-        return false;
-      }
+      // Lo que saca el chat de la vista se ve al instante, antes de que conteste el servidor (si falla, la lista se relee).
       const leaves = !q && (folder ? ['done', 'snooze', 'archive'] : (LEAVES[view] ?? [])).includes(action.action);
+      if (action.action === 'snooze') {
+        // Posponer archiva: Pospuestos y Archivados suben ya (el servidor confirma después).
+        const fresh = threads.filter((x) => ids.includes(x.id));
+        const newly = fresh.filter((x) => !x.snoozedUntil).length;
+        const toArchive = fresh.filter((x) => !x.archived && !x.done).length;
+        setState((st) => ({ ...st, counts: { ...st.counts, snoozed: (st.counts.snoozed ?? 0) + newly, archived: (st.counts.archived ?? 0) + toArchive } }));
+      }
       if (leaves) {
         const idx = threads.findIndex((x) => ids.includes(x.id));
         const rest = threads.filter((x) => !ids.includes(x.id));
@@ -707,9 +712,17 @@ export default function InboxApp(props: {
           }
         }
         setCursor(Math.min(Math.max(idx, 0), Math.max(rest.length - 1, 0)));
-      } else {
-        void reloadList();
       }
+      const r = await api('/api/inbox/threads', { method: 'POST', json: { ids, ...action } });
+      if (!r.ok) {
+        toast(errText(r.data.error), { bad: true });
+        if (leaves || action.action === 'snooze') {
+          void reloadList();
+          void reloadState();
+        }
+        return false;
+      }
+      if (!leaves) void reloadList();
       if (openId && ids.includes(openId)) void loadDetail(openId, true);
       void reloadState();
       notifyInboxChanged();
@@ -1098,6 +1111,9 @@ export default function InboxApp(props: {
       },
       { key: 'unread', label: th.unread > 0 ? t('more.read') : t('more.unread'), onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
       { key: 'archive', label: th.archived ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
+      th.snoozedUntil
+        ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
+        : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
       { key: 'pin', label: th.pinned ? t('rowMenu.unpin') : t('rowMenu.pin'), onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
       th.mutedUntil
         ? { key: 'unmute', label: t('rowMenu.unmute'), onSelect: () => mute(null) }
@@ -1214,6 +1230,11 @@ export default function InboxApp(props: {
               <>
                 {th.channel === 'gmail' && <span className="ib-chan-dot" data-ch="gmail" role="img" aria-label="Gmail" />}
                 {marker && <span className="ib-tag ib-tag-strong">{marker}</span>}
+                {view !== 'snoozed' && th.snoozedUntil && (
+                  <span className="ib-tag" data-testid="inbox-row-snoozed" title={t('list.snoozedUntil', { when: longWhen(th.snoozedUntil, locale) })}>
+                    {t('list.snoozedShort', { when: aheadWhen(th.snoozedUntil, locale) })}
+                  </span>
+                )}
                 {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}
               </>
             }

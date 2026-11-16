@@ -188,6 +188,14 @@ const parity: ProductParity = {
         'Sincronizado com o celular nos dois sentidos. Enviar uma mensagem para uma conversa arquivada a desarquiva, como no WhatsApp, e Manter arquivada deixa uma conversa escolhida em Arquivadas',
       ],
     }),
+    row('snooze', 'inbox', ['Snooze a chat', 'Posponer un chat', 'Adiar uma conversa'], 'have', {
+      competitorHas: false,
+      detail: [
+        'From the chat menu, with six presets or any date. The chat waits in Archived (on the phone too) and comes back when the time is up or a new message arrives',
+        'Desde el menú del chat, con seis opciones o cualquier fecha. El chat espera en Archivados (también en el teléfono) y vuelve a la hora o cuando llega un mensaje',
+        'Pelo menu da conversa, com seis opções ou qualquer data. A conversa espera em Arquivadas (no celular também) e volta na hora ou quando chega uma mensagem',
+      ],
+    }),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
       detail: ['QR lines (Evolution); 1:1 chats that WhatsApp identifies only by a hidden id do not show it', 'Líneas por QR (Evolution); los 1 a 1 que WhatsApp identifica solo con un id oculto no lo muestran', 'Linhas por QR (Evolution); conversas 1 a 1 que o WhatsApp identifica só por um id oculto não mostram'],
     }),

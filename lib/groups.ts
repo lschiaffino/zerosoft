@@ -10,7 +10,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
-import { sendUnarchiveMark } from './wa-archive-sync';
+import { sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
 import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
@@ -541,6 +541,10 @@ export interface ChatRow {
   archived_at?: string | null;
   /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
   keep_archived?: number;
+  /** Pospuesto hasta esta fecha: archivado hasta que vuelve (vence, llega un mensaje o se cancela). */
+  snoozed_until?: string | null;
+  /** 1: el pospuesto archivó el chat (no estaba archivado); al cancelarlo vuelve a la lista. */
+  snooze_archived?: number;
   hidden_at?: string | null;
   presence?: string | null;
   presence_who?: string | null;
@@ -598,6 +602,8 @@ export interface ChatDto {
   archived: boolean;
   /** "Mantener archivado": ni los mensajes ni el teléfono lo sacan de Archivados. */
   keepArchived: boolean;
+  /** Pospuesto hasta esta fecha (está en Archivados hasta que vuelve). null: no está pospuesto. */
+  snoozedUntil: string | null;
   /** Lo que hace el contacto ahora (escribiendo, grabando, en línea), si es reciente. */
   presence?: ChatPresence | null;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
@@ -697,6 +703,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     markedUnread: Boolean(row.marked_unread),
     archived: Boolean(row.archived_at),
     keepArchived: Boolean(row.keep_archived),
+    snoozedUntil: row.snoozed_until && row.snoozed_until > new Date().toISOString() ? row.snoozed_until : null,
     presence: chatPresence(row),
     ...(row.history_gap_at ? { historyGap: true } : {}),
   };
@@ -1266,10 +1273,15 @@ export interface ChatPatch {
   flagged?: boolean;
   /** Silenciar (sin push) o volver a avisar. */
   muted?: boolean;
-  /** Archivar o desarchivar (como WhatsApp). */
+  /** Archivar o desarchivar (como WhatsApp). Desarchivar cancela el pospuesto. */
   archived?: boolean;
   /** "Mantener archivado": prenderlo archiva el chat; desarchivar lo apaga. */
   keepArchived?: boolean;
+  /**
+   * Posponer hasta esa fecha (ISO, en el futuro): el chat queda archivado, acá y en WhatsApp, hasta que vuelve.
+   * null cancela el pospuesto y deja el chat como estaba antes de posponerlo.
+   */
+  snoozedUntil?: string | null;
   /** "Eliminar chat": sale de la lista hasta que llegue o salga un mensaje nuevo. */
   hidden?: boolean;
 }
@@ -1328,16 +1340,40 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   // "Mantener archivado" implica archivado; desarchivar a mano lo apaga (en el mismo UPDATE: el trigger lo deja pasar).
   if (patch.keepArchived === true) patch = { ...patch, archived: patch.archived ?? true };
   if (patch.keepArchived !== undefined && patch.archived !== false) set('keep_archived', patch.keepArchived ? 1 : 0);
-  if (patch.archived !== undefined) set('archived_at', patch.archived ? row.archived_at || nowIso() : null);
-  if (patch.archived === false) set('keep_archived', 0);
+  // Cómo queda el archivado (undefined: no cambia). Posponer archiva; cancelar el pospuesto desarchiva solo lo que
+  // archivó el pospuesto; desarchivar a mano cancela el pospuesto.
+  let archivedNext: boolean | undefined = patch.archived;
+  const snoozeArchived = Boolean(row.snoozed_until && row.snooze_archived);
+  let snoozeNext: { until: string | null; archived: boolean } | undefined;
+  if (patch.archived === false && row.snoozed_until) snoozeNext = { until: null, archived: false };
+  if (patch.snoozedUntil !== undefined) {
+    if (patch.snoozedUntil) {
+      const t = Date.parse(patch.snoozedUntil);
+      if (!Number.isFinite(t) || t <= Date.now() + 30_000) throw new GroupsError('date_in_past');
+      if (t > Date.now() + 3 * 365 * 86_400_000) throw new GroupsError('invalid_input');
+      const wasArchived = archivedNext ?? !!row.archived_at;
+      snoozeNext = { until: new Date(t).toISOString(), archived: snoozeArchived || !wasArchived };
+      archivedNext = true;
+    } else {
+      snoozeNext = { until: null, archived: false };
+      if (snoozeArchived && archivedNext === undefined) archivedNext = false;
+    }
+  }
+  if (archivedNext !== undefined) set('archived_at', archivedNext ? row.archived_at || nowIso() : null);
+  if (archivedNext === false) set('keep_archived', 0);
   if (patch.hidden !== undefined) {
     set('hidden_at', patch.hidden ? nowIso() : null);
-    // Oculto no queda fijado ni archivado (como "Eliminar chat" en WhatsApp).
+    // Oculto no queda fijado, archivado ni pospuesto (como "Eliminar chat" en WhatsApp).
     if (patch.hidden) {
       set('pinned_at', null);
       set('archived_at', null);
       set('keep_archived', 0);
+      snoozeNext = { until: null, archived: false };
     }
+  }
+  if (snoozeNext) {
+    set('snoozed_until', snoozeNext.until);
+    set('snooze_archived', snoozeNext.archived ? 1 : 0);
   }
   if (patch.crmContactId !== undefined) {
     if (patch.crmContactId) {
@@ -1383,9 +1419,9 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.labelIds !== undefined) await setChatLabels(ws, id, patch.labelIds);
   // Archivar o desarchivar también se manda a WhatsApp (después de responder, con reintentos: lib/wa-archive-sync.ts).
   // "Eliminar chat" (hidden) saca el archivado solo acá: en el teléfono el chat queda como estaba.
-  if (patch.archived !== undefined && patch.hidden === undefined && patch.archived !== !!row.archived_at) {
+  if (archivedNext !== undefined && patch.hidden === undefined && archivedNext !== !!row.archived_at) {
     const { requestArchivePush } = await import('./wa-archive-sync');
-    await requestArchivePush('lines', ws, [id], patch.archived);
+    await requestArchivePush('lines', ws, [id], archivedNext);
   }
   const { afterChatChange } = await import('./groups-inbox');
   await afterChatChange(ws, actor, row, patch);
@@ -1802,16 +1838,24 @@ function answeredStatements(chatId: string, at: string): BatchStatement[] {
 function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[], unarchive: boolean | 'newest' = !incoming): BatchStatement {
   if (!incoming && unarchive) {
     // 'newest': lo que llega del teléfono desarchiva solo si es lo más nuevo del chat (uno viejo que llega tarde no).
+    const sure = unarchive === 'newest' ? 0 : 1;
     return {
+      // El pospuesto termina cuando el chat sale de Archivados.
       sql: `UPDATE groups_chats SET archived_at = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN NULL ELSE archived_at END,
+           snoozed_until = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN NULL ELSE snoozed_until END,
+           snooze_archived = CASE WHEN ? = 1 OR last_message_at IS NULL OR last_message_at <= ? THEN 0 ELSE snooze_archived END,
            last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE ${where}`,
-      args: [unarchive === 'newest' ? 0 : 1, at, at, preview, at, ...whereArgs],
+      args: [sure, at, sure, at, sure, at, at, preview, at, ...whereArgs],
     };
   }
   return incoming
     ? {
+        // Un mensaje que llega a un chat pospuesto lo trae de vuelta: termina el pospuesto y, si fue el que lo archivó,
+        // sale de Archivados (aunque el workspace mantenga archivados los que archivó a mano).
         sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
-           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL, updated_at = ? WHERE ${where}`,
+           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL,
+           archived_at = CASE WHEN snoozed_until IS NOT NULL AND snooze_archived = 1 THEN NULL ELSE archived_at END, snoozed_until = NULL, snooze_archived = 0,
+           updated_at = ? WHERE ${where}`,
         args: [at, preview, at, at, ...whereArgs],
       }
     : {
@@ -1832,6 +1876,10 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
   const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId], unarchive);
   if (!incoming && unarchive) {
     await dbBatch([unarchiveMark(at, 'c.id = ?', [chatId]), stmt]);
+    return;
+  }
+  if (incoming) {
+    await dbBatch([snoozeWakeMark('lines', 'c.id = ?', [chatId]), stmt]);
     return;
   }
   await getDb()
@@ -1866,6 +1914,8 @@ async function saveInbound(
       args: [...v.head, number.id, chat.providerChatId, ...v.mid, ...(m.replyToProviderId ? [number.id, m.replyToProviderId] : []), ...v.tail],
     },
     ...(m.direction === 'out' ? [unarchiveMark(at, 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], true)] : []),
+    // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
+    ...(m.direction === 'in' ? [snoozeWakeMark('lines', 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id])] : []),
     // Solo si el mensaje entró: uno repetido no existe con este id.
     chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
   ];
@@ -2959,8 +3009,12 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();
   await db
-    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+    .prepare(
+      `UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END,
+         snoozed_until = CASE WHEN ? THEN snoozed_until ELSE NULL END, snooze_archived = CASE WHEN ? THEN snooze_archived ELSE 0 END, updated_at = ? WHERE id = ?`,
+    )
+    // Desarchivarlo desde el teléfono cancela el pospuesto, como desarchivarlo acá.
+    .run(archived ? now : null, archived ? 1 : 0, archived ? 1 : 0, archived ? 1 : 0, now, chat.id);
   return true;
 }
 
