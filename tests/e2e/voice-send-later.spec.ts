@@ -55,12 +55,10 @@ async function expectNoSideScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
-/** En el selector de cuándo: una fecha propia (mañana a esta hora) y confirmar. No depende de la hora del día. */
+/** En el selector de cuándo: día y hora a mano (arranca en mañana a las 9) y confirmar. No depende de la hora del día. */
 async function pickTomorrow(dialog: Locator) {
-  const at = new Date(Date.now() + 24 * 3600_000);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  await dialog.locator('input[type="datetime-local"]').fill(`${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`);
-  await dialog.locator('.ui-when-custom button[type="submit"]').click();
+  await dialog.getByTestId('when-custom').click();
+  await dialog.locator('.ui-when-confirm').click();
 }
 
 /** El programado se puede escuchar antes de que salga: reproducir y pausar. */

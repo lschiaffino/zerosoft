@@ -206,3 +206,48 @@ for (const theme of ['light', 'dark'] as const) {
     }
   });
 }
+
+test('Flow: el rango del historial vuelve al inicial con sus datos, y sin corridas no queda un gráfico vacío', async ({ page }) => {
+  // Tablero falso por rango: el número de corridas es el de días, salvo 30 (sin corridas).
+  const requested: number[] = [];
+  await page.route('**/api/flow/stats?*', async (route) => {
+    const days = Number(new URL(route.request().url()).searchParams.get('days'));
+    requested.push(days);
+    const total = days === 30 ? 0 : days;
+    const perDay = Array.from({ length: days }, (_, i) => ({ day: `2026-01-${String(i + 1).padStart(2, '0')}`, success: total ? 1 : 0, failed: 0, other: 0 }));
+    await route.fulfill({
+      json: {
+        stats: {
+          days,
+          total,
+          byStatus: total ? { success: total } : {},
+          successRate: total ? 1 : null,
+          steps: total,
+          avgDurationMs: null,
+          perDay,
+          perFlow: [],
+          topErrors: [],
+          queue: { queued: 0, held: 0, running: 0, waiting: 0 },
+        },
+      },
+    });
+  });
+  await page.goto('/en/app/flow/runs?days=7', { waitUntil: 'networkidle' });
+  const range = page.getByRole('combobox', { name: 'Range' });
+  const runsKpi = page.locator('.flow-kpi').first().locator('dd');
+
+  await range.selectOption('30');
+  await expect(page.getByTestId('flow-chart-empty')).toBeVisible();
+  await expect(page.getByTestId('flow-chart')).toHaveCount(0);
+  await expect(runsKpi).toHaveText('0');
+
+  await range.selectOption('1');
+  await expect(runsKpi).toHaveText('1');
+
+  // Volver al rango con el que abrió la página pide sus datos otra vez.
+  await range.selectOption('7');
+  await expect(runsKpi).toHaveText('7');
+  await expect(page.getByTestId('flow-chart')).toBeVisible();
+  await expect(page.getByTestId('flow-chart').locator('.flow-chart-col')).toHaveCount(7);
+  expect(requested).toEqual([30, 1, 7]);
+});

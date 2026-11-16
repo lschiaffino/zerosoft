@@ -497,6 +497,7 @@ const WaComposer = forwardRef<
           readOnly={paused}
           aria-busy={paused || undefined}
           className="wa-input"
+          data-testid="composer-input"
           rows={1}
           value={text}
           disabled={disabled}
@@ -604,7 +605,7 @@ const WaComposer = forwardRef<
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+          <button type="button" className="wa-send" data-testid="composer-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
             // Clic derecho en Enviar: programar el envío (como en WhatsApp).
             if (editing || !hasText) return;
             e.preventDefault();

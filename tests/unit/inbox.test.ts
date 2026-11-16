@@ -82,7 +82,7 @@ describe('Inbox: funciones puras', () => {
     expect(presetDate('tomorrow', now).getHours()).toBe(8);
     expect(presetDate('weekend', now).getDay()).toBe(6);
     expect(presetDate('nextWeek', now).getDay()).toBe(1);
-    expect(presetDate('later', now).getTime() - now.getTime()).toBe(3 * 3600_000);
+    expect(presetDate('later', now).getTime() - now.getTime()).toBe(3 * 3600_000); // 22:30 + 3 h ya es media hora justa
   });
 
   it('snippets: atajo limpio y variables de nombre', () => {

@@ -22,11 +22,10 @@
   "when": {
     "title": { "snooze": "Posponer hasta", "followUp": "Recordame si no contesta", "sendLater": "Enviar más tarde" },
     "followUpHelp": "Si para esa hora no te escribió, el chat vuelve arriba de la bandeja.",
-    "preset": { "later": "Más tarde", "tonight": "Esta noche", "tomorrow": "Mañana a la mañana", "weekend": "Este fin de semana", "nextWeek": "La semana que viene", "inWeek": "En una semana" },
-    "custom": "Elegir día y hora",
     "confirm": "Listo",
-    "cancel": "Cancelar",
-    "pastError": "Elegí una hora en el futuro."
+    "confirmSend": "Programar",
+    "confirmSnooze": "Posponer",
+    "cancel": "Cancelar"
   },
   "composer": {
     "snippets": "Snippets",
@@ -90,6 +89,10 @@
     "archivedBack": "Volver a la bandeja",
     "woke": "Volvió",
     "noReply": "Sin respuesta",
+    "overdueSnooze": "Vencido: volvió de posponer",
+    "overdueSnoozeSince": "Vencido: volvió de posponer el {when}",
+    "overdueFollowUp": "Vencido: sin respuesta al recordatorio",
+    "overdueFollowUpSince": "Vencido: sin respuesta al recordatorio del {when}",
     "select": "Seleccionar {name}",
     "pinned": "Fijado",
     "draft": "Borrador:",
@@ -259,6 +262,8 @@
     "unread": "No leído",
     "pin": "Fijar",
     "unpin": "Desfijar",
+    "snooze": "Posponer",
+    "unsnooze": "Reactivar",
     "more": "Más",
     "archive": "Archivar",
     "unarchive": "Desarchivar",

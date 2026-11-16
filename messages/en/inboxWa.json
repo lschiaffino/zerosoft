@@ -34,6 +34,8 @@
   "clickInfo": "click here for contact info",
   "groupInfo": "Group info",
   "contactInfo": "Contact info",
+  "copyPhone": "Copy number",
+  "phoneCopied": "Number copied",
   "reply": "Reply",
   "react": "React",
   "forward": "Forward",

@@ -29,6 +29,14 @@
 .zs-swipe-action:hover { filter: brightness(1.12); }
 .zs-swipe-action:focus-visible { outline: 2px solid var(--bg); outline-offset: -4px; }
 .zs-swipe-action-label { max-width: 100%; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
+/* La fila que se va (archivar): se cierra hacia arriba enseguida, como WhatsApp (leaveRow en components/ui/chat-gestures.tsx). */
+[data-chat-row][data-swipe-leaving] {
+  transition: height var(--leave-ms, 200ms) cubic-bezier(0.4, 0, 0.2, 1), opacity var(--leave-ms, 200ms) ease-out, padding var(--leave-ms, 200ms), margin var(--leave-ms, 200ms);
+  height: 0 !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; margin-top: 0 !important; margin-bottom: 0 !important;
+  border-width: 0 !important; opacity: 0; pointer-events: none;
+}
+[data-chat-row][data-swipe-leaving] > :not(.zs-swipe-actions) { transition: translate var(--leave-ms, 200ms) cubic-bezier(0.4, 0, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { [data-chat-row][data-swipe-leaving], [data-chat-row][data-swipe-leaving] > * { transition: none !important; } }
 /* Pasado el umbral, la acción principal ocupa toda la franja: soltar la ejecuta. */
 [data-swipe-commit] .zs-swipe-action:not([data-primary]) { flex-grow: 0; opacity: 0; }
 

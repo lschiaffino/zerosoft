@@ -15,6 +15,8 @@ export const HOLD_SLOP = 6;
 export const ACTION_WIDTH = 76;
 /** Parte del ancho de la fila que hay que pasar para que el deslizado ejecute la acción principal. */
 export const COMMIT_RATIO = 0.6;
+/** Tope del umbral, como parte del ancho de la fila. */
+export const COMMIT_MAX = 0.7;
 /** Tiempo (ms) sobre una carpeta plegada antes de abrirla. */
 export const EXPAND_MS = 600;
 /** Franja (px) cerca del borde de una lista donde el arrastre la hace correr, y el tope de px por cuadro. */
@@ -58,7 +60,10 @@ export function openWidth(count: number, width: number): number {
 
 /** Corrimiento desde el que soltar ejecuta la acción principal. */
 export function commitAt(width: number, count: number): number {
-  return Math.max(openWidth(count, width) + 48, width * COMMIT_RATIO);
+  const ow = openWidth(count, width);
+  // Con tres acciones abiertas (228px) en una fila angosta, el umbral no puede quedar casi en el borde: tope en el
+  // 70% del ancho, siempre un poco más allá de las acciones abiertas.
+  return Math.max(Math.min(Math.max(ow + 48, width * COMMIT_RATIO), width * COMMIT_MAX), ow + 16);
 }
 
 /** Envión (px/ms) que decide por sí solo al soltar. */
@@ -245,4 +250,33 @@ export function trayPlacement(list: Rect, vw: number, trayWidth = 264, gap = 12)
   if (vw - list.right >= trayWidth + gap * 2) return { mode: 'side', left: Math.round(list.right) + gap, top };
   if (list.left >= trayWidth + gap * 2) return { mode: 'side', left: Math.round(list.left) - gap - trayWidth, top };
   return { mode: 'bottom' };
+}
+
+/** Lo que tarda (ms) una fila que se va (archivar) en correrse y cerrarse, como WhatsApp. Con movimiento reducido, 0. */
+export const LEAVE_MS = 200;
+/** Si la fila que se fue sigue en la lista pasado este tiempo (ms), la acción no la sacó (falló): vuelve a verse. */
+export const LEAVE_RESTORE_MS = 6000;
+
+export function leaveDuration(reduced: boolean): number {
+  return reduced ? 0 : LEAVE_MS;
+}
+
+export type RowSwipeKey = 'read' | 'unread' | 'pin' | 'unpin' | 'snooze' | 'unsnooze' | 'archive' | 'unarchive' | 'more';
+
+/**
+ * Las acciones del deslizado de un chat, iguales en Lines e Inbox (como
+ * WhatsApp): a la derecha, leído o no leído (la principal), fijar y posponer;
+ * a la izquierda, archivar (la principal, se va de la lista) y más. Cada app
+ * pone los textos y lo que hace cada una.
+ */
+export function rowSwipeLayout(c: { unread: boolean; pinned: boolean; archived: boolean; snoozed: boolean }): { right: RowSwipeKey[]; left: RowSwipeKey[] } {
+  return {
+    right: [c.unread ? 'read' : 'unread', c.pinned ? 'unpin' : 'pin', c.snoozed ? 'unsnooze' : 'snooze'],
+    left: [c.archived ? 'unarchive' : 'archive', 'more'],
+  };
+}
+
+/** Clave fija de cada botón (data-action), sea cual sea su estado: leer/no leído es 'unread', fijar 'pin', etc. */
+export function swipeActionKey(key: RowSwipeKey): string {
+  return key === 'read' ? 'unread' : key === 'unpin' ? 'pin' : key === 'unsnooze' ? 'snooze' : key === 'unarchive' ? 'archive' : key;
 }
