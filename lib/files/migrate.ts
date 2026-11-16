@@ -41,6 +41,9 @@ import {
 } from './store';
 
 /** Carpetas que se migran. Rec tiene su propio storage (otro cambio). */
+/** Las tablas de los mensajes programados (Inbox y Lines): `--scheduled` en el script. */
+export const SCHEDULED_TABLES = ['inbox_scheduled', 'groups_broadcasts', 'groups_recurring'];
+
 export const MIGRATABLE_FOLDERS = ['chat', 'track', 'tasks', 'robots', 'docs', 'boards', 'crm', 'workspace', 'design', 'shop', 'social', 'people', 'inbox'] as const;
 type Folder = (typeof MIGRATABLE_FOLDERS)[number];
 
@@ -80,8 +83,9 @@ interface TableRule {
 const RULES: Record<string, TableRule> = {
   groups_messages: { ws: 't.user_id', app: 'groups', access: 'internal' },
   groups_chats: { ws: 't.user_id', app: 'groups', access: 'workspace', scope: "'groups-chat:' || t.id" },
-  groups_broadcasts: { ws: 't.user_id', app: 'groups', access: 'internal' },
-  groups_recurring: { ws: 't.user_id', app: 'groups', access: 'internal' },
+  // Programados y envíos masivos de Lines: los ve quien ve esa línea (lib/groups-broadcasts.ts shareScheduledMedia).
+  groups_broadcasts: { ws: 't.user_id', app: 'groups', access: 'workspace', scope: "'groups-number:' || t.number_id" },
+  groups_recurring: { ws: 't.user_id', app: 'groups', access: 'workspace', scope: "'groups-number:' || t.number_id" },
   chat_messages: {
     ws: '(SELECT w.user_id FROM chat_conversations c JOIN chat_widgets w ON w.id = c.widget_id WHERE c.id = t.conversation_id)',
     app: 'chat',
