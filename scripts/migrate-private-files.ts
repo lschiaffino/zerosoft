@@ -7,6 +7,7 @@
  *   npx tsx scripts/migrate-private-files.ts --apply            # copia, verifica y reescribe (no borra nada)
  *   npx tsx scripts/migrate-private-files.ts --apply --limit 500 --folders chat,inbox --tables groups_messages
  *   npx tsx scripts/migrate-private-files.ts --apply --delete-originals   # además borra los originales ya migrados y verificados
+ *   npx tsx scripts/migrate-private-files.ts --scheduled         # solo los mensajes programados de Inbox y Lines (en seco; con --apply, de verdad)
  *
  * Variables: las de la app (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN,
  * BLOB_READ_WRITE_TOKEN, ENCRYPTION_KEY / NEXTAUTH_SECRET o FILES_KEY, y
@@ -15,7 +16,7 @@
  */
 import { ensureMigrated, getClient } from '../lib/db';
 import { fileBackend } from '../lib/files/store';
-import { migratePrivateFiles } from '../lib/files/migrate';
+import { migratePrivateFiles, SCHEDULED_TABLES } from '../lib/files/migrate';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name);
@@ -30,7 +31,7 @@ async function main() {
   const limit = arg('--limit') ? Number(arg('--limit')) : undefined;
   const batch = arg('--batch') ? Number(arg('--batch')) : undefined;
   const folders = arg('--folders')?.split(',').map((s) => s.trim()).filter(Boolean);
-  const tables = arg('--tables')?.split(',').map((s) => s.trim()).filter(Boolean);
+  const tables = process.argv.includes('--scheduled') ? SCHEDULED_TABLES : arg('--tables')?.split(',').map((s) => s.trim()).filter(Boolean);
   const backend = fileBackend();
   console.log(`Backend: ${backend}${apply ? '' : ' (dry run: nothing is copied, rewritten or deleted)'}`);
   if (apply && backend === 'unavailable') throw new Error('No storage configured (BLOB_READ_WRITE_TOKEN or FILES_BLOB_READ_WRITE_TOKEN).');

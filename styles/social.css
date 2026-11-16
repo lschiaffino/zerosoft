@@ -17,6 +17,7 @@
 /* Textos largos sin espacios (URLs, emails, variables): parten en vez de empujar el ancho. */
 .sc-wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .sc-item-side .select { max-width: 100%; }
+.sc-reply-tools .select { width: auto; max-width: 100%; }
 .sc-ok { color: var(--ok-ink); }
 
 /* Red: marca de color por red (punto + nombre). */

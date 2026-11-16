@@ -293,7 +293,15 @@
     "markDone": "Marcar hecho",
     "reopen": "Reabrir",
     "markedDone": "Marcado como hecho",
-    "reopened": "Reabierto"
+    "reopened": "Reabierto",
+    "insertSavedReply": "Insertar respuesta guardada",
+    "noSavedReplies": "Agregar respuestas guardadas",
+    "saveAsReply": "Guardar como respuesta",
+    "savedReplyName": "Nombre de la respuesta guardada",
+    "savedReplySave": "Guardar",
+    "savedReplyCreated": "Respuesta guardada en la biblioteca",
+    "cancel": "Cancelar",
+    "savedReplyNameShort": "Nombre"
   },
   "analytics": {
     "title": "Métricas",
@@ -324,7 +332,7 @@
   },
   "library": {
     "title": "Biblioteca",
-    "description": "Textos guardados, grupos de hashtags y archivos para todo el equipo.",
+    "description": "Textos guardados, grupos de hashtags, archivos y respuestas de la bandeja para todo el equipo.",
     "kind_all": "Todo",
     "kind_snippet": "Textos guardados",
     "kind_hashtags": "Grupos de hashtags",
@@ -347,7 +355,10 @@
     "delete": "Borrar",
     "deleteTitle": "¿Borrar {name}?",
     "deleteBody": "Sale de la biblioteca. Las publicaciones que ya lo usan no cambian.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "kind_reply": "Respuestas guardadas",
+    "replyHint": "Respuestas de la bandeja. '{name}' se cambia por el nombre de quien escribió y '{account}' por el nombre de tu cuenta.",
+    "emptyBodyReply": "Guardá las respuestas que mandás seguido en la bandeja, como plazos de envío u horarios. Las insertás desde cualquier comentario o mensaje."
   },
   "accounts": {
     "title": "Cuentas",
