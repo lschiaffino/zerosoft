@@ -95,6 +95,13 @@ const parity: ProductParity = {
       ],
     }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('offline-queue', 'inbox', ['Write without a connection: messages queue and send on their own', 'Escribir sin conexión: los mensajes quedan en cola y salen solos', 'Escrever sem conexão: as mensagens ficam na fila e saem sozinhas'], 'partial', {
+      detail: [
+        'Chats you opened open without a connection. A text written offline shows with the clock, survives a reload, can be deleted before it goes, and sends in order and once when the connection is back (also with two tabs open); if the server rejects it, it stays as not sent with retry. Files need a connection: they stay in the tray. Tested with the fake provider',
+        'Los chats que abriste se abren sin conexión. Un texto escrito sin red aparece con el reloj, sobrevive a recargar, se puede borrar antes de que salga y sale en orden y una sola vez al volver la conexión (también con dos pestañas abiertas); si el servidor lo rechaza, queda como no enviado con reintentar. Los archivos necesitan conexión: quedan en la bandeja. Probado con el proveedor falso',
+        'As conversas que você abriu abrem sem conexão. Um texto escrito sem conexão aparece com o relógio, sobrevive a recarregar, pode ser apagado antes de sair e sai em ordem e uma única vez quando a conexão volta (também com duas abas abertas); se o servidor recusar, fica como não enviado com tentar de novo. Arquivos precisam de conexão: ficam na bandeja. Testado com o provedor falso',
+      ],
+    }),
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [

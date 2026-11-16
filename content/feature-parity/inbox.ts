@@ -267,6 +267,13 @@ const parity: ProductParity = {
         'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar (dá para colar mais imagens na prévia; a mesma duas vezes entra uma vez); notas de voz pelo microfone. Arquivos e notas de voz aparecem na conversa assim que são enviados, com o relógio, e sobem em segundo plano. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
       ],
     }),
+    row('offline-queue', 'whatsapp', ['Write without a connection: messages queue and send on their own', 'Escribir sin conexión: los mensajes quedan en cola y salen solos', 'Escrever sem conexão: as mensagens ficam na fila e saem sozinhas'], 'partial', {
+      detail: [
+        'Chats you opened open without a connection. A text written offline shows with the clock, survives a reload, can be deleted before it goes, and sends in order and once when the connection is back (also with two tabs open); if the server rejects it, it stays as not sent with retry. Files need a connection: they stay in the tray. Tested with the fake provider',
+        'Los chats que abriste se abren sin conexión. Un texto escrito sin red aparece con el reloj, sobrevive a recargar, se puede borrar antes de que salga y sale en orden y una sola vez al volver la conexión (también con dos pestañas abiertas); si el servidor lo rechaza, queda como no enviado con reintentar. Los archivos necesitan conexión: quedan en la bandeja. Probado con el proveedor falso',
+        'As conversas que você abriu abrem sem conexão. Um texto escrito sem conexão aparece com o relógio, sobrevive a recarregar, pode ser apagado antes de sair e sai em ordem e uma única vez quando a conexão volta (também com duas abas abertas); se o servidor recusar, fica como não enviado com tentar de novo. Arquivos precisam de conexão: ficam na bandeja. Testado com o provedor falso',
+      ],
+    }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
       detail: [
         'Type @ to pick a member (photo, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account, and clicking one opens that contact info. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',

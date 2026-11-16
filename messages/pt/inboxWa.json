@@ -235,6 +235,7 @@
   },
   "retry": "Tentar de novo",
   "removeUnsent": "Remover",
+  "deleteQueued": "Apagar antes de enviar",
   "uploading": "Enviando {name}",
   "newChat": {
     "title": "Nova conversa",

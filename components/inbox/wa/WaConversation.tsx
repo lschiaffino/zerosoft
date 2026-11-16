@@ -31,6 +31,7 @@ import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
+import { discardInboxText, queuedText, retryInboxText } from './outbox';
 import { isTempId, localPreviews, TEMP_PREFIX } from '@/lib/optimistic-send';
 import UploadRing from '@/components/groups/wa/UploadRing';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
@@ -429,6 +430,13 @@ const WaConversation = forwardRef<
         items.push({ key: 'retry', label: w('retry'), onSelect: () => retryInboxMedia(m.id) });
         items.push({ key: 'remove', label: w('removeUnsent'), danger: true, onSelect: () => discardInboxMedia(m.id) });
       }
+      // Un texto de la cola sin conexión: borrarlo antes de que salga; si el servidor lo rechazó, reintentar o quitar.
+      const queued = !m.hasMedia ? queuedText(m.id) : undefined;
+      if (queued?.status === 'queued') items.push({ key: 'remove', label: w('deleteQueued'), danger: true, onSelect: () => discardInboxText(m.id) });
+      if (queued?.status === 'failed') {
+        items.push({ key: 'retry', label: w('retry'), onSelect: () => retryInboxText(m.id) });
+        items.push({ key: 'remove', label: w('removeUnsent'), danger: true, onSelect: () => discardInboxText(m.id) });
+      }
       return items;
     }
     const items: MenuItem[] = [];
@@ -604,6 +612,9 @@ const WaConversation = forwardRef<
       <article
         key={m.id}
         id={`m-${m.id}`}
+        data-testid="wa-message"
+        data-status={m.fromMe ? m.status : undefined}
+        data-unsent={isTempId(m.id) ? 'true' : undefined}
         className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}`}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
@@ -776,9 +787,9 @@ const WaConversation = forwardRef<
             )}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
-            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(m.status === 'read' && thread.readHidden ? 'message.status.readHidden' : `message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
-            {isTempId(m.id) && m.status === 'failed' && m.hasMedia && (
-              <button type="button" className="wa-retry" onClick={() => retryInboxMedia(m.id)} aria-label={w('retry')} title={w('retry')}>
+            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(m.status === 'read' && thread.readHidden ? 'message.status.readHidden' : `message.status.${['pending', 'queued', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {isTempId(m.id) && m.status === 'failed' && (m.hasMedia || queuedText(m.id)) && (
+              <button type="button" className="wa-retry" onClick={() => (m.hasMedia ? retryInboxMedia(m.id) : retryInboxText(m.id))} aria-label={w('retry')} title={w('retry')}>
                 <Retry size={14} />
               </button>
             )}

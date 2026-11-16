@@ -75,6 +75,7 @@ export default async function InboxPage(props: Props) {
       initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
       composeOnLoad={sp.new === '1'}
       meImage={user.image ?? ''}
+      me={owner}
     />
   );
 }

@@ -14,7 +14,7 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
+import { isOffline, isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
@@ -772,6 +772,8 @@ export default function ChatThread(props: ThreadProps) {
     const files = pending.filter((f) => f.status !== 'error');
     if (sending) return;
     if (!text.trim() && files.length === 0) return;
+    // Sin red los textos quedan en cola, los archivos no: necesitan conexión para subirse. Quedan en la bandeja.
+    if (files.length && isOffline()) return setSendError(errText('offline_files'));
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSendError('');
@@ -830,7 +832,7 @@ export default function ChatThread(props: ThreadProps) {
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
   function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
+    void sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -1374,8 +1376,10 @@ export default function ChatThread(props: ThreadProps) {
     const live = m.direction !== 'note' && !m.deletedAt;
     const starred = (m.meta as Record<string, unknown>).starred === true;
     const mayRetry = props.isAdmin || m.authorId === props.me;
-    // Una burbuja que todavía no está guardada: solo reintentar o quitar, y solo si no salió.
+    // Una burbuja que todavía no está guardada: si espera la red, borrarla antes de que salga; si no salió,
+    // reintentar o quitar. Mientras sale, nada.
     if (isTempId(m.id)) {
+      if (m.status === 'queued') return [{ key: 'remove', label: t('wa.deleteQueued'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) }];
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
@@ -1450,7 +1454,7 @@ export default function ChatThread(props: ThreadProps) {
     // Ya está subido: sale por la cola del chat como cualquier archivo (burbuja al instante, reintentar si no sale).
     const m = res.data.media as { url: string; mimetype?: string; filename?: string; size?: number; width?: number; height?: number };
     notifyChatSent(chat.id);
-    sendLinesText(
+    void sendLinesText(
       unsentLines.add({
         chatId: chat.id,
         body: '',
@@ -1694,6 +1698,9 @@ export default function ChatThread(props: ThreadProps) {
         key={m.id}
         className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
         id={`m-${m.id}`}
+        data-testid="wa-message"
+        data-status={m.direction === 'out' ? m.status : undefined}
+        data-unsent={isTempId(m.id) ? 'true' : undefined}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
