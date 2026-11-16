@@ -180,6 +180,7 @@
   },
   "watch": {
     "copyLink": "Copiar link",
+    "copyLinkAt": "Copiar link em {time}",
     "download": "Baixar",
     "byOn": "{name} · {date}",
     "summary": "Resumo",

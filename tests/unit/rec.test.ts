@@ -533,3 +533,22 @@ describe('transcripción y resumen', () => {
     expect(await processRecVideo(w.id)).toBe('disabled');
   });
 });
+
+describe('link con momento de inicio', () => {
+  it('entiende los formatos de t', async () => {
+    const { parseStartParam } = await import('@/lib/rec-schema');
+    expect(parseStartParam('90')).toBe(90);
+    expect(parseStartParam('90s')).toBe(90);
+    expect(parseStartParam('1m30s')).toBe(90);
+    expect(parseStartParam('1h2m3s')).toBe(3723);
+    expect(parseStartParam('1:30')).toBe(90);
+    for (const bad of ['', '0', 'abc', '-5', '1:75', 'm']) expect(parseStartParam(bad)).toBeNull();
+    expect(parseStartParam(null)).toBeNull();
+  });
+  it('agrega t al link y respeta lo que ya trae', async () => {
+    const { withStartParam } = await import('@/lib/rec-schema');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc', 65.9)).toBe('https://zerosoft.ai/en/v/abc?t=65');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc?invite=x&t=3', 10)).toBe('https://zerosoft.ai/en/v/abc?invite=x&t=10');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc', 0.4)).toBe('https://zerosoft.ai/en/v/abc');
+  });
+});
