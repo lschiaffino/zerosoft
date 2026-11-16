@@ -1656,3 +1656,10 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 @media (max-width: 768px) {
   .wa-xp-tabs [role='tab'] { min-height: 40px; }
 }
+
+/* Con el dedo, cada categoría de emoji mide al menos 40×40; si no entran, la fila de categorías se corre adentro del panel. */
+@media (max-width: 768px) {
+  .wa-emoji-tabs { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .wa-emoji-tabs::-webkit-scrollbar { display: none; }
+  .wa-emoji-tabs button { flex: 1 0 40px; min-height: 40px; }
+}
