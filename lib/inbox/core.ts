@@ -9,6 +9,7 @@ import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
+import { sendUnarchiveMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { publicLink } from '../wa-link-thumb';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
@@ -174,6 +175,8 @@ export interface ThreadRow {
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
+  /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
+  keep_archived?: number;
   woke_at: string | null;
   woke_reason: string;
   follow_up_at: string | null;
@@ -344,10 +347,15 @@ const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
  * chat). "Es el más nuevo" se decide en la base, contra la fila como está en
  * ese momento: last_message_at vacío o anterior o igual a la hora del mensaje.
  */
-function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[]): BatchStatement {
+function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[], fromHere = false): BatchStatement {
   const preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   const newer = '(last_message_at IS NULL OR last_message_at <= ?)';
   const live = !m.fromMe && !m.history ? 1 : 0;
+  // Un mensaje mío en vivo (desde acá, programado, por la API o desde el teléfono) saca el chat de WhatsApp de
+  // Archivados, también si estaba "hecho". Como WhatsApp, que lo desarchiva solo: no se le manda nada. El que llega
+  // del teléfono, solo si es el más nuevo del chat (uno viejo que llega tarde no desarchiva); el que sale de acá, siempre.
+  const out = outgoingLive(m) ? 1 : 0;
+  const sure = fromHere ? 1 : 0;
   const now = nowIso();
   return {
     sql: `UPDATE inbox_threads SET
@@ -360,8 +368,8 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_inbound_at = CASE WHEN ? = 0 AND (last_inbound_at IS NULL OR last_inbound_at < ?) THEN ? ELSE last_inbound_at END,
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
-         done_at = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ? = 1 AND ${newer} AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
+         done_at = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ((? = 1 AND (muted_until IS NULL OR muted_until <= ?)) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
          snoozed_until = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE snoozed_until END,
          follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
@@ -390,11 +398,15 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
       !m.fromMe && !m.history && !m.read ? 1 : 0,
       // Llega algo nuevo de la otra persona: vuelve a la bandeja.
       live,
+      out,
+      sure,
       sentAt,
       // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
       live,
-      sentAt,
       now,
+      out,
+      sure,
+      sentAt,
       live,
       sentAt,
       live,
@@ -404,12 +416,28 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
   };
 }
 
+/** ¿Un mensaje mío en vivo (no del historial)? Es el que desarchiva el chat. */
+function outgoingLive(m: NewMessage): boolean {
+  return m.fromMe && !m.history;
+}
+
+/** Antes de tocar el chat: el desarchivado por envío queda anotado para el eco del teléfono (lib/wa-archive-sync.ts). */
+function unarchiveMark(m: NewMessage, sentAt: string, messageId: string, fromHere = false): BatchStatement[] {
+  if (!outgoingLive(m)) return [];
+  const mine = 'c.id = (SELECT thread_id FROM inbox_messages WHERE id = ?)';
+  return [fromHere ? sendUnarchiveMark('inbox', mine, [messageId]) : sendUnarchiveMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
+}
+
 /** Lo que cambia en la fila que ya tiene quien llama (así el próximo mensaje de la tanda compara contra lo nuevo). */
 function noteNewest(thread: ThreadRow, m: NewMessage, sentAt: string): void {
   if (thread.last_message_at && sentAt < thread.last_message_at) return;
   thread.last_message_at = sentAt;
   thread.preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   thread.last_from_me = m.fromMe ? 1 : 0;
+  if (outgoingLive(m) && thread.channel === 'whatsapp') {
+    thread.archived_at = null;
+    thread.done_at = null;
+  }
 }
 
 /**
@@ -427,8 +455,10 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
        ON CONFLICT DO NOTHING`,
       args: [id, thread.owner_id, thread.id, ...messageTail(m, sentAt)],
     },
+    // Lo guarda quien lo mandó desde acá (o la sincronización de Gmail y la importación, que no desarchivan).
+    ...unarchiveMark(m, sentAt, id, true),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id]),
+    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id], true),
   ]);
   if (res[0].changes === 0) return false;
   noteNewest(thread, m, sentAt);
@@ -470,6 +500,7 @@ export async function addMessageToChat(
        ON CONFLICT DO NOTHING`,
       args: [id, account.owner_id, account.id, external, ...messageTail(m, sentAt)],
     },
+    ...unarchiveMark(m, sentAt, id),
     threadTouch(m, sentAt, 'id = (SELECT thread_id FROM inbox_messages WHERE id = ?)', [id]),
   ]);
   const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);
@@ -521,7 +552,7 @@ export interface ListOptions {
 /** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
 const LIST_COLS = [
   'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'done_at',
-  'archived_at', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
+  'archived_at', 'keep_archived', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
   'presence', 'presence_who', 'presence_at', 'last_seen_at',
 ]
   .map((c) => `t.${c}`)
@@ -747,6 +778,7 @@ export function threadDto(
     pinned: !!r.pinned_at,
     done: !!r.done_at,
     archived: !!r.archived_at,
+    keepArchived: r.keep_archived === 1,
     snoozedUntil: snoozed,
     woke: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_reason : '',
     followUpAt: r.follow_up_at,
@@ -1065,6 +1097,8 @@ export type ThreadAction =
   | { action: 'unpin' }
   | { action: 'archive' }
   | { action: 'unarchive' }
+  /** Mantener archivado: prenderlo archiva el chat; apagarlo lo deja donde está. */
+  | { action: 'keepArchived'; on: boolean }
   | { action: 'snooze'; until: string }
   | { action: 'unsnooze' }
   | { action: 'followUp'; at: string }
@@ -1102,8 +1136,8 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'undone':
-      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar".
-      sql = 'done_at = NULL, archived_at = NULL';
+      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar" (y apaga "Mantener archivado").
+      sql = 'done_at = NULL, archived_at = NULL, keep_archived = 0';
       break;
     case 'read':
       sql = 'unread = 0';
@@ -1124,7 +1158,12 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'unarchive':
-      sql = 'archived_at = NULL, done_at = NULL';
+      // Desarchivar a mano apaga "Mantener archivado" (en el mismo UPDATE: el trigger lo deja pasar).
+      sql = 'archived_at = NULL, done_at = NULL, keep_archived = 0';
+      break;
+    case 'keepArchived':
+      sql = a.on ? 'keep_archived = 1, archived_at = COALESCE(archived_at, ?), pinned_at = NULL' : 'keep_archived = 0';
+      extra = a.on ? [nowS] : [];
       break;
     case 'snooze':
       sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
@@ -1165,7 +1204,18 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     }
   }
   const marks = unique.map(() => '?').join(',');
+  // "Mantener archivado" en un chat que no estaba en Archivados: lo archiva, también en WhatsApp.
+  const toArchive =
+    a.action === 'keepArchived' && a.on
+      ? ((await db
+          .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND archived_at IS NULL AND done_at IS NULL AND id IN (${marks})`)
+          .all(owner, ...unique)) as Array<{ id: string }>)
+      : [];
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
+  if (toArchive.length) {
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, toArchive.map((r) => r.id), true);
+  }
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
   // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
   // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.

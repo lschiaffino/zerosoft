@@ -430,15 +430,57 @@ export default function InboxApp(props: {
   // El texto que se acaba de mandar aparece ya en la conversación, y lo que vuelve del servidor al terminar un envío
   // entra SOLO en la conversación de ese chat (components/inbox/wa/pending.ts): si ya hay otro abierto, va a la copia
   // guardada del suyo y lo que está a la vista no se toca.
+  // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
+  // Archivados ya, el contador baja y la conversación sigue abierta. En Archivados, cuando el envío terminó, un aviso
+  // con Deshacer (antes, el envío que llega después lo volvería a desarchivar).
+  const unarchivedBySend = useRef(new Map<string, { back: ThreadAction; notice: boolean }>());
+  const inArchivedView = (view === 'archived' || view === 'done') && !q && !folder;
+  const unarchiveOnSend = useCallback(
+    (threadId: string) => {
+      if (unarchivedBySend.current.has(threadId)) return;
+      const was = live.current.threads.find((x) => x.id === threadId) ?? (detailRef.current?.thread.id === threadId ? detailRef.current.thread : null);
+      if (!was || was.channel !== 'whatsapp' || !(was.archived || was.done) || was.keepArchived) return;
+      unarchivedBySend.current.set(threadId, { back: { action: was.archived ? 'archive' : 'done' }, notice: inArchivedView });
+      setThreads((xs) => (inArchivedView ? xs.filter((x) => x.id !== threadId) : xs.map((x) => (x.id === threadId ? { ...x, archived: false, done: false } : x))));
+      setDetail((d) => (d && d.thread.id === threadId ? { ...d, thread: { ...d.thread, archived: false, done: false } } : d));
+      setState((st) => ({ ...st, counts: { ...st.counts, archived: Math.max(0, (st.counts.archived ?? 0) - 1) } }));
+    },
+    [inArchivedView],
+  );
+  /** El envío terminó: el contador se confirma con el servidor y, si se mandó desde Archivados, el aviso con Deshacer. */
+  const settleUnarchive = useCallback(
+    (threadId: string, sent: boolean) => {
+      const done = unarchivedBySend.current.get(threadId);
+      if (!done) return;
+      unarchivedBySend.current.delete(threadId);
+      stateEtag.current = '';
+      void reloadState();
+      // No salió: el chat sigue archivado y vuelve a su lista.
+      if (!sent) return void reloadList();
+      if (!done.notice) return;
+      toast(t('toast.unarchive', { n: 1 }), {
+        undo: () =>
+          void api('/api/inbox/threads', { method: 'POST', json: { ids: [threadId], ...done.back } }).then(() => {
+            void reloadList();
+            void reloadState();
+            if (openRef.current === threadId) void loadDetail(threadId, true);
+            notifyInboxChanged();
+          }),
+      });
+    },
+    [toast, t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useEffect(
     () =>
       pendingSends.subscribe((e) => {
         const kept = detailCache.get(e.threadId);
         if (kept) detailCache.set(e.threadId, applyPending(kept, e) ?? kept);
         setDetail((d) => applyPending(d, e));
+        if (e.type !== 'drop') unarchiveOnSend(e.threadId);
         if (e.type === 'sent') void reloadList();
+        if (e.type !== 'add') settleUnarchive(e.threadId, e.type === 'sent');
       }),
-    [detailCache, reloadList],
+    [detailCache, reloadList, unarchiveOnSend, settleUnarchive],
   );
   /**
    * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El
@@ -651,6 +693,16 @@ export default function InboxApp(props: {
     [q, folder, view, threads, openId, toast, errText, t, reloadList, reloadState, loadDetail],
   );
 
+  /** "Mantener archivado": prenderlo archiva el chat (sale de la bandeja); el aviso deja deshacerlo. */
+  const keepArchived = useCallback(
+    async (ids: string[], on: boolean) => {
+      if (!(await runAction(ids, { action: 'keepArchived', on }, { silent: true }))) return;
+      if (openRef.current && ids.includes(openRef.current)) void loadDetail(openRef.current, true);
+      toast(t(on ? 'toast.keepArchivedOn' : 'toast.keepArchivedOff'));
+    },
+    [runAction, loadDetail, toast, t],
+  );
+
   const act = useCallback(
     (name: string) => {
       const ids = targetIds();
@@ -695,6 +747,9 @@ export default function InboxApp(props: {
         case 'unarchive':
           void runAction(ids, { action: name });
           break;
+        case 'keepArchived':
+          void keepArchived(ids, !th?.keepArchived);
+          break;
         case 'unread':
           void runAction(ids, { action: th && th.unread > 0 ? 'read' : 'unread' });
           break;
@@ -703,7 +758,7 @@ export default function InboxApp(props: {
           break;
       }
     },
-    [targetIds, threads, detail, runAction],
+    [targetIds, threads, detail, runAction, keepArchived],
   );
 
   /**
@@ -1452,6 +1507,7 @@ export default function InboxApp(props: {
           }}
           onStartChat={startChatWith}
           onMute={(until) => void runAction([detail.thread.id], { action: 'mute', until })}
+          onKeepArchived={detail.thread.channel === 'whatsapp' ? (on) => void keepArchived([detail.thread.id], on) : undefined}
           onError={(code) => toast(errText(code), { bad: true })}
           onToast={(text) => toast(text)}
           onChanged={() => void loadDetail(detail.thread.id, true)}

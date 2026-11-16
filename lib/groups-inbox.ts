@@ -797,7 +797,7 @@ export async function ingestCall(number: NumberRow, ev: Extract<InboundEvent, { 
       createdAt: at,
       meta: meta as unknown as Record<string, unknown>,
     });
-    await touchChat(chat.id, at, '[call]', ev.direction === 'in');
+    await touchChat(chat.id, at, '[call]', ev.direction === 'in', false);
   }
   if (meta.answeredAt || (meta.durationSec ?? 0) > 0) await markAnswered(chat.id, at);
 }

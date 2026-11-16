@@ -65,7 +65,11 @@ const parity: ProductParity = {
     // Ordenar
     row('done', 'triage', ['Mark done (archive)', 'Marcar hecho (archivar)', 'Concluir (arquivar)'], 'have', {
       weight: 2,
-      detail: ['E, from the list or the conversation. In Gmail it removes the thread from the inbox', 'E, desde la lista o la conversación. En Gmail saca el hilo de la bandeja', 'E, da lista ou da conversa. No Gmail tira a conversa da caixa'],
+      detail: [
+        'E, from the list or the conversation. In Gmail it removes the thread from the inbox. On WhatsApp, sending a message brings the chat back to the list, like on the phone, except for chats set to Keep archived',
+        'E, desde la lista o la conversación. En Gmail saca el hilo de la bandeja. En WhatsApp, mandar un mensaje devuelve el chat a la lista, como en el teléfono, salvo en los chats con Mantener archivado',
+        'E, da lista ou da conversa. No Gmail tira a conversa da caixa. No WhatsApp, enviar uma mensagem devolve a conversa para a lista, como no celular, salvo nas conversas marcadas como Manter arquivada',
+      ],
     }),
     row('snooze', 'triage', ['Snooze (remind me)', 'Posponer', 'Adiar'], 'have', {
       weight: 2,

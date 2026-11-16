@@ -44,6 +44,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
   if (typeof b.muted === 'boolean') patch.muted = b.muted;
   if (typeof b.archived === 'boolean') patch.archived = b.archived;
+  if (typeof b.keepArchived === 'boolean') patch.keepArchived = b.keepArchived;
   if (typeof b.hidden === 'boolean') patch.hidden = b.hidden;
   try {
     if (b.folderId === null || typeof b.folderId === 'string') {

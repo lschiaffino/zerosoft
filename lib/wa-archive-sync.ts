@@ -18,7 +18,7 @@
  * Server-only.
  */
 import { after } from 'next/server';
-import { getDb } from './db';
+import { getDb, type BatchStatement } from './db';
 import { ProviderError, isGroupJid, isLidJid, lidDigits, phoneDigits, type ArchiveRef, type GroupsProvider } from './groups-provider';
 
 export type ArchiveApp = 'inbox' | 'lines';
@@ -117,6 +117,31 @@ export async function requestArchivePush(app: ArchiveApp, scopeId: string, chatI
     // Sin request (tests, cron, scripts): en el momento.
     await job();
   }
+}
+
+/** El motivo con que queda anotado un desarchivado que hizo un mensaje enviado (nada salió a WhatsApp). */
+export const UNARCHIVED_BY_SEND = 'by_send';
+
+/**
+ * Un mensaje que sale desarchiva el chat, acá y en WhatsApp (lo hace WhatsApp solo): no se le manda nada. Queda
+ * anotado como pedido ya cumplido ("no archivado"), en la misma ida a la base que el mensaje y ANTES de tocar el
+ * chat: cancela un archivado que esperaba su turno y, si la persona vuelve a archivar enseguida (Deshacer), el aviso
+ * de desarchivado que el teléfono manda por el mensaje se reconoce como eco viejo (isArchiveEcho) y no lo pisa.
+ * `chatWhere` elige el chat (alias c), solo si está archivado.
+ */
+export function sendUnarchiveMark(app: ArchiveApp, chatWhere: string, whereArgs: Array<string | number>, at = new Date().toISOString()): BatchStatement {
+  const from =
+    app === 'inbox'
+      ? "SELECT 'inbox', c.id, c.owner_id, 0, 1, ?, 0, ?, ?, ? FROM inbox_threads c WHERE c.channel = 'whatsapp' AND (c.archived_at IS NOT NULL OR c.done_at IS NOT NULL) AND c.keep_archived = 0"
+      : "SELECT 'lines', c.id, c.user_id, 0, 1, ?, 0, ?, ?, ? FROM groups_chats c WHERE c.archived_at IS NOT NULL AND c.keep_archived = 0";
+  return {
+    sql: `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
+       ${from} AND ${chatWhere}
+       ON CONFLICT(app, chat_id) DO UPDATE SET prev_archived = wa_archive_push.archived, prev_at = wa_archive_push.requested_at,
+         archived = 0, scope_id = excluded.scope_id, version = wa_archive_push.version + 1, requested_at = excluded.requested_at,
+         attempts = 0, next_at = excluded.next_at, claimed_until = NULL, done_at = excluded.done_at, last_error = excluded.last_error`,
+    args: [at, at, at, UNARCHIVED_BY_SEND, ...whereArgs],
+  };
 }
 
 export async function getArchivePush(app: ArchiveApp, chatId: string): Promise<PushRow | undefined> {

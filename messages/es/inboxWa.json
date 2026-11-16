@@ -3,6 +3,10 @@
   "typing": "escribiendo…",
   "recording": "grabando audio…",
   "muted": "Silenciado",
+  "keepArchived": "Mantener archivado",
+  "keepArchivedOff": "Dejar de mantener archivado",
+  "keepArchivedHint": "Los mensajes nuevos, y los que mandás, no lo sacan de Archivados.",
+  "keptArchived": "Se mantiene archivado",
   "unread": "{n, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
   "kind": {
     "image": "Foto",
