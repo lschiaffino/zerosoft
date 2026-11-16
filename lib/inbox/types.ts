@@ -64,6 +64,8 @@ export interface ThreadDto {
   keepArchived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
+  /** Desde cuándo está vencido (volvió de posponer o venció el recordatorio); null si no lo está. */
+  wokeAt?: string | null;
   followUpAt: string | null;
   mutedUntil: string | null;
   draft: string;

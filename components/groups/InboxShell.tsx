@@ -938,6 +938,9 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        data-testid="chat-row"
+        data-chat-id={c.id}
+        data-overdue={c.flagged ? 'true' : undefined}
         {...gestures.rowProps(c.id)}
         {...ctxMenu.handlers(c.id, t('wa.chatOptions', { name: c.name }), !showCheck)}
       >
@@ -964,6 +967,8 @@ export default function InboxShell({
           aria-current={c.id === current ? 'page' : undefined}
           draggable={false}
         >
+          {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}
+          {c.flagged && <span className="wa-overdue-edge" data-testid="row-overdue-edge" aria-hidden="true" title={t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' })} />}
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
             <span className="gr-row-top">

@@ -818,6 +818,7 @@ export function threadDto(
     keepArchived: r.keep_archived === 1,
     snoozedUntil: snoozed,
     woke: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_reason : '',
+    wokeAt: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_at : null,
     followUpAt: r.follow_up_at,
     mutedUntil: r.muted_until && r.muted_until > now.toISOString() ? r.muted_until : null,
     draft: r.draft,
