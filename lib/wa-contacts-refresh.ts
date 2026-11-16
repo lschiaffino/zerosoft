@@ -226,7 +226,23 @@ export async function refreshInboxDaily(now = new Date(), deadline = Date.now() 
       refreshChat: async (id) => {
         const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND account_id = ?').get(id, account.id)) as import('./inbox/core').ThreadRow | undefined;
         if (!thread) return;
-        await refreshChatInfo(account, thread, now);
+        const got = await refreshChatInfo(account, thread, now);
+        // 1:1: la foto de la persona a la libreta (copia nuestra). La URL recién pedida se aprovecha; si no vino
+        // (sin foto, o el pedido de la foto falló adentro de chatInfo), se pide aparte, con pausa y los topes de siempre.
+        if (thread.kind === 'dm') {
+          const { dmPerson, refreshDmPicture } = await import('./wa-contact-pictures');
+          const { noteThreadPicture } = await import('./inbox/wa-meta');
+          const fresh = (await db.prepare('SELECT avatar_url FROM inbox_threads WHERE id = ?').get(thread.id)) as { avatar_url: string } | undefined;
+          const changed = await refreshDmPicture({ app: 'inbox', accountId: account.id, userId: account.owner_id }, provider, dmPerson(thread.handle, thread.external_id), {
+            now,
+            deadline,
+            gapMs,
+            gapFirst: true,
+            chatPicture: got ? fresh?.avatar_url : undefined,
+            fresh: got,
+          });
+          if (changed) await noteThreadPicture(thread);
+        }
         // Grupo: de paso, las fotos de algunos participantes que nunca se pidieron o vencieron.
         if (thread.kind === 'group') {
           const { parseThreadInfo } = await import('./inbox/wa-meta');
@@ -295,6 +311,19 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
           | undefined;
         if (!chat || !provider.chatInfo) return;
         const info = await provider.chatInfo(chat.provider_chat_id);
+        // 1:1: la foto de la persona a la libreta (copia nuestra), como en Inbox.
+        if (chat.kind === 'dm') {
+          const { dmPerson, refreshDmPicture } = await import('./wa-contact-pictures');
+          const changed = await refreshDmPicture({ app: 'lines', accountId: number.id, userId: number.user_id }, provider, dmPerson(chat.phone, chat.provider_chat_id), {
+            now,
+            deadline,
+            gapMs,
+            gapFirst: true,
+            chatPicture: info?.pictureUrl || undefined,
+            fresh: !!info,
+          });
+          if (changed) await db.prepare("INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) VALUES ('lines', ?, ?, ?)").run(chat.user_id, chat.id, chat.number_id);
+        }
         if (!info) return;
         if (chat.kind === 'group') {
           // Asunto y descripción: los de WhatsApp mandan (se cambian allá o desde acá, que los manda a WhatsApp).

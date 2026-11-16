@@ -14,7 +14,23 @@ import { displayName, lookupContacts, type ContactRow } from './wa-contacts';
 import type { PersonRole, WaPersonCard } from './wa-person';
 
 /** El teléfono de la persona: el pedido o el de quien mandó el mensaje (del mismo grupo). */
-export async function personPhone(ws: string, groupId: string, input: { phone?: string | null; messageId?: string | null }): Promise<string> {
+export async function personPhone(ws: string, groupId: string, input: { phone?: string | null; messageId?: string | null; card?: number | null }): Promise<string> {
+  // Una tarjeta de contacto (vCard) de un mensaje del chat (de quien sea): su primer teléfono (el de WhatsApp).
+  if (input.messageId && typeof input.card === 'number') {
+    const m = await getMessageRow(ws, input.messageId);
+    if (!m || m.chat_id !== groupId) throw new GroupsError('not_found', 404);
+    let cards: Array<{ phones?: unknown }> = [];
+    try {
+      const meta = JSON.parse(m.meta || '{}') as { contacts?: Array<{ phones?: unknown }> };
+      cards = Array.isArray(meta.contacts) ? meta.contacts : [];
+    } catch {
+      cards = [];
+    }
+    const phones = cards[input.card]?.phones;
+    const phone = phoneDigits(Array.isArray(phones) ? String(phones[0] ?? '') : '');
+    if (!/^\d{8,15}$/.test(phone)) throw new GroupsError('not_found', 404);
+    return phone;
+  }
   if (input.messageId) {
     const m = await getMessageRow(ws, input.messageId);
     if (!m || m.chat_id !== groupId || m.direction !== 'in') throw new GroupsError('not_found', 404);

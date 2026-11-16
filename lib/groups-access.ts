@@ -270,6 +270,8 @@ export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageD
     ...m,
     senderPhone: m.senderPhone ? maskField(m.senderPhone) : '',
     reactions: m.reactions.map((r) => ({ ...r, by: /^\d{6,}$/.test(r.by) ? maskPhone(r.by) : r.by })),
+    // Tarjetas de contacto: los teléfonos también van ocultos ("Mensaje" usa el mensaje y la tarjeta, no el número).
+    ...(m.contacts ? { contacts: m.contacts.map((c) => ({ ...c, phones: c.phones.map(maskField) })) } : {}),
     // El teléfono de una persona mencionada también va oculto (la mención se muestra con el nombre o con el teléfono enmascarado).
     ...(m.mentionNames
       ? { mentionNames: Object.fromEntries(Object.entries(m.mentionNames).map(([d, t]) => [d, { ...t, phone: t.phone ? maskField(t.phone) : '' }])) }
