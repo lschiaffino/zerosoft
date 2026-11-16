@@ -732,7 +732,19 @@ const WaConversation = forwardRef<
           {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
               url={meta.link?.url ?? firstUrl(m.body)}
-              given={meta.link ? { url: meta.link.url, title: meta.link.title, description: meta.link.description, image: meta.link.thumb } : null}
+              given={
+                meta.link
+                  ? {
+                      url: meta.link.url,
+                      title: meta.link.title,
+                      description: meta.link.description,
+                      // La imagen grande que mandó WhatsApp (guardada al llegar); si no, su miniatura chica.
+                      image: meta.link.image ?? meta.link.thumb,
+                      imageWidth: meta.link.image ? meta.link.imageWidth : undefined,
+                      imageHeight: meta.link.image ? meta.link.imageHeight : undefined,
+                    }
+                  : null
+              }
             />
           )}
           {poll && !hidden && (

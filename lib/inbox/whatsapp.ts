@@ -14,6 +14,7 @@ import { cleanPushName } from '../groups-provider-bridge';
 import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import { logMediaFailure, parseMediaWire, type MediaWire } from '../wa-media-wire';
+import { storeLinkHq } from '../wa-link-thumb';
 import {
   addMessage,
   addMessageToChat,
@@ -219,7 +220,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   if (!body && e.poll) body = e.poll.question;
   const { meta, kind } = messageMeta(e);
   // Una sola ida a la base: el chat, el mensaje y el chat al tope de la lista (lo que avisa a la pantalla).
-  const { thread, added } = await addMessageToChat(account, input, {
+  const { thread, added, id: savedId } = await addMessageToChat(account, input, {
     meta,
     kind,
     forwarded: !!e.forwarded,
@@ -244,6 +245,13 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
       .prepare(`UPDATE inbox_messages SET media_ref = ? WHERE thread_id = ? AND external_id = ? AND media_ref <> '' AND media_ref NOT LIKE '%"wire"%'`)
       .run(JSON.stringify(media.fetchRef), thread.id, e.providerMessageId)
       .catch(() => null);
+  }
+  // La imagen grande de la vista previa del link (Maps, notas): se baja una vez, después de responder el webhook.
+  if (added && e.link?.hq && !(history || e.history)) {
+    const ref = e.link.hq;
+    await afterResponse(async () => {
+      if (await storeLinkHq('inbox_messages', savedId, ref).catch(() => false)) pokeLive('inbox', account.owner_id);
+    });
   }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);

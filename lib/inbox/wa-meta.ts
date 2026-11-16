@@ -58,7 +58,7 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     out.contacts = e.contacts.slice(0, 20).map((c) => ({ name: (c.name ?? '').slice(0, 120), phones: (c.phones ?? []).slice(0, 5).map((p) => String(p).slice(0, 30)) }));
     kind = 'contact';
   }
-  if (e.link) out.link = { url: e.link.url, title: e.link.title, ...(e.link.description ? { description: e.link.description } : {}), ...(e.link.thumbnail ? { thumb: e.link.thumbnail } : {}) };
+  if (e.link) out.link = { url: e.link.url, title: e.link.title, ...(e.link.description ? { description: e.link.description } : {}), ...(e.link.thumbnail ? { thumb: e.link.thumbnail } : {}), ...(e.link.hq ? { hqRef: e.link.hq } : {}) };
   if (e.poll) {
     out.poll = { question: e.poll.question.slice(0, 300), options: e.poll.options.slice(0, 12).map((o) => o.slice(0, 100)), multi: !!e.poll.multi };
     kind = 'poll';

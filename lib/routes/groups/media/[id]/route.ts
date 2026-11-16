@@ -4,6 +4,7 @@ import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from '@/lib/groups-provider';
 import { safeFetch } from '@/lib/safe-fetch';
 import { mediaErrorKind } from '@/lib/wa-media-wire';
+import { linkHqBytes, type StoredLink } from '@/lib/wa-link-thumb';
 import { chatGuard, groupsError, groupsSession } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
@@ -18,6 +19,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const msg = await getMessageRow(s.ws, (await ctx.params).id);
+  // ?link=1: la imagen grande de la vista previa del link que mandó WhatsApp (guardada al llegar el mensaje).
+  if (msg && new URL(_req.url).searchParams.get('link') === '1') {
+    const guard = await chatGuard(s, msg.chat_id);
+    if (guard instanceof NextResponse) return guard;
+    let link: StoredLink | undefined;
+    try {
+      link = (JSON.parse(msg.meta || '{}') as { link?: StoredLink }).link;
+    } catch {
+      link = undefined;
+    }
+    const img = linkHqBytes(link);
+    if (!img) return groupsError(404, 'not_found');
+    return new NextResponse(new Uint8Array(img.bytes), {
+      headers: { 'content-type': img.type, 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox" },
+    });
+  }
   if (!msg?.media_url) return groupsError(404, 'not_found');
   const guard = await chatGuard(s, msg.chat_id);
   if (guard instanceof NextResponse) return guard;

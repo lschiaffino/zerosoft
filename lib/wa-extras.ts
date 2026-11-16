@@ -40,7 +40,9 @@ export interface LinkPreviewDto {
 
 const PREVIEW_TTL_MS = 7 * 86_400_000;
 /** Versión del lector: las filas guardadas con una anterior se vuelven a leer (no tenían medidas ni ícono). */
-const PREVIEW_VERSION = 2;
+const PREVIEW_VERSION = 3;
+/** Una vista previa pobre (sin imagen ni descripción: solo el nombre del sitio) se vuelve a leer al día, no a la semana. */
+const WEAK_TTL_MS = 86_400_000;
 /** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB). */
 export const IMAGE_MAX = 700 * 1024;
 const FAVICON_MAX = 24 * 1024;
@@ -152,7 +154,10 @@ const inflight = new Map<string, Promise<PreviewRow>>();
 
 async function readPreview(url: string, now: Date): Promise<PreviewRow> {
   const hit = (await getDb().prepare('SELECT * FROM wa_link_previews WHERE url = ?').get(url)) as PreviewRow | undefined;
-  if (hit && Number(hit.version) >= PREVIEW_VERSION && now.getTime() - Date.parse(hit.fetched_at) < PREVIEW_TTL_MS) return hit;
+  if (hit && Number(hit.version) >= PREVIEW_VERSION) {
+    const age = now.getTime() - Date.parse(hit.fetched_at);
+    if (age < (hit.image || hit.description ? PREVIEW_TTL_MS : WEAK_TTL_MS)) return hit;
+  }
   let p = inflight.get(url);
   if (!p) {
     p = fetchPreview(url, now).finally(() => inflight.delete(url));
@@ -237,6 +242,8 @@ export async function linkPreviewImage(raw: string, n: 0 | 1): Promise<{ type: s
 
 function fakeHtml(url: string): string {
   const u = new URL(url);
+  // Link corto de prueba: "short.test/<lo que sea>" manda (meta refresh) a la página del producto, que tiene og:image.
+  if (u.hostname === 'short.test') return `<html><head><title>Short</title><meta http-equiv="refresh" content="0; url=https://shop.test/producto/${u.pathname.slice(1)}"></head></html>`;
   const site = u.hostname.replace(/^www\./, '');
   const path = u.pathname.toLowerCase();
   const long = path.includes('long');

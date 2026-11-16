@@ -114,7 +114,19 @@ export interface WaMessageMeta {
   contacts?: Array<{ name: string; phones: string[] }>;
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
-  link?: { url: string; title: string; description?: string; thumb?: string };
+  link?: {
+    url: string;
+    title: string;
+    description?: string;
+    thumb?: string;
+    /** La imagen grande (ruta del mensaje) y sus medidas, si WhatsApp la mandó y se bajó. */
+    image?: string;
+    imageWidth?: number;
+    imageHeight?: number;
+    /** Solo en la base (no van al navegador): la referencia y la imagen grande ya bajada. */
+    hqRef?: import('../wa-link-thumb').LinkHqRef;
+    hq?: import('../wa-link-thumb').LinkHq;
+  };
   /** Se mandó sin vista previa del link (la persona la sacó en el composer). */
   noPreview?: boolean;
   /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
