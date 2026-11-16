@@ -713,6 +713,22 @@ export async function readFileBytes(row: StoredFileRow, max = 64 * 1024 * 1024):
   }
 }
 
+/**
+ * `length` bytes desde `offset` (menos si el archivo termina antes). Para los
+ * que leen un archivo grande por partes del lado del servidor (una
+ * importación, un zip).
+ */
+export async function readFileRange(row: StoredFileRow, offset: number, length: number): Promise<Buffer> {
+  const size = await fileSize(row);
+  if (length <= 0 || offset >= size) return Buffer.alloc(0);
+  const end = Math.min(size - 1, offset + length - 1);
+  const opened = await openFile({ ...row, size }, { start: offset, end });
+  if (!opened) throw new FileStoreError('storage_unavailable', 503);
+  const chunks: Buffer[] = [];
+  for await (const piece of webIter(opened.stream)) chunks.push(Buffer.from(piece));
+  return Buffer.concat(chunks).subarray(0, end - offset + 1);
+}
+
 /** Atajo: bytes de una URL de /api/files. */
 export async function readFileUrlBytes(url: string, max?: number): Promise<Buffer | null> {
   const row = await fileRowForUrl(url);

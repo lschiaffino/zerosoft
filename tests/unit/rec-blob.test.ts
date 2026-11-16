@@ -62,6 +62,17 @@ describe('Rec sirve Blob por la ruta, sin redirigir', () => {
     expect(calls.find((c) => c.fn === 'put')?.opts?.access).toBe('private');
   });
 
+  it('siempre aislado; un tipo que no es video, audio o imagen se descarga', async () => {
+    const video = await serveRecFile(req('bytes=0-10'), URL_, 'video/webm', { size: 100 });
+    expect(video.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox");
+    expect(video.headers.get('content-type')).toBe('video/webm');
+    expect(video.headers.get('content-disposition')).toBeNull();
+    const other = await serveRecFile(req('bytes=0-10'), URL_, 'text/html', { size: 100 });
+    expect(other.headers.get('content-type')).toBe('application/octet-stream');
+    expect(other.headers.get('content-disposition')).toMatch(/^attachment/);
+    expect(other.headers.get('content-security-policy')).toContain('sandbox');
+  });
+
   it('URLs que no son de nuestro Blob no se sirven', async () => {
     expect((await serveRecFile(req(), 'https://evil.example.com/x.webm', 'video/webm', { size: 10 })).status).toBe(404);
   });

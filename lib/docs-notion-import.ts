@@ -24,7 +24,7 @@ import os from 'os';
 import { createHash } from 'crypto';
 import path from 'path';
 import { appendFile, mkdir, stat, truncate, unlink, writeFile } from 'fs/promises';
-import { del, put } from '@vercel/blob';
+import { del } from '@vercel/blob';
 import { getDb } from './db';
 import {
   getExternalIds,
@@ -80,6 +80,35 @@ export function importsDir(): string {
 
 const FILE_REF = /^file:([A-Za-z0-9._-]{1,120})$/;
 const BLOB_REF = /^blob:(https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/imports\/[A-Za-z0-9._%-]+)$/;
+/** Un archivo del storage privado (lib/files/store.ts): el zip subido o una parte extraída. */
+const STORED_REF = /^fs:([A-Za-z0-9_-]{22})$/;
+
+/** Ref del zip subido por /api/files (ya chequeado que es del workspace). */
+export function storedZipRef(fileId: string): string {
+  return `fs:${fileId}`;
+}
+
+/** Lee el zip del storage privado por rangos, sin bajarlo entero. */
+function storedSource(id: string): ZipSource {
+  let row: Promise<import('./files/store').StoredFileRow> | null = null;
+  const load = () =>
+    (row ??= (async () => {
+      const { getFileRow } = await import('./files/store');
+      const r = await getFileRow(id);
+      if (!r) throw new ImportError('invalid_upload');
+      return r;
+    })());
+  return {
+    async size() {
+      const { fileSize } = await import('./files/store');
+      return fileSize(await load());
+    },
+    async read(offset: number, length: number) {
+      const { readFileRange } = await import('./files/store');
+      return readFileRange(await load(), offset, length);
+    },
+  };
+}
 
 /** URL de Blob aceptable para un import (subida por el token de /api/import/upload). */
 export function isImportBlobUrl(url: unknown): url is string {
@@ -93,6 +122,8 @@ export function localZipRef(jobId: string): string {
 function refSource(ref: string): ZipSource {
   const f = FILE_REF.exec(ref);
   if (f) return fileSource(path.join(importsDir(), f[1]));
+  const st = STORED_REF.exec(ref);
+  if (st) return storedSource(st[1]);
   const b = BLOB_REF.exec(ref);
   if (b) return urlSource(b[1]);
   throw new ImportError('invalid_upload');
@@ -131,6 +162,13 @@ async function deleteRef(ref: string): Promise<void> {
   const f = FILE_REF.exec(ref);
   if (f) {
     await unlink(path.join(importsDir(), f[1])).catch(() => undefined);
+    return;
+  }
+  const st = STORED_REF.exec(ref);
+  if (st) {
+    const { deleteFileUrls, fileUrl, getFileRow } = await import('./files/store');
+    const row = await getFileRow(st[1]).catch(() => null);
+    if (row) await deleteFileUrls([fileUrl(row)]).catch(() => undefined);
     return;
   }
   const b = BLOB_REF.exec(ref);
@@ -357,9 +395,19 @@ async function resolveParts(job: ImportJob, outer: ZipSource, entries: ZipEntry[
       continue;
     }
     const buf = await readZipEntry(outer, e, PART_MAX_BYTES);
-    if (process.env.BLOB_READ_WRITE_TOKEN && BLOB_REF.test(job.payload!)) {
-      const blob = await put(`imports/${job.id}-part${i + 1}.zip`, buf, { access: 'public', addRandomSuffix: true, contentType: 'application/zip' });
-      parts.push({ ref: `blob:${blob.url}` });
+    if (STORED_REF.test(job.payload!) || BLOB_REF.test(job.payload!)) {
+      // La parte extraída va al storage privado (como el zip subido): nada queda público.
+      const { putFile } = await import('./files/store');
+      const row = await putFile(buf, {
+        workspaceId: job.workspace_id,
+        userId: job.user_id,
+        app: 'docs',
+        folder: 'imports',
+        access: 'internal',
+        name: `${job.id}-part${i + 1}.zip`,
+        mime: 'application/zip',
+      });
+      parts.push({ ref: storedZipRef(row.id) });
     } else {
       const name = `${job.id}-part${i + 1}.zip`;
       await mkdir(importsDir(), { recursive: true });
