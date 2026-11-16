@@ -876,6 +876,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-hs-result-name { font-weight: 600; overflow-wrap: anywhere; }
 .gr-hs-results .ui-help { overflow-wrap: anywhere; }
 .gr-hs-log { display: flex; flex-direction: column; gap: 6px; }
+.gr-hs-create { display: flex; flex-direction: column; gap: 6px; }
 .gr-hs-log .ui-help { margin: 0; }
 .gr-hs-scope-groups { display: flex; flex-direction: column; gap: 10px; }
 .gr-hs-scope-groups .label { margin: 0 0 2px; }

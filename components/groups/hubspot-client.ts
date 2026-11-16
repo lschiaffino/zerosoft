@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
-import { api } from './ui';
+import { api } from './dialog-kit';
 
 /**
  * El esquema de propiedades de HubSpot del workspace, compartido entre la

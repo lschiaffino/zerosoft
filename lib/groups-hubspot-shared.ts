@@ -50,6 +50,11 @@ export interface HubspotSchemaDto {
   owners: HubspotOwner[];
   /** Las que el workspace eligió mostrar arriba y en los detalles del chat. */
   pinned: string[];
+  /**
+   * Las que eligió quien mira para los detalles del chat y el panel de
+   * HubSpot (en Lines y en Inbox). null: usa las del workspace.
+   */
+  mine?: string[] | null;
   /** El token puede escribir empresas (editar desde Lines). */
   canWrite: boolean;
 }

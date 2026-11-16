@@ -155,6 +155,17 @@ export async function inboxContact(owner: string, scope: InboxHubspotScope | nul
   return { row: toRow(owner, person, threads, hs.connected ? (hs.byIdentity.get(person.identity) ?? { contact: null, company: null }) : null, true) };
 }
 
+/** La persona de un chat 1:1 de Inbox (para el panel de HubSpot del chat). 404 si no es un chat 1:1 suyo. */
+export async function inboxThreadContact(owner: string, scope: InboxHubspotScope | null, threadId: string): Promise<{ row: ContactRowDto }> {
+  const { people, threads } = await collect(owner);
+  const thread = threads.get(threadId);
+  if (!thread || thread.kind !== 'dm') throw new InboxError('not_found', 404);
+  const person = people.find((p) => p.dms.some((d) => d.chatId === threadId));
+  if (!person) throw new InboxError('not_found', 404);
+  const hs = await hubspotFor(scope, [person]);
+  return { row: toRow(owner, person, threads, hs.connected ? (hs.byIdentity.get(person.identity) ?? { contact: null, company: null }) : null, true) };
+}
+
 export async function inboxContactHubspotMatches(owner: string, scope: InboxHubspotScope, id: string): Promise<HubspotSuggestion[]> {
   const { person } = await findPerson(owner, id);
   return personHubspotMatches(scope.ws, scope.mask, person);

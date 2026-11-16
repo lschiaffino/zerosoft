@@ -343,6 +343,17 @@
     "moveFilter": "Filter folders"
   },
   "settings": {
+    "hubspot": {
+      "intro": "Your workspace HubSpot. Link or create contacts from each 1:1 chat.",
+      "notConnected": "Your workspace has no HubSpot connected. An admin connects it in the Lines settings.",
+      "linesLink": "Open Lines integrations",
+      "statusOn": "Connected",
+      "statusOff": "Not connected",
+      "autoCreate": "Create the HubSpot contact when a new 1:1 chat comes in",
+      "autoCreateHelp": "Only for your Inbox and for chats that start after you turn this on. If a HubSpot contact already has that number, nothing is created.",
+      "needsScope": "The workspace token is missing these scopes to create contacts: {scopes}.",
+      "saved": "Saved"
+    },
     "title": "Inbox settings",
     "subtitle": "Your accounts, folders, snippets and imports. Everything here is private to you: the workspace and its admins never see it.",
     "gmailResult": {

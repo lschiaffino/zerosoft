@@ -124,6 +124,7 @@ import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
+import HubspotDock from './HubspotDock';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -2759,6 +2760,9 @@ export default function ChatThread(props: ThreadProps) {
       </aside>
 
       {personSheet.sheet}
+
+      {/* El panel de HubSpot fijado al costado sigue al chat abierto. */}
+      {!props.sample && <HubspotDock source={{ app: 'lines', chatId: chat.id }} isAdmin={props.isAdmin} />}
 
       <TaskModal
         open={!!taskFor}

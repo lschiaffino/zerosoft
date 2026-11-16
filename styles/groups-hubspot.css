@@ -111,3 +111,48 @@ dialog.ui-drawer.gr-hsx { width: min(760px, 100vw); }
 @media (max-width: 720px) {
   .gr-hsu-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Panel fijado al costado del chat (Lines e Inbox) ---------- */
+/* components/groups/HubspotDock.tsx: el mismo panel, sin tapar la conversación.
+   La app le deja su lugar, como al asistente fijado (styles/assistant.css). */
+.gr-hs-title { flex-wrap: wrap; }
+.gr-hs-title-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gr-hs-pin-actions { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.gr-hsx-head-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.gr-hsx-dock-btn { display: inline-flex; align-items: center; gap: 6px; }
+.gr-hsx-dock-btn[aria-pressed='true'] { color: var(--ink); background: var(--ui-selected, var(--ui-hover)); }
+.gr-hsx-dock {
+  position: fixed;
+  top: var(--band-h, 48px);
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-side-panel);
+  width: 380px;
+  color: var(--ink);
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+}
+html[data-hubspot-pinned] .app-frame { padding-right: 380px; }
+/* Con el asistente también fijado, el panel de HubSpot va a su izquierda. */
+html[data-hubspot-pinned][data-assistant-pinned] .app-frame { padding-right: calc(var(--asst-w, 440px) + 380px); }
+html[data-hubspot-pinned][data-assistant-pinned] .gr-hsx-dock { right: var(--asst-w, 440px); }
+.gr-hsx-dock .ui-drawer-head { padding: 10px 12px 10px 16px; gap: 8px; }
+.gr-hsx-dock .ui-drawer-title { font-size: 1.125rem; }
+.gr-hsx-dock .gr-hsx-bar { grid-template-columns: minmax(0, 1fr); padding: 10px 16px 0; }
+.gr-hsx-dock .gr-hsx-actions { justify-content: flex-start; }
+.gr-hsx-dock .ui-drawer-body { padding: 16px; }
+.gr-hsx-dock .gr-hsx-row,
+.gr-hsx-dock .gr-hsx-row.has-pin { grid-template-columns: minmax(0, 1fr) 40px; gap: 0 8px; }
+.gr-hsx-dock .gr-hsx-label { grid-column: 1; min-height: 28px; padding: 4px 8px 0; }
+.gr-hsx-dock .gr-hsx-value { grid-column: 1; grid-row: 2; }
+.gr-hsx-dock .gr-hsx-row.has-pin .gr-hsx-pin { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.ib-hs-company { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+/* Los detalles del chat que flotan a la derecha (Lines por debajo de 1440px) van a la izquierda del panel fijo. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html[data-hubspot-pinned] .gr-details.is-open { right: 380px; }
+}
+/* Fijar es para el escritorio: en el teléfono el panel es una hoja y no hay lugar al costado. */
+@media (max-width: 1023px) {
+  .gr-hsx-dock-btn { display: none; }
+  html[data-hubspot-pinned] .app-frame { padding-right: 0; }
+}
