@@ -104,7 +104,7 @@ for (const width of [1280, 390]) {
       expect((await request.patch(`/api/groups/chats/${ik}`, { data: { keepArchived: true } })).ok()).toBe(true);
 
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').click({ timeout: FIRST_MS });
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').click({ timeout: FIRST_MS });
       const rowB = page.locator('.gr-rows .gr-row', { hasText: back });
       const rowK = page.locator('.gr-rows .gr-row', { hasText: kept });
       await expect(rowB).toBeVisible({ timeout: FIRST_MS });

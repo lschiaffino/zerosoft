@@ -268,6 +268,12 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
+  // Fleet: lo que escribiste en tu propio chat citando el aviso de un agente va a la cola de ese agente.
+  if (added && e.fromMe && e.replyToProviderId && !history && !e.history) {
+    await import('../fleet/link')
+      .then((m) => m.routeWhatsappReply(account, e))
+      .catch((err) => console.error('[inbox] fleet reply', (err as Error)?.name ?? 'error'));
+  }
   // El archivo se baja y se guarda aparte (cola con reintentos, lib/wa-media-jobs.ts): desde ahí no depende de que el
   // servidor de WhatsApp siga teniendo el mensaje. Solo lo reciente; lo más viejo se guarda al abrirlo.
   if (added && media?.fetchRef && e.providerMessageId && eagerWorthy(e.timestamp)) {
