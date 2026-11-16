@@ -1992,6 +1992,7 @@
     "folderName": "Folder name",
     "foldersEmpty": "No folders yet. Create one to sort chats; everyone in the workspace sees the same folders.",
     "unfiled": "No folder",
+    "unfiledEmpty": "Every chat is in a folder",
     "folderUnread": "{n, plural, one {# unread chat} other {# unread chats}}",
     "folderOptions": "Options for folder {name}",
     "expand": "Expand {name}",

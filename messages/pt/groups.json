@@ -1992,6 +1992,7 @@
     "folderName": "Nome da pasta",
     "foldersEmpty": "Ainda não há pastas. Crie uma para organizar as conversas; todo o workspace vê as mesmas pastas.",
     "unfiled": "Sem pasta",
+    "unfiledEmpty": "Todas as conversas estão em uma pasta",
     "folderUnread": "{n, plural, one {# conversa não lida} other {# conversas não lidas}}",
     "folderOptions": "Opções da pasta {name}",
     "expand": "Expandir {name}",
