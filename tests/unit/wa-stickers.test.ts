@@ -323,6 +323,7 @@ describe('Inbox: guardar, importar y mandar', () => {
     const b64 = FAKE_STICKER_WEBP.toString('base64');
     await p.sendMedia('549@s.whatsapp.net', { url: '', mimetype: 'image/webp', filename: 'sticker.webp', kind: 'sticker', base64: b64, replyTo: 'Q1' });
     expect(calls[0].url).toBe('https://evo.example.com/message/sendSticker/acme');
-    expect(calls[0].body).toEqual({ number: '549@s.whatsapp.net', sticker: b64, quoted: { key: { id: 'Q1' } } });
+    // Un WebP en bytes sale tal cual (parche 0009 de Evolution): sin convertir, así un sticker animado sigue animado.
+    expect(calls[0].body).toEqual({ number: '549@s.whatsapp.net', sticker: b64, notConvertSticker: true, quoted: { key: { id: 'Q1' } } });
   });
 });
