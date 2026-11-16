@@ -13,6 +13,7 @@ import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance,
 import { cleanPushName } from '../groups-provider-bridge';
 import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
+import { logMediaFailure, parseMediaWire, type MediaWire } from '../wa-media-wire';
 import {
   addMessage,
   addMessageToChat,
@@ -236,6 +237,14 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     history: history || e.history,
   });
   onSaved();
+  // Ya estaba guardado sin la clave del archivo (llegó antes de que se guardara, o de otra vía) y ahora vino con ella
+  // (por ejemplo, el historial que reenvía el teléfono): se completa, así el archivo se puede volver a bajar.
+  if (!added && media?.fetchRef?.wire && e.providerMessageId) {
+    await getDb()
+      .prepare(`UPDATE inbox_messages SET media_ref = ? WHERE thread_id = ? AND external_id = ? AND media_ref <> '' AND media_ref NOT LIKE '%"wire"%'`)
+      .run(JSON.stringify(media.fetchRef), thread.id, e.providerMessageId)
+      .catch(() => null);
+  }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
   // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta. Si falla, el
@@ -549,18 +558,22 @@ export const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 
 /** Baja un archivo recibido (foto, audio, documento) del servidor de WhatsApp. */
 export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string): Promise<{ data: Buffer; mimetype: string; filename: string }> {
-  let ref: { providerMessageId: string; chatId: string; fromMe: boolean };
+  let ref: { providerMessageId: string; chatId: string; fromMe: boolean; wire?: MediaWire };
   try {
     ref = JSON.parse(mediaRef) as typeof ref;
   } catch {
     throw new InboxError('not_found', 404);
   }
+  const wire = parseMediaWire(ref.wire);
   const p = waProviderFor(account);
   if (!p.fetchMedia) throw new InboxError('not_found', 404);
   try {
-    return await p.fetchMedia(ref, MAX_MEDIA_BYTES);
-  } catch {
-    throw new InboxError('media_unavailable', 502);
+    return await p.fetchMedia({ providerMessageId: ref.providerMessageId, chatId: ref.chatId, fromMe: ref.fromMe, ...(wire ? { wire } : {}) }, MAX_MEDIA_BYTES);
+  } catch (err) {
+    // El tipo de falla queda en el log (sin ids ni contenido). "gone": WhatsApp ya no lo tiene, o el gateway no tiene
+    // el mensaje y no hay clave para bajarlo directo: 410, la pantalla dice que ya no está disponible.
+    const kind = logMediaFailure('inbox', err, !!wire);
+    throw new InboxError('media_unavailable', kind === 'gone' ? 410 : 502);
   }
 }
 

@@ -1948,7 +1948,11 @@
       "openFor": "Dados do contato de {name}"
     },
     "replyPrivately": "Responder em particular",
-    "messageName": "Enviar mensagem para {name}"
+    "messageName": "Enviar mensagem para {name}",
+    "downloadAgain": "Baixar de novo",
+    "downloadingAgain": "Baixando…",
+    "mediaGoneImage": "Esta foto não está mais disponível no WhatsApp",
+    "mediaGoneVideo": "Este vídeo não está mais disponível no WhatsApp"
   },
   "swipe": {
     "read": "Lida",

@@ -48,7 +48,17 @@ import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCard, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
+
+/** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
+async function retryLinesMedia(id: string): Promise<MediaRetryResult> {
+  const r = await fetch(`/api/groups/media/${id}`, { method: 'POST' }).catch(() => null);
+  if (r?.ok) {
+    const { url } = (await r.json()) as { url?: string };
+    return url ? { url } : { pending: true };
+  }
+  return r?.status === 410 ? { gone: true } : { pending: true };
+}
 import MediaAlbum from './wa/MediaAlbum';
 import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
@@ -1774,7 +1784,16 @@ export default function ChatThread(props: ThreadProps) {
               ) : sticker && !media.url ? (
                 <StickerMissing label={t('wa.stickers.missing')} />
               ) : !media.url && (kind === 'image' || kind === 'video') ? (
-                <MediaUnavailable kind={kind} width={media.width} height={media.height} thumbnail={media.thumbnail} />
+                <MissingMedia
+                  kind={kind}
+                  width={media.width}
+                  height={media.height}
+                  thumbnail={media.thumbnail}
+                  seconds={media.duration}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                  retryKey={`lines:${m.id}`}
+                />
               ) : !media.url ? (
                 <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
               ) : kind === 'image' || kind === 'sticker' ? (

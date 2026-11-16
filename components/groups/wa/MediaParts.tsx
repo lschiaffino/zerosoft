@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Smiley } from './icons';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
 import { mediaBox, mediaBoxStyle, placeholderBox } from './media-box';
@@ -224,27 +224,134 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
 const boxFor = mediaBox;
 const boxStyle = mediaBoxStyle;
 
+/** Lo que responde "bajar de nuevo": la URL (ya está), que WhatsApp ya no lo tiene, o que quedó para más tarde. */
+export type MediaRetryResult = { url: string } | { gone: true } | { pending: true };
+
+/**
+ * Reintento de una media que se sirve desde nuestra ruta (Inbox, o Lines ya
+ * guardada): la pide otra vez sin caché. Con 200 la usa ya (sin bajarla dos
+ * veces); 410: WhatsApp ya no la tiene.
+ */
+export function refetchMedia(url: string): () => Promise<MediaRetryResult> {
+  return async () => {
+    const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    if (r?.ok && (r.headers.get('content-type') ?? '').match(/^(image|video)\//)) return { url: URL.createObjectURL(await r.blob()) };
+    return r?.status === 410 ? { gone: true } : { pending: true };
+  };
+}
+
+/** Lo que ya se reintentó solo en esta pestaña (una vez por media): el automático no se repite en cada render. */
+const autoRetried = new Set<string>();
+
 /**
  * Foto o video que no está (no se pudo bajar, o el archivo ya no carga): el
  * mismo lugar que ocuparía la foto (sus medidas si se saben, si no el
  * estándar), con la miniatura borrosa de WhatsApp si vino y el aviso al
  * centro. La burbuja mantiene el ancho y el texto de abajo se lee normal.
+ *
+ * Con `onRetry`: se reintenta solo una vez al aparecer (el servidor le pide el
+ * archivo a WhatsApp, y si venció, al teléfono) y queda "Bajar de nuevo". Si
+ * WhatsApp ya no lo tiene, lo dice así y no ofrece reintentar.
  */
-export function MediaUnavailable({ kind = 'image', width, height, thumbnail }: { kind?: 'image' | 'video'; width?: number; height?: number; thumbnail?: string }) {
+export function MediaUnavailable({
+  kind = 'image',
+  width,
+  height,
+  thumbnail,
+  gone: goneAtStart,
+  onRetry,
+  retryKey,
+  onRecovered,
+}: {
+  kind?: 'image' | 'video';
+  width?: number;
+  height?: number;
+  thumbnail?: string;
+  gone?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
+  /** Id de la media para el reintento automático (uno por pestaña). */
+  retryKey?: string;
+  onRecovered?: (url: string) => void;
+}) {
   const t = useTranslations('groups');
-  const label = t('thread.fileUnavailable');
+  const [state, setState] = useState<'idle' | 'busy' | 'gone'>(goneAtStart ? 'gone' : 'idle');
+  const retryRef = useRef(onRetry);
+  retryRef.current = onRetry;
+  const recoveredRef = useRef(onRecovered);
+  recoveredRef.current = onRecovered;
+  const run = async () => {
+    const retry = retryRef.current;
+    if (!retry) return;
+    setState('busy');
+    const r = await retry().catch((): MediaRetryResult => ({ pending: true }));
+    if ('url' in r) recoveredRef.current?.(r.url);
+    setState('gone' in r ? 'gone' : 'idle');
+  };
+  useEffect(() => {
+    if (goneAtStart || !retryKey || !retryRef.current || autoRetried.has(retryKey)) return;
+    const timer = setTimeout(() => {
+      if (autoRetried.has(retryKey)) return;
+      autoRetried.add(retryKey);
+      void run();
+    }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryKey, goneAtStart]);
+  const label = state === 'gone' ? (kind === 'video' ? t('wa.mediaGoneVideo') : t('wa.mediaGoneImage')) : state === 'busy' ? t('wa.downloadingAgain') : t('thread.fileUnavailable');
   return (
-    <span className={`wa-media-ph is-${kind}`} style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))} role="img" aria-label={label} data-testid="wa-media-unavailable">
+    <span
+      className={`wa-media-ph is-${kind}${state === 'gone' ? ' is-gone' : ''}`}
+      style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))}
+      data-testid="wa-media-unavailable"
+      data-state={state}
+    >
       {thumbnail && (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="wa-thumb" src={thumbnail} alt="" aria-hidden="true" />
       )}
-      <span className="wa-media-ph-note">
+      <span className="wa-media-ph-note" role="status">
         {kind === 'video' ? <Play size={18} /> : <PhotoIcon size={18} />}
         <span>{label}</span>
       </span>
+      {/* Mientras baja queda solo el aviso "Bajando…": el botón vuelve si no se pudo. */}
+      {onRetry && state === 'idle' && (
+        <button type="button" className="wa-media-ph-retry" onClick={() => void run()} data-testid="wa-media-retry">
+          <Retry size={16} />
+          {t('wa.downloadAgain')}
+        </button>
+      )}
     </span>
   );
+}
+
+/**
+ * Foto o video sin archivo guardado (Lines): el lugar con "Bajar de nuevo" y,
+ * si vuelve, la media en su lugar.
+ */
+export function MissingMedia({
+  kind,
+  width,
+  height,
+  thumbnail,
+  gone,
+  onRetry,
+  retryKey,
+  seconds,
+}: {
+  kind: 'image' | 'video';
+  width?: number;
+  height?: number;
+  thumbnail?: string;
+  gone?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
+  retryKey?: string;
+  seconds?: number;
+}) {
+  const [url, setUrl] = useState('');
+  const t = useTranslations('groups');
+  if (url && kind === 'image') return <ImageView url={url} alt={t('thread.image')} width={width} height={height} thumbnail={thumbnail} />;
+  if (url) return <VideoView url={url} seconds={seconds} thumbnail={thumbnail} width={width} height={height} />;
+  return <MediaUnavailable kind={kind} width={width} height={height} thumbnail={thumbnail} gone={gone} onRetry={onRetry} retryKey={retryKey} onRecovered={setUrl} />;
 }
 
 /**
@@ -260,6 +367,8 @@ export function ImageView({
   height,
   onLoad,
   onOpen,
+  onRetry,
+  retryKey,
 }: {
   url: string;
   alt: string;
@@ -269,9 +378,18 @@ export function ImageView({
   height?: number;
   onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
   onOpen?: () => void;
+  /** Si no carga: cómo volver a pedirla (por defecto, la misma URL sin caché). */
+  onRetry?: () => Promise<MediaRetryResult>;
+  retryKey?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // La URL que se dibuja: la del mensaje, o la que trajo "bajar de nuevo".
+  const [src, setSrc] = useState(url);
+  useEffect(() => {
+    setSrc(url);
+    setFailed(false);
+  }, [url]);
   const ref = useRef<HTMLImageElement>(null);
   // Una imagen que ya estaba en caché termina de cargar antes de que React escuche onLoad.
   useEffect(() => {
@@ -281,11 +399,24 @@ export function ImageView({
     // Lo mismo si falló antes (la página llegó dibujada del servidor y el error pasó antes de que React escuchara):
     // sin esto la foto rota quedaba en blanco, sin el aviso.
     else if (el.currentSrc || el.getAttribute('src')) setFailed(true);
-  }, [url]);
+  }, [src]);
   const t = useTranslations('groups');
   if (failed) {
     if (sticker) return <StickerMissing label={t('thread.fileUnavailable')} />;
-    return <MediaUnavailable width={width} height={height} thumbnail={thumbnail} />;
+    return (
+      <MediaUnavailable
+        width={width}
+        height={height}
+        thumbnail={thumbnail}
+        onRetry={onRetry ?? (url.startsWith('/') ? refetchMedia(url) : undefined)}
+        retryKey={retryKey ?? url}
+        onRecovered={(u) => {
+          setSrc(u);
+          setLoaded(false);
+          setFailed(false);
+        }}
+      />
+    );
   }
   // Sin medidas, mientras carga: el lugar estándar (la burbuja no queda angosta); al cargar, su tamaño real.
   const box = sticker ? null : (boxFor(width, height) ?? (loaded ? null : placeholderBox()));
@@ -299,7 +430,7 @@ export function ImageView({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={ref}
-        src={url}
+        src={src}
         alt={alt}
         loading="lazy"
         className={loaded ? 'is-loaded' : ''}

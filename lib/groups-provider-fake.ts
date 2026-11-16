@@ -290,9 +290,14 @@ function fakeWav(seconds = 2): Buffer {
   return b;
 }
 
+const fakeMediaReleased = new Set<string>();
+
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
   // "gone-": el gateway ya no tiene el mensaje (Evolution: "Message not found" tras volver a vincular la línea).
   if (id.startsWith('gone-')) throw new ProviderError('not_found');
+  // "hold-": el gateway no responde (falla pasajera) hasta que un webhook { type: 'fake_media_release', id } lo libera.
+  // Para probar "Bajar de nuevo".
+  if (id.startsWith('hold-') && !fakeMediaReleased.has(id)) throw new ProviderError('unreachable');
   if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
   if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
@@ -636,6 +641,10 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       }
       const out = events.flatMap((e): InboundEvent[] => {
         const t = (e as { type?: unknown })?.type;
+        if (t === 'fake_media_release') {
+          fakeMediaReleased.add(String((e as { id?: unknown }).id ?? ''));
+          return [];
+        }
         if (t === 'fake_withheld') {
           const missing = withhold(s, (e as { message?: unknown }).message);
           return missing ? [missing] : [];

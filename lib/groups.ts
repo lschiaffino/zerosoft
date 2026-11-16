@@ -12,6 +12,7 @@ import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
+import { logMediaFailure, mediaErrorKind, parseMediaWire } from './wa-media-wire';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -1552,7 +1553,9 @@ function mediaUrlFor(row: MessageRow): string {
 
 export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; rn?: number }): MessageDto {
   const poll = parsePoll(row.poll);
+  // mediaWire (la clave del archivo en WhatsApp) no sale del servidor.
   const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
+  delete meta.mediaWire;
   return {
     id: row.id,
     chatId: row.chat_id,
@@ -2360,6 +2363,8 @@ export async function lidChatName(ws: string): Promise<string> {
 export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): StoredMeta | undefined {
   const meta: StoredMeta = {};
   if (ev.media?.info) meta.media = compactInfo(ev.media.info);
+  // La clave del archivo (nunca va al navegador): para volver a bajarlo aunque el gateway no tenga el mensaje.
+  if (ev.media?.fetchRef?.wire) meta.mediaWire = ev.media.fetchRef.wire;
   if (ev.location) meta.location = ev.location;
   if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
   // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
@@ -2405,6 +2410,38 @@ function permanentMediaError(err: unknown): boolean {
   return code === 'file_type_not_allowed';
 }
 
+/** La referencia para bajar el archivo de un mensaje guardado (con la clave de WhatsApp si se guardó). */
+export function mediaRefFor(msg: MessageRow, providerChatId: string): MediaRef | null {
+  if (!msg.provider_message_id) return null;
+  const wire = parseMediaWire(parseJson<StoredMeta>(msg.meta ?? '', {}).mediaWire);
+  return { providerMessageId: msg.provider_message_id, chatId: providerChatId, fromMe: msg.direction === 'out', ...(wire ? { wire } : {}) };
+}
+
+/**
+ * "Bajar de nuevo" un archivo recibido que quedó sin archivo (o pendiente): lo
+ * vuelve a pedir al gateway, que con la clave del archivo lo baja de WhatsApp
+ * y, si el enlace venció, le pide al teléfono que lo vuelva a subir. `url`: ya
+ * está; `gone`: WhatsApp ya no lo tiene; `pending`: falla pasajera, queda para
+ * el próximo intento.
+ */
+export async function retryInboundMedia(number: NumberRow, msg: MessageRow, providerChatId: string): Promise<{ url: string } | { gone: true } | { pending: true }> {
+  const ref = mediaRefFor(msg, providerChatId);
+  if (!ref || !msg.media_type || !(msg.media_url === '' || msg.media_url.startsWith('evo:'))) return { gone: true };
+  await getDb()
+    .prepare(
+      "UPDATE groups_messages SET media_url = ?, meta = CASE WHEN json_valid(meta) THEN json_remove(meta, '$.mediaGone') ELSE meta END WHERE id = ? AND number_id = ? AND media_url = ''",
+    )
+    .run(`evo:${ref.providerMessageId}`, msg.id, number.id);
+  try {
+    const stored = await storeInboundMedia(number, msg.id, ref, { retry: true });
+    if (stored) return { url: stored.url };
+    const row = await getMessageRow(msg.user_id, msg.id);
+    return row?.media_url && !row.media_url.startsWith('evo:') ? { url: mediaUrlFor(row) } : { pending: true };
+  } catch (err) {
+    return mediaErrorKind(err) === 'gone' ? { gone: true } : { pending: true };
+  }
+}
+
 /**
  * Baja un archivo recibido por el gateway (Evolution) y lo guarda en nuestro
  * storage, como los adjuntos que se mandan. Respeta el tope de tamaño (y el
@@ -2428,9 +2465,14 @@ export async function storeInboundMedia(
   if (!provider.fetchMedia) return null;
   const { saveUpload } = await import('./uploads');
   const max = Math.max(0, Math.min(MAX_INBOUND_MEDIA, opts.budget ?? MAX_INBOUND_MEDIA));
-  const markFailed = () =>
+  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así y no ofrece reintentar.
+  const markFailed = (gone: boolean) =>
     getDb()
-      .prepare("UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
+      .prepare(
+        gone
+          ? "UPDATE groups_messages SET media_url = '', meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaGone', json('true')) WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'"
+          : "UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'",
+      )
       .run(messageId, number.id);
   try {
     let file;
@@ -2459,7 +2501,8 @@ export async function storeInboundMedia(
   } catch (err) {
     // Más grande que lo que quedaba del presupuesto del webhook (no del tope): queda para cuando se abra.
     const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_INBOUND_MEDIA;
-    if (permanentMediaError(err) && !overBudget) await markFailed();
+    const kind = logMediaFailure('lines', err, !!ref.wire);
+    if (permanentMediaError(err) && !overBudget) await markFailed(kind === 'gone');
     throw err;
   }
 }

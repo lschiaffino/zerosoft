@@ -19,6 +19,7 @@
  * nunca incluyen credenciales en los errores: ProviderError lleva un código
  * corto y, a lo sumo, el status HTTP del proveedor.
  */
+import type { MediaWire } from './wa-media-wire';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
 
@@ -161,6 +162,8 @@ export interface MediaRef {
   providerMessageId: string;
   chatId: string;
   fromMe: boolean;
+  /** Clave y ubicación del archivo en WhatsApp (lib/wa-media-wire.ts): para bajarlo aunque el gateway no tenga el mensaje. */
+  wire?: MediaWire;
 }
 
 export interface FetchedMedia {
