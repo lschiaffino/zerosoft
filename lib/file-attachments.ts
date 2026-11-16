@@ -58,6 +58,7 @@ import { privateFileStore, SealedFileTooLargeError, type PrivateFileStore } from
 import { getCurrentUser, type SessionUser } from './session';
 import { appFromPath } from './products';
 import { deleteUploads, saveUpload, UploadError, type UploadFolder } from './uploads';
+import { isFileUrl } from './files/store';
 import { userCanUseApp } from './workspace';
 import { limitWrites } from './write-limit';
 
@@ -487,7 +488,8 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
     const contentType = cleanMime(req.headers.get('content-type'));
     let url: string;
     try {
-      url = await saveUpload(files.legacyFolder!, filename, contentType, Buffer.concat(chunks));
+      // Storage privado (lib/files/store.ts): se sirve solo por la ruta del adjunto, con el permiso del registro.
+      url = await saveUpload(files.legacyFolder!, filename, contentType, Buffer.concat(chunks), { app: files.app, access: 'internal' });
     } catch (err) {
       if (err instanceof UploadError) return json({ error: err.code }, err.status);
       throw err;
@@ -530,10 +532,23 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
     const row = await o.find({ ...c, fileId });
     if (!row) return json({ error: 'not_found' }, 404);
     const download = req.nextUrl.searchParams.get('download') === '1';
+    if (isFileUrl(row.url)) {
+      // Modo 'legacy' de ahora: storage privado, solo si el archivo es de este workspace.
+      const { ownedFileResponse } = await import('./files/serve');
+      return (await ownedFileResponse(req, row.url, { workspaceId: c.user.id }, { download })) ?? json({ error: 'not_found' }, 404);
+    }
     if (!isPrivateRef(row.url)) {
-      // Adjuntos de antes (/uploads/… o Blob público): se sirven donde estaban.
-      if (/^\/uploads\/[a-z]+\/[^/]+$/.test(row.url) || /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(row.url)) {
-        return NextResponse.redirect(new URL(row.url, req.nextUrl.origin), 302);
+      // Adjuntos de antes (/uploads/… o Blob público): pasan por acá, sin redirigir (la URL del storage no llega al navegador).
+      const s = servingFor(row.filename, row.contentType, { download });
+      if (/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(row.url)) {
+        const { proxyPublicBlob } = await import('./files/legacy-proxy');
+        return proxyPublicBlob(req, row.url, s.headers);
+      }
+      if (/^\/uploads\/[a-z]+\/[^/]+$/.test(row.url)) {
+        const { localUploadPath } = await import('./uploads');
+        const { localResponse } = await import('./crm-media-file');
+        const file = localUploadPath(row.url);
+        return file ? localResponse(req, file, s.headers) : json({ error: 'not_found' }, 404);
       }
       return json({ error: 'not_found' }, 404);
     }

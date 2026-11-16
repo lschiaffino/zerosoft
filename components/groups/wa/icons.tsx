@@ -38,9 +38,10 @@ export function Ticks({ status, label }: { status: string; label: string }) {
       </span>
     );
   }
-  if (status === 'pending') {
+  // Saliendo, o esperando la red (en cola sin conexión): el reloj, como WhatsApp.
+  if (status === 'pending' || status === 'queued') {
     return (
-      <span className="wa-ticks" title={label}>
+      <span className={`wa-ticks${status === 'queued' ? ' is-queued' : ''}`} title={label}>
         <Svg size={14} strokeWidth={2}>
           <circle cx="12" cy="12" r="8.5" />
           <path d="M12 7.5V12l3 2" />
@@ -84,6 +85,15 @@ export const Smiley = (p: P) => (
     <circle cx="12" cy="12" r="9" />
     <path d="M8.5 14.5c.9 1.3 2.1 2 3.5 2s2.6-.7 3.5-2" />
     <path d="M9 9.8v.01M15 9.8v.01" strokeWidth={2.6} />
+  </Svg>
+);
+/** Carita con un "+" (agregar una reacción), como el botón del cuadro de reacciones de WhatsApp. */
+export const SmileyPlus = (p: P) => (
+  <Svg {...p}>
+    <path d="M20.6 10.3A9 9 0 1 1 13.7 3.2" />
+    <path d="M7.8 14.2c.9 1.3 2.2 2 3.7 2s2.8-.7 3.7-2" />
+    <path d="M8.6 9.6v.01M14.4 9.6v.01" strokeWidth={2.6} />
+    <path d="M19 2.5v6M16 5.5h6" />
   </Svg>
 );
 export const Plus = (p: P) => (

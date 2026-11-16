@@ -1553,7 +1553,7 @@ export interface RecCommentPage {
   comments: RecCommentDto[];
   /** Reacciones por emoji (todas). */
   reactions: Record<string, number>;
-  /** Las últimas 50 reacciones con su segundo (para la línea de tiempo). */
+  /** Las últimas 50 reacciones con su segundo (para la línea de tiempo), más las de quien mira (para poder quitarlas). */
   reactionMarks: RecCommentDto[];
   /** Cursor para la página siguiente (comentarios más viejos), o null. */
   nextBefore: string | null;
@@ -1620,6 +1620,14 @@ export async function listComments(
   const marks = (await db
     .prepare("SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'reaction' AND at_sec IS NOT NULL ORDER BY rowid DESC LIMIT 50")
     .all(v.id)) as CommentRow[];
+  // Las propias van siempre (hasta 50), aunque ya no entren entre las últimas: quien reaccionó tiene que poder quitar la suya.
+  if (viewerKey) {
+    const own = (await db
+      .prepare("SELECT * FROM rec_comments WHERE video_id = ? AND kind = 'reaction' AND viewer_key = ? ORDER BY rowid DESC LIMIT 50")
+      .all(v.id, viewerKey)) as CommentRow[];
+    const seen = new Set(marks.map((m) => m.id));
+    for (const r of own) if (!seen.has(r.id)) marks.push(r);
+  }
   const total = Number(
     ((await db.prepare("SELECT COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL").get(v.id)) as { n: number }).n,
   );
@@ -1674,7 +1682,7 @@ export async function addComment(
   return commentDto(row, viewer.key, v.created_by);
 }
 
-/** Borrar un comentario: quien lo escribió (misma clave de espectador) o quien administra el video. */
+/** Borrar un comentario o una reacción: quien lo dejó (misma clave de espectador) o quien administra el video. */
 export async function deleteComment(v: RecVideoRow, commentId: string, viewer: RecViewer, actor: RecActor | null): Promise<void> {
   const c = (await getDb().prepare('SELECT viewer_key FROM rec_comments WHERE id = ? AND video_id = ?').get(commentId, v.id)) as { viewer_key: string } | undefined;
   if (!c) throw new RecError('not_found', 404);

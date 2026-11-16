@@ -1749,7 +1749,9 @@
       "track": "Track",
       "notes": "Notes",
       "board": "Board",
-      "cal": "Cal (somente leitura)"
+      "cal": "Cal (somente leitura)",
+      "lines": "Lines",
+      "inbox": "Inbox"
     },
     "appsHelp": {
       "crm": "Contatos, empresas, negócios e a página inicial",
@@ -1757,7 +1759,9 @@
       "track": "As listas, issues e projetos que você abriu",
       "notes": "A lista de notas",
       "board": "Os quadros que você abriu e a lista de quadros",
-      "cal": "As reservas, tipos de evento e disponibilidade que você abriu. Para editar é preciso conexão"
+      "cal": "As reservas, tipos de evento e disponibilidade que você abriu. Para editar é preciso conexão",
+      "lines": "As conversas que você abriu. As mensagens escritas sem conexão saem em ordem quando a conexão volta",
+      "inbox": "As conversas que você abriu. As mensagens escritas sem conexão saem em ordem quando a conexão volta"
     },
     "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
     "measuring": "Medindo…",

@@ -14,5 +14,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if ('res' in u) return u.res;
   const video = await getVideo(u.user.id, id);
   if (!video) return notFound();
-  return serveVideo(req, video.url, video.content_type);
+  return serveVideo(req, video.url, video.content_type, u.user.id);
 }

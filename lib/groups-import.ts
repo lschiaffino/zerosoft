@@ -29,6 +29,7 @@
  *
  * Server-only.
  */
+import { eagerWorthy, queueMediaJob } from './wa-media-jobs';
 import { getDb } from './db';
 import {
   applyReaction,
@@ -36,6 +37,7 @@ import {
   getNumberRow,
   getNumberRowById,
   inboundMeta,
+  completeMediaWire,
   insertMessage,
   lidChatName,
   previewOf,
@@ -229,10 +231,15 @@ export async function applyContact(number: Pick<NumberRow, 'id' | 'user_id'>, ev
 export async function ingestHistory(number: NumberRow, incoming: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
-  const learned = await learnLinesEvents(number, incoming.slice(0, 2000));
+  // Todo esto es historial: la libreta completa nombres que faltan, no pisa los que hay con los de mensajes viejos.
+  const marked = incoming.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e));
+  const learned = await learnLinesEvents(number, marked);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
-  const events = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
-  // Mensajes recibidos repetidos que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
+  const resolved = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono es de esa persona (lib/wa-dedupe-run.ts).
+  const { routeLidByKnownMessages } = await import('./wa-dedupe-run');
+  const events = await routeLidByKnownMessages('lines', { app: 'lines', accountId: number.id, userId: number.user_id }, resolved).catch(() => resolved);
+  // Mensajes repetidos (recibidos o propios) que querían entrar a otro chat: pista de que el lid y el teléfono son la misma persona.
   const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   const db = getDb();
   const ws = number.user_id;
@@ -294,10 +301,14 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
         });
         if (!row) {
           res.duplicates++;
-          if (chat.kind === 'dm' && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
+          // El mismo mensaje, ahora con la clave del archivo: se completa (lo demás no se toca).
+          if (ev.media?.fetchRef?.wire) await completeMediaWire(number.id, ev.providerMessageId, ev.media.fetchRef.wire).catch(() => null);
+          if (chat.kind === 'dm') dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
           continue;
         }
         res.messages++;
+        // El archivo de un mensaje del historial se baja por la cola (solo lo reciente; lo más viejo, al abrirlo).
+        if (row.media_url.startsWith('evo:') && eagerWorthy(at)) await queueMediaJob('lines', number.id, row.id).catch(() => null);
         byProvider.set(ev.providerMessageId, row.id);
         const prev = latest.get(chat.id);
         if (!prev || at >= prev.at) {
@@ -371,6 +382,9 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
   for (const id of groupsTouched) await refreshMemberCount(id);
   // La misma persona con dos chats (lid y teléfono): se juntan (lib/wa-dedupe.ts).
   await dedupeLinesBatch(number, events, dups).catch(() => null);
+  // Llegó historial de estos chats: si se había pedido "Traer mensajes que faltan", el teléfono respondió.
+  const pastChats = events.flatMap((e) => (e.type === 'message' ? [e.chatId] : []));
+  if (pastChats.length) await import('./wa-history-gaps').then((g) => g.noteHistoryArrived('lines', number.id, pastChats)).catch(() => null);
   return res;
 }
 
@@ -402,27 +416,43 @@ async function save(job: ImportRow, patch: Partial<Pick<ImportRow, 'phase' | 'cu
   return r.changes > 0;
 }
 
-/** Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp vencen). */
-export async function storePicture(url: string): Promise<string> {
-  if (!/^https?:\/\//.test(url)) return '';
+/** Baja una foto de perfil de WhatsApp (JPEG, PNG o WebP, con tope). null si no se pudo. */
+export async function downloadPicture(url: string): Promise<{ name: string; type: string; data: Buffer } | null> {
+  if (!/^https?:\/\//.test(url)) return null;
   const res = await defaultBridgeFetch(url, { method: 'GET' });
   if (!res.ok) {
     await res.body?.cancel().catch(() => {});
-    return '';
+    return null;
   }
   const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
   if (!/^image\/(jpeg|png|webp)$/.test(type) || Number(res.headers.get('content-length') ?? 0) > MAX_PICTURE) {
     await res.body?.cancel().catch(() => {});
-    return '';
+    return null;
   }
   const data = Buffer.from(await res.arrayBuffer());
-  if (data.length === 0 || data.length > MAX_PICTURE) return '';
-  const { saveUpload } = await import('./uploads');
-  return saveUpload('chat', `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data);
+  if (data.length === 0 || data.length > MAX_PICTURE) return null;
+  return { name: `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data };
 }
 
-async function setPicture(chatId: string, url: string): Promise<void> {
-  const stored = await storePicture(url).catch(() => '');
+/**
+ * Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp
+ * vencen). Se ve por /api/files solo con acceso a ese chat.
+ */
+export async function storePicture(url: string, owner: { ws: string; chatId: string }): Promise<string> {
+  const pic = await downloadPicture(url);
+  if (!pic) return '';
+  const { saveUpload } = await import('./uploads');
+  return saveUpload('chat', pic.name, pic.type, pic.data, {
+    workspaceId: owner.ws,
+    userId: null,
+    app: 'groups',
+    access: 'workspace',
+    scope: `groups-chat:${owner.chatId}`,
+  });
+}
+
+async function setPicture(ws: string, chatId: string, url: string): Promise<void> {
+  const stored = await storePicture(url, { ws, chatId }).catch(() => '');
   if (stored) await getDb().prepare("UPDATE groups_chats SET picture_url = ? WHERE id = ? AND picture_url = ''").run(stored, chatId);
 }
 
@@ -463,7 +493,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         await db
           .prepare('INSERT OR IGNORE INTO groups_import_chats (number_id, remote_jid, chat_id, last_at, done) VALUES (?, ?, ?, ?, 0)')
           .run(number.id, c.remoteJid, chat.id, Math.floor(c.lastAt));
-        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(chat.id, c.pictureUrl);
+        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(number.user_id, chat.id, c.pictureUrl);
       }
       const total = ((await db.prepare('SELECT COUNT(DISTINCT chat_id) AS n FROM groups_import_chats WHERE number_id = ?').get(number.id)) as { n: number }).n;
       // La última página (o un tope de seguridad) pasa a los contactos.
@@ -546,7 +576,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         if (Date.now() > deadline) break;
         if (!c.picture_url) {
           const url = await history.picture(c.provider_chat_id).catch(() => '');
-          if (url) await setPicture(c.id, url);
+          if (url) await setPicture(number.user_id, c.id, url);
         }
         // Los grupos traen sus miembros de WhatsApp (los del historial son solo quienes escribieron).
         if (c.kind === 'group') {

@@ -76,10 +76,12 @@ function ownBlobHost(): string | null {
 }
 
 const LOCAL_UPLOAD = /^\/uploads\/[a-z]+\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/;
+/** /api/files/<id>/<nombre>: lo de ahora (storage privado; la ruta chequea sesión y permiso). */
+const FILE_URL = /^\/api\/files\/[A-Za-z0-9_-]{22}\/[A-Za-z0-9._-]{1,80}$/;
 
 /** Archivos subidos a zerosoft (adjuntos): estos sí se muestran como imagen. Forma exacta, sin rodeos. */
 export function isOwnUpload(href: string): boolean {
-  if (href.startsWith('/')) return LOCAL_UPLOAD.test(href) && !href.includes('..');
+  if (href.startsWith('/')) return (LOCAL_UPLOAD.test(href) || FILE_URL.test(href)) && !href.includes('..');
   const host = ownBlobHost();
   if (!host) return false;
   try {

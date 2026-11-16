@@ -11,10 +11,14 @@ export const actionSchema: z.ZodType<ThreadAction> = z.discriminatedUnion('actio
   z.object({ action: z.literal('snooze'), until: iso }),
   z.object({ action: z.literal('followUp'), at: iso }),
   z.object({ action: z.literal('mute'), until: iso.nullable() }),
+  z.object({ action: z.literal('keepArchived'), on: z.boolean() }),
   z.object({ action: z.enum(['addFolder', 'removeFolder']), folderId: id }),
 ]) as z.ZodType<ThreadAction>;
 
 export const bulkActionSchema = z.object({ ids: z.array(id).min(1).max(500) }).and(actionSchema);
+
+/** Sacar de Inbox, recuperar o borrar del todo uno sacado (lib/inbox/removed.ts). */
+export const removedActionSchema = z.object({ ids: z.array(id).min(1).max(500), action: z.enum(['remove', 'restore', 'purge']) });
 
 export const threadPatchSchema = z.union([
   actionSchema,
@@ -104,7 +108,19 @@ export const snippetPatchSchema = snippetCreateSchema.partial();
 const part = z.object({
   body: z.string().max(LIMITS.message),
   delaySec: z.number().int().min(0).max(7 * 86_400).optional(),
-  media: z.object({ url: z.string().min(1).max(500), name: z.string().max(200), type: z.string().max(100) }).nullable().optional(),
+  media: z
+    .object({
+      url: z.string().min(1).max(500),
+      name: z.string().max(200),
+      type: z.string().max(100),
+      /** Nota de voz grabada: sale como nota de voz, con su duración en segundos. */
+      voice: z.boolean().optional(),
+      duration: z.number().min(0).max(86_400).optional(),
+    })
+    .nullable()
+    .optional(),
+  /** Mensaje del chat (nuestro id) que cita. */
+  replyTo: id.optional(),
 });
 const parts = z.array(part).min(1).max(10);
 

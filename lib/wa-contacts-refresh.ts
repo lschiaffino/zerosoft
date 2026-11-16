@@ -213,6 +213,8 @@ export async function refreshInboxDaily(now = new Date(), deadline = Date.now() 
       continue;
     }
     if (privacyStale((account as { privacy_at?: string | null }).privacy_at, now)) await refreshPrivacy('inbox', account.id, provider, now).catch(() => null);
+    // Las cuentas vinculadas antes de sumar un evento al webhook (GROUPS_UPSERT: grupos nuevos) lo reciben desde acá.
+    await provider.syncWebhookEvents?.().catch(() => false);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnFromHistoryContacts(account, rows),
@@ -295,6 +297,7 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
       continue;
     }
     if (privacyStale(number.privacy_at, now)) await refreshPrivacy('lines', number.id, provider, now).catch(() => null);
+    await provider.syncWebhookEvents?.().catch(() => false);
     const target: RefreshTarget = {
       provider,
       learnContacts: (rows) => learnLinesContacts(number, rows),
@@ -340,7 +343,7 @@ export async function refreshLinesDaily(now = new Date(), deadline = Date.now() 
         // Foto: se baja de nuevo solo si cambió (la guardamos nosotros: la de WhatsApp vence).
         const key = info.pictureUrl ? pictureKey(info.pictureUrl) : '';
         if (key && key !== (chat.picture_src ?? '')) {
-          const stored = await storePicture(info.pictureUrl).catch(() => '');
+          const stored = await storePicture(info.pictureUrl, { ws: number.user_id, chatId: chat.id }).catch(() => '');
           if (stored) {
             await db.prepare('UPDATE groups_chats SET picture_url = ?, picture_src = ? WHERE id = ?').run(stored, key, chat.id);
             if (chat.picture_url && chat.picture_url !== stored) {

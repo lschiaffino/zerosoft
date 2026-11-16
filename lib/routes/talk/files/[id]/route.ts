@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const file = await readableFile(actor, id);
     if (!file) return jsonError(404, 'not_found');
     const block = { id, type: 'file', content: '', url: file.url, name: file.name, mime: file.mime } as unknown as DocsBlock & { url: string };
-    const res = await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range') });
+    const res = await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range'), owner: { workspaceId: actor.workspaceId } });
     return res ?? jsonError(404, 'not_found');
   });
 }

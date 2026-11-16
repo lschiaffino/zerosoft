@@ -50,7 +50,8 @@
       "send": "Compartilhe documentos por link e veja quem leu o quê",
       "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado",
       "calls": "Grava chamadas de venda e mostra o que move os negócios",
-      "fleet": "Veja e responda seus agentes de código, PRs e deploys"
+      "fleet": "Veja e responda seus agentes de código, PRs e deploys",
+      "time": "Registre horas por projeto e veja quanto pode faturar"
     },
     "building": "Em breve",
     "downloadMac": "Baixar para Mac",
@@ -227,6 +228,7 @@
     "groupInbox": "Inbox",
     "groupCalls": "Chamadas",
     "groupFleet": "Sessões de agentes",
+    "groupTimeProjects": "Projetos do Time",
     "preview": "Prévia",
     "comingSoon": "Em breve",
     "disabledApps": "Desativados para esta conta",
@@ -337,6 +339,9 @@
     },
     "fleet": {
       "desc": "Um painel para seus agentes de código: sessões do Claude Code (também dentro do Orca), pull requests do GitHub e deploys da Vercel de várias contas, e uma conversa para responder seus agentes."
+    },
+    "time": {
+      "desc": "Registre horas com cronômetro ou à mão, por projeto e tarefa, e tire relatórios de horas e valores faturáveis por cliente."
     }
   },
   "model": {
@@ -607,6 +612,9 @@
       },
       "fleet": {
         "line": "Acompanhe seus agentes de código e responda a eles em uma conversa."
+      },
+      "time": {
+        "line": "Registre horas por projeto e veja quanto pode faturar."
       },
       "analytics": {
         "line": "Perguntas, SQL e painéis sobre seus dados."
@@ -1078,6 +1086,7 @@
     "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas.",
     "needsConnection": "Precisa de conexão",
     "boardDrafts": "Board: {count, plural, one {# quadro com alterações} other {# quadros com alterações}}",
+    "messagesQueued": "Lines e Inbox: {count, plural, one {# mensagem esperando para sair} other {# mensagens esperando para sair}}",
     "switcherHint": "Sem conexão. Os apps esmaecidos precisam de rede."
   },
   "comingSoon": {

@@ -357,7 +357,7 @@ describe('Chat: editar y borrar mensajes y notas', () => {
     const edited = await editChatMessage(conversation.id, reply.id, owner.id, 'Precio: 12');
     expect(edited.message?.body).toBe('Precio: 12');
     expect(edited.message?.edited_at).toBeTruthy();
-    expect(toPublicMessage(edited.message!).edited_at).toBe(edited.message?.edited_at);
+    expect((await toPublicMessage(edited.message!)).edited_at).toBe(edited.message?.edited_at);
 
     const deleted = await deleteChatMessage(conversation.id, note.id, owner.id);
     expect(deleted.message?.deleted_at).toBeTruthy();

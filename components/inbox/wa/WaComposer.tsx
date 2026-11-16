@@ -3,9 +3,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
-import { newClientId } from '@/lib/optimistic-send';
+import { isOffline, newClientId } from '@/lib/optimistic-send';
 import { withTimeout } from '@/lib/conditional-fetch';
 import { inboxQueue, pendingSends, tempInboxMessage } from './pending';
+import { hasQueued, queueInboxText } from './outbox';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import type { GifItem } from '@/components/groups/wa/GifPanel';
@@ -29,6 +30,7 @@ import { useComposerLinkPreview } from '@/components/groups/wa/ComposerLinkPrevi
 import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
+import { keepFocus } from '@/components/groups/wa/keyboard';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -204,6 +206,19 @@ const WaComposer = forwardRef<
     const noPreview = !linkPv.linkPreview;
     // Texto solo (sin responder a otro): la burbuja aparece ya y el envío sigue por detrás, en orden; el campo queda
     // libre para el próximo. Todo va con el id de ESTE chat: la respuesta puede llegar con otro chat abierto.
+    // Sin red (o con algo de este chat esperando la red): a la cola. La burbuja queda con el reloj y sale sola, en
+    // orden, cuando vuelve la conexión (./outbox.ts); se puede borrar antes de que salga.
+    if (isOffline() || hasQueued(thread.id)) {
+      queueInboxText({ threadId: thread.id, body: out, replyTo: replyToId, mentions, noPreview });
+      draft.sending();
+      picked.current.clear();
+      setText('');
+      linkPv.reset();
+      saved.current = '';
+      ai.clearUndo();
+      if (replyToId) onCancelBanner();
+      return;
+    }
     if (!replyToId) {
       // El mismo texto que no salió, mandado de nuevo: el mismo clientId (si en verdad había salido, no se duplica).
       const clientId = retryIds.current.get(out) ?? newClientId();
@@ -225,6 +240,11 @@ const WaComposer = forwardRef<
           json: { body: out, clientId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
           signal: withTimeout(undefined, 30_000),
         });
+        // Se cortó la red mientras salía: la burbuja queda en cola, con el mismo clientId (si llegó, no se duplica).
+        if (!r.ok && r.status === 0 && isOffline()) {
+          queueInboxText({ threadId, body: out, mentions, noPreview, clientId });
+          return;
+        }
         if (!r.ok) {
           retryIds.current.set(out, clientId);
           // No salió: la burbuja se va y el texto no se pierde. Vuelve al campo, delante de lo que se haya escrito
@@ -450,7 +470,7 @@ const WaComposer = forwardRef<
       {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
-          <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
+          <button type="button" className="wa-icon-btn" data-emoji-toggle aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
             <Smiley size={24} />
           </button>
           {emoji && (
@@ -458,9 +478,10 @@ const WaComposer = forwardRef<
               stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
               gifs={editing ? undefined : { api: '/api/inbox/gifs', onSend: sendGif }}
               onPick={(e) => insertAtCaret(e)}
-              onClose={() => {
+              onClose={(reason) => {
                 setEmoji(false);
-                area.current?.focus();
+                // Un toque afuera deja el foco donde se tocó.
+                if (reason !== 'outside') area.current?.focus();
               }}
             />
           )}
@@ -583,7 +604,7 @@ const WaComposer = forwardRef<
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+          <button type="button" className="wa-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
             // Clic derecho en Enviar: programar el envío (como en WhatsApp).
             if (editing || !hasText) return;
             e.preventDefault();

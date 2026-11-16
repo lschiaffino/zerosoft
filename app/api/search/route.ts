@@ -44,6 +44,8 @@ import { searchCalls } from '@/lib/calls/search';
 import { callsActorOf } from '@/lib/calls/actor';
 import { searchSessions as searchFleet } from '@/lib/fleet/sessions';
 import { fleetActorOf } from '@/lib/fleet/api';
+import { searchTime } from '@/lib/time/core';
+import { timeActorOf } from '@/lib/time/http';
 import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
@@ -74,7 +76,7 @@ async function getPrivate(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox, calls, fleet] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox, calls, fleet, time] = await Promise.all([
     searchAll(user.id, q, scope),
     // Links: con el acceso por carpeta de la persona, como la lista.
     listLinks(user.id, { q, pageSize: 8, archived: 'all', viewer: viewerOf(user) }),
@@ -126,6 +128,8 @@ async function getPrivate(req: NextRequest) {
     userCanUseApp(user, 'calls') && user.role !== 'guest' ? searchCalls(callsActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Fleet: sesiones de agentes de la persona por título, proyecto o rama.
     userCanUseApp(user, 'fleet') && user.role !== 'guest' ? searchFleet(fleetActorOf(user), q).catch(() => []) : Promise.resolve([]),
+    // Time: proyectos por nombre, código o cliente (todos los miembros los ven).
+    userCanUseApp(user, 'time') && user.role !== 'guest' ? searchTime(timeActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -231,6 +235,7 @@ async function getPrivate(req: NextRequest) {
   for (const f of inbox) items.push({ id: `inbox:${f.id}`, group: 'inbox', label: f.label, meta: f.meta, href: f.href });
   for (const c of calls) items.push({ id: `calls:${c.id}`, group: 'calls', label: c.label, meta: c.meta, href: c.href });
   for (const f of fleet) items.push({ id: `fleet:${f.id}`, group: 'fleet', label: f.label, meta: f.meta, href: f.href });
+  for (const f of time) items.push({ id: `time:${f.id}`, group: 'timeProjects', label: f.label, meta: f.meta, href: f.href });
 
   const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles', survey: 'peopleSurveys', report: 'peopleReports' } as const;
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}`, survey: () => '/app/people/reviews#surveys', report: (id: string) => `/app/people/reports?report=${id}` } as const;

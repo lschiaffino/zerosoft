@@ -112,6 +112,10 @@
   --c-fleet-ink: #69db7c;
   --c-fleet: #69db7c;
   --c-fleet-on: #111111;
+  /* Time: el naranja tostado base pierde contraste sobre el fondo oscuro. */
+  --c-time-ink: #ffa94d;
+  --c-time: #ffa94d;
+  --c-time-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -253,6 +257,10 @@
   --c-fleet-ink: #69db7c;
   --c-fleet: #69db7c;
   --c-fleet-on: #111111;
+  /* Time: el naranja tostado base pierde contraste sobre el fondo oscuro. */
+  --c-time-ink: #ffa94d;
+  --c-time: #ffa94d;
+  --c-time-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -303,6 +311,7 @@
   :root:not([data-theme='light']) .card-inbox { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-calls { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-fleet { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-time { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-sign { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
@@ -313,4 +322,5 @@
 :root[data-theme='dark'] .card-inbox { --on-accent: #111111; }
 :root[data-theme='dark'] .card-calls { --on-accent: #111111; }
 :root[data-theme='dark'] .card-fleet { --on-accent: #111111; }
+:root[data-theme='dark'] .card-time { --on-accent: #111111; }
 :root[data-theme='dark'] .card-sign { --on-accent: #111111; }

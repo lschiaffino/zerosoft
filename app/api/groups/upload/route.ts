@@ -75,7 +75,8 @@ export async function POST(req: Request) {
     }
     try {
       const data = Buffer.from(await file.arrayBuffer());
-      const url = await saveUpload('chat', filename, mimetype, data);
+      // Solo quien lo sube lo ve por /api/files; ya mandado, el chat lo sirve por /api/groups/media/<mensaje>.
+      const url = await saveUpload('chat', filename, mimetype, data, { app: 'groups', access: 'user' });
       const out: Uploaded = { url, mimetype, filename, size: file.size };
       if (mimetype.startsWith('image/')) {
         const dims = imageSize(data);

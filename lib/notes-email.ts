@@ -6,6 +6,7 @@
  * email se reclama por id para que un reintento del webhook no duplique la nota.
  * Server-only.
  */
+import { runWithFileOwner } from './files/owner-context';
 import { randomBytes } from 'crypto';
 import en from '@/messages/en/notes.json';
 import es from '@/messages/es/notes.json';
@@ -136,7 +137,7 @@ export async function processNotesInbound(token: string, email: NotesInboundEmai
     const parsed = parseEmailSubject(email.subject);
     const notebooks = parsed.notebook ? await listNotebooks(owner) : [];
     const notebook = parsed.notebook ? notebooks.find((n) => n.name.toLowerCase() === parsed.notebook!.toLowerCase()) : undefined;
-    const files = await attachmentBlocks(email.attachments);
+    const files = await runWithFileOwner({ workspaceId: person.workspace_id, userId: person.person_id }, () => attachmentBlocks(email.attachments));
     const missing = [...files.failed, ...(email.skippedCount ? [`+${email.skippedCount}`] : [])];
     const user = (await db.prepare('SELECT locale FROM users WHERE id = ?').get(person.person_id)) as { locale: string | null } | undefined;
     const notSaved = (user?.locale === 'es' ? es : user?.locale === 'pt' ? pt : en).email.attachmentsNotSaved;

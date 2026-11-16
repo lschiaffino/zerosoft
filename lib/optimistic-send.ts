@@ -4,6 +4,7 @@
  *
  *   enviando  →  enviado    (la respuesta del servidor reemplaza la burbuja)
  *            ↘  no enviado  (queda en el chat con su error; se puede reintentar o descartar)
+ *   en cola (sin red) → enviando, solo, cuando vuelve la conexión (`offlineOutbox`)
  *
  * Cada burbuja provisoria lleva un `clientId` que viaja con el envío y vuelve
  * en el mensaje guardado (meta.cid): si el mensaje real llega antes por el
@@ -13,8 +14,12 @@
 
 export const TEMP_PREFIX = 'tmp-';
 
-/** Dónde quedan, en la pestaña, los textos de Lines que no salieron y los borradores de Lines (se borran al salir). */
+/**
+ * Dónde quedan los textos de Lines e Inbox que no salieron o esperan la red (localStorage), y los borradores de Lines
+ * (sessionStorage). Todo se borra al cerrar sesión (clearOfflineData).
+ */
 export const UNSENT_LINES_KEY = 'zs:lines-unsent';
+export const UNSENT_INBOX_KEY = 'zs:inbox-unsent';
 export const LINES_DRAFT_PREFIX = 'gr-draft:';
 
 export const isTempId = (id: string): boolean => id.startsWith(TEMP_PREFIX);
@@ -137,7 +142,15 @@ export interface UnsentMedia {
   url?: string;
 }
 
-/** Un mensaje que se mandó y todavía no está guardado en el servidor: saliendo, o no salió. */
+/**
+ * Estado de lo que no está guardado:
+ * - `pending`: saliendo ahora (reloj).
+ * - `queued`: escrito sin red; espera la conexión y sale solo, en orden (reloj; se puede borrar).
+ * - `failed`: no salió (el servidor lo rechazó, o no respondió): reintentar o quitar.
+ */
+export type UnsentStatus = 'pending' | 'queued' | 'failed';
+
+/** Un mensaje que se mandó y todavía no está guardado en el servidor: saliendo, en cola sin red, o no salió. */
 export interface Unsent {
   clientId: string;
   /** Quién lo escribió: otra persona que entre en la misma pestaña no lo ve ni lo puede mandar. */
@@ -147,7 +160,7 @@ export interface Unsent {
   replyToId: string | null;
   /** Grupos de WhatsApp: teléfonos mencionados con "@<teléfono>" en el texto. */
   mentions?: string[];
-  status: 'pending' | 'failed';
+  status: UnsentStatus;
   error: string;
   createdAt: string;
   /** La persona sacó la vista previa del link antes de mandar: sale sin ella (también al reintentar). */
@@ -156,63 +169,138 @@ export interface Unsent {
   media?: UnsentMedia;
 }
 
-export type UnsentEvent<S> = { chatId: string; entry: Unsent; type: 'added' | 'pending' | 'failed' | 'removed' } | { chatId: string; entry: Unsent; type: 'saved'; saved: S };
+export type UnsentEvent<S> =
+  | { chatId: string; entry: Unsent; type: 'added' | 'pending' | 'queued' | 'failed' | 'removed' }
+  | { chatId: string; entry: Unsent; type: 'saved'; saved: S }
+  /** Otra pestaña cambió lo de este chat (mandó, borró o encoló algo): volver a leer la lista. */
+  | { chatId: string; entry: null; type: 'synced' };
+
+/** ¿El navegador dice que no hay red? (sin navegador, como en los tests de servidor: hay red). */
+export function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+export interface UnsentStoreOptions {
+  /**
+   * Dónde se guarda. `session` (por defecto): solo esta pestaña. `local`: todo el navegador, como los cambios sin
+   * conexión de Docs y Board (lib/board-sync.ts): lo escrito sin red sobrevive a recargar y a cerrar la pestaña, y
+   * las pestañas abiertas se enteran de lo que hace la otra (evento `storage`). Se borra al cerrar sesión
+   * (clearOfflineData).
+   */
+  persist?: 'session' | 'local';
+}
 
 /**
- * Lo que no salió, guardado fuera del componente del chat y en sessionStorage:
- * si el envío falla cuando la persona ya abrió otro chat (o recargó la
- * página), el texto no se pierde: al volver al chat está ahí, como no enviado,
- * con reintentar. Al recargar, lo que estaba "saliendo" queda como no enviado
- * (no se sabe si salió): si el servidor ya lo tiene, el chat lo reconoce por
- * su clientId y lo saca.
+ * Lo que no salió, guardado fuera del componente del chat: si el envío falla cuando la persona ya abrió otro chat
+ * (o recargó la página), el texto no se pierde: al volver al chat está ahí, como no enviado, con reintentar. Al
+ * recargar, lo que estaba "saliendo" queda como no enviado (no se sabe si salió): si el servidor ya lo tiene, el chat
+ * lo reconoce por su clientId y lo saca. Lo que estaba en cola sin red sigue en cola.
  */
-export function unsentStore<S>(storageKey: string) {
+export function unsentStore<S>(storageKey: string, opts: UnsentStoreOptions = {}) {
+  const persist = opts.persist ?? 'session';
   let items: Unsent[] | null = null;
   /** La persona de la sesión. Lo de otra persona no se muestra y se descarta. '' = todavía no se sabe: no se muestra nada. */
   let owner = '';
   const listeners = new Set<(e: UnsentEvent<S>) => void>();
-  const load = (): Unsent[] => {
-    if (items) return items;
-    items = [];
+  /** Los que tienen un pedido en curso en esta pestaña (no se mandan otra vez hasta que termine). */
+  const inFlightIds = new Set<string>();
+  const storage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null => {
     try {
-      const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(storageKey) : null;
+      if (persist === 'local') return typeof localStorage !== 'undefined' ? localStorage : null;
+      return typeof sessionStorage !== 'undefined' ? sessionStorage : null;
+    } catch {
+      return null;
+    }
+  };
+  /** Lo guardado, validado. `fresh`: lo dejó otra pestaña que sigue abierta (lo "saliendo" de allá sigue saliendo). */
+  const parse = (raw: string | null, fresh: boolean): Unsent[] => {
+    try {
       const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      if (Array.isArray(parsed)) {
-        items = parsed
+      if (!Array.isArray(parsed)) return [];
+      return (
+        parsed
           .filter(
             (x): x is Unsent =>
               !!x && typeof x === 'object' && !!cleanClientId((x as Unsent).clientId) && typeof (x as Unsent).owner === 'string' && typeof (x as Unsent).chatId === 'string' && typeof (x as Unsent).body === 'string',
           )
           .slice(-200)
           // Un archivo que no terminó de subirse vivía solo en la pestaña: después de recargar no hay nada que mandar.
-          .filter((x) => !x.media || !!x.media.url)
-          // Lo que estaba saliendo cuando se recargó la página: ya nadie lo está mandando.
-          .map((x) => ({ ...x, replyToId: x.replyToId ?? null, createdAt: x.createdAt || new Date().toISOString(), ...(x.status === 'failed' ? { error: x.error || 'send_failed' } : { status: 'failed' as const, error: 'interrupted' }) }));
-      }
+          .filter((x) => !x.media || !!x.media.url || (fresh && x.status === 'pending') || inFlightIds.has(x.clientId))
+          .map((x): Unsent => {
+            const base = { ...x, replyToId: x.replyToId ?? null, createdAt: x.createdAt || new Date().toISOString() };
+            // Lo que esta pestaña está mandando sigue "saliendo", diga lo que diga lo guardado.
+            if (inFlightIds.has(x.clientId)) return { ...base, status: 'pending', error: '' };
+            if (x.status === 'failed') return { ...base, status: 'failed', error: x.error || 'send_failed' };
+            if (x.status === 'queued') return { ...base, status: 'queued', error: '' };
+            // Lo que estaba saliendo cuando se recargó la página: ya nadie lo está mandando.
+            return fresh ? { ...base, status: 'pending', error: '' } : { ...base, status: 'failed', error: 'interrupted' };
+          })
+      );
     } catch {
-      /* sin sessionStorage, o roto: se sigue en memoria */
+      return [];
     }
+  };
+  const load = (): Unsent[] => {
+    if (items) return items;
+    items = parse(storage()?.getItem(storageKey) ?? null, false);
     return items;
   };
   const save = () => {
     try {
-      if (typeof sessionStorage === 'undefined') return;
-      if (items?.length) sessionStorage.setItem(storageKey, JSON.stringify(items));
-      else sessionStorage.removeItem(storageKey);
+      const s = storage();
+      if (!s) return;
+      if (items?.length) s.setItem(storageKey, JSON.stringify(items));
+      else s.removeItem(storageKey);
     } catch {
       /* cuota o modo privado: queda en memoria */
     }
   };
-  /** Los que tienen un pedido en curso en esta pestaña (no se mandan otra vez hasta que termine). */
-  const inFlightIds = new Set<string>();
   const emit = (e: UnsentEvent<S>) => {
     for (const fn of [...listeners]) fn(e);
   };
-  const find = (clientId: string) => load().find((x) => x.clientId === clientId && !!owner && x.owner === owner);
+  /**
+   * Antes de cambiar algo, lo que dejaron las otras pestañas (`local`): así una no pisa lo que encoló o mandó la
+   * otra. Sin almacenamiento, lo que hay en memoria.
+   */
+  const reread = (): Unsent[] => {
+    if (persist !== 'local' || !items) return load();
+    const s = storage();
+    if (!s) return items;
+    try {
+      const raw = s.getItem(storageKey);
+      // Lo que esta pestaña no pudo guardar (cuota) no se pierde por releer.
+      if (raw === null && items.length) return items;
+      items = parse(raw, true);
+    } catch {
+      /* sin almacenamiento: lo de memoria */
+    }
+    return items;
+  };
+  const mine = (x: Unsent) => !!owner && x.owner === owner;
+  const find = (clientId: string) => load().find((x) => x.clientId === clientId && mine(x));
+  const findFresh = (clientId: string) => reread().find((x) => x.clientId === clientId && mine(x));
   const drop = (clientId: string) => {
-    items = load().filter((x) => x.clientId !== clientId);
+    items = reread().filter((x) => x.clientId !== clientId);
     save();
   };
+  // Otra pestaña cambió la lista: se relee y cada chat que cambió se vuelve a pintar.
+  if (persist === 'local' && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('storage', (e: StorageEvent) => {
+      if (e.key !== storageKey && e.key !== null) return;
+      const before = items ?? [];
+      items = parse(e.key === null ? null : e.newValue, true);
+      const sig = (x: Unsent) => `${x.status}|${x.error}`;
+      const prev = new Map(before.map((x) => [x.clientId, x]));
+      const chats = new Set<string>();
+      for (const x of items) {
+        const old = prev.get(x.clientId);
+        if (!old || sig(old) !== sig(x)) chats.add(x.chatId);
+      }
+      const now = new Set(items.map((x) => x.clientId));
+      for (const x of before) if (!now.has(x.clientId)) chats.add(x.chatId);
+      for (const chatId of chats) emit({ chatId, entry: null, type: 'synced' });
+    });
+  }
   return {
     /**
      * Quién usa la pestaña ahora (la persona de la sesión). Lo que quedó de otra persona se descarta: nunca se
@@ -220,27 +308,40 @@ export function unsentStore<S>(storageKey: string) {
      */
     setOwner(id: string): void {
       owner = id;
-      const before = load().length;
-      items = load().filter((x) => x.owner === id);
-      if (items.length !== before) save();
+      const all = reread();
+      items = all.filter((x) => x.owner === id);
+      if (items.length !== all.length) save();
     },
     list: (chatId: string): Unsent[] => (owner ? load().filter((x) => x.chatId === chatId && x.owner === owner) : []),
+    /** Todo lo de esta persona, de todos los chats. */
+    entries: (): Unsent[] => load().filter(mine),
     get: find,
-    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[]; media?: UnsentMedia }): Unsent {
-      const { media, ...rest } = input;
-      const entry: Unsent = { ...rest, ...(media ? { media } : {}), owner, clientId: newClientId(), status: 'pending', error: '', createdAt: new Date().toISOString() };
-      load().push(entry);
+    /** Lo que espera la red (de esta persona), en el orden en que se escribió, releído de lo guardado. */
+    queued(chatId?: string): Unsent[] {
+      return reread()
+        .filter((x) => mine(x) && x.status === 'queued' && (chatId === undefined || x.chatId === chatId))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    },
+    /** `clientId`: el de un envío que ya empezó (se cortó la red a mitad): el reintento lleva el mismo. */
+    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[]; media?: UnsentMedia; clientId?: string }, status: 'pending' | 'queued' = 'pending'): Unsent {
+      const { media, clientId: given, ...rest } = input;
+      const clientId = cleanClientId(given) ?? newClientId();
+      const list = reread().filter((x) => x.clientId !== clientId);
+      const entry: Unsent = { ...rest, ...(media ? { media } : {}), owner, clientId, status, error: '', createdAt: new Date().toISOString() };
+      list.push(entry);
+      items = list;
       save();
       emit({ chatId: entry.chatId, entry, type: 'added' });
       return entry;
     },
     /**
-     * Vuelve a salir (reintento): la misma burbuja, otra vez "enviando". undefined si ya está saliendo (dos clics en
-     * reintentar no mandan dos pedidos) o no es de esta persona.
+     * Vuelve a salir (reintento, o la cola al volver la red): la misma burbuja, otra vez "enviando". undefined si ya
+     * está saliendo (dos clics en reintentar no mandan dos pedidos), otra pestaña ya lo mandó, o no es de esta persona.
      */
     pending(clientId: string): Unsent | undefined {
-      const entry = find(clientId);
-      if (!entry || inFlightIds.has(clientId)) return undefined;
+      if (inFlightIds.has(clientId)) return undefined;
+      const entry = findFresh(clientId);
+      if (!entry) return undefined;
       inFlightIds.add(clientId);
       entry.status = 'pending';
       entry.error = '';
@@ -248,9 +349,19 @@ export function unsentStore<S>(storageKey: string) {
       emit({ chatId: entry.chatId, entry, type: 'pending' });
       return entry;
     },
+    /** Sin red: queda en cola (reloj) y sale solo cuando vuelva la conexión. */
+    queue(clientId: string): void {
+      inFlightIds.delete(clientId);
+      const entry = findFresh(clientId);
+      if (!entry) return;
+      entry.status = 'queued';
+      entry.error = '';
+      save();
+      emit({ chatId: entry.chatId, entry, type: 'queued' });
+    },
     fail(clientId: string, error: string): void {
       inFlightIds.delete(clientId);
-      const entry = find(clientId);
+      const entry = findFresh(clientId);
       if (!entry) return;
       entry.status = 'failed';
       entry.error = error || 'send_failed';
@@ -260,14 +371,14 @@ export function unsentStore<S>(storageKey: string) {
     /** El servidor lo guardó: sale de acá y quien mira recibe el mensaje guardado. */
     saved(clientId: string, saved: S): void {
       inFlightIds.delete(clientId);
-      const entry = find(clientId);
+      const entry = find(clientId) ?? findFresh(clientId);
       if (!entry) return;
       drop(clientId);
       emit({ chatId: entry.chatId, entry, type: 'saved', saved });
     },
     /** El archivo de un envío terminó de subirse (o se supo su tamaño): queda guardado para un reintento. */
     setMedia(clientId: string, patch: Partial<UnsentMedia>): void {
-      const entry = find(clientId);
+      const entry = findFresh(clientId);
       if (!entry?.media) return;
       entry.media = { ...entry.media, ...patch };
       save();
@@ -275,7 +386,7 @@ export function unsentStore<S>(storageKey: string) {
     /** Se quita (la persona lo descartó, o el chat ya trae su mensaje guardado). */
     remove(clientId: string): void {
       inFlightIds.delete(clientId);
-      const entry = find(clientId);
+      const entry = findFresh(clientId) ?? find(clientId);
       if (!entry) return;
       drop(clientId);
       emit({ chatId: entry.chatId, entry, type: 'removed' });
@@ -285,6 +396,71 @@ export function unsentStore<S>(storageKey: string) {
       return () => {
         listeners.delete(fn);
       };
+    },
+  };
+}
+
+export type UnsentStore<S> = ReturnType<typeof unsentStore<S>>;
+
+/**
+ * La cola sin conexión de un store (Lines e Inbox): lo que quedó `queued` sale solo, de a uno y en el orden en que
+ * se escribió, cuando vuelve la red (evento `online`), al abrir la app con red, o cuando se pide (`flush`). `send`
+ * manda uno y termina cuando se sabe cómo le fue; si mientras tanto se cortó la red, la vuelta se detiene y lo que
+ * falta espera la próxima.
+ *
+ * Una sola pestaña a la vez manda la cola (Web Locks, `lockName`): la otra espera su turno y, como antes de mandar
+ * cada uno se relee lo guardado, no vuelve a mandar lo que la primera ya mandó. Si igual llegaran dos pedidos con el
+ * mismo clientId (sin Web Locks, o en dos instancias del servidor), el servidor manda uno solo (lib/send-once.ts).
+ */
+export function offlineOutbox<S>(store: UnsentStore<S>, lockName: string, send: (clientId: string) => Promise<unknown>) {
+  let running: Promise<void> | null = null;
+  let again = false;
+  const once = async () => {
+    const tried = new Set<string>();
+    for (;;) {
+      if (isOffline()) return;
+      const next = store.queued().find((x) => !tried.has(x.clientId));
+      if (!next) return;
+      tried.add(next.clientId);
+      await send(next.clientId);
+      // Sigue en cola: se cortó la red. Lo que falta espera a que vuelva.
+      if (store.queued().some((x) => x.clientId === next.clientId)) return;
+    }
+  };
+  const locked = (): Promise<void> => {
+    const locks = typeof navigator !== 'undefined' ? (navigator as Navigator & { locks?: LockManager }).locks : undefined;
+    return locks?.request ? locks.request(lockName, once).then(() => undefined) : once();
+  };
+  function flush(): Promise<void> {
+    if (running) {
+      again = true;
+      return running;
+    }
+    running = locked()
+      .catch(() => undefined)
+      .finally(() => {
+        running = null;
+        if (again) {
+          again = false;
+          void flush();
+        }
+      });
+    return running;
+  }
+  let listening = false;
+  return {
+    flush,
+    /** Escucha la vuelta de la red (una vez por pestaña) y, si ya hay red, manda lo que esperaba. */
+    start(): void {
+      if (!listening && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        listening = true;
+        window.addEventListener('online', () => void flush());
+        // Otra pestaña encoló algo con red (o la red volvió allá primero): que salga.
+        store.subscribe((e) => {
+          if (e.type === 'synced' && !isOffline() && store.queued(e.chatId).length) void flush();
+        });
+      }
+      if (!isOffline() && store.queued().length) void flush();
     },
   };
 }

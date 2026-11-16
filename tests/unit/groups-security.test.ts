@@ -99,6 +99,8 @@ describe('fallas definitivas de un archivo', () => {
     });
     const user = await makeUser('sec-fail');
     const n = await createNumber(user.id, user.id, { provider: 'evolution', config: { baseUrl: BRIDGE, apiKey: 'k', session: 's' } });
+    // Con la línea conectada: lo que el gateway dice que no tiene es definitivo.
+    await getDb().prepare("UPDATE groups_numbers SET status = 'connected' WHERE id = ?").run(n.id);
     const row = (await getNumberRowById(n.id))!;
     const msg = (id: string) => ({
       key: { remoteJid: '5491155550000@s.whatsapp.net', fromMe: false, id },
@@ -116,6 +118,19 @@ describe('fallas definitivas de un archivo', () => {
       { id: 'GONE', media_url: '', media_type: 'application/octet-stream', media_name: 'archivo' },
     ]);
     expect(calls).toBe(2);
+  });
+
+  it('con la línea desvinculada, lo que el gateway no tiene queda pendiente (no se marca como perdido)', async () => {
+    vi.stubGlobal('fetch', async () => new Response('{}', { status: 400 }));
+    const user = await makeUser('sec-offline');
+    const n = await createNumber(user.id, user.id, { provider: 'evolution', config: { baseUrl: BRIDGE, apiKey: 'k', session: 's' } });
+    await getDb().prepare("UPDATE groups_numbers SET status = 'disconnected' WHERE id = ?").run(n.id);
+    const row = (await getNumberRowById(n.id))!;
+    const data = [{ key: { remoteJid: '5491155550000@s.whatsapp.net', fromMe: false, id: 'OFF' }, message: { documentMessage: { mimetype: 'application/pdf', fileName: 'a.pdf', fileLength: 2 } } }];
+    await ingestEvents(row, parseEvolutionWebhook({ event: 'messages.upsert', data }));
+    const saved = (await getDb().prepare('SELECT media_url, meta FROM groups_messages WHERE number_id = ?').get(row.id)) as { media_url: string; meta: string };
+    expect(saved.media_url).toBe('evo:OFF');
+    expect(saved.meta).not.toContain('mediaGone');
   });
 });
 

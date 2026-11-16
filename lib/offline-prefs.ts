@@ -6,7 +6,7 @@
  * public/sw.js repite estas reglas (sin build); tests/unit/offline-prefs.test.ts
  * compara las dos.
  */
-export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal'] as const;
+export const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal', 'lines', 'inbox'] as const;
 export type OfflineApp = (typeof OFFLINE_APPS)[number];
 
 export const OFFLINE_SIZES = ['light', 'normal', 'max'] as const;
@@ -31,7 +31,7 @@ export interface OfflinePrefs {
 
 export const DEFAULT_OFFLINE_PREFS: OfflinePrefs = {
   enabled: true,
-  apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true },
+  apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true, lines: true, inbox: true },
   size: 'normal',
   days: 30,
 };
@@ -67,6 +67,8 @@ export function offlineAppOf(pathname: string): OfflineApp | null {
   if (/^\/app\/track(\/|$)/.test(p)) return 'track';
   if (/^\/app\/board(\/|$)/.test(p)) return 'board';
   if (/^\/app\/calendar(\/|$)/.test(p)) return 'cal';
+  if (/^\/app\/(lines|groups)(\/|$)/.test(p) || /^\/api\/groups\//.test(p)) return 'lines';
+  if (/^\/app\/inbox(\/|$)/.test(p) || /^\/api\/inbox\//.test(p)) return 'inbox';
   return null;
 }
 
@@ -115,7 +117,7 @@ export function offlineEvictions(entries: readonly OfflineEntry[], prefs: Offlin
 
 /** Uso por app a partir del índice del worker. */
 export function offlineUsage(entries: readonly OfflineEntry[]): Record<OfflineApp | 'static', { pages: number; bytes: number }> {
-  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const out = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, lines: { pages: 0, bytes: 0 }, inbox: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of entries) {
     out[e.app].pages += 1;
     out[e.app].bytes += e.bytes;

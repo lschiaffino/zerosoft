@@ -24,6 +24,7 @@ import { blocksToMarkdown } from './docs-markdown';
 import { blocksToHtmlDocument, escapeHtml } from './docs-html-export';
 import { blocksToPdf, needsUnicodeFont, type PdfImageData } from './docs-pdf';
 import { docsFileHref, isDocsUploadUrl, isFileBlockType } from './docs-files';
+import { isFileUrlPath } from './files/url';
 import { sanitizeDocsHtml } from './docs-sanitize';
 import { localUploadPath } from './uploads';
 import { buildZip, type ZipInput } from './zip-writer';
@@ -128,8 +129,14 @@ async function readerBlocks(actor: DocsActor, row: DocsPageRow): Promise<DocsBlo
   return cleanForReaders(await visibleBlocks(row, row.content, { actor }));
 }
 
-async function readUpload(url: string): Promise<Buffer | null> {
+/** `ws`: workspace de la página (un archivo de /api/files tiene que ser suyo). */
+async function readUpload(url: string, ws: string): Promise<Buffer | null> {
   if (!isDocsUploadUrl(url)) return null;
+  if (isFileUrlPath(url)) {
+    const { ownedFileRow, readFileBytes } = await import('./files/store');
+    const row = await ownedFileRow(url, { workspaceId: ws });
+    return row ? readFileBytes(row, EXPORT_FILE_MAX) : null;
+  }
   if (url.startsWith('/uploads/')) {
     const file = localUploadPath(url, 'docs');
     return file ? readFile(file).catch(() => null) : null;
@@ -194,16 +201,16 @@ export async function exportSinglePage(row: DocsPageRow, ctx: RenderCtx): Promis
     body = await blocksToPdf(blocks, row.title, {
       fileHref,
       footer: ctx.footer,
-      imageFor: async (b) => imageData(b),
+      imageFor: async (b) => imageData(b, row.user_id),
     });
   }
   return { body, filename: `${base}.${ctx.format}`, contentType: MIME[ctx.format], pages: 1 };
 }
 
-async function imageData(b: DocsBlock): Promise<PdfImageData | null> {
+async function imageData(b: DocsBlock, ws: string): Promise<PdfImageData | null> {
   if (!b.url) return null;
   if (!/^image\/(png|jpe?g)$/i.test(b.mime ?? '') && !/\.(png|jpe?g)$/i.test(b.name ?? '')) return null;
-  const bytes = await readUpload(b.url);
+  const bytes = await readUpload(b.url, ws);
   return bytes ? { bytes, mime: b.mime ?? (/\.png$/i.test(b.name ?? '') ? 'image/png' : 'image/jpeg') } : null;
 }
 
@@ -243,7 +250,7 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
     const images = new Map<string, Buffer>();
     for (const b of fileBlocks(blocks)) {
       if (fileBytes >= EXPORT_MAX_FILE_BYTES) break;
-      const bytes = await readUpload(b.url!);
+      const bytes = await readUpload(b.url!, p.row.user_id);
       if (!bytes || fileBytes + bytes.length > EXPORT_MAX_FILE_BYTES) continue;
       fileBytes += bytes.length;
       const dir = file.replace(/\.[a-z]+$/, '/');
@@ -287,7 +294,7 @@ export async function exportTree(pages: ExportPage[], ctx: RenderCtx, zipName: s
         imageFor: async (b) => {
           const bytes = images.get(b.id);
           if (bytes) return { bytes, mime: b.mime ?? 'image/png' };
-          return imageData(b);
+          return imageData(b, p.row.user_id);
         },
       });
     }

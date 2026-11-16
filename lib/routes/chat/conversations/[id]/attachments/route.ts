@@ -40,7 +40,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   const mime = file.type || 'application/octet-stream';
   let url: string;
   try {
-    url = await saveUpload('chat', filename, mime, buffer);
+    url = await saveUpload('chat', filename, mime, buffer, { app: 'chat', scope: conversation ? `chat-widget:${conversation.widget_id}` : null });
   } catch (err) {
     if (err instanceof UploadError) return NextResponse.json({ error: err.code }, { status: err.status });
     throw err;

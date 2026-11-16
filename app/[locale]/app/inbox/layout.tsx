@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InboxBranch from '@/components/inbox/InboxBranch';
+import CalmFocus from '@/components/app/CalmFocus';
 import { ChatStyleProvider } from '@/components/chat-style/ChatStyle';
 import { getChatDisplay, getChatStyle } from '@/lib/chat-style';
 import { realUserId, requireUser } from '@/lib/session';
@@ -14,6 +15,7 @@ import '@/styles/inbox-tools.css';
 import '@/styles/chat-gestures.css';
 import '@/styles/fleet.css';
 import '@/styles/wa-touch.css';
+import '@/styles/wa-mobile.css';
 
 /** Inbox (personal): WhatsApp y Gmail de la persona. Las carpetas cuelgan del sidebar del shell. */
 export default async function InboxLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
@@ -25,6 +27,7 @@ export default async function InboxLayout(props: { children: ReactNode; params: 
       <ChatStyleProvider initial={chatStyle} initialDisplay={chatDisplay}>
         {props.children}
         <InboxBranch />
+        <CalmFocus />
       </ChatStyleProvider>
     </ClientMessages>
   );
