@@ -270,14 +270,55 @@ export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatemen
 
   let messages: number;
   if (app === 'inbox') {
-    // Lo que la persona marcó en el repetido (destacado, reacciones) pasa al que queda.
+    // Lo que la persona marcó en el repetido (destacado, reacciones) pasa al que queda. También la referencia del
+    // archivo si la del repetido es mejor: la que trae la clave del archivo (llegó con el historial al volver a
+    // vincular) se puede volver a bajar; la vieja, que es solo el id del mensaje, ya no. Si no, al juntar los chats se
+    // borraba justo la copia que servía.
+    const dup = (col: string) =>
+      // Si dos chats perdedores tienen el mismo mensaje, primero la copia que trae la clave del archivo.
+      `(SELECT l.${col} FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id ORDER BY (l.media_ref LIKE '%"wire"%') DESC LIMIT 1)`;
     stmts.push({
       sql: `UPDATE inbox_messages SET
-          starred_at = COALESCE(starred_at, (SELECT l.starred_at FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id)),
-          reactions = CASE WHEN reactions = '' THEN COALESCE((SELECT l.reactions FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id), '') ELSE reactions END
+          starred_at = COALESCE(starred_at, ${dup('starred_at')}),
+          reactions = CASE WHEN reactions = '' THEN COALESCE(${dup('reactions')}, '') ELSE reactions END,
+          media_ref = CASE
+            WHEN media_type <> '' AND media_ref NOT LIKE '%"wire"%' AND COALESCE(${dup('media_ref')}, '') LIKE '%"wire"%' THEN ${dup('media_ref')}
+            WHEN media_type <> '' AND media_ref = '' THEN COALESCE(${dup('media_ref')}, '')
+            ELSE media_ref END
         WHERE thread_id IN (SELECT survivor FROM wa_merge_pairs WHERE run = ?)
-          AND external_id IN (SELECT l.external_id FROM inbox_messages l WHERE l.thread_id IN ${P} AND (l.starred_at IS NOT NULL OR l.reactions <> ''))`,
-      args: [run, run, run],
+          AND external_id IN (SELECT l.external_id FROM inbox_messages l WHERE l.thread_id IN ${P} AND (l.starred_at IS NOT NULL OR l.reactions <> '' OR l.media_ref <> ''))`,
+      args: [run, run, run, run, run, run],
+    });
+    // La transcripción hecha sobre el repetido (se guarda por id de mensaje) pasa al que queda. Gana la que está
+    // hecha: si el que queda solo tiene un intento fallido (su audio ya no se podía bajar) y el repetido tiene la
+    // transcripción, primero se saca el intento fallido.
+    stmts.push({
+      sql: `DELETE FROM wa_transcripts WHERE scope = 'inbox' AND status <> 'done' AND message_id IN (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            JOIN wa_transcripts lt ON lt.scope = 'inbox' AND lt.message_id = l.id AND lt.owner_id = wa_transcripts.owner_id AND lt.status = 'done')`,
+      args: [run],
+    });
+    stmts.push({
+      sql: `UPDATE OR IGNORE wa_transcripts SET message_id = (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            WHERE l.id = wa_transcripts.message_id)
+        WHERE scope = 'inbox' AND message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run, run],
+    });
+    // La que no pasó (el que queda ya tenía la suya) se va con el repetido.
+    stmts.push({
+      sql: `DELETE FROM wa_transcripts WHERE scope = 'inbox' AND message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run],
     });
     messages = stmts.length;
     // Solo los que tienen repetido en el sobreviviente (mismo id de WhatsApp).

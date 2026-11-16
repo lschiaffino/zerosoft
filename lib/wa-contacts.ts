@@ -38,6 +38,11 @@ export interface ContactInput {
   saved?: string;
   /** Nombre de perfil (pushName). */
   push?: string;
+  /**
+   * El nombre de perfil viene de un mensaje viejo (historial, importación): completa el que falta pero no pisa el
+   * que ya hay. Si no, volver a importar una línea le devolvía a un contacto el nombre que tenía hace meses.
+   */
+  pushIfEmpty?: boolean;
   /** "Info" (estado) del contacto. */
   about?: string;
   pictureUrl?: string;
@@ -108,7 +113,11 @@ export function mergeInputs(items: ContactInput[]): ContactInput[] {
     if (phone) next.phone = phone;
     if (lid) next.lid = lid;
     if (cleanName(raw.saved)) next.saved = cleanName(raw.saved);
-    if (cleanName(raw.push)) next.push = cleanName(raw.push);
+    // Un nombre de un mensaje vivo de la misma tanda le gana al de uno del historial.
+    if (cleanName(raw.push) && !(raw.pushIfEmpty && next.push && !next.pushIfEmpty)) {
+      next.push = cleanName(raw.push);
+      next.pushIfEmpty = raw.pushIfEmpty === true;
+    }
     if (typeof raw.about === 'string') next.about = raw.about;
     if (raw.pictureUrl) next.pictureUrl = raw.pictureUrl;
     if (!hit) out.push(next);
@@ -147,7 +156,7 @@ export async function rememberContacts(scope: ContactScope, items: ContactInput[
         phone: phone || base?.phone || extra.find((r) => r.phone)?.phone || '',
         lid: lid || base?.lid || extra.find((r) => r.lid)?.lid || '',
         saved_name: it.saved ?? (base?.saved_name || extra.find((r) => r.saved_name)?.saved_name || ''),
-        push_name: it.push ?? (base?.push_name || extra.find((r) => r.push_name)?.push_name || ''),
+        push_name: (it.pushIfEmpty && (base?.push_name || extra.find((r) => r.push_name)?.push_name)) || it.push || base?.push_name || extra.find((r) => r.push_name)?.push_name || '',
         about: it.about !== undefined ? it.about.slice(0, 1000) : (base?.about ?? ''),
         picture_url: it.pictureUrl ? it.pictureUrl.slice(0, 2000) : (base?.picture_url ?? ''),
       };
@@ -413,7 +422,7 @@ export async function forgetContacts(app: WaApp, accountId: string): Promise<voi
  * Lo que un mensaje enseña sobre quien lo manda y el chat: nombre de perfil,
  * teléfono y lid. Los propios no (el pushName es el nuestro).
  */
-export function contactsFromMessage(e: { fromMe: boolean; isGroup: boolean; chatId: string; senderPhone: string; senderName: string; senderLid?: string; chatLid?: string }): ContactInput[] {
+export function contactsFromMessage(e: { fromMe: boolean; isGroup: boolean; chatId: string; senderPhone: string; senderName: string; senderLid?: string; chatLid?: string; history?: boolean }): ContactInput[] {
   const out: ContactInput[] = [];
   // El par lid ↔ teléfono del chat 1:1 vale también en lo que mando yo (Evolution lo trae en remoteJidAlt): sin él,
   // el chat de quien solo me respondió por lid quedaba aparte del de su teléfono.
@@ -422,7 +431,8 @@ export function contactsFromMessage(e: { fromMe: boolean; isGroup: boolean; chat
   if (e.fromMe) return out;
   const phone = cleanPhone(e.senderPhone);
   const lid = cleanLid(e.senderLid);
-  if (phone || lid) out.push({ ...(phone ? { phone } : {}), ...(lid ? { lid } : {}), ...(cleanName(e.senderName) ? { push: cleanName(e.senderName) } : {}) });
+  // El nombre de un mensaje del historial no pisa el que ya se conoce (pushIfEmpty).
+  if (phone || lid) out.push({ ...(phone ? { phone } : {}), ...(lid ? { lid } : {}), ...(cleanName(e.senderName) ? { push: cleanName(e.senderName), ...(e.history ? { pushIfEmpty: true } : {}) } : {}) });
   return out;
 }
 
