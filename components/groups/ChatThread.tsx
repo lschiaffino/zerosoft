@@ -30,6 +30,7 @@ import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from './wa/RefreshMissing';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
 import WhenDialog from '@/components/ui/WhenDialog';
@@ -487,20 +488,33 @@ export default function ChatThread(props: ThreadProps) {
   // manda llega como historial, con su hora (en el medio del hilo, no al final): se vuelve a traer lo último unas veces.
   const historyTimers = useRef<number[]>([]);
   useEffect(() => () => historyTimers.current.forEach((id) => window.clearTimeout(id)), []);
-  const refetchLatest = useCallback(async () => {
-    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${OLDER_PAGE}`);
+  const refetchLatest = useCallback(async (limit = OLDER_PAGE) => {
+    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${Math.min(500, limit)}`);
     if (res.data?.messages.length) merge(res.data.messages);
   }, [props.chat.id, merge]);
   const watchHistory = useCallback(() => {
     void refetchLatest();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(() => void refetchLatest(), ms));
   }, [refetchLatest]);
-  async function fetchMissing() {
-    const res = await api<{ ok: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'fetchMissing' } });
-    if (!res.data) return showToast(errText(res.error), true);
-    showToast(t('thread.fetchMissingToast'));
-    watchHistory();
-  }
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postChat = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [chat.id]);
+  const shown = useRef(0);
+  shown.current = messages.length;
+  const refreshMissing = useRefreshMissing(
+    chat.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postChat({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postChat({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    () => void refetchLatest(Math.max(OLDER_PAGE, shown.current)),
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -2116,7 +2130,7 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
                 { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
-                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void fetchMissing() }] : []),
+                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void refreshMissing.run() }] : []),
                 ...(narrow
                   ? [
                       { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
@@ -2163,6 +2177,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
 
+        <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">

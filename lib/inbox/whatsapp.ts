@@ -436,6 +436,9 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   if (messages > 0 && (opts.history || slice.some((e) => e.type === 'message' && e.history))) {
     await import('../wa-history-gaps').then((g) => g.resolveGaps('inbox', { accountId: account.id })).catch(() => 0);
   }
+  // Llegó historial de estos chats: si se había pedido "Traer mensajes que faltan", el teléfono respondió.
+  const pastChats = slice.flatMap((e) => (e.type === 'message' && e.history ? [e.chatId] : []));
+  if (pastChats.length) await import('../wa-history-gaps').then((g) => g.noteHistoryArrived('inbox', account.id, pastChats)).catch(() => null);
   // Tildes, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   if (slice.length) pokeLive('inbox', account.owner_id);
   return failed ? { messages, failed } : { messages };

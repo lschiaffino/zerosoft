@@ -200,8 +200,7 @@
     "task": "Tarefa",
     "question": "Pede resposta",
     "fileUnavailable": "Indisponível",
-    "fetchMissing": "Buscar mensagens que faltam",
-    "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco."
+    "fetchMissing": "Buscar mensagens que faltam"
   },
   "status": {
     "pending": "Enviando",
@@ -1962,7 +1961,17 @@
     "olderError": "Não foi possível carregar. Tentar de novo",
     "olderLimited": "Muitos pedidos para esta linha. Tente mais tarde",
     "olderOffline": "Linha desconectada: vincule para carregar mensagens anteriores",
-    "olderNoAnswer": "O celular não respondeu. Tentar de novo"
+    "olderNoAnswer": "O celular não respondeu. Tentar de novo",
+    "refreshLoading": "Pedindo ao celular as mensagens que faltam…",
+    "refreshDone": "{count, plural, one {Veio # mensagem que faltava} other {Vieram # mensagens que faltavam}}",
+    "refreshNone": "Não faltava nenhuma mensagem recente",
+    "refreshNoAnswer": "O celular não respondeu. Veja se ele está conectado",
+    "refreshOffline": "A linha está desconectada. Vincule de novo para buscar mensagens",
+    "refreshLimited": "Pedidos demais nesta linha. Tente daqui a pouco",
+    "refreshOutdated": "O gateway do WhatsApp precisa de uma atualização para buscar estas mensagens",
+    "refreshError": "Não foi possível pedir as mensagens ao celular",
+    "refreshRetry": "Tentar de novo",
+    "refreshDismiss": "Fechar"
   },
   "swipe": {
     "read": "Lida",
