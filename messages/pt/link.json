@@ -844,7 +844,7 @@
     "waiting": "Ainda não há conversões. Adicione o script de medição e informe os leads pelo seu servidor, como explicado em <a>Configurações de conversões</a>.",
     "howTitle": "Como funciona",
     "howDesc": "Meça quais links trazem cadastros e receita, como o Dub Conversions.",
-    "step1": "Ative “Medir leads e vendas” em um link. As visitas chegam ao seu site com ?zs_id=<click id>.",
+    "step1": "Ative “Medir leads e vendas” em um link. As visitas chegam ao seu site com ?zs_id='<click id>'.",
     "step2": "Cole este script no seu site. Ele guarda o click id por 90 dias em um cookie do seu próprio domínio.",
     "step3": "Quando alguém se cadastra ou paga, envie o click id e o seu id de cliente para a API, ou conecte o Stripe ou o Shopify.",
     "snippetLabel": "Script de medição",

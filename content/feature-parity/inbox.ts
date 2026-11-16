@@ -84,9 +84,9 @@ const parity: ProductParity = {
     }),
     row('folders', 'triage', ['Folders and subfolders', 'Carpetas y subcarpetas', 'Pastas e subpastas'], 'have', {
       detail: [
-        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, hold a chat (or a selection) and drop it on a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
-        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, mantener apretado un chat (o una selección) y soltarlo en una carpeta con deshacer, y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
-        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, segurar uma conversa (ou uma seleção) e soltar numa pasta com desfazer, e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
+        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, hold a chat (or a selection) and drop it on a folder with undo, and drag folders to sort or nest them. "No folder" at the top of the tree lists the chats that are in none, to file them. V and Alt+arrows from the keyboard',
+        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, mantener apretado un chat (o una selección) y soltarlo en una carpeta con deshacer, y arrastrar carpetas para ordenarlas o anidarlas. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna, para ordenarlos. V y Alt+flechas desde el teclado',
+        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, segurar uma conversa (ou uma seleção) e soltar numa pasta com desfazer, e arrastar pastas para ordenar ou aninhar. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma, para organizá-las. V e Alt+setas pelo teclado',
       ],
     }),
     row('auto-labels', 'triage', ['AI labels and auto-archive', 'Etiquetas por IA y archivado automático', 'Etiquetas por IA e arquivamento automático'], 'missing'),
@@ -247,6 +247,13 @@ const parity: ProductParity = {
         'GIFs tab in the emoji panel, between Emoji and Stickers: trending when empty, categories like WhatsApp (Haha, Sad, Love...), search in your language, and a click sends it as a WhatsApp GIF (MP4 that plays muted on a loop). Needs a GIPHY or Tenor key on the server. With Evolution 2.3.7 and earlier it arrives as a regular video, because that version does not pass gifPlayback. Tested with sample GIFs and the fake provider',
         'Pestaña GIF en el panel de emojis, entre Emoji y Stickers: tendencias al abrirla, categorías como WhatsApp (Jaja, Triste, Amor...), búsqueda en tu idioma, y un clic lo manda como GIF de WhatsApp (MP4 que se reproduce sin sonido y en bucle). Necesita una clave de GIPHY o Tenor en el servidor. Con Evolution 2.3.7 o anterior llega como video común, porque esa versión no pasa gifPlayback. Probado con GIF de ejemplo y el proveedor falso',
         'Aba GIFs no painel de emojis, entre Emoji e Figurinhas: em alta ao abrir, categorias como no WhatsApp (Haha, Triste, Amor...), pesquisa no seu idioma, e um clique envia como GIF do WhatsApp (MP4 que toca sem som e em loop). Precisa de uma chave do GIPHY ou do Tenor no servidor. Com o Evolution 2.3.7 ou anterior chega como vídeo comum, porque essa versão não repassa gifPlayback. Testado com GIFs de exemplo e o provedor falso',
+      ],
+    }),
+    row('wa-image-editor', 'whatsapp', ['Edit a photo before sending (crop, draw, text, sticker, HD)', 'Editar una foto antes de mandarla (recortar, dibujar, texto, sticker, HD)', 'Editar uma foto antes de enviar (cortar, desenhar, texto, figurinha, HD)'], 'partial', {
+      detail: [
+        'In the preview, for photos picked, dropped or pasted: crop and rotate, emoji or sticker on top, colored text, pencil with colors and sizes, undo, an emoji button for the caption and HD (standard quality otherwise, up to 1600 px like WhatsApp). Several photos, each with its own edits. Missing: blur and filters. Tested with the fake provider',
+        'En la vista previa, para fotos elegidas, soltadas o pegadas: recortar y rotar, emoji o sticker encima, texto de color, lápiz con colores y grosores, deshacer, botón de emoji para el comentario y HD (si no, calidad estándar, hasta 1600 px como WhatsApp). Varias fotos, cada una con sus cambios. Faltan desenfocar y filtros. Probado con el proveedor falso',
+        'Na pré-visualização, para fotos escolhidas, soltas ou coladas: cortar e girar, emoji ou figurinha por cima, texto colorido, lápis com cores e espessuras, desfazer, botão de emoji para a legenda e HD (senão, qualidade padrão, até 1600 px como no WhatsApp). Várias fotos, cada uma com suas edições. Faltam desfoque e filtros. Testado com o provedor falso',
       ],
     }),
     row('wa-attach-menu', 'whatsapp', ['Attach menu: document, photos, camera, audio, contact, poll, new sticker', 'Menú de adjuntar: documento, fotos, cámara, audio, contacto, encuesta, sticker nuevo', 'Menu de anexar: documento, fotos, câmera, áudio, contato, enquete, nova figurinha'], 'partial', {
