@@ -282,7 +282,7 @@ describe('detalles de la pantalla', () => {
   it('deslizar a la derecha responde; con el mouse no hace nada', () => {
     const onSwipe = vi.fn();
     const g = swipeAndHold({ onSwipe });
-    const el = { style: {} as Record<string, string>, setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLElement;
+    const el = { style: {} as Record<string, string>, getAttribute: vi.fn(() => null), setAttribute: vi.fn(), removeAttribute: vi.fn() } as unknown as HTMLElement;
     const ev = (x: number, type = 'touch') => ({ pointerType: type, clientX: x, clientY: 100, currentTarget: el }) as never;
     g.onPointerDown(ev(10, 'mouse'));
     g.onPointerMove(ev(120, 'mouse'));
