@@ -2022,7 +2022,8 @@
     "refreshOutdated": "O gateway do WhatsApp precisa de uma atualização para buscar estas mensagens",
     "refreshError": "Não foi possível pedir as mensagens ao celular",
     "refreshRetry": "Tentar de novo",
-    "refreshDismiss": "Fechar"
+    "refreshDismiss": "Fechar",
+    "archivedTag": "Arquivado"
   },
   "swipe": {
     "read": "Lida",

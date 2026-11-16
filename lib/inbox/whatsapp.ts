@@ -315,10 +315,13 @@ export async function applyPhoneArchive(account: AccountRow, chatId: string, arc
   const t = await findPhoneThread(account, chatId);
   const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('../wa-archive-sync');
   if (!t) return traceArchive('inbox', chatId, archived, 'not_found');
-  if (!!t.archived_at === archived) return traceArchive('inbox', chatId, archived, 'same');
+  // En Inbox, archivado es "archivado" o "hecho" (la misma vista y el mismo botón, y así se manda a WhatsApp).
+  if ((!!t.archived_at || !!t.done_at) === archived) return traceArchive('inbox', chatId, archived, 'same');
   if (await isStaleUnarchive('inbox', account.id, archived)) return traceArchive('inbox', chatId, archived, 'stale');
   if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
   traceArchive('inbox', chatId, archived, 'applied');
+  // Desarchivar desde el teléfono un chat "hecho" acá lo vuelve a la bandeja (antes quedaba en Archivados).
+  if (!archived) await getDb().prepare('UPDATE inbox_threads SET done_at = NULL WHERE id = ?').run(t.id);
   await getDb()
     .prepare(
       `UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END,

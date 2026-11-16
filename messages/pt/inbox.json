@@ -96,6 +96,7 @@
     "scheduled": "{n, plural, one {# agendada} other {# agendadas}}",
     "dragMany": "{n} conversas",
     "searchResults": "Resultados",
+    "archivedTag": "Arquivado",
     "messagesFound": "Mensagens",
     "moreMessages": "Mais mensagens",
     "search": "Buscar conversas e mensagens",

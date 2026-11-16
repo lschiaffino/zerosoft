@@ -71,6 +71,11 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   WhatsApp volvía a mandar lo que zerosoft ya tenía. Lo usa "Cargar mensajes anteriores" de Inbox y Lines. La
   respuesta lleva `given: true` y el `anchor` que se usó. Un Evolution sin este parche ignora el campo.
 
+- `0007-archive-last-message-filter.patch`: `/chat/archiveChat` y `/chat/markChatUnread` sin `lastMessage` buscan el
+  último mensaje del chat con `{ key: { remoteJid } }`, un filtro que Prisma no acepta sobre la columna JSON `key`:
+  respondían 500 siempre (en producción, cada archivado de zerosoft era un 500 y después un 201 con la referencia
+  nuestra). Ahora filtra por path (`key.remoteJid`, y si no hay, `key.remoteJidAlt`), como el resto del servicio.
+
 - `0008-group-updates-reach-webhook.patch`: los cambios de un grupo hechos en el teléfono (o por otra persona)
   llegan al webhook:
   - **Asunto y descripción.** Baileys los emite como `groups.update` (con `author`), pero el filtro del webhook de
@@ -83,11 +88,16 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
 
   zerosoft lo lee en `parseEvolutionWebhook` (`groups.update` → `{ type: 'group' }`, lib/wa-group-events.ts).
 
+**Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
+workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
+después de publicarse `zs6`. Para ver cuál corre: `railway deployment list -p <proyecto> -s evolution --json`
+(`meta.image`).
+
 **Las claves viven en el disco del contenedor.** Con `CACHE_REDIS_ENABLED=false`, Evolution guarda en Postgres solo
-`creds`; las sesiones de Signal, las pre-keys y las claves de app-state quedan en `/evolution/instances`, que no
-tiene volumen: cada deploy las borra. Por eso, después de un deploy, las líneas vinculadas antes no pueden leer ni
-mandar archivado (`failed to find key`) hasta volver a vincularse, y llegan mensajes que no se pueden descifrar
-(parche 0002). Falta montar un volumen de Railway en `/evolution/instances` (o Redis).
+`creds`; las sesiones de Signal, las pre-keys y las claves de app-state quedan en `/evolution/instances`. Al 15/11
+ese camino tiene un volumen de Railway (el deploy lo muestra en `volumeMounts`), así que un deploy ya no las
+borra. Sin el volumen, después de un deploy las líneas no podían leer ni mandar archivado (`failed to find key`)
+hasta volver a vincularse.
 
 ## Mantenimiento (automático)
 

@@ -1226,6 +1226,8 @@ export default function InboxApp(props: {
           <ChatRow
             th={th}
             timeLabel={view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : undefined}
+            // Como WhatsApp: en la búsqueda (que también trae lo archivado), "Archivado" a la derecha.
+            archivedTag={!!q && view !== 'archived' && view !== 'done' && (th.archived || th.done)}
             extra={
               <>
                 {th.channel === 'gmail' && <span className="ib-chan-dot" data-ch="gmail" role="img" aria-label="Gmail" />}

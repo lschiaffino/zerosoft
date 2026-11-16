@@ -2022,7 +2022,8 @@
     "refreshOutdated": "El gateway de WhatsApp necesita una actualización para traer estos mensajes",
     "refreshError": "No se pudo pedir los mensajes al teléfono",
     "refreshRetry": "Reintentar",
-    "refreshDismiss": "Cerrar"
+    "refreshDismiss": "Cerrar",
+    "archivedTag": "Archivado"
   },
   "swipe": {
     "read": "Leído",
