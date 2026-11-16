@@ -1,0 +1,95 @@
+/*
+ * El chat con el dedo (Lines e Inbox), como WhatsApp en el teléfono: toque largo sobre un mensaje
+ * (components/groups/wa/TouchMessageMenu.tsx), selección de varios, deslizar para responder.
+ */
+
+/* ---------- Toque largo: barra de reacciones arriba, hoja de acciones abajo ---------- */
+
+.wa-touch-react {
+  position: fixed; z-index: 2001; display: flex; align-items: center; gap: 2px; padding: 4px 6px;
+  background: var(--wa-menu, var(--bg)); border-radius: 26px; box-shadow: 0 2px 6px rgb(11 20 26 / 0.12), 0 10px 28px rgb(11 20 26 / 0.18);
+  animation: wa-touch-pop 0.16s ease-out;
+}
+.wa-touch-react button {
+  display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0;
+  font-size: 1.5rem; line-height: 1; color: var(--wa-icon, var(--ink-2)); background: none; border: 0; border-radius: 50%; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.wa-touch-react button.is-mine { background: var(--wa-row-active, var(--ui-hover)); }
+.wa-touch-react button:active { transform: scale(1.18); }
+.wa-touch-react button:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-touch-react .wa-touch-react-more { background: var(--wa-chip-bg, var(--bg-soft)); }
+
+.gr-menu-list.wa-touch-sheet {
+  position: fixed; top: auto; right: 0; bottom: 0; left: 0; z-index: 2000; min-width: 0;
+  max-height: min(52dvh, calc(var(--app-vh, 100dvh) - 220px)); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--wa-menu, var(--bg)); border: 0; border-top: 1px solid var(--wa-border, var(--line)); border-radius: 14px 14px 0 0;
+  box-shadow: 0 -6px 24px rgb(11 20 26 / 0.16);
+  animation: wa-touch-sheet-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.wa-touch-grip { display: block; flex: none; width: 36px; height: 4px; margin: 4px auto 6px; border-radius: 2px; background: var(--wa-border-strong, var(--line)); }
+.wa-touch-sheet .gr-menu-item {
+  display: flex; flex: none; align-items: center; gap: 16px; min-height: 46px; padding: 0 12px;
+  font-size: 1rem; color: var(--wa-text, var(--ink)); border-radius: 8px; -webkit-tap-highlight-color: transparent;
+}
+.wa-touch-sheet .gr-menu-item:active { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-touch-sheet .gr-menu-item.gr-danger { color: var(--wa-danger, var(--bad-ink)); }
+.wa-touch-sheet .gr-menu-item.has-divider { margin-top: 9px; padding-top: 0; position: relative; border-top: 0; border-radius: 8px; }
+/* Con el dedo no hay "hover": el último lugar tocado no queda pintado. */
+@media (hover: none) { .wa-touch-sheet .gr-menu-item:hover { background: transparent; } }
+.wa-touch-sheet .gr-menu-item.has-divider::before { content: ''; position: absolute; top: -5px; right: 8px; left: 8px; border-top: 1px solid var(--wa-border, var(--line)); }
+.wa-touch-sheet .gr-menu-glyph { display: inline-flex; flex: none; width: 22px; justify-content: center; color: var(--wa-icon, var(--dim)); }
+.wa-touch-sheet .gr-menu-item.gr-danger .gr-menu-glyph { color: inherit; }
+
+.gr-inbox[data-chat-style='zerosoft'] .wa-touch-react { border: 1px solid var(--line); border-radius: var(--radius-1); box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-touch-react button { border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-menu-list.wa-touch-sheet { border-top-color: var(--ink); border-radius: var(--radius-1) var(--radius-1) 0 0; }
+
+@keyframes wa-touch-pop { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+@keyframes wa-touch-sheet-in { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { .wa-touch-react, .gr-menu-list.wa-touch-sheet { animation: none; } }
+
+/* ---------- Mensaje marcado (toque largo o selección): toda la fila teñida, como WhatsApp ---------- */
+
+/* La franja va de borde a borde aunque la burbuja sea angosta (sombra ancha recortada al alto del mensaje). */
+.gr-inbox .gr-msg.is-selected { box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--wa-primary, var(--ink)) 18%, transparent); clip-path: inset(-1px -100vmax); }
+.gr-inbox .wa-messages.is-selecting .gr-msg { cursor: pointer; }
+/* En modo selección, tocar un mensaje lo elige: lo de adentro (links, fotos, audio) no se abre. */
+.gr-inbox .wa-messages.is-selecting .gr-bubble *:not(.wa-album, .wa-album *) { pointer-events: none; }
+/* El álbum elige foto por foto. pointer-events se hereda: sin esto toma el "none" de lo que lo envuelve. */
+.gr-inbox .wa-messages.is-selecting .gr-bubble .wa-album { pointer-events: auto; }
+
+/* ---------- Con el dedo ---------- */
+
+@media (hover: none) {
+  /* El gesto es del mensaje: sin la lupa ni el menú de iOS sobre el texto, links o fotos; el scroll vertical sigue siendo del chat. */
+  .gr-inbox .gr-msg { touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .gr-inbox .gr-msg :is(a, img, video, audio, button) { -webkit-touch-callout: none; -webkit-user-drag: none; }
+  /* Sin la flecha ni el botón de reaccionar sobre cada mensaje: todo eso está en el toque largo. */
+  .gr-inbox .wa-hover, .gr-inbox .gr-msg-actions { opacity: 0; pointer-events: none; }
+  .gr-inbox .gr-msg.is-selected .gr-bubble { box-shadow: var(--wa-shadow-bubble); }
+}
+/* Teléfono: elegidos como en WhatsApp, con la franja de color, sin casillas ni correr los mensajes. */
+@media (hover: none) and (max-width: 720px) {
+  .gr-inbox .wa-messages.is-selecting { padding-left: 10px; }
+  .gr-inbox .wa-messages.is-selecting .wa-select-check { display: none; }
+}
+
+/* ---------- Deslizar a la derecha para responder (Lines; Inbox lo tiene en inbox-wa.css) ---------- */
+
+.gr-inbox .gr-thread .wa-swipe-reply {
+  position: absolute; top: 50%; left: -32px; display: none; align-items: center; justify-content: center; width: 26px; height: 26px;
+  color: var(--wa-icon); background: var(--wa-panel); border-radius: 50%; transform: translateY(-50%) scaleX(-1); box-shadow: var(--wa-shadow-bubble);
+}
+.gr-inbox .gr-msg[data-swipe] .wa-swipe-reply { display: inline-flex; opacity: 0.5; }
+.gr-inbox .gr-msg[data-swipe='ready'] .wa-swipe-reply { opacity: 1; color: var(--wa-primary); }
+.gr-inbox .gr-msg.has-avatar .wa-swipe-reply { left: -2px; }
+
+/* ---------- Barra de selección ---------- */
+
+.wa-selectbar .wa-rec-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-selectbar-actions { display: inline-flex; flex: none; align-items: center; gap: 2px; margin-left: auto; }
+.wa-selectbar .wa-icon-btn { min-width: 44px; min-height: 44px; }
+.wa-selectbar .wa-icon-btn.is-danger { color: var(--wa-danger, var(--bad-ink)); }
+.wa-selectbar .wa-icon-btn:disabled { opacity: 0.4; cursor: default; }
