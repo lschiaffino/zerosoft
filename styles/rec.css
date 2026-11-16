@@ -637,6 +637,8 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-vw-time { font-size: 0.75rem; }
 .rec-flag { margin-right: 6px; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
 @media (max-width: 600px) {
+  /* El botón de exportar a 40 px también con mouse en una ventana angosta (el piso global es solo táctil). */
+  .rec-pane-foot .btn { --btn-h: 40px; }
   .rec-viewers .rec-col-wide { display: none; }
   .rec-vw-narrow { display: block; }
 }
