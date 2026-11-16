@@ -73,7 +73,7 @@
     },
     "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**"], "specs": ["books"] },
     "shop": { "names": ["shop"], "paths": ["app/store/**", "styles/store.css"], "specs": ["shop"] },
-    "social": { "names": ["social"], "specs": ["social"] },
+    "social": { "names": ["social"], "specs": ["social", "social-*"] },
     "design": { "names": ["design"], "paths": ["app/[locale]/d/**"], "specs": ["design"] },
     "calls": { "names": ["calls"], "paths": ["app/[locale]/call/**"], "specs": ["calls"] },
     "hr": { "names": ["hiring", "people"], "paths": ["lib/hr-*", "styles/careers.css", "app/careers/**"], "specs": ["hiring", "hr-*", "people"] },

@@ -1,18 +1,26 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { usePathname, useRouter } from '@/i18n/navigation';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import type { InboxItemDto } from '@/lib/social-inbox';
 import type { AccountDto } from '@/lib/social';
+import { fillSavedReply } from '@/lib/social-saved-replies';
 import { api, fmtDateTime, NetworkTag, useErrorText, useToast } from './shared';
+
+export interface SavedReply {
+  id: string;
+  name: string;
+  body: string;
+}
 
 /**
  * Bandeja unificada: comentarios, menciones y mensajes directos de las
- * cuentas que la persona ve. Contestar, asignar y marcar hecho. La lista se
- * arma en el servidor; los filtros van en la URL.
+ * cuentas que la persona ve. Contestar (a mano o con una respuesta guardada
+ * de la biblioteca), asignar y marcar hecho. La lista se arma en el servidor;
+ * los filtros van en la URL.
  */
 export default function InboxView({
   items,
@@ -20,12 +28,14 @@ export default function InboxView({
   people,
   me,
   filters,
+  savedReplies,
 }: {
   items: InboxItemDto[];
   accounts: AccountDto[];
   people: Array<{ id: string; name: string }>;
   me: string;
   filters: { status: string; kind: string; account: string; assigned: string };
+  savedReplies: SavedReply[];
 }) {
   const t = useTranslations('social.inbox');
   const locale = useLocale();
@@ -38,10 +48,48 @@ export default function InboxView({
   const [list, setList] = useState(items);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [replies, setReplies] = useState(savedReplies);
+  const [saveName, setSaveName] = useState<string | null>(null);
+  const replyRef = useRef<HTMLTextAreaElement>(null);
+  const saveNameRef = useRef<HTMLInputElement>(null);
   const selectedId = sp.get('item') ?? list[0]?.id ?? null;
   const selected = useMemo(() => list.find((i) => i.id === selectedId) ?? null, [list, selectedId]);
 
   useEffect(() => setList(items), [items]);
+  useEffect(() => setReplies(savedReplies), [savedReplies]);
+  useEffect(() => {
+    if (saveName !== null) saveNameRef.current?.focus();
+  }, [saveName !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Pone la respuesta guardada en el cuadro (con {name} y {account} completos) y deja el cursor al final. */
+  function insertSaved(id: string) {
+    const saved = replies.find((r) => r.id === id);
+    if (!saved || !selected) return;
+    const text = fillSavedReply(saved.body, { authorName: selected.authorName, accountName: selected.account.name });
+    setReply((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')}\n\n${text}` : text));
+    setTimeout(() => {
+      const el = replyRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 0);
+  }
+
+  async function saveAsReply() {
+    const name = saveName?.trim();
+    if (!name || !reply.trim()) return;
+    setBusy('save-reply');
+    try {
+      const item = await api<SavedReply>('/library', { method: 'POST', json: { kind: 'reply', name, body: reply } });
+      setReplies((all) => [{ id: item.id, name: item.name, body: item.body }, ...all]);
+      setSaveName(null);
+      showToast(t('savedReplyCreated'));
+    } catch (err) {
+      showToast(errorText(err), true);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   function setParam(key: string, value: string) {
     const q = new URLSearchParams(sp.toString());
@@ -192,9 +240,29 @@ export default function InboxView({
                   }}
                   className="sc-thread"
                 >
-                  <label className="ui-field">
-                    <span className="label">{t('reply')}</span>
+                  <div className="sc-row sc-reply-tools">
+                    <label className="label sc-grow" htmlFor="sc-inbox-reply">
+                      {t('reply')}
+                    </label>
+                    {replies.length > 0 ? (
+                      <select className="select" aria-label={t('insertSavedReply')} value="" onChange={(e) => insertSaved(e.target.value)} data-testid="inbox-saved-replies">
+                        <option value="">{t('insertSavedReply')}</option>
+                        {replies.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Link className="sc-small" href="/app/social/library?kind=reply">
+                        {t('noSavedReplies')}
+                      </Link>
+                    )}
+                  </div>
+                  <div className="ui-field">
                     <textarea
+                      ref={replyRef}
+                      id="sc-inbox-reply"
                       className="textarea"
                       rows={3}
                       value={reply}
@@ -207,8 +275,43 @@ export default function InboxView({
                         }
                       }}
                     />
-                  </label>
+                  </div>
+                  {saveName !== null ? (
+                    <div className="sc-row" data-testid="inbox-save-reply-form">
+                      <input
+                        ref={saveNameRef}
+                        className="input sc-grow"
+                        value={saveName}
+                        maxLength={120}
+                        placeholder={t('savedReplyNameShort')}
+                        aria-label={t('savedReplyName')}
+                        data-testid="inbox-save-reply-name"
+                        onChange={(e) => setSaveName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void saveAsReply();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setSaveName(null);
+                            replyRef.current?.focus();
+                          }
+                        }}
+                      />
+                      <button type="button" className="btn btn-sm" onClick={() => setSaveName(null)}>
+                        {t('cancel')}
+                      </button>
+                      <button type="button" className="btn btn-sm btn-primary" disabled={!saveName.trim() || busy === 'save-reply'} aria-busy={busy === 'save-reply'} onClick={() => void saveAsReply()} data-testid="inbox-save-reply-confirm">
+                        {t('savedReplySave')}
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="sc-actions">
+                    {saveName === null && (
+                      <button type="button" className="btn" disabled={!reply.trim()} onClick={() => setSaveName('')} data-testid="inbox-save-reply">
+                        {t('saveAsReply')}
+                      </button>
+                    )}
                     <button type="submit" className="btn btn-primary" disabled={!reply.trim() || busy === 'reply'} aria-busy={busy === 'reply'}>
                       {t('send')}
                     </button>

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { readBody, withSocial } from '@/lib/social-http';
-import { createLibraryItem, listLibrary, type LibraryKind } from '@/lib/social';
+import { createLibraryItem, LIBRARY_KINDS, listLibrary, type LibraryKind } from '@/lib/social';
 import { mediaSchema } from '@/lib/social-schemas';
 import { jsonError } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const KINDS = ['snippet', 'hashtags', 'asset'];
+const KINDS: readonly string[] = LIBRARY_KINDS;
 
-/** Biblioteca del workspace: textos guardados, grupos de hashtags y archivos. ?kind=, ?q=. */
+/** Biblioteca del workspace: textos guardados, grupos de hashtags, archivos y respuestas de la bandeja. ?kind=, ?q=. */
 export async function GET(req: NextRequest) {
   return withSocial(async ({ actor }) => {
     const sp = req.nextUrl.searchParams;
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 }
 
 const schema = z.object({
-  kind: z.enum(['snippet', 'hashtags', 'asset']),
+  kind: z.enum(['snippet', 'hashtags', 'asset', 'reply']),
   name: z.string().trim().min(1).max(120),
   body: z.string().max(10_000).optional(),
   media: z.array(mediaSchema).max(20).optional(),
