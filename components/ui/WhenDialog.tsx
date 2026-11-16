@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useLocale } from 'next-intl';
-import { localInputValue, longWhen, presetDate, SNOOZE_PRESETS, type SnoozePreset } from '@/lib/when-presets';
+import { localInputValue, longWhen, presetDate, SNOOZE_PRESETS, visiblePresets, type SnoozePreset } from '@/lib/when-presets';
 
 export interface WhenLabels {
   /** Nombre de cada preset ("Mañana a la mañana"). */
@@ -62,6 +62,8 @@ export default function WhenDialog({
   }, [open, initial]);
 
   const pick = (p: SnoozePreset) => onPick(presetDate(p, new Date()).toISOString());
+  // Dos presets que caen en la misma hora (el domingo, "Mañana a la mañana" y "La semana que viene") se ven una vez.
+  const presets = visiblePresets(now);
   const submitCustom = () => {
     const at = new Date(custom);
     if (!custom || Number.isNaN(at.getTime()) || at.getTime() <= Date.now() + 30_000) {
@@ -84,10 +86,23 @@ export default function WhenDialog({
         if (e.target === e.currentTarget) onClose();
       }}
       onKeyDown={(e) => {
+        const inInput = e.target instanceof HTMLInputElement;
         const n = Number(e.key);
-        if (!(e.target instanceof HTMLInputElement) && !e.metaKey && !e.ctrlKey && !e.altKey && n >= 1 && n <= SNOOZE_PRESETS.length) {
+        if (!inInput && !e.metaKey && !e.ctrlKey && !e.altKey && n >= 1 && n <= SNOOZE_PRESETS.length) {
+          // El número es siempre el mismo preset (memoria muscular), aunque uno repetido no se muestre.
           e.preventDefault();
           pick(SNOOZE_PRESETS[n - 1]);
+          return;
+        }
+        // Flechas: arriba y abajo recorren las opciones y la fecha propia (Enter elige la que tiene el foco).
+        if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('.ui-when-opt, .ui-when-custom input') ?? []);
+          const at = items.indexOf(document.activeElement as HTMLElement);
+          // En la fecha las flechas cambian el día o la hora: ahí no se mueven entre opciones (Tab o Mayús+Tab salen).
+          if (inInput) return;
+          e.preventDefault();
+          const next = at < 0 ? 0 : (at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+          items[next]?.focus();
         }
       }}
     >
@@ -99,11 +114,11 @@ export default function WhenDialog({
           <div className="ui-modal-body ui-when-body">
             {help && <div className="ui-help ui-when-help">{help}</div>}
             <ul className="ui-when-list">
-              {SNOOZE_PRESETS.map((p, i) => (
+              {presets.map((p) => (
                 <li key={p}>
-                  <button type="button" className="ui-when-opt" onClick={() => pick(p)} autoFocus={i === 0}>
+                  <button type="button" className="ui-when-opt" onClick={() => pick(p)} autoFocus={p === presets[0]}>
                     <span className="kbd" aria-hidden>
-                      {i + 1}
+                      {SNOOZE_PRESETS.indexOf(p) + 1}
                     </span>
                     <span className="ui-when-label">{labels.preset(p)}</span>
                     <span className="ui-when-at">{longWhen(presetDate(p, now).toISOString(), locale)}</span>
