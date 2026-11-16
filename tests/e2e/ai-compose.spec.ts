@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Help me write" (components/ai/AiComposeBar): lo que no cubren los specs de
@@ -134,7 +135,7 @@ test('Lines en oscuro: la barra se lee y Esc corta lo que se está escribiendo a
 
 test('Inbox, mensaje nuevo: describe el mensaje, lo inserta en el campo y no manda nada', async ({ page, request }) => {
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   await page.setViewportSize({ width: 1280, height: 800 });
   // Gmail de prueba (INBOX_FAKE=1): con WhatsApp, "Nuevo" abre el panel de chat nuevo y el mensaje nuevo es "New email".

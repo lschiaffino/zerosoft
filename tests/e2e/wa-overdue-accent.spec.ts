@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Lines e Inbox: un chat vencido lleva un filete de color al borde de la fila (data-overdue y
@@ -166,7 +167,7 @@ async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; s
   const status = async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status;
   // Vincular tiene tope por IP (20 cada 10 min, compartido por todo el shard): solo si hace falta.
   if ((await status()) !== 'connected') {
-    const linked = await request.post('/api/inbox/whatsapp');
+    const linked = await request.post('/api/inbox/whatsapp', waLinkIp());
     expect(linked.ok(), await linked.text()).toBe(true);
   }
   await expect.poll(status, { timeout: 10_000 }).toBe('connected');

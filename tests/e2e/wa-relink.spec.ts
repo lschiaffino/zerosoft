@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox y Lines con el WhatsApp falso (GROUPS_FAKE=1): desvincular y volver a
@@ -68,7 +69,7 @@ test.beforeEach(async ({ page }) => {
 test('Inbox: desvincular y volver a vincular el mismo número no duplica chats ni mensajes', async ({ page, request }) => {
   test.setTimeout(120_000);
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const hook = async (list: unknown[]) => {
