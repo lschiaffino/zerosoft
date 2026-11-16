@@ -321,6 +321,16 @@ async function download(url: string): Promise<{ data: Buffer; mime: string } | '
   return { data: Buffer.concat(chunks), mime };
 }
 
+/**
+ * Cambió la foto guardada de la persona de un 1:1 (lib/wa-contact-pictures.ts): sube la versión del chat
+ * (la lista y el chat no responden 304) y avisa a las pantallas abiertas. Solo ids.
+ */
+export async function noteThreadPicture(thread: Pick<ThreadRow, 'id' | 'owner_id'>): Promise<void> {
+  const db = getDb();
+  await db.prepare('UPDATE inbox_threads SET rev = rev + 1 WHERE id = ?').run(thread.id);
+  await db.prepare("INSERT INTO wa_live_events (app, scope_id, chat_id) VALUES ('inbox', ?, ?)").run(thread.owner_id, thread.id);
+}
+
 /** La foto de un chat de la persona. Si la URL venció, pide una nueva una vez. */
 export async function avatarFor(owner: string, threadId: string): Promise<{ data: Buffer; mime: string }> {
   const db = getDb();

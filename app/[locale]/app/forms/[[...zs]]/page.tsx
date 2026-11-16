@@ -48,7 +48,7 @@ export default async function FormsPage(props: Props) {
 
   if (!section) {
     const forms = await listForms(actor, { q: sp.q ?? '', status: sp.status ?? '' });
-    return <FormsList forms={forms} q={sp.q ?? ''} status={sp.status ?? ''} />;
+    return <FormsList forms={forms} q={sp.q ?? ''} status={sp.status ?? ''} serverNow={Date.now()} />;
   }
   if (section === 'new') {
     if (sub) notFound();
