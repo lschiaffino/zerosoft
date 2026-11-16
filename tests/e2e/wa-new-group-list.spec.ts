@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Un grupo nuevo de WhatsApp aparece arriba de la lista aunque no tenga
@@ -25,7 +26,7 @@ const noSideScroll = (page: Page) => page.evaluate(() => document.documentElemen
 async function linkInbox(request: APIRequestContext) {
   const status = async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state?: { status: string } }).state?.status;
   if ((await status()) === 'connected') return;
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(status, { timeout: 10_000 }).toBe('connected');
 }
 

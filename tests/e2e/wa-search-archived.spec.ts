@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Buscar un chat archivado, como WhatsApp: en los resultados de búsqueda la
@@ -61,7 +62,7 @@ for (const size of SIZES) {
 
     test('Inbox: el archivado lleva "Archivado" solo en la búsqueda', async ({ page, request }, info) => {
       const errors = watchErrors(page);
-      await request.post('/api/inbox/whatsapp');
+      await request.post('/api/inbox/whatsapp', waLinkIp());
       await expect
         .poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 })
         .toBe('connected');

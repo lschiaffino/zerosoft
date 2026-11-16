@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Visualización de los chats (components/chat-style/DisplaySection.tsx), en
@@ -209,7 +210,7 @@ test('Visualización: se llega desde el menú ⋯ de un chat de Lines y de Inbox
   await expect(page.locator('#chat-display').getByRole('heading', { name: 'Display' })).toBeInViewport();
 
   // Inbox.
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const db = e2eDb();
   try {
