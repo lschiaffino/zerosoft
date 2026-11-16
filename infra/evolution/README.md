@@ -64,6 +64,18 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   leer; el parche hace lo mismo con un `sed` después de `npm ci`, y el build falla si la línea cambió. Se saca al
   pasar a una versión de Evolution con Baileys rc14 o posterior.
 
+- `0008-group-updates-reach-webhook.patch`: los cambios de un grupo hechos en el teléfono (o por otra persona)
+  llegan al webhook:
+  - **Asunto y descripción.** Baileys los emite como `groups.update` (con `author`), pero el filtro del webhook de
+    la instancia comparaba el evento `GROUPS_UPDATE` contra la opción `GROUP_UPDATE` (la única que acepta la
+    validación) y nunca coincidía. Ahora `GROUP_UPDATE` en los eventos de la instancia recibe `groups.update`.
+  - **Solo cambios.** Al conectar, Baileys emite la metadata completa de todos los grupos por `groups.update`:
+    eso ya no sale por el webhook (eran megas por línea); se sigue guardando en la caché como en 0004.
+  - **Foto del grupo.** Llegaba solo como mensaje de sistema sin contenido (GROUP_CHANGE_ICON), que Evolution
+    descartaba. Ahora sale como `GROUPS_UPDATE` con `{ id, picture: 'changed' | 'removed', author, authorPn }`.
+
+  zerosoft lo lee en `parseEvolutionWebhook` (`groups.update` → `{ type: 'group' }`, lib/wa-group-events.ts).
+
 **Las claves viven en el disco del contenedor.** Con `CACHE_REDIS_ENABLED=false`, Evolution guarda en Postgres solo
 `creds`; las sesiones de Signal, las pre-keys y las claves de app-state quedan en `/evolution/instances`, que no
 tiene volumen: cada deploy las borra. Por eso, después de un deploy, las líneas vinculadas antes no pueden leer ni
