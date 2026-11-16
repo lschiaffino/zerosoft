@@ -65,6 +65,7 @@ export const PRODUCT_CONFIG = {
   forms: { name: 'Forms', launch: '/app/forms', path: 'forms', color: '#6e730d', category: 'sell', audience: 'team' },
   send: { name: 'Send', launch: '/app/send', path: 'send', color: '#0b7285', category: 'sell', audience: 'team' },
   calls: { name: 'Calls', launch: '/app/calls', path: 'calls', color: '#a61e4d', category: 'sell', audience: 'team' },
+  time: { name: 'Time', launch: '/app/time', path: 'time', color: '#c05621', category: 'run', audience: 'team', status: 'coming_soon' },
   fleet: { name: FLEET_NAME, launch: '/app/fleet', path: 'fleet', color: '#2f9e44', category: 'build', audience: 'personal' },
 } as const satisfies Record<string, ProductEntry>;
 
@@ -82,6 +83,7 @@ export const APP_SWITCHER_ORDER = [
   'forms',
   'send',
   'calls',
+  'time',
   'docs',
   'cal',
   'chat',

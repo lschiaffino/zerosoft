@@ -38,13 +38,13 @@
     "inbox": { "names": ["inbox", "inboxWa"], "specs": ["inbox", "inbox-*", "assistant-folders"], "with": ["chat-ui"] },
     "lines": {
       "names": ["groups", "lines"],
-      "specs": ["groups", "groups-*", "lines-*", "member-capabilities", "tasks-unified"],
+      "specs": ["groups", "groups-*", "lines-*", "offline-lines-inbox", "member-capabilities", "tasks-unified"],
       "with": ["chat-ui", "inbox"]
     },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-gestures", "mobile-no-side-scroll"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
@@ -58,6 +58,7 @@
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
     "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
+    "time": { "names": ["time"], "specs": ["time"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
     "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
     "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },
@@ -89,8 +90,8 @@
   },
 
   "full-only": [
-    "apps-coming-soon", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
-    "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "qa-followups", "qa-polish",
+    "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
+    "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "private-files", "qa-followups", "qa-polish",
     "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
   ]
 }

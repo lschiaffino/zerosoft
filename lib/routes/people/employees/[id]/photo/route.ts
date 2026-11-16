@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const r = await getEmployeeRow(ctx.ws, id);
     if (!r?.photo_url) return pjson({ error: 'not_found' }, 404);
     const block = { id, type: 'image', content: '', url: r.photo_url, name: 'photo', mime: '' } as unknown as DocsBlock & { url: string };
-    return (await fileBlockResponse(block)) ?? pjson({ error: 'not_found' }, 404);
+    return (await fileBlockResponse(block, { owner: { workspaceId: ctx.ws } })) ?? pjson({ error: 'not_found' }, 404);
   });
 }
 

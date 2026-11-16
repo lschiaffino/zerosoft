@@ -48,8 +48,8 @@ const put = (body: unknown) =>
   appsRoute.PUT(new NextRequest('http://localhost/api/teams/apps', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) as never);
 
 describe('lib/products: Próximamente en una sola config', () => {
-  it('las ocho apps pedidas son Próximamente y no cuentan como disponibles', () => {
-    expect([...COMING_SOON_APPS].sort()).toEqual(['agents', 'books', 'chat', 'design', 'hiring', 'robots', 'shop', 'social']);
+  it('las nueve apps pedidas son Próximamente y no cuentan como disponibles', () => {
+    expect([...COMING_SOON_APPS].sort()).toEqual(['agents', 'books', 'chat', 'design', 'hiring', 'robots', 'shop', 'social', 'time']);
     for (const k of COMING_SOON_APPS) expect(AVAILABLE_PRODUCT_KEYS).not.toContain(k);
     expect(AVAILABLE_PRODUCT_KEYS).toContain('crm');
   });

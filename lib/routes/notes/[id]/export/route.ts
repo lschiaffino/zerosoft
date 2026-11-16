@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   if (format === 'enex') {
     const t = await getTranslations({ locale, namespace: 'notes' });
-    return new NextResponse(enexStream([{ ...note, content: blocks }], { origin, lockedText: t('lock.exportedLocked') }), {
+    return new NextResponse(enexStream([{ ...note, content: blocks }], { origin, lockedText: t('lock.exportedLocked'), owner: { workspaceId: noteOwner(user).workspaceId, userId: noteOwner(user).personId } }), {
       headers: headers('application/enex+xml; charset=utf-8', 'enex'),
     });
   }

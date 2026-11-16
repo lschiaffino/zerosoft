@@ -5,6 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
+import { isFileUrlPath } from './files/url';
 import { parseLinesFilters, type LinesFilters } from './groups-filters';
 import {
   CHAT_FILTERS,
@@ -75,15 +76,23 @@ export async function updateGroupSettings(ws: string, chatId: string, input: Gro
   let picture: string | undefined;
   if (input.picture !== undefined) {
     if (input.picture && !/^image\/(png|jpe?g|webp)$/.test(input.picture.mimetype)) throw new GroupsError('invalid_image');
-    if (input.picture && !/^(\/uploads\/|https:\/\/)/.test(input.picture.url)) throw new GroupsError('invalid_image');
+    if (input.picture && !isFileUrlPath(input.picture.url) && !/^(\/uploads\/|https:\/\/)/.test(input.picture.url)) throw new GroupsError('invalid_image');
     picture = input.picture?.url ?? '';
+  }
+  // Un archivo de /api/files: solo si es de este workspace; el gateway lo baja con una URL firmada que vence.
+  let pictureUrl = input.picture ? publicUrl(input.picture.url, origin) : '';
+  if (input.picture && isFileUrlPath(input.picture.url)) {
+    const { ownedFileRow, signedFileUrl } = await import('./files/store');
+    const row = await ownedFileRow(input.picture.url, { workspaceId: ws });
+    if (!row) throw new GroupsError('invalid_image');
+    pictureUrl = signedFileUrl(row, groupsBaseUrl(origin), 30 * 60);
   }
   try {
     if (Object.keys(patch).length) await provider.updateGroupSettings(chat.provider_chat_id, patch);
     if (picture !== undefined) {
       await provider.setGroupPicture(
         chat.provider_chat_id,
-        input.picture ? { url: publicUrl(input.picture.url, origin), mimetype: input.picture.mimetype } : null,
+        input.picture ? { url: pictureUrl, mimetype: input.picture.mimetype } : null,
       );
     }
   } catch (err) {

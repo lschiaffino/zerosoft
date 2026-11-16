@@ -95,6 +95,13 @@ const parity: ProductParity = {
       ],
     }),
     row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('offline-queue', 'inbox', ['Write without a connection: messages queue and send on their own', 'Escribir sin conexión: los mensajes quedan en cola y salen solos', 'Escrever sem conexão: as mensagens ficam na fila e saem sozinhas'], 'partial', {
+      detail: [
+        'Chats you opened open without a connection. A text written offline shows with the clock, survives a reload, can be deleted before it goes, and sends in order and once when the connection is back (also with two tabs open); if the server rejects it, it stays as not sent with retry. Files need a connection: they stay in the tray. Tested with the fake provider',
+        'Los chats que abriste se abren sin conexión. Un texto escrito sin red aparece con el reloj, sobrevive a recargar, se puede borrar antes de que salga y sale en orden y una sola vez al volver la conexión (también con dos pestañas abiertas); si el servidor lo rechaza, queda como no enviado con reintentar. Los archivos necesitan conexión: quedan en la bandeja. Probado con el proveedor falso',
+        'As conversas que você abriu abrem sem conexão. Um texto escrito sem conexão aparece com o relógio, sobrevive a recarregar, pode ser apagado antes de sair e sai em ordem e uma única vez quando a conexão volta (também com duas abas abertas); se o servidor recusar, fica como não enviado com tentar de novo. Arquivos precisam de conexão: ficam na bandeja. Testado com o provedor falso',
+      ],
+    }),
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
@@ -265,7 +272,11 @@ const parity: ProductParity = {
       ],
     }),
     row('contacts-crm', 'organize', ['Contacts', 'Contactos', 'Contatos'], 'better', {
-      detail: ['Chats and groups link to CRM contacts and companies, with messages and tickets on the record', 'Chats y grupos se vinculan a contactos y empresas del CRM, con mensajes y tickets en la ficha', 'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha'],
+      detail: [
+        'Chats and groups link to CRM contacts and companies, with messages and tickets on the record. A Contacts section lists each person once across lines (phone and WhatsApp id joined), with their lines, groups, last message and HubSpot contact and company; create in HubSpot looks the phone up first and adds the contact to the company of their groups. Tested with the fake provider and a simulated HubSpot',
+        'Chats y grupos se vinculan a contactos y empresas del CRM, con mensajes y tickets en la ficha. Una sección Contactos muestra cada persona una vez entre líneas (teléfono e id de WhatsApp unidos), con sus líneas, grupos, último mensaje y su contacto y empresa de HubSpot; crear en HubSpot busca el teléfono antes y suma el contacto a la empresa de sus grupos. Probado con el proveedor falso y un HubSpot simulado',
+        'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha. Uma seção Contatos mostra cada pessoa uma vez entre linhas (telefone e id do WhatsApp unidos), com linhas, grupos, última mensagem e o contato e a empresa no HubSpot; criar no HubSpot busca o telefone antes e coloca o contato na empresa dos grupos dele. Testado com o provedor falso e um HubSpot simulado',
+      ],
     }),
     row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'have', {
       detail: [

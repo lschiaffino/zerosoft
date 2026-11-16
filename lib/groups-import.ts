@@ -402,27 +402,43 @@ async function save(job: ImportRow, patch: Partial<Pick<ImportRow, 'phase' | 'cu
   return r.changes > 0;
 }
 
-/** Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp vencen). */
-export async function storePicture(url: string): Promise<string> {
-  if (!/^https?:\/\//.test(url)) return '';
+/** Baja una foto de perfil de WhatsApp (JPEG, PNG o WebP, con tope). null si no se pudo. */
+export async function downloadPicture(url: string): Promise<{ name: string; type: string; data: Buffer } | null> {
+  if (!/^https?:\/\//.test(url)) return null;
   const res = await defaultBridgeFetch(url, { method: 'GET' });
   if (!res.ok) {
     await res.body?.cancel().catch(() => {});
-    return '';
+    return null;
   }
   const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
   if (!/^image\/(jpeg|png|webp)$/.test(type) || Number(res.headers.get('content-length') ?? 0) > MAX_PICTURE) {
     await res.body?.cancel().catch(() => {});
-    return '';
+    return null;
   }
   const data = Buffer.from(await res.arrayBuffer());
-  if (data.length === 0 || data.length > MAX_PICTURE) return '';
-  const { saveUpload } = await import('./uploads');
-  return saveUpload('chat', `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data);
+  if (data.length === 0 || data.length > MAX_PICTURE) return null;
+  return { name: `avatar.${type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg'}`, type, data };
 }
 
-async function setPicture(chatId: string, url: string): Promise<void> {
-  const stored = await storePicture(url).catch(() => '');
+/**
+ * Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp
+ * vencen). Se ve por /api/files solo con acceso a ese chat.
+ */
+export async function storePicture(url: string, owner: { ws: string; chatId: string }): Promise<string> {
+  const pic = await downloadPicture(url);
+  if (!pic) return '';
+  const { saveUpload } = await import('./uploads');
+  return saveUpload('chat', pic.name, pic.type, pic.data, {
+    workspaceId: owner.ws,
+    userId: null,
+    app: 'groups',
+    access: 'workspace',
+    scope: `groups-chat:${owner.chatId}`,
+  });
+}
+
+async function setPicture(ws: string, chatId: string, url: string): Promise<void> {
+  const stored = await storePicture(url, { ws, chatId }).catch(() => '');
   if (stored) await getDb().prepare("UPDATE groups_chats SET picture_url = ? WHERE id = ? AND picture_url = ''").run(stored, chatId);
 }
 
@@ -463,7 +479,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         await db
           .prepare('INSERT OR IGNORE INTO groups_import_chats (number_id, remote_jid, chat_id, last_at, done) VALUES (?, ?, ?, ?, 0)')
           .run(number.id, c.remoteJid, chat.id, Math.floor(c.lastAt));
-        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(chat.id, c.pictureUrl);
+        if (c.pictureUrl && !chat.picture_url && Date.now() < deadline) await setPicture(number.user_id, chat.id, c.pictureUrl);
       }
       const total = ((await db.prepare('SELECT COUNT(DISTINCT chat_id) AS n FROM groups_import_chats WHERE number_id = ?').get(number.id)) as { n: number }).n;
       // La última página (o un tope de seguridad) pasa a los contactos.
@@ -546,7 +562,7 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         if (Date.now() > deadline) break;
         if (!c.picture_url) {
           const url = await history.picture(c.provider_chat_id).catch(() => '');
-          if (url) await setPicture(c.id, url);
+          if (url) await setPicture(number.user_id, c.id, url);
         }
         // Los grupos traen sus miembros de WhatsApp (los del historial son solo quienes escribieron).
         if (c.kind === 'group') {

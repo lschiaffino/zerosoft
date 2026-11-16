@@ -1,4 +1,5 @@
 import { listOwnerSpacePeople } from './workspace';
+import { signedRelativeUrl } from './files/store';
 import type { WidgetLocaleSetting } from './chat-widget-i18n';
 import { getDb, getUserById } from './db';
 import { filterWidgetAudience, isRestricted, personCanSeeWidget } from './chat-audience';
@@ -2407,14 +2408,17 @@ export type PublicChatMessage = Pick<ChatMessageRow, 'id' | 'conversation_id' | 
  * Proyección del mensaje para rutas públicas (widget): attachments ya parseado
  * (en la base es texto JSON y el widget espera un array) y sin el user id del agente.
  */
-export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
+export async function toPublicMessage(message: ChatMessageRow): Promise<PublicChatMessage> {
   const parsed = parseJson<unknown>(message.attachments ?? '[]', []);
   return {
     id: message.id,
     conversation_id: message.conversation_id,
     sender_type: message.sender_type,
     body: message.body,
-    attachments: Array.isArray(parsed) ? (parsed as ChatAttachment[]) : [],
+    // El visitante no tiene sesión: cada archivo va con una URL firmada que vence (lib/files/store.ts).
+    attachments: Array.isArray(parsed)
+      ? await Promise.all((parsed as ChatAttachment[]).map(async (a) => (a && typeof a.url === 'string' ? { ...a, url: await signedRelativeUrl(a.url) } : a)))
+      : [],
     read_at: message.read_at,
     edited_at: message.edited_at ?? null,
     created_at: message.created_at,

@@ -14,5 +14,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if ('res' in u) return u.res;
   const doc = await getDocument(u.user.id, id);
   if (!doc) return notFound();
-  return servePdf(req, doc.url, doc.name);
+  return servePdf(req, doc.url, doc.name, u.user.id);
 }

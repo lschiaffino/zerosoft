@@ -269,7 +269,7 @@ export async function lineShareUrl(o: StickerOwner, id: string): Promise<{ url: 
   const { row, data } = await stickerBytes(o, id);
   if (row.share_url) return { url: row.share_url, size: row.size, width: row.width, height: row.height };
   const { saveUpload } = await import('./uploads');
-  const url = await saveUpload('chat', 'sticker.webp', 'image/webp', data);
+  const url = await saveUpload('chat', 'sticker.webp', 'image/webp', data, { app: 'groups', access: 'user' });
   const r = await getDb().prepare('UPDATE wa_stickers SET share_url = ? WHERE id = ? AND share_url IS NULL').run(url, row.id);
   if (r.changes === 0) {
     // Otro pedido la subió primero: se usa esa.
@@ -362,29 +362,12 @@ export async function syncStickers(
   return { added, scanned, more: !full && scanned === list.length && list.length === limit };
 }
 
-/** Bytes de un adjunto público ya guardado (/uploads/chat/... o Blob público), con tope. */
-export async function readStoredUpload(url: string, max = STICKER_MAX_BYTES): Promise<Buffer | null> {
-  if (url.startsWith('/uploads/')) {
-    const { localUploadPath } = await import('./uploads');
-    const p = localUploadPath(url);
-    if (!p) return null;
-    const { readFile, stat } = await import('fs/promises');
-    const st = await stat(p).catch(() => null);
-    if (!st?.isFile() || st.size > max) return null;
-    return readFile(p);
-  }
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return null;
-  }
-  // Solo el Blob público de la suite (nada de hosts arbitrarios).
-  if (u.protocol !== 'https:' || !/^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i.test(u.hostname)) return null;
-  const res = await fetch(u, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
-  if (!res?.ok) return null;
-  const len = Number(res.headers.get('content-length') ?? 0);
-  if (len > max) return null;
-  const buf = Buffer.from(await res.arrayBuffer());
-  return buf.length <= max ? buf : null;
+/**
+ * Bytes de un adjunto ya guardado (/api/files/…, o /uploads/chat/... o Blob
+ * público de antes), con tope. `owner`: el workspace del mensaje (un archivo
+ * de /api/files solo se lee si es suyo).
+ */
+export async function readStoredUpload(url: string, owner: { workspaceId?: string | null; userId?: string | null } | null, max = STICKER_MAX_BYTES): Promise<Buffer | null> {
+  const { readUploadBytes } = await import('./uploads');
+  return readUploadBytes(url, owner, max);
 }

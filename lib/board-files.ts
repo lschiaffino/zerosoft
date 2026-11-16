@@ -13,6 +13,7 @@
  */
 import { readFile } from 'fs/promises';
 import { getDb, type BoardFileRow } from './db';
+import { isFileUrlPath } from './files/url';
 import { deleteUploads, localUploadPath, mimeForUploadName, saveUpload } from './uploads';
 import {
   BOARD_MAX_FILE_BYTES,
@@ -64,7 +65,7 @@ export async function storeBoardAttachment(workspaceId: string, boardId: string,
   const fileId = `att_${crypto.randomUUID().replace(/-/g, '')}`;
   let url: string;
   try {
-    url = await saveUpload('boards', `${fileId}.${ext}`, mime, Buffer.from(bytes));
+    url = await saveUpload('boards', `${fileId}.${ext}`, mime, Buffer.from(bytes), { workspaceId, userId: null, app: 'board' });
   } catch {
     return { ok: false, code: 'storage_unavailable' };
   }
@@ -95,7 +96,7 @@ export async function storeBoardFile(
   if (parsed.bytes.length > BOARD_MAX_FILE_BYTES) return { ok: false, code: 'too_large' };
   let url: string;
   try {
-    url = await saveUpload('boards', `${fileId}.${extensionFor(parsed.mime)}`, parsed.mime, parsed.bytes);
+    url = await saveUpload('boards', `${fileId}.${extensionFor(parsed.mime)}`, parsed.mime, parsed.bytes, { workspaceId, userId: null, app: 'board' });
   } catch {
     return { ok: false, code: 'storage_unavailable' };
   }
@@ -190,6 +191,13 @@ export async function canReadBoardFiles(boardId: string, workspaceId: string | n
 /** Bytes de una imagen guardada (disco local o Blob), o null. */
 export async function readBoardFile(row: BoardFileRow): Promise<Uint8Array | null> {
   if (!isBoardUploadUrl(row.url)) return null;
+  if (isFileUrlPath(row.url)) {
+    // Storage privado: solo si el archivo es del workspace de la pizarra.
+    const { ownedFileRow, readFileBytes } = await import('./files/store');
+    const file = await ownedFileRow(row.url, { workspaceId: row.workspace_id });
+    const bytes = file ? await readFileBytes(file, 32 * 1024 * 1024) : null;
+    return bytes ? new Uint8Array(bytes) : null;
+  }
   if (row.url.startsWith('/uploads/')) {
     const file = localUploadPath(row.url, 'boards');
     if (!file) return null;

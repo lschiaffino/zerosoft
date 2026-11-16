@@ -14,7 +14,7 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
+import { isOffline, isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
@@ -40,7 +40,6 @@ import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
 import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
-import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
 import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
@@ -83,7 +82,14 @@ import {
   Bell,
   Sparkle,
   DisplayIcon,
+  StarIcon,
+  CopyIcon,
+  ArrowLeft,
 } from './wa/icons';
+import TouchMessageMenu from './wa/TouchMessageMenu';
+import SelectionBar from './wa/SelectionBar';
+import { useBackLayer } from './wa/backLayer';
+import { swipeAndHold } from '@/components/inbox/wa/gestures';
 import ContactPicker from './wa/ContactPicker';
 import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
 import PollDialog, { type PollDraft } from './wa/PollDialog';
@@ -180,6 +186,10 @@ export default function ChatThread(props: ThreadProps) {
   const [toast, showToast] = useToast();
   const router = useRouter();
   const [selecting, setSelecting] = useState<Set<string> | null>(null);
+  // Toque largo (teléfono): el mensaje marcado, con la barra de reacciones y la hoja de acciones.
+  const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
+  const [deletingSel, setDeletingSel] = useState(false);
+  useBackLayer(!!selecting, () => setSelecting(null));
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
@@ -217,6 +227,8 @@ export default function ChatThread(props: ThreadProps) {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Teléfono: el panel de info tapa el chat; "atrás" lo cierra.
+  useBackLayer(detailsOpen, () => setDetailsOpen(false));
   // Pantalla ancha: el panel va al lado y el botón lo esconde o lo muestra (queda guardado).
   // Más angosta: es un cajón que se abre encima.
   const side = useDetailsHidden();
@@ -254,7 +266,7 @@ export default function ChatThread(props: ThreadProps) {
   const [editing, setEditing] = useState<{ id: string; text: string; busy: boolean } | null>(null);
   const [deleting, setDeleting] = useState<MessageDto | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [forwarding, setForwarding] = useState<MessageDto | null>(null);
+  const [forwarding, setForwarding] = useState<MessageDto | MessageDto[] | null>(null);
   const [translateOn, setTranslateOn] = useState(false);
   const [translations, setTranslations] = useState<Record<string, { lang: string; text: string }>>({});
   const [translateError, setTranslateError] = useState('');
@@ -752,6 +764,8 @@ export default function ChatThread(props: ThreadProps) {
     const files = pending.filter((f) => f.status !== 'error');
     if (sending) return;
     if (!text.trim() && files.length === 0) return;
+    // Sin red los textos quedan en cola, los archivos no: necesitan conexión para subirse. Quedan en la bandeja.
+    if (files.length && isOffline()) return setSendError(errText('offline_files'));
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSendError('');
@@ -810,7 +824,7 @@ export default function ChatThread(props: ThreadProps) {
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
   function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
+    void sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -1312,8 +1326,10 @@ export default function ChatThread(props: ThreadProps) {
     const live = m.direction !== 'note' && !m.deletedAt;
     const starred = (m.meta as Record<string, unknown>).starred === true;
     const mayRetry = props.isAdmin || m.authorId === props.me;
-    // Una burbuja que todavía no está guardada: solo reintentar o quitar, y solo si no salió.
+    // Una burbuja que todavía no está guardada: si espera la red, borrarla antes de que salga; si no salió,
+    // reintentar o quitar. Mientras sale, nada.
     if (isTempId(m.id)) {
+      if (m.status === 'queued') return [{ key: 'remove', label: t('wa.deleteQueued'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) }];
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
@@ -1395,7 +1411,7 @@ export default function ChatThread(props: ThreadProps) {
     // Ya está subido: sale por la cola del chat como cualquier archivo (burbuja al instante, reintentar si no sale).
     const m = res.data.media as { url: string; mimetype?: string; filename?: string; size?: number; width?: number; height?: number };
     notifyChatSent(chat.id);
-    sendLinesText(
+    void sendLinesText(
       unsentLines.add({
         chatId: chat.id,
         body: '',
@@ -1476,6 +1492,28 @@ export default function ChatThread(props: ThreadProps) {
       if (res.data) merge([res.data]);
     }
     setSelecting(null);
+  }
+
+  const selectedMsgs = () => messages.filter((m) => selecting?.has(m.id) && !isTempId(m.id));
+  const canForward = (m: MessageDto) => messageActions(m, props.caps, viewer).forward;
+  const canDelete = (m: MessageDto) => messageActions(m, props.caps, viewer).delete;
+
+  /** Borra los elegidos (para todos en WhatsApp; una nota, del chat). */
+  async function deleteSelected() {
+    const list = selectedMsgs();
+    setDeletingSel(false);
+    setSelecting(null);
+    let ok = 0;
+    for (const target of list) {
+      const res = await api<{ removed: boolean; message: MessageDto | null }>(`/api/groups/messages/${target.id}`, { method: 'DELETE' });
+      if (!res.data) continue;
+      ok++;
+      if (res.data.removed) setMessages((all) => all.filter((m) => m.id !== target.id));
+      else if (res.data.message) merge([res.data.message]);
+      setPinned((all) => all.filter((p) => p.id !== target.id));
+    }
+    refresh();
+    showToast(t('wa.deleteSelectedDone', { n: ok }), ok < list.length);
   }
 
   /** Quién mandó un mensaje propio (la capa del equipo; WhatsApp no lo muestra). */
@@ -1623,7 +1661,7 @@ export default function ChatThread(props: ThreadProps) {
     // Borrado: "Se eliminó este mensaje"; un admin puede ver el original.
     const hidden = Boolean(m.deletedAt) && !revealed.has(m.id);
     // En un álbum cada foto se elige sola (su casilla va en la foto).
-    const selected = !album && (selecting?.has(m.id) ?? false);
+    const selected = !album && ((selecting?.has(m.id) ?? false) || held?.id === m.id);
     const toggleSelected = (id: string) =>
       setSelecting((prevSel) => {
         const next = new Set(prevSel ?? []);
@@ -1638,15 +1676,31 @@ export default function ChatThread(props: ThreadProps) {
         key={m.id}
         className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
         id={`m-${m.id}`}
+        data-testid="wa-message"
+        data-status={m.direction === 'out' ? m.status : undefined}
+        data-unsent={isTempId(m.id) ? 'true' : undefined}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
           openMenuIn(e.currentTarget);
         }}
-        {...longPress((el) => openMenuIn(el))}
+        {...swipeAndHold({
+          // Deslizar a la derecha responde (como WhatsApp); una nota o algo borrado, no.
+          onSwipe:
+            selecting || isNote || m.deletedAt || isEditing || isTempId(m.id)
+              ? undefined
+              : () => {
+                  setReplyTo(m);
+                  setMode('reply');
+                  inputRef.current?.focus({ preventScroll: true });
+                },
+          onHold: (el) => (selecting ? !album && toggleSelected(m.id) : items.length > 0 && setHeld({ id: m.id, el })),
+        })}
         onClick={
           selecting
-            ? () => toggleSelected(m.id)
+            ? album
+              ? undefined
+              : () => toggleSelected(m.id)
             : chat.kind === 'group'
               ? (e) => {
                   // Una mención ("@Nombre") abre la ficha de esa persona, como en WhatsApp.
@@ -1661,6 +1715,9 @@ export default function ChatThread(props: ThreadProps) {
         }
       >
         {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
+        <span className="wa-swipe-reply" aria-hidden="true">
+          <ArrowLeft size={18} />
+        </span>
         {groupIn && (
           <span className="wa-sender-avatar">
             {!cont && (
@@ -1764,11 +1821,12 @@ export default function ChatThread(props: ThreadProps) {
                     thumbnail: x.media?.thumbnail,
                     seconds: x.media?.duration,
                     menu: menuItems(x),
-                    selected: selecting?.has(x.id) ?? false,
+                    selected: (selecting?.has(x.id) ?? false) || held?.id === x.id,
                   }))}
                   onOpen={setViewerAt}
                   selecting={Boolean(selecting)}
                   onSelect={toggleSelected}
+                  onHold={(id, el) => (selecting ? toggleSelected(id) : setHeld({ id, el }))}
                   menuLabel={t('thread.moreActions')}
                   align={m.direction === 'out' ? 'right' : 'left'}
                   onLoad={keepAtEnd}
@@ -2237,18 +2295,24 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
           {selecting ? (
-            <div className="wa-bar wa-selectbar" role="toolbar" aria-label={t('wa.selectedN', { n: selecting.size })}>
-              <button type="button" className="wa-icon-btn" onClick={() => setSelecting(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>
-                <Close />
-              </button>
-              <span className="wa-rec-label">{t('wa.selectedN', { n: selecting.size })}</span>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void starSelected()} disabled={selecting.size === 0}>
-                {t('wa.star')}
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copySelected()} disabled={selecting.size === 0}>
-                {t('thread.copy')}
-              </button>
-            </div>
+            <SelectionBar
+              count={selecting.size}
+              label={t('wa.selectedN', { n: selecting.size })}
+              cancelLabel={t('common.cancel')}
+              onCancel={() => setSelecting(null)}
+              actions={[
+                { key: 'star', label: t('wa.star'), icon: <StarIcon size={22} />, onClick: () => void starSelected() },
+                { key: 'copy', label: t('thread.copy'), icon: <CopyIcon size={22} />, onClick: () => void copySelected(), disabled: !selectedMsgs().some((m) => m.body.trim()) },
+                {
+                  key: 'forward',
+                  label: t('thread.forward'),
+                  icon: <Forwarded size={22} />,
+                  onClick: () => setForwarding(selectedMsgs().filter(canForward)),
+                  disabled: !selectedMsgs().some(canForward),
+                },
+                { key: 'delete', label: t('thread.deleteForAll'), icon: <Trash size={22} />, onClick: () => setDeletingSel(true), danger: true, disabled: !selectedMsgs().length || !selectedMsgs().every(canDelete) },
+              ]}
+            />
           ) : recording ? (
             <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')}>
               <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
@@ -2560,6 +2624,50 @@ export default function ChatThread(props: ThreadProps) {
         onCancel={() => setDeleting(null)}
       />
 
+      <ConfirmDialog
+        open={deletingSel && !!selecting}
+        title={t('wa.deleteSelectedTitle', { n: selecting?.size ?? 0 })}
+        body={t('wa.deleteSelectedForAll')}
+        confirmLabel={t('thread.deleteForAll')}
+        cancelLabel={t('common.cancel')}
+        danger
+        onConfirm={() => void deleteSelected()}
+        onCancel={() => setDeletingSel(false)}
+      />
+      {held &&
+        (() => {
+          const m = messages.find((x) => x.id === held.id);
+          if (!m) return null;
+          const live = m.direction !== 'note' && !m.deletedAt && !isTempId(m.id);
+          return (
+            <TouchMessageMenu
+              anchor={held.el}
+              label={t('thread.moreActions')}
+              items={menuItems(m)}
+              reactions={
+                live
+                  ? {
+                      quick: [...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))],
+                      mine: m.reactions.filter((r) => r.fromMe).map((r) => r.emoji),
+                      onPick: (e) => void react(m, e),
+                      label: t('thread.react'),
+                    }
+                  : null
+              }
+              onClose={() => setHeld(null)}
+              onOutside={(target) => {
+                // Tocar otro mensaje lo suma a la selección, como WhatsApp (una foto de un álbum es su propio mensaje).
+                setHeld(null);
+                const other = target.closest<HTMLElement>('[data-msg-id], .gr-msg');
+                const otherId = other?.dataset.msgId ?? other?.id.replace(/^m-/, '');
+                if (!other || !otherId || otherId === held.id || !boxRef.current?.contains(other) || isTempId(held.id) || isTempId(otherId)) return false;
+                setSelecting(new Set([held.id, otherId]));
+                return true;
+              }}
+            />
+          );
+        })()}
+
       <ForwardModal
         message={forwarding}
         textOf={waText}
@@ -2567,6 +2675,7 @@ export default function ChatThread(props: ThreadProps) {
         onClose={() => setForwarding(null)}
         onDone={(results) => {
           setForwarding(null);
+          setSelecting(null);
           const ok = results.filter((r) => r.ok).length;
           const bad = results.filter((r) => !r.ok);
           showToast(bad.length ? t('forward.partial', { ok, total: results.length, error: errText(bad[0].error) }) : t('forward.done', { n: ok }), bad.length > 0);

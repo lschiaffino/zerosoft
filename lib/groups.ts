@@ -379,7 +379,7 @@ async function inboundUploads(where: string, args: string[]): Promise<string[]> 
   const rows = (await getDb()
     .prepare(
       `SELECT m.media_url FROM groups_messages m WHERE ${where} AND m.direction = 'in'
-         AND (m.media_url LIKE '/uploads/chat/%' OR m.media_url LIKE 'https://%.public.blob.vercel-storage.com/chat/%')`,
+         AND (m.media_url LIKE '/api/files/%' OR m.media_url LIKE '/uploads/chat/%' OR m.media_url LIKE 'https://%.public.blob.vercel-storage.com/chat/%')`,
     )
     .all(...args)) as Array<{ media_url: string }>;
   return [...new Set(rows.map((r) => r.media_url))];
@@ -1548,11 +1548,16 @@ function mediaDtoFor(row: MessageRow, stored: MediaInfo | undefined): MessageMed
   };
 }
 
-/** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
+/**
+ * URL de la media para el navegador: siempre la ruta del mensaje, que chequea
+ * el acceso al chat (la del proveedor, la guardada por nosotros y las de
+ * antes). Nunca la del storage ni la del proveedor.
+ */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
-  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:') || row.media_url.startsWith('evo:')) return `/api/groups/media/${row.id}`;
-  return row.media_url;
+  // Públicos por diseño (los datos de ejemplo: una imagen inline o un archivo estático de public/): tal cual.
+  if (/^data:image\/(png|jpeg|gif|webp|svg\+xml);/.test(row.media_url) || /^\/groups-sample\/[\w.-]+$/.test(row.media_url)) return row.media_url;
+  return `/api/groups/media/${row.id}`;
 }
 
 export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; rn?: number }): MessageDto {
@@ -2106,6 +2111,44 @@ async function localChatUpload(url: string): Promise<{ path: string; size: numbe
   return st?.isFile() ? { path: file, size: st.size } : null;
 }
 
+/** Hasta acá un archivo propio sale en base64; más grande, el proveedor lo baja de una URL firmada nuestra. */
+const INLINE_SEND_MAX = 16 * 1024 * 1024;
+
+/**
+ * De dónde saca el proveedor el archivo a mandar. Un archivo de /api/files
+ * tiene que ser de este workspace (la URL la manda el cliente): se manda en
+ * base64 o, si es grande, con una URL firmada de nuestro dominio que vence en
+ * minutos. Lo de antes, como antes (disco local en base64 a los bridged; la
+ * URL de Blob tal cual).
+ */
+async function outgoingMedia(ws: string, url: string, bridged: boolean): Promise<{ url: string; base64?: string; size?: number }> {
+  const { fileIdFromUrl, ownedFileRow, readFileBytes, signedFileUrl } = await import('./files/store');
+  if (fileIdFromUrl(url)) {
+    const row = await ownedFileRow(url, { workspaceId: ws });
+    if (!row) throw new GroupsError('invalid_media', 400);
+    // En base64 solo a los proveedores que lo aceptan (Evolution y el administrado); la Cloud API y WAHA
+    // bajan el archivo de una URL: la firmada de nuestro dominio, que vence.
+    if (bridged && row.size <= INLINE_SEND_MAX) {
+      const data = await readFileBytes(row, INLINE_SEND_MAX);
+      if (!data) throw new GroupsError('invalid_media', 400);
+      return { url: '', base64: data.toString('base64'), size: row.size };
+    }
+    const origin = (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, '');
+    return { url: signedFileUrl(row, origin, 30 * 60), size: row.size };
+  }
+  const local = bridged ? await localChatUpload(url) : null;
+  if (local) return { url, base64: (await (await import('fs/promises')).readFile(local.path)).toString('base64'), size: local.size };
+  return { url };
+}
+
+/** URL de la media para un webhook o la API (afuera no hay sesión): firmada y absoluta si es de /api/files. */
+async function externalMediaUrl(url: string): Promise<string> {
+  const { fileRowForUrl, signedFileUrl } = await import('./files/store');
+  const row = await fileRowForUrl(url).catch(() => null);
+  if (!row) return url;
+  return signedFileUrl(row, (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, ''), 60 * 60);
+}
+
 const posNum = (v: unknown, max: number): number | undefined => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : undefined;
@@ -2132,8 +2175,8 @@ async function sendMediaMessage(
 ): Promise<MessageDto> {
   const media = input.media!;
   const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
-  const local = bridged ? await localChatUpload(media.url) : null;
-  const size = local?.size ?? posNum(media.size, 2 ** 40);
+  const source = await outgoingMedia(ws, media.url, bridged);
+  const size = source.size ?? posNum(media.size, 2 ** 40);
   let kind: MediaKind;
   try {
     kind = planOutboundKind(media.mimetype, size, media.kind ?? null);
@@ -2187,9 +2230,9 @@ async function sendMediaMessage(
   let status = 'sent';
   let error = '';
   try {
-    const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
+    const base64 = source.base64;
     const res = await provider.sendMedia(chat.provider_chat_id, {
-      url: media.url,
+      url: source.url,
       mimetype: media.mimetype,
       filename: media.filename,
       caption,
@@ -2218,7 +2261,7 @@ async function sendMediaMessage(
         authorKind,
         status,
         createdAt: at,
-        media: { url: media.url, type: media.mimetype, name: media.filename, kind },
+        media: { url: await externalMediaUrl(media.url), type: media.mimetype, name: media.filename, kind },
       },
       chat: chatEventInfo(chat),
     });
@@ -2261,13 +2304,13 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
     } else if (row.media_url) {
       const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
-      const local = bridged ? await localChatUpload(row.media_url) : null;
-      const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
-      const kind = stored?.kind ?? planOutboundKind(row.media_type, local?.size ?? stored?.size, null);
+      const source = await outgoingMedia(ws, row.media_url, bridged);
+      const base64 = source.base64;
+      const kind = stored?.kind ?? planOutboundKind(row.media_type, source.size ?? stored?.size, null);
       providerId =
         (
           await provider.sendMedia(chat.provider_chat_id, {
-            url: row.media_url,
+            url: source.url,
             mimetype: row.media_type,
             filename: row.media_name,
             caption: row.body,
@@ -2454,7 +2497,8 @@ export async function storeInboundMedia(
     }
     const mimetype = file.mimetype.split(';')[0].trim() || 'application/octet-stream';
     const filename = file.filename || `whatsapp-${ref.providerMessageId.slice(0, 24)}`;
-    const url = await saveUpload('chat', filename, mimetype, file.data);
+    // 'internal': se ve solo por /api/groups/media/<mensaje>, con el acceso al chat.
+    const url = await saveUpload('chat', filename, mimetype, file.data, { workspaceId: number.user_id, userId: null, app: 'groups', access: 'internal' });
     const r = await getDb()
       .prepare("UPDATE groups_messages SET media_url = ?, media_type = CASE WHEN media_type = '' THEN ? ELSE media_type END WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
       .run(url, mimetype, messageId, number.id);

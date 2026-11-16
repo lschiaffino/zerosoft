@@ -51,15 +51,15 @@ test.describe('Sin conexión: abrir la app y navegar', () => {
     // El selector de apps: las que necesitan conexión, marcadas.
     await page.locator('.band-product').click();
     await expect(page.getByTestId('switcher-offline-hint')).toBeVisible();
-    await expect(page.locator('.band-switcher-panel [data-needs-network][href*="/app/lines"]')).toHaveCount(1);
+    await expect(page.locator('.band-switcher-panel [data-needs-network][href*="/app/talk"]')).toHaveCount(1);
     await expect(page.locator('.band-switcher-panel [data-needs-network][href$="/app/docs"]')).toHaveCount(0);
     await shot(page, 'offline-switcher');
     await page.keyboard.press('Escape');
 
-    // Una app que necesita conexión: la página que lo explica, con las que sí andan.
-    await page.goto('/en/app/lines');
+    // Una app que necesita conexión (Talk; Lines e Inbox ya andan sin red): la página que lo explica, con las que sí andan.
+    await page.goto('/en/app/talk');
     const offline = page.locator('main[data-zs-offline="online-only"]');
-    await expect(offline).toContainText('Lines needs a connection');
+    await expect(offline).toContainText('Talk needs a connection');
     await expect(offline.locator('a[data-app="docs"]')).toBeVisible();
     await shot(page, 'offline-online-only');
 
@@ -69,10 +69,10 @@ test.describe('Sin conexión: abrir la app y navegar', () => {
     await expect(page.locator('main[data-zs-offline]')).toHaveCount(0);
 
     // Al volver la red, la página "necesita conexión" se recarga sola con la app.
-    await page.goto('/en/app/lines');
+    await page.goto('/en/app/talk');
     await expect(page.locator('main[data-zs-offline="online-only"]')).toBeVisible();
     await context.setOffline(false);
     await expect(page.locator('main[data-zs-offline]')).toHaveCount(0, { timeout: 30_000 });
-    await expect(page).toHaveURL(/\/en\/app\/lines/);
+    await expect(page).toHaveURL(/\/en\/app\/talk/);
   });
 });

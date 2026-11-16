@@ -177,6 +177,7 @@ export interface SidebarLabels {
   groups: {
     inbox: string;
     groups: string;
+    contacts: string;
     tickets: string;
     tasks: string;
     templates: string;
@@ -271,9 +272,11 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
+  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
+  /** Time (Harvest): hoja de horas, proyectos y reportes. */
+  time: { timesheet: string; projects: string; reports: string; track: string };
   /** Fleet: tablero de agentes, chats, PRs y deploys. */
   fleet: { now: string; chats: string; prs: string; deploys: string; connect: string };
   /** Sign (DocuSign): sobres, plantillas. */
@@ -350,6 +353,7 @@ export type AppProduct =
   | 'send'
   | 'inbox'
   | 'calls'
+  | 'time'
   | 'fleet';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -380,6 +384,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/send', 'send'],
   ['/app/inbox', 'inbox'],
   ['/app/calls', 'calls'],
+  ['/app/time', 'time'],
   ['/app/fleet', 'fleet'],
 ];
 
@@ -432,6 +437,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   send: 'send',
   inbox: 'inbox',
   calls: 'calls',
+  time: 'clock',
   fleet: 'fleet',
 };
 
@@ -843,6 +849,7 @@ export function buildNav(
               branch: true,
             },
             { href: '/app/lines/list', label: labels.groups.groups, active: at('/app/lines/list'), icon: 'groups' },
+            { href: '/app/lines/contacts', label: labels.groups.contacts, active: at('/app/lines/contacts'), icon: 'contacts' },
             { href: '/app/lines/tickets', label: labels.groups.tickets, active: at('/app/lines/tickets'), icon: 'tasks' },
             { href: '/app/lines/tasks', label: labels.groups.tasks, active: at('/app/lines/tasks'), icon: 'myTasks' },
             { href: '/app/lines/templates', label: labels.groups.templates, active: at('/app/lines/templates'), icon: 'templates' },
@@ -1000,6 +1007,18 @@ export function buildNav(
       ];
     }
 
+    case 'time':
+      return [
+        {
+          items: [
+            { href: '/app/time', label: labels.time.timesheet, active: pathname === '/app/time', icon: 'clock' },
+            { href: '/app/time/projects', label: labels.time.projects, active: at('/app/time/projects'), icon: 'folder' },
+            { href: '/app/time/reports', label: labels.time.reports, active: at('/app/time/reports'), icon: 'reports' },
+          ],
+        },
+        appSettingsGroup('/app/time/settings'),
+      ];
+
     case 'send':
       return [
         {
@@ -1024,6 +1043,7 @@ export function buildNav(
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
             { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
             { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived'), icon: 'archive' },
+            { href: '/app/inbox/contacts', label: l.contacts, active: at('/app/inbox/contacts'), icon: 'contacts' },
           ],
         },
         {
@@ -1263,6 +1283,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'time':
+      return [item('/app/time?new=1', labels.time.track, 'clock')];
     case 'send':
       return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'inbox':

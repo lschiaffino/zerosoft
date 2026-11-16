@@ -19,7 +19,8 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { PRESENCE_EXPIRY_MS, useExpiry, useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
 import { isTempId } from '@/lib/optimistic-send';
-import { applyPending, keepPending, pendingSends, withoutStale } from './wa/pending';
+import { applyPending, keepPending, pendingSends, showQueued, unsentInbox, withoutStale } from './wa/pending';
+import { inboxOutbox } from './wa/outbox';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -41,6 +42,7 @@ import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -128,6 +130,8 @@ function viewHref(v: InboxView): string {
 export default function InboxApp(props: {
   /** Foto de la cuenta: va en los audios propios, como WhatsApp. */
   meImage?: string;
+  /** Id de la persona (el real): lo escrito sin red es suyo y solo sale con su sesión. */
+  me?: string;
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
@@ -376,6 +380,25 @@ export default function InboxApp(props: {
   const routeKey = `${view}:${folderId ?? ''}`;
   const lastRoute = useRef(routeKey);
   const closeRef = useRef<() => void>(() => {});
+  // Teléfono (un panel por vez), como WhatsApp: "atrás" cierra el panel de info y después el chat, sin salir de la
+  // bandeja.
+  const singlePane = useMediaQuery('(max-width: 1023px)');
+  useBackLayer(!!openId && singlePane, () => closeRef.current());
+  useBackLayer(infoOpen && !!openId && singlePane, () => setInfoOpen(false));
+  // Al volver a la entrada de antes de abrir el chat, esa entrada todavía dice ?t=: sin chat abierto, se saca.
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
+  useEffect(() => {
+    const onPop = () => {
+      if (openIdRef.current) return;
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('t')) return;
+      url.searchParams.delete('t');
+      window.history.replaceState(window.history.state, '', url.toString());
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   useEffect(() => {
     if (lastRoute.current === routeKey) return;
     lastRoute.current = routeKey;
@@ -442,6 +465,14 @@ export default function InboxApp(props: {
       }),
     [detailCache, reloadList],
   );
+  // Lo escrito sin red (en esta pestaña o en otra, también antes de recargar) sale solo al volver la conexión.
+  useEffect(() => {
+    if (!props.me) return;
+    unsentInbox.setOwner(props.me);
+    // La conversación pudo cargarse antes de saber quién es la persona: sus burbujas en cola aparecen ahora.
+    showQueued();
+    inboxOutbox.start();
+  }, [props.me]);
   /**
    * Lo que devuelve un envío (texto con respuesta, archivo, nota de voz, email): la página de mensajes de SU chat. El
    * envío pudo haber empezado con ese chat abierto y terminar con otro a la vista, así que va con su id.
