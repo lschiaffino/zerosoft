@@ -256,6 +256,8 @@ test('Lines › Contactos: una fila por persona, crear en HubSpot con la empresa
   // ---------- Compuertas en la computadora, oscuro, y en el teléfono ----------
   await page.goto('/en/app/lines/contacts', { waitUntil: 'networkidle' });
   await page.getByTestId('contacts-search').fill(person.slice(-8));
+  // La búsqueda filtra después de escribir (con espera): la fila de esta persona sola antes de abrirla.
+  await expect(page.getByTestId('contact-row')).toHaveCount(1);
   await dialogGates(page, page.getByTestId('contact-row'), 'lines 1280');
   if (SHOTS) {
     await setTheme(page.context(), baseURL!, 'dark');
