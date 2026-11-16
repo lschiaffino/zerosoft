@@ -77,7 +77,9 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
     // Dentro de un overlay abierto, solo se mira ese overlay (lo de atrás queda inerte).
     const modal = [...document.querySelectorAll('dialog[open]')].find((d) => (d as HTMLDialogElement).matches(':modal'));
     // Un drawer o panel modal abierto (el sidebar en el teléfono, el switcher) tapa la página: se mira solo eso.
-    const sheet = [...document.querySelectorAll('.side.open, .band-menu-panel, [aria-modal="true"]')].find((el) => visible(el));
+    // En el teléfono los menús anclados bajan al pie como hoja con telón (styles/app-shared.css): lo de atrás queda tapado.
+    const phoneSheet = (el: Element) => !el.matches('.record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu') || getComputedStyle(el).position === 'fixed';
+    const sheet = [...document.querySelectorAll('.side.open, .band-menu-panel, [aria-modal="true"], .record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu')].find((el) => visible(el) && phoneSheet(el));
     const scope: Element = modal ?? sheet ?? document.body;
 
     // 1. Scroll horizontal de la página.
