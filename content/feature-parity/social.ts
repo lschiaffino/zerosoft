@@ -42,7 +42,7 @@ const UNVERIFIED: L = [
 const parity: ProductParity = {
   competitor: 'Hootsuite',
   alsoCompared: ['Buffer'],
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'networks', label: loc(['Networks', 'Redes', 'Redes']) },
     { id: 'composer', label: loc(['Composer', 'Compositor', 'Editor']) },
@@ -119,7 +119,9 @@ const parity: ProductParity = {
 
     // Calendario
     row('calendar', 'calendar', ['Month and week calendar', 'Calendario de mes y semana', 'Calendário de mês e semana'], 'have', { weight: 2 }),
-    row('list-view', 'calendar', ['List view with filters', 'Vista de lista con filtros', 'Visão de lista com filtros'], 'have'),
+    row('list-view', 'calendar', ['List view with filters', 'Vista de lista con filtros', 'Visão de lista com filtros'], 'partial', {
+      detail: ['Filters by status and text; no account or network filter on the page yet (the API takes ?account=)', 'Filtra por estado y texto; la página todavía no filtra por cuenta o red (la API acepta ?account=)', 'Filtra por status e texto; a página ainda não filtra por conta ou rede (a API aceita ?account=)'],
+    }),
     row('drag', 'calendar', ['Drag to reschedule', 'Arrastrar para reprogramar', 'Arrastar para reagendar'], 'have'),
     row('queue', 'calendar', ['Recurring queue times per account', 'Horarios de cola por cuenta', 'Horários de fila por conta'], 'have'),
     row('best-time', 'calendar', ['Best time to post', 'Mejor horario para publicar', 'Melhor horário para publicar'], 'partial', {
@@ -158,7 +160,13 @@ const parity: ProductParity = {
     }),
     row('tiktok-inbox', 'inbox', ['TikTok comments', 'Comentarios de TikTok', 'Comentários do TikTok'], 'missing'),
     row('assign', 'inbox', ['Reply, assign and mark done', 'Contestar, asignar y marcar hecho', 'Responder, atribuir e marcar concluído'], 'have'),
-    row('saved-replies', 'inbox', ['Saved replies and inbox automations', 'Respuestas guardadas y automatizaciones de la bandeja', 'Respostas salvas e automações da caixa'], 'missing'),
+    row('saved-replies', 'inbox', ['Saved replies and inbox automations', 'Respuestas guardadas y automatizaciones de la bandeja', 'Respostas salvas e automações da caixa'], 'partial', {
+      detail: [
+        'Shared saved replies with {name} and {account} filled in, inserted from any comment or message; no inbox automations or suggested replies yet',
+        'Respuestas guardadas del workspace con {name} y {account} completos, desde cualquier comentario o mensaje; todavía sin automatizaciones ni respuestas sugeridas',
+        'Respostas salvas do workspace com {name} e {account} preenchidos, em qualquer comentário ou mensagem; ainda sem automações nem respostas sugeridas',
+      ],
+    }),
 
     // Métricas
     row('post-metrics', 'analytics', ['Metrics per post', 'Métricas por publicación', 'Métricas por publicação'], 'partial', {

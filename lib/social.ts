@@ -1108,7 +1108,9 @@ export async function setSlots(actor: SocialActor, accountId: string, slots: Slo
 
 // ---------- Biblioteca ----------
 
-export type LibraryKind = 'snippet' | 'hashtags' | 'asset';
+/** reply = respuesta guardada para la bandeja (no aparece en el compositor). */
+export type LibraryKind = 'snippet' | 'hashtags' | 'asset' | 'reply';
+export const LIBRARY_KINDS: readonly LibraryKind[] = ['snippet', 'hashtags', 'asset', 'reply'];
 
 export interface LibraryItem {
   id: string;
@@ -1123,7 +1125,7 @@ export interface LibraryItem {
 
 const libDto = (r: { id: string; kind: string; name: string; body: string; media: string; created_by: string; created_at: string; updated_at: string }): LibraryItem => ({
   id: r.id,
-  kind: (['snippet', 'hashtags', 'asset'].includes(r.kind) ? r.kind : 'snippet') as LibraryKind,
+  kind: ((LIBRARY_KINDS as readonly string[]).includes(r.kind) ? r.kind : 'snippet') as LibraryKind,
   name: r.name,
   body: r.body,
   media: json<MediaItem[]>(r.media, []),
