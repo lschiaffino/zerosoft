@@ -76,7 +76,10 @@
     "unmute": "Ativar som",
     "mute": "Silenciar",
     "fullscreen": "Tela cheia",
-    "skipSilences": "Pular silêncios"
+    "skipSilences": "Pular silêncios",
+    "reaction": "{name} reagiu com {emoji}",
+    "reactionAt": "Em {time}",
+    "removeReaction": "Remover reação"
   },
   "comments": {
     "title": "Comentários",
@@ -103,13 +106,17 @@
       "invalid_reaction": "Essa reação não está disponível.",
       "name_taken": "Esse nome é de alguém do workspace. Use outro ou entre com sua conta.",
       "signin_required": "Entre com sua conta para comentar este vídeo.",
-      "rate_limited": "Comentários demais neste vídeo agora. Tente em alguns minutos."
+      "rate_limited": "Comentários demais neste vídeo agora. Tente em alguns minutos.",
+      "remove_reaction": "Não foi possível remover a reação. Tente de novo."
     },
     "guest": "Convidado",
     "authorBadge": "Autor",
     "more": "Ver comentários anteriores ({shown} de {total})",
     "signinToComment": "Entre com sua conta para comentar este vídeo.",
-    "viewOnly": "Você pode assistir a este vídeo. Comentários não estão habilitados para você."
+    "viewOnly": "Você pode assistir a este vídeo. Comentários não estão habilitados para você.",
+    "yours": "Suas reações",
+    "removeReactionAt": "Remover seu {emoji} de {time}",
+    "removeYour": "Remover seu {emoji}"
   },
   "common": {
     "copied": "Copiado",

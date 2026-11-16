@@ -122,7 +122,7 @@ export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8
                CASE WHEN m.sent_at >= ? THEN 1 ELSE 0 END AS cur, ${CHANNEL_SQL} AS ch
         FROM inbox_messages m
         JOIN inbox_threads t ON t.id = m.thread_id
-        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND t.owner_id = m.owner_id
+        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND m.media_type <> 'system' AND t.owner_id = m.owner_id AND t.removed_at IS NULL
       ) x
     ),
     s AS (
@@ -157,17 +157,17 @@ async function threadFacts(owner: string, range: AnalyticsRange, now: Date): Pro
     db
       .prepare(
         `SELECT 'done' AS k, ${dayIndexSql(segments, "CAST(strftime('%s', done_at) AS INTEGER)")} AS a, NULL AS b, NULL AS c, COUNT(*) AS n1, 0 AS n2, 0 AS n3
-         FROM inbox_threads WHERE owner_id = ? AND done_at >= ? AND done_at < ? GROUP BY a`,
+         FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND done_at >= ? AND done_at < ? GROUP BY a`,
       )
       .all(owner, range.prevSince, range.until) as Promise<FactRow[]>,
     db
       .prepare(
         `SELECT
-           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND archived_at >= ? AND archived_at < ?) AS archived,
-           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND archived_at >= ? AND archived_at < ?) AS prev_archived,
-           (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL
+           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND archived_at >= ? AND archived_at < ?) AS archived,
+           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND archived_at >= ? AND archived_at < ?) AS prev_archived,
+           (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL
               AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS to_reply,
-           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
+           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
               AND last_from_me = 1 AND last_outbound_at < ?) AS waiting`,
       )
       .get(
@@ -258,7 +258,7 @@ export async function inboxAnalytics(owner: string, query: RangeInput = {}, opts
   if (topRows.length) {
     const ids = topRows.map((r) => String(r.a));
     const found = (await getDb()
-      .prepare(`SELECT t.id, t.title, t.handle, ${CHANNEL_SQL} AS ch FROM inbox_threads t WHERE t.owner_id = ? AND t.id IN (${ids.map(() => '?').join(',')})`)
+      .prepare(`SELECT t.id, t.title, t.handle, ${CHANNEL_SQL} AS ch FROM inbox_threads t WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.id IN (${ids.map(() => '?').join(',')})`)
       .all(owner, ...ids)) as Array<{ id: string; title: string; handle: string; ch: InboxAnalyticsChannel }>;
     for (const t of found) titles.set(t.id, { title: t.title || t.handle, channel: t.ch });
   }

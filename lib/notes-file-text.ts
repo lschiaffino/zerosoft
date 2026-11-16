@@ -254,13 +254,13 @@ interface QueueRow {
 }
 
 async function readFile(noteId: string, blockId: string): Promise<{ bytes: Uint8Array; mime: string } | 'too_large' | null> {
-  const row = (await getDb().prepare('SELECT content, locked, trashed_at FROM notes WHERE id = ?').get(noteId)) as
-    | { content: string; locked: string | null; trashed_at: string | null }
+  const row = (await getDb().prepare('SELECT content, locked, trashed_at, workspace_id, person_id FROM notes WHERE id = ?').get(noteId)) as
+    | { content: string; locked: string | null; trashed_at: string | null; workspace_id: string; person_id: string }
     | undefined;
   if (!row || row.locked != null || row.trashed_at) return null;
   const block = (JSON.parse(row.content || '[]') as DocsBlock[]).find((b): b is DocsBlock & { url: string } => b.id === blockId && Boolean(b.url));
   if (!block) return null;
-  const res = await fileBlockResponse(block, { download: true }).catch(() => null);
+  const res = await fileBlockResponse(block, { download: true, owner: { workspaceId: row.workspace_id, userId: row.person_id } }).catch(() => null);
   if (!res?.ok) return null;
   if ((block.size ?? 0) > MAX_BYTES) return 'too_large';
   const buf = await readBytesCapped(res, MAX_BYTES);

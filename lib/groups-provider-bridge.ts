@@ -14,6 +14,8 @@
  * self-host con ALLOW_PRIVATE_WEBHOOKS=true. Los errores no llevan la key.
  */
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
+import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
+import { linkHqOf } from './wa-link-thumb';
 import {
   evolutionFileName,
   infoFromBaileys,
@@ -67,6 +69,8 @@ export const defaultBridgeFetch: FetchLike = (url, init) => safeFetch(url, init,
  * WebP) y lo sube a WhatsApp antes de responder.
  */
 export const mediaBridgeFetch: FetchLike = (url, init) => safeFetch(url, init, 90_000);
+/** Bajar un archivo que el gateway le tiene que volver a pedir al teléfono. */
+const slowMediaFetch: FetchLike = (url, init) => safeFetch(url, init, 45_000);
 
 function baseOf(cfg: BridgeConfig): string {
   const base = String(cfg.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -83,7 +87,7 @@ export async function bridgeRequest(
   headers: Record<string, string>,
   method: string,
   body?: unknown,
-  opts: { maxBytes?: number } = {},
+  opts: { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] } = {},
 ): Promise<unknown> {
   const maxBytes = opts.maxBytes ?? BRIDGE_MAX_RESPONSE;
   let res: Response;
@@ -98,8 +102,11 @@ export async function bridgeRequest(
     throw new ProviderError('unreachable');
   }
   if (!res.ok) {
-    await res.body?.cancel().catch(() => {});
-    throw errorFromStatus(res.status);
+    const err = errorFromStatus(res.status);
+    // Solo si quien llama lo pide: el principio del cuerpo se reduce a una etiqueta (no se guarda ni se repite).
+    if (opts.errorReason) err.reason = opts.errorReason(await readTextCapped(res, 2048).catch(() => ''));
+    else await res.body?.cancel().catch(() => {});
+    throw err;
   }
   // Se corta mientras se lee: ni el content-length ni el cuerpo pueden pasar el tope.
   if (Number(res.headers.get('content-length') ?? 0) > maxBytes) {
@@ -147,6 +154,19 @@ function participantPhone(raw: unknown): string {
     if (d) return d;
   }
   return '';
+}
+
+/**
+ * Quién hizo algo en un grupo (author/owner de Baileys): el teléfono (dígitos) si alguno de los ids lo
+ * trae, si no "<dígitos>@lid", o '' si no viene nada.
+ */
+export function groupPerson(...ids: unknown[]): string {
+  for (const v of ids) {
+    const d = typeof v === 'string' ? phoneDigits(v) : '';
+    if (d) return d;
+  }
+  const lid = firstLid(...ids);
+  return lid ? `${lid}@lid` : '';
 }
 
 /** Lid (dígitos) de un participante de grupo (string o { id, lid, jid }), '' si no trae. */
@@ -581,12 +601,34 @@ export const EVOLUTION_EVENTS = [
   'PRESENCE_UPDATE',
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
+  // Grupo nuevo para la cuenta (creado desde el teléfono o al incluirla otra persona): sin esto el grupo no
+  // aparecía hasta su primer mensaje.
+  'GROUPS_UPSERT',
+  // Asunto, descripción y foto cambiados en el teléfono (groups.update). Llega con el parche 0008 de
+  // infra/evolution; sin él Evolution 2.3.7 no lo manda (su filtro compara contra GROUPS_UPDATE).
+  'GROUP_UPDATE',
   'CALL',
   // Archivar o desarchivar desde el teléfono (parseEvolutionWebhook: chats.update / chats.upsert). Sin estos dos,
   // lo que se archivaba en WhatsApp nunca llegaba a Inbox ni a Lines.
   'CHATS_UPDATE',
   'CHATS_UPSERT',
 ];
+
+/**
+ * Suma al webhook de una instancia de Evolution los eventos de EVOLUTION_EVENTS que le falten, con su
+ * misma URL (la instancia se vinculó antes de sumarlos). No toca nada si ya están o si no hay webhook.
+ */
+export async function syncEvolutionWebhook(call: (path: string, method: string, body?: unknown) => Promise<unknown>, instance: string): Promise<boolean> {
+  const found = (await call(`/webhook/find/${instance}`, 'GET')) as Json | null;
+  const url = typeof found?.url === 'string' ? found.url : '';
+  if (!url || !/^https?:\/\//.test(url)) return false;
+  const have = new Set(Array.isArray(found?.events) ? (found!.events as unknown[]).map(String) : []);
+  if (EVOLUTION_EVENTS.every((e) => have.has(e))) return false;
+  await call(`/webhook/set/${instance}`, 'POST', {
+    webhook: { enabled: found?.enabled !== false, url, byEvents: found?.webhookByEvents === true, base64: found?.webhookBase64 === true, events: EVOLUTION_EVENTS },
+  });
+  return true;
+}
 
 /** Estado de una llamada de Baileys (evento CALL de Evolution) → el nuestro. */
 const EVOLUTION_CALL: Record<string, CallStatus> = {
@@ -666,7 +708,7 @@ export function cleanPushName(raw: unknown): string {
 
 interface BaileysContent {
   body: string;
-  media?: { url: string; type: string; name: string; size: number; info: MediaInfo };
+  media?: { url: string; type: string; name: string; size: number; info: MediaInfo; wire?: MediaWire };
   location?: LocationInfo;
   contacts?: ContactCard[];
   replyTo?: string;
@@ -692,7 +734,9 @@ export function linkPreviewOf(ext: Json): LinkPreview | undefined {
   if (!title || !url) return undefined;
   const description = typeof ext.description === 'string' ? ext.description.replace(/\s+/g, ' ').trim().slice(0, 500) : '';
   const thumb = typeof ext.jpegThumbnail === 'string' && /^[A-Za-z0-9+/=]+$/.test(ext.jpegThumbnail) && ext.jpegThumbnail.length < 24_000 ? `data:image/jpeg;base64,${ext.jpegThumbnail}` : '';
-  return { url, title, ...(description ? { description } : {}), ...(thumb ? { thumbnail: thumb } : {}) };
+  // La imagen grande (Maps, notas con foto): WhatsApp la sube cifrada; se baja una vez al guardar el mensaje.
+  const hq = linkHqOf(ext);
+  return { url, title, ...(description ? { description } : {}), ...(thumb ? { thumbnail: thumb } : {}), ...(hq ? { hq } : {}) };
 }
 
 /**
@@ -700,6 +744,22 @@ export function linkPreviewOf(ext: Json): LinkPreview | undefined {
  * `topContext`: el contextInfo que Evolution guarda afuera (y en el que
  * convierte extendedTextMessage en conversation).
  */
+/**
+ * El texto nuevo de una edición: el de un mensaje de texto, o el pie de una
+ * foto, un video o un documento (WhatsApp manda el mensaje entero con el pie
+ * cambiado: imageMessage.caption, documentMessage.caption…).
+ */
+export function editedText(edited: Json): string {
+  if (typeof edited.conversation === 'string') return edited.conversation;
+  const ext = edited.extendedTextMessage as Json | undefined;
+  if (ext && typeof ext.text === 'string') return ext.text;
+  for (const key of BAILEYS_MEDIA) {
+    const m = edited[key] as Json | undefined;
+    if (m && typeof m === 'object' && typeof m.caption === 'string') return m.caption;
+  }
+  return '';
+}
+
 export function baileysContent(raw: Json, topContext?: unknown): BaileysContent {
   const { message, viewOnce } = unwrapBaileys(raw);
   const proto = (message.protocolMessage ?? ((((message.editedMessage ?? {}) as Json).message ?? {}) as Json).protocolMessage) as Json | undefined;
@@ -708,8 +768,9 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const type = String(proto.type ?? '').toUpperCase();
     if (target && (type === 'REVOKE' || type === '0')) return { body: '', protocol: { kind: 'revoke', target, body: '' } };
     if (target && (type === 'MESSAGE_EDIT' || type === '14')) {
-      const edited = unwrapBaileys((proto.editedMessage ?? {}) as Json).message;
-      const text = typeof edited.conversation === 'string' ? edited.conversation : String(((edited.extendedTextMessage ?? {}) as Json).text ?? '');
+      const text = editedText(unwrapBaileys((proto.editedMessage ?? {}) as Json).message);
+      // Una edición sin texto que se pueda leer no borra el que había (WhatsApp no deja dejar un texto vacío).
+      if (!text) return { body: '' };
       return { body: text, protocol: { kind: 'edit', target, body: text } };
     }
     return { body: '' };
@@ -749,7 +810,10 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
         {
           body: String(m.caption ?? ''),
           // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
-          media: { url: '', type: String(m.mimetype ?? '') || fallbackType, name: name.slice(0, 200), size: byteLength(m.fileLength), info },
+          media: (() => {
+            const wire = mediaWireOf(key, m);
+            return { url: '', type: String(m.mimetype ?? '') || fallbackType, name: name.slice(0, 200), size: byteLength(m.fileLength), info, ...(wire ? { wire } : {}) };
+          })(),
         },
         m.contextInfo,
       );
@@ -784,7 +848,7 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
  * nombre y los datos, sin bajarlo.
  */
 function inboundEvolutionMedia(
-  media: { type: string; name: string; size: number; info: MediaInfo },
+  media: { type: string; name: string; size: number; info: MediaInfo; wire?: MediaWire },
   id: string,
   remoteJid: string,
   fromMe: boolean,
@@ -796,7 +860,7 @@ function inboundEvolutionMedia(
     type: media.type,
     name: media.name,
     info: media.info,
-    ...(fetchable ? { fetchRef: { providerMessageId: id, chatId: remoteJid, fromMe } } : {}),
+    ...(fetchable ? { fetchRef: { providerMessageId: id, chatId: remoteJid, fromMe, ...(media.wire ? { wire: media.wire } : {}) } } : {}),
   };
 }
 
@@ -1067,7 +1131,10 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       for (const u of rows) {
         const st = EVOLUTION_ACK[String(u.status ?? '').toUpperCase()];
         const id = String(u.keyId ?? ((u.key ?? {}) as Json).id ?? '');
-        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st });
+        // La confirmación de un chat 1:1 que vino solo por lid: con ella se aprende de quién es ese lid.
+        const sk = (u.key ?? {}) as Json;
+        const rj = pnJid(String(u.remoteJid ?? sk.remoteJid ?? ''), sk.remoteJidAlt, u.remoteJidAlt);
+        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}) });
         // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
         const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
         if (agg && id) {
@@ -1128,9 +1195,50 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
     case 'group-participants.update': {
       const action = String(d.action ?? '') as ParticipantAction;
       if (!['add', 'remove', 'promote', 'demote'].includes(action) || !d.id) return [];
-      const parts = Array.isArray(d.participants) ? (d.participants as unknown[]) : [];
+      // participantsData (Evolution 2.3): los mismos participantes con el teléfono resuelto (participants pueden ser lids).
+      const resolved = Array.isArray(d.participantsData) ? (d.participantsData as unknown[]) : [];
+      const parts = resolved.length ? resolved : Array.isArray(d.participants) ? (d.participants as unknown[]) : [];
       const phones = parts.map(participantPhone).filter(Boolean);
-      return phones.length ? [{ type: 'participants', chatId: String(d.id), action, phones }] : [];
+      const author = groupPerson(d.authorPn, d.author);
+      return phones.length ? [{ type: 'participants', chatId: String(d.id), action, phones, ...(author ? { author } : {}) }] : [];
+    }
+    case 'groups.upsert': {
+      // Un grupo nuevo para la cuenta (lo creó ella o la incluyeron al crearlo): la metadata completa.
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      return rows.flatMap((g): InboundEvent[] => {
+        const id = String(g.id ?? '');
+        if (!isGroupJid(id)) return [];
+        const creation = Number(g.creation);
+        const owner = groupPerson(g.ownerPn, g.owner);
+        const author = groupPerson(g.authorPn, g.author);
+        const parts = Array.isArray(g.participants) ? (g.participants as unknown[]) : [];
+        return [
+          {
+            type: 'group',
+            chatId: id,
+            event: 'create',
+            ...(typeof g.subject === 'string' && g.subject.trim() ? { subject: g.subject.replace(/\s+/g, ' ').trim().slice(0, 200) } : {}),
+            ...(owner ? { owner } : {}),
+            ...(author ? { author } : {}),
+            ...(Number.isFinite(creation) && creation > 0 ? { creation } : {}),
+            phones: parts.map(participantPhone).filter(Boolean).slice(0, 2000),
+          },
+        ];
+      });
+    }
+    case 'groups.update': {
+      // Solo los cambios con autor: al conectar llega la metadata completa de todos los grupos (sin autor), que no es un aviso.
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      return rows.flatMap((g): InboundEvent[] => {
+        const id = String(g.id ?? '');
+        const author = groupPerson(g.authorPn, g.author);
+        if (!isGroupJid(id) || !author || Array.isArray(g.participants)) return [];
+        if (typeof g.subject === 'string' && g.subject.trim()) return [{ type: 'group', chatId: id, event: 'subject', subject: g.subject.replace(/\s+/g, ' ').trim().slice(0, 200), author }];
+        if (typeof g.desc === 'string') return [{ type: 'group', chatId: id, event: 'description', author }];
+        // La foto (parche 0008: el mensaje de sistema GROUP_CHANGE_ICON sale como groups.update con `picture`).
+        if (g.picture === 'changed' || g.picture === 'removed') return [{ type: 'group', chatId: id, event: 'icon', author }];
+        return [];
+      });
     }
     default:
       return [];
@@ -1144,18 +1252,28 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
  * (base64 del máximo más un margen) y se vuelve a medir al decodificar.
  */
 async function evolutionMedia(
-  api: (path: string, method?: string, body?: unknown, o?: { maxBytes?: number }) => Promise<unknown>,
+  api: (path: string, method?: string, body?: unknown, o?: { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] }) => Promise<unknown>,
   instance: string,
   ref: MediaRef,
   maxBytes: number,
+  /** El pedido que puede esperar al teléfono (re-subida): con más tiempo que uno común. */
+  slowApi: typeof api = api,
 ): Promise<FetchedMedia> {
-  const message = { key: { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe } };
-  const r = (await api(
-    `/chat/getBase64FromMediaMessage/${instance}`,
-    'POST',
-    { message, convertToMp4: false },
-    { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024 },
-  )) as Json;
+  const key = { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe };
+  const ask = (message: Json, via: typeof api) =>
+    via(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false }, { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024, errorReason: gatewayReason }) as Promise<Json>;
+  let r: Json;
+  try {
+    r = await ask({ key }, api);
+  } catch (err) {
+    // "Message not found" (400): el gateway no guardó el mensaje (llegó por la sincronización del historial al
+    // volver a vincular, o la instancia es nueva). Con la clave del archivo se baja directo de WhatsApp; si el enlace
+    // venció, Baileys le pide al teléfono que lo vuelva a subir (updateMediaMessage), y eso puede tardar.
+    const e = err instanceof ProviderError ? err : null;
+    const missing = !!e && e.reason !== 'offline' && (e.code === 'not_found' || e.httpStatus === 400);
+    if (!missing || !ref.wire) throw err;
+    r = await ask({ key, message: wireMessage(ref.wire) }, slowApi);
+  }
   const b64 = typeof r.base64 === 'string' ? r.base64.replace(/^data:[^,]*,/, '') : '';
   if (!b64) throw new ProviderError('not_found');
   if (Math.floor((b64.length * 3) / 4) > maxBytes) throw new ProviderError('provider_error', 413);
@@ -1169,8 +1287,12 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
   const fMedia = opts.fetch ?? mediaBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
   const headers = { apikey: cfg.apiKey ?? '' };
-  const api = (path: string, method = 'GET', body?: unknown, o?: { maxBytes?: number }) =>
+  type ApiOpts = { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] };
+  const api = (path: string, method = 'GET', body?: unknown, o?: ApiOpts) =>
     bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body, o);
+  /** Bajar un archivo que hay que pedirle al teléfono: hasta 45 s. */
+  const slowApi = (path: string, method = 'GET', body?: unknown, o?: ApiOpts) =>
+    bridgeRequest(opts.fetch ?? slowMediaFetch, `${baseOf(cfg)}${path}`, headers, method, body, o);
   const mediaApi = (path: string, body: unknown) => bridgeRequest(fMedia, `${baseOf(cfg)}${path}`, headers, 'POST', body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
 
@@ -1307,6 +1429,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
       return start();
     },
+    syncWebhookEvents: () => syncEvolutionWebhook((path, method, body) => api(path, method, body), instance),
     state,
     start,
     /**
@@ -1344,6 +1467,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
             }),
           size: Number.isFinite(size) && size > 0 ? size : parts.length,
           ...(Number.isFinite(creation) && creation > 0 ? { createdAt: creation } : {}),
+          ...(groupPerson(r.ownerPn, r.owner) ? { owner: groupPerson(r.ownerPn, r.owner) } : {}),
         };
       }
       const r = (await api(`/chat/fetchProfile/${instance}`, 'POST', { number: chatId })) as Json;
@@ -1407,9 +1531,14 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async fetchHistory(chatId, o) {
       const count = Math.max(1, Math.min(100, Math.floor(o.count) || 50));
       const after = o.after && Number.isFinite(o.after) && o.after > 0 ? Math.floor(o.after) : undefined;
-      const r = (await api(`/chat/fetchHistory/${instance}`, 'POST', { remoteJid: chatId, count, ...(after ? { after } : {}) })) as Json | null;
+      // `anchor` (parche 0006): el mensaje desde el que se piden los anteriores, aunque el gateway no lo tenga
+      // guardado. Un gateway sin el parche lo ignora y ancla en uno suyo (el primero posterior a `after`).
+      const a = o.anchor && o.anchor.id && o.anchor.timestamp > 0 ? o.anchor : undefined;
+      const anchor = a ? { id: a.id, fromMe: a.fromMe, timestamp: Math.floor(a.timestamp), ...(a.participant ? { participant: a.participant } : {}) } : undefined;
+      const r = (await api(`/chat/fetchHistory/${instance}`, 'POST', { remoteJid: chatId, count, ...(after ? { after } : {}), ...(anchor ? { anchor } : {}) })) as Json | null;
       const requestId = r && typeof r.requestId === 'string' ? r.requestId : undefined;
-      return requestId ? { requestId } : {};
+      const used = r && typeof r.anchor === 'object' && r.anchor ? String((r.anchor as Json).id ?? '') : '';
+      return { ...(requestId ? { requestId } : {}), ...(used ? { anchorId: used } : {}) };
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {
@@ -1523,7 +1652,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async privacySettings() {
       return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
     },
-    fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes),
+    fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes, slowApi),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
       return (Array.isArray(rows) ? rows : [])

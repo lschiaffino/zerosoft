@@ -9,7 +9,9 @@
 
 .gr-inbox,
 .wa-viewer,
-.wa-contact-sheet {
+.wa-contact-sheet,
+.wa-rx-pop,
+.ib-wa-react-full.is-floating {
   --wa-panel: #ffffff;
   --wa-panel-header: #f0f2f5;
   --wa-conv-bg: #efeae2;
@@ -87,7 +89,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .gr-inbox,
   :root:not([data-theme='light']) .wa-viewer,
-  :root:not([data-theme='light']) .wa-contact-sheet {
+  :root:not([data-theme='light']) .wa-contact-sheet,
+  :root:not([data-theme='light']) .wa-rx-pop,
+  :root:not([data-theme='light']) .ib-wa-react-full.is-floating {
     --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
     --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
     --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -102,7 +106,9 @@
 /* --- oscuro: elegido en la app (igual que el bloque de arriba) --- */
 :root[data-theme='dark'] .gr-inbox,
 :root[data-theme='dark'] .wa-viewer,
-:root[data-theme='dark'] .wa-contact-sheet {
+:root[data-theme='dark'] .wa-contact-sheet,
+:root[data-theme='dark'] .wa-rx-pop,
+:root[data-theme='dark'] .ib-wa-react-full.is-floating {
   --wa-panel: #111b21; --wa-panel-header: #202c33; --wa-conv-bg: #0b141a; --wa-doodle: rgba(255, 255, 255, 0.045);
   --wa-bubble-in: #202c33; --wa-bubble-out: #005c4b; --wa-badge-ink: #111b21; --wa-text: #e9edef; --wa-text-2: #8696a0;
   --wa-meta-out: rgba(255, 255, 255, 0.6); --wa-icon: #aebac1; --wa-border: #222d34; --wa-border-strong: #2a3942;
@@ -181,6 +187,13 @@
 .gr-row-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gr-row-sender { flex: none; }
 .gr-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
+/* Pospuesto: el reloj en la fila de Archivados (la hora va en el title y en la etiqueta del ícono). */
+.gr-row-snoozed { display: inline-flex; align-items: center; }
+/* "Archivado" a la derecha de un resultado de búsqueda, como WhatsApp (solo en la búsqueda; Inbox y Lines). */
+.wa-archived-tag {
+  flex: none; padding: 0 5px; border: 1px solid var(--wa-border-strong); border-radius: var(--radius-1);
+  font-size: var(--wa-fs-meta); line-height: 16px; color: var(--wa-text-2); white-space: nowrap;
+}
 .gr-inbox .gr-pin-icon { margin: 0; color: var(--wa-text-2); }
 .gr-inbox .gr-unread {
   margin: 0; min-width: 18px; height: 18px; padding: 0 5px; font-family: var(--wa-font); font-size: var(--wa-fs-meta); font-weight: 500; line-height: 18px;
@@ -217,6 +230,9 @@
 .wa-archived-count { font-size: var(--wa-fs-meta); font-weight: 500; color: var(--wa-badge); }
 .wa-archived-head { display: flex; align-items: center; gap: 12px; margin: 0 8px 4px; }
 .wa-archived-head h3 { margin: 0; font-size: var(--wa-fs-name); font-weight: 500; color: var(--wa-text); }
+.wa-deleted-row .wa-archived-icon, .wa-deleted-row .wa-archived-label, .wa-deleted-row .wa-archived-count { color: var(--wa-text-2); }
+.wa-deleted-row .wa-archived-label { font-weight: 400; }
+.wa-deleted-note { margin: 0 var(--wa-pad-x) 8px; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
 .wa-import-bar { display: block; height: 4px; background: var(--wa-border-strong); border-radius: 2px; overflow: hidden; }
 .wa-import-bar i { display: block; height: 100%; background: var(--wa-primary); transition: width 0.4s ease; }
 
@@ -266,9 +282,31 @@
   background-size: 26px 26px;
   scroll-behavior: auto;
   overflow-anchor: none;
+  /* El chat tiene el ancho de la pantalla, como WhatsApp. Con overflow-y: auto el navegador deja overflow-x en auto:
+     una burbuja corrida al deslizar para responder, o un menú anclado al borde, hacían que la lista entera se
+     corriera de costado con el dedo. De costado, el dedo es de nuestros gestos (deslizar para responder). */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
 }
 .wa-older { display: flex; justify-content: center; margin: 4px 0 8px; }
 .wa-older .btn { background: var(--wa-system-chip); color: var(--wa-text-2); box-shadow: var(--wa-shadow-bubble); border: 0; }
+/* "Cargar mensajes anteriores": una ficha tranquila y centrada arriba de la primera fecha, como las fichas de fecha. */
+.wa-older-history { display: flex; justify-content: center; margin: 6px 12px 10px; }
+.wa-older-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; max-width: 100%; padding: 5px 12px;
+  font: inherit; font-size: var(--wa-fs-small); line-height: 1.25; text-align: center; color: var(--wa-text-2);
+  background: var(--wa-system-chip); border: 0; border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble);
+}
+.wa-older-chip { cursor: pointer; }
+.wa-older-chip:hover:not([aria-disabled='true']) { color: var(--wa-text); }
+.wa-older-chip:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.wa-older-chip[aria-disabled='true'] { cursor: default; }
+.wa-older-chip.is-loading { cursor: progress; }
+.wa-older-chip svg { flex: none; }
+.wa-older-chip .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-older-chip.is-error, .wa-older-chip.is-noanswer, .wa-older-chip.is-limited { color: var(--wa-text); }
+@media (prefers-reduced-motion: reduce) { .wa-older-chip .is-spinning { animation: none; } }
 .wa-empty-thread { align-self: center; display: inline-flex; align-items: center; gap: 6px; margin: 12px 0; padding: 5px 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }
 
 .wa-day { position: sticky; top: 4px; z-index: 3; display: flex; justify-content: center; margin: 8px 0 5px; pointer-events: none; }
@@ -316,7 +354,7 @@
 .wa-n9 { color: var(--wa-n9) !important; } .wa-n10 { color: var(--wa-n10) !important; } .wa-n11 { color: var(--wa-n11) !important; }
 
 .gr-inbox .wa-text { margin: 0; color: var(--wa-text); word-break: break-word; }
-.gr-inbox .wa-text a { color: var(--wa-link); text-decoration: none; }
+.gr-inbox .wa-text a { color: var(--wa-link); text-decoration: none; overflow-wrap: anywhere; word-break: break-all; }
 .gr-inbox .wa-text a:hover { text-decoration: underline; }
 .gr-inbox .wa-text.is-emoji { font-size: 2.25rem; line-height: 1.15; }
 .wa-spacer { display: inline-block; width: 48px; height: 1px; vertical-align: bottom; }
@@ -448,6 +486,14 @@
 .wa-voice-play { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; color: var(--wa-text-2); background: none; border: 0; border-radius: 50%; cursor: pointer; }
 .wa-voice-play:focus-visible { outline: 2px solid var(--wa-primary); }
 .wa-voice-play:disabled { opacity: 0.4; cursor: default; }
+/* El audio no está: el mismo botón lo va a buscar (nunca queda muerto). */
+.wa-voice-play.is-fetch { color: var(--wa-text); }
+.wa-voice-play.is-fetch:disabled { opacity: 0.7; cursor: progress; }
+.wa-voice-play .is-spinning, .wa-doc-dl .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .wa-voice-play .is-spinning, .wa-doc-dl .is-spinning { animation: none; } }
+.wa-voice.is-failed .wa-voice-meta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-voice.is-failed .wa-voice-seek { pointer-events: none; }
+.wa-voice.is-failed .wa-voice-knob { display: none; }
 .wa-voice-track { position: relative; min-width: 0; }
 .wa-voice-bars { position: relative; display: flex; align-items: center; gap: 2px; height: 28px; padding-left: 4px; }
 .wa-voice-bars i { flex: 1; min-width: 2px; max-width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--wa-text-2) 45%, transparent); transition: background-color 0.1s linear; }
@@ -463,21 +509,39 @@
 .wa-voice-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; color: var(--wa-text-2); }
 .wa-voice.is-failed .wa-voice-bars { opacity: 0.4; }
 
-.wa-doc { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: min(300px, 62vw); min-height: 54px; padding: 7px 10px; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
-a.wa-doc:hover { background: color-mix(in srgb, var(--wa-quote-bg) 100%, rgba(11, 20, 26, 0.04)); }
+/* Documento, como la tarjeta de WhatsApp: la hoja gris con la extensión en su color a la izquierda, el nombre en un
+   renglón y "45 kB • html" abajo. Toda la tarjeta abre o baja el archivo (sin botón redondo). */
+.wa-doc {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 10px; box-sizing: border-box;
+  width: min(300px, 62vw); max-width: 100%; min-height: 58px; padding: 8px 12px 8px 9px; color: var(--wa-text); text-decoration: none;
+  background: var(--wa-quote-bg); border-radius: 6px;
+}
+a.wa-doc { cursor: pointer; }
+a.wa-doc:hover { background: color-mix(in srgb, var(--wa-quote-bg) 92%, var(--wa-text) 8%); }
 a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
 .wa-doc.is-off { opacity: 0.7; }
+/* Documento que hay que ir a buscar: la tarjeta entera es el botón. */
+button.wa-doc { font: inherit; text-align: left; border: 0; cursor: pointer; }
+button.wa-doc:hover:not(:disabled) { background: color-mix(in srgb, var(--wa-quote-bg) 100%, rgba(11, 20, 26, 0.04)); }
+button.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+button.wa-doc:disabled { cursor: progress; }
+button.wa-doc.is-off { opacity: 1; }
+button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-doc-thumb { display: none; }
-.wa-doc-thumb.is-on { display: block; grid-column: 1 / -1; margin: -2px -4px 2px; height: 128px; overflow: hidden; background: #fff; border-radius: 4px; }
+.wa-doc-thumb.is-on { display: block; grid-column: 1 / -1; margin: -3px -7px 2px -4px; height: 128px; overflow: hidden; background: #fff; border-radius: 4px; }
 .wa-doc-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.wa-doc-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; color: #8696a0; }
-.wa-doc-icon b { position: absolute; bottom: 5px; font-size: 7px; font-weight: 700; letter-spacing: 0.02em; color: currentColor; }
-.wa-doc-pdf { color: #e94e3c; } .wa-doc-doc, .wa-doc-docx { color: #2d6cc0; } .wa-doc-xls, .wa-doc-xlsx, .wa-doc-csv { color: #1e7e45; }
-.wa-doc-ppt, .wa-doc-pptx { color: #d24726; } .wa-doc-zip { color: #8e7a5e; }
-.wa-doc-main { display: flex; flex-direction: column; min-width: 0; }
-.wa-doc-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 17px; }
-.wa-doc-meta { font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
-.wa-doc-dl { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; color: var(--wa-icon); border: 1px solid var(--wa-border-strong); border-radius: 50%; }
+.wa-doc-icon { --doc-c: #8696a0; position: relative; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 40px; color: #8696a0; }
+.wa-doc-icon b {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); padding: 1px 3px; font-size: 8px; line-height: 9px;
+  font-weight: 700; letter-spacing: 0.02em; color: #fff; background: var(--doc-c); border-radius: 2px;
+}
+.wa-doc-pdf { --doc-c: #e94e3c; } .wa-doc-doc, .wa-doc-docx { --doc-c: #2d6cc0; } .wa-doc-xls, .wa-doc-xlsx, .wa-doc-csv { --doc-c: #1e7e45; }
+.wa-doc-ppt, .wa-doc-pptx { --doc-c: #d24726; } .wa-doc-zip, .wa-doc-rar { --doc-c: #8e7a5e; } .wa-doc-html, .wa-doc-htm { --doc-c: #e8710a; }
+.wa-doc-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wa-doc-name { display: flex; min-width: 0; white-space: pre; font-size: var(--wa-fs-preview); line-height: 18px; }
+.wa-doc-name-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wa-doc-name-tail { flex: none; }
+.wa-doc-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-meta); line-height: 15px; color: var(--wa-text-2); }
 
 .wa-location { display: flex; flex-direction: column; width: min(270px, 62vw); color: var(--wa-text); text-decoration: none; border-radius: 6px; overflow: hidden; background: var(--wa-quote-bg); }
 .wa-location-map {
@@ -532,6 +596,11 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .wa-input::placeholder { color: var(--wa-text-2); }
 .gr-inbox .wa-input:focus-visible { outline: 2px solid color-mix(in srgb, var(--wa-primary) 60%, transparent); outline-offset: 0; }
 .wa-composer.is-note .wa-input { background: var(--wa-note); }
+/* iOS agranda la página al enfocar un campo de menos de 16px y después se puede correr de costado: con el dedo,
+   los campos de Lines e Inbox (el del chat, buscar, filtros) miden 16px. */
+@media (pointer: coarse) {
+  .gr-inbox :is(textarea, select, input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])) { font-size: 16px; }
+}
 /*
  * @menciones en el campo (components/groups/wa/MentionTextarea.tsx): una capa encima con el mismo texto pinta la
  * mención en verde, como WhatsApp Web; el texto del textarea queda transparente y el cursor y la selección son los suyos.
@@ -653,7 +722,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 }
 @media (max-width: 720px) {
   .gr-inbox .gr-msg { max-width: 88%; }
-  .wa-image, .wa-image img, .wa-video-thumb, .wa-video { max-width: min(var(--wa-media-w, 300px), 70vw); }
+  .wa-image, .wa-image img, .wa-video-thumb, .wa-video, .wa-media-ph { max-width: min(var(--wa-media-w, 300px), 70vw); }
   .wa-viewer-stage { padding: 8px; }
   .wa-team-row .gr-composer-hint { display: none; }
 }
@@ -669,6 +738,36 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .gr-msg-foot .wa-retry { display: inline-flex; padding: 0 2px; color: var(--wa-danger); background: none; border: 0; cursor: pointer; pointer-events: auto; }
 .wa-retry:focus-visible { outline: 2px solid var(--wa-primary); }
 @media (prefers-reduced-motion: reduce) { .wa-image img:not(.wa-thumb) { transition: none; } }
+
+/* Foto o video que no está (components/groups/wa/MediaParts.tsx MediaUnavailable): ocupa el lugar de la foto (sus medidas
+   o el estándar de 4:3), así la burbuja no queda del ancho de un texto corto y el texto de abajo se lee en renglones
+   normales. El aviso va al centro, lejos del menú de la esquina. */
+.wa-media-ph {
+  position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  width: var(--wa-media-w, 300px); max-width: var(--wa-media-w, 300px); aspect-ratio: 4 / 3; overflow: hidden;
+  color: var(--wa-text-2); background: var(--wa-row-active); border-radius: 6px;
+}
+.wa-media-ph .wa-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(8px); transform: scale(1.05); }
+.wa-media-ph-note {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); padding: 6px 10px;
+  font-size: var(--wa-fs-preview); line-height: 1.3; color: var(--wa-text-2); background: color-mix(in srgb, var(--wa-panel) 88%, transparent); border-radius: 4px;
+}
+.wa-media-ph-note svg { flex: none; }
+.wa-media-ph:has(> .wa-media-ph-retry) { flex-direction: column; gap: 10px; }
+/* "Bajar de nuevo": un botón tranquilo debajo del aviso (como el de descargar de WhatsApp). */
+.wa-media-ph-retry {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 12px;
+  font: inherit; font-size: var(--wa-fs-preview); color: var(--wa-text); background: var(--wa-panel);
+  border: 1px solid var(--wa-border); border-radius: 4px; cursor: pointer;
+}
+.wa-media-ph-retry:hover:not(:disabled) { border-color: var(--wa-border-strong); }
+.wa-media-ph-retry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.wa-media-ph-retry:disabled { cursor: progress; opacity: 0.8; }
+.wa-media-ph-retry .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-media-ph.is-gone .wa-media-ph-note { max-width: calc(100% - 32px); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .wa-media-ph-retry .is-spinning { animation: none; } }
+.wa-media-ph:has(> .wa-thumb) .wa-media-ph-note { color: #fff; background: rgba(11, 20, 26, 0.6); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-media-ph { border-radius: var(--radius-1); }
 
 /* "N mensajes sin leer": franja antes del primero sin leer. */
 .wa-unread-sep { display: flex; justify-content: center; margin: 8px calc(-1 * clamp(12px, 6%, 56px)) 4px; padding: 5px 0; background: rgba(255, 255, 255, 0.35); }
@@ -730,6 +829,8 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .gr-msg-author { min-width: 0; white-space: nowrap; }
 .gr-inbox .gr-msg-author .wa-author-name { overflow: hidden; text-overflow: ellipsis; }
 .gr-inbox .gr-msg-author .wa-phone { flex: none; margin-left: auto; padding-left: 12px; }
+/* El menú de la esquina (.wa-chevron, 28px) no tapa el número: el encabezado le deja su lugar, como WhatsApp. */
+.gr-inbox .gr-bubble > .gr-msg-author { padding-right: 22px; }
 @media (max-width: 1023px) {
   .gr-inbox .wa-head { flex-wrap: nowrap; }
   .gr-inbox .gr-thread-actions { flex-basis: auto; flex-wrap: nowrap; }
@@ -958,9 +1059,18 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .gr-thread > .gr-banner.wa-strip { margin: 0; padding: 4px var(--wa-pad-x); font-size: var(--wa-fs-small); border: 0; border-bottom: 1px solid var(--wa-border); border-radius: 0; background: var(--wa-panel-header); color: var(--wa-text-2); }
 .gr-inbox .gr-thread > .gr-banner.wa-strip.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
 .gr-inbox .gr-thread > .gr-banner.wa-strip .btn { --btn-h: 24px; }
+/* "Traer mensajes que faltan": la misma franja, con lo que está pasando, reintentar y cerrar. */
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh { flex-wrap: nowrap; min-height: 34px; }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh.is-warn { color: var(--wa-text); background: var(--warn-soft); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.wa-refresh .btn { --btn-fg: var(--wa-text); --btn-bd: color-mix(in srgb, var(--wa-text) 30%, transparent); font-weight: 600; }
+.wa-refresh-text { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.wa-refresh-text svg { flex: none; }
+.wa-refresh-text .is-spinning { animation: wa-upring-spin 1s linear infinite; }
+.wa-refresh.is-done .wa-refresh-text svg, .wa-refresh.is-none .wa-refresh-text svg { color: var(--wa-primary); }
+.wa-refresh-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.gr-inbox .wa-refresh .wa-refresh-close { width: 28px; height: 28px; }
+@media (prefers-reduced-motion: reduce) { .wa-refresh-text .is-spinning { animation: none; } }
 /* Historial: lo anterior quedó en el teléfono. */
-.wa-history-note { align-self: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; margin: 8px 0 4px; padding: 4px 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }
-.wa-history-note .btn { --btn-h: 24px; color: var(--wa-primary-ink); }
 /* Lista: borrado y nota de voz en la vista previa. */
 .gr-row-deleted { display: inline-flex; align-items: center; gap: 4px; font-style: italic; }
 .gr-row-voice { display: inline-flex; align-items: center; gap: 3px; color: var(--wa-text-2); }
@@ -1085,7 +1195,9 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
    cambian con claro/oscuro, así que no hace falta otro bloque oscuro (el
    :root sube la especificidad por encima de los bloques oscuros de arriba).
    ============================================================ */
-:root .gr-inbox[data-chat-style='zerosoft'] {
+:root .gr-inbox[data-chat-style='zerosoft'],
+:root .wa-rx-pop[data-chat-style='zerosoft'],
+:root .ib-wa-react-full.is-floating[data-chat-style='zerosoft'] {
   --wa-panel: var(--bg);
   --wa-panel-header: var(--bg);
   --wa-conv-bg: var(--bg-soft);
@@ -1128,7 +1240,6 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-day > span,
 .gr-inbox[data-chat-style='zerosoft'] .wa-empty-thread,
 .gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep > span,
-.gr-inbox[data-chat-style='zerosoft'] .wa-history-note { border: 1px solid var(--line); border-radius: var(--radius-1); font-family: var(--font-data); font-size: var(--wa-fs-meta); }
 .gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep { background: transparent; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-quote { border-radius: var(--radius-1); border-left-width: 2px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-reactions { border-color: var(--line); border-radius: var(--radius-1); }
@@ -1157,6 +1268,19 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox .ib-archived-entry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
 .gr-inbox .ib-archived-entry > span:first-of-type { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
 .gr-inbox .ib-archived-n { flex: none; font-size: var(--wa-fs-meta); color: var(--wa-primary); }
+
+/* "Sacados de Inbox" (adentro de Archivados): más callado que Archivados; su lista con recuperar y borrar del todo. */
+.gr-inbox .ib-removed-entry > span:first-of-type { color: var(--wa-text-2); }
+.gr-inbox .ib-removed-entry .ib-archived-n { color: var(--wa-text-2); }
+.gr-inbox .ib-removed { overflow-y: auto; min-height: 0; }
+.gr-inbox .ib-removed-note { margin: 0; padding: 12px var(--wa-pad-x); font-size: var(--wa-fs-meta); color: var(--wa-text-2); border-bottom: 1px solid var(--wa-border); }
+.gr-inbox .ib-removed-list { list-style: none; margin: 0; padding: 0; }
+.gr-inbox .ib-removed-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px var(--wa-pad-x); border-bottom: 1px solid var(--wa-border); }
+.gr-inbox .ib-removed-main { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.gr-inbox .ib-removed-name { font-size: var(--wa-fs-ui); color: var(--wa-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-inbox .ib-removed-meta { font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.gr-inbox .ib-removed-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.gr-inbox .ib-removed-actions .ib-danger { color: var(--bad-ink); }
 
 /* ---------- Emojis por nombre (":che") encima del composer, como WhatsApp ---------- */
 .wa-emoji-suggest {
@@ -1285,7 +1409,7 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
    foto y se acomodan debajo. La foto va al ras de los bordes, con las esquinas de la burbuja. */
 .gr-inbox .gr-bubble.is-media { padding: 0; }
 .gr-inbox .gr-bubble.is-media > :is(.gr-msg-author, .gr-forwarded, .gr-quote, .wa-text, .gr-translation, .wa-tags, .wa-deleted) { contain: inline-size; }
-.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 7px 3px 8px; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 28px 3px 8px; overflow: hidden; }
 .gr-inbox .gr-bubble.is-media > .gr-msg-author .wa-author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 4px 7px 2px 8px; }
 /* La cita es un <button>: con width:auto se achica a su contenido, y con contain: inline-size ese ancho es 0
@@ -1296,7 +1420,7 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox .gr-bubble.is-media > .gr-media { border-radius: inherit; overflow: hidden; }
 .gr-inbox .gr-bubble.is-media > .gr-media:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
 .gr-inbox .gr-bubble.is-media > .gr-media:has(~ :is(.wa-text, .gr-translation, .wa-tags)) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album) { border-radius: 0; }
+.gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album, .wa-media-ph) { border-radius: 0; }
 .gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { right: 0; bottom: 0; left: 0; border-radius: 0 0 7.5px 7.5px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0 0 var(--radius-1) var(--radius-1); }
 
@@ -1387,8 +1511,154 @@ button.gr-member-open { display: flex; align-items: center; gap: 8px; flex: 1; m
 .gr-msg .wa-mention[data-mention] { cursor: pointer; }
 .gr-msg .wa-mention[data-mention]:hover { text-decoration: underline; }
 
+
+/* Nota de voz programada ("Enviar más tarde" desde la grabadora): en la tira de programados de Lines y de Inbox, con
+   el botón para escucharla antes de que salga. */
+.wa-sched-voice { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.wa-sched-voice-play {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0;
+  color: var(--wa-text, var(--ink)); background: transparent; border: 1px solid var(--wa-border-strong, var(--line)); border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-sched-voice-play:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.wa-sched-voice-play:focus-visible { outline: 2px solid var(--wa-primary, currentColor); outline-offset: 2px; }
+.wa-sched-voice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wa-text, var(--ink)); font-variant-numeric: tabular-nums; }
+.wa-sched-voice-error { color: var(--wa-danger, var(--bad-ink)); white-space: nowrap; }
+/* La grabadora mientras la nota se sube para quedar programada. */
+.wa-recording[aria-busy='true'] .wa-icon-btn, .wa-recording[aria-busy='true'] .wa-send { opacity: 0.5; cursor: progress; }
+@media (max-width: 720px) {
+  .wa-sched-voice-play { width: 40px; height: 40px; }
+}
+
+/*
+ * Reacciones (components/groups/wa/Reactions.tsx): el globito es un botón que abre
+ * quién reaccionó, como WhatsApp Web: tarjeta blanca redondeada con sombra suave,
+ * pestañas por emoji y la lista de personas. En el teléfono, una hoja desde abajo.
+ */
+.gr-inbox button.wa-rx-chip { font: inherit; font-size: var(--wa-fs-ui); line-height: 1; color: var(--wa-text); cursor: pointer; }
+.gr-inbox button.wa-rx-chip:hover { background: var(--wa-row-hover); }
+.gr-inbox button.wa-rx-chip:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.gr-inbox button.wa-rx-chip[aria-expanded='true'] { background: var(--wa-row-active); }
+/* Todos los emojis (el "+" de la barra rápida), sobre el mensaje. Inbox y Lines. */
+.ib-wa-react-full { position: absolute; bottom: 100%; z-index: 30; }
+.gr-msg-in .ib-wa-react-full { left: 0; }
+.gr-msg-out .ib-wa-react-full { right: 0; }
+.ib-wa-react-full .wa-emoji { position: static; }
+.ib-wa-react-full.is-floating { position: fixed; bottom: auto; right: auto; z-index: 2000; }
+.gr-inbox .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
+
+.wa-rx-pop {
+  position: fixed; z-index: 2000; display: flex; flex-direction: column; width: 340px; max-width: calc(100vw - 16px); max-height: min(460px, 72vh);
+  padding: 18px 0 6px; color: var(--wa-text); font-family: var(--wa-font); background: var(--wa-menu); border-radius: 16px;
+  box-shadow: 0 2px 6px rgb(11 20 26 / 0.08), 0 14px 40px rgb(11 20 26 / 0.18);
+  animation: wa-rx-in 0.14s ease-out;
+}
+@keyframes wa-rx-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.wa-rx-pop:focus { outline: none; }
+.wa-rx-title { margin: 0 22px 14px; font-size: 1rem; font-weight: 500; line-height: 1.3; letter-spacing: normal; color: var(--wa-text); }
+.wa-rx-tabs { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; border-bottom: 1px solid var(--wa-border); }
+.wa-rx-react {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0;
+  color: var(--wa-icon); background: var(--wa-chip-bg); border: 1px solid color-mix(in srgb, var(--wa-text-2) 30%, transparent); border-radius: 50%; cursor: pointer;
+}
+.wa-rx-react:hover { background: var(--wa-row-active); color: var(--wa-text); }
+.wa-rx-tablist { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: -2px; }
+.wa-rx-tablist::-webkit-scrollbar { display: none; }
+.wa-rx-tab {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; font: inherit; font-size: var(--wa-fs-ui);
+  color: var(--wa-text-2); background: transparent; border: 1px solid color-mix(in srgb, var(--wa-text-2) 30%, transparent); border-radius: 17px; cursor: pointer; white-space: nowrap;
+}
+.wa-rx-tab:hover { background: var(--wa-row-hover); }
+.wa-rx-tab[aria-selected='true'] { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); border-color: transparent; font-weight: 500; }
+.wa-rx-tab-emoji { font-size: 1.125rem; line-height: 1; }
+.wa-rx-tab-n { font-variant-numeric: tabular-nums; }
+.wa-rx-react:focus-visible, .wa-rx-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-rx-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 0; }
+.wa-rx-list { margin: 0; padding: 0; list-style: none; }
+.wa-rx-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 10px 22px; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0;
+}
+button.wa-rx-row { cursor: pointer; }
+button.wa-rx-row:hover { background: var(--wa-row-hover); }
+button.wa-rx-row:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
+.wa-rx-row .wa-avatar { flex: none; }
+.wa-rx-who { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.wa-rx-name, .wa-rx-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-rx-name { font-size: var(--wa-fs-name); color: var(--wa-text); }
+.wa-rx-sub { font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.wa-rx-emoji { flex: none; font-size: 1.375rem; line-height: 1; }
+.wa-rx-skel-avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--wa-row-active); }
+.wa-rx-skel-line { display: block; width: 60%; height: 10px; border-radius: 5px; background: var(--wa-row-active); }
+.wa-rx-skel-line.is-short { width: 38%; margin-top: 6px; }
+.wa-rx-row.is-skeleton { animation: wa-rx-pulse 1.2s ease-in-out infinite; }
+@keyframes wa-rx-pulse { 50% { opacity: 0.55; } }
+.wa-rx-error { margin: 0; padding: 18px 22px; font-size: var(--wa-fs-ui); color: var(--wa-text-2); }
+.wa-rx-retry { padding: 0; font: inherit; color: var(--wa-primary-ink); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+
+/* Teléfono: hoja desde abajo sobre un fondo oscurecido. */
+.wa-rx-backdrop { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: flex-end; background: rgb(11 20 26 / 0.42); animation: wa-rx-fade 0.16s ease-out; }
+@keyframes wa-rx-fade { from { opacity: 0; } }
+.wa-rx-pop.is-sheet {
+  position: relative; width: 100%; max-width: none; max-height: 78vh; padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0; animation: wa-rx-up 0.2s ease-out;
+}
+@keyframes wa-rx-up { from { transform: translateY(24px); opacity: 0.6; } }
+.wa-rx-grip { display: block; width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 2px; background: var(--wa-border-strong); }
+.wa-rx-pop.is-sheet .wa-rx-title { margin: 0 20px 14px; }
+.wa-rx-pop.is-sheet .wa-rx-row { padding: 10px 20px; }
+
+/* Líneas: bordes y radios de zerosoft. */
+.wa-rx-pop[data-chat-style='zerosoft'] { border: 1px solid var(--line); border-radius: var(--radius-1); box-shadow: 0 2px 6px rgb(11 20 26 / 0.06), 0 12px 32px rgb(11 20 26 / 0.12); }
+.wa-rx-pop[data-chat-style='zerosoft'].is-sheet { border-width: 1px 0 0; border-radius: var(--radius-1) var(--radius-1) 0 0; }
+.wa-rx-pop[data-chat-style='zerosoft'] .wa-rx-tab,
+.wa-rx-pop[data-chat-style='zerosoft'] .wa-rx-react { border-radius: var(--radius-1); }
+@media (prefers-reduced-motion: reduce) {
+  .wa-rx-pop, .wa-rx-pop.is-sheet, .wa-rx-backdrop, .wa-rx-row.is-skeleton { animation: none; }
+}
+
 /* La lista de mensajes recibe el foco (tabIndex -1) para que el teclado la mueva: sin recuadro al tocar
    una tecla después de hacer clic en ella (Chrome activa :focus-visible y quedaba un borde verde alrededor
    de todo el chat). Ni en Inbox ni en Lines; WhatsApp tampoco lo muestra. */
 .gr-inbox .gr-messages:focus, .gr-inbox .gr-messages:focus-visible,
 .ib-app .gr-messages:focus, .ib-app .gr-messages:focus-visible { outline: none; }
+
+/* ---------- Grupos: avisos del sistema y grupo nuevo sin mensajes (lib/wa-group-events.ts) ---------- */
+.gr-inbox .wa-sys-event { text-align: center; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-sys-event { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); color: var(--ink-3); font-family: var(--font-data); font-size: var(--wa-fs-meta); box-shadow: none; }
+.wa-row-sys, .gr-row-sys { color: var(--wa-text-2); font-style: normal; }
+.wa-newgroup {
+  align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: min(340px, 100%); margin: 16px 0 8px; padding: 18px 16px 14px; text-align: center;
+  color: var(--wa-text); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble);
+}
+.wa-newgroup-who { margin: 4px 0 0; font-weight: 500; overflow-wrap: anywhere; }
+.wa-newgroup-meta { margin: 0; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.wa-newgroup-actions { display: flex; flex-direction: column; align-self: stretch; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--wa-border); }
+.wa-newgroup-action {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 8px; text-align: left;
+  font: inherit; font-size: var(--wa-fs-small); color: var(--wa-text); background: none; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-newgroup-action:hover { background: color-mix(in srgb, var(--wa-text) 6%, transparent); }
+.wa-newgroup-action:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: 1px; }
+.wa-newgroup-icon { display: inline-flex; color: var(--wa-text-2); }
+.wa-newgroup-hint { margin: 6px 0 0; font-size: var(--wa-fs-small); color: var(--wa-text-2); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); box-shadow: none; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-meta,
+.gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-hint { font-family: var(--font-data); font-size: var(--wa-fs-meta); }
+
+/* En el teléfono, los botones de la ficha del grupo nuevo y "Cargar mensajes anteriores" miden al menos 40px: se tocan con el dedo. */
+@media (max-width: 768px) {
+  .wa-newgroup-action, .wa-older-chip { min-height: 40px; }
+}
+
+/* Las pestañas Emoji, GIFs y Stickers miden 40px con el dedo. */
+@media (max-width: 768px) {
+  .wa-xp-tabs [role='tab'] { min-height: 40px; }
+}
+
+/* Con el dedo, cada categoría de emoji mide al menos 40×40; si no entran en un renglón, pasan al segundo (nada se sale de la pantalla). */
+@media (max-width: 768px) {
+  .wa-emoji-tabs { flex-wrap: wrap; row-gap: 2px; }
+  .wa-emoji-tabs button { flex: 1 0 40px; min-height: 40px; }
+}

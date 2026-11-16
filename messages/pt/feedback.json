@@ -41,7 +41,8 @@
       "send": "Send",
       "inbox": "Inbox",
       "calls": "Calls",
-      "fleet": "Fleet"
+      "fleet": "Fleet",
+      "time": "Time"
     },
     "messageLabel": "Mensagem",
     "placeholder": {

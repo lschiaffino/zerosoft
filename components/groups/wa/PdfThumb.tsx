@@ -13,7 +13,30 @@ export const PDF_THUMB_MAX_BYTES = 6 * 1024 * 1024;
  * Se dibuja recién cuando la tarjeta entra en pantalla, con el mismo pdf.js
  * que usa Send. Si falla, no se muestra nada.
  */
-export default function PdfThumb({ url, onPages }: { url: string; onPages?: (n: number) => void }) {
+/** Tope de la vista previa que se guarda con el mensaje (data URL JPEG). */
+export const PDF_THUMB_STORE_MAX = 48_000;
+
+/** La misma imagen más liviana (480 de ancho) para guardarla con el mensaje; '' si no entra en el tope. */
+function storable(canvas: HTMLCanvasElement): string {
+  const small = document.createElement('canvas');
+  small.width = 480;
+  small.height = Math.round((canvas.height / Math.max(1, canvas.width)) * 480);
+  const ctx = small.getContext('2d');
+  if (!ctx) return '';
+  ctx.drawImage(canvas, 0, 0, small.width, small.height);
+  for (const q of [0.6, 0.45, 0.3]) {
+    const out = small.toDataURL('image/jpeg', q);
+    if (out.length <= PDF_THUMB_STORE_MAX) return out;
+  }
+  return '';
+}
+
+/**
+ * `saveTo`: la ruta del mensaje (PUT). La primera vez que alguien ve el PDF se
+ * guarda la vista previa con el mensaje; después llega con él y no se vuelve
+ * a dibujar.
+ */
+export default function PdfThumb({ url, onPages, saveTo }: { url: string; onPages?: (n: number) => void; saveTo?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [thumb, setThumb] = useState(() => cache.get(url) ?? null);
   const [visible, setVisible] = useState(false);
@@ -59,6 +82,10 @@ export default function PdfThumb({ url, onPages }: { url: string; onPages?: (n: 
       const out = { src: canvas.toDataURL('image/jpeg', 0.8), pages: doc.numPages };
       cache.set(url, out);
       if (!cancelled) setThumb(out);
+      if (saveTo) {
+        const thumb = storable(canvas);
+        if (thumb) void fetch(saveTo, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ thumb, pages: doc.numPages }) }).catch(() => null);
+      }
     })().catch(() => {
       // Cancelado al salir del chat: se reintenta la próxima vez; si falló de verdad, no.
       if (!cancelled) cache.set(url, null);
@@ -67,6 +94,7 @@ export default function PdfThumb({ url, onPages }: { url: string; onPages?: (n: 
       cancelled = true;
       void task?.destroy();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, url]);
 
   useEffect(() => {

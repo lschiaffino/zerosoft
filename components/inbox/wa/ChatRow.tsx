@@ -6,9 +6,11 @@ import type { ThreadDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import { listTime } from '@/components/groups/wa/format';
 import { plainWa } from '@/components/groups/wa/rich';
-import { CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArchiveIcon, CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { chatName, formatPhone, previewKind, previewText, type PreviewKind } from './util';
 import { useDraft } from '@/components/ui/useDraft';
+import { useGroupEventText } from '@/components/groups/wa/GroupEvent';
+import { decodeSysPreview } from '@/lib/wa-group-events';
 
 const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => ReactNode> = {
   image: PhotoIcon,
@@ -37,9 +39,10 @@ function RowThumb({ id }: { id: string }) {
  * Lo de adentro de una fila de la lista, como WhatsApp Web: foto, nombre,
  * hora (verde con no leídos), tildes del último propio, "Ana:" en grupos,
  * ícono del tipo de media, "escribiendo…", silenciado, no leídos y fijado.
- * Las marcas de Inbox (volvió, sin respuesta, programados) van al lado.
+ * Las marcas de Inbox (volvió, sin respuesta, programados) van al lado. En los
+ * resultados de búsqueda, un chat archivado lleva "Archivado" a la derecha.
  */
-export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra?: ReactNode; timeLabel?: string }) {
+export default function ChatRow({ th, extra, timeLabel, archivedTag }: { th: ThreadDto; extra?: ReactNode; timeLabel?: string; archivedTag?: boolean }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const locale = useLocale();
@@ -52,6 +55,9 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
   const typing = th.presence === 'typing' || th.presence === 'recording';
   // Lo que se acaba de escribir en el composer, sin esperar a que se guarde (lib/draft-store.ts).
   const draft = useDraft('inbox', th.id, th.draft);
+  // Lo último del grupo es un aviso ("Creaste el grupo", "Ana te agregó"): esa es la vista previa, como en WhatsApp.
+  const sys = th.lastKind === 'system' ? decodeSysPreview(th.preview) : null;
+  const sysText = useGroupEventText();
   return (
     <>
       <Avatar name={name} kind={th.kind === 'group' ? 'group' : 'dm'} src={th.avatar || undefined} seed={th.id} />
@@ -72,6 +78,8 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
                 <span className="wa-row-draft">{t('list.draft')}</span>
                 <span className="wa-row-text">{draft}</span>
               </>
+            ) : sys ? (
+              <span className="wa-row-text wa-row-sys">{sysText(sys)}</span>
             ) : (
               <>
                 {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(th.lastStatus === 'read' && th.readHidden ? 'message.status.readHidden' : `message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}
@@ -88,6 +96,12 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
             )}
           </span>
           <span className="wa-row-icons">
+            {th.keepArchived && th.archived && <ArchiveIcon size={16} label={w('keptArchived')} className="wa-row-kept" />}
+            {archivedTag && (
+              <span className="wa-archived-tag" data-testid="search-archived-tag">
+                {t('list.archivedTag')}
+              </span>
+            )}
             {muted && <MuteIcon size={16} label={w('muted')} />}
             {unread && (
               <span className={`wa-unread${muted ? ' is-muted' : ''}`} aria-label={w('unread', { n: th.unread })}>

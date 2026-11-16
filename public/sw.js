@@ -15,6 +15,14 @@
  * - El inicio de la app instalada (/app, start_url de app/manifest.ts) también
  *   es network-first con la última versión guardada.
  *
+ * Lines e Inbox sin conexión: lectura de lo ya abierto.
+ * - Navegaciones a /<locale>/app/lines/** y /<locale>/app/inbox/**, y los GET
+ *   de sus listas y conversaciones (/api/groups/chats, /api/inbox/threads...):
+ *   network-first con la última versión guardada. Con red siempre se ve al día.
+ * - Los mensajes escritos sin red no pasan por esta cola: los guarda la página
+ *   (localStorage, lib/optimistic-send.ts) y los manda al volver la red, en
+ *   orden y con su clientId.
+ *
  * Cal sin conexión: solo lectura. Navegaciones a /<locale>/app/calendar/**:
  *   network-first con la última versión guardada; nada de Cal se encola.
  *
@@ -52,7 +60,7 @@
  *   avisos pendientes con la sesión (/api/groups/push/pending) y se muestran.
  *   El texto nunca pasa por el servicio de push.
  * - notificationclick: abre (o enfoca) el chat del aviso.
- * - La bandeja de Groups no se cachea: siempre se ve al día.
+ * - La bandeja de Lines es network-first: con red siempre se ve al día.
  *
  * Ajustes de la persona (Ajustes › Sin conexión, lib/offline-prefs.ts):
  * - La página manda {type:'zs-offline-prefs', prefs}: prendido o apagado, qué
@@ -90,11 +98,11 @@ const INDEX_KEY = '/__zs-offline-index';
 
 // ---------- Ajustes (las mismas reglas que lib/offline-prefs.ts) ----------
 
-const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal'];
+const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes', 'board', 'cal', 'lines', 'inbox'];
 const OFFLINE_SIZES = ['light', 'normal', 'max'];
 const OFFLINE_DAYS = [7, 30, 90];
 const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1024 } };
-const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true }, size: 'normal', days: 30 };
+const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true, board: true, cal: true, lines: true, inbox: true }, size: 'normal', days: 30 };
 
 function parseOfflinePrefs(raw) {
   const d = DEFAULT_PREFS;
@@ -117,6 +125,8 @@ function offlineAppOf(pathname) {
   if (/^\/app\/track(\/|$)/.test(p)) return 'track';
   if (/^\/app\/board(\/|$)/.test(p)) return 'board';
   if (/^\/app\/calendar(\/|$)/.test(p)) return 'cal';
+  if (/^\/app\/(lines|groups)(\/|$)/.test(p) || /^\/api\/groups\//.test(p)) return 'lines';
+  if (/^\/app\/inbox(\/|$)/.test(p) || /^\/api\/inbox\//.test(p)) return 'inbox';
   return null;
 }
 
@@ -260,6 +270,25 @@ const BOARD_ROOT = /^\/app\/board(\/|$)/;
 const CAL_PAGE = /^\/(en|es|pt)\/app\/calendar(\/|$)/;
 const CAL_ROOT = /^\/app\/calendar(\/|$)/;
 
+// Lines e Inbox: la bandeja y los chats que la persona abrió (lectura sin red). Lo que escribe sin red lo
+// guarda la página y lo manda al volver (lib/optimistic-send.ts): acá no se encola nada de mensajes.
+const LINES_PAGE = /^\/(en|es|pt)\/app\/lines(\/|$)/;
+const LINES_ROOT = /^\/app\/lines(\/|$)/;
+const INBOX_PAGE = /^\/(en|es|pt)\/app\/inbox(\/|$)/;
+const INBOX_ROOT = /^\/app\/inbox(\/|$)/;
+
+/**
+ * GET de las listas y conversaciones de Lines e Inbox que se guardan para leerlas sin red. Nunca archivos,
+ * exportaciones, búsquedas ni el aviso en vivo (stream o consulta de cambios).
+ */
+function isChatRead(url) {
+  const p = url.pathname;
+  if (/^\/api\/groups\/(chats|folders|lists)$/.test(p)) return true;
+  if (/^\/api\/groups\/chats\/[^/]+\/messages$/.test(p)) return true;
+  if (p === '/api/inbox/threads') return true;
+  return /^\/api\/inbox\/threads\/[^/]+(\/messages)?$/.test(p);
+}
+
 // Docs: el editor y la lista (D5).
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
 const DOCS_ROOT = /^\/app\/docs(\/|$)/;
@@ -289,7 +318,11 @@ function isOfflineNavigation(url) {
     BOARD_PAGE.test(url.pathname) ||
     BOARD_ROOT.test(url.pathname) ||
     CAL_PAGE.test(url.pathname) ||
-    CAL_ROOT.test(url.pathname)
+    CAL_ROOT.test(url.pathname) ||
+    LINES_PAGE.test(url.pathname) ||
+    LINES_ROOT.test(url.pathname) ||
+    INBOX_PAGE.test(url.pathname) ||
+    INBOX_ROOT.test(url.pathname)
   );
 }
 
@@ -438,6 +471,8 @@ const OFFLINE_PRODUCTS = [
   ['crm', 'CRM', '/app/crm'],
   ['board', 'Board', '/app/board'],
   ['cal', 'Cal', '/app/calendar'],
+  ['groups', 'Lines', '/app/lines'],
+  ['inbox', 'Inbox', '/app/inbox'],
 ];
 
 const OFFLINE_TEXT = {
@@ -656,7 +691,7 @@ async function clearOffline() {
 async function broadcastUsage() {
   const meta = await getMeta();
   const mine = meta ? `${PAGES}-${encodeURIComponent(meta.id)}` : null;
-  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, board: { pages: 0, bytes: 0 }, cal: { pages: 0, bytes: 0 }, lines: { pages: 0, bytes: 0 }, inbox: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
   for (const e of await readIndex()) {
     if (!usage[e.app]) continue;
     if (e.app !== 'static' && e.cache !== mine) continue;
@@ -741,6 +776,29 @@ async function networkFirst(request) {
   }
 }
 
+/**
+ * Lines e Inbox consultan su lista y la conversación abierta cada pocos segundos: la respuesta vuelve en el acto y
+ * se guarda por detrás (waitUntil), sin esperar el índice de lo guardado. Sin red, la última copia.
+ */
+async function chatRead(event, request) {
+  const url = new URL(request.url);
+  if (!offlineAllows(await getPrefs(), url.pathname)) return fetch(request);
+  const cache = await pagesCache();
+  if (!cache) return fetch(request);
+  try {
+    const res = await fetch(request);
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) {
+      const meta = await getMeta();
+      if (meta) event.waitUntil(store(cache, `${PAGES}-${encodeURIComponent(meta.id)}`, request, res.clone(), offlineAppOf(url.pathname)).then(trim).catch(() => undefined));
+    }
+    return res;
+  } catch (err) {
+    const hit = await cache.match(request, { ignoreVary: true });
+    if (hit) return hit;
+    throw err;
+  }
+}
+
 async function crmNavigation(request) {
   const url = new URL(request.url);
   try {
@@ -751,7 +809,7 @@ async function crmNavigation(request) {
     if (!offlineAllows(prefs, url.pathname)) return offlineResponse(localeOf(url.pathname), 'not-cached', null, prefs);
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname) || BOARD_ROOT.test(url.pathname) || CAL_ROOT.test(url.pathname)) {
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname) || BOARD_ROOT.test(url.pathname) || CAL_ROOT.test(url.pathname) || LINES_ROOT.test(url.pathname) || INBOX_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;
@@ -759,6 +817,14 @@ async function crmNavigation(request) {
     }
     const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
+    // /app/lines redirige a la bandeja (/app/lines/inbox), que es la que queda guardada.
+    const linesHome = /^(\/(?:en|es|pt))?\/app\/lines\/?$/.exec(url.pathname);
+    if (linesHome) {
+      for (const l of linesHome[1] ? [linesHome[1].slice(1)] : ['en', 'es', 'pt']) {
+        const hit = await cache.match(`${url.origin}/${l}/app/lines/inbox`, { ignoreSearch: true });
+        if (hit) return hit;
+      }
+    }
     // Un issue de Track cambia de slug con el título (/issue/<ref>/<slug>): sin red vale la copia del mismo issue.
     const ISSUE_PAGE = /^(\/(?:en|es|pt))?\/app\/track\/issue\/([^/]+)(?:\/|$)/;
     const issue = ISSUE_PAGE.exec(url.pathname);
@@ -898,7 +964,10 @@ self.addEventListener('fetch', (event) => {
       !request.headers.has('range')
     ) {
       event.respondWith(networkFirst(request));
+      return;
     }
+    // Lines e Inbox: la lista y las conversaciones ya abiertas se leen sin red.
+    if (isChatRead(url) && !request.headers.has('range')) event.respondWith(chatRead(event, request));
     return;
   }
 
@@ -1093,4 +1162,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { offlineHtml, appNameOf, localeOf, staticUrlsIn, APP_ANY, OFFLINE_PRODUCTS, shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches, parseOfflinePrefs, offlineAppOf, offlineAllows, offlineEvictions, OFFLINE_LIMITS, DEFAULT_PREFS, setPrefs, getPrefs, clearOffline };
+self.__zsOffline = { isChatRead, offlineHtml, appNameOf, localeOf, staticUrlsIn, APP_ANY, OFFLINE_PRODUCTS, shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches, parseOfflinePrefs, offlineAppOf, offlineAllows, offlineEvictions, OFFLINE_LIMITS, DEFAULT_PREFS, setPrefs, getPrefs, clearOffline };

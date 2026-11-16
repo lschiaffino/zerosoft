@@ -9,6 +9,7 @@ import { whoCookie } from '@/lib/docs-offline';
 import { notesDbName } from '@/components/notes/notesOffline';
 import { readOfflinePrefs } from '@/lib/offline-prefs-client';
 import { rootsDue, safeStorage } from '@/lib/offline-apps';
+import { UNSENT_INBOX_KEY, UNSENT_LINES_KEY } from '@/lib/optimistic-send';
 
 /**
  * Estado sin conexión en la banda de la app (toda la suite).
@@ -27,7 +28,7 @@ import { rootsDue, safeStorage } from '@/lib/offline-apps';
  */
 
 /** Rutas cuyas vistas se guardan para abrir sin red (las mismas que isOfflineNavigation en public/sw.js). */
-export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track|board|calendar)(?:\/|$)|\/notes\/?$|\/?$)/;
+export const OFFLINE_APP_PATH = /^\/(?:(?:en|es|pt)\/)?app(?:\/(?:crm|docs|track|board|calendar|lines|inbox)(?:\/|$)|\/notes\/?$|\/?$)/;
 
 interface Brief {
   id: number;
@@ -52,6 +53,25 @@ export function boardDrafts(): number {
   } catch {
     return 0;
   }
+}
+
+/**
+ * Mensajes de Lines e Inbox escritos sin red que esperan la conexión (lib/optimistic-send.ts, en localStorage),
+ * de esta persona (`owner` es persona:workspace; los mensajes llevan solo la persona).
+ */
+export function messagesQueued(owner: string): number {
+  const person = owner.split(':')[0];
+  if (!person) return 0;
+  let n = 0;
+  for (const key of [UNSENT_LINES_KEY, UNSENT_INBOX_KEY]) {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown;
+      if (Array.isArray(list)) for (const x of list) if (x && typeof x === 'object' && (x as { status?: string }).status === 'queued' && (x as { owner?: string }).owner === person) n += 1;
+    } catch {
+      /* roto o sin storage: nada que contar */
+    }
+  }
+  return n;
 }
 
 export function docsDrafts(owner: string): number {
@@ -113,7 +133,7 @@ export default function OfflineStatus({ owner }: { owner: string }) {
   const pathname = usePathname() ?? '';
   const [online, setOnline] = useState(true);
   const [queue, setQueue] = useState<{ pending: Brief[]; failed: Brief[]; conflicts: Brief[]; count: number; unknown: number }>({ pending: [], failed: [], conflicts: [], count: 0, unknown: 0 });
-  const [local, setLocal] = useState({ docs: 0, notes: 0, board: 0 });
+  const [local, setLocal] = useState({ docs: 0, notes: 0, board: 0, messages: 0 });
   const [sync, setSync] = useState<SyncState>('idle');
   const [open, setOpen] = useState(false);
   const [retryLater, setRetryLater] = useState(false);
@@ -226,18 +246,19 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     const read = async () => {
       const docs = docsDrafts(owner);
       const board = boardDrafts();
+      const messages = messagesQueued(owner);
       const notes = await notesPending(owner);
-      if (alive) setLocal((prev) => (prev.docs === docs && prev.notes === notes && prev.board === board ? prev : { docs, notes, board }));
+      if (alive) setLocal((prev) => (prev.docs === docs && prev.notes === notes && prev.board === board && prev.messages === messages ? prev : { docs, notes, board, messages }));
     };
     void read();
-    const id = window.setInterval(read, online && queue.count === 0 && local.docs + local.notes + local.board === 0 ? 30_000 : 4_000);
+    const id = window.setInterval(read, online && queue.count === 0 && local.docs + local.notes + local.board + local.messages === 0 ? 30_000 : 4_000);
     window.addEventListener('storage', read);
     return () => {
       alive = false;
       window.clearInterval(id);
       window.removeEventListener('storage', read);
     };
-  }, [owner, online, queue.count, local.docs, local.notes, local.board]);
+  }, [owner, online, queue.count, local.docs, local.notes, local.board, local.messages]);
 
   // Con red y cambios esperando (el servidor no pudo antes): se reintenta solo cada tanto.
   useEffect(() => {
@@ -275,7 +296,7 @@ export default function OfflineStatus({ owner }: { owner: string }) {
     };
   }, [open]);
 
-  const pending = queue.count + local.docs + local.notes + local.board;
+  const pending = queue.count + local.docs + local.notes + local.board + local.messages;
   const failed = queue.failed.length;
   const conflicts = queue.conflicts.length;
 
@@ -343,13 +364,14 @@ export default function OfflineStatus({ owner }: { owner: string }) {
               </ul>
             </section>
           )}
-          {(local.docs > 0 || local.notes > 0 || local.board > 0) && (
+          {(local.docs > 0 || local.notes > 0 || local.board > 0 || local.messages > 0) && (
             <section>
               <h3>{t('inApps')}</h3>
               <ul>
                 {local.docs > 0 && <li>{t('docsDrafts', { count: local.docs })}</li>}
                 {local.notes > 0 && <li>{t('notesPending', { count: local.notes })}</li>}
                 {local.board > 0 && <li>{t('boardDrafts', { count: local.board })}</li>}
+                {local.messages > 0 && <li>{t('messagesQueued', { count: local.messages })}</li>}
               </ul>
             </section>
           )}

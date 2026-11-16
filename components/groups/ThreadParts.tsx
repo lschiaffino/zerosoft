@@ -10,6 +10,8 @@ import type { ChatDto, MessageDto } from '@/lib/groups';
 import { MAX_FORWARD_TARGETS, formatDuration } from '@/lib/groups-inbox-rules';
 import { ChatPlate, Modal, api, useErrorText, useMediaText } from './ui';
 import { parseDbUtc } from '@/lib/utils';
+import { GroupEventLine } from './wa/GroupEvent';
+import { parseEvent } from '@/lib/wa-group-events';
 
 /** Línea de sistema del hilo: llamada o evento del historial (asignación, equipo, cierre). */
 export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string | null | undefined) => string }) {
@@ -19,6 +21,11 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
   const meta = m.meta as Record<string, string | number | boolean | undefined>;
   let text: ReactNode = '';
   let extra: ReactNode = null;
+  // Aviso del grupo de WhatsApp ("Ana te agregó", "Beto salió"): lib/wa-group-events.ts.
+  if (m.authorKind === 'wa') {
+    const e = parseEvent((m.meta as Record<string, unknown>).sys);
+    return e ? <GroupEventLine e={e} id={m.id} /> : null;
+  }
   if (m.authorKind === 'call') {
     const dir = meta.direction === 'out' ? 'out' : 'in';
     const status = String(meta.status ?? 'ringing');

@@ -286,6 +286,7 @@ fn handle_deep_link(app: &AppHandle, raw: &str) {
 
 pub fn run() {
     START.get_or_init(Instant::now);
+    platform::note_launch();
     tauri::Builder::default()
         // Primero: una segunda instancia (y en Windows, el deep link) vuelve a la primera.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_main(app)))
@@ -496,6 +497,9 @@ pub fn run() {
             // El plugin window-state guarda al salir lo que leyó al arrancar (corre antes que esto):
             // si este arranque terminó un "borrar todo", ese archivo se vuelve a borrar.
             if let RunEvent::Exit = ev {
+                // Mac: la versión bajada se instala al salir (con la app abierta, macOS deja de
+                // reconocer sus permisos; updater.rs).
+                updater::install_on_exit();
                 if privacy::after_wipe() {
                     if let Some(p) = privacy::Paths::of(app) {
                         privacy::delete_store(&p, "window_state");

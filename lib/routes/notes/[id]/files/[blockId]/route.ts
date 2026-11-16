@@ -21,12 +21,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   const share = req.nextUrl.searchParams.get('share');
   // Dueño de la nota: el propio, o el de una nota compartida conmigo.
   const access = user ? await resolveNoteAccess(noteOwner(user), id) : null;
-  const blocks = await noteBlocksForFiles(access?.owner ?? null, id, share);
-  if (!blocks) return jsonError(404, 'not_found');
-  const block = findFileBlock(blocks, blockId);
+  const note = await noteBlocksForFiles(access?.owner ?? null, id, share);
+  if (!note) return jsonError(404, 'not_found');
+  const block = findFileBlock(note.blocks, blockId);
   if (!block) return jsonError(404, 'not_found');
   return (
-    (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range') })) ??
+    (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range'), owner: note.owner })) ??
     jsonError(404, 'not_found')
   );
 }

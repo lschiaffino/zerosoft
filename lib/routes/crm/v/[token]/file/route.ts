@@ -10,5 +10,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   const { token } = await props.params;
   const video = await getPublicVideo(token);
   if (!video) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  return serveVideo(req, video.url, video.contentType);
+  return serveVideo(req, video.url, video.contentType, video.workspaceId);
 }

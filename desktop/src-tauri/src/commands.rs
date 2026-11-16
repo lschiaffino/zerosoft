@@ -148,7 +148,7 @@ async fn view(app: &AppHandle) -> SettingsView {
             "camera": platform::camera_status(),
             "screen": platform::screen_status(),
         }),
-        accessibility_hint: accessibility_hint(granted, &s.accessibility_seen_in, &version, signature),
+        accessibility_hint: accessibility_hint(granted, mac && platform::replaced_on_disk(), &s.accessibility_seen_in, &version, signature),
         signature,
         account,
         pending: st.pending.list(now_ms()),
@@ -161,14 +161,19 @@ async fn view(app: &AppHandle) -> SettingsView {
 }
 
 /// Qué mostrar en el paso de Accesibilidad cuando falta:
+/// - "restart": el paquete en disco ya no es el que corre (`platform::replaced_on_disk`): macOS
+///   no reconoce el permiso de este proceso aunque la llave esté prendida. Se reinicia la app; no
+///   se ofrece restablecer, que borraría la entrada buena.
 /// - "updated": se vio permitida con otra versión. Con firma ad hoc macOS guarda el permiso para
 ///   la build vieja (la llave sigue prendida) y hay que borrarlo y darlo de nuevo.
 /// - "adhoc": nunca se vio permitida y la firma es ad hoc: si la llave ya está prendida, es de
 ///   otra build (la misma receta).
 /// - "off": falta prenderla.
-pub fn accessibility_hint(granted: bool, seen_in: &str, version: &str, signature: &str) -> &'static str {
+pub fn accessibility_hint(granted: bool, replaced: bool, seen_in: &str, version: &str, signature: &str) -> &'static str {
     if granted {
         "ok"
+    } else if replaced {
+        "restart"
     } else if !seen_in.is_empty() && seen_in != version {
         "updated"
     } else if signature == "adhoc" {
@@ -956,12 +961,22 @@ mod tests {
 
     #[test]
     fn accessibility_hints() {
-        assert_eq!(accessibility_hint(true, "", "0.3.0", "adhoc"), "ok");
+        assert_eq!(accessibility_hint(true, false, "", "0.3.0", "adhoc"), "ok");
+        assert_eq!(accessibility_hint(true, true, "0.3.0", "0.3.0", "stable"), "ok");
         // Se vio permitida en otra versión: la entrada de macOS es de la build vieja.
-        assert_eq!(accessibility_hint(false, "0.2.1", "0.3.0", "stable"), "updated");
-        assert_eq!(accessibility_hint(false, "", "0.3.0", "adhoc"), "adhoc");
-        assert_eq!(accessibility_hint(false, "0.3.0", "0.3.0", "stable"), "off");
-        assert_eq!(accessibility_hint(false, "", "0.3.0", "unknown"), "off");
+        assert_eq!(accessibility_hint(false, false, "0.2.1", "0.3.0", "stable"), "updated");
+        assert_eq!(accessibility_hint(false, false, "", "0.3.0", "adhoc"), "adhoc");
+        assert_eq!(accessibility_hint(false, false, "0.3.0", "0.3.0", "stable"), "off");
+        assert_eq!(accessibility_hint(false, false, "", "0.3.0", "unknown"), "off");
+    }
+
+    #[test]
+    fn a_replaced_bundle_asks_to_restart_not_to_reset() {
+        // Con el paquete reemplazado debajo, ninguna otra causa vale: restablecer borraría la
+        // entrada que sí es de esta app, y prender la llave no cambia nada hasta reiniciar.
+        for (seen, sig) in [("0.3.9", "stable"), ("0.3.8", "stable"), ("", "adhoc"), ("", "unknown")] {
+            assert_eq!(accessibility_hint(false, true, seen, "0.3.9", sig), "restart", "{seen} {sig}");
+        }
     }
 }
 

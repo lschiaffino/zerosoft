@@ -6,9 +6,10 @@
 export const APP_SECTIONS = {
   sign: ['new', 'envelopes', 'templates', 'settings'],
   send: ['new', 'documents', 'spaces', 'settings'],
-  inbox: ['v', 'f', 'analytics', 'settings'],
+  inbox: ['v', 'f', 'analytics', 'contacts', 'settings'],
   calls: ['call', 'upcoming', 'deals', 'ask', 'analytics', 'settings'],
   fleet: ['chats', 'prs', 'deploys', 'settings'],
+  time: ['projects', 'reports', 'settings'],
   shop: ['orders', 'products', 'collections', 'inventory', 'customers', 'discounts', 'analytics', 'settings'],
   books: ['invoices', 'credit-notes', 'bills', 'recurring', 'quotes', 'contacts', 'items', 'expenses', 'purchase-orders', 'banking', 'accounts', 'journal', 'reports', 'settings'],
   people: ['me', 'u', 'org', 'time-off', 'onboarding', 'reviews', 'reports', 'settings', 'welcome'],
@@ -28,9 +29,10 @@ export function isAppSection(app: keyof typeof APP_SECTIONS, section: string | u
 const NO_ID: Record<keyof typeof APP_SECTIONS, readonly string[]> = {
   sign: ['new', 'settings'],
   send: ['new', 'settings'],
-  inbox: ['analytics', 'settings'],
+  inbox: ['analytics', 'contacts', 'settings'],
   calls: ['upcoming', 'deals', 'ask', 'analytics', 'settings'],
   fleet: ['prs', 'deploys', 'settings'],
+  time: ['reports', 'settings'],
   shop: ['inventory', 'analytics', 'settings'],
   books: ['quotes', 'accounts', 'settings'],
   people: ['org', 'time-off', 'reports', 'settings', 'welcome'],

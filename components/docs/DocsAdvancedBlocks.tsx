@@ -206,8 +206,8 @@ BreadcrumbBlock.displayName = 'BreadcrumbBlock';
  * Botón (como los de Notion): inserta bloques debajo (escritos en Markdown en
  * su configuración) o abre un link. El engranaje abre la configuración.
  */
-export const ButtonBlock = forwardRef<HTMLDivElement, CardProps & { onRun: (index: number, button: DocsButtonConfig) => void }>(
-  ({ block, index, focused, onChange, onKeyDown, onFocus, onRun }, ref) => {
+export const ButtonBlock = forwardRef<HTMLDivElement, CardProps & { onRun: (index: number, button: DocsButtonConfig) => void; onDelete?: (index: number) => void }>(
+  ({ block, index, focused, onChange, onKeyDown, onFocus, onRun, onDelete }, ref) => {
     const t = useTranslations('docs');
     const setRef = useCardRef(ref);
     const button: DocsButtonConfig = block.button ?? { label: '', action: 'insert', markdown: '' };
@@ -301,16 +301,22 @@ export const ButtonBlock = forwardRef<HTMLDivElement, CardProps & { onRun: (inde
               </label>
             </fieldset>
             {draft.action === 'insert' ? (
-              <label className="docs-button-field">
-                <span>{t('editor.button.blocks')}</span>
-                <textarea
-                  className="input docs-button-md"
-                  rows={4}
-                  value={draft.markdown ?? ''}
-                  placeholder={t('editor.button.blocksPlaceholder')}
-                  onChange={(e) => setDraft({ ...draft, markdown: e.target.value })}
-                />
-              </label>
+              <>
+                <label className="docs-button-field">
+                  <span>{t('editor.button.blocks')}</span>
+                  <textarea
+                    className="input docs-button-md"
+                    rows={4}
+                    value={draft.markdown ?? ''}
+                    placeholder={t('editor.button.blocksPlaceholder')}
+                    aria-describedby={`btn-hint-${block.id}`}
+                    onChange={(e) => setDraft({ ...draft, markdown: e.target.value })}
+                  />
+                </label>
+                <p className="docs-button-hint" id={`btn-hint-${block.id}`}>
+                  {t('editor.button.blocksHint')}
+                </p>
+              </>
             ) : (
               <label className="docs-button-field">
                 <span>{t('editor.button.url')}</span>
@@ -324,6 +330,16 @@ export const ButtonBlock = forwardRef<HTMLDivElement, CardProps & { onRun: (inde
               </label>
             )}
             <div className="docs-button-actions">
+              {onDelete && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm docs-button-delete"
+                  data-testid="docs-button-delete"
+                  onClick={() => onDelete(index)}
+                >
+                  {t('editor.button.delete')}
+                </button>
+              )}
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfigOpen(false)}>
                 {t('templates.cancel')}
               </button>

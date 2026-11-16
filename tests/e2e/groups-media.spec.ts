@@ -130,7 +130,7 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     expect(img).toMatchObject({ mimetype: 'image/png', filename: 'foto.png', size: PNG.length, width: 1, height: 1 });
     const sentImg = await ctx.request.post(`/api/groups/chats/${chatId}/messages`, { data: { body: 'la foto', media: img } });
     expect(sentImg.status()).toBe(201);
-    expect(await sentImg.json()).toMatchObject({ status: 'sent', body: 'la foto', media: { kind: 'image', url: expect.stringContaining(img.url), name: 'foto.png', size: PNG.length, width: 1 } });
+    expect(await sentImg.json()).toMatchObject({ status: 'sent', body: 'la foto', media: { kind: 'image', url: expect.stringMatching(/^\/api\/groups\/media\//), name: 'foto.png', size: PNG.length, width: 1 } });
     const imgHit = hits.find((h) => h.path === `/message/sendMedia/${instance}` && h.body?.mediatype === 'image')!;
     // Subida local (sin Blob): va en base64; Evolution la convierte a JPEG y saca el mimetype del nombre.
     expect(imgHit.body).toMatchObject({ number: remoteJid, mediatype: 'image', mimetype: 'image/jpeg', media: PNG.toString('base64'), fileName: 'foto.jpg', caption: 'la foto' });
@@ -156,7 +156,7 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
         async () => {
           const all = ((await (await ctx.request.get(`/api/groups/chats/${chatId}/messages`)).json()) as { messages: Msg[] }).messages;
           inbound = all.filter((m) => m.direction === 'in' && m.media);
-          return inbound.filter((m) => m.media!.url.startsWith('/uploads/chat/')).length;
+          return inbound.filter((m) => m.media!.url.startsWith('/api/groups/media/') && !m.media!.pending).length;
         },
         { timeout: 20_000 },
       )
@@ -168,6 +168,28 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     const voice = await ctx.request.get(inbound[1].media!.url);
     expect(voice.ok()).toBe(true);
     expect(Buffer.from(await voice.body())).toEqual(OGG);
+
+    // Privacidad: la URL de un archivo copiada a otro navegador sin sesión no abre, ni la de
+    // la subida (/api/files/…); otra cuenta (otro workspace) tampoco la ve.
+    expect(img.url).toMatch(/^\/api\/files\//);
+    expect(JSON.stringify(inbound)).not.toContain('blob.vercel-storage.com');
+    const anon = await browser.newContext({ baseURL });
+    try {
+      // DEMO_MODE: sin cookies todo pedido es el usuario demo; zs_e2e_as=session es "sin sesión de verdad".
+      await anon.addCookies([{ name: 'zs_e2e_as', value: 'session', url: baseURL! }]);
+      expect((await anon.request.get(inbound[0].media!.url)).status()).toBe(401);
+      expect((await anon.request.get(img.url)).status()).toBe(401);
+      const stranger = `groups-media-x-${uid()}@darwin-e2e.io`;
+      await anon.addCookies([{ name: 'zs_e2e_as', value: stranger, url: baseURL! }]);
+      expect((await anon.request.get(inbound[0].media!.url)).status()).toBe(404);
+      expect((await anon.request.get(img.url)).status()).toBe(404);
+    } finally {
+      await anon.close();
+    }
+    // Rango (el reproductor adelanta un audio).
+    const part = await ctx.request.get(inbound[1].media!.url, { headers: { range: 'bytes=0-3' } });
+    expect(part.status()).toBe(206);
+    expect(Buffer.from(await part.body())).toEqual(OGG.subarray(0, 4));
 
     // En el chat: las imágenes (mandada y recibida) y el documento recibido.
     await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });

@@ -67,6 +67,7 @@ export const GUARDS = [
   '@/lib/sign/http#signActor',
   '@/lib/social-http#withSocial',
   '@/lib/talk-http#withTalk',
+  '@/lib/time/http#timeActor',
   '@/lib/teams-http#teamsCtx',
   '@/lib/track-api-http#trackApiRoute',
   '@/lib/track-mcp#mcpHttpPost',

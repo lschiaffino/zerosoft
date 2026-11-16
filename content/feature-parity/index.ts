@@ -29,6 +29,7 @@ import send from './send';
 import inbox from './inbox';
 import calls from './calls';
 import fleet from './fleet';
+import time from './time';
 
 /**
  * Paridad de cada app contra su competidor principal. Al sumar o quitar una
@@ -65,6 +66,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   inbox,
   calls,
   fleet,
+  time,
 };
 
 export type { ProductParity, ParityRow, ParityStatus, ParityArea, Localized } from './types';
