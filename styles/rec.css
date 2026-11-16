@@ -34,6 +34,22 @@ section.rec-edit-block { padding-bottom: 20px; }
 .rec-devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .rec-devices .select { width: 100%; }
 .rec-toggles { display: flex; flex-wrap: wrap; gap: 16px; }
+/* Aviso mientras se graba (el audio de la compu no llega): no frena la grabación. */
+.rec-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-1);
+  background: var(--warn-soft);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.rec-notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
 .rec-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .rec-setup-preview { display: none; }
 .rec-setup-screen { margin: 0; color: var(--dim); font-size: 0.875rem; }

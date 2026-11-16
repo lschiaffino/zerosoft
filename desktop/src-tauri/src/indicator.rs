@@ -36,8 +36,10 @@ pub fn valid_path(p: &str) -> bool {
 /// prendido en Ajustes, o la app está capturando el audio de la computadora. Lo segundo no depende
 /// del ajuste ni de lo que avise la página: la captura es nativa y siempre se marca. La persona
 /// lo puede cerrar para esta grabación (`dismissed`); el punto de la barra de menú queda igual.
-pub fn should_show(meeting: bool, system_audio: bool, enabled: bool, dismissed: bool, main_in_front: bool) -> bool {
-    !dismissed && !main_in_front && ((meeting && enabled) || system_audio)
+/// Mientras Rec graba (`rec_bar`), su barra flotante ya está encima de todo con el reloj y Terminar:
+/// el audio de la computadora que captura Rec no suma un segundo indicador.
+pub fn should_show(meeting: bool, system_audio: bool, rec_bar: bool, enabled: bool, dismissed: bool, main_in_front: bool) -> bool {
+    !dismissed && !main_in_front && ((meeting && enabled) || (system_audio && !rec_bar))
 }
 
 /// Lo que muestra el indicador: la reunión que avisó la página o, si la app captura el audio de
@@ -125,7 +127,7 @@ pub fn update(app: &AppHandle) {
         let meeting = st.recording.lock().unwrap().is_some();
         let rec = current(&app2);
         let enabled = st.settings.lock().unwrap().recording_indicator;
-        let show = should_show(meeting, crate::system_audio::running(), enabled, DISMISSED.load(Ordering::Relaxed), main_in_front(&app2));
+        let show = should_show(meeting, crate::system_audio::running(), crate::rec_overlay::active(), enabled, DISMISSED.load(Ordering::Relaxed), main_in_front(&app2));
         if show {
             if create(&app2).is_err() {
                 return;
@@ -289,14 +291,18 @@ mod tests {
 
     #[test]
     fn visibility() {
-        assert!(should_show(true, false, true, false, false));
-        assert!(!should_show(true, false, true, false, true));
-        assert!(!should_show(true, false, false, false, false));
-        assert!(!should_show(false, false, true, false, false));
+        assert!(should_show(true, false, false, true, false, false));
+        assert!(!should_show(true, false, false, true, false, true));
+        assert!(!should_show(true, false, false, false, false, false));
+        assert!(!should_show(false, false, false, true, false, false));
         // El audio de la computadora se marca aunque el indicador esté apagado en Ajustes y aunque
         // la página no haya avisado que graba.
-        assert!(should_show(false, true, false, false, false));
-        assert!(should_show(true, true, false, false, false));
-        assert!(!should_show(true, true, true, true, false));
+        assert!(should_show(false, true, false, false, false, false));
+        assert!(should_show(true, true, false, false, false, false));
+        assert!(!should_show(true, true, false, true, true, false));
+        // Rec graba con el audio de la computadora: su barra flotante ya lo marca.
+        assert!(!should_show(false, true, true, false, false, false));
+        // Una reunión de Voice sigue con su indicador aunque Rec grabe a la vez.
+        assert!(should_show(true, true, true, true, false, false));
     }
 }

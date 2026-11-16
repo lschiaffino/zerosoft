@@ -30,7 +30,13 @@
     "noMic": "Sem microfone",
     "quality": "Qualidade",
     "noise": "Supressão de ruído",
-    "systemAudio": "Incluir áudio da aba ou do sistema",
+    "systemAudio": "Áudio do computador",
+    "systemAudioNotice": {
+      "failed": "Não foi possível capturar o áudio do computador, então só o seu microfone está sendo gravado. Confira nos ajustes do app, em Privacidade e dados, que capturar o áudio do computador está permitido. É preciso macOS 13 ou mais recente.",
+      "missing": "O que você compartilhou não tem áudio, então só o seu microfone está sendo gravado. Para incluí-lo, compartilhe uma aba ou a tela inteira e ative Compartilhar áudio.",
+      "silent": "O áudio do computador não está chegando: só o seu microfone está sendo gravado. Em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema, remova o zerosoft, adicione de novo, reabra o app e grave de novo. Se nada tocou ainda, este aviso some quando algo tocar.",
+      "settings": "Ajustes do app"
+    },
     "screenHint": "Quando você clica em Começar, o navegador pergunta qual tela, janela ou aba compartilhar.",
     "cancel": "Cancelar",
     "start": "Começar a gravar",
@@ -546,8 +552,8 @@
       "arrow": "Adicionar seta"
     },
     "colors": {
-      "ffffff": "Branco",
       "111111": "Preto",
+      "ffffff": "Branco",
       "e11d48": "Vermelho",
       "f59e0b": "Âmbar",
       "16a34a": "Verde",

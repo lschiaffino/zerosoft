@@ -30,7 +30,13 @@
     "noMic": "No microphone",
     "quality": "Quality",
     "noise": "Noise suppression",
-    "systemAudio": "Include tab or system audio",
+    "systemAudio": "Computer audio",
+    "systemAudioNotice": {
+      "failed": "The computer audio could not be captured, so only your microphone is being recorded. Check in the app settings, under Privacy and data, that capturing computer audio is allowed. It needs macOS 13 or later.",
+      "missing": "What you shared has no audio, so only your microphone is being recorded. To include it, share a tab or the entire screen and turn on Share audio.",
+      "silent": "The computer audio is not coming through: only your microphone is being recorded. In System Settings › Privacy & Security › Screen & System Audio Recording, remove zerosoft, add it again, reopen the app and record again. If nothing has played yet, this notice goes away as soon as something does.",
+      "settings": "App settings"
+    },
     "screenHint": "When you press Start, your browser asks which screen, window or tab to share.",
     "cancel": "Cancel",
     "start": "Start recording",
@@ -546,8 +552,8 @@
       "arrow": "Add arrow"
     },
     "colors": {
-      "ffffff": "White",
       "111111": "Black",
+      "ffffff": "White",
       "e11d48": "Red",
       "f59e0b": "Amber",
       "16a34a": "Green",

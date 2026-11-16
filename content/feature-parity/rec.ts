@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -76,12 +76,12 @@ const parity: ProductParity = {
         'iOS e Android: tela, câmera ou só áudio',
       ],
     }),
-    row('audio-capture', 'capture', ['Microphone, system audio and noise suppression', 'Micrófono, audio del sistema y supresión de ruido', 'Microfone, áudio do sistema e supressão de ruído'], 'partial', {
+    row('audio-capture', 'capture', ['Microphone, system audio and noise suppression', 'Micrófono, audio del sistema y supresión de ruido', 'Microfone, áudio do sistema e supressão de ruído'], 'have', {
       weight: 2,
       detail: [
-        'Microphone with device picker, the browser noise suppression and a level meter. Tab audio in Chrome and system audio only where the browser shares it (Windows and ChromeOS): no Mac system audio without a desktop app',
-        'Micrófono con selector, la supresión de ruido del navegador y medidor de nivel. Audio de la pestaña en Chrome y del sistema solo donde el navegador lo comparte (Windows y ChromeOS): sin app de escritorio no hay audio del sistema en Mac',
-        'Microfone com seletor, a supressão de ruído do navegador e medidor de nível. Áudio da aba no Chrome e do sistema só onde o navegador compartilha (Windows e ChromeOS): sem app desktop não há áudio do sistema no Mac',
+        'Microphone with device picker, the browser noise suppression and a level meter, mixed with the computer audio. The Mac desktop app captures the computer audio itself (macOS 13 or later); in the browser it comes from what you share (a Chrome tab, or the entire screen on Windows and ChromeOS)',
+        'Micrófono con selector, la supresión de ruido del navegador y medidor de nivel, mezclado con el audio de la compu. La app de escritorio en Mac captura el audio de la compu ella misma (macOS 13 o más); en el navegador sale de lo que compartís (una pestaña de Chrome, o la pantalla entera en Windows y ChromeOS)',
+        'Microfone com seletor, a supressão de ruído do navegador e medidor de nível, misturado com o áudio do computador. O app para desktop no Mac captura o áudio do computador ele mesmo (macOS 13 ou mais recente); no navegador vem do que você compartilha (uma aba do Chrome, ou a tela inteira no Windows e ChromeOS)',
       ],
     }),
     row('pause-rewind', 'capture', ['Pause, resume and rewind while recording', 'Pausar, retomar y volver atrás mientras se graba', 'Pausar, retomar e voltar enquanto grava'], 'partial', {

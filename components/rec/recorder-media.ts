@@ -138,6 +138,20 @@ export function createTicker(fps: number, onTick: () => void): () => void {
   }
 }
 
+/**
+ * De dónde sale el audio de la compu al grabar la pantalla:
+ * - 'native': la app de escritorio en Mac lo captura con ScreenCaptureKit (system_audio.rs) y lo
+ *   pasa por el puente. WKWebView no trae audio en getDisplayMedia.
+ * - 'display': el navegador (Chrome y Edge lo dan al compartir la pantalla entera o una pestaña) y
+ *   la app de escritorio en Windows, donde WebView2 es Chromium y comparte el audio del sistema
+ *   (loopback de WASAPI) con getDisplayMedia.
+ * - 'none': la persona lo apagó.
+ */
+export function systemAudioSource(want: boolean, bridge: { systemAudio?: boolean; systemAudioStart?: unknown } | null): 'native' | 'display' | 'none' {
+  if (!want) return 'none';
+  return bridge?.systemAudio && typeof bridge.systemAudioStart === 'function' ? 'native' : 'display';
+}
+
 /** Mezcla micrófono y audio de la pantalla en una sola pista (null si no hay ninguno). */
 export function mixAudio(streams: Array<MediaStream | null>): { track: MediaStreamTrack | null; ctx: AudioContext | null; analyser: AnalyserNode | null } {
   const withAudio = streams.filter((s): s is MediaStream => !!s && s.getAudioTracks().length > 0);
@@ -145,6 +159,9 @@ export function mixAudio(streams: Array<MediaStream | null>): { track: MediaStre
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return { track: withAudio[0].getAudioTracks()[0], ctx: null, analyser: null };
   const ctx = new Ctx();
+  // Se crea después de la cuenta regresiva, fuera del clic: WebKit (Safari y la app de escritorio)
+  // lo deja en pausa y la pista mezclada sale muda.
+  void ctx.resume?.()?.catch(() => undefined);
   const dest = ctx.createMediaStreamDestination();
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 256;

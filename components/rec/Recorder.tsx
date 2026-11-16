@@ -23,9 +23,11 @@ import {
   screenLooksBlack,
   screenSupported,
   snapshot,
+  systemAudioSource,
   waitForFrame,
   type QualityKey,
 } from './recorder-media';
+import { desktopAudioStats, getDesktopSystemAudio, systemAudioSilent } from '@/components/voice/audio';
 
 /**
  * Grabador de Rec (como Loom), compartido con los videos 1:1 del CRM.
@@ -35,8 +37,11 @@ import {
  *   solo cámara. La pantalla, ventana o pestaña se elige en el selector del
  *   navegador.
  * - Cámara y micrófono con selector de dispositivo, supresión de ruido y
- *   audio de la pestaña o del sistema (si el navegador lo comparte), mezclados
- *   en una pista. Medidor de nivel.
+ *   audio de la compu ("Audio de la compu"), mezclados en una pista. Medidor de
+ *   nivel. En la app de escritorio en Mac el audio de la compu lo captura la
+ *   app (ScreenCaptureKit, por el puente), porque WKWebView no lo trae en
+ *   getDisplayMedia; en el navegador y en Windows (WebView2) sale de
+ *   getDisplayMedia. Si se pidió y no llega, un aviso lo dice mientras se graba.
  * - Calidad 720p, 1080p o 4K (según la fuente), cuenta regresiva de 3 s
  *   (Esc la cancela), pausar y retomar (MediaRecorder.pause: lo pausado no
  *   queda en el archivo y el reloj se frena), silenciar el micrófono,
@@ -138,9 +143,15 @@ export default function Recorder({
   /** Cámara de la burbuja flotante de escritorio ('' = la de siempre); null = la cara va dibujada en el video. */
   const [nativeCam, setNativeCam] = useState<string | null>(null);
 
+  /** El audio de la compu se pidió y no llega: no arrancó, la pantalla compartida no lo trae o llega mudo. */
+  const [sysNotice, setSysNotice] = useState<'failed' | 'missing' | 'silent' | null>(null);
+  const sysProblem = useRef<'failed' | 'missing' | null>(null);
+
   const camStream = useRef<MediaStream | null>(null);
   const micStream = useRef<MediaStream | null>(null);
   const screenStream = useRef<MediaStream | null>(null);
+  /** Audio de la compu capturado por la app de escritorio (Mac). */
+  const sysStream = useRef<MediaStream | null>(null);
   const camVideo = useRef<HTMLVideoElement>(null);
   const screenVideo = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -191,9 +202,11 @@ export default function Recorder({
     stopTracks(camStream.current);
     stopTracks(micStream.current);
     stopTracks(screenStream.current);
+    stopTracks(sysStream.current);
     camStream.current = null;
     micStream.current = null;
     screenStream.current = null;
+    sysStream.current = null;
     void audioCtx.current?.close().catch(() => undefined);
     audioCtx.current = null;
     analyser.current = null;
@@ -267,6 +280,20 @@ export default function Recorder({
   useEffect(() => {
     if (phase !== 'recording' && phase !== 'paused') return;
     const id = window.setInterval(() => setElapsed(Math.floor(clockElapsed(clock.current, performance.now()) / 1000)), 250);
+    return () => window.clearInterval(id);
+  }, [phase]);
+
+  // Audio de la compu de la app de escritorio: arrancó pero puede llegar mudo (permiso de macOS de
+  // otra versión de la app). El aviso sale solo si de verdad no llega (ver systemAudioSilent) y se
+  // va apenas suena algo.
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'paused') return;
+    const id = window.setInterval(() => {
+      const st = desktopAudioStats(sysStream.current);
+      if (!st) return;
+      const silent = systemAudioSilent(st, clockElapsed(clock.current, performance.now()));
+      setSysNotice((cur) => (silent ? (cur ?? 'silent') : cur === 'silent' ? null : cur));
+    }, 1000);
     return () => window.clearInterval(id);
   }, [phase]);
 
@@ -347,26 +374,44 @@ export default function Recorder({
     setError(null);
     if (!supported) return;
     cancelled.current = false;
+    sysProblem.current = null;
+    setSysNotice(null);
     if (usesScreen) {
       if (!screenSupported()) {
         setError(t('errors.screen_unsupported'));
         return;
       }
+      const bridge = desktopBridge();
+      const sysSource = systemAudioSource(systemAudio, bridge);
+      // App de escritorio en Mac: la captura nativa empieza ahora, con la pestaña adelante (la app
+      // solo deja empezarla desde la pestaña en uso; el selector de pantalla puede sacarle el foco).
+      if (sysSource === 'native' && bridge) {
+        releaseSys();
+        try {
+          sysStream.current = await getDesktopSystemAudio(bridge);
+        } catch {
+          sysProblem.current = 'failed';
+        }
+      }
       try {
         const q = QUALITY[quality];
+        const displayAudio = sysSource === 'display';
         const screen = await navigator.mediaDevices.getDisplayMedia({
           video: { frameRate: { ideal: 30 }, width: { ideal: q.width }, height: { ideal: q.height } },
-          audio: systemAudio,
+          audio: displayAudio,
           // Opciones de Chrome: dejar elegir pestaña, ventana o pantalla y traer el audio del sistema.
-          ...({ selfBrowserSurface: 'include', surfaceSwitching: 'include', systemAudio: systemAudio ? 'include' : 'exclude' } as Record<string, string>),
+          ...({ selfBrowserSurface: 'include', surfaceSwitching: 'include', systemAudio: displayAudio ? 'include' : 'exclude' } as Record<string, string>),
         } as DisplayMediaStreamOptions);
         // Sin permiso de grabar la pantalla, la Mac manda cuadros negros en vez de fallar: se avisa antes de grabar.
         const firstTrack = screen.getVideoTracks()[0];
         if (firstTrack && (await screenLooksBlack(firstTrack))) {
           stopTracks(screen);
+          releaseSys();
           setError(t(desktop ? 'errors.screen_black_desktop' : 'errors.screen_black'));
           return;
         }
+        // Se pidió el audio y lo compartido no lo trae (una ventana, o "Compartir audio" sin tildar).
+        if (displayAudio && screen.getAudioTracks().length === 0) sysProblem.current = 'missing';
         screenStream.current = screen;
         screen.getVideoTracks()[0]?.addEventListener('ended', () => {
           if (recorder.current && recorder.current.state !== 'inactive') void stop();
@@ -388,11 +433,17 @@ export default function Recorder({
           setNativeCam(label);
         }
       } catch {
+        releaseSys();
         setError(t('errors.screen_denied'));
         return;
       }
     }
     countdown();
+  }
+
+  function releaseSys() {
+    stopTracks(sysStream.current);
+    sysStream.current = null;
   }
 
   function countdown() {
@@ -413,8 +464,7 @@ export default function Recorder({
   function cancelCountdown() {
     if (countdownTimer.current) window.clearTimeout(countdownTimer.current);
     countdownTimer.current = null;
-    stopTracks(screenStream.current);
-    screenStream.current = null;
+    releaseScreen();
     resetLive();
     setPhase('setup');
   }
@@ -509,7 +559,8 @@ export default function Recorder({
       setPhase('setup');
       return;
     }
-    const mixed = mixAudio([micStream.current, systemAudio ? screenStream.current : null]);
+    const mixed = mixAudio([micStream.current, sysStream.current ?? (systemAudio ? screenStream.current : null)]);
+    setSysNotice(sysProblem.current);
     void audioCtx.current?.close().catch(() => undefined);
     audioCtx.current = mixed.ctx;
     analyser.current = mixed.analyser;
@@ -573,6 +624,7 @@ export default function Recorder({
   function releaseScreen() {
     stopTracks(screenStream.current);
     screenStream.current = null;
+    releaseSys();
   }
 
   function pause() {
@@ -919,7 +971,7 @@ export default function Recorder({
             </label>
             {usesScreen && (
               <label className="ui-check">
-                <input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)} />
+                <input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)} data-testid="rec-system-audio" />
                 <span>{t('systemAudio')}</span>
               </label>
             )}
@@ -993,6 +1045,17 @@ export default function Recorder({
         <p className="ui-error" role="alert" data-testid="rec-black-warning">
           {t(desktop ? 'errors.screen_black_desktop' : 'errors.screen_black')}
         </p>
+      )}
+
+      {sysNotice && (phase === 'recording' || phase === 'paused') && (
+        <div className="rec-notice" role="status" data-testid="rec-system-audio-notice" data-reason={sysNotice}>
+          <p>{t(`systemAudioNotice.${sysNotice}`)}</p>
+          {desktop && sysNotice !== 'missing' && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => desktopBridge()?.openSettings()} data-testid="rec-system-audio-settings">
+              {t('systemAudioNotice.settings')}
+            </button>
+          )}
+        </div>
       )}
 
       {(phase === 'recording' || phase === 'paused' || phase === 'finishing') && (

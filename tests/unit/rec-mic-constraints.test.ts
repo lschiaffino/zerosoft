@@ -30,3 +30,22 @@ describe('isBlackPixels', () => {
     expect(isBlackPixels(lit)).toBe(false);
   });
 });
+
+describe('systemAudioSource', () => {
+  it('la app de escritorio en Mac captura el audio de la compu nativo', async () => {
+    const { systemAudioSource } = await import('@/components/rec/recorder-media');
+    expect(systemAudioSource(true, { systemAudio: true, systemAudioStart: () => Promise.resolve('ok') })).toBe('native');
+  });
+  it('el navegador y Windows (WebView2, sin captura nativa) lo piden a getDisplayMedia', async () => {
+    const { systemAudioSource } = await import('@/components/rec/recorder-media');
+    expect(systemAudioSource(true, null)).toBe('display');
+    expect(systemAudioSource(true, { systemAudio: false })).toBe('display');
+    // Una app vieja que dice tener audio pero no trae el comando.
+    expect(systemAudioSource(true, { systemAudio: true })).toBe('display');
+  });
+  it('apagado, no se pide en ningún lado', async () => {
+    const { systemAudioSource } = await import('@/components/rec/recorder-media');
+    expect(systemAudioSource(false, { systemAudio: true, systemAudioStart: () => Promise.resolve('ok') })).toBe('none');
+    expect(systemAudioSource(false, null)).toBe('none');
+  });
+});
