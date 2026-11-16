@@ -76,7 +76,8 @@ for (const path of ['/es', '/es/products']) {
   test(`tabla de paridad de todas las apps en ${path}`, async ({ page }) => {
     await page.goto(path);
     const table = page.locator('#paridad .parity-overview-table');
-    await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS_ALL.length);
+    // + Time, que figura en la tabla general como Próximamente y todavía no tiene su prueba de página.
+    await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS_ALL.length + 1);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
     await expect(page.locator('#paridad .parity-overview-lead')).toContainText(/las \d+ apps que ya se pueden usar/);
     await table.locator('a.po-app', { hasText: 'Lines' }).click();

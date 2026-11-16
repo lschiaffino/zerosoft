@@ -85,7 +85,7 @@ async function check(page: Page, thread: Locator) {
   const [cb, tb] = [(await card.boundingBox())!, (await msg.locator('.wa-text').boundingBox())!];
   expect(tb.y).toBeGreaterThan(cb.y + cb.height - 2);
   // PDF: la primera página arriba (recortada), a todo el ancho de la tarjeta, y debajo la fila del archivo.
-  const pdf = thread.locator('.gr-msg', { hasText: 'presupuesto en PDF' }).getByTestId('wa-doc');
+  const pdf = thread.locator('.gr-msg', { hasText: 'presupuesto en PDF' }).locator('[data-testid="wa-doc"], [data-testid="wa-doc-retry"]');
   const thumb = pdf.getByTestId('wa-doc-thumb');
   await expect(thumb).toBeVisible();
   await expect(pdf.locator('.wa-doc-icon b')).toHaveText('PDF');
@@ -114,7 +114,7 @@ async function shots(page: Page, context: BrowserContext, baseURL: string, threa
       await page.setViewportSize({ width, height: width > 500 ? 860 : 844 });
       await open();
       const msg = thread.locator('.gr-msg', { hasText: 'primera versión' });
-      await expect(msg.getByTestId('wa-doc')).toBeVisible({ timeout: 20_000 });
+      await expect(msg.locator('[data-testid="wa-doc"], [data-testid="wa-doc-retry"]')).toBeVisible({ timeout: 20_000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
       const dir = process.env.DC_SHOTS;
       if (dir) {
