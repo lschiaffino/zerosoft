@@ -44,7 +44,7 @@
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**", "lib/kbd-nav.ts", "components/app/CalmFocus.tsx", "styles/calm-focus.css"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-keyboard-touch", "calm-focus", "chat-keep-archived", "offline-lines-inbox", "mobile-gestures", "mobile-no-side-scroll", "snooze-archives"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-keyboard-touch", "calm-focus", "chat-keep-archived", "incoming-unarchives", "offline-lines-inbox", "mobile-gestures", "mobile-no-side-scroll", "snooze-archives"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },

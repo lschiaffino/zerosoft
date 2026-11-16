@@ -61,7 +61,7 @@ function photo(app: 'inbox' | 'lines', chatId: string, phone: string, name: stri
     providerMessageId: pid,
     body,
     media: { url: app === 'lines' ? `evo:${pid}` : '', type: 'image/png', name: '', fetchRef: { providerMessageId: pid, chatId, fromMe: false }, info: { kind: 'image', width: 480, height: 320 } },
-    timestamp: new Date(Date.now() - 3_600_000 + sec * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 60_000 + sec * 1000).toISOString(),
   };
 }
 
