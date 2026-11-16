@@ -133,6 +133,8 @@ export interface ContactCard {
   phones: string[];
   email?: string;
   org?: string;
+  /** Solo en pantalla: la foto guardada de esa persona (lib/wa-contact-pictures.ts), si hay. No se guarda. */
+  picture?: string;
 }
 
 /** Tope de la miniatura que se guarda en el mensaje. */

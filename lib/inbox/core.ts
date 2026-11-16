@@ -767,12 +767,29 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
  */
 async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise<ThreadDto[]> {
   await withPresenceNames(threads).catch(() => null);
+  await withContactPictures(threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
   const { mentionSelf, resolveTextMentions, someoneWord } = await import('../wa-contacts');
   const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
+}
+
+/**
+ * La foto de un chat 1:1 de WhatsApp: la guardada de la persona en la libreta (lib/wa-contact-pictures.ts,
+ * copia nuestra que no vence) y, si no hay, la del chat (/api/inbox/avatar). Una consulta por cuenta.
+ */
+export async function withContactPictures(threads: ThreadDto[]): Promise<void> {
+  const dms = threads.filter((t) => t.channel === 'whatsapp' && t.kind === 'dm' && /^\d{5,20}$/.test(t.handle));
+  if (!dms.length) return;
+  const { contactPictures, dmAvatar } = await import('../wa-contact-pictures');
+  const byAccount = new Map<string, ThreadDto[]>();
+  for (const t of dms) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
+  for (const [accountId, list] of byAccount) {
+    const pics = await contactPictures({ app: 'inbox', accountId }, list.map((t) => t.handle));
+    for (const t of list) t.avatar = dmAvatar(pics.get(t.handle), t.avatar);
+  }
 }
 
 /**
@@ -875,7 +892,12 @@ export interface MessagePage {
 export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<MessagePage> {
   const thread = await getThreadRow(owner, threadId);
   const page = await messagePage(owner, threadId, opts);
-  if (thread.channel === 'whatsapp') await withMentionNames(thread.account_id, page.messages).catch(() => null);
+  if (thread.channel === 'whatsapp') {
+    await withMentionNames(thread.account_id, page.messages).catch(() => null);
+    // Tarjetas de contacto: la foto de cada persona, si está guardada.
+    const { withCardPictures } = await import('../wa-contact-pictures');
+    await withCardPictures({ app: 'inbox', accountId: thread.account_id }, page.messages.map((m) => m.meta?.contacts)).catch(() => null);
+  }
   return page;
 }
 
