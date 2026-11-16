@@ -39,7 +39,6 @@ html[data-keyboard='open'] .gr-inbox .wa-composer { padding-bottom: 8px; }
    desde el menú de la cuenta ("Enviar feedback"), que abre el mismo panel: abierto, se ve aunque haya un chat. */
 @media (max-width: 760px) {
   body:has(.gr-inbox) .fl-root:not(.is-open), body:has(.gr-inbox) #zs-chat-btn { visibility: hidden; pointer-events: none; }
-  body:has(.gr-inbox) .fl-root.is-open { display: block !important; }
 }
 
 /* Teléfono con el teclado abierto: el chat usa todo lo que queda a la vista, como WhatsApp (sin la banda de la
