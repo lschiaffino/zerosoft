@@ -419,7 +419,7 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           break;
         }
         case 'reaction':
-          await storeReaction(account, e.chatId, e.targetProviderMessageId, { emoji: e.emoji, by: e.fromMe ? 'me' : e.senderPhone || e.senderName || '?', name: e.fromMe ? '' : e.senderName });
+          await storeReaction(account, e.chatId, e.targetProviderMessageId, { emoji: e.emoji, by: e.fromMe ? 'me' : e.senderPhone || e.senderName || '?', name: e.fromMe ? '' : e.senderName, at: e.at || nowIso() });
           break;
         case 'presence':
           await storePresence(account, e);

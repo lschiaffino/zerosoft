@@ -12,6 +12,9 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
+import { useDismiss } from '@/components/groups/wa/useDismiss';
+import type { WaReactor } from '@/lib/wa-reactions';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
@@ -156,6 +159,11 @@ const WaConversation = forwardRef<
   const [editing, setEditing] = useState<MessageDto | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
+  // El cuadro de quién reaccionó: el mensaje (el primero del álbum) y su globito.
+  const [rxFor, setRxFor] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  // La barra rápida de reacciones: un toque afuera o Esc la cierra (el botón de reaccionar la alterna).
+  const quickBar = useRef<HTMLSpanElement>(null);
+  useDismiss(pickerFor !== null, () => setPickerFor(null), [quickBar, '.wa-react-btn']);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
   const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
@@ -249,6 +257,7 @@ const WaConversation = forwardRef<
     setEditing(null);
     setPickerFor(null);
     setFullPickerFor(null);
+    setRxFor(null);
     setRevealed(new Set());
     setNotesOpen(false);
     setHeld(null);
@@ -443,6 +452,12 @@ const WaConversation = forwardRef<
     setFullPickerFor(null);
     const mine = (m.reactions ?? []).find((r) => r.by === 'me');
     await act(m, { action: 'react', emoji: mine?.emoji === emoji ? '' : emoji });
+  };
+
+  // Quién reaccionó (nombre, foto y teléfono), para el cuadro de reacciones.
+  const loadReactions = async (ids: string[]): Promise<WaReactor[] | null> => {
+    const r = await api<{ reactions: WaReactor[] }>(`/api/inbox/threads/${thread.id}/wa?part=reactions&messages=${encodeURIComponent(ids.join(','))}`);
+    return r.ok && Array.isArray(r.data.reactions) ? r.data.reactions : null;
   };
 
   const copy = async (m: MessageDto) => {
@@ -709,6 +724,7 @@ const WaConversation = forwardRef<
     const time = new Date(m.sentAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const allReactions = (album ?? [m]).flatMap((x) => x.reactions ?? []);
     const reactions = groupReactions(allReactions);
+    const rxLite = (album ?? [m]).flatMap((x) => (x.reactions ?? []).map((r) => ({ messageId: x.id, emoji: r.emoji, me: r.by === 'me' })));
     const has = (id: string | null) => (album ? album.some((x) => x.id === id) : m.id === id);
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
@@ -928,19 +944,31 @@ const WaConversation = forwardRef<
             <MessageMenu label={w('messageMenu')} items={menuFor(m)} trigger={<Chevron size={18} />} className="wa-chevron" align={m.fromMe ? 'right' : 'left'} />
           </span>
         </div>
-        {reactions.length > 0 && (
-          <button
-            type="button"
-            className="gr-reactions ib-wa-reactions"
-            aria-label={w('reactionsBy', { list: reactions.map((r) => `${r.emoji} ${[...(r.mine ? [w('you')] : []), ...r.names].join(', ')}`).join('; ') })}
-            title={reactions.map((r) => `${r.emoji} ${[...(r.mine ? [w('you')] : []), ...r.names].join(', ')}`).join('\n')}
-            onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
-          >
-            {reactions.slice(0, 3).map((r) => (
-              <span key={r.emoji}>{r.emoji}</span>
-            ))}
-            {allReactions.length > 1 && <b>{allReactions.length}</b>}
-          </button>
+        {reactions.length > 0 && <ReactionChip reactions={rxLite} className="ib-wa-reactions" expanded={rxFor?.id === m.id} onOpen={(el) => setRxFor(rxFor?.id === m.id ? null : { id: m.id, anchor: el })} />}
+        {rxFor?.id === m.id && (
+          <ReactionDetails
+            anchor={rxFor.anchor}
+            reactions={rxLite}
+            load={() => loadReactions((album ?? [m]).map((x) => x.id))}
+            me={{ picture: props.meImage }}
+            canReact={!m.revoked && connected && !isTempId(m.id)}
+            align={m.fromMe ? 'right' : 'left'}
+            onReact={() => {
+              setRxFor(null);
+              setPickerFor(m.id);
+              // El foco pasa a la barra de emojis (Esc la cierra).
+              requestAnimationFrame(() => document.getElementById(`m-${m.id}`)?.querySelector<HTMLButtonElement>('.gr-emoji-picker button')?.focus());
+            }}
+            onRemove={async ({ messageId, emoji }) => {
+              const target = (album ?? [m]).find((x) => x.id === messageId);
+              if (target) await react(target, emoji);
+            }}
+            onClose={(restore) => {
+              const anchor = rxFor.anchor;
+              setRxFor(null);
+              if (restore && anchor.isConnected) anchor.focus();
+            }}
+          />
         )}
         {!m.revoked && connected && !isTempId(m.id) && (
           <div className="gr-msg-actions">
@@ -957,7 +985,7 @@ const WaConversation = forwardRef<
           </div>
         )}
         {reactTo && (
-          <span className="gr-emoji-picker" role="group" aria-label={w('react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
+          <span className="gr-emoji-picker" role="group" aria-label={w('react')} ref={quickBar} data-testid="wa-quick-react">
             {QUICK.map((e) => (
               <button key={e} type="button" className={(reactTo.reactions ?? []).some((r) => r.by === 'me' && r.emoji === e) ? 'is-mine' : ''} onClick={() => void react(reactTo, e)} aria-label={e}>
                 {e}
@@ -969,9 +997,9 @@ const WaConversation = forwardRef<
           </span>
         )}
         {fullFor && (
-          <span className="ib-wa-react-full">
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.fromMe ? 'right' : 'left'}>
             <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
-          </span>
+          </FloatingReactPicker>
         )}
       </article>
     );

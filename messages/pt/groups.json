@@ -2028,7 +2028,23 @@
     "refreshError": "Não foi possível pedir as mensagens ao celular",
     "refreshRetry": "Tentar de novo",
     "refreshDismiss": "Fechar",
-    "archivedTag": "Arquivado"
+    "archivedTag": "Arquivado",
+    "reactions": {
+      "title": "{count, plural, one {# reação} other {# reações}}",
+      "chip": "{count, plural, one {# reação} other {# reações}}: {list}. Ver quem reagiu",
+      "react": "Reagir",
+      "all": "Todas",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filtrar por emoji",
+      "list": "Pessoas que reagiram",
+      "you": "Você",
+      "clickToRemove": "Clique para remover",
+      "remove": "Remover sua reação {emoji}",
+      "loading": "Carregando quem reagiu",
+      "error": "Não foi possível carregar quem reagiu.",
+      "retry": "Tentar de novo",
+      "more": "Mais emojis"
+    }
   },
   "swipe": {
     "read": "Lida",

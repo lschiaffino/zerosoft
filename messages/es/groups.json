@@ -2028,7 +2028,23 @@
     "refreshError": "No se pudo pedir los mensajes al teléfono",
     "refreshRetry": "Reintentar",
     "refreshDismiss": "Cerrar",
-    "archivedTag": "Archivado"
+    "archivedTag": "Archivado",
+    "reactions": {
+      "title": "{count, plural, one {# reacción} other {# reacciones}}",
+      "chip": "{count, plural, one {# reacción} other {# reacciones}}: {list}. Ver quién reaccionó",
+      "react": "Reaccionar",
+      "all": "Todas",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filtrar por emoji",
+      "list": "Personas que reaccionaron",
+      "you": "Vos",
+      "clickToRemove": "Clic para quitar",
+      "remove": "Quitar tu reacción {emoji}",
+      "loading": "Cargando quién reaccionó",
+      "error": "No se pudo cargar quién reaccionó.",
+      "retry": "Reintentar",
+      "more": "Más emojis"
+    }
   },
   "swipe": {
     "read": "Leído",

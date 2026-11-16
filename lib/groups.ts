@@ -2456,7 +2456,7 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
   } catch (err) {
     throw new GroupsError(providerErrorCode(err), 502);
   }
-  await applyReaction(msg, { emoji: clean, by: actor, fromMe: true });
+  await applyReaction(msg, { emoji: clean, by: actor, fromMe: true, at: new Date().toISOString() });
   if (clean) await maybeTicketFromReaction(ws, msg, clean, actor);
   return toMessageDto((await getMessageRow(ws, messageId)) as MessageRow);
 }
@@ -2464,11 +2464,14 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
 /** Aplica una reacción. false si no cambió nada: la misma otra vez, o una más vieja que la que ya hay de esa persona. */
 export async function applyReaction(msg: MessageRow, r: Reaction): Promise<boolean> {
   const current = parseJson<Reaction[]>(msg.reactions, []);
-  const prev = current.find((x) => x.by === r.by);
+  // El número reacciona una sola vez (como cualquier cuenta de WhatsApp): desde la app, por cualquier
+  // persona del equipo, o desde el teléfono. La nueva pisa a la anterior y sacarla saca la del número.
+  const same = (x: Reaction) => (r.fromMe ? x.fromMe : !x.fromMe && x.by === r.by);
+  const prev = current.find(same);
   if (prev && r.at && prev.at && prev.at > r.at) return false;
   // La misma reacción otra vez, o sacar una que no está.
-  if ((prev?.emoji ?? '') === r.emoji) return false;
-  const list = current.filter((x) => x.by !== r.by);
+  if ((prev?.emoji ?? '') === r.emoji && current.filter(same).length <= 1) return false;
+  const list = current.filter((x) => !same(x));
   if (r.emoji) list.push(r);
   await getDb().prepare('UPDATE groups_messages SET reactions = ? WHERE id = ?').run(JSON.stringify(list.slice(-50)), msg.id);
   return true;

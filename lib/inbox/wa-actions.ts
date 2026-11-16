@@ -141,7 +141,7 @@ export async function reactToMessage(owner: string, messageId: string, emoji: st
   } catch (err) {
     providerFail(err);
   }
-  await storeReaction(account, thread.external_id, msg.external_id, { emoji, by: 'me', name: '' });
+  await storeReaction(account, thread.external_id, msg.external_id, { emoji, by: 'me', name: '', at: new Date().toISOString() });
 }
 
 /** Editar un mensaje propio de texto (hasta 15 minutos después, como WhatsApp). */

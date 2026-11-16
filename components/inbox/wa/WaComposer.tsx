@@ -469,7 +469,7 @@ const WaComposer = forwardRef<
       {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
-          <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
+          <button type="button" className="wa-icon-btn" data-emoji-toggle aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
             <Smiley size={24} />
           </button>
           {emoji && (
@@ -477,9 +477,10 @@ const WaComposer = forwardRef<
               stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
               gifs={editing ? undefined : { api: '/api/inbox/gifs', onSend: sendGif }}
               onPick={(e) => insertAtCaret(e)}
-              onClose={() => {
+              onClose={(reason) => {
                 setEmoji(false);
-                area.current?.focus();
+                // Un toque afuera deja el foco donde se tocó.
+                if (reason !== 'outside') area.current?.focus();
               }}
             />
           )}

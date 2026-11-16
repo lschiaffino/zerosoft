@@ -1,7 +1,7 @@
 import { iJson, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
 import { InboxError } from '@/lib/inbox/types';
-import { personCard, sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
+import { personCard, reactionDetails, sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
 import { makeSummary, readSummary } from '@/lib/inbox/wa-summary';
 
 export const runtime = 'nodejs';
@@ -14,7 +14,8 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
 /**
  * Panel de info de un chat de WhatsApp: ?part=shared&kind=media|docs|links|starred
  * (lo compartido en el chat), ?part=summary (el resumen guardado) o
- * ?part=person&phone=<dígitos> (la ficha de una persona del grupo).
+ * ?part=person&phone=<dígitos> (la ficha de una persona del grupo) o
+ * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -23,6 +24,11 @@ export async function GET(req: Request, ctx: Ctx) {
     if (sp.get('part') === 'summary') return iJson({ summary: await readSummary(owner, id) });
     // La ficha de una persona del grupo (foto o nombre de quien escribió).
     if (sp.get('part') === 'person') return iJson({ person: await personCard(owner, id, (sp.get('phone') ?? '').slice(0, 30)) });
+    // Quién reaccionó a esos mensajes del chat (el cuadro de reacciones).
+    if (sp.get('part') === 'reactions') {
+      const ids = (sp.get('messages') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
+      return iJson({ reactions: await reactionDetails(owner, id, ids) });
+    }
     const kind = sp.get('kind') as SharedKind;
     if (!KINDS.includes(kind)) throw new InboxError('invalid_input', 400);
     return iJson({ items: await sharedContent(owner, id, kind) });

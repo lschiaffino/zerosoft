@@ -2028,7 +2028,23 @@
     "refreshError": "Couldn't ask the phone for messages",
     "refreshRetry": "Try again",
     "refreshDismiss": "Close",
-    "archivedTag": "Archived"
+    "archivedTag": "Archived",
+    "reactions": {
+      "title": "{count, plural, one {# Reaction} other {# Reactions}}",
+      "chip": "{count, plural, one {# reaction} other {# reactions}}: {list}. Show who reacted",
+      "react": "React",
+      "all": "All",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filter by emoji",
+      "list": "People who reacted",
+      "you": "You",
+      "clickToRemove": "Click to remove",
+      "remove": "Remove your reaction {emoji}",
+      "loading": "Loading who reacted",
+      "error": "Couldn't load who reacted.",
+      "retry": "Try again",
+      "more": "More emoji"
+    }
   },
   "swipe": {
     "read": "Read",

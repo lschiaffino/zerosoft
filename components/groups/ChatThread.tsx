@@ -41,6 +41,9 @@ import { DEFAULT_RULE, PollResults, RecurrenceFields, browserTimezone, checkRule
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from './wa/Reactions';
+import { useDismiss } from './wa/useDismiss';
+import type { WaReactor } from '@/lib/wa-reactions';
 import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import EmojiPicker from './wa/EmojiPicker';
@@ -252,6 +255,13 @@ export default function ChatThread(props: ThreadProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // El cuadro de quién reaccionó: el mensaje (el primero del álbum) y su globito.
+  const [rxFor, setRxFor] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  // Todos los emojis (el "+" de la barra rápida), para reaccionar con cualquiera.
+  const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
+  // La barra rápida de reacciones: un toque afuera o Esc la cierra (el botón de reaccionar la alterna).
+  const quickBar = useRef<HTMLSpanElement>(null);
+  useDismiss(pickerFor !== null, () => setPickerFor(null), [quickBar, '.wa-react-btn']);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Teléfono: el panel de info tapa el chat; "atrás" lo cierra.
@@ -1155,12 +1165,19 @@ export default function ChatThread(props: ThreadProps) {
 
   async function react(m: MessageDto, emoji: string) {
     setPickerFor(null);
+    setFullPickerFor(null);
     const mine = m.reactions.find((r) => r.fromMe && r.emoji === emoji);
     const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: 'react', emoji: mine ? '' : emoji } });
     if (res.data) {
       merge([res.data]);
       if (!mine && emoji === props.ticketEmoji) showToast(t('thread.ticketByReaction'));
     } else showToast(errText(res.error), true);
+  }
+
+  // Quién reaccionó (nombre, foto y teléfono; enmascarado si esta persona no ve teléfonos), para el cuadro de reacciones.
+  async function loadReactions(ids: string[]): Promise<WaReactor[] | null> {
+    const res = await api<{ reactions: WaReactor[] }>(`/api/groups/chats/${props.chat.id}/members?reactions=${encodeURIComponent(ids.join(','))}`);
+    return res.data && Array.isArray(res.data.reactions) ? res.data.reactions : null;
   }
 
   function openTicket(m: MessageDto) {
@@ -1772,6 +1789,7 @@ export default function ChatThread(props: ThreadProps) {
     const color = m.direction === 'in' && chat.kind === 'group' ? `wa-n${colorIndex(m.senderPhone || m.senderName)}` : '';
     const reactions = new Map<string, number>();
     for (const r of (album ?? [m]).flatMap((x) => x.reactions)) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
+    const rxLite = (album ?? [m]).flatMap((x) => x.reactions.map((r) => ({ messageId: x.id, emoji: r.emoji, me: r.fromMe })));
     const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
     // Foto o video (aunque no esté disponible: su lugar ocupa el mismo ancho) al ras de la burbuja.
@@ -1791,6 +1809,7 @@ export default function ChatThread(props: ThreadProps) {
       });
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
+    const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     return (
       <article
         key={m.id}
@@ -2128,17 +2147,38 @@ export default function ChatThread(props: ThreadProps) {
             </span>
           )}
         </div>
+        {/* Como WhatsApp: hasta tres emojis (los más usados) y el total; un clic abre quién reaccionó. */}
         {reactions.size > 0 && (
-          <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
-            {[...reactions]
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 3)
-              .map(([emoji]) => (
-                <span key={emoji}>{emoji}</span>
-              ))}
-            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
-          </p>
+          <ReactionChip
+            reactions={rxLite}
+            expanded={rxFor?.id === m.id}
+            onOpen={(el) => (selecting ? !album && toggleSelected(m.id) : setRxFor(rxFor?.id === m.id ? null : { id: m.id, anchor: el }))}
+          />
+        )}
+        {rxFor?.id === m.id && (
+          <ReactionDetails
+            anchor={rxFor.anchor}
+            reactions={rxLite}
+            load={() => loadReactions((album ?? [m]).map((x) => x.id))}
+            me={{ picture: outImage(null) }}
+            canReact={!isNote && !m.deletedAt && !isEditing && !selecting}
+            align={m.direction === 'out' ? 'right' : 'left'}
+            onReact={() => {
+              setRxFor(null);
+              setPickerFor(m.id);
+              // El foco pasa a la barra de emojis (así se ve aunque el mouse no esté encima; Esc la cierra).
+              requestAnimationFrame(() => document.getElementById(`m-${m.id}`)?.querySelector<HTMLButtonElement>('.gr-emoji-picker button')?.focus());
+            }}
+            onRemove={async ({ messageId, emoji }) => {
+              const target = (album ?? [m]).find((x) => x.id === messageId);
+              if (target) await react(target, emoji);
+            }}
+            onClose={(restore) => {
+              const anchor = rxFor.anchor;
+              setRxFor(null);
+              if (restore && anchor.isConnected) anchor.focus();
+            }}
+          />
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (
           <div className="gr-msg-actions">
@@ -2153,16 +2193,33 @@ export default function ChatThread(props: ThreadProps) {
             >
               <Smiley size={18} />
             </button>
-            {reactTo && (
-              <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
-                {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
-                  <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
-                    {e}
-                  </button>
-                ))}
-              </span>
-            )}
           </div>
+        )}
+        {/* La barra rápida va sobre el mensaje (no al costado, donde con el dedo quedaba fuera de la pantalla). */}
+        {reactTo && (
+          <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} ref={quickBar} data-testid="wa-quick-react">
+            {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
+              <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
+                {e}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setPickerFor(null);
+                setFullPickerFor(reactTo.id);
+              }}
+              aria-label={t('wa.reactions.more')}
+              title={t('wa.reactions.more')}
+            >
+              <Plus size={20} />
+            </button>
+          </span>
+        )}
+        {fullFor && (
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.direction === 'out' ? 'right' : 'left'}>
+            <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
+          </FloatingReactPicker>
         )}
       </article>
     );
@@ -2541,9 +2598,10 @@ export default function ChatThread(props: ThreadProps) {
                     onPick={(e) => {
                       insertEmoji(e);
                     }}
-                    onClose={() => {
+                    onClose={(reason) => {
                       setEmojiOpen(false);
-                      inputRef.current?.focus();
+                      // Un toque afuera deja el foco donde se tocó.
+                      if (reason !== 'outside') inputRef.current?.focus();
                     }}
                   />
                 )}
