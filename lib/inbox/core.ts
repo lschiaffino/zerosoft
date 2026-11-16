@@ -432,9 +432,16 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
   if (res[0].changes === 0) return false;
   noteNewest(thread, m, sentAt);
   // Lo que mandé desde la app a un chat por teléfono: si el eco de WhatsApp llegó antes solo con el lid y abrió otro
-  // chat, se juntan ya (lib/wa-dedupe-run.ts). Nunca frena el envío.
+  // chat, se juntan (lib/wa-dedupe-run.ts). Después de responder: nunca suma espera al envío.
   if (m.fromMe && !m.history && thread.channel === 'whatsapp' && thread.kind === 'dm' && /@s\.whatsapp\.net$/.test(thread.external_id)) {
-    await import('../wa-dedupe-run').then((d) => d.mergeAfterOwnSend(thread, m.externalId)).catch(() => null);
+    const job = () => import('../wa-dedupe-run').then((d) => d.mergeAfterOwnSend(thread, m.externalId)).catch(() => null);
+    try {
+      const { after } = await import('next/server');
+      after(job);
+    } catch {
+      // Fuera de un request (crons, pruebas): en segundo plano.
+      void job();
+    }
   }
   return true;
 }

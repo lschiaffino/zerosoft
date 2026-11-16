@@ -102,6 +102,8 @@ describe('Inbox: el eco propio por lid no abre otro chat', () => {
     await createScheduled(u.id, lidThread.id, 'más tarde', new Date(Date.now() + 3_600_000).toISOString());
     // Ahora la app guarda lo que mandó (mismo id) en el chat del teléfono.
     await addMessage(phoneThread, { externalId: id, fromMe: true, body: 'una primera duda', status: 'sent' });
+    // La junta corre después de guardar (no suma espera al envío).
+    await vi.waitFor(async () => expect(await threads(acc.id)).toHaveLength(1), { timeout: 5_000 });
     const list = await threads(acc.id);
     expect(list.map((t) => t.external_id)).toEqual([pn]);
     const ids = await messageIds(list[0].id);
@@ -156,6 +158,7 @@ describe('Inbox: el eco propio por lid no abre otro chat', () => {
     await ingestWhatsappEvents(acc, [msg(pn, { providerMessageId: `R-${uniq()}` })]);
     const sent = `E-${uniq()}`;
     await addMessage((await findThread(acc.id, pn))!, { externalId: sent, fromMe: true, body: 'te paso el precio', status: 'sent' });
+    await new Promise((r) => setTimeout(r, 50));
     await ingestWhatsappEvents(acc, [msg(`${p.lid}@lid`, { senderLid: p.lid, providerMessageId: `L-${uniq()}`, senderName: 'Ana Ejemplo' })]);
     expect(await threads(acc.id)).toHaveLength(2);
     await ingestWhatsappEvents(acc, [{ type: 'status', providerMessageId: sent, status: 'delivered', chatId: `${p.lid}@lid` }]);
