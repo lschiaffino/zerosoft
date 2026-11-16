@@ -42,6 +42,7 @@ import { WhatsappQrDialog } from './InboxSettings';
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
+import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -77,6 +78,8 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   archived: ['unarchive', 'undone'],
   snoozed: ['unsnooze', 'done'],
   done: ['undone', 'unarchive', 'snooze'],
+  // "Sin carpeta": sumarlo a una carpeta también lo saca de la lista.
+  nofolder: ['done', 'snooze', 'archive', 'addFolder'],
 };
 
 interface Toast {
@@ -377,6 +380,25 @@ export default function InboxApp(props: {
   const routeKey = `${view}:${folderId ?? ''}`;
   const lastRoute = useRef(routeKey);
   const closeRef = useRef<() => void>(() => {});
+  // Teléfono (un panel por vez), como WhatsApp: "atrás" cierra el panel de info y después el chat, sin salir de la
+  // bandeja.
+  const singlePane = useMediaQuery('(max-width: 1023px)');
+  useBackLayer(!!openId && singlePane, () => closeRef.current());
+  useBackLayer(infoOpen && !!openId && singlePane, () => setInfoOpen(false));
+  // Al volver a la entrada de antes de abrir el chat, esa entrada todavía dice ?t=: sin chat abierto, se saca.
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
+  useEffect(() => {
+    const onPop = () => {
+      if (openIdRef.current) return;
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('t')) return;
+      url.searchParams.delete('t');
+      window.history.replaceState(window.history.state, '', url.toString());
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   useEffect(() => {
     if (lastRoute.current === routeKey) return;
     lastRoute.current = routeKey;
@@ -726,6 +748,11 @@ export default function InboxApp(props: {
         return;
       }
       setSelected(new Set());
+      // En "Sin carpeta" los chats ya tienen carpeta: salen de la lista sin esperar a que vuelva.
+      if (view === 'nofolder' && !folder && !q) {
+        const gone = new Set(ids);
+        setThreads((list) => list.filter((x) => !gone.has(x.id)));
+      }
       const refresh = () => {
         void reloadList();
         void reloadState();
@@ -738,7 +765,7 @@ export default function InboxApp(props: {
           .then(refresh);
       toast(t(from ? 'toast.movedTo' : 'toast.addedTo', { n: ids.length, name: folderName }), { undo });
     },
-    [folder, threads, toast, errText, t, reloadList, reloadState],
+    [folder, view, q, threads, toast, errText, t, reloadList, reloadState],
   );
 
   const open = (id: string) => {
@@ -1143,7 +1170,7 @@ export default function InboxApp(props: {
       />
       <div className="ib-list-pane">
         <div className="ib-list-head">
-          <div className={`ib-list-title${folder ? ' has-folder' : ''}`}>
+          <div className={`ib-list-title${folder || (view === 'nofolder' && !q) ? ' has-folder' : ''}`}>
             {/* En escritorio la miga ya dice "Bandeja" y el lateral tiene "Nuevo": se ocultan (styles/inbox.css, como Lines). En una carpeta queda su nombre. */}
             <h1 className="ib-h1">{viewTitle}</h1>
             {folder && (
@@ -1212,6 +1239,7 @@ export default function InboxApp(props: {
                   {t(`views.${v}`)}
                 </option>
               ))}
+              {state.folders.length > 0 && <option value="v:nofolder">{t('views.nofolder')}</option>}
               {state.folders.map((f) => (
                 <option key={f.id} value={`f:${f.id}`}>
                   {f.name}
@@ -1242,7 +1270,7 @@ export default function InboxApp(props: {
         </div>
         {/* El avance de la importación, como en Lines. */}
         {!q && <ImportBanner />}
-        {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
+        {!q && !folder && view !== 'archived' && view !== 'nofolder' && (state.counts.archived ?? 0) > 0 && (
           <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />
             <span>{t('list.archivedEntry')}</span>

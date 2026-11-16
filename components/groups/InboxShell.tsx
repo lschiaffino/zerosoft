@@ -646,6 +646,11 @@ export default function InboxShell({
       for (const [prev, list] of before) await api('/api/groups/chats/bulk', { body: { ids: list, action: 'folder', folderId: prev } });
       after();
     };
+    // En "Sin carpeta" los que ya tienen carpeta salen de la lista enseguida (la recarga lo confirma).
+    if (folderSel === 'none' && folderId && res.data.updated > 0) {
+      const gone = new Set(ids);
+      setRows((list) => list.filter((r) => !gone.has(r.id)));
+    }
     showToast(
       folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }),
       res.data.failed > 0,
@@ -1165,7 +1170,9 @@ export default function InboxShell({
     ? t('inbox.noResults')
     : archivedView
       ? t('wa.archivedEmpty')
-      : activeList
+      : folderSel === 'none' && countFilters(filters) === 0
+        ? t('lines.unfiledEmpty')
+        : activeList
         ? t('lists.empty')
         : countFilters(filters) === 0
           ? t('inbox.empty.all')

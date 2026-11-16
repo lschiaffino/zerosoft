@@ -1,4 +1,5 @@
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { CSP_NONCE_HEADER } from '@/lib/csp';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -67,7 +68,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   return (
     <>
       {/* Anchos de paneles guardados: se aplican antes del primer pintado. */}
-      <script dangerouslySetInnerHTML={{ __html: linesPanelsScript(me) }} />
+      <script nonce={(await headers()).get(CSP_NONCE_HEADER) ?? undefined} dangerouslySetInnerHTML={{ __html: linesPanelsScript(me) }} />
       <InboxShell
         banner={
           hasSample ? (
