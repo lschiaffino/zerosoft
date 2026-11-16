@@ -14,7 +14,7 @@
  * self-host con ALLOW_PRIVATE_WEBHOOKS=true. Los errores no llevan la key.
  */
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
-import { mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
+import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
 import {
   evolutionFileName,
@@ -69,6 +69,8 @@ export const defaultBridgeFetch: FetchLike = (url, init) => safeFetch(url, init,
  * WebP) y lo sube a WhatsApp antes de responder.
  */
 export const mediaBridgeFetch: FetchLike = (url, init) => safeFetch(url, init, 90_000);
+/** Bajar un archivo que el gateway le tiene que volver a pedir al teléfono. */
+const slowMediaFetch: FetchLike = (url, init) => safeFetch(url, init, 45_000);
 
 function baseOf(cfg: BridgeConfig): string {
   const base = String(cfg.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -85,7 +87,7 @@ export async function bridgeRequest(
   headers: Record<string, string>,
   method: string,
   body?: unknown,
-  opts: { maxBytes?: number } = {},
+  opts: { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] } = {},
 ): Promise<unknown> {
   const maxBytes = opts.maxBytes ?? BRIDGE_MAX_RESPONSE;
   let res: Response;
@@ -100,8 +102,11 @@ export async function bridgeRequest(
     throw new ProviderError('unreachable');
   }
   if (!res.ok) {
-    await res.body?.cancel().catch(() => {});
-    throw errorFromStatus(res.status);
+    const err = errorFromStatus(res.status);
+    // Solo si quien llama lo pide: el principio del cuerpo se reduce a una etiqueta (no se guarda ni se repite).
+    if (opts.errorReason) err.reason = opts.errorReason(await readTextCapped(res, 2048).catch(() => ''));
+    else await res.body?.cancel().catch(() => {});
+    throw err;
   }
   // Se corta mientras se lee: ni el content-length ni el cuerpo pueden pasar el tope.
   if (Number(res.headers.get('content-length') ?? 0) > maxBytes) {
@@ -1171,24 +1176,27 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
  * (base64 del máximo más un margen) y se vuelve a medir al decodificar.
  */
 async function evolutionMedia(
-  api: (path: string, method?: string, body?: unknown, o?: { maxBytes?: number }) => Promise<unknown>,
+  api: (path: string, method?: string, body?: unknown, o?: { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] }) => Promise<unknown>,
   instance: string,
   ref: MediaRef,
   maxBytes: number,
+  /** El pedido que puede esperar al teléfono (re-subida): con más tiempo que uno común. */
+  slowApi: typeof api = api,
 ): Promise<FetchedMedia> {
   const key = { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe };
-  const ask = (message: Json) =>
-    api(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false }, { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024 }) as Promise<Json>;
+  const ask = (message: Json, via: typeof api) =>
+    via(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false }, { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024, errorReason: gatewayReason }) as Promise<Json>;
   let r: Json;
   try {
-    r = await ask({ key });
+    r = await ask({ key }, api);
   } catch (err) {
     // "Message not found" (400): el gateway no guardó el mensaje (llegó por la sincronización del historial al
-    // volver a vincular). Con la clave del archivo se baja directo de WhatsApp; si el enlace venció, Baileys le pide
-    // al teléfono que lo vuelva a subir (updateMediaMessage).
-    const missing = err instanceof ProviderError && (err.code === 'not_found' || err.httpStatus === 400);
+    // volver a vincular, o la instancia es nueva). Con la clave del archivo se baja directo de WhatsApp; si el enlace
+    // venció, Baileys le pide al teléfono que lo vuelva a subir (updateMediaMessage), y eso puede tardar.
+    const e = err instanceof ProviderError ? err : null;
+    const missing = !!e && e.reason !== 'offline' && (e.code === 'not_found' || e.httpStatus === 400);
     if (!missing || !ref.wire) throw err;
-    r = await ask({ key, message: wireMessage(ref.wire) });
+    r = await ask({ key, message: wireMessage(ref.wire) }, slowApi);
   }
   const b64 = typeof r.base64 === 'string' ? r.base64.replace(/^data:[^,]*,/, '') : '';
   if (!b64) throw new ProviderError('not_found');
@@ -1203,8 +1211,12 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
   const fMedia = opts.fetch ?? mediaBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
   const headers = { apikey: cfg.apiKey ?? '' };
-  const api = (path: string, method = 'GET', body?: unknown, o?: { maxBytes?: number }) =>
+  type ApiOpts = { maxBytes?: number; errorReason?: (text: string) => ProviderError['reason'] };
+  const api = (path: string, method = 'GET', body?: unknown, o?: ApiOpts) =>
     bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body, o);
+  /** Bajar un archivo que hay que pedirle al teléfono: hasta 45 s. */
+  const slowApi = (path: string, method = 'GET', body?: unknown, o?: ApiOpts) =>
+    bridgeRequest(opts.fetch ?? slowMediaFetch, `${baseOf(cfg)}${path}`, headers, method, body, o);
   const mediaApi = (path: string, body: unknown) => bridgeRequest(fMedia, `${baseOf(cfg)}${path}`, headers, 'POST', body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
 
@@ -1557,7 +1569,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async privacySettings() {
       return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
     },
-    fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes),
+    fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes, slowApi),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
       return (Array.isArray(rows) ? rows : [])

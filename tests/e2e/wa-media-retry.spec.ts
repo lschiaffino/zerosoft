@@ -13,6 +13,23 @@ import { e2eDb } from './helpers/db';
 
 test.describe.configure({ timeout: 180_000 });
 
+/**
+ * Con `next dev` (como corre esto en una máquina local), la primera vez que se pide una ruta se compila, y las rutas
+ * agrupadas de Inbox y Lines tardan: se piden una vez antes, con margen, para que la pantalla no se quede esperando.
+ * Con el build de CI responden al instante.
+ */
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(600_000);
+  const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
+  try {
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/media/warm', '/api/inbox/messages/warm', '/api/groups/media/warm', '/api/groups/messages/warm/transcript', '/api/groups/chats/warm/messages']) {
+      await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    }
+  } finally {
+    await ctx.dispose();
+  }
+});
+
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
@@ -57,7 +74,8 @@ async function checkRetry(page: Page, thread: Locator, app: string, release: () 
   // La foto se pide recién cuando entra en pantalla (loading="lazy").
   await retry.scrollIntoViewIfNeeded();
   // El reintento automático corre solo una vez y vuelve a fallar: queda el botón.
-  await expect(ph).toHaveAttribute('data-state', 'idle', { timeout: 30_000 });
+  // "failed": el reintento se hizo y no alcanzó (antes de pedir nada es "idle").
+  await expect(ph).toHaveAttribute('data-state', 'failed', { timeout: 60_000 });
   const button = retry.getByTestId('wa-media-retry');
   await expect(button).toBeVisible();
   await shot(page, `${app}-retry`, retry);
@@ -69,18 +87,18 @@ async function checkRetry(page: Page, thread: Locator, app: string, release: () 
   await expect(retry.locator('.wa-image img.is-loaded')).toBeVisible({ timeout: 30_000 });
   await expect(retry.getByTestId('wa-media-unavailable')).toHaveCount(0);
 
-  // La que WhatsApp ya no tiene: el aviso final, sin botón.
+  // La que WhatsApp ya no tiene: lo dice, y queda el botón para pedírsela de nuevo al teléfono (nunca un callejón sin salida).
   const gone = msgWith(thread, 'Foto que ya no está');
   await gone.scrollIntoViewIfNeeded();
   await expect(gone.getByTestId('wa-media-unavailable')).toHaveAttribute('data-state', 'gone', { timeout: 30_000 });
-  await expect(gone.getByTestId('wa-media-retry')).toHaveCount(0);
+  await expect(gone.getByTestId('wa-media-retry')).toBeEnabled();
   await shot(page, `${app}-gone`, gone);
 }
 
 test('Inbox: una foto que no bajó se reintenta y se puede bajar de nuevo', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
   const chatId = `${phone}@s.whatsapp.net`;
@@ -106,7 +124,7 @@ test('Lines: una foto que no bajó se reintenta y se puede bajar de nuevo', asyn
   try {
     await request.post(`/api/groups/numbers/${numberId}/connect`, { data: { action: 'connect' } });
     await expect
-      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+      .poll(async () => ((await (await request.get(`/api/groups/numbers/${numberId}/connect`)).json()) as { status: string }).status, { timeout: 30_000 })
       .toBe('connected');
     const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${numberId}`)).json()) as { webhookUrl: string };
     const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;

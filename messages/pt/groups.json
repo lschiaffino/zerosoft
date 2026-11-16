@@ -2001,7 +2001,13 @@
     "downloadAgain": "Baixar de novo",
     "downloadingAgain": "Baixando…",
     "mediaGoneImage": "Esta foto não está mais disponível no WhatsApp",
-    "mediaGoneVideo": "Este vídeo não está mais disponível no WhatsApp"
+    "mediaGoneVideo": "Este vídeo não está mais disponível no WhatsApp",
+    "askPhoneAgain": "Pedir de novo ao telefone",
+    "mediaGoneAudio": "Este áudio não está mais disponível no WhatsApp",
+    "mediaGoneShort": "Não está mais no WhatsApp",
+    "mediaOffline": "A linha está desconectada. Vincule de novo para baixar.",
+    "mediaOfflineShort": "Linha desconectada",
+    "mediaRetryFailed": "Não foi possível baixar"
   },
   "swipe": {
     "read": "Lida",

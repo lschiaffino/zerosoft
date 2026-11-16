@@ -2001,7 +2001,13 @@
     "downloadAgain": "Download again",
     "downloadingAgain": "Downloading…",
     "mediaGoneImage": "This photo is no longer available on WhatsApp",
-    "mediaGoneVideo": "This video is no longer available on WhatsApp"
+    "mediaGoneVideo": "This video is no longer available on WhatsApp",
+    "askPhoneAgain": "Ask the phone again",
+    "mediaGoneAudio": "This audio is no longer available on WhatsApp",
+    "mediaGoneShort": "No longer on WhatsApp",
+    "mediaOffline": "The line is disconnected. Link it again to download this.",
+    "mediaOfflineShort": "Line disconnected",
+    "mediaRetryFailed": "Couldn't download"
   },
   "swipe": {
     "read": "Read",

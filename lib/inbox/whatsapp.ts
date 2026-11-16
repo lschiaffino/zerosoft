@@ -11,9 +11,10 @@
 import { fakeProvider, fakeProviderAllowed } from '../groups-provider-fake';
 import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance, queueManagedDelete, validManagedConfig, type ManagedEnv } from '../groups-provider-managed';
 import { cleanPushName } from '../groups-provider-bridge';
-import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
+import { ProviderError, type MediaRef, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
-import { logMediaFailure, parseMediaWire, type MediaWire } from '../wa-media-wire';
+import { fetchStateOf, logMediaFailure } from '../wa-media-wire';
+import { openWire, sealWire } from '../wa-media-wire-seal';
 import { storeLinkHq } from '../wa-link-thumb';
 import {
   addMessage,
@@ -231,7 +232,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     body,
     mediaType: media ? inboxMediaType(media.type, media.info?.kind) || 'document' : '',
     mediaName: media?.name ?? '',
-    mediaRef: media?.fetchRef ? JSON.stringify(media.fetchRef) : '',
+    mediaRef: media?.fetchRef ? storedMediaRef(media.fetchRef) : '',
     replyTo: e.replyToProviderId ?? '',
     status: e.fromMe ? (e.status ?? 'sent') : '',
     sentAt: e.timestamp,
@@ -241,9 +242,13 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   // Ya estaba guardado sin la clave del archivo (llegó antes de que se guardara, o de otra vía) y ahora vino con ella
   // (por ejemplo, el historial que reenvía el teléfono): se completa, así el archivo se puede volver a bajar.
   if (!added && media?.fetchRef?.wire && e.providerMessageId) {
+    // En todos los chats de la cuenta donde esté ese mensaje (el mismo puede estar en el chat del teléfono y en el del lid).
     await getDb()
-      .prepare(`UPDATE inbox_messages SET media_ref = ? WHERE thread_id = ? AND external_id = ? AND media_ref <> '' AND media_ref NOT LIKE '%"wire"%'`)
-      .run(JSON.stringify(media.fetchRef), thread.id, e.providerMessageId)
+      .prepare(
+        `UPDATE inbox_messages SET media_ref = ? WHERE owner_id = ? AND external_id = ? AND media_type <> '' AND media_ref NOT LIKE '%"wire"%'
+           AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
+      )
+      .run(storedMediaRef(media.fetchRef), account.owner_id, e.providerMessageId, account.id)
       .catch(() => null);
   }
   // La imagen grande de la vista previa del link (Maps, notas): se baja una vez, después de responder el webhook.
@@ -569,24 +574,45 @@ export async function startWhatsappChat(owner: string, phone: string): Promise<T
 
 export const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 
-/** Baja un archivo recibido (foto, audio, documento) del servidor de WhatsApp. */
-export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string): Promise<{ data: Buffer; mimetype: string; filename: string }> {
-  let ref: { providerMessageId: string; chatId: string; fromMe: boolean; wire?: MediaWire };
+/** La referencia de un archivo como se guarda en media_ref: la key del mensaje y la clave del archivo, cifrada. */
+export function storedMediaRef(ref: MediaRef): string {
+  const { wire, ...key } = ref;
+  return JSON.stringify(wire ? { ...key, wire: sealWire(wire) } : key);
+}
+
+/** Lo guardado en media_ref → referencia para el proveedor; null si no se puede leer. */
+export function readMediaRef(mediaRef: string): MediaRef | null {
   try {
-    ref = JSON.parse(mediaRef) as typeof ref;
+    const raw = JSON.parse(mediaRef) as { providerMessageId?: unknown; chatId?: unknown; fromMe?: unknown; wire?: unknown };
+    if (typeof raw.providerMessageId !== 'string' || typeof raw.chatId !== 'string') return null;
+    const wire = openWire(raw.wire);
+    return { providerMessageId: raw.providerMessageId, chatId: raw.chatId, fromMe: raw.fromMe === true, ...(wire ? { wire } : {}) };
   } catch {
-    throw new InboxError('not_found', 404);
+    return null;
   }
-  const wire = parseMediaWire(ref.wire);
+}
+
+/**
+ * Baja un archivo recibido (foto, audio, documento) del servidor de WhatsApp. Si falla, el error dice por qué
+ * (lib/wa-media-wire.ts): `media_gone` 410 (WhatsApp ya no lo tiene, o el gateway no tiene el mensaje y no hay
+ * clave), `not_connected` 409 (la línea está desvinculada: al volver a vincular se puede pedir) o
+ * `media_unavailable` 502 (pasajera).
+ */
+export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string): Promise<{ data: Buffer; mimetype: string; filename: string }> {
+  const ref = readMediaRef(mediaRef);
+  if (!ref) throw new InboxError('not_found', 404);
+  const connected = account.status === 'connected';
+  // Desvinculada (sin instancia): tira not_connected (409), no es que el archivo no exista.
   const p = waProviderFor(account);
   if (!p.fetchMedia) throw new InboxError('not_found', 404);
   try {
-    return await p.fetchMedia({ providerMessageId: ref.providerMessageId, chatId: ref.chatId, fromMe: ref.fromMe, ...(wire ? { wire } : {}) }, MAX_MEDIA_BYTES);
+    return await p.fetchMedia(ref, MAX_MEDIA_BYTES);
   } catch (err) {
-    // El tipo de falla queda en el log (sin ids ni contenido). "gone": WhatsApp ya no lo tiene, o el gateway no tiene
-    // el mensaje y no hay clave para bajarlo directo: 410, la pantalla dice que ya no está disponible.
-    const kind = logMediaFailure('inbox', err, !!wire);
-    throw new InboxError('media_unavailable', kind === 'gone' ? 410 : 502);
+    // El tipo de falla queda en el log (sin ids ni contenido).
+    const state = fetchStateOf(logMediaFailure('inbox', err, !!ref.wire, connected));
+    if (state === 'gone') throw new InboxError('media_gone', 410);
+    if (state === 'offline') throw new InboxError('not_connected', 409);
+    throw new InboxError('media_unavailable', 502);
   }
 }
 

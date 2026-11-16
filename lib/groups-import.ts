@@ -36,6 +36,7 @@ import {
   getNumberRow,
   getNumberRowById,
   inboundMeta,
+  completeMediaWire,
   insertMessage,
   lidChatName,
   previewOf,
@@ -297,6 +298,8 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
         });
         if (!row) {
           res.duplicates++;
+          // El mismo mensaje, ahora con la clave del archivo: se completa (lo demás no se toca).
+          if (ev.media?.fetchRef?.wire) await completeMediaWire(number.id, ev.providerMessageId, ev.media.fetchRef.wire).catch(() => null);
           if (chat.kind === 'dm') dups.push({ key: ev.providerMessageId, chatId: chat.id, jid: chat.provider_chat_id, dm: true });
           continue;
         }

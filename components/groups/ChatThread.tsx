@@ -58,7 +58,7 @@ async function retryLinesMedia(id: string): Promise<MediaRetryResult> {
     const { url } = (await r.json()) as { url?: string };
     return url ? { url } : { pending: true };
   }
-  return r?.status === 410 ? { gone: true } : { pending: true };
+  return r?.status === 410 ? { gone: true } : r?.status === 409 ? { offline: true } : { pending: true };
 }
 import MediaAlbum from './wa/MediaAlbum';
 import UploadRing from './wa/UploadRing';
@@ -222,6 +222,8 @@ export default function ChatThread(props: ThreadProps) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
+  const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
   const previewOpen = mode === 'reply' && tray.items.length > 0;
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -1911,8 +1913,32 @@ export default function ChatThread(props: ThreadProps) {
                   onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
                   retryKey={`lines:${m.id}`}
                 />
+              ) : !media.url && (kind === 'audio' || kind === 'voice') ? (
+                // Sin archivo: el botón lo va a buscar (al gateway y, si hace falta, al teléfono) y, si vuelve, suena.
+                <VoicePlayer id={m.id} src="" seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
+                  waveform={media.waveform}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
+                  avatar={
+                    m.direction === 'in'
+                      ? chat.kind === 'dm'
+                        ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
+                        : { name: inName(m), seed: m.senderPhone || m.senderName }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
+                  }
+                />
               ) : !media.url ? (
-                <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} pages={media.pages} thumbnail={media.thumbnail} />
+                <DocCard
+                  url=""
+                  name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)}
+                  type={media.type}
+                  size={media.size}
+                  pages={media.pages}
+                  thumbnail={media.thumbnail}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                />
               ) : kind === 'image' || kind === 'sticker' ? (
                 <ImageView
                   url={media.url}
@@ -1931,6 +1957,7 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'audio' || kind === 'voice' ? (
                 <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
                   waveform={media.waveform}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
                   avatar={
                     m.direction === 'in'
                       ? chat.kind === 'dm'
@@ -1951,9 +1978,10 @@ export default function ChatThread(props: ThreadProps) {
               )}
             </div>
           )}
-          {media && !hidden && (kind === 'audio' || kind === 'voice') && media.url && !media.viewOnce && (
+          {media && !hidden && (kind === 'audio' || kind === 'voice') && (media.url || recoveredAudio[m.id]) && !media.viewOnce && (
             <Transcript
               endpoint={`/api/groups/messages/${m.id}/transcript`}
+              retryKey={recoveredAudio[m.id] ?? 0}
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}

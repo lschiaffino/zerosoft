@@ -30,6 +30,62 @@ function writeStore(key: string, value: string | null) {
   }
 }
 
+/** Lo que responde "bajar de nuevo": la URL (ya está), que WhatsApp ya no lo tiene, que la línea está desvinculada, o que quedó para más tarde. */
+export type MediaRetryResult = { url: string } | { gone: true } | { offline: true } | { pending: true };
+
+/** Estado de un archivo que no está: sin pedir, bajando, ya no está en WhatsApp, línea desvinculada, o no se pudo (se puede reintentar). */
+export type MissingState = 'idle' | 'busy' | 'gone' | 'offline' | 'failed';
+
+const missingOf = (r: MediaRetryResult): MissingState => ('gone' in r ? 'gone' : 'offline' in r ? 'offline' : 'failed');
+
+/**
+ * Reintento de una media que se sirve desde nuestra ruta (Inbox, o Lines ya
+ * guardada): la pide otra vez sin caché. Con 200 la usa ya (sin bajarla dos
+ * veces); 410: WhatsApp ya no la tiene; 409: la línea está desvinculada.
+ */
+export function refetchMedia(url: string): () => Promise<MediaRetryResult> {
+  return async () => {
+    const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    if (r?.ok && !(r.headers.get('content-type') ?? '').startsWith('application/json')) return { url: URL.createObjectURL(await r.blob()) };
+    return r?.status === 410 ? { gone: true } : r?.status === 409 ? { offline: true } : { pending: true };
+  };
+}
+
+/**
+ * El pedido de "bajar de nuevo" de un archivo que no está, con su estado para
+ * mostrar. `run()` devuelve la URL si volvió. Sin `onRetry` y con una URL
+ * nuestra, vuelve a pedir esa misma URL.
+ */
+function useMissingMedia(url: string, onRetry: (() => Promise<MediaRetryResult>) | undefined, gone: boolean | undefined) {
+  const [state, setState] = useState<MissingState>(gone ? 'gone' : 'idle');
+  const retry = onRetry ?? (url.startsWith('/') ? refetchMedia(url) : undefined);
+  const retryRef = useRef(retry);
+  retryRef.current = retry;
+  const busy = useRef(false);
+  const run = async (): Promise<string | null> => {
+    const fn = retryRef.current;
+    if (!fn || busy.current) return null;
+    busy.current = true;
+    setState('busy');
+    const r = await fn().catch((): MediaRetryResult => ({ pending: true }));
+    busy.current = false;
+    if ('url' in r) {
+      setState('idle');
+      return r.url;
+    }
+    setState(missingOf(r));
+    return null;
+  };
+  return { state, run, canRetry: Boolean(retry) };
+}
+
+/** El texto corto del estado de un archivo que no está (debajo del audio, en la tarjeta del documento). */
+function useMissingLabel(): (state: MissingState, idle: string) => string {
+  const tw = useTranslations('groups.wa');
+  return (state, idle) =>
+    state === 'busy' ? tw('downloadingAgain') : state === 'gone' ? tw('mediaGoneShort') : state === 'offline' ? tw('mediaOfflineShort') : state === 'failed' ? tw('mediaRetryFailed') : idle;
+}
+
 /**
  * Nota de voz o audio: reproducir, avanzar, velocidad 1×/1,5×/2× (queda
  * elegida), forma de onda real si WhatsApp la manda, y sigue donde se dejó
@@ -43,9 +99,19 @@ export function VoicePlayer({
   name,
   waveform,
   avatar,
+  gone,
+  onRetry,
+  onRecovered,
 }: {
   id: string;
+  /** '' si el archivo no está: el botón lo va a buscar. */
   src: string;
+  /** Ya se sabe que WhatsApp no lo tiene (igual se puede volver a pedir). */
+  gone?: boolean;
+  /** Cómo volver a pedirlo (por defecto, la misma URL sin caché). */
+  onRetry?: () => Promise<MediaRetryResult>;
+  /** El audio volvió (para transcribirlo). */
+  onRecovered?: (url: string) => void;
   seconds?: number;
   voice?: boolean;
   name?: string;
@@ -59,7 +125,23 @@ export function VoicePlayer({
   const [time, setTime] = useState(0);
   const [total, setTotal] = useState(seconds ?? 0);
   const [speed, setSpeed] = useState(1);
-  const [failed, setFailed] = useState(false);
+  // La URL que suena: la del mensaje, o la que trajo "bajar de nuevo".
+  const [url, setUrl] = useState(src);
+  // No está (sin archivo, o no cargó): el botón lo va a buscar en vez de quedar muerto.
+  const [missing, setMissing] = useState(!src);
+  const miss = useMissingMedia(src, onRetry, gone);
+  const missLabel = useMissingLabel();
+  const autoPlay = useRef(false);
+  const triedOnce = useRef(false);
+  const wantPlay = useRef(false);
+  const recoveredRef = useRef(onRecovered);
+  recoveredRef.current = onRecovered;
+  useEffect(() => {
+    setUrl(src);
+    setMissing(!src);
+    triedOnce.current = false;
+  }, [src]);
+  const failed = missing;
   const shape = waveBars(waveform, id, 40);
   const progress = total > 0 ? Math.min(1, time / total) : 0;
   // Empezada (sonando o con posición): a la izquierda va la velocidad en vez de la foto, como en WhatsApp.
@@ -84,8 +166,41 @@ export function VoicePlayer({
     resumed.current = false;
   }, [id]);
 
+  /** Va a buscar el archivo (al gateway, y si hace falta al teléfono); si vuelve, suena. */
+  async function recover() {
+    triedOnce.current = true;
+    const got = await miss.run();
+    if (!got) return;
+    autoPlay.current = true;
+    setUrl(got);
+    setMissing(false);
+    recoveredRef.current?.(got);
+  }
+
+  // El archivo recién bajado: suena solo (la persona ya tocó reproducir).
+  useEffect(() => {
+    const a = ref.current;
+    if (!a || !autoPlay.current || !url || missing) return;
+    autoPlay.current = false;
+    // Una sola a la vez, como al tocar reproducir.
+    document.querySelectorAll<HTMLAudioElement>('audio.wa-audio-el').forEach((x) => x !== a && x.pause());
+    a.playbackRate = speed;
+    // Si el navegador no deja arrancar solo (pasó mucho desde el toque), el archivo ya está: queda listo para reproducir.
+    void a.play().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, missing]);
+
+  /** El archivo no cargó. Si la persona había tocado reproducir, se va a buscar solo (una vez). */
+  function onLoadError() {
+    setPlaying(false);
+    setMissing(true);
+    if (wantPlay.current && !triedOnce.current && miss.canRetry) void recover();
+    wantPlay.current = false;
+  }
+
   function toggle() {
     const a = ref.current;
+    if (missing) return void recover();
     if (!a) return;
     if (a.paused) {
       // Una sola a la vez, como en WhatsApp.
@@ -95,7 +210,13 @@ export function VoicePlayer({
         if (time > 0 && (!total || time < total - 0.5)) a.currentTime = time;
       }
       a.playbackRate = speed;
-      void a.play().catch(() => setFailed(true));
+      wantPlay.current = true;
+      // play() también se rechaza cuando se pausa mientras carga (o empieza otro audio): eso no es un archivo que
+      // falta. Solo cuenta el error del elemento (onError lo avisa igual).
+      void a.play().catch(() => {
+        if (a.error) onLoadError();
+        else wantPlay.current = false;
+      });
     } else a.pause();
   }
 
@@ -106,11 +227,16 @@ export function VoicePlayer({
   };
 
   return (
-    <div className={`wa-voice${voice ? ' is-ptt' : ''}${active ? ' is-active' : ''}${failed ? ' is-failed' : ''}`}>
+    <div
+      className={`wa-voice${voice ? ' is-ptt' : ''}${active ? ' is-active' : ''}${failed ? ' is-failed' : ''}`}
+      data-testid="wa-voice"
+      data-state={failed ? miss.state : 'ready'}
+      title={failed && miss.state === 'gone' ? tw('mediaGoneAudio') : failed && miss.state === 'offline' ? tw('mediaOffline') : undefined}
+    >
       <audio
         ref={ref}
         className="wa-audio-el"
-        src={src}
+        src={url || undefined}
         preload={voice ? 'none' : 'metadata'}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -125,7 +251,7 @@ export function VoicePlayer({
           if (pos > 1) writeStore(POS_KEY + id, pos.toFixed(1));
         }}
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
-        onError={() => setFailed(true)}
+        onError={() => url && onLoadError()}
       />
       <span className="wa-voice-lead">
         {active ? (
@@ -145,8 +271,17 @@ export function VoicePlayer({
           </span>
         )}
       </span>
-      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? tw('pause') : tw('play')} disabled={failed}>
-        {playing ? <Pause size={26} /> : <Play size={26} />}
+      <button
+        type="button"
+        className={`wa-voice-play${failed ? ' is-fetch' : ''}`}
+        onClick={toggle}
+        aria-label={failed ? (miss.state === 'gone' ? tw('askPhoneAgain') : tw('downloadAgain')) : playing ? tw('pause') : tw('play')}
+        title={failed ? (miss.state === 'gone' ? tw('askPhoneAgain') : tw('downloadAgain')) : undefined}
+        aria-busy={failed && miss.state === 'busy'}
+        disabled={failed && (miss.state === 'busy' || !miss.canRetry)}
+        data-testid="wa-voice-play"
+      >
+        {failed ? miss.state === 'idle' ? <Download size={22} /> : <Retry size={22} className={miss.state === 'busy' ? 'is-spinning' : undefined} /> : playing ? <Pause size={26} /> : <Play size={26} />}
       </button>
       <div className="wa-voice-track" style={{ ['--p' as string]: progress }}>
         {voice ? (
@@ -172,16 +307,30 @@ export function VoicePlayer({
           step={0.1}
           value={time}
           aria-label={tw('seek')}
+          disabled={failed}
           onChange={(e) => {
             const v = Number(e.target.value);
             if (ref.current) ref.current.currentTime = v;
             setTime(v);
           }}
         />
-        <span className="wa-voice-meta">{failed ? tw('audioUnavailable') : duration(active ? time : total)}</span>
+        <span className="wa-voice-meta" role={failed ? 'status' : undefined}>
+          {failed ? missLabel(miss.state, tw('audioUnavailable')) : duration(active ? time : total)}
+        </span>
       </div>
     </div>
   );
+}
+
+/** Baja un archivo ya traído (blob:) con su nombre, sin salir de la página. */
+function saveFile(url: string, name: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name || 'file';
+  a.rel = 'noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /**
@@ -189,6 +338,9 @@ export function VoicePlayer({
  * (la hoja con la extensión en su color: PDF rojo, DOC azul, XLS verde), el
  * nombre en un renglón (cortado en el medio si es largo, para que se vea la
  * extensión) y abajo "45 kB • html". Toda la tarjeta abre o baja el archivo.
+ * Sin archivo (o con `verify`, cuando el archivo se trae al pedirlo y puede
+ * no estar): la tarjeta es un botón que lo va a buscar y dice qué pasó, nunca
+ * un enlace que abre un error.
  */
 export function DocCard({
   url,
@@ -198,6 +350,9 @@ export function DocCard({
   pages,
   thumbnail,
   saveThumbTo,
+  gone,
+  verify,
+  onRetry,
 }: {
   url: string;
   name: string;
@@ -208,16 +363,29 @@ export function DocCard({
   thumbnail?: string;
   /** Ruta del mensaje donde guardar la vista previa la primera vez que se dibuja (PDF sin miniatura). */
   saveThumbTo?: string;
+  gone?: boolean;
+  /** El archivo se baja del servidor de WhatsApp al pedirlo (Inbox): se comprueba antes de abrirlo. */
+  verify?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const ext = extensionOf(name, type);
   const [pdfPages, setPdfPages] = useState<number | null>(null);
+  // La URL que trajo "bajar de nuevo" (el archivo ya está en esta pestaña).
+  const [got, setGot] = useState('');
+  const miss = useMissingMedia(url, onRetry, gone);
+  const missLabel = useMissingLabel();
   const shownPages = pages || pdfPages || 0;
   const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', size ? fileSize(size, locale) : '', ext.toLowerCase()].filter(Boolean).join(' • ');
   const isPdf = ext.toLowerCase() === 'pdf' || type === 'application/pdf';
   const shownName = name || t('media.file');
   const [nameHead, nameTail] = splitFileName(shownName);
+  const href = got || url;
+  const asButton = !got && (!url || Boolean(verify)) && miss.canRetry;
+  // Con archivo a la vista (o todavía sin pedir, en Inbox): los datos del archivo. Si no, qué pasó.
+  const problem = !href || (asButton && miss.state !== 'idle');
+  const note = problem ? missLabel(miss.state, t('thread.fileUnavailable')) : meta;
   const inner = (
     <>
       {isPdf && thumbnail ? (
@@ -226,7 +394,7 @@ export function DocCard({
           <img src={thumbnail} alt="" />
         </span>
       ) : (
-        url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} saveTo={saveThumbTo} />
+        href && (!verify || got) && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={href} onPages={setPdfPages} saveTo={saveThumbTo} />
       )}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
         <DocIcon size={30} strokeWidth={1.5} />
@@ -238,12 +406,40 @@ export function DocCard({
           <span className="wa-doc-name-head">{nameHead}</span>
           {nameTail && <span className="wa-doc-name-tail">{nameTail}</span>}
         </span>
-        <span className="wa-doc-meta">{url ? meta : t('thread.fileUnavailable')}</span>
+        <span className="wa-doc-meta" role={asButton ? 'status' : undefined}>
+          {note}
+        </span>
       </span>
+      {asButton && miss.state !== 'idle' && (
+        <span className="wa-doc-dl" aria-hidden="true">
+          <Retry size={18} className={miss.state === 'busy' ? 'is-spinning' : undefined} />
+        </span>
+      )}
     </>
   );
-  return url ? (
-    <a className="wa-doc" href={url} target="_blank" rel="noreferrer" download={name || undefined} aria-label={`${t('wa.download')}: ${shownName}`} data-testid="wa-doc">
+  if (asButton) {
+    return (
+      <button
+        type="button"
+        className={`wa-doc is-button${problem && miss.state !== 'busy' ? ' is-off' : ''}`}
+        data-testid="wa-doc-retry"
+        data-state={miss.state}
+        disabled={miss.state === 'busy'}
+        aria-busy={miss.state === 'busy'}
+        title={miss.state === 'gone' ? t('wa.askPhoneAgain') : miss.state === 'offline' ? t('wa.mediaOffline') : url ? undefined : t('wa.downloadAgain')}
+        onClick={async () => {
+          const file = await miss.run();
+          if (!file) return;
+          setGot(file);
+          saveFile(file, name);
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return href ? (
+    <a className="wa-doc" href={href} target="_blank" rel="noreferrer" download={name || undefined} aria-label={`${t('wa.download')}: ${shownName}`} data-testid="wa-doc">
       {inner}
     </a>
   ) : (
@@ -256,22 +452,6 @@ export function DocCard({
 const boxFor = mediaBox;
 const boxStyle = mediaBoxStyle;
 
-/** Lo que responde "bajar de nuevo": la URL (ya está), que WhatsApp ya no lo tiene, o que quedó para más tarde. */
-export type MediaRetryResult = { url: string } | { gone: true } | { pending: true };
-
-/**
- * Reintento de una media que se sirve desde nuestra ruta (Inbox, o Lines ya
- * guardada): la pide otra vez sin caché. Con 200 la usa ya (sin bajarla dos
- * veces); 410: WhatsApp ya no la tiene.
- */
-export function refetchMedia(url: string): () => Promise<MediaRetryResult> {
-  return async () => {
-    const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
-    if (r?.ok && (r.headers.get('content-type') ?? '').match(/^(image|video)\//)) return { url: URL.createObjectURL(await r.blob()) };
-    return r?.status === 410 ? { gone: true } : { pending: true };
-  };
-}
-
 /** Lo que ya se reintentó solo en esta pestaña (una vez por media): el automático no se repite en cada render. */
 const autoRetried = new Set<string>();
 
@@ -283,7 +463,7 @@ const autoRetried = new Set<string>();
  *
  * Con `onRetry`: se reintenta solo una vez al aparecer (el servidor le pide el
  * archivo a WhatsApp, y si venció, al teléfono) y queda "Bajar de nuevo". Si
- * WhatsApp ya no lo tiene, lo dice así y no ofrece reintentar.
+ * WhatsApp ya no lo tiene, lo dice así y ofrece pedírselo de nuevo al teléfono.
  */
 export function MediaUnavailable({
   kind = 'image',
@@ -306,7 +486,7 @@ export function MediaUnavailable({
   onRecovered?: (url: string) => void;
 }) {
   const t = useTranslations('groups');
-  const [state, setState] = useState<'idle' | 'busy' | 'gone'>(goneAtStart ? 'gone' : 'idle');
+  const [state, setState] = useState<MissingState>(goneAtStart ? 'gone' : 'idle');
   const retryRef = useRef(onRetry);
   retryRef.current = onRetry;
   const recoveredRef = useRef(onRecovered);
@@ -317,7 +497,7 @@ export function MediaUnavailable({
     setState('busy');
     const r = await retry().catch((): MediaRetryResult => ({ pending: true }));
     if ('url' in r) recoveredRef.current?.(r.url);
-    setState('gone' in r ? 'gone' : 'idle');
+    setState('url' in r ? 'idle' : missingOf(r));
   };
   useEffect(() => {
     if (goneAtStart || !retryKey || !retryRef.current || autoRetried.has(retryKey)) return;
@@ -329,10 +509,21 @@ export function MediaUnavailable({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey, goneAtStart]);
-  const label = state === 'gone' ? (kind === 'video' ? t('wa.mediaGoneVideo') : t('wa.mediaGoneImage')) : state === 'busy' ? t('wa.downloadingAgain') : t('thread.fileUnavailable');
+  const label =
+    state === 'gone'
+      ? kind === 'video'
+        ? t('wa.mediaGoneVideo')
+        : t('wa.mediaGoneImage')
+      : state === 'busy'
+        ? t('wa.downloadingAgain')
+        : state === 'offline'
+          ? t('wa.mediaOffline')
+          : state === 'failed'
+            ? t('wa.mediaRetryFailed')
+            : t('thread.fileUnavailable');
   return (
     <span
-      className={`wa-media-ph is-${kind}${state === 'gone' ? ' is-gone' : ''}`}
+      className={`wa-media-ph is-${kind}${state === 'gone' || state === 'offline' ? ' is-gone' : ''}`}
       style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))}
       data-testid="wa-media-unavailable"
       data-state={state}
@@ -345,11 +536,11 @@ export function MediaUnavailable({
         {kind === 'video' ? <Play size={18} /> : <PhotoIcon size={18} />}
         <span>{label}</span>
       </span>
-      {/* Mientras baja queda solo el aviso "Bajando…": el botón vuelve si no se pudo. */}
-      {onRetry && state === 'idle' && (
+      {/* Mientras baja queda solo el aviso "Bajando…": el botón vuelve si no se pudo. También cuando "ya no está": se le puede volver a pedir al teléfono. */}
+      {onRetry && state !== 'busy' && (
         <button type="button" className="wa-media-ph-retry" onClick={() => void run()} data-testid="wa-media-retry">
           <Retry size={16} />
-          {t('wa.downloadAgain')}
+          {state === 'gone' ? t('wa.askPhoneAgain') : t('wa.downloadAgain')}
         </button>
       )}
     </span>

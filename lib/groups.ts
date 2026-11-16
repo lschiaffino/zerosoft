@@ -13,7 +13,8 @@ import { dbBatch, getDb, type BatchStatement } from './db';
 import { sendUnarchiveMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
-import { logMediaFailure, mediaErrorKind, parseMediaWire } from './wa-media-wire';
+import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
+import { openWire, sealWire } from './wa-media-wire-seal';
 import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
@@ -2416,7 +2417,7 @@ export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): Sto
   const meta: StoredMeta = {};
   if (ev.media?.info) meta.media = compactInfo(ev.media.info);
   // La clave del archivo (nunca va al navegador): para volver a bajarlo aunque el gateway no tenga el mensaje.
-  if (ev.media?.fetchRef?.wire) meta.mediaWire = ev.media.fetchRef.wire;
+  if (ev.media?.fetchRef?.wire) meta.mediaWire = sealWire(ev.media.fetchRef.wire);
   if (ev.location) meta.location = ev.location;
   if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
   // La vista previa del link que mandó WhatsApp (título, descripción, miniatura y la referencia a la imagen grande).
@@ -2461,8 +2462,10 @@ async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: st
 }
 
 /** Fallas que no se arreglan reintentando: tipo no permitido, más grande que el tope, el gateway no lo tiene. */
-function permanentMediaError(err: unknown): boolean {
-  if (err instanceof ProviderError) return err.code === 'not_found' || err.httpStatus === 413 || err.httpStatus === 400;
+function permanentMediaError(err: unknown, withWire = false): boolean {
+  // Lo que dijo el gateway: la misma clasificación que ve la pantalla (lib/wa-media-wire.ts). La sesión cerrada, un
+  // pedido que tardó de más o un 400 sin motivo con clave no son definitivos: se reintenta al abrirlo.
+  if (err instanceof ProviderError) return ['gone', 'too_big'].includes(mediaErrorKind(err, withWire));
   const code = (err as { code?: string })?.code;
   return code === 'file_type_not_allowed';
 }
@@ -2470,20 +2473,27 @@ function permanentMediaError(err: unknown): boolean {
 /** La referencia para bajar el archivo de un mensaje guardado (con la clave de WhatsApp si se guardó). */
 export function mediaRefFor(msg: MessageRow, providerChatId: string): MediaRef | null {
   if (!msg.provider_message_id) return null;
-  const wire = parseMediaWire(parseJson<StoredMeta>(msg.meta ?? '', {}).mediaWire);
+  const wire = openWire(parseJson<StoredMeta>(msg.meta ?? '', {}).mediaWire);
   return { providerMessageId: msg.provider_message_id, chatId: providerChatId, fromMe: msg.direction === 'out', ...(wire ? { wire } : {}) };
 }
+
+/** Lo que responde "bajar de nuevo": la URL (ya está), o por qué no (lib/wa-media-wire.ts, MediaFetchState). */
+export type MediaRetryOutcome = { url: string } | { gone: true } | { offline: true } | { pending: true };
 
 /**
  * "Bajar de nuevo" un archivo recibido que quedó sin archivo (o pendiente): lo
  * vuelve a pedir al gateway, que con la clave del archivo lo baja de WhatsApp
  * y, si el enlace venció, le pide al teléfono que lo vuelva a subir. `url`: ya
- * está; `gone`: WhatsApp ya no lo tiene; `pending`: falla pasajera, queda para
- * el próximo intento.
+ * está; `gone`: WhatsApp ya no lo tiene; `offline`: la línea no está
+ * conectada (se puede pedir al volver a vincularla); `pending`: falla
+ * pasajera, queda para el próximo intento. Nunca deja el mensaje peor que
+ * antes: sin conexión no se marca nada como perdido.
  */
-export async function retryInboundMedia(number: NumberRow, msg: MessageRow, providerChatId: string): Promise<{ url: string } | { gone: true } | { pending: true }> {
+export async function retryInboundMedia(number: NumberRow, msg: MessageRow, providerChatId: string): Promise<MediaRetryOutcome> {
+  if (msg.media_url && !msg.media_url.startsWith('evo:')) return { url: mediaUrlFor(msg) };
   const ref = mediaRefFor(msg, providerChatId);
-  if (!ref || !msg.media_type || !(msg.media_url === '' || msg.media_url.startsWith('evo:'))) return { gone: true };
+  if (!ref || !msg.media_type) return { gone: true };
+  if (number.status !== 'connected') return { offline: true };
   await getDb()
     .prepare(
       "UPDATE groups_messages SET media_url = ?, meta = CASE WHEN json_valid(meta) THEN json_remove(meta, '$.mediaGone') ELSE meta END WHERE id = ? AND number_id = ? AND media_url = ''",
@@ -2495,8 +2505,24 @@ export async function retryInboundMedia(number: NumberRow, msg: MessageRow, prov
     const row = await getMessageRow(msg.user_id, msg.id);
     return row?.media_url && !row.media_url.startsWith('evo:') ? { url: mediaUrlFor(row) } : { pending: true };
   } catch (err) {
-    return mediaErrorKind(err) === 'gone' ? { gone: true } : { pending: true };
+    const state = fetchStateOf(mediaErrorKind(err, !!ref.wire));
+    return state === 'gone' ? { gone: true } : state === 'offline' ? { offline: true } : { pending: true };
   }
+}
+
+/**
+ * Un mensaje repetido (el historial que WhatsApp vuelve a mandar al vincular la línea) que trae la clave del
+ * archivo: si el guardado no la tenía, se completa. Nada más del mensaje se toca. Con la clave, un archivo que
+ * había quedado "ya no está" se puede volver a pedir.
+ */
+export async function completeMediaWire(numberId: string, providerMessageId: string, wire: NonNullable<MediaRef['wire']>): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE groups_messages SET meta = json_remove(json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaWire', json(?)), '$.mediaGone')
+       WHERE number_id = ? AND provider_message_id = ? AND media_type <> ''
+         AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.mediaWire') IS NULL`,
+    )
+    .run(JSON.stringify(sealWire(wire)), numberId, providerMessageId);
 }
 
 /**
@@ -2522,7 +2548,7 @@ export async function storeInboundMedia(
   if (!provider.fetchMedia) return null;
   const { saveUpload } = await import('./uploads');
   const max = Math.max(0, Math.min(MAX_INBOUND_MEDIA, opts.budget ?? MAX_INBOUND_MEDIA));
-  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así y no ofrece reintentar.
+  // Definitiva: queda sin archivo. Si WhatsApp ya no lo tiene ("gone"), la pantalla lo dice así (y se puede volver a pedir).
   const markFailed = (gone: boolean) =>
     getDb()
       .prepare(
@@ -2537,7 +2563,8 @@ export async function storeInboundMedia(
       file = await provider.fetchMedia(ref, max);
     } catch (err) {
       // El gateway puede guardar el mensaje un instante después de avisarlo: un reintento corto.
-      if (!opts.retry || permanentMediaError(err)) throw err;
+      // Si ya esperó al teléfono (tardó de más), no se vuelve a esperar acá: queda para cuando se abra.
+      if (!opts.retry || permanentMediaError(err, !!ref.wire) || (err instanceof ProviderError && (err.reason === 'timeout' || err.reason === 'offline'))) throw err;
       await new Promise((r) => setTimeout(r, 2000));
       file = await provider.fetchMedia(ref, max);
     }
@@ -2558,8 +2585,12 @@ export async function storeInboundMedia(
   } catch (err) {
     // Más grande que lo que quedaba del presupuesto del webhook (no del tope): queda para cuando se abra.
     const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_INBOUND_MEDIA;
-    const kind = logMediaFailure('lines', err, !!ref.wire);
-    if (permanentMediaError(err) && !overBudget) await markFailed(kind === 'gone');
+    // Lo que dijo el gateway con la línea desvinculada no es definitivo (no puede pedirle nada al teléfono). Lo que
+    // no depende del gateway (un tipo de archivo que no se guarda) sí.
+    const fromGateway = err instanceof ProviderError;
+    const kind = logMediaFailure('lines', err, !!ref.wire, !fromGateway || number.status === 'connected');
+    // Sin conexión o pasajera: queda pendiente (se reintenta). Solo lo definitivo deja el mensaje sin archivo.
+    if (permanentMediaError(err, !!ref.wire) && !overBudget && kind !== 'offline') await markFailed(kind === 'gone');
     throw err;
   }
 }
@@ -2674,6 +2705,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (row) pokeLive('lines', ws);
         if (!row) {
           res.duplicates++;
+          if (ev.media?.fetchRef?.wire) await completeMediaWire(number.id, ev.providerMessageId, ev.media.fetchRef.wire).catch(logAfterError);
           if (!isGroup) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
           // Repetido (un reintento del proveedor): lo de antes de responder se vuelve a aplicar, porque todo es
           // idempotente; lo de después (asignación, avisos) ya corrió la primera vez.

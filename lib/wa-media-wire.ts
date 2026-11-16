@@ -84,23 +84,57 @@ export function wireMessage(wire: MediaWire): Record<string, unknown> {
   return { [type]: fields };
 }
 
-/** Qué tipo de falla fue al bajar un archivo (para el log y para la pantalla): nunca ids, números ni contenido. */
-export type MediaErrorKind = 'gone' | 'too_big' | 'unreachable' | 'auth' | 'rate_limited' | 'provider_error';
+/**
+ * Qué tipo de falla fue al bajar un archivo (para el log y para la pantalla): nunca ids, números ni contenido.
+ * - gone: WhatsApp ya no lo tiene (o el gateway no tiene el mensaje y no hay clave para pedirlo directo).
+ * - offline: la línea no está conectada; al volver a vincularla se puede pedir de nuevo.
+ * - el resto: pasajeras, se reintenta.
+ */
+export type MediaErrorKind = 'gone' | 'offline' | 'too_big' | 'unreachable' | 'auth' | 'rate_limited' | 'provider_error';
 
-export function mediaErrorKind(err: unknown): MediaErrorKind {
-  const e = err as { code?: string; httpStatus?: number } | null;
+/**
+ * Lo que dijo el gateway al fallar, reducido a una etiqueta (el texto no se guarda ni se loguea):
+ * no tiene el mensaje, la sesión está cerrada, WhatsApp/el teléfono ya no tienen el archivo, o tardó de más.
+ */
+export type GatewayReason = 'message_not_found' | 'offline' | 'media_gone' | 'timeout';
+
+export function gatewayReason(text: string): GatewayReason | undefined {
+  const t = String(text ?? '').slice(0, 2000).toLowerCase();
+  if (!t) return undefined;
+  if (/connection closed|connection lost|not connected|is not open|closed session|logged out|precondition required|instance.{0,60}(not exist|not found)/.test(t)) return 'offline';
+  if (/timed? ?out|timeout/.test(t)) return 'timeout';
+  if (/re-?upload|media.{0,40}(expired|gone|not found|unavailable)|status code 4(04|10)|\b4(04|10)\b.{0,20}media/.test(t)) return 'media_gone';
+  if (/message not found|not found/.test(t)) return 'message_not_found';
+  return undefined;
+}
+
+export function mediaErrorKind(err: unknown, withWire = false): MediaErrorKind {
+  const e = err as { code?: string; httpStatus?: number; reason?: GatewayReason } | null;
   if (e?.httpStatus === 413) return 'too_big';
-  if (e?.code === 'not_found' || e?.httpStatus === 400 || e?.httpStatus === 404 || e?.httpStatus === 410) return 'gone';
-  if (e?.code === 'unreachable') return 'unreachable';
+  if (e?.reason === 'offline' || e?.code === 'not_connected') return 'offline';
+  if (e?.reason === 'timeout' || e?.code === 'unreachable') return 'unreachable';
+  if (e?.reason === 'media_gone') return 'gone';
   if (e?.code === 'auth_failed') return 'auth';
   if (e?.code === 'rate_limited') return 'rate_limited';
+  if (e?.code === 'not_found' || e?.httpStatus === 404 || e?.httpStatus === 410 || e?.reason === 'message_not_found') return 'gone';
+  // Un 400 sin motivo reconocible: sin clave no queda nada que probar; con clave (se le pidió al teléfono) puede ser pasajero.
+  if (e?.httpStatus === 400) return withWire ? 'provider_error' : 'gone';
   return 'provider_error';
 }
 
 /** Una línea de log con el tipo de falla y si había clave para el reintento directo. */
-export function logMediaFailure(app: 'inbox' | 'lines', err: unknown, withWire: boolean): MediaErrorKind {
-  const kind = mediaErrorKind(err);
+export function logMediaFailure(app: 'inbox' | 'lines', err: unknown, withWire: boolean, connected = true): MediaErrorKind {
+  let kind = mediaErrorKind(err, withWire);
+  // Con la línea desvinculada el gateway no puede pedirle nada al teléfono: no es "ya no está", es "sin conexión".
+  if (!connected && kind !== 'too_big') kind = 'offline';
   // eslint-disable-next-line no-console
   console.warn('[wa-media] download failed', JSON.stringify({ app, kind, wire: withWire }));
   return kind;
+}
+
+/** Lo que ve la pantalla de una media que no se pudo bajar. */
+export type MediaFetchState = 'gone' | 'offline' | 'pending';
+
+export function fetchStateOf(kind: MediaErrorKind): MediaFetchState {
+  return kind === 'gone' || kind === 'too_big' ? 'gone' : kind === 'offline' ? 'offline' : 'pending';
 }

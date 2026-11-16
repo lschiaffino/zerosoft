@@ -143,6 +143,8 @@ const WaConversation = forwardRef<
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
+  const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
   // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
@@ -783,10 +785,11 @@ const WaConversation = forwardRef<
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
                   avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), src: avatars.get(m.senderHandle) || undefined, seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
-                <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} thumbnail={meta.thumb} saveThumbTo={isTempId(m.id) ? undefined : `/api/inbox/media/${m.id}`} />
+                <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} thumbnail={meta.thumb} saveThumbTo={isTempId(m.id) ? undefined : `/api/inbox/media/${m.id}`} verify={url.startsWith('/api/')} />
               )}
               {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
                 <UploadRing
@@ -800,6 +803,7 @@ const WaConversation = forwardRef<
           {kind === 'audio' && url && !hidden && !meta.viewOnce && (
             <Transcript
               endpoint={`/api/inbox/messages/${m.id}`}
+              retryKey={recoveredAudio[m.id] ?? 0}
               labels={{ working: w('transcribing'), failed: w('transcribeFailed'), more: w('showMore'), less: w('showLess'), summary: w('audioSummary'), title: w('transcript') }}
             />
           )}

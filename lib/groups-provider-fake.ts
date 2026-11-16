@@ -291,6 +291,7 @@ function fakeWav(seconds = 2): Buffer {
 }
 
 const fakeMediaReleased = new Set<string>();
+const fakeMediaTries = new Map<string, number>();
 
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
   // "gone-": el gateway ya no tiene el mensaje (Evolution: "Message not found" tras volver a vincular la línea).
@@ -298,11 +299,26 @@ function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: stri
   // "hold-": el gateway no responde (falla pasajera) hasta que un webhook { type: 'fake_media_release', id } lo libera.
   // Para probar "Bajar de nuevo".
   if (id.startsWith('hold-') && !fakeMediaReleased.has(id)) throw new ProviderError('unreachable');
-  if (id.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
-  if (id.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
-  if (id.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
-  if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
-  if (id.startsWith('doc-') || id.startsWith('vid-')) return { data: Buffer.from('%PDF-1.4\n% archivo de prueba\n'), mimetype: 'application/pdf', filename: 'documento.pdf' };
+  // "failN-": las primeras N veces el gateway no responde (falla pasajera), después baja bien. Para probar el reintento.
+  const failN = /^fail(\d)-/.exec(id);
+  if (failN) {
+    const seen = (fakeMediaTries.get(id) ?? 0) + 1;
+    fakeMediaTries.set(id, seen);
+    if (seen <= Number(failN[1])) throw new ProviderError('unreachable');
+  }
+  // "off-": la sesión del gateway está cerrada (la línea hay que volver a vincularla).
+  if (id.startsWith('off-')) {
+    const err = new ProviderError('provider_error', 400);
+    err.reason = 'offline';
+    throw err;
+  }
+  // El tipo sale de lo que sigue al prefijo de falla: "fail1-aud-…" es un audio que falla una vez.
+  const kind = id.replace(/^fail\d-/, '');
+  if (kind.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
+  if (kind.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
+  if (kind.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
+  if (kind.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
+  if (kind.startsWith('doc-') || kind.startsWith('vid-')) return { data: Buffer.from('%PDF-1.4\n% archivo de prueba\n'), mimetype: 'application/pdf', filename: 'documento.pdf' };
   return { data: fakePng(480, 320, id.length % 5), mimetype: 'image/png', filename: 'foto.png' };
 }
 
