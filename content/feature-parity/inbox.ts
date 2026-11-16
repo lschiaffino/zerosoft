@@ -174,6 +174,13 @@ const parity: ProductParity = {
       detail: ['Belongs to your user, not the workspace; no admin view, no API keys or MCP. Tokens encrypted', 'Es de tu usuario, no del workspace; sin vista de admin, API keys ni MCP. Tokens cifrados', 'É do seu usuário, não do workspace; sem visão de admin, API keys nem MCP. Tokens criptografados'],
     }),
     row('deleted-kept', 'platform', ['Messages deleted for everyone stay visible', 'Los mensajes borrados para todos se siguen viendo', 'Mensagens apagadas para todos continuam visíveis'], 'have', { competitorHas: false }),
+    row('removed-restore', 'triage', ['Restore a chat removed from Inbox', 'Recuperar un chat sacado de Inbox', 'Recuperar uma conversa removida do Inbox'], 'have', {
+      detail: [
+        'Removed chats wait 30 days in Removed from Inbox (under Archived), keep receiving messages silently and come back where they were; then they are deleted for good, or sooner by hand',
+        'Los chats sacados esperan 30 días en Sacados de Inbox (dentro de Archivados), siguen recibiendo mensajes sin avisar y vuelven a donde estaban; después se borran del todo, o antes a mano',
+        'As conversas removidas esperam 30 dias em Removidos do Inbox (dentro de Arquivadas), continuam recebendo mensagens sem avisar e voltam para onde estavam; depois são apagadas de vez, ou antes à mão',
+      ],
+    }),
     row('import', 'platform', ['Import from inbox-zero', 'Importar desde inbox-zero', 'Importar do inbox-zero'], 'have', {
       competitorHas: false,
       detail: [

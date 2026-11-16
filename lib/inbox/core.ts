@@ -206,6 +206,8 @@ export interface ThreadRow {
   summary_at?: string | null;
   /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
   history_gap_at?: string | null;
+  /** Sacado de Inbox (lib/inbox/removed.ts): fuera de todas las vistas hasta que se recupera o se purga. */
+  removed_at?: string | null;
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
@@ -225,8 +227,9 @@ export function presenceOf(r: Pick<ThreadRow, 'presence' | 'presence_at'>, now =
   return '';
 }
 
+/** El chat de la persona. Uno sacado de Inbox no se abre (404) hasta que se recupera. */
 export async function getThreadRow(owner: string, id: string): Promise<ThreadRow> {
-  const row = (await getDb().prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(id, owner)) as ThreadRow | undefined;
+  const row = (await getDb().prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(id, owner)) as ThreadRow | undefined;
   if (!row) throw new InboxError('not_found', 404);
   return row;
 }
@@ -361,6 +364,8 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
   const out = outgoingLive(m) ? 1 : 0;
   const sure = fromHere ? 1 : 0;
   const now = nowIso();
+  // Un chat sacado de Inbox sigue guardando lo que llega, pero no se mueve: al recuperarlo vuelve a donde estaba.
+  const kept = 'removed_at IS NULL AND ';
   return {
     sql: `UPDATE inbox_threads SET
          preview = CASE WHEN ${newer} THEN ? ELSE preview END,
@@ -372,11 +377,11 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_inbound_at = CASE WHEN ? = 0 AND (last_inbound_at IS NULL OR last_inbound_at < ?) THEN ? ELSE last_inbound_at END,
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
-         done_at = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ((? = 1 AND (muted_until IS NULL OR muted_until <= ? OR (snoozed_until IS NOT NULL AND snooze_archived = 1))) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
-         snoozed_until = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE snoozed_until END,
-         snooze_archived = CASE WHEN (? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN 0 ELSE snooze_archived END,
-         follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
+         done_at = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ${kept}((? = 1 AND (muted_until IS NULL OR muted_until <= ? OR (snoozed_until IS NOT NULL AND snooze_archived = 1))) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
+         snoozed_until = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE snoozed_until END,
+         snooze_archived = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN 0 ELSE snooze_archived END,
+         follow_up_at = CASE WHEN ${kept}? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
        WHERE ${where}`,
     args: [
@@ -624,8 +629,13 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
  */
 export async function listThreadsPage(owner: string, opts: ListOptions = {}): Promise<ThreadPage> {
   const now = opts.now ?? new Date();
+  if (opts.view === 'removed' && !opts.folderId) {
+    const { listRemoved } = await import('./removed');
+    return { threads: await listRemoved(owner, now), next: null, pinned: 0 };
+  }
   const nowS = now.toISOString();
-  const where: string[] = [];
+  // Los sacados de Inbox no están en ninguna vista, carpeta ni búsqueda.
+  const where: string[] = ['t.removed_at IS NULL'];
   const args: Array<string | number> = [];
   const q = (opts.q ?? '').trim().slice(0, LIMITS.searchQuery);
   const view = opts.view ?? 'inbox';
@@ -838,7 +848,7 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
          CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
          CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
-       FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?`,
+       FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ? AND t.removed_at IS NULL`,
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
@@ -1130,7 +1140,10 @@ export async function sentWithClientId(owner: string, threadId: string, clientId
 }
 
 export async function getMessageRow(owner: string, id: string): Promise<MessageRow & { thread_id: string; external_id: string }> {
-  const r = (await getDb().prepare('SELECT * FROM inbox_messages WHERE id = ? AND owner_id = ?').get(id, owner)) as
+  // El mensaje de un chat sacado de Inbox no se lee ni se toca hasta recuperar el chat.
+  const r = (await getDb()
+    .prepare('SELECT m.* FROM inbox_messages m WHERE m.id = ? AND m.owner_id = ? AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = m.thread_id AND t.removed_at IS NOT NULL)')
+    .get(id, owner)) as
     | (MessageRow & { thread_id: string; external_id: string })
     | undefined;
   if (!r) throw new InboxError('not_found', 404);
@@ -1176,7 +1189,7 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   if (!asked.length) return [];
   // Solo los chats de la persona: los ids ajenos se ignoran en silencio.
   const owned = (await db
-    .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND id IN (${asked.map(() => '?').join(',')})`)
+    .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND id IN (${asked.map(() => '?').join(',')})`)
     .all(owner, ...asked)) as Array<{ id: string }>;
   const unique = owned.map((r) => r.id);
   if (!unique.length) return [];
@@ -1301,14 +1314,14 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
 
 export async function saveDraft(owner: string, threadId: string, text: string): Promise<void> {
   const res = await getDb()
-    .prepare('UPDATE inbox_threads SET draft = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+    .prepare('UPDATE inbox_threads SET draft = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL')
     .run(text.slice(0, LIMITS.draft), nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
 
 export async function saveNotes(owner: string, threadId: string, text: string): Promise<void> {
   const res = await getDb()
-    .prepare('UPDATE inbox_threads SET notes = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+    .prepare('UPDATE inbox_threads SET notes = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL')
     .run(text.slice(0, LIMITS.notes), nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
@@ -1316,13 +1329,7 @@ export async function saveNotes(owner: string, threadId: string, text: string): 
 export async function renameThread(owner: string, threadId: string, title: string): Promise<void> {
   const clean = title.trim().slice(0, 200);
   if (!clean) throw new InboxError('invalid_input', 400);
-  const res = await getDb().prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ? AND owner_id = ?').run(clean, nowIso(), threadId, owner);
-  if (res.changes === 0) throw new InboxError('not_found', 404);
-}
-
-/** Borra el chat de Inbox (no de WhatsApp ni de Gmail): mensajes guardados, carpetas y programados. */
-export async function deleteThread(owner: string, threadId: string): Promise<void> {
-  const res = await getDb().prepare('DELETE FROM inbox_threads WHERE id = ? AND owner_id = ?').run(threadId, owner);
+  const res = await getDb().prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL').run(clean, nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
 
@@ -1335,15 +1342,26 @@ export async function inboxCounts(owner: string, now = new Date()): Promise<Reco
   const r = (await getDb()
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
-         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND removed_at IS NULL AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
             AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS reply,
-         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ?) AS snoozed,
-         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL)) AS archived,
-         (SELECT COUNT(*) FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')) AS scheduled`,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ? AND removed_at IS NULL) AS snoozed,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL) AND removed_at IS NULL) AS archived,
+         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.owner_id = ? AND s.status IN ('pending','failed','missed')
+            AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = s.thread_id AND t.removed_at IS NOT NULL)) AS scheduled,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NOT NULL) AS removed`
     )
-    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null } | undefined;
-  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), archived: Number(r?.archived ?? 0), scheduled: Number(r?.scheduled ?? 0) };
+    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner, owner)) as
+    | { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null; removed: number | null }
+    | undefined;
+  return {
+    inbox: Number(r?.inbox ?? 0),
+    reply: Number(r?.reply ?? 0),
+    snoozed: Number(r?.snoozed ?? 0),
+    archived: Number(r?.archived ?? 0),
+    scheduled: Number(r?.scheduled ?? 0),
+    removed: Number(r?.removed ?? 0),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1431,7 +1449,7 @@ export async function folderOverview(owner: string, now = new Date()): Promise<{
       `SELECT t.id, t.channel, t.kind, t.title, t.handle,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids
        FROM inbox_threads t INDEXED BY idx_inbox_threads_unread
-       WHERE t.owner_id = ? AND t.unread > 0 AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) LIMIT ${MAX_UNREAD_SCAN}`,
+       WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.unread > 0 AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) LIMIT ${MAX_UNREAD_SCAN}`,
     )
     .all(owner, nowS)) as Array<{ id: string; channel: string; kind: string; title: string; handle: string; folder_ids: string | null }>;
   const own = new Map<string, Set<string>>();
@@ -1661,7 +1679,7 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
   const rows = (await getDb()
     .prepare(
       `SELECT s.*, t.title AS thread_title, t.handle AS thread_handle, t.channel AS channel FROM inbox_scheduled s JOIN inbox_threads t ON t.id = s.thread_id
-       WHERE s.owner_id = ? ${threadId ? 'AND s.thread_id = ?' : ''} AND s.status IN ('pending','sending','failed','missed')
+       WHERE s.owner_id = ? ${threadId ? 'AND s.thread_id = ?' : ''} AND t.removed_at IS NULL AND s.status IN ('pending','sending','failed','missed')
        ORDER BY s.send_at, s.seq LIMIT 500`,
     )
     .all(...(threadId ? [owner, threadId] : [owner]))) as Array<ScheduledRow & { thread_title: string; thread_handle: string; channel: InboxChannel }>;

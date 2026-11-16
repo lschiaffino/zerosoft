@@ -746,7 +746,7 @@ async function linesTarget(ws: string, chatId: string): Promise<FetchTarget | nu
 }
 
 async function inboxTarget(owner: string, threadId: string): Promise<FetchTarget | null> {
-  const t = (await getDb().prepare('SELECT id, account_id, external_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as
+  const t = (await getDb().prepare('SELECT id, account_id, external_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as
     | { id: string; account_id: string; external_id: string; channel: string }
     | undefined;
   if (!t || t.channel !== 'whatsapp') return null;

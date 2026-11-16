@@ -181,7 +181,7 @@ const parity: ProductParity = {
         'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have', {
+    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list and restore it from Deleted', 'Archivar chats con la sección Archivados, eliminar un chat de la lista y recuperarlo desde Eliminados', 'Arquivar conversas com a seção Arquivadas, apagar uma conversa da lista e recuperá-la em Apagadas'], 'have', {
       detail: [
         'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp, and Keep archived holds a chosen chat in Archived',
         'Sincronizado con el teléfono en los dos sentidos. Mandar un mensaje a un chat archivado lo desarchiva, como en WhatsApp, y Mantener archivado deja un chat elegido en Archivados',

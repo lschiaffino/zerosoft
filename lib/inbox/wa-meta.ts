@@ -339,7 +339,7 @@ export async function noteThreadPicture(thread: Pick<ThreadRow, 'id' | 'owner_id
 /** La foto de un chat de la persona. Si la URL venció, pide una nueva una vez. */
 export async function avatarFor(owner: string, threadId: string): Promise<{ data: Buffer; mime: string }> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread || thread.channel !== 'whatsapp' || !thread.avatar_url) throw new InboxError('not_found', 404);
   const first = await download(thread.avatar_url);
   if (first && first !== 'expired') return first;
@@ -381,7 +381,7 @@ async function commonGroups(owner: string, thread: Pick<ThreadRow, 'handle' | 'a
   if (!phone) return [];
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'group' AND info LIKE ? ESCAPE '\\'
+      `SELECT id, title, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'group' AND removed_at IS NULL AND info LIKE ? ESCAPE '\\'
        ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT 30`,
     )
     .all(owner, thread.account_id, `%"phone":"${phone}"%`)) as Array<{ id: string; title: string; avatar_url: string }>;
@@ -395,7 +395,7 @@ async function commonGroups(owner: string, thread: Pick<ThreadRow, 'handle' | 'a
  */
 export async function personCard(owner: string, groupId: string, rawPhone: string): Promise<WaPersonCard> {
   const db = getDb();
-  const group = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(groupId, owner)) as ThreadRow | undefined;
+  const group = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(groupId, owner)) as ThreadRow | undefined;
   if (!group || group.channel !== 'whatsapp' || group.kind !== 'group') throw new InboxError('not_found', 404);
   const phone = phoneDigits(rawPhone);
   if (!/^\d{8,15}$/.test(phone)) throw new InboxError('invalid_input', 400);
@@ -405,7 +405,7 @@ export async function personCard(owner: string, groupId: string, rawPhone: strin
   const role = parseThreadInfo(group.info).participants.find((p) => phoneDigits(p.phone) === phone)?.role ?? null;
   const contact = (await lookupContacts(inboxScope(account), [phone]).catch(() => new Map<string, ContactRow>())).get(phone);
   const dm = (await db
-    .prepare("SELECT id, title, avatar_url, muted_until, info FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle = ? ORDER BY last_message_at DESC LIMIT 1")
+    .prepare("SELECT id, title, avatar_url, muted_until, info FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle = ? AND removed_at IS NULL ORDER BY last_message_at DESC LIMIT 1")
     .get(owner, account.id, phone)) as { id: string; title: string; avatar_url: string; muted_until: string | null; info: string } | undefined;
   const sent = dm
     ? undefined
@@ -456,7 +456,7 @@ const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 export async function sharedContent(owner: string, threadId: string, kind: SharedKind): Promise<
   Array<{ id: string; mediaType: string; mediaName: string; body: string; sentAt: string; fromMe: boolean; senderName: string; senderHandle: string; size?: number; urls?: string[] }>
 > {
-  const thread = (await getDb().prepare('SELECT id, account_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as
+  const thread = (await getDb().prepare('SELECT id, account_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as
     | { id: string; account_id: string; channel: string }
     | undefined;
   if (!thread) throw new InboxError('not_found', 404);
@@ -515,7 +515,7 @@ export async function sharedContent(owner: string, threadId: string, kind: Share
  */
 export async function sendMyPresence(owner: string, threadId: string, state: 'composing' | 'recording' | 'paused'): Promise<void> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread) throw new InboxError('not_found', 404);
   if (thread.channel !== 'whatsapp') return;
   const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
@@ -528,7 +528,7 @@ export async function sendMyPresence(owner: string, threadId: string, state: 'co
 /** Bloquear o desbloquear el contacto en WhatsApp (solo chats 1:1). */
 export async function setBlocked(owner: string, threadId: string, block: boolean): Promise<void> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread) throw new InboxError('not_found', 404);
   if (thread.channel !== 'whatsapp' || thread.kind !== 'dm') throw new InboxError('unsupported', 400);
   const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
@@ -555,7 +555,7 @@ export async function groupParticipants(owner: string, thread: ThreadRow, myPhon
   const db = getDb();
   const marks = phones.map(() => '?').join(',');
   const dms = (await db
-    .prepare(`SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle IN (${marks})`)
+    .prepare(`SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND removed_at IS NULL AND handle IN (${marks})`)
     .all(owner, thread.account_id, ...phones)) as Array<{ id: string; title: string; handle: string; avatar_url: string }>;
   const byPhone = new Map(dms.map((d) => [d.handle, d]));
   const senders = (await db

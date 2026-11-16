@@ -7,10 +7,11 @@ export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
 /**
+ * 'removed': los sacados de Inbox (se recuperan o se borran del todo; lib/inbox/removed.ts).
  * Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte.
  * `nofolder` ("Sin carpeta") son los chats de la bandeja que no están en ninguna carpeta (ni a mano ni por regla).
  */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -91,6 +92,9 @@ export interface ThreadDto {
   lastMediaId?: string | null;
   /** WhatsApp: le falta un mensaje que no se pudo entregar; al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
   historyGap?: boolean;
+  /** Solo en "Sacados de Inbox": cuándo se sacó y cuándo se borra solo (lib/inbox/removed.ts). */
+  removedAt?: string;
+  purgeAt?: string;
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */

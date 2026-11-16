@@ -15,7 +15,7 @@ import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
-import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
+import { ArchiveIcon, ArrowLeft, Trash } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { PRESENCE_EXPIRY_MS, useExpiry, useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
@@ -38,6 +38,7 @@ import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import InboxNewChat from './InboxNewChat';
 import ImportBanner from './ImportBanner';
+import RemovedList from './RemovedList';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
@@ -876,7 +877,15 @@ export default function InboxApp(props: {
       }
       setThreads((xs) => xs.filter((x) => x.id !== th.id));
       if (openId === th.id) closeConvo();
-      toast(t('toast.deleted'));
+      // Deshacer: vuelve a donde estaba (carpetas, archivado y fijado no se tocaron al sacarlo).
+      const undo = () =>
+        void api('/api/inbox/threads', { method: 'POST', json: { ids: [th.id], action: 'restore' } }).then((u) => {
+          if (!u.ok) toast(errText(u.data.error), { bad: true });
+          void reloadList();
+          void reloadState();
+          notifyInboxChanged();
+        });
+      toast(t('toast.deleted'), { undo });
       void reloadState();
       notifyInboxChanged();
       return;
@@ -947,6 +956,8 @@ export default function InboxApp(props: {
         }
         return;
       }
+      // Sacados de Inbox: los chats no se abren ni se marcan; quedan los atajos generales.
+      if (view === 'removed' && !['c', '/', '?', 'g', 'z'].includes(k)) return;
       const handled = () => e.preventDefault();
       switch (k) {
         case 'j':
@@ -1054,7 +1065,7 @@ export default function InboxApp(props: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, go, toast, t, infoOpen, startNew]);
+  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, go, toast, t, infoOpen, startNew, view]);
 
   const accounts = state.accounts;
   const noAccounts = accounts.length === 0;
@@ -1274,34 +1285,36 @@ export default function InboxApp(props: {
               {t('actions.compose')}
             </button>
           </div>
-          <div className="ib-search">
-            <label className="sr-only" htmlFor="ib-search">
-              {t('list.search')}
-            </label>
-            <DebouncedInput
-              id="ib-search"
-              ref={searchRef}
-              className="input"
-              type="search"
-              placeholder={t('list.searchPlaceholder')}
-              value={q}
-              maxLength={200}
-              onCommit={setQ}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setQ('');
-                  (e.target as HTMLInputElement).blur();
-                }
-                if (e.key === 'Enter' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).blur();
-                  setCursor(0);
-                  listRef.current?.querySelector<HTMLElement>('.ib-row-btn')?.focus();
-                }
-              }}
-            />
-          </div>
+          {!(view === 'removed' && !folder) && (
+            <div className="ib-search">
+              <label className="sr-only" htmlFor="ib-search">
+                {t('list.search')}
+              </label>
+              <DebouncedInput
+                id="ib-search"
+                ref={searchRef}
+                className="input"
+                type="search"
+                placeholder={t('list.searchPlaceholder')}
+                value={q}
+                maxLength={200}
+                onCommit={setQ}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setQ('');
+                    (e.target as HTMLInputElement).blur();
+                  }
+                  if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                    setCursor(0);
+                    listRef.current?.querySelector<HTMLElement>('.ib-row-btn')?.focus();
+                  }
+                }}
+              />
+            </div>
+          )}
           {tabView && !q && (
             <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')}>
               {TABS.map((v) => (
@@ -1324,7 +1337,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'archived'] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>
@@ -1373,7 +1386,54 @@ export default function InboxApp(props: {
             <span>{t('list.archivedBack')}</span>
           </Link>
         )}
-        {listErr && threads.length === 0 ? (
+        {/* Sacados de Inbox: adentro de Archivados, arriba y solo si hay alguno (abajo quedaría detrás de cientos de archivados). */}
+        {view === 'archived' && !q && !folder && (state.counts.removed ?? 0) > 0 && (
+          <Link href={viewHref('removed')} prefetch={false} className="ib-archived-entry ib-removed-entry" data-testid="inbox-removed-entry">
+            <Trash size={20} />
+            <span>{t('removed.entry')}</span>
+            <span className="ib-archived-n">{state.counts.removed}</span>
+          </Link>
+        )}
+        {view === 'removed' && !folder && (
+          <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-removed-back">
+            <ArrowLeft size={20} />
+            <span>{t('removed.back')}</span>
+          </Link>
+        )}
+        {view === 'removed' && !folder ? (
+          listErr && threads.length === 0 ? (
+            <div className="ib-list-msg" role="alert">
+              <p>{t('errors.list')}</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reloadList()}>
+                {t('actions.retry')}
+              </button>
+            </div>
+          ) : loading && threads.length === 0 ? (
+            <div className="ib-list-msg" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="ui-skeleton ui-skeleton-row" />
+              ))}
+            </div>
+          ) : (
+            <>
+              <RemovedList
+                threads={threads}
+                errText={errText}
+                onToast={toast}
+                onChanged={(gone) => {
+                  setThreads((xs) => xs.filter((x) => !gone.includes(x.id)));
+                  void reloadState();
+                  notifyInboxChanged();
+                }}
+              />
+              {threads.length === 0 && (
+                <div className="ib-list-empty">
+                  <EmptyState product="inbox" compact title={t('empty.view.removed')} />
+                </div>
+              )}
+            </>
+          )
+        ) : listErr && threads.length === 0 ? (
           <div className="ib-list-msg" role="alert">
             <p>{t('errors.list')}</p>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reloadList()}>
