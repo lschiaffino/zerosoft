@@ -432,6 +432,18 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
   ]);
   if (res[0].changes === 0) return false;
   noteNewest(thread, m, sentAt);
+  // Lo que mandé desde la app a un chat por teléfono: si el eco de WhatsApp llegó antes solo con el lid y abrió otro
+  // chat, se juntan (lib/wa-dedupe-run.ts). Después de responder: nunca suma espera al envío.
+  if (m.fromMe && !m.history && thread.channel === 'whatsapp' && thread.kind === 'dm' && /@s\.whatsapp\.net$/.test(thread.external_id)) {
+    const job = () => import('../wa-dedupe-run').then((d) => d.mergeAfterOwnSend(thread, m.externalId)).catch(() => null);
+    try {
+      const { after } = await import('next/server');
+      after(job);
+    } catch {
+      // Fuera de un request (crons, pruebas): en segundo plano.
+      void job();
+    }
+  }
   return true;
 }
 
@@ -705,19 +717,29 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   };
 }
 
+/** Chat 1:1 de WhatsApp guardado por lid (sin teléfono a la vista). */
+function lidThread(r: Pick<ThreadRow, 'channel' | 'kind' | 'external_id'>): boolean {
+  return r.channel === 'whatsapp' && r.kind === 'dm' && /@lid$/i.test(r.external_id);
+}
+
+/** El lid (dígitos) de cada chat por lid armado acá: no viaja a la pantalla, solo lo usa withLidTitles. */
+const LID_OF = new WeakMap<ThreadDto, string>();
+
 export function threadDto(
   r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null; account_receipts?: string | null },
   now = new Date(),
 ): ThreadDto {
   const snoozed = r.snoozed_until && r.snoozed_until > now.toISOString() ? r.snoozed_until : null;
-  return {
+  const dto: ThreadDto = {
     id: r.id,
     accountId: r.account_id,
     channel: r.channel,
     kind: r.kind,
-    // Un grupo sin asunto todavía queda vacío (la pantalla muestra "Grupo"), nunca el id crudo.
-    title: r.title || r.handle || (r.kind === 'group' ? '' : r.external_id.replace(/@.*/, '')),
-    handle: r.handle,
+    // Un grupo sin asunto todavía queda vacío (la pantalla muestra "Grupo"), nunca el id crudo. Un chat por lid
+    // ("…@lid", el id anónimo de WhatsApp) nunca muestra sus dígitos como si fueran un teléfono: withLidTitles le
+    // pone el nombre de la libreta o "Contacto de WhatsApp".
+    title: lidThread(r) ? (/^\+?\d+$/.test(r.title) ? '' : r.title) : r.title || r.handle || (r.kind === 'group' ? '' : r.external_id.replace(/@.*/, '')),
+    handle: lidThread(r) ? '' : r.handle,
     preview: r.preview,
     lastMessageAt: r.last_message_at,
     lastFromMe: r.last_from_me === 1,
@@ -745,6 +767,8 @@ export function threadDto(
     lastMediaId: r.last_media_id ?? null,
     ...(r.history_gap_at ? { historyGap: true } : {}),
   };
+  if (lidThread(r)) LID_OF.set(dto, r.external_id.slice(0, r.external_id.indexOf('@')));
+  return dto;
 }
 
 export async function getThread(owner: string, id: string): Promise<ThreadDto> {
@@ -768,12 +792,33 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
  */
 async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise<ThreadDto[]> {
   await withPresenceNames(threads).catch(() => null);
+  await withLidTitles(owner, threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
   const { mentionSelf, resolveTextMentions, someoneWord } = await import('../wa-contacts');
   const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
+}
+
+/**
+ * Chats 1:1 guardados por lid y sin nombre: el de la libreta de la cuenta (por lid) o, si no se conoce,
+ * "Contacto de WhatsApp" en el idioma de la persona. Solo los de la página sin título: una consulta por cuenta.
+ */
+async function withLidTitles(owner: string, threads: ThreadDto[]): Promise<void> {
+  const list = threads.filter((t) => !t.title && LID_OF.has(t));
+  if (!list.length) return;
+  const { displayName, lookupContacts } = await import('../wa-contacts');
+  const byAccount = new Map<string, ThreadDto[]>();
+  for (const t of list) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
+  let fallback: string | null = null;
+  for (const [accountId, rows] of byAccount) {
+    const book = await lookupContacts({ app: 'inbox', accountId }, rows.map((t) => LID_OF.get(t)!)).catch(() => new Map());
+    for (const t of rows) {
+      const name = displayName(book.get(LID_OF.get(t)!));
+      t.title = name || (fallback ??= await import('../groups').then((g) => g.lidChatName(owner)).catch(() => 'WhatsApp contact'));
+    }
+  }
 }
 
 /**

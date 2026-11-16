@@ -15,10 +15,13 @@
  *
  * Dos señales dicen que un lid y un teléfono son la misma persona:
  * - la libreta (wa_contacts: Evolution mandó el par lid ↔ teléfono);
- * - un mensaje recibido con el mismo id de WhatsApp en los dos chats (el id lo
- *   genera quien lo manda: dos personas distintas nunca comparten uno; los
- *   propios sí podrían, en una lista de difusión, por eso solo cuentan los
- *   recibidos).
+ * - un mensaje con el mismo id de WhatsApp en los dos chats (el id lo genera
+ *   quien lo manda: dos personas distintas nunca comparten uno). También los
+ *   propios: el eco de lo que mando llega muchas veces solo con el lid, sin el
+ *   teléfono al lado, mientras el mensaje ya está en el chat del teléfono. Una
+ *   lista de difusión llega con su propio id ("…@broadcast", que no se guarda),
+ *   y un id que aparece en más de un chat por teléfono no cuenta. Los ids
+ *   locales ("local-…", cuando el servidor no devolvió uno) nunca cuentan.
  *
  * Todo corre en una sola transacción por tanda (lib/db.ts dbBatch, o
  * client.batch en la migración) sobre la tabla wa_merge_pairs, con un id de
@@ -70,14 +73,14 @@ export function newRunId(): string {
 }
 
 /**
- * Pares lid ↔ teléfono por mensajes recibidos que están en dos chats 1:1 (uno
- * por lid y otro por teléfono). Un chat del lid que aparece con dos teléfonos
- * distintos no se toca (no se sabe cuál es).
+ * Pares lid ↔ teléfono por mensajes (recibidos o propios) que están en dos
+ * chats 1:1 (uno por lid y otro por teléfono). Un chat del lid que aparece con
+ * dos teléfonos distintos no se toca (no se sabe cuál es).
  */
 export function twinPairs(rows: MessageSighting[]): ChatPair[] {
   const byKey = new Map<string, MessageSighting[]>();
   for (const r of rows) {
-    if (!r.key || !r.dm || !r.inbound) continue;
+    if (!r.key || !r.dm || r.key.startsWith('local-')) continue;
     const list = byKey.get(r.key) ?? [];
     if (!list.some((x) => x.chatId === r.chatId)) list.push(r);
     byKey.set(r.key, list);
@@ -158,11 +161,15 @@ export function contactPairsInsert(app: WaApp, run: string, opts: { scope?: stri
 }
 
 /**
- * Inbox: candidatos por mensajes recibidos repetidos (el mismo id en el chat
- * del lid y en el del teléfono). Usa idx_inbox_messages_owner_ext.
+ * Inbox: candidatos por mensajes repetidos (el mismo id en el chat del lid y
+ * en el del teléfono). Usa idx_inbox_messages_owner_ext. Sin `own`, solo los
+ * recibidos (como la migración de 20261114); con `own`, también los propios
+ * (el eco de lo que mandé que llegó solo con el lid).
  */
-export function inboxSharedPairsInsert(run: string, opts: { scope?: string } = {}): BatchStatement {
+export function inboxSharedPairsInsert(run: string, opts: { scope?: string; own?: boolean } = {}): BatchStatement {
   const args: string[] = [run];
+  const lmOwn = opts.own ? "lm.external_id NOT LIKE 'local-%'" : 'lm.from_me = 0';
+  const smOwn = opts.own ? '1 = 1' : 'sm.from_me = 0';
   let where = "l.kind = 'dm' AND l.external_id LIKE '%@lid'";
   if (opts.scope) {
     where += ' AND l.account_id = ?';
@@ -172,13 +179,34 @@ export function inboxSharedPairsInsert(run: string, opts: { scope?: string } = {
     sql: `INSERT OR IGNORE INTO wa_merge_pairs (run, app, scope, loser, survivor, jid, phone)
       SELECT ?, 'inbox', l.account_id, l.id, MIN(s.id), MIN(s.external_id), substr(MIN(s.external_id), 1, instr(MIN(s.external_id), '@') - 1)
       FROM inbox_threads l
-      JOIN inbox_messages lm ON lm.thread_id = l.id AND lm.from_me = 0
-      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.external_id AND sm.thread_id <> lm.thread_id AND sm.from_me = 0
+      JOIN inbox_messages lm ON lm.thread_id = l.id AND ${lmOwn}
+      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.external_id AND sm.thread_id <> lm.thread_id AND ${smOwn}
       JOIN inbox_threads s ON s.id = sm.thread_id AND s.account_id = l.account_id AND s.kind = 'dm' AND s.external_id LIKE '%@s.whatsapp.net'
       WHERE ${where}
       GROUP BY l.id
       HAVING COUNT(DISTINCT s.id) = 1`,
     args,
+  };
+}
+
+/**
+ * Inbox: candidatos por citas. Un mensaje del chat por lid que responde a uno
+ * guardado en el chat de un teléfono (en un 1:1 solo se cita lo del mismo
+ * chat): la misma persona. Solo si todas las citas del chat por lid apuntan a
+ * un único chat por teléfono. Para el arreglo de una vez (lib/wa-dedupe-repair.ts).
+ */
+export function inboxQuotePairsInsert(run: string): BatchStatement {
+  return {
+    sql: `INSERT OR IGNORE INTO wa_merge_pairs (run, app, scope, loser, survivor, jid, phone)
+      SELECT ?, 'inbox', l.account_id, l.id, MIN(s.id), MIN(s.external_id), substr(MIN(s.external_id), 1, instr(MIN(s.external_id), '@') - 1)
+      FROM inbox_threads l
+      JOIN inbox_messages lm ON lm.thread_id = l.id AND lm.reply_to <> '' AND lm.reply_to NOT LIKE 'local-%'
+      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.reply_to AND sm.thread_id <> lm.thread_id
+      JOIN inbox_threads s ON s.id = sm.thread_id AND s.account_id = l.account_id AND s.kind = 'dm' AND s.external_id LIKE '%@s.whatsapp.net'
+      WHERE l.kind = 'dm' AND l.external_id LIKE '%@lid'
+      GROUP BY l.id
+      HAVING COUNT(DISTINCT s.id) = 1`,
+    args: [run],
   };
 }
 

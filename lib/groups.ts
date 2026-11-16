@@ -2572,6 +2572,13 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   else learning = learnLinesEvents(number, slice).catch(() => null);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   batch = await resolveLidChats({ app: 'lines', accountId: number.id }, batch).catch(() => batch);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono (el eco de lo que mandé) va a ese
+  // chat, y no abre uno vacío por lid (lib/wa-dedupe-run.ts).
+  {
+    const resolved = batch;
+    const { routeLidByKnownMessages } = await import('./wa-dedupe-run');
+    batch = await routeLidByKnownMessages('lines', { app: 'lines', accountId: number.id, userId: number.user_id }, batch).catch(() => resolved);
+  }
   // Mensajes repetidos que querían entrar a otro chat (uno por lid y otro por teléfono): la misma persona.
   const dups: Array<{ key: string; chatId: string; jid: string; dm: boolean }> = [];
   for (const ev of batch) {
@@ -2618,7 +2625,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         if (row) pokeLive('lines', ws);
         if (!row) {
           res.duplicates++;
-          if (!isGroup && !ev.fromMe) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
+          if (!isGroup) dups.push({ key: ev.providerMessageId, chatId: stored.chat.id, jid: stored.chat.provider_chat_id, dm: true });
           // Repetido (un reintento del proveedor): lo de antes de responder se vuelve a aplicar, porque todo es
           // idempotente; lo de después (asignación, avisos) ya corrió la primera vez.
           await finishChat(number, stored.chat, chatInput, false).catch(logAfterError);

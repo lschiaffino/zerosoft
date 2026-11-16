@@ -1091,7 +1091,10 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       for (const u of rows) {
         const st = EVOLUTION_ACK[String(u.status ?? '').toUpperCase()];
         const id = String(u.keyId ?? ((u.key ?? {}) as Json).id ?? '');
-        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st });
+        // La confirmación de un chat 1:1 que vino solo por lid: con ella se aprende de quién es ese lid.
+        const sk = (u.key ?? {}) as Json;
+        const rj = pnJid(String(u.remoteJid ?? sk.remoteJid ?? ''), sk.remoteJidAlt, u.remoteJidAlt);
+        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}) });
         // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
         const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
         if (agg && id) {
