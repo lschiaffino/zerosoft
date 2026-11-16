@@ -167,6 +167,9 @@ export async function createRecurring(ws: string, actor: string, input: Recurrin
   const endsAt = cleanEnds(input.endsAt);
   const next = nextRun(rule, timezone, new Date());
   if (!next || (endsAt && next.getTime() > Date.parse(endsAt))) throw new GroupsError('no_next_run');
+  // Un archivo de /api/files: de este workspace, y lo ven quienes ven la línea.
+  const { shareScheduledMedia } = await import('./groups-broadcasts');
+  await shareScheduledMedia(ws, target.numberId, input.media?.url);
   const id = randomUUID();
   const now = nowIso();
   await getDb()

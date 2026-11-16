@@ -84,7 +84,8 @@ jobs:
             exit 0
           fi
           ok=true
-          for p in infra/evolution/patches/*.patch; do (cd evo && git apply --check "../$p") || ok=false; done
+          # En orden y uno sobre otro, como al armar la imagen: un parche puede tocar lo que agregó uno anterior.
+          for p in infra/evolution/patches/*.patch; do (cd evo && git apply --whitespace=nowarn "../$p") || ok=false; done
           if [ "$ok" != true ]; then
             gh issue create --title "Evolution $latest: los parches de infra/evolution no aplican" \
               --body "Salió Evolution $latest y los parches ya no aplican sobre su código. Hay que rehacerlos antes de actualizar. La imagen actual sigue en $current."

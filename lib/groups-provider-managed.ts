@@ -13,7 +13,7 @@
  * - Desconectar o borrar el número cierra la sesión y borra la instancia.
  */
 import { randomBytes } from 'crypto';
-import { bridgeRequest, defaultBridgeFetch, evolutionProvider, EVOLUTION_EVENTS } from './groups-provider-bridge';
+import { bridgeRequest, defaultBridgeFetch, evolutionProvider, EVOLUTION_EVENTS, syncEvolutionWebhook } from './groups-provider-bridge';
 import { PROVIDER_CAPS, ProviderError, safeEqual, type BridgeConfig, type FetchLike, type GroupsProvider } from './groups-provider';
 
 export interface ManagedEnv {
@@ -156,6 +156,7 @@ export function managedProvider(
       await asInstance(`/webhook/set/${instance}`, 'POST', { webhook });
       return inner.start();
     },
+    syncWebhookEvents: () => syncEvolutionWebhook(asInstance, instance),
     async disconnect() {
       await asInstance(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
       await asGlobal(`/instance/delete/${instance}`, 'DELETE').catch(() => null);

@@ -136,7 +136,7 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
   const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
   const text = p.terms.length > 0 || p.phrases.length > 0;
   if (!text && !p.from && !p.in && !p.has && !p.before && !p.after) return { hits: [], more: false };
-  const where: string[] = ['m.owner_id = ?', 'm.hidden_at IS NULL'];
+  const where: string[] = ['m.owner_id = ?', 'm.hidden_at IS NULL', 't.removed_at IS NULL'];
   const args: Array<string | number> = [owner];
   if (p.from) {
     if (/^(me|yo|eu)$/i.test(p.from)) where.push('m.from_me = 1');
@@ -258,7 +258,8 @@ export async function threadIdsMatching(owner: string, raw: string, limit = 300)
     const rows = (await getDb()
       .prepare(
         `SELECT DISTINCT m.thread_id FROM inbox_messages_fts f CROSS JOIN inbox_messages m ON m.rowid = f.rowid
-         WHERE inbox_messages_fts MATCH ? AND m.owner_id = ? AND m.hidden_at IS NULL LIMIT ?`,
+         WHERE inbox_messages_fts MATCH ? AND m.owner_id = ? AND m.hidden_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = m.thread_id AND t.removed_at IS NOT NULL) LIMIT ?`,
       )
       .all(ftsExpression(p), owner, limit)) as Array<{ thread_id: string }>;
     return rows.map((r) => r.thread_id);

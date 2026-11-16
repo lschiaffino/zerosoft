@@ -61,8 +61,15 @@ describe('pares lid ↔ teléfono (puro)', () => {
     ]);
   });
 
-  it('los propios, los de grupo y los que están en un solo chat no cuentan', () => {
-    expect(twinPairs([s('A', 'c-lid', '700000000000123@lid', { inbound: false }), s('A', 'c-pn', '5491100000001@s.whatsapp.net', { inbound: false })])).toEqual([]);
+  it('un mensaje propio en los dos chats (el eco que llegó solo con el lid) también cuenta', () => {
+    expect(twinPairs([s('A', 'c-lid', '700000000000123@lid', { inbound: false }), s('A', 'c-pn', '5491100000001@s.whatsapp.net', { inbound: false })])).toEqual([
+      { loser: 'c-lid', survivor: 'c-pn', lid: '700000000000123', phone: '5491100000001' },
+    ]);
+    // Un id local (el servidor no devolvió uno) nunca cuenta.
+    expect(twinPairs([s('local-1', 'c-lid', '700000000000123@lid', { inbound: false }), s('local-1', 'c-pn', '5491100000001@s.whatsapp.net', { inbound: false })])).toEqual([]);
+  });
+
+  it('los de grupo y los que están en un solo chat no cuentan', () => {
     expect(twinPairs([s('A', 'g1', '120363@g.us', { dm: false }), s('A', 'c-pn', '5491100000001@s.whatsapp.net')])).toEqual([]);
     expect(twinPairs([s('A', 'c-lid', '700000000000123@lid')])).toEqual([]);
     // Dos chats por teléfono (no hay lid): no son gemelos.
@@ -93,6 +100,15 @@ describe('pares lid ↔ teléfono (puro)', () => {
     }) as Array<Extract<InboundEvent, { type: 'message' }>>;
     expect(e.chatId).toBe('5491100000009@s.whatsapp.net');
     expect(contactsFromMessage(e)).toEqual([{ phone: '5491100000009', lid: '700000000000123' }]);
+  });
+
+  it('la tilde de un 1:1 que vuelve por lid trae el lid (sin lid, igual que antes)', () => {
+    expect(parseEvolutionWebhook({ event: 'messages.update', data: { keyId: 'X3', remoteJid: '700000000000123@lid', fromMe: true, status: 'READ' } })).toEqual([
+      { type: 'status', providerMessageId: 'X3', status: 'read', chatId: '700000000000123@lid' },
+    ]);
+    expect(parseEvolutionWebhook({ event: 'messages.update', data: { keyId: 'X4', remoteJid: '5491100000009@s.whatsapp.net', fromMe: true, status: 'READ' } })).toEqual([
+      { type: 'status', providerMessageId: 'X4', status: 'read' },
+    ]);
   });
 
   it('borrar para todos en un chat por lid: el teléfono sale de senderPn', () => {

@@ -16,6 +16,7 @@ import { personCanUseApp, type McpCaller } from '../mcp/caller';
 import { invokeOperation, OperationError } from '../mcp/invoke';
 import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 import { wrapUntrusted } from '../mcp/untrusted';
+import { redact, UNTRUSTED_CAP } from './redact';
 import { AttachmentRefError, AttachmentUseError, getAttachments, isSendOperation, publicRefIds, referencedAttachmentIds, resolveAttachmentRefs } from './files';
 
 /** Cuántos resultados de find_operations vuelven con su esquema de entrada. */
@@ -276,8 +277,9 @@ export const catalogTools: AssistantTool[] = [
       }
       const r = await run(ctx, op, input.args, { offset: input.offset, limit: input.limit ?? 25 });
       // Lo que vuelve lo escribió otra gente: marcado con nonce, como en el servidor MCP.
+      // Sin secretos por clave antes de pasar a texto, y dentro del tope: un JSON cortado no se puede leer.
       const { ok, status, ...payload } = r;
-      return { ok, status, ...(ok ? {} : { error: `status_${status}` }), result: wrapUntrusted(op.id, payload) };
+      return { ok, status, ...(ok ? {} : { error: `status_${status}` }), result: fitUntrusted(op.id, redact(payload) as Record<string, unknown>) };
     },
   }),
   propose(false),
@@ -287,4 +289,55 @@ export const catalogTools: AssistantTool[] = [
 /** Para los tests: cuántas operaciones del catálogo alcanza una sesión. */
 export function catalogReach(user: Pick<SessionUser, 'role' | 'apps'>): number {
   return OPERATIONS.filter((op) => usable(user, op)).length;
+}
+
+/** La lista principal de un resultado ({data: […]} o {data: {data: […]}}): la que se acorta si no entra. */
+function mainList(payload: Record<string, unknown>): { holder: Record<string, unknown>; key: string; list: unknown[] } | null {
+  const data = payload.data;
+  if (Array.isArray(data)) return { holder: payload, key: 'data', list: data };
+  if (data && typeof data === 'object') {
+    for (const key of ['data', 'rows', 'items', 'results']) {
+      const v = (data as Record<string, unknown>)[key];
+      if (Array.isArray(v)) return { holder: data as Record<string, unknown>, key, list: v };
+    }
+  }
+  return null;
+}
+
+const TRUNCATED_HINT = 'Too long to show whole. Ask for fewer rows with limit, or the next ones with offset.';
+
+/**
+ * El resultado marcado (wrapUntrusted) sin pasarse de UNTRUSTED_CAP: si no
+ * entra, menos filas y una nota; si ni así, un adelanto como texto. Siempre
+ * un JSON válido con la etiqueta cerrada.
+ */
+export function fitUntrusted(source: string, payload: Record<string, unknown>, cap = UNTRUSTED_CAP): string {
+  const full = wrapUntrusted(source, payload);
+  if (full.length <= cap) return full;
+  const found = mainList(payload);
+  if (found) {
+    const at = (n: number) => {
+      const copy = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+      const f = mainList(copy)!;
+      f.holder[f.key] = f.list.slice(0, n);
+      return wrapUntrusted(source, { ...copy, truncated: { shown: n, of: found.list.length, hint: TRUNCATED_HINT } });
+    };
+    // La mayor cantidad de filas que entra.
+    let lo = 0;
+    let hi = found.list.length - 1;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (at(mid).length <= cap) lo = mid;
+      else hi = mid - 1;
+    }
+    if (lo > 0) return at(lo);
+  }
+  const text = JSON.stringify(payload);
+  let len = cap;
+  let out = '';
+  do {
+    len = Math.floor(len * 0.8);
+    out = wrapUntrusted(source, { truncated: true, hint: TRUNCATED_HINT, preview: text.slice(0, len) });
+  } while (out.length > cap && len > 0);
+  return out;
 }

@@ -177,6 +177,21 @@ function signingKey(): Buffer {
   return createHmac('sha256', 'zerosoft-files-url').update(base).digest();
 }
 
+/**
+ * Un archivo subido por una persona ('user') que pasa a ser de algo que ven
+ * otros (un mensaje programado de Lines que ven quienes ven esa línea): queda
+ * en el workspace con ese permiso fino. Solo archivos de ese workspace; los
+ * que ya tienen otro permiso no se tocan. null si la URL no es de un archivo
+ * del workspace.
+ */
+export async function shareFileWith(url: string, owner: { workspaceId: string }, to: { app: string; scope: string }, db: Db = getDb()): Promise<StoredFileRow | null> {
+  const row = await ownedFileRow(url, { workspaceId: owner.workspaceId }, db);
+  if (!row) return null;
+  if (row.access !== 'user') return row;
+  await db.prepare("UPDATE stored_files SET access = 'workspace', app = ?, scope = ? WHERE id = ? AND access = 'user'").run(to.app, to.scope, row.id);
+  return { ...row, access: 'workspace', app: to.app, scope: to.scope };
+}
+
 /** Lo que ata una firma a ese archivo tal como está: si cambia de dueño, de acceso o de bytes, la URL deja de valer. */
 export type SignableFileRow = Pick<StoredFileRow, 'id' | 'workspace_id' | 'access' | 'ref'>;
 

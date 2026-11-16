@@ -11,7 +11,9 @@ export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string; secret: string }> };
 
-const MAX_BODY = 2 * 1024 * 1024;
+// Las tandas del historial (al vincular) pasan de 2 MB: con ese tope el gateway recibía 413 y, tras sus reintentos,
+// las descartaba. 4 MB entra en el límite del cuerpo de una función.
+const MAX_BODY = 4 * 1024 * 1024;
 
 /**
  * Eventos del servidor de WhatsApp para una cuenta personal. Valida el
