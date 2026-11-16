@@ -155,7 +155,7 @@ describe('Lines: un mensaje que llega', () => {
     expect(msgs[2].replyToId).toBeNull();
   });
 
-  it('un chat archivado se queda archivado con un mensaje nuevo, salvo que el workspace pida que vuelva', async () => {
+  it('un chat archivado vuelve con un mensaje nuevo, salvo que el workspace pida mantenerlos archivados', async () => {
     const { ws, number } = await linesSetup('fast-archived');
     const jid = '5491100096301@s.whatsapp.net';
     await linesWebhook(number, [message(jid, 'a-1')]);
@@ -163,11 +163,12 @@ describe('Lines: un mensaje que llega', () => {
     const [chat] = (await listChats(ws, ws, {})).rows;
     await getDb().prepare("UPDATE groups_chats SET archived_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").run(chat.id);
     await linesWebhook(number, [message(jid, 'a-2')]);
-    expect((await getChat(ws, chat.id))!.archived).toBe(true);
-    // Los ajustes llegan en la misma tanda que el mensaje: el cambio vale para el próximo.
-    await updateSettings(ws, { keepArchived: false });
-    await linesWebhook(number, [message(jid, 'a-3')]);
     expect((await getChat(ws, chat.id))!.archived).toBe(false);
+    // Los ajustes llegan en la misma tanda que el mensaje: el cambio vale para el próximo.
+    await updateSettings(ws, { keepArchived: true });
+    await getDb().prepare("UPDATE groups_chats SET archived_at = '2026-01-01T00:00:00.000Z' WHERE id = ?").run(chat.id);
+    await linesWebhook(number, [message(jid, 'a-3')]);
+    expect((await getChat(ws, chat.id))!.archived).toBe(true);
   });
 
   it('lo que sigue al mensaje (asignación, eventos) corre después de responder, no antes', async () => {

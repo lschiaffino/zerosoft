@@ -2828,7 +2828,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
             if (st.flagMode === 'questions') {
               await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
             }
-            // Archivado: vuelve a la lista con un mensaje nuevo solo si el workspace lo pidió.
+            // Archivado: vuelve a la lista con un mensaje nuevo, salvo que el workspace pida mantenerlos archivados (o el
+            // chat tenga "Mantener archivado": el trigger de la base lo deja como estaba).
             if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
             // Ticket por palabra clave: antes de responder.
             if (matchKeyword(st.ticketKeywords, row.body)) {
