@@ -182,7 +182,19 @@ opcionales y un registro de actividad.
   `AXIsProcessTrusted` da false. Ajustes › Primeros pasos lo detecta (anota con qué versión se vio
   permitida), lo explica y **Restablecer permiso** borra la entrada vieja (`tccutil reset`), la pide
   de nuevo y abre la lista. Con el certificado propio (`MACOS_SIGNING_P12`, abajo) el requisito
-  nombra el certificado y el permiso sigue entre versiones.
+  nombra el certificado y el permiso sigue entre versiones (las builds publicadas salen así desde
+  la 0.3.3).
+- **Actualizar con la app abierta** (arreglado en la 0.3.11): macOS valida los permisos contra el
+  código en disco. Hasta la 0.3.9 el updater reemplazaba el paquete en el lugar apenas bajaba una
+  versión, y desde ahí hasta reiniciar `AXIsProcessTrusted` daba false con la llave prendida (el
+  pegado dejaba de andar y prenderla o restablecerla no servía). Ahora la versión bajada se instala
+  al elegir "Reiniciar para actualizar" o al salir de la app. Si igual la app se reemplaza con ella
+  abierta (una copia nueva arrastrada a Aplicaciones), Ajustes lo detecta (`platform::replaced_on_disk`,
+  el inodo del ejecutable cambió) y ofrece **Reiniciar zerosoft** en vez de Restablecer, que borraría
+  la entrada buena.
+- **Builds locales:** `npm run build` firma ad hoc con el mismo identificador (`ai.zerosoft.desktop`).
+  Abrir esa copia en una Mac que tiene la publicada puede dejar en Accesibilidad la entrada de la
+  build local: en esa Mac, Restablecer permiso desde la publicada.
 
 ## Desarrollo
 

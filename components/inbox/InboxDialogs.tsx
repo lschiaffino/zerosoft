@@ -9,10 +9,13 @@ import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose'
 import { splitSubject } from '@/lib/ai-compose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from './ai-compose';
 import { canMoveFolder, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
+import { TOUCH_QUERY, useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 
 /** Modal (<dialog>): Esc y el telón cierran, el foco queda adentro. */
 export function Modal({ open, title, onClose, children, wide = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Teléfono: "atrás" cierra el diálogo (no la pantalla de abajo).
+  useBackLayer(open, onClose, { enabled: useMediaQuery(TOUCH_QUERY) });
   useEffect(() => {
     const d = ref.current;
     if (!d) return;

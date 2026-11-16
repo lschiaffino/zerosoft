@@ -1,8 +1,13 @@
 //! Actualizaciones con el updater de Tauri. Feed: <servidor>/api/desktop/update/latest.json, que
 //! sirve el latest.json del último release desktop-v* de GitHub. Cada paquete viene firmado con la
 //! clave del updater (minisign, independiente de la firma de Apple): por eso también se actualiza
-//! en Mac con firma ad hoc. Se baja en segundo plano; en Mac se instala en el lugar y vale al
-//! reiniciar; en Windows el instalador corre al elegir "Reiniciar para actualizar".
+//! en Mac con firma ad hoc. Se baja en segundo plano y se instala al elegir "Reiniciar para
+//! actualizar" (en Mac también al salir de la app).
+//!
+//! En Mac no se instala con la app abierta: el updater reemplaza el paquete en el lugar, y macOS
+//! valida los permisos (Accesibilidad, micrófono) contra el código en disco. Con el paquete nuevo
+//! debajo del proceso viejo, `AXIsProcessTrusted` daba false hasta reiniciar aunque la llave
+//! siguiera prendida: el pegado dejaba de andar horas después de cada actualización.
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -13,7 +18,7 @@ use tauri_plugin_updater::UpdaterExt;
 use crate::state::AppState;
 use crate::strings::{fill, t};
 
-/// Windows: el instalador bajado espera al reinicio.
+/// La versión bajada espera al reinicio (Windows: el instalador; Mac: el paquete, también hasta salir).
 static DOWNLOADED: Mutex<Option<(tauri_plugin_updater::Update, Vec<u8>)>> = Mutex::new(None);
 
 /// La build trae clave pública del updater (sin ella el plugin no verifica nada y no se usa).
@@ -30,8 +35,6 @@ fn set_info(app: &AppHandle, f: impl FnOnce(&mut crate::state::UpdateInfo)) {
     crate::commands::refresh_settings(app);
 }
 
-/// Busca una versión nueva y, si hay, la baja (Mac: la deja instalada para el próximo arranque).
-/// `interactive`: lo pidió la persona (menú o Ajustes): se avisa también si está al día.
 /// Cada cuánto se busca sola una versión nueva.
 pub const CHECK_EVERY_SECS: u64 = 4 * 3600;
 
@@ -40,6 +43,9 @@ fn log_check(app: &AppHandle, interactive: bool, result: crate::privacy::Tag) {
     crate::privacy::record(app, Event::new(Kind::UpdateCheck).trigger(if interactive { Tag::Manual } else { Tag::Auto }).result(result).host_of(&crate::api::server(app)));
 }
 
+/// Busca una versión nueva y, si hay, la baja y la deja esperando ("Reiniciar para actualizar";
+/// en Mac también al salir). `interactive`: lo pidió la persona (menú o Ajustes): se avisa
+/// también si está al día.
 pub async fn check(app: &AppHandle, interactive: bool) {
     let l = app.state::<AppState>().locale;
     if !enabled(app) {
@@ -84,13 +90,7 @@ pub async fn check(app: &AppHandle, interactive: bool) {
         return finish(app, false);
     }
     let Ok(bytes) = update.download(|_, _| {}, || {}).await else { return finish(app, true) };
-    if cfg!(target_os = "macos") {
-        if update.install(&bytes).is_err() {
-            return finish(app, true);
-        }
-    } else {
-        *DOWNLOADED.lock().unwrap() = Some((update, bytes));
-    }
+    *DOWNLOADED.lock().unwrap() = Some((update, bytes));
     *app.state::<AppState>().update_ready.lock().unwrap() = Some(version.clone());
     finish(app, false);
     crate::tray::rebuild(app);
@@ -100,10 +100,23 @@ pub async fn check(app: &AppHandle, interactive: bool) {
 /// "Reiniciar para actualizar".
 pub fn restart_to_update(app: &AppHandle) {
     if let Some((update, bytes)) = DOWNLOADED.lock().unwrap().take() {
-        // Windows: corre el instalador (pasivo) y la app se cierra; el instalador la vuelve a abrir.
+        // Mac: reemplaza el paquete y el reinicio abre el nuevo. Windows: corre el instalador
+        // (pasivo) y la app se cierra; el instalador la vuelve a abrir.
         let _ = update.install(bytes);
     }
     app.restart();
+}
+
+/// Mac: al salir, instala la versión que quedó bajada (el próximo arranque ya es la nueva).
+pub fn install_on_exit() {
+    if !cfg!(target_os = "macos") {
+        return;
+    }
+    // try_lock: si otro hilo la tiene (un reinicio en curso), ese se encarga.
+    let taken = DOWNLOADED.try_lock().ok().and_then(|mut d| d.take());
+    if let Some((update, bytes)) = taken {
+        let _ = update.install(bytes);
+    }
 }
 
 pub fn start(app: &AppHandle) {

@@ -14,6 +14,7 @@ import '@/styles/groups-wa.css';
 import '@/styles/wa-newchat.css';
 import '@/styles/lines-folders.css';
 import '@/styles/chat-gestures.css';
+import '@/styles/wa-touch.css';
 import '@/styles/groups-later.css';
 import '@/styles/groups-hubspot.css';
 import '@/styles/lines-groups-table.css';
