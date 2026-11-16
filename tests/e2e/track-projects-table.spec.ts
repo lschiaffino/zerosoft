@@ -43,7 +43,7 @@ test('Tabla de projects: nombre entero, celdas editables y soltar issues en una 
     }),
   );
   await page.goto(`/en/app/track/projects?team=${t.id}`, { waitUntil: 'networkidle' });
-  await expect(page.getByRole('button', { name: 'Filter' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filter', exact: true })).toBeVisible();
   const row = page.getByTestId('tp-plan-row').filter({ hasText: name });
   await expect(row).toHaveAttribute('data-track-drop', `plan:${plan.id}`);
   await expect(row).toHaveAttribute('data-track-drop-name', name);
