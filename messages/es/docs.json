@@ -263,7 +263,9 @@
       "blocks": "Bloques a insertar (Markdown)",
       "blocksPlaceholder": "- [ ] Tarea de seguimiento\n## Notas",
       "url": "Link",
-      "save": "Guardar botón"
+      "save": "Guardar botón",
+      "blocksHint": "Acepta # título, - lista, 1. lista numerada, [] tarea, [x] hecha, > cita y --- separador.",
+      "delete": "Eliminar botón"
     },
     "synced": {
       "label": "Bloque sincronizado",

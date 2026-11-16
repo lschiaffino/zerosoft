@@ -52,6 +52,7 @@ import {
   type DocsFileSource,
 } from '@/lib/docs-files';
 import { DocsUploadError, uploadDocsFile, uploadLimit } from '@/lib/docs-upload-client';
+import { expandButtonShorthand } from '@/lib/docs-button-markdown';
 import {
   containerOf,
   columnRatio,
@@ -2699,9 +2700,9 @@ export default function DocsEditor({
         return;
       }
 
-      if (e.key === 'Backspace') {
+      if (e.key === 'Backspace' || e.key === 'Delete') {
         // Caret al inicio: fusionar con el bloque anterior.
-        if (isEditable && collapsed && caret === 0) {
+        if (e.key === 'Backspace' && isEditable && collapsed && caret === 0) {
           if (mergeWithPrevious(index)) e.preventDefault();
           return;
         }
@@ -2709,9 +2710,17 @@ export default function DocsEditor({
           // Backspace dentro de una celda de tabla/database edita el texto de
           // la celda: NUNCA borra el bloque entero.
           const target = e.target as HTMLElement;
-          if (target.closest('input, textarea, select')) return;
+          // Tampoco con el foco en un botón o un link de adentro (el botón del bloque, la barra de una imagen).
+          if (target.closest('input, textarea, select, button, a, [contenteditable="true"]')) return;
           e.preventDefault();
-          removeBlock(index);
+          if (blocks.length > 1) {
+            // Los hijos suben un nivel, como siempre.
+            removeBlock(index);
+          } else {
+            // El único bloque de la página: queda una línea vacía (como el menú del asa).
+            const res = deleteBlocks(index, index);
+            editBlock(res.start, res.blocks);
+          }
           return;
         }
       }
@@ -2732,6 +2741,8 @@ export default function DocsEditor({
       mergeWithPrevious,
       insertBlock,
       removeBlock,
+      deleteBlocks,
+      editBlock,
       applyMark,
       openLinkDialog,
       mention,
@@ -3540,7 +3551,8 @@ export default function DocsEditor({
         else if (url.startsWith('/')) window.location.assign(url.startsWith(`/${locale}/`) ? url : `/${locale}${url}`);
         return;
       }
-      const created = markdownToBlocks(button.markdown ?? '', { sanitize: sanitizeRichHtml }).map((b) => ({ ...b, id: newId() }));
+      // `[] tarea` y compañía (sin el guion de GFM) también son to-dos, como al tipearlos.
+      const created = markdownToBlocks(expandButtonShorthand(button.markdown ?? ''), { sanitize: sanitizeRichHtml }).map((b) => ({ ...b, id: newId() }));
       if (!created.length) return;
       setBlocks((prev) => {
         const i = prev.findIndex((b) => b.id === blocks[index]?.id);
@@ -3819,8 +3831,8 @@ export default function DocsEditor({
   );
 
   // Callbacks estables para los bloques (memo): siempre llaman a la versión más nueva.
-  const latest = useRef({ handleBlockChange, handleKeyDown, handleFocus, fileHref, handlePasteFiles, handlePasteBlocks, onPasteUrl, onPasteSynced, runButton, openInlineEquation });
-  latest.current = { handleBlockChange, handleKeyDown, handleFocus, fileHref, handlePasteFiles, handlePasteBlocks, onPasteUrl, onPasteSynced, runButton, openInlineEquation };
+  const latest = useRef({ handleBlockChange, handleKeyDown, handleFocus, fileHref, handlePasteFiles, handlePasteBlocks, onPasteUrl, onPasteSynced, runButton, openInlineEquation, deleteBlocks, editBlock });
+  latest.current = { handleBlockChange, handleKeyDown, handleFocus, fileHref, handlePasteFiles, handlePasteBlocks, onPasteUrl, onPasteSynced, runButton, openInlineEquation, deleteBlocks, editBlock };
   const stable = useMemo(
     () => ({
       onChange: (...a: Parameters<typeof handleBlockChange>) => latest.current.handleBlockChange(...a),
@@ -3832,6 +3844,10 @@ export default function DocsEditor({
       onPasteUrl: (...a: Parameters<typeof onPasteUrl>) => latest.current.onPasteUrl(...a),
       onPasteSynced: (...a: Parameters<typeof onPasteSynced>) => latest.current.onPasteSynced(...a),
       onRunButton: (...a: Parameters<typeof runButton>) => latest.current.runButton(...a),
+      onDeleteBlock: (index: number) => {
+        const res = latest.current.deleteBlocks(index, index);
+        latest.current.editBlock(res.start, res.blocks);
+      },
       onInlineEquation: (...a: Parameters<typeof openInlineEquation>) => latest.current.openInlineEquation(...a),
     }),
     [],
@@ -3923,7 +3939,8 @@ export default function DocsEditor({
                     commandIcon={(type) => BLOCK_ICONS[type]}
                     canMoveUp={index > 0}
                     canMoveDown={subtreeEnd(blocks, index) < blocks.length - 1}
-                    canDelete={blocks.length > 1}
+                    // El único bloque también se borra (queda una línea vacía), salvo que ya sea esa línea.
+                    canDelete={blocks.length > 1 || block.type !== 'paragraph' || block.content !== ''}
                     onClose={closeBlockMenu}
                     onTurnInto={(cmd) => convertBlock(index, cmd.type, cmd.level, undefined, 0, { toggle: cmd.toggle, linked: cmd.linked })}
                     onColor={(c) => setBlockColor(index, c)}
@@ -3991,6 +4008,7 @@ export default function DocsEditor({
                   toc={block.type === 'toc' ? toc : undefined}
                   trail={block.type === 'breadcrumb' ? trail : undefined}
                   onRunButton={stable.onRunButton}
+                  onDeleteBlock={mode === 'edit' ? stable.onDeleteBlock : undefined}
                   onInlineEquation={stable.onInlineEquation}
                   ref={refFor(index)}
                 />

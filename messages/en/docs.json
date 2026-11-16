@@ -263,7 +263,9 @@
       "blocks": "Blocks to insert (Markdown)",
       "blocksPlaceholder": "- [ ] Follow-up task\n## Notes",
       "url": "Link",
-      "save": "Save button"
+      "save": "Save button",
+      "blocksHint": "Supports # heading, - list, 1. numbered list, [] to-do, [x] done, > quote and --- divider.",
+      "delete": "Delete button"
     },
     "synced": {
       "label": "Synced block",
