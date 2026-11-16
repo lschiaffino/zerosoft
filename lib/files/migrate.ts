@@ -1,7 +1,9 @@
 /**
  * Migración de los archivos de antes (URLs públicas del Blob de la suite y
  * /uploads/… del disco local) al storage privado de lib/files/store.ts.
- * Server-only. La corre scripts/migrate-private-files.ts.
+ * Server-only. La corren scripts/migrate-private-files.ts (de una vez,
+ * migratePrivateFiles) y el runner de mantenimiento del cron de cada minuto
+ * (lib/maintenance-jobs.ts, de a tandas con migrateStep y un cursor guardado).
  *
  * Por cada URL vieja que aparece en la base (en cualquier columna de texto,
  * también adentro de JSON o Markdown):
@@ -64,7 +66,7 @@ const DEFAULT_ACCESS: Record<Folder, FileAccess> = {
 };
 
 /** Tablas que no se tocan nunca. */
-const SKIP_TABLES = new Set(['stored_files', '_migrations', 'schema_migrations', 'sqlite_sequence']);
+const SKIP_TABLES = new Set(['stored_files', '_migrations', 'schema_migrations', 'sqlite_sequence', 'maintenance_jobs', 'maintenance_job_seen']);
 
 /**
  * Cómo saber de quién es un archivo según la tabla que lo usa. `ws`: SQL del
@@ -139,26 +141,119 @@ export interface MigrateReport {
   failed: Array<{ key: string; reason: string }>;
 }
 
-function emptyReport(): MigrateReport {
-  return { byFolder: {}, total: { files: 0, bytes: 0 }, unmapped: [], skippedFolders: {}, registered: 0, copied: 0, rewrittenCells: 0, deleted: 0, failed: [] };
+/**
+ * Lo ya visto en una corrida: las URLs contadas ('found') y, antes de borrar, las claves que la base todavía usa
+ * ('used'). En memoria para el script; en la base (con hash) para el runner de mantenimiento (lib/maintenance-jobs.ts).
+ */
+export interface SeenKeys {
+  /** true si la clave es nueva en ese espacio. */
+  add(ns: string, key: string): Promise<boolean>;
+  has(ns: string, key: string): Promise<boolean>;
+}
+
+export function memorySeenKeys(): SeenKeys {
+  const sets = new Map<string, Set<string>>();
+  const of = (ns: string) => {
+    let s = sets.get(ns);
+    if (!s) sets.set(ns, (s = new Set()));
+    return s;
+  };
+  return {
+    add: async (ns, key) => {
+      const s = of(ns);
+      if (s.has(key)) return false;
+      s.add(key);
+      return true;
+    },
+    has: async (ns, key) => of(ns).has(key),
+  };
+}
+
+/** Dónde va un recorrido de la base: tabla, columna y último rowid hecho. */
+export interface ScanCursor {
+  table: string | null;
+  column: string | null;
+  after: number;
+}
+
+/**
+ * Progreso de una corrida que se hace de a tandas (y se retoma). Solo tiene nombres de tablas y columnas, rowids,
+ * ids de stored_files y cuentas: nada de URLs, nombres de archivo ni contenido.
+ */
+export interface MigrateProgress {
+  phase: 'scan' | 'used' | 'delete' | 'done';
+  /** Recorrido que cuenta (y, con apply, migra). */
+  scan: ScanCursor;
+  /** Recorrido que junta las claves viejas que la base todavía usa, antes de borrar. */
+  used: ScanCursor;
+  /** Último id de stored_files revisado para borrar. */
+  fileAfter: string;
+  /** Filas leídas con alguna URL vieja candidata. */
+  scannedRows: number;
+  byFolder: Record<string, FolderCount>;
+  total: FolderCount;
+  unmapped: Array<{ table: string; column: string; cells: number }>;
+  skippedFolders: Record<string, number>;
+  registered: number;
+  copied: number;
+  rewrittenCells: number;
+  deleted: number;
+  failed: number;
+  failedByReason: Record<string, number>;
+}
+
+export function newMigrateProgress(): MigrateProgress {
+  return {
+    phase: 'scan',
+    scan: { table: null, column: null, after: -1 },
+    used: { table: null, column: null, after: -1 },
+    fileAfter: '',
+    scannedRows: 0,
+    byFolder: {},
+    total: { files: 0, bytes: 0 },
+    unmapped: [],
+    skippedFolders: {},
+    registered: 0,
+    copied: 0,
+    rewrittenCells: 0,
+    deleted: 0,
+    failed: 0,
+    failedByReason: {},
+  };
+}
+
+export interface StepContext {
+  seen: SeenKeys;
+  /** Hasta cuándo (ms) se empieza trabajo nuevo. Sin esto, el paso corre hasta el final. Siempre avanza al menos una fila. */
+  deadline?: number;
+  /** Cada falla, con su clave (el script la junta; el runner solo cuenta los motivos). */
+  onFail?: (key: string, reason: string) => void;
 }
 
 const q = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
-async function tables(db: Client): Promise<Array<{ name: string; cols: string[]; textCols: string[] }>> {
+interface TableInfo {
+  name: string;
+  cols: string[];
+  textCols: string[];
+}
+
+async function tableNames(db: Client): Promise<string[]> {
   const rs = await db.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'");
-  const out: Array<{ name: string; cols: string[]; textCols: string[] }> = [];
-  for (const r of rs.rows) {
-    const name = String(r.name);
-    if (SKIP_TABLES.has(name)) continue;
-    const info = await db.execute(`PRAGMA table_info(${q(name)})`);
-    const cols = info.rows.map((c) => String(c.name));
-    const textCols = info.rows.filter((c) => /TEXT|CHAR|CLOB|^$/i.test(String(c.type ?? ''))).map((c) => String(c.name));
-    // Sin rowid (WITHOUT ROWID) no se puede reescribir por celda.
-    const hasRowid = await db.execute(`SELECT rowid FROM ${q(name)} LIMIT 0`).then(() => true, () => false);
-    if (hasRowid && textCols.length) out.push({ name, cols, textCols });
-  }
-  return out;
+  return rs.rows
+    .map((r) => String(r.name))
+    .filter((n) => !SKIP_TABLES.has(n))
+    .sort();
+}
+
+async function tableInfo(db: Client, name: string): Promise<TableInfo | null> {
+  const info = await db.execute(`PRAGMA table_info(${q(name)})`);
+  const cols = info.rows.map((c) => String(c.name));
+  const textCols = info.rows.filter((c) => /TEXT|CHAR|CLOB|^$/i.test(String(c.type ?? ''))).map((c) => String(c.name));
+  if (!textCols.length) return null;
+  // Sin rowid (WITHOUT ROWID) no se puede reescribir por celda.
+  const hasRowid = await db.execute(`SELECT rowid FROM ${q(name)} LIMIT 0`).then(() => true, () => false);
+  return hasRowid ? { name, cols, textCols } : null;
 }
 
 function folderOf(url: string): string | null {
@@ -185,7 +280,7 @@ export function legacyUrlsIn(text: string): string[] {
   return [...out];
 }
 
-function ownerSql(t: { name: string; cols: string[] }): { ws: string; user: string | null } | null {
+function ownerSql(t: TableInfo): { ws: string; user: string | null } | null {
   const rule = RULES[t.name];
   if (rule?.ws) return { ws: rule.ws, user: rule.user ?? null };
   for (const c of ['workspace_id', 'user_id', 'owner_id']) if (t.cols.includes(c)) return { ws: `t.${q(c)}`, user: null };
@@ -241,79 +336,80 @@ async function copyHash(row: StoredFileRow): Promise<{ sha: string; size: number
   return hashOf(opened.stream as unknown as AsyncIterable<Uint8Array>).catch(() => null);
 }
 
-interface Found {
-  url: string;
-  folder: string;
+interface ScanRow {
+  rid: number;
+  v: string;
   ws: string;
-  user: string | null;
-  app: string | null;
-  access: FileAccess;
+  person: string | null;
   scope: string | null;
-  cells: Array<{ table: string; column: string; rowid: number }>;
 }
 
-/** Recorre la base y junta las URLs viejas con su dueño. */
-async function discover(db: Client, opts: MigrateOptions, report: MigrateReport, seen?: Set<string>): Promise<Map<string, Found>> {
-  const batch = Math.max(50, Math.min(5000, opts.batch ?? 500));
-  const wanted = new Set(opts.folders?.length ? opts.folders : MIGRATABLE_FOLDERS);
-  const found = new Map<string, Found>();
-  for (const t of await tables(db)) {
-    if (opts.tables?.length && !opts.tables.includes(t.name)) continue;
-    const owner = ownerSql(t);
-    const rule = RULES[t.name];
-    for (const col of t.textCols) {
-      let after = -1;
-      let unmapped = 0;
-      for (;;) {
-        const sel = owner
-          ? `SELECT t.rowid AS rid, t.${q(col)} AS v, ${owner.ws} AS ws, ${owner.user ?? 'NULL'} AS person${rule?.scope ? `, ${rule.scope} AS scope` : ''}`
-          : `SELECT t.rowid AS rid, t.${q(col)} AS v`;
-        const rs = await db.execute({
-          sql: `${sel} FROM ${q(t.name)} t WHERE t.rowid > ? AND (t.${q(col)} LIKE '%.public.blob.vercel-storage.com/%' OR t.${q(col)} LIKE '%/uploads/%') ORDER BY t.rowid LIMIT ?`,
-          args: [after, batch],
-        });
-        if (!rs.rows.length) break;
-        for (const r of rs.rows) {
-          after = Number(r.rid);
-          const urls = legacyUrlsIn(String(r.v ?? ''));
-          for (const url of urls) {
-            seen?.add(url);
-            const folder = folderOf(url);
-            if (!folder) continue;
-            if (!(MIGRATABLE_FOLDERS as readonly string[]).includes(folder) || !wanted.has(folder as Folder)) {
-              report.skippedFolders[folder] = (report.skippedFolders[folder] ?? 0) + 1;
-              continue;
-            }
-            const ws = owner ? (r.ws == null ? '' : String(r.ws)) : '';
-            if (!ws) {
-              unmapped++;
-              continue;
-            }
-            const f = folder as Folder;
-            let entry = found.get(url);
-            if (!entry) {
-              const access = rule?.access ?? DEFAULT_ACCESS[f];
-              entry = {
-                url,
-                folder,
-                ws,
-                user: access === 'user' ? String(r.person ?? ws) : r.person == null ? null : String(r.person),
-                app: rule?.app ?? null,
-                access,
-                scope: rule?.scope && r.scope != null ? String(r.scope) : null,
-                cells: [],
-              };
-              found.set(url, entry);
-            }
-            entry.cells.push({ table: t.name, column: col, rowid: Number(r.rid) });
+const past = (deadline: number | undefined) => deadline !== undefined && Date.now() >= deadline;
+
+/**
+ * Recorre las celdas de texto que pueden tener URLs viejas, desde el cursor (tablas por nombre, columnas en orden,
+ * filas por rowid). Devuelve true al terminar, o false si se pasó el deadline: el cursor queda después de lo último
+ * hecho, así la próxima llamada sigue de ahí. Siempre hace algo antes de mirar el deadline.
+ */
+async function scanCells(
+  db: Client,
+  cur: ScanCursor,
+  o: { tables?: string[]; batch: number; deadline?: number; owners: boolean },
+  each: {
+    batch?: (t: TableInfo, rows: ScanRow[], owned: boolean) => Promise<void>;
+    row: (t: TableInfo, col: string, r: ScanRow, owned: boolean) => Promise<void>;
+  },
+): Promise<boolean> {
+  const names = (await tableNames(db)).filter((n) => !o.tables?.length || o.tables.includes(n));
+  let i = cur.table === null ? 0 : names.findIndex((n) => n >= cur.table!);
+  if (i < 0) return true;
+  for (; i < names.length; i++) {
+    const name = names[i];
+    if (cur.table !== name) Object.assign(cur, { table: name, column: null, after: -1 });
+    const t = await tableInfo(db, name);
+    if (t) {
+      const owner = o.owners ? ownerSql(t) : null;
+      const rule = RULES[t.name];
+      let c = cur.column ? t.textCols.indexOf(cur.column) : 0;
+      if (c < 0) c = 0;
+      for (; c < t.textCols.length; c++) {
+        const col = t.textCols[c];
+        if (cur.column !== col) Object.assign(cur, { column: col, after: -1 });
+        for (;;) {
+          const sel = owner
+            ? `SELECT t.rowid AS rid, t.${q(col)} AS v, ${owner.ws} AS ws, ${owner.user ?? 'NULL'} AS person${rule?.scope ? `, ${rule.scope} AS scope` : ''}`
+            : `SELECT t.rowid AS rid, t.${q(col)} AS v`;
+          const rs = await db.execute({
+            sql: `${sel} FROM ${q(t.name)} t WHERE t.rowid > ? AND (t.${q(col)} LIKE '%.public.blob.vercel-storage.com/%' OR t.${q(col)} LIKE '%/uploads/%') ORDER BY t.rowid LIMIT ?`,
+            args: [cur.after, o.batch],
+          });
+          if (!rs.rows.length) break;
+          const rows: ScanRow[] = rs.rows.map((r) => ({
+            rid: Number(r.rid),
+            v: String(r.v ?? ''),
+            ws: owner && r.ws != null ? String(r.ws) : '',
+            person: r.person == null ? null : String(r.person),
+            scope: r.scope == null ? null : String(r.scope),
+          }));
+          await each.batch?.(t, rows, owner !== null);
+          for (const r of rows) {
+            await each.row(t, col, r, owner !== null);
+            cur.after = r.rid;
+            if (past(o.deadline)) return false;
           }
+          if (rows.length < o.batch) break;
         }
-        if (rs.rows.length < batch) break;
+        if (c + 1 < t.textCols.length) {
+          Object.assign(cur, { column: t.textCols[c + 1], after: -1 });
+          if (past(o.deadline)) return false;
+        }
       }
-      if (unmapped) report.unmapped.push({ table: t.name, column: col, cells: unmapped });
     }
+    if (i + 1 >= names.length) break;
+    Object.assign(cur, { table: names[i + 1], column: null, after: -1 });
+    if (past(o.deadline)) return false;
   }
-  return found;
+  return true;
 }
 
 function nameOf(url: string): string {
@@ -331,170 +427,285 @@ function mimeOf(name: string): string {
   return map[ext] ?? 'application/octet-stream';
 }
 
-async function rewriteCells(db: Client, entry: Found, newUrl: string): Promise<number> {
-  let n = 0;
-  for (const c of entry.cells) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const rs = await db.execute({ sql: `SELECT ${q(c.column)} AS v FROM ${q(c.table)} WHERE rowid = ?`, args: [c.rowid] });
-      const v = rs.rows[0]?.v;
-      if (typeof v !== 'string' || !v.includes(entry.url)) break;
-      const next = v.split(entry.url).join(newUrl);
-      const up = await db.execute({ sql: `UPDATE ${q(c.table)} SET ${q(c.column)} = ? WHERE rowid = ? AND ${q(c.column)} = ?`, args: [next, c.rowid, v] as InValue[] });
-      if (up.rowsAffected > 0) {
-        n++;
-        break;
-      }
-    }
-  }
-  return n;
+interface Cell {
+  table: string;
+  column: string;
+  rowid: number;
 }
 
-/** Corre la migración (o la cuenta, sin `apply`). */
-export async function migratePrivateFiles(db: Client, opts: MigrateOptions = {}): Promise<MigrateReport> {
-  const log = opts.log ?? (() => undefined);
+/** Reescribe una celda (compare-and-set, hasta 3 intentos). */
+async function rewriteCell(db: Client, c: Cell, oldUrl: string, newUrl: string): Promise<number> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rs = await db.execute({ sql: `SELECT ${q(c.column)} AS v FROM ${q(c.table)} WHERE rowid = ?`, args: [c.rowid] });
+    const v = rs.rows[0]?.v;
+    if (typeof v !== 'string' || !v.includes(oldUrl)) return 0;
+    const next = v.split(oldUrl).join(newUrl);
+    const up = await db.execute({ sql: `UPDATE ${q(c.table)} SET ${q(c.column)} = ? WHERE rowid = ? AND ${q(c.column)} = ?`, args: [next, c.rowid, v] as InValue[] });
+    if (up.rowsAffected > 0) return 1;
+  }
+  return 0;
+}
+
+function fail(p: MigrateProgress, ctx: StepContext, key: string, reason: string): void {
+  p.failed++;
+  p.failedByReason[reason] = (p.failedByReason[reason] ?? 0) + 1;
+  ctx.onFail?.(key, reason);
+}
+
+interface Target {
+  url: string;
+  key: string;
+  folder: Folder;
+  ws: string;
+  user: string | null;
+  app: string | null;
+  access: FileAccess;
+  scope: string | null;
+}
+
+/** La URL de una fila, si se migra acá y se sabe de quién es (si no, con `count` la anota como salteada o sin dueño). */
+function targetOf(p: MigrateProgress, wanted: Set<string>, t: TableInfo, col: string, r: ScanRow, owned: boolean, url: string, count: boolean): Target | null {
+  const folder = folderOf(url);
+  if (!folder) return null;
+  if (!(MIGRATABLE_FOLDERS as readonly string[]).includes(folder) || !wanted.has(folder)) {
+    if (count) p.skippedFolders[folder] = (p.skippedFolders[folder] ?? 0) + 1;
+    return null;
+  }
+  const ws = owned ? r.ws : '';
+  if (!ws) {
+    if (count) {
+      const u = p.unmapped.find((x) => x.table === t.name && x.column === col);
+      if (u) u.cells++;
+      else p.unmapped.push({ table: t.name, column: col, cells: 1 });
+    }
+    return null;
+  }
+  const f = folder as Folder;
+  const rule = RULES[t.name];
+  const access = rule?.access ?? DEFAULT_ACCESS[f];
+  return {
+    url,
+    key: legacyKeyFor(url)!,
+    folder: f,
+    ws,
+    user: access === 'user' ? r.person ?? ws : r.person,
+    app: rule?.app ?? null,
+    access,
+    scope: rule?.scope ? r.scope : null,
+  };
+}
+
+/** Registra, copia, verifica y pasa a la copia un archivo viejo, y reescribe la celda que lo usa. */
+async function migrateCell(
+  db: Client,
+  opts: MigrateOptions,
+  p: MigrateProgress,
+  ctx: StepContext,
+  e: Target,
+  cell: Cell,
+  size: number | undefined,
+  run: { copied: number },
+): Promise<void> {
   const sizeOf = opts.sizeOf ?? defaultSize;
   const readOriginal = opts.readOriginal ?? defaultRead;
-  const report = emptyReport();
-  const found = await discover(db, opts, report);
-  log(`URLs viejas encontradas: ${found.size}`);
-
-  // Conteo por carpeta, con bytes (HEAD / stat), de a 8 en paralelo.
-  const entries = [...found.values()];
-  const sizes = new Map<string, number>();
-  for (let i = 0; i < entries.length; i += 8) {
-    await Promise.all(
-      entries.slice(i, i + 8).map(async (e) => {
-        const n = (await sizeOf(e.url).catch(() => null)) ?? 0;
-        sizes.set(e.url, n);
-        const c = (report.byFolder[e.folder] ??= { files: 0, bytes: 0 });
-        c.files++;
-        c.bytes += n;
-        report.total.files++;
-        report.total.bytes += n;
-      }),
-    );
-  }
-  if (!opts.apply) return report;
-
-  let copiedThisRun = 0;
-  for (const e of entries) {
-    const key = legacyKeyFor(e.url)!;
-    try {
-      let row = await fileRowForLegacyKey(key);
-      if (row?.ref === GONE_REF) {
-        // Su copia se borró (la fila que la usaba ya no está), pero esta celda todavía usa el original: se registra de nuevo.
-        await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
-        row = null;
-      }
-      if (!row) {
-        const name = nameOf(e.url);
-        row = await registerLegacyFile(e.url, {
-          workspaceId: e.ws,
-          userId: e.user,
-          app: e.app,
-          folder: e.folder,
-          access: e.access,
-          scope: e.scope,
-          name,
-          mime: mimeOf(name),
-          size: sizes.get(e.url) ?? 0,
-        });
-        if (!row) throw new Error('register_failed');
-        report.registered++;
-      }
-      if (row.ref.startsWith('legacy:')) {
-        if (opts.limit !== undefined && copiedThisRun >= opts.limit) continue;
-        const src = await readOriginal(e.url);
-        if (!src) throw new Error('original_unreadable');
-        const h = createHash('sha256');
-        let size = 0;
-        const counted = (async function* () {
-          for await (const piece of hashing(src, h)) {
-            size += piece.byteLength;
-            yield piece;
-          }
-        })();
-        const stored = await storeBytes(newFileId(), counted, { folder: e.folder, mime: row.mime });
-        const sha = h.digest('hex');
-        // Verificación: la copia se relee entera y tiene que dar lo mismo.
-        const probe: StoredFileRow = { ...row, ref: stored.ref, header: stored.header, size: stored.size };
-        const back = await copyHash(probe);
-        if (!back || back.sha !== sha || back.size !== size || stored.size !== size) {
-          await discardBytes(stored.ref);
-          throw new Error('verify_failed');
-        }
-        if (!(await swapFileRef(row.id, row.ref, stored))) {
-          // Otra corrida la copió primero.
-          await discardBytes(stored.ref);
-        } else {
-          report.copied++;
-          copiedThisRun++;
-        }
-        row = (await fileRowForLegacyKey(key))!;
-      }
-      report.rewrittenCells += await rewriteCells(db, e, fileUrl(row));
-    } catch (err) {
-      report.failed.push({ key, reason: err instanceof Error ? err.message : 'error' });
-      log(`falló ${e.folder}: ${err instanceof Error ? err.message : 'error'}`);
+  try {
+    let row = await fileRowForLegacyKey(e.key);
+    if (row?.ref === GONE_REF) {
+      // Su copia se borró (la fila que la usaba ya no está), pero esta celda todavía usa el original: se registra de nuevo.
+      await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
+      row = null;
     }
+    if (!row) {
+      const name = nameOf(e.url);
+      row = await registerLegacyFile(e.url, {
+        workspaceId: e.ws,
+        userId: e.user,
+        app: e.app,
+        folder: e.folder,
+        access: e.access,
+        scope: e.scope,
+        name,
+        mime: mimeOf(name),
+        size: size ?? (await sizeOf(e.url).catch(() => null)) ?? 0,
+      });
+      if (!row) throw new Error('register_failed');
+      p.registered++;
+    }
+    if (row.ref.startsWith('legacy:')) {
+      if (opts.limit !== undefined && run.copied >= opts.limit) return;
+      const src = await readOriginal(e.url);
+      if (!src) throw new Error('original_unreadable');
+      const h = createHash('sha256');
+      let n = 0;
+      const counted = (async function* () {
+        for await (const piece of hashing(src, h)) {
+          n += piece.byteLength;
+          yield piece;
+        }
+      })();
+      const stored = await storeBytes(newFileId(), counted, { folder: e.folder, mime: row.mime });
+      const sha = h.digest('hex');
+      // Verificación: la copia se relee entera y tiene que dar lo mismo.
+      const probe: StoredFileRow = { ...row, ref: stored.ref, header: stored.header, size: stored.size };
+      const back = await copyHash(probe);
+      if (!back || back.sha !== sha || back.size !== n || stored.size !== n) {
+        await discardBytes(stored.ref);
+        throw new Error('verify_failed');
+      }
+      if (!(await swapFileRef(row.id, row.ref, stored))) {
+        // Otra corrida la copió primero.
+        await discardBytes(stored.ref);
+      } else {
+        p.copied++;
+        run.copied++;
+      }
+      row = (await fileRowForLegacyKey(e.key))!;
+    }
+    p.rewrittenCells += await rewriteCell(db, cell, e.url, fileUrl(row));
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'error';
+    fail(p, ctx, e.key, reason);
+    opts.log?.(`falló ${e.folder}: ${reason}`);
   }
-
-  if (opts.deleteOriginals) await deletePass(db, opts, report);
-  return report;
 }
 
 /**
- * Borra los originales públicos ya migrados: la fila apunta a la copia, en
- * la base no queda ninguna referencia a la URL vieja, y la copia y el
- * original vuelven a dar el mismo sha256.
+ * Un paso de la migración (o del conteo, sin `apply`): sigue desde donde quedó `p` hasta terminar o hasta
+ * `ctx.deadline`, y deja en `p` el cursor y las cuentas. Idempotente: lo registrado se reconoce por legacy_key, lo
+ * copiado por su ref, y cada reescritura es compare-and-set. Sin `apply` no escribe nada (solo en `ctx.seen`).
  */
-async function deletePass(db: Client, opts: MigrateOptions, report: MigrateReport): Promise<void> {
-  const readOriginal = opts.readOriginal ?? defaultRead;
-  const deleteOriginal = opts.deleteOriginal ?? defaultDelete;
-  // Toda URL vieja que siga en la base, en cualquier tabla (aunque esta corrida migre solo algunas) y
-  // también en tablas sin dueño conocido. Se compara por clave (el pathname), no por la URL entera.
-  const still = new Set<string>();
-  await discover(db, { ...opts, folders: undefined, tables: undefined }, emptyReport(), still);
-  const used = new Set<string>();
-  for (const u of still) {
-    const k = legacyKeyFor(u);
-    if (k) used.add(k);
+export async function migrateStep(db: Client, opts: MigrateOptions, p: MigrateProgress, ctx: StepContext): Promise<MigrateProgress> {
+  const batch = Math.max(50, Math.min(5000, opts.batch ?? 500));
+  const sizeOf = opts.sizeOf ?? defaultSize;
+  const wanted = new Set<string>(opts.folders?.length ? opts.folders : MIGRATABLE_FOLDERS);
+  const run = { copied: 0 };
+  if (p.phase === 'scan') {
+    const sizes = new Map<string, number>();
+    const done = await scanCells(db, p.scan, { tables: opts.tables, batch, deadline: ctx.deadline, owners: true }, {
+      // Tamaños (HEAD / stat) de las URLs nuevas de la tanda, de a 8 en paralelo.
+      batch: async (t, rows, owned) => {
+        sizes.clear();
+        const fresh: string[] = [];
+        for (const r of rows) {
+          for (const url of legacyUrlsIn(r.v)) {
+            if (fresh.includes(url) || !targetOf(p, wanted, t, '', r, owned, url, false)) continue;
+            if (!(await ctx.seen.has('found', url))) fresh.push(url);
+          }
+        }
+        for (let i = 0; i < fresh.length; i += 8) {
+          if (i > 0 && past(ctx.deadline)) break;
+          await Promise.all(fresh.slice(i, i + 8).map(async (u) => sizes.set(u, (await sizeOf(u).catch(() => null)) ?? 0)));
+        }
+      },
+      row: async (t, col, r, owned) => {
+        p.scannedRows++;
+        for (const url of legacyUrlsIn(r.v)) {
+          const e = targetOf(p, wanted, t, col, r, owned, url, true);
+          if (!e) continue;
+          let size = sizes.get(url);
+          if (await ctx.seen.add('found', url)) {
+            if (size === undefined) size = (await sizeOf(url).catch(() => null)) ?? 0;
+            const c = (p.byFolder[e.folder] ??= { files: 0, bytes: 0 });
+            c.files++;
+            c.bytes += size;
+            p.total.files++;
+            p.total.bytes += size;
+          }
+          if (opts.apply) await migrateCell(db, opts, p, ctx, e, { table: t.name, column: col, rowid: r.rid }, size, run);
+        }
+      },
+    });
+    if (!done) return p;
+    opts.log?.(`URLs viejas encontradas: ${p.total.files}`);
+    p.phase = opts.apply && opts.deleteOriginals ? 'used' : 'done';
+    if (p.phase === 'done' || past(ctx.deadline)) return p;
   }
-  const rs = await db.execute("SELECT * FROM stored_files WHERE legacy_key IS NOT NULL AND ref NOT LIKE 'legacy:%'");
-  for (const r of rs.rows) {
-    const row = r as unknown as StoredFileRow;
-    const key = String(row.legacy_key);
-    if (used.has(key)) continue;
-    const url = key.startsWith('uploads/') ? `/${key}` : null;
-    const original = url ?? (await originalUrlFor(db, key));
-    if (!original) continue;
-    if (opts.folders?.length && !opts.folders.includes(String(row.folder))) continue;
-    try {
-      if (row.ref === GONE_REF) {
-        // La copia ya se borró con lo que la usaba: el original se va también, y después la marca.
-        await deleteOriginal(original);
-        await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
-        report.deleted++;
-        continue;
-      }
-      const src = await readOriginal(original);
-      if (!src) continue; // Ya no está.
-      const a = await hashOf(src);
-      const b = await copyHash(row);
-      if (!b || a.sha !== b.sha || a.size !== b.size) {
-        report.failed.push({ key, reason: 'verify_before_delete_failed' });
-        continue;
-      }
-      await deleteOriginal(original);
-      report.deleted++;
-    } catch (err) {
-      report.failed.push({ key, reason: err instanceof Error ? err.message : 'delete_failed' });
+  if (p.phase === 'used') {
+    // Toda URL vieja que siga en la base, en cualquier tabla (aunque esta corrida migre solo algunas) y también en
+    // tablas sin dueño conocido. Se compara por clave (el pathname), no por la URL entera.
+    const done = await scanCells(db, p.used, { batch, deadline: ctx.deadline, owners: false }, {
+      row: async (_t, _col, r) => {
+        for (const u of legacyUrlsIn(r.v)) {
+          const k = legacyKeyFor(u);
+          if (k) await ctx.seen.add('used', k);
+        }
+      },
+    });
+    if (!done) return p;
+    p.phase = 'delete';
+    if (past(ctx.deadline)) return p;
+  }
+  if (p.phase === 'delete') {
+    if (!(await deleteSlice(db, opts, p, ctx))) return p;
+    p.phase = 'done';
+  }
+  return p;
+}
+
+/**
+ * Borra los originales públicos ya migrados: la fila apunta a la copia, en la base no queda ninguna referencia a la
+ * URL vieja, y la copia y el original vuelven a dar el mismo sha256. De a tandas por id de stored_files.
+ */
+async function deleteSlice(db: Client, opts: MigrateOptions, p: MigrateProgress, ctx: StepContext): Promise<boolean> {
+  for (;;) {
+    const rs = await db.execute({
+      sql: "SELECT * FROM stored_files WHERE legacy_key IS NOT NULL AND ref NOT LIKE 'legacy:%' AND id > ? ORDER BY id LIMIT 200",
+      args: [p.fileAfter],
+    });
+    if (!rs.rows.length) return true;
+    for (const r of rs.rows) {
+      const row = r as unknown as StoredFileRow;
+      await deleteOne(db, opts, p, ctx, row);
+      p.fileAfter = String(row.id);
+      if (past(ctx.deadline)) return false;
     }
+    if (rs.rows.length < 200) return true;
   }
 }
 
+async function deleteOne(db: Client, opts: MigrateOptions, p: MigrateProgress, ctx: StepContext, row: StoredFileRow): Promise<void> {
+  const readOriginal = opts.readOriginal ?? defaultRead;
+  const deleteOriginal = opts.deleteOriginal ?? defaultDelete;
+  const key = String(row.legacy_key);
+  if (await ctx.seen.has('used', key)) return;
+  const original = key.startsWith('uploads/') ? `/${key}` : originalUrlFor(key);
+  if (!original) return;
+  if (opts.folders?.length && !opts.folders.includes(String(row.folder))) return;
+  try {
+    if (row.ref === GONE_REF) {
+      // La copia ya se borró con lo que la usaba: el original se va también, y después la marca.
+      await deleteOriginal(original);
+      await db.execute({ sql: 'DELETE FROM stored_files WHERE id = ? AND ref = ?', args: [row.id, GONE_REF] });
+      p.deleted++;
+      return;
+    }
+    const src = await readOriginal(original);
+    if (!src) return; // Ya no está.
+    const a = await hashOf(src);
+    const b = await copyHash(row);
+    if (!b || a.sha !== b.sha || a.size !== b.size) {
+      fail(p, ctx, key, 'verify_before_delete_failed');
+      return;
+    }
+    await deleteOriginal(original);
+    p.deleted++;
+  } catch (err) {
+    fail(p, ctx, key, err instanceof Error ? err.message : 'delete_failed');
+  }
+}
+
+/** Corre la migración entera de una vez (o la cuenta, sin `apply`). La usa scripts/migrate-private-files.ts. */
+export async function migratePrivateFiles(db: Client, opts: MigrateOptions = {}): Promise<MigrateReport> {
+  const p = newMigrateProgress();
+  const failed: MigrateReport['failed'] = [];
+  const ctx: StepContext = { seen: memorySeenKeys(), onFail: (key, reason) => failed.push({ key, reason }) };
+  while (p.phase !== 'done') await migrateStep(db, opts, p, ctx);
+  const { byFolder, total, unmapped, skippedFolders, registered, copied, rewrittenCells, deleted } = p;
+  return { byFolder, total, unmapped, skippedFolders, registered, copied, rewrittenCells, deleted, failed };
+}
+
 /** La URL completa del original: el host del store sale de BLOB_READ_WRITE_TOKEN o de SHOP_BLOB_HOST. */
-async function originalUrlFor(_db: Client, key: string): Promise<string | null> {
+function originalUrlFor(key: string): string | null {
   const explicit = process.env.FILES_LEGACY_BLOB_HOST?.trim().toLowerCase() || process.env.SHOP_BLOB_HOST?.trim().toLowerCase();
   const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN ?? '');
   const host = explicit || (m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null);
