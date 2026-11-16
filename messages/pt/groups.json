@@ -2115,7 +2115,7 @@
   },
   "hubspot": {
     "createContact": "Criar contato no HubSpot",
-    "createContactHelp": "Cria um contato com o nome e o número desta conversa. Antes procura o número no HubSpot, então nunca fica um segundo contato com o mesmo número. Se os grupos da pessoa têm uma só empresa, ele entra nessa empresa.",
+    "createContactHelp": "Usa o nome e o número desta conversa. Se o número já está no HubSpot, você vincula esse contato.",
     "createContactNoScope": "Para criar contatos, a private app do HubSpot precisa da permissão {scope}.",
     "contactCreated": "Contato criado no HubSpot",
     "contactExists": "Esse número já está no HubSpot. Vincule o contato que já existe.",

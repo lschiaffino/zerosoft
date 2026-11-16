@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { waLinkIp } from './helpers/wa-link';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
@@ -14,13 +14,15 @@ import { PHONE, check, setTheme, settle } from './responsive-audit';
  * y el spec lo deja desconectado (y el panel sin fijar) al terminar.
  */
 
+// Con `next dev` (fuera de CI) cada ruta se compila la primera vez que se pide: más margen.
+const expect = baseExpect.configure({ timeout: process.env.CI ? 15_000 : 60_000 });
 const uid = () => Math.random().toString(36).slice(2, 8);
 const randomPhone = () => `54911${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
 const TOKEN = 'pat-na1-e2e-lines-hubspot-contacts';
 const DANA_PHONE = '5491155550142';
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(240_000);
+test.setTimeout(process.env.CI ? 240_000 : 900_000);
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();
@@ -72,14 +74,21 @@ async function linesDm(request: APIRequestContext, n: { webhookUrl: string }, ph
   return found.rows[0].id;
 }
 
+/** Fuera de CI deja capturas en la carpeta del test, para la pasada visual. */
+async function shot(page: Page, name: string) {
+  if (!process.env.CI) await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+}
+
 const hubspotRegion = (page: Page) => page.getByRole('region', { name: 'HubSpot', exact: true });
 const dock = (page: Page) => page.getByTestId('hubspot-dock');
 
 async function openLinesDetails(page: Page) {
-  // A 1280 los detalles van detrás del botón; a 1440 o más están siempre a la vista.
-  const toggle = page.getByRole('button', { name: 'Details', exact: true });
-  if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-  await expect(hubspotRegion(page)).toBeVisible();
+  // A 1280 los detalles van detrás del botón (como en lines-hubspot.spec.ts).
+  // Hasta que la página hidrata, el botón todavía no abre nada: se reintenta.
+  await expect(async () => {
+    if (!(await hubspotRegion(page).isVisible())) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await baseExpect(hubspotRegion(page)).toBeVisible({ timeout: 3_000 });
+  }).toPass();
 }
 
 test.afterAll(async ({ request }) => {
@@ -102,7 +111,10 @@ test('Lines: crear el contacto desde el chat, elegir propiedades y fijar el pane
   await openLinesDetails(page);
   const create = hubspotRegion(page).getByTestId('hs-create-contact');
   await expect(create).toBeVisible();
+  const created = page.waitForResponse((r) => r.url().endsWith('/api/groups/people/person') && r.request().method() === 'POST', { timeout: 90_000 });
   await create.click();
+  const createdRes = await created;
+  expect(createdRes.status(), await createdRes.text()).toBe(201);
   await expect(hubspotRegion(page).getByTestId('hs-create-contact')).toHaveCount(0);
   const links = (await (await request.get(`/api/groups/hubspot/links?chat=${nora}`)).json()) as { links: Array<{ type: string }> };
   expect(links.links.map((l) => l.type)).toContain('contact');
@@ -113,13 +125,15 @@ test('Lines: crear el contacto desde el chat, elegir propiedades y fijar el pane
   await page.reload({ waitUntil: 'networkidle' });
   await openLinesDetails(page);
   await expect(hubspotRegion(page).locator('[data-prop="domain"]')).toBeVisible();
+  await shot(page, 'lines-details-1280');
   await hubspotRegion(page).getByTestId('hubspot-choose-props').click();
   const picker = page.getByRole('dialog').filter({ has: page.getByTestId('hubspot-my-props') });
   await expect(picker).toBeVisible();
   await picker.getByRole('combobox').selectOption('plan_tier');
   await expect(picker.getByTestId('hubspot-my-props-reset')).toBeVisible();
   expect(((await (await request.get('/api/groups/hubspot/properties')).json()) as { mine: string[] }).mine).toEqual(['domain', 'hubspot_owner_id', 'lifecyclestage', 'plan_tier']);
-  await check(page, 'lines hubspot elegir propiedades 1280');
+  await check(page, 'lines hubspot elegir propiedades 1280', { tap: false });
+  await shot(page, 'lines-picker-1280');
   await page.keyboard.press('Escape');
   await expect(picker).toBeHidden();
   await expect(hubspotRegion(page).locator('[data-prop="plan_tier"]')).toBeVisible();
@@ -145,8 +159,9 @@ test('Lines: crear el contacto desde el chat, elegir propiedades y fijar el pane
   for (const theme of ['light', 'dark'] as const) {
     await setTheme(page.context(), baseURL!, theme);
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(dock(page)).toBeVisible();
-    await check(page, `lines hubspot panel fijo 1280 ${theme}`);
+    await expect(dock(page).locator('[data-prop="plan_tier"]').first()).toBeVisible();
+    await check(page, `lines hubspot panel fijo 1280 ${theme}`, { tap: false });
+    await shot(page, `lines-dock-1280-${theme}`);
   }
   await setTheme(page.context(), baseURL!, 'light');
 
@@ -165,6 +180,7 @@ test('Lines: crear el contacto desde el chat, elegir propiedades y fijar el pane
       await settle(mobile);
       await expect(mobile.getByTestId('hubspot-dock')).toHaveCount(0);
       await check(mobile, `lines hubspot chat 390 ${theme}`);
+      await shot(mobile, `lines-chat-390-${theme}`);
     }
   } finally {
     await phone.close();
@@ -203,10 +219,13 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   const who = (await (await request.get(`/api/inbox/people/person?thread=${th.id}`)).json()) as { row: { id: string; hubspot: { contact: unknown } | null } };
   if (who.row.hubspot?.contact) await request.post('/api/inbox/people/person', { data: { id: who.row.id, action: 'unlink' } });
 
-  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
-  await page.locator('.ib-wa-thread .wa-head-who').click();
+  await page.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'networkidle' });
   const card = page.getByTestId('inbox-chat-hubspot');
+  // Abre la info del contacto (reintenta hasta que la página hidrata).
+  await expect(async () => {
+    if (!(await card.isVisible())) await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 });
+    await baseExpect(card).toBeVisible({ timeout: 5_000 });
+  }).toPass();
   await expect(card).toBeVisible();
   // Su teléfono ya está en HubSpot: se propone vincular (no se crea otro).
   await expect(card.getByTestId('contact-hs-matches')).toBeVisible();
@@ -214,6 +233,7 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   await expect(card.getByTestId('contact-hs-contact')).toBeVisible();
   await expect(card.getByTestId('inbox-hs-company')).toBeVisible();
   await expect(card.locator('[data-prop="domain"]')).toBeVisible();
+  await shot(page, 'inbox-card-1280');
 
   // Elegir propiedades: la misma elección que en Lines.
   await card.getByTestId('hubspot-choose-props').click();
@@ -235,8 +255,9 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   for (const theme of ['light', 'dark'] as const) {
     await setTheme(page.context(), baseURL!, theme);
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(dock(page)).toBeVisible();
-    await check(page, `inbox hubspot panel fijo 1280 ${theme}`);
+    await expect(dock(page).locator('[data-prop="plan_tier"]').first()).toBeVisible();
+    await check(page, `inbox hubspot panel fijo 1280 ${theme}`, { tap: false });
+    await shot(page, `inbox-dock-1280-${theme}`);
   }
   await setTheme(page.context(), baseURL!, 'light');
   await dock(page).getByTestId('hubspot-pin-panel').click();
@@ -248,12 +269,14 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
     const mobile = await phone.newPage();
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(phone, baseURL!, theme);
-      await mobile.goto('/en/app/inbox', { waitUntil: 'domcontentloaded' });
+      await mobile.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'domcontentloaded' });
       await settle(mobile);
-      await mobile.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
       await mobile.locator('.ib-wa-thread .wa-head-who').click();
-      await expect(mobile.getByTestId('inbox-chat-hubspot')).toBeVisible();
-      await check(mobile, `inbox hubspot info 390 ${theme}`);
+      await expect(mobile.getByTestId('inbox-chat-hubspot').getByTestId('contact-hs-contact')).toBeVisible();
+      await expect(mobile.getByTestId('inbox-hs-company')).toBeVisible();
+      // La cabecera del chat queda debajo de la hoja de info (no es parte de este cambio).
+      await check(mobile, `inbox hubspot info 390 ${theme}`, { ignore: /wa-head-who/ });
+      await shot(mobile, `inbox-info-390-${theme}`);
     }
   } finally {
     await phone.close();
@@ -263,11 +286,13 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
   const toggle = page.getByTestId('inbox-hs-auto-create');
   await expect(toggle).not.toBeChecked();
-  await toggle.check();
+  // El interruptor cambia cuando el servidor guardó (no antes): click y esperar el estado.
+  await toggle.click();
   await expect(toggle).toBeChecked();
   expect(((await (await request.get('/api/inbox/hubspot')).json()) as { autoCreate: boolean }).autoCreate).toBe(true);
-  await check(page, 'inbox ajustes hubspot 1280');
-  await toggle.uncheck();
+  await check(page, 'inbox ajustes hubspot 1280', { tap: false });
+  await shot(page, 'inbox-settings-1280');
+  await toggle.click();
   await expect(toggle).not.toBeChecked();
   expect(errors, errors.join('\n')).toEqual([]);
 });

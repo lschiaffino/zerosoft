@@ -117,7 +117,9 @@ dialog.ui-drawer.gr-hsx { width: min(760px, 100vw); }
    La app le deja su lugar, como al asistente fijado (styles/assistant.css). */
 .gr-hs-title { flex-wrap: wrap; }
 .gr-hs-title-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.gr-hs-pin-actions { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.gr-hs-pin-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.gr-hs-pin-actions .btn { min-width: 40px; min-height: 40px; justify-content: center; }
+.gr-hs-mine .select { min-height: 40px; }
 .gr-hsx-head-actions { display: flex; align-items: center; gap: 4px; flex: none; }
 .gr-hsx-dock-btn { display: inline-flex; align-items: center; gap: 6px; }
 .gr-hsx-dock-btn[aria-pressed='true'] { color: var(--ink); background: var(--ui-selected, var(--ui-hover)); }
@@ -146,6 +148,12 @@ html[data-hubspot-pinned][data-assistant-pinned] .gr-hsx-dock { right: var(--ass
 .gr-hsx-dock .gr-hsx-label { grid-column: 1; min-height: 28px; padding: 4px 8px 0; }
 .gr-hsx-dock .gr-hsx-value { grid-column: 1; grid-row: 2; }
 .gr-hsx-dock .gr-hsx-row.has-pin .gr-hsx-pin { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.gr-hsx-dock > * { flex: none; }
+/* Fuera del <dialog> rige el aire de arriba y abajo que el sitio les da a los <section>. */
+.gr-hsx-dock .gr-hsx-section { padding-top: 0; padding-bottom: 0; }
+.gr-hsx-dock > .ui-drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Con el panel al costado la conversación queda angosta: la cabecera del chat de Inbox baja sus botones a otra fila. */
+html[data-hubspot-pinned] .ib-app.gr-inbox .ib-wa-thread .wa-head { flex-wrap: wrap; }
 .ib-hs-company { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 /* Los detalles del chat que flotan a la derecha (Lines por debajo de 1440px) van a la izquierda del panel fijo. */
 @media (min-width: 1024px) and (max-width: 1439px) {

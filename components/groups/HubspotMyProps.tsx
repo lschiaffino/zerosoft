@@ -64,7 +64,7 @@ export default function HubspotMyProps({ open, onClose, onSaved }: { open: boole
           {tc('loading')}
         </p>
       ) : (
-        <div className="ui-fields" data-testid="hubspot-my-props">
+        <div className="ui-fields gr-hs-mine" data-testid="hubspot-my-props">
           <p className="ui-help">{t('mine.help', { n: HUBSPOT_MAX_PINNED })}</p>
           <p className="ui-help" role="status" data-testid="hubspot-my-props-source">
             {schema.mine ? t('mine.custom') : t('mine.workspace')}
