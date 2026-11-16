@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import LibraryView from '@/components/social/LibraryView';
 import { requireUser } from '@/lib/session';
-import { listLibrary, socialActor, type LibraryKind } from '@/lib/social';
+import { LIBRARY_KINDS, listLibrary, socialActor, type LibraryKind } from '@/lib/social';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export default async function SocialLibraryPage(props: { params: Promise<{ local
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'social' });
-  const kind = sp.kind === 'snippet' || sp.kind === 'hashtags' || sp.kind === 'asset' ? (sp.kind as LibraryKind) : 'all';
+  const kind = (LIBRARY_KINDS as readonly string[]).includes(sp.kind ?? '') ? (sp.kind as LibraryKind) : 'all';
   const items = await listLibrary(socialActor(user));
   return (
     <div className="ui-page">

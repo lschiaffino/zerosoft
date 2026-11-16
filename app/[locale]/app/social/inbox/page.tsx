@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import InboxView from '@/components/social/InboxView';
 import { requireUser } from '@/lib/session';
-import { listAccounts, listSocialPeople, socialActor } from '@/lib/social';
+import { listAccounts, listLibrary, listSocialPeople, socialActor } from '@/lib/social';
 import { listInbox, type InboxFilter } from '@/lib/social-inbox';
 import { NETWORK_SPECS } from '@/lib/social-networks';
 
@@ -29,7 +29,7 @@ export default async function SocialInboxPage(props: { params: Promise<{ locale:
     accountId: sp.account || undefined,
     assigned: sp.assigned === 'me' || sp.assigned === 'none' ? sp.assigned : undefined,
   };
-  const [accounts, people] = await Promise.all([listAccounts(actor), listSocialPeople(actor)]);
+  const [accounts, people, saved] = await Promise.all([listAccounts(actor), listSocialPeople(actor), listLibrary(actor, 'reply')]);
   let items = await listInbox(actor, filter);
   // Un ítem abierto por link (aviso de asignación) aparece aunque ya esté hecho.
   if (sp.item && !items.some((i) => i.id === sp.item)) {
@@ -48,6 +48,7 @@ export default async function SocialInboxPage(props: { params: Promise<{ locale:
         people={people.map((p) => ({ id: p.id, name: p.name }))}
         me={actor.personId}
         filters={{ status: filter.status ?? 'open', kind: filter.kind ?? '', account: filter.accountId ?? '', assigned: filter.assigned ?? '' }}
+        savedReplies={saved.map((r) => ({ id: r.id, name: r.name, body: r.body }))}
       />
     </div>
   );

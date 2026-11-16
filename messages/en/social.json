@@ -293,7 +293,15 @@
     "markDone": "Mark done",
     "reopen": "Reopen",
     "markedDone": "Marked done",
-    "reopened": "Reopened"
+    "reopened": "Reopened",
+    "insertSavedReply": "Insert saved reply",
+    "noSavedReplies": "Add saved replies",
+    "saveAsReply": "Save as saved reply",
+    "savedReplyName": "Name of the saved reply",
+    "savedReplySave": "Save",
+    "savedReplyCreated": "Saved reply added to the library",
+    "cancel": "Cancel",
+    "savedReplyNameShort": "Name"
   },
   "analytics": {
     "title": "Analytics",
@@ -324,7 +332,7 @@
   },
   "library": {
     "title": "Library",
-    "description": "Saved texts, hashtag sets and files for the whole team.",
+    "description": "Saved texts, hashtag sets, files and inbox replies for the whole team.",
     "kind_all": "All",
     "kind_snippet": "Saved texts",
     "kind_hashtags": "Hashtag sets",
@@ -347,7 +355,10 @@
     "delete": "Delete",
     "deleteTitle": "Delete {name}?",
     "deleteBody": "It leaves the library. Posts that already use it don't change.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "kind_reply": "Saved replies",
+    "replyHint": "Inbox replies. '{name}' becomes the first name of whoever wrote, '{account}' the name of your account.",
+    "emptyBodyReply": "Save the answers you send often in the inbox, like shipping times or opening hours. Insert them from any comment or message."
   },
   "accounts": {
     "title": "Accounts",
