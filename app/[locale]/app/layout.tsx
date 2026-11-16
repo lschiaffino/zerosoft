@@ -6,6 +6,7 @@ import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { CSP_NONCE_HEADER } from '@/lib/csp';
 import { appFromPath, isComingSoon, PRODUCT_KEYS } from '@/lib/products';
 import { isStaff } from '@/lib/workspace-apps';
 import PreviewBanner from '@/components/app/PreviewBanner';
@@ -87,6 +88,8 @@ export default async function AppLayout(
   const user = await requireUser(locale);
   // La cookie de sesión con la que se arma esta página (la revisa sessionGuardScript al abrirla).
   const whoCookie = (await cookies()).get(WHO_COOKIE_NAME)?.value ?? '';
+  // Nonce de la CSP de la app (middleware, lib/csp.ts) para los scripts en línea de este layout.
+  const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined;
   const real = user.actingUser ?? user;
   // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
   try {
@@ -132,7 +135,7 @@ export default async function AppLayout(
         <ThemeProvider initial={embedTheme}>
           <LookProvider initial={lookOf(real)}>
           <div className="st-embed">
-            <script dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) + sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <script nonce={nonce} dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) + sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
             <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
             <SettingsEmbedGuard />
             <PlatformSettingsNav
@@ -231,14 +234,14 @@ export default async function AppLayout(
       <ThemeProvider initial={themePref}>
       <LookProvider initial={lookOf(real)}>
       {/* El aspecto de la cuenta (users.look) antes del primer paint de la app, aunque este navegador no tenga la cookie. */}
-      <script dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) }} />
+      <script nonce={nonce} dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) }} />
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <AppAccent />
         {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
-        <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
-        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
         {/* La app de escritorio avisa una vez que se abrió con esta cuenta ("Primeros pasos"). */}
@@ -640,6 +643,7 @@ export default async function AppLayout(
             groups: {
               inbox: tGroups('sidebar.inbox'),
               groups: tGroups('sidebar.groups'),
+              contacts: tGroups('sidebar.contacts'),
               tickets: tGroups('sidebar.tickets'),
               tasks: tGroups('sidebar.tasks'),
               templates: tGroups('sidebar.templates'),
@@ -727,6 +731,7 @@ export default async function AppLayout(
               done: tInbox('nav.done'),
               compose: tInbox('nav.compose'),
               analytics: tInbox('nav.analytics'),
+              contacts: tInbox('nav.contacts'),
             },
             fleet: { now: tFleet('nav.now'), chats: tFleet('nav.chats'), prs: tFleet('nav.prs'), deploys: tFleet('nav.deploys'), connect: tFleet('nav.connect') },
             calls: { library: tCalls('nav.library'), upcoming: tCalls('nav.upcoming'), deals: tCalls('nav.deals'), ask: tCalls('nav.ask'), newCall: tCalls('nav.new'), analytics: tCalls('nav.analytics') },

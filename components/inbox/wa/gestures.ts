@@ -16,6 +16,8 @@ interface Gesture {
   dx: number;
   fired: boolean;
   timer: ReturnType<typeof setTimeout> | null;
+  /** Cuándo levantó el dedo por última vez (el clic derecho que Android manda con el toque largo llega cerca). */
+  touchAt: number;
 }
 
 const states = new WeakMap<object, Gesture>();
@@ -23,7 +25,7 @@ const states = new WeakMap<object, Gesture>();
 function stateOf(el: object): Gesture {
   let s = states.get(el);
   if (!s) {
-    s = { start: null, swiping: false, dx: 0, fired: false, timer: null };
+    s = { start: null, swiping: false, dx: 0, fired: false, timer: null, touchAt: 0 };
     states.set(el, s);
   }
   return s;
@@ -65,10 +67,20 @@ export const SWIPE_TRIGGER = 56;
 const SWIPE_MAX = 84;
 
 /**
- * Sobre un mensaje: deslizar a la derecha (responder) y toque largo (el
- * menú). La burbuja se corre con el dedo y vuelve sola.
+ * Sobre un mensaje: deslizar a la derecha (responder) y toque largo (el menú, o elegirlo). La burbuja se corre
+ * con el dedo y vuelve sola. Moverse más de 10 px antes de tiempo cancela el toque largo (es scroll o un
+ * deslizar). Android además manda un clic derecho (contextmenu) con el toque largo: se usa como el mismo toque
+ * largo, nunca dos veces, y no llega al clic derecho del escritorio. El clic que sigue a soltar no abre lo que
+ * estaba debajo (un link, una foto, el reproductor).
  */
 export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLElement) => void; holdMs?: number }) {
+  const fire = (el: HTMLElement, s: Gesture) => {
+    clearHold(s);
+    if (s.fired || s.swiping) return;
+    s.fired = true;
+    buzz(12);
+    opts.onHold?.(el);
+  };
   return {
     onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
       if (e.pointerType !== 'touch') return;
@@ -79,18 +91,12 @@ export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLEle
       s.swiping = false;
       s.fired = false;
       s.dx = 0;
-      if (opts.onHold) {
-        s.timer = setTimeout(() => {
-          s.fired = true;
-          buzz(12);
-          opts.onHold?.(el);
-        }, opts.holdMs ?? 450);
-      }
+      if (opts.onHold) s.timer = setTimeout(() => fire(el, s), opts.holdMs ?? 450);
     },
     onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
       const el = e.currentTarget;
       const s = stateOf(el);
-      if (!s.start) return;
+      if (!s.start || s.fired) return;
       const mx = e.clientX - s.start.x;
       const my = e.clientY - s.start.y;
       if (!s.swiping) {
@@ -107,17 +113,20 @@ export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLEle
       if (s.swiping) {
         s.dx = Math.max(0, Math.min(mx, SWIPE_MAX));
         el.style.transform = `translateX(${s.dx}px)`;
-        el.setAttribute('data-swipe', s.dx >= SWIPE_TRIGGER ? 'ready' : 'moving');
+        const was = el.getAttribute('data-swipe');
+        const now = s.dx >= SWIPE_TRIGGER ? 'ready' : 'moving';
+        if (now === 'ready' && was !== 'ready') buzz(6);
+        el.setAttribute('data-swipe', now);
       }
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
       const el = e.currentTarget;
       const s = stateOf(el);
       clearHold(s);
+      if (e.pointerType === 'touch') s.touchAt = Date.now();
       if (s.swiping) {
         if (s.dx >= SWIPE_TRIGGER) {
           s.fired = true;
-          buzz(8);
           opts.onSwipe?.();
         }
         settle(el, ['data-swipe']);
@@ -132,6 +141,15 @@ export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLEle
       if (s.swiping) settle(el, ['data-swipe']);
       s.swiping = false;
       s.start = null;
+    },
+    onContextMenuCapture: (e: ReactMouseEvent<HTMLElement>) => {
+      const s = stateOf(e.currentTarget);
+      const native = e.nativeEvent as MouseEvent & { pointerType?: string };
+      const touch = native.pointerType === 'touch' || s.start !== null || Date.now() - s.touchAt < 800;
+      if (!touch) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (s.start && !s.swiping) fire(e.currentTarget, s);
     },
     onClickCapture: swallowClick,
   };

@@ -218,7 +218,9 @@
     "deleteBody": "Its messages are deleted. Changes you already confirmed stay in the apps.",
     "loadError": "Could not load your chats.",
     "retry": "Try again",
-    "actionsFor": "Actions for {title}"
+    "actionsFor": "Actions for {title}",
+    "showChats": "Show chats",
+    "hideChats": "Back to the chat"
   },
   "home": {
     "title": "Ask the assistant",
@@ -393,5 +395,10 @@
     "resize": "Assistant panel width",
     "resizeHint": "Drag to resize. Double click to reset.",
     "more": "More"
-  }
+  },
+  "rows": {
+    "showAll": "Show all {count}",
+    "showMore": "Show {count} more"
+  },
+  "jumpToLatest": "Jump to latest"
 }

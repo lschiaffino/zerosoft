@@ -1,0 +1,55 @@
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index f0a3fc4..cf17669 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -1180,6 +1180,24 @@ export class BaileysStartupService extends ChannelStartupService {
+             }
+           }
+ 
++          // zerosoft: a group icon change only arrives as a stub (no `message`) and was dropped below. Baileys emits no
++          // groups.update for it, so it goes out as GROUPS_UPDATE with `picture` and who changed it.
++          if (
++            !received?.message &&
++            isJidGroup(received?.key?.remoteJid ?? '') &&
++            Number(received?.messageStubType) === proto.WebMessageInfo.StubType.GROUP_CHANGE_ICON
++          ) {
++            const key = received.key as typeof received.key & { participantAlt?: string };
++            this.sendDataWebhook(Events.GROUPS_UPDATE, [
++              {
++                id: key.remoteJid,
++                picture: received.messageStubParameters?.length ? 'changed' : 'removed',
++                author: key.participant ?? received.participant ?? undefined,
++                authorPn: key.participantAlt ?? undefined,
++              },
++            ]);
++          }
++
+           if ((type !== 'notify' && type !== 'append') || editedMessage || !received?.message) {
+             continue;
+           }
+@@ -1753,7 +1771,10 @@ export class BaileysStartupService extends ChannelStartupService {
+     },
+ 
+     'groups.update': (groupMetadataUpdate: Partial<GroupMetadata>[]) => {
+-      this.sendDataWebhook(Events.GROUPS_UPDATE, groupMetadataUpdate);
++      // zerosoft: the webhook only gets real changes (subject, description, settings, with `author`). The full
++      // metadata of every group that Baileys emits on connect (groupFetchAllParticipating) was megabytes per line.
++      const changes = groupMetadataUpdate.filter((group) => !(Array.isArray(group.participants) && group.subject !== undefined));
++      if (changes.length) this.sendDataWebhook(Events.GROUPS_UPDATE, changes);
+ 
+       // zerosoft: al conectar, Baileys trae todos los grupos de una (groupFetchAllParticipating) y los emite acá con
+       // la metadata completa. Releerla grupo por grupo eran decenas de groupMetadata seguidos y 429 de WhatsApp: si
+diff --git a/src/api/integrations/event/webhook/webhook.controller.ts b/src/api/integrations/event/webhook/webhook.controller.ts
+index 7f1dd8d..b5bb52d 100644
+--- a/src/api/integrations/event/webhook/webhook.controller.ts
++++ b/src/api/integrations/event/webhook/webhook.controller.ts
+@@ -103,7 +103,8 @@ export class WebhookController extends EventController implements EventControlle
+     };
+ 
+     if (local && instance?.enabled) {
+-      if (Array.isArray(webhookLocal) && webhookLocal.includes(we)) {
++      // zerosoft: the instance option is GROUP_UPDATE but the event is groups.update (GROUPS_UPDATE): it never matched.
++      if (Array.isArray(webhookLocal) && (webhookLocal.includes(we) || (we === 'GROUPS_UPDATE' && webhookLocal.includes('GROUP_UPDATE')))) {
+         let baseURL: string;
+ 
+         if (instance?.webhookByEvents) {

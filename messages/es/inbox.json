@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "pin": "Fijar chat", "unpin": "Dejar de fijar", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "groupInfo": "Info del grupo" },
-  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo", "analytics": "Analítica" },
+  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "compose": "Mensaje nuevo", "analytics": "Analítica", "contacts": "Contactos" },
   "views": {
     "inbox": "Bandeja",
     "unread": "No leídos",
@@ -14,7 +14,8 @@
     "snoozed": "Pospuestos",
     "scheduled": "Programados",
     "done": "Archivados",
-    "archived": "Archivados"
+    "archived": "Archivados",
+    "nofolder": "Sin carpeta"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "Correo", "groups": "Grupos", "unread": "No leídos" },
   "when": {
@@ -182,6 +183,7 @@
       "scheduled": "No hay nada programado. Usá Más tarde al lado de Enviar.",
       "done": "Todavía no archivaste nada",
       "archived": "No hay nada archivado. Archivá un chat desde su menú.",
+      "nofolder": "Todos los chats están en una carpeta",
       "folder": "Esta carpeta está vacía. Apretá V en un chat para sumarlo."
     }
   },
@@ -289,6 +291,7 @@
   },
   "folders": {
     "title": "Carpetas",
+    "noFolder": "Sin carpeta",
     "edit": "Editar carpeta",
     "new": "Carpeta nueva",
     "branchEmpty": "Todavía no hay carpetas.",

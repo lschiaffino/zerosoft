@@ -11,6 +11,7 @@ import { DOCS_SITE_HEADER } from './lib/docs-site-header';
 import { WHO_COOKIE } from './lib/session-hint';
 import { stripLocaleSetCookie } from './lib/locale-cookie';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
+import { CSP_NONCE_HEADER, CSP_REPORT_GROUP, CSP_REPORT_PATH, appCsp, newNonce, rootScriptHashes } from './lib/csp';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -234,7 +235,25 @@ export default async function middleware(incoming: NextRequest) {
   const quick = quickCreateRedirect(pathname, req.nextUrl.search);
   if (quick) return NextResponse.redirect(new URL(quick, req.url), 307);
 
-  return withWhoCookie(req, withoutSiteLocaleCookie(req, await intlMiddleware(withReturnPath(req))));
+  const csp = await appCspFor(req);
+  const res = withWhoCookie(req, withoutSiteLocaleCookie(req, await intlMiddleware(withReturnPath(req, csp))));
+  return csp ? withCsp(await res, csp) : res;
+}
+
+const APP_PAGE = /^\/(en|es|pt)\/app(\/|$)/;
+const CSP_HEADER = 'content-security-policy-report-only';
+
+/** CSP con nonce de las páginas de la app (lib/csp.ts); el resto del sitio queda estático y sin nonce. */
+async function appCspFor(req: NextRequest): Promise<{ nonce: string; policy: string } | null> {
+  if (!APP_PAGE.test(req.nextUrl.pathname)) return null;
+  const nonce = newNonce();
+  return { nonce, policy: appCsp(nonce, await rootScriptHashes(), { dev: process.env.NODE_ENV !== 'production' }) };
+}
+
+function withCsp(res: NextResponse, csp: { policy: string }): NextResponse {
+  res.headers.set(CSP_HEADER, csp.policy);
+  res.headers.set('Reporting-Endpoints', `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`);
+  return res;
 }
 
 /**
@@ -279,12 +298,20 @@ async function withWhoCookie(req: NextRequest, res: NextResponse): Promise<NextR
  * requireUser lo usa como ?callbackUrl= (también desde los layouts, que no
  * reciben el path). Siempre se pisa: nadie de afuera puede fijarlo.
  */
-function withReturnPath(req: NextRequest): NextRequest {
+function withReturnPath(req: NextRequest, csp: { nonce: string; policy: string } | null): NextRequest {
   const headers = new Headers(req.headers);
   headers.delete(RETURN_PATH_HEADER);
-  if (/^\/(en|es|pt)\/app(\/|$)/.test(req.nextUrl.pathname)) {
+  // El nonce va solo por el header interno (siempre pisado): Next lo lee de la CSP y lo pone en sus scripts.
+  headers.delete(CSP_NONCE_HEADER);
+  headers.delete(CSP_HEADER);
+  headers.delete('content-security-policy');
+  if (csp) {
+    headers.set(CSP_NONCE_HEADER, csp.nonce);
+    headers.set(CSP_HEADER, csp.policy);
+  }
+  if (APP_PAGE.test(req.nextUrl.pathname)) {
     headers.set(RETURN_PATH_HEADER, `${req.nextUrl.pathname}${req.nextUrl.search}`);
-  } else if (!req.headers.has(RETURN_PATH_HEADER)) {
+  } else if (!req.headers.has(RETURN_PATH_HEADER) && !req.headers.has(CSP_NONCE_HEADER) && !req.headers.has(CSP_HEADER) && !req.headers.has('content-security-policy')) {
     return req;
   }
   return new NextRequest(req, { headers });

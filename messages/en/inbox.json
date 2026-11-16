@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
   "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -14,7 +14,8 @@
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
     "done": "Archived",
-    "archived": "Archived"
+    "archived": "Archived",
+    "nofolder": "No folder"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
@@ -182,6 +183,7 @@
       "scheduled": "Nothing scheduled. Use Later next to Send.",
       "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
+      "nofolder": "Every chat is in a folder",
       "folder": "This folder is empty. Press V on a chat to add it."
     }
   },
@@ -289,6 +291,7 @@
   },
   "folders": {
     "title": "Folders",
+    "noFolder": "No folder",
     "edit": "Edit folder",
     "new": "New folder",
     "branchEmpty": "No folders yet.",

@@ -110,6 +110,11 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Cámara, micrófono y pantalla (Rec, Voice, Calls) solo para nuestro origen; lo que no usamos, apagado.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), usb=(), serial=(), hid=(), bluetooth=(), midi=(), browsing-topics=()',
+          },
         ],
       },
       // La app y el login no se enmarcan desde otros sitios (clickjacking). Lo que sí se embebe
@@ -118,7 +123,9 @@ const nextConfig = {
         source: '/:locale(en|es|pt)/:area(app|auth)/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+          // Además, ni plugins (<object>/<embed>) ni un <base> inyectado. Un header de acá pisa al de la
+          // ruta (no se suman): por eso no va en la base de todo el sitio, donde taparía el sandbox de los archivos.
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" },
         ],
       },
       // Pantallas de permisos de OAuth: nunca dentro de un iframe (clickjacking).
@@ -126,7 +133,7 @@ const nextConfig = {
         source: '/:locale(en|es|pt)/oauth/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
           { key: 'Referrer-Policy', value: 'no-referrer' },
         ],
       },

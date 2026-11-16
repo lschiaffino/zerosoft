@@ -205,7 +205,7 @@ describe('hechos de privacidad del escritorio', () => {
     expect([...inCode].filter((e) => e.startsWith('?')), 'pedidos sin método reconocible').toEqual([]);
     const inFacts = new Set(F.network.flatMap((n) => n.endpoints));
     expect([...inCode].sort()).toEqual([...inFacts].sort());
-    for (const e of ['POST /api/voice/dictate', 'HEAD /robots.txt', 'GET /api/auth/csrf', 'POST /api/auth/signout', 'GET /api/desktop/update/latest.json', '/api/desktop/login', 'DELETE /api/voice/dictionary/{id}', 'PATCH /api/voice/settings']) {
+    for (const e of ['POST /api/voice/dictate', 'GET /api/voice/dictate', 'GET /api/auth/csrf', 'POST /api/auth/signout', 'GET /api/desktop/update/latest.json', '/api/desktop/login', 'DELETE /api/voice/dictionary/{id}', 'PATCH /api/voice/settings']) {
       expect(inCode.has(e), e).toBe(true);
     }
   });
