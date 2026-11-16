@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import { useMounted } from '@/components/ui/useMounted';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
@@ -143,6 +144,8 @@ export default function InboxApp(props: {
   const w = useTranslations('inboxWa');
   const { style: chatStyle } = useChatStyle();
   const locale = useLocale();
+  // La hora de "vencido desde" va en la zona del navegador: recién después de hidratar.
+  const mounted = useMounted();
   const [state, setState] = useState(props.initialState);
   // La vista o carpeta sale de la URL. Cambiarla (pestañas, sidebar, atrás y adelante) solo cambia la lista:
   // la pantalla, el chat abierto y lo escrito en el composer quedan como están (ver ./nav.ts).
@@ -525,7 +528,7 @@ export default function InboxApp(props: {
     const th = threads.find((x) => x.id === openId);
     if (th && (th.unread > 0 || th.woke)) {
       void api(`/api/inbox/threads/${openId}`, { method: 'PATCH', json: { action: 'seen' } }).then(() => {
-        setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '' } : x)));
+        setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '', wokeAt: null } : x)));
         void reloadState();
       });
     }
@@ -1079,6 +1082,7 @@ export default function InboxApp(props: {
         data-idx={i}
         data-thread-id={th.id}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        data-overdue={th.woke ? 'true' : undefined}
         {...gestures.rowProps(th.id)}
         {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}
       >
@@ -1110,6 +1114,15 @@ export default function InboxApp(props: {
           }}
           onFocus={() => setCursor(i)}
         >
+          {/* Vencido (volvió de posponer o venció el recordatorio): un filete de color al borde, sin sumar alto (styles/wa-accent.css). */}
+          {th.woke && (
+            <span
+              className="wa-overdue-edge"
+              data-testid="row-overdue-edge"
+              aria-hidden="true"
+              title={th.wokeAt && mounted ? t(th.woke === 'snooze' ? 'list.overdueSnoozeSince' : 'list.overdueFollowUpSince', { when: longWhen(th.wokeAt, locale) }) : t(th.woke === 'snooze' ? 'list.overdueSnooze' : 'list.overdueFollowUp')}
+            />
+          )}
           <ChatRow
             th={th}
             timeLabel={view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : undefined}
