@@ -13,6 +13,7 @@ import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } fr
 import { Modal, api, useErrorText } from './ui';
 import { FOLDERS_CHANGED, notifyFoldersChanged } from './LineFolders';
 import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
+import { FolderIcon } from './wa/icons';
 
 type FolderDto = LineFolderDto;
 interface FolderData {
@@ -290,6 +291,21 @@ export default function GroupsFoldersBranch() {
         <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
       ) : (
         <ul className="docs-tree grf-ftree" role="list" aria-label={tl('folders')}>
+          {/* "Sin carpeta" arriba, antes de la primera carpeta: se filtran los sueltos y se arrastran a las carpetas de abajo. */}
+          <li className={`docs-tree-row${selected === 'none' ? ' active' : ''}`} data-chat-drop="none" data-chat-drop-scope="lines" data-chat-drop-name={tl('unfiled')} data-testid="lines-nofolder">
+            <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+            <Link href={selected === 'none' ? base : hrefOf('none')} prefetch={false} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
+              <span className="docs-tree-icon" aria-hidden="true">
+                <FolderIcon size={15} />
+              </span>
+              <span className="docs-tree-title">{tl('unfiled')}</span>
+              {data.unfiled.unread > 0 && (
+                <span className="grf-branch-count" aria-label={tl('folderUnread', { n: data.unfiled.unread })}>
+                  {data.unfiled.unread > 99 ? '99+' : data.unfiled.unread}
+                </span>
+              )}
+            </Link>
+          </li>
           {rows.map(({ folder: f, depth, hasChildren }) => {
             const active = selected === f.id;
             const href = active ? base : hrefOf(f.id);
@@ -434,17 +450,6 @@ export default function GroupsFoldersBranch() {
               </li>
             );
           })}
-          <li className={`docs-tree-row${selected === 'none' ? ' active' : ''}`} data-chat-drop="none" data-chat-drop-scope="lines" data-chat-drop-name={tl('unfiled')}>
-            <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-            <Link href={selected === 'none' ? base : hrefOf('none')} prefetch={false} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
-              <span className="docs-tree-title">{tl('unfiled')}</span>
-              {data.unfiled.unread > 0 && (
-                <span className="grf-branch-count" aria-label={tl('folderUnread', { n: data.unfiled.unread })}>
-                  {data.unfiled.unread > 99 ? '99+' : data.unfiled.unread}
-                </span>
-              )}
-            </Link>
-          </li>
         </ul>
       )}
       {error && (

@@ -15,10 +15,10 @@ import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
-import { refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
+import { noteThreadPicture, refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
 import { waProviderFor } from '@/lib/inbox/whatsapp';
 import { refreshPrivacyIfStale } from '@/lib/wa-privacy';
-import { refreshPicturesSoon } from '@/lib/wa-contact-pictures';
+import { cardPhones, dmPerson, refreshDmPictureSoon, refreshPicturesSoon } from '@/lib/wa-contact-pictures';
 import { inboxScope } from '@/lib/inbox/wa-names';
 import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
 
@@ -61,14 +61,26 @@ async function buildDetail(owner: string, id: string, around: string | undefined
   const wa = account ? await waDetails(owner, row, account) : null;
   // Las confirmaciones de lectura de la cuenta: si el dato tiene más de un día, se relee después de responder.
   if (account?.status === 'connected') await refreshPrivacyIfStale('inbox', account, () => waProviderFor(account));
+  // Las personas de las tarjetas de contacto (vCard) en la pantalla: sus fotos, como en WhatsApp.
+  const cards = cardPhones(page.messages.map((m) => m.meta?.contacts));
   // Grupo: las fotos de perfil de quienes escriben (los de la pantalla primero) y del resto, después de responder.
   if (account?.status === 'connected' && wa && row.kind === 'group') {
     const senders = page.messages
       .filter((m) => !m.fromMe)
       .map((m) => m.senderHandle)
       .reverse();
-    const phones = [...senders, ...wa.participants.filter((p) => !p.me).map((p) => p.phone)];
+    const phones = [...cards, ...senders, ...wa.participants.filter((p) => !p.me).map((p) => p.phone)];
     await refreshPicturesSoon(inboxScope(account), () => waProviderFor(account), phones);
+  }
+  // 1:1: la foto de la persona (copia nuestra) si todavía no hay o venció, después de responder. Antes solo
+  // llegaba con el historial o con los datos del chat, y si ahí no venía (o el pedido falló) quedaban las iniciales.
+  // De paso, las de las tarjetas de contacto que están en la pantalla.
+  if (account?.status === 'connected' && row.kind === 'dm') {
+    await refreshDmPictureSoon(inboxScope(account), () => waProviderFor(account), dmPerson(row.handle, row.external_id), {
+      chatPicture: row.avatar_url,
+      onChange: () => noteThreadPicture(row),
+      alsoPhones: cards,
+    });
   }
   return {
     thread,

@@ -7,7 +7,8 @@
     "analytics": "Análises",
     "settings": "Configurações",
     "tasks": "Tarefas",
-    "templates": "Modelos"
+    "templates": "Modelos",
+    "contacts": "Contatos"
   },
   "common": {
     "retry": "Tente de novo",
@@ -204,6 +205,7 @@
     "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco."
   },
   "status": {
+    "queued": "Aguardando conexão",
     "pending": "Enviando",
     "sent": "Enviada",
     "delivered": "Entregue",
@@ -859,6 +861,7 @@
     "pageTitle": "Esta página não carregou",
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
     "generic": "Algo deu errado. Tente de novo.",
+    "offline_files": "Arquivos precisam de conexão. Ficam aqui e você pode enviá-los quando a conexão voltar. Os textos ficam na fila e saem sozinhos.",
     "unauthorized": "Sua sessão terminou. Entre de novo.",
     "forbidden": "Você não tem permissão para fazer isso.",
     "not_found": "Isso não existe mais.",
@@ -1744,6 +1747,7 @@
     "liveLocation": "Localização em tempo real",
     "retry": "Tentar enviar de novo",
     "unsent": "Uma mensagem para {name} não foi enviada. Abra a conversa para tentar de novo.",
+    "deleteQueued": "Apagar antes de enviar",
     "unreadCount": "{n, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
     "filtersMenu": "Filtros e listas",
     "clearFilters": "Limpar filtros",
@@ -1769,6 +1773,9 @@
     "infoBy": "Enviada por",
     "contactMessage": "Enviar mensagem",
     "contactSave": "Salvar",
+    "contactsMany": "{name} e mais {count, plural, one {# contato} other {# contatos}}",
+    "contactsViewAll": "Ver todos",
+    "contactsHide": "Ocultar",
     "contactSaved": "{name} foi salvo no CRM",
     "assignMe": "Atribuir a mim",
     "unassignMe": "Tirar de mim",
@@ -1893,6 +1900,11 @@
       "notSetupBody": "Um administrador adiciona uma chave do GIPHY ou do Tenor no servidor (GIPHY_API_KEY ou TENOR_API_KEY). Emojis e figurinhas funcionam normalmente."
     },
     "openGif": "Abrir GIF",
+    "messagesN": "{n, plural, one {# mensagem} other {# mensagens}}",
+    "deleteSelectedTitle": "{n, plural, one {Apagar # mensagem?} other {Apagar # mensagens?}}",
+    "deleteSelectedForMe": "Elas somem desta conversa para você. As outras pessoas da conversa continuam com elas.",
+    "deleteSelectedForAll": "Elas são apagadas no WhatsApp para todas as pessoas da conversa.",
+    "deleteSelectedDone": "{n, plural, one {# mensagem apagada} other {# mensagens apagadas}}",
     "newSticker": "Nova figurinha",
     "dictate": "Ditar",
     "cameraCapture": {
@@ -1908,6 +1920,31 @@
     },
     "contactLoadError": "Não foi possível carregar seus contatos.",
     "contactNoResults": "Nenhum contato corresponde à pesquisa.",
+    "editor": {
+      "tools": "Editar foto",
+      "crop": "Cortar e girar",
+      "rotate": "Girar para a esquerda",
+      "reset": "Redefinir",
+      "done": "Pronto",
+      "sticker": "Figurinha ou emoji",
+      "text": "Texto",
+      "textPlaceholder": "Digite",
+      "draw": "Desenhar",
+      "undo": "Desfazer",
+      "color": "Cor",
+      "brush": "Espessura do lápis",
+      "brushSizes": {
+        "0": "Fino",
+        "1": "Médio",
+        "2": "Grosso"
+      },
+      "size": "Tamanho",
+      "remove": "Remover",
+      "photo": "Foto sendo editada",
+      "hd": "Qualidade HD",
+      "hdOn": "HD: envia a foto em tamanho real",
+      "hdOff": "Qualidade padrão: uma foto mais leve, como no WhatsApp. Ative o HD para enviar em tamanho real"
+    },
     "contactSheet": {
       "title": "Dados do contato",
       "close": "Fechar",
@@ -1975,6 +2012,7 @@
     "folderName": "Nome da pasta",
     "foldersEmpty": "Ainda não há pastas. Crie uma para organizar as conversas; todo o workspace vê as mesmas pastas.",
     "unfiled": "Sem pasta",
+    "unfiledEmpty": "Todas as conversas estão em uma pasta",
     "folderUnread": "{n, plural, one {# conversa não lida} other {# conversas não lidas}}",
     "folderOptions": "Opções da pasta {name}",
     "expand": "Expandir {name}",

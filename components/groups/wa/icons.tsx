@@ -38,9 +38,10 @@ export function Ticks({ status, label }: { status: string; label: string }) {
       </span>
     );
   }
-  if (status === 'pending') {
+  // Saliendo, o esperando la red (en cola sin conexión): el reloj, como WhatsApp.
+  if (status === 'pending' || status === 'queued') {
     return (
-      <span className="wa-ticks" title={label}>
+      <span className={`wa-ticks${status === 'queued' ? ' is-queued' : ''}`} title={label}>
         <Svg size={14} strokeWidth={2}>
           <circle cx="12" cy="12" r="8.5" />
           <path d="M12 7.5V12l3 2" />
@@ -363,5 +364,11 @@ export const StarIcon = (p: P) => (
 export const ChevronRight = (p: P) => (
   <Svg strokeWidth={2.2} {...p}>
     <path d="m10 7 5 5-5 5" />
+  </Svg>
+);
+export const CopyIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="1.5" />
+    <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
   </Svg>
 );

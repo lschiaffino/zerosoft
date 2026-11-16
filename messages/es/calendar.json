@@ -537,7 +537,7 @@
     "when_rescheduled": "después de reprogramarse",
     "when_no_show": "después de un no-show",
     "webhookUrl": "URL del webhook",
-    "webhookHelp": "Mandamos un POST con JSON: event (workflow.<disparador>), sentAt y booking (id, status, startsAt, endsAt, timezone, nombre, email y teléfono del invitado, meetingUrl, location, cancelReason y el id, slug y título del tipo de evento). Va firmado como los webhooks del workspace: header Zerosoft-Signature t=<unix>,v1=HMAC-SHA256 de “t.body” con este secreto.",
+    "webhookHelp": "Mandamos un POST con JSON: event (workflow.'<disparador>'), sentAt y booking (id, status, startsAt, endsAt, timezone, nombre, email y teléfono del invitado, meetingUrl, location, cancelReason y el id, slug y título del tipo de evento). Va firmado como los webhooks del workspace: header Zerosoft-Signature t='<unix>',v1=HMAC-SHA256 de “t.body” con este secreto.",
     "webhookInvalid": "El webhook necesita una URL http o https.",
     "bodyRequired": "Cada paso por email o SMS necesita un mensaje.",
     "subjectRequired": "Cada paso por email necesita un asunto.",

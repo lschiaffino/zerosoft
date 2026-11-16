@@ -98,12 +98,13 @@ pub async fn dictate(app: &AppHandle, wav: Vec<u8>, source_app: &str, context: &
     finish(http.post(url).header("cookie", cookie).header("origin", server(app)).multipart(form).send().await).await
 }
 
-/// Abre la conexión con el servidor (TCP + TLS) mientras se graba: al soltar el atajo, el audio
-/// sale por una conexión ya lista del pool de reqwest.
+/// Mientras se graba, abre la conexión con el servidor (TCP + TLS) y despierta la función del
+/// dictado (GET /api/voice/dictate responde 204 sin leer nada): al soltar el atajo, el audio sale
+/// por una conexión ya lista del pool de reqwest y no espera el arranque en frío del servidor.
 pub async fn warm(app: AppHandle) {
-    let url = format!("{}/robots.txt", server(&app));
+    let url = format!("{}/api/voice/dictate", server(&app));
     let http = app.state::<AppState>().http.clone();
-    let _ = http.head(url).timeout(Duration::from_secs(5)).send().await;
+    let _ = http.get(url).timeout(Duration::from_secs(5)).send().await;
 }
 
 /// Si la respuesta dice "sin sesión" o "sin conexión", para los errores de Ajustes.

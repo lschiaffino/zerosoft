@@ -11,7 +11,7 @@
  */
 
 import { NOTES_DB_PREFIX, notesDbName } from '@/components/notes/notesOffline';
-import { LINES_DRAFT_PREFIX, UNSENT_LINES_KEY } from './optimistic-send';
+import { LINES_DRAFT_PREFIX, UNSENT_INBOX_KEY, UNSENT_LINES_KEY } from './optimistic-send';
 import { clearSessionHint } from '@/lib/session-hint';
 
 export const QUEUED_HEADER = 'x-zs-queued';
@@ -216,6 +216,13 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
     // para quien entre después en la misma pestaña.
     sessionStorage.removeItem(UNSENT_LINES_KEY);
     for (const key of Object.keys(sessionStorage)) if (key.startsWith(LINES_DRAFT_PREFIX)) sessionStorage.removeItem(key);
+  } catch {
+    // Sin almacenamiento: nada que borrar.
+  }
+  try {
+    // Lines e Inbox: los mensajes escritos sin red que esperaban la conexión y los que no salieron (localStorage).
+    localStorage.removeItem(UNSENT_LINES_KEY);
+    localStorage.removeItem(UNSENT_INBOX_KEY);
   } catch {
     // Sin almacenamiento: nada que borrar.
   }

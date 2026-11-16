@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
   "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -14,7 +14,8 @@
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
     "done": "Archived",
-    "archived": "Archived"
+    "archived": "Archived",
+    "nofolder": "No folder"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
@@ -49,7 +50,7 @@
     "showQuote": "Show quoted text",
     "revoked": "Deleted for everyone · kept here",
     "edited": "Edited",
-    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
+    "status": { "pending": "Sending", "queued": "Waiting for connection", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
     "older": "Load earlier messages",
     "empty": "No messages yet. Say hello.",
     "today": "Today",
@@ -125,6 +126,7 @@
     "not_connected": "The account is not connected. Link it again in Inbox settings.",
     "send_failed": "The message did not go out. Try again.",
     "interrupted": "Sending was interrupted. Check whether it went out before trying again.",
+    "offline_files": "Files need a connection. They stay here and you can send them when you are back online. Text messages are queued and go out on their own.",
     "whatsapp_unavailable": "WhatsApp linking is not set up on this server.",
     "whatsapp_unreachable": "The WhatsApp server did not respond. Try again in a minute.",
     "whatsapp_error": "WhatsApp did not accept the link. Try again.",
@@ -182,6 +184,7 @@
       "scheduled": "Nothing scheduled. Use Later next to Send.",
       "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
+      "nofolder": "Every chat is in a folder",
       "folder": "This folder is empty. Press V on a chat to add it."
     }
   },
@@ -289,6 +292,7 @@
   },
   "folders": {
     "title": "Folders",
+    "noFolder": "No folder",
     "edit": "Edit folder",
     "new": "New folder",
     "branchEmpty": "No folders yet.",

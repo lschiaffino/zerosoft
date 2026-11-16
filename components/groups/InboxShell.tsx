@@ -58,7 +58,7 @@ import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
-import { linesDraftKey, unsentLines } from './optimistic';
+import { linesDraftKey, linesOutbox, unsentLines } from './optimistic';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -554,7 +554,11 @@ export default function InboxShell({
   // cuando algo cambió.
   // Un texto que no salió de un chat que ya no está abierto: se avisa acá (la lista siempre está) y el texto queda
   // en ese chat como no enviado, con reintentar (./optimistic.ts).
-  useEffect(() => unsentLines.setOwner(me), [me]);
+  useEffect(() => {
+    unsentLines.setOwner(me);
+    // Lo escrito sin red (en esta pestaña o en otra) sale solo al volver la conexión.
+    linesOutbox.start();
+  }, [me]);
   useEffect(
     () =>
       unsentLines.subscribe((e) => {
@@ -642,6 +646,11 @@ export default function InboxShell({
       for (const [prev, list] of before) await api('/api/groups/chats/bulk', { body: { ids: list, action: 'folder', folderId: prev } });
       after();
     };
+    // En "Sin carpeta" los que ya tienen carpeta salen de la lista enseguida (la recarga lo confirma).
+    if (folderSel === 'none' && folderId && res.data.updated > 0) {
+      const gone = new Set(ids);
+      setRows((list) => list.filter((r) => !gone.has(r.id)));
+    }
     showToast(
       folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }),
       res.data.failed > 0,
@@ -1160,7 +1169,9 @@ export default function InboxShell({
     ? t('inbox.noResults')
     : archivedView
       ? t('wa.archivedEmpty')
-      : activeList
+      : folderSel === 'none' && countFilters(filters) === 0
+        ? t('lines.unfiledEmpty')
+        : activeList
         ? t('lists.empty')
         : countFilters(filters) === 0
           ? t('inbox.empty.all')
