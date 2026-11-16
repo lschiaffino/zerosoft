@@ -7,7 +7,8 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "tasks": "Tasks",
-    "templates": "Templates"
+    "templates": "Templates",
+    "contacts": "Contacts"
   },
   "common": {
     "retry": "Try again",
@@ -200,10 +201,10 @@
     "task": "Task",
     "question": "Needs reply",
     "fileUnavailable": "Not available",
-    "fetchMissing": "Fetch missing messages",
-    "fetchMissingToast": "We asked your phone for this chat’s messages. They may take a moment."
+    "fetchMissing": "Fetch missing messages"
   },
   "status": {
+    "queued": "Waiting for connection",
     "pending": "Sending",
     "sent": "Sent",
     "delivered": "Delivered",
@@ -859,6 +860,7 @@
     "pageTitle": "This page did not load",
     "pageBody": "Something failed on our side. Try again.",
     "generic": "Something went wrong. Try again.",
+    "offline_files": "Files need a connection. They stay here and you can send them when you are back online. Text messages are queued and go out on their own.",
     "unauthorized": "Your session ended. Sign in again.",
     "forbidden": "You don’t have permission to do that.",
     "not_found": "It no longer exists.",
@@ -1020,7 +1022,8 @@
     "not_on_whatsapp": "That number is not on WhatsApp. Check it, including the country code.",
     "chat_no_access": "This line already has a chat with that number and you don’t have access to it. Ask an admin.",
     "history_rate_limited": "You already asked for this chat’s messages a moment ago. Try again in a minute.",
-    "history_failed": "Your phone did not answer. Check that it is online and try again."
+    "history_failed": "Your phone did not answer. Check that it is online and try again.",
+    "voice_too_short": "Record at least one second to schedule it."
   },
   "media": {
     "image": "Image",
@@ -1628,7 +1631,13 @@
     "openChat": "Open the chat with {name}",
     "loadError": "The scheduled messages did not load. Try again.",
     "retry": "Try again",
-    "close": "Close"
+    "close": "Close",
+    "voiceButton": "Send the voice note later",
+    "voiceTag": "🎤 Voice note ({time})",
+    "voicePlay": "Listen to the voice note",
+    "voiceStop": "Pause",
+    "voicePlayFailed": "The audio could not be played.",
+    "voiceTooShort": "Record at least one second to schedule it."
   },
   "polls": {
     "button": "Poll",
@@ -1667,6 +1676,8 @@
     "action": "Go to inbox"
   },
   "wa": {
+    "events": {"someone": "Someone", "createdMe": "You created group “{subject}”", "created": "{by} created group “{subject}”", "createdUnknown": "Group “{subject}” was created", "createdMeNoName": "You created this group", "createdNoName": "{by} created this group", "createdUnknownNoName": "This group was created", "addedYou": "{by} added you", "addedYouUnknown": "You were added", "addedMe": "You added {who}", "added": "{by} added {who}", "addedUnknown": "{who} was added", "removedYou": "{by} removed you", "removedYouUnknown": "You were removed", "removedMe": "You removed {who}", "removed": "{by} removed {who}", "removedUnknown": "{who} was removed", "leftMe": "You left", "left": "{who} left", "joinedMe": "You joined using this group's invite link", "joined": "{who} joined using this group's invite link", "promotedYou": "You're now an admin", "promoted": "{who} is now an admin", "demotedYou": "You're no longer an admin", "demoted": "{who} is no longer an admin", "subjectMe": "You changed the group name to “{subject}”", "subject": "{by} changed the group name to “{subject}”", "subjectUnknown": "The group name changed to “{subject}”", "descriptionMe": "You changed the group description", "description": "{by} changed the group description", "descriptionUnknown": "The group description changed", "iconMe": "You changed this group's icon", "icon": "{by} changed this group's icon", "iconUnknown": "This group's icon changed"},
+    "newGroup": {"label": "New group", "members": "Group · {n, plural, one {# member} other {# members}}", "groupOnly": "Group", "addMembers": "Add members", "invite": "Invite via link", "inviteCopied": "Invite link copied", "description": "Add description", "info": "Group info", "hint": "Say hi to start the conversation."},
     "pause": "Pause",
     "play": "Play",
     "seek": "Position in the audio",
@@ -1744,6 +1755,7 @@
     "liveLocation": "Live location",
     "retry": "Retry sending",
     "unsent": "A message to {name} was not sent. Open the chat to try again.",
+    "deleteQueued": "Delete before it sends",
     "unreadCount": "{n, plural, one {# unread message} other {# unread messages}}",
     "filtersMenu": "Filters and lists",
     "clearFilters": "Clear filters",
@@ -1788,9 +1800,6 @@
     "emojiNone": "No emoji found",
     "sendFiles": "{n, plural, one {Send # file} other {Send # files}}",
     "importNothingNew": "Everything was already imported ({chats} chats).",
-    "historyOnPhone": "Older messages are on the phone.",
-    "historyFetch": "Bring more",
-    "historyAll": "This is the start of the history we have.",
     "online": "online",
     "typing": "typing…",
     "typingBy": "{name} is typing…",
@@ -1810,12 +1819,23 @@
     "unarchive": "Unarchive chat",
     "archived": "Chat archived",
     "unarchived": "Chat unarchived",
+    "keepArchived": "Keep archived",
+    "keepArchivedOff": "Stop keeping archived",
+    "keepArchivedHint": "New messages, and the ones you send, don't take it out of Archived.",
+    "keptArchived": "Kept archived",
+    "keepArchivedOn": "Kept archived",
+    "keepArchivedOffToast": "No longer kept archived",
     "archivedTitle": "Archived",
     "archivedEmpty": "No archived chats.",
     "deleteChat": "Delete chat",
     "deleteChatTitle": "Delete the chat with {name}?",
-    "deleteChatBody": "It leaves the list for the whole team. Nothing changes on WhatsApp, and if a new message comes in, the chat shows up again with its history.",
+    "deleteChatBody": "It leaves the list for the whole team and waits in Archived › Deleted in case you want it back. Nothing changes on WhatsApp, and if a new message comes in, the chat shows up again with its history.",
     "chatDeleted": "Chat deleted",
+    "deletedTitle": "Deleted",
+    "deletedEmpty": "No deleted chats.",
+    "deletedNote": "Chats deleted from Lines keep their history. Restore puts one back in the list; a new message also brings it back. An admin can delete a chat for good from its info.",
+    "restoreChat": "Restore chat",
+    "chatRestored": "Chat restored",
     "lineDropped": "{name} lost its WhatsApp connection. New messages won’t arrive until you reconnect it.",
     "archiveBroken": "WhatsApp archiving is not syncing on this line: archiving here doesn't reach the phone, and archiving on the phone doesn't show up here. Disconnect the line and link it again to fix it.",
     "line": "Your line",
@@ -1981,7 +2001,51 @@
       "openFor": "Contact info of {name}"
     },
     "replyPrivately": "Reply privately",
-    "messageName": "Message {name}"
+    "messageName": "Message {name}",
+    "downloadAgain": "Download again",
+    "downloadingAgain": "Downloading…",
+    "mediaGoneImage": "This photo is no longer available on WhatsApp",
+    "mediaGoneVideo": "This video is no longer available on WhatsApp",
+    "askPhoneAgain": "Ask the phone again",
+    "mediaGoneAudio": "This audio is no longer available on WhatsApp",
+    "mediaGoneShort": "No longer on WhatsApp",
+    "mediaOffline": "The line is disconnected. Link it again to download this.",
+    "mediaOfflineShort": "Line disconnected",
+    "mediaRetryFailed": "Couldn't download",
+    "olderLoad": "Load older messages",
+    "olderLoading": "Loading older messages…",
+    "olderNone": "No older messages on WhatsApp",
+    "olderError": "Couldn't load them. Try again",
+    "olderLimited": "Too many requests for this line. Try again later",
+    "olderOffline": "Line disconnected: link it to load older messages",
+    "olderNoAnswer": "The phone didn't answer. Try again",
+    "refreshLoading": "Asking your phone for missing messages…",
+    "refreshDone": "{count, plural, one {Brought # missing message} other {Brought # missing messages}}",
+    "refreshNone": "Nothing was missing in the recent messages",
+    "refreshNoAnswer": "The phone didn't answer. Check that it's online",
+    "refreshOffline": "The line is disconnected. Link it again to fetch messages",
+    "refreshLimited": "Too many requests on this line. Try again in a while",
+    "refreshOutdated": "The WhatsApp gateway needs an update to fetch these messages",
+    "refreshError": "Couldn't ask the phone for messages",
+    "refreshRetry": "Try again",
+    "refreshDismiss": "Close",
+    "archivedTag": "Archived",
+    "reactions": {
+      "title": "{count, plural, one {# Reaction} other {# Reactions}}",
+      "chip": "{count, plural, one {# reaction} other {# reactions}}: {list}. Show who reacted",
+      "react": "React",
+      "all": "All",
+      "tab": "{emoji}: {count}",
+      "tabs": "Filter by emoji",
+      "list": "People who reacted",
+      "you": "You",
+      "clickToRemove": "Click to remove",
+      "remove": "Remove your reaction {emoji}",
+      "loading": "Loading who reacted",
+      "error": "Couldn't load who reacted.",
+      "retry": "Try again",
+      "more": "More emoji"
+    }
   },
   "swipe": {
     "read": "Read",
@@ -2488,5 +2552,14 @@
     "newColumnAdd": "Add column",
     "newColumnHelp": "A new zerosoft property for every group in the workspace. You can fill it in from the table or from each group.",
     "propCreated": "Column {name} added"
+  },
+  "snooze": {
+    "action": "Snooze chat",
+    "cancel": "Cancel snooze",
+    "title": "Snooze until",
+    "confirm": "Snooze",
+    "done": "Snoozed until {when}. It stays in Archived until then.",
+    "cancelled": "Snooze cancelled",
+    "until": "Snoozed until {when}"
   }
 }

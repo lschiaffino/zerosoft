@@ -5,11 +5,11 @@
 import { getDb } from '../db';
 import { ProviderError } from '../groups-provider';
 import { deleteUploads } from '../uploads';
-import { addMessage, applyThreadAction, sentWithClientId, claimScheduled, finishScheduled, getAccount, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
+import { addMessage, applyThreadAction, sentWithClientId, claimScheduled, finishScheduled, getAccount, getMessageRow, getThreadRow, saveDraft, type AccountRow, type ScheduledRow, type ThreadAction, type ThreadRow } from './core';
 import { pushGmailLabels, sendGmailReply } from './gmail';
 import { BLOCKED_SQL, readInboxMedia, scheduleNextPart } from './schedule';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
-import { InboxError, LIMITS } from './types';
+import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { onceInFlight } from '../send-once';
 
 async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string): Promise<void> {
@@ -60,26 +60,60 @@ function mediaKindOf(mime: string): string {
   return 'document';
 }
 
-/** Un mensaje programado con archivo (WhatsApp): el archivo con el texto como pie. */
+/** El mensaje de WhatsApp que cita un programado ('' si no cita, o si el citado ya no está: sale sin la cita). */
+async function replyExternalId(row: ScheduledRow): Promise<string> {
+  if (!row.reply_to) return '';
+  const q = await getMessageRow(row.owner_id, row.reply_to).catch(() => null);
+  return q && q.thread_id === row.thread_id ? q.external_id : '';
+}
+
+/**
+ * Un mensaje programado con archivo (WhatsApp): el archivo con el texto como
+ * pie. Una nota de voz programada (media_kind 'voice') sale como nota de voz
+ * de verdad (ptt: el servidor de WhatsApp la pasa a ogg/opus y le arma la
+ * onda), sin pie, y queda guardada igual que una mandada en el momento.
+ */
 async function deliverMedia(account: AccountRow, thread: ThreadRow, row: ScheduledRow): Promise<void> {
   if (thread.channel !== 'whatsapp') throw new InboxError('media_unsupported', 400);
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   const data = await readInboxMedia(row.media_url);
+  const voice = row.media_kind === 'voice';
+  const mimetype = (row.media_type || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+  const replyTo = await replyExternalId(row);
   let id: string;
   try {
     id = (
       await waProviderFor(account).sendMedia(thread.external_id, {
         url: row.media_url.startsWith('https://') ? row.media_url : '',
-        mimetype: row.media_type || 'application/octet-stream',
+        mimetype: voice ? mimetype : row.media_type || 'application/octet-stream',
         filename: row.media_name || 'archivo',
-        caption: row.body || undefined,
+        ...(voice ? { kind: 'voice' as const } : { caption: row.body || undefined }),
         base64: data.toString('base64'),
+        ...(replyTo ? { replyTo } : {}),
       })
     ).id;
   } catch (err) {
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
   }
-  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: row.body, mediaType: mediaKindOf(row.media_type), mediaName: row.media_name, status: 'sent' });
+  if (voice) {
+    const meta: WaMessageMeta = { mime: mimetype, size: data.length, ptt: true };
+    if (Number(row.media_duration) > 0) meta.duration = Math.round(Number(row.media_duration));
+    await addMessage(thread, {
+      externalId: id || `local-${Date.now()}`,
+      fromMe: true,
+      body: '',
+      mediaType: 'audio',
+      mediaName: '',
+      // Para volver a bajarla del servidor de WhatsApp y escucharla (lo guardado en Inbox se borra al salir).
+      mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
+      meta: JSON.stringify(meta),
+      kind: 'voice',
+      replyTo,
+      status: 'sent',
+    });
+    return;
+  }
+  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: row.body, mediaType: mediaKindOf(row.media_type), mediaName: row.media_name, replyTo, status: 'sent' });
 }
 
 /**
@@ -158,7 +192,11 @@ export async function sendDueScheduled(now = new Date(), deadline = Date.now() +
   const missed = await db.prepare(`UPDATE inbox_scheduled AS s SET status = 'missed', updated_at = ? WHERE s.status = 'pending' AND s.send_at < ? AND NOT ${BLOCKED_SQL}`).run(nowS, late);
   out.missed = missed.changes;
   const due = (await db
-    .prepare(`SELECT s.id FROM inbox_scheduled s WHERE s.status = 'pending' AND s.send_at <= ? AND NOT ${BLOCKED_SQL} ORDER BY s.send_at, s.seq LIMIT 50`)
+    // Los de un chat sacado de Inbox esperan: si lo recuperan a tiempo salen; si no, quedan como no enviados.
+    .prepare(
+      `SELECT s.id FROM inbox_scheduled s WHERE s.status = 'pending' AND s.send_at <= ? AND NOT ${BLOCKED_SQL}
+         AND NOT EXISTS (SELECT 1 FROM inbox_threads rt WHERE rt.id = s.thread_id AND rt.removed_at IS NOT NULL) ORDER BY s.send_at, s.seq LIMIT 50`,
+    )
     .all(nowS)) as Array<{ id: string }>;
   for (const d of due) {
     if (Date.now() > deadline) break;

@@ -6,6 +6,7 @@
 import { getDb } from '../db';
 import { getAccount, getMessageRow, getThreadRow, type AccountRow } from './core';
 import { fetchWhatsappMedia } from './whatsapp';
+import { inboxMedia } from './media-store';
 import { sendWhatsappMedia } from './wa-media';
 import { addSticker, markUsed, stickerBytes, StickerError, type StickerDto, type StickerOwner, type StickerSource } from '../wa-stickers';
 
@@ -59,7 +60,7 @@ export async function favoriteInboxMessage(owner: string, messageId: string): Pr
   if (msg.media_type !== 'sticker' || !msg.media_ref) throw new StickerError('invalid_sticker', 400);
   const thread = await getThreadRow(owner, msg.thread_id);
   const acc = await getAccount(owner, thread.account_id);
-  const file = await fetchWhatsappMedia(acc, msg.media_ref);
+  const file = await inboxMedia(acc, owner, msg);
   return (await addSticker(inboxStickerOwner(owner), file.data, { favorite: true, source: 'favorite' })).sticker;
 }
 

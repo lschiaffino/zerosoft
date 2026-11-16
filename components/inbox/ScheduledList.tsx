@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ScheduledDto, ThreadDto } from '@/lib/inbox/types';
 import { api, longWhen } from './api';
+import ScheduledVoice from '@/components/groups/wa/ScheduledVoice';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
+import WhenDialog from './WhenDialog';
 
 /** Programados agrupados por secuencia (en el orden de salida). */
 export function groupScheduled(list: ScheduledDto[]): ScheduledDto[][] {
@@ -33,10 +35,22 @@ export default function ScheduledList({
 }) {
   const t = useTranslations('inbox.scheduled');
   const ts = useTranslations('inbox.schedule');
+  const w = useTranslations('inboxWa');
   const locale = useLocale();
   const [edit, setEdit] = useState<ScheduleTarget | null>(null);
+  // Una nota de voz programada no tiene texto que editar: "Editar" le cambia la hora.
+  const [retime, setRetime] = useState<ScheduledDto | null>(null);
   const [busy, setBusy] = useState('');
   if (!scheduled.length) return null;
+  const voiceLabels = { tag: (time: string) => w('voiceTag', { time }), play: w('voicePlay'), pause: w('voiceStop'), failed: w('voicePlayFailed') };
+
+  const changeTime = async (s: ScheduledDto, iso: string) => {
+    setBusy(s.batchId);
+    const r = await api(`/api/inbox/scheduled/${s.id}`, { method: 'PATCH', json: { sendAt: iso } });
+    setBusy('');
+    if (!r.ok) onError(r.data.error ?? 'generic');
+    onChange();
+  };
 
   const run = async (g: ScheduledDto[], kind: 'send' | 'cancel') => {
     setBusy(g[0].batchId);
@@ -64,13 +78,22 @@ export default function ScheduledList({
                 {g.map((s, i) => (
                   <li key={s.id} className="ib-sched-part">
                     {i > 0 && s.delaySec > 0 && <span className="ib-tag">{ts('after', { wait: ts(`delayShort.${shortDelay(s.delaySec)}`, { n: delayN(s.delaySec) }) })}</span>}
-                    {s.mediaName && <span className="ib-tag">{ts('file', { name: s.mediaName })}</span>}
-                    <span className="ib-sched-body">{s.body}</span>
+                    {s.mediaVoice ? (
+                      <ScheduledVoice src={`/api/inbox/scheduled/${s.id}/media`} seconds={s.mediaDuration} labels={voiceLabels} />
+                    ) : (
+                      s.mediaName && <span className="ib-tag">{ts('file', { name: s.mediaName })}</span>
+                    )}
+                    {s.body && <span className="ib-sched-body">{s.body}</span>}
                   </li>
                 ))}
               </ol>
               <span className="ib-row">
-                <button type="button" className="btn btn-ghost btn-sm" disabled={sending || busy === head.batchId} onClick={() => setEdit({ threadId: thread.id, channel: thread.channel, edit: g })}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={sending || busy === head.batchId}
+                  onClick={() => (g.length === 1 && head.mediaVoice ? setRetime(head) : setEdit({ threadId: thread.id, channel: thread.channel, edit: g }))}
+                >
                   {ts('edit')}
                 </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void run(g, 'send')} disabled={!connected || sending || busy === head.batchId}>
@@ -84,6 +107,15 @@ export default function ScheduledList({
           );
         })}
       </ul>
+      <WhenDialog
+        kind={retime ? 'sendLater' : null}
+        onClose={() => setRetime(null)}
+        onPick={(iso) => {
+          const s = retime;
+          setRetime(null);
+          if (s) void changeTime(s, iso);
+        }}
+      />
       <ScheduleDialog
         target={edit}
         onClose={() => setEdit(null)}

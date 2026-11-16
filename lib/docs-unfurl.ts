@@ -113,14 +113,68 @@ export function parseImageHints(html: string, url: string): LinkImageHints {
   return { images, width, height };
 }
 
-async function fetchHtml(url: string): Promise<string | null> {
+/** Una respuesta de una página: redirección (a dónde), HTML, o nada que sirva. */
+export interface PageHop {
+  status: number;
+  location?: string;
+  html?: string;
+}
+
+/** Saltos que se siguen de un link corto hasta la página (redirecciones HTTP y <meta refresh>). */
+export const MAX_HOPS = 8;
+
+/** A dónde manda un <meta http-equiv="refresh" content="0; url=…"> (los links cortos que no usan 30x). */
+export function metaRefreshTarget(html: string, base: string): string | undefined {
+  for (const tag of html.slice(0, 64 * 1024).match(/<meta\b[^>]*>/gi) ?? []) {
+    if ((attr(tag, 'http-equiv') ?? '').toLowerCase() !== 'refresh') continue;
+    const m = /^\s*(\d+)\s*[;,]\s*(?:url\s*=\s*)?['"]?([^'"]+)['"]?\s*$/i.exec(decodeEntities(attr(tag, 'content') ?? ''));
+    // Solo los inmediatos (hasta 5 s): uno largo es una página que se recarga, no un link corto.
+    if (m && Number(m[1]) <= 5) return absolute(m[2], base);
+  }
+  return undefined;
+}
+
+/**
+ * Sigue un link hasta su página: cada redirección (30x con Location, o un
+ * <meta refresh> inmediato) es un pedido nuevo que `get` valida por su cuenta
+ * (safeFetch revisa cada salto: sin redes internas). Hasta MAX_HOPS saltos y
+ * sin volver a una URL ya visitada. Devuelve el HTML y la URL final (contra la
+ * que se resuelven las imágenes relativas); null si no hay página.
+ */
+export async function followToPage(start: string, get: (url: string) => Promise<PageHop | null>): Promise<{ html: string; finalUrl: string } | null> {
+  let url = start;
+  const seen = new Set<string>();
+  for (let hop = 0; hop <= MAX_HOPS; hop++) {
+    if (seen.has(url)) return null;
+    seen.add(url);
+    const res = await get(url);
+    if (!res) return null;
+    let next: string | undefined;
+    if (res.status >= 300 && res.status < 400 && res.location) next = absolute(res.location, url);
+    else if (res.html !== undefined) {
+      next = metaRefreshTarget(res.html, url);
+      if (!next) return { html: res.html, finalUrl: url };
+    }
+    if (!next) return null;
+    url = next;
+  }
+  return null;
+}
+
+async function fetchHop(url: string): Promise<PageHop | null> {
   try {
+    // Sin seguir redirecciones acá: cada salto lo pide followToPage y vuelve a pasar por safeFetch (hosts públicos, DNS fijado).
     const res = await safeFetch(
       url,
-      { headers: { 'User-Agent': 'zerosoft-docs-bot/1.0 (+link preview)', Accept: 'text/html,application/xhtml+xml' } },
+      { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; zerosoft-docs-bot/1.0; +link preview)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'es,en;q=0.8,pt;q=0.7' } },
       6000,
-      { maxRedirects: 4, pinDns: true },
+      { maxRedirects: 0, pinDns: true },
     );
+    const location = res.headers.get('location') ?? undefined;
+    if (res.status >= 300 && res.status < 400) {
+      await res.body?.cancel().catch(() => {});
+      return { status: res.status, location };
+    }
     const type = res.headers.get('content-type') ?? '';
     if (!res.ok || !/html|xml/i.test(type) || !res.body) {
       await res.body?.cancel().catch(() => {});
@@ -136,7 +190,7 @@ async function fetchHtml(url: string): Promise<string | null> {
       total += value.length;
     }
     await reader.cancel().catch(() => {});
-    return new TextDecoder('utf-8', { fatal: false }).decode(Buffer.concat(chunks.map((c) => Buffer.from(c))));
+    return { status: res.status, html: new TextDecoder('utf-8', { fatal: false }).decode(Buffer.concat(chunks.map((c) => Buffer.from(c)))) };
   } catch {
     return null;
   }
@@ -147,11 +201,17 @@ export async function unfurlLink(raw: string): Promise<DocsLinkPreview | null> {
   return (await unfurlLinkDetailed(raw))?.meta ?? null;
 }
 
-/** unfurlLink más las pistas de imagen (parseImageHints) del mismo HTML. */
+/**
+ * unfurlLink más las pistas de imagen (parseImageHints) del mismo HTML. Un
+ * link corto se sigue hasta la página final (followToPage) y de ahí salen el
+ * título, la descripción y la imagen; `meta.url` sigue siendo el link original.
+ */
 export async function unfurlLinkDetailed(raw: string, fake: (url: string) => string = fakeHtml): Promise<{ meta: DocsLinkPreview; hints: LinkImageHints } | null> {
   const url = cleanExternalUrl(raw);
   if (!url) return null;
-  const html = process.env.DOCS_UNFURL_FAKE === '1' ? fake(url) : await fetchHtml(url);
-  if (html === null) return { meta: { url, site: linkSite(url) }, hints: { images: [], width: 0, height: 0 } };
-  return { meta: parseLinkMeta(html, url), hints: parseImageHints(html, url) };
+  const get = process.env.DOCS_UNFURL_FAKE === '1' ? async (u: string): Promise<PageHop> => ({ status: 200, html: fake(u) }) : fetchHop;
+  const page = await followToPage(url, get).catch(() => null);
+  if (!page) return { meta: { url, site: linkSite(url) }, hints: { images: [], width: 0, height: 0 } };
+  const meta = parseLinkMeta(page.html, page.finalUrl);
+  return { meta: { ...meta, url }, hints: parseImageHints(page.html, page.finalUrl) };
 }

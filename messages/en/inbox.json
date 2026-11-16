@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
-  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics" },
+  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "snooze": "Snooze…", "unsnooze": "Cancel snooze", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "removed": "Removed from Inbox", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -15,7 +15,8 @@
     "scheduled": "Scheduled",
     "done": "Archived",
     "archived": "Archived",
-    "nofolder": "No folder"
+    "nofolder": "No folder",
+    "removed": "Removed from Inbox"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
@@ -50,7 +51,7 @@
     "showQuote": "Show quoted text",
     "revoked": "Deleted for everyone · kept here",
     "edited": "Edited",
-    "status": { "pending": "Sending", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
+    "status": { "pending": "Sending", "queued": "Waiting for connection", "sent": "Sent", "delivered": "Delivered", "read": "Read", "failed": "Not sent", "readHidden": "Read. Your WhatsApp hides it because your read receipts are off; zerosoft knows because it still gets the notice." },
     "older": "Load earlier messages",
     "empty": "No messages yet. Say hello.",
     "today": "Today",
@@ -83,6 +84,7 @@
     "importClose": "Close",
     "group": "Group",
     "snoozedUntil": "Snoozed until {when}",
+    "snoozedShort": "Snoozed · {when}",
     "followUpAt": "Reminder {when}",
     "archivedEntry": "Archived",
     "archivedBack": "Back to the inbox",
@@ -95,6 +97,7 @@
     "scheduled": "{n, plural, one {# scheduled} other {# scheduled}}",
     "dragMany": "{n} chats",
     "searchResults": "Search results",
+    "archivedTag": "Archived",
     "messagesFound": "Messages",
     "moreMessages": "More messages",
     "search": "Search chats and messages",
@@ -126,6 +129,7 @@
     "not_connected": "The account is not connected. Link it again in Inbox settings.",
     "send_failed": "The message did not go out. Try again.",
     "interrupted": "Sending was interrupted. Check whether it went out before trying again.",
+    "offline_files": "Files need a connection. They stay here and you can send them when you are back online. Text messages are queued and go out on their own.",
     "whatsapp_unavailable": "WhatsApp linking is not set up on this server.",
     "whatsapp_unreachable": "The WhatsApp server did not respond. Try again in a minute.",
     "whatsapp_error": "WhatsApp did not accept the link. Try again.",
@@ -184,7 +188,8 @@
       "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
       "nofolder": "Every chat is in a folder",
-      "folder": "This folder is empty. Press V on a chat to add it."
+      "folder": "This folder is empty. Press V on a chat to add it.",
+      "removed": "Nothing removed. Chats you remove from Inbox stay here for 30 days."
     }
   },
   "help": {
@@ -231,6 +236,8 @@
     "unpin": "{n, plural, one {Unpinned} other {# chats unpinned}}",
     "archive": "{n, plural, one {Archived} other {# chats archived}}",
     "unarchive": "{n, plural, one {Unarchived} other {# chats unarchived}}",
+    "keepArchivedOn": "Kept archived",
+    "keepArchivedOff": "No longer kept archived",
     "snooze": "{n, plural, one {Snoozed} other {# chats snoozed}}",
     "unsnooze": "{n, plural, one {Unsnoozed} other {# chats unsnoozed}}",
     "followUp": "{n, plural, one {You will be reminded if there is no reply} other {Reminder set for # chats}}",
@@ -260,7 +267,7 @@
   },
   "move": { "title": "Add to folder", "filter": "Filter folders", "none": "No folders yet.", "remove": "Remove", "newFolder": "New folder", "close": "Close" },
   "more": {
-    "deleteConfirm": "This removes the chat and its saved messages from Inbox. Nothing is deleted on WhatsApp or Gmail.",
+    "deleteConfirm": "The chat leaves Inbox and waits 30 days in Removed from Inbox (under Archived) in case you want it back. Nothing is deleted on WhatsApp or Gmail.",
     "cancel": "Cancel",
     "deleteYes": "Remove from Inbox",
     "pin": "Pin",
@@ -656,5 +663,21 @@
     "channel": "Channel",
     "emptyTitle": "No messages in this period",
     "emptyBody": "Connect WhatsApp or Gmail in Inbox settings and your numbers show up here."
+  },
+  "removed": {
+    "title": "Removed from Inbox",
+    "entry": "Removed from Inbox",
+    "back": "Archived",
+    "note": "Chats you remove from Inbox stay here for {days} days and are then deleted for good. Restore puts a chat back where it was, with any messages that arrived meanwhile.",
+    "removedAt": "Removed on {date}",
+    "purgeAt": "Deleted on {date}",
+    "restore": "Restore",
+    "purge": "Delete for good",
+    "purgeTitle": "Delete the chat with {name} for good?",
+    "purgeBody": "Its messages saved in Inbox are deleted and this cannot be undone. Nothing changes on WhatsApp or Gmail.",
+    "cancel": "Cancel",
+    "restored": "Chat restored",
+    "purged": "Chat deleted",
+    "list": "Removed chats"
   }
 }

@@ -14,7 +14,7 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
 import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/wa-live-client';
-import { isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
+import { isOffline, isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
 import { useLinesPersonSheet } from './person-sheet';
@@ -28,7 +28,10 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
+import { linkFromMeta } from './wa/link-preview-data';
 import Transcript from './wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from './wa/RefreshMissing';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
 import WhenDialog from '@/components/ui/WhenDialog';
@@ -38,6 +41,9 @@ import { DEFAULT_RULE, PollResults, RecurrenceFields, browserTimezone, checkRule
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from './wa/Reactions';
+import { useDismiss } from './wa/useDismiss';
+import type { WaReactor } from '@/lib/wa-reactions';
 import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import EmojiPicker from './wa/EmojiPicker';
@@ -45,9 +51,20 @@ import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
-import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
+import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
+import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCards, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from './wa/MediaParts';
+import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
+
+/** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
+async function retryLinesMedia(id: string): Promise<MediaRetryResult> {
+  const r = await fetch(`/api/groups/media/${id}`, { method: 'POST' }).catch(() => null);
+  if (r?.ok) {
+    const { url } = (await r.json()) as { url?: string };
+    return url ? { url } : { pending: true };
+  }
+  return r?.status === 410 ? { gone: true } : r?.status === 409 ? { offline: true } : { pending: true };
+}
 import MediaAlbum from './wa/MediaAlbum';
 import UploadRing from './wa/UploadRing';
 import { groupAlbums } from '@/lib/wa-albums';
@@ -82,14 +99,19 @@ import {
   Bell,
   Sparkle,
   DisplayIcon,
+  ArchiveIcon,
   StarIcon,
   CopyIcon,
   ArrowLeft,
+  LinkIcon,
+  Note,
 } from './wa/icons';
 import TouchMessageMenu from './wa/TouchMessageMenu';
 import SelectionBar from './wa/SelectionBar';
 import { useBackLayer } from './wa/backLayer';
 import { swipeAndHold } from '@/components/inbox/wa/gestures';
+import { NewGroupCard } from './wa/GroupEvent';
+import { parseEvent } from '@/lib/wa-group-events';
 import ContactPicker from './wa/ContactPicker';
 import AttachMenu, { type AttachMenuHandle } from './wa/AttachMenu';
 import PollDialog, { type PollDraft } from './wa/PollDialog';
@@ -98,7 +120,7 @@ import LiveWaveform from './wa/LiveWaveform';
 import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
-import { notifyChatSent } from '@/lib/ui/chat-sent';
+import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -120,6 +142,8 @@ export interface ThreadProps {
   me: string;
   isAdmin: boolean;
   numberName: string;
+  /** La línea está vinculada (si no, no se le puede pedir nada al teléfono). */
+  numberConnected?: boolean;
   caps: ProviderCaps;
   /** Número de ejemplo: lo que se manda queda guardado y no sale a WhatsApp. */
   sample?: boolean;
@@ -193,6 +217,10 @@ export default function ChatThread(props: ThreadProps) {
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
+  // Mandar desde un chat archivado lo desarchiva (como WhatsApp): el menú del chat lo refleja ya.
+  useOnChatSent((id) => {
+    if (id === props.chat.id) setChat((c) => (c.archived && !c.keepArchived ? { ...c, archived: false } : c));
+  });
   const [messages, setMessages] = useState(props.messages);
   const [pinned, setPinned] = useState(props.pinned);
   const [text, setText] = useState('');
@@ -205,6 +233,8 @@ export default function ChatThread(props: ThreadProps) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
+  const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
   const previewOpen = mode === 'reply' && tray.items.length > 0;
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -225,6 +255,13 @@ export default function ChatThread(props: ThreadProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // El cuadro de quién reaccionó: el mensaje (el primero del álbum) y su globito.
+  const [rxFor, setRxFor] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  // Todos los emojis (el "+" de la barra rápida), para reaccionar con cualquiera.
+  const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
+  // La barra rápida de reacciones: un toque afuera o Esc la cierra (el botón de reaccionar la alterna).
+  const quickBar = useRef<HTMLSpanElement>(null);
+  useDismiss(pickerFor !== null, () => setPickerFor(null), [quickBar, '.wa-react-btn']);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Teléfono: el panel de info tapa el chat; "atrás" lo cierra.
@@ -233,6 +270,35 @@ export default function ChatThread(props: ThreadProps) {
   // Más angosta: es un cajón que se abre encima.
   const side = useDetailsHidden();
   const detailsShown = side.wide ? !side.hidden : detailsOpen;
+  const tg = useTranslations('groups.wa.newGroup');
+  // El aviso de creación (quién creó el grupo) para la tarjeta del grupo sin mensajes.
+  const createdEvent = useMemo(() => {
+    for (const m of messages) {
+      const e = m.direction === 'system' && m.authorKind === 'wa' ? parseEvent((m.meta as Record<string, unknown>).sys) : null;
+      if (e?.t === 'create') return e;
+    }
+    return null;
+  }, [messages]);
+  /** Abre el panel del chat y lleva el foco al campo (agregar miembros, descripción). */
+  function openDetailsAt(target: string) {
+    if (!detailsShown) toggleDetails();
+    let tries = 0;
+    const focus = () => {
+      const el = document.querySelector<HTMLElement>(`[data-focus-target="${target}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center' });
+        el.focus();
+      } else if (tries++ < 30) requestAnimationFrame(focus);
+    };
+    requestAnimationFrame(focus);
+  }
+  /** "Invitar con link": pide el link a WhatsApp y lo copia. */
+  async function copyInvite() {
+    const res = await api<{ link: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'invite', revoke: false } });
+    if (!res.data) return showToast(errText(res.error), true);
+    await navigator.clipboard?.writeText(res.data.link).catch(() => null);
+    showToast(tg('inviteCopied'));
+  }
   const toggleDetails = () => (side.wide ? side.setHidden(!side.hidden) : setDetailsOpen((v) => !v));
   const setDetailsHidden = side.setHidden;
   // "Info del contacto" desde el menú de la fila (clic derecho en la lista): abre los detalles.
@@ -299,7 +365,10 @@ export default function ChatThread(props: ThreadProps) {
   // La respuesta a la vista cuando termina una grabación (el cierre de la grabadora es de cuando empezó).
   const replyToRef = useRef(replyTo);
   replyToRef.current = replyTo;
-  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
+  const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean; mime: string; chatId: string } | null>(null);
+  // "Enviar más tarde" desde la grabadora: el selector de cuándo abierto, y la nota subiéndose para quedar programada.
+  const [voiceLater, setVoiceLater] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const draftKey = linesDraftKey(props.me, props.chat.id);
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
   const leaving = useLeavingChat(props.chat.id);
@@ -454,45 +523,63 @@ export default function ChatThread(props: ThreadProps) {
 
   /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
   const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
-  const [olderDone, setOlderDone] = useState(false);
-  const [fetchingOlder, setFetchingOlder] = useState(false);
-  /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
-  async function fetchOlderFromPhone() {
-    if (fetchingOlder) return;
-    setFetchingOlder(true);
-    const res = await api<{ added: number; done: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'importOlder' } });
-    setFetchingOlder(false);
-    if (!res.data) return showToast(errText(res.error), true);
-    if (res.data.added === 0 || res.data.done) setOlderDone(true);
-    if (res.data.added > 0) {
-      const first = messages[0];
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega se suma arriba sin mover lo que se está leyendo.
+  const firstRef = useRef<MessageDto | undefined>(undefined);
+  firstRef.current = messages[0];
+  const olderHistory = useOlderHistory(
+    chat.id,
+    messages[0]?.id ?? '',
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      const first = firstRef.current;
+      if (!first) return 0;
       const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(olderCursor(first))}`);
-      if (older.data?.messages.length) {
+      const list = older.data?.messages ?? [];
+      if (list.length) {
         const box = boxRef.current;
         if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
-        merge(older.data.messages);
+        merge(list);
       }
-    }
-  }
+      return list.length;
+    },
+  );
 
   // Mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts): se le pide el historial del chat al teléfono. Lo que
   // manda llega como historial, con su hora (en el medio del hilo, no al final): se vuelve a traer lo último unas veces.
   const historyTimers = useRef<number[]>([]);
   useEffect(() => () => historyTimers.current.forEach((id) => window.clearTimeout(id)), []);
-  const refetchLatest = useCallback(async () => {
-    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${OLDER_PAGE}`);
+  const refetchLatest = useCallback(async (limit = OLDER_PAGE) => {
+    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${Math.min(500, limit)}`);
     if (res.data?.messages.length) merge(res.data.messages);
   }, [props.chat.id, merge]);
   const watchHistory = useCallback(() => {
     void refetchLatest();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(() => void refetchLatest(), ms));
   }, [refetchLatest]);
-  async function fetchMissing() {
-    const res = await api<{ ok: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'fetchMissing' } });
-    if (!res.data) return showToast(errText(res.error), true);
-    showToast(t('thread.fetchMissingToast'));
-    watchHistory();
-  }
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postChat = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [chat.id]);
+  const shown = useRef(0);
+  shown.current = messages.length;
+  const refreshMissing = useRefreshMissing(
+    chat.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postChat({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postChat({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    () => void refetchLatest(Math.max(OLDER_PAGE, shown.current)),
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -764,6 +851,8 @@ export default function ChatThread(props: ThreadProps) {
     const files = pending.filter((f) => f.status !== 'error');
     if (sending) return;
     if (!text.trim() && files.length === 0) return;
+    // Sin red los textos quedan en cola, los archivos no: necesitan conexión para subirse. Quedan en la bandeja.
+    if (files.length && isOffline()) return setSendError(errText('offline_files'));
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSendError('');
@@ -822,7 +911,7 @@ export default function ChatThread(props: ThreadProps) {
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
   function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
-    sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
+    void sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -974,17 +1063,19 @@ export default function ChatThread(props: ThreadProps) {
     }
     const mime = recorderMime();
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-    const state = { rec, chunks: [] as Blob[], stream, cancel: false };
-    rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     // El chat y la respuesta de cuando se grabó: la nota va ahí aunque se cambie de chat mientras se sube.
     const chatId = chat.id;
+    const state = { rec, chunks: [] as Blob[], stream, cancel: false, mime, chatId };
+    rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     rec.onstop = () => {
       const seconds = Math.max(1, Math.round(recSecs() || 1));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
+      setVoiceLater(false);
+      setVoiceBusy(false);
       if (state.cancel || state.chunks.length === 0) return;
-      const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
+      const type = recordedType(rec, mime);
       const name = `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`;
       const file = new File(state.chunks, name, { type });
       // La burbuja aparece ya, con el reloj y el audio que se puede escuchar; la subida y el envío siguen por detrás.
@@ -1024,6 +1115,46 @@ export default function ChatThread(props: ThreadProps) {
     r.cancel = cancel;
     if (r.rec.state !== 'inactive') r.rec.stop();
   }
+  /** El reloj de la grabadora: la grabación queda en pausa y se elige cuándo sale. Menos de un segundo no se programa. */
+  function openVoiceLater() {
+    if (!recorder.current || !recordingRef.current || voiceBusy) return;
+    if (!longEnough(recSecs())) return showToast(t('later.voiceTooShort'), true);
+    if (!recordingRef.current.paused) togglePause();
+    setVoiceLater(true);
+  }
+  /**
+   * Sube lo grabado y lo programa para `iso` como nota de voz. Recién cuando quedó programado se cierra la grabadora:
+   * si algo falla, la grabación sigue ahí, en pausa.
+   */
+  async function scheduleVoice(iso: string) {
+    setVoiceLater(false);
+    const r = recorder.current;
+    if (!r || voiceBusy) return;
+    setVoiceBusy(true);
+    const seconds = recSecs();
+    const quote = replyToRef.current;
+    const fail = (code?: string | null) => {
+      setVoiceBusy(false);
+      showToast(errText(code || 'upload_failed'), true);
+    };
+    const file = await recordedSoFar(r.rec, r.chunks, recordedType(r.rec, r.mime));
+    if (!file) return fail('voice_too_short');
+    let up: Awaited<ReturnType<typeof uploadWithProgress>['done']>;
+    try {
+      up = await uploadWithProgress(file, () => {}).done;
+    } catch (err) {
+      return fail((err as Error).message || 'upload_failed');
+    }
+    const res = await api<{ id: string }>('/api/groups/broadcasts', {
+      body: linesVoicePayload({ chatId: r.chatId, scheduledAt: iso, media: { url: up.url, mimetype: up.mimetype || file.type, filename: up.filename || file.name }, seconds, replyToId: quote?.id ?? null }),
+    });
+    if (!res.data) return fail(res.error);
+    // Programada: la grabadora se cierra sin mandar nada ahora.
+    stopRecording(true);
+    setReplyTo(null);
+    notifyScheduledChanged();
+    showToast(t('later.toast', { when: longWhen(iso, locale) }));
+  }
   useEffect(() => {
     if (!recording) return;
     const id = setInterval(() => setRecording((r) => (r ? { ...r, elapsed: Math.floor(r.carried + (r.paused ? 0 : (Date.now() - r.startedAt) / 1000)) } : r)), 250);
@@ -1034,12 +1165,19 @@ export default function ChatThread(props: ThreadProps) {
 
   async function react(m: MessageDto, emoji: string) {
     setPickerFor(null);
+    setFullPickerFor(null);
     const mine = m.reactions.find((r) => r.fromMe && r.emoji === emoji);
     const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: 'react', emoji: mine ? '' : emoji } });
     if (res.data) {
       merge([res.data]);
       if (!mine && emoji === props.ticketEmoji) showToast(t('thread.ticketByReaction'));
     } else showToast(errText(res.error), true);
+  }
+
+  // Quién reaccionó (nombre, foto y teléfono; enmascarado si esta persona no ve teléfonos), para el cuadro de reacciones.
+  async function loadReactions(ids: string[]): Promise<WaReactor[] | null> {
+    const res = await api<{ reactions: WaReactor[] }>(`/api/groups/chats/${props.chat.id}/members?reactions=${encodeURIComponent(ids.join(','))}`);
+    return res.data && Array.isArray(res.data.reactions) ? res.data.reactions : null;
   }
 
   function openTicket(m: MessageDto) {
@@ -1324,8 +1462,10 @@ export default function ChatThread(props: ThreadProps) {
     const live = m.direction !== 'note' && !m.deletedAt;
     const starred = (m.meta as Record<string, unknown>).starred === true;
     const mayRetry = props.isAdmin || m.authorId === props.me;
-    // Una burbuja que todavía no está guardada: solo reintentar o quitar, y solo si no salió.
+    // Una burbuja que todavía no está guardada: si espera la red, borrarla antes de que salga; si no salió,
+    // reintentar o quitar. Mientras sale, nada.
     if (isTempId(m.id)) {
+      if (m.status === 'queued') return [{ key: 'remove', label: t('wa.deleteQueued'), onSelect: () => discardLinesSend(m.id.slice(TEMP_PREFIX.length)) }];
       if (m.status !== 'failed') return [];
       return [
         { key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) },
@@ -1407,7 +1547,7 @@ export default function ChatThread(props: ThreadProps) {
     // Ya está subido: sale por la cola del chat como cualquier archivo (burbuja al instante, reintentar si no sale).
     const m = res.data.media as { url: string; mimetype?: string; filename?: string; size?: number; width?: number; height?: number };
     notifyChatSent(chat.id);
-    sendLinesText(
+    void sendLinesText(
       unsentLines.add({
         chatId: chat.id,
         body: '',
@@ -1649,9 +1789,11 @@ export default function ChatThread(props: ThreadProps) {
     const color = m.direction === 'in' && chat.kind === 'group' ? `wa-n${colorIndex(m.senderPhone || m.senderName)}` : '';
     const reactions = new Map<string, number>();
     for (const r of (album ?? [m]).flatMap((x) => x.reactions)) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
+    const rxLite = (album ?? [m]).flatMap((x) => x.reactions.map((r) => ({ messageId: x.id, emoji: r.emoji, me: r.fromMe })));
     const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
-    const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url) && !(m.deletedAt && !revealed.has(m.id));
+    // Foto o video (aunque no esté disponible: su lugar ocupa el mismo ancho) al ras de la burbuja.
+    const flush = (kind === 'image' || kind === 'video') && !media?.viewOnce && !(m.deletedAt && !revealed.has(m.id));
     const groupIn = m.direction === 'in' && chat.kind === 'group';
     const starred = (m.meta as Record<string, unknown>).starred === true;
     // Borrado: "Se eliminó este mensaje"; un admin puede ver el original.
@@ -1667,11 +1809,15 @@ export default function ChatThread(props: ThreadProps) {
       });
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
+    const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     return (
       <article
         key={m.id}
         className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
         id={`m-${m.id}`}
+        data-testid="wa-message"
+        data-status={m.direction === 'out' ? m.status : undefined}
+        data-unsent={isTempId(m.id) ? 'true' : undefined}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
@@ -1830,8 +1976,43 @@ export default function ChatThread(props: ThreadProps) {
                 </span>
               ) : sticker && !media.url ? (
                 <StickerMissing label={t('wa.stickers.missing')} />
+              ) : !media.url && (kind === 'image' || kind === 'video') ? (
+                <MissingMedia
+                  kind={kind}
+                  width={media.width}
+                  height={media.height}
+                  thumbnail={media.thumbnail}
+                  seconds={media.duration}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                  retryKey={`lines:${m.id}`}
+                />
+              ) : !media.url && (kind === 'audio' || kind === 'voice') ? (
+                // Sin archivo: el botón lo va a buscar (al gateway y, si hace falta, al teléfono) y, si vuelve, suena.
+                <VoicePlayer id={m.id} src="" seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
+                  waveform={media.waveform}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
+                  avatar={
+                    m.direction === 'in'
+                      ? chat.kind === 'dm'
+                        ? { name: chat.name, src: chat.pictureUrl || undefined, seed: chat.id }
+                        : { name: inName(m), seed: m.senderPhone || m.senderName }
+                      : { name: author || '', src: outImage(m.authorId), seed: m.authorId || 'me' }
+                  }
+                />
               ) : !media.url ? (
-                <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
+                <DocCard
+                  url=""
+                  name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)}
+                  type={media.type}
+                  size={media.size}
+                  pages={media.pages}
+                  thumbnail={media.thumbnail}
+                  gone={(m.meta as Record<string, unknown>).mediaGone === true}
+                  onRetry={isTempId(m.id) ? undefined : () => retryLinesMedia(m.id)}
+                />
               ) : kind === 'image' || kind === 'sticker' ? (
                 <ImageView
                   url={media.url}
@@ -1850,6 +2031,7 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'audio' || kind === 'voice' ? (
                 <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined}
                   waveform={media.waveform}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
                   avatar={
                     m.direction === 'in'
                       ? chat.kind === 'dm'
@@ -1859,7 +2041,7 @@ export default function ChatThread(props: ThreadProps) {
                   }
                 />
               ) : (
-                <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
+                <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} thumbnail={media.thumbnail} saveThumbTo={isTempId(m.id) ? undefined : `/api/groups/media/${m.id}`} />
               )}
               {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
                 <UploadRing
@@ -1870,13 +2052,14 @@ export default function ChatThread(props: ThreadProps) {
               )}
             </div>
           )}
-          {media && !hidden && (kind === 'audio' || kind === 'voice') && media.url && !media.viewOnce && (
+          {media && !hidden && (kind === 'audio' || kind === 'voice') && (media.url || recoveredAudio[m.id]) && !media.viewOnce && (
             <Transcript
               endpoint={`/api/groups/messages/${m.id}/transcript`}
+              retryKey={recoveredAudio[m.id] ?? 0}
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} given={linkFromMeta(m.meta)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden && contacts.length > 0 && (
             <ContactCards
@@ -1964,17 +2147,38 @@ export default function ChatThread(props: ThreadProps) {
             </span>
           )}
         </div>
+        {/* Como WhatsApp: hasta tres emojis (los más usados) y el total; un clic abre quién reaccionó. */}
         {reactions.size > 0 && (
-          <p className="gr-reactions" aria-label={t('thread.reactions')}>
-            {/* Como WhatsApp: hasta tres emojis (los más usados) y el total de reacciones. */}
-            {[...reactions]
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 3)
-              .map(([emoji]) => (
-                <span key={emoji}>{emoji}</span>
-              ))}
-            {[...reactions.values()].reduce((a, n) => a + n, 0) > 1 && <b>{[...reactions.values()].reduce((a, n) => a + n, 0)}</b>}
-          </p>
+          <ReactionChip
+            reactions={rxLite}
+            expanded={rxFor?.id === m.id}
+            onOpen={(el) => (selecting ? !album && toggleSelected(m.id) : setRxFor(rxFor?.id === m.id ? null : { id: m.id, anchor: el }))}
+          />
+        )}
+        {rxFor?.id === m.id && (
+          <ReactionDetails
+            anchor={rxFor.anchor}
+            reactions={rxLite}
+            load={() => loadReactions((album ?? [m]).map((x) => x.id))}
+            me={{ picture: outImage(null) }}
+            canReact={!isNote && !m.deletedAt && !isEditing && !selecting}
+            align={m.direction === 'out' ? 'right' : 'left'}
+            onReact={() => {
+              setRxFor(null);
+              setPickerFor(m.id);
+              // El foco pasa a la barra de emojis (así se ve aunque el mouse no esté encima; Esc la cierra).
+              requestAnimationFrame(() => document.getElementById(`m-${m.id}`)?.querySelector<HTMLButtonElement>('.gr-emoji-picker button')?.focus());
+            }}
+            onRemove={async ({ messageId, emoji }) => {
+              const target = (album ?? [m]).find((x) => x.id === messageId);
+              if (target) await react(target, emoji);
+            }}
+            onClose={(restore) => {
+              const anchor = rxFor.anchor;
+              setRxFor(null);
+              if (restore && anchor.isConnected) anchor.focus();
+            }}
+          />
         )}
         {!isNote && !m.deletedAt && !isEditing && !selecting && (
           <div className="gr-msg-actions">
@@ -1989,16 +2193,33 @@ export default function ChatThread(props: ThreadProps) {
             >
               <Smiley size={18} />
             </button>
-            {reactTo && (
-              <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
-                {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
-                  <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
-                    {e}
-                  </button>
-                ))}
-              </span>
-            )}
           </div>
+        )}
+        {/* La barra rápida va sobre el mensaje (no al costado, donde con el dedo quedaba fuera de la pantalla). */}
+        {reactTo && (
+          <span className="gr-emoji-picker" role="group" aria-label={t('thread.react')} ref={quickBar} data-testid="wa-quick-react">
+            {[...new Set([...QUICK_EMOJIS, props.ticketEmoji].filter(Boolean))].map((e) => (
+              <button key={e} type="button" onClick={() => void react(reactTo, e)} aria-label={e === props.ticketEmoji ? t('thread.reactTicket', { emoji: e }) : e}>
+                {e}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setPickerFor(null);
+                setFullPickerFor(reactTo.id);
+              }}
+              aria-label={t('wa.reactions.more')}
+              title={t('wa.reactions.more')}
+            >
+              <Plus size={20} />
+            </button>
+          </span>
+        )}
+        {fullFor && (
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.direction === 'out' ? 'right' : 'left'}>
+            <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
+          </FloatingReactPicker>
         )}
       </article>
     );
@@ -2116,9 +2337,22 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
+                ...(chat.archived
+                  ? [
+                      {
+                        key: 'keepArchived',
+                        glyph: <ArchiveIcon size={18} />,
+                        label: chat.keepArchived ? t('wa.keepArchivedOff') : t('wa.keepArchived'),
+                        onSelect: () => {
+                          const on = !chat.keepArchived;
+                          void patchChat({ keepArchived: on }).then((res) => res && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
+                        },
+                      },
+                    ]
+                  : []),
                 { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
                 { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
-                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void fetchMissing() }] : []),
+                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void refreshMissing.run() }] : []),
                 ...(narrow
                   ? [
                       { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
@@ -2165,19 +2399,13 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
 
+        <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">
           <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
-            {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
-              <p className="wa-history-note">
-                <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
-                {!olderDone && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void fetchOlderFromPhone()} aria-busy={fetchingOlder || undefined}>
-                    {t('wa.historyFetch')}
-                  </button>
-                )}
-              </p>
+            {!hasOlder && messages.length > 0 && props.caps.fetchHistory && !props.sample && (
+              <OlderHistoryChip state={olderHistory.state} offline={props.numberConnected === false} onLoad={() => void olderHistory.run()} />
             )}
             {hasOlder && (
               <p className="wa-older">
@@ -2186,10 +2414,29 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
               </p>
             )}
-            {messages.length === 0 && (
-              <p className="wa-empty-thread">
-                <Lock size={13} /> {t('thread.noMessages')}
-              </p>
+            {chat.kind === 'group' && !hasOlder && !messages.some((m) => m.direction !== 'system') ? (
+              <NewGroupCard
+                name={chat.name}
+                avatar={chat.pictureUrl || undefined}
+                seed={chat.id}
+                created={createdEvent}
+                members={chat.memberCount || props.members.length}
+                actions={
+                  props.caps.groups
+                    ? [
+                        { key: 'add', label: tg('addMembers'), icon: <UserPlus size={18} />, onSelect: () => openDetailsAt('add-members') },
+                        { key: 'invite', label: tg('invite'), icon: <LinkIcon size={18} />, onSelect: () => void copyInvite() },
+                        { key: 'description', label: tg('description'), icon: <Note size={18} />, onSelect: () => openDetailsAt('description') },
+                      ]
+                    : []
+                }
+              />
+            ) : (
+              messages.length === 0 && (
+                <p className="wa-empty-thread">
+                  <Lock size={13} /> {t('thread.noMessages')}
+                </p>
+              )
             )}
             {rows}
             <div ref={endRef} />
@@ -2307,8 +2554,8 @@ export default function ChatThread(props: ThreadProps) {
               ]}
             />
           ) : recording ? (
-            <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')}>
-              <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
+            <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')} aria-busy={voiceBusy || undefined}>
+              <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} disabled={voiceBusy} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
                 <Trash />
               </button>
               <span className={`wa-rec-dot${recording.paused ? ' is-paused' : ''}`} aria-hidden="true" />
@@ -2317,10 +2564,15 @@ export default function ChatThread(props: ThreadProps) {
               </span>
               <span className="sr-only">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
               <LiveWaveform stream={recorder.current?.stream} paused={recording.paused} />
-              <button type="button" className="wa-icon-btn" onClick={togglePause} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
+              <button type="button" className="wa-icon-btn" onClick={togglePause} disabled={voiceBusy} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
                 {recording.paused ? <Mic size={22} /> : <Pause size={22} />}
               </button>
-              <button type="button" className="wa-send" onClick={() => stopRecording(false)} aria-label={t('wa.sendVoice')} title={t('wa.sendVoice')}>
+              {mode === 'reply' && (
+                <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-voice-later" onClick={openVoiceLater} disabled={voiceBusy} aria-busy={voiceBusy || undefined} aria-label={t('later.voiceButton')} title={t('later.voiceButton')}>
+                  <ClockIcon size={20} />
+                </button>
+              )}
+              <button type="button" className="wa-send" onClick={() => stopRecording(false)} disabled={voiceBusy} aria-label={t('wa.sendVoice')} title={t('wa.sendVoice')}>
                 <SendIcon />
               </button>
             </div>
@@ -2346,9 +2598,10 @@ export default function ChatThread(props: ThreadProps) {
                     onPick={(e) => {
                       insertEmoji(e);
                     }}
-                    onClose={() => {
+                    onClose={(reason) => {
                       setEmojiOpen(false);
-                      inputRef.current?.focus();
+                      // Un toque afuera deja el foco donde se tocó.
+                      if (reason !== 'outside') inputRef.current?.focus();
                     }}
                   />
                 )}
@@ -2562,6 +2815,22 @@ export default function ChatThread(props: ThreadProps) {
         }
         onPick={(iso) => void scheduleLater(iso)}
         onClose={() => setLater(false)}
+      />
+      {/* "Enviar más tarde" de la nota de voz que se está grabando: al cerrarlo (Esc o clic afuera) la grabación sigue, en pausa. */}
+      <WhenDialog
+        open={voiceLater}
+        title={t('later.title')}
+        labels={whenLabels}
+        help={
+          voiceLater && recording ? (
+            <>
+              <span className="gr-later-preview">{t('later.voiceTag', { time: `${Math.floor(recording.elapsed / 60)}:${String(recording.elapsed % 60).padStart(2, '0')}` })}</span>
+              {replyTo && <span className="gr-later-note">{t('later.asReply', { text: quoteLine(replyTo).slice(0, 80) })}</span>}
+            </>
+          ) : undefined
+        }
+        onPick={(iso) => void scheduleVoice(iso)}
+        onClose={() => setVoiceLater(false)}
       />
 
       <Modal

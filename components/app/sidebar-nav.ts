@@ -177,6 +177,7 @@ export interface SidebarLabels {
   groups: {
     inbox: string;
     groups: string;
+    contacts: string;
     tickets: string;
     tasks: string;
     templates: string;
@@ -271,7 +272,7 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string };
+  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Time (Harvest): hoja de horas, proyectos y reportes. */
@@ -848,6 +849,7 @@ export function buildNav(
               branch: true,
             },
             { href: '/app/lines/list', label: labels.groups.groups, active: at('/app/lines/list'), icon: 'groups' },
+            { href: '/app/lines/contacts', label: labels.groups.contacts, active: at('/app/lines/contacts'), icon: 'contacts' },
             { href: '/app/lines/tickets', label: labels.groups.tickets, active: at('/app/lines/tickets'), icon: 'tasks' },
             { href: '/app/lines/tasks', label: labels.groups.tasks, active: at('/app/lines/tasks'), icon: 'myTasks' },
             { href: '/app/lines/templates', label: labels.groups.templates, active: at('/app/lines/templates'), icon: 'templates' },
@@ -1040,7 +1042,9 @@ export function buildNav(
             { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
             { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
-            { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived'), icon: 'archive' },
+            // Sacados de Inbox vive adentro de Archivados (components/inbox/RemovedList.tsx).
+            { href: '/app/inbox/v/archived', label: l.done, active: view('done') || view('archived') || view('removed'), icon: 'archive' },
+            { href: '/app/inbox/contacts', label: l.contacts, active: at('/app/inbox/contacts'), icon: 'contacts' },
           ],
         },
         {

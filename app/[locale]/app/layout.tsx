@@ -465,6 +465,7 @@ export default async function AppLayout(
                 { href: '/app/inbox/v/snoozed', label: tInbox('nav.snoozed') },
                 { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
                 { href: '/app/inbox/v/done', label: tInbox('nav.done') },
+                { href: '/app/inbox/v/removed', label: tInbox('nav.removed') },
                 { href: '/app/inbox/analytics', label: tInbox('nav.analytics') },
                 { href: '/app/calls', label: tCalls('nav.library') },
                 { href: '/app/calls/upcoming', label: tCalls('nav.upcoming') },
@@ -637,6 +638,7 @@ export default async function AppLayout(
             groups: {
               inbox: tGroups('sidebar.inbox'),
               groups: tGroups('sidebar.groups'),
+              contacts: tGroups('sidebar.contacts'),
               tickets: tGroups('sidebar.tickets'),
               tasks: tGroups('sidebar.tasks'),
               templates: tGroups('sidebar.templates'),
@@ -724,6 +726,7 @@ export default async function AppLayout(
               done: tInbox('nav.done'),
               compose: tInbox('nav.compose'),
               analytics: tInbox('nav.analytics'),
+              contacts: tInbox('nav.contacts'),
             },
             time: { timesheet: tTime('nav.timesheet'), projects: tTime('nav.projects'), reports: tTime('nav.reports'), track: tTime('nav.track') },
             fleet: { now: tFleet('nav.now'), chats: tFleet('nav.chats'), prs: tFleet('nav.prs'), deploys: tFleet('nav.deploys'), connect: tFleet('nav.connect') },

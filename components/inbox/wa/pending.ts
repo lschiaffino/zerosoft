@@ -6,7 +6,7 @@
  * si no es el suyo.
  */
 import type { MessageDto } from '@/lib/inbox/types';
-import { dropSettled, isTempId, localPreviews, sendQueueFor, tempIdFor, type UnsentMedia } from '@/lib/optimistic-send';
+import { UNSENT_INBOX_KEY, dropSettled, isTempId, localPreviews, sendQueueFor, TEMP_PREFIX, tempIdFor, unsentStore, type Unsent, type UnsentMedia } from '@/lib/optimistic-send';
 
 export type PendingEvent =
   /** Se apretó Enter (o se mandó un archivo): aparece la burbuja. Con el id de una que ya está, la cambia en su lugar. */
@@ -32,9 +32,57 @@ export const pendingSends = {
       listeners.delete(fn);
     };
   },
-  /** ¿El envío de esta burbuja sigue en curso? */
-  active: (id: string): boolean => inFlight.has(id),
+  /** ¿El envío de esta burbuja sigue en curso (o espera la red, o no salió y se puede reintentar)? */
+  active: (id: string): boolean => inFlight.has(id) || (isTempId(id) && !!unsentInbox.get(id.slice(TEMP_PREFIX.length))),
 };
+
+/**
+ * Los textos de Inbox escritos sin red (en cola: salen solos al volver la conexión) y los que la cola no pudo mandar
+ * porque el servidor los rechazó (reintentar o quitar). En localStorage: sobreviven a recargar la página y los ven
+ * las otras pestañas. La cola que los manda está en ./outbox.ts.
+ */
+export const unsentInbox = unsentStore<MessageDto[]>(UNSENT_INBOX_KEY, { persist: 'local' });
+
+/** La burbuja de un texto de la cola: con el reloj mientras espera o sale, como no enviado si el servidor lo rechazó. */
+export function tempFromUnsent(u: Unsent): MessageDto {
+  return { ...tempInboxMessage(u.clientId, u.body, !!u.noPreview), status: u.status, sentAt: u.createdAt };
+}
+
+/** Las burbujas de la cola que se pintaron, por chat: si otra pestaña las manda o las borra, acá se sacan. */
+const fromQueue = new Map<string, Set<string>>();
+const track = (threadId: string, id: string) => {
+  const set = fromQueue.get(threadId) ?? new Set<string>();
+  set.add(id);
+  fromQueue.set(threadId, set);
+};
+
+/** Pinta lo que hay en la cola de esta persona (al saber quién es: la conversación pudo cargarse antes). */
+export function showQueued(): void {
+  for (const u of unsentInbox.entries()) {
+    track(u.chatId, tempIdFor(u.clientId));
+    pendingSends.emit({ type: 'add', threadId: u.chatId, message: tempFromUnsent(u) });
+  }
+}
+
+// Lo que cambia en la cola se ve en la conversación de SU chat (y en la copia guardada de ese chat).
+unsentInbox.subscribe((e) => {
+  if (e.type === 'synced') {
+    const now = unsentInbox.list(e.chatId);
+    const keep = new Set(now.map((u) => tempIdFor(u.clientId)));
+    for (const id of fromQueue.get(e.chatId) ?? []) if (!keep.has(id)) pendingSends.emit({ type: 'drop', threadId: e.chatId, id });
+    fromQueue.set(e.chatId, keep);
+    for (const u of now) pendingSends.emit({ type: 'add', threadId: e.chatId, message: tempFromUnsent(u) });
+    return;
+  }
+  const id = tempIdFor(e.entry.clientId);
+  const shown = fromQueue.get(e.chatId) ?? new Set<string>();
+  if (e.type === 'saved' || e.type === 'removed') shown.delete(id);
+  else shown.add(id);
+  fromQueue.set(e.chatId, shown);
+  if (e.type === 'saved') pendingSends.emit({ type: 'sent', threadId: e.chatId, messages: e.saved, id });
+  else if (e.type === 'removed') pendingSends.emit({ type: 'drop', threadId: e.chatId, id });
+  else pendingSends.emit({ type: 'add', threadId: e.chatId, message: tempFromUnsent(e.entry) });
+});
 
 /**
  * Cuánto se espera la respuesta de un archivo: más que lo que el servidor espera al gateway (90 s, que lo baja, lo
@@ -139,6 +187,20 @@ export function applyPending<D extends WithMessages>(detail: D | null, e: Pendin
 export function keepPending<D extends WithMessages>(prev: WithMessages | null, next: D): D {
   const clean = next.messages.some((m) => isTempId(m.id)) ? next.messages.filter((m) => !isTempId(m.id)) : next.messages;
   const temps = prev && prev.thread.id === next.thread.id ? dropSettled(liveTemps(prev.messages), clean, cidOf) : [];
+  // Lo de la cola sin conexión de este chat (también después de recargar): una burbuja cada uno, salvo que el
+  // servidor ya traiga su mensaje guardado (entonces sale de la cola).
+  const queued = unsentInbox.list(next.thread.id);
+  if (queued.length) {
+    const have = new Set(clean.map(cidOf).filter((c): c is string => !!c));
+    const shown = new Set(temps.map((m) => m.id));
+    for (const u of queued) {
+      if (have.has(u.clientId)) queueMicrotask(() => unsentInbox.remove(u.clientId));
+      else if (!shown.has(tempIdFor(u.clientId))) {
+        track(next.thread.id, tempIdFor(u.clientId));
+        temps.push(tempFromUnsent(u));
+      }
+    }
+  }
   if (!temps.length && clean === next.messages) return next;
   return { ...next, messages: [...clean, ...temps] };
 }

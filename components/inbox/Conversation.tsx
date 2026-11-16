@@ -150,7 +150,7 @@ const Conversation = forwardRef<
     onScheduledChange: () => void;
     onRename: (title: string) => void;
     onError: (code: string) => void;
-    loadOlder: () => Promise<void>;
+    loadOlder: () => Promise<unknown>;
   }
 >(function Conversation({ detail, folders, snippets, connected, paused, onBack, onAction, onSent, onSendLater, onScheduledChange, onRename, onError, loadOlder }, composerRef) {
   const t = useTranslations('inbox');
