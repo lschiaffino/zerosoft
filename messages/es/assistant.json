@@ -218,7 +218,9 @@
     "deleteBody": "Se borran sus mensajes. Los cambios que ya confirmaste quedan en las apps.",
     "loadError": "No se pudieron cargar tus charlas.",
     "retry": "Probar de nuevo",
-    "actionsFor": "Acciones de {title}"
+    "actionsFor": "Acciones de {title}",
+    "showChats": "Ver charlas",
+    "hideChats": "Volver a la charla"
   },
   "home": {
     "title": "Preguntale al asistente",
@@ -445,5 +447,10 @@
     "revoke": "Apagar",
     "revoked": "Apagado. El asistente va a preguntar antes de leer estos chats.",
     "error": "No se pudo cambiar. Probá de nuevo."
-  }
+  },
+  "rows": {
+    "showAll": "Ver todo ({count})",
+    "showMore": "Mostrar {count} más"
+  },
+  "jumpToLatest": "Ir al final"
 }

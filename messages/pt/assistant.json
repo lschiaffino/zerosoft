@@ -218,7 +218,9 @@
     "deleteBody": "As mensagens são excluídas. As mudanças que você já confirmou ficam nos apps.",
     "loadError": "Não foi possível carregar suas conversas.",
     "retry": "Tentar de novo",
-    "actionsFor": "Ações de {title}"
+    "actionsFor": "Ações de {title}",
+    "showChats": "Ver conversas",
+    "hideChats": "Voltar para a conversa"
   },
   "home": {
     "title": "Pergunte ao assistente",
@@ -445,5 +447,10 @@
     "revoke": "Desligar",
     "revoked": "Desligado. O assistente vai perguntar antes de ler essas conversas.",
     "error": "Não foi possível mudar. Tente de novo."
-  }
+  },
+  "rows": {
+    "showAll": "Mostrar tudo ({count})",
+    "showMore": "Mostrar mais {count}"
+  },
+  "jumpToLatest": "Ir para o fim"
 }
