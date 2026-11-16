@@ -69,9 +69,10 @@ export async function setInboxHubspotAuto(owner: string, ws: string, on: boolean
 async function linesCandidates(limit: number): Promise<Candidate[]> {
   const rows = (await getDb()
     .prepare(
+      // CROSS JOIN fija el orden: primero los pocos workspaces con el ajuste, después sus chats por índice.
       `SELECT c.id, c.user_id, c.phone, c.provider_chat_id, c.name FROM groups_hubspot h
-       JOIN groups_chats c ON c.user_id = h.user_id
-       JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
+       CROSS JOIN groups_chats c ON c.user_id = h.user_id
+       CROSS JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
        WHERE h.token != '' AND h.auto_create = 1 AND h.auto_create_since IS NOT NULL
          AND c.kind = 'dm' AND c.phone != '' AND c.hidden_at IS NULL AND c.created_at >= h.auto_create_since
          AND NOT EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = c.id AND l.object_type = 'contact')
@@ -91,10 +92,10 @@ async function linesCandidates(limit: number): Promise<Candidate[]> {
 async function inboxCandidates(limit: number): Promise<Candidate[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT t.id, s.ws, t.handle, t.external_id, t.title FROM inbox_hubspot_auto s
-       JOIN groups_hubspot h ON h.user_id = s.ws AND h.token != ''
-       JOIN inbox_threads t ON t.owner_id = s.owner_id
-       WHERE t.channel = 'whatsapp' AND t.kind = 'dm' AND t.handle != '' AND t.removed_at IS NULL AND t.created_at >= s.since
+      `SELECT t.id, s.ws, t.handle, t.external_id, t.title FROM groups_hubspot h
+       CROSS JOIN inbox_hubspot_auto s ON s.ws = h.user_id
+       CROSS JOIN inbox_threads t ON t.owner_id = s.owner_id
+       WHERE h.token != '' AND t.channel = 'whatsapp' AND t.kind = 'dm' AND t.handle != '' AND t.removed_at IS NULL AND t.created_at >= s.since
          AND (s.owner_id = s.ws OR EXISTS (
            SELECT 1 FROM team_members m JOIN teams tm ON tm.id = m.team_id WHERE tm.owner_id = s.ws AND m.user_id = s.owner_id AND m.role != 'guest'))
          AND NOT EXISTS (SELECT 1 FROM hubspot_auto_contacts a WHERE a.chat_key = 'inbox:' || t.id)

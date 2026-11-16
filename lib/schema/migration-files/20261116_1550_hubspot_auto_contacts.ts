@@ -28,6 +28,7 @@ export default {
         ws TEXT NOT NULL,
         since TEXT NOT NULL
       );
+      CREATE INDEX IF NOT EXISTS idx_inbox_hubspot_auto_ws ON inbox_hubspot_auto(ws, owner_id, since);
       CREATE TABLE IF NOT EXISTS hubspot_auto_contacts (
         chat_key TEXT PRIMARY KEY,
         ws TEXT NOT NULL,
