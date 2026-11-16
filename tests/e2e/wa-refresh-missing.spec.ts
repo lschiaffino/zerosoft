@@ -22,12 +22,16 @@ test.describe.configure({ timeout: 360_000 });
 // Una persona y un workspace propios: la prueba desvincula la línea, y eso no puede tocar la cuenta de otras pruebas.
 ownWorkspace('wa-refresh');
 
-/** Con `next dev` la primera vez que se pide una ruta se compila: se piden una vez antes, con margen. */
+/**
+ * Con `next dev` la primera vez que se pide una ruta se compila: se piden una vez antes, con margen. También
+ * /api/teams/switch: la app lo consulta después de cada escritura que no sale bien (components/app/WorkspaceGuard.tsx),
+ * y estas pruebas tienen varias a propósito (409, 502).
+ */
 test.beforeAll(async ({ playwright }) => {
   test.setTimeout(600_000);
   const ctx = await playwright.request.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
   try {
-    for (const url of ['/api/inbox/threads/warm', '/api/inbox/threads/warm/messages', '/api/inbox/threads/warm/wa', '/api/groups/chats/warm', '/api/groups/chats/warm/messages']) await ctx.get(url, { timeout: 280_000 }).catch(() => null);
+    for (const url of ['/api/inbox/threads/warm', '/api/inbox/threads/warm/messages', '/api/inbox/threads/warm/wa', '/api/groups/chats/warm', '/api/groups/chats/warm/messages', '/api/teams/switch?id=warm']) await ctx.get(url, { timeout: 280_000 }).catch(() => null);
   } finally {
     await ctx.dispose();
   }
