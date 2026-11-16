@@ -111,7 +111,8 @@ export interface WaMessageMeta {
   /** Forma de onda de la nota de voz (0 a 100). */
   waveform?: number[];
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
-  contacts?: Array<{ name: string; phones: string[] }>;
+  /** Tarjetas de contacto; `picture`: la foto guardada de esa persona (lib/wa-contact-pictures.ts), si hay. */
+  contacts?: Array<{ name: string; phones: string[]; picture?: string }>;
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
   link?: { url: string; title: string; description?: string; thumb?: string };
