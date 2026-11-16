@@ -157,9 +157,14 @@ async function checkChat(page: Page, cdp: CDPSession, tag: string, app: string, 
     await page.keyboard.press('Escape');
 
     // Deslizar a la derecha el mensaje propio (pegado al borde derecho): la burbuja corrida no corre la lista.
-    const mine = box.locator('.gr-msg-out').last().locator('.gr-bubble');
-    await mine.scrollIntoViewIfNeeded();
-    const mb = (await mine.boundingBox())!;
+    // La lista se vuelve a pintar cuando llega la consulta en vivo: se busca de nuevo hasta tener la burbuja quieta.
+    const mine = box.locator('.gr-msg-out', { hasText: 'Mío:' }).locator('.gr-bubble');
+    let mb = { x: 0, y: 0, width: 0, height: 0 };
+    await expect(async () => {
+      await mine.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      mb = (await mine.boundingBox())!;
+      expect(mb.width).toBeGreaterThan(0);
+    }).toPass({ timeout: 20_000 });
     await drag(cdp, mb.x + 20, mb.y + mb.height / 2, 120);
     await page.waitForTimeout(400);
     expect(await sideOffsets(page), `${app} ${width}: corrimiento después de deslizar un mensaje propio`).toEqual({ page: 0, inner: 0 });
@@ -190,8 +195,12 @@ async function checkChat(page: Page, cdp: CDPSession, tag: string, app: string, 
 
   if (swipe) {
     const last = box.locator('.gr-msg', { hasText: `último ${tag}` }).locator('.gr-bubble');
-    await last.scrollIntoViewIfNeeded();
-    const b = (await last.boundingBox())!;
+    let b = { x: 0, y: 0, width: 0, height: 0 };
+    await expect(async () => {
+      await last.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      b = (await last.boundingBox())!;
+      expect(b.width).toBeGreaterThan(0);
+    }).toPass({ timeout: 20_000 });
     await drag(cdp, b.x + 20, b.y + b.height / 2, 110);
     await expect(page.locator('.wa-composer .gr-quote, .gr-replying .gr-quote, .wa-replying .gr-quote').first()).toContainText(`último ${tag}`);
     await fits(page, `${app} respondiendo`);
@@ -258,5 +267,5 @@ test('Lines en el teléfono: el chat no se corre de costado', async ({ page, req
   await page.goto((await row.getAttribute('href'))!, { waitUntil: 'load' });
   await expect(page.locator('.wa-messages')).toBeVisible({ timeout: 60_000 });
   await page.locator('.wa-messages').evaluate((el) => (el.scrollTop = el.scrollHeight));
-  await checkChat(page, cdp, tag, 'lines', false);
+  await checkChat(page, cdp, tag, 'lines', true);
 });
