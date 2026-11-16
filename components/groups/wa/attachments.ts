@@ -222,6 +222,37 @@ export function useAttachTray() {
     [patch, start],
   );
 
+  /**
+   * Cambia el archivo de un ítem por otro (la foto editada o achicada en la vista previa): corta la subida del
+   * anterior y sube el nuevo. La vista previa pasa a ser la del nuevo.
+   */
+  const replace = useCallback(
+    (key: string, file: File, size?: { width: number; height: number }) => {
+      const it = itemsRef.current.find((x) => x.key === key);
+      if (!it) return;
+      uploads.current.get(key)?.abort();
+      uploads.current.delete(key);
+      if (it.preview) URL.revokeObjectURL(it.preview);
+      const next: TrayItem = {
+        ...it,
+        file,
+        name: file.name || it.name,
+        type: file.type || it.type,
+        size: file.size,
+        preview: URL.createObjectURL(file),
+        progress: 0,
+        status: 'uploading',
+        url: undefined,
+        error: undefined,
+        uploaded: undefined,
+        ...(size ? { width: size.width, height: size.height } : {}),
+      };
+      setItems((list) => list.map((x) => (x.key === key ? next : x)));
+      start(next);
+    },
+    [start],
+  );
+
   const remove = useCallback((key: string) => {
     uploads.current.get(key)?.abort();
     setItems((list) => {
@@ -264,7 +295,7 @@ export function useAttachTray() {
     [],
   );
 
-  return { items, add, retry, remove, take, clear, setCaption };
+  return { items, add, retry, remove, take, clear, setCaption, replace };
 }
 
 /** Archivos de un evento de arrastre o de pegado. */

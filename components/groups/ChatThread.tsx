@@ -50,7 +50,7 @@ import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
 import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
 import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
-import { ContactCard, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
+import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
 
 /** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
 async function retryLinesMedia(id: string): Promise<MediaRetryResult> {
@@ -1431,6 +1431,13 @@ export default function ChatThread(props: ThreadProps) {
     return [...items, ...team];
   }
 
+  /** "Enviar mensaje" en una tarjeta de contacto: su chat 1:1 en la misma línea (se crea si no existe). El servidor lee el número de la tarjeta. */
+  async function openCardChat(m: MessageDto, card: number) {
+    const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id, card } });
+    if (!res.data) return showToast(errText(res.error), true);
+    router.push(`/app/lines/inbox/${res.data.id}${window.location.search}`);
+  }
+
   /** "Mensaje a <persona>" o "Responder en privado": su chat 1:1 en la misma línea (se crea si no existe). */
   async function openPrivateChat(m: MessageDto, quote: boolean) {
     const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id } });
@@ -1901,16 +1908,16 @@ export default function ChatThread(props: ThreadProps) {
           )}
           {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} given={linkFromMeta(m.meta)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
-          {!hidden &&
-            contacts.map((c, i) => (
-              <ContactCard
-                key={i}
-                name={c.name}
-                phone={(c.phones?.[0] ?? '').replace(/[^\d]/g, '')}
-                onMessage={() => router.push(`/app/lines/inbox?q=${encodeURIComponent((c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}`)}
-                onSave={() => void saveContact(c.name, (c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}
-              />
-            ))}
+          {!hidden && contacts.length > 0 && (
+            <ContactCards
+              cards={contacts}
+              onMessage={isTempId(m.id) ? undefined : (i) => void openCardChat(m, i)}
+              // Guardar en el CRM solo con el número a la vista (con los teléfonos ocultos llega enmascarado).
+              onSave={
+                contacts.every((c) => /^\d{6,15}$/.test(c.phones?.[0] ?? '')) ? (i) => void saveContact(contacts[i].name, contacts[i].phones?.[0] ?? '') : undefined
+              }
+            />
+          )}
           {m.poll && !hidden ? (
             <PollResults poll={m.poll} />
           ) : (
@@ -2493,6 +2500,8 @@ export default function ChatThread(props: ThreadProps) {
             onSend={() => void send()}
             onClose={tray.clear}
             onFiles={addFiles}
+            onReplace={tray.replace}
+            stickerApi="/api/groups/stickers"
             sending={sending}
           />
         )}

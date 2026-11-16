@@ -242,13 +242,24 @@ export function useSendTray(threadId: string, onError?: (code: string) => void) 
     [threadId, onError],
   );
 
+  /** Cambia el archivo de un ítem por otro (la foto editada o achicada en la vista previa). */
+  const replace = useCallback((key: string, file: File, size?: { width: number; height: number }) => {
+    setItems((l) =>
+      l.map((x) => {
+        if (x.key !== key) return x;
+        if (x.preview) URL.revokeObjectURL(x.preview);
+        return { ...x, file, name: file.name || x.name, type: file.type || x.type, size: file.size, preview: URL.createObjectURL(file), ...(size ? { width: size.width, height: size.height } : {}) };
+      }),
+    );
+  }, []);
+
   const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), []);
   const retry = useCallback((key: string) => patch(key, { status: 'ready', error: undefined }), []);
 
   useEffect(() => () => itemsRef.current.forEach((it) => it.preview && URL.revokeObjectURL(it.preview)), []);
   useEffect(() => clear(), [threadId, clear]);
 
-  return { items, add, remove, clear, sendAll, setCaption, retry, sending: false };
+  return { items, add, remove, clear, sendAll, setCaption, retry, replace, sending: false };
 }
 
 /**
