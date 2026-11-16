@@ -272,7 +272,6 @@
     "createGroup": "Create group"
   },
   "fetchMissing": "Fetch missing messages",
-  "fetchMissingToast": "We asked your phone for this chat’s messages. They may take a moment.",
   "replyPrivately": "Reply privately",
   "messageName": "Message {name}",
   "download": "Download",

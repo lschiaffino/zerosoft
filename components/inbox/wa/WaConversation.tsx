@@ -33,6 +33,8 @@ import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from '@/components/groups/wa/RefreshMissing';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
 import { discardInboxText, queuedText, retryInboxText } from './outbox';
@@ -109,7 +111,8 @@ const WaConversation = forwardRef<
     onToggleInfo: () => void;
     onRename: (title: string) => void;
     onRefresh: () => void;
-    loadOlder: () => Promise<void>;
+    /** Trae de lo guardado los mensajes anteriores a los que hay; devuelve cuántos sumó. */
+    loadOlder: () => Promise<number>;
     /** Abrir otro chat de Inbox (el 1:1 de alguien del grupo, un grupo en común). */
     onOpenThread?: (id: string) => void;
     /** Abrir (o crear) el chat 1:1 con un teléfono. */
@@ -288,6 +291,31 @@ const WaConversation = forwardRef<
   /** Texto plano con las menciones nombradas (copiar, editar, info). */
   const mentionText = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }) => replaceMentions(m.body, mentionsFor(m));
 
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega entra por loadOlder, como al subir en la conversación.
+  const olderHistory = useOlderHistory(
+    thread.id,
+    messages[0]?.id ?? '',
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      // Lo que llegó puede ser más de una página de lo guardado: se traen todas (hasta 4), así la ficha no se cambia
+      // por el botón de "anteriores" a mitad de camino.
+      let total = 0;
+      for (let i = 0; i < 4; i++) {
+        const n = await props.loadOlder();
+        total += n;
+        if (n === 0) break;
+        // Que la página recién sumada ya esté en pantalla antes de pedir la que sigue (el cursor sale de ahí).
+        await new Promise((res) => setTimeout(res, 80));
+      }
+      return total;
+    },
+  );
+
   // Leyendo más arriba, la conversación no se mueve sola (fotos que cargan, reacciones o
   // "editado" que llegan con la consulta, anteriores que se suman arriba); abajo de todo, sigue al final.
   const anchor = useScrollAnchor(scroller, [messages]);
@@ -358,12 +386,23 @@ const WaConversation = forwardRef<
     onRefresh();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(onRefresh, ms));
   }, [onRefresh]);
-  const fetchMissing = useCallback(async () => {
-    const r = await api<{ ok?: boolean }>(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', json: { action: 'fetchMissing' } });
-    if (!r.ok) return onError(r.data.error ?? 'generic');
-    props.onToast(w('fetchMissingToast'));
-    watchHistory();
-  }, [detail.thread.id, onError, props, w, watchHistory]);
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postWa = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [detail.thread.id]);
+  const refreshMissing = useRefreshMissing(
+    detail.thread.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postWa({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postWa({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    onRefresh,
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -596,7 +635,7 @@ const WaConversation = forwardRef<
     { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
     ...(thread.archived ? [{ key: 'keepArchived', label: thread.keepArchived ? w('keepArchivedOff') : w('keepArchived'), onSelect: () => onAction('keepArchived') }] : []),
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
-    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void fetchMissing() },
+    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void refreshMissing.run() },
     ...(thread.mutedUntil
       ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]
       : [
@@ -1043,6 +1082,7 @@ const WaConversation = forwardRef<
           </div>
         </div>
       )}
+      <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
       <div className="wa-scroll">
         <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} ref={scroller} onScroll={onScroll} tabIndex={-1}>
           {detail.more && (
@@ -1051,6 +1091,10 @@ const WaConversation = forwardRef<
                 {t('message.older')}
               </button>
             </div>
+          )}
+          {!detail.more && messages.length > 0 && thread.channel === 'whatsapp' && (
+            // Lo guardado se terminó: lo anterior se le pide al teléfono.
+            <OlderHistoryChip state={olderHistory.state} offline={!connected} onLoad={() => void olderHistory.run()} />
           )}
           {messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>}
           {days.map((d) => (

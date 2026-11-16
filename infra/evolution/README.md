@@ -64,6 +64,13 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   leer; el parche hace lo mismo con un `sed` después de `npm ci`, y el build falla si la línea cambió. Se saca al
   pasar a una versión de Evolution con Baileys rc14 o posterior.
 
+- `0006-fetch-history-given-anchor.patch`: `POST /chat/fetchHistory/{instance}` acepta `anchor: { id, fromMe?, timestamp,
+  participant? }` (segundos): el mensaje exacto desde el que se piden los anteriores, aunque Evolution no lo tenga
+  guardado. Sin esto el ancla se busca en la base de Evolution (el primer mensaje posterior a `after`), y después de
+  volver a vincular una línea la instancia es nueva y no tiene los mensajes viejos: el ancla caía en uno más nuevo y
+  WhatsApp volvía a mandar lo que zerosoft ya tenía. Lo usa "Cargar mensajes anteriores" de Inbox y Lines. La
+  respuesta lleva `given: true` y el `anchor` que se usó. Un Evolution sin este parche ignora el campo.
+
 - `0008-group-updates-reach-webhook.patch`: los cambios de un grupo hechos en el teléfono (o por otra persona)
   llegan al webhook:
   - **Asunto y descripción.** Baileys los emite como `groups.update` (con `author`), pero el filtro del webhook de

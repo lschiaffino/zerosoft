@@ -200,8 +200,7 @@
     "task": "Tarea",
     "question": "Pide respuesta",
     "fileUnavailable": "No disponible",
-    "fetchMissing": "Traer mensajes que faltan",
-    "fetchMissingToast": "Le pedimos a tu teléfono los mensajes de este chat; pueden tardar un momento."
+    "fetchMissing": "Traer mensajes que faltan"
   },
   "status": {
     "queued": "Esperando conexión",
@@ -1798,9 +1797,6 @@
     "emojiNone": "No hay emojis con esa búsqueda",
     "sendFiles": "{n, plural, one {Mandar # archivo} other {Mandar # archivos}}",
     "importNothingNew": "Ya estaba todo importado ({chats} chats).",
-    "historyOnPhone": "Los mensajes anteriores están en el teléfono.",
-    "historyFetch": "Traer más",
-    "historyAll": "Este es el principio del historial que tenemos.",
     "online": "en línea",
     "typing": "escribiendo…",
     "typingBy": "{name} está escribiendo…",
@@ -2007,7 +2003,24 @@
     "mediaGoneShort": "Ya no está en WhatsApp",
     "mediaOffline": "La línea está desconectada. Vinculala de nuevo para bajarlo.",
     "mediaOfflineShort": "Línea desconectada",
-    "mediaRetryFailed": "No se pudo bajar"
+    "mediaRetryFailed": "No se pudo bajar",
+    "olderLoad": "Cargar mensajes anteriores",
+    "olderLoading": "Cargando mensajes anteriores…",
+    "olderNone": "No hay mensajes anteriores en WhatsApp",
+    "olderError": "No se pudieron cargar. Reintentar",
+    "olderLimited": "Muchos pedidos para esta línea. Probá más tarde",
+    "olderOffline": "Línea desconectada: vinculala para cargar mensajes anteriores",
+    "olderNoAnswer": "El teléfono no respondió. Reintentar",
+    "refreshLoading": "Pidiéndole al teléfono los mensajes que faltan…",
+    "refreshDone": "{count, plural, one {Se trajo # mensaje que faltaba} other {Se trajeron # mensajes que faltaban}}",
+    "refreshNone": "No faltaba ningún mensaje reciente",
+    "refreshNoAnswer": "El teléfono no respondió. Revisá que tenga conexión",
+    "refreshOffline": "La línea está desconectada. Vinculala de nuevo para traer mensajes",
+    "refreshLimited": "Demasiados pedidos en esta línea. Probá en un rato",
+    "refreshOutdated": "El gateway de WhatsApp necesita una actualización para traer estos mensajes",
+    "refreshError": "No se pudo pedir los mensajes al teléfono",
+    "refreshRetry": "Reintentar",
+    "refreshDismiss": "Cerrar"
   },
   "swipe": {
     "read": "Leído",

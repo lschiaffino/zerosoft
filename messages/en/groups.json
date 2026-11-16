@@ -200,8 +200,7 @@
     "task": "Task",
     "question": "Needs reply",
     "fileUnavailable": "Not available",
-    "fetchMissing": "Fetch missing messages",
-    "fetchMissingToast": "We asked your phone for this chat’s messages. They may take a moment."
+    "fetchMissing": "Fetch missing messages"
   },
   "status": {
     "queued": "Waiting for connection",
@@ -1798,9 +1797,6 @@
     "emojiNone": "No emoji found",
     "sendFiles": "{n, plural, one {Send # file} other {Send # files}}",
     "importNothingNew": "Everything was already imported ({chats} chats).",
-    "historyOnPhone": "Older messages are on the phone.",
-    "historyFetch": "Bring more",
-    "historyAll": "This is the start of the history we have.",
     "online": "online",
     "typing": "typing…",
     "typingBy": "{name} is typing…",
@@ -2007,7 +2003,24 @@
     "mediaGoneShort": "No longer on WhatsApp",
     "mediaOffline": "The line is disconnected. Link it again to download this.",
     "mediaOfflineShort": "Line disconnected",
-    "mediaRetryFailed": "Couldn't download"
+    "mediaRetryFailed": "Couldn't download",
+    "olderLoad": "Load older messages",
+    "olderLoading": "Loading older messages…",
+    "olderNone": "No older messages on WhatsApp",
+    "olderError": "Couldn't load them. Try again",
+    "olderLimited": "Too many requests for this line. Try again later",
+    "olderOffline": "Line disconnected: link it to load older messages",
+    "olderNoAnswer": "The phone didn't answer. Try again",
+    "refreshLoading": "Asking your phone for missing messages…",
+    "refreshDone": "{count, plural, one {Brought # missing message} other {Brought # missing messages}}",
+    "refreshNone": "Nothing was missing in the recent messages",
+    "refreshNoAnswer": "The phone didn't answer. Check that it's online",
+    "refreshOffline": "The line is disconnected. Link it again to fetch messages",
+    "refreshLimited": "Too many requests on this line. Try again in a while",
+    "refreshOutdated": "The WhatsApp gateway needs an update to fetch these messages",
+    "refreshError": "Couldn't ask the phone for messages",
+    "refreshRetry": "Try again",
+    "refreshDismiss": "Close"
   },
   "swipe": {
     "read": "Read",

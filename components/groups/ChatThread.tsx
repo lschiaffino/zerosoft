@@ -30,6 +30,8 @@ import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
 import { linkFromMeta } from './wa/link-preview-data';
 import Transcript from './wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from './wa/RefreshMissing';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useLinesMentions, useMediaText, useToast } from './ui';
 import WhenDialog from '@/components/ui/WhenDialog';
@@ -133,6 +135,8 @@ export interface ThreadProps {
   me: string;
   isAdmin: boolean;
   numberName: string;
+  /** La línea está vinculada (si no, no se le puede pedir nada al teléfono). */
+  numberConnected?: boolean;
   caps: ProviderCaps;
   /** Número de ejemplo: lo que se manda queda guardado y no sale a WhatsApp. */
   sample?: boolean;
@@ -476,45 +480,63 @@ export default function ChatThread(props: ThreadProps) {
 
   /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
   const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
-  const [olderDone, setOlderDone] = useState(false);
-  const [fetchingOlder, setFetchingOlder] = useState(false);
-  /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
-  async function fetchOlderFromPhone() {
-    if (fetchingOlder) return;
-    setFetchingOlder(true);
-    const res = await api<{ added: number; done: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'importOlder' } });
-    setFetchingOlder(false);
-    if (!res.data) return showToast(errText(res.error), true);
-    if (res.data.added === 0 || res.data.done) setOlderDone(true);
-    if (res.data.added > 0) {
-      const first = messages[0];
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega se suma arriba sin mover lo que se está leyendo.
+  const firstRef = useRef<MessageDto | undefined>(undefined);
+  firstRef.current = messages[0];
+  const olderHistory = useOlderHistory(
+    chat.id,
+    messages[0]?.id ?? '',
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      const first = firstRef.current;
+      if (!first) return 0;
       const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(olderCursor(first))}`);
-      if (older.data?.messages.length) {
+      const list = older.data?.messages ?? [];
+      if (list.length) {
         const box = boxRef.current;
         if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
-        merge(older.data.messages);
+        merge(list);
       }
-    }
-  }
+      return list.length;
+    },
+  );
 
   // Mensajes que WhatsApp no pudo entregar (lib/wa-history-gaps.ts): se le pide el historial del chat al teléfono. Lo que
   // manda llega como historial, con su hora (en el medio del hilo, no al final): se vuelve a traer lo último unas veces.
   const historyTimers = useRef<number[]>([]);
   useEffect(() => () => historyTimers.current.forEach((id) => window.clearTimeout(id)), []);
-  const refetchLatest = useCallback(async () => {
-    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${OLDER_PAGE}`);
+  const refetchLatest = useCallback(async (limit = OLDER_PAGE) => {
+    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${props.chat.id}/messages?limit=${Math.min(500, limit)}`);
     if (res.data?.messages.length) merge(res.data.messages);
   }, [props.chat.id, merge]);
   const watchHistory = useCallback(() => {
     void refetchLatest();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(() => void refetchLatest(), ms));
   }, [refetchLatest]);
-  async function fetchMissing() {
-    const res = await api<{ ok: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'fetchMissing' } });
-    if (!res.data) return showToast(errText(res.error), true);
-    showToast(t('thread.fetchMissingToast'));
-    watchHistory();
-  }
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postChat = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/groups/chats/${chat.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [chat.id]);
+  const shown = useRef(0);
+  shown.current = messages.length;
+  const refreshMissing = useRefreshMissing(
+    chat.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postChat({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postChat({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    () => void refetchLatest(Math.max(OLDER_PAGE, shown.current)),
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -2240,7 +2262,7 @@ export default function ChatThread(props: ThreadProps) {
                   : []),
                 { key: 'summary', glyph: <Sparkle size={18} />, label: t('thread.summary'), divider: true, onSelect: () => void summarize() },
                 { key: 'translate', glyph: <TranslateIcon size={18} />, label: translateOn ? t('thread.translateOff') : t('thread.translate'), onSelect: toggleTranslate },
-                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void fetchMissing() }] : []),
+                ...(props.caps.fetchHistory ? [{ key: 'fetchMissing', glyph: <Retry size={18} />, label: t('thread.fetchMissing'), onSelect: () => void refreshMissing.run() }] : []),
                 ...(narrow
                   ? [
                       { key: 'assign', glyph: <UserPlus size={18} />, label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), divider: true, onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
@@ -2287,19 +2309,13 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
 
+        <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} textOf={waText} />
 
         <div className="wa-scroll">
           <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
-            {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
-              <p className="wa-history-note">
-                <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
-                {!olderDone && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void fetchOlderFromPhone()} aria-busy={fetchingOlder || undefined}>
-                    {t('wa.historyFetch')}
-                  </button>
-                )}
-              </p>
+            {!hasOlder && messages.length > 0 && props.caps.fetchHistory && !props.sample && (
+              <OlderHistoryChip state={olderHistory.state} offline={props.numberConnected === false} onLoad={() => void olderHistory.run()} />
             )}
             {hasOlder && (
               <p className="wa-older">

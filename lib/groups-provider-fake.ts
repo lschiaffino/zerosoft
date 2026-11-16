@@ -28,6 +28,8 @@
  *   un evento `{ type: 'fake_withheld', message: <evento message> }` llega a
  *   la app como `missing` y el número se guarda el mensaje; fetchHistory del
  *   chat lo devuelve como historial (fakeHistoryRequests() lista los pedidos).
+ *   `fake_dropped` hace lo mismo sin aviso (un mensaje que se perdió con la
+ *   línea caída): solo lo trae un pedido de historial anclado después de él.
  * - Privacidad: `{ type: 'fake_privacy', readreceipts: 'all' | 'none' }` en el
  *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
  *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
@@ -105,6 +107,8 @@ export interface FakeHistoryRequest {
   chatId: string;
   count: number;
   after?: number;
+  /** "Cargar mensajes anteriores": el mensaje desde el que se pidió. */
+  anchorId?: string;
   at: number;
 }
 
@@ -206,6 +210,58 @@ export function fakeSent(numberId: string): FakeSent[] {
 /** Los archivar/desarchivar que recibió el número falso, con la referencia que mandó la app (tests). */
 export function fakeArchives(numberId: string): FakeArchive[] {
   return (stateFor(numberId).archives ??= []);
+}
+
+/** Mensajes anteriores que "tiene el teléfono" de un chat de prueba (los que empiezan con FAKE_OLDER_PREFIX). */
+export const FAKE_OLDER_TOTAL = 70;
+export const FAKE_OLDER_PREFIX = '1777';
+export const FAKE_OLDER_FAIL_PREFIX = '1778';
+/** Un chat cuyo número empieza así tiene un teléfono que nunca contesta los pedidos de historial. */
+export const FAKE_SILENT_PREFIX = '1779';
+/** Un chat cuyo número empieza así está en un gateway que no acepta nuestra ancla (sin el parche 0006). */
+export const FAKE_ELSEWHERE_PREFIX = '1776';
+
+/** Saca los mensajes que el teléfono falso se guardó de un chat y cumplen `keep`, como historial. */
+function takeWithheld(s: FakeState, chatId: string, keep: (e: Extract<InboundEvent, { type: 'message' }>) => boolean): InboundEvent[] {
+  const all = (s.withheld?.get(chatId) ?? []) as Array<Extract<InboundEvent, { type: 'message' }>>;
+  const out = all.filter(keep);
+  const rest = all.filter((e) => !keep(e));
+  if (rest.length) s.withheld!.set(chatId, rest);
+  else s.withheld?.delete(chatId);
+  return out.map((e) => ({ ...e, history: true }));
+}
+
+/**
+ * El historial anterior del teléfono falso, sin estado: un chat cuyo número empieza con FAKE_OLDER_PREFIX tiene
+ * FAKE_OLDER_TOTAL mensajes de texto anteriores a lo que haya, con ids "old-<chat>-<n>" (n = 1 el más nuevo). Se
+ * devuelven los `count` anteriores al ancla; pasado el último, nada. Con FAKE_OLDER_FAIL_PREFIX el teléfono no
+ * responde. Los demás chats no tienen historial anterior.
+ */
+export function fakeOlderHistory(chatId: string, anchor: { id: string; timestamp: number }, count: number): InboundEvent[] {
+  const digits = chatId.replace(/@.*/, '');
+  if (digits.startsWith(FAKE_OLDER_FAIL_PREFIX)) throw new ProviderError('unreachable');
+  if (!digits.startsWith(FAKE_OLDER_PREFIX)) return [];
+  const m = new RegExp(`^old-${digits}-(\\d+)$`).exec(anchor.id);
+  const from = m ? Number(m[1]) + 1 : 1;
+  // El primero es un minuto anterior al primer ancla; cada uno, un minuto antes que el siguiente.
+  const base = m ? anchor.timestamp + Number(m[1]) * 60 : anchor.timestamp;
+  const isGroup = chatId.endsWith('@g.us');
+  const out: InboundEvent[] = [];
+  for (let n = from; n <= FAKE_OLDER_TOTAL && out.length < Math.max(1, count); n++) {
+    out.push({
+      type: 'message',
+      chatId,
+      isGroup,
+      fromMe: n % 4 === 0,
+      senderPhone: n % 4 === 0 || isGroup ? '' : digits,
+      senderName: n % 4 === 0 ? '' : 'Contacto de prueba',
+      providerMessageId: `old-${digits}-${n}`,
+      body: `Mensaje anterior ${n}`,
+      timestamp: new Date((base - n * 60) * 1000).toISOString(),
+      history: true,
+    } as InboundEvent);
+  }
+  return out;
 }
 
 /** Los pedidos de historial que recibió el número falso (tests). */
@@ -529,7 +585,18 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     /** El historial del chat "desde el teléfono": lo que se guardó con fake_withheld, como historial. */
     fetchHistory: async (chatId, o) => {
       requireConnected();
-      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), at: Date.now() });
+      (s.historyRequests ??= []).push({ chatId, count: o.count, ...(o.after ? { after: o.after } : {}), ...(o.anchor ? { anchorId: o.anchor.id } : {}), at: Date.now() });
+      const digits = chatId.replace(/@.*/, '');
+      // Un teléfono que no contesta: el pedido sale y no llega nada (como Evolution, que responde después por el webhook).
+      if (digits.startsWith(FAKE_SILENT_PREFIX)) return { requestId: `fake-hist-${randomUUID()}` };
+      // Un gateway sin el parche del ancla que no tiene nuestro mensaje: pide desde otro suyo.
+      if (o.anchor && digits.startsWith(FAKE_ELSEWHERE_PREFIX)) return { requestId: `fake-hist-${randomUUID()}`, anchorId: `gw-${randomUUID()}` };
+      // Con ancla: los mensajes anteriores a ese ("Cargar mensajes anteriores", "Traer mensajes que faltan"), y los que
+      // el teléfono se guardó (fake_withheld, fake_dropped) si son anteriores al ancla.
+      if (o.anchor) {
+        const before = takeWithheld(s, chatId, (e) => !e.timestamp || Date.parse(e.timestamp) / 1000 < o.anchor!.timestamp);
+        return { requestId: `fake-hist-${randomUUID()}`, anchorId: o.anchor.id, events: [...before, ...fakeOlderHistory(chatId, o.anchor, o.count)] };
+      }
       const events = (s.withheld?.get(chatId) ?? []).map((e) => ({ ...e, history: true }));
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
@@ -664,6 +731,11 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
         if (t === 'fake_withheld') {
           const missing = withhold(s, (e as { message?: unknown }).message);
           return missing ? [missing] : [];
+        }
+        // Un mensaje que nunca llegó a la app y sin aviso (la línea estaba caída): solo lo tiene el teléfono.
+        if (t === 'fake_dropped') {
+          withhold(s, (e as { message?: unknown }).message);
+          return [];
         }
         return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive', 'missing'].includes(String(t)) ? [e as InboundEvent] : [];
       });

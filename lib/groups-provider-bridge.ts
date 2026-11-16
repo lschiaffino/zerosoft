@@ -1453,9 +1453,14 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async fetchHistory(chatId, o) {
       const count = Math.max(1, Math.min(100, Math.floor(o.count) || 50));
       const after = o.after && Number.isFinite(o.after) && o.after > 0 ? Math.floor(o.after) : undefined;
-      const r = (await api(`/chat/fetchHistory/${instance}`, 'POST', { remoteJid: chatId, count, ...(after ? { after } : {}) })) as Json | null;
+      // `anchor` (parche 0006): el mensaje desde el que se piden los anteriores, aunque el gateway no lo tenga
+      // guardado. Un gateway sin el parche lo ignora y ancla en uno suyo (el primero posterior a `after`).
+      const a = o.anchor && o.anchor.id && o.anchor.timestamp > 0 ? o.anchor : undefined;
+      const anchor = a ? { id: a.id, fromMe: a.fromMe, timestamp: Math.floor(a.timestamp), ...(a.participant ? { participant: a.participant } : {}) } : undefined;
+      const r = (await api(`/chat/fetchHistory/${instance}`, 'POST', { remoteJid: chatId, count, ...(after ? { after } : {}), ...(anchor ? { anchor } : {}) })) as Json | null;
       const requestId = r && typeof r.requestId === 'string' ? r.requestId : undefined;
-      return requestId ? { requestId } : {};
+      const used = r && typeof r.anchor === 'object' && r.anchor ? String((r.anchor as Json).id ?? '') : '';
+      return { ...(requestId ? { requestId } : {}), ...(used ? { anchorId: used } : {}) };
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {

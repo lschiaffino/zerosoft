@@ -534,18 +534,22 @@ export default function InboxApp(props: {
   }, [detail, detailCache]);
 
   /** Los mensajes anteriores a los que hay (al subir en la conversación), con el cursor de la página más vieja. */
-  const loadOlder = useCallback(async () => {
+  const loadOlder = useCallback(async (): Promise<number> => {
     const d = detailRef.current;
     const first = d?.messages[0];
-    if (!d || !first) return;
+    if (!d || !first) return 0;
     const id = d.thread.id;
     const r = await api<{ messages: MessageDto[]; more: boolean; cursor?: string | null }>(`/api/inbox/threads/${id}/messages?before=${encodeURIComponent(d.cursor ?? first.sentAt)}`);
-    if (!r.ok) return;
+    if (!r.ok) return 0;
+    const have = new Set(d.messages.map((m) => m.id));
+    const fresh = r.data.messages.filter((m) => !have.has(m.id)).length;
     setDetail((cur) => {
       if (!cur || cur.thread.id !== id) return cur;
-      const have = new Set(cur.messages.map((m) => m.id));
-      return { ...cur, messages: [...r.data.messages.filter((m) => !have.has(m.id)), ...cur.messages], more: r.data.more, cursor: r.data.cursor ?? null, extended: true };
+      const seen = new Set(cur.messages.map((m) => m.id));
+      return { ...cur, messages: [...r.data.messages.filter((m) => !seen.has(m.id)), ...cur.messages], more: r.data.more, cursor: r.data.cursor ?? null, extended: true };
     });
+    // Cuántos sumó: "Cargar mensajes anteriores" lo usa para saber si el teléfono ya mandó algo.
+    return fresh;
   }, []);
 
   /** Mensajes que coinciden con la búsqueda (texto completo y filtros). */

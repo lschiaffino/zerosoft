@@ -158,6 +158,15 @@ export interface MediaInput {
   gifPlayback?: boolean;
 }
 
+/** El mensaje desde el que se le piden al teléfono los anteriores. `timestamp` en segundos. */
+export interface HistoryAnchor {
+  id: string;
+  fromMe: boolean;
+  timestamp: number;
+  /** En un grupo, quién lo mandó (id de WhatsApp), si se sabe. */
+  participant?: string;
+}
+
 /** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */
 export interface MediaRef {
   providerMessageId: string;
@@ -436,9 +445,12 @@ export interface GroupsProvider {
    * Evolution la respuesta llega después por el webhook (MESSAGES_SET, como
    * historial); un proveedor que la tiene en el momento la devuelve en
    * `events`. `after` (segundos): el pedido se ancla en el primer mensaje
-   * posterior, para que entre lo que falta antes de él.
+   * posterior, para que entre lo que falta antes de él. `anchor`: el mensaje
+   * exacto desde el que se piden los anteriores (el más viejo que tenemos),
+   * aunque el gateway no lo tenga guardado; `anchorId` en la respuesta dice
+   * desde cuál pidió de verdad (un gateway sin ese parche usa uno suyo).
    */
-  fetchHistory?(chatId: string, opts: { count: number; after?: number }): Promise<{ requestId?: string; events?: InboundEvent[] }>;
+  fetchHistory?(chatId: string, opts: { count: number; after?: number; anchor?: HistoryAnchor }): Promise<{ requestId?: string; events?: InboundEvent[]; anchorId?: string }>;
   /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;

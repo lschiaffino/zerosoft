@@ -33,7 +33,9 @@ export async function GET(req: Request, ctx: Ctx) {
  * { action: 'summary' } pide un resumen nuevo a la IA; { action: 'block' |
  * 'unblock' } bloquea en WhatsApp; { action: 'presence', state } manda
  * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused");
- * { action: 'fetchMissing', auto? } le pide al teléfono el historial del chat.
+ * { action: 'fetchMissing' } "Traer mensajes que faltan" ({ action: 'fetchMissingStatus' } dice cómo va);
+ * { action: 'fetchMissing', auto: true } le pide al teléfono el historial de un chat con huecos;
+ * { action: 'loadOlder' } le pide los mensajes anteriores al más viejo guardado.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -47,6 +49,26 @@ export async function POST(req: Request, ctx: Ctx) {
       return iJson({ ok: true });
     });
   }
+  if (b?.action === 'fetchMissing' && (b as { auto?: unknown }).auto !== true) {
+    // "Traer mensajes que faltan" a mano: anclas exactas alrededor de los huecos y antes del último mensaje.
+    const limitedR = await limitByIp(req, 'inbox-refresh-missing', 30, 60).catch(() => null);
+    if (limitedR) return limitedR;
+    return withOwner(async (owner) => {
+      const { requestRefresh, refreshResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestRefresh('inbox', owner, id);
+      if (!out) throw new InboxError('not_found', 404);
+      const r = refreshResponse(out);
+      return iJson(r.body, r.status);
+    });
+  }
+  if (b?.action === 'fetchMissingStatus') {
+    return withOwner(async (owner) => {
+      const { requestRefreshStatus } = await import('@/lib/wa-history-gaps');
+      const st = await requestRefreshStatus('inbox', owner, id);
+      if (!st) throw new InboxError('not_found', 404);
+      return iJson(st);
+    });
+  }
   if (b?.action === 'fetchMissing') {
     // El historial del chat desde el teléfono (mensajes que WhatsApp no pudo entregar, lib/wa-history-gaps.ts).
     const auto = (b as { auto?: unknown }).auto === true;
@@ -55,6 +77,18 @@ export async function POST(req: Request, ctx: Ctx) {
       const out = await requestChatHistory('inbox', owner, id, { auto });
       if (!out) throw new InboxError('not_found', 404);
       const r = historyResponse(out, auto);
+      return iJson(r.body, r.status);
+    });
+  }
+  if (b?.action === 'loadOlder') {
+    // "Cargar mensajes anteriores": le pide al teléfono los anteriores al más viejo guardado (lib/wa-history-gaps.ts).
+    const limitedO = await limitByIp(req, 'inbox-load-older', 60, 60).catch(() => null);
+    if (limitedO) return limitedO;
+    return withOwner(async (owner) => {
+      const { requestOlderHistory, olderResponse } = await import('@/lib/wa-history-gaps');
+      const out = await requestOlderHistory('inbox', owner, id);
+      if (!out) throw new InboxError('not_found', 404);
+      const r = olderResponse(out);
       return iJson(r.body, r.status);
     });
   }
