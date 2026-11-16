@@ -162,6 +162,7 @@ function useGroupOrder() {
         'inbox',
         'calls',
         'fleet',
+        'timeProjects',
         'links',
         'docs',
         'notes',

@@ -50,7 +50,8 @@
       "send": "Compartí documentos por link y mirá quién leyó qué",
       "inbox": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado",
       "calls": "Graba llamadas de venta y muestra qué mueve los deals",
-      "fleet": "Mirá y respondé a tus agentes de código, PRs y deploys"
+      "fleet": "Mirá y respondé a tus agentes de código, PRs y deploys",
+      "time": "Registrá horas por proyecto y mirá cuánto podés facturar"
     },
     "building": "Próximamente",
     "downloadMac": "Descargar para Mac",
@@ -227,6 +228,7 @@
     "groupInbox": "Inbox",
     "groupCalls": "Llamadas",
     "groupFleet": "Sesiones de agentes",
+    "groupTimeProjects": "Proyectos de Time",
     "preview": "Vista previa",
     "comingSoon": "Próximamente",
     "disabledApps": "Desactivadas para esta cuenta",
@@ -337,6 +339,9 @@
     },
     "fleet": {
       "desc": "Un tablero para tus agentes de código: sesiones de Claude Code (también dentro de Orca), pull requests de GitHub y deploys de Vercel de varias cuentas, y un chat para responderles."
+    },
+    "time": {
+      "desc": "Registrá horas con cronómetro o a mano, por proyecto y tarea, y sacá reportes de horas y montos facturables por cliente."
     }
   },
   "model": {
@@ -607,6 +612,9 @@
       },
       "fleet": {
         "line": "Mirá a tus agentes de código y respondeles desde un chat."
+      },
+      "time": {
+        "line": "Registrá horas por proyecto y mirá cuánto podés facturar."
       },
       "analytics": {
         "line": "Preguntas, SQL y tableros sobre tus datos."

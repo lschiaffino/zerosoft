@@ -64,7 +64,7 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
 
   const martaCtx = await context(browser, 'session', { locale: 'pt-BR' });
   try {
-    // 1. El owner invita: Member, solo CRM y Docs (quitar "Todas" deja marcadas las 29 apps; se desmarcan las demás).
+    // 1. El owner invita: Member, solo CRM y Docs (quitar "Todas" deja marcadas las 30 apps; se desmarcan las demás).
     await page.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
     await page.getByLabel('Emails').fill(`${marta}, ${olga}, ${rita}`);
     const form = page.locator('form.ws-invite');
