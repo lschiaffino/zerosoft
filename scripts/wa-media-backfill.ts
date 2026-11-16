@@ -5,9 +5,9 @@
  * (dry-run). Con la clave del archivo guardada, Evolution lo baja de WhatsApp
  * y, si el enlace venció, le pide al teléfono que lo vuelva a subir.
  *
- * Inbox no guarda los archivos (los baja al mostrarlos): para Inbox solo
- * informa cuántos tienen clave (se pueden volver a bajar al abrirlos) y
- * cuántos no (los que llegaron por el historial antes de este cambio).
+ * Inbox: cuenta los archivos que todavía no tienen copia guardada y, con
+ * --apply, los deja en la cola de descargas (el cron los baja de a pocos por
+ * cuenta, con reintentos). No le pide nada al gateway desde acá.
  *
  * Uso (con las variables de producción en .env.production.local):
  *   npx tsx --env-file=.env.production.local scripts/wa-media-backfill.ts --days 3
@@ -91,14 +91,36 @@ async function main() {
     console.log(`[lines] total: ${tally.ok} bajadas, ${tally.gone} ya no están, ${tally.offline} con la línea desvinculada, ${tally.pending} para más tarde`);
   }
 
-  const inbox = (await db
+  // Inbox: los archivos de los últimos N días que todavía no tienen copia guardada. Con --apply quedan en la cola
+  // (lib/wa-media-jobs.ts) y el cron los baja de a pocos por cuenta, con sus reintentos; acá no se le pide nada al gateway.
+  const sinceIso = new Date(Date.now() - days * 86_400_000).toISOString();
+  const missing = (await db
     .prepare(
-      `SELECT CASE WHEN media_ref LIKE '%"wire"%' THEN 1 ELSE 0 END AS wire, COUNT(*) AS n FROM inbox_messages
-       WHERE media_ref <> '' AND media_type <> '' AND sent_at >= ? GROUP BY 1`,
+      `SELECT t.account_id AS account, CASE WHEN m.media_ref LIKE '%"wire"%' THEN 1 ELSE 0 END AS wire, COUNT(*) AS n
+       FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
+       WHERE t.channel = 'whatsapp' AND m.media_ref <> '' AND m.media_type <> '' AND m.sent_at >= ?
+         AND NOT EXISTS (SELECT 1 FROM inbox_media_files f WHERE f.message_id = m.id)
+       GROUP BY 1, 2`,
     )
-    .all(new Date(Date.now() - days * 86_400_000).toISOString())) as Array<{ wire: number; n: number }>;
-  const count = (w: number) => Number(inbox.find((r) => Number(r.wire) === w)?.n ?? 0);
-  console.log(`[inbox] archivos de ${days} días: ${count(1)} con clave (se vuelven a bajar al abrirlos), ${count(0)} sin clave (dependen de que el gateway tenga el mensaje).`);
+    .all(sinceIso)) as Array<{ account: string; wire: number; n: number }>;
+  const sum = (w: number) => missing.filter((r) => Number(r.wire) === w).reduce((a, r) => a + Number(r.n), 0);
+  console.log(
+    `[inbox] ${sum(0) + sum(1)} archivos de ${days} días sin copia guardada, en ${new Set(missing.map((r) => r.account)).size} cuentas: ${sum(1)} con clave (se pueden bajar aunque la línea se haya vuelto a vincular), ${sum(0)} sin clave (solo si el gateway todavía tiene el mensaje).`,
+  );
+  if (apply) {
+    const r = await db
+      .prepare(
+        `INSERT INTO wa_media_jobs (app, message_id, scope_id, attempts, next_at, created_at)
+         SELECT 'inbox', m.id, t.account_id, 0, ?, ? FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
+         WHERE t.channel = 'whatsapp' AND m.media_ref <> '' AND m.media_type <> '' AND m.sent_at >= ?
+           AND NOT EXISTS (SELECT 1 FROM inbox_media_files f WHERE f.message_id = m.id)
+           AND NOT EXISTS (SELECT 1 FROM wa_media_jobs j WHERE j.app = 'inbox' AND j.message_id = m.id)
+         ORDER BY m.sent_at DESC LIMIT ?
+         ON CONFLICT (app, message_id) DO NOTHING`,
+      )
+      .run(new Date().toISOString(), new Date().toISOString(), sinceIso, limit);
+    console.log(`[inbox] ${r.changes} en la cola (tope --limit ${limit}); el cron baja hasta 3 por cuenta por minuto. Volvé a correr el script para ver cuántos quedan.`);
+  }
 }
 
 main().then(

@@ -331,6 +331,9 @@ describe('Inbox: importar, usar y volver a importar', () => {
     await db.prepare('UPDATE inbox_messages SET starred_at = ? WHERE id = ?').run(new Date().toISOString(), twin.id);
     expect((await transcribeMessage('inbox', u.id, twin.id, async () => ({ data: Buffer.from('RIFF....WAVE'), mimetype: 'audio/wav', seconds: 2 }))).status).toBe('done');
 
+    // Y quedó guardada la copia del audio (lib/inbox/media-store.ts) en el mensaje del chat del lid.
+    const { hasStoredMedia, storeMedia } = await import('@/lib/inbox/media-store');
+    expect(await storeMedia(u.id, twin.id, { data: Buffer.from('RIFF....WAVE'), mimetype: 'audio/wav', filename: '' })).toBe(true);
     // En el chat del teléfono había quedado un intento fallido (el audio no se podía bajar): gana la hecha.
     await transcribeMessage('inbox', u.id, old.id, async () => {
       throw Object.assign(new Error('x'), { code: 'media_gone' });
@@ -347,6 +350,8 @@ describe('Inbox: importar, usar y volver a importar', () => {
     expect(left[0].starred_at).not.toBeNull();
     expect((await readTranscript('inbox', u.id, old.id))?.status).toBe('done');
     expect(await readTranscript('inbox', u.id, twin.id)).toBeNull();
+    // La copia guardada pasó al mensaje que queda.
+    expect(await hasStoredMedia(u.id, old.id)).toBe(true);
     expect(await findThread(acc.id, lid)).toBeNull();
   });
 });

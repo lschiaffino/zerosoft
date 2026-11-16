@@ -219,11 +219,19 @@ export function explicitPairsInsert(app: WaApp, run: string, scope: string, pair
 }
 
 /**
+ * mediaFiles: mover también la copia guardada de los archivos de Inbox (inbox_media_files). Lo pide la corrida normal;
+ * las migraciones viejas que juntan chats corren antes de que esa tabla exista y no lo piden.
+ */
+export interface MergeOptions {
+  mediaFiles?: boolean;
+}
+
+/**
  * La corrida: después de los INSERT de candidatos, resuelve el sobreviviente,
  * renombra los que no tienen, junta el resto y limpia. Devuelve las
  * sentencias y en qué posición leer cada cuenta.
  */
-export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatement[]; at: { renamed: number; messages: number; merged: number } } {
+export function mergeStatements(app: WaApp, run: string, opts: MergeOptions = {}): { stmts: BatchStatement[]; at: { renamed: number; messages: number; merged: number } } {
   const t = T[app];
   const P = `(SELECT loser FROM wa_merge_pairs WHERE run = '${run.replace(/'/g, '')}' AND survivor IS NOT NULL)`;
   const S = (col: string) => `(SELECT p.survivor FROM wa_merge_pairs p WHERE p.run = '${run.replace(/'/g, '')}' AND p.loser = ${col})`;
@@ -307,6 +315,20 @@ export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatemen
             JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
             WHERE l.id = wa_transcripts.message_id)
         WHERE scope = 'inbox' AND message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run, run],
+    });
+    // La copia guardada del archivo (lib/inbox/media-store.ts) también pasa al que queda, si ese no tiene una; la que
+    // no pasa queda huérfana y la borra el repaso horario.
+    if (opts.mediaFiles) stmts.push({
+      sql: `UPDATE OR IGNORE inbox_media_files SET message_id = (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            WHERE l.id = inbox_media_files.message_id)
+        WHERE message_id IN (
             SELECT l.id FROM inbox_messages l
             JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
             JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
@@ -464,11 +486,12 @@ export async function runMerge(
   app: WaApp,
   inserts: (run: string) => BatchStatement[],
   batch: (stmts: BatchStatement[]) => Promise<Array<Pick<BatchResult, 'changes'>>>,
+  opts: MergeOptions = {},
 ): Promise<MergeCounts> {
   const run = newRunId();
   const head = inserts(run);
   if (!head.length) return { merged: 0, renamed: 0, messages: 0 };
-  const { stmts, at } = mergeStatements(app, run);
+  const { stmts, at } = mergeStatements(app, run, opts);
   const res = await batch([{ sql: MERGE_PAIRS_DDL, args: [] }, ...head, ...stmts]);
   return countsOf(res, 1 + head.length, at);
 }

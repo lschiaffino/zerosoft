@@ -2453,11 +2453,19 @@ function logAfterError(err: unknown): null {
 
 /** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
 async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: string; ref: MediaRef }>): Promise<void> {
+  // Todo queda en la cola antes de empezar (lib/wa-media-jobs.ts): si esta tanda se corta, o algo no se baja (falla
+  // pasajera, la línea caída, pasó el tope de la tanda), se reintenta solo. Lo que acá sí se baja, o falla para
+  // siempre, la cola lo descarta al mirarlo.
+  const { dropMediaJob, queueMediaJob } = await import('./wa-media-jobs');
+  for (const it of items) await queueMediaJob('lines', number.id, it.messageId, 90_000).catch(() => null);
   let budget = INBOUND_MEDIA_BUDGET;
   for (const it of items.slice(0, INBOUND_MEDIA_PER_WEBHOOK)) {
     if (budget <= 0) break;
     const res = await storeInboundMedia(number, it.messageId, it.ref, { budget, retry: true }).catch(() => null);
-    if (res) budget -= res.bytes;
+    if (res) {
+      budget -= res.bytes;
+      await dropMediaJob('lines', it.messageId).catch(() => null);
+    }
   }
 }
 
