@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Lines e Inbox: recibir y mandar por WhatsApp sin demoras, con el WhatsApp
@@ -224,7 +225,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 }
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };

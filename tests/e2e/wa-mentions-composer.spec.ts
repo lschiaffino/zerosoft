@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * @menciones al escribir en un grupo de WhatsApp (Lines e Inbox), con el
@@ -205,7 +206,7 @@ test('Lines: en una nota interna la mención al equipo también se pinta, y en e
 test('Inbox: la mención se pinta en el campo y sale como mención de WhatsApp', async ({ page, request }) => {
   test.setTimeout(300_000);
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const post = async (list: unknown[]) => {
