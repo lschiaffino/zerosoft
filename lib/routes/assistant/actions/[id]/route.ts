@@ -16,10 +16,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (user instanceof NextResponse) return user;
   const { id } = await params;
   const parsed = z
-    .object({ decision: z.enum(['confirm', 'cancel']), typed: z.string().max(300).optional(), locale: z.string().max(5).optional() })
+    .object({ decision: z.enum(['confirm', 'cancel']), typed: z.string().max(300).optional(), option: z.enum(['once', 'always']).optional(), locale: z.string().max(5).optional() })
     .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
-  const res = await decideAction({ user, locale: localeOf(parsed.data.locale), id, decision: parsed.data.decision, typed: parsed.data.typed });
+  const res = await decideAction({ user, locale: localeOf(parsed.data.locale), id, decision: parsed.data.decision, typed: parsed.data.typed, option: parsed.data.option });
   if ('error' in res) return NextResponse.json(res, { status: STATUS[res.error] ?? 400 });
   return NextResponse.json(res);
 }

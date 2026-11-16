@@ -50,7 +50,10 @@ stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria
 - **Contador y avisos:** el ícono del dock muestra menciones, DMs y avisos sin leer; con la ventana sin
   foco, cada aviso nuevo sale como notificación del sistema (`GET /api/desktop/badge`, cada 30 s).
 - **Abrir al iniciar sesión** (`tauri-plugin-autostart`) y **actualizaciones** firmadas
-  (`tauri-plugin-updater` contra `https://zerosoft.ai/api/desktop/update/latest.json`).
+  (`tauri-plugin-updater` contra `https://zerosoft.ai/api/desktop/update/latest.json`). Sola: busca
+  al abrir y cada 4 horas, baja en segundo plano y avisa; en Mac queda instalada para el próximo
+  arranque, en Windows corre al elegir "Reiniciar para actualizar". "Buscar actualizaciones" contesta
+  siempre con un diálogo nativo (`rfd`). Reiniciar nunca corta una grabación ni un dictado.
 
 ### Dictado en cualquier app, en Rust
 

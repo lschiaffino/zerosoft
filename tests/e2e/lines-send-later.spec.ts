@@ -110,7 +110,8 @@ test('programar con el reloj, deshacer, y editar, cambiar la hora y cancelar des
   await item.getByRole('button', { name: 'Change time' }).click();
   const change = page.getByRole('dialog', { name: 'Change the time' });
   await expect(change).toBeVisible();
-  await change.getByRole('button', { name: /In a week/ }).click();
+  // Los lunes "En una semana" cae a la misma hora que "La semana que viene" y el selector muestra solo una.
+  await change.getByRole('button', { name: /In a week|Next week/ }).first().click();
   await expect(change).toBeHidden();
   await expect(page.locator('.ui-toast', { hasText: 'Scheduled for' })).toBeVisible();
   await expect(item).toHaveCount(1);

@@ -4,6 +4,7 @@ import ClientMessages from '@/components/i18n/ClientMessages';
 import GroupsListsBranch from '@/components/groups/GroupsListsBranch';
 import GroupsFoldersBranch from '@/components/groups/GroupsFoldersBranch';
 import GroupsPwa from '@/components/groups/GroupsPwa';
+import CalmFocus from '@/components/app/CalmFocus';
 import { ChatStyleProvider } from '@/components/chat-style/ChatStyle';
 import { getChatDisplay, getChatStyle, type ChatStyle } from '@/lib/chat-style';
 import { DEFAULT_DISPLAY } from '@/lib/chat-display';
@@ -14,6 +15,7 @@ import '@/styles/wa-newchat.css';
 import '@/styles/lines-folders.css';
 import '@/styles/chat-gestures.css';
 import '@/styles/wa-touch.css';
+import '@/styles/wa-mobile.css';
 import '@/styles/wa-accent.css';
 import '@/styles/groups-later.css';
 import '@/styles/groups-hubspot.css';
@@ -43,6 +45,7 @@ export default async function GroupsLayout(props: { children: ReactNode; params:
           <GroupsFoldersBranch />
         </Suspense>
         <GroupsPwa />
+        <CalmFocus />
         {props.children}
       </ChatStyleProvider>
     </ClientMessages>

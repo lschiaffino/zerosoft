@@ -7,7 +7,7 @@ import { sharedTotal } from '@/lib/wa-person';
 import Avatar from './Avatar';
 import MediaViewer, { type ViewerItem } from './MediaViewer';
 import { ArrowLeft, Ban, ChatIcon, ChevronRight, Close, DocIcon, MuteIcon, PhotoIcon, StarIcon } from './icons';
-import { posterFrame } from './format';
+import { formatWaPhone, posterFrame } from './format';
 
 /** Un mensaje compartido en el chat 1:1 (foto, video, documento, link o destacado), igual en las dos apps. */
 export interface SheetSharedItem {
@@ -27,16 +27,7 @@ type SharedTab = 'media' | 'docs' | 'links';
 
 /** "+54 9 11 5555-0000" (lo enmascarado queda como vino). */
 function phoneText(card: Pick<WaPersonCard, 'phone'> & { masked?: boolean }): string {
-  if (card.masked) return card.phone;
-  const d = card.phone.replace(/\D/g, '');
-  if (!d) return '';
-  const ar = /^549(11|\d{3})(\d{3,4})(\d{4})$/.exec(d);
-  if (ar) return `+54 9 ${ar[1]} ${ar[2]}-${ar[3]}`;
-  const us = /^1(\d{3})(\d{3})(\d{4})$/.exec(d);
-  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
-  const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(d);
-  if (br) return `+55 ${br[1]} ${br[2]}-${br[3]}`;
-  return `+${d}`;
+  return formatWaPhone(card.phone, card.masked);
 }
 
 /**

@@ -310,6 +310,7 @@
 /* Todo lo que se lee va a la medida, centrado; la barra y la portada no. */
 .docs-page-header,
 .docs-blocks,
+.docs-upload-status,
 .docs-readonly-body {
   width: min(100% - 96px, var(--measure));
   margin-inline: auto;
@@ -318,7 +319,8 @@
 /* Embebido (Notes): sin barra ni medida propia; el contenedor manda. */
 .docs-editor-embedded { gap: 8px; padding-bottom: 0; }
 .docs-editor-embedded .docs-page-header,
-.docs-editor-embedded .docs-blocks { width: 100%; padding-top: 0; }
+.docs-editor-embedded .docs-blocks,
+.docs-editor-embedded .docs-upload-status { width: 100%; padding-top: 0; }
 
 /* "Enlazada desde": páginas con un link `[[` a esta, bajo el título. */
 .docs-backlinks { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 8px; font-size: 0.875rem; color: var(--dim); }
@@ -521,6 +523,15 @@
 /* Un ítem de lista vacío conserva la altura de un renglón (la marca se apoya en él). */
 .docs-editable:empty { display: block; }
 .docs-editor-small { --docs-text: 0.9375rem; }
+
+/* Texto en el que se escribe (título, bloques, celdas, leyendas): sin caja de foco,
+   el caret alcanza, como en Notion. Más específico que el :focus-visible global
+   (globals.css), que según el orden de carga de las hojas le ganaba al outline: none
+   de cada regla y dejaba un rectángulo negro de 2px alrededor del párrafo. */
+.docs-editor [contenteditable='true']:focus,
+.docs-editor [contenteditable='true']:focus-visible,
+.docs-title:focus-visible,
+.docs-editable:focus-visible { outline: none; }
 
 .docs-editable strong { font-weight: 700; }
 .docs-editable u { text-decoration: underline; text-underline-offset: 3px; }
@@ -928,7 +939,15 @@
 .docs-gap { position: relative; height: 2px; }
 .docs-gap-add { position: absolute; top: 50%; left: -26px; z-index: 30; width: 20px; height: 20px; transform: translateY(-50%); }
 
-.docs-block-comment { position: absolute; top: 5px; right: -40px; gap: 3px; min-width: 24px; height: 24px; padding: 0 4px; }
+.docs-block-comment { --docs-rail-gap: 16px; position: absolute; top: 5px; right: calc(-24px - var(--docs-rail-gap)); gap: 3px; min-width: 24px; height: 24px; padding: 0 4px; }
+/* Puentes de hover: el asa y el globo quedan afuera del bloque, y al cruzar el hueco
+   el bloque perdía el :hover y el botón se escondía antes de llegar. Cada botón
+   estira su zona hasta el borde del bloque (solo cuando ya está visible). */
+.docs-block-grip::after,
+.docs-block-comment::before { content: ''; position: absolute; top: -5px; bottom: -5px; }
+/* Justo el hueco (6px): un píxel de más tapaba el principio del renglón y se comía el click. */
+.docs-block-grip::after { left: 100%; width: 6px; }
+.docs-block-comment::before { right: 100%; width: var(--docs-rail-gap); }
 .docs-block-comment.has-comments { color: var(--ink); }
 .docs-block-comment-count { font-size: 0.6875rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -1098,7 +1117,8 @@
 }
 
 /* Barra de formato y link (fixed; top/left desde JS). */
-.docs-format-toolbar { position: fixed; display: flex; align-items: center; gap: 2px; transform: translateX(-50%); }
+/* max-content: el ancho no depende de dónde quedó (con left + translate se achicaba contra el borde). */
+.docs-format-toolbar { position: fixed; display: flex; align-items: center; gap: 2px; width: max-content; max-width: calc(100vw - 16px); transform: translateX(-50%); }
 .docs-format-menu-wrap { position: relative; display: inline-flex; }
 .docs-format-menu {
   position: absolute;
@@ -1442,8 +1462,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 @media (max-width: 1279px) {
   .docs-page-header,
   .docs-blocks,
+  .docs-upload-status,
   .docs-readonly-body { width: min(100% - 80px, var(--measure)); }
-  .docs-block-comment { right: -34px; }
+  .docs-block-comment { --docs-rail-gap: 10px; }
 }
 
 @media (max-width: 1023px) {
@@ -1528,13 +1549,16 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   .docs-top-bar { top: var(--band-h); padding: 0 8px 0 16px; }
   .docs-page-header,
   .docs-blocks,
+  .docs-upload-status,
   .docs-readonly-body { width: calc(100% - 32px); }
   /* Gutter propio para el asa y el "+" (afuera quedaban fuera de pantalla). */
-  .docs-blocks { padding-left: 26px; width: calc(100% - 32px); }
+  .docs-blocks,
+  .docs-upload-status { padding-left: 26px; width: calc(100% - 32px); }
   .docs-editor:not(.docs-readonly) .docs-page-header { padding-left: 26px; }
   .docs-block-grip { left: -26px; }
+  .docs-block-grip::after { width: 4px; }
   .docs-gap-add { left: -24px; }
-  .docs-block-comment { right: 0; }
+  .docs-block-comment { --docs-rail-gap: 0px; right: 0; }
   .docs-title { font-size: 2.25rem; }
   .docs-page-header { padding-top: 28px; }
   /* Aire abajo para que el botón flotante de feedback no tape el texto. */
@@ -1633,8 +1657,13 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 /* ---------- Bloques de imagen y archivo ---------- */
 
 .docs-file-block { display: block; padding: 4px 0; outline: none; }
+/* Bloque de medios seleccionado: anillo azul tenue (el mismo de la selección de bloques), no una caja negra. */
 .docs-file-block:focus-visible,
-.docs-file-block.focused:focus { box-shadow: 0 0 0 2px var(--ink); border-radius: var(--radius-1); }
+.docs-file-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
+/* Con el teclado el anillo va entero (se tiene que ver bien); con el mouse, tenue. El outline
+   transparente lo deja visible en modo de alto contraste, donde la sombra no se dibuja. */
+.docs-file-block:focus-visible,
+.docs-board-block:focus-visible { box-shadow: 0 0 0 2px #2383e2; }
 .docs-image { display: block; max-width: 100%; height: auto; border-radius: var(--radius-1); }
 .docs-file-card {
   display: flex;
@@ -1652,8 +1681,111 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-file-name { flex: 1; min-width: 0; font-size: 0.875rem; font-weight: 500; overflow-wrap: anywhere; }
 .docs-file-size { flex-shrink: 0; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .docs-file-missing { display: block; padding: 10px 12px; border: 1px dashed var(--line); border-radius: var(--radius-1); font-size: 0.875rem; color: var(--brand-gray-2); }
-.docs-upload-status { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 0.8125rem; color: var(--brand-gray-2); }
+/* Importar o subir el ícono: una línea en la columna de la página (antes quedaba pegada al borde de la ventana). */
+.docs-upload-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; margin-bottom: 0; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .docs-upload-status.is-error { color: var(--bad-ink); }
+
+/* ---------- Subidas en curso: esqueleto en el lugar del bloque ---------- */
+
+/* Gris claro con un brillo que pasa (quieto con movimiento reducido). */
+.docs-skel {
+  position: relative;
+  overflow: hidden;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.docs-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 55%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: docs-skel-shine 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes docs-skel-shine { to { transform: translateX(100%); } }
+
+/* Mismo tamaño que el bloque que va a quedar: imagen y video con su proporción
+   (16:9 hasta leer el archivo), PDF con la altura del visor. */
+.docs-upload-box { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 16 / 9; }
+/* Un video sin medidas (un formato que el navegador no lee) se dibuja de 150px de alto: el esqueleto igual. */
+.docs-upload-box-video { aspect-ratio: auto; height: 150px; max-height: 70vh; }
+.docs-upload-box-pdf { aspect-ratio: auto; height: 640px; max-height: 80vh; }
+/* Reserva un renglón igual al del bloque final sin mostrarlo. */
+.docs-upload-ghost { visibility: hidden; }
+.docs-upload-center { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(240px, calc(100% - 24px)); font-size: 0.8125rem; color: var(--brand-gray-1); text-align: center; }
+.docs-upload-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 500; }
+.docs-upload-meta { display: flex; align-items: center; gap: 10px; }
+.docs-upload-percent { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.docs-upload-bar { position: relative; display: block; width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.docs-upload-bar-fill { display: block; height: 100%; background: var(--ink); transition: width 200ms linear; }
+.docs-upload-cancel-text {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--brand-gray-1);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.docs-upload-cancel-text:hover { color: var(--ink); background: var(--ui-hover); }
+.docs-upload-cancel-text:focus-visible,
+.docs-upload-cancel:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* Archivo y audio: la ficha del archivo, con el progreso en una raya abajo (no cambia el alto). */
+.docs-upload-card,
+.docs-file-card.docs-upload-card:hover { position: relative; background: var(--brand-enamel); }
+/* El texto va por encima del brillo. */
+.docs-upload-card > :not(.docs-upload-bar) { position: relative; z-index: 1; }
+/* El alto del reproductor de audio. */
+.docs-upload-audio { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 54px; }
+.docs-upload-card .docs-upload-bar { position: absolute; left: 0; right: 0; bottom: 0; width: auto; height: 2px; border-radius: 0; background: transparent; }
+.docs-upload-cancel {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: -2px -4px -2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+}
+.docs-upload-cancel:hover { color: var(--ink); background: var(--ui-press); }
+
+/* Falló: aviso en el mismo lugar, con Reintentar y Quitar. */
+.docs-upload-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 4px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--bad-ink);
+  border-radius: var(--radius-1);
+  background: var(--bad-soft);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+.docs-upload-error .docs-file-icon { color: var(--bad-ink); }
+.docs-upload-error-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.docs-upload-actions { display: flex; gap: 6px; margin-left: auto; }
+
+@media (max-width: 720px) {
+  .docs-upload-box-pdf { height: 420px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .docs-skel::after { animation: none; opacity: 0; }
+  .docs-upload-bar-fill { transition: none; }
+}
 
 /* ---------- Buscar (Cmd+P) y subpáginas para invitados ---------- */
 
@@ -1702,7 +1834,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 .docs-board-block { display: block; padding: 4px 0; outline: none; }
 .docs-board-block:focus-visible,
-.docs-board-block.focused:focus { box-shadow: 0 0 0 2px var(--ink); border-radius: var(--radius-1); }
+.docs-board-block.focused:focus { outline: 2px solid transparent; box-shadow: 0 0 0 2px color-mix(in srgb, #2383e2 45%, transparent); border-radius: var(--radius-1); }
 .docs-board-embed {
   display: flex;
   align-items: stretch;
@@ -1959,6 +2091,9 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 .docs-radio { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.875rem; }
 .docs-button-md { font-family: var(--font-data); font-size: 0.8125rem; resize: vertical; }
 .docs-button-actions { display: flex; justify-content: flex-end; gap: 6px; }
+/* Eliminar va a la izquierda, lejos de Guardar. */
+.docs-button-delete { margin-right: auto; }
+.docs-button-hint { margin: -6px 0 0; font-size: 0.75rem; line-height: 1.4; color: var(--brand-gray-2); }
 
 .docs-mention-section { padding: 6px 10px 2px; font-size: 0.6875rem; font-weight: 600; color: var(--brand-gray-2); }
 .docs-mention-detail { margin-left: auto; font-size: 0.75rem; color: var(--brand-gray-2); white-space: nowrap; }

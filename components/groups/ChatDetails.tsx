@@ -258,6 +258,7 @@ export default function ChatDetails({
           >
             <textarea
               className="input gr-description"
+              data-focus-target="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={2000}
@@ -387,6 +388,23 @@ export default function ChatDetails({
       )}
 
       <section className="gr-detail-section">
+        <label className="ui-switch">
+          <input
+            type="checkbox"
+            role="switch"
+            data-testid="keep-archived"
+            checked={chat.keepArchived}
+            onChange={(e) => {
+              const on = e.target.checked;
+              void patch({ keepArchived: on }).then((r) => r && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
+            }}
+          />
+          {t('wa.keepArchived')}
+        </label>
+        <p className="ui-help">{t('wa.keepArchivedHint')}</p>
+      </section>
+
+      <section className="gr-detail-section">
         <h3 className="gr-detail-title">{t('details.agent')}</h3>
         <select className="select" value={chat.agentId ?? ''} onChange={(e) => void patch({ agentId: e.target.value || null })} aria-label={t('details.agent')}>
           <option value="">{t('details.noAgent')}</option>
@@ -421,7 +439,7 @@ export default function ChatDetails({
                   if (list.length) void memberAction('add', list);
                 }}
               >
-                <input className="input" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={t('details.addPlaceholder')} aria-label={t('details.addMembers')} />
+                <input className="input" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={t('details.addPlaceholder')} aria-label={t('details.addMembers')} data-focus-target="add-members" />
                 <button type="submit" className="btn btn-secondary btn-sm" disabled={!phones.trim() || memberBusy}>
                   {t('details.add')}
                 </button>

@@ -7,10 +7,11 @@ export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
 /**
+ * 'removed': los sacados de Inbox (se recuperan o se borran del todo; lib/inbox/removed.ts).
  * Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte.
  * `nofolder` ("Sin carpeta") son los chats de la bandeja que no están en ninguna carpeta (ni a mano ni por regla).
  */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -59,6 +60,8 @@ export interface ThreadDto {
   done: boolean;
   /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
   archived: boolean;
+  /** "Mantener archivado": ni los mensajes ni el teléfono lo sacan de Archivados. */
+  keepArchived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
   /** Desde cuándo está vencido (volvió de posponer o venció el recordatorio); null si no lo está. */
@@ -91,10 +94,15 @@ export interface ThreadDto {
   lastMediaId?: string | null;
   /** WhatsApp: le falta un mensaje que no se pudo entregar; al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
   historyGap?: boolean;
+  /** Solo en "Sacados de Inbox": cuándo se sacó y cuándo se borra solo (lib/inbox/removed.ts). */
+  removedAt?: string;
+  purgeAt?: string;
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
 export interface WaMessageMeta {
+  /** Aviso del grupo (media_type 'system'; lib/wa-group-events.ts): "Creaste el grupo", "Ana te agregó". */
+  sys?: unknown;
   width?: number;
   height?: number;
   /** Segundos (audio, nota de voz, video). */
@@ -120,7 +128,19 @@ export interface WaMessageMeta {
   contacts?: Array<{ name: string; phones: string[]; picture?: string }>;
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
-  link?: { url: string; title: string; description?: string; thumb?: string };
+  link?: {
+    url: string;
+    title: string;
+    description?: string;
+    thumb?: string;
+    /** La imagen grande (ruta del mensaje) y sus medidas, si WhatsApp la mandó y se bajó. */
+    image?: string;
+    imageWidth?: number;
+    imageHeight?: number;
+    /** Solo en la base (no van al navegador): la referencia y la imagen grande ya bajada. */
+    hqRef?: import('../wa-link-thumb').LinkHqRef;
+    hq?: import('../wa-link-thumb').LinkHq;
+  };
   /** Se mandó sin vista previa del link (la persona la sacó en el composer). */
   noPreview?: boolean;
   /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
@@ -161,6 +181,8 @@ export interface MessageReaction {
   /** Teléfono de quien reaccionó ('me' si fui yo). */
   by: string;
   name: string;
+  /** Cuándo reaccionó (las guardadas antes no lo tienen). */
+  at?: string;
 }
 
 export interface MessageQuote {
@@ -253,6 +275,12 @@ export interface ScheduledDto {
   mediaName: string;
   mediaType: string;
   mediaUrl: string;
+  /** El archivo es una nota de voz grabada: sale como nota de voz (ptt), no como adjunto. */
+  mediaVoice: boolean;
+  /** Segundos de la nota de voz (0 si no se sabe). */
+  mediaDuration: number;
+  /** Mensaje (nuestro id) que cita ('' si no cita). */
+  replyTo: string;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;

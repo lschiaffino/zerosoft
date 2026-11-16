@@ -49,9 +49,7 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
 
   // Carpetas.
   const folder = (await (await request.post('/api/groups/folders', { data: { name: `Clientes ${tag}` } })).json()) as { id: string };
-  // Nombre con tag: otras specs crean su propia "VIP …" en la misma base.
-  const subName = `VIP ${tag}`;
-  const sub = await request.post('/api/groups/folders', { data: { name: subName, parentId: folder.id } });
+  const sub = await request.post('/api/groups/folders', { data: { name: `VIP ${tag}`, parentId: folder.id } });
   expect(sub.status()).toBe(201);
   const dup = await request.post('/api/groups/folders', { data: { name: `clientes ${tag}` } });
   expect(dup.status()).toBe(409);
@@ -88,9 +86,9 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   const side = page.locator('#side-branch').getByTestId('lines-folders');
   await expect(side).toBeVisible();
   // El mismo árbol que Inbox: la subcarpeta cuelga de su carpeta y se pliega; el menú de cada una ofrece mover y renombrar.
-  await expect(side.getByTestId('lines-folder').filter({ hasText: subName })).toBeVisible();
+  await expect(side.getByTestId('lines-folder').filter({ hasText: `VIP ${tag}` })).toBeVisible();
   await side.getByRole('button', { name: `Collapse Clientes ${tag}` }).click();
-  await expect(side.getByTestId('lines-folder').filter({ hasText: subName })).toHaveCount(0);
+  await expect(side.getByTestId('lines-folder').filter({ hasText: `VIP ${tag}` })).toHaveCount(0);
   await side.getByRole('button', { name: `Expand Clientes ${tag}` }).click();
   await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).hover();
   await side.getByRole('button', { name: `Actions for Clientes ${tag}` }).click();

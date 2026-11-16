@@ -76,7 +76,10 @@
     "unmute": "Activar sonido",
     "mute": "Silenciar",
     "fullscreen": "Pantalla completa",
-    "skipSilences": "Saltar silencios"
+    "skipSilences": "Saltar silencios",
+    "reaction": "{name} reaccionó con {emoji}",
+    "reactionAt": "En {time}",
+    "removeReaction": "Quitar reacción"
   },
   "comments": {
     "title": "Comentarios",
@@ -103,13 +106,17 @@
       "invalid_reaction": "Esa reacción no está disponible.",
       "name_taken": "Ese nombre es de alguien del workspace. Usá otro o entrá con tu cuenta.",
       "signin_required": "Entrá con tu cuenta para comentar este video.",
-      "rate_limited": "Demasiados comentarios en este video ahora. Probá en unos minutos."
+      "rate_limited": "Demasiados comentarios en este video ahora. Probá en unos minutos.",
+      "remove_reaction": "No se pudo quitar la reacción. Probá de nuevo."
     },
     "guest": "Invitado",
     "authorBadge": "Autor",
     "more": "Ver comentarios anteriores ({shown} de {total})",
     "signinToComment": "Entrá con tu cuenta para comentar este video.",
-    "viewOnly": "Podés ver este video. Los comentarios no están habilitados para vos."
+    "viewOnly": "Podés ver este video. Los comentarios no están habilitados para vos.",
+    "yours": "Tus reacciones",
+    "removeReactionAt": "Quitar tu {emoji} de {time}",
+    "removeYour": "Quitar tu {emoji}"
   },
   "common": {
     "copied": "Copiado",
@@ -180,6 +187,7 @@
   },
   "watch": {
     "copyLink": "Copiar link",
+    "copyLinkAt": "Copiar link en {time}",
     "download": "Descargar",
     "byOn": "{name} · {date}",
     "summary": "Resumen",

@@ -9,6 +9,9 @@ import ProfileForm from '@/components/settings/ProfileForm';
 import { AccountDataSection } from '@/components/settings/PrivacyPanel';
 import { pendingErasure } from '@/lib/privacy';
 import { getDb } from '@/lib/db';
+import { userCanUseApp } from '@/lib/workspace';
+import { listAlwaysGrants, type ChatApp } from '@/lib/assistant/chat-access';
+import ChatAccessSettings from '@/components/assistant/ChatAccessSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +29,14 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
   const initial = (me.name ?? me.email).trim().charAt(0).toUpperCase() || 'Z';
 
   const tz = me.time_zone ?? (await getUserTimeZone());
-  const [erasure, memberRow] = await Promise.all([
+  // Acceso del asistente a los chats de la persona (Inbox siempre; Lines si tiene la app).
+  const chatApps: ChatApp[] = user.role === 'guest' ? [] : (['inbox', 'lines'] as const).filter((a) => userCanUseApp(user, a === 'inbox' ? 'inbox' : 'groups'));
+  const [erasure, memberRow, grants] = await Promise.all([
     pendingErasure(me.id),
     getDb()
       .prepare("SELECT COUNT(*) AS n FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest'")
       .get(me.id) as Promise<{ n: number } | undefined>,
+    chatApps.length ? listAlwaysGrants({ workspaceId: user.id, personId: me.id }) : Promise.resolve([]),
   ]);
   const members = Number(memberRow?.n ?? 1);
   return (
@@ -79,6 +85,7 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
       </div>
     </FormSection>
     <ProfileForm name={me.name ?? ''} locale={me.locale ?? locale} timeZone={tz} />
+    {chatApps.length > 0 && <ChatAccessSettings apps={chatApps} always={grants.map((g) => g.app)} />}
     {!DEMO_MODE || me.email !== 'demo@zerosoft.ai' ? (
       <AccountDataSection
         email={me.email}

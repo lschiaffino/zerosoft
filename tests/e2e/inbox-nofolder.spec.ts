@@ -45,9 +45,11 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
   for (const n of [a, b, c]) await inbound(request, acc, n);
   const first = (await (await request.post('/api/inbox/folders', { data: { name: `Folder 1 ${tag}` } })).json()) as { folder: { id: string } };
   await request.post('/api/inbox/folders', { data: { name: `Folder 2 ${tag}` } });
-  const hit = (await (await request.get(`/api/inbox/threads?q=${encodeURIComponent(a)}`)).json()) as { threads: Array<{ id: string }> };
-  expect(hit.threads).toHaveLength(1);
-  expect((await request.post('/api/inbox/threads', { data: { ids: [hit.threads[0].id], action: 'addFolder', folderId: first.folder.id } })).ok()).toBe(true);
+  // La búsqueda puede traer también B y C (comparten palabras): se elige el chat A por su título.
+  const hit = (await (await request.get(`/api/inbox/threads?q=${encodeURIComponent(a)}`)).json()) as { threads: Array<{ id: string; title: string }> };
+  const chatA = hit.threads.find((t) => t.title === a);
+  expect(chatA).toBeTruthy();
+  expect((await request.post('/api/inbox/threads', { data: { ids: [chatA!.id], action: 'addFolder', folderId: first.folder.id } })).ok()).toBe(true);
 
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const side = page.locator('#side-branch');

@@ -99,6 +99,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     pinned: pinned.map((m) => maskMessage(viewer, m)),
     teams: teams.map((t) => ({ id: t.id, name: t.name })),
     numberName: number ? number.name || (number.phone ? `+${number.phone}` : '') : '',
+    numberConnected: number ? number.status === 'connected' : false,
     caps: number ? PROVIDER_CAPS[number.provider] : PROVIDER_CAPS.cloud,
     sample: number?.provider === 'sample',
     ticketEmoji: settings.ticketEmoji,

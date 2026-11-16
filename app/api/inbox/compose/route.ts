@@ -6,6 +6,7 @@ import { composeSchema } from '@/lib/inbox/schemas';
 import { sendToThread } from '@/lib/inbox/send';
 import { InboxError } from '@/lib/inbox/types';
 import { startWhatsappChat } from '@/lib/inbox/whatsapp';
+import { restoreThreads } from '@/lib/inbox/removed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,8 @@ export async function POST(req: Request) {
     const body = await parseBody(req, composeSchema);
     if (body.channel === 'whatsapp') {
       const t = await startWhatsappChat(owner, body.to);
+      // Escribirle a alguien cuyo chat estaba en "Sacados de Inbox" lo vuelve a meter, con su historial.
+      if (t.removed_at) await restoreThreads(owner, [t.id]);
       if (body.body?.trim()) await sendToThread(owner, t.id, body.body);
       return iJson({ thread: await getThread(owner, t.id) }, 201);
     }

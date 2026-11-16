@@ -6,9 +6,11 @@ import { Link } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import WhenDialog, { type WhenLabels } from '@/components/ui/WhenDialog';
 import { longWhen } from '@/lib/when-presets';
+import { duration as clock } from './wa/format';
 import type { ScheduledMessageDto } from '@/lib/groups-broadcasts';
 import { Modal, api, useErrorText, useToast, type ToastAction } from './ui';
 import { ClockIcon } from './wa/icons';
+import ScheduledVoice from './wa/ScheduledVoice';
 
 type Toast = (msg: string, bad?: boolean, action?: ToastAction) => void;
 
@@ -90,6 +92,8 @@ function ScheduledList({
   const [retime, setRetime] = useState<ScheduledMessageDto | null>(null);
   const [edit, setEdit] = useState<{ item: ScheduledMessageDto; body: string; error: string } | null>(null);
   const [cancel, setCancel] = useState<ScheduledMessageDto | null>(null);
+  const voiceLabels = useMemo(() => ({ tag: (time: string) => t('voiceTag', { time }), play: t('voicePlay'), pause: t('voiceStop'), failed: t('voicePlayFailed') }), [t]);
+  const isVoice = (s: ScheduledMessageDto) => s.media?.kind === 'voice';
 
   /** PATCH al programado; avisa a las demás vistas. Devuelve si salió bien. */
   const patch = async (id: string, body: Record<string, unknown>, done: string): Promise<string | null> => {
@@ -127,10 +131,11 @@ function ScheduledList({
                   )}
                   {s.otherChats > 0 && <span className="gr-later-tag">{t('others', { n: s.otherChats })}</span>}
                   {s.replyToId && <span className="gr-later-tag">{t('tagReply')}</span>}
-                  {s.media && <span className="gr-later-tag">{t('tagFile', { name: s.media.name })}</span>}
+                  {s.media && !isVoice(s) && <span className="gr-later-tag">{t('tagFile', { name: s.media.name })}</span>}
                   {s.poll && <span className="gr-later-tag">{t('tagPoll')}</span>}
                   {s.recurringId && <span className="gr-later-tag">{t('tagRepeats')}</span>}
                 </p>
+                {s.media && isVoice(s) && <ScheduledVoice src={s.media.url} seconds={s.media.duration ?? 0} labels={voiceLabels} />}
                 {s.body && <p className="gr-later-body">{s.body}</p>}
               </div>
               <div className="gr-later-actions">
@@ -140,7 +145,7 @@ function ScheduledList({
                 <button type="button" className="btn btn-ghost btn-sm" disabled={off} onClick={() => setRetime(s)}>
                   {t('changeTime')}
                 </button>
-                {!s.poll && (
+                {!s.poll && !isVoice(s) && (
                   <button type="button" className="btn btn-ghost btn-sm" disabled={off} onClick={() => setEdit({ item: s, body: s.body, error: '' })}>
                     {t('edit')}
                   </button>
@@ -159,7 +164,7 @@ function ScheduledList({
         title={t('changeTitle')}
         labels={labels}
         initial={retime?.scheduledAt}
-        help={retime?.body ? <span className="gr-later-preview">{retime.body.slice(0, 200)}</span> : undefined}
+        help={retime?.body ? <span className="gr-later-preview">{retime.body.slice(0, 200)}</span> : retime && isVoice(retime) ? <span className="gr-later-preview">{voiceLabels.tag(clock(retime.media?.duration ?? 0))}</span> : undefined}
         onClose={() => setRetime(null)}
         onPick={(iso) => {
           const item = retime;
@@ -213,7 +218,7 @@ function ScheduledList({
         title={t('cancelTitle')}
         body={
           <>
-            {cancel?.body && <span className="gr-later-preview">{cancel.body.slice(0, 200)}</span>} {t('cancelBody')}
+            {cancel?.body ? <span className="gr-later-preview">{cancel.body.slice(0, 200)}</span> : cancel && isVoice(cancel) ? <span className="gr-later-preview">{voiceLabels.tag(clock(cancel.media?.duration ?? 0))}</span> : null} {t('cancelBody')}
           </>
         }
         confirmLabel={t('cancelConfirm')}

@@ -1,0 +1,27 @@
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -3787,13 +3787,17 @@
+   }
+ 
+   public async getLastMessage(number: string) {
+-    const where: any = { key: { remoteJid: number }, instanceId: this.instance.id };
+-
+-    const messages = await this.prismaRepository.message.findMany({
+-      where,
+-      orderBy: { messageTimestamp: 'desc' },
+-      take: 1,
+-    });
++    // zerosoft: `key` es una columna JSON y Prisma no acepta `{ key: { remoteJid } }` (PrismaClientValidationError):
++    // archivar o marcar no leído sin `lastMessage` respondía 500 siempre. Se filtra por path, como el resto del
++    // servicio, con el id del chat como lo guarda Evolution o con su otro id (teléfono ↔ lid).
++    const findLast = (field: 'remoteJid' | 'remoteJidAlt') =>
++      this.prismaRepository.message.findMany({
++        where: { instanceId: this.instance.id, key: { path: [field], equals: number } },
++        orderBy: { messageTimestamp: 'desc' },
++        take: 1,
++      });
++    let messages = await findLast('remoteJid');
++    if (messages.length === 0) messages = await findLast('remoteJidAlt');
+ 
+     if (messages.length === 0) {
+       throw new NotFoundException('Messages not found');

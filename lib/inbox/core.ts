@@ -9,7 +9,9 @@ import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
+import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
+import { publicLink } from '../wa-link-thumb';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -69,6 +71,8 @@ export interface AccountRow {
   privacy_at?: string | null;
   /** WhatsApp: no puede sincronizar el archivado ('app_state_unavailable'; lib/wa-archive-sync.ts). */
   archive_sync_error?: string;
+  /** WhatsApp: cuándo se empezó a vincular por última vez (el QR). NULL en las cuentas vinculadas antes de guardarlo. */
+  linked_at?: string | null;
 }
 
 /** Credenciales de la cuenta, descifradas. */
@@ -173,6 +177,10 @@ export interface ThreadRow {
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
+  /** 1: "Mantener archivado" (ni un mensaje ni el teléfono lo sacan de Archivados; trigger en la base). */
+  keep_archived?: number;
+  /** 1: el pospuesto archivó el chat (no estaba archivado); al cancelarlo vuelve a la bandeja. */
+  snooze_archived?: number;
   woke_at: string | null;
   woke_reason: string;
   follow_up_at: string | null;
@@ -198,6 +206,8 @@ export interface ThreadRow {
   summary_at?: string | null;
   /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
   history_gap_at?: string | null;
+  /** Sacado de Inbox (lib/inbox/removed.ts): fuera de todas las vistas hasta que se recupera o se purga. */
+  removed_at?: string | null;
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
@@ -217,8 +227,9 @@ export function presenceOf(r: Pick<ThreadRow, 'presence' | 'presence_at'>, now =
   return '';
 }
 
+/** El chat de la persona. Uno sacado de Inbox no se abre (404) hasta que se recupera. */
 export async function getThreadRow(owner: string, id: string): Promise<ThreadRow> {
-  const row = (await getDb().prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(id, owner)) as ThreadRow | undefined;
+  const row = (await getDb().prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(id, owner)) as ThreadRow | undefined;
   if (!row) throw new InboxError('not_found', 404);
   return row;
 }
@@ -343,11 +354,18 @@ const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
  * chat). "Es el más nuevo" se decide en la base, contra la fila como está en
  * ese momento: last_message_at vacío o anterior o igual a la hora del mensaje.
  */
-function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[]): BatchStatement {
+function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[], fromHere = false): BatchStatement {
   const preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   const newer = '(last_message_at IS NULL OR last_message_at <= ?)';
   const live = !m.fromMe && !m.history ? 1 : 0;
+  // Un mensaje mío en vivo (desde acá, programado, por la API o desde el teléfono) saca el chat de WhatsApp de
+  // Archivados, también si estaba "hecho". Como WhatsApp, que lo desarchiva solo: no se le manda nada. El que llega
+  // del teléfono, solo si es el más nuevo del chat (uno viejo que llega tarde no desarchiva); el que sale de acá, siempre.
+  const out = outgoingLive(m) ? 1 : 0;
+  const sure = fromHere ? 1 : 0;
   const now = nowIso();
+  // Un chat sacado de Inbox sigue guardando lo que llega, pero no se mueve: al recuperarlo vuelve a donde estaba.
+  const kept = 'removed_at IS NULL AND ';
   return {
     sql: `UPDATE inbox_threads SET
          preview = CASE WHEN ${newer} THEN ? ELSE preview END,
@@ -359,10 +377,11 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
          last_inbound_at = CASE WHEN ? = 0 AND (last_inbound_at IS NULL OR last_inbound_at < ?) THEN ? ELSE last_inbound_at END,
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
-         done_at = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ? = 1 AND ${newer} AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
-         snoozed_until = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE snoozed_until END,
-         follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
+         done_at = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ${kept}((? = 1 AND (muted_until IS NULL OR muted_until <= ? OR (snoozed_until IS NOT NULL AND snooze_archived = 1))) OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE archived_at END,
+         snoozed_until = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN NULL ELSE snoozed_until END,
+         snooze_archived = CASE WHEN ${kept}(? = 1 OR (? = 1 AND channel = 'whatsapp')) AND (? = 1 OR ${newer}) THEN 0 ELSE snooze_archived END,
+         follow_up_at = CASE WHEN ${kept}? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
        WHERE ${where}`,
     args: [
@@ -389,12 +408,24 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
       !m.fromMe && !m.history && !m.read ? 1 : 0,
       // Llega algo nuevo de la otra persona: vuelve a la bandeja.
       live,
+      out,
+      sure,
       sentAt,
-      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
+      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado; si lo archivó un
+      // pospuesto, vuelve igual).
       live,
-      sentAt,
       now,
+      out,
+      sure,
+      sentAt,
+      // El pospuesto termina cuando el chat sale de Archivados: llega un mensaje, o sale uno por WhatsApp.
       live,
+      out,
+      sure,
+      sentAt,
+      live,
+      out,
+      sure,
       sentAt,
       live,
       now,
@@ -403,12 +434,31 @@ function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: st
   };
 }
 
+/** ¿Un mensaje mío en vivo (no del historial)? Es el que desarchiva el chat. */
+function outgoingLive(m: NewMessage): boolean {
+  return m.fromMe && !m.history;
+}
+
+/** Antes de tocar el chat: el desarchivado por envío queda anotado para el eco del teléfono (lib/wa-archive-sync.ts). */
+function unarchiveMark(m: NewMessage, sentAt: string, messageId: string, fromHere = false): BatchStatement[] {
+  const mine = 'c.id = (SELECT thread_id FROM inbox_messages WHERE id = ?)';
+  // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
+  if (!m.fromMe && !m.history) return [snoozeWakeMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
+  if (!outgoingLive(m)) return [];
+  return [fromHere ? sendUnarchiveMark('inbox', mine, [messageId]) : sendUnarchiveMark('inbox', `${mine} AND (c.last_message_at IS NULL OR c.last_message_at <= ?)`, [messageId, sentAt])];
+}
+
 /** Lo que cambia en la fila que ya tiene quien llama (así el próximo mensaje de la tanda compara contra lo nuevo). */
 function noteNewest(thread: ThreadRow, m: NewMessage, sentAt: string): void {
   if (thread.last_message_at && sentAt < thread.last_message_at) return;
   thread.last_message_at = sentAt;
   thread.preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
   thread.last_from_me = m.fromMe ? 1 : 0;
+  if (outgoingLive(m) && thread.channel === 'whatsapp') {
+    thread.archived_at = null;
+    thread.done_at = null;
+    thread.snoozed_until = null;
+  }
 }
 
 /**
@@ -426,11 +476,25 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
        ON CONFLICT DO NOTHING`,
       args: [id, thread.owner_id, thread.id, ...messageTail(m, sentAt)],
     },
+    // Lo guarda quien lo mandó desde acá (o la sincronización de Gmail y la importación, que no desarchivan).
+    ...unarchiveMark(m, sentAt, id, true),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id]),
+    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id], true),
   ]);
   if (res[0].changes === 0) return false;
   noteNewest(thread, m, sentAt);
+  // Lo que mandé desde la app a un chat por teléfono: si el eco de WhatsApp llegó antes solo con el lid y abrió otro
+  // chat, se juntan (lib/wa-dedupe-run.ts). Después de responder: nunca suma espera al envío.
+  if (m.fromMe && !m.history && thread.channel === 'whatsapp' && thread.kind === 'dm' && /@s\.whatsapp\.net$/.test(thread.external_id)) {
+    const job = () => import('../wa-dedupe-run').then((d) => d.mergeAfterOwnSend(thread, m.externalId)).catch(() => null);
+    try {
+      const { after } = await import('next/server');
+      after(job);
+    } catch {
+      // Fuera de un request (crons, pruebas): en segundo plano.
+      void job();
+    }
+  }
   return true;
 }
 
@@ -444,7 +508,7 @@ export async function addMessageToChat(
   account: Pick<AccountRow, 'id' | 'owner_id' | 'kind'>,
   input: ThreadInput,
   m: NewMessage,
-): Promise<{ thread: ThreadRow; added: boolean }> {
+): Promise<{ thread: ThreadRow; added: boolean; id: string }> {
   const sentAt = validIso(m.sentAt) ?? nowIso();
   const id = newId('ibm');
   const external = input.externalId.slice(0, 300);
@@ -457,12 +521,13 @@ export async function addMessageToChat(
        ON CONFLICT DO NOTHING`,
       args: [id, account.owner_id, account.id, external, ...messageTail(m, sentAt)],
     },
+    ...unarchiveMark(m, sentAt, id),
     threadTouch(m, sentAt, 'id = (SELECT thread_id FROM inbox_messages WHERE id = ?)', [id]),
   ]);
   const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);
   const added = res[2].changes > 0;
   if (added) noteNewest(thread, m, sentAt);
-  return { thread, added };
+  return { thread, added, id };
 }
 
 function validIso(s: string | undefined | null): string | null {
@@ -508,7 +573,7 @@ export interface ListOptions {
 /** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
 const LIST_COLS = [
   'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'done_at',
-  'archived_at', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
+  'archived_at', 'keep_archived', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
   'presence', 'presence_who', 'presence_at', 'last_seen_at',
 ]
   .map((c) => `t.${c}`)
@@ -564,8 +629,13 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
  */
 export async function listThreadsPage(owner: string, opts: ListOptions = {}): Promise<ThreadPage> {
   const now = opts.now ?? new Date();
+  if (opts.view === 'removed' && !opts.folderId) {
+    const { listRemoved } = await import('./removed');
+    return { threads: await listRemoved(owner, now), next: null, pinned: 0 };
+  }
   const nowS = now.toISOString();
-  const where: string[] = [];
+  // Los sacados de Inbox no están en ninguna vista, carpeta ni búsqueda.
+  const where: string[] = ['t.removed_at IS NULL'];
   const args: Array<string | number> = [];
   const q = (opts.q ?? '').trim().slice(0, LIMITS.searchQuery);
   const view = opts.view ?? 'inbox';
@@ -715,19 +785,29 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   };
 }
 
+/** Chat 1:1 de WhatsApp guardado por lid (sin teléfono a la vista). */
+function lidThread(r: Pick<ThreadRow, 'channel' | 'kind' | 'external_id'>): boolean {
+  return r.channel === 'whatsapp' && r.kind === 'dm' && /@lid$/i.test(r.external_id);
+}
+
+/** El lid (dígitos) de cada chat por lid armado acá: no viaja a la pantalla, solo lo usa withLidTitles. */
+const LID_OF = new WeakMap<ThreadDto, string>();
+
 export function threadDto(
   r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null; account_receipts?: string | null },
   now = new Date(),
 ): ThreadDto {
   const snoozed = r.snoozed_until && r.snoozed_until > now.toISOString() ? r.snoozed_until : null;
-  return {
+  const dto: ThreadDto = {
     id: r.id,
     accountId: r.account_id,
     channel: r.channel,
     kind: r.kind,
-    // Un grupo sin asunto todavía queda vacío (la pantalla muestra "Grupo"), nunca el id crudo.
-    title: r.title || r.handle || (r.kind === 'group' ? '' : r.external_id.replace(/@.*/, '')),
-    handle: r.handle,
+    // Un grupo sin asunto todavía queda vacío (la pantalla muestra "Grupo"), nunca el id crudo. Un chat por lid
+    // ("…@lid", el id anónimo de WhatsApp) nunca muestra sus dígitos como si fueran un teléfono: withLidTitles le
+    // pone el nombre de la libreta o "Contacto de WhatsApp".
+    title: lidThread(r) ? (/^\+?\d+$/.test(r.title) ? '' : r.title) : r.title || r.handle || (r.kind === 'group' ? '' : r.external_id.replace(/@.*/, '')),
+    handle: lidThread(r) ? '' : r.handle,
     preview: r.preview,
     lastMessageAt: r.last_message_at,
     lastFromMe: r.last_from_me === 1,
@@ -735,6 +815,7 @@ export function threadDto(
     pinned: !!r.pinned_at,
     done: !!r.done_at,
     archived: !!r.archived_at,
+    keepArchived: r.keep_archived === 1,
     snoozedUntil: snoozed,
     woke: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_reason : '',
     wokeAt: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_at : null,
@@ -756,6 +837,8 @@ export function threadDto(
     lastMediaId: r.last_media_id ?? null,
     ...(r.history_gap_at ? { historyGap: true } : {}),
   };
+  if (lidThread(r)) LID_OF.set(dto, r.external_id.slice(0, r.external_id.indexOf('@')));
+  return dto;
 }
 
 export async function getThread(owner: string, id: string): Promise<ThreadDto> {
@@ -766,7 +849,7 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
          CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
          CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
-       FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?`,
+       FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ? AND t.removed_at IS NULL`,
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
@@ -779,6 +862,7 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
  */
 async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise<ThreadDto[]> {
   await withPresenceNames(threads).catch(() => null);
+  await withLidTitles(owner, threads).catch(() => null);
   await withContactPictures(threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
@@ -786,6 +870,26 @@ async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise
   const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
+}
+
+/**
+ * Chats 1:1 guardados por lid y sin nombre: el de la libreta de la cuenta (por lid) o, si no se conoce,
+ * "Contacto de WhatsApp" en el idioma de la persona. Solo los de la página sin título: una consulta por cuenta.
+ */
+async function withLidTitles(owner: string, threads: ThreadDto[]): Promise<void> {
+  const list = threads.filter((t) => !t.title && LID_OF.has(t));
+  if (!list.length) return;
+  const { displayName, lookupContacts } = await import('../wa-contacts');
+  const byAccount = new Map<string, ThreadDto[]>();
+  for (const t of list) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
+  let fallback: string | null = null;
+  for (const [accountId, rows] of byAccount) {
+    const book = await lookupContacts({ app: 'inbox', accountId }, rows.map((t) => LID_OF.get(t)!)).catch(() => new Map());
+    for (const t of rows) {
+      const name = displayName(book.get(LID_OF.get(t)!));
+      t.title = name || (fallback ??= await import('../groups').then((g) => g.lidChatName(owner)).catch(() => 'WhatsApp contact'));
+    }
+  }
 }
 
 /**
@@ -849,6 +953,12 @@ interface MessageRow {
   starred_at?: string | null;
 }
 
+/** Meta para el navegador: la imagen grande del link va por la ruta del mensaje, sin la clave ni los bytes. */
+function publicMeta(meta: WaMessageMeta | null, id: string): WaMessageMeta | null {
+  if (!meta?.link) return meta;
+  return { ...meta, link: publicLink(meta.link, `/api/inbox/media/${id}?link=1`) };
+}
+
 function parseJson<T>(raw: string | undefined | null): T | null {
   if (!raw) return null;
   try {
@@ -865,7 +975,7 @@ function messageDto(r: MessageRow, reply: MessageQuote | null = null): MessageDt
     reactions: Array.isArray(reactions) ? reactions.filter((x) => x && typeof x.emoji === 'string' && x.emoji) : [],
     forwarded: r.forwarded === 1,
     starred: !!r.starred_at,
-    meta: parseJson<WaMessageMeta>(r.meta),
+    meta: publicMeta(parseJson<WaMessageMeta>(r.meta), r.id),
     id: r.id,
     fromMe: r.from_me === 1,
     senderName: r.sender_name,
@@ -1031,7 +1141,10 @@ export async function sentWithClientId(owner: string, threadId: string, clientId
 }
 
 export async function getMessageRow(owner: string, id: string): Promise<MessageRow & { thread_id: string; external_id: string }> {
-  const r = (await getDb().prepare('SELECT * FROM inbox_messages WHERE id = ? AND owner_id = ?').get(id, owner)) as
+  // El mensaje de un chat sacado de Inbox no se lee ni se toca hasta recuperar el chat.
+  const r = (await getDb()
+    .prepare('SELECT m.* FROM inbox_messages m WHERE m.id = ? AND m.owner_id = ? AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = m.thread_id AND t.removed_at IS NOT NULL)')
+    .get(id, owner)) as
     | (MessageRow & { thread_id: string; external_id: string })
     | undefined;
   if (!r) throw new InboxError('not_found', 404);
@@ -1047,6 +1160,8 @@ export type ThreadAction =
   | { action: 'unpin' }
   | { action: 'archive' }
   | { action: 'unarchive' }
+  /** Mantener archivado: prenderlo archiva el chat; apagarlo lo deja donde está. */
+  | { action: 'keepArchived'; on: boolean }
   | { action: 'snooze'; until: string }
   | { action: 'unsnooze' }
   | { action: 'followUp'; at: string }
@@ -1063,6 +1178,9 @@ export function futureIso(raw: string, now: Date): string {
   return new Date(t).toISOString();
 }
 
+/** El chat está pospuesto y fue el pospuesto el que lo archivó (columnas de inbox_threads). */
+const SNOOZE_ARCHIVED = '(snoozed_until IS NOT NULL AND snooze_archived = 1)';
+
 /** Una acción sobre uno o varios chats (todos de la persona; los ajenos se ignoran). Devuelve los ids que cambiaron. */
 export async function applyThreadAction(owner: string, ids: string[], a: ThreadAction, now = new Date()): Promise<string[]> {
   const db = getDb();
@@ -1072,7 +1190,7 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   if (!asked.length) return [];
   // Solo los chats de la persona: los ids ajenos se ignoran en silencio.
   const owned = (await db
-    .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND id IN (${asked.map(() => '?').join(',')})`)
+    .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND id IN (${asked.map(() => '?').join(',')})`)
     .all(owner, ...asked)) as Array<{ id: string }>;
   const unique = owned.map((r) => r.id);
   if (!unique.length) return [];
@@ -1080,12 +1198,13 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   let extra: Array<string | number | null> = [];
   switch (a.action) {
     case 'done':
-      sql = 'done_at = ?, snoozed_until = NULL, woke_at = NULL, woke_reason = \'\', unread = 0';
+      sql = 'done_at = ?, snoozed_until = NULL, snooze_archived = 0, woke_at = NULL, woke_reason = \'\', unread = 0';
       extra = [nowS];
       break;
     case 'undone':
-      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar".
-      sql = 'done_at = NULL, archived_at = NULL';
+      // Volver a la bandeja saca de Archivados venga de "hecho" o de "archivar" (y apaga "Mantener archivado").
+      // Sacarlo de Archivados a mano cancela el pospuesto.
+      sql = 'done_at = NULL, archived_at = NULL, keep_archived = 0, snoozed_until = NULL, snooze_archived = 0';
       break;
     case 'read':
       sql = 'unread = 0';
@@ -1106,14 +1225,24 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       extra = [nowS];
       break;
     case 'unarchive':
-      sql = 'archived_at = NULL, done_at = NULL';
+      // Desarchivar a mano apaga "Mantener archivado" (en el mismo UPDATE: el trigger lo deja pasar) y cancela el pospuesto.
+      sql = 'archived_at = NULL, done_at = NULL, keep_archived = 0, snoozed_until = NULL, snooze_archived = 0';
+      break;
+    case 'keepArchived':
+      sql = a.on ? 'keep_archived = 1, archived_at = COALESCE(archived_at, ?), pinned_at = NULL' : 'keep_archived = 0';
+      extra = a.on ? [nowS] : [];
       break;
     case 'snooze':
-      sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
-      extra = [futureIso(a.until, now)];
+      // Posponer archiva el chat (queda en Archivados y en Pospuestos) hasta que vuelve. `snooze_archived` anota si
+      // lo archivó el pospuesto: uno que ya estaba archivado o "hecho" queda como estaba.
+      sql = `snooze_archived = CASE WHEN ${SNOOZE_ARCHIVED} OR (archived_at IS NULL AND done_at IS NULL) THEN 1 ELSE 0 END,
+        archived_at = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN ? ELSE archived_at END,
+        snoozed_until = ?, woke_at = NULL, woke_reason = ''`;
+      extra = [nowS, futureIso(a.until, now)];
       break;
     case 'unsnooze':
-      sql = 'snoozed_until = NULL';
+      // Cancelar el pospuesto (o Deshacer) deja el chat como estaba antes de posponerlo.
+      sql = `archived_at = CASE WHEN ${SNOOZE_ARCHIVED} THEN NULL ELSE archived_at END, snoozed_until = NULL, snooze_archived = 0`;
       break;
     case 'followUp':
       sql = 'follow_up_at = ?, follow_up_since = ?';
@@ -1147,7 +1276,30 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     }
   }
   const marks = unique.map(() => '?').join(',');
+  // "Mantener archivado" en un chat que no estaba en Archivados: lo archiva, también en WhatsApp.
+  const toArchive =
+    a.action === 'keepArchived' && a.on
+      ? ((await db
+          .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND archived_at IS NULL AND done_at IS NULL AND id IN (${marks})`)
+          .all(owner, ...unique)) as Array<{ id: string }>)
+      : [];
+  // Posponer y cancelar el pospuesto archivan o desarchivan solo algunos chats: los de WhatsApp se miran antes de cambiarlos.
+  let snoozePush: string[] = [];
+  if (a.action === 'snooze' || a.action === 'unsnooze') {
+    const moved = a.action === 'snooze' ? 'archived_at IS NULL AND done_at IS NULL' : `${SNOOZE_ARCHIVED} AND archived_at IS NOT NULL`;
+    snoozePush = ((await db
+      .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND ${moved} AND id IN (${marks})`)
+      .all(owner, ...unique)) as Array<{ id: string }>).map((r) => r.id);
+  }
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
+  if (toArchive.length) {
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, toArchive.map((r) => r.id), true);
+  }
+  if (snoozePush.length) {
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, snoozePush, a.action === 'snooze');
+  }
   // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
   // "Archivar" de la barra (antes "Hecho", acción 'done') y volver a la bandeja ('undone') también: para quien lo usa
   // es lo mismo que archivar, y el chat tiene que quedar igual en el teléfono.
@@ -1163,14 +1315,14 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
 
 export async function saveDraft(owner: string, threadId: string, text: string): Promise<void> {
   const res = await getDb()
-    .prepare('UPDATE inbox_threads SET draft = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+    .prepare('UPDATE inbox_threads SET draft = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL')
     .run(text.slice(0, LIMITS.draft), nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
 
 export async function saveNotes(owner: string, threadId: string, text: string): Promise<void> {
   const res = await getDb()
-    .prepare('UPDATE inbox_threads SET notes = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+    .prepare('UPDATE inbox_threads SET notes = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL')
     .run(text.slice(0, LIMITS.notes), nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
@@ -1178,13 +1330,7 @@ export async function saveNotes(owner: string, threadId: string, text: string): 
 export async function renameThread(owner: string, threadId: string, title: string): Promise<void> {
   const clean = title.trim().slice(0, 200);
   if (!clean) throw new InboxError('invalid_input', 400);
-  const res = await getDb().prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ? AND owner_id = ?').run(clean, nowIso(), threadId, owner);
-  if (res.changes === 0) throw new InboxError('not_found', 404);
-}
-
-/** Borra el chat de Inbox (no de WhatsApp ni de Gmail): mensajes guardados, carpetas y programados. */
-export async function deleteThread(owner: string, threadId: string): Promise<void> {
-  const res = await getDb().prepare('DELETE FROM inbox_threads WHERE id = ? AND owner_id = ?').run(threadId, owner);
+  const res = await getDb().prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND removed_at IS NULL').run(clean, nowIso(), threadId, owner);
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
 
@@ -1197,15 +1343,26 @@ export async function inboxCounts(owner: string, now = new Date()): Promise<Reco
   const r = (await getDb()
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
-         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND removed_at IS NULL AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
             AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS reply,
-         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ?) AS snoozed,
-         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL)) AS archived,
-         (SELECT COUNT(*) FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')) AS scheduled`,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ? AND removed_at IS NULL) AS snoozed,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL) AND removed_at IS NULL) AS archived,
+         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.owner_id = ? AND s.status IN ('pending','failed','missed')
+            AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = s.thread_id AND t.removed_at IS NOT NULL)) AS scheduled,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NOT NULL) AS removed`
     )
-    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null } | undefined;
-  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), archived: Number(r?.archived ?? 0), scheduled: Number(r?.scheduled ?? 0) };
+    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner, owner)) as
+    | { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null; removed: number | null }
+    | undefined;
+  return {
+    inbox: Number(r?.inbox ?? 0),
+    reply: Number(r?.reply ?? 0),
+    snoozed: Number(r?.snoozed ?? 0),
+    archived: Number(r?.archived ?? 0),
+    scheduled: Number(r?.scheduled ?? 0),
+    removed: Number(r?.removed ?? 0),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,7 +1450,7 @@ export async function folderOverview(owner: string, now = new Date()): Promise<{
       `SELECT t.id, t.channel, t.kind, t.title, t.handle,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids
        FROM inbox_threads t INDEXED BY idx_inbox_threads_unread
-       WHERE t.owner_id = ? AND t.unread > 0 AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) LIMIT ${MAX_UNREAD_SCAN}`,
+       WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.unread > 0 AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) LIMIT ${MAX_UNREAD_SCAN}`,
     )
     .all(owner, nowS)) as Array<{ id: string; channel: string; kind: string; title: string; handle: string; folder_ids: string | null }>;
   const own = new Map<string, Set<string>>();
@@ -1512,13 +1669,18 @@ export interface ScheduledRow {
   media_url: string;
   media_name: string;
   media_type: string;
+  /** 'voice': el archivo sale como nota de voz. */
+  media_kind: string;
+  media_duration: number;
+  /** Mensaje (nuestro id) que cita. */
+  reply_to: string;
 }
 
 export async function listScheduled(owner: string, threadId?: string): Promise<ScheduledDto[]> {
   const rows = (await getDb()
     .prepare(
       `SELECT s.*, t.title AS thread_title, t.handle AS thread_handle, t.channel AS channel FROM inbox_scheduled s JOIN inbox_threads t ON t.id = s.thread_id
-       WHERE s.owner_id = ? ${threadId ? 'AND s.thread_id = ?' : ''} AND s.status IN ('pending','sending','failed','missed')
+       WHERE s.owner_id = ? ${threadId ? 'AND s.thread_id = ?' : ''} AND t.removed_at IS NULL AND s.status IN ('pending','sending','failed','missed')
        ORDER BY s.send_at, s.seq LIMIT 500`,
     )
     .all(...(threadId ? [owner, threadId] : [owner]))) as Array<ScheduledRow & { thread_title: string; thread_handle: string; channel: InboxChannel }>;
@@ -1537,6 +1699,9 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     mediaName: r.media_name ?? '',
     mediaType: r.media_type ?? '',
     mediaUrl: r.media_url ?? '',
+    mediaVoice: r.media_kind === 'voice',
+    mediaDuration: Number(r.media_duration ?? 0),
+    replyTo: r.reply_to ?? '',
   }));
 }
 

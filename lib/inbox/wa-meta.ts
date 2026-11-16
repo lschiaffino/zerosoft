@@ -18,6 +18,7 @@ import { InboxError, type MessageReaction, type ParticipantDto, type WaDetailsDt
 import { waProviderFor } from './whatsapp';
 import { inboxScope, learnFromChatInfo } from './wa-names';
 import type { WaPersonCard } from '../wa-person';
+import { reactorName, reactorPhone, type WaReactor } from '../wa-reactions';
 import { displayName, lookupContacts, type ContactRow } from '../wa-contacts';
 
 type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
@@ -58,7 +59,7 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     out.contacts = e.contacts.slice(0, 20).map((c) => ({ name: (c.name ?? '').slice(0, 120), phones: (c.phones ?? []).slice(0, 5).map((p) => String(p).slice(0, 30)) }));
     kind = 'contact';
   }
-  if (e.link) out.link = { url: e.link.url, title: e.link.title, ...(e.link.description ? { description: e.link.description } : {}), ...(e.link.thumbnail ? { thumb: e.link.thumbnail } : {}) };
+  if (e.link) out.link = { url: e.link.url, title: e.link.title, ...(e.link.description ? { description: e.link.description } : {}), ...(e.link.thumbnail ? { thumb: e.link.thumbnail } : {}), ...(e.link.hq ? { hqRef: e.link.hq } : {}) };
   if (e.poll) {
     out.poll = { question: e.poll.question.slice(0, 300), options: e.poll.options.slice(0, 12).map((o) => o.slice(0, 100)), multi: !!e.poll.multi };
     kind = 'poll';
@@ -73,10 +74,10 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
 // ---------------------------------------------------------------------------
 
 /** Lista nueva de reacciones: una por persona (la nueva pisa la anterior; vacío la saca). */
-export function applyReaction(list: MessageReaction[], r: { emoji: string; by: string; name: string }): MessageReaction[] {
+export function applyReaction(list: MessageReaction[], r: { emoji: string; by: string; name: string; at?: string }): MessageReaction[] {
   const rest = list.filter((x) => x.by !== r.by);
   if (!r.emoji) return rest;
-  return [...rest, { emoji: r.emoji.slice(0, 16), by: r.by.slice(0, 40), name: r.name.slice(0, 120) }].slice(-200);
+  return [...rest, { emoji: r.emoji.slice(0, 16), by: r.by.slice(0, 40), name: r.name.slice(0, 120), ...(r.at ? { at: r.at.slice(0, 40) } : {}) }].slice(-200);
 }
 
 function readReactions(raw: string | null | undefined): MessageReaction[] {
@@ -90,7 +91,7 @@ function readReactions(raw: string | null | undefined): MessageReaction[] {
 }
 
 /** Guarda una reacción sobre un mensaje del chat (por id del proveedor). */
-export async function storeReaction(account: Pick<AccountRow, 'id'>, chatId: string, target: string, r: { emoji: string; by: string; name: string }): Promise<boolean> {
+export async function storeReaction(account: Pick<AccountRow, 'id'>, chatId: string, target: string, r: { emoji: string; by: string; name: string; at?: string }): Promise<boolean> {
   const db = getDb();
   const row = (await db
     .prepare(
@@ -202,6 +203,11 @@ export async function refreshChatInfo(account: AccountRow, thread: ThreadRow, no
     return false;
   }
   await applyChatInfo(thread, info, now);
+  // Un grupo vacío: el aviso de creación con la hora y el creador de WhatsApp (su lugar en la lista; lib/wa-group-system.ts).
+  if (thread.kind === 'group' && !thread.last_message_at && info.createdAt) {
+    const { inboxCreatedFromInfo } = await import('../wa-group-system');
+    await inboxCreatedFromInfo(account, thread, info).catch(() => false);
+  }
   // La libreta aprende del grupo (lid ↔ teléfono y nombres de los participantes) o del contacto (nombre e info).
   await learnFromChatInfo(account, thread.external_id, info).catch(() => null);
   return true;
@@ -334,7 +340,7 @@ export async function noteThreadPicture(thread: Pick<ThreadRow, 'id' | 'owner_id
 /** La foto de un chat de la persona. Si la URL venció, pide una nueva una vez. */
 export async function avatarFor(owner: string, threadId: string): Promise<{ data: Buffer; mime: string }> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread || thread.channel !== 'whatsapp' || !thread.avatar_url) throw new InboxError('not_found', 404);
   const first = await download(thread.avatar_url);
   if (first && first !== 'expired') return first;
@@ -376,7 +382,7 @@ async function commonGroups(owner: string, thread: Pick<ThreadRow, 'handle' | 'a
   if (!phone) return [];
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'group' AND info LIKE ? ESCAPE '\\'
+      `SELECT id, title, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'group' AND removed_at IS NULL AND info LIKE ? ESCAPE '\\'
        ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT 30`,
     )
     .all(owner, thread.account_id, `%"phone":"${phone}"%`)) as Array<{ id: string; title: string; avatar_url: string }>;
@@ -390,7 +396,7 @@ async function commonGroups(owner: string, thread: Pick<ThreadRow, 'handle' | 'a
  */
 export async function personCard(owner: string, groupId: string, rawPhone: string): Promise<WaPersonCard> {
   const db = getDb();
-  const group = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(groupId, owner)) as ThreadRow | undefined;
+  const group = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(groupId, owner)) as ThreadRow | undefined;
   if (!group || group.channel !== 'whatsapp' || group.kind !== 'group') throw new InboxError('not_found', 404);
   const phone = phoneDigits(rawPhone);
   if (!/^\d{8,15}$/.test(phone)) throw new InboxError('invalid_input', 400);
@@ -400,7 +406,7 @@ export async function personCard(owner: string, groupId: string, rawPhone: strin
   const role = parseThreadInfo(group.info).participants.find((p) => phoneDigits(p.phone) === phone)?.role ?? null;
   const contact = (await lookupContacts(inboxScope(account), [phone]).catch(() => new Map<string, ContactRow>())).get(phone);
   const dm = (await db
-    .prepare("SELECT id, title, avatar_url, muted_until, info FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle = ? ORDER BY last_message_at DESC LIMIT 1")
+    .prepare("SELECT id, title, avatar_url, muted_until, info FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle = ? AND removed_at IS NULL ORDER BY last_message_at DESC LIMIT 1")
     .get(owner, account.id, phone)) as { id: string; title: string; avatar_url: string; muted_until: string | null; info: string } | undefined;
   const sent = dm
     ? undefined
@@ -443,6 +449,51 @@ export async function personCard(owner: string, groupId: string, rawPhone: strin
   };
 }
 
+/**
+ * Quién reaccionó a uno o más mensajes del chat (un álbum son varios), para el
+ * cuadro de reacciones: el nombre de la libreta (o el del chat 1:1 con esa
+ * persona), si no el de perfil; la foto guardada y el teléfono.
+ */
+export async function reactionDetails(owner: string, threadId: string, messageIds: string[]): Promise<WaReactor[]> {
+  const db = getDb();
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  if (!thread || thread.channel !== 'whatsapp') throw new InboxError('not_found', 404);
+  const ids = [...new Set(messageIds.filter((x) => typeof x === 'string' && x))].slice(0, 30);
+  if (!ids.length) return [];
+  const rows = (await db
+    .prepare(`SELECT id, reactions FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+    .all(thread.id, owner, ...ids)) as Array<{ id: string; reactions: string | null }>;
+  const list = rows.flatMap((r) => readReactions(r.reactions).filter((x) => x.emoji).map((x) => ({ ...x, messageId: r.id })));
+  const digitsOf = (by: string) => (by === 'me' ? '' : by.replace(/@.*$/, '').replace(/\D/g, ''));
+  const keys = [...new Set(list.map((r) => digitsOf(r.by)).filter(Boolean))];
+  const contacts = keys.length
+    ? await lookupContacts(inboxScope({ id: thread.account_id, owner_id: owner }), keys).catch(() => new Map<string, ContactRow>())
+    : new Map<string, ContactRow>();
+  const phones = [...new Set(keys.map((k) => contacts.get(k)?.phone || k))];
+  // El chat 1:1 con cada persona: su nombre (puesto en la app o de la libreta) y su foto.
+  const dms = phones.length
+    ? ((await db
+        .prepare(
+          `SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle IN (${phones.map(() => '?').join(',')})
+           ORDER BY last_message_at DESC`,
+        )
+        .all(owner, thread.account_id, ...phones)) as Array<{ id: string; title: string; handle: string; avatar_url: string | null }>)
+    : [];
+  const dmBy = new Map<string, (typeof dms)[number]>();
+  for (const d of dms) if (!dmBy.has(d.handle)) dmBy.set(d.handle, d);
+  return list.map((r): WaReactor => {
+    const base = { messageId: r.messageId, emoji: r.emoji, ...(r.at ? { at: r.at } : {}) };
+    if (r.by === 'me') return { ...base, me: true, name: '', pushName: false, phone: '', picture: '' };
+    const key = digitsOf(r.by);
+    const c = contacts.get(key);
+    // Un lid que la libreta conoce: su teléfono. Uno que no conoce no es un teléfono.
+    const digits = c?.phone || (c && c.lid === key ? '' : key);
+    const dm = digits ? dmBy.get(digits) : undefined;
+    const { name, pushName } = reactorName({ saved: [c?.saved_name, dm?.title], push: [c?.push_name, r.name] });
+    return { ...base, me: false, name, pushName, ...reactorPhone(digits, false), picture: c?.picture || (dm?.avatar_url ? `/api/inbox/avatar/${dm.id}` : '') };
+  });
+}
+
 export type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
@@ -451,7 +502,7 @@ const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 export async function sharedContent(owner: string, threadId: string, kind: SharedKind): Promise<
   Array<{ id: string; mediaType: string; mediaName: string; body: string; sentAt: string; fromMe: boolean; senderName: string; senderHandle: string; size?: number; urls?: string[] }>
 > {
-  const thread = (await getDb().prepare('SELECT id, account_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as
+  const thread = (await getDb().prepare('SELECT id, account_id, channel FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as
     | { id: string; account_id: string; channel: string }
     | undefined;
   if (!thread) throw new InboxError('not_found', 404);
@@ -510,7 +561,7 @@ export async function sharedContent(owner: string, threadId: string, kind: Share
  */
 export async function sendMyPresence(owner: string, threadId: string, state: 'composing' | 'recording' | 'paused'): Promise<void> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread) throw new InboxError('not_found', 404);
   if (thread.channel !== 'whatsapp') return;
   const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
@@ -523,7 +574,7 @@ export async function sendMyPresence(owner: string, threadId: string, state: 'co
 /** Bloquear o desbloquear el contacto en WhatsApp (solo chats 1:1). */
 export async function setBlocked(owner: string, threadId: string, block: boolean): Promise<void> {
   const db = getDb();
-  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
   if (!thread) throw new InboxError('not_found', 404);
   if (thread.channel !== 'whatsapp' || thread.kind !== 'dm') throw new InboxError('unsupported', 400);
   const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
@@ -550,7 +601,7 @@ export async function groupParticipants(owner: string, thread: ThreadRow, myPhon
   const db = getDb();
   const marks = phones.map(() => '?').join(',');
   const dms = (await db
-    .prepare(`SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle IN (${marks})`)
+    .prepare(`SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND removed_at IS NULL AND handle IN (${marks})`)
     .all(owner, thread.account_id, ...phones)) as Array<{ id: string; title: string; handle: string; avatar_url: string }>;
   const byPhone = new Map(dms.map((d) => [d.handle, d]));
   const senders = (await db

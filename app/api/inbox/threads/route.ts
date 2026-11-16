@@ -1,11 +1,13 @@
 import { after } from 'next/server';
 import { listThreadsPage } from '@/lib/inbox/core';
 import { refreshVisible } from '@/lib/inbox/wa-meta';
-import { bulkActionSchema } from '@/lib/inbox/schemas';
-import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
+import { bulkActionSchema, removedActionSchema } from '@/lib/inbox/schemas';
+import { iJson, withOwner } from '@/lib/inbox/http';
 import { threadAction } from '@/lib/inbox/send';
 import { isInboxView } from '@/lib/inbox/types';
 import { ownerRev, versionTag, versioned } from '@/lib/inbox/revisions';
+import { purgeThreads, removeThreads, restoreThreads } from '@/lib/inbox/removed';
+import { InboxError } from '@/lib/inbox/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,10 +56,22 @@ async function buildList(owner: string, sp: URLSearchParams) {
   return paged ? { threads, next: page.next, pinned: page.pinned } : { threads };
 }
 
-/** La misma acción sobre varios chats (selección múltiple). */
+/**
+ * La misma acción sobre varios chats (selección múltiple). También sacar de Inbox ('remove'), recuperar
+ * ('restore') y borrar del todo uno ya sacado ('purge'; lib/inbox/removed.ts).
+ */
 export async function POST(req: Request) {
   return withOwner(async (owner) => {
-    const { ids, ...action } = await parseBody(req, bulkActionSchema);
+    const raw: unknown = await req.json().catch(() => null);
+    const removed = removedActionSchema.safeParse(raw);
+    if (removed.success) {
+      const { ids, action } = removed.data;
+      const run = action === 'remove' ? removeThreads : action === 'restore' ? restoreThreads : purgeThreads;
+      return iJson({ changed: await run(owner, ids) });
+    }
+    const parsed = bulkActionSchema.safeParse(raw);
+    if (!parsed.success) throw new InboxError('invalid_input', 400);
+    const { ids, ...action } = parsed.data;
     const changed = await threadAction(owner, ids, action);
     return iJson({ changed });
   });
