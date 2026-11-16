@@ -1,8 +1,8 @@
 import type { ChangelogEntry } from '../changelog';
 
 export default {
-  id: '2026-11-15-chat-phone-keyboard',
-  date: '2026-11-15',
+  id: '2026-11-16-chat-phone-keyboard',
+  date: '2026-11-16',
   title: {
     en: 'Inbox and Lines on the phone: the keyboard and scrolling work like WhatsApp',
     es: 'Inbox y Lines en el teléfono: el teclado y el scroll funcionan como en WhatsApp',
