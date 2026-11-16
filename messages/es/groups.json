@@ -1579,18 +1579,8 @@
     "title": "Enviar más tarde",
     "button": "Enviar más tarde",
     "hint": "Enviar más tarde (⌘⇧Enter). También con clic derecho en Enviar.",
-    "preset": {
-      "later": "Más tarde",
-      "tonight": "Esta noche",
-      "tomorrow": "Mañana a la mañana",
-      "weekend": "Este fin de semana",
-      "nextWeek": "La semana que viene",
-      "inWeek": "En una semana"
-    },
-    "custom": "Elegir día y hora",
     "confirm": "Programar",
     "cancel": "Cancelar",
-    "pastError": "Elegí una hora en el futuro.",
     "repeat": "Repetir…",
     "withFile": "Con el archivo {name}",
     "asReply": "Sale como respuesta a: {text}",

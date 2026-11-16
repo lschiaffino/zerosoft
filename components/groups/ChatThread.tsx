@@ -2797,6 +2797,7 @@ export default function ChatThread(props: ThreadProps) {
       <WhenDialog
         open={later}
         title={t('later.title')}
+        mode="send"
         labels={whenLabels}
         help={later ? laterPreview() : undefined}
         extra={
@@ -2820,6 +2821,7 @@ export default function ChatThread(props: ThreadProps) {
       <WhenDialog
         open={voiceLater}
         title={t('later.title')}
+        mode="send"
         labels={whenLabels}
         help={
           voiceLater && recording ? (

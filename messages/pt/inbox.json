@@ -22,11 +22,10 @@
   "when": {
     "title": { "snooze": "Adiar até", "followUp": "Lembrar se não responder", "sendLater": "Enviar mais tarde" },
     "followUpHelp": "Se até lá a pessoa não responder, a conversa volta para o topo da caixa.",
-    "preset": { "later": "Mais tarde", "tonight": "Hoje à noite", "tomorrow": "Amanhã de manhã", "weekend": "Neste fim de semana", "nextWeek": "Na semana que vem", "inWeek": "Em uma semana" },
-    "custom": "Escolher dia e hora",
     "confirm": "Pronto",
-    "cancel": "Cancelar",
-    "pastError": "Escolha um horário no futuro."
+    "confirmSend": "Agendar",
+    "confirmSnooze": "Adiar",
+    "cancel": "Cancelar"
   },
   "composer": {
     "snippets": "Snippets",

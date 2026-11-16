@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -197,9 +197,9 @@ const parity: ProductParity = {
     row('snooze', 'inbox', ['Snooze a chat', 'Posponer un chat', 'Adiar uma conversa'], 'have', {
       competitorHas: false,
       detail: [
-        'From the chat menu, with six presets or any date. The chat waits in Archived (on the phone too) and comes back when the time is up or a new message arrives',
-        'Desde el menú del chat, con seis opciones o cualquier fecha. El chat espera en Archivados (también en el teléfono) y vuelve a la hora o cuando llega un mensaje',
-        'Pelo menu da conversa, com seis opções ou qualquer data. A conversa espera em Arquivadas (no celular também) e volta na hora ou quando chega uma mensagem',
+        'From the chat menu, with options that fit the moment or a day and time from a calendar. The chat waits in Archived (on the phone too) and comes back when the time is up or a new message arrives',
+        'Desde el menú del chat, con opciones según el momento o un día y hora del calendario. El chat espera en Archivados (también en el teléfono) y vuelve a la hora o cuando llega un mensaje',
+        'Pelo menu da conversa, com opções conforme o momento ou um dia e hora do calendário. A conversa espera em Arquivadas (no celular também) e volta na hora ou quando chega uma mensagem',
       ],
     }),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
@@ -375,9 +375,9 @@ const parity: ProductParity = {
     }),
     row('scheduled', 'broadcasts', ['Scheduled messages', 'Mensajes programados', 'Mensagens agendadas'], 'have', {
       detail: [
-        'Send later from the message box with presets or a date; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
-        'Enviar más tarde desde el cuadro con opciones rápidas o una fecha; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
-        'Enviar mais tarde pela caixa com opções rápidas ou uma data; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
+        'Send later from the message box with options that fit the moment (working hours, Monday morning on a Friday) or a day and time from a calendar; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
+        'Enviar más tarde desde el cuadro con opciones según el momento (horario de trabajo, el lunes a la mañana si es viernes) o un día y hora del calendario; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
+        'Enviar mais tarde pela caixa com opções conforme o momento (horário comercial, segunda de manhã se for sexta) ou um dia e hora do calendário; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
       ],
     }),
     row('recurring', 'broadcasts', ['Recurring messages', 'Mensajes recurrentes', 'Mensagens recorrentes'], 'have', {
