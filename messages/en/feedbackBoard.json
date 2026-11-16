@@ -80,7 +80,8 @@
     "send": "Send",
     "inbox": "Inbox",
     "calls": "Calls",
-    "fleet": "Fleet"
+    "fleet": "Fleet",
+    "time": "Time"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",
@@ -160,7 +161,8 @@
       "send": "Send",
       "news": "What's new",
       "calls": "Calls",
-      "fleet": "Fleet"
+      "fleet": "Fleet",
+      "time": "Time"
     },
     "unread": "{count, plural, one {# unread update} other {# unread updates}}",
     "searchPlaceholder": "Search ideas to vote",

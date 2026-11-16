@@ -19,6 +19,8 @@
  * nunca incluyen credenciales en los errores: ProviderError lleva un código
  * corto y, a lo sumo, el status HTTP del proveedor.
  */
+import type { MediaWire } from './wa-media-wire';
+import type { LinkHqRef } from './wa-link-thumb';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
 
@@ -156,11 +158,22 @@ export interface MediaInput {
   gifPlayback?: boolean;
 }
 
+/** El mensaje desde el que se le piden al teléfono los anteriores. `timestamp` en segundos. */
+export interface HistoryAnchor {
+  id: string;
+  fromMe: boolean;
+  timestamp: number;
+  /** En un grupo, quién lo mandó (id de WhatsApp), si se sabe. */
+  participant?: string;
+}
+
 /** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */
 export interface MediaRef {
   providerMessageId: string;
   chatId: string;
   fromMe: boolean;
+  /** Clave y ubicación del archivo en WhatsApp (lib/wa-media-wire.ts): para bajarlo aunque el gateway no tenga el mensaje. */
+  wire?: MediaWire;
 }
 
 export interface FetchedMedia {
@@ -249,7 +262,11 @@ export type InboundEvent =
       /** Cuándo reaccionó (si el proveedor lo dice): una reacción vieja que llega tarde (un reintento) no pisa una nueva. */
       at?: string;
     }
-  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed' }
+  /**
+   * Tildes de un mensaje. `chatId` solo cuando la confirmación vino de un chat 1:1 por lid ("<lid>@lid"): si el
+   * mensaje está en el chat de un teléfono, ese lid es de ese teléfono (lib/wa-dedupe-run.ts).
+   */
+  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed'; chatId?: string }
   /** Alguien editó un mensaje (texto nuevo). `at`: cuándo, si el proveedor lo dice (una edición vieja no pisa una nueva). */
   | { type: 'edit'; chatId: string; providerMessageId: string; body: string; at?: string }
   /** Alguien borró un mensaje para todos. */
@@ -285,7 +302,16 @@ export type InboundEvent =
       /** Opciones elegidas (nombres o índices); vacío = sacó su voto. */
       options: Array<string | number>;
     }
-  | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[] }
+  /**
+   * Cambio de participantes de un grupo. `author`: quién lo hizo (teléfono, "<dígitos>@lid" o vacío si
+   * WhatsApp no lo dice). Remove de uno mismo es "salió"; add sin autor, "se unió con el link".
+   */
+  | { type: 'participants'; chatId: string; action: ParticipantAction; phones: string[]; author?: string }
+  /**
+   * Un grupo nuevo para la cuenta (Evolution: GROUPS_UPSERT) o un cambio de asunto, descripción o foto
+   * (groups.update con el parche 0008 de infra/evolution, con quién lo hizo). `owner`/`author`: teléfono o "<dígitos>@lid". `creation`: segundos.
+   */
+  | { type: 'group'; chatId: string; event: 'create' | 'subject' | 'description' | 'icon'; subject?: string; owner?: string; author?: string; creation?: number; phones?: string[] }
   | { type: 'session'; status: ConnectStatus; qr?: string; phone?: string };
 
 export type CallDirection = 'in' | 'out';
@@ -351,6 +377,8 @@ export interface LinkPreview {
   description?: string;
   /** Miniatura chica como data URL (JPEG). */
   thumbnail?: string;
+  /** Imagen grande que subió el teléfono (lib/wa-link-thumb.ts): se baja una vez al llegar. */
+  hq?: LinkHqRef;
 }
 
 /** Datos de un chat para mostrar (como "Info del contacto" o "Info del grupo" en WhatsApp). */
@@ -369,6 +397,8 @@ export interface ChatInfo {
   size?: number;
   /** Creación del grupo (segundos). */
   createdAt?: number;
+  /** Quién creó el grupo: teléfono (dígitos) o "<dígitos>@lid", si el servidor lo dice. */
+  owner?: string;
   isBusiness?: boolean;
 }
 
@@ -426,9 +456,18 @@ export interface GroupsProvider {
    * Evolution la respuesta llega después por el webhook (MESSAGES_SET, como
    * historial); un proveedor que la tiene en el momento la devuelve en
    * `events`. `after` (segundos): el pedido se ancla en el primer mensaje
-   * posterior, para que entre lo que falta antes de él.
+   * posterior, para que entre lo que falta antes de él. `anchor`: el mensaje
+   * exacto desde el que se piden los anteriores (el más viejo que tenemos),
+   * aunque el gateway no lo tenga guardado; `anchorId` en la respuesta dice
+   * desde cuál pidió de verdad (un gateway sin ese parche usa uno suyo).
    */
-  fetchHistory?(chatId: string, opts: { count: number; after?: number }): Promise<{ requestId?: string; events?: InboundEvent[] }>;
+  fetchHistory?(chatId: string, opts: { count: number; after?: number; anchor?: HistoryAnchor }): Promise<{ requestId?: string; events?: InboundEvent[]; anchorId?: string }>;
+  /**
+   * Suma al webhook ya registrado los eventos que falten (EVOLUTION_EVENTS), con la misma URL. Las
+   * instancias vinculadas antes de sumar un evento no lo reciben hasta que se registra de nuevo.
+   * true si lo actualizó.
+   */
+  syncWebhookEvents?(): Promise<boolean>;
   /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;
@@ -508,6 +547,8 @@ export class ProviderError extends Error {
     super(code);
     this.name = 'ProviderError';
   }
+  /** Motivo que dio el gateway, reducido a una etiqueta (lib/wa-media-wire.ts); nunca el texto. */
+  reason?: 'message_not_found' | 'offline' | 'media_gone' | 'timeout';
 }
 
 /** Status HTTP del proveedor → código nuestro (sin leer ni repetir el cuerpo). */

@@ -69,7 +69,8 @@ describe('acciones de mensaje', () => {
     await reactToMessage(owner, msg.id, '👍');
     await reactToMessage(owner, msg.id, '❤️');
     let m = (await listMessages(owner, th.id)).messages.find((x) => x.id === msg.id)!;
-    expect(m.reactions).toEqual([{ emoji: '❤️', by: 'me', name: '' }]);
+    // Con la hora (el cuadro de quién reaccionó ordena por ella).
+    expect(m.reactions).toEqual([{ emoji: '❤️', by: 'me', name: '', at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) }]);
     await reactToMessage(owner, msg.id, '');
     m = (await listMessages(owner, th.id)).messages.find((x) => x.id === msg.id)!;
     expect(m.reactions).toEqual([]);

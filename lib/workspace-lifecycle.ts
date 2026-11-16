@@ -28,6 +28,19 @@ const db = () => getDb();
 
 const STEPS: Step[] = [
   {
+    // Time: las horas quedan (son del workspace y salen en los reportes); su cronómetro deja de correr.
+    name: 'time',
+    run: async (e) => {
+      const ts = new Date().toISOString();
+      await db()
+        .prepare(
+          `UPDATE time_entries SET minutes = MIN(1440, minutes + CAST((julianday(?) - julianday(timer_started_at)) * 1440 AS INTEGER)), timer_started_at = NULL, updated_at = ?
+           WHERE workspace_id = ? AND person_id = ? AND timer_started_at IS NOT NULL`,
+        )
+        .run(ts, ts, e.ownerId, e.userId);
+    },
+  },
+  {
     // Fleet: todo es de la persona (tokens del hook, cuentas de GitHub y Vercel, sesiones): sale con ella del workspace.
     // Primero los tokens: el hook de su computadora deja de entrar al instante.
     name: 'fleet',

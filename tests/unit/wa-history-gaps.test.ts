@@ -125,7 +125,7 @@ describe('el aviso de Evolution (parche 0002)', () => {
       return new Response(JSON.stringify({ requestId: 'REQ-1', anchor: { id: 'A1' }, count: 50 }), { status: 201, headers: { 'content-type': 'application/json' } });
     }) as unknown as typeof globalThis.fetch;
     const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs-abc' }, { fetch });
-    expect(await p.fetchHistory!('5491100009003@s.whatsapp.net', { count: 500, after: T + 0.7 })).toEqual({ requestId: 'REQ-1' });
+    expect(await p.fetchHistory!('5491100009003@s.whatsapp.net', { count: 500, after: T + 0.7 })).toEqual({ requestId: 'REQ-1', anchorId: 'A1' });
     expect(calls).toEqual([{ url: 'https://evo.example.test/chat/fetchHistory/zs-abc', body: { remoteJid: '5491100009003@s.whatsapp.net', count: 100, after: T } }]);
     expect(p.caps.fetchHistory).toBe(true);
   });

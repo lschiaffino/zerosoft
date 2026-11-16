@@ -9,6 +9,7 @@ import ImageEditor from './ImageEditor';
 import EmojiPicker from './EmojiPicker';
 import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
 import '@/styles/wa-editor.css';
+import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
 /** Errores que no se arreglan reintentando la subida (tamaño o tipo). */
 const PERMANENT = new Set(['file_too_large', 'file_too_large_local', 'file_type_not_allowed', 'media_too_large', 'invalid_media']);
@@ -84,6 +85,17 @@ async function renderPhoto(orig: Orig, edits: Edits, hd: boolean): Promise<{ fil
  * Al mandar, cada foto cambiada se dibuja en un canvas y reemplaza a la
  * original (`onReplace`). Esc cierra; Enter manda.
  */
+/** La primera página del PDF que se va a mandar (del archivo local, sin subirlo). */
+function TrayPdf({ file }: { file: File }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  return url ? <PdfThumb url={url} /> : null;
+}
+
 export default function AttachPreview({
   items,
   errText,
@@ -308,6 +320,7 @@ export default function AttachPreview({
           <video src={it.preview} controls playsInline />
         ) : (
           <div className="wa-attach-doc">
+            {it.type === 'application/pdf' && it.size <= PDF_THUMB_MAX_BYTES ? <TrayPdf key={it.key} file={it.file} /> : null}
             <DocIcon size={72} />
             <strong>{it.name}</strong>
             <span>{[extensionOf(it.name, it.type), fileSize(it.size, locale)].filter(Boolean).join(' · ')}</span>

@@ -50,6 +50,7 @@ export const RIVALS: Record<ProductKey, string> = {
   inbox: 'Superhuman · WhatsApp Web',
   calls: 'Gong',
   fleet: 'GitHub · Vercel',
+  time: 'Harvest',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -173,4 +174,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   calls: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   // Fleet no reemplaza un producto pago: el bloque de precio compara con lo que ya usás (GitHub y Vercel, gratis para mirar).
   fleet: { sections: ['shot', 'features', 'how', 'parity', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Precios de Harvest: cambiaron en 2026 y no se pudieron leer de su página; el bloque remite a getharvest.com/pricing.
+  time: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };
