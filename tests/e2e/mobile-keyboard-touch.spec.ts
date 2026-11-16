@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { devices, expect, test, type APIRequestContext, type CDPSession, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * El teclado del teléfono en el chat, como WhatsApp (Inbox y Lines, con el dedo): el campo mide 16px (iOS no
@@ -75,7 +76,7 @@ async function keyboardFlow(page: Page, cdp: CDPSession, lastText: string) {
 test('Inbox en el teléfono: el teclado como en WhatsApp', async ({ page, request, context }) => {
   test.setTimeout(120_000);
   await fakeKeyboard(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const db = e2eDb();
   const [acc] = (await db.execute("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'")).rows as unknown as Array<Record<string, string>>;

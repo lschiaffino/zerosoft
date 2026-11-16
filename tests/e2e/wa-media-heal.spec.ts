@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Audios y documentos que no están, en Inbox y en Lines, con el WhatsApp
@@ -113,7 +114,7 @@ async function themesAndSizes(page: Page, context: BrowserContext, baseURL: stri
 
 test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y se puede volver a pedir', async ({ page, request, context, baseURL, playwright }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;

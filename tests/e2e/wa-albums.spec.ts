@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Álbumes de fotos y videos, como WhatsApp, en Lines y en Inbox, con el
@@ -179,7 +180,7 @@ async function checkAlbums(page: Page, thread: Locator) {
 test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', async ({ page, request }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   const errors = watchErrors(page);
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const gid = `1203631${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;

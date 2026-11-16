@@ -3,6 +3,18 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { chapterAt, fmtClock, mergeRanges, spriteTile, trimmedDuration, type Range, type RecChapter, type RecOverlay, type RecSpriteMeta } from '@/lib/rec-schema';
+import { HEAT_BUCKETS } from '@/lib/rec-insights';
+
+/** Solo el dominio de donde vino quien mira (nunca la ruta ni la query); '' si es esta misma página. */
+function referrerHost(): string | undefined {
+  try {
+    if (!document.referrer) return undefined;
+    const u = new URL(document.referrer);
+    return u.host === window.location.host ? undefined : u.hostname;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface RecMarker {
   id: string;
@@ -92,7 +104,8 @@ const RecPlayer = forwardRef<
   const live = useRef({ markers, silences, skipSilences });
   live.current = { markers, silences, skipSilences };
   // ranges: intervalos realmente reproducidos (segundos del video recortado), para el % visto.
-  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[] });
+  // heat: segundos reproducidos en cada tramo, contando re-vistas (la curva de la analítica).
+  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[], heat: new Array<number>(HEAT_BUCKETS).fill(0) });
 
   const fullDuration = mediaDuration > 0 ? mediaDuration : durationSec;
   const end = trimEnd ?? fullDuration;
@@ -129,6 +142,7 @@ const RecPlayer = forwardRef<
         ranges: mergeRanges(s.ranges, visible),
         position: Math.round(s.position * 10) / 10,
         duration: Math.round(visible * 10) / 10,
+        heat: s.heat.map((x) => Math.round(x * 10) / 10),
         name: viewerName?.() || undefined,
         ...extra,
       });
@@ -146,7 +160,7 @@ const RecPlayer = forwardRef<
     void fetch(trackUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ duration: Math.round(visible * 10) / 10, name: viewerName?.() || undefined }),
+      body: JSON.stringify({ duration: Math.round(visible * 10) / 10, name: viewerName?.() || undefined, ref: referrerHost() }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { viewId?: string | null } | null) => {
@@ -210,6 +224,10 @@ const RecPlayer = forwardRef<
         if (lastRange && Math.abs(lastRange[1] - s.last) < 0.01) lastRange[1] = rel;
         else s.ranges.push([s.last, rel]);
         if (s.ranges.length > 200) s.ranges = mergeRanges(s.ranges, visible);
+        if (visible > 0) {
+          const b = Math.min(HEAT_BUCKETS - 1, Math.max(0, Math.floor(((s.last + rel) / 2 / visible) * HEAT_BUCKETS)));
+          s.heat[b] += delta;
+        }
       }
       s.last = rel;
       s.position = Math.max(s.position, rel);
