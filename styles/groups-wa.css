@@ -1646,3 +1646,19 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); box-shadow: none; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-meta,
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-hint { font-family: var(--font-data); font-size: var(--wa-fs-meta); }
+
+/* En el teléfono, los botones de la ficha del grupo nuevo y "Cargar mensajes anteriores" miden al menos 40px: se tocan con el dedo. */
+@media (max-width: 768px) {
+  .wa-newgroup-action, .wa-older-chip { min-height: 40px; }
+}
+
+/* Las pestañas Emoji, GIFs y Stickers miden 40px con el dedo. */
+@media (max-width: 768px) {
+  .wa-xp-tabs [role='tab'] { min-height: 40px; }
+}
+
+/* Con el dedo, cada categoría de emoji mide al menos 40×40; si no entran en un renglón, pasan al segundo (nada se sale de la pantalla). */
+@media (max-width: 768px) {
+  .wa-emoji-tabs { flex-wrap: wrap; row-gap: 2px; }
+  .wa-emoji-tabs button { flex: 1 0 40px; min-height: 40px; }
+}

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const file = await getDocumentFile(ctx, id);
     if (!file) return pjson({ error: 'not_found' }, 404);
     const block = { id, type: 'file', content: '', url: file.url, name: file.name, mime: file.mime } as unknown as DocsBlock & { url: string };
-    return (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range') })) ?? pjson({ error: 'not_found' }, 404);
+    return (await fileBlockResponse(block, { download: req.nextUrl.searchParams.get('download') === '1', range: req.headers.get('range'), owner: { workspaceId: ctx.ws } })) ?? pjson({ error: 'not_found' }, 404);
   });
 }
 

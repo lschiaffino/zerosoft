@@ -22,7 +22,7 @@ export async function GET(req: Request, ctx: Ctx) {
   return withOwner(async (owner) => {
     const row = await getScheduledOwned(owner, id);
     if (row.media_kind !== 'voice' || !row.media_url || row.status === 'sent' || row.status === 'cancelled') throw new InboxError('not_found', 404);
-    const data = new Uint8Array(await readInboxMedia(row.media_url));
+    const data = new Uint8Array(await readInboxMedia(row.media_url, owner));
     const mime = (row.media_type || '').split(';')[0].trim().toLowerCase();
     const headers: Record<string, string> = {
       'content-type': AUDIO.test(mime) ? mime : 'application/octet-stream',

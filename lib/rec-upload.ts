@@ -133,8 +133,21 @@ export async function saveRecAsset(ws: string, videoId: string, kind: 'thumb' | 
     });
     return res.url;
   }
-  const { saveUpload } = await import('./uploads');
-  return saveUpload('rec', `${videoId}-${kind}.${ext}`, type, body);
+  return saveRecLocal(`${videoId}-${kind}-${randomBytes(6).toString('hex')}.${ext}`, body);
+}
+
+/**
+ * Disco local (dev y self-host): UPLOADS_DIR/rec/<nombre>, fuera de public/.
+ * Se sirve solo por las rutas de Rec, que chequean el acceso al video
+ * (/uploads/rec no se sirve por /api/uploads).
+ */
+export async function saveRecLocal(name: string, body: Buffer): Promise<string> {
+  assertLocalStorage();
+  if (!/^[A-Za-z0-9][\w.-]{0,199}$/.test(name) || name.includes('..')) throw new RecError('invalid_input');
+  const dir = path.join(uploadsRoot(), 'rec');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, name), body);
+  return `/uploads/rec/${name}`;
 }
 
 /** Archivo entero desde Blob (público o privado), para transcribir el audio. */

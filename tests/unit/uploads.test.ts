@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'fs/promises';
+import { mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -9,6 +9,7 @@ import {
   legacyUploadsRoot,
   localUploadPath,
   migrateLegacyUploads,
+  readUploadBytes,
   saveUpload,
   uploadsRoot,
 } from '@/lib/uploads';
@@ -57,6 +58,8 @@ describe('uploads: disco local fuera de public/', () => {
     process.chdir(tmp);
     delete process.env.UPLOADS_DIR;
     delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.FILES_BLOB_READ_WRITE_TOKEN;
+    delete process.env.VERCEL;
     // Archivo de una versión anterior, antes de la migración.
     await mkdir(path.join(tmp, 'public', 'uploads', 'docs'), { recursive: true });
     await writeFile(path.join(tmp, 'public', 'uploads', 'docs', 'old-a.pdf'), 'viejo');
@@ -78,26 +81,38 @@ describe('uploads: disco local fuera de public/', () => {
     expect(await readFile(moved, 'utf8')).toBe('viejo');
   });
 
-  it('guarda en data/uploads (nunca en public/) y borra', async () => {
-    const url = await saveUpload('docs', 'informe.pdf', 'application/pdf', Buffer.from('%PDF'));
-    expect(url).toMatch(/^\/uploads\/docs\/[0-9a-f-]{36}-informe\.pdf$/);
-    const file = localUploadPath(url)!;
-    expect(file.startsWith(uploadsRoot() + path.sep)).toBe(true);
-    expect(file).not.toContain(`${path.sep}public${path.sep}`);
+  const WS = { workspaceId: 'ws-uploads-test', userId: 'person-uploads-test' };
+
+  it('guarda cifrado fuera de public/, devuelve /api/files/… y borra', async () => {
+    const url = await saveUpload('docs', 'informe.pdf', 'application/pdf', Buffer.from('%PDF-secreto'), WS);
+    expect(url).toMatch(/^\/api\/files\/[A-Za-z0-9_-]{22}\/informe\.pdf$/);
+    const dir = path.join(tmp, 'data', 'uploads', 'files');
+    const names = await readdir(dir);
+    expect(names.length).toBeGreaterThan(0);
+    // En disco no queda el texto: está cifrado.
+    for (const n of names) expect((await readFile(path.join(dir, n))).includes(Buffer.from('secreto'))).toBe(false);
+    expect(await readUploadBytes(url, { workspaceId: WS.workspaceId })).toEqual(Buffer.from('%PDF-secreto'));
+    // Otro workspace no lo lee por la ruta de su app.
+    expect(await readUploadBytes(url, { workspaceId: 'otro' })).toBeNull();
+    expect(await readUploadBytes(url, null)).toBeNull();
     await deleteUploads([url]);
-    expect(existsSync(file)).toBe(false);
+    expect(await readUploadBytes(url, { workspaceId: WS.workspaceId })).toBeNull();
+  });
+
+  it('sin sesión ni workspace no guarda', async () => {
+    await expect(saveUpload('docs', 'informe.pdf', 'application/pdf', Buffer.from('%PDF'))).rejects.toThrow();
   });
 
   it('agrega la extensión del tipo a un nombre sin extensión', async () => {
-    const url = await saveUpload('chat', 'upload', 'image/png', Buffer.from('x'));
-    expect(url).toMatch(/-upload\.png$/);
+    const url = await saveUpload('chat', 'upload', 'image/png', Buffer.from('x'), WS);
+    expect(url).toMatch(/\/upload\.png$/);
   });
 
   it('rechaza tipos fuera de la lista', async () => {
-    await expect(saveUpload('docs', 'x.xht', 'application/xhtml+xml', Buffer.from('<x/>'))).rejects.toMatchObject({
+    await expect(saveUpload('docs', 'x.xht', 'application/xhtml+xml', Buffer.from('<x/>'), WS)).rejects.toMatchObject({
       code: 'file_type_not_allowed',
     });
-    await expect(saveUpload('chat', 'x.xht', 'text/plain', Buffer.from('<x/>'))).rejects.toMatchObject({
+    await expect(saveUpload('chat', 'x.xht', 'text/plain', Buffer.from('<x/>'), WS)).rejects.toMatchObject({
       code: 'file_type_not_allowed',
     });
   });
@@ -115,23 +130,22 @@ describe('uploads: disco local fuera de public/', () => {
     expect(localUploadPath('/uploads/docs/a.pdf', 'crm')).toBeNull();
   });
 
-  it('la ruta pública solo sirve Chat/Track/tareas/Robots, con headers seguros', async () => {
-    const url = await saveUpload('docs', 'privado.pdf', 'application/pdf', Buffer.from('%PDF'));
-    const name = url.split('/').pop()!;
-    expect((await localUploadResponse(['docs', name])).status).toBe(404);
-
-    const chat = await saveUpload('chat', 'foto.png', 'image/png', Buffer.from('png'));
-    const res = await localUploadResponse(['chat', chat.split('/').pop()!]);
+  it('/uploads/* solo sirve lo público por diseño; los adjuntos de antes, solo registrados', async () => {
+    await mkdir(path.join(tmp, 'data', 'uploads', 'chat'), { recursive: true });
+    await writeFile(path.join(tmp, 'data', 'uploads', 'chat', '11111111-2222-4333-8444-555555555555-foto.png'), 'png');
+    await mkdir(path.join(tmp, 'data', 'uploads', 'workspace'), { recursive: true });
+    await writeFile(path.join(tmp, 'data', 'uploads', 'workspace', '11111111-2222-4333-8444-555555555555-logo.png'), 'png');
+    expect((await localUploadResponse(['docs', 'x.pdf'])).status).toBe(404);
+    // Un adjunto de chat de antes, sin registrar: no se sirve a nadie.
+    const req = new Request('http://localhost/uploads/chat/11111111-2222-4333-8444-555555555555-foto.png');
+    expect((await localUploadResponse(['chat', '11111111-2222-4333-8444-555555555555-foto.png'], req)).status).toBe(404);
+    expect((await localUploadResponse(['chat', '11111111-2222-4333-8444-555555555555-foto.png'])).status).toBe(404);
+    // El logo del workspace sí (público por diseño), con headers seguros.
+    const res = await localUploadResponse(['workspace', '11111111-2222-4333-8444-555555555555-logo.png']);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('content-security-policy')).toContain('sandbox');
-
-    const txt = await saveUpload('chat', 'notas.txt', 'text/plain', Buffer.from('<script>1</script>'));
-    expect(txt).toMatch(/\.txt$/);
-    const r2 = await localUploadResponse(['chat', txt.split('/').pop()!]);
-    expect(r2.headers.get('content-type')).toBe('application/octet-stream');
-    expect(r2.headers.get('content-disposition')).toMatch(/^attachment/);
   });
 
   it('headers: nada que no sea imagen/audio/video se muestra en línea', () => {

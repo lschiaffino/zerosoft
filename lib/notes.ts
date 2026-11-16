@@ -911,7 +911,7 @@ export async function noteBlocksForFiles(
   owner: NoteOwner | null,
   id: string,
   share: string | null,
-): Promise<DocsBlock[] | null> {
+): Promise<{ blocks: DocsBlock[]; owner: { workspaceId: string; userId: string } } | null> {
   let row: NoteRow | undefined;
   if (owner) row = await getNoteRow(owner, id);
   if (!row && share && /^[A-Za-z0-9_-]{10,64}$/.test(share)) {
@@ -919,7 +919,9 @@ export async function noteBlocksForFiles(
       .prepare('SELECT * FROM notes WHERE id = ? AND share_token = ? AND trashed_at IS NULL')
       .get(id, share)) as NoteRow | undefined;
   }
-  return row ? parseJson<DocsBlock[]>(row.content, []) : null;
+  if (!row) return null;
+  // owner: los archivos de la nota tienen que ser de su workspace o de su persona (lib/files/store.ts).
+  return { blocks: parseJson<DocsBlock[]>(row.content, []), owner: { workspaceId: row.workspace_id, userId: row.person_id } };
 }
 
 /** ¿La nota es de la persona y se puede editar? (para subir adjuntos). */

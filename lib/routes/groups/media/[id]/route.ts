@@ -1,4 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { isFileUrl } from '@/lib/files/store';
+import { ownedFileResponse } from '@/lib/files/serve';
+import { proxyPublicBlob } from '@/lib/files/legacy-proxy';
+import { localResponse } from '@/lib/crm-media-file';
+import { localUploadPath } from '@/lib/uploads';
 import { getChatRow, getMessageRow, getNumberRow, mediaRefFor, readConfig, retryInboundMedia, storeInboundMedia } from '@/lib/groups';
 import { fetchCloudMedia } from '@/lib/groups-provider-cloud';
 import type { BridgeConfig, CloudConfig } from '@/lib/groups-provider';
@@ -17,12 +22,12 @@ export const dynamic = 'force-dynamic';
  * bajamos del lado del servidor y la pasamos al navegador (las credenciales
  * nunca salen). Solo para miembros del workspace.
  */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const msg = await getMessageRow(s.ws, (await ctx.params).id);
   // ?link=1: la imagen grande de la vista previa del link que mandó WhatsApp (guardada al llegar el mensaje).
-  if (msg && new URL(_req.url).searchParams.get('link') === '1') {
+  if (msg && new URL(req.url).searchParams.get('link') === '1') {
     const guard = await chatGuard(s, msg.chat_id);
     if (guard instanceof NextResponse) return guard;
     let link: StoredLink | undefined;
@@ -43,28 +48,47 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const chat = await getChatRow(s.ws, msg.chat_id);
   const number = chat ? await getNumberRow(s.ws, chat.number_id) : null;
   if (!number) return groupsError(404, 'not_found');
-  // Evolution: el archivo no se pudo guardar al llegar. Se baja ahora, se guarda y se redirige ahí.
-  if (msg.media_url.startsWith('evo:') && (number.provider === 'evolution' || number.provider === 'managed' || number.provider === 'fake') && chat) {
-    const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: msg.media_url.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
+  // Evolution: el archivo no se pudo guardar al llegar. Se baja ahora, se guarda (privado) y se sirve desde acá.
+  let stored = msg.media_url;
+  if (stored.startsWith('evo:') && (number.provider === 'evolution' || number.provider === 'managed' || number.provider === 'fake') && chat) {
+    const ref = mediaRefFor(msg, chat.provider_chat_id) ?? { providerMessageId: stored.slice(4), chatId: chat.provider_chat_id, fromMe: msg.direction === 'out' };
     try {
-      const stored = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: msg.media_url.slice(4) });
+      const saved = await storeInboundMedia(number, msg.id, { ...ref, providerMessageId: stored.slice(4) });
       // Otro pedido pudo guardarlo recién: se usa lo que quedó.
-      const saved = stored?.url ?? (await getMessageRow(s.ws, msg.id))?.media_url ?? '';
-      if (!saved || saved.startsWith('evo:')) return groupsError(404, 'not_found');
-      return NextResponse.redirect(new URL(saved, _req.url), 302);
+      stored = saved?.url ?? (await getMessageRow(s.ws, msg.id))?.media_url ?? '';
+      if (!stored || stored.startsWith('evo:')) return groupsError(404, 'not_found');
     } catch (err) {
       // Si quedó marcado como definitivo, la próxima vez ya no se pide. 410: WhatsApp ya no lo tiene.
       const state = number.status !== 'connected' ? 'offline' : fetchStateOf(mediaErrorKind(err, !!ref.wire));
       return state === 'gone' ? groupsError(410, 'media_gone') : state === 'offline' ? groupsError(409, 'not_connected') : groupsError(502, 'provider_error');
     }
   }
+  // Lo mandado antes se guardaba absoluto (origen propio + /uploads/…): se sirve igual que el relativo.
+  stored = ownUploadPath(stored, req) ?? stored;
+  const download = new URL(req.url).searchParams.get('download') === '1';
+  // Guardado por nosotros (storage privado): solo si el archivo es de este workspace.
+  if (isFileUrl(stored)) return (await ownedFileResponse(req, stored, { workspaceId: s.ws }, { download })) ?? groupsError(404, 'not_found');
+  // De antes: Blob público o disco local. Se pasa por acá (la URL del storage no llega al navegador).
+  const safeHeaders = {
+    'content-type': /(html|svg|xml|javascript)/i.test(msg.media_type || '') ? 'application/octet-stream' : msg.media_type || 'application/octet-stream',
+    'cache-control': 'private, max-age=3600',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "default-src 'none'; sandbox",
+    'content-disposition': `${download ? 'attachment' : 'inline'}; filename="${(msg.media_name || 'file').replace(/[^\w.-]/g, '_')}"`,
+  };
+  if (/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(stored)) return proxyPublicBlob(req, stored, safeHeaders);
+  if (stored.startsWith('/uploads/')) {
+    const file = localUploadPath(stored, 'chat');
+    if (!file) return groupsError(404, 'not_found');
+    return localResponse(req as NextRequest, file, safeHeaders);
+  }
   let upstream: Response;
   try {
-    if (msg.media_url.startsWith('meta:') && number.provider === 'cloud') {
-      upstream = await fetchCloudMedia(readConfig(number) as CloudConfig, msg.media_url.slice(5));
-    } else if (msg.media_url.startsWith('bridge:') && number.provider === 'waha') {
+    if (stored.startsWith('meta:') && number.provider === 'cloud') {
+      upstream = await fetchCloudMedia(readConfig(number) as CloudConfig, stored.slice(5));
+    } else if (stored.startsWith('bridge:') && number.provider === 'waha') {
       const cfg = readConfig(number) as BridgeConfig;
-      const url = msg.media_url.slice(7);
+      const url = stored.slice(7);
       // Solo del mismo gateway: la key no viaja a otro host.
       if (new URL(url).origin !== new URL(cfg.baseUrl).origin) return groupsError(404, 'not_found');
       upstream = await safeFetch(url, { headers: { 'x-api-key': cfg.apiKey } }, 15_000);
@@ -81,6 +105,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       'content-type': safeType,
       'cache-control': 'private, max-age=3600',
       'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'none'; sandbox",
       'content-disposition': `inline; filename="${(msg.media_name || 'file').replace(/[^\w.-]/g, '_')}"`,
     },
   });
@@ -135,4 +160,22 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     await getDb().prepare('UPDATE groups_messages SET meta = ? WHERE id = ? AND user_id = ?').run(JSON.stringify({ ...meta, media }), msg.id, s.ws);
   }
   return NextResponse.json({ ok: true });
+}
+
+/** /uploads/… de una URL absoluta de nuestro origen (NEXTAUTH_URL o el del pedido); null si no lo es. */
+function ownUploadPath(url: string, req: Request): string | null {
+  if (!/^https?:\/\//.test(url)) return null;
+  try {
+    const u = new URL(url);
+    const own = [process.env.NEXTAUTH_URL, new URL(req.url).origin].flatMap((o) => {
+      try {
+        return o ? [new URL(o).host.toLowerCase()] : [];
+      } catch {
+        return [];
+      }
+    });
+    return own.includes(u.host.toLowerCase()) && u.pathname.startsWith('/uploads/') && !u.search ? u.pathname : null;
+  } catch {
+    return null;
+  }
 }

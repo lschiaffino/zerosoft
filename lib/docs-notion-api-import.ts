@@ -638,12 +638,12 @@ export async function downloadNotionFile(client: NotionClient, workspaceId: stri
       // Se vuelve a bajar.
     }
   }
-  const saved = await downloadFresh(client, url, name);
+  const saved = await downloadFresh(client, workspaceId, url, name);
   if (saved) await setExternalId(workspaceId, NOTION_API_SOURCE, 'file', key, JSON.stringify(saved));
   return saved;
 }
 
-async function downloadFresh(client: NotionClient, url: string, name: string): Promise<StoredFile | null> {
+async function downloadFresh(client: NotionClient, workspaceId: string, url: string, name: string): Promise<StoredFile | null> {
   try {
     const res = await fetchNotionFile(client, url);
     if (!res) return null;
@@ -657,7 +657,8 @@ async function downloadFresh(client: NotionClient, url: string, name: string): P
     const header = (res.headers.get('content-type') ?? '').split(';')[0].trim();
     const mime = header && header !== 'application/octet-stream' && header !== 'binary/octet-stream' ? header : mimeFor(safeName);
     if (!isAllowedUpload(safeName, mime)) return null;
-    const stored = await saveUpload('docs', safeName, mime, buf);
+    // Del workspace de la sincronización (corre sin sesión, desde el cron o el import).
+    const stored = await saveUpload('docs', safeName, mime, buf, { workspaceId, userId: null });
     return { url: stored, name: safeName, size: buf.length, mime };
   } catch {
     return null;

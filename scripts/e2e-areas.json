@@ -38,13 +38,13 @@
     "inbox": { "names": ["inbox", "inboxWa"], "specs": ["inbox", "inbox-*", "assistant-folders"], "with": ["chat-ui"] },
     "lines": {
       "names": ["groups", "lines"],
-      "specs": ["groups", "groups-*", "lines-*", "member-capabilities", "tasks-unified"],
+      "specs": ["groups", "groups-*", "lines-*", "offline-lines-inbox", "member-capabilities", "tasks-unified"],
       "with": ["chat-ui", "inbox"]
     },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "calm-focus", "chat-keep-archived", "offline-lines-inbox", "mobile-gestures", "mobile-no-side-scroll", "snooze-archives"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-keyboard-touch", "calm-focus", "chat-keep-archived", "offline-lines-inbox", "mobile-gestures", "mobile-no-side-scroll", "snooze-archives"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
@@ -91,7 +91,7 @@
 
   "full-only": [
     "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
-    "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "qa-followups", "qa-polish",
+    "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "private-files", "qa-followups", "qa-polish",
     "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
   ]
 }

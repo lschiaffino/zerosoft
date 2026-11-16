@@ -416,7 +416,13 @@ describe('cola de archivos', () => {
   let fileUrl = '';
   const image = (id: string) => ({ id, type: 'image' as const, content: '', url: fileUrl, name: 'f.png', size: 8, mime: 'image/png' });
   beforeAll(async () => {
-    fileUrl = await saveUpload('docs', 'f.png', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    // Un archivo de antes en disco (/uploads/docs/…): lo leen notas de varios workspaces del test.
+    const { mkdir, writeFile } = await import('fs/promises');
+    const { uploadsRoot } = await import('@/lib/uploads');
+    const name = `${crypto.randomUUID()}-f.png`;
+    await mkdir(`${uploadsRoot()}/docs`, { recursive: true });
+    await writeFile(`${uploadsRoot()}/docs/${name}`, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    fileUrl = `/uploads/docs/${name}`;
   });
   const clean = () => getDb().prepare('DELETE FROM note_file_text').run();
 

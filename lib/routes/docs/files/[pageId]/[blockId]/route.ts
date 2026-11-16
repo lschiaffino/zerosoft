@@ -41,6 +41,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ pageId: s
     (await fileBlockResponse(block, {
       download: req.nextUrl.searchParams.get('download') === '1',
       range: req.headers.get('range'),
+      // Los archivos de la página tienen que ser de su workspace.
+      owner: { workspaceId: row.user_id },
     })) ?? notFound()
   );
 }

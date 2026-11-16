@@ -229,7 +229,7 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
     expect(intro).toContain(`data-page="${by('Child page').id}"`);
     expect(intro).toContain(`data-page="${by('Tasks').id}"`);
     const image = blocks.find((b) => b.type === 'image')!;
-    expect(image.url).toMatch(/^\/uploads\/docs\//);
+    expect(image.url).toMatch(/^\/api\/files\//);
     const file = blocks.find((b) => b.type === 'file')!;
     expect(file.name).toBe('spec.pdf');
     expect(blocks.find((b) => b.type === 'callout')).toMatchObject({ icon: '💡', content: 'Remember the deadline' });

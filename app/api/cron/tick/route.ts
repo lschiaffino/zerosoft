@@ -123,6 +123,9 @@ export async function GET(req: NextRequest) {
   const linkDeferred = await pruneDeferredClicks().catch(() => null);
   // Claves de altas hechas sin conexión (lib/offline-idempotency.ts).
   const offlineRequests = await pruneOfflineRequests().catch(() => null);
+  // Subidas directas que quedaron sin terminar (lib/files/direct-upload.ts): no quedan en el storage.
+  const incomingSwept = await (await import('@/lib/files/direct-upload')).sweepIncoming().catch(() => null);
+  void incomingSwept;
   // Claves de envíos de Lines e Inbox (lib/send-once.ts).
   const sendClaims = await pruneSendClaims().catch(() => null);
   const linkHistory = await pruneLinkHistory().catch(() => null);
