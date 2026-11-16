@@ -150,18 +150,14 @@ test.describe('Inbox', () => {
     // "Actual" es solo un fondo.
     const row = page.locator('#side-branch .docs-tree-row.active');
     expect(await row.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-    // El cursor del teclado: fondo de fila y una marca al costado, sin contorno.
+    // El cursor del teclado: un fondo suave de fila, sin contorno.
     const cursor = page.locator('.ib-item.is-cursor .ib-row-btn');
     expect(await cursor.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-    expect(await cursor.evaluate((el) => getComputedStyle(el).boxShadow)).toContain('inset');
 
     // Un atajo de una letra tampoco prende nada.
     await page.keyboard.press('g');
     expect(await outlined(page)).toEqual([]);
     expect((await focused(page)).mode).toBe('0');
-    // Con el mouse la marca del cursor se va.
-    await page.locator('.ib-list-pane h1').click();
-    expect(await cursor.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
   });
 
   test('clic en un chat y j/k: el cursor se mueve con un fondo de fila, sin recuadro', async ({ page, request }) => {

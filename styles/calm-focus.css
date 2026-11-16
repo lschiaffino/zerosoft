@@ -51,7 +51,3 @@
 
 /* El link de una carpeta termina justo en su contador: el anillo va por fuera del texto, no encima. */
 :root[data-kbd-nav='1'] .docs-tree-link:focus-visible { outline-offset: 0 !important; }
-
-/* Cursor del teclado en la lista de Inbox (j/k, flechas): el fondo suave de la fila y, mientras el teclado
-   maneja, una marca fina al costado. Nunca un recuadro. El chat abierto ya tiene su fondo. */
-:root[data-kbd-last='key'] li.ib-item.is-cursor:not(.is-open) > .ib-row-btn { box-shadow: inset 3px 0 0 var(--kbd-ring); }
