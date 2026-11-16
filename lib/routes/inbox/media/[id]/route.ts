@@ -3,6 +3,8 @@ import { getAccount, getMessageRow, getThreadRow } from '@/lib/inbox/core';
 import { withOwner } from '@/lib/inbox/http';
 import { InboxError } from '@/lib/inbox/types';
 import { fetchWhatsappMedia } from '@/lib/inbox/whatsapp';
+import { getDb } from '@/lib/db';
+import { isPdf, validDocThumb, validPages } from '@/lib/wa-doc-thumb';
 import { linkHqBytes, type StoredLink } from '@/lib/wa-link-thumb';
 
 export const runtime = 'nodejs';
@@ -62,5 +64,33 @@ export async function GET(req: Request, ctx: Ctx) {
         'cache-control': 'private, max-age=3600',
       },
     });
+  });
+}
+
+/**
+ * Guarda la vista previa de la primera página de un PDF (la dibujó el
+ * navegador de quien lo vio primero): un JPEG chico validado por sus bytes,
+ * solo en un PDF que todavía no tiene. Después llega con el mensaje.
+ */
+export async function PUT(req: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+  const body = (await req.json().catch(() => null)) as { thumb?: unknown; pages?: unknown } | null;
+  return withOwner(async (owner) => {
+    const msg = await getMessageRow(owner, id);
+    let meta: Record<string, unknown> = {};
+    try {
+      meta = msg.meta ? (JSON.parse(msg.meta) as Record<string, unknown>) : {};
+    } catch {
+      meta = {};
+    }
+    const thumb = validDocThumb(body?.thumb);
+    if (!thumb || msg.media_type !== 'document' || !isPdf(String(meta.mime ?? ''), msg.media_name)) throw new InboxError('invalid_input', 400);
+    if (!meta.thumb) {
+      const pages = validPages(body?.pages);
+      await getDb()
+        .prepare('UPDATE inbox_messages SET meta = ? WHERE id = ? AND owner_id = ?')
+        .run(JSON.stringify({ ...meta, thumb, ...(pages && !meta.pages ? { pages } : {}) }), msg.id, owner);
+    }
+    return NextResponse.json({ ok: true });
   });
 }

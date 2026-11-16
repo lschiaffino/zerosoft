@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
+import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars } from './format';
+import { DocIcon, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
 import { mediaBox, mediaBoxStyle, placeholderBox } from './media-box';
@@ -183,39 +183,70 @@ export function VoicePlayer({
   );
 }
 
-/** Documento: ícono, nombre, tipo y tamaño, y bajar (como la tarjeta de WhatsApp). */
-export function DocCard({ url, name, type, size, pages }: { url: string; name: string; type: string; size?: number; pages?: number }) {
+/**
+ * Documento, como la tarjeta de WhatsApp: a la izquierda el ícono del tipo
+ * (la hoja con la extensión en su color: PDF rojo, DOC azul, XLS verde), el
+ * nombre en un renglón (cortado en el medio si es largo, para que se vea la
+ * extensión) y abajo "45 kB • html". Toda la tarjeta abre o baja el archivo.
+ */
+export function DocCard({
+  url,
+  name,
+  type,
+  size,
+  pages,
+  thumbnail,
+  saveThumbTo,
+}: {
+  url: string;
+  name: string;
+  type: string;
+  size?: number;
+  pages?: number;
+  /** Vista previa de la primera página: la que mandó WhatsApp con el mensaje o la que ya se guardó. */
+  thumbnail?: string;
+  /** Ruta del mensaje donde guardar la vista previa la primera vez que se dibuja (PDF sin miniatura). */
+  saveThumbTo?: string;
+}) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const ext = extensionOf(name, type);
   const [pdfPages, setPdfPages] = useState<number | null>(null);
   const shownPages = pages || pdfPages || 0;
-  const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', ext, size ? fileSize(size, locale) : ''].filter(Boolean).join(' · ');
+  const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', size ? fileSize(size, locale) : '', ext.toLowerCase()].filter(Boolean).join(' • ');
   const isPdf = ext.toLowerCase() === 'pdf' || type === 'application/pdf';
+  const shownName = name || t('media.file');
+  const [nameHead, nameTail] = splitFileName(shownName);
   const inner = (
     <>
-      {url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} />}
+      {isPdf && thumbnail ? (
+        <span className="wa-doc-thumb is-on" aria-hidden="true" data-testid="wa-doc-thumb">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnail} alt="" />
+        </span>
+      ) : (
+        url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} saveTo={saveThumbTo} />
+      )}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
-        <DocIcon size={26} />
-        <b>{ext.slice(0, 4)}</b>
+        <DocIcon size={30} strokeWidth={1.5} />
+        {ext && <b>{ext.slice(0, 4)}</b>}
       </span>
       <span className="wa-doc-main">
-        <span className="wa-doc-name">{name || t('media.file')}</span>
+        {/* Un renglón, cortado en el medio: el principio se achica con "…" y el final (la extensión) queda siempre. */}
+        <span className="wa-doc-name" title={shownName}>
+          <span className="wa-doc-name-head">{nameHead}</span>
+          {nameTail && <span className="wa-doc-name-tail">{nameTail}</span>}
+        </span>
         <span className="wa-doc-meta">{url ? meta : t('thread.fileUnavailable')}</span>
       </span>
-      {url && (
-        <span className="wa-doc-dl" aria-hidden="true">
-          <Download size={18} />
-        </span>
-      )}
     </>
   );
   return url ? (
-    <a className="wa-doc" href={url} target="_blank" rel="noreferrer" download={name || undefined}>
+    <a className="wa-doc" href={url} target="_blank" rel="noreferrer" download={name || undefined} aria-label={`${t('wa.download')}: ${shownName}`} data-testid="wa-doc">
       {inner}
     </a>
   ) : (
-    <span className="wa-doc is-off" title={t('thread.fileUnavailable')}>
+    <span className="wa-doc is-off" title={t('thread.fileUnavailable')} data-testid="wa-doc">
       {inner}
     </span>
   );

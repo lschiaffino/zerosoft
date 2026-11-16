@@ -102,6 +102,17 @@ export function extensionOf(name: string, type: string): string {
   return t.replace(/^(x-|vnd\.)/, '').split(/[.+]/)[0].slice(0, 6).toUpperCase();
 }
 
+/**
+ * Un nombre de archivo en dos partes para cortarlo en el medio con CSS: el
+ * principio (que se achica con "…") y el final que siempre se ve (los últimos
+ * caracteres con la extensión). Los nombres cortos van enteros en la primera.
+ */
+export function splitFileName(name: string, tail = 10): [string, string] {
+  const chars = [...name];
+  if (chars.length <= tail * 2) return [name, ''];
+  return [chars.slice(0, -tail).join(''), chars.slice(-tail).join('')];
+}
+
 /** Texto con links: partes de texto y de URL (sin HTML). */
 export function linkify(text: string): Array<{ text: string; href?: string }> {
   const out: Array<{ text: string; href?: string }> = [];

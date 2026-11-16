@@ -1796,7 +1796,7 @@ export default function ChatThread(props: ThreadProps) {
                   retryKey={`lines:${m.id}`}
                 />
               ) : !media.url ? (
-                <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
+                <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} pages={media.pages} thumbnail={media.thumbnail} />
               ) : kind === 'image' || kind === 'sticker' ? (
                 <ImageView
                   url={media.url}
@@ -1824,7 +1824,7 @@ export default function ChatThread(props: ThreadProps) {
                   }
                 />
               ) : (
-                <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
+                <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} thumbnail={media.thumbnail} saveThumbTo={isTempId(m.id) ? undefined : `/api/groups/media/${m.id}`} />
               )}
               {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
                 <UploadRing
