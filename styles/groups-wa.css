@@ -1646,3 +1646,8 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup { border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); box-shadow: none; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-meta,
 .gr-inbox[data-chat-style='zerosoft'] .wa-newgroup-hint { font-family: var(--font-data); font-size: var(--wa-fs-meta); }
+
+/* En el teléfono, los botones de la ficha del grupo nuevo y "Cargar mensajes anteriores" miden al menos 40px: se tocan con el dedo. */
+@media (max-width: 768px) {
+  .wa-newgroup-action, .wa-older-chip { min-height: 40px; }
+}

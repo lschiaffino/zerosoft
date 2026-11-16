@@ -64,7 +64,8 @@ function events(app: 'inbox' | 'lines', gid: string, title: string): Array<Recor
 
 async function check(page: Page, thread: Locator) {
   const msg = thread.locator('.gr-msg', { hasText: 'primera versión' });
-  const card = msg.getByTestId('wa-doc');
+  // En Inbox el archivo se baja al pedirlo (#378): la tarjeta es un botón que lo busca y lo abre.
+  const card = msg.locator('[data-testid="wa-doc"], [data-testid="wa-doc-retry"]');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(msg.locator('.wa-text')).toContainText('ya corregida');
   await expect(msg.locator('.wa-edited')).toBeVisible();
