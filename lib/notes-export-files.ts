@@ -5,16 +5,17 @@ import type { DocsBlock } from './docs-types';
 import { findFileBlock, isFileBlockType } from './docs-files';
 import { readBytesCapped } from './notes-clip';
 import { fileBlockResponse } from './upload-serve';
+import type { FileOwner } from './files/store';
 import { ENEX_HEAD, ENEX_TAIL, enexResource, noteToEnex, type EnexResourceOut } from './notes-export';
 import { noteFileHref, type NoteDetail } from './notes-types';
 
 /** Tope de adjuntos embebidos por export (lo que pasa queda como link). */
 export const ENEX_EMBED_BUDGET = 60 * 1024 * 1024;
 
-async function readFileBlock(blocks: DocsBlock[], blockId: string, max: number): Promise<Uint8Array | null> {
+async function readFileBlock(blocks: DocsBlock[], blockId: string, max: number, owner: FileOwner): Promise<Uint8Array | null> {
   const block = findFileBlock(blocks, blockId);
   if (!block) return null;
-  const res = await fileBlockResponse(block, { download: true }).catch(() => null);
+  const res = await fileBlockResponse(block, { download: true, owner }).catch(() => null);
   if (!res || !res.ok) return null;
   // Lo que no entra en el presupuesto queda como link.
   const bytes = await readBytesCapped(res, max);
@@ -27,7 +28,7 @@ async function readFileBlock(blocks: DocsBlock[], blockId: string, max: number):
  */
 export function enexStream(
   notes: AsyncIterable<NoteDetail> | Iterable<NoteDetail>,
-  opts: { origin: string; lockedText: string },
+  opts: { origin: string; lockedText: string; owner: FileOwner },
 ): ReadableStream<Uint8Array> {
   const enc = new TextEncoder();
   let budget = ENEX_EMBED_BUDGET;
@@ -41,7 +42,7 @@ export function enexStream(
             for (const b of note.content) {
               if (!isFileBlockType(b.type) || !b.url) continue;
               if ((b.size ?? 0) > budget) continue;
-              const bytes = await readFileBlock(note.content, b.id, budget);
+              const bytes = await readFileBlock(note.content, b.id, budget, opts.owner);
               if (!bytes || bytes.length > budget) continue;
               budget -= bytes.length;
               files.set(b.id, enexResource(bytes, b.mime || 'application/octet-stream', b.name || 'file'));

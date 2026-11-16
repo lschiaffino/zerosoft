@@ -3,15 +3,14 @@
 import {
   cleanFileName,
   DOCS_MAX_UPLOAD,
-  docsStoragePathname,
   type DocsUploadConfig,
   type DocsUploadResult,
 } from './docs-files';
 
 /**
  * Subida de un archivo del editor de Docs. Con Vercel Blob el navegador sube
- * directo al storage (hasta 100 MB, en partes si es grande) y el servidor solo
- * firma el permiso (/api/docs/pages/<id>/files/blob); sin Blob (servidor
+ * directo al storage, privado (hasta 100 MB, en partes si es grande;
+ * lib/files/direct-upload-client.ts); sin Blob (servidor
  * propio) va por multipart a la ruta de la página, que lo guarda en disco.
  * Notes pasa su propia ruta: como no publica una config, sube por el servidor.
  */
@@ -92,30 +91,25 @@ export async function uploadDocsFile(
   const name = cleanFileName(file.name) || 'file';
   const mime = file.type || 'application/octet-stream';
   if (config.mode === 'blob') {
-    const { upload } = await import('@vercel/blob/client');
+    // Directo al storage, privado (lib/files/direct-upload-client.ts): se sirve solo por la ruta de la página.
+    const { directUpload, DirectUploadUnavailable } = await import('./files/direct-upload-client');
     try {
-      const blob = await upload(docsStoragePathname(name, crypto.randomUUID()), file, {
-        access: 'public',
-        handleUploadUrl: `${opts.uploadUrl}/blob`,
+      const up = await directUpload(file, {
+        purpose: opts.uploadUrl.startsWith('/api/notes/') ? 'notes' : 'docs',
+        name,
         contentType: mime,
-        multipart: file.size > 64 * 1024 * 1024,
-        onUploadProgress: opts.onProgress ? (e) => opts.onProgress!(e.percentage) : undefined,
+        // Progreso en porcentaje (lo que muestra el esqueleto de la subida) y cancelar con la X.
+        onProgress: opts.onProgress ? (f) => opts.onProgress!(f * 100) : undefined,
         abortSignal: opts.signal,
       });
-      return { url: blob.url, name, size: file.size, mime };
+      return { url: up.url, name, size: file.size, mime };
     } catch (err) {
       if (opts.signal?.aborted) throw new DocsUploadError('aborted');
-      const msg = err instanceof Error ? err.message : '';
-      if (/content type|file_type_not_allowed|not allowed/i.test(msg)) throw new DocsUploadError('file_type_not_allowed');
-      // La librería esconde la respuesta del permiso: se pregunta de nuevo para saber si fue el tope por persona.
-      if (/client token/i.test(msg)) {
-        const probe = await fetch(`${opts.uploadUrl}/blob`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ type: 'blob.generate-client-token', payload: { pathname: '', callbackUrl: '', multipart: false, clientPayload: null } }),
-        }).catch(() => null);
-        if (probe?.status === 429) throw new DocsUploadError('rate_limited');
-      }
+      if (err instanceof DirectUploadUnavailable) throw new DocsUploadError('storage_unavailable');
+      const code = (err as { code?: string })?.code;
+      if (code === 'file_type_not_allowed') throw new DocsUploadError('file_type_not_allowed');
+      if (code === 'file_too_large') throw new DocsUploadError('file_too_large');
+      if (code === 'rate_limited') throw new DocsUploadError('rate_limited');
       throw new DocsUploadError('failed');
     }
   }

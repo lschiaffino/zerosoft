@@ -76,7 +76,7 @@ async function replyExternalId(row: ScheduledRow): Promise<string> {
 async function deliverMedia(account: AccountRow, thread: ThreadRow, row: ScheduledRow): Promise<void> {
   if (thread.channel !== 'whatsapp') throw new InboxError('media_unsupported', 400);
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
-  const data = await readInboxMedia(row.media_url);
+  const data = await readInboxMedia(row.media_url, row.owner_id);
   const voice = row.media_kind === 'voice';
   const mimetype = (row.media_type || 'application/octet-stream').split(';')[0].trim().toLowerCase();
   const replyTo = await replyExternalId(row);

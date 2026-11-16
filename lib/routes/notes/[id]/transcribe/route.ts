@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const block = findFileBlock(blocks, parsed.data.block_id);
   if (!block || block.type !== 'audio') return jsonError(404, 'not_found');
   if ((block.size ?? 0) > MAX_TRANSCRIBE_BYTES) return jsonError(413, 'audio_too_large');
-  const file = await fileBlockResponse(block, { download: true }).catch(() => null);
+  const file = await fileBlockResponse(block, { download: true, owner: { workspaceId: access.row.workspace_id, userId: access.row.person_id } }).catch(() => null);
   if (!file?.ok) return jsonError(404, 'not_found');
   const audio = await readBytesCapped(file, MAX_TRANSCRIBE_BYTES);
   if (!audio) return jsonError(413, 'audio_too_large');

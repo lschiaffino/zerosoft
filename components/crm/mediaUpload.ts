@@ -15,14 +15,10 @@ export async function uploadMedia<T>(opts: {
   const endpoint = opts.kind === 'document' ? '/api/crm/documents' : '/api/crm/videos';
   try {
     if (opts.direct) {
-      const { upload } = await import('@vercel/blob/client');
+      // Directo al storage, privado (lib/files/direct-upload-client.ts): solo se sirve por la ruta del documento o video.
+      const { directUpload } = await import('@/lib/files/direct-upload-client');
       const safe = opts.filename.replace(/[^\w.-]/g, '_').slice(-100) || (opts.kind === 'document' ? 'document.pdf' : 'video.webm');
-      const blob = await upload(`crm/${safe}`, opts.file, {
-        access: 'public',
-        handleUploadUrl: '/api/crm/media/upload',
-        clientPayload: opts.kind,
-        contentType: opts.file.type || undefined,
-      });
+      const blob = await directUpload(opts.file, { purpose: 'crm-media', name: safe, contentType: opts.file.type || undefined });
       const body =
         opts.kind === 'document'
           ? { name: opts.fields.name ?? '', filename: opts.filename, url: blob.url, size: opts.file.size }

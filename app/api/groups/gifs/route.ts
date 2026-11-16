@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   try {
     const viewer = await sessionViewer(s);
     const gif = await chosenGif(req, `lines:${viewer.me}`, await readJson(req));
-    const url = await saveUpload('chat', 'gif.mp4', 'video/mp4', gif.data);
+    const url = await saveUpload('chat', 'gif.mp4', 'video/mp4', gif.data, { app: 'groups', access: 'user' });
     return NextResponse.json({
       media: { url, mimetype: 'video/mp4', filename: 'gif.mp4', size: gif.data.length, kind: 'video', gif: true, ...(gif.width && gif.height ? { width: gif.width, height: gif.height } : {}) },
     });

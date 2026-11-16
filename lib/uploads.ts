@@ -1,21 +1,21 @@
 import { existsSync } from 'fs';
-import { copyFile, mkdir, readdir, rename, rmdir, stat, unlink, writeFile } from 'fs/promises';
+import { copyFile, mkdir, readdir, rename, rmdir, stat, unlink } from 'fs/promises';
 import path from 'path';
-import { del, put } from '@vercel/blob';
+import { del } from '@vercel/blob';
+import { currentFileOwner } from './files/owner-context';
+import { deleteFileUrls, fileUrl, FileStoreError, isFileUrl, putFile, type FileAccess, type FileOwner } from './files/store';
 
 /**
  * Almacenamiento de archivos subidos (adjuntos de Chat, Track, tareas del CRM,
  * bloques de imagen/archivo de Docs y Notes, imágenes de Board y de Design,
  * media del CRM y archivos de Robots).
- * - Con BLOB_READ_WRITE_TOKEN → Vercel Blob (lo que usa producción).
- * - Sin token y fuera de Vercel → disco local en UPLOADS_DIR (por defecto
- *   data/uploads), fuera de public/: nada se sirve como archivo estático.
- *   Todo se lee por rutas de la app que chequean acceso y ponen headers seguros.
- * - Sin token en Vercel → error: el filesystem es read-only y efímero.
+ * Los bytes van a lib/files/store.ts (store privado de Blob, cifrado en el
+ * store de la suite o disco local cifrado) y la URL que se guarda es
+ * /api/files/<id>/<nombre>, que chequea sesión y permiso en cada pedido.
  *
- * La URL guardada en la base sigue siendo /uploads/<carpeta>/<nombre>; la
- * resuelve localUploadPath (y next.config reescribe /uploads/* a la ruta que
- * sirve las carpetas públicas por diseño).
+ * Archivos de antes: URLs públicas de Blob o /uploads/<carpeta>/<nombre>
+ * (disco local, los resuelve localUploadPath). El script
+ * scripts/migrate-private-files.ts los pasa al storage privado.
  *
  * Solo se aceptan tipos de una lista permitida: imágenes raster, video, audio,
  * PDF, documentos de oficina, texto plano y comprimidos.
@@ -149,46 +149,105 @@ export function localUploadPath(url: string, folder?: UploadFolder): string | nu
   return existsSync(legacy) ? legacy : current;
 }
 
-/** Guarda el archivo y devuelve su URL. */
+export interface SaveUploadOptions {
+  /** Workspace (id del owner) del archivo. Sin él, el de la sesión; sin sesión (webhooks, crons) es obligatorio. */
+  workspaceId?: string;
+  /** Persona que lo sube (la dueña, si access es 'user'). Sin él, la de la sesión. */
+  userId?: string | null;
+  /** App cuyo acceso se chequea al servirlo ('workspace'). */
+  app?: string | null;
+  /** Quién lo puede leer (lib/files/store.ts). Por defecto, el de la carpeta. */
+  access?: FileAccess;
+  /** Permiso más fino dentro del workspace (lib/files/scopes.ts), p. ej. "chat-widget:<id>". */
+  scope?: string | null;
+}
+
+/**
+ * Quién lee lo de cada carpeta si quien guarda no lo dice. Público solo lo
+ * que lo es por diseño: logos de workspace, fotos de la tienda y lo que sale
+ * a redes (las redes lo bajan por URL). Inbox es de una persona.
+ */
+const DEFAULT_ACCESS: Record<UploadFolder, FileAccess> = {
+  chat: 'workspace',
+  track: 'workspace',
+  tasks: 'workspace',
+  robots: 'workspace',
+  docs: 'internal',
+  boards: 'internal',
+  crm: 'internal',
+  rec: 'internal',
+  workspace: 'public',
+  design: 'internal',
+  shop: 'public',
+  social: 'public',
+  people: 'workspace',
+  inbox: 'user',
+};
+
+/**
+ * Guarda el archivo y devuelve su URL: /api/files/<id>/<nombre>, de nuestro
+ * dominio. Los bytes van al storage privado (lib/files/store.ts): nunca hay
+ * una URL pública del storage.
+ */
 export async function saveUpload(
   folder: UploadFolder,
   filename: string,
   contentType: string,
   buffer: Buffer,
+  opts: SaveUploadOptions = {},
 ): Promise<string> {
   const ext = storedExtension(filename, contentType);
   if (!ext) throw new UploadError('file_type_not_allowed', 415);
 
   let safe = safeFilename(filename);
   if (extOf(safe) !== ext) safe = `${safe}.${ext}`;
-  const name = `${crypto.randomUUID()}-${safe}`;
+  // El tipo sale de la extensión permitida, no del que mandó el cliente.
   const type = ALLOWED[ext];
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(`${folder}/${name}`, buffer, {
-      access: 'public',
-      // El tipo sale de la extensión permitida, no del que mandó el cliente.
-      contentType: type,
-    });
-    return blob.url;
+  let workspaceId = opts.workspaceId;
+  let userId = opts.userId;
+  // Dentro de un trabajo sin sesión (import, webhook, cron): el dueño que dejó quien lo corre.
+  const ctx = !workspaceId ? currentFileOwner() : null;
+  if (ctx) {
+    workspaceId = ctx.workspaceId;
+    if (userId === undefined) userId = ctx.userId;
   }
-
-  if (process.env.VERCEL) throw new UploadError('storage_unavailable', 503);
-
-  await migrateLegacyUploads();
-  const dir = path.join(uploadsRoot(), folder);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), buffer);
-  return `/uploads/${folder}/${name}`;
+  if (!workspaceId || userId === undefined) {
+    const { getCurrentUser } = await import('./session');
+    const user = await getCurrentUser().catch(() => null);
+    if (user) {
+      workspaceId ??= user.id;
+      if (userId === undefined) userId = user.actingUser?.id ?? user.id;
+    }
+  }
+  if (!workspaceId) throw new Error('saveUpload: falta el workspace del archivo');
+  try {
+    const row = await putFile(buffer, {
+      workspaceId,
+      userId: userId ?? null,
+      app: opts.app ?? null,
+      folder,
+      access: opts.access ?? DEFAULT_ACCESS[folder],
+      scope: opts.scope ?? null,
+      name: safe,
+      mime: type,
+    });
+    return fileUrl(row);
+  } catch (err) {
+    if (err instanceof FileStoreError && err.code === 'storage_unavailable') throw new UploadError('storage_unavailable', 503);
+    throw err;
+  }
 }
 
 /**
  * Borra archivos guardados con saveUpload (best effort: un fallo no corta el
- * borrado de las filas). Sin esto, el blob público seguía accesible con la URL
- * después de borrar el adjunto.
+ * borrado de las filas). Acepta las URLs de /api/files y las de antes
+ * (Blob público o /uploads/…).
  */
 export async function deleteUploads(urls: string[]): Promise<void> {
-  const blobs = urls.filter((u) => /^https:\/\//.test(u));
+  const own = urls.filter((u) => isFileUrl(u));
+  if (own.length) await deleteFileUrls(own).catch(() => undefined);
+  const blobs = urls.filter((u) => /^https:\/\//.test(u) && !isFileUrl(u));
   if (blobs.length > 0 && process.env.BLOB_READ_WRITE_TOKEN) {
     await del(blobs).catch(() => undefined);
   }
@@ -245,4 +304,63 @@ export function migrateLegacyUploads(): Promise<void> {
     await rmdir(legacy).catch(() => undefined);
   })();
   return migration;
+}
+
+/**
+ * Bytes de un archivo guardado, sea de ahora (/api/files/…) o de antes
+ * (/uploads/… o el Blob público de la suite), con tope. Para lo que procesa
+ * el servidor (mandar por WhatsApp, transcribir, armar un PDF). Nada de hosts
+ * arbitrarios: null si la URL no es nuestra, no está o pasa de `max`.
+ *
+ * `owner`: el workspace (o la persona) del registro que tenía la URL. Un
+ * archivo de /api/files solo se lee si es suyo (o público por diseño): la URL
+ * la pudo escribir el cliente y no puede servir para leer archivos ajenos.
+ */
+export async function readUploadBytes(url: string, owner: FileOwner | null, max = 64 * 1024 * 1024): Promise<Buffer | null> {
+  if (!url) return null;
+  if (isFileUrl(url)) {
+    const { fileRowForUrl, readFileBytes } = await import('./files/store');
+    const row = await fileRowForUrl(url);
+    if (!row) return null;
+    const mine = (owner?.workspaceId && row.workspace_id === owner.workspaceId) || (owner?.userId && row.user_id === owner.userId);
+    if (!mine && row.access !== 'public') return null;
+    return readFileBytes(row, max);
+  }
+  if (url.startsWith('/uploads/')) {
+    const file = localUploadPath(url);
+    if (!file) return null;
+    const st = await stat(file).catch(() => null);
+    if (!st?.isFile() || st.size > max) return null;
+    const { readFile } = await import('fs/promises');
+    return readFile(file).catch(() => null);
+  }
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' || !/^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i.test(u.hostname)) return null;
+  const res = await fetch(u, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+  if (!res?.ok) return null;
+  const len = Number(res.headers.get('content-length') ?? 0);
+  if (len > max) return null;
+  const buf = Buffer.from(await res.arrayBuffer());
+  return buf.length <= max ? buf : null;
+}
+
+/** ¿Es una URL de un archivo guardado por nosotros (de ahora o de antes)? `folder` solo filtra las de antes. */
+export function isOwnUploadUrl(url: string | null | undefined, folder?: UploadFolder): boolean {
+  if (!url) return false;
+  if (isFileUrl(url)) return true;
+  if (url.startsWith('/uploads/')) {
+    const parsed = parseLocalUploadUrl(url);
+    return parsed !== null && (!folder || parsed[0] === folder);
+  }
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i.test(u.hostname) && (!folder || u.pathname.startsWith(`/${folder}/`));
+  } catch {
+    return false;
+  }
 }

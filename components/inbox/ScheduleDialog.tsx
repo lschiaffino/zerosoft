@@ -50,11 +50,11 @@ export async function uploadInboxFile(file: File): Promise<PartMedia> {
   if (file.size > cfg.maxMedia) throw new Error('too_large');
   const type = file.type || 'application/octet-stream';
   if (cfg.mode === 'blob') {
-    const { upload } = await import('@vercel/blob/client');
-    const safe = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-120) || 'archivo';
+    // Directo al storage, privado (lib/files/direct-upload-client.ts).
+    const { directUpload } = await import('@/lib/files/direct-upload-client');
     try {
-      const blob = await upload(`inbox/${safe}`, file, { access: 'public', handleUploadUrl: '/api/inbox/upload', contentType: type, multipart: file.size > 8 * 1024 * 1024 });
-      return { url: blob.url, name: file.name.slice(0, 200), type };
+      const up = await directUpload(file, { purpose: 'inbox-schedule', contentType: type });
+      return { url: up.url, name: file.name.slice(0, 200), type };
     } catch {
       throw new Error('upload_failed');
     }

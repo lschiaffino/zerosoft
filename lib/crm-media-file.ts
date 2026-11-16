@@ -6,6 +6,7 @@
 import { open, stat } from 'fs/promises';
 import { localUploadPath as localUpload } from './uploads';
 import { NextRequest, NextResponse } from 'next/server';
+import { isFileUrl } from './files/store';
 
 const NOT_FOUND = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
 
@@ -69,8 +70,9 @@ function safeName(name: string, ext: string): string {
 
 const COMMON = { 'cache-control': 'private, max-age=300', 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff' };
 
-/** PDF guardado (local o Blob), inline. */
-export async function servePdf(req: NextRequest, url: string, name: string): Promise<NextResponse> {
+/** PDF guardado (storage privado, local o Blob de antes), inline. `workspaceId`: el del registro (el archivo tiene que ser suyo). */
+export async function servePdf(req: NextRequest, url: string, name: string, workspaceId: string): Promise<Response> {
+  if (isFileUrl(url)) return (await (await import('./files/serve')).ownedFileResponse(req, url, { workspaceId })) ?? NOT_FOUND();
   const headers = { ...COMMON, 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${safeName(name, 'pdf')}"` };
   const local = localUploadPath(url);
   if (local) return localResponse(req, local, headers);
@@ -83,10 +85,15 @@ export async function servePdf(req: NextRequest, url: string, name: string): Pro
   return new NextResponse(new Uint8Array(body), { headers });
 }
 
-/** Video guardado: local con rangos (para adelantar); Blob, redirigido (ya sirve rangos). */
-export async function serveVideo(req: NextRequest, url: string, contentType: string): Promise<NextResponse> {
+/**
+ * Video guardado, con rangos (para adelantar): del storage privado, local o
+ * del Blob de antes. Nunca se redirige a la URL del storage.
+ */
+export async function serveVideo(req: NextRequest, url: string, contentType: string, workspaceId: string): Promise<Response> {
+  if (isFileUrl(url)) return (await (await import('./files/serve')).ownedFileResponse(req, url, { workspaceId })) ?? NOT_FOUND();
   const local = localUploadPath(url);
   if (local) return localResponse(req, local, { ...COMMON, 'content-type': contentType.split(';')[0] || 'video/webm' });
   if (url.startsWith('/')) return NOT_FOUND();
-  return NextResponse.redirect(url, 302);
+  const { proxyPublicBlob } = await import('./files/legacy-proxy');
+  return proxyPublicBlob(req, url, { ...COMMON, 'content-type': contentType.split(';')[0] || 'video/webm' });
 }
