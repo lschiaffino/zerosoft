@@ -47,6 +47,23 @@ async function expectAppAccent(btn: Locator) {
     .toBe(true);
 }
 
+/** El filete de vencido (su ::before) es del color de la app, no el rojo de antes. */
+async function expectEdgeAccent(edge: Locator) {
+  await expect
+    .poll(() =>
+      edge.evaluate((el) => {
+        const token = getComputedStyle(el).getPropertyValue('--app-btn').trim();
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--app-btn)';
+        el.parentElement!.appendChild(probe);
+        const want = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return token !== '' && getComputedStyle(el, '::before').backgroundColor === want;
+      }),
+    )
+    .toBe(true);
+}
+
 async function rowHeight(row: Locator): Promise<number> {
   return Math.round((await row.boundingBox())!.height);
 }
@@ -107,6 +124,7 @@ for (const width of [1280, 390]) {
     await expect(fineItem).not.toHaveAttribute('data-overdue', /.*/);
     const edge = lateItem.getByTestId('row-overdue-edge');
     await expect(edge).toBeVisible();
+    await expectEdgeAccent(edge);
     await expect(edge).toHaveAttribute('title', /\S/);
     await expect(fineItem.getByTestId('row-overdue-edge')).toHaveCount(0);
     expect(await rowHeight(lateItem.locator('.gr-row'))).toBe(await rowHeight(fineItem.locator('.gr-row')));
@@ -195,6 +213,7 @@ for (const width of [1280, 390]) {
     await expect(fineItem).not.toHaveAttribute('data-overdue', /.*/);
     const edge = lateItem.getByTestId('row-overdue-edge');
     await expect(edge).toBeVisible();
+    await expectEdgeAccent(edge);
     await expect(edge).toHaveAttribute('title', /\S/);
     await expect(fineItem.getByTestId('row-overdue-edge')).toHaveCount(0);
     expect(await rowHeight(lateItem.locator('.ib-row-btn'))).toBe(await rowHeight(fineItem.locator('.ib-row-btn')));

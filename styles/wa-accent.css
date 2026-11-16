@@ -25,7 +25,8 @@
   inset-block: 0;
   inset-inline-start: 0;
   width: 3px;
-  background: var(--wa-danger, var(--bad-ink));
+  /* El color de la app (pedido del dueño: antes era rojo); fuera de una app, el de peligro. */
+  background: var(--app-btn, var(--wa-danger, var(--bad-ink)));
 }
 @media (hover: none) {
   .wa-overdue-edge { pointer-events: none; }
