@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { DocsBlock } from './docs-types';
 import { contentDisposition, isInlineImageMime, isInlineMediaMime, isPdfMime } from './docs-files';
 import { localUploadPath, migrateLegacyUploads } from './uploads';
+import { isFileUrl, MAX_RESPONSE_CHUNK, openFile, ownedFileRow, parseByteRange, type FileOwner } from './files/store';
 
 /** "bytes=0-1023" → [inicio, fin] dentro de `size`; null si no hay rango válido. */
 export function parseRange(header: string | null, size: number): [number, number] | null {
@@ -32,7 +33,7 @@ export function parseRange(header: string | null, size: number): [number, number
  */
 export async function fileBlockResponse(
   block: DocsBlock & { url: string },
-  opts: { download?: boolean; range?: string | null } = {},
+  opts: { download?: boolean; range?: string | null; owner?: FileOwner | null } = {},
 ): Promise<NextResponse | null> {
   const mime = block.mime || 'application/octet-stream';
   const pdf = isPdfMime(mime);
@@ -50,6 +51,23 @@ export async function fileBlockResponse(
     // El permiso se chequea en cada request: nada de caches compartidos.
     'Cache-Control': 'private, max-age=300',
   };
+
+  if (isFileUrl(block.url)) {
+    // Storage privado (lib/files/store.ts): la ruta ya chequeó el acceso al
+    // registro; además el archivo tiene que ser de su workspace (un bloque lo
+    // escribe el cliente: nada de ids de archivos ajenos).
+    const row = await ownedFileRow(block.url, opts.owner);
+    if (!row) return null;
+    const range = parseByteRange(opts.range ?? null, row.size);
+    if (range === 'invalid') {
+      return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${row.size}` } });
+    }
+    const opened = await openFile(row, range, { cap: range ? MAX_RESPONSE_CHUNK : undefined }).catch(() => null);
+    if (!opened) return null;
+    const out: Record<string, string> = { ...headers, 'Content-Length': String(Math.max(0, opened.end - opened.start + 1)) };
+    if (opened.partial) out['Content-Range'] = `bytes ${opened.start}-${opened.end}/${opened.size}`;
+    return new NextResponse(opened.stream as BodyInit, { status: opened.partial ? 206 : 200, headers: out });
+  }
 
   if (block.url.startsWith('/uploads/')) {
     // Disco local (UPLOADS_DIR, o public/uploads de versiones anteriores).
@@ -82,11 +100,17 @@ export async function fileBlockResponse(
   return new NextResponse(res.body as BodyInit, { status: res.status === 206 ? 206 : 200, headers: out });
 }
 
-/** Carpetas cuyas URLs son públicas por diseño (como las de Blob): se sirven con la URL. */
+/** Carpetas cuyas URLs son públicas por diseño: se sirven con la URL. */
 // workspace: logos de los workspaces (se ven en el switcher y en los emails de invitación).
 // social: las redes (Meta, Threads) bajan las fotos y videos por URL para publicarlos.
 // shop: fotos de productos y logos de tiendas (se ven en la tienda pública).
-const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots', 'workspace', 'shop', 'social']);
+const PUBLIC_UPLOAD_FOLDERS = new Set(['workspace', 'shop', 'social']);
+/**
+ * Carpetas de antes que ya no son públicas (adjuntos de chats, Track, tareas
+ * del CRM, Robots): se sirven solo si la migración registró el archivo, con
+ * el permiso de su fila (lib/files/serve.ts).
+ */
+const REGISTERED_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots']);
 /** Lo único que se muestra en línea: imágenes raster, audio y video. El resto se descarga. */
 const INLINE_BY_EXT: Record<string, string> = {
   png: 'image/png',
@@ -125,15 +149,21 @@ export function localUploadHeaders(name: string): Record<string, string> {
 
 /**
  * /uploads/<carpeta>/<nombre> (next.config lo reescribe acá antes de mirar
- * public/). Solo las carpetas de URLs públicas por diseño (Chat, Track,
- * tareas del CRM, Robots); Docs, Notes, Board y media del CRM pasan siempre
- * por sus rutas con chequeo de permisos y acá dan 404.
+ * public/). Las carpetas públicas por diseño (logos, tienda, redes) se sirven
+ * con la URL; las de adjuntos de antes, solo registradas y con permiso; el
+ * resto (Docs, Notes, Board, media del CRM) pasa siempre por sus rutas con
+ * chequeo de permisos y acá da 404.
  */
-export async function localUploadResponse(segments: string[]): Promise<NextResponse> {
+export async function localUploadResponse(segments: string[], req?: Request): Promise<Response> {
   const notFound = () =>
     new NextResponse('Not found', { status: 404, headers: { 'X-Content-Type-Options': 'nosniff', 'Content-Type': 'text/plain' } });
   if (segments.length !== 2) return notFound();
   const [folder, name] = segments;
+  if (REGISTERED_UPLOAD_FOLDERS.has(folder) && req && /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/.test(name) && !name.includes('..')) {
+    const { fileRowForLegacyKey } = await import('./files/store');
+    const { serveFileRow } = await import('./files/serve');
+    return serveFileRow(req, await fileRowForLegacyKey(`uploads/${folder}/${name}`).catch(() => null));
+  }
   if (!PUBLIC_UPLOAD_FOLDERS.has(folder)) return notFound();
   await migrateLegacyUploads();
   const file = localUploadPath(`/uploads/${folder}/${name}`);

@@ -283,14 +283,15 @@ export function absoluteUrl(url: string): string {
 }
 
 /**
- * Copia pública aparte, solo para una acción confirmada que manda el archivo
- * afuera (WhatsApp baja la media de una URL). Como las subidas de Groups.
+ * Copia aparte, solo para una acción confirmada que manda el archivo a un
+ * chat de Lines. Como las subidas de Lines: privada (la ve la persona; el
+ * chat la sirve por su ruta) y Lines la lee del storage al mandarla.
  */
-async function publicCopy(a: AttachmentRow): Promise<string> {
+async function publicCopy(owner: AssistantOwner, a: AttachmentRow): Promise<string> {
   const bytes = await readAttachmentBytes(a);
   if (!bytes) throw new AttachmentRefError(a.id);
   try {
-    return await saveUpload('chat', a.name, a.mime, bytes);
+    return await saveUpload('chat', a.name, a.mime, bytes, { workspaceId: owner.workspaceId, userId: owner.personId, app: 'groups', access: 'user' });
   } catch (err) {
     if (err instanceof UploadError) throw new AttachmentRefError(a.id);
     throw err;
@@ -423,7 +424,7 @@ export async function resolveAttachmentRefs(owner: AssistantOwner, args: Record<
   for (const id of ids) if (!byId.has(id)) throw new AttachmentRefError(id);
   const copies = new Map<string, Promise<string>>();
   const copyOf = (a: AttachmentRow) => {
-    if (!copies.has(a.id)) copies.set(a.id, publicCopy(a));
+    if (!copies.has(a.id)) copies.set(a.id, publicCopy(owner, a));
     return copies.get(a.id)!;
   };
   const walk = async (value: unknown, depth: number): Promise<unknown> => {

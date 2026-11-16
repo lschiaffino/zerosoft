@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'fs';
+import { mkdtempSync, readdirSync, readFileSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -139,9 +139,15 @@ describe('archivos recibidos por Evolution', () => {
     expect(call.body).toEqual({ message: { key: { id: 'IMG3', remoteJid: '5491155550000@s.whatsapp.net', fromMe: false } }, convertToMp4: false });
     const chat = (await listChats(user.id, user.id)).rows[0];
     const msg = (await listMessages(user.id, chat.id))[0];
-    expect(msg.media?.url).toMatch(/^\/uploads\/chat\/.+\.jpe?g$/);
+    // Al navegador va la ruta del mensaje (chequea el acceso al chat), nunca la del storage.
+    expect(msg.media?.url).toBe(`/api/groups/media/${msg.id}`);
     expect(msg.media?.type).toBe('image/jpeg');
-    expect(readFileSync(path.join(dir, 'chat', msg.media!.url.split('/').pop()!))).toEqual(JPEG);
+    const stored = (await getDb().prepare('SELECT media_url FROM groups_messages WHERE id = ?').get(msg.id)) as { media_url: string };
+    expect(stored.media_url).toMatch(/^\/api\/files\/.+\.jpe?g$/);
+    const { readUploadBytes } = await import('@/lib/uploads');
+    expect(await readUploadBytes(stored.media_url, { workspaceId: user.id })).toEqual(JPEG);
+    // Cifrado en disco: el JPEG no aparece en ningún archivo guardado.
+    for (const f of readdirSync(path.join(dir, 'files'))) expect(readFileSync(path.join(dir, 'files', f)).includes(JPEG)).toBe(false);
     expect(readConfig(row).apiKey).toBe('k');
   });
 
@@ -166,8 +172,8 @@ describe('archivos recibidos por Evolution', () => {
 
     fail = false;
     // Lo mismo que hace la ruta de media al abrir el archivo.
-    expect(await storeInboundMedia(row, pending.id, { providerMessageId: 'IMG4', chatId: '5491155550000@s.whatsapp.net', fromMe: false })).toMatchObject({ url: expect.stringMatching(/^\/uploads\/chat\//) });
-    expect((await raw('IMG4')).media_url).toMatch(/^\/uploads\/chat\//);
+    expect(await storeInboundMedia(row, pending.id, { providerMessageId: 'IMG4', chatId: '5491155550000@s.whatsapp.net', fromMe: false })).toMatchObject({ url: expect.stringMatching(/^\/api\/files\//) });
+    expect((await raw('IMG4')).media_url).toMatch(/^\/api\/files\//);
 
     huge = true;
     const big = await raw('IMG5');

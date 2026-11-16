@@ -41,7 +41,7 @@ export function linesStickerSource(viewer: GroupsViewer): StickerSource {
         return {
           rowid: Number(r.rid),
           sha: meta.sha,
-          fetch: async () => (meta.sticker && stored ? readStoredUpload(r.media_url) : null),
+          fetch: async () => (meta.sticker && stored ? readStoredUpload(r.media_url, { workspaceId: viewer.ws }) : null),
         };
       });
     },
@@ -53,7 +53,7 @@ export async function favoriteLinesMessage(viewer: GroupsViewer, messageId: stri
   const msg = await getMessageRow(viewer.ws, messageId);
   if (!msg || !(await canSeeChat(viewer, msg.chat_id))) throw new StickerError('not_found', 404);
   if (!stickerMeta(msg.meta).sticker || !msg.media_url || msg.media_url.startsWith('evo:')) throw new StickerError('invalid_sticker', 400);
-  const data = await readStoredUpload(msg.media_url);
+  const data = await readStoredUpload(msg.media_url, { workspaceId: viewer.ws });
   if (!data) throw new StickerError('not_found', 404);
   return (await addSticker(linesStickerOwner(viewer), data, { favorite: true, source: 'favorite' })).sticker;
 }

@@ -237,9 +237,15 @@ async function readRemoteBody(run: Run, notionId: string, state: PageSyncState):
 
 const MAX_PUSH_FILE = 20 * 1024 * 1024;
 
-async function readStoredFile(url: string): Promise<Buffer | null> {
+async function readStoredFile(url: string, ws: string): Promise<Buffer | null> {
   const { isDocsUploadUrl } = await import('./docs-files');
   if (!isDocsUploadUrl(url)) return null;
+  const { isFileUrl, ownedFileRow, readFileBytes } = await import('./files/store');
+  if (isFileUrl(url)) {
+    // Solo archivos del workspace de la sincronización.
+    const row = await ownedFileRow(url, { workspaceId: ws });
+    return row ? readFileBytes(row, MAX_PUSH_FILE) : null;
+  }
   if (url.startsWith('/uploads/')) {
     const { localUploadPath } = await import('./uploads');
     const file = localUploadPath(url, 'docs');
@@ -255,7 +261,7 @@ async function readStoredFile(url: string): Promise<Buffer | null> {
 /** Sube un archivo de Docs a Notion (File Upload API) y devuelve la referencia para el bloque. */
 async function uploadFile(run: Run, b: DocsBlock): Promise<NotionFileRef | null> {
   if (!b.url) return null;
-  const buf = await readStoredFile(b.url);
+  const buf = await readStoredFile(b.url, run.ws);
   if (!buf || buf.length > MAX_PUSH_FILE) return null;
   const name = (b.name || 'file').slice(0, 200);
   const mime = b.mime || 'application/octet-stream';

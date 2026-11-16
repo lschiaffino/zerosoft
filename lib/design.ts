@@ -15,6 +15,7 @@
  *   (design_file_refs, se escribe al guardar) y, si es un logo del kit, al
  *   workspace.
  */
+import { isFileUrlPath } from './files/url';
 import { randomBytes } from 'crypto';
 import { readFile } from 'fs/promises';
 import { getDb } from './db';
@@ -781,7 +782,7 @@ const BLOB_URL = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/desi
 const LOCAL_URL = /^\/uploads\/design\/[A-Za-z0-9._-]+$/;
 
 export function isDesignUploadUrl(url: string): boolean {
-  return BLOB_URL.test(url) || LOCAL_URL.test(url);
+  return isFileUrlPath(url) || BLOB_URL.test(url) || LOCAL_URL.test(url);
 }
 
 /**
@@ -797,7 +798,7 @@ export async function saveDesignFile(actor: DesignActor, input: { bytes: Uint8Ar
   const ext = mime === 'image/jpeg' ? 'jpg' : mime.slice(6);
   let url: string;
   try {
-    url = await saveUpload('design', `image.${ext}`, mime, Buffer.from(input.bytes));
+    url = await saveUpload('design', `image.${ext}`, mime, Buffer.from(input.bytes), { workspaceId: actor.ws, userId: actor.personId, app: 'design' });
   } catch (err) {
     if (err instanceof UploadError) throw new DesignError(err.code === 'storage_unavailable' ? 'storage_unavailable' : 'file_type_not_allowed', err.status);
     throw err;
@@ -887,6 +888,11 @@ export async function canReadFile(file: DesignFileRow, viewer: { actor: Pick<Des
 
 export async function readDesignFile(file: DesignFileRow): Promise<Uint8Array | null> {
   if (!isDesignUploadUrl(file.url)) return null;
+  if (isFileUrlPath(file.url)) {
+    const { readUploadBytes } = await import('./uploads');
+    const bytes = await readUploadBytes(file.url, { workspaceId: file.workspace_id }, 32 * 1024 * 1024);
+    return bytes ? new Uint8Array(bytes) : null;
+  }
   if (file.url.startsWith('/uploads/')) {
     const path = localUploadPath(file.url, 'design');
     if (!path) return null;

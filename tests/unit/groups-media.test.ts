@@ -298,6 +298,9 @@ describe('cuerpo de la ruta y vista previa', () => {
       width: 10,
       height: 20,
     });
+    // Un archivo privado (/api/files) queda relativo: al mandar se chequea que sea del workspace.
+    expect(mediaFromBody({ url: '/api/files/AAAAAAAAAAAAAAAAAAAAAA/a.png', mimetype: 'image/png', filename: 'a.png' }, req)?.url).toBe('/api/files/AAAAAAAAAAAAAAAAAAAAAA/a.png');
+    expect(() => mediaFromBody({ url: '/api/files/../x', mimetype: 'image/png', filename: 'a.png' }, req)).toThrow(expect.objectContaining({ code: 'invalid_media' }));
     // Una media que vino y no sirve es un 400 (no se manda el texto solo).
     expect(() => mediaFromBody({ url: 'javascript:alert(1)' }, req)).toThrow(expect.objectContaining({ code: 'invalid_media', status: 400 }));
     expect(mediaFromBody(null, req)).toBeNull();
@@ -360,7 +363,8 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     const msg = await sendMessage(user.id, user.id, chat.id, { body: 'la foto', media: { url, mimetype: 'image/png', filename: 'foto.png', width: 1, height: 1 } });
     const call = calls.find((c) => c.url.endsWith('/message/sendMedia/s'))!;
     expect(call.body).toMatchObject({ mediatype: 'image', media: PNG.toString('base64'), fileName: 'foto.jpg', caption: 'la foto' });
-    expect(msg).toMatchObject({ status: 'sent', body: 'la foto', media: { url, type: 'image/png', name: 'foto.png', kind: 'image', size: PNG.length, width: 1, height: 1 } });
+    // Al navegador va la ruta del mensaje (con el acceso al chat), nunca la del archivo.
+    expect(msg).toMatchObject({ status: 'sent', body: 'la foto', media: { url: `/api/groups/media/${msg.id}`, type: 'image/png', name: 'foto.png', kind: 'image', size: PNG.length, width: 1, height: 1 } });
     const row = (await getDb().prepare('SELECT provider_message_id FROM groups_messages WHERE id = ?').get(msg.id)) as { provider_message_id: string };
     expect(row.provider_message_id).toBe('OUT1');
     // Las tildes llegan por webhook y se aplican al mensaje.
@@ -375,6 +379,23 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     const msg = await sendMessage(user.id, user.id, chat.id, { body: 'firmalo', media: { url, mimetype: 'application/pdf', filename: 'Contrato.pdf', size: 2 * MB } });
     expect(calls[0].body).toMatchObject({ mediatype: 'document', media: url, fileName: 'Contrato.pdf', caption: 'firmalo' });
     expect(msg.media).toMatchObject({ kind: 'document', size: 2 * MB, name: 'Contrato.pdf' });
+  });
+
+  it('archivo privado: a Evolution en base64; a la Cloud API, una URL firmada de nuestro dominio (nunca la del storage)', async () => {
+    const { saveUpload } = await import('@/lib/uploads');
+    const { user, chat, calls } = await setup('media-private');
+    const url = await saveUpload('chat', 'foto.png', 'image/png', PNG, { workspaceId: user.id, userId: user.id, app: 'groups', access: 'user' });
+    await sendMessage(user.id, user.id, chat.id, { body: '', media: { url, mimetype: 'image/png', filename: 'foto.png' } });
+    expect(calls.find((c) => c.url.endsWith('/message/sendMedia/s'))!.body).toMatchObject({ media: PNG.toString('base64') });
+
+    const n = await createNumber(user.id, user.id, { provider: 'cloud', config: { phoneNumberId: '123456', accessToken: 'tok', appSecret: 'sec', verifyToken: 'verify-123' } });
+    const cloud = (await getNumberRowById(n.id))!;
+    const cloudChat = await upsertChat(cloud, { providerChatId: '5491155550001', kind: 'dm', name: 'Beto', phone: '5491155550001' });
+    calls.length = 0;
+    await sendMessage(user.id, user.id, cloudChat.id, { body: '', media: { url, mimetype: 'image/png', filename: 'foto.png' } });
+    const link = String((calls.find((c) => c.url.includes('graph.facebook.com'))!.body.image as { link: string }).link);
+    expect(link).toMatch(/^http:\/\/localhost:3000\/api\/files\/[A-Za-z0-9_-]{22}\/foto\.png\?exp=\d+&sig=[A-Za-z0-9_-]{43}$/);
+    expect(link).not.toContain('blob.vercel-storage.com');
   });
 
   it('nota de voz con texto: el audio por sendWhatsAppAudio y el texto aparte', async () => {
@@ -444,10 +465,10 @@ describe('mandar y recibir de punta a punta (Evolution)', () => {
     expect(fromMeCall.body).toEqual({ message: { key: { id: 'P1', remoteJid: '5491155550000@s.whatsapp.net', fromMe: true } }, convertToMp4: false });
     const msgs = await listMessages(user.id, chat.id);
     const [voice, doc, photo, loc] = msgs;
-    expect(voice).toMatchObject({ direction: 'in', media: { kind: 'voice', ptt: true, duration: 9, url: expect.stringMatching(/^\/uploads\/chat\/.+\.ogg$/) } });
+    expect(voice).toMatchObject({ direction: 'in', media: { kind: 'voice', ptt: true, duration: 9, url: `/api/groups/media/${voice.id}` } });
     expect(voice.media?.size).toBe(Buffer.from('OggS-voice').length);
-    expect(doc).toMatchObject({ media: { kind: 'document', name: 'Factura.pdf', pages: 2, url: expect.stringMatching(/^\/uploads\/chat\/.+Factura\.pdf$/) } });
-    expect(photo).toMatchObject({ direction: 'out', authorKind: 'phone', body: 'desde el teléfono', media: { kind: 'image', width: 640, height: 480, url: expect.stringMatching(/^\/uploads\/chat\//) } });
+    expect(doc).toMatchObject({ media: { kind: 'document', name: 'Factura.pdf', pages: 2, url: `/api/groups/media/${doc.id}` } });
+    expect(photo).toMatchObject({ direction: 'out', authorKind: 'phone', body: 'desde el teléfono', media: { kind: 'image', width: 640, height: 480, url: `/api/groups/media/${photo.id}` } });
     expect(photo.media?.pending).toBeUndefined();
     expect(loc).toMatchObject({ media: null, location: { lat: 10, lng: 20, name: 'Oficina' } });
     // meta no repite lo que ya está en media/location.
