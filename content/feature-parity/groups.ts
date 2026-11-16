@@ -272,7 +272,11 @@ const parity: ProductParity = {
       ],
     }),
     row('contacts-crm', 'organize', ['Contacts', 'Contactos', 'Contatos'], 'better', {
-      detail: ['Chats and groups link to CRM contacts and companies, with messages and tickets on the record', 'Chats y grupos se vinculan a contactos y empresas del CRM, con mensajes y tickets en la ficha', 'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha'],
+      detail: [
+        'Chats and groups link to CRM contacts and companies, with messages and tickets on the record. A Contacts section lists each person once across lines (phone and WhatsApp id joined), with their lines, groups, last message and HubSpot contact and company; create in HubSpot looks the phone up first and adds the contact to the company of their groups. Tested with the fake provider and a simulated HubSpot',
+        'Chats y grupos se vinculan a contactos y empresas del CRM, con mensajes y tickets en la ficha. Una sección Contactos muestra cada persona una vez entre líneas (teléfono e id de WhatsApp unidos), con sus líneas, grupos, último mensaje y su contacto y empresa de HubSpot; crear en HubSpot busca el teléfono antes y suma el contacto a la empresa de sus grupos. Probado con el proveedor falso y un HubSpot simulado',
+        'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha. Uma seção Contatos mostra cada pessoa uma vez entre linhas (telefone e id do WhatsApp unidos), com linhas, grupos, última mensagem e o contato e a empresa no HubSpot; criar no HubSpot busca o telefone antes e coloca o contato na empresa dos grupos dele. Testado com o provedor falso e um HubSpot simulado',
+      ],
     }),
     row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'have', {
       detail: [

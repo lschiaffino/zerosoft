@@ -382,20 +382,31 @@ function renderStart(panel: HTMLElement) {
     // La llave prendida en Ajustes del Sistema puede ser de otra copia de zerosoft (una versión
     // anterior, u otra firma): siempre se explica y siempre está "Restablecer permiso", que borra
     // esa entrada y la pide de nuevo para esta copia.
-    const why = v.accessibilityHint === 'updated' ? s('accessibilityUpdated') : v.accessibilityHint === 'adhoc' ? s('accessibilityAdhoc') : s('accessibilityStaleAny');
+    // Salvo "restart": la app se reemplazó en disco estando abierta y macOS no reconoce el permiso
+    // de este proceso. Ahí solo sirve reiniciar (restablecer borraría la entrada buena).
+    const restart = v.accessibilityHint === 'restart';
+    const why = restart
+      ? s('accessibilityRestart')
+      : v.accessibilityHint === 'updated'
+        ? s('accessibilityUpdated')
+        : v.accessibilityHint === 'adhoc'
+          ? s('accessibilityAdhoc')
+          : s('accessibilityStaleAny');
     const help = h(
       'span',
       {},
       s('stepAccessibilityHelp'),
-      granted ? null : h('span', { class: 'step-note', id: 'acc-hint' }, why),
+      granted ? null : h('span', { class: 'step-note', id: 'acc-hint', 'data-hint': v.accessibilityHint }, why),
       granted ? null : h('span', { class: 'step-note muted', id: 'acc-copy' }, thisCopy()),
       v.signature === 'adhoc' ? h('span', { class: 'step-note muted' }, s('accessibilityAdhocUpdates')) : null,
     );
-    const buttons = [
-      h('button', { class: 'btn', type: 'button', onclick: () => void ask('accessibility') }, s('openSystemSettings')),
-      h('button', { class: 'btn', type: 'button', id: 'acc-reset', onclick: () => void ask('accessibility-reset') }, s('accessibilityReset')),
-      h('button', { class: 'btn link', type: 'button', onclick: () => void reload(false) }, s('checkAgain')),
-    ];
+    const buttons = restart
+      ? [h('button', { class: 'btn primary', type: 'button', id: 'acc-restart', onclick: () => void api.updateRestart() }, s('restartApp'))]
+      : [
+          h('button', { class: 'btn', type: 'button', onclick: () => void ask('accessibility') }, s('openSystemSettings')),
+          h('button', { class: 'btn', type: 'button', id: 'acc-reset', onclick: () => void ask('accessibility-reset') }, s('accessibilityReset')),
+          h('button', { class: 'btn link', type: 'button', onclick: () => void reload(false) }, s('checkAgain')),
+        ];
     // Con tres botones van abajo, en su fila: al lado del título lo aplastan.
     step(granted, s('stepAccessibility'), help, [], granted ? undefined : h('div', { class: 'row step-row' }, ...buttons));
   }
@@ -882,7 +893,16 @@ function renderPermissions(panel: HTMLElement) {
     // Qué hace la app con cada permiso, cuándo lo usó y qué guarda y manda.
     h('p', {}, h('button', { class: 'btn link', type: 'button', id: 'perm-privacy', style: 'padding:0', onclick: () => go('privacy') }, `${s('tabPrivacy')} →`)),
   );
-  if (v.permissions.accessibility !== 'granted') panel.append(h('p', { class: 'notice', id: 'perm-why' }, s('accessibilityStaleAny')));
+  if (v.accessibilityHint === 'restart') {
+    panel.append(
+      h(
+        'div',
+        { class: 'notice update-banner', id: 'perm-why', 'data-hint': 'restart', role: 'status' },
+        h('span', {}, s('accessibilityRestart')),
+        h('button', { class: 'btn primary', type: 'button', id: 'perm-restart', onclick: () => void api.updateRestart() }, s('restartApp')),
+      ),
+    );
+  } else if (v.permissions.accessibility !== 'granted') panel.append(h('p', { class: 'notice', id: 'perm-why' }, s('accessibilityStaleAny')));
   // Mientras falte algo, se relee (los cambios en Ajustes del Sistema no avisan).
   const missing = (['accessibility', 'microphone'] as const).some((k) => v.permissions[k] !== 'granted');
   if (missing) poll = window.setInterval(() => void reload(false), 2000);

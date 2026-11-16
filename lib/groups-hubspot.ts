@@ -385,6 +385,7 @@ async function clearWorkspaceData(ws: string): Promise<void> {
   const db = getDb();
   await db.prepare('DELETE FROM groups_hubspot_links WHERE user_id = ?').run(ws);
   await clearWorkspaceGroupCompanies(ws);
+  await db.prepare('DELETE FROM groups_contact_links WHERE user_id = ?').run(ws);
   await db.prepare('DELETE FROM groups_hubspot_matches WHERE user_id = ?').run(ws);
   await db.prepare('DELETE FROM groups_hubspot_notes WHERE user_id = ?').run(ws);
   for (const table of ['groups_hubspot_props', 'groups_hubspot_prop_groups', 'groups_hubspot_companies', 'groups_hubspot_values', 'groups_hubspot_sync_log', 'groups_hubspot_suggest']) {
@@ -767,6 +768,52 @@ async function findPhoneMatches(conn: Conn, phone: string): Promise<HubspotSugge
     out.push({ contact, company });
   }
   return out;
+}
+
+/**
+ * Contactos de Lines (lib/groups-contacts.ts): los de HubSpot con este
+ * teléfono, cada uno con su empresa. Se busca siempre antes de crear uno.
+ */
+export async function hubspotContactsByPhone(ws: string, phone: string): Promise<HubspotSuggestion[]> {
+  const conn = await requireConn(ws);
+  const out = await findPhoneMatches(conn, phone);
+  await markUsed(ws).catch(() => null);
+  return out;
+}
+
+/** Un registro leído de HubSpot (un id de otra cuenta no existe: 404). */
+export async function readHubspotRecord(ws: string, type: HubspotType, id: string): Promise<HubspotRecord> {
+  return fetchRecord(await requireConn(ws), type, id);
+}
+
+/**
+ * Crea un contacto en HubSpot con el nombre y el teléfono de WhatsApp. Antes
+ * busca por teléfono: si ya hay uno, no crea nada y devuelve los que hay
+ * (`existing`) para vincular ese. Con `companyId` (la empresa de los grupos
+ * donde está), lo asocia a esa empresa: nunca crea una empresa.
+ */
+export async function createHubspotContact(
+  ws: string,
+  input: { name: string; phone: string; companyId?: string },
+): Promise<{ created: HubspotRecord | null; existing: HubspotSuggestion[] }> {
+  const conn = await requireConn(ws);
+  if (!conn.scopes.includes('crm.objects.contacts.write')) throw new HubspotError('hubspot_missing_scopes:crm.objects.contacts.write');
+  const phone = digitsOf(input.phone);
+  if (phone.length < 8 || phone.length > 15) throw new HubspotError('invalid_phone');
+  const existing = await findPhoneMatches(conn, phone);
+  if (existing.length) return { created: null, existing };
+  const name = String(input.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const [first, ...rest] = name ? name.split(' ') : [''];
+  const companyId = input.companyId && /^\d{1,20}$/.test(input.companyId) ? input.companyId : '';
+  const raw = await hs(conn, 'POST', '/crm/v3/objects/contacts', {
+    properties: { ...(first ? { firstname: first } : {}), ...(rest.length ? { lastname: rest.join(' ') } : {}), phone: `+${phone}`, hs_whatsapp_phone_number: `+${phone}` },
+    // 279: contacto → empresa (la asociación por defecto de HubSpot).
+    ...(companyId ? { associations: [{ to: { id: companyId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 279 }] }] } : {}),
+  });
+  await markUsed(ws).catch(() => null);
+  const id = String((raw as RawObject).id ?? '');
+  if (!/^\d{1,20}$/.test(id)) throw new HubspotError('hubspot_error', 502);
+  return { created: await fetchRecord(conn, 'contact', id), existing: [] };
 }
 
 interface MatchRow {

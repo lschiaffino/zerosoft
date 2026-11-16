@@ -500,6 +500,20 @@ export const fakeHubspotFetch: FetchLike = async (url, init) => {
     o.properties.hs_lastmodifieddate = at;
     return json(200, { id: o.id, properties: { ...patch, hs_lastmodifieddate: at }, updatedAt: at });
   }
+  if (table === 'contacts' && !objects[2] && method === 'POST') {
+    // Alta de un contacto (Lines › Contactos, "Crear en HubSpot").
+    const noWrite = need('crm.objects.contacts.write');
+    if (noWrite) return noWrite;
+    const id = String(++fake.seq);
+    const props: Props = {};
+    for (const [k, v] of Object.entries((body.properties ?? {}) as Record<string, unknown>)) props[k] = String(v ?? '');
+    // Asociada a una empresa al crearla: queda como su empresa principal.
+    const to = (Array.isArray(body.associations) ? (body.associations as Array<{ to?: { id?: unknown } }>) : []).map((a) => String(a.to?.id ?? ''));
+    const company = to.map((c) => fake.companies.get(c)).find(Boolean);
+    if (company) Object.assign(props, { associatedcompanyid: company.id, company: company.properties.name ?? '' });
+    fake.contacts.set(id, { id, properties: props });
+    return json(201, { id, properties: props });
+  }
   if (objects[2] === 'search' && method === 'POST') {
     const properties = Array.isArray(body.properties) ? (body.properties as string[]) : [];
     const limit = Math.min(Number(body.limit) || 10, 100);
