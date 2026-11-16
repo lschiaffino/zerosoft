@@ -218,7 +218,9 @@
     "deleteBody": "Se borran sus mensajes. Los cambios que ya confirmaste quedan en las apps.",
     "loadError": "No se pudieron cargar tus charlas.",
     "retry": "Probar de nuevo",
-    "actionsFor": "Acciones de {title}"
+    "actionsFor": "Acciones de {title}",
+    "showChats": "Ver charlas",
+    "hideChats": "Volver a la charla"
   },
   "home": {
     "title": "Preguntale al asistente",
@@ -393,5 +395,10 @@
     "resize": "Ancho del panel del asistente",
     "resizeHint": "Arrastrá para cambiar el ancho. Doble clic lo vuelve al original.",
     "more": "Más"
-  }
+  },
+  "rows": {
+    "showAll": "Ver todo ({count})",
+    "showMore": "Mostrar {count} más"
+  },
+  "jumpToLatest": "Ir al final"
 }
