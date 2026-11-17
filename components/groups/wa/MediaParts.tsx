@@ -6,7 +6,7 @@ import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars }
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
-import { mediaBox, mediaBoxStyle, placeholderBox } from './media-box';
+import { mediaBox, mediaBoxStyle, mediaFit, placeholderBox } from './media-box';
 import { formatPhone } from '@/components/inbox/wa/util';
 
 const SPEEDS = [1, 1.5, 2];
@@ -592,10 +592,13 @@ export function ImageView({
   onOpen,
   onRetry,
   retryKey,
+  caption,
 }: {
   url: string;
   alt: string;
   sticker?: boolean;
+  /** Lleva texto abajo: la foto ocupa el ancho entero (mediaBox) y el texto se lee en renglones normales. */
+  caption?: boolean;
   thumbnail?: string;
   width?: number;
   height?: number;
@@ -607,6 +610,8 @@ export function ImageView({
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Medidas leídas del archivo cuando el mensaje no las trae (con texto abajo hacen falta para la caja).
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   // La URL que se dibuja: la del mensaje, o la que trajo "bajar de nuevo".
   const [src, setSrc] = useState(url);
   useEffect(() => {
@@ -642,8 +647,11 @@ export function ImageView({
     );
   }
   // Sin medidas, mientras carga: el lugar estándar (la burbuja no queda angosta); al cargar, su tamaño real.
-  const box = sticker ? null : (boxFor(width, height) ?? (loaded ? null : placeholderBox()));
-  const style = boxStyle(box);
+  const w = width || natural?.w;
+  const h = height || natural?.h;
+  const box = sticker ? null : (boxFor(w, h, { caption }) ?? (loaded && !caption ? null : placeholderBox()));
+  const fit = sticker ? 'cover' : mediaFit(w, h, caption);
+  const style = box ? { ...boxStyle(box), ...(fit === 'contain' ? { ['--wa-media-fit' as string]: 'scale-down' } : {}) } : undefined;
   const img = (
     <>
       {thumbnail && !loaded && (
@@ -659,6 +667,8 @@ export function ImageView({
         className={loaded ? 'is-loaded' : ''}
         onLoad={(e) => {
           setLoaded(true);
+          const el = e.currentTarget;
+          if (!(width && height) && el.naturalWidth > 0 && el.naturalHeight > 0) setNatural({ w: el.naturalWidth, h: el.naturalHeight });
           onLoad?.(e);
         }}
         onError={() => setFailed(true)}

@@ -8,6 +8,7 @@ import {
   appendLocalChunk,
   csvToDatabaseBlock,
   localZipRef,
+  storedZipRef,
   notionName,
   planNotionPages,
   attachRowBodies,
@@ -272,6 +273,35 @@ describe('Notion: job de punta a punta (subida por partes)', () => {
     await startImportJob((await getImportJob(job.id))!);
     const done = await runToEnd(job.id);
     expect(done.report).toMatchObject({ pages: 1 });
+  });
+
+  it('zip subido privado (/api/files): se lee del storage privado, las partes extraídas también quedan privadas y todo se borra al terminar', async () => {
+    const prevUploads = process.env.UPLOADS_DIR;
+    process.env.UPLOADS_DIR = await mkdtemp(path.join(os.tmpdir(), 'zs-notion-private-'));
+    try {
+      const u = await makeUser('notion-private');
+      const inner = buildZip([{ name: `${HOME}.md`, data: '# Home\n\nPrivado' }]);
+      // La parte comprimida (deflate) se extrae a otro archivo: tiene que ir al storage privado.
+      const outer = buildZip([{ name: 'Export-Part-1.zip', data: inner, deflate: true }]);
+      const { putFile } = await import('@/lib/files/store');
+      const row = await putFile(outer, { workspaceId: u.id, userId: u.id, app: 'docs', folder: 'imports', access: 'internal', name: 'notion.zip', mime: 'application/zip' });
+      const job = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion', status: 'fetching' });
+      await getDb().prepare('UPDATE import_jobs SET payload = ? WHERE id = ?').run(storedZipRef(row.id), job.id);
+      const prev = await runToEnd(job.id);
+      expect(prev.preview).toMatchObject({ pages: 1, parts: 1 });
+      const parts = (await getDb().prepare("SELECT ref FROM stored_files WHERE workspace_id = ? AND folder = 'imports'").all(u.id)) as Array<{ ref: string }>;
+      // El zip subido y la parte extraída, los dos en el storage de archivos (nada en Blob público).
+      expect(parts.length).toBe(2);
+      await startImportJob((await getImportJob(job.id))!);
+      const done = await runToEnd(job.id);
+      expect(done.report).toMatchObject({ pages: 1 });
+      expect((await getImportJobRow(job.id))?.payload).toBeNull();
+      const left = (await getDb().prepare("SELECT COUNT(*) AS n FROM stored_files WHERE workspace_id = ? AND folder = 'imports'").get(u.id)) as { n: number };
+      expect(Number(left.n)).toBe(0);
+    } finally {
+      if (prevUploads === undefined) delete process.env.UPLOADS_DIR;
+      else process.env.UPLOADS_DIR = prevUploads;
+    }
   });
 
   it('un archivo que no es zip falla con invalid_zip', async () => {

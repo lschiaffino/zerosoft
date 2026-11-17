@@ -22,11 +22,10 @@
   "when": {
     "title": { "snooze": "Snooze until", "followUp": "Remind me if there is no reply", "sendLater": "Send later" },
     "followUpHelp": "If they have not written back by then, the chat comes back to the top of your inbox.",
-    "preset": { "later": "Later today", "tonight": "This evening", "tomorrow": "Tomorrow morning", "weekend": "This weekend", "nextWeek": "Next week", "inWeek": "In a week" },
-    "custom": "Pick a date and time",
     "confirm": "Set",
-    "cancel": "Cancel",
-    "pastError": "Pick a time in the future."
+    "confirmSend": "Schedule",
+    "confirmSnooze": "Snooze",
+    "cancel": "Cancel"
   },
   "composer": {
     "snippets": "Snippets",
@@ -90,6 +89,10 @@
     "archivedBack": "Back to the inbox",
     "woke": "Back",
     "noReply": "No reply",
+    "overdueSnooze": "Overdue: back from snooze",
+    "overdueSnoozeSince": "Overdue: back from snooze since {when}",
+    "overdueFollowUp": "Overdue: no reply by the reminder",
+    "overdueFollowUpSince": "Overdue: no reply by the reminder on {when}",
     "select": "Select {name}",
     "pinned": "Pinned",
     "draft": "Draft:",
@@ -259,6 +262,8 @@
     "unread": "Unread",
     "pin": "Pin",
     "unpin": "Unpin",
+    "snooze": "Snooze",
+    "unsnooze": "Unsnooze",
     "more": "More",
     "archive": "Archive",
     "unarchive": "Unarchive",
@@ -338,6 +343,17 @@
     "moveFilter": "Filter folders"
   },
   "settings": {
+    "hubspot": {
+      "intro": "Your workspace HubSpot. Link or create contacts from each 1:1 chat.",
+      "notConnected": "Your workspace has no HubSpot connected. An admin connects it in the Lines settings.",
+      "linesLink": "Open Lines integrations",
+      "statusOn": "Connected",
+      "statusOff": "Not connected",
+      "autoCreate": "Create the HubSpot contact when a new 1:1 chat comes in",
+      "autoCreateHelp": "Only for your Inbox and for chats that start after you turn this on. If a HubSpot contact already has that number, nothing is created.",
+      "needsScope": "The workspace token is missing these scopes to create contacts: {scopes}.",
+      "saved": "Saved"
+    },
     "title": "Inbox settings",
     "subtitle": "Your accounts, folders, snippets and imports. Everything here is private to you: the workspace and its admins never see it.",
     "gmailResult": {

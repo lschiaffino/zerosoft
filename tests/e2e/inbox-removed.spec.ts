@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox: "Remove from Inbox" deja el chat en Archived › Removed from Inbox
@@ -41,7 +42,7 @@ async function shot(page: Page, name: string) {
 }
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
@@ -244,7 +245,7 @@ test('Lines: eliminar chat, deshacer, Archivados › Eliminados y recuperar (128
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').first().click();
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').first().click();
       await page.getByTestId('lines-deleted-entry').click();
       await expect(row).toBeVisible();
       expect(await overflow(page)).toBeLessThanOrEqual(1);

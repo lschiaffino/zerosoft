@@ -3,8 +3,11 @@
  * navegador (encabezados del CSV antes de mapear columnas).
  */
 
-/** Parser CSV mínimo (comillas, comas y saltos de línea dentro de comillas). */
-export function parseCsv(text: string): string[][] {
+/**
+ * Parser CSV mínimo (comillas, separadores y saltos de línea dentro de
+ * comillas). `delimiter` es ',' salvo que se pida ';' (Excel en es y pt).
+ */
+export function parseCsv(text: string, delimiter: ',' | ';' = ','): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
@@ -19,7 +22,7 @@ export function parseCsv(text: string): string[][] {
       } else if (ch === '"') quoted = false;
       else cell += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === ',') {
+    else if (ch === delimiter) {
       row.push(cell);
       cell = '';
     } else if (ch === '\n' || ch === '\r') {

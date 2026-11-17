@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Foco tranquilo en Inbox y Lines (lib/kbd-nav.ts, styles/calm-focus.css).
@@ -71,7 +72,7 @@ function expectRing(f: Awaited<ReturnType<typeof focused>>) {
 }
 
 async function inboxWithChats(request: APIRequestContext, tag: string): Promise<{ folderName: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const names = [`Chat uno ${tag}`, `Chat dos ${tag}`, `Chat tres ${tag}`];

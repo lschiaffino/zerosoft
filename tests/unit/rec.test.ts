@@ -440,13 +440,84 @@ describe('vistas, comentarios y avisos', () => {
     const a = await getAnalytics(owner, v.id);
     expect([a.views, a.unique, a.avgPct, a.completed, a.ctaClicks]).toEqual([4, 3, 57, 1, 1]);
     expect(a.viewers.find((x) => x.viewerKey === 'a:caro')?.pct).toBe(20);
-    expect(a.retention.length).toBe(20);
+    expect(a.retention.length).toBe(50);
     expect(a.retention[0]).toBe(100);
     // La analítica es de quien administra.
     await expect(getAnalytics(mateActor(), v.id)).rejects.toBeTruthy();
     expect(a.viewers.find((x) => x.name === 'Beto')?.signedIn).toBe(true);
     const notes = (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'rec_view' AND source_id = ?").all('rec-owner', v.id)) as Array<{ title: string }>;
     expect(notes.length).toBe(3);
+  });
+
+  it('guarda lugar, dispositivo y origen sin IP ni user agent, numera espectadores y cuenta re-vistas', async () => {
+    const v = await readyVideo(owner, 'Lugar', 100);
+    const ctx = { country: 'AR', region: 'X', city: 'Córdoba', device: 'mobile' as const, browser: 'Safari', os: 'iOS', referrer: 'mail.example.com' };
+    const anon1 = { key: 'a:lugar-1', userId: null, name: '', isAuthor: false };
+    const anon2 = { key: 'a:lugar-2', userId: null, name: '', isAuthor: false };
+    const member1 = { key: 'u:rec-member', userId: 'rec-member', name: '', isAuthor: false };
+    const one = await trackRecView(v, anon1, { duration: 100, context: ctx });
+    // Re-ve el tramo 0–20 tres veces: 60 s reproducidos en los primeros 10 tramos (2 s cada uno).
+    const heat = Array.from({ length: 50 }, (_, i) => (i < 10 ? 6 : 0));
+    await trackRecView(v, anon1, { viewId: one.viewId!, watched: 60, position: 20, duration: 100, ranges: [[0, 20]], heat });
+    // Un ping con menos no baja lo acumulado; uno inflado se topa.
+    await trackRecView(v, anon1, { viewId: one.viewId!, watched: 60, position: 20, duration: 100, heat: heat.map(() => 1) });
+    await trackRecView(v, anon2, { duration: 100, context: { ...ctx, country: 'UY', city: 'Montevideo', device: 'desktop', referrer: '' } });
+    await trackRecView(v, member1, { duration: 100 });
+    // Vuelve el primero: mismo número.
+    await trackRecView(v, anon1, { duration: 100 });
+    const raw = (await getDb()
+      .prepare('SELECT viewer_key, viewer_no, ip_hash, user_agent, country, city, device, heat FROM rec_views WHERE video_id = ? ORDER BY started_at, rowid')
+      .all(v.id)) as Array<{ viewer_key: string; viewer_no: number; ip_hash: string; user_agent: string; country: string; city: string; device: string; heat: string | null }>;
+    expect(raw.every((r) => r.ip_hash === '' && r.user_agent === '')).toBe(true);
+    expect(raw.filter((r) => r.viewer_key === 'a:lugar-1').map((r) => r.viewer_no)).toEqual([1, 1]);
+    expect(raw.find((r) => r.viewer_key === 'a:lugar-2')?.viewer_no).toBe(2);
+    expect(raw.find((r) => r.viewer_key === 'u:rec-member')?.viewer_no).toBe(3);
+    const firstHeat = JSON.parse(raw[0].heat!) as number[];
+    expect(firstHeat[0]).toBe(6);
+    expect(firstHeat[20]).toBe(1);
+
+    const a = await getAnalytics(owner, v.id);
+    expect([a.views, a.unique]).toEqual([4, 3]);
+    const anon = a.viewers.find((x) => x.viewerKey === 'a:lugar-1')!;
+    expect([anon.viewerNo, anon.name, anon.country, anon.city, anon.device, anon.browser, anon.referrer, anon.views]).toEqual([1, '', 'AR', 'Córdoba', 'mobile', 'Safari', 'mail.example.com', 2]);
+    // Con cuenta y sin nombre en la vista: el de la cuenta.
+    expect(a.viewers.find((x) => x.viewerKey === 'u:rec-member')?.name).toBe('Member');
+    expect(a.countries).toEqual([
+      { name: 'AR', count: 1 },
+      { name: 'UY', count: 1 },
+      { name: 'unknown', count: 1 },
+    ]);
+    expect(a.sources.find((x) => x.name === 'direct')?.count).toBe(2);
+    expect(a.plays[0]).toBeGreaterThan(a.retention[0] / 100);
+    expect(a.days.length).toBeGreaterThanOrEqual(7);
+    expect(a.days[a.days.length - 1].count).toBe(4);
+    expect(a.sampled).toBeNull();
+  });
+
+  it('la migración pasa el user agent viejo a dispositivo, borra user agent e IP y numera (dos veces da igual)', async () => {
+    const v = await readyVideo(owner, 'Migración', 100);
+    const ins = (key: string, at: string, ua: string) =>
+      getDb()
+        .prepare(
+          `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_agent, ip_hash, started_at, last_ping_at) VALUES (?, ?, ?, ?, ?, 'abc123', ?, ?)`,
+        )
+        .run(crypto.randomUUID(), v.id, v.workspace_id, key, ua, at, at);
+    await ins('a:m2', '2026-11-02 10:00:00', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1');
+    await ins('a:m1', '2026-11-01 10:00:00', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await ins('a:m1', '2026-11-03 10:00:00', '');
+    const { getClient } = await import('@/lib/db');
+    const { recViewContextUp } = await import('@/lib/schema/rec-view-context-migration');
+    await recViewContextUp(getClient());
+    await recViewContextUp(getClient());
+    const rows = (await getDb()
+      .prepare('SELECT viewer_key, viewer_no, device, browser, os, user_agent, ip_hash FROM rec_views WHERE video_id = ? ORDER BY started_at')
+      .all(v.id)) as Array<{ viewer_key: string; viewer_no: number; device: string; browser: string; os: string; user_agent: string; ip_hash: string }>;
+    expect(rows.map((r) => [r.viewer_key, r.viewer_no, r.device, r.os])).toEqual([
+      ['a:m1', 1, 'desktop', 'Windows'],
+      ['a:m2', 2, 'mobile', 'iOS'],
+      ['a:m1', 1, '', ''],
+    ]);
+    expect(rows.every((r) => r.user_agent === '' && r.ip_hash === '')).toBe(true);
   });
 
   it('comentarios y reacciones con el segundo, respuestas, borrar y aviso al autor', async () => {

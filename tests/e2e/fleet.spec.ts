@@ -174,3 +174,35 @@ test('chat: la respuesta queda en cola, el Stop hook la entrega y cambian las ti
   expect(overflow).toBeLessThanOrEqual(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('Inbox y Lines: la fila Agentes abre los chats con los agentes', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const s = `e2e-${uid()}`;
+  const first = await hook(request, { event: 'Notification', session: s, project: 'web', text: 'Claude is waiting for your input', detail: 'permission_prompt' });
+  await page.goto('/en/app/fleet/settings#link', { waitUntil: 'networkidle' });
+  const inbox = page.getByTestId('fleet-mirror-inbox');
+  if (!(await inbox.isChecked())) await inbox.check();
+  const lines = page.getByTestId('fleet-mirror-lines');
+  if (!(await lines.isChecked())) await lines.check();
+  await expect
+    .poll(async () => ((await (await request.get('/api/fleet/prefs')).json()) as { prefs: { mirrorInbox: boolean; mirrorLines: boolean } }).prefs)
+    .toMatchObject({ mirrorInbox: true, mirrorLines: true });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const row = page.getByTestId('fleet-agents-row');
+  await expect(row).toBeVisible();
+  await shot(page, 'inbox-row');
+  await row.click();
+  await expect(page).toHaveURL(/\/app\/inbox\/agents/);
+  await page.locator(`[data-testid="fleet-chat-row"][data-session="${first.session}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`/app/inbox/agents/${first.session}`), { timeout: 30_000 });
+  await expect(page.getByTestId('fleet-thread')).toBeVisible();
+  await shot(page, 'inbox-agents');
+
+  await page.goto('/en/app/lines/agents', { waitUntil: 'networkidle' });
+  await page.locator(`[data-testid="fleet-chat-row"][data-session="${first.session}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`/app/lines/agents\\?s=${first.session}`), { timeout: 30_000 });
+  await expect(page.getByTestId('fleet-composer')).toBeVisible();
+  await shot(page, 'lines-agents');
+  expect(errors, errors.join('\n')).toEqual([]);
+});

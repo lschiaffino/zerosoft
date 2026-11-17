@@ -13,6 +13,9 @@
  * BLOB_READ_WRITE_TOKEN, ENCRYPTION_KEY / NEXTAUTH_SECRET o FILES_KEY, y
  * FILES_BLOB_READ_WRITE_TOKEN si hay store privado). Idempotente: se puede
  * cortar y volver a correr. Sin --apply es --dry-run.
+ *
+ * En producción, sin acceso a esas variables desde afuera: el mismo trabajo de a tandas desde el cron, con
+ * MAINTENANCE_JOBS=files-migrate:dry (o files-scheduled:dry, después :apply y :apply-delete). Ver lib/maintenance-jobs.ts.
  */
 import { ensureMigrated, getClient } from '../lib/db';
 import { fileBackend } from '../lib/files/store';

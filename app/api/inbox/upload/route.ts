@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server';
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
-import { iJson, inboxOwner, withOwner } from '@/lib/inbox/http';
-import { MAX_IMPORT_BYTES } from '@/lib/inbox/import-jobs';
+import { iJson, withOwner } from '@/lib/inbox/http';
 import { MAX_SCHEDULED_MEDIA } from '@/lib/inbox/schedule';
 import { InboxError } from '@/lib/inbox/types';
 import { limitByIp } from '@/lib/rate-limit';
@@ -11,9 +8,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-/** Tipos de archivo de un mensaje programado (los que WhatsApp manda como foto, video, audio o documento). */
-const MEDIA_TYPES = ['image/*', 'video/*', 'audio/*', 'application/pdf', 'application/zip', 'text/plain', 'application/msword', 'application/vnd.*', 'application/octet-stream'];
-
 /** Cómo subir: directo a Vercel Blob (archivos grandes) o por esta ruta (servidor propio). */
 export async function GET() {
   // 'blob': el archivo de un programado sube directo y privado por /api/files/upload (lib/files/direct-upload.ts).
@@ -21,13 +15,10 @@ export async function GET() {
 }
 
 /**
- * Subidas de Inbox:
- * - JSON (protocolo de @vercel/blob/client): firma la subida directa del
- *   navegador a Blob: `inbox/…`, el archivo de un mensaje programado (hasta
- *   16 MB), o `inbox-import/….ndjson`, una exportación de inbox-zero (hasta
- *   2 GB, en partes). El archivo no pasa por esta función.
- * - multipart (sin Blob, servidor propio): guarda el archivo de un mensaje
- *   programado en la carpeta privada de subidas.
+ * Subida por el servidor (multipart, sin subida directa): el archivo de un
+ * mensaje programado, privado en el storage de archivos. Lo grande (un
+ * programado o la exportación de inbox-zero) sube directo y privado por
+ * /api/files/upload (lib/files/direct-upload.ts); acá ya no se firma nada.
  */
 export async function POST(req: Request) {
   const limited = await limitByIp(req, 'inbox-upload', 60, 600).catch(() => null);
@@ -50,28 +41,6 @@ export async function POST(req: Request) {
       }
     });
   }
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return iJson({ error: 'storage_unavailable' }, 503);
-  const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
-  if (!body) return iJson({ error: 'invalid_input' }, 400);
-  // El aviso de "subida completa" lo manda Blob (sin sesión): no se usa.
-  if (body.type === 'blob.generate-client-token') {
-    const who = await inboxOwner();
-    if ('res' in who) return who.res;
-  }
-  try {
-    const result = await handleUpload({
-      body,
-      request: req,
-      onBeforeGenerateToken: async (pathname) => {
-        if (/^inbox-import\/[A-Za-z0-9._-]{1,120}\.ndjson$/.test(pathname)) {
-          return { allowedContentTypes: ['application/x-ndjson', 'application/json', 'application/octet-stream', 'text/plain'], maximumSizeInBytes: MAX_IMPORT_BYTES, addRandomSuffix: true };
-        }
-        throw new Error('invalid_pathname');
-      },
-      onUploadCompleted: async () => undefined,
-    });
-    return NextResponse.json(result);
-  } catch {
-    return iJson({ error: 'upload_failed' }, 400);
-  }
+  // Pestaña vieja que pide firmar una subida pública: ya no existe.
+  return iJson({ error: 'client_upload_unavailable' }, 501);
 }

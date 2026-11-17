@@ -180,20 +180,30 @@ export default function ImportPanel({ whatsappConnected, gmailConnected = false,
     notifyInboxChanged();
   };
 
-  /** NDJSON con Blob: sube directo (en partes) y la importación sigue en el servidor. */
+  /** NDJSON con Blob: sube directo y privado (lib/files/direct-upload-client.ts) y la importación sigue en el servidor. */
   const uploadAndImport = async (f: File) => {
     setBusy('upload');
     setProgress({ done: 0, total: f.size, unit: 'bytes' });
     try {
-      const { upload } = await import('@vercel/blob/client');
+      const { directUpload, DirectUploadUnavailable } = await import('@/lib/files/direct-upload-client');
       const safe = f.name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/\.ndjson$/i, '').slice(-100) || 'export';
-      const blob = await upload(`inbox-import/${safe}.ndjson`, f, {
-        access: 'public',
-        handleUploadUrl: '/api/inbox/upload',
-        contentType: 'application/x-ndjson',
-        multipart: f.size > 32 * 1024 * 1024,
-        onUploadProgress: (e) => alive.current && setProgress({ done: e.loaded, total: e.total || f.size, unit: 'bytes' }),
-      });
+      let blob: { url: string };
+      try {
+        blob = await directUpload(f, {
+          purpose: 'inbox-import',
+          name: `${safe}.ndjson`,
+          contentType: 'application/x-ndjson',
+          onProgress: (fr) => alive.current && setProgress({ done: Math.round(fr * f.size), total: f.size, unit: 'bytes' }),
+        });
+      } catch (e) {
+        // Sin subida directa en el servidor: se importa leyendo el archivo acá, de a pedazos.
+        if (e instanceof DirectUploadUnavailable) {
+          setProgress(null);
+          void importLocally(f);
+          return;
+        }
+        throw e;
+      }
       const r = await api<{ import: ImportJobDto }>('/api/inbox/import', { method: 'POST', json: { action: 'file', url: blob.url, name: f.name, size: f.size } });
       if (!r.ok) throw new Error(r.data.error ?? 'generic');
       setJobs((js) => [r.data.import, ...(js ?? []).filter((j) => j.id !== r.data.import.id)]);

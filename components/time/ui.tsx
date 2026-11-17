@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatMinutes } from '@/lib/time/types';
+import type { ProjectDto } from '@/lib/time/core';
 
 export { formatMinutes };
 
@@ -148,4 +149,11 @@ export function parseMoney(raw: string): number | null {
   const normalized = s.includes(',') && !s.includes('.') ? s.replace(',', '.') : s.replace(/,/g, '');
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return Number.NaN;
   return Math.round(Number(normalized) * 100);
+}
+
+/** Proyectos agrupados por cliente para el <select> (sin cliente al final). */
+export function groupByClient(projects: ProjectDto[]): Array<[string | null, ProjectDto[]]> {
+  const map = new Map<string | null, ProjectDto[]>();
+  for (const p of projects) map.set(p.clientName, [...(map.get(p.clientName) ?? []), p]);
+  return [...map.entries()].sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)));
 }

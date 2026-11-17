@@ -24,7 +24,7 @@ import { isAllowedUpload } from '../uploads';
 import { fileBackend, fileUrl, FileStoreError, privateFilesToken, putFile, newFileId, type FileAccess, type StoredFileRow } from './store';
 import { getDb } from '../db';
 
-export const DIRECT_PURPOSES = ['lines-media', 'inbox-media', 'inbox-schedule', 'crm-media', 'docs', 'notes'] as const;
+export const DIRECT_PURPOSES = ['lines-media', 'inbox-media', 'inbox-schedule', 'crm-media', 'docs', 'notes', 'inbox-import', 'import-zip'] as const;
 export type DirectPurpose = (typeof DIRECT_PURPOSES)[number];
 
 const MB = 1024 * 1024;
@@ -46,9 +46,11 @@ const MEDIA_TYPES = [
 interface PurposeRule {
   max: number;
   types: string[];
-  folder: 'chat' | 'inbox' | 'crm' | 'docs';
+  folder: 'chat' | 'inbox' | 'crm' | 'docs' | 'imports';
   app: string;
   access: FileAccess;
+  /** Solo estas extensiones (si no, las de la lista general de subidas). */
+  exts?: string[];
 }
 
 export const PURPOSES: Record<DirectPurpose, PurposeRule> = {
@@ -60,6 +62,25 @@ export const PURPOSES: Record<DirectPurpose, PurposeRule> = {
   'crm-media': { max: 500 * MB, types: ['application/pdf', 'video/*'], folder: 'crm', app: 'crm', access: 'internal' },
   docs: { max: 100 * MB, types: MEDIA_TYPES, folder: 'docs', app: 'docs', access: 'internal' },
   notes: { max: 100 * MB, types: MEDIA_TYPES, folder: 'docs', app: 'notes', access: 'internal' },
+  // Archivos de importación: los lee solo el servidor (el import) y se borran al terminar.
+  // La exportación de chats de Inbox (NDJSON, hasta 2 GB; lib/inbox/import-jobs.ts MAX_IMPORT_BYTES).
+  'inbox-import': {
+    max: 2 * 1024 * MB,
+    types: ['application/x-ndjson', 'application/json', 'application/octet-stream', 'text/plain'],
+    folder: 'imports',
+    app: 'inbox',
+    access: 'internal',
+    exts: ['ndjson'],
+  },
+  // El zip de Notion, Evernote y demás (hasta 1 GB; lib/docs-notion-import.ts NOTION_MAX_ZIP_BYTES).
+  'import-zip': {
+    max: 1024 * MB,
+    types: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+    folder: 'imports',
+    app: 'docs',
+    access: 'internal',
+    exts: ['zip'],
+  },
 };
 
 export function isPurpose(v: unknown): v is DirectPurpose {
@@ -92,7 +113,8 @@ export function isIncomingPathname(pathname: unknown, personId: string): pathnam
 /** Lo que pide onBeforeGenerateToken para ese propósito. */
 export function tokenConstraints(purpose: DirectPurpose, pathname: string) {
   const rule = PURPOSES[purpose];
-  if (!isAllowedUpload(pathname, 'application/octet-stream')) throw new Error('file_type_not_allowed');
+  const ext = (pathname.split('.').pop() ?? '').toLowerCase();
+  if (rule.exts ? !rule.exts.includes(ext) : !isAllowedUpload(pathname, 'application/octet-stream')) throw new Error('file_type_not_allowed');
   return {
     maximumSizeInBytes: rule.max,
     allowedContentTypes: rule.types,

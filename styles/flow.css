@@ -645,3 +645,8 @@
 @media (pointer: coarse) {
   .flow-canvas .react-flow__controls-button { width: 40px; height: 40px; }
 }
+/* Run history: sin corridas en el rango, un texto en lugar del gráfico vacío; y las fechas de los extremos. */
+.flow-chart.flow-chart-empty { align-items: center; justify-content: center; margin: 0; }
+.flow-chart-axis { display: flex; justify-content: space-between; margin: 4px 0 0; }
+/* 90 días a 390px: con 3px entre barras quedaban de 1px. */
+.flow-chart.is-dense { gap: 1px; }

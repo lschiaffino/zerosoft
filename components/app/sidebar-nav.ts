@@ -843,7 +843,7 @@ export function buildNav(
             {
               href: '/app/lines/inbox',
               label: labels.groups.inbox,
-              active: at('/app/lines/inbox') || pathname === '/app/lines',
+              active: at('/app/lines/inbox') || pathname === '/app/lines' || at('/app/lines/agents'),
               icon: 'inbox',
               // Listas guardadas de chats (GroupsListsBranch en el hueco #side-branch).
               branch: true,
@@ -1037,7 +1037,7 @@ export function buildNav(
         {
           items: [
             // Carpetas propias debajo (InboxBranch en el hueco #side-branch).
-            { href: '/app/inbox', label: l.inbox, active: pathname === '/app/inbox' || ['whatsapp', 'email', 'groups', 'unread', 'pinned'].some(view), icon: 'inbox', branch: true },
+            { href: '/app/inbox', label: l.inbox, active: pathname === '/app/inbox' || at('/app/inbox/agents') || ['whatsapp', 'email', 'groups', 'unread', 'pinned'].some(view), icon: 'inbox', branch: true },
             { href: '/app/inbox/v/reply', label: l.reply, active: view('reply'), icon: 'chat' },
             { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },

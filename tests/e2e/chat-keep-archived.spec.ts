@@ -1,6 +1,7 @@
 import path from 'path';
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Mantener archivado" por chat, en Inbox y en Lines (WhatsApp falso), a 1280 y a 390:
@@ -72,7 +73,7 @@ for (const width of [1280, 390]) {
 
     test('Inbox: mantener archivado desde la info del chat; los mensajes no lo sacan; desarchivar lo apaga', async ({ page, request }) => {
       const errors = watchErrors(page);
-      await request.post('/api/inbox/whatsapp');
+      await request.post('/api/inbox/whatsapp', waLinkIp());
       await expect
         .poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 })
         .toBe('connected');
@@ -196,7 +197,7 @@ for (const width of [1280, 390]) {
 
       // En Archivados, con la marca.
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').click({ timeout: FIRST_MS });
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').click({ timeout: FIRST_MS });
       const row = page.locator('.gr-rows .gr-row', { hasText: name });
       await expect(row).toBeVisible({ timeout: FIRST_MS });
       await expect(row.getByRole('img', { name: 'Kept archived' })).toBeVisible();
@@ -218,7 +219,7 @@ for (const width of [1280, 390]) {
 
       // Desarchivar a mano (desde la lista de Archivados): sale y la marca se apaga.
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.wa-archived-row').click();
+      await page.locator('button.wa-archived-row:not(.wa-deleted-row)').click();
       await page.getByRole('button', { name: `Options for ${name}` }).click();
       await page.getByRole('menuitem', { name: 'Unarchive chat' }).click();
       await expect(row).toHaveCount(0, { timeout: LIVE_MS });

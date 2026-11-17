@@ -334,10 +334,40 @@ function pinnedOf(row: StateRow | null, defs: Map<string, HubspotPropDef>): stri
   return (saved.length ? saved : HUBSPOT_DEFAULT_PINNED).filter((n) => defs.has(n) && !defs.get(n)?.hidden).slice(0, HUBSPOT_MAX_PINNED);
 }
 
-/** El esquema para la interfaz: propiedades visibles, grupos, dueños y fijadas. */
-export async function getHubspotSchema(ws: string): Promise<HubspotSchemaDto> {
+/** Las propiedades que eligió una persona (null: las del workspace), solo las que siguen existiendo. */
+async function mineOf(ws: string, viewer: string | undefined, defs: Map<string, HubspotPropDef>): Promise<string[] | null> {
+  if (!viewer) return null;
+  const row = (await getDb().prepare('SELECT props FROM hubspot_view_props WHERE ws = ? AND user_id = ?').get(ws, viewer)) as { props: string } | undefined;
+  if (!row) return null;
+  return parseArray<string>(row.props)
+    .filter((n) => typeof n === 'string' && defs.has(n) && !defs.get(n)?.hidden)
+    .slice(0, HUBSPOT_MAX_PINNED);
+}
+
+/**
+ * Qué propiedades de la empresa ve una persona en los detalles del chat y en
+ * el panel de HubSpot, en Lines y en Inbox (hasta 12). null vuelve a las del
+ * workspace. Devuelve la lista guardada.
+ */
+export async function setHubspotMine(ws: string, viewer: string, names: unknown): Promise<string[] | null> {
+  await requireHubspotConn(ws);
+  const db = getDb();
+  if (names === null) {
+    await db.prepare('DELETE FROM hubspot_view_props WHERE ws = ? AND user_id = ?').run(ws, viewer);
+    return null;
+  }
+  const defs = await loadDefs(ws);
+  const clean = [...new Set((Array.isArray(names) ? names : []).filter((n): n is string => typeof n === 'string' && defs.has(n) && !defs.get(n)?.hidden))].slice(0, HUBSPOT_MAX_PINNED);
+  await db
+    .prepare('INSERT INTO hubspot_view_props (ws, user_id, props, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(ws, user_id) DO UPDATE SET props = excluded.props, updated_at = excluded.updated_at')
+    .run(ws, viewer, JSON.stringify(clean), new Date().toISOString());
+  return clean;
+}
+
+/** El esquema para la interfaz: propiedades visibles, grupos, dueños, fijadas y (con `viewer`) las que eligió esa persona. */
+export async function getHubspotSchema(ws: string, viewer?: string): Promise<HubspotSchemaDto> {
   const row = await stateRow(ws);
-  if (!row?.token) return { connected: false, syncedAt: null, groups: [], props: [], owners: [], pinned: [], canWrite: false };
+  if (!row?.token) return { connected: false, syncedAt: null, groups: [], props: [], owners: [], pinned: [], mine: null, canWrite: false };
   const defs = await loadDefs(ws);
   const groups = (await getDb().prepare('SELECT name, label FROM groups_hubspot_prop_groups WHERE user_id = ? ORDER BY position, label').all(ws)) as Array<{ name: string; label: string }>;
   const props = [...defs.values()].filter((d) => !d.hidden);
@@ -349,6 +379,7 @@ export async function getHubspotSchema(ws: string): Promise<HubspotSchemaDto> {
     props,
     owners: parseArray<HubspotOwner>(row.owners).filter((o) => o && typeof o.id === 'string'),
     pinned: pinnedOf(row, defs),
+    mine: await mineOf(ws, viewer, defs),
     canWrite: parseArray<string>(row.scopes).includes(HUBSPOT_WRITE_SCOPE),
   };
 }
@@ -639,8 +670,11 @@ export interface ChatCompanySummary {
   broken: HubspotBroken | null;
 }
 
-/** La empresa del chat con sus propiedades fijadas, para la sección compacta de los detalles. */
-export async function chatCompanySummary(ws: string, chatId: string): Promise<ChatCompanySummary | null> {
+/**
+ * La empresa del chat con sus propiedades fijadas, para la sección compacta de
+ * los detalles. Con `viewer`, las que eligió esa persona (si eligió).
+ */
+export async function chatCompanySummary(ws: string, chatId: string, viewer?: string): Promise<ChatCompanySummary | null> {
   const link = await companyLink(ws, chatId);
   if (!link) return null;
   const row = await companyRow(ws, link.object_id);
@@ -650,7 +684,7 @@ export async function chatCompanySummary(ws: string, chatId: string): Promise<Ch
   const values = parseObject(row.props);
   const owners = parseArray<HubspotOwner>(state?.owners);
   const pinned: PinnedValue[] = [];
-  for (const name of pinnedOf(state, defs)) {
+  for (const name of (await mineOf(ws, viewer, defs)) ?? pinnedOf(state, defs)) {
     const def = defs.get(name);
     const value = values[name] ?? '';
     if (!def || !value) continue;
@@ -712,17 +746,41 @@ async function syncLog(ws: string, companyId: string, limit = 50): Promise<SyncL
  * ahora"). `mask`: quien tiene los teléfonos ocultos no ve los de la empresa.
  * El que llama ya chequeó el acceso al chat.
  */
-export async function chatCompany(ws: string, chatId: string, opts: { refresh?: 'stale' | 'force' | 'none'; mask?: boolean } = {}): Promise<ChatCompanyDto> {
+export async function chatCompany(ws: string, chatId: string, opts: CompanyOpts = {}): Promise<ChatCompanyDto> {
   const conn = await hubspotConn(ws);
-  const empty: ChatCompanyDto = { connected: Boolean(conn), company: null, values: {}, times: {}, syncedAt: null, refreshError: '', canWrite: false, log: [] };
-  if (!conn) return empty;
+  if (!conn) return emptyCompany(false);
   const link = await companyLink(ws, chatId);
-  if (!link) return empty;
+  if (!link) return emptyCompany(true);
+  return companyDto(ws, conn, link, opts);
+}
+
+/**
+ * Lo mismo para una empresa por su id: la de un contacto vinculado (el panel
+ * de HubSpot de un chat de Inbox). El que llama ya chequeó que esa empresa es
+ * la del contacto de un chat que la persona ve.
+ */
+export async function companyById(ws: string, companyId: string, opts: CompanyOpts = {}): Promise<ChatCompanyDto> {
+  const conn = await hubspotConn(ws);
+  if (!conn) return emptyCompany(false);
+  if (!/^\d{1,20}$/.test(companyId)) return emptyCompany(true);
+  const row = await companyRow(ws, companyId);
+  return companyDto(ws, conn, { object_id: companyId, name: row?.name ?? '' }, opts);
+}
+
+interface CompanyOpts {
+  /** 'missing': solo trae de HubSpot si nunca se leyó. */
+  refresh?: 'stale' | 'force' | 'none' | 'missing';
+  mask?: boolean;
+}
+
+const emptyCompany = (connected: boolean): ChatCompanyDto => ({ connected, company: null, values: {}, times: {}, syncedAt: null, refreshError: '', canWrite: false, log: [] });
+
+async function companyDto(ws: string, conn: HubspotConn, link: { object_id: string; name: string }, opts: CompanyOpts): Promise<ChatCompanyDto> {
   let row = await companyRow(ws, link.object_id);
   let refreshError = '';
   const mode = opts.refresh ?? 'stale';
   const stale = !row?.fetched_at || Date.parse(row.fetched_at) < Date.now() - OPEN_TTL_MS;
-  if (mode === 'force' || (mode === 'stale' && stale)) {
+  if (mode === 'force' || (mode === 'stale' && stale) || (mode === 'missing' && !row?.fetched_at)) {
     try {
       await importHubspotCompanies(ws, [link.object_id], mode === 'force' ? 'manual' : 'open', { retries: 1, maxWaitMs: 2_000 });
       row = await companyRow(ws, link.object_id);

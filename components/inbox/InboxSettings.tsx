@@ -218,6 +218,76 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
   );
 }
 
+/**
+ * HubSpot en Inbox: el HubSpot es el del workspace activo (lo conecta un
+ * admin en Ajustes de Lines). Cada persona decide si los chats 1:1 nuevos de
+ * su Inbox crean su contacto en HubSpot (apagado por defecto).
+ */
+function HubspotCard() {
+  const t = useTranslations('inbox.settings.hubspot');
+  const tg = useTranslations('groups.errors');
+  const [state, setState] = useState<{ connected: boolean; autoCreate: boolean; missingContactScopes: string[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    void api<{ connected: boolean; autoCreate: boolean; missingContactScopes: string[] }>('/api/inbox/hubspot').then((r) => r.ok && setState(r.data));
+  }, []);
+  const errText = (code: string | undefined) => {
+    const [base, ...rest] = (code ?? '').split(':');
+    if (rest.length && tg.has(`${base}_detail`)) return tg(`${base}_detail`, { detail: rest.join(':') });
+    return tg.has(base) ? tg(base) : tg('generic');
+  };
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    setErr('');
+    setSaved(false);
+    const r = await api<{ connected: boolean; autoCreate: boolean; missingContactScopes: string[] }>('/api/inbox/hubspot', { method: 'POST', json: { autoCreate: on } });
+    setBusy(false);
+    if (!r.ok) return setErr(errText(r.data.error));
+    setState(r.data);
+    setSaved(true);
+  };
+  if (!state) return null;
+  return (
+    <div className="ib-card" data-testid="inbox-hubspot-card">
+      <div className="ib-card-head">
+        <div>
+          <h3 className="ib-h3">HubSpot</h3>
+          <p className="ib-help">{state.connected ? t('intro') : t('notConnected')}</p>
+        </div>
+        <span className={`badge ${state.connected ? 'badge-ok' : 'badge-warn'}`}>{state.connected ? t('statusOn') : t('statusOff')}</span>
+      </div>
+      {state.connected ? (
+        <>
+          <label className="ib-row ib-hs-auto">
+            <span className="ui-switch">
+              <input type="checkbox" role="switch" checked={state.autoCreate} disabled={busy} onChange={(e) => void toggle(e.target.checked)} data-testid="inbox-hs-auto-create" />
+            </span>
+            <span>{t('autoCreate')}</span>
+          </label>
+          <p className="ib-help">{t('autoCreateHelp')}</p>
+          {state.missingContactScopes.length > 0 && <p className="ib-help">{t('needsScope', { scopes: state.missingContactScopes.join(', ') })}</p>}
+        </>
+      ) : (
+        <p className="ib-help">
+          <Link href="/app/lines/settings?tab=integrations">{t('linesLink')}</Link>
+        </p>
+      )}
+      {err && (
+        <p className="ui-error" role="alert">
+          {err}
+        </p>
+      )}
+      {saved && !err && (
+        <p className="ib-help" role="status">
+          {t('saved')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function GmailCard({ accounts, available, onChange }: { accounts: InboxAccountDto[]; available: boolean; onChange: () => void }) {
   const t = useTranslations('inbox.settings.gmail');
   const te = useTranslations('inbox.errors');
@@ -518,6 +588,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
         <div className="ib-cards">
           <WhatsappCard account={wa} available={state.available.whatsapp} onChange={() => void reload()} />
           <GmailCard accounts={gmail} available={state.available.gmail} onChange={() => void reload()} />
+          <HubspotCard />
         </div>
       </section>
       <ChatStyleSection variant="inbox" />

@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -74,9 +74,9 @@ const parity: ProductParity = {
     row('snooze', 'triage', ['Snooze (remind me)', 'Posponer', 'Adiar'], 'have', {
       weight: 2,
       detail: [
-        'H with six presets or any date. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
-        'H con seis opciones o cualquier fecha. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
-        'H com seis opções ou qualquer data. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
+        'H with options that fit the moment (tomorrow morning, this weekend…) or a day and time from a calendar. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
+        'H con opciones según el momento (mañana a la mañana, este fin de semana…) o un día y hora del calendario. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
+        'H com opções conforme o momento (amanhã de manhã, neste fim de semana…) ou um dia e hora do calendário. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
       ],
     }),
     row('follow-up', 'triage', ['Remind me if there is no reply', 'Recordame si no contesta', 'Lembrar se não responder'], 'have', {
@@ -157,9 +157,9 @@ const parity: ProductParity = {
     }),
     row('wa-contacts', 'navigation', ['Contacts list', 'Lista de contactos', 'Lista de contatos'], 'partial', {
       detail: [
-        'Contacts lists each person of your WhatsApp accounts once (phone and WhatsApp id joined), with their accounts, groups and last message, filters by account and chat, and their HubSpot contact and company from the workspace connection. Tested with the fake provider and a simulated HubSpot',
-        'Contactos muestra cada persona de tus cuentas de WhatsApp una vez (teléfono e id de WhatsApp unidos), con sus cuentas, grupos y último mensaje, filtros por cuenta y por chat, y su contacto y empresa de HubSpot de la conexión del workspace. Probado con el proveedor falso y un HubSpot simulado',
-        'Contatos mostra cada pessoa das suas contas de WhatsApp uma vez (telefone e id do WhatsApp unidos), com contas, grupos e última mensagem, filtros por conta e por chat, e o contato e a empresa no HubSpot da conexão do workspace. Testado com o provedor falso e um HubSpot simulado',
+        'Contacts lists each person of your WhatsApp accounts once (phone and WhatsApp id joined), with their accounts, groups and last message, filters by account and chat, and their HubSpot contact and company from the workspace connection. A 1:1 chat shows the HubSpot contact and company with the properties you pick, creates the contact with one click or by itself for new chats (opt-in), and opens the HubSpot panel, which can stay pinned next to the chat. Tested with the fake provider and a simulated HubSpot',
+        'Contactos muestra cada persona de tus cuentas de WhatsApp una vez (teléfono e id de WhatsApp unidos), con sus cuentas, grupos y último mensaje, filtros por cuenta y por chat, y su contacto y empresa de HubSpot de la conexión del workspace. Un chat 1:1 muestra el contacto y la empresa de HubSpot con las propiedades que elijas, crea el contacto con un clic o solo para los chats nuevos (opcional) y abre el panel de HubSpot, que puede quedar fijo al lado del chat. Probado con el proveedor falso y un HubSpot simulado',
+        'Contatos mostra cada pessoa das suas contas de WhatsApp uma vez (telefone e id do WhatsApp unidos), com contas, grupos e última mensagem, filtros por conta e por chat, e o contato e a empresa no HubSpot da conexão do workspace. Uma conversa 1:1 mostra o contato e a empresa do HubSpot com as propriedades que você escolher, cria o contato com um clique ou sozinha para conversas novas (opcional) e abre o painel do HubSpot, que pode ficar fixo ao lado da conversa. Testado com o provedor falso e um HubSpot simulado',
       ],
     }),
     row('calendar', 'navigation', ['Calendar in the inbox', 'Calendario en la bandeja', 'Calendário na caixa'], 'missing'),

@@ -12,9 +12,10 @@ import * as r9 from "@/lib/routes/social/library/[id]/route";
 import * as r10 from "@/app/api/social/people/route";
 import * as r11 from "@/app/api/social/posts/route";
 import * as r12 from "@/lib/routes/social/posts/[id]/route";
-import * as r13 from "@/app/api/social/queue-next/route";
-import * as r14 from "@/app/api/social/shorten/route";
-import * as r15 from "@/app/api/social/upload/route";
+import * as r13 from "@/app/api/social/posts/bulk/route";
+import * as r14 from "@/app/api/social/queue-next/route";
+import * as r15 from "@/app/api/social/shorten/route";
+import * as r16 from "@/app/api/social/upload/route";
 
 export const routes: Record<string, unknown> = {
   "/api/social/accounts": r0,
@@ -30,7 +31,8 @@ export const routes: Record<string, unknown> = {
   "/api/social/people": r10,
   "/api/social/posts": r11,
   "/api/social/posts/[id]": r12,
-  "/api/social/queue-next": r13,
-  "/api/social/shorten": r14,
-  "/api/social/upload": r15,
+  "/api/social/posts/bulk": r13,
+  "/api/social/queue-next": r14,
+  "/api/social/shorten": r15,
+  "/api/social/upload": r16,
 };

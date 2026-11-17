@@ -172,6 +172,28 @@ describe('Importación de un archivo subido (por rangos, se retoma)', () => {
     expect(Number((n as { n: number }).n)).toBe(2000);
   });
 
+  it('subida privada (/api/files): solo el archivo de la persona, leído del storage privado y borrado al terminar', async () => {
+    vi.stubEnv('UPLOADS_DIR', mkdtempSync(path.join(os.tmpdir(), 'inbox-import-private-')));
+    vi.stubEnv('VERCEL', '');
+    const { dir, desk } = exportFixture();
+    const body = Buffer.from(runExport(dir, [`--desktop=${desk}`]));
+    const u = await makeUser('izp');
+    const { putFile, fileUrl, fileRowForUrl } = await import('@/lib/files/store');
+    const row = await putFile(body, { workspaceId: u.id, userId: u.id, app: 'inbox', folder: 'imports', access: 'internal', name: 'export.ndjson', mime: 'application/x-ndjson' });
+    const url = fileUrl(row);
+    expect(isInboxImportUrl(url)).toBe(true);
+    // De otra persona: no.
+    const other = await makeUser('izp-otra');
+    await expect(startFileImport(other.id, { url, name: 'export.ndjson', size: body.length })).rejects.toMatchObject({ code: 'invalid_input' });
+    // El tamaño es el guardado, no el que dice el navegador.
+    const job = await startFileImport(u.id, { url, name: 'export.ndjson', size: 1 });
+    let last = job;
+    for (let i = 0; i < 10 && last.status === 'running'; i++) last = await stepOwnImport(u.id, job.id);
+    expect(last.status).toBe('done');
+    expect(last.progress.bytes).toBe(body.length);
+    expect(await fileRowForUrl(url)).toBeNull();
+  });
+
   it('un archivo roto queda como fallido con el error, y se puede cancelar', async () => {
     const url = 'https://abc123.public.blob.vercel-storage.com/inbox-import/roto-Abc.ndjson';
     const body = Buffer.from('{"part":"meta","format":"otra-cosa","version":2}\n');

@@ -17,6 +17,8 @@ import { coalesced, PRESENCE_EXPIRY_MS, useExpiry, useWaLiveChat } from '@/lib/w
 import { isOffline, isTempId, localPreviews, mediaKindOf, TEMP_PREFIX, uploadProgress } from '@/lib/optimistic-send';
 import { SEND_TIMEOUT_MS, byArrival, cidOf, discardLinesSend, linesDraftKey, linesQueue, sendLinesMedia, sendLinesText, unsentLines, withLocalMedia, withUnsent } from './optimistic';
 import ChatDetails from './ChatDetails';
+import PhoneCopy from './wa/PhoneCopy';
+import { visiblePhone } from '@/lib/wa-contact-phone';
 import { useLinesPersonSheet } from './person-sheet';
 import { knownPrivateQuote, peekPendingPrivateReply, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
 import { useDetailsHidden } from './details-hidden';
@@ -122,6 +124,7 @@ import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
+import HubspotDock from './HubspotDock';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -2019,6 +2022,7 @@ export default function ChatThread(props: ThreadProps) {
                   url={media.url}
                   alt={media.name || t('thread.image')}
                   sticker={sticker}
+                  caption={!sticker && Boolean(m.body?.trim())}
                   thumbnail={media.thumbnail}
                   width={media.width}
                   height={media.height}
@@ -2625,6 +2629,7 @@ export default function ChatThread(props: ThreadProps) {
               <MentionTextarea
                 ref={inputRef}
                 className="textarea gr-input wa-input"
+                data-testid="composer-input"
                 rows={1}
                 highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
@@ -2675,6 +2680,7 @@ export default function ChatThread(props: ThreadProps) {
                 <button
                   type="button"
                   className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
+                  data-testid="composer-send"
                   {...keepFocus}
                   onClick={() => void send()}
                   onContextMenu={(e) => {
@@ -2725,7 +2731,14 @@ export default function ChatThread(props: ThreadProps) {
         <div className="wa-details-head">
           <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={84} seed={chat.id} />
           <strong>{chat.name}</strong>
-          <span>{chat.kind === 'group' ? t('thread.groupMeta', { n: chat.memberCount }) : chat.phone ? `+${chat.phone}` : t('wa.whatsappContact')}</span>
+          {chat.kind === 'group' ? (
+            <span>{t('thread.groupMeta', { n: chat.memberCount })}</span>
+          ) : visiblePhone(chat.phone) ? (
+            // El teléfono con formato (un toque lo copia). Oculto para quien no ve los números (llega enmascarado).
+            <PhoneCopy phone={chat.phone} copyLabel={t('wa.copyPhone')} onCopied={() => showToast(t('wa.phoneCopied'))} />
+          ) : (
+            <span>{t('wa.whatsappContact')}</span>
+          )}
           <button type="button" className="wa-icon-btn wa-details-close" onClick={() => setDetailsOpen(false)} aria-label={t('common.close')} title={t('common.close')}>
             <Close size={18} />
           </button>
@@ -2747,6 +2760,9 @@ export default function ChatThread(props: ThreadProps) {
       </aside>
 
       {personSheet.sheet}
+
+      {/* El panel de HubSpot fijado al costado sigue al chat abierto. */}
+      {!props.sample && <HubspotDock source={{ app: 'lines', chatId: chat.id }} isAdmin={props.isAdmin} />}
 
       <TaskModal
         open={!!taskFor}
@@ -2800,6 +2816,7 @@ export default function ChatThread(props: ThreadProps) {
       <WhenDialog
         open={later}
         title={t('later.title')}
+        mode="send"
         labels={whenLabels}
         help={later ? laterPreview() : undefined}
         extra={
@@ -2823,6 +2840,7 @@ export default function ChatThread(props: ThreadProps) {
       <WhenDialog
         open={voiceLater}
         title={t('later.title')}
+        mode="send"
         labels={whenLabels}
         help={
           voiceLater && recording ? (

@@ -87,8 +87,11 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
     return () => window.clearTimeout(timer);
   }, [load, q, query]);
 
+  // Pide el tablero cuando el rango elegido no es el que se muestra. Antes se
+  // comparaba con el rango inicial: volver a él (7 -> 30 -> 7) dejaba los
+  // números de 30 días bajo el selector de 7.
   useEffect(() => {
-    if (days === initialStats.days) return;
+    if (days === stats.days) return;
     let alive = true;
     void fetch(`/api/flow/stats?days=${days}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -99,9 +102,11 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
     return () => {
       alive = false;
     };
-  }, [days, initialStats.days]);
+  }, [days, stats.days]);
 
   const maxDay = Math.max(1, ...stats.perDay.map((d) => d.success + d.failed + d.other));
+  // Los días del tablero son fechas UTC (YYYY-MM-DD): se formatean en UTC para no correrse un día.
+  const dayLabel = (day: string) => format.dateTime(new Date(`${day}T00:00:00Z`), { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const exportHref = (fmt: 'csv' | 'json') => `/api/flow/runs/export?format=${fmt}&${query.toString()}`;
   const filtered = Boolean(status || flowId || q.trim());
   /** Error legible ("classify: ai_disabled" → el texto de stepErrors); el código queda en el title. */
@@ -169,24 +174,40 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
             <dd>{durationLabel(stats.avgDurationMs) || '–'}</dd>
           </div>
         </dl>
-        <div className="flow-chart" role="img" aria-label={t('history.chartLabel', { n: stats.total, days: stats.days })}>
-          {stats.perDay.map((d) => {
-            const total = d.success + d.failed + d.other;
-            return (
-              <div className="flow-chart-col" key={d.day} title={`${d.day}: ${total}`}>
-                <div className="flow-chart-bar" style={{ height: `${(total / maxDay) * 100}%` }}>
-                  {d.failed > 0 && <span className="is-failed" style={{ flexGrow: d.failed }} />}
-                  {d.other > 0 && <span className="is-other" style={{ flexGrow: d.other }} />}
-                  {d.success > 0 && <span className="is-success" style={{ flexGrow: d.success }} />}
-                </div>
+        {stats.total === 0 ? (
+          // Sin corridas en el rango el gráfico era un hueco en blanco con leyenda.
+          <p className="flow-chart flow-chart-empty ui-help" data-testid="flow-chart-empty">
+            {t('history.noRunsRange')}
+          </p>
+        ) : (
+          <>
+            <div className={`flow-chart${stats.perDay.length > 31 ? ' is-dense' : ''}`} data-testid="flow-chart" role="img" aria-label={t('history.chartLabel', { n: stats.total, days: stats.days })}>
+              {stats.perDay.map((d) => {
+                const total = d.success + d.failed + d.other;
+                return (
+                  <div className="flow-chart-col" key={d.day} title={`${dayLabel(d.day)}: ${total}`}>
+                    <div className="flow-chart-bar" style={{ height: `${(total / maxDay) * 100}%` }}>
+                      {d.failed > 0 && <span className="is-failed" style={{ flexGrow: d.failed }} />}
+                      {d.other > 0 && <span className="is-other" style={{ flexGrow: d.other }} />}
+                      {d.success > 0 && <span className="is-success" style={{ flexGrow: d.success }} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {stats.perDay.length > 1 && (
+              // Sin fechas no se sabía qué día era cada barra.
+              <div className="flow-chart-axis ui-help" aria-hidden="true">
+                <span>{dayLabel(stats.perDay[0].day)}</span>
+                <span>{dayLabel(stats.perDay[stats.perDay.length - 1].day)}</span>
               </div>
-            );
-          })}
-        </div>
-        <p className="flow-chart-legend ui-help">
-          <span className="flow-dot is-success" /> {t('runs.status.success')} <span className="flow-dot is-failed" /> {t('runs.status.failed')}{' '}
-          <span className="flow-dot is-other" /> {t('history.other')}
-        </p>
+            )}
+            <p className="flow-chart-legend ui-help">
+              <span className="flow-dot is-success" /> {t('runs.status.success')} <span className="flow-dot is-failed" /> {t('runs.status.failed')}{' '}
+              <span className="flow-dot is-other" /> {t('history.other')}
+            </p>
+          </>
+        )}
         <div className="flow-usage-grid">
           <div>
             <h3 className="flow-usage-sub">{t('history.queue')}</h3>

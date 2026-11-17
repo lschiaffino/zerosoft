@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import { useMounted } from '@/components/ui/useMounted';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
@@ -15,6 +16,7 @@ import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
+import HubspotDock from '@/components/groups/HubspotDock';
 import { ArchiveIcon, ArrowLeft, Trash } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
@@ -30,7 +32,7 @@ import Avatar from '@/components/groups/wa/Avatar';
 import { chatName } from './wa/util';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
-import { dragIds } from '@/lib/chat-gestures';
+import { dragIds, rowSwipeLayout, swipeActionKey, type RowSwipeKey } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
@@ -44,6 +46,7 @@ import { WhatsappQrDialog } from './InboxSettings';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 
 export interface InboxStateDto {
@@ -147,11 +150,15 @@ export default function InboxApp(props: {
   /** Mensaje al que ir al abrir (desde Cmd+K). */
   initialFocusId?: string | null;
   composeOnLoad: boolean;
+  /** Fila "Agentes" de Fleet arriba de la bandeja (si la persona prendió el espejo en Fleet). */
+  agentsRow?: AgentsRowProps | null;
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const { style: chatStyle } = useChatStyle();
   const locale = useLocale();
+  // La hora de "vencido desde" va en la zona del navegador: recién después de hidratar.
+  const mounted = useMounted();
   const [state, setState] = useState(props.initialState);
   // La vista o carpeta sale de la URL. Cambiarla (pestañas, sidebar, atrás y adelante) solo cambia la lista:
   // la pantalla, el chat abierto y lo escrito en el composer quedan como están (ver ./nav.ts).
@@ -607,7 +614,7 @@ export default function InboxApp(props: {
     const th = threads.find((x) => x.id === openId);
     if (th && (th.unread > 0 || th.woke)) {
       void api(`/api/inbox/threads/${openId}`, { method: 'PATCH', json: { action: 'seen' } }).then(() => {
-        setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '' } : x)));
+        setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '', wokeAt: null } : x)));
         void reloadState();
       });
     }
@@ -1082,23 +1089,28 @@ export default function InboxApp(props: {
 
   /**
    * Deslizar una fila, como WhatsApp (y como Lines): a la derecha, leído o no
-   * leído (la principal) y fijar; a la izquierda, archivar (la principal) y
+   * leído (la principal), fijar y posponer; a la izquierda, archivar (la principal) y
    * más. Con chats seleccionados no se desliza. Todo sigue en el menú y en los
    * atajos (U, P, V, M).
    */
   const swipeActions = (id: string): SwipeActions | null => {
     const th = threads.find((x) => x.id === id);
     if (!th || selected.size > 0) return null;
-    return {
-      right: [
-        { key: 'unread', label: th.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: th.unread > 0 ? 'read' : 'unread', onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
-        { key: 'pin', label: th.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: th.pinned ? 'unpin' : 'pin', onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
-      ],
-      left: [
-        { key: 'archive', label: th.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: th.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
-        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openMoreFor(id) },
-      ],
+    const run: Record<RowSwipeKey, () => void> = {
+      read: () => void runAction([id], { action: 'read' }),
+      unread: () => void runAction([id], { action: 'unread' }),
+      pin: () => void runAction([id], { action: 'pin' }),
+      unpin: () => void runAction([id], { action: 'unpin' }),
+      // Posponer abre el mismo diálogo que el menú y la tecla H (#393): elegir la hora archiva el chat hasta entonces.
+      snooze: () => setWhen({ kind: 'snooze', ids: [id] }),
+      unsnooze: () => void runAction([id], { action: 'unsnooze' }),
+      archive: () => void runAction([id], { action: 'archive' }),
+      unarchive: () => void runAction([id], { action: 'unarchive' }),
+      more: () => openMoreFor(id),
     };
+    const layout = rowSwipeLayout({ unread: th.unread > 0, pinned: Boolean(th.pinned), archived: Boolean(th.archived), snoozed: Boolean(th.snoozedUntil) });
+    const action = (key: RowSwipeKey) => ({ key: swipeActionKey(key), label: t(`swipe.${key}`), icon: key, onSelect: run[key], ...(key === 'archive' || key === 'unarchive' ? { leaves: true } : {}) });
+    return { right: layout.right.map(action), left: layout.left.map(action) };
   };
   /**
    * Clic derecho sobre un chat (o la tecla de menú), como WhatsApp: las
@@ -1203,6 +1215,8 @@ export default function InboxApp(props: {
         data-idx={i}
         data-thread-id={th.id}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        data-testid="inbox-row"
+        data-overdue={th.woke ? 'true' : undefined}
         {...gestures.rowProps(th.id)}
         {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}
       >
@@ -1234,6 +1248,15 @@ export default function InboxApp(props: {
           }}
           onFocus={() => setCursor(i)}
         >
+          {/* Vencido (volvió de posponer o venció el recordatorio): un filete de color al borde, sin sumar alto (styles/wa-accent.css). */}
+          {th.woke && (
+            <span
+              className="wa-overdue-edge"
+              data-testid="row-overdue-edge"
+              aria-hidden="true"
+              title={th.wokeAt && mounted ? t(th.woke === 'snooze' ? 'list.overdueSnoozeSince' : 'list.overdueFollowUpSince', { when: longWhen(th.wokeAt, locale) }) : t(th.woke === 'snooze' ? 'list.overdueSnooze' : 'list.overdueFollowUp')}
+            />
+          )}
           <ChatRow
             th={th}
             timeLabel={view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : undefined}
@@ -1448,6 +1471,7 @@ export default function InboxApp(props: {
           </div>
         ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
           <div className="ib-list-empty">
+            {props.agentsRow && view === 'inbox' && !folder && !q.trim() && <AgentsRow {...props.agentsRow} />}
             {noAccounts && !q ? (
               <EmptyState
                 product="inbox"
@@ -1484,6 +1508,11 @@ export default function InboxApp(props: {
           </div>
         ) : (
           <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list>
+            {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
+              <li>
+                <AgentsRow {...props.agentsRow} />
+              </li>
+            )}
             {threads.map(rowFor)}
             {next && !switching && (
               <li ref={moreRef} className="ib-list-more" role="presentation" aria-busy={loadingMore || undefined} data-testid="inbox-list-more">
@@ -1622,6 +1651,8 @@ export default function InboxApp(props: {
           </div>
         )}
       </div>
+      {/* El panel de HubSpot fijado al costado sigue al chat 1:1 de WhatsApp abierto. */}
+      {detail && detail.thread.channel === 'whatsapp' && detail.thread.kind !== 'group' && <HubspotDock source={{ app: 'inbox', threadId: detail.thread.id }} isAdmin={false} />}
       {showInfo && detail && (
         <ContactPanel
           thread={detail.thread}

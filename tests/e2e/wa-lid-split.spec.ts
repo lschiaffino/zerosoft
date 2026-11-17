@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox y Lines con el WhatsApp falso (GROUPS_FAKE=1): la misma persona por su
@@ -52,7 +53,7 @@ function message(chatId: string, over: Record<string, unknown> = {}) {
 const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
 
 async function inboxHook(request: APIRequestContext) {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const hook = async (list: unknown[]) => {

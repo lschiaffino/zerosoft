@@ -69,11 +69,26 @@ function safeName(name: string, ext: string): string {
 }
 
 const COMMON = { 'cache-control': 'private, max-age=300', 'x-robots-tag': 'noindex', 'x-content-type-options': 'nosniff' };
+/** El PDF en línea no puede ir con sandbox (el visor de Chrome no abre): nada de scripts ni de otros orígenes igual. */
+const PDF_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'self'";
+const SANDBOX_CSP = "default-src 'none'; sandbox";
+
+/** Headers de un video: en línea solo si el tipo es de video; si no, se descarga. Siempre aislado. */
+function videoHeaders(contentType: string): Record<string, string> {
+  const type = contentType.split(';')[0].trim().toLowerCase() || 'video/webm';
+  const video = /^video\/[\w.+-]+$/.test(type);
+  return {
+    ...COMMON,
+    'content-type': video ? type : 'application/octet-stream',
+    'content-security-policy': SANDBOX_CSP,
+    ...(video ? {} : { 'content-disposition': 'attachment; filename="video"' }),
+  };
+}
 
 /** PDF guardado (storage privado, local o Blob de antes), inline. `workspaceId`: el del registro (el archivo tiene que ser suyo). */
 export async function servePdf(req: NextRequest, url: string, name: string, workspaceId: string): Promise<Response> {
   if (isFileUrl(url)) return (await (await import('./files/serve')).ownedFileResponse(req, url, { workspaceId })) ?? NOT_FOUND();
-  const headers = { ...COMMON, 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${safeName(name, 'pdf')}"` };
+  const headers = { ...COMMON, 'content-type': 'application/pdf', 'content-security-policy': PDF_CSP, 'content-disposition': `inline; filename="${safeName(name, 'pdf')}"` };
   const local = localUploadPath(url);
   if (local) return localResponse(req, local, headers);
   if (url.startsWith('/')) return NOT_FOUND();
@@ -92,8 +107,8 @@ export async function servePdf(req: NextRequest, url: string, name: string, work
 export async function serveVideo(req: NextRequest, url: string, contentType: string, workspaceId: string): Promise<Response> {
   if (isFileUrl(url)) return (await (await import('./files/serve')).ownedFileResponse(req, url, { workspaceId })) ?? NOT_FOUND();
   const local = localUploadPath(url);
-  if (local) return localResponse(req, local, { ...COMMON, 'content-type': contentType.split(';')[0] || 'video/webm' });
+  if (local) return localResponse(req, local, videoHeaders(contentType));
   if (url.startsWith('/')) return NOT_FOUND();
   const { proxyPublicBlob } = await import('./files/legacy-proxy');
-  return proxyPublicBlob(req, url, { ...COMMON, 'content-type': contentType.split(';')[0] || 'video/webm' });
+  return proxyPublicBlob(req, url, videoHeaders(contentType));
 }

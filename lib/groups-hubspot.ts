@@ -52,6 +52,8 @@ export const HUBSPOT_SCOPES = {
 export const HUBSPOT_WRITE_SCOPE = 'crm.objects.companies.write';
 /** Sin este no se puede escribir una nota. */
 const NOTE_SCOPE = 'crm.objects.contacts.write';
+/** Sin este no se crean contactos (a mano o al entrar un chat nuevo). */
+export const HUBSPOT_CONTACT_WRITE_SCOPE = 'crm.objects.contacts.write';
 
 const PLURAL: Record<HubspotType, string> = { company: 'companies', deal: 'deals', contact: 'contacts' };
 const TYPE_ID: Record<HubspotType, string> = { contact: '0-1', company: '0-2', deal: '0-3' };
@@ -104,6 +106,7 @@ interface ConnRow {
   scopes: string;
   auto_link: number;
   log_notes: number;
+  auto_create?: number;
   last_error: string;
   last_used_at: string | null;
   schema_synced_at?: string | null;
@@ -119,6 +122,8 @@ export interface HubspotConn {
   scopes: string[];
   autoLink: boolean;
   logNotes: boolean;
+  /** Crear el contacto en HubSpot cuando entra un chat 1:1 nuevo de Lines. */
+  autoCreate: boolean;
 }
 
 export interface HubspotDto {
@@ -130,6 +135,10 @@ export interface HubspotDto {
   missingLogScopes: string[];
   autoLink: boolean;
   logNotes: boolean;
+  /** Crear el contacto en HubSpot cuando entra un chat 1:1 nuevo (apagado por defecto). */
+  autoCreate: boolean;
+  /** Permisos que le faltan para crear contactos. */
+  missingContactScopes: string[];
   lastError: string;
   lastUsedAt: string | null;
   /** Permisos que le faltan para editar propiedades de la empresa desde Lines. */
@@ -173,6 +182,7 @@ function toConn(row: ConnRow | null): Conn | null {
     scopes: parseList(row.scopes),
     autoLink: row.auto_link === 1,
     logNotes: row.log_notes === 1,
+    autoCreate: row.auto_create === 1,
   };
 }
 
@@ -203,6 +213,8 @@ function toDto(row: ConnRow | null): HubspotDto {
     missingLogScopes: connected ? HUBSPOT_SCOPES.log.filter((s) => !scopes.includes(s)) : [],
     autoLink: connected && row?.auto_link === 1,
     logNotes: connected && row?.log_notes === 1,
+    autoCreate: connected && row?.auto_create === 1,
+    missingContactScopes: connected && !scopes.includes(HUBSPOT_CONTACT_WRITE_SCOPE) ? [HUBSPOT_CONTACT_WRITE_SCOPE] : [],
     lastError: connected && row ? row.last_error : '',
     lastUsedAt: connected && row ? row.last_used_at : null,
     missingSyncScopes: connected ? HUBSPOT_SCOPES.sync.filter((s) => !scopes.includes(s)) : [],
@@ -366,10 +378,16 @@ export async function connectHubspot(ws: string, actor: string, rawToken: string
 }
 
 /** Ajustes: vincular solo con una única coincidencia y dejar la conversación como notas. */
-export async function updateHubspotSettings(ws: string, patch: { autoLink?: boolean; logNotes?: boolean; webhookSecret?: string }): Promise<HubspotDto> {
+export async function updateHubspotSettings(ws: string, patch: { autoLink?: boolean; logNotes?: boolean; autoCreate?: boolean; webhookSecret?: string }): Promise<HubspotDto> {
   const conn = await requireConn(ws);
   if (patch.logNotes === true && !conn.scopes.includes(NOTE_SCOPE)) throw new HubspotError(`hubspot_missing_scopes:${NOTE_SCOPE}`);
+  if (patch.autoCreate === true && !conn.autoCreate && !conn.scopes.includes(HUBSPOT_CONTACT_WRITE_SCOPE)) throw new HubspotError(`hubspot_missing_scopes:${HUBSPOT_CONTACT_WRITE_SCOPE}`);
   const db = getDb();
+  if (typeof patch.autoCreate === 'boolean' && patch.autoCreate !== conn.autoCreate) {
+    // Vale para los chats que entren desde ahora: los de antes no se suben solos.
+    const now = new Date().toISOString();
+    await db.prepare('UPDATE groups_hubspot SET auto_create = ?, auto_create_since = ?, updated_at = ? WHERE user_id = ?').run(patch.autoCreate ? 1 : 0, patch.autoCreate ? now : null, now, ws);
+  }
   if (typeof patch.autoLink === 'boolean') await db.prepare('UPDATE groups_hubspot SET auto_link = ?, updated_at = ? WHERE user_id = ?').run(patch.autoLink ? 1 : 0, new Date().toISOString(), ws);
   if (typeof patch.logNotes === 'boolean') await db.prepare('UPDATE groups_hubspot SET log_notes = ?, updated_at = ? WHERE user_id = ?').run(patch.logNotes ? 1 : 0, new Date().toISOString(), ws);
   if (typeof patch.webhookSecret === 'string') {
@@ -404,7 +422,7 @@ async function clearWorkspaceData(ws: string): Promise<void> {
  */
 export async function disconnectHubspot(ws: string): Promise<boolean> {
   const res = await getDb()
-    .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
+    .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, auto_create = 0, auto_create_since = NULL, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
     .run(new Date().toISOString(), ws);
   caches.delete(ws);
   return res.changes > 0;
@@ -899,14 +917,21 @@ export interface ChatHubspotDto {
   canLog: boolean;
   /** El registro automático está prendido. */
   logNotes: boolean;
+  /** Chat 1 a 1 (se puede crear su contacto en HubSpot). */
+  dm?: boolean;
+  /** El token puede crear contactos. */
+  canCreateContact?: boolean;
   /** Última vez que se dejó una nota de este chat. */
   lastLoggedAt: string | null;
   /** La empresa vinculada con sus propiedades fijadas (lib/groups-hubspot-sync.ts). */
   company?: import('./groups-hubspot-sync').ChatCompanySummary | null;
 }
 
-/** Lo que muestra el panel del chat. El que llama ya chequeó el acceso al chat. */
-export async function chatHubspot(ws: string, chatId: string): Promise<ChatHubspotDto> {
+/**
+ * Lo que muestra el panel del chat. El que llama ya chequeó el acceso al chat.
+ * `viewer`: las propiedades de la empresa son las que eligió esa persona.
+ */
+export async function chatHubspot(ws: string, chatId: string, viewer?: string): Promise<ChatHubspotDto> {
   const conn = await getConn(ws);
   if (!conn) return { connected: false, links: [], suggestions: [], canLog: false, logNotes: false, lastLoggedAt: null };
   const chat = await chatOf(ws, chatId);
@@ -925,8 +950,18 @@ export async function chatHubspot(ws: string, chatId: string): Promise<ChatHubsp
   }
   const last = (await getDb().prepare("SELECT MAX(synced_at) AS at FROM groups_hubspot_notes WHERE chat_id = ? AND note_id != ''").get(chatId)) as { at: string | null } | undefined;
   const { chatCompanySummary } = await import('./groups-hubspot-sync');
-  const company = await chatCompanySummary(ws, chatId).catch(() => null);
-  return { connected: true, links, suggestions, canLog: conn.scopes.includes(NOTE_SCOPE), logNotes: conn.logNotes, lastLoggedAt: last?.at ?? null, company };
+  const company = await chatCompanySummary(ws, chatId, viewer).catch(() => null);
+  return {
+    connected: true,
+    links,
+    suggestions,
+    canLog: conn.scopes.includes(NOTE_SCOPE),
+    logNotes: conn.logNotes,
+    lastLoggedAt: last?.at ?? null,
+    company,
+    dm: chat.kind === 'dm',
+    canCreateContact: conn.scopes.includes(HUBSPOT_CONTACT_WRITE_SCOPE),
+  };
 }
 
 /**

@@ -9,6 +9,8 @@ import {
   EXPAND_MS,
   HOLD_MS,
   holdBroken,
+  LEAVE_RESTORE_MS,
+  leaveDuration,
   openWidth,
   swipeCount,
   swipeEnd,
@@ -44,14 +46,14 @@ import {
  * y de si hay algo levantado.
  */
 
-export type SwipeIcon = 'read' | 'unread' | 'pin' | 'unpin' | 'archive' | 'unarchive' | 'more';
+export type SwipeIcon = 'read' | 'unread' | 'pin' | 'unpin' | 'snooze' | 'unsnooze' | 'archive' | 'unarchive' | 'more';
 
 export interface SwipeAction {
   key: string;
   label: string;
   icon: SwipeIcon;
   onSelect: () => void;
-  /** La fila se va de la lista al ejecutarla (archivar): queda corrida hasta que desaparece. */
+  /** La fila se va de la lista al ejecutarla (archivar): se corre y se cierra enseguida, como WhatsApp (leaveRow). */
   leaves?: boolean;
 }
 
@@ -176,7 +178,9 @@ function clearRow(row: HTMLElement) {
   settleSeq.set(row, (settleSeq.get(row) ?? 0) + 1);
   row.style.removeProperty('--swipe-x');
   row.style.removeProperty('--swipe-w');
-  for (const a of ['data-swipe', 'data-swipe-commit', 'data-swipe-settling']) row.removeAttribute(a);
+  if (row.hasAttribute('data-swipe-leaving')) row.style.removeProperty('height');
+  row.style.removeProperty('--leave-ms');
+  for (const a of ['data-swipe', 'data-swipe-commit', 'data-swipe-settling', 'data-swipe-leaving']) row.removeAttribute(a);
 }
 
 /** Lleva la fila a `x` con una transición corta y avisa al terminar. */
@@ -193,6 +197,39 @@ function settle(row: HTMLElement, x: number, side: SwipeSide, then?: () => void)
     },
     reducedMotion() ? 0 : SETTLE_MS,
   );
+}
+
+/**
+ * La fila que se va (archivar), como WhatsApp: termina de correrse y se cierra
+ * hacia arriba en LEAVE_MS, y recién ahí corre la acción (que la saca de la
+ * lista). Mientras la lista no se entera queda cerrada; si pasado
+ * LEAVE_RESTORE_MS sigue ahí (la acción falló), vuelve a abrirse.
+ */
+function leaveRow(row: HTMLElement, side: SwipeSide, run: () => void, done: () => void) {
+  const mine = (settleSeq.get(row) ?? 0) + 1;
+  settleSeq.set(row, mine);
+  const ms = leaveDuration(reducedMotion());
+  row.style.height = `${row.offsetHeight}px`;
+  row.style.setProperty('--leave-ms', `${ms}ms`);
+  paint(row, (side === 'left' ? -1 : 1) * row.offsetWidth, side);
+  row.setAttribute('data-swipe-commit', '');
+  row.setAttribute('data-swipe-settling', '');
+  // Un cuadro con la altura fija y después a 0: así la transición tiene desde dónde salir.
+  void row.offsetHeight;
+  row.setAttribute('data-swipe-leaving', '');
+  window.setTimeout(() => {
+    if (settleSeq.get(row) !== mine) return;
+    run();
+    window.setTimeout(() => {
+      if (settleSeq.get(row) !== mine) return;
+      if (row.isConnected) {
+        row.removeAttribute('data-swipe-leaving');
+        row.style.removeProperty('height');
+        row.style.removeProperty('--leave-ms');
+        settle(row, 0, side, done);
+      } else done();
+    }, LEAVE_RESTORE_MS);
+  }, ms);
 }
 
 /** ¿Hay alguna carpeta del producto a la vista? (el sidebar puede estar colapsado, o ser un cajón cerrado en el teléfono). */
@@ -261,6 +298,18 @@ const ICONS: Record<SwipeIcon, ReactNode> = {
     <>
       <path d="M3 4h18v5H3zM5 9v11h14V9" />
       <path d="M12 17v-5m-2.5 2.5L12 12l2.5 2.5" />
+    </>
+  ),
+  snooze: (
+    <>
+      <circle cx="12" cy="13" r="7.5" />
+      <path d="M12 9.5V13l2.5 1.5M5 4 2.5 6.5M19 4l2.5 2.5" />
+    </>
+  ),
+  unsnooze: (
+    <>
+      <circle cx="12" cy="13" r="7.5" />
+      <path d="M12 9.5V13l2.5 1.5M4 4l16 16" />
     </>
   ),
   more: (
@@ -509,20 +558,17 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
         return;
       }
       const action = opts.current.actionsFor(id)?.[side][0];
-      row.setAttribute('data-swipe-commit', '');
       buzz(8);
+      if (action?.leaves) {
+        // Se va ya, como WhatsApp: sin quedarse con la franja a la vista mientras contesta el servidor.
+        leaveRow(row, side, () => action.onSelect(), close);
+        return;
+      }
+      row.setAttribute('data-swipe-commit', '');
       settle(row, sign * width, side, () => {
         action?.onSelect();
-        if (action?.leaves) {
-          // La fila se va con la recarga de la lista; si al final se queda (falló), vuelve a su lugar.
-          window.setTimeout(() => {
-            if (row.isConnected && row.getAttribute('data-swipe')) settle(row, 0, side, close);
-            else close();
-          }, 1500);
-        } else {
-          row.removeAttribute('data-swipe-commit');
-          settle(row, 0, side, close);
-        }
+        row.removeAttribute('data-swipe-commit');
+        settle(row, 0, side, close);
       });
     },
     [],
@@ -777,13 +823,23 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
 
   const actions = (id: string): ReactNode => {
     if (swipe?.id !== id) return null;
-    const list = options.actionsFor(id)?.[swipe.side] ?? [];
+    const side = swipe.side;
+    const list = options.actionsFor(id)?.[side] ?? [];
     if (!list.length) return null;
     return (
       <ActionStrip
         side={swipe.side}
         actions={list}
         onPick={(a) => {
+          const row = open.current?.row;
+          if (a.leaves && row) {
+            open.current = null;
+            leaveRow(row, side, () => a.onSelect(), () => {
+              clearRow(row);
+              setSwipe((s) => (s?.id === id ? null : s));
+            });
+            return;
+          }
           closeSwipe();
           a.onSelect();
         }}

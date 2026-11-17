@@ -34,6 +34,8 @@
   "clickInfo": "toque aqui para ver os dados do contato",
   "groupInfo": "Dados do grupo",
   "contactInfo": "Dados do contato",
+  "copyPhone": "Copiar número",
+  "phoneCopied": "Número copiado",
   "reply": "Responder",
   "react": "Reagir",
   "forward": "Encaminhar",

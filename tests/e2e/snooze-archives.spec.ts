@@ -1,6 +1,7 @@
 import path from 'path';
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Posponer archiva el chat y al volver lo desarchiva (WhatsApp falso), en Inbox y en Lines, en 1280 y en 390:
@@ -76,7 +77,7 @@ for (const width of [1280, 390]) {
 
     test('Inbox: posponer archiva (Archivados y Pospuestos, no la bandeja) y al vencer vuelve a la bandeja', async ({ page, request }) => {
       const errors = watchErrors(page);
-      await request.post('/api/inbox/whatsapp');
+      await request.post('/api/inbox/whatsapp', waLinkIp());
       await expect
         .poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 })
         .toBe('connected');
@@ -161,7 +162,7 @@ for (const width of [1280, 390]) {
       // Sale de la lista al instante; la fila de Archivados está.
       await expect(row).toHaveCount(0);
       await expect(page.locator('.ui-toast', { hasText: 'Snoozed until' })).toBeVisible({ timeout: SERVER_MS });
-      const archivedRow = page.locator('.wa-archived-row');
+      const archivedRow = page.locator('button.wa-archived-row:not(.wa-deleted-row)');
       await expect(archivedRow).toBeVisible();
       await expect.poll(async () => (await pushRow('lines', chatId))?.sent_count, { timeout: SERVER_MS }).toBe(1);
       await shot(page, 'lines-2-snoozed', width);
