@@ -143,14 +143,26 @@ export default function InboxFilters({
   }, []);
 
   // Display: clic afuera lo cierra; al abrir, el foco va al primer control.
+  // Esc también lo cierra con el foco fuera del panel (un clic en una zona sin
+  // controles se lo saca); con el foco adentro lo maneja el onKeyDown de abajo.
   useEffect(() => {
     if (!displayOpen) return;
     displayPanel.current?.querySelector<HTMLElement>('button')?.focus();
     const onDown = (e: MouseEvent) => {
       if (!displayWrap.current?.contains(e.target as Node)) setDisplayOpen(false);
     };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || displayWrap.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+      setDisplayOpen(false);
+      displayButton.current?.focus();
+    };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onEsc);
+    };
   }, [displayOpen]);
 
   const valueItems = (field: Field, q: string): KeyMenuItem[] => {

@@ -951,6 +951,14 @@ dialog.ui-drawer.track-drawer {
   flex: none;
 }
 
+/* Un chip con un nombre largo (project, persona) se achica con "…" dentro de su fila: nunca la desborda a 390. */
+.track-inbox-filters .track-filter-chip-wrap,
+.track-inbox-filters .track-filter-chip,
+.track-inbox-filters .track-filter-chip .track-filter {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .track-inbox-group + .track-inbox-group {
   margin-top: 16px;
 }

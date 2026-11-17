@@ -138,6 +138,13 @@ test('filtrar por quién, estado, tipo y project; ordenar y agrupar; se recuerda
   await page.getByTestId('track-inbox-panel').click({ position: { x: 2, y: 2 } });
   await expect(page.getByTestId('track-inbox-display-panel')).toHaveCount(0);
 
+  // Esc lo cierra aunque el foco ya no esté en el panel.
+  await page.getByTestId('track-inbox-display').click();
+  await expect(page.getByTestId('track-inbox-display-panel')).toBeVisible();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('track-inbox-display-panel')).toHaveCount(0);
+
   // Limpiar deja orden y agrupado.
   await page.getByTestId('track-inbox-filter-clear').click();
   await expect(page.getByTestId('track-inbox-filter-chip')).toHaveCount(0);
@@ -167,6 +174,11 @@ test('sin coincidencias: estado vacío con "Limpiar"; 390 px sin scroll lateral 
     await page.keyboard.press('Escape');
     await expect(value).toHaveCount(0);
   }
+  // Con el chip de la persona puesto, la fila tampoco desborda.
+  await addFilter(page, 'from', s.actor);
+  const chip = await page.getByTestId('track-inbox-filter-chip').boundingBox();
+  expect(chip && chip.x >= 0 && chip.x + chip.width <= 390).toBeTruthy();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.emulateMedia({ colorScheme: 'light' });
   await page.evaluate(() => window.localStorage.removeItem('zs:track-inbox-view'));
 });
