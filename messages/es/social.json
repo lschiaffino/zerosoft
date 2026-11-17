@@ -329,7 +329,14 @@
     "byPost": "Por publicación",
     "noPosts": "No se publicó nada en este período.",
     "postCol": "Publicación",
-    "bestTimes": "Mejores horarios para publicar"
+    "bestTimes": "Mejores horarios para publicar",
+    "emptyPeriodTitle": "No hay publicaciones en este período",
+    "emptyPeriodBody": "Publicá o programá un post: sus métricas aparecen acá dentro de la hora.",
+    "byNetwork": "Por red",
+    "whenEngage": "Cuándo interactúan con tus posts",
+    "peak": "La mayor interacción es en posts publicados el {day} a las {hour} ({n})",
+    "postsN": "{n, plural, one {# post} other {# posts}}",
+    "impressionsN": "{n} impresiones"
   },
   "library": {
     "title": "Biblioteca",

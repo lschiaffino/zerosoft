@@ -167,7 +167,8 @@ test('Cal: marca, privacidad, actividad y analytics por persona', async ({ page,
   await expect(page.getByText('created the event type').first()).toBeVisible();
 
   await page.goto('/en/app/calendar/analytics');
-  await expect(page.getByLabel('Event type', { exact: true })).toBeVisible();
+  // El filtro del kit (la etiqueta envuelve el select: su nombre accesible incluye la opción elegida).
+  await expect(page.getByRole('form', { name: 'Report filters' }).getByLabel('Event type')).toBeVisible();
   const exp = page.getByRole('link', { name: 'Export CSV' });
   await expect(exp).toHaveAttribute('href', /\/api\/calendar\/analytics\/export\?from=/);
   const csv = await request.get((await exp.getAttribute('href'))!);

@@ -10,7 +10,7 @@ export default async function Layout(props: { children: ReactNode; params: Promi
   const { locale, zs = [] } = await props.params;
   const [section, sub, rid] = zs;
   if (zs.length > 3) notFound();
-  if (section === 'new' || section === 'settings') {
+  if (section === 'new' || section === 'settings' || section === 'analytics') {
     if (sub) notFound();
   } else if (section) {
     if (sub && !['share', 'responses', 'summary'].includes(sub)) notFound();

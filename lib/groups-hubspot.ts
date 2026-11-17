@@ -425,6 +425,8 @@ export async function disconnectHubspot(ws: string): Promise<boolean> {
     .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, auto_create = 0, auto_create_since = NULL, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
     .run(new Date().toISOString(), ws);
   caches.delete(ws);
+  // El esquema del contacto y del negocio es de esa cuenta: otra cuenta lo vuelve a importar.
+  await getDb().prepare('DELETE FROM hubspot_object_schema WHERE ws = ?').run(ws);
   return res.changes > 0;
 }
 
@@ -925,13 +927,18 @@ export interface ChatHubspotDto {
   lastLoggedAt: string | null;
   /** La empresa vinculada con sus propiedades fijadas (lib/groups-hubspot-sync.ts). */
   company?: import('./groups-hubspot-sync').ChatCompanySummary | null;
+  /** El contacto y el negocio vinculados con las propiedades elegidas (lib/hubspot-objects.ts); null si no se pudieron leer. */
+  objects?: {
+    contact?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[] } | null;
+    deal?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[]; currency?: string } | null;
+  };
 }
 
 /**
  * Lo que muestra el panel del chat. El que llama ya chequeó el acceso al chat.
  * `viewer`: las propiedades de la empresa son las que eligió esa persona.
  */
-export async function chatHubspot(ws: string, chatId: string, viewer?: string): Promise<ChatHubspotDto> {
+export async function chatHubspot(ws: string, chatId: string, viewer?: string, mask = false): Promise<ChatHubspotDto> {
   const conn = await getConn(ws);
   if (!conn) return { connected: false, links: [], suggestions: [], canLog: false, logNotes: false, lastLoggedAt: null };
   const chat = await chatOf(ws, chatId);
@@ -951,6 +958,11 @@ export async function chatHubspot(ws: string, chatId: string, viewer?: string): 
   const last = (await getDb().prepare("SELECT MAX(synced_at) AS at FROM groups_hubspot_notes WHERE chat_id = ? AND note_id != ''").get(chatId)) as { at: string | null } | undefined;
   const { chatCompanySummary } = await import('./groups-hubspot-sync');
   const company = await chatCompanySummary(ws, chatId, viewer).catch(() => null);
+  const { hubspotObjectSummary } = await import('./hubspot-objects');
+  const objects: NonNullable<ChatHubspotDto['objects']> = {};
+  for (const l of links) {
+    if ((l.type === 'contact' || l.type === 'deal') && !l.missing) objects[l.type] = await hubspotObjectSummary(ws, l.type, l.id, viewer, mask).catch(() => null);
+  }
   return {
     connected: true,
     links,
@@ -959,6 +971,7 @@ export async function chatHubspot(ws: string, chatId: string, viewer?: string): 
     logNotes: conn.logNotes,
     lastLoggedAt: last?.at ?? null,
     company,
+    objects,
     dm: chat.kind === 'dm',
     canCreateContact: conn.scopes.includes(HUBSPOT_CONTACT_WRITE_SCOPE),
   };

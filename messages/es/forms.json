@@ -4,7 +4,8 @@
   },
   "nav": {
     "forms": "Formularios",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "analytics": "Analítica"
   },
   "guest": {
     "title": "Forms es para miembros del workspace",
@@ -569,5 +570,27 @@
       "invalid_option": "Elegí una de las opciones."
     },
     "hintTen": "tocá 1 y 0 para el 10 · Enter para seguir"
+  },
+  "analytics": {
+    "title": "Analítica",
+    "desc": "Visitas, respuestas y finalización de tus formularios, comparadas con el período anterior.",
+    "form": "Formulario",
+    "allForms": "Todos los formularios",
+    "views": "Visitas",
+    "responses": "Respuestas",
+    "completion": "Tasa de finalización",
+    "partial": "Respuestas a medias",
+    "perDay": "Visitas y respuestas por día",
+    "byForm": "Por formulario",
+    "whenResponses": "Cuándo llegan las respuestas",
+    "formsTable": "Formularios",
+    "responsesN": "{n, plural, one {# respuesta} other {# respuestas}}",
+    "viewsN": "{n, plural, one {# visita} other {# visitas}}",
+    "peak": "La mayoría de las respuestas llega el {day} a las {hour} ({n})",
+    "emptyTitle": "Todavía no hay visitas ni respuestas",
+    "emptyBody": "Compartí un formulario publicado y sus visitas y respuestas aparecen acá.",
+    "noFormsTitle": "Todavía no hay formularios",
+    "noFormsBody": "Creá un formulario y publicalo para ver acá sus visitas y respuestas.",
+    "note": "Cada visita a un formulario publicado cuenta una vez. La tasa de finalización es la parte de las visitas que terminó en una respuesta. Las visitas se guardan 180 días."
   }
 }

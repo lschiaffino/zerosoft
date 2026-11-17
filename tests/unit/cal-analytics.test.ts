@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange, type AnalyticsBookingRow } from '@/lib/calendar-analytics';
+import { calAnalytics, computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange, type AnalyticsBookingRow } from '@/lib/calendar-analytics';
 import { createBooking, createEventType, getOrCreateCalendarUser, setAvailability, updateBooking } from '@/lib/calendar';
 import { makeUser } from './helpers';
 
@@ -77,5 +77,27 @@ describe('Cal: analítica de reservas', () => {
     const a = computeBookingAnalytics(rows, { fromDate: today, toDate: today, timezone: 'UTC' });
     expect(a.created).toBe(2);
     expect(a.cancelled).toBe(1);
+
+    // Con el período del kit: lo de hoy cae en el período y nada en el anterior; un member filtra por anfitrión.
+    const k = await calAnalytics(user.id, {}, { days: 7, tz: 'UTC' });
+    expect(k.cur.created).toBe(2);
+    expect(k.prev.created).toBe(0);
+    expect(k.range.days).toBe(7);
+    expect((await calAnalytics(user.id, { hostId: 'nadie' }, { days: 7, tz: 'UTC' })).cur.created).toBe(0);
+    expect((await calAnalytics(other.id, {}, { days: 7, tz: 'UTC' })).cur.created).toBe(0);
+  });
+
+  it('por día: canceladas y no-shows alineadas, y la anticipación de las que siguen en pie', () => {
+    const rows = [
+      row({ created_at: '2030-03-04 12:00:00', starts_at: '2030-03-05T12:00:00.000Z' }),
+      row({ created_at: '2030-03-04 12:00:00', starts_at: '2030-03-07T12:00:00.000Z' }),
+      row({ created_at: '2030-03-05 12:00:00', status: 'cancelled' }),
+      row({ created_at: '2030-03-05 12:00:00', status: 'no_show', starts_at: '2030-03-05T13:00:00.000Z' }),
+    ];
+    const a = computeBookingAnalytics(rows, { fromDate: '2030-03-04', toDate: '2030-03-05', timezone: 'UTC' });
+    expect(a.cancelledByDay).toEqual([0, 1]);
+    expect(a.noShowByDay).toEqual([0, 1]);
+    // 1 h, 1 día y 3 días: la mediana es 1 día.
+    expect(a.leadMin).toBe(1440);
   });
 });

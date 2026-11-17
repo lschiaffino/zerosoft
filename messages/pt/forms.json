@@ -4,7 +4,8 @@
   },
   "nav": {
     "forms": "Formulários",
-    "templates": "Modelos"
+    "templates": "Modelos",
+    "analytics": "Análises"
   },
   "guest": {
     "title": "Forms é para membros do workspace",
@@ -569,5 +570,27 @@
       "invalid_option": "Escolha uma das opções."
     },
     "hintTen": "aperte 1 e 0 para 10 · Enter para continuar"
+  },
+  "analytics": {
+    "title": "Análises",
+    "desc": "Visitas, respostas e conclusão dos seus formulários, comparadas com o período anterior.",
+    "form": "Formulário",
+    "allForms": "Todos os formulários",
+    "views": "Visitas",
+    "responses": "Respostas",
+    "completion": "Taxa de conclusão",
+    "partial": "Respostas parciais",
+    "perDay": "Visitas e respostas por dia",
+    "byForm": "Por formulário",
+    "whenResponses": "Quando chegam as respostas",
+    "formsTable": "Formulários",
+    "responsesN": "{n, plural, one {# resposta} other {# respostas}}",
+    "viewsN": "{n, plural, one {# visita} other {# visitas}}",
+    "peak": "A maioria das respostas chega {day} às {hour} ({n})",
+    "emptyTitle": "Ainda não há visitas nem respostas",
+    "emptyBody": "Compartilhe um formulário publicado e as visitas e respostas aparecem aqui.",
+    "noFormsTitle": "Ainda não há formulários",
+    "noFormsBody": "Crie um formulário e publique para ver aqui as visitas e respostas.",
+    "note": "Cada visita a um formulário publicado conta uma vez. A taxa de conclusão é a parte das visitas que terminou em uma resposta. As visitas ficam guardadas por 180 dias."
   }
 }

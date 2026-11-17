@@ -14,6 +14,7 @@ import DocumentDetail from '@/components/send/DocumentDetail';
 import SpacesList from '@/components/send/SpacesList';
 import SpaceDetail from '@/components/send/SpaceDetail';
 import SendSettings from '@/components/send/SendSettings';
+import SendAnalytics from '@/components/send/SendAnalytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ type Props = { params: Promise<{ locale: string; zs?: string[] }>; searchParams:
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale, zs = [] } = await props.params;
   const t = await getTranslations({ locale, namespace: 'send' });
-  const key = zs[0] === 'spaces' ? 'nav.spaces' : zs[0] === 'new' ? 'nav.new' : 'nav.documents';
+  const key = zs[0] === 'spaces' ? 'nav.spaces' : zs[0] === 'new' ? 'nav.new' : zs[0] === 'analytics' ? 'nav.analytics' : 'nav.documents';
   return { title: `${t(key)} · Send` };
 }
 
@@ -39,7 +40,7 @@ async function orNotFound<T>(fn: () => Promise<T>): Promise<T> {
 /**
  * Send en una sola ruta (presupuesto de rutas): /app/send (?q), /app/send/new,
  * /app/send/documents/<id> (?tab), /app/send/spaces (?q), /app/send/spaces/<id> y
- * /app/send/settings.
+ * /app/send/analytics y /app/send/settings.
  */
 export default async function SendPage(props: Props) {
   const { locale, zs = [] } = await props.params;
@@ -86,6 +87,9 @@ export default async function SendPage(props: Props) {
         />
       );
     }
+    case 'analytics':
+      if (id) notFound();
+      return <SendAnalytics locale={locale} actor={actor} sp={sp} />;
     case 'settings':
       return <SendSettings initial={await getBranding(actor.ws)} admin={actor.admin} />;
     default:

@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   const guard = await chatGuard(s, chatId);
   if (guard instanceof NextResponse) return guard;
   try {
-    return NextResponse.json(redact(guard.viewer.mask, await chatHubspot(s.ws, chatId, s.me)));
+    return NextResponse.json(redact(guard.viewer.mask, await chatHubspot(s.ws, chatId, s.me, guard.viewer.mask)));
   } catch (err) {
     return handleGroupsError(err);
   }

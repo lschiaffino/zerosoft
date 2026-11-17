@@ -172,9 +172,10 @@ test.describe('Cal', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/en/app/calendar/analytics');
     await expect(page.locator('.band-section-name')).toHaveText('Analytics');
-    for (const id of ['#cal-an-from', '#cal-an-to']) {
-      await expect(page.locator(id)).toBeVisible();
-      const box = await page.locator(id).boundingBox();
+    const form = page.getByRole('form', { name: 'Report filters' });
+    for (const field of [form.getByLabel('From'), form.getByLabel('To')]) {
+      await expect(field).toBeVisible();
+      const box = await field.boundingBox();
       expect(box!.height).toBeLessThan(50);
     }
     await shot(page, 'cal_analytics');

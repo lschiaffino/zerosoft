@@ -119,8 +119,8 @@ test('componer con texto por red, publicar, links, bandeja con respuesta y métr
   await expect(page.getByTestId('inbox-done')).toHaveText('Reopen');
 
   await page.goto('/en/app/social/analytics', { waitUntil: 'networkidle' });
-  await expect(page.getByTestId('analytics-posts')).toContainText(text.split(' #')[0]);
-  expect(Number((await page.getByTestId('total-impressions').innerText()).replace(/\D/g, ''))).toBeGreaterThan(0);
+  await expect(page.getByRole('region', { name: 'By post' })).toContainText(text.split(' #')[0]);
+  expect(Number(await page.locator('.la-kpi[data-kpi="Impressions"] .la-num').getAttribute('data-value'))).toBeGreaterThan(0);
   const csv = await request.get('/api/social/analytics?format=csv');
   expect(await csv.text()).toContain(override);
 

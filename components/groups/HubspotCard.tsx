@@ -1,14 +1,15 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import LocalText from '@/components/ui/LocalText';
 import { Link } from '@/i18n/navigation';
 import type { HubspotDto } from '@/lib/groups-hubspot';
-import { HUBSPOT_MAX_PINNED, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
+import { HUBSPOT_MAX_PINNED, type HubspotObjectKind, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import { parseDbUtc } from '@/lib/utils';
 import { setHubspotSchema, useHubspotSchema } from './hubspot-client';
+import HubspotKindTabs from './HubspotKindTabs';
 import { Modal, api, useErrorText, useToast } from './ui';
 
 export interface HubspotScopes {
@@ -20,22 +21,28 @@ export interface HubspotScopes {
 }
 
 /**
- * Propiedades de HubSpot del workspace: cuándo se importaron, "Actualizar
- * propiedades" y cuáles van fijadas arriba (y en los detalles del chat).
+ * Propiedades de HubSpot del workspace, de la empresa, del contacto y del
+ * negocio: cuándo se importaron, "Actualizar propiedades" y cuáles van
+ * fijadas arriba (y en los detalles del chat).
  */
 function PropertiesModal({ open, onClose, showToast }: { open: boolean; onClose: () => void; showToast: (text: string, error?: boolean) => void }) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const errText = useErrorText();
-  const { schema, failed, reload } = useHubspotSchema(open);
+  const panelId = useId();
+  const [kind, setKind] = useState<HubspotObjectKind>('company');
+  const { schema, failed, reload } = useHubspotSchema(open, kind);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) setKind('company');
+  }, [open]);
 
   async function send(body: Record<string, unknown>, done: string) {
     setBusy(true);
-    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', { body });
+    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', { body: kind === 'company' ? body : { ...body, type: kind } });
     setBusy(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setHubspotSchema(res.data);
+    setHubspotSchema(res.data, kind);
     showToast(done);
   }
 
@@ -51,78 +58,86 @@ function PropertiesModal({ open, onClose, showToast }: { open: boolean; onClose:
         </button>
       }
     >
-      {failed ? (
-        <p className="ui-help" role="alert">
-          {t('hubspot.card.propsError')}{' '}
-          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>
-            {t('common.retry')}
-          </button>
-        </p>
-      ) : !schema ? (
-        <p className="ui-help" role="status">
-          {t('common.loading')}
-        </p>
-      ) : (
-        <div className="ui-fields">
-          <div className="gr-hs-refresh">
-            <p className="ui-help">
-              <LocalText>
-                {t('hubspot.card.propsCount', {
-                  n: schema.props.length,
-                  time: schema.syncedAt ? parseDbUtc(schema.syncedAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : '',
-                })}
-              </LocalText>
-            </p>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} onClick={() => void send({ refresh: true }, t('hubspot.card.propsRefreshed'))}>
-              {t('hubspot.card.propsRefresh')}
+      <HubspotKindTabs value={kind} onChange={setKind} label={t('hubspot.mine.objects')} controls={panelId} />
+      <div id={panelId} role="tabpanel" aria-label={t(`hubspot.types.${kind}`)} className="gr-hs-kind-panel">
+        {failed ? (
+          <p className="ui-help" role="alert">
+            {t('hubspot.card.propsError')}{' '}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>
+              {t('common.retry')}
             </button>
-          </div>
-          <fieldset className="ui-field">
-            <legend className="label">{t('hubspot.card.pinnedTitle')}</legend>
-            <p className="ui-help">{t('hubspot.card.pinnedHelp', { n: HUBSPOT_MAX_PINNED })}</p>
-            <ul className="gr-hs-pins" aria-label={t('hubspot.card.pinnedTitle')}>
-              {pinned.map((p) => (
-                <li key={p.name}>
-                  <span>{p.label}</span>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    disabled={busy}
-                    aria-label={t('hubspot.screen.unpin', { label: p.label })}
-                    onClick={() => void send({ pinned: schema.pinned.filter((n) => n !== p.name) }, t('common.saved'))}
-                  >
-                    {t('hubspot.card.unpin')}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {schema.pinned.length < HUBSPOT_MAX_PINNED && (
-              <select
-                className="select"
-                value=""
-                disabled={busy}
-                aria-label={t('hubspot.card.pinAdd')}
-                onChange={(e) => {
-                  if (e.target.value) void send({ pinned: [...schema.pinned, e.target.value] }, t('common.saved'));
-                }}
-              >
-                <option value="">{t('hubspot.card.pinAdd')}</option>
-                {schema.groups.map((g) => (
-                  <optgroup key={g.name} label={g.label}>
-                    {schema.props
-                      .filter((p) => p.group === g.name && !schema.pinned.includes(p.name))
-                      .map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.label}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+          </p>
+        ) : !schema ? (
+          <p className="ui-help" role="status">
+            {t('common.loading')}
+          </p>
+        ) : (
+          <div className="ui-fields">
+            <div className="gr-hs-refresh">
+              <p className="ui-help">
+                <LocalText>
+                  {t(kind === 'company' ? 'hubspot.card.propsCount' : 'hubspot.card.propsCountObject', {
+                    n: schema.props.length,
+                    time: schema.syncedAt ? parseDbUtc(schema.syncedAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : '',
+                  })}
+                </LocalText>
+              </p>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} onClick={() => void send({ refresh: true }, t('hubspot.card.propsRefreshed'))}>
+                {t('hubspot.card.propsRefresh')}
+              </button>
+            </div>
+            {schema.error && (
+              <p className="ui-help" role="note" data-testid="hubspot-schema-error">
+                {t('hubspot.mine.schemaError', { reason: errText(schema.error) })}
+              </p>
             )}
-          </fieldset>
-        </div>
-      )}
+            <fieldset className="ui-field">
+              <legend className="label">{t('hubspot.card.pinnedTitle')}</legend>
+              <p className="ui-help">{t('hubspot.card.pinnedHelp', { n: HUBSPOT_MAX_PINNED })}</p>
+              <ul className="gr-hs-pins" aria-label={t('hubspot.card.pinnedTitle')}>
+                {pinned.map((p) => (
+                  <li key={p.name}>
+                    <span>{p.label}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={busy}
+                      aria-label={t('hubspot.screen.unpin', { label: p.label })}
+                      onClick={() => void send({ pinned: schema.pinned.filter((n) => n !== p.name) }, t('common.saved'))}
+                    >
+                      {t('hubspot.card.unpin')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {schema.pinned.length < HUBSPOT_MAX_PINNED && (
+                <select
+                  className="select"
+                  value=""
+                  disabled={busy}
+                  aria-label={t('hubspot.card.pinAdd')}
+                  onChange={(e) => {
+                    if (e.target.value) void send({ pinned: [...schema.pinned, e.target.value] }, t('common.saved'));
+                  }}
+                >
+                  <option value="">{t('hubspot.card.pinAdd')}</option>
+                  {schema.groups.map((g) => (
+                    <optgroup key={g.name} label={g.label}>
+                      {schema.props
+                        .filter((p) => p.group === g.name && !schema.pinned.includes(p.name))
+                        .map((p) => (
+                          <option key={p.name} value={p.name}>
+                            {p.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
+                </select>
+              )}
+            </fieldset>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
@@ -194,7 +209,9 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     setRemoving(false);
     if (!res.data) return showToast(errText(res.error), true);
     setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false });
-    setHubspotSchema(null);
+    setHubspotSchema(null, 'company');
+    setHubspotSchema(null, 'contact');
+    setHubspotSchema(null, 'deal');
   }
 
   async function removeSecret() {

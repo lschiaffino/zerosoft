@@ -80,6 +80,8 @@ interface CallOpts {
   /** Reintentos ante un 429 y cuánto se espera en total como mucho. */
   retries?: number;
   maxWaitMs?: number;
+  /** No deja el error en la conexión (una lectura opcional, como el esquema del contacto). */
+  quiet?: boolean;
 }
 
 /** Lo que HubSpot dijo de un valor que no aceptó, en una línea. */
@@ -103,7 +105,7 @@ async function call(conn: HubspotConn, method: string, path: string, body?: unkn
   const maxWait = opts.maxWaitMs ?? 4_000;
   let waited = 0;
   const fail = async (err: HubspotError): Promise<never> => {
-    await markHubspotUsed(conn.ws, err.code).catch(() => null);
+    if (!opts.quiet) await markHubspotUsed(conn.ws, err.code).catch(() => null);
     throw err;
   };
   for (let attempt = 0; ; attempt++) {
@@ -142,6 +144,10 @@ async function call(conn: HubspotConn, method: string, path: string, body?: unkn
     return { status: res.status, json };
   }
 }
+
+/** La misma llamada para los contactos y negocios (lib/hubspot-objects.ts). */
+export const hubspotCall = call;
+export type HubspotCallOpts = CallOpts;
 
 const list = (v: unknown): Array<Record<string, unknown>> => (Array.isArray(v) ? (v.filter((x) => x && typeof x === 'object') as Array<Record<string, unknown>>) : []);
 const text = (v: unknown, max = 300): string => (typeof v === 'string' ? v.slice(0, max) : typeof v === 'number' ? String(v) : '');
@@ -657,6 +663,8 @@ export interface PinnedValue {
   name: string;
   label: string;
   kind: HubspotPropKind;
+  /** Para reconocer un monto (tipo moneda). */
+  fieldType?: string;
   value: string;
   /** Solo las opciones del valor (para mostrar la etiqueta) y el nombre del dueño. */
   options: HubspotOption[];

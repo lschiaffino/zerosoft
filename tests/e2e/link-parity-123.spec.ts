@@ -47,9 +47,9 @@ test('Link: conversiones de punta a punta (click id, lead, venta, analytics y ev
   await expect(conv.getByTestId('detail-revenue')).toHaveText('$49.00');
 
   await page.goto(`/en/app/links/analytics?link=${link.id}`, { waitUntil: 'networkidle' });
-  await expect(page.getByTestId('analytics-leads')).toHaveText('1');
-  await expect(page.getByTestId('analytics-revenue')).toHaveText('$49.00');
-  await expect(page.getByTestId('analytics-conversions').getByRole('link', { name: new RegExp(slug) })).toBeVisible();
+  await expect(page.locator('.la-kpi[data-kpi="Leads"] .la-num')).toHaveAttribute('data-value', '1');
+  await expect(page.locator('.la-kpi[data-kpi="Revenue"] .la-num')).toHaveAttribute('data-value', '49');
+  await expect(page.getByRole('region', { name: 'Conversions' }).getByRole('link', { name: new RegExp(slug) })).toBeVisible();
 
   // Eventos en vivo: un click nuevo aparece sin recargar.
   await page.getByRole('navigation', { name: 'Analytics views' }).getByRole('link', { name: 'Events' }).click();
@@ -218,7 +218,12 @@ test('Link: integraciones (Segment, Shopify, Slack y MCP) e importar de Rebrandl
   expect(tools).toContain('create_link');
 });
 
-test('Link: preguntas a la IA sobre las analytics (fake y sin IA)', async ({ page, context }) => {
+test('Link: preguntas a la IA sobre las analytics (fake y sin IA)', async ({ page, context, request }) => {
+  // Una visita propia: con el período vacío la página muestra el vacío y no la caja de preguntas.
+  const slug = `ai${uid()}`;
+  const link = await newLink(request, { url: 'https://example.com/ai', slug });
+  await request.get(`/${slug}`, { headers: { 'user-agent': BROWSER_UA }, maxRedirects: 0 });
+  await expect.poll(async () => (await (await request.get(`/api/links/${link.id}`)).json()).clicks).toBeGreaterThan(0);
   await page.goto('/en/app/links/analytics', { waitUntil: 'networkidle' });
   const ai = page.getByTestId('link-ask-ai');
   await ai.getByLabel('Question about these analytics').fill('How many clicks did I get?');
