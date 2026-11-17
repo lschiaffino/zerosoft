@@ -30,7 +30,13 @@
     "noMic": "Sin micrófono",
     "quality": "Calidad",
     "noise": "Supresión de ruido",
-    "systemAudio": "Incluir audio de la pestaña o del sistema",
+    "systemAudio": "Audio de la compu",
+    "systemAudioNotice": {
+      "failed": "No se pudo capturar el audio de la compu, así que se graba solo tu micrófono. Revisá en los ajustes de la app, en Privacidad y datos, que esté permitido capturar el audio de la compu. Hace falta macOS 13 o más.",
+      "missing": "Lo que compartiste no trae audio, así que se graba solo tu micrófono. Para sumarlo, compartí una pestaña o la pantalla entera y activá Compartir audio.",
+      "silent": "No está llegando el audio de la compu: se graba solo tu micrófono. En Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, sacá zerosoft de la lista, volvé a agregarlo, reabrí la app y grabá de nuevo. Si todavía no sonó nada, este aviso se va solo cuando suene algo.",
+      "settings": "Ajustes de la app"
+    },
     "screenHint": "Cuando tocás Empezar, el navegador te pregunta qué pantalla, ventana o pestaña compartir.",
     "cancel": "Cancelar",
     "start": "Empezar a grabar",
@@ -546,8 +552,8 @@
       "arrow": "Sumar flecha"
     },
     "colors": {
-      "ffffff": "Blanco",
       "111111": "Negro",
+      "ffffff": "Blanco",
       "e11d48": "Rojo",
       "f59e0b": "Ámbar",
       "16a34a": "Verde",

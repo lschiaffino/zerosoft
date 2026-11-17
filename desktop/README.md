@@ -110,6 +110,18 @@ local: el permiso de cámara se le da solo a ella) y la página deja de dibujar 
 así no sale dos veces. Grabando una ventana o una pestaña, o si la burbuja no consigue la cámara
 (`bubble-failed`), la página la sigue dibujando en el video como en el navegador.
 
+**Audio de la compu** (la llave del grabador, prendida por defecto): en Mac WKWebView no trae audio
+en `getDisplayMedia`, así que Rec usa la misma captura nativa que las reuniones de Voice
+(`src/system_audio.rs`, ScreenCaptureKit, macOS 13 o más, sin drivers): la página la pide al tocar
+Empezar (con la pestaña adelante, como exige `desktop_system_audio_start`), la mezcla con el
+micrófono en una sola pista y la suelta al terminar o descartar. Mientras graba Rec no aparece el
+indicador aparte del audio de la computadora: la barra de Rec ya está encima de todo (el punto de
+la barra de menú sigue). Si la captura no arranca (apagada en Privacidad y datos, macOS viejo) o
+arranca muda, la página lo avisa mientras graba (`systemAudioSilent`, igual que Voice). En
+Windows no hace falta nada nativo: WebView2 es Chromium y `getDisplayMedia` con
+`systemAudio: 'include'` comparte el audio del sistema (loopback de WASAPI) al elegir la pantalla
+entera.
+
 Captura: la barra se excluye de la grabación (`content_protected`: NSWindowSharingNone en Mac,
 WDA_EXCLUDEFROMCAPTURE en Windows 10 2004 o más; en Windows más viejos sale en el video). La burbuja
 no se excluye: es la que pone la cara en el video. Dónde quedaron la barra y la burbuja y el tamaño
@@ -169,8 +181,8 @@ opcionales y un registro de actividad.
 
 ### Lo que la versión de Electron hacía y esta todavía no
 
-- Notas de reuniones con el **audio del sistema** (getDisplayMedia con loopback) y el aviso cuando
-  Zoom, Meet o Teams están en llamada. Las reuniones se graban desde la web (micrófono o pestaña).
+- El aviso cuando Zoom, Meet o Teams están en llamada (el audio del sistema para las reuniones y
+  para Rec ya está, ver arriba).
 - Tocar un aviso nativo no abre su página (el plugin de avisos de escritorio no tiene clic); abre la app.
 
 ## Permisos en Mac

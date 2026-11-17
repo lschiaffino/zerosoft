@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { e2eDb } from './helpers/db';
-import { expect, test, type Browser, type BrowserContext } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * Migrar un equipo, de punta a punta: el owner (usuario demo) invita desde
@@ -50,12 +50,22 @@ async function context(browser: Browser, as: string, opts: Parameters<Browser['n
   return ctx;
 }
 
+/**
+ * Nombre del workspace del owner (demo). La ficha se crea la primera vez que el owner entra
+ * (ensureWorkspace): si este spec corre primero en su parte, todavía no existe. GET /api/teams la
+ * crea, como cuando la persona abre la app.
+ */
+async function demoWorkspaceName(page: Page): Promise<string> {
+  expect((await page.request.get('/api/teams')).ok()).toBe(true);
+  return String((await sql("SELECT name FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].name);
+}
+
 test('invitar con apps limitadas, entrar sin Google con un código por email y sumarse al workspace', async ({ page, browser }) => {
   test.setTimeout(240_000);
   const marta = `marta-${uid()}@outlook-e2e.io`;
   const olga = `olga-${uid()}@acme-e2e.io`;
   const rita = `rita-${uid()}@acme-e2e.io`;
-  const team = String((await sql("SELECT name FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].name);
+  const team = await demoWorkspaceName(page);
   // Olga ya usa zerosoft (cuenta terminada) antes de que la inviten.
   const olgaCtx = await context(browser, olga);
   const olgaPage = await olgaCtx.newPage();
@@ -203,7 +213,7 @@ test('la página de entrar ofrece Google y código por email', async ({ browser 
 
 test('un guest que entra a /app/welcome sin ?invited=1 recibe el onboarding corto', async ({ page, browser }) => {
   const gina = `gina-${uid()}@acme-e2e.io`;
-  const team = String((await sql("SELECT name FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].name);
+  const team = await demoWorkspaceName(page);
   const res = await page.request.post('/api/teams/invites', { data: { emails: gina, role: 'guest' } });
   expect(res.status()).toBe(201);
   const token = String((await sql("SELECT token FROM team_invites WHERE email = ? AND status = 'pending'", [gina]))[0].token);
