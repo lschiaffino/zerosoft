@@ -4,7 +4,7 @@ import { setMemberVisibility } from '@/lib/crm-visibility';
 import type { BiViewer } from '@/lib/bi/access';
 import { applyParams, buildSql, BuildError, literal } from '@/lib/bi/builder';
 import { runQuery, RunError, compileQuery } from '@/lib/bi/run';
-import { ZS_GUARD, zsSchema } from '@/lib/bi/zs-tables';
+import { ZS_GUARD, zsSchema, zsTableColumns } from '@/lib/bi/zs-tables';
 import { checkSqlWith } from '@/lib/analytics/sql-safe';
 import { pickViz } from '@/lib/bi/viz';
 import { resolveDbHost, UnsafeHostError, validHostSyntax } from '@/lib/bi/net-guard';
@@ -145,6 +145,15 @@ describe('datos propios con permisos', () => {
     expect(b.cached).toBe(true);
     const c = await runQuery(member, 'zerosoft', q);
     expect(c.cached).toBe(false);
+  });
+
+  it('los mensajes de Lines no exponen el texto', async () => {
+    expect(zsTableColumns('messages')?.map(([c]) => c)).not.toContain('body');
+    const msgs = (await zsSchema(owner)).find((t) => t.name === 'messages');
+    expect(msgs?.columns.map((c) => c.name)).not.toContain('body');
+    const counted = await runQuery(owner, 'zerosoft', { kind: 'sql', sql: 'SELECT COUNT(*) AS n FROM messages', params: [] }, { fresh: true });
+    expect(counted.rows[0][0]).toBe(0);
+    await expect(runQuery(owner, 'zerosoft', { kind: 'sql', sql: 'SELECT body FROM messages', params: [] }, { fresh: true })).rejects.toBeInstanceOf(Error);
   });
 
   it('una base externa ajena al workspace no existe', async () => {
