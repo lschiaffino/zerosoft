@@ -40,6 +40,7 @@ test.describe('Sin conexión: abrir la app y navegar', () => {
     expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
 
     // Track nunca se abrió en este navegador: igual queda guardado (y el inicio de la plataforma).
+    // El worker guarda la vista después de su JS y CSS: si está en la caché, abre entera sin red.
     await expect.poll(() => cached(page, '/en/app/track'), { timeout: 120_000 }).toBe(true);
     await expect.poll(() => cached(page, '/en/app'), { timeout: 120_000 }).toBe(true);
 
