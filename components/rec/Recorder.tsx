@@ -9,6 +9,7 @@ import { clockElapsed, clockIdle, clockPause, clockResume, clockStart, controlAl
 import { DESKTOP_REC_CONTROL_EVENT, desktopBridge } from '@/lib/desktop-bridge';
 import {
   QUALITY,
+  audioContextForClick,
   audioLevel,
   canvasToBlob,
   compositorContext,
@@ -152,6 +153,8 @@ export default function Recorder({
   const screenStream = useRef<MediaStream | null>(null);
   /** Audio de la compu capturado por la app de escritorio (Mac). */
   const sysStream = useRef<MediaStream | null>(null);
+  /** Contexto de audio de la mezcla, creado en el clic de Empezar (ver audioContextForClick). */
+  const clickCtx = useRef<AudioContext | null>(null);
   const camVideo = useRef<HTMLVideoElement>(null);
   const screenVideo = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -207,6 +210,8 @@ export default function Recorder({
     micStream.current = null;
     screenStream.current = null;
     sysStream.current = null;
+    void clickCtx.current?.close().catch(() => undefined);
+    clickCtx.current = null;
     void audioCtx.current?.close().catch(() => undefined);
     audioCtx.current = null;
     analyser.current = null;
@@ -376,11 +381,14 @@ export default function Recorder({
     cancelled.current = false;
     sysProblem.current = null;
     setSysNotice(null);
+    if (usesScreen && !screenSupported()) {
+      setError(t('errors.screen_unsupported'));
+      return;
+    }
+    // Antes de cualquier await: todavía es parte del clic.
+    void clickCtx.current?.close().catch(() => undefined);
+    clickCtx.current = audioContextForClick();
     if (usesScreen) {
-      if (!screenSupported()) {
-        setError(t('errors.screen_unsupported'));
-        return;
-      }
       const bridge = desktopBridge();
       const sysSource = systemAudioSource(systemAudio, bridge);
       // App de escritorio en Mac: la captura nativa empieza ahora, con la pestaña adelante (la app
@@ -441,9 +449,12 @@ export default function Recorder({
     countdown();
   }
 
+  /** Suelta el audio de la compu y el contexto de la mezcla que no llegó a usarse. */
   function releaseSys() {
     stopTracks(sysStream.current);
     sysStream.current = null;
+    void clickCtx.current?.close().catch(() => undefined);
+    clickCtx.current = null;
   }
 
   function countdown() {
@@ -559,7 +570,8 @@ export default function Recorder({
       setPhase('setup');
       return;
     }
-    const mixed = mixAudio([micStream.current, sysStream.current ?? (systemAudio ? screenStream.current : null)]);
+    const mixed = mixAudio([micStream.current, sysStream.current ?? (systemAudio ? screenStream.current : null)], clickCtx.current);
+    clickCtx.current = null;
     setSysNotice(sysProblem.current);
     void audioCtx.current?.close().catch(() => undefined);
     audioCtx.current = mixed.ctx;
