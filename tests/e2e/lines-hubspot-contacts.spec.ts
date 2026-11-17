@@ -1,4 +1,4 @@
-import { expect as baseExpect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { waLinkIp } from './helpers/wa-link';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
@@ -96,6 +96,8 @@ async function openLinesDetails(page: Page) {
 }
 
 test.afterAll(async ({ request }) => {
+  // El usuario demo es compartido: vuelve al aspecto por defecto.
+  await request.put('/api/profile/look', { data: { look: 'current' } }).catch(() => null);
   for (const type of ['company', 'contact', 'deal']) await request.post('/api/groups/hubspot/properties', { data: { type, mine: null } }).catch(() => null);
   await request.post('/api/inbox/hubspot', { data: { autoCreate: false } }).catch(() => null);
   await request.delete('/api/groups/hubspot').catch(() => null);
@@ -302,9 +304,10 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
 });
 
 const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
-/** El aspecto va en la cookie de este navegador: no toca la cuenta demo, que otros specs comparten. */
-async function setLook(context: BrowserContext, baseURL: string, look: (typeof LOOKS)[number]) {
-  await context.addCookies([{ name: 'zs_look', value: look, url: baseURL }]);
+/** El aspecto es de la cuenta (users.ui_look, que manda sobre la cookie); el spec la deja en current al terminar. */
+async function setLook(request: APIRequestContext, look: (typeof LOOKS)[number]) {
+  const res = await request.put('/api/profile/look', { data: { look } });
+  expect(res.ok(), await res.text()).toBe(true);
 }
 
 test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarlas y verlas en los cinco aspectos', async ({ page, request, browser, baseURL }) => {
@@ -438,7 +441,7 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
     const mobile = await phone.newPage();
     for (const look of LOOKS) {
       for (const theme of ['light', 'dark'] as const) {
-        await setLook(page.context(), baseURL!, look);
+        await setLook(request, look);
         await setTheme(page.context(), baseURL!, theme);
         await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
         await expect(page.locator('html')).toHaveAttribute('data-look', look);
@@ -451,7 +454,6 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
         await check(page, `inbox hubspot negocio 1280 ${look} ${theme}`, { tap: false });
         await shot(page, `objects-inbox-1280-${look}-${theme}`);
 
-        await setLook(phone, baseURL!, look);
         await setTheme(phone, baseURL!, theme);
         await mobile.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'domcontentloaded' });
         await settle(mobile);
@@ -475,7 +477,7 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
     }
   } finally {
     await phone.close();
-    await setLook(page.context(), baseURL!, 'current');
+    await setLook(request, 'current');
     await setTheme(page.context(), baseURL!, 'light');
   }
   await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
