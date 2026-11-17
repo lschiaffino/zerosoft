@@ -331,6 +331,7 @@ export default async function AppLayout(
                 { href: '/app/docs', label: tDocs('sidebar.pages') },
                 { href: '/app/docs/import', label: tDocs('notionImport.title') },
                 { href: '/app/docs/duplicate', label: tDocs('duplicatePublic.title') },
+                { href: '/app/docs/analytics', label: tDocs('report.nav') },
                 { href: '/app/calendar', label: tCalendar('sidebar.overview') },
                 { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
                 { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
@@ -373,6 +374,7 @@ export default async function AppLayout(
                 { href: '/app/notes', label: tNotes('sidebar.all') },
                 { href: '/app/notes/clip', label: tNotes('clip.button') },
                 { href: '/app/board', label: tBoard('sidebar.boards') },
+                { href: '/app/board/analytics', label: tBoard('report.nav') },
                 { href: '/app/agents', label: tAgents('sidebar.agents') },
                 { href: '/app/robots', label: tRobots('sidebar.robots') },
                 { href: '/app/robots/recorder', label: tRobots('recorder.title') },
@@ -588,6 +590,7 @@ export default async function AppLayout(
               templates: tSide('docsTemplates'),
               trash: tDocs('trash.title'),
               askAi: tDocs('ask.open'),
+              analytics: tDocs('report.nav'),
             },
             calendar: {
               overview: tCalendar('sidebar.overview'),
@@ -641,7 +644,7 @@ export default async function AppLayout(
               credentials: tFlow('sidebar.credentials'),
             },
             notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote'), clip: tNotes('clip.button') },
-            board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
+            board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new'), analytics: tBoard('report.nav') },
             agents: {
               agents: tAgents('sidebar.agents'),
             },
