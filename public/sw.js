@@ -867,12 +867,27 @@ async function onlineOnlyNavigation(request) {
   }
 }
 
-/** Archivos de la app (/_next/static/...) que pide una página: se guardan junto con ella para abrirla sin red. */
+/**
+ * Archivos de la app (/_next/static/...) que pide una página: se guardan junto con ella para abrirla sin red.
+ * Los paréntesis valen dentro de la ruta (grupos de rutas: app/docs/(home)/page-….js); un `)` sin abrir es
+ * el cierre de un `url(...)` de CSS y corta. Una vista de la app trae más de cien archivos: el tope es holgado.
+ */
 function staticUrlsIn(html) {
   const out = new Set();
-  const re = /\/_next\/static\/[^"'\s)\\<>]+/g;
+  const re = /\/_next\/static\/[^"'\s\\<>]+/g;
   let m;
-  while ((m = re.exec(String(html))) && out.size < 120) out.add(m[0]);
+  while ((m = re.exec(String(html))) && out.size < 400) {
+    let depth = 0;
+    let end = m[0].length;
+    for (let i = 0; i < m[0].length; i++) {
+      if (m[0][i] === '(') depth += 1;
+      else if (m[0][i] === ')' && --depth < 0) {
+        end = i;
+        break;
+      }
+    }
+    out.add(m[0].slice(0, end));
+  }
   return [...out];
 }
 
@@ -1087,16 +1102,24 @@ self.addEventListener('message', (event) => {
             } else if (pages && meta && isOfflineNavigation(u) && storable(u) && offlineAllows(prefs, u.pathname)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
               if (res.ok && !res.redirected && (res.headers.get('content-type') || '').includes('text/html')) {
-                await store(pages, `${PAGES}-${encodeURIComponent(meta.id)}`, u.href, res, offlineAppOf(u.pathname));
-                // Una vista que la persona todavía no abrió (el inicio de cada app): también su JS y CSS.
+                // Una vista que la persona todavía no abrió (el inicio de cada app): primero su JS y CSS, y
+                // recién después la vista. Guardada antes, si la red se cortaba a mitad quedaba una vista sin
+                // sus archivos que sin red abría "Application error" (ChunkLoadError) en vez de la app.
+                let complete = true;
                 if (data.withStatics) {
                   for (const s of staticUrlsIn(await res.clone().text().catch(() => ''))) {
                     const su = new URL(s, self.location.origin).href;
                     if (await statics.match(su)) continue;
                     const sr = await fetch(su).catch(() => null);
-                    if (sr && sr.ok) await store(statics, STATIC, su, sr, 'static');
+                    // Sin red: la vista no se guarda a medias (se guarda entera en la próxima pasada). Un 404 no corta.
+                    if (!sr) {
+                      complete = false;
+                      break;
+                    }
+                    if (sr.ok) await store(statics, STATIC, su, sr, 'static');
                   }
                 }
+                if (complete) await store(pages, `${PAGES}-${encodeURIComponent(meta.id)}`, u.href, res, offlineAppOf(u.pathname));
               }
             }
           } catch {
