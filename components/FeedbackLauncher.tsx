@@ -8,6 +8,7 @@ import BoardVote from '@/components/board/BoardVote';
 import { productFromPath } from '@/lib/product-taxonomy';
 import { ROADMAP_VOTABLE_STATUSES } from '@/lib/roadmap-constants';
 import { whenIdle } from '@/lib/idle';
+import { FEEDBACK_OPEN_EVENT } from '@/lib/ui/feedback-open';
 
 /**
  * Launcher de feedback: botón chico abajo a la derecha (a la izquierda del
@@ -122,6 +123,16 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
       .catch(() => {});
   }, [open]);
 
+  // Abierto desde otro lado (menú de la cuenta, lib/ui/feedback-open.ts): directo a "Enviar".
+  useEffect(() => {
+    const onOpen = () => {
+      setTab('send');
+      setOpen(true);
+    };
+    window.addEventListener(FEEDBACK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(FEEDBACK_OPEN_EVENT, onOpen);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -194,7 +205,7 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
   };
 
   return (
-    <div className={`fl-root${hasSupport ? ' has-support' : ''}${tucked && !open ? ' is-tucked' : ''}`} ref={panelRef}>
+    <div className={`fl-root${hasSupport ? ' has-support' : ''}${open ? ' is-open' : ''}${tucked && !open ? ' is-tucked' : ''}`} ref={panelRef}>
       {open && (
         <div className="fl-panel" role="dialog" aria-label={t('launcher.title')}>
           <div className="fl-tabs" role="tablist">

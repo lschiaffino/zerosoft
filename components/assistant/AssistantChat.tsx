@@ -377,6 +377,15 @@ export default function AssistantChat({
     [busy, conversationId, page, locale, onConversation, inputRef, att, follow],
   );
 
+  // Con el permiso dado, el asistente sigue solo. Si la respuesta que trajo la tarjeta todavía está llegando,
+  // `send` no manda nada (busy): el "seguí" espera a que termine en vez de perderse.
+  const [continueQueued, setContinueQueued] = useState<string | null>(null);
+  useEffect(() => {
+    if (!continueQueued || busy) return;
+    setContinueQueued(null);
+    void send(continueQueued);
+  }, [continueQueued, busy, send]);
+
   // Pregunta que llega desde el inicio (?q=) o desde ⌘K: se manda una vez.
   useEffect(() => {
     if (!initialPrompt || sentInitial.current || status?.state !== 'ready') return;
@@ -484,7 +493,7 @@ export default function AssistantChat({
                 )}
                 {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
                 {actions.map((p) => (
-                  <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} onGranted={() => void send(t('consentCard.continue'))} />
+                  <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} onGranted={() => setContinueQueued(t('consentCard.continue'))} />
                 ))}
                 {m.error && (
                   <p className="form-error" role="alert">
