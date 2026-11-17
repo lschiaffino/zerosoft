@@ -1696,7 +1696,7 @@
   },
   "keywords": {
     "profile": "nombre, idioma, zona horaria, foto, email, cuenta",
-    "appearance": "tema, modo oscuro, modo claro, colores, sistema",
+    "appearance": "tema, modo oscuro, modo claro, colores, sistema, aspecto, estilo, líneas, clásico, líquido, retro",
     "notifications": "email, correos, resumen, avisos, desuscribirse",
     "workspace": "nombre, logo, modo, empresa",
     "members": "personas, invitar, roles, permisos, invitados",
@@ -1725,11 +1725,38 @@
   },
   "appearance": {
     "title": "Apariencia",
-    "desc": "Cómo se ve zerosoft en este navegador.",
+    "desc": "Modo claro u oscuro en este navegador.",
     "themeHelp": "Sistema sigue el modo claro u oscuro de tu compu. Es la misma opción que el selector al pie del sidebar.",
     "languageTitle": "Idioma",
     "languageDesc": "El idioma de la interfaz y de los emails que te manda zerosoft.",
-    "languageLink": "Se cambia en Perfil"
+    "languageLink": "Se cambia en Perfil",
+    "lookTitle": "Aspecto",
+    "lookDesc": "Cómo se dibujan los menús, botones, popovers y ventanas en todas las apps. Se guarda en tu cuenta.",
+    "lookLabel": "Aspecto",
+    "lookSaved": "Guardado en tu cuenta.",
+    "lookError": "No se pudo guardar. El aspecto queda solo en este navegador.",
+    "looks": {
+      "current": {
+        "name": "Actual",
+        "desc": "El aspecto por defecto. Cómo se ve zerosoft hoy: líneas finas con los menús redondeados del chat de Lines e Inbox."
+      },
+      "lines": {
+        "name": "Líneas",
+        "desc": "Plano y recto: líneas de 1px, sin sombras, y el color de la app en los bordes activos, los botones principales y los filetes."
+      },
+      "classic": {
+        "name": "Clásico",
+        "desc": "Como WhatsApp y Linear: superficies blancas redondeadas con sombras suaves, menús con rellenos al pasar y botones de ícono redondos."
+      },
+      "liquid": {
+        "name": "Líquido",
+        "desc": "Capas translúcidas con desenfoque, esquinas más grandes y menús que flotan."
+      },
+      "retro": {
+        "name": "Retro",
+        "desc": "Un escritorio de los noventa: botones y ventanas grises en relieve, campos blancos hundidos y barras de título."
+      }
+    }
   },
   "offline": {
     "title": "Modo sin conexión",
