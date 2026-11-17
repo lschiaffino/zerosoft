@@ -491,13 +491,18 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
     };
   }, [rememberFocus]);
 
+  // Solo al abrir o cerrar: un router.refresh() con la paleta abierta (guardar
+  // un playbook, por ejemplo) trae props nuevas y no debe borrar lo tipeado.
+  const openItemsRef = useRef({ actionItems, allowedApps });
+  openItemsRef.current = { actionItems, allowedApps };
   useEffect(() => {
     if (open) {
       // Remember the trigger to restore focus when the palette closes.
       const active = document.activeElement as HTMLElement | null;
       if (!prevFocusRef.current && active && !active.closest('.cmdk')) prevFocusRef.current = active;
       setQ('');
-      setItems(actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app)));
+      const { actionItems: initial, allowedApps: allowed } = openItemsRef.current;
+      setItems(initial.filter((a) => hrefAllowed(allowed, a.href, a.app)));
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
       // Esc cierra aunque el foco todavía no llegó al input (p. ej. abierta desde el switcher, cuyo ítem se desmontó).
@@ -519,7 +524,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       setAnchor(null);
       window.dispatchEvent(new Event(CMDK_CLOSED_EVENT));
     }
-  }, [open, actionItems, allowedApps]);
+  }, [open]);
 
   // Acciones en contexto de la página (se consultan en cada render: nunca viejas).
   const context = open ? getCommandContext() : null;

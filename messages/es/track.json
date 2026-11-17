@@ -338,7 +338,41 @@
     "emptyBody": "Acá llegan las menciones, asignaciones, comentarios y cambios de los issues que seguís.",
     "unread": "Sin leer",
     "loadError": "No se pudo cargar la bandeja.",
-    "someone": "Alguien"
+    "someone": "Alguien",
+    "filter": {
+      "read": "Estado",
+      "kind": "Tipo",
+      "project": "Project",
+      "team": "Team",
+      "from": "De",
+      "unread": "Sin leer",
+      "readOnes": "Leídas",
+      "noProject": "Sin proyecto",
+      "noTeam": "Sin team",
+      "noValues": "Todavía no hay nada para filtrar acá",
+      "emptyTitle": "Ninguna notificación cumple estos filtros",
+      "emptyBody": "Cambiá o borrá los filtros para ver el resto."
+    },
+    "kinds": {
+      "mention": "Menciones",
+      "assigned": "Asignaciones",
+      "status": "Cambios de estado",
+      "update": "Cambios en issues",
+      "comment": "Comentarios",
+      "reminder": "Recordatorios",
+      "project": "Updates de proyectos",
+      "other": "Otras apps"
+    },
+    "order": {
+      "newest": "Más nuevas primero",
+      "oldest": "Más viejas primero"
+    },
+    "group": {
+      "none": "Sin agrupar",
+      "kind": "Tipo",
+      "project": "Project",
+      "team": "Team"
+    }
   },
   "notifications": {
     "title": "Notificaciones",

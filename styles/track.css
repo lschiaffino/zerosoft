@@ -928,6 +928,59 @@ dialog.ui-drawer.track-drawer {
   justify-self: end;
 }
 
+/* Filtros y Display de la bandeja (components/track/InboxFilters.tsx): la barra de la lista de issues,
+   pegada a las pestañas (que ya tienen su línea de abajo). */
+.track-inbox-filters {
+  border-top: 0;
+}
+
+/* Display queda siempre a la derecha en la primera fila; los chips que no entran bajan dentro de su grupo. */
+.track-filters.track-inbox-filters {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.track-filters.track-inbox-filters .track-filter-group {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  width: auto;
+  min-width: 0;
+}
+
+.track-inbox-filters .track-display {
+  flex: none;
+}
+
+/* Un chip con un nombre largo (project, persona) se achica con "…" dentro de su fila: nunca la desborda a 390. */
+.track-inbox-filters .track-filter-chip-wrap,
+.track-inbox-filters .track-filter-chip,
+.track-inbox-filters .track-filter-chip .track-filter {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.track-inbox-group + .track-inbox-group {
+  margin-top: 16px;
+}
+
+.track-inbox-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.track-inbox-group-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
 /* ---------- Detalle del issue ----------
    Mismo ancho que el resto de las páginas: el filete de 4px termina igual. */
 

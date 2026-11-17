@@ -338,7 +338,41 @@
     "emptyBody": "Aqui chegam menções, atribuições, comentários e mudanças dos issues que você acompanha.",
     "unread": "Não lida",
     "loadError": "Não foi possível carregar a caixa de entrada.",
-    "someone": "Alguém"
+    "someone": "Alguém",
+    "filter": {
+      "read": "Status",
+      "kind": "Tipo",
+      "project": "Project",
+      "team": "Team",
+      "from": "De",
+      "unread": "Não lidas",
+      "readOnes": "Lidas",
+      "noProject": "Sem projeto",
+      "noTeam": "Sem time",
+      "noValues": "Ainda não há nada para filtrar aqui",
+      "emptyTitle": "Nenhuma notificação corresponde a estes filtros",
+      "emptyBody": "Altere ou limpe os filtros para ver o resto."
+    },
+    "kinds": {
+      "mention": "Menções",
+      "assigned": "Atribuições",
+      "status": "Mudanças de status",
+      "update": "Mudanças em issues",
+      "comment": "Comentários",
+      "reminder": "Lembretes",
+      "project": "Updates de projetos",
+      "other": "Outros apps"
+    },
+    "order": {
+      "newest": "Mais novas primeiro",
+      "oldest": "Mais antigas primeiro"
+    },
+    "group": {
+      "none": "Sem agrupar",
+      "kind": "Tipo",
+      "project": "Project",
+      "team": "Team"
+    }
   },
   "notifications": {
     "title": "Notificações",
