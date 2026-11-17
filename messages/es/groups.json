@@ -1018,6 +1018,7 @@
     "hubspot_invalid_value": "Ese valor no corresponde a este tipo de propiedad.",
     "hubspot_read_only": "HubSpot no deja editar esa propiedad.",
     "hubspot_company_gone": "Esa empresa ya no está en HubSpot. Vinculá este chat a otra empresa.",
+    "hubspot_record_gone": "Ese registro ya no está en HubSpot. Vinculá este chat a otro.",
     "own_number": "Ese es el número de esta misma línea.",
     "not_on_whatsapp": "Ese número no tiene WhatsApp. Revisalo, con el código de país.",
     "chat_no_access": "Esta línea ya tiene un chat con ese número y no tenés acceso. Pedíselo a un admin.",
@@ -2121,14 +2122,20 @@
     "contactExists": "Ese número ya está en HubSpot. Vinculá el contacto que ya existe.",
     "mine": {
       "open": "Elegir propiedades",
+      "objects": "Registro de HubSpot",
+      "schemaError": "No se pudieron leer estas propiedades de HubSpot. {reason}",
       "title": "Propiedades que ves",
-      "help": "Elegí hasta {n} propiedades de la empresa para ver en los detalles del chat y arriba del panel de HubSpot, en Lines y en Inbox. Esta elección es solo tuya.",
+      "help": {
+        "company": "Elegí hasta {n} propiedades de la empresa para ver en los detalles del chat y arriba del panel de HubSpot, en Lines y en Inbox. Esta elección es solo tuya.",
+        "contact": "Elegí hasta {n} propiedades del contacto para ver en los detalles del chat y arriba del panel de HubSpot, en Lines y en Inbox. Esta elección es solo tuya.",
+        "deal": "Elegí hasta {n} propiedades del negocio para ver en los detalles del chat y arriba del panel de HubSpot, en Lines y en Inbox. Esta elección es solo tuya."
+      },
       "custom": "Se muestra tu propia elección.",
       "workspace": "Se muestran las del workspace. Cambiá cualquiera para armar tu lista.",
       "list": "Propiedades que ves",
       "up": "Subir {label}",
       "down": "Bajar {label}",
-      "none": "No elegiste propiedades. Los detalles del chat muestran los datos básicos de la empresa.",
+      "none": "No elegiste propiedades. Los detalles del chat muestran los datos básicos.",
       "reset": "Usar las del workspace"
     },
     "title": "HubSpot",
@@ -2207,6 +2214,7 @@
       "propsTitle": "Propiedades de HubSpot",
       "propsError": "No se pudieron cargar las propiedades de HubSpot.",
       "propsCount": "{n, plural, one {# propiedad de empresa importada} other {# propiedades de empresa importadas}}. Última actualización: {time}.",
+      "propsCountObject": "{n, plural, one {# propiedad importada} other {# propiedades importadas}}. Última actualización: {time}.",
       "propsRefresh": "Actualizar propiedades",
       "propsRefreshed": "Propiedades actualizadas desde HubSpot",
       "pinnedTitle": "Propiedades fijadas",
@@ -2250,17 +2258,27 @@
       "tabLog": "Registro del sync",
       "search": "Buscar propiedades",
       "showEmpty": "Mostrar vacías ({n})",
-      "noCompany": "Este chat todavía no tiene una empresa de HubSpot. Vinculá una desde los detalles del chat.",
+      "noRecord": "Este chat todavía no tiene empresa, contacto ni negocio de HubSpot. Vinculá uno desde los detalles del chat.",
+      "recordGone": "Este registro ya no está en HubSpot. Vinculá este chat a otro.",
+      "objects": "Registro de HubSpot",
+      "noWriteKind": {
+        "company": "Solo lectura: para editar desde Lines, un admin tiene que sumar el permiso crm.objects.companies.write a la private app de HubSpot.",
+        "contact": "Solo lectura: para editar desde Lines, un admin tiene que sumar el permiso crm.objects.contacts.write a la private app de HubSpot.",
+        "deal": "Solo lectura: para editar desde Lines, un admin tiene que sumar el permiso crm.objects.deals.write a la private app de HubSpot."
+      },
+      "allEmptyKind": {
+        "company": "Esta empresa todavía no tiene valores. Prendé \"Mostrar vacías\" para completarlos.",
+        "contact": "Este contacto todavía no tiene valores. Prendé \"Mostrar vacías\" para completarlos.",
+        "deal": "Este negocio todavía no tiene valores. Prendé \"Mostrar vacías\" para completarlos."
+      },
       "logEmpty": "Todavía no hay cambios. Acá aparecen las ediciones hechas desde Lines y los cambios que llegan de HubSpot.",
       "dirIn": "Desde HubSpot",
       "dirOut": "Hacia HubSpot",
       "change": "{from} → {to}",
       "logBy": "{name}, {time}",
       "stale": "No se pudo refrescar desde HubSpot recién, así que esta es la copia guardada. {reason}",
-      "noWrite": "Solo lectura: para editar desde Lines, un admin tiene que sumar el permiso crm.objects.companies.write a la private app de HubSpot.",
       "pinned": "Fijadas",
-      "noMatch": "Ninguna propiedad coincide con esa búsqueda.",
-      "allEmpty": "Esta empresa todavía no tiene valores. Prendé \"Mostrar vacías\" para completarlos."
+      "noMatch": "Ninguna propiedad coincide con esa búsqueda."
     },
     "pf": {
       "title": "Filtros por propiedad de HubSpot",

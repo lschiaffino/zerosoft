@@ -154,7 +154,22 @@ html[data-hubspot-pinned][data-assistant-pinned] .gr-hsx-dock { right: var(--ass
 .gr-hsx-dock > .ui-drawer-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 /* Con el panel al costado la conversación queda angosta: la cabecera del chat de Inbox baja sus botones a otra fila. */
 html[data-hubspot-pinned] .ib-app.gr-inbox .ib-wa-thread .wa-head { flex-wrap: wrap; }
-.ib-hs-company { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+/* ---------- Empresa, contacto y negocio ---------- */
+/* components/groups/HubspotKindTabs.tsx: en "Elegir propiedades", en los ajustes y arriba del panel. */
+.gr-hs-kinds { flex: none; margin: 0 0 12px; }
+.gr-hs-kind-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.gr-hsx .gr-hsx-kinds { margin: 0; padding: 0 20px; }
+.gr-hsx-dock .gr-hsx-kinds { padding: 0 16px; }
+/* Inbox: las propiedades del contacto, la empresa y el negocio debajo de la persona. */
+.ib-hs-record { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.ib-hs-record > .gr-hs-kind { margin: 0; }
+.ib-hs-record-head { display: flex; flex-direction: column; align-items: flex-start; margin: 0; min-width: 0; }
+.ib-hs-record-head .gr-hs-name { min-height: 32px; }
+.ib-hs-record .ui-error { margin: 0; }
+.ib-hs-actions { padding-top: 4px; }
+@media (max-width: 640px) {
+  .gr-hsx .gr-hsx-kinds { padding: 0 16px; }
+}
 /* Los detalles del chat que flotan a la derecha (Lines por debajo de 1440px) van a la izquierda del panel fijo. */
 @media (min-width: 1024px) and (max-width: 1439px) {
   html[data-hubspot-pinned] .gr-details.is-open { right: 380px; }

@@ -57,7 +57,24 @@ export interface HubspotSchemaDto {
   mine?: string[] | null;
   /** El token puede escribir empresas (editar desde Lines). */
   canWrite: boolean;
+  /** De qué objeto son las propiedades (sin el campo: empresa). */
+  object?: HubspotObjectKind;
+  /**
+   * Contacto o negocio: por qué no se pudieron leer sus propiedades (por
+   * ejemplo `hubspot_missing_scopes:crm.schemas.contacts.read`). '' si se leyeron.
+   */
+  error?: string;
 }
+
+/** Los objetos de HubSpot de un chat cuyas propiedades se eligen y se muestran. */
+export const HUBSPOT_OBJECT_KINDS = ['company', 'contact', 'deal'] as const;
+export type HubspotObjectKind = (typeof HUBSPOT_OBJECT_KINDS)[number];
+
+/** Las que se muestran del contacto y del negocio mientras el workspace no elija otras. */
+export const HUBSPOT_OBJECT_DEFAULT_PINNED: Record<'contact' | 'deal', string[]> = {
+  contact: ['email', 'jobtitle', 'lifecyclestage', 'hubspot_owner_id'],
+  deal: ['dealstage', 'amount', 'closedate', 'hubspot_owner_id'],
+};
 
 export const HUBSPOT_PROP_NAME = /^[A-Za-z0-9_.-]{1,120}$/;
 export const HUBSPOT_DEFAULT_PINNED = ['domain', 'hubspot_owner_id', 'lifecyclestage'];
@@ -174,10 +191,20 @@ export interface HubspotFormat {
   owners: HubspotOwner[];
   yes: string;
   no: string;
+  /** Moneda del registro (deal_currency_code de un negocio): los montos se muestran con ella. */
+  currency?: string;
 }
 
+/** Un monto de dinero de HubSpot (el del negocio y los de tipo moneda): se muestra con la moneda del registro. */
+export const isHubspotMoney = (def: { name?: string; kind: HubspotPropKind; fieldType?: string }) =>
+  def.kind === 'number' && (def.fieldType === 'currency' || /(^|_)amount($|_)/.test(def.name ?? ''));
+
 /** Un valor como lo lee una persona: etiqueta de la opción, nombre del dueño, fecha o número local. */
-export function formatHubspotValue(def: Pick<HubspotPropDef, 'kind' | 'options'> | null | undefined, value: string, f: HubspotFormat): string {
+export function formatHubspotValue(
+  def: (Pick<HubspotPropDef, 'kind' | 'options'> & { name?: string; fieldType?: string }) | null | undefined,
+  value: string,
+  f: HubspotFormat,
+): string {
   const v = String(value ?? '');
   if (!v || !def) return v;
   const label = (x: string) => def.options.find((o) => o.value === x)?.label ?? x;
@@ -187,13 +214,24 @@ export function formatHubspotValue(def: Pick<HubspotPropDef, 'kind' | 'options'>
   if (def.kind === 'multi') return hubspotMulti(v).map(label).join(', ');
   if (def.kind === 'number') {
     const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString(f.locale, { maximumFractionDigits: 6 }) : v;
+    if (!Number.isFinite(n)) return v;
+    if (f.currency && /^[A-Za-z]{3}$/.test(f.currency) && isHubspotMoney(def)) {
+      try {
+        return n.toLocaleString(f.locale, { style: 'currency', currency: f.currency.toUpperCase(), maximumFractionDigits: 2 });
+      } catch {
+        // Un código que el navegador no conoce: el número y el código.
+        return `${n.toLocaleString(f.locale, { maximumFractionDigits: 2 })} ${f.currency.toUpperCase()}`;
+      }
+    }
+    return n.toLocaleString(f.locale, { maximumFractionDigits: 6 });
   }
   if (def.kind === 'date' || def.kind === 'datetime') {
     const ms = hubspotTime(v);
     if (ms === null) return v;
-    // Una fecha de HubSpot es un día, no un instante: se muestra en UTC.
-    return def.kind === 'date'
+    // Una fecha de HubSpot es un día, no un instante: se muestra en UTC. Una fecha y hora justo a la medianoche UTC
+    // también (la fecha de cierre de un negocio es así): en la hora local caería el día anterior.
+    const day = def.kind === 'date' || ms % 86_400_000 === 0;
+    return day
       ? new Date(ms).toLocaleDateString(f.locale, { timeZone: 'UTC', dateStyle: 'medium' })
       : new Date(ms).toLocaleString(f.locale, { dateStyle: 'medium', timeStyle: 'short' });
   }

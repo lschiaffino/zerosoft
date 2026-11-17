@@ -12,6 +12,10 @@
  * de dueños, batch/read, PATCH con las validaciones de HubSpot, la búsqueda
  * por fecha de modificación con paginado, el límite de llamadas (429) y las
  * empresas borradas o fusionadas.
+ *
+ * Contactos y negocios: el esquema de propiedades y sus grupos, batch/read,
+ * PATCH con las mismas validaciones y los negocios de un contacto (v4). Un
+ * token con "noobjschema" no puede leer el esquema de contactos ni negocios.
  */
 import type { FetchLike } from './groups-provider';
 
@@ -54,6 +58,11 @@ interface FakeHubspot {
   seq: number;
   /** Definición de las propiedades de empresa (los tests pueden agregar o sacar). */
   companyProps: FakePropertyDef[];
+  /** Lo mismo para contactos y negocios. */
+  contactProps: FakePropertyDef[];
+  dealProps: FakePropertyDef[];
+  /** Contacto → negocios asociados. */
+  contactDeals: Map<string, string[]>;
   /** Empresa fusionada → la que quedó. */
   merged: Map<string, string>;
   /** Las próximas N llamadas autenticadas responden 429. */
@@ -64,7 +73,8 @@ interface FakeHubspot {
 
 export const FAKE_HUBSPOT_PORTAL = '424242';
 
-const READ = ['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.objects.contacts.read', 'crm.objects.owners.read', 'crm.schemas.companies.read'];
+const OBJECT_SCHEMAS = ['crm.schemas.contacts.read', 'crm.schemas.deals.read'];
+const READ = ['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.objects.contacts.read', 'crm.objects.owners.read', 'crm.schemas.companies.read', ...OBJECT_SCHEMAS];
 const WRITE = ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write'];
 
 const OWNERS: Record<string, { firstName: string; lastName: string; email: string }> = {
@@ -170,6 +180,124 @@ function companyProps(): FakePropertyDef[] {
   ];
 }
 
+const CONTACT_GROUPS = [
+  { name: 'contactinformation', label: 'Contact information', displayOrder: 0 },
+  { name: 'sales_properties', label: 'Sales', displayOrder: 1 },
+  { name: 'contact_activity', label: 'Activity', displayOrder: 2 },
+];
+
+const DEAL_GROUPS = [
+  { name: 'dealinformation', label: 'Deal information', displayOrder: 0 },
+  { name: 'deal_terms', label: 'Terms', displayOrder: 1 },
+  { name: 'deal_activity', label: 'Activity', displayOrder: 2 },
+];
+
+/** Propiedades de contacto del HubSpot falso: las de siempre, algunas propias, de solo lectura y una oculta. */
+function contactProps(): FakePropertyDef[] {
+  const info = 'contactinformation';
+  const sales = 'sales_properties';
+  const sys = { hubspotDefined: true, readOnlyValue: true, groupName: 'contact_activity' };
+  return [
+    { name: 'firstname', label: 'First name', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'lastname', label: 'Last name', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'email', label: 'Email', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'phone', label: 'Phone number', type: 'string', fieldType: 'phonenumber', groupName: info, hubspotDefined: true },
+    { name: 'mobilephone', label: 'Mobile phone number', type: 'string', fieldType: 'phonenumber', groupName: info, hubspotDefined: true },
+    { name: 'hs_whatsapp_phone_number', label: 'WhatsApp phone number', type: 'string', fieldType: 'phonenumber', groupName: info, hubspotDefined: true },
+    { name: 'jobtitle', label: 'Job title', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'company', label: 'Company name', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'city', label: 'City', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'lifecyclestage', label: 'Lifecycle stage', type: 'enumeration', fieldType: 'radio', groupName: sales, hubspotDefined: true, options: LIFECYCLE_OPTIONS },
+    {
+      name: 'hs_lead_status',
+      label: 'Lead status',
+      type: 'enumeration',
+      fieldType: 'select',
+      groupName: sales,
+      hubspotDefined: true,
+      options: [
+        { label: 'New', value: 'NEW' },
+        { label: 'Open', value: 'OPEN' },
+        { label: 'In progress', value: 'IN_PROGRESS' },
+        { label: 'Connected', value: 'CONNECTED' },
+      ],
+    },
+    { name: 'hubspot_owner_id', label: 'Contact owner', type: 'enumeration', fieldType: 'select', groupName: sales, hubspotDefined: true, referencedObjectType: 'OWNER' },
+    {
+      name: 'preferred_channel',
+      label: 'Preferred channel',
+      type: 'enumeration',
+      fieldType: 'select',
+      groupName: sales,
+      options: [
+        { label: 'WhatsApp', value: 'whatsapp' },
+        { label: 'Email', value: 'email' },
+        { label: 'Phone', value: 'phone' },
+      ],
+    },
+    { name: 'decision_maker', label: 'Decision maker', type: 'bool', fieldType: 'booleancheckbox', groupName: sales, options: [{ label: 'Yes', value: 'true' }, { label: 'No', value: 'false' }] },
+    { name: 'associatedcompanyid', label: 'Primary company ID', type: 'number', fieldType: 'number', groupName: info, hubspotDefined: true, hidden: true },
+    { name: 'createdate', label: 'Create date', type: 'datetime', fieldType: 'date', ...sys },
+    { name: 'hs_object_id', label: 'Record ID', type: 'number', fieldType: 'number', ...sys },
+  ];
+}
+
+/** Propiedades de negocio del HubSpot falso. */
+function dealProps(): FakePropertyDef[] {
+  const info = 'dealinformation';
+  const terms = 'deal_terms';
+  const sys = { hubspotDefined: true, readOnlyValue: true, groupName: 'deal_activity' };
+  const stages = PIPELINES.flatMap((p) => p.stages.map((s) => ({ label: s.label, value: s.id })));
+  return [
+    { name: 'dealname', label: 'Deal name', type: 'string', fieldType: 'text', groupName: info, hubspotDefined: true },
+    { name: 'dealstage', label: 'Deal stage', type: 'enumeration', fieldType: 'radio', groupName: info, hubspotDefined: true, options: stages },
+    { name: 'pipeline', label: 'Pipeline', type: 'enumeration', fieldType: 'select', groupName: info, hubspotDefined: true, options: PIPELINES.map((p) => ({ label: p.label, value: p.id })) },
+    { name: 'amount', label: 'Amount', type: 'number', fieldType: 'number', groupName: info, hubspotDefined: true },
+    { name: 'closedate', label: 'Close date', type: 'datetime', fieldType: 'date', groupName: info, hubspotDefined: true },
+    { name: 'hubspot_owner_id', label: 'Deal owner', type: 'enumeration', fieldType: 'select', groupName: info, hubspotDefined: true, referencedObjectType: 'OWNER' },
+    { name: 'hs_deal_stage_probability', label: 'Deal probability', type: 'number', fieldType: 'number', groupName: info, hubspotDefined: true, calculated: true },
+    { name: 'deal_currency_code', label: 'Currency', type: 'enumeration', fieldType: 'select', groupName: terms, hubspotDefined: true, options: [{ label: 'US Dollar', value: 'USD' }, { label: 'Euro', value: 'EUR' }] },
+    {
+      name: 'dealtype',
+      label: 'Deal type',
+      type: 'enumeration',
+      fieldType: 'select',
+      groupName: terms,
+      hubspotDefined: true,
+      options: [
+        { label: 'New business', value: 'newbusiness' },
+        { label: 'Existing business', value: 'existingbusiness' },
+      ],
+    },
+    { name: 'contract_months', label: 'Contract length (months)', type: 'number', fieldType: 'number', groupName: terms },
+    { name: 'next_step', label: 'Next step', type: 'string', fieldType: 'textarea', groupName: terms, hubspotDefined: true },
+    { name: 'createdate', label: 'Create date', type: 'datetime', fieldType: 'date', ...sys },
+    { name: 'hs_object_id', label: 'Record ID', type: 'number', fieldType: 'number', ...sys },
+  ];
+}
+
+/** Una propiedad como la devuelve /crm/v3/properties. */
+function toApiProp(d: FakePropertyDef, i: number) {
+  return {
+    name: d.name,
+    label: d.label,
+    type: d.type,
+    fieldType: d.fieldType,
+    description: d.description ?? '',
+    groupName: d.groupName,
+    options: (d.options ?? []).map((o, n) => ({ ...o, displayOrder: n, hidden: false })),
+    displayOrder: d.displayOrder ?? i,
+    calculated: d.calculated === true,
+    externalOptions: d.referencedObjectType === 'OWNER',
+    ...(d.referencedObjectType ? { referencedObjectType: d.referencedObjectType } : {}),
+    hasUniqueValue: false,
+    hidden: d.hidden === true,
+    hubspotDefined: d.hubspotDefined === true,
+    modificationMetadata: { archivable: !d.hubspotDefined, readOnlyDefinition: d.hubspotDefined === true, readOnlyValue: d.readOnlyValue === true },
+    formField: !d.hidden,
+  };
+}
+
 function seed(): FakeHubspot {
   const obj = (id: string, properties: Props): [string, FakeObject] => [id, { id, properties }];
   const created = '2026-01-15T12:00:00.000Z';
@@ -179,6 +307,12 @@ function seed(): FakeHubspot {
     seq: 5000,
     notes: new Map(),
     companyProps: companyProps(),
+    contactProps: contactProps(),
+    dealProps: dealProps(),
+    contactDeals: new Map([
+      ['7001', ['8001']],
+      ['7002', ['8002']],
+    ]),
     merged: new Map(),
     rateLimit: 0,
     clock: 0,
@@ -216,11 +350,34 @@ function seed(): FakeHubspot {
       company('9003', { name: 'Initech Foods', domain: 'initech-foods.example', hubspot_owner_id: '', lifecyclestage: 'opportunity', industry: 'FOOD_PRODUCTION', numberofemployees: '900' }),
     ]),
     deals: new Map([
-      obj('8001', { dealname: 'Acme Logistics renewal', dealstage: 'contractsent', pipeline: 'default', amount: '12000', deal_currency_code: 'USD', closedate: '2026-12-15T00:00:00Z', hubspot_owner_id: '71' }),
+      obj('8001', {
+        dealname: 'Acme Logistics renewal',
+        dealstage: 'contractsent',
+        pipeline: 'default',
+        amount: '12000',
+        deal_currency_code: 'USD',
+        closedate: '2026-12-15T00:00:00Z',
+        hubspot_owner_id: '71',
+        dealtype: 'existingbusiness',
+        contract_months: '12',
+        hs_deal_stage_probability: '0.8',
+      }),
       obj('8002', { dealname: 'Globex Retail pilot', dealstage: 'qualifiedtobuy', pipeline: 'default', amount: '4500', deal_currency_code: 'USD', closedate: '2027-01-20T00:00:00Z', hubspot_owner_id: '72' }),
     ]),
     contacts: new Map([
-      obj('7001', { firstname: 'Dana', lastname: 'Rivers', email: 'dana@acme-logistics.example', phone: '+54 9 11 5555-0142', company: 'Acme Logistics', associatedcompanyid: '9001', hubspot_owner_id: '71', lifecyclestage: 'customer' }),
+      obj('7001', {
+        firstname: 'Dana',
+        lastname: 'Rivers',
+        email: 'dana@acme-logistics.example',
+        phone: '+54 9 11 5555-0142',
+        company: 'Acme Logistics',
+        associatedcompanyid: '9001',
+        hubspot_owner_id: '71',
+        lifecyclestage: 'customer',
+        jobtitle: 'Operations lead',
+        hs_lead_status: 'CONNECTED',
+        preferred_channel: 'whatsapp',
+      }),
       obj('7002', { firstname: 'Omar', lastname: 'Castell', email: 'omar@globex-retail.example', mobilephone: '+1 (415) 555-0177', company: 'Globex Retail', associatedcompanyid: '9002', hubspot_owner_id: '72', lifecyclestage: 'lead' }),
       obj('7003', { firstname: 'Lena', lastname: 'Duarte', email: 'lena@initech-foods.example', phone: '+52 55 5555 0199', company: 'Initech Foods', associatedcompanyid: '9003', lifecyclestage: 'opportunity' }),
       obj('7004', { firstname: 'Nico', lastname: 'Duarte', email: 'nico@initech-foods.example', hs_whatsapp_phone_number: '+525555550199', company: 'Initech Foods', associatedcompanyid: '9003', lifecyclestage: 'opportunity' }),
@@ -286,6 +443,7 @@ function scopesOf(token: string): string[] | null {
   if (!token.startsWith('pat-')) return null;
   if (token.includes('noscope')) return ['crm.objects.contacts.read'];
   if (token.includes('readonly')) return [...READ];
+  if (token.includes('noobjschema')) return [...READ.filter((x) => !OBJECT_SCHEMAS.includes(x)), ...WRITE];
   return [...READ, ...WRITE];
 }
 
@@ -376,27 +534,24 @@ export const fakeHubspotFetch: FetchLike = async (url, init) => {
     const denied = need('crm.schemas.companies.read');
     if (denied) return denied;
     if (u.pathname.endsWith('/groups')) return json(200, { results: PROP_GROUPS.map((g) => ({ ...g, archived: false })) });
-    const toApi = (d: FakePropertyDef, i: number) => ({
-      name: d.name,
-      label: d.label,
-      type: d.type,
-      fieldType: d.fieldType,
-      description: d.description ?? '',
-      groupName: d.groupName,
-      options: (d.options ?? []).map((o, n) => ({ ...o, displayOrder: n, hidden: false })),
-      displayOrder: d.displayOrder ?? i,
-      calculated: d.calculated === true,
-      externalOptions: d.referencedObjectType === 'OWNER',
-      ...(d.referencedObjectType ? { referencedObjectType: d.referencedObjectType } : {}),
-      hasUniqueValue: false,
-      hidden: d.hidden === true,
-      hubspotDefined: d.hubspotDefined === true,
-      modificationMetadata: { archivable: !d.hubspotDefined, readOnlyDefinition: d.hubspotDefined === true, readOnlyValue: d.readOnlyValue === true },
-      formField: !d.hidden,
-    });
+    const toApi = toApiProp;
     if (u.pathname === '/crm/v3/properties/companies') return json(200, { results: fake.companyProps.map(toApi) });
     const one = fake.companyProps.findIndex((d) => d.name === u.pathname.split('/').pop());
     return one >= 0 ? json(200, toApi(fake.companyProps[one], one)) : json(404, { category: 'OBJECT_NOT_FOUND' });
+  }
+  const objProps = /^\/crm\/v3\/properties\/(contacts|deals)(\/groups)?$/.exec(u.pathname);
+  if (objProps) {
+    const denied = need(`crm.schemas.${objProps[1]}.read`);
+    if (denied) return denied;
+    if (objProps[2]) return json(200, { results: (objProps[1] === 'contacts' ? CONTACT_GROUPS : DEAL_GROUPS).map((g) => ({ ...g, archived: false })) });
+    return json(200, { results: (objProps[1] === 'contacts' ? fake.contactProps : fake.dealProps).map(toApiProp) });
+  }
+  const contactDeals = /^\/crm\/v4\/objects\/contacts\/(\d+)\/associations\/deals$/.exec(u.pathname);
+  if (contactDeals && method === 'GET') {
+    const denied = need('crm.objects.deals.read');
+    if (denied) return denied;
+    const ids = (fake.contactDeals.get(contactDeals[1]) ?? []).filter((id) => fake.deals.has(id));
+    return json(200, { results: ids.map((id) => ({ toObjectId: Number(id), associationTypes: [{ category: 'HUBSPOT_DEFINED', typeId: 4, label: null }] })) });
   }
   if (u.pathname === '/crm/v3/owners') {
     const denied = need('crm.objects.owners.read');
@@ -477,6 +632,29 @@ export const fakeHubspotFetch: FetchLike = async (url, init) => {
     return json(207, { status: 'COMPLETE', results, numErrors: 1, errors: [{ status: 'error', category: 'OBJECT_NOT_FOUND', message: 'Could not get some company objects, they may be deleted or not exist.', context: { ids: missing } }] });
   }
 
+  const objBatch = /^\/crm\/v3\/objects\/(contacts|deals)\/batch\/read$/.exec(u.pathname);
+  if (objBatch && method === 'POST') {
+    const table = objBatch[1] as 'contacts' | 'deals';
+    const denied = need(`crm.objects.${table}.read`);
+    if (denied) return denied;
+    const inputs = (Array.isArray(body.inputs) ? (body.inputs as Array<{ id?: string }>) : []).map((i) => String(i?.id ?? ''));
+    const properties = Array.isArray(body.properties) ? (body.properties as string[]) : [];
+    const results: Array<{ id: string; properties: Record<string, string | null>; updatedAt: string }> = [];
+    const missing: string[] = [];
+    for (const id of inputs) {
+      const o = fake[table].get(id);
+      if (!o) {
+        missing.push(id);
+        continue;
+      }
+      const props: Record<string, string | null> = {};
+      for (const p of properties) props[p] = o.properties[p] === undefined || o.properties[p] === '' ? null : o.properties[p];
+      results.push({ id: o.id, properties: props, updatedAt: o.properties.hs_lastmodifieddate ?? '2026-01-15T12:00:00.000Z' });
+    }
+    if (missing.length === 0) return json(200, { status: 'COMPLETE', results });
+    return json(207, { status: 'COMPLETE', results, numErrors: 1, errors: [{ status: 'error', category: 'OBJECT_NOT_FOUND', message: 'Could not get some objects.', context: { ids: missing } }] });
+  }
+
   const objects = /^\/crm\/v3\/objects\/(companies|deals|contacts)(?:\/(search|\d+))?$/.exec(u.pathname);
   if (!objects) return json(404, { message: 'not found' });
   const table = objects[1] as Table;
@@ -491,6 +669,24 @@ export const fakeHubspotFetch: FetchLike = async (url, init) => {
     const patch = (body.properties ?? {}) as Props;
     const problems = Object.entries(patch)
       .map(([name, value]) => invalidValue(fake.companyProps.find((d) => d.name === name), name, String(value ?? '')))
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    if (problems.length) {
+      return json(400, { status: 'error', category: 'VALIDATION_ERROR', message: `Property values were not valid: ${JSON.stringify(problems.map((x) => ({ isValid: false, ...x })))}` });
+    }
+    const at = tick(fake);
+    for (const [name, value] of Object.entries(patch)) o.properties[name] = String(value ?? '');
+    o.properties.hs_lastmodifieddate = at;
+    return json(200, { id: o.id, properties: { ...patch, hs_lastmodifieddate: at }, updatedAt: at });
+  }
+  if ((table === 'contacts' || table === 'deals') && objects[2] && objects[2] !== 'search' && method === 'PATCH') {
+    const noWrite = need(`crm.objects.${table}.write`);
+    if (noWrite) return noWrite;
+    const o = fake[table].get(objects[2]);
+    if (!o) return json(404, { category: 'OBJECT_NOT_FOUND' });
+    const defs = table === 'contacts' ? fake.contactProps : fake.dealProps;
+    const patch = (body.properties ?? {}) as Props;
+    const problems = Object.entries(patch)
+      .map(([name, value]) => invalidValue(defs.find((d) => d.name === name), name, String(value ?? '')))
       .filter((x): x is NonNullable<typeof x> => x !== null);
     if (problems.length) {
       return json(400, { status: 'error', category: 'VALIDATION_ERROR', message: `Property values were not valid: ${JSON.stringify(problems.map((x) => ({ isValid: false, ...x })))}` });

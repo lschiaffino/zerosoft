@@ -5,9 +5,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import type { ChatHubspotDto, HubspotRecord, HubspotSuggestion, HubspotType } from '@/lib/groups-hubspot';
+import type { PinnedValue } from '@/lib/groups-hubspot-sync';
 import type { ContactRowDto } from '@/lib/groups-contacts';
 import { parseDbUtc } from '@/lib/utils';
-import { formatHubspotValue } from '@/lib/groups-hubspot-shared';
+import { formatHubspotValue, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import HubspotScreen from './HubspotScreen';
 import HubspotMyProps from './HubspotMyProps';
 import { useHubspotSchema } from './hubspot-client';
@@ -53,6 +54,18 @@ function useRecordProps() {
   };
 }
 
+/** Vuelve a leer la sección cuando cambian las propiedades elegidas de un objeto (no la primera vez que llega el esquema). */
+function useReloadOnChange(schema: HubspotSchemaDto | null, load: () => Promise<void>) {
+  const key = schema ? (schema.mine ?? schema.pinned).join(',') : '';
+  const last = useRef(key);
+  useEffect(() => {
+    if (!key || key === last.current) return;
+    const first = !last.current;
+    last.current = key;
+    if (!first) void load();
+  }, [key, load]);
+}
+
 /**
  * HubSpot en los detalles de un chat o grupo: la empresa, el negocio y el
  * contacto vinculados (con link al registro), el contacto sugerido por
@@ -96,16 +109,13 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   }, [load]);
 
   // Las propiedades que se muestran cambiaron (en "Elegir propiedades" o fijando en el panel): se vuelven a leer.
-  const hasCompanyLink = Boolean(state?.links.some((l) => l.type === 'company'));
-  const { schema } = useHubspotSchema(hasCompanyLink);
-  const shownKey = schema ? (schema.mine ?? schema.pinned).join(',') : '';
-  const lastShown = useRef(shownKey);
-  useEffect(() => {
-    if (!shownKey || shownKey === lastShown.current) return;
-    const first = !lastShown.current;
-    lastShown.current = shownKey;
-    if (!first) void load();
-  }, [shownKey, load]);
+  const has = (k: HubspotType) => Boolean(state?.links.some((l) => l.type === k));
+  const { schema } = useHubspotSchema(has('company'));
+  const { schema: contactSchema } = useHubspotSchema(has('contact'), 'contact');
+  const { schema: dealSchema } = useHubspotSchema(has('deal'), 'deal');
+  useReloadOnChange(schema, load);
+  useReloadOnChange(contactSchema, load);
+  useReloadOnChange(dealSchema, load);
 
   useEffect(() => {
     const text = q.trim();
@@ -140,8 +150,8 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
     setResults(null);
     showToast(t('hubspot.linked', { name: rec.name }));
     inbox.refresh();
-    // La empresa nueva trae sus propiedades fijadas.
-    if (rec.type !== 'deal') void load();
+    // El registro nuevo trae sus propiedades elegidas.
+    void load();
   }
 
   async function unlink(rec: HubspotRecord) {
@@ -195,13 +205,18 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   if (state && !state.connected && !isAdmin) return null;
 
   const company = state?.company ?? null;
-  const hasCompany = Boolean(state?.connected && state.links.some((l) => l.type === 'company'));
-  /** Las propiedades fijadas por el workspace, con su valor como se lee. */
-  const pinnedProps = (company?.pinned ?? []).map((p) => ({
-    key: p.name,
-    label: p.label,
-    value: formatHubspotValue(p, p.value, { locale, owners: p.ownerName ? [{ id: p.value, name: p.ownerName }] : [], yes: t('props.yes'), no: t('hubspot.screen.no') }),
-  }));
+  const hasLinks = Boolean(state?.connected && state.links.length > 0);
+  /** Las propiedades elegidas (por la persona o el workspace), con su valor como se lee. */
+  const asShown = (pinned: PinnedValue[], currency?: string) =>
+    pinned.map((p) => ({
+      key: p.name,
+      label: p.label,
+      value: formatHubspotValue(p, p.value, { locale, owners: p.ownerName ? [{ id: p.value, name: p.ownerName }] : [], yes: t('props.yes'), no: t('hubspot.screen.no'), currency }),
+    }));
+  const chosenProps = (r: HubspotRecord) => {
+    const pinned = r.type === 'company' ? company?.pinned : state?.objects?.[r.type]?.pinned;
+    return pinned && pinned.length > 0 ? asShown(pinned, r.type === 'deal' ? state?.objects?.deal?.currency : undefined) : null;
+  };
 
   const suggestion = (sg: HubspotSuggestion) => (
     <li key={sg.contact.id} className="gr-hs-suggestion">
@@ -221,7 +236,7 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
         <h3 className="gr-detail-title" id={titleId}>
           {t('hubspot.title')}
         </h3>
-        {hasCompany && (
+        {hasLinks && (
           <div className="gr-hs-title-actions">
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMyProps(true)} data-testid="hubspot-choose-props">
               {t('hubspot.mine.open')}
@@ -283,11 +298,11 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
                     <span className="ui-error">{t('hubspot.missing')}</span>
                   ) : (
                     (() => {
-                      // La empresa muestra las propiedades que fijó el workspace; el resto, las de siempre.
-                      const shown = r.type === 'company' && pinnedProps.length > 0 ? pinnedProps : recordProps(r);
+                      // Cada registro muestra las propiedades elegidas; si no hay o no se pudieron leer, las de siempre.
+                      const shown = chosenProps(r) ?? recordProps(r);
                       return (
                         shown.length > 0 && (
-                          <dl className="gr-hs-props">
+                          <dl className="gr-hs-props" data-testid={`hubspot-props-${r.type}`}>
                             {shown.map((p) => (
                               <div key={p.key} data-prop={p.key}>
                                 <dt>{p.label}</dt>
