@@ -69,7 +69,7 @@ interface IssueDisplayOptionsProps {
 }
 
 /** Grupo de opciones (agrupar, ordenar) como botón que despliega una lista de teclado. */
-function Choice<T extends string>({
+export function Choice<T extends string>({
   label,
   value,
   options,

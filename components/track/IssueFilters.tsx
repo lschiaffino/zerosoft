@@ -256,7 +256,7 @@ export function KeyMenu({
 }
 
 /** Menú desplegable simple (Esc y clic afuera lo cierran, el foco vuelve al botón). */
-function Dropdown({
+export function Dropdown({
   open,
   onOpenChange,
   trigger,

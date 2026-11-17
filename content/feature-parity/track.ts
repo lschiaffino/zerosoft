@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-14',
+  lastReviewed: '2026-11-17',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
