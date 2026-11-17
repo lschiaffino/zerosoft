@@ -76,7 +76,10 @@
     "unmute": "Ativar som",
     "mute": "Silenciar",
     "fullscreen": "Tela cheia",
-    "skipSilences": "Pular silêncios"
+    "skipSilences": "Pular silêncios",
+    "reaction": "{name} reagiu com {emoji}",
+    "reactionAt": "Em {time}",
+    "removeReaction": "Remover reação"
   },
   "comments": {
     "title": "Comentários",
@@ -103,13 +106,17 @@
       "invalid_reaction": "Essa reação não está disponível.",
       "name_taken": "Esse nome é de alguém do workspace. Use outro ou entre com sua conta.",
       "signin_required": "Entre com sua conta para comentar este vídeo.",
-      "rate_limited": "Comentários demais neste vídeo agora. Tente em alguns minutos."
+      "rate_limited": "Comentários demais neste vídeo agora. Tente em alguns minutos.",
+      "remove_reaction": "Não foi possível remover a reação. Tente de novo."
     },
     "guest": "Convidado",
     "authorBadge": "Autor",
     "more": "Ver comentários anteriores ({shown} de {total})",
     "signinToComment": "Entre com sua conta para comentar este vídeo.",
-    "viewOnly": "Você pode assistir a este vídeo. Comentários não estão habilitados para você."
+    "viewOnly": "Você pode assistir a este vídeo. Comentários não estão habilitados para você.",
+    "yours": "Suas reações",
+    "removeReactionAt": "Remover seu {emoji} de {time}",
+    "removeYour": "Remover seu {emoji}"
   },
   "common": {
     "copied": "Copiado",
@@ -180,6 +187,7 @@
   },
   "watch": {
     "copyLink": "Copiar link",
+    "copyLinkAt": "Copiar link em {time}",
     "download": "Baixar",
     "byOn": "{name} · {date}",
     "summary": "Resumo",
@@ -634,5 +642,40 @@
     "transferConfirmBody": "{videos, plural, one {# vídeo} other {# vídeos}} e {folders, plural, one {# pasta} other {# pastas}} passam de {from} para {to}. {to} também vai ver os vídeos pessoais de {from}.",
     "transferNone": "Ninguém que saiu tem vídeos ou pastas aqui.",
     "privacyPeople": "Restrito: só quem grava e quem essa pessoa convidar"
+  },
+  "insights": {
+    "watchTime": "Tempo assistido",
+    "retention": "Retenção do público",
+    "retentionHelp": "Quanto dos espectadores assistiu cada momento. A linha tracejada conta reproduções, incluindo as revisualizações.",
+    "retentionLegend": "Espectadores",
+    "playsLegend": "Reproduções",
+    "tipViewers": "{pct}% dos espectadores",
+    "tipPlays": "{plays, plural, one {# reprodução} other {# reproduções}}",
+    "rewatched": "Revisto",
+    "retentionSummary": "{start}% dos espectadores viram o início e {end}% o final. Momento mais assistido: {peak}.",
+    "overTime": "Visualizações no tempo",
+    "overTimeSummary": "Visualizações por dia. {total, plural, one {# visualização} other {# visualizações}} neste período, a maioria em {date} ({peak}).",
+    "countries": "Países",
+    "cities": "Cidades",
+    "devices": "Dispositivos",
+    "sources": "Origens",
+    "noLocation": "Ainda sem localização",
+    "noData": "Nada ainda",
+    "direct": "Direto ou desconhecido",
+    "other": "Outros",
+    "unknown": "Desconhecido",
+    "desktop": "Computador",
+    "mobile": "Celular",
+    "tablet": "Tablet",
+    "viewerN": "Espectador {n}",
+    "location": "Localização",
+    "device": "Dispositivo",
+    "source": "Origem",
+    "watchedCell": "{pct}% · {time}",
+    "sampled": "A retenção, os detalhamentos e a lista de espectadores usam as últimas {n} visualizações. Os totais contam todas.",
+    "geoNote": "A localização é aproximada e vem da rede de quem assiste. Não guardamos endereços IP.",
+    "noViewsTitle": "Ainda não há visualizações",
+    "noViewsBody": "Compartilhe o link e você vai ver quem assistiu, de onde, em qual dispositivo e quanto. Suas próprias visualizações não contam.",
+    "viewsCount": "{n, plural, one {# visualização} other {# visualizações}}"
   }
 }

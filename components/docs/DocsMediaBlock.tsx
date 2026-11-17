@@ -6,7 +6,7 @@ import type { DocsBlock } from '@/lib/docs-types';
 import { formatFileSize, isDocsUploadUrl } from '@/lib/docs-files';
 import { sanitizeHtml, serializeEditable } from '@/lib/docs-richtext';
 import DocsGlyph from './DocsGlyphs';
-import DocsEditorImage, { uploadPreview } from './DocsEditorImage';
+import DocsEditorImage, { uploadPreview, uploadSize } from './DocsEditorImage';
 
 interface Props {
   block: DocsBlock;
@@ -33,6 +33,7 @@ const DocsMediaBlock = forwardRef<HTMLDivElement, Props>(({ block, index, focuse
   const href = fileHref ? fileHref(block.id) : block.url ?? '';
   const download = fileHref ? fileHref(block.id, { download: true }) : block.url ?? '';
   const local = uploadPreview(block.url);
+  const videoSize = block.type === 'video' ? uploadSize(block.url) : undefined;
   const src = local ?? href;
   const [captionOpen, setCaptionOpen] = useState(Boolean(block.caption));
   /** Pedido de foco a la leyenda (se aplica después de montarla). */
@@ -103,7 +104,17 @@ const DocsMediaBlock = forwardRef<HTMLDivElement, Props>(({ block, index, focuse
       case 'image':
         return <DocsEditorImage storageUrl={block.url ?? ''} href={href} alt={name} />;
       case 'video':
-        return <video className="docs-video" src={src} controls preload="metadata" aria-label={t('editor.media.videoLabel', { name })} />;
+        return (
+          <video
+            className="docs-video"
+            src={src}
+            controls
+            preload="metadata"
+            aria-label={t('editor.media.videoLabel', { name })}
+            // Recién subido: la forma del archivo desde el primer cuadro (si no, 300×150 hasta leer los metadatos).
+            style={videoSize ? { aspectRatio: `${videoSize.width} / ${videoSize.height}` } : undefined}
+          />
+        );
       case 'audio':
         return (
           <div className="docs-audio">

@@ -192,17 +192,14 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 /* ---------- Diálogos ---------- */
 
 .ib-when-body { display: grid; gap: 12px; }
-.ib-when-list, .ib-pick-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.ib-when-opt, .ib-pick {
+.ib-pick-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ib-pick {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px;
   background: none; border: 1px solid transparent; border-radius: var(--radius-1);
   font: inherit; font-size: 0.9063rem; text-align: left; color: inherit; cursor: pointer;
 }
-.ib-when-opt:hover, .ib-pick:hover, .ib-when-opt:focus-visible, .ib-pick:focus-visible { background: var(--ui-hover); border-color: var(--line); }
-.ib-when-label, .ib-pick-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.ib-when-at { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; }
-.ib-when-custom { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
-.ib-when-custom .input { flex: 1; min-width: 0; }
+.ib-pick:hover, .ib-pick:focus-visible { background: var(--ui-hover); border-color: var(--line); }
+.ib-pick-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ib-pick-list { margin-top: 10px; max-height: 50vh; overflow-y: auto; }
 .ib-form { display: grid; gap: 14px; }
 .ib-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; min-width: 0; }

@@ -285,6 +285,12 @@
 .input:focus,
 .select:focus,
 .textarea:focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+/* El borde ya marca el foco: sin el anillo global de :focus-visible (globals.css), que
+   según el orden de carga de las hojas le ganaba al outline: none y dejaba una caja doble.
+   Transparente y no none: en modo de alto contraste sigue marcando el foco. */
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible { outline: 2px solid transparent; }
 .input::placeholder,
 .textarea::placeholder { color: var(--brand-gray-3); opacity: 1; }
 .input:disabled,
@@ -751,8 +757,10 @@ dialog.ui-drawer:not([open]) { display: none; }
 @keyframes ui-slide { from { transform: translateX(24px); opacity: 0; } }
 @keyframes ui-fade { from { opacity: 0; } }
 
-/* Elegir cuándo (components/ui/WhenDialog): presets con su atajo [1]..[6] y
-   una fecha propia. Lo usan Inbox (posponer, enviar más tarde) y Lines. */
+/* Elegir cuándo (components/ui/WhenDialog y WhenPicker): las opciones del
+   momento con su atajo [1], [2]… y "Elegir día y hora" (calendario del mes y
+   hora). Lo usan Inbox (posponer, enviar más tarde) y Lines. El día y la hora
+   elegidos llevan el color de la app (--app-btn), como la primaria. */
 .ui-when-body { display: grid; gap: 12px; }
 .ui-when-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .ui-when-opt {
@@ -760,15 +768,59 @@ dialog.ui-drawer:not([open]) { display: none; }
   background: none; border: 1px solid transparent; border-radius: var(--radius-1);
   font: inherit; font-size: 0.9063rem; text-align: left; color: inherit; cursor: pointer;
 }
-.ui-when-opt:hover, .ui-when-opt:focus-visible { background: var(--ui-hover); border-color: var(--line); }
+.ui-when-opt:hover:not(:disabled), .ui-when-opt:focus-visible { background: var(--ui-hover); border-color: var(--line); }
+.ui-when-opt:disabled { opacity: 0.5; cursor: not-allowed; }
 .ui-when-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.ui-when-at { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; }
-.ui-when-custom { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
-.ui-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.ui-when-row .input { flex: 1; min-width: 0; }
+.ui-when-at { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* "Elegir día y hora": separado de las opciones por un filete; el ícono ocupa el lugar del atajo. */
+.ui-when-list > li:last-child { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+.ui-when-icon { flex: none; width: 26px; color: var(--brand-gray-2); }
+.ui-when-more svg:last-child { flex: none; color: var(--brand-gray-2); }
+
+.ui-when-pick { display: grid; gap: 16px; }
+.ui-when-pick-cols { display: grid; grid-template-columns: minmax(0, 1fr) 168px; gap: 20px; align-items: start; }
+.ui-cal { display: grid; gap: 6px; min-width: 0; }
+.ui-cal-head { display: flex; align-items: center; gap: 4px; }
+.ui-cal-month { flex: 1; min-width: 0; text-align: center; font-weight: 500; text-transform: capitalize; }
+.ui-cal-grid { display: grid; gap: 2px; }
+.ui-cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.ui-cal-dow { display: grid; place-items: center; height: 26px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.ui-cal-row > [role='gridcell'] { display: grid; }
+.ui-cal-day {
+  height: 36px; padding: 0; background: none; border: 1px solid transparent; border-radius: var(--radius-1);
+  font: inherit; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: inherit; cursor: pointer;
+}
+.ui-cal-day:hover:not(:disabled) { background: var(--ui-hover); border-color: var(--line); }
+.ui-cal-day:disabled { color: var(--ink-disabled); cursor: default; }
+.ui-cal-day[aria-current='date'] { font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.ui-cal-day[aria-pressed='true'],
+.ui-when-chip[aria-pressed='true'] {
+  background: var(--app-btn, var(--ink)); border-color: var(--app-btn, var(--ink)); color: var(--app-btn-on, var(--bg));
+}
+.ui-cal-day:focus-visible, .ui-when-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.ui-when-time { display: grid; gap: 8px; align-content: start; }
+.ui-when-time .input { width: 100%; font-variant-numeric: tabular-nums; }
+.ui-when-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ui-when-chip {
+  min-height: 34px; padding: 4px 8px; background: none; border: 1px solid var(--line); border-radius: var(--radius-1);
+  font: inherit; font-size: 0.8125rem; font-variant-numeric: tabular-nums; color: inherit; cursor: pointer; white-space: nowrap;
+}
+.ui-when-chip:hover:not([aria-pressed='true']) { background: var(--ui-hover); }
+.ui-when-done { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ui-when-summary { flex: 1 1 200px; min-width: 0; margin: 0; display: grid; gap: 2px; }
+.ui-when-summary strong { font-weight: 500; font-size: 1rem; }
+.ui-when-summary span { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.ui-when-done .ui-error { flex-basis: 100%; order: 3; margin: 0; }
 .ui-when .ui-modal-foot > :first-child:not(:last-child) { margin-right: auto; }
-@media (max-width: 720px) {
-  .ui-when-row .input, .ui-when-row .btn, .ui-when .ui-modal-foot .btn { min-height: 40px; }
+@media (max-width: 640px) {
+  /* Teléfono: el calendario a todo el ancho, la hora abajo y el botón entero; todo a 40px o más. */
+  .ui-when-pick-cols { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .ui-cal-day { height: 44px; font-size: 0.9375rem; }
+  .ui-cal-head .btn-icon { --btn-h: 40px; }
+  .ui-when-chips { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .ui-when-chip, .ui-when-time .input { min-height: 40px; }
+  .ui-when-confirm { flex: 1 1 100%; min-height: 44px; }
+  .ui-when .ui-modal-foot .btn { min-height: 40px; }
 }
 
 /* ---------- 8. Toasts ---------- */

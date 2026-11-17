@@ -56,7 +56,28 @@
     "started": "Cronómetro en marcha",
     "stopped": "Cronómetro parado",
     "loadError": "La hoja de horas no cargó.",
-    "entryLabel": "{project}, {task}, {duration}"
+    "entryLabel": "{project}, {task}, {duration}",
+    "view": "Vista",
+    "day": "Día"
+  },
+  "week": {
+    "projectTask": "Proyecto y tarea",
+    "total": "Total",
+    "addRow": "Agregar fila",
+    "addRowTitle": "Agregar una fila",
+    "copyRows": "Copiar las filas de la última hoja",
+    "copied": "{count, plural, one {# fila copiada} other {# filas copiadas}}",
+    "nothingToCopy": "No hay una hoja anterior con horas para copiar.",
+    "emptyTitle": "Sin filas esta semana",
+    "emptyBody": "Agregá una fila por proyecto y tarea, y escribí las horas debajo de cada día.",
+    "cellLabel": "{project}, {task}, {day}",
+    "lockedLabel": "{project}, {task}, {day}. Varias entradas o un cronómetro corriendo: abrí el día para editar",
+    "removeRow": "Quitar fila",
+    "removeTitle": "¿Borrar esta fila de la semana?",
+    "removeBody": "Se borran {count, plural, one {# entrada} other {# entradas}} ({duration}) de esta semana.",
+    "removed": "Fila quitada",
+    "rowExists": "Ese proyecto con esa tarea ya tiene una fila esta semana.",
+    "hint": "Escribí 1:30, 1.5 o 90m. Las notas y el cronómetro están en la vista del día."
   },
   "projects": {
     "desc": "Cada proyecto con su cliente, tarifa y presupuesto.",

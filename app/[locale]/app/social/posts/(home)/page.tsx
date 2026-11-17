@@ -38,9 +38,14 @@ export default async function SocialPostsPage(props: { params: Promise<{ locale:
         title={t('posts.title')}
         description={t('posts.description')}
         actions={
-          <Link className="btn btn-primary" href="/app/social/posts/new">
-            {t('sidebar.newPost')}
-          </Link>
+          <>
+            <Link className="btn" href="/app/social/posts/import" data-testid="posts-import">
+              {t('bulk.open')}
+            </Link>
+            <Link className="btn btn-primary" href="/app/social/posts/new">
+              {t('sidebar.newPost')}
+            </Link>
+          </>
         }
       />
       <div className="sc-page">

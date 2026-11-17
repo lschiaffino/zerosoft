@@ -76,7 +76,10 @@
     "unmute": "Unmute",
     "mute": "Mute",
     "fullscreen": "Full screen",
-    "skipSilences": "Skip silences"
+    "skipSilences": "Skip silences",
+    "reaction": "{name} reacted with {emoji}",
+    "reactionAt": "At {time}",
+    "removeReaction": "Remove reaction"
   },
   "comments": {
     "title": "Comments",
@@ -103,13 +106,17 @@
       "invalid_reaction": "That reaction is not available.",
       "name_taken": "That name belongs to someone in the workspace. Use another one or sign in.",
       "signin_required": "Sign in to comment on this video.",
-      "rate_limited": "Too many comments on this video right now. Try again in a few minutes."
+      "rate_limited": "Too many comments on this video right now. Try again in a few minutes.",
+      "remove_reaction": "The reaction could not be removed. Try again."
     },
     "guest": "Guest",
     "authorBadge": "Author",
     "more": "Show older comments ({shown} of {total})",
     "signinToComment": "Sign in to comment on this video.",
-    "viewOnly": "You can watch this video. Commenting is off for you."
+    "viewOnly": "You can watch this video. Commenting is off for you.",
+    "yours": "Your reactions",
+    "removeReactionAt": "Remove your {emoji} at {time}",
+    "removeYour": "Remove your {emoji}"
   },
   "common": {
     "copied": "Copied",
@@ -180,6 +187,7 @@
   },
   "watch": {
     "copyLink": "Copy link",
+    "copyLinkAt": "Copy link at {time}",
     "download": "Download",
     "byOn": "{name} · {date}",
     "summary": "Summary",
@@ -634,5 +642,40 @@
     "transferConfirmBody": "{videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}} go from {from} to {to}. {to} will also see the personal videos of {from}.",
     "transferNone": "Nobody who left has videos or folders here.",
     "privacyPeople": "Restricted: only the person who records it and who they invite"
+  },
+  "insights": {
+    "watchTime": "Watch time",
+    "retention": "Audience retention",
+    "retentionHelp": "Share of viewers who watched each moment. The dashed line counts plays, including rewatches.",
+    "retentionLegend": "Viewers",
+    "playsLegend": "Plays",
+    "tipViewers": "{pct}% of viewers",
+    "tipPlays": "{plays, plural, one {# play} other {# plays}}",
+    "rewatched": "Rewatched",
+    "retentionSummary": "{start}% of viewers saw the start and {end}% the end. Most watched moment: {peak}.",
+    "overTime": "Views over time",
+    "overTimeSummary": "Views per day. {total, plural, one {# view} other {# views}} in this period, most on {date} ({peak}).",
+    "countries": "Countries",
+    "cities": "Cities",
+    "devices": "Devices",
+    "sources": "Sources",
+    "noLocation": "No location yet",
+    "noData": "Nothing yet",
+    "direct": "Direct or unknown",
+    "other": "Other",
+    "unknown": "Unknown",
+    "desktop": "Desktop",
+    "mobile": "Mobile",
+    "tablet": "Tablet",
+    "viewerN": "Viewer {n}",
+    "location": "Location",
+    "device": "Device",
+    "source": "Source",
+    "watchedCell": "{pct}% · {time}",
+    "sampled": "Retention, breakdowns and the viewer list use the latest {n} views. The totals count all of them.",
+    "geoNote": "Location is approximate and comes from the viewer's network. IP addresses are not stored.",
+    "noViewsTitle": "No views yet",
+    "noViewsBody": "Share the link and you will see who watched, from where, on what device and how much. Your own views don't count.",
+    "viewsCount": "{n, plural, one {# view} other {# views}}"
   }
 }

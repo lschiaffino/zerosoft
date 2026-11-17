@@ -53,9 +53,9 @@ interface Report {
 }
 
 /**
- * Docs › Importar desde Notion. El zip va directo a Vercel Blob (token de
- * /api/import/upload) o, sin Blob, en partes de 4 MB; después el servidor lo
- * lee por rangos y escribe de a tandas.
+ * Docs › Importar desde Notion. El zip sube directo y privado al storage de
+ * archivos (/api/files/upload) o, sin subida directa, en partes de 4 MB;
+ * después el servidor lo lee por rangos y escribe de a tandas.
  */
 export default function NotionImportPanel({
   blobUpload,
@@ -91,18 +91,18 @@ export default function NotionImportPanel({
       // Un archivo suelto viaja como un zip de un archivo (el servidor lee zips por rangos).
       const zip: Blob = isZip ? file : await wrapFileInZip(file);
       if (blobUpload) {
-        const { upload: blobPut } = await import('@vercel/blob/client');
+        // Directo al storage, privado (lib/files/direct-upload-client.ts): solo lo lee el import y se borra al terminar.
+        const { directUpload, DirectUploadUnavailable } = await import('@/lib/files/direct-upload-client');
         const safe = file.name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/\.zip$/i, '').slice(0, 80) || 'notion';
-        const blob = await blobPut(`imports/${safe}.zip`, zip, {
-          access: 'public',
-          handleUploadUrl: '/api/import/upload',
-          multipart: file.size > 50 * 1024 * 1024,
-          contentType: 'application/zip',
-          onUploadProgress: (e) => setPercent(Math.round(e.percentage)),
-        });
-        setPercent(null);
-        await create({ source, blobUrl: blob.url, ...target });
-        return;
+        try {
+          const up = await directUpload(zip, { purpose: 'import-zip', name: `${safe}.zip`, contentType: 'application/zip', onProgress: (f) => setPercent(Math.round(f * 100)) });
+          setPercent(null);
+          await create({ source, blobUrl: up.url, ...target });
+          return;
+        } catch (err) {
+          // Sin subida directa en el servidor: por partes, como sin Blob.
+          if (!(err instanceof DirectUploadUnavailable)) throw err;
+        }
       }
       const created = await create({ source, size: zip.size, ...target });
       if (!created) return setPercent(null);

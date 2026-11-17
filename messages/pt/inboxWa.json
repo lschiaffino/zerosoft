@@ -3,6 +3,10 @@
   "typing": "digitando…",
   "recording": "gravando áudio…",
   "muted": "Silenciado",
+  "keepArchived": "Manter arquivada",
+  "keepArchivedOff": "Deixar de manter arquivada",
+  "keepArchivedHint": "As mensagens novas, e as que você envia, não tiram a conversa de Arquivadas.",
+  "keptArchived": "Mantida arquivada",
   "unread": "{n, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
   "kind": {
     "image": "Foto",
@@ -30,6 +34,8 @@
   "clickInfo": "toque aqui para ver os dados do contato",
   "groupInfo": "Dados do grupo",
   "contactInfo": "Dados do contato",
+  "copyPhone": "Copiar número",
+  "phoneCopied": "Número copiado",
   "reply": "Responder",
   "react": "Reagir",
   "forward": "Encaminhar",
@@ -89,7 +95,8 @@
     "unsupported": "Isso não pode ser feito nesta conversa.",
     "forbidden": "Só dá para mudar as suas próprias mensagens.",
     "client_upload_unavailable": "Arquivos com mais de 4 MB não podem ser enviados deste servidor.",
-    "nothing_to_summarize": "Ainda não há mensagens para resumir."
+    "nothing_to_summarize": "Ainda não há mensagens para resumir.",
+    "voice_too_short": "Grave pelo menos um segundo para agendar."
   },
   "viewPhoto": "Ver a foto",
   "groupMembers": "{n, plural, one {Grupo · # membro} other {Grupo · # membros}}",
@@ -267,10 +274,17 @@
     "createGroup": "Criar grupo"
   },
   "fetchMissing": "Buscar mensagens que faltam",
-  "fetchMissingToast": "Pedimos ao seu telefone as mensagens desta conversa. Podem demorar um pouco.",
   "replyPrivately": "Responder em particular",
   "messageName": "Enviar mensagem para {name}",
   "download": "Baixar",
+  "voicePause": "Pausar",
+  "voiceResume": "Continuar gravando",
+  "voicePaused": "Pausado",
+  "voiceLater": "Enviar a mensagem de voz mais tarde",
+  "voiceTag": "🎤 Mensagem de voz ({time})",
+  "voicePlay": "Ouvir a mensagem de voz",
+  "voiceStop": "Pausar",
+  "voicePlayFailed": "Não foi possível reproduzir o áudio.",
   "contacts": {
     "title": "Contatos",
     "descLines": "Cada pessoa das suas linhas uma vez só: em quais linhas e grupos ela está, a última mensagem e o contato no HubSpot.",

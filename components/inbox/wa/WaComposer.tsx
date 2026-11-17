@@ -470,7 +470,7 @@ const WaComposer = forwardRef<
       {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
-          <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
+          <button type="button" className="wa-icon-btn" data-emoji-toggle aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
             <Smiley size={24} />
           </button>
           {emoji && (
@@ -478,9 +478,10 @@ const WaComposer = forwardRef<
               stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
               gifs={editing ? undefined : { api: '/api/inbox/gifs', onSend: sendGif }}
               onPick={(e) => insertAtCaret(e)}
-              onClose={() => {
+              onClose={(reason) => {
                 setEmoji(false);
-                area.current?.focus();
+                // Un toque afuera deja el foco donde se tocó.
+                if (reason !== 'outside') area.current?.focus();
               }}
             />
           )}
@@ -496,6 +497,7 @@ const WaComposer = forwardRef<
           readOnly={paused}
           aria-busy={paused || undefined}
           className="wa-input"
+          data-testid="composer-input"
           rows={1}
           value={text}
           disabled={disabled}
@@ -603,7 +605,7 @@ const WaComposer = forwardRef<
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+          <button type="button" className="wa-send" data-testid="composer-send" {...keepFocus} aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
             // Clic derecho en Enviar: programar el envío (como en WhatsApp).
             if (editing || !hasText) return;
             e.preventDefault();

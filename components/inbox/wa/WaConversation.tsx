@@ -12,12 +12,15 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
-import { ContactCards, DocCard, GifView, ImageView, LocationCard, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
+import { FloatingReactPicker, ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
+import { useDismiss } from '@/components/groups/wa/useDismiss';
+import type { WaReactor } from '@/lib/wa-reactions';
+import { ContactCards, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
 import { useBackLayer } from '@/components/groups/wa/backLayer';
@@ -34,6 +37,8 @@ import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
+import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
+import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from '@/components/groups/wa/RefreshMissing';
 import { AttachButton, discardInboxMedia, retryInboxMedia, useSendTray, VoiceBar } from './media-send';
 import { inboxMediaUrl, pendingSends } from './pending';
 import { discardInboxText, queuedText, retryInboxText } from './outbox';
@@ -49,6 +54,8 @@ import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
 import { useInboxThreadCommands } from '../slash-commands';
 import { typingLabel } from './ChatRow';
+import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent';
+import { parseEvent } from '@/lib/wa-group-events';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -110,7 +117,8 @@ const WaConversation = forwardRef<
     onToggleInfo: () => void;
     onRename: (title: string) => void;
     onRefresh: () => void;
-    loadOlder: () => Promise<void>;
+    /** Trae de lo guardado los mensajes anteriores a los que hay; devuelve cuántos sumó. */
+    loadOlder: () => Promise<number>;
     /** Abrir otro chat de Inbox (el 1:1 de alguien del grupo, un grupo en común). */
     onOpenThread?: (id: string) => void;
     /** Abrir (o crear) el chat 1:1 con un teléfono. */
@@ -135,6 +143,15 @@ const WaConversation = forwardRef<
   const wa = detail.wa ?? null;
   const group = thread.kind === 'group';
   const name = chatName(thread, w('group'));
+  const tg = useTranslations('groups.wa.newGroup');
+  // El aviso de creación del grupo (para la tarjeta del grupo sin mensajes: quién lo creó).
+  const createdEvent = useMemo(() => {
+    for (const m of messages) {
+      const e = m.mediaType === 'system' ? parseEvent(m.meta?.sys) : null;
+      if (e?.t === 'create') return e;
+    }
+    return null;
+  }, [messages]);
   const scroller = useRef<HTMLDivElement>(null);
   const openedFor = useRef('');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
@@ -143,7 +160,14 @@ const WaConversation = forwardRef<
   const [editing, setEditing] = useState<MessageDto | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [fullPickerFor, setFullPickerFor] = useState<string | null>(null);
+  // El cuadro de quién reaccionó: el mensaje (el primero del álbum) y su globito.
+  const [rxFor, setRxFor] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  // La barra rápida de reacciones: un toque afuera o Esc la cierra (el botón de reaccionar la alterna).
+  const quickBar = useRef<HTMLSpanElement>(null);
+  useDismiss(pickerFor !== null, () => setPickerFor(null), [quickBar, '.wa-react-btn']);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
+  const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
   // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
@@ -234,6 +258,7 @@ const WaConversation = forwardRef<
     setEditing(null);
     setPickerFor(null);
     setFullPickerFor(null);
+    setRxFor(null);
     setRevealed(new Set());
     setNotesOpen(false);
     setHeld(null);
@@ -286,6 +311,31 @@ const WaConversation = forwardRef<
   };
   /** Texto plano con las menciones nombradas (copiar, editar, info). */
   const mentionText = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }) => replaceMentions(m.body, mentionsFor(m));
+
+  // "Cargar mensajes anteriores": cuando lo guardado se terminó, se le piden al teléfono los anteriores
+  // (components/groups/wa/OlderHistory.tsx). Lo que llega entra por loadOlder, como al subir en la conversación.
+  const olderHistory = useOlderHistory(
+    thread.id,
+    messages[0]?.id ?? '',
+    async (): Promise<OlderReply> => {
+      const r = await fetch(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'loadOlder' }) }).catch(() => null);
+      const body = r ? ((await r.json().catch(() => ({}))) as Omit<OlderReply, 'status'>) : {};
+      return { status: r?.status ?? 0, ...body };
+    },
+    async () => {
+      // Lo que llegó puede ser más de una página de lo guardado: se traen todas (hasta 4), así la ficha no se cambia
+      // por el botón de "anteriores" a mitad de camino.
+      let total = 0;
+      for (let i = 0; i < 4; i++) {
+        const n = await props.loadOlder();
+        total += n;
+        if (n === 0) break;
+        // Que la página recién sumada ya esté en pantalla antes de pedir la que sigue (el cursor sale de ahí).
+        await new Promise((res) => setTimeout(res, 80));
+      }
+      return total;
+    },
+  );
 
   // Leyendo más arriba, la conversación no se mueve sola (fotos que cargan, reacciones o
   // "editado" que llegan con la consulta, anteriores que se suman arriba); abajo de todo, sigue al final.
@@ -357,12 +407,23 @@ const WaConversation = forwardRef<
     onRefresh();
     for (const ms of [3_000, 10_000, 30_000]) historyTimers.current.push(window.setTimeout(onRefresh, ms));
   }, [onRefresh]);
-  const fetchMissing = useCallback(async () => {
-    const r = await api<{ ok?: boolean }>(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', json: { action: 'fetchMissing' } });
-    if (!r.ok) return onError(r.data.error ?? 'generic');
-    props.onToast(w('fetchMissingToast'));
-    watchHistory();
-  }, [detail.thread.id, onError, props, w, watchHistory]);
+  // "Traer mensajes que faltan" (components/groups/wa/RefreshMissing.tsx): pide, mira qué llegó y lo dice en la franja.
+  const postWa = useCallback(async (body: Record<string, unknown>) => {
+    const r = await fetch(`/api/inbox/threads/${detail.thread.id}/wa`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    return { status: r?.status ?? 0, body: r ? ((await r.json().catch(() => ({}))) as Record<string, unknown>) : {} };
+  }, [detail.thread.id]);
+  const refreshMissing = useRefreshMissing(
+    detail.thread.id,
+    async (): Promise<RefreshReply> => {
+      const r = await postWa({ action: 'fetchMissing' });
+      return { status: r.status, ...(r.body as Omit<RefreshReply, 'status'>) };
+    },
+    async () => {
+      const r = await postWa({ action: 'fetchMissingStatus' });
+      return r.status === 200 ? (r.body as unknown as RefreshProgress) : null;
+    },
+    onRefresh,
+  );
   // Abrir un chat con la marca: se pide una vez sola, sin aviso (el servidor tiene sus topes).
   // Solo al abrirlo: un hueco que aparece con el chat abierto lo pide el servidor solo (lib/wa-history-gaps.ts).
   const autoHistory = useRef('');
@@ -392,6 +453,12 @@ const WaConversation = forwardRef<
     setFullPickerFor(null);
     const mine = (m.reactions ?? []).find((r) => r.by === 'me');
     await act(m, { action: 'react', emoji: mine?.emoji === emoji ? '' : emoji });
+  };
+
+  // Quién reaccionó (nombre, foto y teléfono), para el cuadro de reacciones.
+  const loadReactions = async (ids: string[]): Promise<WaReactor[] | null> => {
+    const r = await api<{ reactions: WaReactor[] }>(`/api/inbox/threads/${thread.id}/wa?part=reactions&messages=${encodeURIComponent(ids.join(','))}`);
+    return r.ok && Array.isArray(r.data.reactions) ? r.data.reactions : null;
   };
 
   const copy = async (m: MessageDto) => {
@@ -593,8 +660,9 @@ const WaConversation = forwardRef<
     { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
     { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
+    ...(thread.archived ? [{ key: 'keepArchived', label: thread.keepArchived ? w('keepArchivedOff') : w('keepArchived'), onSelect: () => onAction('keepArchived') }] : []),
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
-    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void fetchMissing() },
+    { key: 'fetchMissing', label: w('fetchMissing'), onSelect: () => void refreshMissing.run() },
     ...(thread.mutedUntil
       ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]
       : [
@@ -631,6 +699,13 @@ const WaConversation = forwardRef<
       days.push({ key, at: m.sentAt, items: [] });
       prev = null;
     }
+    // Aviso del grupo ("Ana te agregó", "Beto salió"): una línea centrada, sin burbuja ni menú.
+    const sys = m.mediaType === 'system' ? parseEvent(m.meta?.sys) : null;
+    if (m.mediaType === 'system') {
+      if (sys) days[days.length - 1].items.push(<GroupEventLine key={m.id} e={sys} id={m.id} />);
+      prev = null;
+      continue;
+    }
     const cont = !!prev && senderKey(prev) === senderKey(m);
     prev = run[run.length - 1];
     days[days.length - 1].items.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
@@ -650,13 +725,15 @@ const WaConversation = forwardRef<
     const time = new Date(m.sentAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const allReactions = (album ?? [m]).flatMap((x) => x.reactions ?? []);
     const reactions = groupReactions(allReactions);
+    const rxLite = (album ?? [m]).flatMap((x) => (x.reactions ?? []).map((r) => ({ messageId: x.id, emoji: r.emoji, me: r.by === 'me' })));
     const has = (id: string | null) => (album ? album.some((x) => x.id === id) : m.id === id);
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
     const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     // Lo que se mandó desde esta pestaña se ve con su copia local (al instante, y sin volver a bajarlo al guardarse).
     const url = inboxMediaUrl(m);
-    const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
+    // Foto o video (aunque no esté disponible: su lugar ocupa el mismo ancho) al ras de la burbuja.
+    const flush = (kind === 'image' || kind === 'video') && !hidden && !meta.viewOnce;
     const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
@@ -769,10 +846,12 @@ const WaConversation = forwardRef<
                 <span className="wa-viewonce">{w('viewOnce')}</span>
               ) : sticker && !url ? (
                 <StickerMissing label={ws('missing')} />
+              ) : !url && (kind === 'image' || kind === 'video') ? (
+                <MediaUnavailable kind={kind} width={meta.width} height={meta.height} thumbnail={meta.thumb} />
               ) : !url ? (
-                <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} />
+                <DocCard url="" name={m.mediaName || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(kind) ? kind : 'document'}`)} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} thumbnail={meta.thumb} />
               ) : kind === 'image' || sticker ? (
-                <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
+                <ImageView url={url} alt={m.mediaName || w('kind.image')} sticker={sticker} caption={!sticker && Boolean(m.body?.trim())} thumbnail={meta.thumb} width={meta.width} height={meta.height} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' && meta.animated ? (
                 <GifView url={url} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
@@ -780,10 +859,11 @@ const WaConversation = forwardRef<
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined}
                   waveform={meta.waveform}
+                  onRecovered={() => setRecoveredAudio((prev) => ({ ...prev, [m.id]: (prev[m.id] ?? 0) + 1 }))}
                   avatar={m.fromMe ? { name: w('you'), src: props.meImage || undefined, seed: 'me' } : group ? { name: author || senderLabel(m.senderName, m.senderHandle), src: avatars.get(m.senderHandle) || undefined, seed: m.senderHandle || m.senderName } : { name, src: thread.avatar || undefined, seed: thread.id }}
                 />
               ) : (
-                <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
+                <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} thumbnail={meta.thumb} saveThumbTo={isTempId(m.id) ? undefined : `/api/inbox/media/${m.id}`} verify={url.startsWith('/api/')} />
               )}
               {(album ?? [m]).some((x) => isTempId(x.id) && x.status === 'pending') && (
                 <UploadRing
@@ -797,6 +877,7 @@ const WaConversation = forwardRef<
           {kind === 'audio' && url && !hidden && !meta.viewOnce && (
             <Transcript
               endpoint={`/api/inbox/messages/${m.id}`}
+              retryKey={recoveredAudio[m.id] ?? 0}
               labels={{ working: w('transcribing'), failed: w('transcribeFailed'), more: w('showMore'), less: w('showLess'), summary: w('audioSummary'), title: w('transcript') }}
             />
           )}
@@ -810,7 +891,19 @@ const WaConversation = forwardRef<
           {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
               url={meta.link?.url ?? firstUrl(m.body)}
-              given={meta.link ? { url: meta.link.url, title: meta.link.title, description: meta.link.description, image: meta.link.thumb } : null}
+              given={
+                meta.link
+                  ? {
+                      url: meta.link.url,
+                      title: meta.link.title,
+                      description: meta.link.description,
+                      // La imagen grande que mandó WhatsApp (guardada al llegar); si no, su miniatura chica.
+                      image: meta.link.image ?? meta.link.thumb,
+                      imageWidth: meta.link.image ? meta.link.imageWidth : undefined,
+                      imageHeight: meta.link.image ? meta.link.imageHeight : undefined,
+                    }
+                  : null
+              }
             />
           )}
           {poll && !hidden && (
@@ -852,19 +945,31 @@ const WaConversation = forwardRef<
             <MessageMenu label={w('messageMenu')} items={menuFor(m)} trigger={<Chevron size={18} />} className="wa-chevron" align={m.fromMe ? 'right' : 'left'} />
           </span>
         </div>
-        {reactions.length > 0 && (
-          <button
-            type="button"
-            className="gr-reactions ib-wa-reactions"
-            aria-label={w('reactionsBy', { list: reactions.map((r) => `${r.emoji} ${[...(r.mine ? [w('you')] : []), ...r.names].join(', ')}`).join('; ') })}
-            title={reactions.map((r) => `${r.emoji} ${[...(r.mine ? [w('you')] : []), ...r.names].join(', ')}`).join('\n')}
-            onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
-          >
-            {reactions.slice(0, 3).map((r) => (
-              <span key={r.emoji}>{r.emoji}</span>
-            ))}
-            {allReactions.length > 1 && <b>{allReactions.length}</b>}
-          </button>
+        {reactions.length > 0 && <ReactionChip reactions={rxLite} className="ib-wa-reactions" expanded={rxFor?.id === m.id} onOpen={(el) => setRxFor(rxFor?.id === m.id ? null : { id: m.id, anchor: el })} />}
+        {rxFor?.id === m.id && (
+          <ReactionDetails
+            anchor={rxFor.anchor}
+            reactions={rxLite}
+            load={() => loadReactions((album ?? [m]).map((x) => x.id))}
+            me={{ picture: props.meImage }}
+            canReact={!m.revoked && connected && !isTempId(m.id)}
+            align={m.fromMe ? 'right' : 'left'}
+            onReact={() => {
+              setRxFor(null);
+              setPickerFor(m.id);
+              // El foco pasa a la barra de emojis (Esc la cierra).
+              requestAnimationFrame(() => document.getElementById(`m-${m.id}`)?.querySelector<HTMLButtonElement>('.gr-emoji-picker button')?.focus());
+            }}
+            onRemove={async ({ messageId, emoji }) => {
+              const target = (album ?? [m]).find((x) => x.id === messageId);
+              if (target) await react(target, emoji);
+            }}
+            onClose={(restore) => {
+              const anchor = rxFor.anchor;
+              setRxFor(null);
+              if (restore && anchor.isConnected) anchor.focus();
+            }}
+          />
         )}
         {!m.revoked && connected && !isTempId(m.id) && (
           <div className="gr-msg-actions">
@@ -881,7 +986,7 @@ const WaConversation = forwardRef<
           </div>
         )}
         {reactTo && (
-          <span className="gr-emoji-picker" role="group" aria-label={w('react')} onKeyDown={(e) => e.key === 'Escape' && setPickerFor(null)}>
+          <span className="gr-emoji-picker" role="group" aria-label={w('react')} ref={quickBar} data-testid="wa-quick-react">
             {QUICK.map((e) => (
               <button key={e} type="button" className={(reactTo.reactions ?? []).some((r) => r.by === 'me' && r.emoji === e) ? 'is-mine' : ''} onClick={() => void react(reactTo, e)} aria-label={e}>
                 {e}
@@ -893,9 +998,9 @@ const WaConversation = forwardRef<
           </span>
         )}
         {fullFor && (
-          <span className="ib-wa-react-full">
+          <FloatingReactPicker anchorId={`m-${m.id}`} align={m.fromMe ? 'right' : 'left'}>
             <EmojiPicker onPick={(e) => void react(fullFor, e)} onClose={() => setFullPickerFor(null)} />
-          </span>
+          </FloatingReactPicker>
         )}
       </article>
     );
@@ -1024,6 +1129,7 @@ const WaConversation = forwardRef<
           </div>
         </div>
       )}
+      <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
       <div className="wa-scroll">
         <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} ref={scroller} onScroll={onScroll} onClick={tapClosesKeyboard} tabIndex={-1}>
           {detail.more && (
@@ -1033,7 +1139,22 @@ const WaConversation = forwardRef<
               </button>
             </div>
           )}
-          {messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>}
+          {!detail.more && messages.length > 0 && thread.channel === 'whatsapp' && (
+            // Lo guardado se terminó: lo anterior se le pide al teléfono.
+            <OlderHistoryChip state={olderHistory.state} offline={!connected} onLoad={() => void olderHistory.run()} />
+          )}
+          {group && !detail.more && !messages.some((m) => m.mediaType !== 'system') ? (
+            <NewGroupCard
+              name={name}
+              avatar={thread.avatar || undefined}
+              seed={thread.id}
+              created={createdEvent}
+              members={wa?.size || wa?.participants.length || 0}
+              actions={props.infoOpen ? [] : [{ key: 'info', label: tg('info'), icon: <InfoIcon size={18} />, onSelect: props.onToggleInfo }]}
+            />
+          ) : (
+            messages.length === 0 && <p className="wa-empty-thread">{t('message.empty')}</p>
+          )}
           {days.map((d) => (
             <section key={d.key} className="wa-dayblock">
               <div className="wa-day" role="separator">
@@ -1078,6 +1199,11 @@ const WaConversation = forwardRef<
             threadId={thread.id}
             replyTo={replyTo?.id}
             onQueued={() => setReplyTo(null)}
+            onScheduled={(iso) => {
+              setReplyTo(null);
+              props.onScheduledChange();
+              props.onToast(t('toast.scheduled', { when: longWhen(iso, locale) }));
+            }}
             onError={onError}
             onDone={() => setRecording(false)}
             onStart={() => presence('recording')}

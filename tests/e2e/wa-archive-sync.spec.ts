@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Archivar entre zerosoft y WhatsApp (WhatsApp falso, GROUPS_FAKE=1), en Inbox
@@ -63,7 +64,7 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('Inbox', () => {
   async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-    await request.post('/api/inbox/whatsapp');
+    await request.post('/api/inbox/whatsapp', waLinkIp());
     await expect
       .poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 })
       .toBe('connected');

@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * "Sin carpeta" en Inbox y en Lines: arriba del árbol de carpetas, filtra los
@@ -20,7 +21,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 }
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
@@ -45,9 +46,11 @@ test('Inbox: Sin carpeta lista los sueltos y sumar uno a una carpeta lo saca', a
   for (const n of [a, b, c]) await inbound(request, acc, n);
   const first = (await (await request.post('/api/inbox/folders', { data: { name: `Folder 1 ${tag}` } })).json()) as { folder: { id: string } };
   await request.post('/api/inbox/folders', { data: { name: `Folder 2 ${tag}` } });
-  const hit = (await (await request.get(`/api/inbox/threads?q=${encodeURIComponent(a)}`)).json()) as { threads: Array<{ id: string }> };
-  expect(hit.threads).toHaveLength(1);
-  expect((await request.post('/api/inbox/threads', { data: { ids: [hit.threads[0].id], action: 'addFolder', folderId: first.folder.id } })).ok()).toBe(true);
+  // La búsqueda puede traer también B y C (comparten palabras): se elige el chat A por su título.
+  const hit = (await (await request.get(`/api/inbox/threads?q=${encodeURIComponent(a)}`)).json()) as { threads: Array<{ id: string; title: string }> };
+  const chatA = hit.threads.find((t) => t.title === a);
+  expect(chatA).toBeTruthy();
+  expect((await request.post('/api/inbox/threads', { data: { ids: [chatA!.id], action: 'addFolder', folderId: first.folder.id } })).ok()).toBe(true);
 
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const side = page.locator('#side-branch');

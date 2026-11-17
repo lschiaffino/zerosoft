@@ -1,5 +1,5 @@
 import { iJson, withOwner } from '@/lib/inbox/http';
-import { inboxContact, inboxContactHubspot, inboxContactHubspotMatches } from '@/lib/inbox/contacts';
+import { inboxContact, inboxContactHubspot, inboxContactHubspotMatches, inboxThreadContact } from '@/lib/inbox/contacts';
 import { inboxHubspotScope } from '@/lib/inbox/contacts-http';
 import { HubspotError } from '@/lib/groups-hubspot';
 import { GroupsError } from '@/lib/groups';
@@ -24,6 +24,9 @@ export async function GET(req: Request) {
     const sp = new URL(req.url).searchParams;
     const id = (sp.get('id') ?? '').slice(0, 64);
     const scope = await inboxHubspotScope();
+    // ?thread=<id>: la persona de ese chat 1:1 (el panel de HubSpot del chat).
+    const thread = sp.get('thread');
+    if (thread) return iJson(await inboxThreadContact(owner, scope, thread.slice(0, 64)));
     if (sp.get('hubspot') === 'matches') {
       if (!scope) return iJson({ error: 'forbidden' }, 403);
       try {

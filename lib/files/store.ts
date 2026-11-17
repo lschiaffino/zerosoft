@@ -177,6 +177,21 @@ function signingKey(): Buffer {
   return createHmac('sha256', 'zerosoft-files-url').update(base).digest();
 }
 
+/**
+ * Un archivo subido por una persona ('user') que pasa a ser de algo que ven
+ * otros (un mensaje programado de Lines que ven quienes ven esa línea): queda
+ * en el workspace con ese permiso fino. Solo archivos de ese workspace; los
+ * que ya tienen otro permiso no se tocan. null si la URL no es de un archivo
+ * del workspace.
+ */
+export async function shareFileWith(url: string, owner: { workspaceId: string }, to: { app: string; scope: string }, db: Db = getDb()): Promise<StoredFileRow | null> {
+  const row = await ownedFileRow(url, { workspaceId: owner.workspaceId }, db);
+  if (!row) return null;
+  if (row.access !== 'user') return row;
+  await db.prepare("UPDATE stored_files SET access = 'workspace', app = ?, scope = ? WHERE id = ? AND access = 'user'").run(to.app, to.scope, row.id);
+  return { ...row, access: 'workspace', app: to.app, scope: to.scope };
+}
+
 /** Lo que ata una firma a ese archivo tal como está: si cambia de dueño, de acceso o de bytes, la URL deja de valer. */
 export type SignableFileRow = Pick<StoredFileRow, 'id' | 'workspace_id' | 'access' | 'ref'>;
 
@@ -696,6 +711,22 @@ export async function readFileBytes(row: StoredFileRow, max = 64 * 1024 * 1024):
   } catch {
     return null;
   }
+}
+
+/**
+ * `length` bytes desde `offset` (menos si el archivo termina antes). Para los
+ * que leen un archivo grande por partes del lado del servidor (una
+ * importación, un zip).
+ */
+export async function readFileRange(row: StoredFileRow, offset: number, length: number): Promise<Buffer> {
+  const size = await fileSize(row);
+  if (length <= 0 || offset >= size) return Buffer.alloc(0);
+  const end = Math.min(size - 1, offset + length - 1);
+  const opened = await openFile({ ...row, size }, { start: offset, end });
+  if (!opened) throw new FileStoreError('storage_unavailable', 503);
+  const chunks: Buffer[] = [];
+  for await (const piece of webIter(opened.stream)) chunks.push(Buffer.from(piece));
+  return Buffer.concat(chunks).subarray(0, end - offset + 1);
 }
 
 /** Atajo: bytes de una URL de /api/files. */

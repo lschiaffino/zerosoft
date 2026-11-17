@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Lines e Inbox, como WhatsApp:
@@ -38,7 +39,7 @@ function watchErrors(page: Page): string[] {
 // ---------- Inbox ----------
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
@@ -93,7 +94,7 @@ test('Inbox: clic derecho en un chat abre el menú de WhatsApp en el puntero, co
   const box = (await menu(page).boundingBox())!;
   expect(Math.abs(box.x - at.x)).toBeLessThanOrEqual(2);
   expect(Math.abs(box.y - at.y)).toBeLessThanOrEqual(2);
-  await expect(menu(page).getByRole('menuitem')).toHaveText(['Open in new window', 'Mark read', 'Archive chat', 'Pin chat', 'Mute notifications', 'Add to folder', 'Contact info', 'Remove from Inbox']);
+  await expect(menu(page).getByRole('menuitem')).toHaveText(['Open in new window', 'Mark read', 'Archive chat', 'Snooze…', 'Pin chat', 'Mute notifications', 'Add to folder', 'Contact info', 'Remove from Inbox']);
   await expect(menu(page).getByRole('menuitem').first()).toBeFocused();
   await page.screenshot({ path: info.outputPath('inbox-menu-1280-light.png') });
 
@@ -132,7 +133,7 @@ test('Inbox: clic derecho en un chat abre el menú de WhatsApp en el puntero, co
   await page.keyboard.press('Shift+F10');
   await expect(menu(page)).toBeVisible();
   await expect(menu(page).getByRole('menuitem').first()).toBeFocused();
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown'); // "Posponer…" va antes de Fijar
   await expect(menu(page).getByRole('menuitem', { name: 'Mute notifications' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(sub.getByRole('menuitem').first()).toBeFocused();

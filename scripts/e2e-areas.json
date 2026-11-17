@@ -43,8 +43,8 @@
     },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
-      "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**"],
-      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-keyboard-touch", "mobile-clutter", "mobile-gestures", "mobile-no-side-scroll"],
+      "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**", "lib/kbd-nav.ts", "components/app/CalmFocus.tsx", "styles/calm-focus.css"],
+      "specs": ["wa-*", "ai-compose", "chat-gestures", "chat-row-menu", "display-settings", "emoji-suggest", "instant-media-send", "mobile-keyboard", "mobile-keyboard-touch", "mobile-clutter", "calm-focus", "chat-keep-archived", "incoming-unarchives", "offline-lines-inbox", "mobile-gestures", "mobile-no-side-scroll", "snooze-archives"],
       "with": ["inbox", "lines"]
     },
     "docs": { "names": ["docs", "docs-api", "notion"], "specs": ["docs", "docs-*", "uploads-security", "qa-fix-int3", "importers"], "with": ["notes"] },
@@ -58,7 +58,7 @@
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
     "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
-    "time": { "names": ["time"], "specs": ["time"] },
+    "time": { "names": ["time"], "specs": ["time", "time-week"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
     "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
     "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },
@@ -73,7 +73,7 @@
     },
     "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**"], "specs": ["books"] },
     "shop": { "names": ["shop"], "paths": ["app/store/**", "styles/store.css"], "specs": ["shop"] },
-    "social": { "names": ["social"], "specs": ["social"] },
+    "social": { "names": ["social"], "specs": ["social", "social-*"] },
     "design": { "names": ["design"], "paths": ["app/[locale]/d/**"], "specs": ["design"] },
     "calls": { "names": ["calls"], "paths": ["app/[locale]/call/**"], "specs": ["calls"] },
     "hr": { "names": ["hiring", "people"], "paths": ["lib/hr-*", "styles/careers.css", "app/careers/**"], "specs": ["hiring", "hr-*", "people"] },
@@ -90,7 +90,7 @@
   },
 
   "full-only": [
-    "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
+    "api-cache-control", "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
     "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "private-files", "qa-followups", "qa-polish",
     "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
   ]

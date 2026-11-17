@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -65,11 +65,19 @@ const parity: ProductParity = {
     // Ordenar
     row('done', 'triage', ['Mark done (archive)', 'Marcar hecho (archivar)', 'Concluir (arquivar)'], 'have', {
       weight: 2,
-      detail: ['E, from the list or the conversation. In Gmail it removes the thread from the inbox', 'E, desde la lista o la conversación. En Gmail saca el hilo de la bandeja', 'E, da lista ou da conversa. No Gmail tira a conversa da caixa'],
+      detail: [
+        'E, from the list or the conversation. In Gmail it removes the thread from the inbox. On WhatsApp, sending a message brings the chat back to the list, like on the phone, except for chats set to Keep archived',
+        'E, desde la lista o la conversación. En Gmail saca el hilo de la bandeja. En WhatsApp, mandar un mensaje devuelve el chat a la lista, como en el teléfono, salvo en los chats con Mantener archivado',
+        'E, da lista ou da conversa. No Gmail tira a conversa da caixa. No WhatsApp, enviar uma mensagem devolve a conversa para a lista, como no celular, salvo nas conversas marcadas como Manter arquivada',
+      ],
     }),
     row('snooze', 'triage', ['Snooze (remind me)', 'Posponer', 'Adiar'], 'have', {
       weight: 2,
-      detail: ['H with six presets or any date. A new message brings it back early', 'H con seis opciones o cualquier fecha. Un mensaje nuevo lo trae antes', 'H com seis opções ou qualquer data. Uma mensagem nova traz de volta antes'],
+      detail: [
+        'H with options that fit the moment (tomorrow morning, this weekend…) or a day and time from a calendar. The chat waits in Archived (on the phone too) and comes back when the time is up. A new message brings it back early',
+        'H con opciones según el momento (mañana a la mañana, este fin de semana…) o un día y hora del calendario. El chat espera en Archivados (también en el teléfono) y vuelve a la hora. Un mensaje nuevo lo trae antes',
+        'H com opções conforme o momento (amanhã de manhã, neste fim de semana…) ou um dia e hora do calendário. A conversa espera em Arquivadas (no celular também) e volta na hora. Uma mensagem nova traz de volta antes',
+      ],
     }),
     row('follow-up', 'triage', ['Remind me if there is no reply', 'Recordame si no contesta', 'Lembrar se não responder'], 'have', {
       detail: ['F. If they reply in the meantime the reminder clears by itself', 'F. Si contesta antes, el recordatorio se borra solo', 'F. Se responderem antes, o lembrete some sozinho'],
@@ -105,9 +113,9 @@ const parity: ProductParity = {
     row('send-later', 'writing', ['Send later', 'Enviar más tarde', 'Enviar mais tarde'], 'have', {
       weight: 2,
       detail: [
-        'From the reply field, one message or a sequence where each one is its own bubble, with waits between them and a file (WhatsApp). Edit, send now or cancel. Sent by the server even with the tab closed',
-        'Desde el campo, un mensaje o una secuencia donde cada uno es su burbuja, con esperas entre ellos y un archivo (WhatsApp). Editar, enviar ya o cancelar. Lo manda el servidor aunque cierres la pestaña',
-        'Pelo campo, uma mensagem ou uma sequência em que cada uma é sua bolha, com esperas entre elas e um arquivo (WhatsApp). Editar, enviar agora ou cancelar. O servidor envia mesmo com a aba fechada',
+        'From the reply field, one message or a sequence where each one is its own bubble, with waits between them and a file (WhatsApp). Edit, send now or cancel. Sent by the server even with the tab closed. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
+        'Desde el campo, un mensaje o una secuencia donde cada uno es su burbuja, con esperas entre ellos y un archivo (WhatsApp). Editar, enviar ya o cancelar. Lo manda el servidor aunque cierres la pestaña. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
+        'Pelo campo, uma mensagem ou uma sequência em que cada uma é sua bolha, com esperas entre elas e um arquivo (WhatsApp). Editar, enviar agora ou cancelar. O servidor envia mesmo com a aba fechada. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
       ],
     }),
     row('snippets', 'writing', ['Snippets', 'Snippets', 'Snippets'], 'have', {
@@ -149,9 +157,9 @@ const parity: ProductParity = {
     }),
     row('wa-contacts', 'navigation', ['Contacts list', 'Lista de contactos', 'Lista de contatos'], 'partial', {
       detail: [
-        'Contacts lists each person of your WhatsApp accounts once (phone and WhatsApp id joined), with their accounts, groups and last message, filters by account and chat, and their HubSpot contact and company from the workspace connection. Tested with the fake provider and a simulated HubSpot',
-        'Contactos muestra cada persona de tus cuentas de WhatsApp una vez (teléfono e id de WhatsApp unidos), con sus cuentas, grupos y último mensaje, filtros por cuenta y por chat, y su contacto y empresa de HubSpot de la conexión del workspace. Probado con el proveedor falso y un HubSpot simulado',
-        'Contatos mostra cada pessoa das suas contas de WhatsApp uma vez (telefone e id do WhatsApp unidos), com contas, grupos e última mensagem, filtros por conta e por chat, e o contato e a empresa no HubSpot da conexão do workspace. Testado com o provedor falso e um HubSpot simulado',
+        'Contacts lists each person of your WhatsApp accounts once (phone and WhatsApp id joined), with their accounts, groups and last message, filters by account and chat, and their HubSpot contact and company from the workspace connection. A 1:1 chat shows the HubSpot contact and company with the properties you pick, creates the contact with one click or by itself for new chats (opt-in), and opens the HubSpot panel, which can stay pinned next to the chat. Tested with the fake provider and a simulated HubSpot',
+        'Contactos muestra cada persona de tus cuentas de WhatsApp una vez (teléfono e id de WhatsApp unidos), con sus cuentas, grupos y último mensaje, filtros por cuenta y por chat, y su contacto y empresa de HubSpot de la conexión del workspace. Un chat 1:1 muestra el contacto y la empresa de HubSpot con las propiedades que elijas, crea el contacto con un clic o solo para los chats nuevos (opcional) y abre el panel de HubSpot, que puede quedar fijo al lado del chat. Probado con el proveedor falso y un HubSpot simulado',
+        'Contatos mostra cada pessoa das suas contas de WhatsApp uma vez (telefone e id do WhatsApp unidos), com contas, grupos e última mensagem, filtros por conta e por chat, e o contato e a empresa no HubSpot da conexão do workspace. Uma conversa 1:1 mostra o contato e a empresa do HubSpot com as propriedades que você escolher, cria o contato com um clique ou sozinha para conversas novas (opcional) e abre o painel do HubSpot, que pode ficar fixo ao lado da conversa. Testado com o provedor falso e um HubSpot simulado',
       ],
     }),
     row('calendar', 'navigation', ['Calendar in the inbox', 'Calendario en la bandeja', 'Calendário na caixa'], 'missing'),
@@ -173,6 +181,13 @@ const parity: ProductParity = {
       detail: ['Belongs to your user, not the workspace; no admin view, no API keys or MCP. Tokens encrypted', 'Es de tu usuario, no del workspace; sin vista de admin, API keys ni MCP. Tokens cifrados', 'É do seu usuário, não do workspace; sem visão de admin, API keys nem MCP. Tokens criptografados'],
     }),
     row('deleted-kept', 'platform', ['Messages deleted for everyone stay visible', 'Los mensajes borrados para todos se siguen viendo', 'Mensagens apagadas para todos continuam visíveis'], 'have', { competitorHas: false }),
+    row('removed-restore', 'triage', ['Restore a chat removed from Inbox', 'Recuperar un chat sacado de Inbox', 'Recuperar uma conversa removida do Inbox'], 'have', {
+      detail: [
+        'Removed chats wait 30 days in Removed from Inbox (under Archived), keep receiving messages silently and come back where they were; then they are deleted for good, or sooner by hand',
+        'Los chats sacados esperan 30 días en Sacados de Inbox (dentro de Archivados), siguen recibiendo mensajes sin avisar y vuelven a donde estaban; después se borran del todo, o antes a mano',
+        'As conversas removidas esperam 30 dias em Removidos do Inbox (dentro de Arquivadas), continuam recebendo mensagens sem avisar e voltam para onde estavam; depois são apagadas de vez, ou antes à mão',
+      ],
+    }),
     row('import', 'platform', ['Import from inbox-zero', 'Importar desde inbox-zero', 'Importar do inbox-zero'], 'have', {
       competitorHas: false,
       detail: [
@@ -189,12 +204,34 @@ const parity: ProductParity = {
         'Cole ou anexe o JSON exportado de outra caixa e peça ao assistente (⌘J) para criar as pastas e subpastas e colocar as conversas. Ele encontra as conversas por nome, telefone, id do WhatsApp ou e-mail, mostra o plano com as que não encontrou e os nomes mais parecidos, e não muda nada até você clicar em Confirmar. Repetir só faz o que falta. Testado com o modelo falso',
       ],
     }),
+    row('assistant-behind', 'platform', ['Assistant: what you are behind on', 'Asistente: qué tenés atrasado', 'Assistente: o que está atrasado'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Ask the assistant (⌘J) what you are behind on: chats waiting for your reply and for how long, overdue reminders, back from snooze and important unread, from names and times only. It reads messages only after you allow it (this time or always, revocable in Settings), and suggests reply drafts, snooze, reminders, archive, done or folders in one card. Tested with the fake model',
+        'Preguntale al asistente (⌘J) qué tenés atrasado: chats que esperan tu respuesta y hace cuánto, recordatorios vencidos, los que volvieron de posponer y no leídos importantes, solo con nombres y horarios. Lee mensajes solo si lo permitís (esta vez o siempre, se apaga en Ajustes) y propone borradores, posponer, recordatorios, archivar, hecho o carpetas en una tarjeta. Probado con el modelo falso',
+        'Pergunte ao assistente (⌘J) o que está atrasado: conversas esperando sua resposta e há quanto tempo, lembretes vencidos, as que voltaram do adiamento e não lidas importantes, só com nomes e horários. Ele lê mensagens só se você permitir (desta vez ou sempre, desligável em Configurações) e sugere rascunhos, adiar, lembretes, arquivar, feito ou pastas num cartão. Testado com o modelo falso',
+      ],
+    }),
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [
         'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. It starts by itself when WhatsApp is linked; how far back it goes depends on what the phone sends when linking. Gmail brings all the mail of the account the same way. Tested with the fake server',
         'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Arranca sola al vincular WhatsApp; hasta dónde llega depende de lo que el teléfono manda al vincular. Gmail trae todo el correo de la cuenta de la misma forma. Probado con el servidor falso',
         'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Começa sozinha ao vincular o WhatsApp; até onde chega depende do que o celular envia ao vincular. O Gmail traz todo o e-mail da conta do mesmo jeito. Testado com o servidor falso',
+      ],
+    }),
+    row('history-older', 'platform', ['Load older messages from the phone, on demand', 'Cargar mensajes anteriores desde el teléfono, a pedido', 'Carregar mensagens anteriores do celular, sob demanda'], 'partial', {
+      detail: [
+        'A "Load older messages" chip at the top of a chat, once what we have stored runs out. It asks the phone for the 50 messages before the oldest one we have; they come in as history, without duplicates, and what you were reading stays in place. It says when the phone has no more, lets you retry after an error and is disabled with the reason while the line is disconnected. One request per chat at a time and a cap per line per hour. Tested with the fake server; with real WhatsApp it needs the phone online, and after linking a line again it needs our WhatsApp server image with patch 0006',
+        'Una ficha "Cargar mensajes anteriores" arriba del chat, cuando lo que tenemos guardado se termina. Le pide al teléfono los 50 mensajes anteriores al más viejo que tenemos; entran como historial, sin repetidos, y lo que estabas leyendo queda en su lugar. Dice cuando el teléfono no tiene más, deja reintentar después de un error y queda deshabilitada con el motivo mientras la línea está desconectada. Un pedido por chat a la vez y un tope por línea por hora. Probado con el servidor falso; con WhatsApp real necesita el teléfono en línea y, después de volver a vincular una línea, la imagen de nuestro servidor de WhatsApp con el parche 0006',
+        'Uma ficha "Carregar mensagens anteriores" no topo da conversa, quando o que temos guardado acaba. Pede ao celular as 50 mensagens anteriores à mais antiga que temos; entram como histórico, sem repetidas, e o que você estava lendo fica no lugar. Avisa quando o celular não tem mais, deixa tentar de novo depois de um erro e fica desabilitada com o motivo enquanto a linha está desconectada. Um pedido por conversa por vez e um limite por linha por hora. Testado com o servidor falso; com o WhatsApp real precisa do celular online e, depois de vincular uma linha de novo, da imagem do nosso servidor de WhatsApp com o patch 0006',
+      ],
+    }),
+    row('history-missing', 'platform', ['Fetch missing messages from the phone', 'Traer mensajes que faltan desde el teléfono', 'Buscar mensagens que faltam no celular'], 'partial', {
+      detail: [
+        '"Fetch missing messages" in the chat menu asks the phone for the messages before the last one, around the gaps WhatsApp reported and a bit further back (up to three requests of 50). What comes back is stored as history without duplicates, and a strip at the top of the chat says what happened: how many came, that nothing was missing, that the phone did not answer (with retry), that the line is disconnected or at its hourly cap. Tested with the fake server; with real WhatsApp it needs the phone online, and on lines linked again it needs our WhatsApp server image with patch 0006',
+        '"Traer mensajes que faltan" en el menú del chat le pide al teléfono los mensajes anteriores al último, alrededor de los huecos que avisó WhatsApp y un poco más atrás (hasta tres pedidos de 50). Lo que vuelve se guarda como historial sin repetidos, y una franja arriba del chat dice qué pasó: cuántos llegaron, que no faltaba nada, que el teléfono no respondió (con reintentar), que la línea está desconectada o llegó a su tope por hora. Probado con el servidor falso; con WhatsApp real necesita el teléfono en línea y, en líneas vinculadas de nuevo, la imagen de nuestro servidor de WhatsApp con el parche 0006',
+        '"Buscar mensagens que faltam" no menu da conversa pede ao celular as mensagens anteriores à última, em volta das lacunas que o WhatsApp avisou e um pouco mais para trás (até três pedidos de 50). O que volta é guardado como histórico sem repetidas, e uma faixa no topo da conversa diz o que aconteceu: quantas vieram, que não faltava nada, que o celular não respondeu (com tentar de novo), que a linha está desconectada ou chegou ao limite por hora. Testado com o servidor falso; com o WhatsApp real precisa do celular online e, em linhas vinculadas de novo, da imagem do nosso servidor de WhatsApp com o patch 0006',
       ],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
@@ -327,6 +364,13 @@ const parity: ProductParity = {
         'Pesquisa por nome ou número, contatos frequentes, novo grupo do WhatsApp com participantes e nome, Novo e-mail para o Gmail. Sem comunidades. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
+    row('wa-group-events', 'whatsapp', ['Group notices: created, added, left, admins', 'Avisos del grupo: creado, agregó, salió, admins', 'Avisos do grupo: criado, adicionou, saiu, admins'], 'partial', {
+      detail: [
+        'A new group shows at the top of the list right away, with "You created group" or "Ana added you" as its preview and a card in the empty chat. Adds, removals, leaves, invite link joins and admin changes show as centered lines and as the preview when they are the latest. Name, description and icon changes made on the phone arrive once the updated WhatsApp server is deployed, and notices from before this change cannot be recovered. Tested with the fake provider and simulated gateway payloads',
+        'Un grupo nuevo aparece arriba de la lista en el momento, con "Creaste el grupo" o "Ana te agregó" de vista previa y una tarjeta en el chat vacío. Agregados, sacados, salidas, entradas con el link y cambios de admin se ven como líneas centradas y como vista previa si son lo último. Los cambios de nombre, descripción o foto hechos en el teléfono llegan cuando se despliegue el servidor de WhatsApp actualizado, y los avisos anteriores a este cambio no se pueden recuperar. Probado con el proveedor falso y avisos simulados del gateway',
+        'Um grupo novo aparece no topo da lista na hora, com "Você criou o grupo" ou "Ana adicionou você" como prévia e um cartão na conversa vazia. Adições, remoções, saídas, entradas pelo link e mudanças de admin aparecem como linhas centralizadas e como prévia quando são o último. Mudanças de nome, descrição ou foto feitas no celular chegam quando o servidor do WhatsApp atualizado for implantado, e os avisos anteriores a esta mudança não podem ser recuperados. Testado com o provedor falso e avisos simulados do gateway',
+      ],
+    }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
         'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
@@ -351,9 +395,9 @@ const parity: ProductParity = {
     }),
     row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {
       detail: [
-        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Typing depends on WhatsApp sending presence',
-        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). "Escribiendo" depende de que WhatsApp mande la presencia',
-        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). "Digitando" depende de o WhatsApp enviar a presença',
+        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Clicking the reactions shows who reacted with what (photo, name, number) and removes your own, as in WhatsApp. Typing depends on WhatsApp sending presence',
+        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). Un clic en las reacciones muestra quién reaccionó y con qué (foto, nombre, número) y saca la propia, como en WhatsApp. "Escribiendo" depende de que WhatsApp mande la presencia',
+        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). Um clique nas reações mostra quem reagiu e com o quê (foto, nome, número) e remove a sua, como no WhatsApp. "Digitando" depende de o WhatsApp enviar a presença',
       ],
     }),
   ],

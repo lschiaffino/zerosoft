@@ -228,7 +228,7 @@ export async function addThreadsToFolder(owner: string, folderId: string, thread
     const seen = (await db
       .prepare(
         `SELECT COUNT(*) AS n, SUM(CASE WHEN EXISTS (SELECT 1 FROM inbox_thread_folders tf WHERE tf.thread_id = t.id AND tf.folder_id = ?) THEN 1 ELSE 0 END) AS here
-         FROM inbox_threads t WHERE t.owner_id = ? AND t.id IN (${marks})`,
+         FROM inbox_threads t WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.id IN (${marks})`,
       )
       .get(folderId, owner, ...chunk)) as { n: number; here: number | null } | undefined;
     out.missing += chunk.length - Number(seen?.n ?? 0);
@@ -237,7 +237,7 @@ export async function addThreadsToFolder(owner: string, folderId: string, thread
       .prepare(
         `INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id)
          SELECT t.id, f.id FROM inbox_threads t JOIN inbox_folders f ON f.id = ? AND f.owner_id = t.owner_id
-         WHERE t.owner_id = ? AND t.id IN (${chunk.map(() => '?').join(', ')})`,
+         WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.id IN (${chunk.map(() => '?').join(', ')})`,
       )
       .run(folderId, owner, ...chunk);
     out.added += r.changes;
@@ -253,6 +253,7 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
   const nowS = nowIso(now);
 
   if (part.part === 'messages') {
+    const dm: string[] = [];
     for (const m of part.messages) {
       const t = await threadFor(account, cache, m.chatId);
       if (!t) continue;
@@ -268,6 +269,14 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
         history: true,
       });
       if (added) out.messages++;
+      if (t.kind === 'dm') dm.push(stanzaIdOf(m.id));
+    }
+    // La misma persona con dos chats (uno por lid que llegó en vivo, otro por teléfono de lo importado): el mismo
+    // mensaje en los dos los junta (lib/wa-dedupe.ts). Nunca frena la importación.
+    if (dm.length) {
+      const { inboxTwinsFromMessages, mergeLidChats } = await import('../wa-dedupe-run');
+      const pairs = await inboxTwinsFromMessages(account, dm).catch(() => []);
+      if (pairs.length) await mergeLidChats('inbox', account.id, { pairs });
     }
     return out;
   }
@@ -340,7 +349,13 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
     if (!Number.isFinite(at.getTime()) || at.getTime() <= now.getTime()) continue;
     const t = await threadFor(account, cache, s.chatId);
     if (!t) continue;
-    await db.prepare('UPDATE inbox_threads SET snoozed_until = ?, done_at = NULL WHERE id = ?').run(at.toISOString(), t.id);
+    // Pospuesto es archivado hasta que vuelve (como al posponer acá). Al teléfono no se le manda nada desde una importación.
+    await db
+      .prepare(
+        `UPDATE inbox_threads SET snoozed_until = ?, snooze_archived = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN 1 ELSE snooze_archived END,
+           archived_at = CASE WHEN archived_at IS NULL AND done_at IS NULL THEN ? ELSE archived_at END WHERE id = ?`,
+      )
+      .run(at.toISOString(), now.toISOString(), t.id);
     out.snoozes++;
   }
 

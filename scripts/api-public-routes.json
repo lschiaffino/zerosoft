@@ -179,5 +179,6 @@
   "lib/routes/track/issues/[id]/attachments/upload/route.ts": "Track attachments: trackAttachmentRoutes checks session and issue access",
   "lib/routes/track/sentry/webhook/[id]/route.ts": "webhook: verified signature or secret",
   "lib/routes/v1/track/agent-sessions/[id]/activities/route.ts": "Track agent app token",
-  "lib/routes/v1/track/agent-sessions/[id]/route.ts": "Track agent app token"
+  "lib/routes/v1/track/agent-sessions/[id]/route.ts": "Track agent app token",
+  "app/api/import/upload/route.ts": "retired client upload: always 501, no data"
 }

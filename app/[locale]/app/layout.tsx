@@ -131,7 +131,7 @@ export default async function AppLayout(
       <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
         <ThemeProvider initial={embedTheme}>
           <div className="st-embed">
-            <script nonce={nonce} dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
             <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
             <SettingsEmbedGuard />
             <PlatformSettingsNav
@@ -233,8 +233,8 @@ export default async function AppLayout(
       <div className="app-frame" suppressHydrationWarning>
         <AppAccent />
         {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
         {/* La app de escritorio avisa una vez que se abrió con esta cuenta ("Primeros pasos"). */}
@@ -468,6 +468,7 @@ export default async function AppLayout(
                 { href: '/app/inbox/v/snoozed', label: tInbox('nav.snoozed') },
                 { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
                 { href: '/app/inbox/v/done', label: tInbox('nav.done') },
+                { href: '/app/inbox/v/removed', label: tInbox('nav.removed') },
                 { href: '/app/inbox/analytics', label: tInbox('nav.analytics') },
                 { href: '/app/calls', label: tCalls('nav.library') },
                 { href: '/app/calls/upcoming', label: tCalls('nav.upcoming') },

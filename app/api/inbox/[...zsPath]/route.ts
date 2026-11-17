@@ -11,6 +11,7 @@ import * as m5 from '@/lib/routes/inbox/snippets/[id]/route';
 import * as m6 from '@/lib/routes/inbox/threads/[id]/route';
 import * as m7 from '@/lib/routes/inbox/threads/[id]/messages/route';
 import * as m8 from '@/lib/routes/inbox/threads/[id]/wa/route';
+import * as m9 from '@/lib/routes/inbox/scheduled/[id]/media/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ const d = createDispatcher('zsPath', [
   { pattern: 'threads/[id]', mod: m6 }, // lib/routes/inbox/threads/[id]
   { pattern: 'threads/[id]/messages', mod: m7 }, // lib/routes/inbox/threads/[id]/messages
   { pattern: 'threads/[id]/wa', mod: m8 }, // lib/routes/inbox/threads/[id]/wa
+  { pattern: 'scheduled/[id]/media', mod: m9 }, // lib/routes/inbox/scheduled/[id]/media
 ]);
 
 export const GET = d.GET;

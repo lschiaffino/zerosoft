@@ -12,20 +12,41 @@ import { sendDueScheduled } from './send';
 import { runWhatsappBackfill } from './whatsapp';
 import { refreshAllStaleInfo } from './wa-meta';
 import { refreshInboxDaily } from '../wa-contacts-refresh';
+import { purgeExpiredRemoved } from './removed';
 
-/** Pospuestos que vencieron: vuelven a la bandeja marcados como "volvió". */
+/** Los chats de WhatsApp que volvieron a la bandeja se desarchivan también en el teléfono (lib/wa-archive-sync.ts). */
+async function pushUnarchive(rows: Array<{ id: string; owner_id: string; channel: string }>, now: Date): Promise<void> {
+  const byOwner = new Map<string, string[]>();
+  for (const r of rows) if (r.channel === 'whatsapp') byOwner.set(r.owner_id, [...(byOwner.get(r.owner_id) ?? []), r.id]);
+  if (!byOwner.size) return;
+  const { queueAndFlushArchivePush } = await import('../wa-archive-sync');
+  for (const [owner, ids] of byOwner) await queueAndFlushArchivePush('inbox', owner, ids, false, now).catch(() => null);
+}
+
+/**
+ * Pospuestos que vencieron: salen de Archivados y vuelven a la bandeja marcados como "volvió" (también el que ya
+ * estaba archivado antes de posponerlo: posponer es pedir verlo de nuevo). Las filas que cambia las devuelve el mismo
+ * UPDATE: dos corridas a la vez no desarchivan dos veces el mismo chat.
+ */
 export async function wakeSnoozed(now = new Date()): Promise<number> {
   const nowS = now.toISOString();
-  const r = await getDb()
-    .prepare("UPDATE inbox_threads SET snoozed_until = NULL, done_at = NULL, woke_at = ?, woke_reason = 'snooze', updated_at = ? WHERE snoozed_until IS NOT NULL AND snoozed_until <= ?")
-    .run(nowS, nowS, nowS);
-  return r.changes;
+  const rows = (await getDb()
+    .prepare(
+      `UPDATE inbox_threads SET snoozed_until = NULL, snooze_archived = 0, done_at = NULL,
+         archived_at = CASE WHEN keep_archived = 1 THEN archived_at ELSE NULL END, woke_at = ?, woke_reason = 'snooze', updated_at = ?
+       WHERE snoozed_until IS NOT NULL AND snoozed_until <= ? AND removed_at IS NULL RETURNING id, owner_id, channel, keep_archived`,
+    )
+    .all(nowS, nowS, nowS)) as Array<{ id: string; owner_id: string; channel: string; keep_archived: number | null }>;
+  // "Mantener archivado" gana: vuelve marcado pero sigue en Archivados (acá y en el teléfono).
+  await pushUnarchive(rows.filter((r) => !r.keep_archived), now);
+  return rows.length;
 }
 
 /**
  * "Recordame si no contesta": a la hora, si la otra persona no escribió
  * desde que se pidió, el chat vuelve arriba marcado. Si contestó, el aviso se
- * borra solo (también al llegar el mensaje, en addMessage).
+ * borra solo (también al llegar el mensaje, en addMessage). Si además estaba
+ * pospuesto, el pospuesto termina y lo que archivó se desarchiva.
  */
 export async function fireFollowUps(now = new Date()): Promise<number> {
   const nowS = now.toISOString();
@@ -35,11 +56,18 @@ export async function fireFollowUps(now = new Date()): Promise<number> {
       'UPDATE inbox_threads SET follow_up_at = NULL, follow_up_since = NULL WHERE follow_up_at IS NOT NULL AND follow_up_at <= ? AND last_inbound_at IS NOT NULL AND last_inbound_at > follow_up_since',
     )
     .run(nowS);
+  const due = 'follow_up_at IS NOT NULL AND follow_up_at <= ?';
+  const snoozed = (await db
+    .prepare(`SELECT id, owner_id, channel FROM inbox_threads WHERE ${due} AND removed_at IS NULL AND snoozed_until IS NOT NULL AND snooze_archived = 1 AND archived_at IS NOT NULL`)
+    .all(nowS)) as Array<{ id: string; owner_id: string; channel: string }>;
   const r = await db
     .prepare(
-      "UPDATE inbox_threads SET follow_up_at = NULL, follow_up_since = NULL, done_at = NULL, snoozed_until = NULL, woke_at = ?, woke_reason = 'followup', updated_at = ? WHERE follow_up_at IS NOT NULL AND follow_up_at <= ?",
+      `UPDATE inbox_threads SET follow_up_at = NULL, follow_up_since = NULL, done_at = NULL,
+         archived_at = CASE WHEN snoozed_until IS NOT NULL AND snooze_archived = 1 THEN NULL ELSE archived_at END,
+         snoozed_until = NULL, snooze_archived = 0, woke_at = ?, woke_reason = 'followup', updated_at = ? WHERE ${due} AND removed_at IS NULL`,
     )
     .run(nowS, nowS, nowS);
+  await pushUnarchive(snoozed, now);
   return r.changes;
 }
 
@@ -88,6 +116,8 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const deadline = Date.now() + budgetMs;
   const woke = await wakeSnoozed(now);
   const followUps = await fireFollowUps(now);
+  // Sacados de Inbox hace más de 30 días: se borran del todo (lib/inbox/removed.ts).
+  const purged = await purgeExpiredRemoved(now).catch(() => 0);
   const scheduled = await sendDueScheduled(now, deadline);
   const gmail = await syncStaleGmail(now, deadline).catch(() => 0);
   const backfill = await backfillWhatsapp(now, deadline).catch(() => 0);
@@ -96,5 +126,5 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const chatInfo = await refreshAllStaleInfo(now, Math.min(deadline, Date.now() + 15_000)).catch(() => 0);
   // Repaso diario de cada cuenta de WhatsApp: contactos, nombres, info, asuntos y fotos (despacio, retoma donde quedó).
   const daily = await refreshInboxDaily(now, Math.min(deadline, Date.now() + 10_000)).catch(() => 0);
-  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo, daily };
+  return { woke, followUps, purged, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo, daily };
 }

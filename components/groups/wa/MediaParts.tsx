@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play, Smiley } from './icons';
+import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars } from './format';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
+import { mediaBox, mediaBoxStyle, mediaFit, placeholderBox } from './media-box';
 import { formatPhone } from '@/components/inbox/wa/util';
 
 const SPEEDS = [1, 1.5, 2];
@@ -29,6 +30,62 @@ function writeStore(key: string, value: string | null) {
   }
 }
 
+/** Lo que responde "bajar de nuevo": la URL (ya está), que WhatsApp ya no lo tiene, que la línea está desvinculada, o que quedó para más tarde. */
+export type MediaRetryResult = { url: string } | { gone: true } | { offline: true } | { pending: true };
+
+/** Estado de un archivo que no está: sin pedir, bajando, ya no está en WhatsApp, línea desvinculada, o no se pudo (se puede reintentar). */
+export type MissingState = 'idle' | 'busy' | 'gone' | 'offline' | 'failed';
+
+const missingOf = (r: MediaRetryResult): MissingState => ('gone' in r ? 'gone' : 'offline' in r ? 'offline' : 'failed');
+
+/**
+ * Reintento de una media que se sirve desde nuestra ruta (Inbox, o Lines ya
+ * guardada): la pide otra vez sin caché. Con 200 la usa ya (sin bajarla dos
+ * veces); 410: WhatsApp ya no la tiene; 409: la línea está desvinculada.
+ */
+export function refetchMedia(url: string): () => Promise<MediaRetryResult> {
+  return async () => {
+    const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    if (r?.ok && !(r.headers.get('content-type') ?? '').startsWith('application/json')) return { url: URL.createObjectURL(await r.blob()) };
+    return r?.status === 410 ? { gone: true } : r?.status === 409 ? { offline: true } : { pending: true };
+  };
+}
+
+/**
+ * El pedido de "bajar de nuevo" de un archivo que no está, con su estado para
+ * mostrar. `run()` devuelve la URL si volvió. Sin `onRetry` y con una URL
+ * nuestra, vuelve a pedir esa misma URL.
+ */
+function useMissingMedia(url: string, onRetry: (() => Promise<MediaRetryResult>) | undefined, gone: boolean | undefined) {
+  const [state, setState] = useState<MissingState>(gone ? 'gone' : 'idle');
+  const retry = onRetry ?? (url.startsWith('/') ? refetchMedia(url) : undefined);
+  const retryRef = useRef(retry);
+  retryRef.current = retry;
+  const busy = useRef(false);
+  const run = async (): Promise<string | null> => {
+    const fn = retryRef.current;
+    if (!fn || busy.current) return null;
+    busy.current = true;
+    setState('busy');
+    const r = await fn().catch((): MediaRetryResult => ({ pending: true }));
+    busy.current = false;
+    if ('url' in r) {
+      setState('idle');
+      return r.url;
+    }
+    setState(missingOf(r));
+    return null;
+  };
+  return { state, run, canRetry: Boolean(retry) };
+}
+
+/** El texto corto del estado de un archivo que no está (debajo del audio, en la tarjeta del documento). */
+function useMissingLabel(): (state: MissingState, idle: string) => string {
+  const tw = useTranslations('groups.wa');
+  return (state, idle) =>
+    state === 'busy' ? tw('downloadingAgain') : state === 'gone' ? tw('mediaGoneShort') : state === 'offline' ? tw('mediaOfflineShort') : state === 'failed' ? tw('mediaRetryFailed') : idle;
+}
+
 /**
  * Nota de voz o audio: reproducir, avanzar, velocidad 1×/1,5×/2× (queda
  * elegida), forma de onda real si WhatsApp la manda, y sigue donde se dejó
@@ -42,9 +99,19 @@ export function VoicePlayer({
   name,
   waveform,
   avatar,
+  gone,
+  onRetry,
+  onRecovered,
 }: {
   id: string;
+  /** '' si el archivo no está: el botón lo va a buscar. */
   src: string;
+  /** Ya se sabe que WhatsApp no lo tiene (igual se puede volver a pedir). */
+  gone?: boolean;
+  /** Cómo volver a pedirlo (por defecto, la misma URL sin caché). */
+  onRetry?: () => Promise<MediaRetryResult>;
+  /** El audio volvió (para transcribirlo). */
+  onRecovered?: (url: string) => void;
   seconds?: number;
   voice?: boolean;
   name?: string;
@@ -58,7 +125,23 @@ export function VoicePlayer({
   const [time, setTime] = useState(0);
   const [total, setTotal] = useState(seconds ?? 0);
   const [speed, setSpeed] = useState(1);
-  const [failed, setFailed] = useState(false);
+  // La URL que suena: la del mensaje, o la que trajo "bajar de nuevo".
+  const [url, setUrl] = useState(src);
+  // No está (sin archivo, o no cargó): el botón lo va a buscar en vez de quedar muerto.
+  const [missing, setMissing] = useState(!src);
+  const miss = useMissingMedia(src, onRetry, gone);
+  const missLabel = useMissingLabel();
+  const autoPlay = useRef(false);
+  const triedOnce = useRef(false);
+  const wantPlay = useRef(false);
+  const recoveredRef = useRef(onRecovered);
+  recoveredRef.current = onRecovered;
+  useEffect(() => {
+    setUrl(src);
+    setMissing(!src);
+    triedOnce.current = false;
+  }, [src]);
+  const failed = missing;
   const shape = waveBars(waveform, id, 40);
   const progress = total > 0 ? Math.min(1, time / total) : 0;
   // Empezada (sonando o con posición): a la izquierda va la velocidad en vez de la foto, como en WhatsApp.
@@ -83,8 +166,41 @@ export function VoicePlayer({
     resumed.current = false;
   }, [id]);
 
+  /** Va a buscar el archivo (al gateway, y si hace falta al teléfono); si vuelve, suena. */
+  async function recover() {
+    triedOnce.current = true;
+    const got = await miss.run();
+    if (!got) return;
+    autoPlay.current = true;
+    setUrl(got);
+    setMissing(false);
+    recoveredRef.current?.(got);
+  }
+
+  // El archivo recién bajado: suena solo (la persona ya tocó reproducir).
+  useEffect(() => {
+    const a = ref.current;
+    if (!a || !autoPlay.current || !url || missing) return;
+    autoPlay.current = false;
+    // Una sola a la vez, como al tocar reproducir.
+    document.querySelectorAll<HTMLAudioElement>('audio.wa-audio-el').forEach((x) => x !== a && x.pause());
+    a.playbackRate = speed;
+    // Si el navegador no deja arrancar solo (pasó mucho desde el toque), el archivo ya está: queda listo para reproducir.
+    void a.play().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, missing]);
+
+  /** El archivo no cargó. Si la persona había tocado reproducir, se va a buscar solo (una vez). */
+  function onLoadError() {
+    setPlaying(false);
+    setMissing(true);
+    if (wantPlay.current && !triedOnce.current && miss.canRetry) void recover();
+    wantPlay.current = false;
+  }
+
   function toggle() {
     const a = ref.current;
+    if (missing) return void recover();
     if (!a) return;
     if (a.paused) {
       // Una sola a la vez, como en WhatsApp.
@@ -94,7 +210,13 @@ export function VoicePlayer({
         if (time > 0 && (!total || time < total - 0.5)) a.currentTime = time;
       }
       a.playbackRate = speed;
-      void a.play().catch(() => setFailed(true));
+      wantPlay.current = true;
+      // play() también se rechaza cuando se pausa mientras carga (o empieza otro audio): eso no es un archivo que
+      // falta. Solo cuenta el error del elemento (onError lo avisa igual).
+      void a.play().catch(() => {
+        if (a.error) onLoadError();
+        else wantPlay.current = false;
+      });
     } else a.pause();
   }
 
@@ -105,11 +227,16 @@ export function VoicePlayer({
   };
 
   return (
-    <div className={`wa-voice${voice ? ' is-ptt' : ''}${active ? ' is-active' : ''}${failed ? ' is-failed' : ''}`}>
+    <div
+      className={`wa-voice${voice ? ' is-ptt' : ''}${active ? ' is-active' : ''}${failed ? ' is-failed' : ''}`}
+      data-testid="wa-voice"
+      data-state={failed ? miss.state : 'ready'}
+      title={failed && miss.state === 'gone' ? tw('mediaGoneAudio') : failed && miss.state === 'offline' ? tw('mediaOffline') : undefined}
+    >
       <audio
         ref={ref}
         className="wa-audio-el"
-        src={src}
+        src={url || undefined}
         preload={voice ? 'none' : 'metadata'}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -124,7 +251,7 @@ export function VoicePlayer({
           if (pos > 1) writeStore(POS_KEY + id, pos.toFixed(1));
         }}
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
-        onError={() => setFailed(true)}
+        onError={() => url && onLoadError()}
       />
       <span className="wa-voice-lead">
         {active ? (
@@ -144,8 +271,17 @@ export function VoicePlayer({
           </span>
         )}
       </span>
-      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? tw('pause') : tw('play')} disabled={failed}>
-        {playing ? <Pause size={26} /> : <Play size={26} />}
+      <button
+        type="button"
+        className={`wa-voice-play${failed ? ' is-fetch' : ''}`}
+        onClick={toggle}
+        aria-label={failed ? (miss.state === 'gone' ? tw('askPhoneAgain') : tw('downloadAgain')) : playing ? tw('pause') : tw('play')}
+        title={failed ? (miss.state === 'gone' ? tw('askPhoneAgain') : tw('downloadAgain')) : undefined}
+        aria-busy={failed && miss.state === 'busy'}
+        disabled={failed && (miss.state === 'busy' || !miss.canRetry)}
+        data-testid="wa-voice-play"
+      >
+        {failed ? miss.state === 'idle' ? <Download size={22} /> : <Retry size={22} className={miss.state === 'busy' ? 'is-spinning' : undefined} /> : playing ? <Pause size={26} /> : <Play size={26} />}
       </button>
       <div className="wa-voice-track" style={{ ['--p' as string]: progress }}>
         {voice ? (
@@ -171,69 +307,274 @@ export function VoicePlayer({
           step={0.1}
           value={time}
           aria-label={tw('seek')}
+          disabled={failed}
           onChange={(e) => {
             const v = Number(e.target.value);
             if (ref.current) ref.current.currentTime = v;
             setTime(v);
           }}
         />
-        <span className="wa-voice-meta">{failed ? tw('audioUnavailable') : duration(active ? time : total)}</span>
+        <span className="wa-voice-meta" role={failed ? 'status' : undefined}>
+          {failed ? missLabel(miss.state, tw('audioUnavailable')) : duration(active ? time : total)}
+        </span>
       </div>
     </div>
   );
 }
 
-/** Documento: ícono, nombre, tipo y tamaño, y bajar (como la tarjeta de WhatsApp). */
-export function DocCard({ url, name, type, size, pages }: { url: string; name: string; type: string; size?: number; pages?: number }) {
+/** Baja un archivo ya traído (blob:) con su nombre, sin salir de la página. */
+function saveFile(url: string, name: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name || 'file';
+  a.rel = 'noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/**
+ * Documento, como la tarjeta de WhatsApp: a la izquierda el ícono del tipo
+ * (la hoja con la extensión en su color: PDF rojo, DOC azul, XLS verde), el
+ * nombre en un renglón (cortado en el medio si es largo, para que se vea la
+ * extensión) y abajo "45 kB • html". Toda la tarjeta abre o baja el archivo.
+ * Sin archivo (o con `verify`, cuando el archivo se trae al pedirlo y puede
+ * no estar): la tarjeta es un botón que lo va a buscar y dice qué pasó, nunca
+ * un enlace que abre un error.
+ */
+export function DocCard({
+  url,
+  name,
+  type,
+  size,
+  pages,
+  thumbnail,
+  saveThumbTo,
+  gone,
+  verify,
+  onRetry,
+}: {
+  url: string;
+  name: string;
+  type: string;
+  size?: number;
+  pages?: number;
+  /** Vista previa de la primera página: la que mandó WhatsApp con el mensaje o la que ya se guardó. */
+  thumbnail?: string;
+  /** Ruta del mensaje donde guardar la vista previa la primera vez que se dibuja (PDF sin miniatura). */
+  saveThumbTo?: string;
+  gone?: boolean;
+  /** El archivo se baja del servidor de WhatsApp al pedirlo (Inbox): se comprueba antes de abrirlo. */
+  verify?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
+}) {
   const t = useTranslations('groups');
   const locale = useLocale();
   const ext = extensionOf(name, type);
   const [pdfPages, setPdfPages] = useState<number | null>(null);
+  // La URL que trajo "bajar de nuevo" (el archivo ya está en esta pestaña).
+  const [got, setGot] = useState('');
+  const miss = useMissingMedia(url, onRetry, gone);
+  const missLabel = useMissingLabel();
   const shownPages = pages || pdfPages || 0;
-  const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', ext, size ? fileSize(size, locale) : ''].filter(Boolean).join(' · ');
+  const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', size ? fileSize(size, locale) : '', ext.toLowerCase()].filter(Boolean).join(' • ');
   const isPdf = ext.toLowerCase() === 'pdf' || type === 'application/pdf';
+  const shownName = name || t('media.file');
+  const [nameHead, nameTail] = splitFileName(shownName);
+  const href = got || url;
+  const asButton = !got && (!url || Boolean(verify)) && miss.canRetry;
+  // Con archivo a la vista (o todavía sin pedir, en Inbox): los datos del archivo. Si no, qué pasó.
+  const problem = !href || (asButton && miss.state !== 'idle');
+  const note = problem ? missLabel(miss.state, t('thread.fileUnavailable')) : meta;
   const inner = (
     <>
-      {url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} />}
+      {isPdf && thumbnail ? (
+        <span className="wa-doc-thumb is-on" aria-hidden="true" data-testid="wa-doc-thumb">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnail} alt="" />
+        </span>
+      ) : (
+        href && (!verify || got) && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={href} onPages={setPdfPages} saveTo={saveThumbTo} />
+      )}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
-        <DocIcon size={26} />
-        <b>{ext.slice(0, 4)}</b>
+        <DocIcon size={30} strokeWidth={1.5} />
+        {ext && <b>{ext.slice(0, 4)}</b>}
       </span>
       <span className="wa-doc-main">
-        <span className="wa-doc-name">{name || t('media.file')}</span>
-        <span className="wa-doc-meta">{url ? meta : t('thread.fileUnavailable')}</span>
+        {/* Un renglón, cortado en el medio: el principio se achica con "…" y el final (la extensión) queda siempre. */}
+        <span className="wa-doc-name" title={shownName}>
+          <span className="wa-doc-name-head">{nameHead}</span>
+          {nameTail && <span className="wa-doc-name-tail">{nameTail}</span>}
+        </span>
+        <span className="wa-doc-meta" role={asButton ? 'status' : undefined}>
+          {note}
+        </span>
       </span>
-      {url && (
+      {asButton && miss.state !== 'idle' && (
         <span className="wa-doc-dl" aria-hidden="true">
-          <Download size={18} />
+          <Retry size={18} className={miss.state === 'busy' ? 'is-spinning' : undefined} />
         </span>
       )}
     </>
   );
-  return url ? (
-    <a className="wa-doc" href={url} target="_blank" rel="noreferrer" download={name || undefined}>
+  if (asButton) {
+    return (
+      <button
+        type="button"
+        className={`wa-doc is-button${problem && miss.state !== 'busy' ? ' is-off' : ''}`}
+        data-testid="wa-doc-retry"
+        data-state={miss.state}
+        disabled={miss.state === 'busy'}
+        aria-busy={miss.state === 'busy'}
+        title={miss.state === 'gone' ? t('wa.askPhoneAgain') : miss.state === 'offline' ? t('wa.mediaOffline') : url ? undefined : t('wa.downloadAgain')}
+        onClick={async () => {
+          const file = await miss.run();
+          if (!file) return;
+          setGot(file);
+          saveFile(file, name);
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return href ? (
+    <a className="wa-doc" href={href} target="_blank" rel="noreferrer" download={name || undefined} aria-label={`${t('wa.download')}: ${shownName}`} data-testid="wa-doc">
       {inner}
     </a>
   ) : (
-    <span className="wa-doc is-off" title={t('thread.fileUnavailable')}>
+    <span className="wa-doc is-off" title={t('thread.fileUnavailable')} data-testid="wa-doc">
       {inner}
     </span>
   );
 }
 
-/** Caja de la foto desde su ancho y alto (hasta 300 de ancho y alto, igual que .wa-image en styles/groups-wa.css). */
-function boxFor(width?: number, height?: number): { width: number; height: number } | null {
-  if (!width || !height) return null;
-  const scale = Math.min(300 / width, 300 / height, 1);
-  return { width: Math.max(100, Math.round(width * scale)), height: Math.max(60, Math.round(height * scale)) };
+const boxFor = mediaBox;
+const boxStyle = mediaBoxStyle;
+
+/** Lo que ya se reintentó solo en esta pestaña (una vez por media): el automático no se repite en cada render. */
+const autoRetried = new Set<string>();
+
+/**
+ * Foto o video que no está (no se pudo bajar, o el archivo ya no carga): el
+ * mismo lugar que ocuparía la foto (sus medidas si se saben, si no el
+ * estándar), con la miniatura borrosa de WhatsApp si vino y el aviso al
+ * centro. La burbuja mantiene el ancho y el texto de abajo se lee normal.
+ *
+ * Con `onRetry`: se reintenta solo una vez al aparecer (el servidor le pide el
+ * archivo a WhatsApp, y si venció, al teléfono) y queda "Bajar de nuevo". Si
+ * WhatsApp ya no lo tiene, lo dice así y ofrece pedírselo de nuevo al teléfono.
+ */
+export function MediaUnavailable({
+  kind = 'image',
+  width,
+  height,
+  thumbnail,
+  gone: goneAtStart,
+  onRetry,
+  retryKey,
+  onRecovered,
+}: {
+  kind?: 'image' | 'video';
+  width?: number;
+  height?: number;
+  thumbnail?: string;
+  gone?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
+  /** Id de la media para el reintento automático (uno por pestaña). */
+  retryKey?: string;
+  onRecovered?: (url: string) => void;
+}) {
+  const t = useTranslations('groups');
+  const [state, setState] = useState<MissingState>(goneAtStart ? 'gone' : 'idle');
+  const retryRef = useRef(onRetry);
+  retryRef.current = onRetry;
+  const recoveredRef = useRef(onRecovered);
+  recoveredRef.current = onRecovered;
+  const run = async () => {
+    const retry = retryRef.current;
+    if (!retry) return;
+    setState('busy');
+    const r = await retry().catch((): MediaRetryResult => ({ pending: true }));
+    if ('url' in r) recoveredRef.current?.(r.url);
+    setState('url' in r ? 'idle' : missingOf(r));
+  };
+  useEffect(() => {
+    if (goneAtStart || !retryKey || !retryRef.current || autoRetried.has(retryKey)) return;
+    const timer = setTimeout(() => {
+      if (autoRetried.has(retryKey)) return;
+      autoRetried.add(retryKey);
+      void run();
+    }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryKey, goneAtStart]);
+  const label =
+    state === 'gone'
+      ? kind === 'video'
+        ? t('wa.mediaGoneVideo')
+        : t('wa.mediaGoneImage')
+      : state === 'busy'
+        ? t('wa.downloadingAgain')
+        : state === 'offline'
+          ? t('wa.mediaOffline')
+          : state === 'failed'
+            ? t('wa.mediaRetryFailed')
+            : t('thread.fileUnavailable');
+  return (
+    <span
+      className={`wa-media-ph is-${kind}${state === 'gone' || state === 'offline' ? ' is-gone' : ''}`}
+      style={mediaBoxStyle(placeholderBox(width, height, Boolean(thumbnail)))}
+      data-testid="wa-media-unavailable"
+      data-state={state}
+    >
+      {thumbnail && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="wa-thumb" src={thumbnail} alt="" aria-hidden="true" />
+      )}
+      <span className="wa-media-ph-note" role="status">
+        {kind === 'video' ? <Play size={18} /> : <PhotoIcon size={18} />}
+        <span>{label}</span>
+      </span>
+      {/* Mientras baja queda solo el aviso "Bajando…": el botón vuelve si no se pudo. También cuando "ya no está": se le puede volver a pedir al teléfono. */}
+      {onRetry && state !== 'busy' && (
+        <button type="button" className="wa-media-ph-retry" onClick={() => void run()} data-testid="wa-media-retry">
+          <Retry size={16} />
+          {state === 'gone' ? t('wa.askPhoneAgain') : t('wa.downloadAgain')}
+        </button>
+      )}
+    </span>
+  );
 }
 
 /**
- * Estilo de la caja: el ancho en proporción a --wa-media-w (300px por
- * defecto; Visualización lo cambia a chico o grande) y la proporción real.
+ * Foto o video sin archivo guardado (Lines): el lugar con "Bajar de nuevo" y,
+ * si vuelve, la media en su lugar.
  */
-function boxStyle(box: { width: number; height: number } | null): CSSProperties | undefined {
-  return box ? { width: `calc(var(--wa-media-w, 300px) * ${+(box.width / 300).toFixed(4)})`, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+export function MissingMedia({
+  kind,
+  width,
+  height,
+  thumbnail,
+  gone,
+  onRetry,
+  retryKey,
+  seconds,
+}: {
+  kind: 'image' | 'video';
+  width?: number;
+  height?: number;
+  thumbnail?: string;
+  gone?: boolean;
+  onRetry?: () => Promise<MediaRetryResult>;
+  retryKey?: string;
+  seconds?: number;
+}) {
+  const [url, setUrl] = useState('');
+  const t = useTranslations('groups');
+  if (url && kind === 'image') return <ImageView url={url} alt={t('thread.image')} width={width} height={height} thumbnail={thumbnail} />;
+  if (url) return <VideoView url={url} seconds={seconds} thumbnail={thumbnail} width={width} height={height} />;
+  return <MediaUnavailable kind={kind} width={width} height={height} thumbnail={thumbnail} gone={gone} onRetry={onRetry} retryKey={retryKey} onRecovered={setUrl} />;
 }
 
 /**
@@ -249,29 +590,68 @@ export function ImageView({
   height,
   onLoad,
   onOpen,
+  onRetry,
+  retryKey,
+  caption,
 }: {
   url: string;
   alt: string;
   sticker?: boolean;
+  /** Lleva texto abajo: la foto ocupa el ancho entero (mediaBox) y el texto se lee en renglones normales. */
+  caption?: boolean;
   thumbnail?: string;
   width?: number;
   height?: number;
   onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
   onOpen?: () => void;
+  /** Si no carga: cómo volver a pedirla (por defecto, la misma URL sin caché). */
+  onRetry?: () => Promise<MediaRetryResult>;
+  retryKey?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Medidas leídas del archivo cuando el mensaje no las trae (con texto abajo hacen falta para la caja).
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  // La URL que se dibuja: la del mensaje, o la que trajo "bajar de nuevo".
+  const [src, setSrc] = useState(url);
+  useEffect(() => {
+    setSrc(url);
+    setFailed(false);
+  }, [url]);
   const ref = useRef<HTMLImageElement>(null);
   // Una imagen que ya estaba en caché termina de cargar antes de que React escuche onLoad.
   useEffect(() => {
-    if (ref.current?.complete && ref.current.naturalWidth > 0) setLoaded(true);
-  }, [url]);
+    const el = ref.current;
+    if (!el?.complete) return;
+    if (el.naturalWidth > 0) setLoaded(true);
+    // Lo mismo si falló antes (la página llegó dibujada del servidor y el error pasó antes de que React escuchara):
+    // sin esto la foto rota quedaba en blanco, sin el aviso.
+    else if (el.currentSrc || el.getAttribute('src')) setFailed(true);
+  }, [src]);
   const t = useTranslations('groups');
   if (failed) {
-    return <span className="wa-media-off">{t('thread.fileUnavailable')}</span>;
+    if (sticker) return <StickerMissing label={t('thread.fileUnavailable')} />;
+    return (
+      <MediaUnavailable
+        width={width}
+        height={height}
+        thumbnail={thumbnail}
+        onRetry={onRetry ?? (url.startsWith('/') ? refetchMedia(url) : undefined)}
+        retryKey={retryKey ?? url}
+        onRecovered={(u) => {
+          setSrc(u);
+          setLoaded(false);
+          setFailed(false);
+        }}
+      />
+    );
   }
-  const box = sticker ? null : boxFor(width, height);
-  const style = boxStyle(box);
+  // Sin medidas, mientras carga: el lugar estándar (la burbuja no queda angosta); al cargar, su tamaño real.
+  const w = width || natural?.w;
+  const h = height || natural?.h;
+  const box = sticker ? null : (boxFor(w, h, { caption }) ?? (loaded && !caption ? null : placeholderBox()));
+  const fit = sticker ? 'cover' : mediaFit(w, h, caption);
+  const style = box ? { ...boxStyle(box), ...(fit === 'contain' ? { ['--wa-media-fit' as string]: 'scale-down' } : {}) } : undefined;
   const img = (
     <>
       {thumbnail && !loaded && (
@@ -281,12 +661,14 @@ export function ImageView({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={ref}
-        src={url}
+        src={src}
         alt={alt}
         loading="lazy"
         className={loaded ? 'is-loaded' : ''}
         onLoad={(e) => {
           setLoaded(true);
+          const el = e.currentTarget;
+          if (!(width && height) && el.naturalWidth > 0 && el.naturalHeight > 0) setNatural({ w: el.naturalWidth, h: el.naturalHeight });
           onLoad?.(e);
         }}
         onError={() => setFailed(true)}
@@ -333,8 +715,7 @@ export function StickerMissing({ label }: { label: string }) {
 export function GifView({ url, thumbnail, width, height, onOpen }: { url: string; thumbnail?: string; width?: number; height?: number; onOpen?: () => void }) {
   const t = useTranslations('groups');
   const ref = useRef<HTMLVideoElement>(null);
-  const box = boxFor(width, height);
-  const style = box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+  const style = boxStyle(boxFor(width, height));
   useEffect(() => {
     const v = ref.current;
     if (!v) return;

@@ -74,10 +74,10 @@ export async function GET(req: Request) {
   const viewer = await sessionViewer(s);
   const withMeta = p.get('meta') !== '0';
   const { activeImports, kickImport } = await import('@/lib/groups-import');
-  const { countUnreadChats, countArchivedChats, droppedNumbers } = await import('@/lib/groups');
+  const { countUnreadChats, countArchivedChats, countHiddenChats, droppedNumbers } = await import('@/lib/groups');
   const { hubspotConnected } = await import('@/lib/groups-hubspot');
   // La lista y lo que la acompaña van juntos: ninguna consulta espera a la otra.
-  const [res, imports, unreadChats, archived, dropped, hubspotOn] = await Promise.all([
+  const [res, imports, unreadChats, archived, dropped, hubspotOn, hidden] = await Promise.all([
     listChats(s.ws, s.me, {
       ...base,
       filter: filter && filter !== 'all' ? filter : (base.filter ?? 'all'),
@@ -99,6 +99,7 @@ export async function GET(req: Request) {
       offset: Number(p.get('offset')) || 0,
       viewer,
       archived: p.get('archived') === '1',
+      hidden: p.get('hidden') === '1',
       ...(paged ? { cursor: p.get('cursor') ?? '', count: false } : {}),
     }),
     // Importación en curso al conectar un número: la bandeja muestra el progreso.
@@ -109,14 +110,16 @@ export async function GET(req: Request) {
     withMeta ? droppedNumbers(s.ws, viewer).catch(() => []) : Promise.resolve([]),
     // Con HubSpot conectado, la bandeja ofrece el filtro "Vinculados a HubSpot".
     withMeta ? hubspotConnected(s.ws).catch(() => false) : Promise.resolve(false),
+    // Eliminados con "Eliminar chat" (la fila "Eliminados" dentro de Archivados).
+    withMeta ? countHiddenChats(s.ws, viewer).catch(() => 0) : Promise.resolve(0),
   ]);
   // Mientras alguien mira la bandeja, la importación avanza sin esperar al cron (cada tanda reclama su fila).
   for (const im of imports) if (im.status === 'queued' || im.status === 'running') await kickImport(im.numberId);
   if (paged) {
     const page = { rows: res.rows, next: res.next ?? null, pinned: res.pinned ?? 0 };
-    return conditionalJson(req, withMeta ? { ...page, imports, unreadChats, archived, dropped, hubspot: hubspotOn } : page);
+    return conditionalJson(req, withMeta ? { ...page, imports, unreadChats, archived, hidden, dropped, hubspot: hubspotOn } : page);
   }
-  return conditionalJson(req, withMeta ? { ...res, imports, unreadChats, archived, dropped, hubspot: hubspotOn } : res);
+  return conditionalJson(req, withMeta ? { ...res, imports, unreadChats, archived, hidden, dropped, hubspot: hubspotOn } : res);
 }
 
 const startSchema = z

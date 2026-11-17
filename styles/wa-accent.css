@@ -1,0 +1,65 @@
+/* ============================================================
+   LINES E INBOX: marca de vencido y botones con el color de la app.
+   Archivo propio (lo cargan los dos layouts) para no tocar la hoja
+   grande de la bandeja (styles/groups-wa.css).
+   ============================================================ */
+
+/* ---------- Vencido ----------
+   Un filete de color en el borde izquierdo de la fila, además del reloj
+   junto a la hora. Va absoluto: la fila no cambia de alto ni suma una línea.
+   Queda arriba del fondo de la fila, así se ve igual sin seleccionar, al
+   pasar el mouse, abierta o seleccionada. La zona que muestra el tooltip
+   (title) es un poco más ancha que el filete; con el dedo no hay tooltip
+   y el filete no atrapa toques (el toque abre el chat como siempre). */
+.gr-row:has(> .wa-overdue-edge) { position: relative; }
+.wa-overdue-edge {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 1;
+  width: 8px;
+}
+.wa-overdue-edge::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  /* El color de la app (pedido del dueño: antes era rojo); fuera de una app, el de peligro. */
+  background: var(--app-btn, var(--wa-danger, var(--bad-ink)));
+}
+@media (hover: none) {
+  .wa-overdue-edge { pointer-events: none; }
+}
+
+/* ---------- Botones primarios con el color de la app ----------
+   .btn-primary ya toma --app-btn dentro de la app (styles/ui.css y
+   components/app/AppAccent.tsx). Acá van los botones propios de la bandeja
+   que llevaban el verde de WhatsApp o la tinta: Enviar (también la nota de
+   voz y el adjunto), el de stickers y el texto del Insertar de la IA. Sin
+   app (no hay --app-btn) quedan como estaban. La nota interna (.is-note)
+   conserva su ámbar: no es un envío al cliente. */
+.gr-inbox[data-chat-style] .wa-send:not(.is-mic):not(.is-note):not(:disabled),
+.wa-send:not(.is-mic):not(.is-note):not(:disabled) {
+  color: var(--app-btn-on, #fff);
+  background: var(--app-btn, var(--wa-primary));
+}
+.gr-inbox[data-chat-style] .wa-send:not(.is-mic):not(.is-note):not(:disabled):hover {
+  background: var(--app-btn-hover, var(--app-btn, var(--wa-primary)));
+}
+.gr-inbox[data-chat-style] .wa-send:not(.is-mic):not(.is-note):not(:disabled):active {
+  background: var(--app-btn-active, var(--app-btn, var(--wa-primary)));
+}
+.wa-stk-primary:not(:disabled) {
+  color: var(--app-btn-on, #fff);
+  background: var(--app-btn, var(--wa-primary));
+}
+.gr-inbox[data-chat-style] .aic-chat .aic-actions .btn-primary:not(:disabled):not([aria-disabled='true']),
+.aic-chat .aic-actions .btn-primary:not(:disabled):not([aria-disabled='true']) {
+  --btn-bg: var(--app-btn, var(--aic-accent));
+  --btn-bd: var(--app-btn, var(--aic-accent));
+  --btn-bg-hover: var(--app-btn-hover, var(--wa-primary-ink));
+  --btn-bd-hover: var(--app-btn-hover, var(--wa-primary-ink));
+  --btn-fg: var(--app-btn-on, #fff);
+  --btn-fg-hover: var(--app-btn-on, #fff);
+}

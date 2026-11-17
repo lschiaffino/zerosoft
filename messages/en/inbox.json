@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
-  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
-  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
+  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "snooze": "Snooze…", "unsnooze": "Cancel snooze", "pin": "Pin chat", "unpin": "Unpin chat", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "groupInfo": "Group info" },
+  "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "removed": "Removed from Inbox", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
   "views": {
     "inbox": "Inbox",
     "unread": "Unread",
@@ -15,17 +15,17 @@
     "scheduled": "Scheduled",
     "done": "Archived",
     "archived": "Archived",
-    "nofolder": "No folder"
+    "nofolder": "No folder",
+    "removed": "Removed from Inbox"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
     "title": { "snooze": "Snooze until", "followUp": "Remind me if there is no reply", "sendLater": "Send later" },
     "followUpHelp": "If they have not written back by then, the chat comes back to the top of your inbox.",
-    "preset": { "later": "Later today", "tonight": "This evening", "tomorrow": "Tomorrow morning", "weekend": "This weekend", "nextWeek": "Next week", "inWeek": "In a week" },
-    "custom": "Pick a date and time",
     "confirm": "Set",
-    "cancel": "Cancel",
-    "pastError": "Pick a time in the future."
+    "confirmSend": "Schedule",
+    "confirmSnooze": "Snooze",
+    "cancel": "Cancel"
   },
   "composer": {
     "snippets": "Snippets",
@@ -83,11 +83,16 @@
     "importClose": "Close",
     "group": "Group",
     "snoozedUntil": "Snoozed until {when}",
+    "snoozedShort": "Snoozed · {when}",
     "followUpAt": "Reminder {when}",
     "archivedEntry": "Archived",
     "archivedBack": "Back to the inbox",
     "woke": "Back",
     "noReply": "No reply",
+    "overdueSnooze": "Overdue: back from snooze",
+    "overdueSnoozeSince": "Overdue: back from snooze since {when}",
+    "overdueFollowUp": "Overdue: no reply by the reminder",
+    "overdueFollowUpSince": "Overdue: no reply by the reminder on {when}",
     "select": "Select {name}",
     "pinned": "Pinned",
     "draft": "Draft:",
@@ -95,6 +100,7 @@
     "scheduled": "{n, plural, one {# scheduled} other {# scheduled}}",
     "dragMany": "{n} chats",
     "searchResults": "Search results",
+    "archivedTag": "Archived",
     "messagesFound": "Messages",
     "moreMessages": "More messages",
     "search": "Search chats and messages",
@@ -185,7 +191,8 @@
       "done": "Nothing archived yet",
       "archived": "Nothing archived. Archive a chat from its menu.",
       "nofolder": "Every chat is in a folder",
-      "folder": "This folder is empty. Press V on a chat to add it."
+      "folder": "This folder is empty. Press V on a chat to add it.",
+      "removed": "Nothing removed. Chats you remove from Inbox stay here for 30 days."
     }
   },
   "help": {
@@ -232,6 +239,8 @@
     "unpin": "{n, plural, one {Unpinned} other {# chats unpinned}}",
     "archive": "{n, plural, one {Archived} other {# chats archived}}",
     "unarchive": "{n, plural, one {Unarchived} other {# chats unarchived}}",
+    "keepArchivedOn": "Kept archived",
+    "keepArchivedOff": "No longer kept archived",
     "snooze": "{n, plural, one {Snoozed} other {# chats snoozed}}",
     "unsnooze": "{n, plural, one {Unsnoozed} other {# chats unsnoozed}}",
     "followUp": "{n, plural, one {You will be reminded if there is no reply} other {Reminder set for # chats}}",
@@ -253,6 +262,8 @@
     "unread": "Unread",
     "pin": "Pin",
     "unpin": "Unpin",
+    "snooze": "Snooze",
+    "unsnooze": "Unsnooze",
     "more": "More",
     "archive": "Archive",
     "unarchive": "Unarchive",
@@ -261,7 +272,7 @@
   },
   "move": { "title": "Add to folder", "filter": "Filter folders", "none": "No folders yet.", "remove": "Remove", "newFolder": "New folder", "close": "Close" },
   "more": {
-    "deleteConfirm": "This removes the chat and its saved messages from Inbox. Nothing is deleted on WhatsApp or Gmail.",
+    "deleteConfirm": "The chat leaves Inbox and waits 30 days in Removed from Inbox (under Archived) in case you want it back. Nothing is deleted on WhatsApp or Gmail.",
     "cancel": "Cancel",
     "deleteYes": "Remove from Inbox",
     "pin": "Pin",
@@ -332,6 +343,17 @@
     "moveFilter": "Filter folders"
   },
   "settings": {
+    "hubspot": {
+      "intro": "Your workspace HubSpot. Link or create contacts from each 1:1 chat.",
+      "notConnected": "Your workspace has no HubSpot connected. An admin connects it in the Lines settings.",
+      "linesLink": "Open Lines integrations",
+      "statusOn": "Connected",
+      "statusOff": "Not connected",
+      "autoCreate": "Create the HubSpot contact when a new 1:1 chat comes in",
+      "autoCreateHelp": "Only for your Inbox and for chats that start after you turn this on. If a HubSpot contact already has that number, nothing is created.",
+      "needsScope": "The workspace token is missing these scopes to create contacts: {scopes}.",
+      "saved": "Saved"
+    },
     "title": "Inbox settings",
     "subtitle": "Your accounts, folders, snippets and imports. Everything here is private to you: the workspace and its admins never see it.",
     "gmailResult": {
@@ -657,5 +679,21 @@
     "channel": "Channel",
     "emptyTitle": "No messages in this period",
     "emptyBody": "Connect WhatsApp or Gmail in Inbox settings and your numbers show up here."
+  },
+  "removed": {
+    "title": "Removed from Inbox",
+    "entry": "Removed from Inbox",
+    "back": "Archived",
+    "note": "Chats you remove from Inbox stay here for {days} days and are then deleted for good. Restore puts a chat back where it was, with any messages that arrived meanwhile.",
+    "removedAt": "Removed on {date}",
+    "purgeAt": "Deleted on {date}",
+    "restore": "Restore",
+    "purge": "Delete for good",
+    "purgeTitle": "Delete the chat with {name} for good?",
+    "purgeBody": "Its messages saved in Inbox are deleted and this cannot be undone. Nothing changes on WhatsApp or Gmail.",
+    "cancel": "Cancel",
+    "restored": "Chat restored",
+    "purged": "Chat deleted",
+    "list": "Removed chats"
   }
 }

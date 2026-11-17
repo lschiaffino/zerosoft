@@ -11,8 +11,12 @@
 import { fakeProvider, fakeProviderAllowed } from '../groups-provider-fake';
 import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance, queueManagedDelete, validManagedConfig, type ManagedEnv } from '../groups-provider-managed';
 import { cleanPushName } from '../groups-provider-bridge';
-import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
+import { ProviderError, type MediaRef, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
+import { fetchStateOf, logMediaFailure } from '../wa-media-wire';
+import { eagerWorthy } from '../wa-media-jobs';
+import { openWire, sealWire } from '../wa-media-wire-seal';
+import { storeLinkHq } from '../wa-link-thumb';
 import {
   addMessage,
   addMessageToChat,
@@ -31,7 +35,7 @@ import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './type
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
 import { contactInput, inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
 import { contactsFromMessage, lidPhonePairs, lookupContacts, displayName, phoneForLid, resolveLidChats, type ContactInput } from '../wa-contacts';
-import { inboxTwinsFromMessages, mergeLidChats } from '../wa-dedupe-run';
+import { inboxTwinsFromMessages, mergeLidChats, routeLidByKnownMessages } from '../wa-dedupe-run';
 import { pokeLive } from '../wa-live';
 import { transientError } from '../transient-error';
 
@@ -103,6 +107,13 @@ export async function connectWhatsapp(owner: string): Promise<{ account: Account
       await setAccountState(account.id, { provider: 'managed' });
     }
     account = (await ensureWhatsappAccount(owner))!;
+  }
+  // Empieza una vinculación (la primera, o la línea se volvió a vincular): lo que entre desde ahora es "nuevo"; los
+  // chats que ya estaban conservan lo que la persona hizo (isFreshThread). Con la cuenta ya conectada no cambia.
+  if (account.status !== 'connected') {
+    const linkedAt = nowIso();
+    await getDb().prepare('UPDATE inbox_accounts SET linked_at = ? WHERE id = ?').run(linkedAt, account.id);
+    account.linked_at = linkedAt;
   }
   let state: ConnectState;
   try {
@@ -218,7 +229,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   if (!body && e.poll) body = e.poll.question;
   const { meta, kind } = messageMeta(e);
   // Una sola ida a la base: el chat, el mensaje y el chat al tope de la lista (lo que avisa a la pantalla).
-  const { thread, added } = await addMessageToChat(account, input, {
+  const { thread, added, id: savedId } = await addMessageToChat(account, input, {
     meta,
     kind,
     forwarded: !!e.forwarded,
@@ -229,15 +240,52 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     body,
     mediaType: media ? inboxMediaType(media.type, media.info?.kind) || 'document' : '',
     mediaName: media?.name ?? '',
-    mediaRef: media?.fetchRef ? JSON.stringify(media.fetchRef) : '',
+    mediaRef: media?.fetchRef ? storedMediaRef(media.fetchRef) : '',
     replyTo: e.replyToProviderId ?? '',
     status: e.fromMe ? (e.status ?? 'sent') : '',
     sentAt: e.timestamp,
     history: history || e.history,
   });
   onSaved();
+  // Ya estaba guardado sin la clave del archivo (llegó antes de que se guardara, o de otra vía) y ahora vino con ella
+  // (por ejemplo, el historial que reenvía el teléfono): se completa, así el archivo se puede volver a bajar.
+  if (!added && media?.fetchRef?.wire && e.providerMessageId) {
+    // En todos los chats de la cuenta donde esté ese mensaje (el mismo puede estar en el chat del teléfono y en el del lid).
+    await getDb()
+      .prepare(
+        `UPDATE inbox_messages SET media_ref = ? WHERE owner_id = ? AND external_id = ? AND media_type <> '' AND media_ref NOT LIKE '%"wire"%'
+           AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
+      )
+      .run(storedMediaRef(media.fetchRef), account.owner_id, e.providerMessageId, account.id)
+      .catch(() => null);
+  }
+  // La imagen grande de la vista previa del link (Maps, notas): se baja una vez, después de responder el webhook.
+  if (added && e.link?.hq && !(history || e.history)) {
+    const ref = e.link.hq;
+    await afterResponse(async () => {
+      if (await storeLinkHq('inbox_messages', savedId, ref).catch(() => false)) pokeLive('inbox', account.owner_id);
+    });
+  }
   // Quien tenga Inbox abierto en esta instancia se entera ya (lib/wa-live.ts).
   if (added) pokeLive('inbox', account.owner_id);
+  // Fleet: lo que escribiste en tu propio chat citando el aviso de un agente va a la cola de ese agente.
+  if (added && e.fromMe && e.replyToProviderId && !history && !e.history) {
+    await import('../fleet/link')
+      .then((m) => m.routeWhatsappReply(account, e))
+      .catch((err) => console.error('[inbox] fleet reply', (err as Error)?.name ?? 'error'));
+  }
+  // El archivo se baja y se guarda aparte (cola con reintentos, lib/wa-media-jobs.ts): desde ahí no depende de que el
+  // servidor de WhatsApp siga teniendo el mensaje. Solo lo reciente; lo más viejo se guarda al abrirlo.
+  if (added && media?.fetchRef && e.providerMessageId && eagerWorthy(e.timestamp)) {
+    await getDb()
+      .prepare(
+        `INSERT INTO wa_media_jobs (app, message_id, scope_id, attempts, next_at, created_at)
+         SELECT 'inbox', m.id, ?, 0, ?, ? FROM inbox_messages m WHERE m.thread_id = ? AND m.external_id = ? ON CONFLICT (app, message_id) DO NOTHING`,
+      )
+      // Unos segundos después: el gateway puede guardar el mensaje un instante después de avisarlo.
+      .run(account.id, new Date(Date.now() + 5000).toISOString(), new Date().toISOString(), thread.id, e.providerMessageId)
+      .catch(() => null);
+  }
   // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta. Si falla, el
   // mensaje ya está guardado: se loguea y se sigue.
   if (input.kind === 'dm' && thread.handle && (!thread.title || thread.title === thread.handle)) {
@@ -267,18 +315,25 @@ function needsBookFirst(e: InboundEvent): boolean {
  * que puede ser su lid). Un chat que todavía no está en Inbox no se crea por
  * esto; uno que ya está así no se toca; el eco viejo de un pedido nuestro se
  * ignora (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
+ * Desarchivarlo desde el teléfono cancela el pospuesto, como desarchivarlo acá.
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
   const t = await findPhoneThread(account, chatId);
   const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('../wa-archive-sync');
   if (!t) return traceArchive('inbox', chatId, archived, 'not_found');
-  if (!!t.archived_at === archived) return traceArchive('inbox', chatId, archived, 'same');
+  // En Inbox, archivado es "archivado" o "hecho" (la misma vista y el mismo botón, y así se manda a WhatsApp).
+  if ((!!t.archived_at || !!t.done_at) === archived) return traceArchive('inbox', chatId, archived, 'same');
   if (await isStaleUnarchive('inbox', account.id, archived)) return traceArchive('inbox', chatId, archived, 'stale');
   if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
   traceArchive('inbox', chatId, archived, 'applied');
+  // Desarchivar desde el teléfono un chat "hecho" acá lo vuelve a la bandeja (antes quedaba en Archivados).
+  if (!archived) await getDb().prepare('UPDATE inbox_threads SET done_at = NULL WHERE id = ?').run(t.id);
   await getDb()
-    .prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
-    .run(archived ? nowIso() : null, archived ? 1 : 0, nowIso(), t.id);
+    .prepare(
+      `UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END,
+         snoozed_until = CASE WHEN ? THEN snoozed_until ELSE NULL END, snooze_archived = CASE WHEN ? THEN snooze_archived ELSE 0 END, updated_at = ? WHERE id = ?`,
+    )
+    .run(archived ? nowIso() : null, archived ? 1 : 0, archived ? 1 : 0, archived ? 1 : 0, nowIso(), t.id);
   return true;
 }
 
@@ -307,12 +362,17 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   let failed = 0;
   // La libreta (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero: los mensajes
   // ya la usan. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
-  let slice = events.slice(0, 2000);
+  // Lo que llega como historial lleva la marca en cada mensaje (la libreta no pisa nombres con los de mensajes viejos).
+  let slice = opts.history ? events.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e)) : events.slice(0, 2000);
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) await learnFromEvents(account, slice).catch(() => null);
   else learning = learnFromEvents(account, slice).catch(() => null);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   slice = await resolveLidChats(inboxScope(account), slice).catch(() => slice);
+  // Sin par en la libreta: un mensaje por lid que ya está en el chat de un teléfono (el eco de lo que mandé) es de esa
+  // persona; va a ese chat y la libreta aprende el par (lib/wa-dedupe-run.ts).
+  const resolved = slice;
+  slice = await routeLidByKnownMessages('inbox', { ...inboxScope(account), ownerId: account.owner_id }, slice).catch(() => resolved);
   // Mensajes ya guardados: lo que falle después de guardarlos (el nombre del chat) no pide reintento.
   const stored = new Set<string>();
   for (const e of slice) {
@@ -331,6 +391,13 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
         case 'archive':
           await applyPhoneArchive(account, e.chatId, e.archived);
           break;
+        case 'participants':
+        case 'group': {
+          // Avisos del grupo (lo crearon, me agregaron, salió alguien): fila de sistema y, si es nuevo para mí, el chat (lib/wa-group-system.ts).
+          const { inboxGroupEvent } = await import('../wa-group-system');
+          await inboxGroupEvent(account, e);
+          break;
+        }
         case 'missing': {
           // WhatsApp entregó un mensaje que no se pudo descifrar: hueco en el chat y pedido de historial (lib/wa-history-gaps.ts).
           const t = await findPhoneThread(account, e.chatId);
@@ -358,7 +425,7 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           break;
         }
         case 'reaction':
-          await storeReaction(account, e.chatId, e.targetProviderMessageId, { emoji: e.emoji, by: e.fromMe ? 'me' : e.senderPhone || e.senderName || '?', name: e.fromMe ? '' : e.senderName });
+          await storeReaction(account, e.chatId, e.targetProviderMessageId, { emoji: e.emoji, by: e.fromMe ? 'me' : e.senderPhone || e.senderName || '?', name: e.fromMe ? '' : e.senderName, at: e.at || nowIso() });
           break;
         case 'presence':
           await storePresence(account, e);
@@ -401,6 +468,9 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   if (messages > 0 && (opts.history || slice.some((e) => e.type === 'message' && e.history))) {
     await import('../wa-history-gaps').then((g) => g.resolveGaps('inbox', { accountId: account.id })).catch(() => 0);
   }
+  // Llegó historial de estos chats: si se había pedido "Traer mensajes que faltan", el teléfono respondió.
+  const pastChats = slice.flatMap((e) => (e.type === 'message' && e.history ? [e.chatId] : []));
+  if (pastChats.length) await import('../wa-history-gaps').then((g) => g.noteHistoryArrived('inbox', account.id, pastChats)).catch(() => null);
   // Tildes, reacciones, ediciones, escribiendo: quien mira en esta instancia se entera ya.
   if (slice.length) pokeLive('inbox', account.owner_id);
   return failed ? { messages, failed } : { messages };
@@ -419,18 +489,19 @@ async function afterResponse(job: () => Promise<unknown>): Promise<void> {
 /** Después de una tanda: juntar los chats por lid con el del teléfono que esta tanda dejó a la vista. */
 async function dedupeBatch(account: AccountRow, events: InboundEvent[]): Promise<void> {
   const items: ContactInput[] = [];
-  const inbound: string[] = [];
+  const dm: string[] = [];
   for (const e of events) {
     if (e.type === 'message') {
       items.push(...contactsFromMessage(e));
-      if (!e.fromMe && !(e.isGroup || waKindOf(e.chatId) === 'group')) inbound.push(e.providerMessageId);
+      // Recibidos y propios: el eco de lo que mandé también llega a veces solo con el lid.
+      if (!(e.isGroup || waKindOf(e.chatId) === 'group')) dm.push(e.providerMessageId);
     } else if (e.type === 'contact') {
       const c = contactInput(e);
       if (c) items.push(c);
     }
   }
   const lids = lidPhonePairs(items).map((p) => p.lid);
-  const pairs = await inboxTwinsFromMessages(account, inbound).catch(() => []);
+  const pairs = await inboxTwinsFromMessages(account, dm).catch(() => []);
   if (lids.length || pairs.length) await mergeLidChats('inbox', account.id, { lids, pairs });
 }
 
@@ -451,13 +522,39 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
     try {
       const t = await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
       // Los archivados del historial entran marcados como archivados (no ensucian la bandeja).
-      if (c.archived === true || c.archive === true) await markArchived(t.id);
+      if ((c.archived === true || c.archive === true) && isFreshThread(t, account)) await markArchived(t.id);
       n++;
     } catch {
       /* uno roto no frena el resto */
     }
   }
   return n;
+}
+
+/**
+ * ¿El chat entró con esta vinculación? Lo que dice el teléfono de un chat (archivado, no leídos) se copia solo a los
+ * chats nuevos: en uno que ya estaba acá (la línea se volvió a vincular o a importar) manda lo que la persona hizo en
+ * Inbox (lo leyó, lo sacó de archivados, lo fijó), y no se pisa. "Con esta vinculación" es creado después de que se
+ * empezó a vincular (inbox_accounts.linked_at, que connectWhatsapp pone al mostrar el QR), como hace Lines con el
+ * arranque de su importación. Una cuenta vinculada antes de que existiera ese dato: solo lo creado en la última hora.
+ */
+export const LEGACY_FRESH_MS = 60 * 60 * 1000;
+export function isFreshThread(t: Pick<ThreadRow, 'created_at'>, account: Pick<AccountRow, 'linked_at'>, now = Date.now()): boolean {
+  const created = Date.parse(t.created_at);
+  if (!Number.isFinite(created)) return false;
+  const linked = account.linked_at ? Date.parse(account.linked_at) : NaN;
+  return Number.isFinite(linked) ? created >= linked : now - created < LEGACY_FRESH_MS;
+}
+
+/**
+ * Lo que el teléfono dice de un chat al importar lo que guardó el servidor (archivado, no leídos): solo en los chats
+ * que entraron con esta vinculación (isFreshThread). Devuelve si se aplicó.
+ */
+export async function applyPhoneChatState(account: Pick<AccountRow, 'linked_at'>, t: Pick<ThreadRow, 'id' | 'created_at'>, c: { archived?: boolean; unread?: number }): Promise<boolean> {
+  if (!isFreshThread(t, account)) return false;
+  if (c.archived) await markArchived(t.id);
+  if (c.unread && c.unread > 0) await getDb().prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+  return true;
 }
 
 /** Marca un chat como archivado sin tocar uno que ya lo está (conserva la fecha). */
@@ -547,19 +644,44 @@ export async function startWhatsappChat(owner: string, phone: string): Promise<T
 
 export const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 
-/** Baja un archivo recibido (foto, audio, documento) del servidor de WhatsApp. */
-export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string): Promise<{ data: Buffer; mimetype: string; filename: string }> {
-  let ref: { providerMessageId: string; chatId: string; fromMe: boolean };
+/** La referencia de un archivo como se guarda en media_ref: la key del mensaje y la clave del archivo, cifrada. */
+export function storedMediaRef(ref: MediaRef): string {
+  const { wire, ...key } = ref;
+  return JSON.stringify(wire ? { ...key, wire: sealWire(wire) } : key);
+}
+
+/** Lo guardado en media_ref → referencia para el proveedor; null si no se puede leer. */
+export function readMediaRef(mediaRef: string): MediaRef | null {
   try {
-    ref = JSON.parse(mediaRef) as typeof ref;
+    const raw = JSON.parse(mediaRef) as { providerMessageId?: unknown; chatId?: unknown; fromMe?: unknown; wire?: unknown };
+    if (typeof raw.providerMessageId !== 'string' || typeof raw.chatId !== 'string') return null;
+    const wire = openWire(raw.wire);
+    return { providerMessageId: raw.providerMessageId, chatId: raw.chatId, fromMe: raw.fromMe === true, ...(wire ? { wire } : {}) };
   } catch {
-    throw new InboxError('not_found', 404);
+    return null;
   }
+}
+
+/**
+ * Baja un archivo recibido (foto, audio, documento) del servidor de WhatsApp. Si falla, el error dice por qué
+ * (lib/wa-media-wire.ts): `media_gone` 410 (WhatsApp ya no lo tiene, o el gateway no tiene el mensaje y no hay
+ * clave), `not_connected` 409 (la línea está desvinculada: al volver a vincular se puede pedir) o
+ * `media_unavailable` 502 (pasajera).
+ */
+export async function fetchWhatsappMedia(account: AccountRow, mediaRef: string): Promise<{ data: Buffer; mimetype: string; filename: string }> {
+  const ref = readMediaRef(mediaRef);
+  if (!ref) throw new InboxError('not_found', 404);
+  const connected = account.status === 'connected';
+  // Desvinculada (sin instancia): tira not_connected (409), no es que el archivo no exista.
   const p = waProviderFor(account);
   if (!p.fetchMedia) throw new InboxError('not_found', 404);
   try {
     return await p.fetchMedia(ref, MAX_MEDIA_BYTES);
-  } catch {
+  } catch (err) {
+    // El tipo de falla queda en el log (sin ids ni contenido).
+    const state = fetchStateOf(logMediaFailure('inbox', err, !!ref.wire, connected));
+    if (state === 'gone') throw new InboxError('media_gone', 410);
+    if (state === 'offline') throw new InboxError('not_connected', 409);
     throw new InboxError('media_unavailable', 502);
   }
 }
@@ -618,8 +740,7 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         for (const c of rows) {
           const chatId = await bookChatId(account, c.chatId);
           const t = await upsertThread(account, { externalId: chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(chatId) });
-          if (c.archived) await markArchived(t.id);
-          if (c.unread > 0) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+          await applyPhoneChatState(account, t, c);
           if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);
           if (queue.length < MAX_CHATS) queue.push(c.remoteJid);
         }

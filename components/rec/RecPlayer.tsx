@@ -3,12 +3,28 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { chapterAt, fmtClock, mergeRanges, spriteTile, trimmedDuration, type Range, type RecChapter, type RecOverlay, type RecSpriteMeta } from '@/lib/rec-schema';
+import { HEAT_BUCKETS } from '@/lib/rec-insights';
+
+/** Solo el dominio de donde vino quien mira (nunca la ruta ni la query); '' si es esta misma página. */
+function referrerHost(): string | undefined {
+  try {
+    if (!document.referrer) return undefined;
+    const u = new URL(document.referrer);
+    return u.host === window.location.host ? undefined : u.hostname;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface RecMarker {
   id: string;
   atSec: number;
   emoji: string | null;
   label: string;
+  /** Reacción: quién la dejó (se muestra en el cuadro que abre la marca). */
+  who?: string;
+  /** Reacción que quien mira puede quitar (la suya, o cualquiera si administra el video). */
+  remove?: () => void;
 }
 
 export interface RecPlayerHandle {
@@ -79,11 +95,17 @@ const RecPlayer = forwardRef<
   const [pops, setPops] = useState<Array<{ id: number; emoji: string; x: number }>>([]);
   const popSeq = useRef(0);
   const [skipSilences, setSkipSilences] = useState(false);
+  /** Cuadro de una reacción de la línea de tiempo: la marca abierta y su centro en px dentro del video. */
+  const [markOpen, setMarkOpen] = useState<{ id: string; x: number } | null>(null);
+  const markPop = useRef<HTMLDivElement>(null);
+  /** La marca que toma el foco con Tab (después, flechas entre marcas). */
+  const [markFocus, setMarkFocus] = useState<string | null>(null);
   // Lo que lee el evento timeupdate sin volver a engancharse.
   const live = useRef({ markers, silences, skipSilences });
   live.current = { markers, silences, skipSilences };
   // ranges: intervalos realmente reproducidos (segundos del video recortado), para el % visto.
-  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[] });
+  // heat: segundos reproducidos en cada tramo, contando re-vistas (la curva de la analítica).
+  const track = useRef({ viewId: '', opening: false, watched: 0, position: 0, last: 0, ranges: [] as Range[], heat: new Array<number>(HEAT_BUCKETS).fill(0) });
 
   const fullDuration = mediaDuration > 0 ? mediaDuration : durationSec;
   const end = trimEnd ?? fullDuration;
@@ -120,6 +142,7 @@ const RecPlayer = forwardRef<
         ranges: mergeRanges(s.ranges, visible),
         position: Math.round(s.position * 10) / 10,
         duration: Math.round(visible * 10) / 10,
+        heat: s.heat.map((x) => Math.round(x * 10) / 10),
         name: viewerName?.() || undefined,
         ...extra,
       });
@@ -137,7 +160,7 @@ const RecPlayer = forwardRef<
     void fetch(trackUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ duration: Math.round(visible * 10) / 10, name: viewerName?.() || undefined }),
+      body: JSON.stringify({ duration: Math.round(visible * 10) / 10, name: viewerName?.() || undefined, ref: referrerHost() }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { viewId?: string | null } | null) => {
@@ -201,6 +224,10 @@ const RecPlayer = forwardRef<
         if (lastRange && Math.abs(lastRange[1] - s.last) < 0.01) lastRange[1] = rel;
         else s.ranges.push([s.last, rel]);
         if (s.ranges.length > 200) s.ranges = mergeRanges(s.ranges, visible);
+        if (visible > 0) {
+          const b = Math.min(HEAT_BUCKETS - 1, Math.max(0, Math.floor(((s.last + rel) / 2 / visible) * HEAT_BUCKETS)));
+          s.heat[b] += delta;
+        }
       }
       s.last = rel;
       s.position = Math.max(s.position, rel);
@@ -269,6 +296,52 @@ const RecPlayer = forwardRef<
     };
   }, [sprite?.url]);
 
+  const openMark = markOpen ? (markers.find((m) => m.id === markOpen.id && m.emoji) ?? null) : null;
+  const markOpenId = openMark ? openMark.id : null;
+
+  // El cuadro de la reacción se cierra con un clic o toque afuera, con Esc y al cambiar el tamaño.
+  useEffect(() => {
+    if (!markOpenId) return;
+    const onDown = (e: PointerEvent) => {
+      const el = e.target as Element | null;
+      if (el && (markPop.current?.contains(el) || el.closest('.rec-marker'))) return;
+      setMarkOpen(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      const inside = markPop.current?.contains(document.activeElement);
+      setMarkOpen(null);
+      // El foco vuelve a la marca si estaba en el cuadro.
+      if (inside) wrap.current?.querySelector<HTMLElement>(`.rec-marker[data-marker="${CSS.escape(markOpenId)}"]`)?.focus({ preventScroll: true });
+    };
+    const onResize = () => setMarkOpen(null);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [markOpenId]);
+
+  function onMarker(m: RecMarker, el: HTMLElement, byKeyboard: boolean) {
+    seek(m.atSec - trimStart);
+    if (!m.emoji) return;
+    if (markOpen?.id === m.id) {
+      setMarkOpen(null);
+      return;
+    }
+    const box = media.current?.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    if (!box) return;
+    setScrub(null);
+    setMarkOpen({ id: m.id, x: r.left + r.width / 2 - box.left });
+    // Con teclado el foco pasa a "Quitar reacción"; con el mouse se queda donde estaba (un espacio no la borra sin querer).
+    if (byKeyboard) window.requestAnimationFrame(() => markPop.current?.querySelector('button')?.focus({ preventScroll: true }));
+  }
+
   function scrubAt(clientX: number, el: HTMLElement) {
     const box = el.getBoundingClientRect();
     const m = media.current?.getBoundingClientRect();
@@ -317,6 +390,12 @@ const RecPlayer = forwardRef<
   }
 
   const chapterIdx = chapterAt(chapters, time);
+  // En orden de tiempo: así las flechas van de una marca a la siguiente.
+  const shownMarkers = markers
+    .filter((m) => m.atSec >= trimStart && m.atSec <= end)
+    .slice(-50)
+    .sort((a, b) => a.atSec - b.atSec);
+  const rovingId = shownMarkers.some((m) => m.id === markFocus) ? markFocus : (shownMarkers[0]?.id ?? null);
   const showCta = !!cta && (cta.mode === 'always' || ended);
 
   return (
@@ -366,7 +445,38 @@ const RecPlayer = forwardRef<
               )}
           </div>
         )}
-        {scrub && (
+        {openMark && markOpen && (
+          <div
+            ref={markPop}
+            className="rec-mark-pop"
+            role="dialog"
+            aria-label={t('reaction', { name: openMark.who ?? '', emoji: openMark.emoji ?? '' })}
+            style={{ ['--x' as string]: `${markOpen.x}px` }}
+            data-testid="rec-mark-pop"
+          >
+            <span className="rec-mark-emoji" aria-hidden="true">
+              {openMark.emoji}
+            </span>
+            <span className="rec-mark-who">{openMark.who}</span>
+            <span className="rec-mark-at data">{t('reactionAt', { time: fmtClock(Math.max(0, openMark.atSec - trimStart)) })}</span>
+            {openMark.remove && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-danger btn-sm rec-mark-remove"
+                onClick={() => {
+                  const hadFocus = markPop.current?.contains(document.activeElement);
+                  openMark.remove?.();
+                  setMarkOpen(null);
+                  if (hadFocus) wrap.current?.focus({ preventScroll: true });
+                }}
+                data-testid="rec-mark-remove"
+              >
+                {t('removeReaction')}
+              </button>
+            )}
+          </div>
+        )}
+        {scrub && !openMark && (
           <ScrubPreview
             scrub={scrub}
             sprite={spriteOk ? (sprite ?? null) : null}
@@ -451,23 +561,32 @@ const RecPlayer = forwardRef<
           {chapters.slice(1).map((c) => (
             <span key={`c${c.start}`} className="rec-tick" style={{ left: `${((c.start - trimStart) / visible) * 100}%` }} aria-hidden="true" />
           ))}
-          {markers
-            .filter((m) => m.atSec >= trimStart && m.atSec <= end)
-            .slice(-50)
-            .map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={`rec-marker${m.emoji ? ' emoji' : ''}`}
-                style={{ left: `${((m.atSec - trimStart) / visible) * 100}%` }}
-                onClick={() => seek(m.atSec - trimStart)}
-                title={m.label}
-                aria-label={m.label}
-                tabIndex={-1}
-              >
-                {m.emoji ?? ''}
-              </button>
-            ))}
+          {shownMarkers.map((m, i) => (
+            <button
+              key={m.id}
+              type="button"
+              className={`rec-marker${m.emoji ? ' emoji' : ''}`}
+              style={{ left: `${((m.atSec - trimStart) / visible) * 100}%` }}
+              onClick={(e) => onMarker(m, e.currentTarget, e.detail === 0)}
+              onFocus={() => setMarkFocus(m.id)}
+              onKeyDown={(e) => {
+                // Un solo Tab para todas las marcas; entre ellas, con las flechas (sin mover el video).
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                e.preventDefault();
+                e.stopPropagation();
+                const next = shownMarkers[i + (e.key === 'ArrowRight' ? 1 : -1)];
+                if (next) e.currentTarget.parentElement?.querySelector<HTMLElement>(`.rec-marker[data-marker="${CSS.escape(next.id)}"]`)?.focus();
+              }}
+              title={openMark?.id === m.id ? undefined : m.label}
+              aria-label={m.label}
+              aria-haspopup={m.emoji ? 'dialog' : undefined}
+              aria-expanded={m.emoji ? openMark?.id === m.id : undefined}
+              tabIndex={m.id === rovingId ? 0 : -1}
+              data-marker={m.id}
+            >
+              {m.emoji ?? ''}
+            </button>
+          ))}
         </div>
         {chapterIdx >= 0 && !compact && <span className="rec-player-chapter">{chapters[chapterIdx].title}</span>}
         <div className="rec-speed">

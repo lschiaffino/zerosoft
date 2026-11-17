@@ -67,7 +67,7 @@ describe('Chats archivados de WhatsApp en Inbox', () => {
     expect((await listThreads(u.id)).map((t) => t.handle).sort()).toEqual(['5491100000801', '5491100000802']);
   });
 
-  it('un mensaje nuevo saca el chat de Archivados, salvo que esté silenciado o venga del historial', async () => {
+  it('un mensaje nuevo saca el chat de Archivados, también silenciado (como WhatsApp); uno del historial no', async () => {
     const { u, account } = await setup('arch-b');
     await ingestWhatsappEvents(account, [msg(DM), msg(DM2, { senderName: 'Beto' })]);
     const all = await listThreads(u.id);
@@ -77,10 +77,10 @@ describe('Chats archivados de WhatsApp en Inbox', () => {
     // Del historial: no desarchiva.
     await ingestWhatsappEvents(account, [msg(DM, { history: true, timestamp: new Date(Date.now() + 1000).toISOString() })], { history: true });
     expect((await listThreads(u.id, { view: 'archived' })).map((t) => t.handle).sort()).toEqual(['5491100000801', '5491100000802']);
-    // En vivo: el normal vuelve a la bandeja, el silenciado sigue archivado.
+    // En vivo: los dos vuelven a la bandeja, también el silenciado.
     await ingestWhatsappEvents(account, [msg(DM, { timestamp: new Date(Date.now() + 2000).toISOString() }), msg(DM2, { timestamp: new Date(Date.now() + 2000).toISOString() })]);
-    expect((await listThreads(u.id, { view: 'archived' })).map((t) => t.handle)).toEqual(['5491100000802']);
-    expect((await listThreads(u.id)).map((t) => t.handle)).toEqual(['5491100000801']);
+    expect(await listThreads(u.id, { view: 'archived' })).toHaveLength(0);
+    expect((await listThreads(u.id)).map((t) => t.handle).sort()).toEqual(['5491100000801', '5491100000802']);
   });
 
   it('el historial de WhatsApp (CHATS_SET y findChats) trae los archivados marcados', async () => {

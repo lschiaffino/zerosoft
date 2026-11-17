@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { brandOnColor, fmtClock, silenceCuts, type RecChapter, type RecOverlay, type RecSegment, type RecSpriteMeta } from '@/lib/rec-schema';
+import { brandOnColor, fmtClock, parseStartParam, silenceCuts, withStartParam, type RecChapter, type RecOverlay, type RecSegment, type RecSpriteMeta } from '@/lib/rec-schema';
 import type { RecBrand } from '@/lib/rec-admin';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
@@ -51,6 +51,11 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
   const seek = useCallback((rel: number) => player.current?.seek(rel), []);
   const viewerName = useCallback(() => storedViewerName(), []);
   const silences = useMemo(() => silenceCuts(video.transcript, video.durationSec), [video.transcript, video.durationSec]);
+  // Un link con ?t=90 (o 1m30s) abre el video en ese momento.
+  useEffect(() => {
+    const start = parseStartParam(new URLSearchParams(window.location.search).get('t'));
+    if (start) player.current?.seek(start);
+  }, []);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.createdAt));
 
   return (
@@ -90,6 +95,7 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
           </p>
           <div className="rec-watch-actions">
             <RecCopy text={shareUrl} label={t('copyLink')} />
+            {now >= 1 && <RecCopy text={withStartParam(shareUrl, now)} label={t('copyLinkAt', { time: fmtClock(now) })} testId="rec-copy-at" />}
             {(video.allowDownload || member) && (
               <RecDownload url={`${file}?download=1`} label={t('download')} />
             )}

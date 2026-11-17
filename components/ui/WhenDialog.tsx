@@ -1,28 +1,27 @@
-'use client';
+"use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { useLocale } from 'next-intl';
-import { localInputValue, longWhen, presetDate, SNOOZE_PRESETS, type SnoozePreset } from '@/lib/when-presets';
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { WhenMode } from "@/lib/when-presets";
+import WhenPicker, { whenShortcut } from "./WhenPicker";
 
 export interface WhenLabels {
-  /** Nombre de cada preset ("Mañana a la mañana"). */
-  preset: (p: SnoozePreset) => string;
-  custom: string;
+  /** Botón de la fecha elegida a mano ("Programar", "Posponer"). */
   confirm: string;
   cancel: string;
-  pastError: string;
 }
 
 /**
- * Elegir cuándo: posponer, recordar o programar un envío. Atajos del 1 al 6
- * para los presets (como Superhuman) y una fecha propia abajo. Esc o el telón
- * cierran; Enter en la fecha confirma. Lo usan Inbox y Lines: cada uno pasa
- * sus textos (`labels`) y, si quiere, una nota arriba (`help`) y algo más en
- * el pie (`extra`, por ejemplo "Repetir").
+ * Elegir cuándo: posponer, recordar o programar un envío. Las opciones del
+ * momento con atajos 1, 2, 3… (como Superhuman) y "Elegir día y hora" con un
+ * calendario y una hora (components/ui/WhenPicker). Esc o el telón cierran.
+ * Lo usan Inbox y Lines: cada uno pasa sus textos (`labels`), el modo
+ * (`snooze` o `send`, cambia las opciones) y, si quiere, una nota arriba
+ * (`help`) y algo más en el pie (`extra`, por ejemplo "Repetir").
  */
 export default function WhenDialog({
   open,
   title,
+  mode = "snooze",
   labels,
   help,
   extra,
@@ -32,50 +31,40 @@ export default function WhenDialog({
 }: {
   open: boolean;
   title: string;
+  mode?: WhenMode;
   labels: WhenLabels;
   help?: ReactNode;
   extra?: ReactNode;
-  /** Fecha que arranca en el campo (al cambiar la hora de algo ya programado). */
+  /** Fecha con la que arranca el calendario (al cambiar la hora de algo ya programado). */
   initial?: string | null;
   onPick: (iso: string) => void;
   onClose: () => void;
 }) {
-  const locale = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
-  const inputId = useId();
-  const [custom, setCustom] = useState('');
-  const [err, setErr] = useState('');
   const [now, setNow] = useState(() => new Date());
+  // Al abrir, "ahora" se toma en el mismo render (no en un efecto): el selector se dibuja una vez, con las opciones de este momento.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setNow(new Date());
+  }
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (open && !d.open) {
-      const n = new Date();
-      const start = initial ? new Date(initial) : null;
-      setNow(n);
-      setCustom(localInputValue(start && start.getTime() > n.getTime() + 60_000 ? start : new Date(n.getTime() + 24 * 3600_000)));
-      setErr('');
       d.showModal();
+      // showModal enfoca lo primero que encuentra: el foco va a la primera opción.
+      d.querySelector<HTMLElement>(".ui-when-opt")?.focus();
     }
     if (!open && d.open) d.close();
-  }, [open, initial]);
-
-  const pick = (p: SnoozePreset) => onPick(presetDate(p, new Date()).toISOString());
-  const submitCustom = () => {
-    const at = new Date(custom);
-    if (!custom || Number.isNaN(at.getTime()) || at.getTime() <= Date.now() + 30_000) {
-      setErr(labels.pastError);
-      return;
-    }
-    onPick(at.toISOString());
-  };
+  }, [open]);
 
   return (
     <dialog
       ref={ref}
       className="ui-modal ui-when"
-      aria-label={open ? title : ''}
+      aria-label={open ? title : ""}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -83,13 +72,7 @@ export default function WhenDialog({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      onKeyDown={(e) => {
-        const n = Number(e.key);
-        if (!(e.target instanceof HTMLInputElement) && !e.metaKey && !e.ctrlKey && !e.altKey && n >= 1 && n <= SNOOZE_PRESETS.length) {
-          e.preventDefault();
-          pick(SNOOZE_PRESETS[n - 1]);
-        }
-      }}
+      onKeyDown={(e) => void whenShortcut(e)}
     >
       {open && (
         <>
@@ -98,46 +81,22 @@ export default function WhenDialog({
           </div>
           <div className="ui-modal-body ui-when-body">
             {help && <div className="ui-help ui-when-help">{help}</div>}
-            <ul className="ui-when-list">
-              {SNOOZE_PRESETS.map((p, i) => (
-                <li key={p}>
-                  <button type="button" className="ui-when-opt" onClick={() => pick(p)} autoFocus={i === 0}>
-                    <span className="kbd" aria-hidden>
-                      {i + 1}
-                    </span>
-                    <span className="ui-when-label">{labels.preset(p)}</span>
-                    <span className="ui-when-at">{longWhen(presetDate(p, now).toISOString(), locale)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <form
-              className="ui-when-custom"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitCustom();
-              }}
-            >
-              <label className="label" htmlFor={inputId}>
-                {labels.custom}
-              </label>
-              <div className="ui-when-row">
-                <input id={inputId} className="input" type="datetime-local" value={custom} onChange={(e) => setCustom(e.target.value)} />
-                <button type="submit" className="btn btn-primary btn-sm">
-                  {labels.confirm}
-                </button>
-              </div>
-              {custom && !Number.isNaN(new Date(custom).getTime()) && <p className="ui-help">{longWhen(new Date(custom).toISOString(), locale)}</p>}
-              {err && (
-                <p className="ui-error" role="alert">
-                  {err}
-                </p>
-              )}
-            </form>
+            <WhenPicker
+              key={now.getTime()}
+              mode={mode}
+              now={now}
+              initial={initial}
+              confirmLabel={labels.confirm}
+              onPick={onPick}
+            />
           </div>
           <div className="ui-modal-foot">
             {extra}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onClose}
+            >
               {labels.cancel}
             </button>
           </div>

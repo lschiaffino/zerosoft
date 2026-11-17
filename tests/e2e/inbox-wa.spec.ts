@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox con la cara de WhatsApp Web, con el WhatsApp falso (GROUPS_FAKE=1):
@@ -38,7 +39,7 @@ async function shot(page: Page, name: string) {
 }
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
@@ -216,9 +217,11 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   await incoming.getByRole('button', { name: 'React' }).click();
   await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
   await expect(incoming.locator('.ib-wa-reactions')).toContainText('🙏');
+  // El globito abre quién reaccionó; un clic en la propia la saca.
   await incoming.locator('.ib-wa-reactions').click();
-  await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
+  await page.getByTestId('wa-reactions-popover').getByTestId('wa-reactor-me').click();
   await expect(incoming.locator('.ib-wa-reactions')).toHaveCount(0);
+  await expect(page.getByTestId('wa-reactions-popover')).toBeHidden();
 
   // Editar lo propio: el campo trae el texto, Enter guarda y queda "Edited".
   await reply.hover();

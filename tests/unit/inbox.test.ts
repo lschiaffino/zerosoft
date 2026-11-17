@@ -82,7 +82,7 @@ describe('Inbox: funciones puras', () => {
     expect(presetDate('tomorrow', now).getHours()).toBe(8);
     expect(presetDate('weekend', now).getDay()).toBe(6);
     expect(presetDate('nextWeek', now).getDay()).toBe(1);
-    expect(presetDate('later', now).getTime() - now.getTime()).toBe(3 * 3600_000);
+    expect(presetDate('later', now).getTime() - now.getTime()).toBe(3 * 3600_000); // 22:30 + 3 h ya es media hora justa
   });
 
   it('snippets: atajo limpio y variables de nombre', () => {
@@ -143,10 +143,10 @@ describe('Inbox: chats y mensajes', () => {
     await applyThreadAction(u.id, [waiting.id], { action: 'done' });
     expect(await ids({ view: 'inbox' })).toEqual(['Grupo']);
     expect(await ids({ view: 'snoozed' })).toEqual(['Por responder']);
-    expect(await ids({ view: 'done' })).toEqual(['Esperando']);
-    // Hecho y archivado son lo mismo para la persona: Archivados muestra los dos.
-    expect(await ids({ view: 'archived' })).toEqual(['Esperando']);
-    expect((await inboxCounts(u.id)).archived).toBe(1);
+    // Hecho y archivado son lo mismo para la persona: Archivados muestra los dos. Posponer también archiva.
+    expect((await ids({ view: 'done' })).sort()).toEqual(['Esperando', 'Por responder']);
+    expect((await ids({ view: 'archived' })).sort()).toEqual(['Esperando', 'Por responder']);
+    expect((await inboxCounts(u.id)).archived).toBe(2);
     // La búsqueda mira también Hechos y el texto de los mensajes.
     expect(await ids({ q: 'propuesta' })).toEqual(['Esperando']);
     expect((await inboxCounts(u.id)).snoozed).toBe(1);

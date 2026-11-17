@@ -2,8 +2,8 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 
 /**
  * Lines: enviar más tarde, contra el proveedor falso (GROUPS_FAKE=1). El
- * selector de "cuándo" es el de Inbox (presets con atajos del 1 al 6 y una
- * fecha propia); se abre con el reloj junto a Enviar, clic derecho en Enviar,
+ * selector de "cuándo" es el de Inbox (las opciones del momento con atajos 1,
+ * 2, 3… y día y hora a mano); se abre con el reloj junto a Enviar, clic derecho en Enviar,
  * Ctrl/⌘+Shift+Enter o el menú +. Lo programado queda en una tira arriba del
  * campo (enviar ahora, cambiar hora, editar, cancelar) y en la vista de todos
  * los programados de la lista de chats. "Repetir" sigue a mano.
@@ -68,13 +68,13 @@ test('programar con el reloj, deshacer, y editar, cambiar la hora y cancelar des
   await page.getByRole('menuitem', { name: 'Send later' }).click();
   await expect(page.locator('.ui-toast', { hasText: 'Write the message first.' })).toBeVisible();
 
-  // El reloj abre el selector; el atajo 3 es "Tomorrow morning". El aviso trae Deshacer.
+  // El reloj abre el selector; el número de "Tomorrow morning" lo elige (depende de la hora: se lee del botón). El aviso trae Deshacer.
   await field.fill('te confirmo mañana');
   await page.getByTestId('lines-send-later').click();
   await expect(when).toBeVisible();
   await expect(when.getByText('te confirmo mañana')).toBeVisible();
   await expect(when.getByRole('button', { name: /Tomorrow morning/ })).toBeVisible();
-  await page.keyboard.press('3');
+  await page.keyboard.press((await when.locator('[data-preset="tomorrow"]').getAttribute('data-when-n'))!);
   await expect(when).toBeHidden();
   const toast = page.locator('.ui-toast', { hasText: 'Scheduled for' });
   await expect(toast).toBeVisible();
@@ -84,12 +84,15 @@ test('programar con el reloj, deshacer, y editar, cambiar la hora y cancelar des
   await expect(strip).toHaveCount(0);
   await expect(field).toHaveValue('te confirmo mañana');
 
-  // Clic derecho en Enviar hace lo mismo; una fecha pasada no se acepta.
+  // Clic derecho en Enviar hace lo mismo; una hora que ya pasó no se acepta (hoy a las 0:00), y se vuelve a las opciones.
   await page.getByRole('button', { name: 'Send', exact: true }).click({ button: 'right' });
   await expect(when).toBeVisible();
-  await when.getByLabel('Pick a date and time').fill('2020-01-01T10:00');
-  await when.getByRole('button', { name: 'Schedule', exact: true }).click();
+  await when.getByTestId('when-custom').click();
+  await when.locator('.ui-cal-day[aria-current="date"]').click();
+  await when.getByLabel('Time', { exact: true }).fill('0:00');
   await expect(when.getByRole('alert')).toHaveText('Pick a time in the future.');
+  await expect(when.getByRole('button', { name: 'Schedule', exact: true })).toBeDisabled();
+  await when.getByRole('button', { name: 'Back to the options' }).click();
   await when.getByRole('button', { name: /Tomorrow morning/ }).click();
   const item = strip.getByTestId('lines-scheduled-item');
   await expect(item).toHaveCount(1);
@@ -110,7 +113,7 @@ test('programar con el reloj, deshacer, y editar, cambiar la hora y cancelar des
   await item.getByRole('button', { name: 'Change time' }).click();
   const change = page.getByRole('dialog', { name: 'Change the time' });
   await expect(change).toBeVisible();
-  await change.getByRole('button', { name: /In a week/ }).click();
+  await change.locator('[data-when-n="1"]').click();
   await expect(change).toBeHidden();
   await expect(page.locator('.ui-toast', { hasText: 'Scheduled for' })).toBeVisible();
   await expect(item).toHaveCount(1);
@@ -148,7 +151,7 @@ test('"enviar ahora" lo manda, y Repetir sigue a un clic con el atajo de teclado
   await field.fill('va el presupuesto');
   await field.press('Control+Shift+Enter');
   await expect(when).toBeVisible();
-  await when.getByRole('button', { name: /Next week/ }).click();
+  await when.locator('[data-preset="tomorrow"]').click();
   const item = strip.getByTestId('lines-scheduled-item');
   await expect(item).toContainText('va el presupuesto');
   await item.getByRole('button', { name: 'Send now' }).click();

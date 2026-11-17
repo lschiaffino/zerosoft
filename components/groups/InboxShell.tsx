@@ -36,9 +36,13 @@ import {
 import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
-import { ScheduledAllButton } from './Scheduled';
+import WhenDialog from '@/components/ui/WhenDialog';
+import { longWhen } from '@/lib/when-presets';
+import { ScheduledAllButton, useWhenLabels } from './Scheduled';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useSwitchingTo, useToast } from './ui';
 import Avatar from './wa/Avatar';
+import { useGroupEventText } from './wa/GroupEvent';
+import { decodeSysPreview } from '@/lib/wa-group-events';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
@@ -50,7 +54,7 @@ import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderMod
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { requestChatInfo } from '@/lib/chat-info-request';
-import { dragIds } from '@/lib/chat-gestures';
+import { dragIds, rowSwipeLayout, swipeActionKey, type RowSwipeKey } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
@@ -65,6 +69,7 @@ import DebouncedInput from '@/components/app/DebouncedInput';
 // Registra el último clic del mouse antes de abrir un chat (el campo se enfoca al abrirlo: lib/ui/focus-on-open).
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
+import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {
@@ -128,6 +133,8 @@ interface ListData {
   imports?: ImportStatus[];
   unreadChats?: number;
   archived?: { total: number; unread: number };
+  /** Eliminados con "Eliminar chat" (con historial) que ve quien mira. */
+  hidden?: number;
   dropped?: DroppedNumber[];
   hubspot?: boolean;
 }
@@ -201,6 +208,7 @@ export default function InboxShell({
   numbers = [],
   initialLine = 'all',
   banner = null,
+  agentsRow = null,
   children,
 }: {
   labels: LabelDto[];
@@ -215,6 +223,8 @@ export default function InboxShell({
   initialLine?: string;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
+  /** Fila "Agentes" de Fleet arriba de la lista (si la persona prendió el espejo en Fleet). */
+  agentsRow?: AgentsRowProps | null;
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
@@ -224,10 +234,17 @@ export default function InboxShell({
   const [toast, showToast] = useToast();
   const rel = useRelativeTime();
   const mediaText = useMediaText();
+  const sysText = useGroupEventText();
   const locale = useLocale();
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [archivedView, setArchivedView] = useState(false);
+  const [snoozeFor, setSnoozeFor] = useState<ChatDto | null>(null);
+  const laterLabels = useWhenLabels();
+  const snoozeLabels = useMemo(() => ({ ...laterLabels, confirm: t('snooze.confirm') }), [laterLabels, t]);
   const [archivedInfo, setArchivedInfo] = useState({ total: 0, unread: 0 });
+  // "Eliminados" (dentro de Archivados): los chats que alguien sacó con "Eliminar chat", para recuperarlos.
+  const [deletedView, setDeletedView] = useState(false);
+  const [hiddenTotal, setHiddenTotal] = useState(0);
   const [dropped, setDropped] = useState<DroppedNumber[]>([]);
   const [hiding, setHiding] = useState<ChatDto | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -415,13 +432,14 @@ export default function InboxShell({
     if (filtersKey) p.set('f', filtersKey);
     // "Hoy" y "esta semana" empiezan a la medianoche de quien mira.
     if (filters.lastMessage || filters.created) p.set('tz', String(-new Date().getTimezoneOffset()));
-    if (archivedView) p.set('archived', '1');
+    if (deletedView) p.set('hidden', '1');
+    else if (archivedView) p.set('archived', '1');
     if (line !== 'all') p.set('number', line);
     if (folderSel) p.set('folder', folderSel);
     if (debounced) p.set('q', debounced);
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersKey, debounced, archivedView, line, folderSel]);
+  }, [filtersKey, debounced, archivedView, deletedView, line, folderSel]);
   live.current.unreadOnly = filters.unread === 'yes';
   live.current.current = current;
   const switching = loaded && shownKey !== query;
@@ -488,6 +506,7 @@ export default function InboxShell({
       showRows(key, reuseRows(prev, tail.length ? [...data.rows, ...tail] : data.rows), tail.length ? L.next : data.next, data.pinned ?? 0);
       setImports((cur) => (JSON.stringify(cur) === JSON.stringify(data.imports ?? []) ? cur : (data.imports ?? [])));
       if (data.archived) setArchivedInfo((cur) => (cur.total === data.archived!.total && cur.unread === data.archived!.unread ? cur : data.archived!));
+      if (typeof data.hidden === 'number') setHiddenTotal(data.hidden);
       setDropped((cur) => (JSON.stringify(cur) === JSON.stringify(data.dropped ?? []) ? cur : (data.dropped ?? [])));
       setHubspotOn(data.hubspot === true);
       if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
@@ -755,16 +774,76 @@ export default function InboxShell({
     return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
   }
 
+  /**
+   * Posponer: el chat queda archivado (acá y en WhatsApp) hasta la hora elegida, y vuelve solo. Sale de la lista al
+   * instante y Archivados suma uno; Deshacer lo deja como estaba.
+   */
+  async function snoozeChat(c: ChatDto, iso: string) {
+    setRows((rs) => (archivedView ? rs.map((r) => (r.id === c.id ? { ...r, archived: true, snoozedUntil: iso } : r)) : rs.filter((r) => r.id !== c.id)));
+    if (!c.archived) setArchivedInfo((cur) => ({ total: cur.total + 1, unread: cur.unread + (c.unread > 0 ? 1 : 0) }));
+    const res = await api(`/api/groups/chats/${c.id}`, { method: 'PATCH', body: { snoozedUntil: iso } });
+    void load(true);
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    showToast(t('snooze.done', { when: longWhen(iso, locale) }), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { snoozedUntil: null }) });
+  }
+
+  function cancelSnooze(c: ChatDto) {
+    void rowAction(c, { snoozedUntil: null }).then(() => showToast(t('snooze.cancelled'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { snoozedUntil: c.snoozedUntil }) }));
+  }
+
   /** Archivar o desarchivar, con deshacer en el aviso. */
   function toggleArchived(c: ChatDto) {
+    // Sale de la lista al instante (como Inbox y WhatsApp): archivar espera a WhatsApp y la fila no se queda a la vista.
+    // Si falla, la recarga de rowAction la trae de vuelta.
+    if (archivedView === c.archived) {
+      setRows((rs) => rs.filter((r) => r.id !== c.id));
+      const d = c.archived ? -1 : 1;
+      setArchivedInfo((cur) => ({ total: Math.max(0, cur.total + d), unread: Math.max(0, cur.unread + (c.unread > 0 ? d : 0)) }));
+    }
     void rowAction(c, { archived: !c.archived }).then(() =>
       showToast(c.archived ? t('wa.unarchived') : t('wa.archived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: c.archived }) }),
     );
   }
 
+  // Mandar desde un chat archivado lo desarchiva, como WhatsApp (el servidor lo hace al guardar el mensaje): sale de
+  // Archivados ya, el contador baja y el chat sigue abierto. En Archivados, con aviso y Deshacer.
+  // El aviso sale cuando el envío terminó: antes, el envío que llega después lo volvería a desarchivar.
+  const unarchivedBySend = useRef(new Map<string, { chat: ChatDto; notice: boolean }>());
+  useOnChatSent((chatId) => {
+    const c = rowsRef.current.find((r) => r.id === chatId);
+    if (!c?.archived || c.keepArchived || unarchivedBySend.current.has(chatId)) return;
+    unarchivedBySend.current.set(chatId, { chat: c, notice: archivedView });
+    setRows((rs) => (archivedView ? rs.filter((r) => r.id !== chatId) : rs.map((r) => (r.id === chatId ? { ...r, archived: false } : r))));
+    setArchivedInfo((cur) => ({ total: Math.max(0, cur.total - 1), unread: Math.max(0, cur.unread - (c.unread > 0 ? 1 : 0)) }));
+  });
+  useEffect(
+    () =>
+      unsentLines.subscribe((e) => {
+        // 'removed': el chat ya trajo el mensaje guardado antes que la respuesta del envío (también salió).
+        if (e.type !== 'saved' && e.type !== 'failed' && e.type !== 'removed') return;
+        const done = unarchivedBySend.current.get(e.chatId);
+        if (!done) return;
+        unarchivedBySend.current.delete(e.chatId);
+        // No salió: el chat sigue archivado y vuelve a su lista.
+        if (e.type === 'failed' || (e.type === 'saved' && e.saved.status === 'failed')) return void load(true);
+        if (done.notice) showToast(t('wa.unarchived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(done.chat, { archived: true }) });
+      }),
+    [showToast, t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  /** Recuperar un chat eliminado: vuelve a la lista con su historial. */
+  function restoreChat(c: ChatDto) {
+    void rowAction(c, { hidden: false }).then(() => showToast(t('wa.chatRestored')));
+  }
+
   function rowMenu(c: ChatDto): MenuItem[] {
+    if (deletedView) return [{ key: 'restore', glyph: <Retry size={18} />, label: t('wa.restoreChat'), onSelect: () => restoreChat(c) }];
     return [
       { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
+      { key: 'snooze', glyph: <ClockIcon size={18} />, label: c.snoozedUntil ? t('snooze.cancel') : t('snooze.action'), onSelect: () => (c.snoozedUntil ? cancelSnooze(c) : setSnoozeFor(c)) },
       { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', glyph: <PinIcon size={18} />, label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
@@ -786,10 +865,12 @@ export default function InboxShell({
     if (!c) return [];
     const by = Object.fromEntries(rowMenu(c).map((it) => [it.key, it]));
     const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, icon: by[key].glyph, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
+    if (deletedView) return [...from('restore'), { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) }];
     return [
       { key: 'newWindow', icon: <WindowIcon size={18} />, label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
       ...from('unread'),
       ...from('archive'),
+      ...from('snooze'),
       ...from('pin'),
       ...from('mute'),
       ...from('close'),
@@ -812,22 +893,27 @@ export default function InboxShell({
 
   /**
    * Deslizar una fila, como WhatsApp: a la derecha, leído o no leído (la
-   * principal) y fijar; a la izquierda, archivar (la principal) y más (el menú
-   * de la fila). Con chats seleccionados no se desliza.
+   * principal), fijar y posponer; a la izquierda, archivar (la principal) y más
+   * (el menú de la fila). Con chats seleccionados no se desliza.
    */
   function swipeActions(id: string): SwipeActions | null {
     const c = rowsRef.current.find((r) => r.id === id);
-    if (!c || selectMode || visibleSelected.length > 0) return null;
-    return {
-      right: [
-        { key: 'unread', label: c.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: c.unread > 0 ? 'read' : 'unread', onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
-        { key: 'pin', label: c.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: c.pinned ? 'unpin' : 'pin', onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
-      ],
-      left: [
-        { key: 'archive', label: c.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: c.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => toggleArchived(c) },
-        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openRowMenu(id, 220) },
-      ],
+    if (!c || selectMode || visibleSelected.length > 0 || deletedView) return null;
+    const run: Record<RowSwipeKey, () => void> = {
+      read: () => void rowAction(c, { read: true }),
+      unread: () => void rowAction(c, { read: false }),
+      pin: () => void rowAction(c, { pinned: true }),
+      unpin: () => void rowAction(c, { pinned: false }),
+      // Posponer abre el mismo diálogo que el menú (#393): elegir la hora archiva el chat hasta entonces.
+      snooze: () => setSnoozeFor(c),
+      unsnooze: () => cancelSnooze(c),
+      archive: () => toggleArchived(c),
+      unarchive: () => toggleArchived(c),
+      more: () => openRowMenu(id, 220),
     };
+    const layout = rowSwipeLayout({ unread: c.unread > 0, pinned: c.pinned, archived: c.archived, snoozed: Boolean(c.snoozedUntil) });
+    const action = (key: RowSwipeKey) => ({ key: swipeActionKey(key), label: t(`swipe.${key}`), icon: key, onSelect: run[key], ...(key === 'archive' || key === 'unarchive' ? { leaves: true } : {}) });
+    return { right: layout.right.map(action), left: layout.left.map(action) };
   }
   // Desde el deslizado, el menú espera a que la fila vuelva a su lugar.
   const openRowMenu = (id: string, wait = 0) =>
@@ -868,6 +954,9 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        data-testid="chat-row"
+        data-chat-id={c.id}
+        data-overdue={c.flagged ? 'true' : undefined}
         {...gestures.rowProps(c.id)}
         {...ctxMenu.handlers(c.id, t('wa.chatOptions', { name: c.name }), !showCheck)}
       >
@@ -894,6 +983,8 @@ export default function InboxShell({
           aria-current={c.id === current ? 'page' : undefined}
           draggable={false}
         >
+          {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}
+          {c.flagged && <span className="wa-overdue-edge" data-testid="row-overdue-edge" aria-hidden="true" title={t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' })} />}
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
             <span className="gr-row-top">
@@ -924,6 +1015,8 @@ export default function InboxShell({
                       ? t(c.presence.state === 'recording' ? 'wa.recordingBy' : 'wa.typingBy', { name: c.presence.name })
                       : t(c.presence.state === 'recording' ? 'wa.recordingAudio' : 'wa.typing')}
                   </span>
+                ) : decodeSysPreview(c.lastMessagePreview) ? (
+                  <span className="gr-row-sys">{sysText(decodeSysPreview(c.lastMessagePreview)!)}</span>
                 ) : c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]' ? (
                   <span className="gr-row-deleted">
                     <Ban size={14} /> {c.lastDirection === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}
@@ -943,6 +1036,18 @@ export default function InboxShell({
                 )}
               </span>
               <span className="gr-row-icons">
+                {c.keepArchived && c.archived && <ArchiveIcon size={16} label={t('wa.keptArchived')} className="wa-row-kept" />}
+                {c.snoozedUntil && (
+                  <span className="gr-row-snoozed" data-testid="lines-row-snoozed" title={t('snooze.until', { when: longWhen(c.snoozedUntil, locale) })}>
+                    <ClockIcon size={16} label={t('snooze.until', { when: longWhen(c.snoozedUntil, locale) })} />
+                  </span>
+                )}
+                {/* Como WhatsApp: en la búsqueda (que también trae lo archivado), "Archivado" a la derecha. */}
+                {debounced && !archivedView && c.archived && (
+                  <span className="wa-archived-tag" data-testid="search-archived-tag">
+                    {t('wa.archivedTag')}
+                  </span>
+                )}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (
@@ -979,9 +1084,9 @@ export default function InboxShell({
       </li>
     );
   }
-  // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común.
+  // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común. También con solo eliminados: ahí adentro está "Eliminados".
   const archivedRow =
-    !archivedView && !debounced && !activeList && isEmptyFilters(filters) && archivedInfo.total > 0 ? (
+    !archivedView && !debounced && !activeList && isEmptyFilters(filters) && (archivedInfo.total > 0 || hiddenTotal > 0) ? (
       <button type="button" className="wa-archived-row" onClick={() => setArchivedView(true)}>
         <span className="wa-archived-icon">
           <ArchiveIcon size={20} />
@@ -990,6 +1095,7 @@ export default function InboxShell({
         {archivedInfo.unread > 0 && <span className="wa-archived-count">{archivedInfo.unread}</span>}
       </button>
     ) : null;
+  const agentsRowEl = agentsRow && !archivedView && !debounced && !activeList && isEmptyFilters(filters) ? <AgentsRow {...agentsRow} /> : null;
   // Lo que guarda una lista: los filtros puestos más la búsqueda.
   const listFilters: SavedListFilters = parseLinesFilters({ ...filters, q: debounced });
   const dirty = activeList ? serializeLinesFilters(listFilters) !== serializeLinesFilters(activeList.filters) : false;
@@ -1167,7 +1273,9 @@ export default function InboxShell({
   }
   const emptyText = debounced
     ? t('inbox.noResults')
-    : archivedView
+    : deletedView
+      ? t('wa.deletedEmpty')
+      : archivedView
       ? t('wa.archivedEmpty')
       : folderSel === 'none' && countFilters(filters) === 0
         ? t('lines.unfiledEmpty')
@@ -1416,13 +1524,43 @@ export default function InboxShell({
               </button>
             </div>
           ))}
-          {archivedView && (
+          {archivedView && !deletedView && (
             <div className="wa-archived-head">
-              <button type="button" className="wa-icon-btn" onClick={() => setArchivedView(false)} aria-label={t('thread.back')} title={t('thread.back')}>
+              <button
+                type="button"
+                className="wa-icon-btn"
+                onClick={() => {
+                  setArchivedView(false);
+                  setDeletedView(false);
+                }}
+                aria-label={t('thread.back')}
+                title={t('thread.back')}
+              >
                 <ArrowLeft size={22} />
               </button>
               <h3>{t('wa.archivedTitle')}</h3>
             </div>
+          )}
+          {/* "Eliminados": adentro de Archivados, solo si hay alguno. */}
+          {archivedView && !deletedView && !debounced && hiddenTotal > 0 && (
+            <button type="button" className="wa-archived-row wa-deleted-row" onClick={() => setDeletedView(true)} data-testid="lines-deleted-entry">
+              <span className="wa-archived-icon">
+                <Trash size={20} />
+              </span>
+              <span className="wa-archived-label">{t('wa.deletedTitle')}</span>
+              <span className="wa-archived-count">{hiddenTotal}</span>
+            </button>
+          )}
+          {deletedView && (
+            <>
+              <div className="wa-archived-head">
+                <button type="button" className="wa-icon-btn" onClick={() => setDeletedView(false)} aria-label={t('thread.back')} title={t('thread.back')} data-testid="lines-deleted-back">
+                  <ArrowLeft size={22} />
+                </button>
+                <h3>{t('wa.deletedTitle')}</h3>
+              </div>
+              <p className="wa-deleted-note">{t('wa.deletedNote')}</p>
+            </>
           )}
           {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
@@ -1467,11 +1605,13 @@ export default function InboxShell({
             </div>
           ) : rows.length === 0 && !error ? (
             <>
+              {agentsRowEl}
               {archivedRow}
               <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
             <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
+              {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (
                 <>
@@ -1544,7 +1684,8 @@ export default function InboxShell({
           setHiding(null);
           if (!c) return;
           void rowAction(c, { hidden: true }).then(() => {
-            showToast(t('wa.chatDeleted'));
+            // Deshacer: el chat vuelve a la lista con su historial (fijado y archivado no, como "Eliminar chat" en WhatsApp).
+            showToast(t('wa.chatDeleted'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { hidden: false }) });
             if (c.id === current) router.push(`/app/lines/inbox${listSuffix}`);
           });
         }}
@@ -1570,6 +1711,18 @@ export default function InboxShell({
           setMoveIds(null);
           void moveToFolder(ids, folderId);
         }}
+      />
+      <WhenDialog
+        open={!!snoozeFor}
+        title={t('snooze.title')}
+        mode="snooze"
+        labels={snoozeLabels}
+        onPick={(iso) => {
+          const c = snoozeFor;
+          setSnoozeFor(null);
+          if (c) void snoozeChat(c, iso);
+        }}
+        onClose={() => setSnoozeFor(null)}
       />
       {gestures.layer}
       <ContextMenu anchor={ctxMenu.open?.anchor ?? null} items={ctxMenu.open ? ctxItems(ctxMenu.open.id) : []} onClose={ctxMenu.close} />

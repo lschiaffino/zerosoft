@@ -440,13 +440,84 @@ describe('vistas, comentarios y avisos', () => {
     const a = await getAnalytics(owner, v.id);
     expect([a.views, a.unique, a.avgPct, a.completed, a.ctaClicks]).toEqual([4, 3, 57, 1, 1]);
     expect(a.viewers.find((x) => x.viewerKey === 'a:caro')?.pct).toBe(20);
-    expect(a.retention.length).toBe(20);
+    expect(a.retention.length).toBe(50);
     expect(a.retention[0]).toBe(100);
     // La analítica es de quien administra.
     await expect(getAnalytics(mateActor(), v.id)).rejects.toBeTruthy();
     expect(a.viewers.find((x) => x.name === 'Beto')?.signedIn).toBe(true);
     const notes = (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'rec_view' AND source_id = ?").all('rec-owner', v.id)) as Array<{ title: string }>;
     expect(notes.length).toBe(3);
+  });
+
+  it('guarda lugar, dispositivo y origen sin IP ni user agent, numera espectadores y cuenta re-vistas', async () => {
+    const v = await readyVideo(owner, 'Lugar', 100);
+    const ctx = { country: 'AR', region: 'X', city: 'Córdoba', device: 'mobile' as const, browser: 'Safari', os: 'iOS', referrer: 'mail.example.com' };
+    const anon1 = { key: 'a:lugar-1', userId: null, name: '', isAuthor: false };
+    const anon2 = { key: 'a:lugar-2', userId: null, name: '', isAuthor: false };
+    const member1 = { key: 'u:rec-member', userId: 'rec-member', name: '', isAuthor: false };
+    const one = await trackRecView(v, anon1, { duration: 100, context: ctx });
+    // Re-ve el tramo 0–20 tres veces: 60 s reproducidos en los primeros 10 tramos (2 s cada uno).
+    const heat = Array.from({ length: 50 }, (_, i) => (i < 10 ? 6 : 0));
+    await trackRecView(v, anon1, { viewId: one.viewId!, watched: 60, position: 20, duration: 100, ranges: [[0, 20]], heat });
+    // Un ping con menos no baja lo acumulado; uno inflado se topa.
+    await trackRecView(v, anon1, { viewId: one.viewId!, watched: 60, position: 20, duration: 100, heat: heat.map(() => 1) });
+    await trackRecView(v, anon2, { duration: 100, context: { ...ctx, country: 'UY', city: 'Montevideo', device: 'desktop', referrer: '' } });
+    await trackRecView(v, member1, { duration: 100 });
+    // Vuelve el primero: mismo número.
+    await trackRecView(v, anon1, { duration: 100 });
+    const raw = (await getDb()
+      .prepare('SELECT viewer_key, viewer_no, ip_hash, user_agent, country, city, device, heat FROM rec_views WHERE video_id = ? ORDER BY started_at, rowid')
+      .all(v.id)) as Array<{ viewer_key: string; viewer_no: number; ip_hash: string; user_agent: string; country: string; city: string; device: string; heat: string | null }>;
+    expect(raw.every((r) => r.ip_hash === '' && r.user_agent === '')).toBe(true);
+    expect(raw.filter((r) => r.viewer_key === 'a:lugar-1').map((r) => r.viewer_no)).toEqual([1, 1]);
+    expect(raw.find((r) => r.viewer_key === 'a:lugar-2')?.viewer_no).toBe(2);
+    expect(raw.find((r) => r.viewer_key === 'u:rec-member')?.viewer_no).toBe(3);
+    const firstHeat = JSON.parse(raw[0].heat!) as number[];
+    expect(firstHeat[0]).toBe(6);
+    expect(firstHeat[20]).toBe(1);
+
+    const a = await getAnalytics(owner, v.id);
+    expect([a.views, a.unique]).toEqual([4, 3]);
+    const anon = a.viewers.find((x) => x.viewerKey === 'a:lugar-1')!;
+    expect([anon.viewerNo, anon.name, anon.country, anon.city, anon.device, anon.browser, anon.referrer, anon.views]).toEqual([1, '', 'AR', 'Córdoba', 'mobile', 'Safari', 'mail.example.com', 2]);
+    // Con cuenta y sin nombre en la vista: el de la cuenta.
+    expect(a.viewers.find((x) => x.viewerKey === 'u:rec-member')?.name).toBe('Member');
+    expect(a.countries).toEqual([
+      { name: 'AR', count: 1 },
+      { name: 'UY', count: 1 },
+      { name: 'unknown', count: 1 },
+    ]);
+    expect(a.sources.find((x) => x.name === 'direct')?.count).toBe(2);
+    expect(a.plays[0]).toBeGreaterThan(a.retention[0] / 100);
+    expect(a.days.length).toBeGreaterThanOrEqual(7);
+    expect(a.days[a.days.length - 1].count).toBe(4);
+    expect(a.sampled).toBeNull();
+  });
+
+  it('la migración pasa el user agent viejo a dispositivo, borra user agent e IP y numera (dos veces da igual)', async () => {
+    const v = await readyVideo(owner, 'Migración', 100);
+    const ins = (key: string, at: string, ua: string) =>
+      getDb()
+        .prepare(
+          `INSERT INTO rec_views (id, video_id, workspace_id, viewer_key, user_agent, ip_hash, started_at, last_ping_at) VALUES (?, ?, ?, ?, ?, 'abc123', ?, ?)`,
+        )
+        .run(crypto.randomUUID(), v.id, v.workspace_id, key, ua, at, at);
+    await ins('a:m2', '2026-11-02 10:00:00', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1');
+    await ins('a:m1', '2026-11-01 10:00:00', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await ins('a:m1', '2026-11-03 10:00:00', '');
+    const { getClient } = await import('@/lib/db');
+    const { recViewContextUp } = await import('@/lib/schema/rec-view-context-migration');
+    await recViewContextUp(getClient());
+    await recViewContextUp(getClient());
+    const rows = (await getDb()
+      .prepare('SELECT viewer_key, viewer_no, device, browser, os, user_agent, ip_hash FROM rec_views WHERE video_id = ? ORDER BY started_at')
+      .all(v.id)) as Array<{ viewer_key: string; viewer_no: number; device: string; browser: string; os: string; user_agent: string; ip_hash: string }>;
+    expect(rows.map((r) => [r.viewer_key, r.viewer_no, r.device, r.os])).toEqual([
+      ['a:m1', 1, 'desktop', 'Windows'],
+      ['a:m2', 2, 'mobile', 'iOS'],
+      ['a:m1', 1, '', ''],
+    ]);
+    expect(rows.every((r) => r.user_agent === '' && r.ip_hash === '')).toBe(true);
   });
 
   it('comentarios y reacciones con el segundo, respuestas, borrar y aviso al autor', async () => {
@@ -494,6 +565,58 @@ describe('vistas, comentarios y avisos', () => {
     const off = (await getVideoRow(owner, v.id))!;
     await expect(addComment(off, ana, { kind: 'comment', body: 'x' })).rejects.toMatchObject({ code: 'comments_off' });
   });
+  it('quitar una reacción: quien la puso (con cuenta o invitado) o quien administra; nadie más', async () => {
+    const v = await readyVideo(owner, 'Quitar reacciones', 100);
+    const guest = { key: 'a:guest-one', userId: null, name: 'Guest One', isAuthor: false };
+    const otherGuest = { key: 'a:guest-two', userId: null, name: 'Guest Two', isAuthor: false };
+    const member = { key: 'u:rec-mate', userId: 'rec-mate', name: 'Mate', isAuthor: false };
+    const author = { key: 'u:rec-owner', userId: 'rec-owner', name: 'Owner', isAuthor: true };
+    const g1 = await addComment(v, guest, { kind: 'reaction', emoji: '❤️', atSec: 5 });
+    const g2 = await addComment(v, guest, { kind: 'reaction', emoji: '❤️', atSec: 30 });
+    const m1 = await addComment(v, member, { kind: 'reaction', emoji: '🎉', atSec: 12 });
+    const a1 = await addComment(v, author, { kind: 'reaction', emoji: '👏', atSec: 20 });
+    expect([g1.kind, g1.mine]).toEqual(['reaction', true]);
+    // Otro invitado, alguien sin clave propia y un miembro que no administra: no pueden.
+    await expect(deleteComment(v, g1.id, otherGuest, null)).rejects.toMatchObject({ code: 'forbidden', status: 403 });
+    await expect(deleteComment(v, g1.id, { ...otherGuest, key: '' }, null)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, g1.id, member, mateActor())).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, a1.id, member, mateActor())).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(deleteComment(v, m1.id, guest, null)).rejects.toMatchObject({ code: 'forbidden' });
+    // Quien administra otro workspace tampoco.
+    await expect(deleteComment(v, g1.id, { key: 'u:stranger', userId: 'stranger', name: 'Stranger', isAuthor: false }, { ws: 'other-ws', actor: 'stranger', admin: true, name: 'Stranger' })).rejects.toMatchObject({ code: 'forbidden' });
+    // La reacción de otro video no se borra por este.
+    const v2 = await readyVideo(owner, 'Otro video', 100);
+    await expect(deleteComment(v2, g1.id, guest, null)).rejects.toMatchObject({ code: 'not_found', status: 404 });
+    expect((await listComments(v, guest.key)).reactions).toEqual({ '❤️': 2, '🎉': 1, '👏': 1 });
+    // La invitada quita una de las suyas: la otra queda (varias reacciones en distintos segundos).
+    await deleteComment(v, g1.id, guest, null);
+    let page = await listComments(v, guest.key);
+    expect(page.reactions).toEqual({ '❤️': 1, '🎉': 1, '👏': 1 });
+    expect(page.reactionMarks.filter((r) => r.mine).map((r) => r.id)).toEqual([g2.id]);
+    // Con cuenta, la propia; y quien administra, la de cualquiera.
+    await deleteComment(v, m1.id, member, mateActor());
+    await deleteComment(v, g2.id, author, owner);
+    await deleteComment(v, a1.id, author, owner);
+    page = await listComments(v, guest.key);
+    expect(page.reactions).toEqual({});
+    expect(page.reactionMarks).toEqual([]);
+    // Borrar dos veces: ya no está.
+    await expect(deleteComment(v, g1.id, guest, null)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('las reacciones propias vienen siempre, aunque haya más de 50 después', async () => {
+    const v = await readyVideo(owner, 'Muchas reacciones', 100);
+    const early = { key: 'a:early-bird', userId: null, name: 'Early', isAuthor: false };
+    const mine = await addComment(v, early, { kind: 'reaction', emoji: '😮', atSec: 1 });
+    const crowd = { key: 'a:crowd', userId: null, name: 'Crowd', isAuthor: false };
+    for (let i = 0; i < 52; i++) await addComment(v, crowd, { kind: 'reaction', emoji: '🎉', atSec: i });
+    const anon = await listComments(v, null);
+    expect(anon.reactionMarks.length).toBe(50);
+    expect(anon.reactionMarks.some((r) => r.id === mine.id)).toBe(false);
+    const own = await listComments(v, early.key);
+    expect(own.reactionMarks.length).toBe(51);
+    expect(own.reactionMarks.filter((r) => r.mine).map((r) => r.id)).toEqual([mine.id]);
+  });
 });
 
 describe('transcripción y resumen', () => {
@@ -531,5 +654,24 @@ describe('transcripción y resumen', () => {
     vi.stubEnv('VERCEL', '');
     const w = await readyVideo(owner, 'Sin IA 2', 20);
     expect(await processRecVideo(w.id)).toBe('disabled');
+  });
+});
+
+describe('link con momento de inicio', () => {
+  it('entiende los formatos de t', async () => {
+    const { parseStartParam } = await import('@/lib/rec-schema');
+    expect(parseStartParam('90')).toBe(90);
+    expect(parseStartParam('90s')).toBe(90);
+    expect(parseStartParam('1m30s')).toBe(90);
+    expect(parseStartParam('1h2m3s')).toBe(3723);
+    expect(parseStartParam('1:30')).toBe(90);
+    for (const bad of ['', '0', 'abc', '-5', '1:75', 'm']) expect(parseStartParam(bad)).toBeNull();
+    expect(parseStartParam(null)).toBeNull();
+  });
+  it('agrega t al link y respeta lo que ya trae', async () => {
+    const { withStartParam } = await import('@/lib/rec-schema');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc', 65.9)).toBe('https://zerosoft.ai/en/v/abc?t=65');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc?invite=x&t=3', 10)).toBe('https://zerosoft.ai/en/v/abc?invite=x&t=10');
+    expect(withStartParam('https://zerosoft.ai/en/v/abc', 0.4)).toBe('https://zerosoft.ai/en/v/abc');
   });
 });

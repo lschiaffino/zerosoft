@@ -343,3 +343,27 @@ export function evolutionFileName(filename: string, mimetype: string, kind: Medi
   const want = EXT_FOR[baseMime(mimetype)];
   return want ? `${name}.${want}` : name;
 }
+
+// ---------- Stickers para Evolution ----------
+
+/**
+ * Cuerpo de /message/sendSticker (Evolution v2.3). Evolution pasa lo que llega
+ * por sharp y, si no ve ".webp" o ".gif" en el texto (en base64 nunca lo ve),
+ * se queda con el primer cuadro: un sticker animado llegaba quieto. Un WebP ya
+ * listo (512×512, de la colección o de un chat) va en base64 con
+ * `notConvertSticker`, así sale tal cual; lo demás (una URL, otra imagen) sigue
+ * pasando por la conversión de Evolution. Que WhatsApp lo reproduzca lo marca
+ * `isAnimated` en el mensaje, que pone el parche 0009 de infra/evolution.
+ */
+export function evolutionStickerBody(chatId: string, source: string, mimetype: string): Record<string, unknown> {
+  const body: Record<string, unknown> = { number: chatId, sticker: source };
+  const raw = source.replace(/^data:[^,]*,/, '');
+  // Los primeros 16 caracteres de base64 son los primeros 12 bytes: "RIFF", el tamaño y "WEBP". Una URL no decodifica a eso.
+  const head = /^[A-Za-z0-9+/]{16}/.test(raw) ? Buffer.from(raw.slice(0, 16), 'base64') : null;
+  const webp = baseMime(mimetype) === 'image/webp' && head !== null && head.toString('latin1', 0, 4) === 'RIFF' && head.toString('latin1', 8, 12) === 'WEBP';
+  if (webp) {
+    body.sticker = raw;
+    body.notConvertSticker = true;
+  }
+  return body;
+}

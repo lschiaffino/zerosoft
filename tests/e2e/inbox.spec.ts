@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { waLinkIp } from './helpers/wa-link';
 
 /**
  * Inbox de punta a punta con los proveedores falsos (GROUPS_FAKE=1 para
@@ -47,7 +48,7 @@ function watchErrors(page: Page): string[] {
 
 /** Vincula WhatsApp (falso) y devuelve la cuenta con su secreto de webhook (leído de la base, como lo tendría el servidor). */
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
-  await request.post('/api/inbox/whatsapp');
+  await request.post('/api/inbox/whatsapp', waLinkIp());
   await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
@@ -163,6 +164,19 @@ test('posponer con H, recordatorio con F y la vista de pospuestos', async ({ pag
   await expect(row).toHaveCount(0);
   await page.goto('/en/app/inbox/v/snoozed', { waitUntil: 'networkidle' });
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
+  // Sin mouse: H abre, las flechas recorren los horarios (el primero arranca con el foco) y Esc cierra.
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').focus();
+  await page.keyboard.press('h');
+  const opts = dialog.locator('.ui-when-opt');
+  await expect(opts.first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(opts.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  // Desde el primero, arriba da la vuelta a "Pick a date and time".
+  await expect(dialog.getByTestId('when-custom')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
   // F sobre el pospuesto: recordame si no contesta (con fecha propia) y Esc cierra sin cambiar nada.
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').focus();
   await page.keyboard.press('f');
@@ -345,7 +359,7 @@ test('más tarde con varios mensajes: cada uno su burbuja, editar, enviar ya y c
   await page.getByRole('button', { name: 'Later', exact: true }).click();
   await dialog.getByRole('button', { name: 'Add another message' }).click();
   await dialog.getByRole('textbox', { name: 'Message 2' }).fill('dos');
-  await dialog.getByRole('button', { name: /Later today/ }).click();
+  await dialog.locator('[data-preset="tomorrow"]').click();
   await expect(page.locator('.ib-sched', { hasText: 'dos' })).toBeVisible();
   await page.locator('.ib-sched', { hasText: 'dos' }).getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('.ib-sched')).toHaveCount(0);

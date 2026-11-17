@@ -7,7 +7,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { EntryDto, ProjectDto, TaskDto } from '@/lib/time/core';
 import { addDays, formatMinutes, isIsoDate, liveMinutes, parseDuration, weekDays } from '@/lib/time/types';
-import { api, localToday, TimeDialog, useDayFormat, useErrorText, useToast } from './ui';
+import { api, groupByClient, localToday, TimeDialog, useDayFormat, useErrorText, useToast } from './ui';
+import WeekGrid from './WeekGrid';
+
+export type SheetView = 'day' | 'week';
 
 type Draft = {
   id: string | null;
@@ -20,24 +23,32 @@ type Draft = {
   originalDuration: string;
 };
 
-/** Proyectos agrupados por cliente para el <select> (sin cliente al final). */
-function groupByClient(projects: ProjectDto[]): Array<[string | null, ProjectDto[]]> {
-  const map = new Map<string | null, ProjectDto[]>();
-  for (const p of projects) map.set(p.clientName, [...(map.get(p.clientName) ?? []), p]);
-  return [...map.entries()].sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)));
-}
-
 /**
  * Hoja de horas: la semana arriba (total por día y de la semana), las entradas
  * del día elegido, el cronómetro y el diálogo para cargar o editar.
  */
-export default function Timesheet({ projects, tasks, admin, initialDate, openNew }: { projects: ProjectDto[]; tasks: TaskDto[]; admin: boolean; initialDate: string | null; openNew: boolean }) {
+export default function Timesheet({
+  projects,
+  tasks,
+  admin,
+  initialDate,
+  initialView,
+  openNew,
+}: {
+  projects: ProjectDto[];
+  tasks: TaskDto[];
+  admin: boolean;
+  initialDate: string | null;
+  initialView: SheetView;
+  openNew: boolean;
+}) {
   const t = useTranslations('time');
   const errorText = useErrorText();
   const fmtDay = useDayFormat();
   const [toast, push] = useToast();
   const [today, setToday] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(initialDate && isIsoDate(initialDate) ? initialDate : null);
+  const [view, setView] = useState<SheetView>(initialView);
   const [entries, setEntries] = useState<EntryDto[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -65,9 +76,11 @@ export default function Timesheet({ projects, tasks, admin, initialDate, openNew
     const url = new URL(window.location.href);
     if (date === today) url.searchParams.delete('date');
     else url.searchParams.set('date', date);
+    if (view === 'week') url.searchParams.set('view', 'week');
+    else url.searchParams.delete('view');
     url.searchParams.delete('new');
     window.history.replaceState(window.history.state, '', url.toString());
-  }, [date, today]);
+  }, [date, today, view]);
 
   const load = useCallback(async () => {
     if (!weekKey) return;
@@ -248,10 +261,10 @@ export default function Timesheet({ projects, tasks, admin, initialDate, openNew
         <>
           <div className="tm-weekbar">
             <div className="tm-weeknav">
-              <button type="button" className="btn btn-ghost btn-sm tm-icon-btn" aria-label={t('sheet.prevWeek')} onClick={() => date && setDate(addDays(date, -7))} disabled={!date}>
+              <button type="button" className="btn btn-ghost btn-sm tm-icon-btn" aria-label={t('sheet.prevWeek')} onClick={() => date && setDate(addDays(date, -7))} disabled={!date} data-testid="time-prev-week">
                 ‹
               </button>
-              <button type="button" className="btn btn-ghost btn-sm tm-icon-btn" aria-label={t('sheet.nextWeek')} onClick={() => date && setDate(addDays(date, 7))} disabled={!date}>
+              <button type="button" className="btn btn-ghost btn-sm tm-icon-btn" aria-label={t('sheet.nextWeek')} onClick={() => date && setDate(addDays(date, 7))} disabled={!date} data-testid="time-next-week">
                 ›
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => today && setDate(today)} disabled={!today || date === today} data-testid="time-today">
@@ -261,99 +274,130 @@ export default function Timesheet({ projects, tasks, admin, initialDate, openNew
                 {days.length ? `${fmtDay(days[0], { day: 'numeric', month: 'short' })} – ${fmtDay(days[6], { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
               </span>
             </div>
-            <div className="tm-weektotal" data-testid="time-week-total">
-              <span className="tm-muted">{t('sheet.weekTotal')}</span> <strong className="num">{entries ? formatMinutes(weekTotal) : '–'}</strong>
+            <div className="tm-weekside">
+              <div className="tm-weektotal" data-testid="time-week-total">
+                <span className="tm-muted">{t('sheet.weekTotal')}</span> <strong className="num">{entries ? formatMinutes(weekTotal) : '–'}</strong>
+              </div>
+              <div className="ui-tabs tm-viewtabs" role="tablist" aria-label={t('sheet.view')}>
+                {(['day', 'week'] as const).map((v) => (
+                  <button key={v} type="button" role="tab" className="ui-tab" aria-selected={view === v} onClick={() => setView(v)} data-testid={`time-view-${v}`}>
+                    {v === 'day' ? t('sheet.day') : t('sheet.week')}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="tm-days" role="tablist" aria-label={t('sheet.days')}>
-            {days.map((d) => (
-              <button key={d} type="button" role="tab" aria-selected={d === date} className={`tm-day${d === today ? ' is-today' : ''}`} onClick={() => setDate(d)} data-testid={`time-day-${d}`}>
-                <span className="tm-day-name">{fmtDay(d, { weekday: 'short' })}</span>
-                <span className="tm-day-num">{fmtDay(d, { day: 'numeric' })}</span>
-                <span className="tm-day-total num">{entries ? formatMinutes(dayTotals[d] ?? 0) : '–'}</span>
-              </button>
-            ))}
-          </div>
+          {view === 'week' ? (
+            <WeekGrid
+              key={weekKey}
+              days={days}
+              today={today}
+              entries={entries}
+              loadFailed={loadFailed}
+              onRetry={() => void load()}
+              projects={projects}
+              tasks={tasks}
+              now={now}
+              setEntries={setEntries}
+              push={push}
+              onOpenDay={(d) => {
+                setDate(d);
+                setView('day');
+              }}
+            />
+          ) : (
+            <>
+            <div className="tm-days" role="tablist" aria-label={t('sheet.days')}>
+              {days.map((d) => (
+                <button key={d} type="button" role="tab" aria-selected={d === date} className={`tm-day${d === today ? ' is-today' : ''}`} onClick={() => setDate(d)} data-testid={`time-day-${d}`}>
+                  <span className="tm-day-name">{fmtDay(d, { weekday: 'short' })}</span>
+                  <span className="tm-day-num">{fmtDay(d, { day: 'numeric' })}</span>
+                  <span className="tm-day-total num">{entries ? formatMinutes(dayTotals[d] ?? 0) : '–'}</span>
+                </button>
+              ))}
+            </div>
 
-          <section
-            className="tm-daypanel"
-            aria-label={
-              date
-                ? fmtDay(date, {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                  })
-                : undefined
-            }
-          >
-            {loadFailed ? (
-              <EmptyState
-                compact
-                title={t('sheet.loadError')}
-                action={
-                  <button type="button" className="btn btn-secondary" onClick={() => void load()}>
-                    {t('common.retry')}
-                  </button>
-                }
-              />
-            ) : !entries || !date ? (
-              <div className="ui-loading-stack" aria-busy="true">
-                <span className="sr-only" role="status">
-                  {t('common.loading')}
-                </span>
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="ui-skeleton ui-skeleton-row" />
-                ))}
-              </div>
-            ) : dayEntries.length === 0 ? (
-              <EmptyState compact title={t('sheet.emptyDayTitle')} body={t('sheet.emptyDayBody')} />
-            ) : (
-              <ul className="tm-entries" data-testid="time-entries">
-                {dayEntries.map((e) => {
-                  const mins = minutesOf(e);
-                  return (
-                    <li key={e.id} className={`tm-entry${e.timerStartedAt ? ' is-running' : ''}`} data-testid="time-entry" data-running={e.timerStartedAt ? 'true' : 'false'}>
-                      <button
-                        type="button"
-                        className="tm-entry-main"
-                        onClick={() => openEdit(e)}
-                        aria-label={`${t('common.edit')}: ${t('sheet.entryLabel', { project: e.projectName, task: e.taskName, duration: formatMinutes(mins) })}`}
-                      >
-                        <span className="tm-entry-title">
-                          <strong>{e.projectName}</strong>
-                          {e.clientName ? <span className="tm-muted"> · {e.clientName}</span> : null}
+            <section
+              className="tm-daypanel"
+              aria-label={
+                date
+                  ? fmtDay(date, {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })
+                  : undefined
+              }
+            >
+              {loadFailed ? (
+                <EmptyState
+                  compact
+                  title={t('sheet.loadError')}
+                  action={
+                    <button type="button" className="btn btn-secondary" onClick={() => void load()}>
+                      {t('common.retry')}
+                    </button>
+                  }
+                />
+              ) : !entries || !date ? (
+                <div className="ui-loading-stack" aria-busy="true">
+                  <span className="sr-only" role="status">
+                    {t('common.loading')}
+                  </span>
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="ui-skeleton ui-skeleton-row" />
+                  ))}
+                </div>
+              ) : dayEntries.length === 0 ? (
+                <EmptyState compact title={t('sheet.emptyDayTitle')} body={t('sheet.emptyDayBody')} />
+              ) : (
+                <ul className="tm-entries" data-testid="time-entries">
+                  {dayEntries.map((e) => {
+                    const mins = minutesOf(e);
+                    return (
+                      <li key={e.id} className={`tm-entry${e.timerStartedAt ? ' is-running' : ''}`} data-testid="time-entry" data-running={e.timerStartedAt ? 'true' : 'false'}>
+                        <button
+                          type="button"
+                          className="tm-entry-main"
+                          onClick={() => openEdit(e)}
+                          aria-label={`${t('common.edit')}: ${t('sheet.entryLabel', { project: e.projectName, task: e.taskName, duration: formatMinutes(mins) })}`}
+                        >
+                          <span className="tm-entry-title">
+                            <strong>{e.projectName}</strong>
+                            {e.clientName ? <span className="tm-muted"> · {e.clientName}</span> : null}
+                          </span>
+                          <span className="tm-entry-meta">
+                            {e.taskName}
+                            {e.notes ? <span className="tm-entry-notes"> · {e.notes}</span> : null}
+                          </span>
+                        </button>
+                        <span className="tm-entry-time num" data-testid="time-entry-duration">
+                          {formatMinutes(mins)}
                         </span>
-                        <span className="tm-entry-meta">
-                          {e.taskName}
-                          {e.notes ? <span className="tm-entry-notes"> · {e.notes}</span> : null}
-                        </span>
-                      </button>
-                      <span className="tm-entry-time num" data-testid="time-entry-duration">
-                        {formatMinutes(mins)}
-                      </span>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${e.timerStartedAt ? 'btn-primary' : 'btn-secondary'} tm-timer-btn`}
-                        onClick={() => void toggle(e)}
-                        aria-pressed={Boolean(e.timerStartedAt)}
-                        data-testid="time-entry-toggle"
-                      >
-                        {e.timerStartedAt ? t('sheet.stop') : t('sheet.start')}
-                      </button>
-                    </li>
-                  );
-                })}
-                <li className="tm-entries-total">
-                  <span>{t('sheet.dayTotal')}</span>
-                  <strong className="num" data-testid="time-day-total">
-                    {formatMinutes(dayTotals[date] ?? 0)}
-                  </strong>
-                </li>
-              </ul>
-            )}
-          </section>
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${e.timerStartedAt ? 'btn-primary' : 'btn-secondary'} tm-timer-btn`}
+                          onClick={() => void toggle(e)}
+                          aria-pressed={Boolean(e.timerStartedAt)}
+                          data-testid="time-entry-toggle"
+                        >
+                          {e.timerStartedAt ? t('sheet.stop') : t('sheet.start')}
+                        </button>
+                      </li>
+                    );
+                  })}
+                  <li className="tm-entries-total">
+                    <span>{t('sheet.dayTotal')}</span>
+                    <strong className="num" data-testid="time-day-total">
+                      {formatMinutes(dayTotals[date] ?? 0)}
+                    </strong>
+                  </li>
+                </ul>
+              )}
+            </section>
+            </>
+          )}
         </>
       )}
 

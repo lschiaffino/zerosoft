@@ -15,10 +15,13 @@
  *
  * Dos señales dicen que un lid y un teléfono son la misma persona:
  * - la libreta (wa_contacts: Evolution mandó el par lid ↔ teléfono);
- * - un mensaje recibido con el mismo id de WhatsApp en los dos chats (el id lo
- *   genera quien lo manda: dos personas distintas nunca comparten uno; los
- *   propios sí podrían, en una lista de difusión, por eso solo cuentan los
- *   recibidos).
+ * - un mensaje con el mismo id de WhatsApp en los dos chats (el id lo genera
+ *   quien lo manda: dos personas distintas nunca comparten uno). También los
+ *   propios: el eco de lo que mando llega muchas veces solo con el lid, sin el
+ *   teléfono al lado, mientras el mensaje ya está en el chat del teléfono. Una
+ *   lista de difusión llega con su propio id ("…@broadcast", que no se guarda),
+ *   y un id que aparece en más de un chat por teléfono no cuenta. Los ids
+ *   locales ("local-…", cuando el servidor no devolvió uno) nunca cuentan.
  *
  * Todo corre en una sola transacción por tanda (lib/db.ts dbBatch, o
  * client.batch en la migración) sobre la tabla wa_merge_pairs, con un id de
@@ -70,14 +73,14 @@ export function newRunId(): string {
 }
 
 /**
- * Pares lid ↔ teléfono por mensajes recibidos que están en dos chats 1:1 (uno
- * por lid y otro por teléfono). Un chat del lid que aparece con dos teléfonos
- * distintos no se toca (no se sabe cuál es).
+ * Pares lid ↔ teléfono por mensajes (recibidos o propios) que están en dos
+ * chats 1:1 (uno por lid y otro por teléfono). Un chat del lid que aparece con
+ * dos teléfonos distintos no se toca (no se sabe cuál es).
  */
 export function twinPairs(rows: MessageSighting[]): ChatPair[] {
   const byKey = new Map<string, MessageSighting[]>();
   for (const r of rows) {
-    if (!r.key || !r.dm || !r.inbound) continue;
+    if (!r.key || !r.dm || r.key.startsWith('local-')) continue;
     const list = byKey.get(r.key) ?? [];
     if (!list.some((x) => x.chatId === r.chatId)) list.push(r);
     byKey.set(r.key, list);
@@ -158,11 +161,15 @@ export function contactPairsInsert(app: WaApp, run: string, opts: { scope?: stri
 }
 
 /**
- * Inbox: candidatos por mensajes recibidos repetidos (el mismo id en el chat
- * del lid y en el del teléfono). Usa idx_inbox_messages_owner_ext.
+ * Inbox: candidatos por mensajes repetidos (el mismo id en el chat del lid y
+ * en el del teléfono). Usa idx_inbox_messages_owner_ext. Sin `own`, solo los
+ * recibidos (como la migración de 20261114); con `own`, también los propios
+ * (el eco de lo que mandé que llegó solo con el lid).
  */
-export function inboxSharedPairsInsert(run: string, opts: { scope?: string } = {}): BatchStatement {
+export function inboxSharedPairsInsert(run: string, opts: { scope?: string; own?: boolean } = {}): BatchStatement {
   const args: string[] = [run];
+  const lmOwn = opts.own ? "lm.external_id NOT LIKE 'local-%'" : 'lm.from_me = 0';
+  const smOwn = opts.own ? '1 = 1' : 'sm.from_me = 0';
   let where = "l.kind = 'dm' AND l.external_id LIKE '%@lid'";
   if (opts.scope) {
     where += ' AND l.account_id = ?';
@@ -172,13 +179,34 @@ export function inboxSharedPairsInsert(run: string, opts: { scope?: string } = {
     sql: `INSERT OR IGNORE INTO wa_merge_pairs (run, app, scope, loser, survivor, jid, phone)
       SELECT ?, 'inbox', l.account_id, l.id, MIN(s.id), MIN(s.external_id), substr(MIN(s.external_id), 1, instr(MIN(s.external_id), '@') - 1)
       FROM inbox_threads l
-      JOIN inbox_messages lm ON lm.thread_id = l.id AND lm.from_me = 0
-      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.external_id AND sm.thread_id <> lm.thread_id AND sm.from_me = 0
+      JOIN inbox_messages lm ON lm.thread_id = l.id AND ${lmOwn}
+      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.external_id AND sm.thread_id <> lm.thread_id AND ${smOwn}
       JOIN inbox_threads s ON s.id = sm.thread_id AND s.account_id = l.account_id AND s.kind = 'dm' AND s.external_id LIKE '%@s.whatsapp.net'
       WHERE ${where}
       GROUP BY l.id
       HAVING COUNT(DISTINCT s.id) = 1`,
     args,
+  };
+}
+
+/**
+ * Inbox: candidatos por citas. Un mensaje del chat por lid que responde a uno
+ * guardado en el chat de un teléfono (en un 1:1 solo se cita lo del mismo
+ * chat): la misma persona. Solo si todas las citas del chat por lid apuntan a
+ * un único chat por teléfono. Para el arreglo de una vez (lib/wa-dedupe-repair.ts).
+ */
+export function inboxQuotePairsInsert(run: string): BatchStatement {
+  return {
+    sql: `INSERT OR IGNORE INTO wa_merge_pairs (run, app, scope, loser, survivor, jid, phone)
+      SELECT ?, 'inbox', l.account_id, l.id, MIN(s.id), MIN(s.external_id), substr(MIN(s.external_id), 1, instr(MIN(s.external_id), '@') - 1)
+      FROM inbox_threads l
+      JOIN inbox_messages lm ON lm.thread_id = l.id AND lm.reply_to <> '' AND lm.reply_to NOT LIKE 'local-%'
+      JOIN inbox_messages sm ON sm.owner_id = lm.owner_id AND sm.external_id = lm.reply_to AND sm.thread_id <> lm.thread_id
+      JOIN inbox_threads s ON s.id = sm.thread_id AND s.account_id = l.account_id AND s.kind = 'dm' AND s.external_id LIKE '%@s.whatsapp.net'
+      WHERE l.kind = 'dm' AND l.external_id LIKE '%@lid'
+      GROUP BY l.id
+      HAVING COUNT(DISTINCT s.id) = 1`,
+    args: [run],
   };
 }
 
@@ -191,11 +219,19 @@ export function explicitPairsInsert(app: WaApp, run: string, scope: string, pair
 }
 
 /**
+ * mediaFiles: mover también la copia guardada de los archivos de Inbox (inbox_media_files). Lo pide la corrida normal;
+ * las migraciones viejas que juntan chats corren antes de que esa tabla exista y no lo piden.
+ */
+export interface MergeOptions {
+  mediaFiles?: boolean;
+}
+
+/**
  * La corrida: después de los INSERT de candidatos, resuelve el sobreviviente,
  * renombra los que no tienen, junta el resto y limpia. Devuelve las
  * sentencias y en qué posición leer cada cuenta.
  */
-export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatement[]; at: { renamed: number; messages: number; merged: number } } {
+export function mergeStatements(app: WaApp, run: string, opts: MergeOptions = {}): { stmts: BatchStatement[]; at: { renamed: number; messages: number; merged: number } } {
   const t = T[app];
   const P = `(SELECT loser FROM wa_merge_pairs WHERE run = '${run.replace(/'/g, '')}' AND survivor IS NOT NULL)`;
   const S = (col: string) => `(SELECT p.survivor FROM wa_merge_pairs p WHERE p.run = '${run.replace(/'/g, '')}' AND p.loser = ${col})`;
@@ -242,14 +278,69 @@ export function mergeStatements(app: WaApp, run: string): { stmts: BatchStatemen
 
   let messages: number;
   if (app === 'inbox') {
-    // Lo que la persona marcó en el repetido (destacado, reacciones) pasa al que queda.
+    // Lo que la persona marcó en el repetido (destacado, reacciones) pasa al que queda. También la referencia del
+    // archivo si la del repetido es mejor: la que trae la clave del archivo (llegó con el historial al volver a
+    // vincular) se puede volver a bajar; la vieja, que es solo el id del mensaje, ya no. Si no, al juntar los chats se
+    // borraba justo la copia que servía.
+    const dup = (col: string) =>
+      // Si dos chats perdedores tienen el mismo mensaje, primero la copia que trae la clave del archivo.
+      `(SELECT l.${col} FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id ORDER BY (l.media_ref LIKE '%"wire"%') DESC LIMIT 1)`;
     stmts.push({
       sql: `UPDATE inbox_messages SET
-          starred_at = COALESCE(starred_at, (SELECT l.starred_at FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id)),
-          reactions = CASE WHEN reactions = '' THEN COALESCE((SELECT l.reactions FROM inbox_messages l JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id AND p.survivor = inbox_messages.thread_id WHERE l.external_id = inbox_messages.external_id), '') ELSE reactions END
+          starred_at = COALESCE(starred_at, ${dup('starred_at')}),
+          reactions = CASE WHEN reactions = '' THEN COALESCE(${dup('reactions')}, '') ELSE reactions END,
+          media_ref = CASE
+            WHEN media_type <> '' AND media_ref NOT LIKE '%"wire"%' AND COALESCE(${dup('media_ref')}, '') LIKE '%"wire"%' THEN ${dup('media_ref')}
+            WHEN media_type <> '' AND media_ref = '' THEN COALESCE(${dup('media_ref')}, '')
+            ELSE media_ref END
         WHERE thread_id IN (SELECT survivor FROM wa_merge_pairs WHERE run = ?)
-          AND external_id IN (SELECT l.external_id FROM inbox_messages l WHERE l.thread_id IN ${P} AND (l.starred_at IS NOT NULL OR l.reactions <> ''))`,
-      args: [run, run, run],
+          AND external_id IN (SELECT l.external_id FROM inbox_messages l WHERE l.thread_id IN ${P} AND (l.starred_at IS NOT NULL OR l.reactions <> '' OR l.media_ref <> ''))`,
+      args: [run, run, run, run, run, run],
+    });
+    // La transcripción hecha sobre el repetido (se guarda por id de mensaje) pasa al que queda. Gana la que está
+    // hecha: si el que queda solo tiene un intento fallido (su audio ya no se podía bajar) y el repetido tiene la
+    // transcripción, primero se saca el intento fallido.
+    stmts.push({
+      sql: `DELETE FROM wa_transcripts WHERE scope = 'inbox' AND status <> 'done' AND message_id IN (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            JOIN wa_transcripts lt ON lt.scope = 'inbox' AND lt.message_id = l.id AND lt.owner_id = wa_transcripts.owner_id AND lt.status = 'done')`,
+      args: [run],
+    });
+    stmts.push({
+      sql: `UPDATE OR IGNORE wa_transcripts SET message_id = (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            WHERE l.id = wa_transcripts.message_id)
+        WHERE scope = 'inbox' AND message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run, run],
+    });
+    // La copia guardada del archivo (lib/inbox/media-store.ts) también pasa al que queda, si ese no tiene una; la que
+    // no pasa queda huérfana y la borra el repaso horario.
+    if (opts.mediaFiles) stmts.push({
+      sql: `UPDATE OR IGNORE inbox_media_files SET message_id = (
+            SELECT s.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id
+            WHERE l.id = inbox_media_files.message_id)
+        WHERE message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run, run],
+    });
+    // La que no pasó (el que queda ya tenía la suya) se va con el repetido.
+    stmts.push({
+      sql: `DELETE FROM wa_transcripts WHERE scope = 'inbox' AND message_id IN (
+            SELECT l.id FROM inbox_messages l
+            JOIN wa_merge_pairs p ON p.run = ? AND p.loser = l.thread_id
+            JOIN inbox_messages s ON s.thread_id = p.survivor AND s.external_id = l.external_id)`,
+      args: [run],
     });
     messages = stmts.length;
     // Solo los que tienen repetido en el sobreviviente (mismo id de WhatsApp).
@@ -395,11 +486,12 @@ export async function runMerge(
   app: WaApp,
   inserts: (run: string) => BatchStatement[],
   batch: (stmts: BatchStatement[]) => Promise<Array<Pick<BatchResult, 'changes'>>>,
+  opts: MergeOptions = {},
 ): Promise<MergeCounts> {
   const run = newRunId();
   const head = inserts(run);
   if (!head.length) return { merged: 0, renamed: 0, messages: 0 };
-  const { stmts, at } = mergeStatements(app, run);
+  const { stmts, at } = mergeStatements(app, run, opts);
   const res = await batch([{ sql: MERGE_PAIRS_DDL, args: [] }, ...head, ...stmts]);
   return countsOf(res, 1 + head.length, at);
 }

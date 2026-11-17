@@ -271,6 +271,37 @@ section.rec-edit-block { padding-bottom: 20px; }
   line-height: 1;
 }
 .rec-marker.emoji { background: transparent; height: auto; font-size: 0.875rem; }
+/* Zona de clic más grande que el emoji (sin tapar el control de la línea de tiempo, que queda abajo). */
+.rec-marker.emoji::before { content: ''; position: absolute; inset: -8px -4px -2px; }
+.rec-marker:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+.rec-marker.emoji[aria-expanded='true'] { transform: translateX(-50%) scale(1.3); }
+/* Cuadro de una reacción: quién, cuándo y "Quitar reacción". Sobre el borde de abajo del video, sin salirse a los costados. */
+.rec-mark-pop {
+  position: absolute;
+  bottom: 8px;
+  left: clamp(6px, calc(var(--x, 50%) - 100px), calc(100% - 206px));
+  z-index: 20;
+  width: 200px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.28);
+  font-size: 0.875rem;
+}
+.rec-mark-emoji { grid-row: span 2; font-size: 1.5rem; line-height: 1; }
+.rec-mark-who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-mark-at { font-size: 0.75rem; color: var(--dim); }
+.rec-mark-remove { grid-column: 1 / -1; margin-top: 6px; justify-content: center; min-height: 32px; border: 1px solid var(--line); }
+@media (max-width: 600px), (pointer: coarse) {
+  .rec-mark-remove { min-height: 40px; }
+}
 .rec-speed { position: relative; }
 .rec-menu {
   position: absolute;
@@ -474,6 +505,36 @@ select.rec-person-role { width: auto; }
   cursor: pointer;
 }
 .rec-reaction:hover { border-color: var(--ink); }
+/* Ya reaccioné con este emoji (otro clic suma una más, en el segundo actual). */
+.rec-reaction.mine { border-color: var(--ink); background: var(--ui-hover); }
+.rec-react { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rec-react .ui-error { margin: 0; }
+.rec-my-reactions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.rec-my-label { font-size: 0.75rem; color: var(--dim); margin-right: 2px; }
+.rec-my-reaction { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
+.rec-my-jump, .rec-my-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.rec-my-jump { padding: 0 4px 0 6px; }
+span.rec-my-jump { cursor: default; }
+.rec-my-remove { min-width: 26px; padding: 0 4px; color: var(--dim); border-left: 1px solid var(--line); }
+.rec-my-remove:hover { color: var(--bad-ink); background: var(--bad-soft); }
+button.rec-my-jump:hover { background: var(--ui-hover); }
+.rec-my-jump:focus-visible, .rec-my-remove:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+@media (max-width: 600px), (pointer: coarse) {
+  .rec-my-jump, .rec-my-remove { min-height: 36px; }
+  .rec-my-remove { min-width: 36px; }
+}
 .rec-reaction:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .rec-reaction-n { font-size: 0.75rem; }
 .rec-comments-empty { margin: 0; }
@@ -575,11 +636,73 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-badge { display: inline-block; padding: 0 6px; font-size: 0.6875rem; line-height: 18px; border: 1px solid var(--line); border-radius: var(--radius-1); color: var(--dim); }
 .rec-badge.author { border-color: var(--c-rec); color: var(--ink); }
 
-/* Curva de retención: barras por tramo, alto = % de espectadores que lo vio. */
-.rec-retention { margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.rec-retention-bars { display: flex; align-items: flex-end; gap: 2px; height: 80px; padding: 4px 0; border-bottom: 1px solid var(--line); }
-.rec-retention-bar { flex: 1; min-width: 2px; background: var(--c-rec); opacity: 0.85; }
-.rec-retention-axis { display: flex; justify-content: space-between; font-size: 0.75rem; }
+/* Analítica (RecInsights): bloques apilados; desgloses en dos columnas, una en el teléfono. */
+.rec-insights { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.rec-insights .rec-stats { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.rec-ins-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rec-ins-block .ui-help { margin: 0; }
+.rec-ins-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 28px; }
+.rec-ins-grid .breakdown-row { grid-template-columns: minmax(90px, 1.2fr) minmax(0, 1fr) 36px; }
+.rec-ins-days .link-chart-wrap { height: 180px; }
+.rec-ins-days .chart-area { fill: color-mix(in srgb, var(--c-rec) 10%, transparent); }
+.rec-ins-days .chart-line { stroke: var(--c-rec); }
+@media (max-width: 600px) {
+  .rec-ins-grid { grid-template-columns: minmax(0, 1fr); }
+  .rec-ins-days .link-chart-wrap { height: 160px; }
+}
+
+/* Curva de retención: área = % de espectadores; punteada = reproducciones con re-vistas. */
+.rec-ret { display: flex; flex-direction: column; gap: 6px; }
+.rec-ret-wrap { position: relative; width: 100%; min-width: 0; touch-action: pan-y; }
+.rec-ret-wrap:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.rec-ret-svg { display: block; width: 100%; font-family: var(--font-data); cursor: crosshair; }
+.rec-ret-area { fill: color-mix(in srgb, var(--c-rec) 16%, transparent); }
+.rec-ret-line { stroke: var(--c-rec); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rec-ret-plays { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linejoin: round; opacity: 0.7; }
+.rec-ret-peak { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; }
+.rec-ret-guide { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 2 2; }
+.rec-ret-dot { fill: var(--bg); stroke: var(--c-rec); stroke-width: 2.5; }
+.rec-ret-tip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 128px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.rec-ret-tip-flag { color: var(--c-rec-ink); font-weight: 600; }
+.rec-ret-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.75rem; }
+.rec-ret-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.rec-ret-key { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--c-rec); }
+.rec-ret-key.plays { border-top: 2px dashed var(--ink); opacity: 0.7; }
+
+/* Tabla de espectadores: en el teléfono se esconden columnas y van debajo del nombre. */
+.rec-viewers td { vertical-align: top; }
+.rec-vw-name { min-width: 150px; }
+.rec-vw-title { display: block; }
+.rec-vw-loc { min-width: 120px; }
+.rec-viewers td.rec-col-wide { white-space: nowrap; }
+.rec-vw-sub { display: block; font-size: 0.75rem; overflow-wrap: anywhere; }
+.rec-vw-narrow { display: none; }
+.rec-vw-pct, .rec-vw-time { display: block; }
+.rec-vw-time { font-size: 0.75rem; }
+.rec-flag { margin-right: 6px; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+@media (max-width: 600px) {
+  /* El botón de exportar a 40 px también con mouse en una ventana angosta (el piso global es solo táctil). */
+  .rec-pane-foot .btn { --btn-h: 40px; }
+  .rec-viewers .rec-col-wide { display: none; }
+  .rec-vw-narrow { display: block; }
+}
 
 /* Overlays sobre el video (los dibuja el reproductor; no reciben clics) */
 .rec-overlay-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }

@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -75,6 +75,20 @@ const parity: ProductParity = {
       ],
     }),
     row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('history-older', 'numbers', ['Load older messages from the phone, on demand', 'Cargar mensajes anteriores desde el teléfono, a pedido', 'Carregar mensagens anteriores do celular, sob demanda'], 'partial', {
+      detail: [
+        'A "Load older messages" chip at the top of a chat, once what we have stored runs out. It asks the phone for the 50 messages before the oldest one we have; they come in as history, without duplicates, and what you were reading stays in place. It says when the phone has no more, lets you retry after an error and is disabled with the reason while the line is disconnected. One request per chat at a time and a cap per line per hour. Tested with the fake server; with real WhatsApp it needs the phone online, and after linking a line again it needs our WhatsApp server image with patch 0006',
+        'Una ficha "Cargar mensajes anteriores" arriba del chat, cuando lo que tenemos guardado se termina. Le pide al teléfono los 50 mensajes anteriores al más viejo que tenemos; entran como historial, sin repetidos, y lo que estabas leyendo queda en su lugar. Dice cuando el teléfono no tiene más, deja reintentar después de un error y queda deshabilitada con el motivo mientras la línea está desconectada. Un pedido por chat a la vez y un tope por línea por hora. Probado con el servidor falso; con WhatsApp real necesita el teléfono en línea y, después de volver a vincular una línea, la imagen de nuestro servidor de WhatsApp con el parche 0006',
+        'Uma ficha "Carregar mensagens anteriores" no topo da conversa, quando o que temos guardado acaba. Pede ao celular as 50 mensagens anteriores à mais antiga que temos; entram como histórico, sem repetidas, e o que você estava lendo fica no lugar. Avisa quando o celular não tem mais, deixa tentar de novo depois de um erro e fica desabilitada com o motivo enquanto a linha está desconectada. Um pedido por conversa por vez e um limite por linha por hora. Testado com o servidor falso; com o WhatsApp real precisa do celular online e, depois de vincular uma linha de novo, da imagem do nosso servidor de WhatsApp com o patch 0006',
+      ],
+    }),
+    row('history-missing', 'numbers', ['Fetch missing messages from the phone', 'Traer mensajes que faltan desde el teléfono', 'Buscar mensagens que faltam no celular'], 'partial', {
+      detail: [
+        '"Fetch missing messages" in the chat menu asks the phone for the messages before the last one, around the gaps WhatsApp reported and a bit further back (up to three requests of 50). What comes back is stored as history without duplicates, and a strip at the top of the chat says what happened: how many came, that nothing was missing, that the phone did not answer (with retry), that the line is disconnected or at its hourly cap. Tested with the fake server; with real WhatsApp it needs the phone online, and on lines linked again it needs our WhatsApp server image with patch 0006',
+        '"Traer mensajes que faltan" en el menú del chat le pide al teléfono los mensajes anteriores al último, alrededor de los huecos que avisó WhatsApp y un poco más atrás (hasta tres pedidos de 50). Lo que vuelve se guarda como historial sin repetidos, y una franja arriba del chat dice qué pasó: cuántos llegaron, que no faltaba nada, que el teléfono no respondió (con reintentar), que la línea está desconectada o llegó a su tope por hora. Probado con el servidor falso; con WhatsApp real necesita el teléfono en línea y, en líneas vinculadas de nuevo, la imagen de nuestro servidor de WhatsApp con el parche 0006',
+        '"Buscar mensagens que faltam" no menu da conversa pede ao celular as mensagens anteriores à última, em volta das lacunas que o WhatsApp avisou e um pouco mais para trás (até três pedidos de 50). O que volta é guardado como histórico sem repetidas, e uma faixa no topo da conversa diz o que aconteceu: quantas vieram, que não faltava nada, que o celular não respondeu (com tentar de novo), que a linha está desconectada ou chegou ao limite por hora. Testado com o servidor falso; com o WhatsApp real precisa do celular online e, em linhas vinculadas de novo, da imagem do nosso servidor de WhatsApp com o patch 0006',
+      ],
+    }),
     row('history-import', 'numbers', ['Import chats and their full history when a number connects', 'Importar chats y todo su historial al conectar un número', 'Importar conversas e todo o histórico ao conectar um número'], 'partial', {
       detail: [
         'Chats, groups, contacts, names, photos, unread counts and every message the WhatsApp server kept (the latest of each chat first, the rest in the background), in resumable batches and without triggering rules or notifications. Names, contact info, group subjects, descriptions, members and photos are refreshed once a day. QR and Evolution only; how far back it goes depends on what the phone sends when linking. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
@@ -102,7 +116,13 @@ const parity: ProductParity = {
         'As conversas que você abriu abrem sem conexão. Um texto escrito sem conexão aparece com o relógio, sobrevive a recarregar, pode ser apagado antes de sair e sai em ordem e uma única vez quando a conexão volta (também com duas abas abertas); se o servidor recusar, fica como não enviado com tentar de novo. Arquivos precisam de conexão: ficam na bandeja. Testado com o provedor falso',
       ],
     }),
-    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', {
+      detail: [
+        'Any emoji, and a click on the reactions shows who reacted (photo, name, number hidden for people who cannot see numbers) and removes your own. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Cualquier emoji, y un clic en las reacciones muestra quién reaccionó (foto, nombre, número oculto para quien no puede ver números) y saca la propia. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Qualquer emoji, e um clique nas reações mostra quem reagiu (foto, nome, número oculto para quem não pode ver números) e remove a sua. Testado contra um gateway simulado; falta testar com WhatsApp real',
+      ],
+    }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
         'The message menu follows the WhatsApp order and, in groups, has Reply privately (the one on one chat on the same line opens replying, with the group in the quote) and Message plus the name of the sender. Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Lines elsewhere. Forward is native on WAHA and a copy elsewhere, for any message: a voice note goes as a voice note with its length, and what arrived through Evolution is copied too. On Evolution the copy reaches the other phone without the Forwarded label. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
@@ -167,7 +187,21 @@ const parity: ProductParity = {
         'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
+    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list and restore it from Deleted', 'Archivar chats con la sección Archivados, eliminar un chat de la lista y recuperarlo desde Eliminados', 'Arquivar conversas com a seção Arquivadas, apagar uma conversa da lista e recuperá-la em Apagadas'], 'have', {
+      detail: [
+        'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp, and Keep archived holds a chosen chat in Archived',
+        'Sincronizado con el teléfono en los dos sentidos. Mandar un mensaje a un chat archivado lo desarchiva, como en WhatsApp, y Mantener archivado deja un chat elegido en Archivados',
+        'Sincronizado com o celular nos dois sentidos. Enviar uma mensagem para uma conversa arquivada a desarquiva, como no WhatsApp, e Manter arquivada deixa uma conversa escolhida em Arquivadas',
+      ],
+    }),
+    row('snooze', 'inbox', ['Snooze a chat', 'Posponer un chat', 'Adiar uma conversa'], 'have', {
+      competitorHas: false,
+      detail: [
+        'From the chat menu, with options that fit the moment or a day and time from a calendar. The chat waits in Archived (on the phone too) and comes back when the time is up or a new message arrives',
+        'Desde el menú del chat, con opciones según el momento o un día y hora del calendario. El chat espera en Archivados (también en el teléfono) y vuelve a la hora o cuando llega un mensaje',
+        'Pelo menu da conversa, com opções conforme o momento ou um dia e hora do calendário. A conversa espera em Arquivadas (no celular também) e volta na hora ou quando chega uma mensagem',
+      ],
+    }),
     row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
       detail: ['QR lines (Evolution); 1:1 chats that WhatsApp identifies only by a hidden id do not show it', 'Líneas por QR (Evolution); los 1 a 1 que WhatsApp identifica solo con un id oculto no lo muestran', 'Linhas por QR (Evolution); conversas 1 a 1 que o WhatsApp identifica só por um id oculto não mostram'],
     }),
@@ -225,6 +259,13 @@ const parity: ProductParity = {
 
     // Grupos
     row('create-group', 'groups', ['Create a group', 'Crear un grupo', 'Criar um grupo'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('group-events', 'groups', ['Group notices: created, added, left, admins', 'Avisos del grupo: creado, agregó, salió, admins', 'Avisos do grupo: criado, adicionou, saiu, admins'], 'partial', {
+      detail: [
+        'A new group, or one the line was added to, shows in the inbox right away with its notice as the preview. Adds, removals, leaves, invite link joins, admin changes and name or description changes made from zerosoft show as centered lines. Changes of name, description or icon made on the phone arrive once the updated WhatsApp server is deployed. Tested against a simulated gateway',
+        'Un grupo nuevo, o uno al que agregaron a la línea, aparece en la bandeja en el momento con su aviso de vista previa. Agregados, sacados, salidas, entradas con el link, cambios de admin y de nombre o descripción hechos desde zerosoft se ven como líneas centradas. Los cambios de nombre, descripción o foto hechos en el teléfono llegan cuando se despliegue el servidor de WhatsApp actualizado. Probado contra un gateway simulado',
+        'Um grupo novo, ou um ao qual a linha foi adicionada, aparece na caixa na hora com seu aviso como prévia. Adições, remoções, saídas, entradas pelo link, mudanças de admin e de nome ou descrição feitas pelo zerosoft aparecem como linhas centralizadas. Mudanças de nome, descrição ou foto feitas no celular chegam quando o servidor do WhatsApp atualizado for implantado. Testado contra um gateway simulado',
+      ],
+    }),
     row('bulk-create', 'groups', ['Create many groups from a CSV', 'Crear muchos grupos desde un CSV', 'Criar muitos grupos a partir de um CSV'], 'partial', {
       competitorHas: false,
       detail: ['Up to 50 per run with result per row. Tested against a simulated gateway; not yet tried with real WhatsApp', 'Hasta 50 por vez con resultado por fila. Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Até 50 por vez com resultado por linha. Testado contra um gateway simulado; falta testar com WhatsApp real'],
@@ -334,9 +375,9 @@ const parity: ProductParity = {
     }),
     row('scheduled', 'broadcasts', ['Scheduled messages', 'Mensajes programados', 'Mensagens agendadas'], 'have', {
       detail: [
-        'Send later from the message box with presets or a date; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats',
-        'Enviar más tarde desde el cuadro con opciones rápidas o una fecha; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats',
-        'Enviar mais tarde pela caixa com opções rápidas ou uma data; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas',
+        'Send later from the message box with options that fit the moment (working hours, Monday morning on a Friday) or a day and time from a calendar; the pending message stays in the chat, where you can send it now, change the time, edit or cancel it; one view lists them across chats. A voice note can be scheduled from the recording bar: it shows with its length and a play button, and goes out as a voice note (tested with the fake provider)',
+        'Enviar más tarde desde el cuadro con opciones según el momento (horario de trabajo, el lunes a la mañana si es viernes) o un día y hora del calendario; el pendiente queda en el chat, donde se envía ahora, se le cambia la hora, se edita o se cancela; una vista los lista de todos los chats. Una nota de voz se programa desde la barra de grabación: se ve con su duración y un botón para escucharla, y sale como nota de voz (probado con el proveedor falso)',
+        'Enviar mais tarde pela caixa com opções conforme o momento (horário comercial, segunda de manhã se for sexta) ou um dia e hora do calendário; a pendente fica na conversa, onde dá para enviar agora, mudar o horário, editar ou cancelar; uma tela lista as de todas as conversas. Uma mensagem de voz pode ser agendada pela barra de gravação: aparece com a duração e um botão para ouvir, e sai como mensagem de voz (testado com o provedor falso)',
       ],
     }),
     row('recurring', 'broadcasts', ['Recurring messages', 'Mensajes recurrentes', 'Mensagens recorrentes'], 'have', {
@@ -396,9 +437,9 @@ const parity: ProductParity = {
     row('hubspot', 'integrations', ['HubSpot: chats linked to companies and deals', 'HubSpot: chats vinculados a empresas y negocios', 'HubSpot: conversas vinculadas a empresas e negócios'], 'partial', {
       weight: 2,
       detail: [
-        'Connect with a private app token; link each chat or group to a HubSpot company, deal and contact, with a suggestion by phone number, a daily note on the linked records and an inbox filter. All the company properties (custom ones too) are imported and synced both ways, editable from a HubSpot screen on the chat, usable as inbox filters, and there is a view to link groups in bulk. Periskope also creates HubSpot tickets from a chat and sends WhatsApp from a HubSpot workflow; deal and contact properties are still a fixed handful here. Tested against a simulated HubSpot; not yet tried with a real account',
-        'Se conecta con el token de una private app; cada chat o grupo se vincula a una empresa, un negocio y un contacto de HubSpot, con sugerencia por teléfono, una nota diaria en los registros vinculados y un filtro en la bandeja. Todas las propiedades de la empresa (también las propias) se importan y se sincronizan en los dos sentidos, se editan desde una pantalla de HubSpot en el chat, sirven como filtros de la bandeja, y hay una vista para vincular grupos de a muchos. Periskope además crea tickets de HubSpot desde un chat y manda WhatsApp desde un workflow de HubSpot; las propiedades de negocios y contactos acá siguen siendo unas pocas fijas. Probado contra un HubSpot simulado; falta probarlo con una cuenta real',
-        'Conecta com o token de um private app; cada conversa ou grupo se vincula a uma empresa, um negócio e um contato do HubSpot, com sugestão por telefone, uma nota diária nos registros vinculados e um filtro na caixa. Todas as propriedades da empresa (também as personalizadas) são importadas e sincronizadas nos dois sentidos, editadas em uma tela do HubSpot na conversa, usadas como filtros da caixa, e há uma visão para vincular grupos em massa. O Periskope também cria tickets do HubSpot a partir de uma conversa e envia WhatsApp a partir de um workflow do HubSpot; as propriedades de negócios e contatos aqui continuam sendo poucas e fixas. Testado contra um HubSpot simulado; falta testar com uma conta real',
+        'Connect with a private app token; link each chat or group to a HubSpot company, deal and contact, with a suggestion by phone number, a daily note on the linked records and an inbox filter. All the company properties (custom ones too) are imported and synced both ways, editable from a HubSpot panel on the chat that can be pinned next to the conversation, usable as inbox filters, and there is a view to link groups in bulk. Each person picks which company properties they see. A 1:1 chat creates its HubSpot contact with one click, or by itself when it comes in (an opt-in setting), after checking the phone is not there yet. Periskope also creates HubSpot tickets from a chat and sends WhatsApp from a HubSpot workflow; deal and contact properties are still a fixed handful here. Tested against a simulated HubSpot; not yet tried with a real account',
+        'Se conecta con el token de una private app; cada chat o grupo se vincula a una empresa, un negocio y un contacto de HubSpot, con sugerencia por teléfono, una nota diaria en los registros vinculados y un filtro en la bandeja. Todas las propiedades de la empresa (también las propias) se importan y se sincronizan en los dos sentidos, se editan desde un panel de HubSpot en el chat que se puede fijar al costado de la conversación, sirven como filtros de la bandeja, y hay una vista para vincular grupos de a muchos. Cada persona elige qué propiedades de la empresa ve. Un chat 1:1 crea su contacto en HubSpot con un clic, o solo al entrar (un ajuste opcional), después de revisar que el teléfono no esté. Periskope además crea tickets de HubSpot desde un chat y manda WhatsApp desde un workflow de HubSpot; las propiedades de negocios y contactos acá siguen siendo unas pocas fijas. Probado contra un HubSpot simulado; falta probarlo con una cuenta real',
+        'Conecta com o token de um private app; cada conversa ou grupo se vincula a uma empresa, um negócio e um contato do HubSpot, com sugestão por telefone, uma nota diária nos registros vinculados e um filtro na caixa. Todas as propriedades da empresa (também as personalizadas) são importadas e sincronizadas nos dois sentidos, editadas em um painel do HubSpot na conversa que pode ficar fixo ao lado dela, usadas como filtros da caixa, e há uma visão para vincular grupos em massa. Cada pessoa escolhe quais propriedades da empresa vê. Uma conversa 1:1 cria o contato no HubSpot com um clique, ou sozinha quando chega (um ajuste opcional), depois de conferir que o telefone ainda não está lá. O Periskope também cria tickets do HubSpot a partir de uma conversa e envia WhatsApp a partir de um workflow do HubSpot; as propriedades de negócios e contatos aqui continuam sendo poucas e fixas. Testado contra um HubSpot simulado; falta testar com uma conta real',
       ],
     }),
     row('webhooks', 'integrations', ['Outgoing webhooks', 'Webhooks salientes', 'Webhooks de saída'], 'have', {

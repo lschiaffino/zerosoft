@@ -5,9 +5,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import type { ChatHubspotDto, HubspotRecord, HubspotSuggestion, HubspotType } from '@/lib/groups-hubspot';
+import type { ContactRowDto } from '@/lib/groups-contacts';
 import { parseDbUtc } from '@/lib/utils';
 import { formatHubspotValue } from '@/lib/groups-hubspot-shared';
 import HubspotScreen from './HubspotScreen';
+import HubspotMyProps from './HubspotMyProps';
+import { useHubspotSchema } from './hubspot-client';
+import { useHubspotDocked } from './hubspot-dock';
 import { useGroupsInbox } from './InboxShell';
 import { api, useErrorText } from './ui';
 
@@ -70,6 +74,8 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   const [searchError, setSearchError] = useState('');
   const [busy, setBusy] = useState(false);
   const [screen, setScreen] = useState(false);
+  const [myProps, setMyProps] = useState(false);
+  const docked = useHubspotDocked();
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -88,6 +94,18 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
     setSearchError('');
     void load();
   }, [load]);
+
+  // Las propiedades que se muestran cambiaron (en "Elegir propiedades" o fijando en el panel): se vuelven a leer.
+  const hasCompanyLink = Boolean(state?.links.some((l) => l.type === 'company'));
+  const { schema } = useHubspotSchema(hasCompanyLink);
+  const shownKey = schema ? (schema.mine ?? schema.pinned).join(',') : '';
+  const lastShown = useRef(shownKey);
+  useEffect(() => {
+    if (!shownKey || shownKey === lastShown.current) return;
+    const first = !lastShown.current;
+    lastShown.current = shownKey;
+    if (!first) void load();
+  }, [shownKey, load]);
 
   useEffect(() => {
     const text = q.trim();
@@ -136,6 +154,28 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
     inbox.refresh();
   }
 
+  /** "Crear contacto en HubSpot": la persona del chat, creada (o los contactos que ya tienen su teléfono, para vincular). */
+  async function createContact() {
+    setBusy(true);
+    const who = await api<{ row: ContactRowDto }>(`/api/groups/people/person?chat=${encodeURIComponent(chatId)}`);
+    if (!who.data) {
+      setBusy(false);
+      return showToast(errText(who.error), true);
+    }
+    const res = await api<{ row: ContactRowDto | null; existing?: HubspotSuggestion[] }>('/api/groups/people/person', { body: { id: who.data.row.id, action: 'create' } });
+    setBusy(false);
+    if (!res.data) return showToast(errText(res.error), true);
+    const existing = res.data.existing ?? [];
+    if (res.data.row) {
+      showToast(t('hubspot.contactCreated'));
+      inbox.refresh();
+      void load();
+    } else if (existing.length) {
+      setState((s) => (s ? { ...s, suggestions: existing } : s));
+      showToast(t('hubspot.contactExists'));
+    }
+  }
+
   async function dismiss() {
     const res = await api('/api/groups/hubspot/links', { body: { chatId, dismiss: true } });
     if (!res.data) return showToast(errText(res.error), true);
@@ -182,9 +222,17 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
           {t('hubspot.title')}
         </h3>
         {hasCompany && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setScreen(true)}>
-            {t('hubspot.screen.open')}
-          </button>
+          <div className="gr-hs-title-actions">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMyProps(true)} data-testid="hubspot-choose-props">
+              {t('hubspot.mine.open')}
+            </button>
+            {/* Con el panel fijado al costado, las propiedades ya están a la vista. */}
+            {!docked && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setScreen(true)} data-testid="hubspot-open-screen">
+                {t('hubspot.screen.open')}
+              </button>
+            )}
+          </div>
         )}
       </div>
       {failed ? (
@@ -241,7 +289,7 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
                         shown.length > 0 && (
                           <dl className="gr-hs-props">
                             {shown.map((p) => (
-                              <div key={p.key}>
+                              <div key={p.key} data-prop={p.key}>
                                 <dt>{p.label}</dt>
                                 <dd>
                                   <LocalText>{p.value}</LocalText>
@@ -267,6 +315,25 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
                   {t('hubspot.suggestDismiss', { n: state.suggestions.length })}
                 </button>
               </div>
+            </div>
+          )}
+
+          {state.dm && state.suggestions.length === 0 && !state.links.some((l) => l.type === 'contact') && (
+            <div className="gr-hs-create" data-testid="hs-create-contact-box">
+              {state.canCreateContact ? (
+                <>
+                  <div>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-busy={busy || undefined} onClick={() => void createContact()} data-testid="hs-create-contact">
+                      {t('hubspot.createContact')}
+                    </button>
+                  </div>
+                  <p className="ui-help">{t('hubspot.createContactHelp')}</p>
+                </>
+              ) : (
+                <p className="ui-help" role="note">
+                  {t('hubspot.createContactNoScope', { scope: 'crm.objects.contacts.write' })}
+                </p>
+              )}
             </div>
           )}
 
@@ -349,8 +416,9 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
           )}
         </>
       )}
+      <HubspotMyProps open={myProps} onClose={() => setMyProps(false)} />
       <HubspotScreen
-        chatId={chatId}
+        source={{ app: 'lines', chatId }}
         open={screen}
         isAdmin={isAdmin}
         onClose={() => {

@@ -11,6 +11,8 @@ Leído el 2026-11-15. Base de `content/feature-parity/time.ts`. Cada fila de par
 - Funciones de registro de horas: https://www.getharvest.com/features/time-tracking-software
 - Precios (Free con 1 usuario y 2 proyectos; los planes pagos cambiaron en 2026): https://www.timecamp.com/blog/harvest-pricing.md, https://www.teamwork.com/blog/harvest-alternatives/, https://toolradar.com/tools/harvest/pricing
 
+- Vista Week (agregar fila con N, copiar las filas de la última hoja, las filas se copian solas, sin notas en la semana): https://support.getharvest.com/hc/en-us/articles/360048687531
+
 ## Fuentes que fallaron
 
 getharvest.com, help.getharvest.com y support.getharvest.com no resuelven desde el sandbox (red limitada). Lo de arriba se leyó por los resultados del buscador. La página de precios oficial no se pudo leer: el sitio no cita un precio pago y remite a getharvest.com/pricing.
@@ -26,3 +28,7 @@ getharvest.com, help.getharvest.com y support.getharvest.com no resuelven desde 
 ## Lo que hicimos en el primer corte
 
 Cronómetro y carga a mano, vista del día con la semana arriba, proyectos con cliente, código, tarifa y presupuesto en horas, tareas del workspace, archivar, reportes agrupados con monto facturable y CSV. El resto queda como `missing` en la tabla.
+
+## Segundo corte (2026-11-16)
+
+Hoja semanal en grilla como la vista Week de Harvest: filas por proyecto y tarea, celdas por día, totales, agregar y quitar filas y copiar las filas de la última hoja. Diferencias: las filas no se copian solas a una semana nueva (hay que pedirlo) y una fila sin horas no queda guardada.

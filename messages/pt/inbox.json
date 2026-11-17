@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
-  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
+  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "snooze": "Adiar…", "unsnooze": "Cancelar adiamento", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",
@@ -15,17 +15,17 @@
     "scheduled": "Agendados",
     "done": "Arquivados",
     "archived": "Arquivadas",
-    "nofolder": "Sem pasta"
+    "nofolder": "Sem pasta",
+    "removed": "Removidos do Inbox"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
   "when": {
     "title": { "snooze": "Adiar até", "followUp": "Lembrar se não responder", "sendLater": "Enviar mais tarde" },
     "followUpHelp": "Se até lá a pessoa não responder, a conversa volta para o topo da caixa.",
-    "preset": { "later": "Mais tarde", "tonight": "Hoje à noite", "tomorrow": "Amanhã de manhã", "weekend": "Neste fim de semana", "nextWeek": "Na semana que vem", "inWeek": "Em uma semana" },
-    "custom": "Escolher dia e hora",
     "confirm": "Pronto",
-    "cancel": "Cancelar",
-    "pastError": "Escolha um horário no futuro."
+    "confirmSend": "Agendar",
+    "confirmSnooze": "Adiar",
+    "cancel": "Cancelar"
   },
   "composer": {
     "snippets": "Snippets",
@@ -83,11 +83,16 @@
     "importClose": "Fechar",
     "group": "Grupo",
     "snoozedUntil": "Adiado até {when}",
+    "snoozedShort": "Adiada · {when}",
     "followUpAt": "Lembrete {when}",
     "archivedEntry": "Arquivadas",
     "archivedBack": "Voltar para a caixa",
     "woke": "Voltou",
     "noReply": "Sem resposta",
+    "overdueSnooze": "Vencido: voltou do adiamento",
+    "overdueSnoozeSince": "Vencido: voltou do adiamento em {when}",
+    "overdueFollowUp": "Vencido: sem resposta até o lembrete",
+    "overdueFollowUpSince": "Vencido: sem resposta até o lembrete de {when}",
     "select": "Selecionar {name}",
     "pinned": "Fixado",
     "draft": "Rascunho:",
@@ -95,6 +100,7 @@
     "scheduled": "{n, plural, one {# agendada} other {# agendadas}}",
     "dragMany": "{n} conversas",
     "searchResults": "Resultados",
+    "archivedTag": "Arquivado",
     "messagesFound": "Mensagens",
     "moreMessages": "Mais mensagens",
     "search": "Buscar conversas e mensagens",
@@ -185,7 +191,8 @@
       "done": "Nada arquivado ainda",
       "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
       "nofolder": "Todas as conversas estão em uma pasta",
-      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
+      "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la.",
+      "removed": "Nada removido. As conversas que você remove do Inbox ficam aqui por 30 dias."
     }
   },
   "help": {
@@ -232,6 +239,8 @@
     "unpin": "{n, plural, one {Desafixada} other {# conversas desafixadas}}",
     "archive": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
     "unarchive": "{n, plural, one {Desarquivada} other {# conversas desarquivadas}}",
+    "keepArchivedOn": "Mantida arquivada",
+    "keepArchivedOff": "Não é mais mantida arquivada",
     "snooze": "{n, plural, one {Adiada} other {# conversas adiadas}}",
     "unsnooze": "{n, plural, one {Não está mais adiada} other {# conversas não estão mais adiadas}}",
     "followUp": "{n, plural, one {Aviso se não responder} other {Lembrete para # conversas}}",
@@ -253,6 +262,8 @@
     "unread": "Não lida",
     "pin": "Fixar",
     "unpin": "Desafixar",
+    "snooze": "Adiar",
+    "unsnooze": "Reativar",
     "more": "Mais",
     "archive": "Arquivar",
     "unarchive": "Desarquivar",
@@ -261,7 +272,7 @@
   },
   "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar" },
   "more": {
-    "deleteConfirm": "A conversa e as mensagens salvas saem do Inbox. Nada é apagado no WhatsApp nem no Gmail.",
+    "deleteConfirm": "A conversa sai do Inbox e fica 30 dias em Removidos do Inbox (dentro de Arquivadas) caso você queira recuperá-la. Nada é apagado no WhatsApp nem no Gmail.",
     "cancel": "Cancelar",
     "deleteYes": "Remover do Inbox",
     "pin": "Fixar",
@@ -332,6 +343,17 @@
     "moveFilter": "Filtrar pastas"
   },
   "settings": {
+    "hubspot": {
+      "intro": "O HubSpot do seu workspace. Vincule ou crie contatos em cada conversa 1 a 1.",
+      "notConnected": "Seu workspace não tem HubSpot conectado. Um admin conecta nos ajustes do Lines.",
+      "linesLink": "Abrir integrações do Lines",
+      "statusOn": "Conectado",
+      "statusOff": "Não conectado",
+      "autoCreate": "Criar o contato no HubSpot quando chega uma conversa 1 a 1 nova",
+      "autoCreateHelp": "Só para o seu Inbox e para as conversas que começarem depois de ligar. Se um contato do HubSpot já tem esse número, nada é criado.",
+      "needsScope": "O token do workspace não tem estas permissões para criar contatos: {scopes}.",
+      "saved": "Salvo"
+    },
     "title": "Configurações do Inbox",
     "subtitle": "Suas contas, pastas, snippets e importações. Tudo aqui é privado: o workspace e seus admins não veem.",
     "gmailResult": {
@@ -657,5 +679,21 @@
     "channel": "Canal",
     "emptyTitle": "Nenhuma mensagem neste período",
     "emptyBody": "Conecte o WhatsApp ou o Gmail nos ajustes do Inbox e seus números aparecem aqui."
+  },
+  "removed": {
+    "title": "Removidos do Inbox",
+    "entry": "Removidos do Inbox",
+    "back": "Arquivadas",
+    "note": "As conversas que você remove do Inbox ficam aqui por {days} dias e depois são apagadas de vez. Recuperar devolve a conversa para onde estava, com o que chegou nesse meio-tempo.",
+    "removedAt": "Removida em {date}",
+    "purgeAt": "Apagada em {date}",
+    "restore": "Recuperar",
+    "purge": "Apagar de vez",
+    "purgeTitle": "Apagar de vez a conversa com {name}?",
+    "purgeBody": "As mensagens salvas no Inbox são apagadas e isso não pode ser desfeito. Nada muda no WhatsApp nem no Gmail.",
+    "cancel": "Cancelar",
+    "restored": "Conversa recuperada",
+    "purged": "Conversa apagada",
+    "list": "Conversas removidas"
   }
 }

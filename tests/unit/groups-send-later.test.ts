@@ -151,11 +151,11 @@ describe('Lines: enviar más tarde', () => {
 });
 
 describe('presets de "cuándo" (compartidos por Inbox y Lines)', () => {
-  it('son seis, en el orden de los atajos 1 a 6, y todos caen en el futuro', () => {
-    expect(SNOOZE_PRESETS).toEqual(['later', 'tonight', 'tomorrow', 'weekend', 'nextWeek', 'inWeek']);
+  it('todos caen en el futuro y "mañana a la mañana" es a las 8 (posponer) o a las 9 (enviar)', () => {
     const now = new Date(2026, 10, 10, 15, 30); // martes
     for (const p of SNOOZE_PRESETS) expect(presetDate(p, now).getTime()).toBeGreaterThan(now.getTime());
     expect(presetDate('tomorrow', now).getHours()).toBe(8);
+    expect(presetDate('tomorrow', now, 'send').getHours()).toBe(9);
     expect(presetDate('weekend', now).getDay()).toBe(6);
     expect(presetDate('nextWeek', now).getDay()).toBe(1);
   });

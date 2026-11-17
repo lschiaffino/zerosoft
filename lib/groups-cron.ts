@@ -37,7 +37,34 @@ export async function flagUnansweredChats(now = new Date(), limit = 1000): Promi
   return n;
 }
 
+/**
+ * Pospuestos que vencieron: salen de Archivados y vuelven a la lista, marcados como no leídos para que se vean
+ * (también el que ya estaba archivado antes de posponerlo: posponer es pedir verlo de nuevo). El desarchivado va
+ * también a WhatsApp. Las filas que cambia las devuelve el mismo UPDATE: dos corridas no despiertan dos veces el
+ * mismo chat.
+ */
+export async function wakeSnoozedChats(now = new Date()): Promise<number> {
+  const nowS = now.toISOString();
+  const rows = (await getDb()
+    .prepare(
+      `UPDATE groups_chats SET snoozed_until = NULL, snooze_archived = 0, archived_at = CASE WHEN keep_archived = 1 THEN archived_at ELSE NULL END,
+         marked_unread = CASE WHEN unread_count = 0 THEN 1 ELSE marked_unread END, unread_count = CASE WHEN unread_count = 0 THEN 1 ELSE unread_count END,
+         updated_at = ?
+       WHERE snoozed_until IS NOT NULL AND snoozed_until <= ? RETURNING id, user_id, keep_archived`,
+    )
+    .all(nowS, nowS)) as Array<{ id: string; user_id: string; keep_archived: number | null }>;
+  const byWs = new Map<string, string[]>();
+  // "Mantener archivado" gana: el chat vuelve como no leído pero sigue en Archivados (acá y en el teléfono).
+  for (const r of rows) if (!r.keep_archived) byWs.set(r.user_id, [...(byWs.get(r.user_id) ?? []), r.id]);
+  if (byWs.size) {
+    const { queueAndFlushArchivePush } = await import('./wa-archive-sync');
+    for (const [ws, ids] of byWs) await queueAndFlushArchivePush('lines', ws, ids, false, now).catch(() => null);
+  }
+  return rows.length;
+}
+
 export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: number; dailyBudgetMs?: number } = {}) {
+  const woke = await wakeSnoozedChats().catch(() => null);
   const flagged = await flagUnansweredChats().catch(() => null);
   const breached = await markBreachedTickets().catch(() => null);
   // Tareas y recordatorios de los chats (claim por fila en reminded_for).
@@ -50,6 +77,9 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   const { sweepHubspotAutoLink, syncHubspotNotes } = await import('./groups-hubspot');
   const hubspotLinked = await sweepHubspotAutoLink().catch(() => null);
   const hubspotNotes = await syncHubspotNotes().catch(() => null);
+  // Alta automática del contacto de los chats 1:1 nuevos, en Lines y en Inbox (si se prendió).
+  const { sweepHubspotAutoContacts } = await import('./hubspot-auto-contacts');
+  const hubspotCreated = await sweepHubspotAutoContacts().catch(() => null);
   // HubSpot → Lines: empresas vinculadas que cambiaron, las borradas o fusionadas y, cada 6 horas, el esquema de propiedades.
   const { syncHubspotCompanies } = await import('./groups-hubspot-sync');
   const hubspotSync = await syncHubspotCompanies().catch(() => null);
@@ -63,5 +93,5 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Repaso diario de cada número: contactos, nombres, info, asuntos, descripciones, miembros y fotos (despacio, retoma donde quedó).
   const { refreshLinesDaily } = await import('./wa-contacts-refresh');
   const daily = await refreshLinesDaily(new Date(), Date.now() + (opts.dailyBudgetMs ?? 10_000)).catch(() => null);
-  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotSync, assigned, imports, daily };
+  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, daily };
 }

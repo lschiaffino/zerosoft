@@ -8,10 +8,11 @@
  */
 import { getDb } from './db';
 import { phoneDigits } from './groups-provider';
-import { GroupsError, getMessageRow, type ChatRow, type NumberRow } from './groups';
+import { GroupsError, getMessageRow, type ChatRow, type NumberRow, type Reaction } from './groups';
 import { canSeeChat, maskPhone, type GroupsViewer } from './groups-access';
 import { displayName, lookupContacts, type ContactRow } from './wa-contacts';
 import type { PersonRole, WaPersonCard } from './wa-person';
+import { reactorName, reactorPhone, type WaReactor } from './wa-reactions';
 
 /** El teléfono de la persona: el pedido o el de quien mandó el mensaje (del mismo grupo). */
 export async function personPhone(ws: string, groupId: string, input: { phone?: string | null; messageId?: string | null; card?: number | null }): Promise<string> {
@@ -158,4 +159,62 @@ export async function sharedContent(viewer: GroupsViewer, chatId: string, kind: 
     senderName: r.sender_name,
     ...(kind === 'links' ? { urls: [...new Set(r.body.match(URL_RE) ?? [])].map((u) => u.replace(/[).,;:!?]+$/, '')).slice(0, 5) } : {}),
   }));
+}
+
+/**
+ * Quién reaccionó a uno o más mensajes del chat (un álbum son varios), para el
+ * cuadro de reacciones: nombre de la libreta o de perfil, foto y teléfono. Quien
+ * mira con los teléfonos ocultos recibe el número enmascarado, como en la ficha.
+ */
+export async function reactionDetails(viewer: GroupsViewer, chatId: string, messageIds: string[]): Promise<WaReactor[]> {
+  const db = getDb();
+  if (!(await canSeeChat(viewer, chatId))) throw new GroupsError('not_found', 404);
+  const chat = (await db.prepare('SELECT * FROM groups_chats WHERE id = ? AND user_id = ?').get(chatId, viewer.ws)) as ChatRow | undefined;
+  if (!chat) throw new GroupsError('not_found', 404);
+  const ids = [...new Set(messageIds.filter((x) => typeof x === 'string' && x))].slice(0, 30);
+  if (!ids.length) return [];
+  const rows = (await db
+    .prepare(`SELECT id, reactions FROM groups_messages WHERE chat_id = ? AND user_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+    .all(chat.id, viewer.ws, ...ids)) as Array<{ id: string; reactions: string | null }>;
+  const list = rows.flatMap((r) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(r.reactions || '[]');
+    } catch {
+      parsed = [];
+    }
+    return (Array.isArray(parsed) ? (parsed as Reaction[]) : [])
+      .filter((x) => x && typeof x.emoji === 'string' && x.emoji && typeof x.by === 'string')
+      .map((x) => ({ ...x, messageId: r.id }));
+  });
+  const digitsOf = (by: string) => by.replace(/@.*$/, '').replace(/\D/g, '');
+  const keys = [...new Set(list.filter((r) => !r.fromMe).map((r) => digitsOf(r.by)).filter(Boolean))];
+  const contacts = keys.length ? await lookupContacts({ app: 'lines', accountId: chat.number_id }, keys).catch(() => new Map<string, ContactRow>()) : new Map<string, ContactRow>();
+  const marks = keys.map(() => '?').join(',');
+  const members = keys.length
+    ? ((await db.prepare(`SELECT phone, name FROM groups_members WHERE chat_id = ? AND phone IN (${marks})`).all(chat.id, ...keys)) as Array<{ phone: string; name: string }>)
+    : [];
+  const sent = keys.length
+    ? ((await db
+        .prepare(
+          `SELECT sender_phone, MAX(sender_name) AS sender_name FROM groups_messages
+           WHERE chat_id = ? AND direction = 'in' AND sender_name <> '' AND sender_phone IN (${marks}) GROUP BY sender_phone`,
+        )
+        .all(chat.id, ...keys)) as Array<{ sender_phone: string; sender_name: string }>)
+    : [];
+  const memberName = new Map(members.map((m) => [m.phone, m.name]));
+  const sentName = new Map(sent.map((m) => [m.sender_phone, m.sender_name]));
+  const dm = chat.kind === 'dm';
+  return list.map((r): WaReactor => {
+    const base = { messageId: r.messageId, emoji: r.emoji, ...(r.at ? { at: r.at } : {}) };
+    if (r.fromMe) return { ...base, me: true, name: '', pushName: false, phone: '', picture: '' };
+    const key = digitsOf(r.by);
+    const c = contacts.get(key);
+    // Un lid que la libreta conoce: su teléfono. Uno que no conoce no es un teléfono.
+    const digits = c?.phone || (c && c.lid === key ? '' : key);
+    // En un 1:1, el nombre del chat (si no es el número) es el de la persona.
+    const chatName = dm && chat.name && chat.name.replace(/\D/g, '') !== digits ? chat.name : '';
+    const { name, pushName } = reactorName({ saved: [c?.saved_name, chatName], push: [c?.push_name, memberName.get(key), sentName.get(key)] });
+    return { ...base, me: false, name, pushName, ...reactorPhone(digits, viewer.mask), picture: c?.picture || (dm ? (chat.picture_url ?? '') : '') };
+  });
 }

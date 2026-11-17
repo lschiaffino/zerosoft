@@ -143,6 +143,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
   const [token, setToken] = useState('');
   const [autoLink, setAutoLink] = useState(initial.autoLink);
   const [logNotes, setLogNotes] = useState(initial.logNotes);
+  const [autoCreate, setAutoCreate] = useState(initial.autoCreate);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(false);
@@ -157,6 +158,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     void api<{ webhookUrl?: string }>('/api/groups/hubspot').then((r) => setWebhookUrl(r.data?.webhookUrl ?? ''));
     setAutoLink(row.autoLink);
     setLogNotes(row.logNotes);
+    setAutoCreate(row.autoCreate);
     setError('');
     setOpen(true);
   }
@@ -170,6 +172,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     if (row.connected) {
       body.autoLink = autoLink;
       body.logNotes = logNotes;
+      body.autoCreate = autoCreate;
       if (secret.trim()) body.webhookSecret = secret.trim();
     }
     const res = await api<HubspotDto>('/api/groups/hubspot', { body });
@@ -190,7 +193,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     const res = await api('/api/groups/hubspot', { method: 'DELETE' });
     setRemoving(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false });
+    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false });
     setHubspotSchema(null);
   }
 
@@ -314,6 +317,12 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
                 {t('hubspot.card.logNotes')}
               </label>
               <p className="ui-help">{t('hubspot.card.logNotesHelp')}</p>
+              <label className="gr-check-label gr-hs-check">
+                <input type="checkbox" className="ui-check" checked={autoCreate} onChange={(e) => setAutoCreate(e.target.checked)} data-testid="hs-auto-create" />
+                {t('hubspot.card.autoCreate')}
+              </label>
+              <p className="ui-help">{t('hubspot.card.autoCreateHelp')}</p>
+              {row.missingContactScopes.length > 0 && <p className="ui-help">{t('hubspot.card.autoCreateNeedsScope', { scopes: row.missingContactScopes.join(', ') })}</p>}
               {missingLog && <p className="ui-help">{t('hubspot.card.logNotesNeedsScope', { scopes: row.missingLogScopes.join(', ') })}</p>}
               {row.missingSyncScopes.length > 0 && <p className="ui-help">{t('hubspot.card.syncNeedsScope', { scopes: row.missingSyncScopes.join(', ') })}</p>}
             </fieldset>

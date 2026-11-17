@@ -1,10 +1,8 @@
 'use client';
 
-import { useMounted } from '@/components/ui/useMounted';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { mediaKind, previewToken } from '@/lib/groups-rules';
-import { parseDbUtc } from '@/lib/utils';
 import { mentionLabels, replaceMentions, type MentionMap } from '@/lib/wa-mentions';
 
 export { Modal, api, useErrorText } from './dialog-kit';
@@ -46,24 +44,7 @@ export function useMediaText() {
   );
 }
 
-/** "hace 5 min" corto y en el idioma de la página. */
-export function useRelativeTime() {
-  const t = useTranslations('groups.time');
-  const locale = useLocale();
-  const mounted = useMounted();
-  return (iso: string | null | undefined, now = Date.now()) => {
-    if (!iso || !mounted) return '';
-    const diff = Math.max(0, now - parseDbUtc(iso).getTime());
-    const min = Math.floor(diff / 60_000);
-    if (min < 1) return t('now');
-    if (min < 60) return t('min', { n: min });
-    const h = Math.floor(min / 60);
-    if (h < 24) return t('hours', { n: h });
-    const d = Math.floor(h / 24);
-    if (d < 7) return t('days', { n: d });
-    return parseDbUtc(iso).toLocaleDateString(locale);
-  };
-}
+export { useRelativeTime } from './relative-time';
 
 export function formatMinutes(min: number | null | undefined, t: (k: string, v?: Record<string, number>) => string): string {
   if (min == null) return '—';

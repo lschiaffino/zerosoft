@@ -6,11 +6,13 @@ import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
-import { Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/components/groups/wa/icons';
+import { ArchiveIcon, Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/components/groups/wa/icons';
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
+import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
+import InboxHubspotCard from './InboxHubspotCard';
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -46,6 +48,7 @@ export default function ContactPanel({
   onOpenThread,
   onStartChat,
   onMute,
+  onKeepArchived,
   onError,
   onToast,
   onChanged,
@@ -56,6 +59,8 @@ export default function ContactPanel({
   onOpenThread: (id: string) => void;
   onStartChat: (phone: string) => void | Promise<void>;
   onMute: (until: string | null) => void;
+  /** "Mantener archivado" (prenderlo archiva el chat). */
+  onKeepArchived?: (on: boolean) => void;
   onError: (code: string) => void;
   onToast: (text: string) => void;
   onChanged: () => void;
@@ -160,7 +165,12 @@ export default function ContactPanel({
             {name}
           </p>
           <p className="ib-wa-hero-sub">
-            {group ? (wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')) : formatPhone(thread.handle)}
+            {group ? (
+              wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')
+            ) : (
+              // El teléfono, aunque el chat esté guardado por lid (lo resuelve el servidor); un toque lo copia.
+              <PhoneCopy phone={wa?.phone || thread.handle} copyLabel={w('copyPhone')} onCopied={() => onToast(w('phoneCopied'))} />
+            )}
             {!group && wa?.isBusiness && <span className="ib-wa-badge">{w('business')}</span>}
           </p>
         </section>
@@ -178,6 +188,8 @@ export default function ContactPanel({
             {group && wa?.createdAt && <p className="ib-wa-muted">{w('createdOn', { date: new Date(wa.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}</p>}
           </section>
         )}
+
+        {!group && thread.channel === 'whatsapp' && <InboxHubspotCard threadId={thread.id} />}
 
         <section className="ib-wa-card ib-wa-summary" aria-busy={summaryBusy || undefined}>
           <h3 className="ib-wa-card-title">
@@ -363,6 +375,18 @@ export default function ContactPanel({
               {muted && thread.mutedUntil && <span className="ib-wa-muted">{w('mutedUntil', { when: longWhen(thread.mutedUntil, locale) })}</span>}
             </span>
           </button>
+          {onKeepArchived && (
+            <label className="ib-wa-row ib-wa-action ib-wa-keep">
+              <ArchiveIcon size={20} />
+              <span className="ib-wa-row-main">
+                <span className="ib-wa-row-name">{w('keepArchived')}</span>
+                <span className="ib-wa-muted">{w('keepArchivedHint')}</span>
+              </span>
+              <span className="ui-switch">
+                <input type="checkbox" role="switch" data-testid="keep-archived" checked={!!thread.keepArchived} onChange={(e) => onKeepArchived(e.target.checked)} />
+              </span>
+            </label>
+          )}
           {!muted && muteOpen && (
             <div className="ib-wa-mute-options" role="group" aria-label={w('muteNotifications')}>
               {(
@@ -423,3 +447,4 @@ export default function ContactPanel({
     </aside>
   );
 }
+

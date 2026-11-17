@@ -42,7 +42,7 @@ const UNVERIFIED: L = [
 const parity: ProductParity = {
   competitor: 'Hootsuite',
   alsoCompared: ['Buffer'],
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-16',
   areas: [
     { id: 'networks', label: loc(['Networks', 'Redes', 'Redes']) },
     { id: 'composer', label: loc(['Composer', 'Compositor', 'Editor']) },
@@ -119,13 +119,21 @@ const parity: ProductParity = {
 
     // Calendario
     row('calendar', 'calendar', ['Month and week calendar', 'Calendario de mes y semana', 'Calendário de mês e semana'], 'have', { weight: 2 }),
-    row('list-view', 'calendar', ['List view with filters', 'Vista de lista con filtros', 'Visão de lista com filtros'], 'have'),
+    row('list-view', 'calendar', ['List view with filters', 'Vista de lista con filtros', 'Visão de lista com filtros'], 'partial', {
+      detail: ['Filters by status and text; no account or network filter on the page yet (the API takes ?account=)', 'Filtra por estado y texto; la página todavía no filtra por cuenta o red (la API acepta ?account=)', 'Filtra por status e texto; a página ainda não filtra por conta ou rede (a API aceita ?account=)'],
+    }),
     row('drag', 'calendar', ['Drag to reschedule', 'Arrastrar para reprogramar', 'Arrastar para reagendar'], 'have'),
     row('queue', 'calendar', ['Recurring queue times per account', 'Horarios de cola por cuenta', 'Horários de fila por conta'], 'have'),
     row('best-time', 'calendar', ['Best time to post', 'Mejor horario para publicar', 'Melhor horário para publicar'], 'partial', {
       detail: ['From your own engagement once there are 10 posts with metrics; before that, starting times labeled as such', 'Con tus propias interacciones cuando hay 10 publicaciones con métricas; antes, horarios para empezar que lo dicen', 'Com suas próprias interações quando há 10 publicações com métricas; antes, horários para começar que dizem isso'],
     }),
-    row('bulk', 'calendar', ['Bulk scheduling from CSV', 'Programación masiva por CSV', 'Agendamento em massa por CSV'], 'missing'),
+    row('bulk', 'calendar', ['Bulk scheduling from CSV', 'Programación masiva por CSV', 'Agendamento em massa por CSV'], 'have', {
+      detail: [
+        'Up to 350 rows per file (date, time, text, link), with a preview that marks and skips bad rows; as scheduled posts or drafts. No photos per row: import as drafts and add them in the composer',
+        'Hasta 350 filas por archivo (fecha, hora, texto, link), con vista previa que marca y saltea las filas malas; como programadas o borradores. Sin fotos por fila: se importan como borradores y se suman en el compositor',
+        'Até 350 linhas por arquivo (data, hora, texto, link), com prévia que marca e pula as linhas ruins; como agendadas ou rascunhos. Sem fotos por linha: importe como rascunhos e adicione no editor',
+      ],
+    }),
 
     // Publicación
     row('scheduled', 'publishing', ['Scheduled publishing', 'Publicación programada', 'Publicação agendada'], 'have', { weight: 2 }),
@@ -158,7 +166,13 @@ const parity: ProductParity = {
     }),
     row('tiktok-inbox', 'inbox', ['TikTok comments', 'Comentarios de TikTok', 'Comentários do TikTok'], 'missing'),
     row('assign', 'inbox', ['Reply, assign and mark done', 'Contestar, asignar y marcar hecho', 'Responder, atribuir e marcar concluído'], 'have'),
-    row('saved-replies', 'inbox', ['Saved replies and inbox automations', 'Respuestas guardadas y automatizaciones de la bandeja', 'Respostas salvas e automações da caixa'], 'missing'),
+    row('saved-replies', 'inbox', ['Saved replies and inbox automations', 'Respuestas guardadas y automatizaciones de la bandeja', 'Respostas salvas e automações da caixa'], 'partial', {
+      detail: [
+        'Shared saved replies with {name} and {account} filled in, inserted from any comment or message; no inbox automations or suggested replies yet',
+        'Respuestas guardadas del workspace con {name} y {account} completos, desde cualquier comentario o mensaje; todavía sin automatizaciones ni respuestas sugeridas',
+        'Respostas salvas do workspace com {name} e {account} preenchidos, em qualquer comentário ou mensagem; ainda sem automações nem respostas sugeridas',
+      ],
+    }),
 
     // Métricas
     row('post-metrics', 'analytics', ['Metrics per post', 'Métricas por publicación', 'Métricas por publicação'], 'partial', {

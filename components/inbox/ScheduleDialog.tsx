@@ -1,15 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { presetDate, SNOOZE_PRESETS, type ScheduledDto, type SnoozePreset } from '@/lib/inbox/types';
-import { api, localInputValue, longWhen, typingIn } from './api';
+import { useTranslations } from 'next-intl';
+import type { ScheduledDto } from '@/lib/inbox/types';
+import WhenPicker, { whenShortcut } from '@/components/ui/WhenPicker';
+import { api } from './api';
 import { Modal } from './InboxDialogs';
 
 export interface PartMedia {
   url: string;
   name: string;
   type: string;
+  /** Nota de voz grabada (sale como nota de voz), con sus segundos. */
+  voice?: boolean;
+  duration?: number;
 }
 
 interface Part {
@@ -68,16 +72,17 @@ const blank = (body = '', delaySec = 0): Part => ({ key: newKey(), body, delaySe
 /**
  * "Enviar más tarde" con varios mensajes: cada uno sale como su propia
  * burbuja, con una espera opcional después del anterior y un archivo
- * (WhatsApp). Abajo, cuándo sale el primero (atajos 1 a 6 o una fecha). Sirve
+ * (WhatsApp). Abajo, cuándo sale el primero (components/ui/WhenPicker: las
+ * opciones del momento con atajos 1, 2, 3… o día y hora a mano). Sirve
  * también para editar lo que falta de una secuencia ya programada.
  */
 export default function ScheduleDialog({ target, onClose, onDone }: { target: ScheduleTarget | null; onClose: () => void; onDone: (scheduled: ScheduledDto[], sendAt: string) => void }) {
   const t = useTranslations('inbox.schedule');
   const tw = useTranslations('inbox.when');
+  const tc = useTranslations('common.when');
   const te = useTranslations('inbox.errors');
-  const locale = useLocale();
   const [parts, setParts] = useState<Part[]>([blank()]);
-  const [custom, setCustom] = useState('');
+  const [initial, setInitial] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -93,12 +98,11 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
     key.current = newKey() + newKey();
     const open = target.edit?.filter((s) => s.status !== 'sent' && s.status !== 'cancelled') ?? [];
     if (open.length) {
-      setParts(open.map((s, i) => ({ key: newKey(), body: s.body, delaySec: i === 0 ? 0 : s.delaySec, media: s.mediaUrl ? { url: s.mediaUrl, name: s.mediaName, type: s.mediaType } : null, uploading: false })));
-      const at = new Date(open[0].sendAt);
-      setCustom(localInputValue(at.getTime() > n.getTime() + 60_000 ? at : new Date(n.getTime() + 3600_000)));
+      setParts(open.map((s, i) => ({ key: newKey(), body: s.body, delaySec: i === 0 ? 0 : s.delaySec, media: s.mediaUrl ? { url: s.mediaUrl, name: s.mediaName, type: s.mediaType, ...(s.mediaVoice ? { voice: true, duration: s.mediaDuration } : {}) } : null, uploading: false })));
+      setInitial(open[0].sendAt);
     } else {
       setParts([blank(target.text ?? '')]);
-      setCustom(localInputValue(new Date(n.getTime() + 24 * 3600_000)));
+      setInitial(null);
     }
   }, [target]);
 
@@ -114,7 +118,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
       return;
     }
     if (at.getTime() <= Date.now() + 30_000) {
-      setErr(tw('pastError'));
+      setErr(tc('pastError'));
       return;
     }
     setBusy(true);
@@ -136,8 +140,6 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
     onDone(r.data.scheduled, sendAt);
   };
 
-  const pick = (p: SnoozePreset) => void submit(presetDate(p, new Date()));
-
   const attach = async (k: string, file: File | undefined) => {
     if (!file) return;
     set(k, { uploading: true });
@@ -156,13 +158,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
     <Modal open={!!target} title={editing ? t('editTitle') : t('title')} onClose={onClose} wide>
       <div
         className="ui-modal-body ib-when-body ib-plan"
-        onKeyDown={(e) => {
-          const n = Number(e.key);
-          if (!typingIn(e.target as Element) && n >= 1 && n <= SNOOZE_PRESETS.length && !e.metaKey && !e.ctrlKey) {
-            e.preventDefault();
-            pick(SNOOZE_PRESETS[n - 1]);
-          }
-        }}
+        onKeyDown={(e) => void whenShortcut(e)}
       >
         <ol className="ib-plan-parts" aria-label={t('messages')}>
           {parts.map((p, i) => (
@@ -234,38 +230,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
           </button>
         )}
         <h3 className="label ib-plan-h">{t('whenFirst')}</h3>
-        <ul className="ib-when-list">
-          {SNOOZE_PRESETS.map((p, i) => (
-            <li key={p}>
-              <button type="button" className="ib-when-opt" onClick={() => pick(p)} disabled={busy || !ready}>
-                <span className="kbd" aria-hidden>
-                  {i + 1}
-                </span>
-                <span className="ib-when-label">{tw(`preset.${p}`)}</span>
-                <span className="ib-when-at">{longWhen(presetDate(p, now).toISOString(), locale)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <form
-          className="ib-when-custom"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const at = new Date(custom);
-            if (!custom || Number.isNaN(at.getTime())) setErr(tw('pastError'));
-            else void submit(at);
-          }}
-        >
-          <label className="label" htmlFor="ib-plan-at">
-            {tw('custom')}
-          </label>
-          <div className="ib-row">
-            <input id="ib-plan-at" className="input" type="datetime-local" value={custom} onChange={(e) => setCustom(e.target.value)} />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !ready}>
-              {editing ? t('save') : t('schedule')}
-            </button>
-          </div>
-        </form>
+        <WhenPicker key={now.getTime()} mode="send" now={now} initial={initial} startCustom={editing} autoFocus={false} disabled={busy || !ready} confirmLabel={editing ? t('save') : t('schedule')} onPick={(iso) => void submit(new Date(iso))} />
         {err && (
           <p className="ib-error" role="alert">
             {err}
