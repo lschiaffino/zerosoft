@@ -101,12 +101,16 @@ export default function ChatDetails({
   const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
 
+  // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
+  // (una etiqueta, "mantener archivado") trae un chat nuevo con `properties` en otro objeto: depender del objeto
+  // borraba lo que se estaba escribiendo en el nombre, la descripción o las propiedades.
+  const propsKey = JSON.stringify(chat.properties ?? {});
   useEffect(() => {
-    setProps(chat.properties);
-    setName(chat.name);
-    setDescription(chat.description);
-    setLink(chat.inviteLink);
-  }, [chat.id, chat.properties, chat.name, chat.description, chat.inviteLink]);
+    setProps(JSON.parse(propsKey) as Record<string, unknown>);
+  }, [chat.id, propsKey]);
+  useEffect(() => setName(chat.name), [chat.id, chat.name]);
+  useEffect(() => setDescription(chat.description), [chat.id, chat.description]);
+  useEffect(() => setLink(chat.inviteLink), [chat.id, chat.inviteLink]);
 
   useEffect(() => {
     void api<{ tickets: TicketLite[] }>(`/api/groups/tickets?chat=${chat.id}&status=all`).then((r) => setTickets(r.data?.tickets ?? []));

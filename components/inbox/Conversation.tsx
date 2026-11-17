@@ -189,12 +189,20 @@ const Conversation = forwardRef<
     return () => window.clearTimeout(id);
   }, [detail.focus, detail.thread.id]);
 
+  // Otro hilo: todo vuelve a cero. Un título nuevo (renombrar, o el que llega del servidor) solo cambia el
+  // título (y no pisa el que se está escribiendo): las notas abiertas con texto sin guardar siguen como estaban.
+  const renamingRef = useRef(renaming);
+  renamingRef.current = renaming;
   useEffect(() => {
-    setTitle(thread.title);
     setRenaming(false);
     setNotesOpen(false);
     setNotesState('');
-  }, [thread.id, thread.title]);
+    setTitle(thread.title);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread.id]);
+  useEffect(() => {
+    if (!renamingRef.current) setTitle(thread.title);
+  }, [thread.title]);
 
   // Comandos "/" del campo: las mismas acciones de esta cabecera y de "Más acciones".
   const slashCommands = useInboxThreadCommands({ thread, onAction, openNotes: () => void openNotes(), rename: () => setRenaming(true) });
