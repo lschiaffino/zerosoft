@@ -171,14 +171,16 @@ const TABLES: ZsTableDef[] = [
   {
     name: 'messages',
     app: 'groups',
+    // Sin el texto del mensaje: Analytics cuenta y agrupa, no lee conversaciones
+    // (diseño de cifrado, docs/design/inbox-message-encryption.md).
     columns: [
-      ['id', 'text'], ['chat_id', 'text'], ['direction', 'text'], ['sender_name', 'text'], ['author_id', 'text'], ['body', 'text'],
+      ['id', 'text'], ['chat_id', 'text'], ['direction', 'text'], ['sender_name', 'text'], ['author_id', 'text'],
       ['media_type', 'text'], ['status', 'text'], ['created_at', 'date'],
     ],
     cte(ctx) {
       const a = ctx.groupsAccess;
       return {
-        sql: `SELECT m.id, m.chat_id, m.direction, m.sender_name, m.author_id, m.body, m.media_type, m.status, datetime(m.created_at) AS created_at
+        sql: `SELECT m.id, m.chat_id, m.direction, m.sender_name, m.author_id, m.media_type, m.status, datetime(m.created_at) AS created_at
           FROM groups_messages m${a ? ' JOIN groups_chats c ON c.id = m.chat_id' : ''}
           WHERE m.user_id = ? AND m.deleted_at IS NULL${a ? ` AND ${a.sql}` : ''} ORDER BY m.created_at DESC LIMIT ${ZS_TABLE_ROW_CAP}`,
         args: [ctx.viewer.workspaceId, ...(a?.args ?? [])],
