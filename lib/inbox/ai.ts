@@ -320,10 +320,32 @@ function mapError(err: unknown): InboxError {
   return new InboxError('ai_failed', 502);
 }
 
-/** Lo que se loguea de un fallo del proveedor: nombre, estado y el mensaje corto (nunca el pedido). */
+/** El modelo terminó sin escribir nada. */
+class EmptyResponseError extends Error {
+  constructor() {
+    super('empty response');
+    this.name = 'EmptyResponse';
+  }
+}
+
+const SAFE_TOKEN = /^[A-Za-z0-9_.:-]{1,60}$/;
+
+/**
+ * La línea de log de un fallo del proveedor: nombre del error, estado HTTP y
+ * código. Nunca el mensaje: algunos proveedores repiten ahí parte de lo que se
+ * les mandó (mensajes del chat, notas).
+ */
+export function aiFailureLogLine(via: string, modelId: string, err: unknown): string {
+  const e = (err ?? {}) as { name?: unknown; statusCode?: unknown; status?: unknown; code?: unknown };
+  const name = typeof e.name === 'string' && SAFE_TOKEN.test(e.name) ? e.name : 'Error';
+  const rawStatus = e.statusCode ?? e.status;
+  const status = typeof rawStatus === 'number' && Number.isInteger(rawStatus) ? ` ${rawStatus}` : '';
+  const code = typeof e.code === 'string' && SAFE_TOKEN.test(e.code) ? ` ${e.code}` : '';
+  return `[inbox-ai] ${via} ${modelId} failed: ${name}${status}${code}`;
+}
+
 function logFailure(via: string, modelId: string, err: unknown) {
-  const e = err as { name?: string; statusCode?: number; message?: string };
-  console.error(`[inbox-ai] ${via} ${modelId} failed: ${e?.name ?? 'Error'} ${e?.statusCode ?? ''} ${String(e?.message ?? '').slice(0, 200)}`);
+  console.error(aiFailureLogLine(via, modelId, err));
 }
 
 function textStream(chunks: AsyncIterable<string> | Iterable<string>): ReadableStream<Uint8Array> {
@@ -402,7 +424,7 @@ export async function inboxAiStream(owner: string, req: InboxAiRequest): Promise
       }
     }
     if (!first) {
-      const err = failed ?? new Error('empty response');
+      const err = failed ?? new EmptyResponseError();
       logFailure(m.via, m.modelId, err);
       lastErr = err;
       // Sin crédito o sin IA: no sirve probar otro modelo, se dice tal cual.
@@ -424,7 +446,7 @@ export async function inboxAiStream(owner: string, req: InboxAiRequest): Promise
     }
     return textStream(rest());
   }
-  throw lastErr && !(lastErr instanceof Error && lastErr.message === 'empty response') ? mapError(lastErr) : new InboxError('ai_failed', 502);
+  throw lastErr && !(lastErr instanceof EmptyResponseError) ? mapError(lastErr) : new InboxError('ai_failed', 502);
 }
 
 /** Lee un stream de inboxAiStream entero (pedido sin stream). */
