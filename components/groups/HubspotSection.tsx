@@ -207,15 +207,15 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   const company = state?.company ?? null;
   const hasLinks = Boolean(state?.connected && state.links.length > 0);
   /** Las propiedades elegidas (por la persona o el workspace), con su valor como se lee. */
-  const asShown = (pinned: PinnedValue[]) =>
+  const asShown = (pinned: PinnedValue[], currency?: string) =>
     pinned.map((p) => ({
       key: p.name,
       label: p.label,
-      value: formatHubspotValue(p, p.value, { locale, owners: p.ownerName ? [{ id: p.value, name: p.ownerName }] : [], yes: t('props.yes'), no: t('hubspot.screen.no') }),
+      value: formatHubspotValue(p, p.value, { locale, owners: p.ownerName ? [{ id: p.value, name: p.ownerName }] : [], yes: t('props.yes'), no: t('hubspot.screen.no'), currency }),
     }));
   const chosenProps = (r: HubspotRecord) => {
     const pinned = r.type === 'company' ? company?.pinned : state?.objects?.[r.type]?.pinned;
-    return pinned && pinned.length > 0 ? asShown(pinned) : null;
+    return pinned && pinned.length > 0 ? asShown(pinned, r.type === 'deal' ? state?.objects?.deal?.currency : undefined) : null;
   };
 
   const suggestion = (sg: HubspotSuggestion) => (

@@ -663,6 +663,8 @@ export interface PinnedValue {
   name: string;
   label: string;
   kind: HubspotPropKind;
+  /** Para reconocer un monto (tipo moneda). */
+  fieldType?: string;
   value: string;
   /** Solo las opciones del valor (para mostrar la etiqueta) y el nombre del dueño. */
   options: HubspotOption[];

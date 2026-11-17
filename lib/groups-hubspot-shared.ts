@@ -191,10 +191,20 @@ export interface HubspotFormat {
   owners: HubspotOwner[];
   yes: string;
   no: string;
+  /** Moneda del registro (deal_currency_code de un negocio): los montos se muestran con ella. */
+  currency?: string;
 }
 
+/** Un monto de dinero de HubSpot (el del negocio y los de tipo moneda): se muestra con la moneda del registro. */
+export const isHubspotMoney = (def: { name?: string; kind: HubspotPropKind; fieldType?: string }) =>
+  def.kind === 'number' && (def.fieldType === 'currency' || /(^|_)amount($|_)/.test(def.name ?? ''));
+
 /** Un valor como lo lee una persona: etiqueta de la opción, nombre del dueño, fecha o número local. */
-export function formatHubspotValue(def: Pick<HubspotPropDef, 'kind' | 'options'> | null | undefined, value: string, f: HubspotFormat): string {
+export function formatHubspotValue(
+  def: (Pick<HubspotPropDef, 'kind' | 'options'> & { name?: string; fieldType?: string }) | null | undefined,
+  value: string,
+  f: HubspotFormat,
+): string {
   const v = String(value ?? '');
   if (!v || !def) return v;
   const label = (x: string) => def.options.find((o) => o.value === x)?.label ?? x;
@@ -204,7 +214,16 @@ export function formatHubspotValue(def: Pick<HubspotPropDef, 'kind' | 'options'>
   if (def.kind === 'multi') return hubspotMulti(v).map(label).join(', ');
   if (def.kind === 'number') {
     const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString(f.locale, { maximumFractionDigits: 6 }) : v;
+    if (!Number.isFinite(n)) return v;
+    if (f.currency && /^[A-Za-z]{3}$/.test(f.currency) && isHubspotMoney(def)) {
+      try {
+        return n.toLocaleString(f.locale, { style: 'currency', currency: f.currency.toUpperCase(), maximumFractionDigits: 2 });
+      } catch {
+        // Un código que el navegador no conoce: el número y el código.
+        return `${n.toLocaleString(f.locale, { maximumFractionDigits: 2 })} ${f.currency.toUpperCase()}`;
+      }
+    }
+    return n.toLocaleString(f.locale, { maximumFractionDigits: 6 });
   }
   if (def.kind === 'date' || def.kind === 'datetime') {
     const ms = hubspotTime(v);

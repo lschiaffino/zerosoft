@@ -62,7 +62,7 @@ export default function InboxHubspotCard({ threadId }: { threadId: string }) {
       .filter((d): d is NonNullable<typeof d> => Boolean(d))
       .map((d) => {
         const raw = rec.values[d.name] ?? '';
-        return { name: d.name, label: d.label, value: raw === '•••' ? raw : formatHubspotValue(d, raw, format) };
+        return { name: d.name, label: d.label, value: raw === '•••' ? raw : formatHubspotValue(d, raw, { ...format, currency: rec.values.deal_currency_code }) };
       })
       .filter((p) => p.value);
   };

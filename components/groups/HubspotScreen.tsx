@@ -295,6 +295,8 @@ export default function HubspotScreen({
   const format = useMemo(() => ({ locale, owners: schema?.owners ?? [], yes: yesText, no: noText }), [locale, schema?.owners, yesText, noText]);
   const defs = useMemo(() => new Map((schema?.props ?? []).map((p) => [p.name, p])), [schema]);
   const values = data?.values ?? {};
+  // Los montos del negocio, con su moneda (la empresa y el contacto no tienen una).
+  const money = useMemo(() => ({ ...format, currency: values.deal_currency_code }), [format, values.deal_currency_code]);
   const canEdit = Boolean(data?.canEdit) && !data?.company?.broken;
 
   async function save(def: HubspotPropDef, raw: string | string[]) {
@@ -383,7 +385,7 @@ export default function HubspotScreen({
 
   const row = (def: HubspotPropDef) => {
     const value = values[def.name] ?? '';
-    const shown = formatHubspotValue(def, value, format);
+    const shown = formatHubspotValue(def, value, money);
     const busy = saving.includes(def.name);
     const isPinned = pinnedNames.has(def.name);
     return (

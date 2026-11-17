@@ -251,7 +251,7 @@ const valueCache: Map<string, CachedValues> = ((globalThis as unknown as { __hub
 const cacheKey = (ws: string, type: HubspotObjectType, id: string) => `${ws}:${type}:${id}`;
 
 /** Lo que se lee siempre, aunque no se haya elegido: el nombre del registro. */
-const NAME_PROPS: Record<HubspotObjectType, string[]> = { contact: ['firstname', 'lastname', 'email'], deal: ['dealname'] };
+const NAME_PROPS: Record<HubspotObjectType, string[]> = { contact: ['firstname', 'lastname', 'email'], deal: ['dealname', 'deal_currency_code'] };
 
 /**
  * Los valores de un contacto o negocio (las propiedades pedidas). Del minuto
@@ -346,7 +346,7 @@ export async function hubspotObjectDto(ws: string, type: HubspotObjectType, id: 
  * negocio que tienen valor, para los detalles del chat. null si no se
  * pudieron leer (se muestran las de siempre).
  */
-export async function hubspotObjectSummary(ws: string, type: HubspotObjectType, id: string, viewer?: string, mask = false): Promise<{ id: string; pinned: PinnedValue[] } | null> {
+export async function hubspotObjectSummary(ws: string, type: HubspotObjectType, id: string, viewer?: string, mask = false): Promise<{ id: string; pinned: PinnedValue[]; currency?: string } | null> {
   const conn = await hubspotConn(ws);
   if (!conn || !/^\d{1,20}$/.test(id)) return null;
   const row = await freshSchemaRow(ws, type);
@@ -372,13 +372,15 @@ export async function hubspotObjectSummary(ws: string, type: HubspotObjectType, 
     pinned.push({
       name,
       label: def.label,
+      fieldType: def.fieldType,
       kind: value === '•••' ? 'text' : def.kind,
       value,
       options: def.options.filter((o) => picked.includes(o.value)),
       ...(def.kind === 'owner' ? { ownerName: owners.find((o) => o.id === value)?.name ?? '' } : {}),
     });
   }
-  return { id, pinned };
+  const currency = type === 'deal' && /^[A-Za-z]{3}$/.test(values.deal_currency_code ?? '') ? values.deal_currency_code.toUpperCase() : '';
+  return { id, pinned, ...(currency ? { currency } : {}) };
 }
 
 /**

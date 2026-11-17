@@ -6,6 +6,7 @@ import { systemViewer, updatePlatformSettings } from '@/lib/groups-access';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { chatHubspot, connectHubspot, disconnectHubspot, getHubspot, linkHubspot } from '@/lib/groups-hubspot';
 import { getHubspotSchema } from '@/lib/groups-hubspot-sync';
+import { formatHubspotValue } from '@/lib/groups-hubspot-shared';
 import { fakeHubspot, resetFakeHubspot } from '@/lib/groups-hubspot-fake';
 import { linkContactHubspot, listLinesContacts } from '@/lib/groups-contacts';
 import { clearHubspotObjectCache, getHubspotObjectSchema, hubspotDefFromApi } from '@/lib/hubspot-objects';
@@ -159,6 +160,14 @@ describe('Las del contacto y del negocio que ve cada persona', () => {
     expect(other.objects?.contact?.pinned.map((p) => p.name)).toEqual(['email', 'jobtitle', 'lifecyclestage', 'hubspot_owner_id']);
     expect(other.objects?.contact?.pinned.find((p) => p.name === 'hubspot_owner_id')?.ownerName).toBe('Paula Ortiz');
     expect(other.objects?.deal?.pinned.map((p) => p.name)).toEqual(['dealstage', 'amount', 'closedate', 'hubspot_owner_id']);
+    // El monto va con la moneda del negocio; la fecha de cierre (medianoche UTC) es un día.
+    expect(other.objects?.deal?.currency).toBe('USD');
+    const amount = other.objects?.deal?.pinned.find((p) => p.name === 'amount');
+    const f = { locale: 'en', owners: [], yes: 'Yes', no: 'No', currency: other.objects?.deal?.currency };
+    expect(formatHubspotValue(amount, amount?.value ?? '', f)).toContain('$12,000');
+    const close = other.objects?.deal?.pinned.find((p) => p.name === 'closedate');
+    expect(formatHubspotValue(close, close?.value ?? '', f)).toBe('Dec 15, 2026');
+    expect(formatHubspotValue({ name: 'contract_months', kind: 'number', options: [] }, '12', f)).toBe('12');
 
     // Un admin elige las del negocio para todo el workspace.
     session.user = asOwner(w.owner) as unknown as Record<string, unknown>;

@@ -928,7 +928,10 @@ export interface ChatHubspotDto {
   /** La empresa vinculada con sus propiedades fijadas (lib/groups-hubspot-sync.ts). */
   company?: import('./groups-hubspot-sync').ChatCompanySummary | null;
   /** El contacto y el negocio vinculados con las propiedades elegidas (lib/hubspot-objects.ts); null si no se pudieron leer. */
-  objects?: { contact?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[] } | null; deal?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[] } | null };
+  objects?: {
+    contact?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[] } | null;
+    deal?: { id: string; pinned: import('./groups-hubspot-sync').PinnedValue[]; currency?: string } | null;
+  };
 }
 
 /**
