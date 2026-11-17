@@ -56,7 +56,7 @@
     "voice": { "names": ["voice"], "paths": ["app/[locale]/m/**"], "specs": ["voice", "voice-*"] },
     "rec": { "names": ["rec"], "paths": ["app/[locale]/v/**"], "specs": ["rec", "rec-*", "docs-meeting-rec"] },
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
-    "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms"] },
+    "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms", "forms-*"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
     "time": { "names": ["time"], "specs": ["time", "time-week"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },

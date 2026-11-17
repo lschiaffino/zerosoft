@@ -17,6 +17,7 @@ import FormResponses from '@/components/forms/FormResponses';
 import ResponseDetail from '@/components/forms/ResponseDetail';
 import FormSummaryView from '@/components/forms/FormSummary';
 import FormsSettings from '@/components/forms/FormsSettings';
+import FormsAnalytics from '@/components/forms/FormsAnalytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,12 +28,13 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'forms' });
   if (zs[0] === 'new') return { title: `${t('nav.templates')} · Forms` };
   if (zs[0] === 'settings') return { title: `${t('settings.title')} · Forms` };
+  if (zs[0] === 'analytics') return { title: `${t('analytics.title')} · Forms` };
   return { title: t('meta.title') };
 }
 
 /**
  * Forms en una sola ruta (presupuesto de rutas): /app/forms (lista), /new
- * (plantillas), /settings, /<form> (builder; ?tab=), /<form>/responses,
+ * (plantillas), /settings, /analytics, /<form> (builder; ?tab=), /<form>/responses,
  * /<form>/responses/<respuesta>, /<form>/summary y /<form>/share.
  */
 export default async function FormsPage(props: Props) {
@@ -53,6 +55,10 @@ export default async function FormsPage(props: Props) {
   if (section === 'new') {
     if (sub) notFound();
     return <FormNew templates={TEMPLATES} locale={locale} />;
+  }
+  if (section === 'analytics') {
+    if (sub) notFound();
+    return <FormsAnalytics locale={locale} actor={actor} sp={sp} />;
   }
   if (section === 'settings') {
     if (sub) notFound();

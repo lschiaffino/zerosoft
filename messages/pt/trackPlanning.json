@@ -536,5 +536,29 @@
     "deleteLabel": "Apagar o template {name}",
     "deleteTitle": "Apagar o template “{name}”?",
     "deleteBody": "Os projetos já criados com ele ficam como estão."
+  },
+  "analytics": {
+    "title": "Análises",
+    "desc": "Issues criados e concluídos, tempo de ciclo e trabalho aberto das suas equipes, comparados com o período anterior.",
+    "team": "Equipe",
+    "allTeams": "Todas as equipes",
+    "created": "Criados",
+    "completed": "Concluídos",
+    "cycleTime": "Tempo de ciclo (mediana)",
+    "leadTime": "Tempo total (mediana)",
+    "open": "Abertos",
+    "perDay": "Criados e concluídos por dia",
+    "byTeam": "Por equipe",
+    "whenCompleted": "Quando os issues são concluídos",
+    "byPerson": "Por pessoa",
+    "person": "Pessoa",
+    "unassigned": "Sem responsável",
+    "completedN": "{n} concluídos",
+    "createdN": "{n} criados",
+    "openN": "{n} abertos",
+    "peak": "A maioria dos issues é concluída {day} às {hour} ({n})",
+    "emptyTitle": "Não há issues neste período",
+    "emptyBody": "Crie e feche issues e os números aparecem aqui.",
+    "note": "O tempo de ciclo vai da primeira passagem para Em andamento ao último fechamento como concluído; o tempo total, da criação à conclusão. Abertos é uma foto de agora. Issues em triagem e arquivados ficam de fora."
   }
 }

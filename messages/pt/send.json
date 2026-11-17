@@ -2,7 +2,8 @@
   "nav": {
     "documents": "Documentos",
     "spaces": "Espaços",
-    "new": "Novo documento"
+    "new": "Novo documento",
+    "analytics": "Análises"
   },
   "common": {
     "cancel": "Cancelar",
@@ -398,5 +399,30 @@
     "too_many_entries": "A lista tem mais de 500 entradas.",
     "invalid_button_label": "Escreva o texto do botão, até 40 caracteres.",
     "invalid_button_url": "O botão precisa de um endereço web, como https://acme.com/demo."
+  },
+  "analytics": {
+    "title": "Análises",
+    "desc": "Visitas, leitores, tempo de leitura e downloads dos seus documentos, comparados com o período anterior.",
+    "doc": "Documento",
+    "allDocs": "Todos os documentos",
+    "visits": "Visitas",
+    "viewers": "Pessoas",
+    "avgTime": "Tempo por visita",
+    "completion": "Lido",
+    "downloads": "Downloads",
+    "perDay": "Visitas por dia",
+    "byDoc": "Por documento",
+    "whenVisits": "Quando abrem seus documentos",
+    "countries": "Países",
+    "devices": "Dispositivos",
+    "docsTable": "Documentos",
+    "visitsN": "{n, plural, one {# visita} other {# visitas}}",
+    "viewersN": "{n, plural, one {# pessoa} other {# pessoas}}",
+    "peak": "A maioria das visitas começa {day} às {hour} ({n})",
+    "emptyTitle": "Ainda não há visitas",
+    "emptyBody": "Compartilhe um link para um documento e as visitas aparecem aqui.",
+    "noDocsTitle": "Ainda não há documentos",
+    "noDocsBody": "Envie um documento e compartilhe um link para ver quem lê.",
+    "note": "Pessoas conta cada email ou navegador uma vez. Lido é a parte média de páginas vistas por visita. O tempo é medido pelo visualizador enquanto a página está aberta."
   }
 }

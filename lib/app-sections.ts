@@ -5,7 +5,7 @@
  */
 export const APP_SECTIONS = {
   sign: ['new', 'envelopes', 'templates', 'settings'],
-  send: ['new', 'documents', 'spaces', 'settings'],
+  send: ['new', 'documents', 'spaces', 'analytics', 'settings'],
   inbox: ['v', 'f', 'agents', 'analytics', 'contacts', 'settings'],
   calls: ['call', 'upcoming', 'deals', 'ask', 'analytics', 'settings'],
   fleet: ['chats', 'prs', 'deploys', 'settings'],
@@ -28,7 +28,7 @@ export function isAppSection(app: keyof typeof APP_SECTIONS, section: string | u
 /** Secciones de una sola pantalla: /app/sign/settings/x no existe. */
 const NO_ID: Record<keyof typeof APP_SECTIONS, readonly string[]> = {
   sign: ['new', 'settings'],
-  send: ['new', 'settings'],
+  send: ['new', 'analytics', 'settings'],
   inbox: ['analytics', 'contacts', 'settings'],
   calls: ['upcoming', 'deals', 'ask', 'analytics', 'settings'],
   fleet: ['prs', 'deploys', 'settings'],

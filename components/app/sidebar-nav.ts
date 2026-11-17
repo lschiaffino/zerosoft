@@ -247,7 +247,7 @@ export interface SidebarLabels {
   /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
   people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
   /** Forms (Typeform): formularios, plantillas y ajustes. */
-  forms: { forms: string; templates: string; newForm: string };
+  forms: { forms: string; templates: string; newForm: string; analytics: string };
   /** Books: ventas, compras, contactos, ítems, bancos, contabilidad e informes. */
   books: {
     overview: string;
@@ -270,7 +270,7 @@ export interface SidebarLabels {
     newInvoice: string;
   };
   /** Send (DocSend): documentos con links y espacios. */
-  send: { documents: string; spaces: string; newDocument: string };
+  send: { documents: string; spaces: string; newDocument: string; analytics: string };
   /** Inbox (personal): WhatsApp y Gmail. */
   inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
@@ -716,6 +716,9 @@ export function buildNav(
             ...(labels.track.customers
               ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
               : []),
+            ...(labels.track.analytics
+              ? [{ href: '/app/track/analytics', label: labels.track.analytics, active: at('/app/track/analytics'), icon: 'reports' as const }]
+              : []),
             ...(labels.track.insights
               ? [
                   { href: '/app/track/insights', label: labels.track.insights ?? '', active: at('/app/track/insights'), icon: 'insights' as const },
@@ -1027,6 +1030,10 @@ export function buildNav(
             { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder' },
           ],
         },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/send/analytics', label: labels.send.analytics, active: at('/app/send/analytics'), icon: 'reports' }],
+        },
         appSettingsGroup('/app/send/settings'),
       ];
 
@@ -1208,6 +1215,10 @@ export function buildNav(
             { href: '/app/forms', label: labels.forms.forms, active: pathname === '/app/forms' || /^\/app\/forms\/fm_/.test(pathname), icon: 'forms' },
             { href: '/app/forms/new', label: labels.forms.templates, active: at('/app/forms/new'), icon: 'templates' },
           ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/forms/analytics', label: labels.forms.analytics, active: at('/app/forms/analytics'), icon: 'reports' }],
         },
         appSettingsGroup('/app/forms/settings'),
       ];
