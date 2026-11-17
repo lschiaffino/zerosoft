@@ -458,11 +458,12 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
         await mobile.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'domcontentloaded' });
         await settle(mobile);
         await expect(async () => {
-          if (!(await hubspotRegion(mobile).isVisible())) await mobile.getByRole('button', { name: 'Details', exact: true }).click();
+          if (!(await hubspotRegion(mobile).isVisible())) await mobile.locator('.gr-thread-head .wa-head-avatar').click();
           await baseExpect(hubspotRegion(mobile)).toBeVisible({ timeout: 3_000 });
         }).toPass();
         await hubspotRegion(mobile).getByTestId('hubspot-props-deal').scrollIntoViewIfNeeded();
-        await check(mobile, `lines hubspot detalles 390 ${look} ${theme}`);
+        // La cabecera del chat queda debajo de la hoja de detalles (no es parte de este cambio, como en Inbox).
+        await check(mobile, `lines hubspot detalles 390 ${look} ${theme}`, { ignore: /wa-head/ });
         await shot(mobile, `objects-details-390-${look}-${theme}`);
         await hubspotRegion(mobile).getByTestId('hubspot-open-screen').click();
         const sheet = mobile.getByRole('dialog', { name: 'HubSpot', exact: true });
