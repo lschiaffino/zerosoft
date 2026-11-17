@@ -329,7 +329,14 @@
     "byPost": "By post",
     "noPosts": "Nothing published in this period.",
     "postCol": "Post",
-    "bestTimes": "Best times to post"
+    "bestTimes": "Best times to post",
+    "emptyPeriodTitle": "Nothing published in this period",
+    "emptyPeriodBody": "Publish or schedule a post: its metrics show up here within the hour.",
+    "byNetwork": "By network",
+    "whenEngage": "When your posts get engagement",
+    "peak": "Most engagement on posts published {day} at {hour} ({n})",
+    "postsN": "{n, plural, one {# post} other {# posts}}",
+    "impressionsN": "{n} impressions"
   },
   "library": {
     "title": "Library",

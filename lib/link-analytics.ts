@@ -3,6 +3,8 @@ import { csvSafe, dayList, EXPORT_LIMIT, type BreakdownItem } from './track';
 import { shortUrl } from './utils';
 import { isValidTimeZone, tzOffsetMinutes } from './user-tz';
 import { visibleLinksSql, type LinkViewer } from './link-folders';
+import { analyticsRange, rangeInfo, type RangeInfo, type RangeInput } from './analytics-kit/period';
+import { shortCache } from './analytics-kit/cache';
 
 /**
  * Analytics de todos los links del workspace (el usuario dueño). Las visitas
@@ -294,7 +296,8 @@ export async function getWorkspaceAnalytics(
   const breakdown = async (col: Col, fallback: string, limit = 8): Promise<BreakdownItem[]> => {
     const rows = (await db
       .prepare(
-        `SELECT COALESCE(${COL_SQL[col]}, ?) AS name, COUNT(*) AS n ${FROM} WHERE ${scope.sql} GROUP BY name ORDER BY n DESC, name`,
+        // Un valor vacío ('') cuenta como el de respaldo: si no, la barra sale sin nombre.
+        `SELECT COALESCE(NULLIF(${COL_SQL[col]}, ''), ?) AS name, COUNT(*) AS n ${FROM} WHERE ${scope.sql} GROUP BY name ORDER BY n DESC, name`,
       )
       .all(fallback, ...scope.args)) as Array<{ name: string; n: number }>;
     const out = rows.slice(0, limit).map((r) => ({ name: r.name, count: Number(r.n) }));
@@ -616,4 +619,35 @@ export function workspaceClicksToCsv(rows: WorkspaceClickRow[]): string {
     );
   }
   return lines.join('\n');
+}
+
+// ---------- Tablero (kit de analítica) ----------
+
+export interface LinkDashboard {
+  range: RangeInfo;
+  a: WorkspaceAnalytics;
+  conv: WorkspaceConversions;
+}
+
+/** Clics, escaneos y conversiones del período del kit (y el anterior, del mismo largo). */
+export async function linkDashboard(userId: string, query: RangeInput, opts: WorkspaceAnalyticsOptions = {}, now = new Date()): Promise<LinkDashboard> {
+  const r = analyticsRange({ ...query, tz: parseTimezone(query.tz) }, now);
+  const range = { from: r.from, to: r.to };
+  const o = { ...opts, timezone: r.tz };
+  const [a, conv] = await Promise.all([getWorkspaceAnalytics(userId, range, o), getWorkspaceConversions(userId, range, o)]);
+  return { range: rangeInfo(r), a, conv };
+}
+
+const dashboardCache = shortCache<LinkDashboard>();
+
+/** Con la caché corta del kit. La clave lleva el workspace, quién mira, los filtros y el rango. */
+export function cachedLinkDashboard(userId: string, query: RangeInput, opts: WorkspaceAnalyticsOptions = {}): Promise<LinkDashboard> {
+  const now = new Date();
+  const r = analyticsRange({ ...query, tz: parseTimezone(query.tz) }, now);
+  const key = JSON.stringify([userId, opts.viewer ?? null, filtersQuery(opts.filters ?? {}), r.since, r.until, r.tz]);
+  return dashboardCache.get(key, () => linkDashboard(userId, query, opts, now));
+}
+
+export function clearLinkDashboardCache(): void {
+  dashboardCache.clear();
 }

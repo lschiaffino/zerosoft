@@ -632,7 +632,9 @@
     "conversions": "Conversiones",
     "conversionsEmpty": "No hay leads ni ventas en este rango. Activá la medición de conversiones en un link y avisalas desde tu sitio.",
     "funnel": "De clicks a ventas",
-    "topConverting": "Links que más convierten"
+    "topConverting": "Links que más convierten",
+    "desc": "Clics, escaneos del QR y conversiones de todos tus links, contra el período anterior.",
+    "convRate": "Tasa de leads"
   },
   "targeting": {
     "title": "Ruteo",

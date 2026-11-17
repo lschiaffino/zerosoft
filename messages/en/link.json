@@ -632,7 +632,9 @@
     "conversions": "Conversions",
     "conversionsEmpty": "No leads or sales in this range. Turn on conversion tracking on a link and report them from your site.",
     "funnel": "From clicks to sales",
-    "topConverting": "Top converting links"
+    "topConverting": "Top converting links",
+    "desc": "Clicks, QR scans and conversions of all your links, compared with the period before.",
+    "convRate": "Lead rate"
   },
   "targeting": {
     "title": "Routing",

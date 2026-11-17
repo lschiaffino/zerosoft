@@ -1,44 +1,24 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import {
-  DEVICE_FILTERS,
-  filtersQuery,
-  getAnalyticsFacets,
-  getWorkspaceAnalytics,
-  getWorkspaceConversions,
-  parseTimezone,
-  parseWorkspaceFilters,
-  parseWorkspaceRange,
-} from '@/lib/link-analytics';
+import { DEVICE_FILTERS, cachedLinkDashboard, filtersQuery, getAnalyticsFacets, parseTimezone, parseWorkspaceFilters, type LinkDashboard } from '@/lib/link-analytics';
 import { listFolders, viewerOf } from '@/lib/link-folders';
 import { listShares } from '@/lib/link-shares';
-import { getUserTimeZone } from '@/lib/user-tz';
-import { formatNumber, shortDomain } from '@/lib/utils';
-import PageHeader from '@/components/ui/PageHeader';
-import DataTable from '@/components/ui/DataTable';
-import EmptyState from '@/components/ui/EmptyState';
-import LinkChart from '@/components/link/LinkChart';
-import LinkIcon from '@/components/link/LinkIcon';
 import { breakdownLabelers } from '@/lib/link-labels';
-import BreakdownBars from '@/components/link/BreakdownBars';
-import { periodDelta, type PeriodDelta } from '@/lib/period-delta';
-import SharePanel from '@/components/link/SharePanel';
+import { formatMoney as formatMinor } from '@/lib/link-conversions';
+import { periodChoice, periodParams, share } from '@/lib/analytics-kit/period';
+import { viewerTz } from '@/lib/analytics-kit/server';
+import type { BreakdownItem } from '@/lib/track';
+import { shortDomain } from '@/lib/utils';
+import PageHeader from '@/components/ui/PageHeader';
 import SettingsTabs from '@/components/ui/SettingsTabs';
+import SharePanel from '@/components/link/SharePanel';
 import LinkEvents from '@/components/link/LinkEvents';
 import LinkAskAi from '@/components/link/LinkAskAi';
-import { formatMoney } from '@/lib/link-conversions';
-
-/** Zonas para el selector: la del navegador primero, después todas las IANA. */
-function timezoneOptions(current: string): string[] {
-  let all: string[] = [];
-  try {
-    all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? [];
-  } catch {
-    all = [];
-  }
-  return [...new Set([current, 'UTC', ...all])];
-}
+import { TrendChart } from '@/components/analytics-kit/charts';
+import { AnalyticsPage, BarList, DataTable, KpiTile, Kpis, Panel, PanelGrid, analyticsFmt, chartAria, pctOf, queryString, type Fmt } from '@/components/analytics-kit/kit';
+import '@/styles/analytics-kit.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,22 +31,37 @@ function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-function shift(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+/** Zonas para el selector: la de quien mira primero, después todas las IANA. */
+function timezoneOptions(current: string): string[] {
+  let all: string[] = [];
+  try {
+    all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? [];
+  } catch {
+    all = [];
+  }
+  return [...new Set([current, 'UTC', ...all])];
 }
 
-/** Días del rango (inclusive), para "vs 30 días previos". */
-function spanDays(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+/** Monedas sin decimales (los montos de Link vienen en unidades menores). */
+const ZERO_DECIMAL = ['JPY', 'KRW', 'CLP', 'VND', 'PYG', 'UGX', 'XAF', 'XOF'];
+const fromMinor = (amount: number, currency: string) => (ZERO_DECIMAL.includes(currency.toUpperCase()) ? amount : amount / 100);
+
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'link' });
+  return { title: `${t('analytics.title')} · Link` };
 }
 
+/**
+ * Link, analítica (/app/links/analytics): clics, escaneos y conversiones de
+ * todos los links del workspace con el kit de analítica (el formato de
+ * Lines). La pestaña de eventos muestra el detalle en vivo.
+ */
 export default async function LinkAnalyticsPage(props: Props) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
-  const t = await getTranslations({ locale, namespace: 'link' });
+  const [t, tk] = await Promise.all([getTranslations({ locale, namespace: 'link' }), getTranslations({ locale, namespace: 'analyticsKit' })]);
   const view = one(sp.view) === 'events' ? 'events' : 'overview';
   const viewTabs = [
     { key: 'overview', label: t('analytics.viewOverview') },
@@ -86,28 +81,33 @@ export default async function LinkAnalyticsPage(props: Props) {
     );
   }
 
-  const range = parseWorkspaceRange(one(sp.from), one(sp.to));
+  const period = periodChoice({ days: one(sp.days), from: one(sp.from), to: one(sp.to) });
   const filters = parseWorkspaceFilters(sp);
-  // Sin ?tz= se usa la zona del navegador (cookie); UTC si no hay.
-  const timezone = parseTimezone(one(sp.tz) ?? (await getUserTimeZone()));
+  // ?tz= elige otra zona; si no, la de quien mira (la cookie del kit).
+  const tzParam = one(sp.tz) ? parseTimezone(one(sp.tz)) : undefined;
+  const tz = tzParam ?? (await viewerTz());
   const viewer = viewerOf(user);
-  const [a, conv, facets, folders, tagShares] = await Promise.all([
-    getWorkspaceAnalytics(user.id, range, { filters, timezone, viewer }),
-    getWorkspaceConversions(user.id, range, { filters, timezone, viewer }),
+  const [data, facets, folders, tagShares] = await Promise.all([
+    cachedLinkDashboard(user.id, { days: period.days, from: period.from, to: period.to, tz }, { filters, viewer }),
     getAnalyticsFacets(user.id, viewer),
     listFolders(user.id, viewer),
     // Compartir un tag es de admins (puede juntar links de carpetas que otros no ven).
     filters.tag && isWorkspaceAdmin(user) ? listShares(user.id, { tag: filters.tag }) : Promise.resolve(null),
   ]);
-  const filterQuery = { ...filtersQuery(filters), tz: timezone };
-  const today = new Date().toISOString().slice(0, 10);
-  const presets = [
-    { days: 7, label: t('analytics.last7') },
-    { days: 30, label: t('analytics.last30') },
-    { days: 90, label: t('analytics.last90') },
-    { days: 365, label: t('analytics.last365') },
-  ].map((p) => ({ ...p, from: shift(today, -(p.days - 1)), to: today }));
-
+  const { a, conv } = data;
+  const currency = conv.revenue[0]?.currency?.toUpperCase() ?? 'USD';
+  const f = analyticsFmt({
+    locale,
+    tz: data.range.tz,
+    currency,
+    t: (key, values) => t(key as never, values as never),
+    k: (key, values) => tk(key as never, values as never),
+  });
+  const base = '/app/links/analytics';
+  const fq = { ...filtersQuery(filters), tz: tzParam };
+  const href = (extra: Record<string, string | undefined>) => `${base}${queryString({ ...periodParams(data.range), ...fq, ...extra })}`;
+  const exportQs = queryString({ from: data.range.from, to: data.range.to, ...filtersQuery(filters), tz: data.range.tz });
+  const hasFilters = Object.keys(filtersQuery(filters)).length > 0 || Boolean(tzParam);
   const labels = breakdownLabelers(locale, {
     direct: t('common.direct'),
     other: t('common.other'),
@@ -118,337 +118,238 @@ export default async function LinkAnalyticsPage(props: Props) {
     ab: (v) => t('labels.ab', { v }),
     app: (os) => t('labels.app', { os }),
   });
-  const noData = t('analytics.noData');
-  const q = new URLSearchParams({ from: range.from, to: range.to, ...filterQuery }).toString();
-  const hasFilters = Object.keys(filtersQuery(filters)).length > 0;
-  const days = spanDays(range.from, range.to);
-  const deltaLine = (d: PeriodDelta | null) =>
-    d?.kind === 'none' ? (
-      <dd className="lk-stat-sub">{t('detail.noPrevious')}</dd>
-    ) : d?.kind === 'change' ? (
-      <dd className="lk-stat-sub lk-delta" data-dir={d.dir}>
-        {t('detail.vsPrevious', { delta: d.text, days })}
-      </dd>
-    ) : null;
 
   return (
-    <div className="ui-page link-analytics">
-      <PageHeader
-        title={t('analytics.title')}
-        description={t('analytics.sub', { tz: timezone })}
-        actions={
-          <>
-            <a href={`/api/links/analytics/export.csv?${q}`} className="btn" data-testid="analytics-export">
-              <LinkIcon name="download" size={15} />
-              {t('analytics.exportCsv')}
-            </a>
-            <a href={`/api/links/analytics/export.csv?${q}&kind=conversions`} className="btn btn-ghost" data-testid="analytics-export-conversions">
-              <LinkIcon name="download" size={15} />
-              {t('analytics.exportConversions')}
-            </a>
-          </>
-        }
-      />
-      <SettingsTabs mode="query" param="view" layout="top" items={viewTabs} label={t('analytics.viewsLabel')} />
-
-      {/* Un solo form (con un solo Aplicar) para fechas y filtros: las fechas viven arriba y se enlazan con form=. */}
-      <div className="lk-toolbar">
-        <div className="btn-group lk-range" role="group" aria-label={t('detail.rangeLabel')}>
-          {presets.map((p) => (
-            <Link
-              key={p.days}
-              href={{ pathname: '/app/links/analytics', query: { from: p.from, to: p.to, ...filterQuery } }}
-              className="btn btn-sm"
-              aria-current={p.from === range.from && p.to === range.to ? 'true' : undefined}
-            >
-              {p.label}
-            </Link>
-          ))}
-        </div>
-        <div className="lk-dates">
-          <label className="lk-inline-field">
-            <span className="label">{t('analytics.from')}</span>
-            <input type="date" name="from" form="analytics-filters" defaultValue={range.from} className="input mono" />
-          </label>
-          <label className="lk-inline-field">
-            <span className="label">{t('analytics.to')}</span>
-            <input type="date" name="to" form="analytics-filters" defaultValue={range.to} className="input mono" />
-          </label>
-        </div>
-      </div>
-
-      <form id="analytics-filters" className="lk-an-filters" method="get" aria-label={t('analytics.filtersLabel')} data-testid="analytics-filters">
-        {facets.tags.length > 0 && (
-          <div className="ui-field">
-            <label className="label" htmlFor="af-tag">
-              {t('analytics.filterTag')}
+    <AnalyticsPage
+      f={f}
+      title={t('analytics.title')}
+      description={t('analytics.desc')}
+      product="link"
+      range={data.range}
+      period={period}
+      periodHref={(days) => href({ days: days === 30 ? undefined : String(days), from: undefined, to: undefined })}
+      formAction={`/${locale}${base}`}
+      exportHref={`/api/links/analytics/export.csv${exportQs}`}
+      tabs={<SettingsTabs mode="query" param="view" layout="top" items={viewTabs} label={t('analytics.viewsLabel')} className="la-tabs" />}
+      filters={
+        <>
+          {facets.tags.length > 0 && (
+            <label className="ui-field">
+              <span className="label">{t('analytics.filterTag')}</span>
+              <select name="tag" className="select" defaultValue={filters.tag ?? ''}>
+                <option value="">{t('analytics.any')}</option>
+                {facets.tags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
             </label>
-            <select id="af-tag" name="tag" className="select" defaultValue={filters.tag ?? ''}>
+          )}
+          {facets.domains.length > 0 && (
+            <label className="ui-field">
+              <span className="label">{t('analytics.filterDomain')}</span>
+              <select name="domain" className="select" defaultValue={filters.domain ?? ''}>
+                <option value="">{t('analytics.any')}</option>
+                <option value="default">{shortDomain()}</option>
+                {facets.domains.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.hostname}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {folders.length > 0 && (
+            <label className="ui-field">
+              <span className="label">{t('folders.field')}</span>
+              <select name="folder" className="select" defaultValue={filters.folder ?? ''}>
+                <option value="">{t('analytics.any')}</option>
+                <option value="none">{t('folders.noFolder')}</option>
+                {folders.map((fo) => (
+                  <option key={fo.id} value={fo.id}>
+                    {fo.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {facets.links.length > 0 && (
+            <label className="ui-field">
+              <span className="label">{t('analytics.filterLink')}</span>
+              <select name="link" className="select" defaultValue={filters.link ?? ''}>
+                <option value="">{t('analytics.any')}</option>
+                {facets.links.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="ui-field">
+            <span className="label">{t('analytics.filterCountry')}</span>
+            <select name="country" className="select" defaultValue={filters.country ?? ''}>
               <option value="">{t('analytics.any')}</option>
-              {facets.tags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
+              {[...new Set([...(filters.country ? [filters.country] : []), ...facets.countries])].map((c) => (
+                <option key={c} value={c}>
+                  {labels.country(c)}
                 </option>
               ))}
             </select>
-          </div>
-        )}
-        {facets.domains.length > 0 && (
-          <div className="ui-field">
-            <label className="label" htmlFor="af-domain">
-              {t('analytics.filterDomain')}
-            </label>
-            <select id="af-domain" name="domain" className="select" defaultValue={filters.domain ?? ''}>
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('analytics.filterDevice')}</span>
+            <select name="device" className="select" defaultValue={filters.device ?? ''}>
               <option value="">{t('analytics.any')}</option>
-              <option value="default">{shortDomain()}</option>
-              {facets.domains.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.hostname}
+              {DEVICE_FILTERS.map((d) => (
+                <option key={d} value={d}>
+                  {labels.device(d)}
                 </option>
               ))}
             </select>
-          </div>
-        )}
-        {folders.length > 0 && (
-          <div className="ui-field">
-            <label className="label" htmlFor="af-folder">
-              {t('folders.field')}
-            </label>
-            <select id="af-folder" name="folder" className="select" defaultValue={filters.folder ?? ''}>
-              <option value="">{t('analytics.any')}</option>
-              <option value="none">{t('folders.noFolder')}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('analytics.timezone')}</span>
+            <select name="tz" className="select" defaultValue={data.range.tz}>
+              {timezoneOptions(data.range.tz).map((z) => (
+                <option key={z} value={z}>
+                  {z}
                 </option>
               ))}
             </select>
-          </div>
-        )}
-        <div className="ui-field">
-          <label className="label" htmlFor="af-link">
-            {t('analytics.filterLink')}
           </label>
-          <select id="af-link" name="link" className="select mono" defaultValue={filters.link ?? ''}>
-            <option value="">{t('analytics.any')}</option>
-            {facets.links.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ui-field">
-          <label className="label" htmlFor="af-country">
-            {t('analytics.filterCountry')}
-          </label>
-          <select id="af-country" name="country" className="select" defaultValue={filters.country ?? ''}>
-            <option value="">{t('analytics.any')}</option>
-            {[...new Set([...(filters.country ? [filters.country] : []), ...facets.countries])].map((c) => (
-              <option key={c} value={c}>
-                {labels.country(c)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ui-field">
-          <label className="label" htmlFor="af-device">
-            {t('analytics.filterDevice')}
-          </label>
-          <select id="af-device" name="device" className="select" defaultValue={filters.device ?? ''}>
-            <option value="">{t('analytics.any')}</option>
-            {DEVICE_FILTERS.map((d) => (
-              <option key={d} value={d}>
-                {labels.device(d)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ui-field">
-          <label className="label" htmlFor="af-tz">
-            {t('analytics.timezone')}
-          </label>
-          <select id="af-tz" name="tz" className="select" defaultValue={timezone}>
-            {timezoneOptions(timezone).map((z) => (
-              <option key={z} value={z}>
-                {z}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="btn btn-sm">
-          {t('analytics.apply')}
-        </button>
-        {hasFilters && (
-          <Link
-            href={{ pathname: '/app/links/analytics', query: { from: range.from, to: range.to, tz: timezone } }}
-            className="btn btn-sm btn-ghost"
-          >
-            {t('analytics.clearFilters')}
-          </Link>
-        )}
-      </form>
+        </>
+      }
+      filtered={period.custom || hasFilters}
+      clearHref={base}
+      empty={a.clicks + a.scans + conv.leads + conv.sales === 0}
+      emptyTitle={t('analytics.empty')}
+      emptyBody={t('analytics.emptyBody')}
+      contentKey={`${data.range.from}-${data.range.to}-${JSON.stringify(fq)}`}
+    >
+      <LinkAnalyticsView f={f} d={data} labels={labels} exportConversions={`/api/links/analytics/export.csv${exportQs}${exportQs ? '&' : '?'}kind=conversions`} />
+      <LinkAskAi params={{ from: data.range.from, to: data.range.to, ...filtersQuery(filters), tz: data.range.tz }} />
+      {tagShares && filters.tag && <SharePanel key={filters.tag} target={{ tag: filters.tag }} initial={tagShares} />}
+    </AnalyticsPage>
+  );
+}
 
-      <dl className="lk-stats">
-        <div className="lk-stat">
-          <dt>{t('analytics.clicks')}</dt>
-          <dd className="data num" data-testid="analytics-clicks">
-            {formatNumber(a.clicks, locale)}
-          </dd>
-          {deltaLine(periodDelta(a.clicks, a.previous.clicks))}
-        </div>
-        <div className="lk-stat">
-          <dt>{t('analytics.scans')}</dt>
-          <dd className="data num" data-testid="analytics-scans">
-            {formatNumber(a.scans, locale)}
-          </dd>
-          {deltaLine(periodDelta(a.scans, a.previous.scans))}
-        </div>
-        <div className="lk-stat">
-          <dt>{t('analytics.leads')}</dt>
-          <dd className="data num" data-testid="analytics-leads">
-            {formatNumber(conv.leads, locale)}
-          </dd>
-          {deltaLine(periodDelta(conv.leads, conv.previous.leads))}
-        </div>
-        <div className="lk-stat">
-          <dt>{t('analytics.sales')}</dt>
-          <dd className="data num" data-testid="analytics-sales">
-            {formatNumber(conv.sales, locale)}
-          </dd>
-          <dd className="lk-stat-sub lk-revenue" data-testid="analytics-revenue">
-            {conv.revenue.length
-              ? conv.revenue.map((r) => formatMoney(r.amount, r.currency, locale)).join(' · ')
-              : t('analytics.noRevenue')}
-          </dd>
-        </div>
-      </dl>
+type Labels = ReturnType<typeof breakdownLabelers>;
 
-      <section className="lk-block" aria-labelledby="la-chart-title">
-        <div className="lk-panel-head">
-          <h2 className="lk-h" id="la-chart-title">
-            {t('analytics.chartLabelTz', { tz: timezone })}
-          </h2>
-          <ul className="lk-legend">
-            <li className="lk-key lk-key-1">{t('analytics.legendClicks')}</li>
-            <li className="lk-key lk-key-2">{t('analytics.legendScans')}</li>
-          </ul>
-        </div>
-        <LinkChart
-          data={a.byDay.map((d) => ({ date: d.date, count: d.clicks }))}
-          secondary={a.byDay.map((d) => ({ date: d.date, count: d.scans }))}
+function LinkAnalyticsView({ f, d, labels, exportConversions }: { f: Fmt; d: LinkDashboard; labels: Labels; exportConversions: string }) {
+  const { a, conv } = d;
+  const dayLabels = a.byDay.map((p) => f.day(p.date));
+  const visits = a.clicks + a.scans;
+  const prevVisits = a.previous.clicks + a.previous.scans;
+  const main = conv.revenue[0];
+  const bars = (items: BreakdownItem[], labelFor: (n: string) => string) => {
+    const total = items.reduce((s, i) => s + i.count, 0);
+    const max = Math.max(1, ...items.map((i) => i.count));
+    return items.map((i) => ({ key: i.name, label: labelFor(i.name), value: f.num(i.count), extra: pctOf(f, i.count, total), share: i.count / max }));
+  };
+  const funnel: Array<[string, string, number]> = [
+    ['visits', f.t('analytics.clicks'), visits],
+    ['leads', f.t('analytics.leads'), conv.leads],
+    ['sales', f.t('analytics.sales'), conv.sales],
+  ];
+  return (
+    <>
+      <Kpis>
+        <KpiTile f={f} i={0} label={f.t('analytics.clicks')} kpi={{ value: a.clicks, prev: a.previous.clicks }} spark={a.byDay.map((p) => p.clicks)} better="up" />
+        <KpiTile f={f} i={1} label={f.t('analytics.scans')} kpi={{ value: a.scans, prev: a.previous.scans }} spark={a.byDay.map((p) => p.scans)} better="up" />
+        <KpiTile f={f} i={2} label={f.t('analytics.leads')} kpi={{ value: conv.leads, prev: conv.previous.leads }} spark={conv.byDay.map((p) => p.leads)} better="up" />
+        <KpiTile f={f} i={3} label={f.t('analytics.sales')} kpi={{ value: conv.sales, prev: conv.previous.sales }} spark={conv.byDay.map((p) => p.sales)} better="up" />
+        <KpiTile
+          f={f}
+          i={4}
+          label={f.t('analytics.convRate')}
+          kpi={{ value: visits ? conv.leads / visits : null, prev: prevVisits ? conv.previous.leads / prevVisits : null }}
+          kind="percent"
+          better="up"
         />
-      </section>
-
-      <section className="lk-block" aria-labelledby="la-top-title">
-        <h2 className="lk-h" id="la-top-title">
-          {t('analytics.topLinks')}
-        </h2>
+        {main ? <KpiTile f={f} i={5} label={f.t('analytics.revenue')} kpi={{ value: fromMinor(main.amount, main.currency) }} kind="money" /> : null}
+      </Kpis>
+      <Panel title={f.t('analytics.chartLabel')}>
+        <TrendChart
+          labels={dayLabels}
+          series={[
+            { name: f.t('analytics.legendClicks'), values: a.byDay.map((p) => p.clicks) },
+            { name: f.t('analytics.legendScans'), values: a.byDay.map((p) => p.scans) },
+          ]}
+          summary={chartAria(f, f.t('analytics.chartLabel'), d.range)}
+          locale={f.locale}
+        />
+      </Panel>
+      <Panel title={f.t('analytics.topLinks')}>
         <DataTable
-          caption={t('analytics.topLinks')}
           rows={a.topLinks}
           rowKey={(l) => l.id}
-          rowHref={(l) => `/app/links/${l.id}`}
-          compact
-          empty={<EmptyState title={t('analytics.empty')} body={t('analytics.emptyBody')} quiet product="link" />}
+          empty={f.k('noneInPeriod')}
           columns={[
-            {
-              key: 'link',
-              header: t('analytics.colLink'),
-              data: true,
-              cell: (l) => l.short_url.replace(/^https?:\/\//, ''),
-            },
-            {
-              key: 'dest',
-              header: t('table.destination'),
-              cell: (l) => <span className="lk-dest-text">{l.url}</span>,
-            },
-            { key: 'clicks', header: t('analytics.colClicks'), numeric: true, data: true, cell: (l) => formatNumber(l.clicks, locale) },
-            { key: 'scans', header: t('analytics.colScans'), numeric: true, data: true, cell: (l) => formatNumber(l.scans, locale) },
+            { key: 'link', label: f.t('analytics.colLink'), cell: (l) => <Link href={`/app/links/${l.id}`} className="la-link-cell">{l.short_url.replace(/^https?:\/\//, '')}</Link> },
+            { key: 'dest', label: f.t('table.destination'), wide: true, hideNarrow: true, cell: (l) => l.url, className: () => 'la-muted' },
+            { key: 'clicks', label: f.t('analytics.colClicks'), num: true, cell: (l) => f.num(l.clicks) },
+            { key: 'scans', label: f.t('analytics.colScans'), num: true, cell: (l) => f.num(l.scans) },
           ]}
         />
-      </section>
-
-      <section className="lk-block" aria-labelledby="la-conv-title" data-testid="analytics-conversions">
-        <h2 className="lk-h" id="la-conv-title">
-          {t('analytics.conversions')}
-        </h2>
+      </Panel>
+      <Panel
+        title={f.t('analytics.conversions')}
+        note={
+          <a href={exportConversions} download>
+            {f.t('analytics.exportConversions')}
+          </a>
+        }
+      >
         {conv.leads + conv.sales === 0 ? (
-          <p className="lk-empty-line">{t('analytics.conversionsEmpty')}</p>
+          <p className="la-panel-empty">{f.t('analytics.conversionsEmpty')}</p>
         ) : (
           <>
-            <ol className="lk-funnel" aria-label={t('analytics.funnel')}>
-              {[
-                [t('analytics.clicks'), a.clicks + a.scans],
-                [t('analytics.leads'), conv.leads],
-                [t('analytics.sales'), conv.sales],
-              ].map(([label, n], i, all) => {
-                const top = Number(all[0][1]) || 1;
-                return (
-                  <li key={String(label)} className="lk-funnel-step">
-                    <span className="lk-funnel-label">{label}</span>
-                    <span className="lk-funnel-bar" style={{ width: `${Math.max(2, Math.round((Number(n) / top) * 100))}%` }} aria-hidden="true" />
-                    <span className="data num">
-                      {formatNumber(Number(n), locale)}
-                      {i > 0 && Number(all[i - 1][1]) > 0 && (
-                        <span className="lk-funnel-rate"> · {Math.round((Number(n) / Number(all[i - 1][1])) * 1000) / 10}%</span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            <BarList
+              empty={f.k('noneInPeriod')}
+              rows={funnel.map(([key, label, n], i) => ({
+                key,
+                label,
+                value: f.num(n),
+                extra: i > 0 && funnel[i - 1][2] > 0 ? f.pct(share(n, funnel[i - 1][2])) : undefined,
+                share: visits ? n / visits : 0,
+              }))}
+            />
             <DataTable
-              caption={t('analytics.topConverting')}
               rows={conv.topLinks}
               rowKey={(l) => l.id}
-              rowHref={(l) => `/app/links/${l.id}`}
-              compact
+              empty={f.k('noneInPeriod')}
               columns={[
-                { key: 'link', header: t('analytics.colLink'), data: true, cell: (l) => l.short_url.replace(/^https?:\/\//, '') },
-                { key: 'leads', header: t('analytics.leads'), numeric: true, data: true, cell: (l) => formatNumber(l.leads, locale) },
-                { key: 'sales', header: t('analytics.sales'), numeric: true, data: true, cell: (l) => formatNumber(l.sales, locale) },
-                {
-                  key: 'revenue',
-                  header: t('analytics.revenue'),
-                  numeric: true,
-                  data: true,
-                  cell: (l) => (conv.revenue[0] ? formatMoney(l.revenue, conv.revenue[0].currency, locale) : '0'),
-                },
+                { key: 'link', label: f.t('analytics.colLink'), cell: (l) => <Link href={`/app/links/${l.id}`} className="la-link-cell">{l.short_url.replace(/^https?:\/\//, '')}</Link> },
+                { key: 'leads', label: f.t('analytics.leads'), num: true, cell: (l) => f.num(l.leads) },
+                { key: 'sales', label: f.t('analytics.sales'), num: true, cell: (l) => f.num(l.sales) },
+                { key: 'revenue', label: f.t('analytics.revenue'), num: true, hideNarrow: true, cell: (l) => (main ? formatMinor(l.revenue, main.currency, f.locale) : f.num(0)) },
               ]}
             />
+            {conv.revenue.length > 1 && <p className="la-panel-note">{conv.revenue.map((r) => formatMinor(r.amount, r.currency, f.locale)).join(' · ')}</p>}
           </>
         )}
-      </section>
-
-      <LinkAskAi params={{ from: range.from, to: range.to, ...filterQuery }} />
-
-      <div className="lk-grid-2">
-        {(
-          [
-            ['referrers', a.referrers, labels.plain],
-            ['countries', a.countries, labels.country],
-            ['devices', a.devices, labels.device],
-            ['browsers', a.browsers, labels.plain],
-          ] as const
-        ).map(([key, items, labelFor]) => (
-          <section key={key} className="lk-block" aria-labelledby={`la-${key}`}>
-            <h2 className="lk-h" id={`la-${key}`}>
-              {t(`analytics.${key}`)}
-            </h2>
-            <BreakdownBars items={items} emptyLabel={noData} labelFor={labelFor} />
-          </section>
-        ))}
-      </div>
-
-      {tagShares && filters.tag && <SharePanel key={filters.tag} target={{ tag: filters.tag }} initial={tagShares} />}
-
-      <section className="lk-block" aria-labelledby="la-cities">
-        <h2 className="lk-h" id="la-cities">
-          {t('analytics.cities')}
-        </h2>
-        <BreakdownBars items={a.cities} emptyLabel={noData} labelFor={labels.city} />
-      </section>
-    </div>
+      </Panel>
+      <PanelGrid>
+        <Panel title={f.t('analytics.referrers')}>
+          <BarList rows={bars(a.referrers, labels.plain)} empty={f.t('analytics.noData')} />
+        </Panel>
+        <Panel title={f.t('analytics.countries')}>
+          <BarList rows={bars(a.countries, labels.country)} empty={f.t('analytics.noData')} />
+        </Panel>
+      </PanelGrid>
+      <PanelGrid>
+        <Panel title={f.t('analytics.devices')}>
+          <BarList tone="ink" rows={bars(a.devices, labels.device)} empty={f.t('analytics.noData')} />
+        </Panel>
+        <Panel title={f.t('analytics.browsers')}>
+          <BarList tone="ink" rows={bars(a.browsers, labels.plain)} empty={f.t('analytics.noData')} />
+        </Panel>
+      </PanelGrid>
+      <Panel title={f.t('analytics.cities')}>
+        <BarList rows={bars(a.cities, labels.city)} empty={f.t('analytics.noData')} />
+      </Panel>
+    </>
   );
 }

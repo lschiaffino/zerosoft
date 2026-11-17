@@ -40,6 +40,10 @@ test('Link: carpetas, alta masiva con slug y título y página pública de analy
 
   // Filtros de analytics por query.
   await page.goto(`/en/app/links/analytics?link=${created.id}&device=mobile&tz=America/New_York`, { waitUntil: 'networkidle' });
-  await expect(page.getByTestId('analytics-filters')).toBeVisible();
-  await expect(page.getByTestId('analytics-clicks')).toHaveText('0');
+  const form = page.getByRole('form', { name: 'Report filters' });
+  await expect(form.getByLabel('Device')).toHaveValue('mobile');
+  await expect(form.getByLabel('Time zone')).toHaveValue('America/New_York');
+  // Sin visitas de ese link en móvil: el vacío con filtros, sin tarjetas.
+  await expect(page.locator('.la-empty')).toBeVisible();
+  await expect(page.locator('.la-kpi')).toHaveCount(0);
 });

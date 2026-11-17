@@ -222,6 +222,10 @@ export interface Column<T> {
   label: string;
   /** Columna numérica: alineada a la derecha, en mono. */
   num?: boolean;
+  /** Texto largo (una URL, un título): ocupa el ancho que sobra y se corta con puntos suspensivos. */
+  wide?: boolean;
+  /** Columna secundaria: se oculta en angosto (≤ 640 px). */
+  hideNarrow?: boolean;
   cell: (row: T) => ReactNode;
   className?: (row: T) => string | undefined;
 }
@@ -235,7 +239,7 @@ export function DataTable<T>({ rows, columns, rowKey, empty, className = '' }: {
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} className={c.num ? 'num' : undefined}>
+              <th key={c.key} className={[c.num ? 'num' : '', c.hideNarrow ? 'la-hide-sm' : ''].filter(Boolean).join(' ') || undefined}>
                 {c.label}
               </th>
             ))}
@@ -244,11 +248,20 @@ export function DataTable<T>({ rows, columns, rowKey, empty, className = '' }: {
         <tbody>
           {rows.map((r) => (
             <tr key={rowKey(r)}>
-              {columns.map((c) => (
-                <td key={c.key} className={[c.num ? 'num' : '', c.className?.(r) ?? ''].filter(Boolean).join(' ') || undefined}>
-                  {c.cell(r)}
-                </td>
-              ))}
+              {columns.map((c) => {
+                const content = c.cell(r);
+                return (
+                  <td key={c.key} className={[c.num ? 'num' : '', c.wide ? 'la-wide' : '', c.hideNarrow ? 'la-hide-sm' : '', c.className?.(r) ?? ''].filter(Boolean).join(' ') || undefined}>
+                    {c.wide ? (
+                      <span className="la-trunc" title={typeof content === 'string' ? content : undefined}>
+                        {content}
+                      </span>
+                    ) : (
+                      content
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

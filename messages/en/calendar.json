@@ -749,7 +749,14 @@
     "allEventTypes": "All event types",
     "byHost": "By person",
     "unknownHost": "No host",
-    "pollPrefix": "Poll: {title}"
+    "pollPrefix": "Poll: {title}",
+    "desc": "Bookings created in the period, compared with the period before.",
+    "cancelRate": "Cancellation rate",
+    "leadTime": "Booked ahead (median)",
+    "cancelledN": "{n} cancelled",
+    "noShowN": "{n, plural, one {# no-show} other {# no-shows}}",
+    "peak": "Most meetings start on {day} at {hour} ({n})",
+    "scopeNote": "You see the bookings you host."
   },
   "location": {
     "title": "Location",
