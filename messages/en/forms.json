@@ -4,7 +4,8 @@
   },
   "nav": {
     "forms": "Forms",
-    "templates": "Templates"
+    "templates": "Templates",
+    "analytics": "Analytics"
   },
   "guest": {
     "title": "Forms is for workspace members",
@@ -569,5 +570,27 @@
       "invalid_option": "Choose one of the options."
     },
     "hintTen": "press 1 then 0 for 10 · Enter to continue"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "desc": "Views, responses and completion of your forms, compared with the period before.",
+    "form": "Form",
+    "allForms": "All forms",
+    "views": "Views",
+    "responses": "Responses",
+    "completion": "Completion rate",
+    "partial": "Partial responses",
+    "perDay": "Views and responses per day",
+    "byForm": "By form",
+    "whenResponses": "When responses arrive",
+    "formsTable": "Forms",
+    "responsesN": "{n, plural, one {# response} other {# responses}}",
+    "viewsN": "{n, plural, one {# view} other {# views}}",
+    "peak": "Most responses arrive on {day} at {hour} ({n})",
+    "emptyTitle": "No views or responses yet",
+    "emptyBody": "Share a published form and its views and responses show up here.",
+    "noFormsTitle": "No forms yet",
+    "noFormsBody": "Create a form and publish it to see its views and responses here.",
+    "note": "Views count each visit to a published form once. Completion rate is the share of views that ended in a response. Views are kept for 180 days."
   }
 }

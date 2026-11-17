@@ -2,7 +2,8 @@
   "nav": {
     "documents": "Documentos",
     "spaces": "Espacios",
-    "new": "Documento nuevo"
+    "new": "Documento nuevo",
+    "analytics": "Analítica"
   },
   "common": {
     "cancel": "Cancelar",
@@ -398,5 +399,30 @@
     "too_many_entries": "La lista tiene más de 500 entradas.",
     "invalid_button_label": "Escribí el texto del botón, hasta 40 caracteres.",
     "invalid_button_url": "El botón necesita una dirección web, como https://acme.com/demo."
+  },
+  "analytics": {
+    "title": "Analítica",
+    "desc": "Visitas, lectores, tiempo de lectura y descargas de tus documentos, comparados con el período anterior.",
+    "doc": "Documento",
+    "allDocs": "Todos los documentos",
+    "visits": "Visitas",
+    "viewers": "Personas",
+    "avgTime": "Tiempo por visita",
+    "completion": "Leído",
+    "downloads": "Descargas",
+    "perDay": "Visitas por día",
+    "byDoc": "Por documento",
+    "whenVisits": "Cuándo abren tus documentos",
+    "countries": "Países",
+    "devices": "Dispositivos",
+    "docsTable": "Documentos",
+    "visitsN": "{n, plural, one {# visita} other {# visitas}}",
+    "viewersN": "{n, plural, one {# persona} other {# personas}}",
+    "peak": "La mayoría de las visitas empieza el {day} a las {hour} ({n})",
+    "emptyTitle": "Todavía no hay visitas",
+    "emptyBody": "Compartí un link a un documento y sus visitas aparecen acá.",
+    "noDocsTitle": "Todavía no hay documentos",
+    "noDocsBody": "Subí un documento y compartí un link para ver quién lo lee.",
+    "note": "Personas cuenta cada email o navegador una vez. Leído es la parte promedio de páginas vistas por visita. El tiempo lo mide el visor mientras la página está abierta."
   }
 }

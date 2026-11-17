@@ -536,5 +536,29 @@
     "deleteLabel": "Delete template {name}",
     "deleteTitle": "Delete the template “{name}”?",
     "deleteBody": "Projects already created from it stay as they are."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "desc": "Issues created and completed, cycle time and open work of your teams, compared with the period before.",
+    "team": "Team",
+    "allTeams": "All teams",
+    "created": "Created",
+    "completed": "Completed",
+    "cycleTime": "Cycle time (median)",
+    "leadTime": "Lead time (median)",
+    "open": "Open",
+    "perDay": "Created and completed per day",
+    "byTeam": "By team",
+    "whenCompleted": "When issues get done",
+    "byPerson": "By person",
+    "person": "Person",
+    "unassigned": "Unassigned",
+    "completedN": "{n} completed",
+    "createdN": "{n} created",
+    "openN": "{n} open",
+    "peak": "Most issues get done on {day} at {hour} ({n})",
+    "emptyTitle": "No issues in this period",
+    "emptyBody": "Create and close issues and the numbers show up here.",
+    "note": "Cycle time runs from the first move to In progress to the last close as done; lead time, from creation to done. Open is right now. Triage and archived issues are left out."
   }
 }

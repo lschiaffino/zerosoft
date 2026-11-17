@@ -2,7 +2,8 @@
   "nav": {
     "documents": "Documents",
     "spaces": "Spaces",
-    "new": "New document"
+    "new": "New document",
+    "analytics": "Analytics"
   },
   "common": {
     "cancel": "Cancel",
@@ -398,5 +399,30 @@
     "too_many_entries": "The list has more than 500 entries.",
     "invalid_button_label": "Write the button text, up to 40 characters.",
     "invalid_button_url": "The button needs a web address, like https://acme.com/demo."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "desc": "Visits, readers, reading time and downloads of your documents, compared with the period before.",
+    "doc": "Document",
+    "allDocs": "All documents",
+    "visits": "Visits",
+    "viewers": "People",
+    "avgTime": "Time per visit",
+    "completion": "Read",
+    "downloads": "Downloads",
+    "perDay": "Visits per day",
+    "byDoc": "By document",
+    "whenVisits": "When people open your documents",
+    "countries": "Countries",
+    "devices": "Devices",
+    "docsTable": "Documents",
+    "visitsN": "{n, plural, one {# visit} other {# visits}}",
+    "viewersN": "{n, plural, one {# person} other {# people}}",
+    "peak": "Most visits start on {day} at {hour} ({n})",
+    "emptyTitle": "No visits yet",
+    "emptyBody": "Share a link to a document and its visits show up here.",
+    "noDocsTitle": "No documents yet",
+    "noDocsBody": "Upload a document and share a link to see who reads it.",
+    "note": "People counts each email or browser once. Read is the average share of pages seen per visit. Time comes from the viewer while the page is open."
   }
 }

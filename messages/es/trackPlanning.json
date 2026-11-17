@@ -5,7 +5,7 @@
     "initiatives": "Iniciativas",
     "roadmap": "Roadmap",
     "cycles": "Cycles",
-    "analytics": "Análisis",
+    "analytics": "Analítica",
     "insights": "Insights",
     "dashboards": "Dashboards"
   },
@@ -536,5 +536,29 @@
     "deleteLabel": "Borrar el template {name}",
     "deleteTitle": "¿Borrar el template “{name}”?",
     "deleteBody": "Los proyectos que ya se crearon con él quedan como están."
+  },
+  "analytics": {
+    "title": "Analítica",
+    "desc": "Issues creados y terminados, tiempo de ciclo y trabajo abierto de tus equipos, comparados con el período anterior.",
+    "team": "Equipo",
+    "allTeams": "Todos los equipos",
+    "created": "Creados",
+    "completed": "Terminados",
+    "cycleTime": "Tiempo de ciclo (mediana)",
+    "leadTime": "Tiempo total (mediana)",
+    "open": "Abiertos",
+    "perDay": "Creados y terminados por día",
+    "byTeam": "Por equipo",
+    "whenCompleted": "Cuándo se terminan los issues",
+    "byPerson": "Por persona",
+    "person": "Persona",
+    "unassigned": "Sin asignar",
+    "completedN": "{n} terminados",
+    "createdN": "{n} creados",
+    "openN": "{n} abiertos",
+    "peak": "La mayoría de los issues se termina el {day} a las {hour} ({n})",
+    "emptyTitle": "No hay issues en este período",
+    "emptyBody": "Creá y cerrá issues y los números aparecen acá.",
+    "note": "El tiempo de ciclo va del primer paso a En curso al último cierre como terminado; el tiempo total, de la creación al cierre. Abiertos es una foto de ahora. Quedan afuera los issues en triage y archivados."
   }
 }
