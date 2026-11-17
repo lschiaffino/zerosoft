@@ -41,8 +41,7 @@ section.rec-edit-block { padding-bottom: 20px; }
   align-items: center;
   gap: 8px 12px;
   padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
   border-radius: var(--radius-1);
   background: var(--warn-soft);
   color: var(--ink);
