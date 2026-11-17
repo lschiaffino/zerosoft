@@ -238,10 +238,16 @@ export interface PendingNotification {
   createdAt: string;
 }
 
-/** Avisos sin entregar de la persona (últimas 24 h). Los reclama: cada uno se entrega una vez. */
+/** Un aviso sin entregar vale 24 h; después el cron lo borra (lleva texto del mensaje). */
+export const NOTIFICATION_TTL_MS = 86_400_000;
+
+/**
+ * Avisos sin entregar de la persona (últimas 24 h). Los reclama borrándolos:
+ * cada uno se entrega una vez y el texto no queda guardado después.
+ */
 export async function takePending(ws: string, personId: string, limit = 5): Promise<PendingNotification[]> {
   const db = getDb();
-  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const since = new Date(Date.now() - NOTIFICATION_TTL_MS).toISOString();
   const rows = (await db
     .prepare(
       `SELECT id, title, body, url, created_at FROM groups_notifications
@@ -249,7 +255,6 @@ export async function takePending(ws: string, personId: string, limit = 5): Prom
     )
     .all(ws, personId, since, limit)) as Array<{ id: string; title: string; body: string; url: string; created_at: string }>;
   const out: PendingNotification[] = [];
-  const now = new Date().toISOString();
   for (const r of rows) {
     // Push de Talk: solo si la persona sigue en Talk de ese workspace (pudo perder la app o salir).
     if (r.url.startsWith('/app/talk/')) {
@@ -260,8 +265,32 @@ export async function takePending(ws: string, personId: string, limit = 5): Prom
         continue;
       }
     }
-    const claim = await db.prepare('UPDATE groups_notifications SET delivered_at = ? WHERE id = ? AND delivered_at IS NULL').run(now, r.id);
+    // Compare-and-set: solo quien borra la fila la entrega (dos pedidos a la vez no la duplican).
+    const claim = await db.prepare('DELETE FROM groups_notifications WHERE id = ? AND delivered_at IS NULL').run(r.id);
     if (claim.changes > 0) out.push({ id: r.id, title: r.title, body: r.body, url: r.url, createdAt: r.created_at });
   }
   return out;
+}
+
+/**
+ * Retención (cron horario): borra los avisos que nadie pidió en 24 h y los
+ * que quedaron marcados como entregados antes de que la entrega los borrara.
+ * Por lotes acotados; borrar es idempotente, dos corridas a la vez no chocan.
+ */
+export async function pruneNotifications(now = Date.now(), batch = 5000, maxBatches = 20): Promise<number> {
+  const db = getDb();
+  const cutoff = new Date(now - NOTIFICATION_TTL_MS).toISOString();
+  let total = 0;
+  for (let i = 0; i < maxBatches; i++) {
+    const res = await db
+      .prepare(
+        `DELETE FROM groups_notifications WHERE id IN (
+           SELECT id FROM groups_notifications WHERE created_at < ? OR delivered_at IS NOT NULL LIMIT ?
+         )`,
+      )
+      .run(cutoff, batch);
+    total += res.changes;
+    if (res.changes < batch) break;
+  }
+  return total;
 }
