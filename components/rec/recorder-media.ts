@@ -138,13 +138,51 @@ export function createTicker(fps: number, onTick: () => void): () => void {
   }
 }
 
-/** Mezcla micrófono y audio de la pantalla en una sola pista (null si no hay ninguno). */
-export function mixAudio(streams: Array<MediaStream | null>): { track: MediaStreamTrack | null; ctx: AudioContext | null; analyser: AnalyserNode | null } {
-  const withAudio = streams.filter((s): s is MediaStream => !!s && s.getAudioTracks().length > 0);
-  if (withAudio.length === 0) return { track: null, ctx: null, analyser: null };
+/**
+ * De dónde sale el audio de la compu al grabar la pantalla:
+ * - 'native': la app de escritorio en Mac lo captura con ScreenCaptureKit (system_audio.rs) y lo
+ *   pasa por el puente. WKWebView no trae audio en getDisplayMedia.
+ * - 'display': el navegador (Chrome y Edge lo dan al compartir la pantalla entera o una pestaña) y
+ *   la app de escritorio en Windows, donde WebView2 es Chromium y comparte el audio del sistema
+ *   (loopback de WASAPI) con getDisplayMedia.
+ * - 'none': la persona lo apagó.
+ */
+export function systemAudioSource(want: boolean, bridge: { systemAudio?: boolean; systemAudioStart?: unknown } | null): 'native' | 'display' | 'none' {
+  if (!want) return 'none';
+  return bridge?.systemAudio && typeof bridge.systemAudioStart === 'function' ? 'native' : 'display';
+}
+
+/**
+ * Contexto de audio creado en el clic de Empezar (activación del usuario): la mezcla se arma
+ * recién después de la cuenta regresiva, y un contexto creado ahí, fuera del clic, WebKit (Safari
+ * y la app de escritorio) lo puede dejar en pausa: la pista mezclada sale muda.
+ */
+export function audioContextForClick(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctx) return { track: withAudio[0].getAudioTracks()[0], ctx: null, analyser: null };
+  if (!Ctx) return null;
   const ctx = new Ctx();
+  void ctx.resume?.()?.catch(() => undefined);
+  return ctx;
+}
+
+/**
+ * Mezcla micrófono y audio de la compu en una sola pista (null si no hay ninguno). `prepared` es el
+ * contexto de audioContextForClick: si llega, la mezcla lo usa (y si no hace falta, lo cierra).
+ */
+export function mixAudio(
+  streams: Array<MediaStream | null>,
+  prepared: AudioContext | null = null,
+): { track: MediaStreamTrack | null; ctx: AudioContext | null; analyser: AnalyserNode | null } {
+  const withAudio = streams.filter((s): s is MediaStream => !!s && s.getAudioTracks().length > 0);
+  const Ctx = typeof window === 'undefined' ? undefined : (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
+  if (withAudio.length === 0 || (!prepared && !Ctx)) {
+    void prepared?.close().catch(() => undefined);
+    return { track: withAudio[0]?.getAudioTracks()[0] ?? null, ctx: null, analyser: null };
+  }
+  const ctx = prepared ?? new Ctx!();
+  // Uno creado acá (fuera del clic) puede quedar en pausa en WebKit: se intenta igual.
+  void ctx.resume?.()?.catch(() => undefined);
   const dest = ctx.createMediaStreamDestination();
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 256;

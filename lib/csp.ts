@@ -1,4 +1,5 @@
 import { THEME_INIT_SCRIPT } from './color-theme';
+import { LOOK_INIT_SCRIPT } from './look';
 import { SESSION_HINT_SCRIPT } from './session-hint';
 import { localeCookieScript } from './locale-cookie';
 import { TZ_COOKIE_SCRIPT } from './tz-client';
@@ -26,7 +27,7 @@ const LOCALES = ['en', 'es', 'pt'] as const;
 
 /** Scripts en línea del layout raíz ([locale]/layout.tsx), tal cual salen en el HTML. */
 export function rootInlineScripts(): string[] {
-  return [...LOCALES.map((l) => THEME_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(l)), TZ_COOKIE_SCRIPT];
+  return [...LOCALES.map((l) => THEME_INIT_SCRIPT + LOOK_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(l)), TZ_COOKIE_SCRIPT];
 }
 
 function toBase64(bytes: Uint8Array): string {

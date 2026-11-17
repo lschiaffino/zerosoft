@@ -96,6 +96,8 @@ fn track(app: &AppHandle, on: bool) {
     }
     drop(since);
     crate::tray::rebuild(app);
+    // Con la barra de Rec, el audio de la computadora no muestra el indicador aparte (indicator.rs).
+    crate::indicator::update(app);
 }
 
 pub fn parse_phase(p: &str) -> Option<&'static str> {

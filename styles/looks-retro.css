@@ -1,0 +1,305 @@
+/* ============================================================
+   Aspecto retro (lib/look.ts): <html data-look="retro">.
+   Un escritorio de los noventa dibujado con CSS: botones y ventanas en
+   relieve (bordes de dos tonos con box-shadow inset), campos y listas
+   hundidos y blancos, barras de título con degradé, letra de sistema
+   (Tahoma / Verdana, sin cargar fuentes), sin esquinas redondeadas.
+   No usa íconos ni logos de nadie: todo son bordes y colores.
+   Oscuro: los mismos relieves en alto contraste (cara gris carbón, luz
+   gris clara, sombra negra, selección verde azulado).
+   Ver styles/looks.css para los demás aspectos.
+   ============================================================ */
+
+:root[data-look='retro'] {
+  --rt-face: #c0c0c0;
+  --rt-light: #ffffff;
+  --rt-hi: #dfdfdf;
+  --rt-shadow: #808080;
+  --rt-dark: #0a0a0a;
+  --rt-field: #ffffff;
+  --rt-title: linear-gradient(90deg, #000080, #1084d0);
+  --rt-title-fg: #ffffff;
+  --rt-title-off: linear-gradient(90deg, #808080, #b5b5b5);
+  --rt-select: #000080;
+  --rt-select-fg: #ffffff;
+  --rt-desk: #008080;
+  --rt-raised: inset -1px -1px var(--rt-dark), inset 1px 1px var(--rt-light), inset -2px -2px var(--rt-shadow), inset 2px 2px var(--rt-hi);
+  --rt-pressed: inset -1px -1px var(--rt-light), inset 1px 1px var(--rt-dark), inset -2px -2px var(--rt-hi), inset 2px 2px var(--rt-shadow);
+  --rt-sunken: inset -1px -1px var(--rt-light), inset 1px 1px var(--rt-shadow), inset -2px -2px var(--rt-hi), inset 2px 2px var(--rt-dark);
+  --rt-window: inset -1px -1px var(--rt-dark), inset 1px 1px var(--rt-hi), inset -2px -2px var(--rt-shadow), inset 2px 2px var(--rt-light);
+
+  /* La cara gris es el papel; los grises de texto se oscurecen para seguir en AA sobre #c0c0c0. */
+  --brand-white: var(--rt-face);
+  --brand-enamel: #d4d0c8;
+  --brand-ink: #000000;
+  --brand-gray-1: #1a1a1a;
+  --brand-gray-2: #2b2b2b;
+  --brand-gray-3: #3d3d3d; /* 6:1 sobre #c0c0c0 */
+  /* Estados más oscuros: sobre la cara gris, los de siempre quedan por debajo de AA. */
+  --ok-ink: #00561f;
+  --warn-ink: #6b3a00;
+  --bad-ink: #8b0000;
+  --brand-rule: var(--rt-shadow);
+  --ui-hover: #d4d0c8;
+  --ui-press: #b0b0b0;
+  --ui-selected: #a6b8d8;
+  --ui-selected-hover: #98abcf;
+  --ui-field: var(--rt-shadow);
+  --side-bg: var(--rt-face);
+  --bg-soft: #d4d0c8;
+  --chrome-bg: var(--rt-face);
+  --chrome-hover: #d4d0c8;
+  --chrome-border: 0;
+  --ui-backdrop: rgb(0 0 0 / 0.25);
+  --font-ui: Tahoma, Verdana, "Segoe UI", "DejaVu Sans", Geneva, sans-serif;
+  --font-signage: Tahoma, Verdana, "Segoe UI", "DejaVu Sans", Geneva, sans-serif;
+  --font-data: "Courier New", Courier, "Lucida Console", monospace;
+  --signage-weight: 700;
+  --signage-tracking: 0;
+  --radius-1: 0px;
+  --radius-pop: 0px;
+  --radius-modal: 0px;
+  --radius-sheet: 0px;
+  --radius-item: 0px;
+  --pop-bg: var(--rt-face);
+  --pop-edge: transparent;
+  --pop-shadow: var(--rt-window), 2px 2px 0 rgb(0 0 0 / 0.35);
+  --modal-bg: var(--rt-face);
+  --modal-shadow: var(--rt-window), 3px 3px 0 rgb(0 0 0 / 0.35);
+  --card-shadow: none;
+  --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='black' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-look='retro']:not([data-theme='light']) {
+    --rt-face: #262626;
+    --rt-light: #9a9a9a;
+    --rt-hi: #4a4a4a;
+    --rt-shadow: #121212;
+    --rt-dark: #000000;
+    --rt-field: #000000;
+    --rt-title: linear-gradient(90deg, #003c3c, #008080);
+    --rt-title-off: linear-gradient(90deg, #333333, #4d4d4d);
+    --rt-select: #008080;
+    --rt-desk: #001f1f;
+    --brand-enamel: #303030;
+    --brand-ink: #ffffff;
+    --brand-gray-1: #e6e6e6;
+    --brand-gray-2: #d0d0d0;
+    --brand-gray-3: #bdbdbd; /* 8,3:1 sobre #262626 */
+    --ok-ink: #2bb062;
+    --warn-ink: #e08a1a;
+    --bad-ink: #e1656a;
+    --brand-rule: #5a5a5a;
+    --brand-on-ink: #000000;
+    --ui-hover: #333333;
+    --ui-press: #1c1c1c;
+    --ui-selected: #0b4f4f;
+    --ui-selected-hover: #0e5c5c;
+    --ui-field: #9a9a9a;
+    --bg-soft: #303030;
+    --chrome-hover: #333333;
+    --ui-backdrop: rgb(0 0 0 / 0.5);
+    --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='white' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
+  }
+}
+:root[data-look='retro'][data-theme='dark'] {
+  --rt-face: #262626;
+  --rt-light: #9a9a9a;
+  --rt-hi: #4a4a4a;
+  --rt-shadow: #121212;
+  --rt-dark: #000000;
+  --rt-field: #000000;
+  --rt-title: linear-gradient(90deg, #003c3c, #008080);
+  --rt-title-off: linear-gradient(90deg, #333333, #4d4d4d);
+  --rt-select: #008080;
+  --rt-desk: #001f1f;
+  --brand-enamel: #303030;
+  --brand-ink: #ffffff;
+  --brand-gray-1: #e6e6e6;
+  --brand-gray-2: #d0d0d0;
+  --brand-gray-3: #bdbdbd; /* 8,3:1 sobre #262626 */
+  --ok-ink: #2bb062;
+  --warn-ink: #e08a1a;
+  --bad-ink: #e1656a;
+  --brand-rule: #5a5a5a;
+  --brand-on-ink: #000000;
+  --ui-hover: #333333;
+  --ui-press: #1c1c1c;
+  --ui-selected: #0b4f4f;
+  --ui-selected-hover: #0e5c5c;
+  --ui-field: #9a9a9a;
+  --bg-soft: #303030;
+  --chrome-hover: #333333;
+  --ui-backdrop: rgb(0 0 0 / 0.5);
+  --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='white' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
+}
+
+/* ---------- Escritorio, banda y sidebar ---------- */
+
+:root[data-look='retro'] .app-frame { background: var(--rt-face); }
+/* El texto en el color de la app, más oscuro (claro) o más claro (oscuro) para seguir en AA sobre la cara gris. */
+:root[data-look='retro'] .app-frame { --accent-ink: color-mix(in srgb, var(--accent) 45%, var(--ink)); }
+:root[data-look='retro'] .app-band {
+  border-bottom: 0;
+  box-shadow: inset 0 -1px var(--rt-shadow), inset 0 -2px var(--rt-light), inset 0 1px var(--rt-light);
+}
+:root[data-look='retro'] .side { border-right: 0; box-shadow: inset -1px 0 var(--rt-shadow), inset -2px 0 var(--rt-light); }
+:root[data-look='retro'] :is(.side-link, .side-stop).active,
+:root[data-look='retro'] :is(.side-link, .side-stop).active:hover { color: var(--rt-select-fg); background: var(--rt-select); }
+:root[data-look='retro'] :is(.side-link, .side-stop).active :is(svg, span) { color: inherit; }
+:root[data-look='retro'] .ui-page-header { border-bottom: 0; box-shadow: 0 1px var(--rt-shadow), 0 2px var(--rt-light); }
+
+/* ---------- Botones: relieve; apretados, hundidos ---------- */
+
+:root[data-look='retro'] .btn {
+  --btn-bg: var(--rt-face);
+  --btn-fg: var(--ink);
+  --btn-bd: transparent;
+  --btn-bg-hover: var(--rt-face);
+  --btn-bd-hover: transparent;
+  --btn-fg-hover: var(--ink);
+  background-image: none;
+  border-color: transparent;
+  box-shadow: var(--rt-raised);
+  font-weight: 400;
+}
+:root[data-look='retro'] .btn:active:not(:disabled) { box-shadow: var(--rt-pressed); transform: none; }
+:root[data-look='retro'] .btn:focus-visible { outline: 1px dotted var(--ink); outline-offset: -5px; }
+/* La primaria es el botón por defecto: el mismo relieve con un marco negro y el texto en negrita. */
+:root[data-look='retro'] :is(.btn-primary, .btn-solid):not(:disabled):not([aria-disabled='true']) {
+  --btn-bg: var(--rt-face);
+  --btn-fg: var(--ink);
+  --btn-bg-hover: var(--rt-face);
+  --btn-fg-hover: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--rt-dark), var(--rt-raised);
+}
+:root[data-look='retro'] .app-frame :is(.btn-primary, .btn-solid):not(:disabled):not([aria-disabled='true']) {
+  --btn-bg: var(--rt-face);
+  --btn-fg: var(--ink);
+  --btn-bd: transparent;
+  --btn-bg-hover: var(--rt-face);
+  --btn-bd-hover: transparent;
+  --btn-fg-hover: var(--ink);
+}
+:root[data-look='retro'] .app-frame .side-new .side-new-btn.btn-primary:not(:disabled):not([aria-disabled='true']) {
+  --btn-bg: var(--rt-face);
+  --btn-fg: var(--ink);
+  --btn-bd: transparent;
+  --btn-bg-hover: var(--rt-face);
+  --btn-bd-hover: transparent;
+  --btn-fg-hover: var(--ink);
+}
+:root[data-look='retro'] .btn-ghost:not(:hover):not([aria-pressed='true']):not([aria-expanded='true']) { box-shadow: none; }
+:root[data-look='retro'] :is(.btn-group > .btn[aria-pressed='true'], .btn-group > .btn[aria-selected='true'], .btn-group > .btn[aria-current='page'], .btn-group > .btn[aria-current='true']) {
+  --btn-bg: var(--brand-enamel);
+  --btn-fg: var(--ink);
+  --btn-bg-hover: var(--brand-enamel);
+  --btn-fg-hover: var(--ink);
+  box-shadow: var(--rt-pressed);
+  font-weight: 700;
+}
+:root[data-look='retro'] .app-frame :is(.btn-group > .btn[aria-pressed='true'], .btn-group > .btn[aria-selected='true'], .btn-group > .btn[aria-current='page'], .btn-group > .btn[aria-current='true']) {
+  --btn-bg: var(--brand-enamel);
+  --btn-fg: var(--ink);
+  --btn-bd: transparent;
+  --btn-bg-hover: var(--brand-enamel);
+  --btn-bd-hover: transparent;
+  --btn-fg-hover: var(--ink);
+}
+:root[data-look='retro'] .btn-danger { --btn-fg: var(--bad-ink); }
+:root[data-look='retro'] .btn-danger.btn-primary:not(:disabled) { --btn-fg: var(--bad-ink); --btn-fg-hover: var(--bad-ink); }
+:root[data-look='retro'] :is(.btn-primary, .btn-solid):disabled { box-shadow: var(--rt-raised); color: var(--rt-shadow); text-shadow: 1px 1px var(--rt-light); }
+:root[data-look='retro'] :is(.band-btn, .band-home, .band-product):hover,
+:root[data-look='retro'] .band-product[aria-expanded='true'] { background: transparent; box-shadow: var(--rt-raised); }
+
+/* ---------- Campos, casillas, interruptores: hundidos y blancos ---------- */
+
+:root[data-look='retro'] :is(.input, .select, .textarea, .qm-input, .qm-field :is(input, select, textarea)) {
+  background-color: var(--rt-field);
+  border-color: transparent;
+  box-shadow: var(--rt-sunken);
+}
+:root[data-look='retro'] :is(.input, .select, .textarea):hover:not(:disabled):not(:focus) { border-color: transparent; }
+:root[data-look='retro'] :is(.input, .select, .textarea, .qm-input, .qm-field :is(input, select, textarea)):focus { border-color: transparent; box-shadow: var(--rt-sunken); outline: 1px dotted var(--ink); outline-offset: -4px; }
+:root[data-look='retro'] .ui-check input[type='checkbox'] { background-color: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
+:root[data-look='retro'] .ui-check input[type='checkbox']:is(:checked, :indeterminate) { background-color: var(--rt-field); border-color: transparent; }
+:root[data-look='retro'] .ui-switch input { background: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
+:root[data-look='retro'] .ui-switch input::before { background: var(--rt-face); box-shadow: var(--rt-raised); border-radius: 0; }
+:root[data-look='retro'] .ui-switch input:checked { background: var(--rt-select); border-color: transparent; }
+:root[data-look='retro'] .ui-switch input:checked::before { background: var(--rt-face); }
+
+/* ---------- Listas, tablas, paneles ---------- */
+
+:root[data-look='retro'] :is(.table-wrap, .ui-empty) { background: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
+:root[data-look='retro'] .table th { background: var(--rt-face); color: var(--ink); border-bottom: 0; box-shadow: var(--rt-raised); }
+:root[data-look='retro'] .table tbody tr:hover { background: var(--ui-selected); }
+:root[data-look='retro'] :is(.panel, .ui-section) { background: var(--rt-face); border-color: transparent; box-shadow: var(--rt-window); }
+:root[data-look='retro'] .ui-section-foot { background: transparent; }
+:root[data-look='retro'] .badge { box-shadow: var(--rt-raised); border-color: transparent; }
+/* Sobre la cara gris, el texto de color de los badges no llega a AA: va en tinta. */
+:root[data-look='retro'] .badge { color: var(--ink); }
+:root[data-look='retro'] .ui-tab[aria-selected='true'],
+:root[data-look='retro'] .ui-tab[aria-current='page'],
+:root[data-look='retro'] .ui-tab.active { background: var(--rt-face); box-shadow: inset 1px 1px var(--rt-light), inset -1px 0 var(--rt-dark), inset -2px 0 var(--rt-shadow); }
+:root[data-look='retro'] .ui-tab::after { display: none; }
+
+/* ---------- Menús y ventanas ---------- */
+
+:root[data-look='retro'] :is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'], .zs-ctx-item, .zs-msel-opt, .cmdk-item, .band-menu-item):is(:hover, :focus-visible, .sel, .is-active, [aria-selected='true']) {
+  color: var(--rt-select-fg);
+  background: var(--rt-select);
+  box-shadow: none;
+}
+:root[data-look='retro'] :is([role='menuitem'], [role='option'], .zs-ctx-item, .cmdk-item, .band-menu-item):is(:hover, :focus-visible, .sel, .is-active, [aria-selected='true']) :is(svg, .cmdk-meta, .zs-ctx-icon, .zs-msel-hint) { color: inherit; }
+
+/* La barra de título: el encabezado de cada modal, drawer y ⌘K. */
+:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) {
+  min-height: 0;
+  padding: 4px 4px 4px 8px;
+  margin: 3px 3px 0;
+  color: var(--rt-title-fg);
+  background: var(--rt-title);
+  border-bottom: 0;
+}
+:root[data-look='retro'] :is(.ui-modal-title, .ui-drawer-title) { font-family: var(--font-ui); font-size: 0.875rem; font-weight: 700; letter-spacing: 0; color: inherit; }
+/* Botones chicos de barra de título solo con mouse; con el dedo quedan de 40px. */
+@media (pointer: fine) and (min-width: 721px) {
+  :root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) .btn { --btn-h: 22px; min-height: 22px; padding: 0 6px; }
+  :root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head) .btn-icon { width: 22px; }
+}
+:root[data-look='retro'] .ui-modal-foot,
+:root[data-look='retro'] .ui-drawer-foot { background: transparent; border-top: 0; }
+:root[data-look='retro'] .cmdk { padding: 3px; }
+:root[data-look='retro'] .cmdk-input { background: var(--rt-field); box-shadow: var(--rt-sunken); border-bottom: 0; }
+:root[data-look='retro'] .cmdk-results { background: var(--rt-face); }
+:root[data-look='retro'] dialog.ui-drawer { box-shadow: var(--rt-window); }
+
+/* ---------- Avisos ---------- */
+
+:root[data-look='retro'] .ui-toast:not([data-tone='error']) { color: var(--ink); background: var(--rt-face); box-shadow: var(--rt-window), 2px 2px 0 rgb(0 0 0 / 0.35); }
+:root[data-look='retro'] .ui-toast .ui-toast-action { border: 0; box-shadow: var(--rt-raised); }
+
+/* ---------- Barras de scroll clásicas (WebKit; Firefox usa scrollbar-color) ---------- */
+
+:root[data-look='retro'] { scrollbar-color: var(--rt-face) var(--brand-enamel); }
+:root[data-look='retro'] ::-webkit-scrollbar { width: 16px; height: 16px; background: var(--brand-enamel); }
+:root[data-look='retro'] ::-webkit-scrollbar-thumb { background: var(--rt-face); box-shadow: var(--rt-raised); border: 0; border-radius: 0; }
+:root[data-look='retro'] ::-webkit-scrollbar-button:single-button { display: block; width: 16px; height: 16px; background: var(--rt-face); box-shadow: var(--rt-raised); }
+:root[data-look='retro'] ::-webkit-scrollbar-corner { background: var(--rt-face); }
+
+/* ---------- Muestra en Ajustes › Apariencia ---------- */
+
+.st-look-swatch[data-look='retro'] { background: #008080; border-radius: 0; }
+.st-look-swatch[data-look='retro'] .s-bar { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 0; }
+.st-look-swatch[data-look='retro'] .s-btn { background: #c0c0c0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf; }
+.st-look-swatch[data-look='retro'] .s-menu { background: #c0c0c0; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff; }
+.st-look-swatch[data-look='retro'] .s-row { background: #808080; }
+.st-look-swatch[data-look='retro'] .s-row.r1 { background: #000080; }
+
+/* En la barra de título todo el texto va en blanco; los botones conservan su relieve. */
+:root[data-look='retro'] :is(.ui-modal-head, .ui-drawer-head, .qm-head) :is(a, span, h2, h3, p, div):not(.btn):not(.btn *) { color: inherit; }

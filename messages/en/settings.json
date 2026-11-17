@@ -1696,7 +1696,7 @@
   },
   "keywords": {
     "profile": "name, language, time zone, photo, email, account",
-    "appearance": "theme, dark mode, light mode, colors, system",
+    "appearance": "theme, dark mode, light mode, colors, system, look, style, lines, classic, liquid, retro",
     "notifications": "email, emails, digest, alerts, unsubscribe",
     "workspace": "name, logo, mode, company",
     "members": "people, invite, roles, permissions, guests",
@@ -1725,11 +1725,38 @@
   },
   "appearance": {
     "title": "Appearance",
-    "desc": "How zerosoft looks in this browser.",
+    "desc": "Light or dark mode in this browser.",
     "themeHelp": "System follows your computer’s light or dark setting. It is the same choice as the switch at the bottom of the sidebar.",
     "languageTitle": "Language",
     "languageDesc": "The language of the interface and of the emails zerosoft sends you.",
-    "languageLink": "Change it in Profile"
+    "languageLink": "Change it in Profile",
+    "lookTitle": "Look",
+    "lookDesc": "How menus, buttons, popovers and windows are drawn in every app. Saved to your account.",
+    "lookLabel": "Look",
+    "lookSaved": "Saved to your account.",
+    "lookError": "Could not save. The look applies in this browser only.",
+    "looks": {
+      "current": {
+        "name": "Current",
+        "desc": "The default. How zerosoft looks today: thin lines with the rounded chat menus of Lines and Inbox."
+      },
+      "lines": {
+        "name": "Lines",
+        "desc": "Flat and square: 1px lines, no shadows, and the app's color on active borders, main buttons and section rules."
+      },
+      "classic": {
+        "name": "Classic",
+        "desc": "Like WhatsApp and Linear: rounded white surfaces with soft shadows, menus with filled hovers and round icon buttons."
+      },
+      "liquid": {
+        "name": "Liquid",
+        "desc": "Translucent layers with blur, larger corners and floating menus."
+      },
+      "retro": {
+        "name": "Retro",
+        "desc": "A nineties desktop: raised gray buttons and windows, sunken white fields and title bars."
+      }
+    }
   },
   "offline": {
     "title": "Offline mode",

@@ -258,6 +258,139 @@ for (const kind of ['black', 'none'] as const) {
   });
 }
 
+for (const start of ['ok', 'unsupported'] as const) {
+  test(`app de escritorio en Mac: audio de la compu nativo mezclado con el micrófono (${start})`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.addInitScript((start) => {
+      // 250 ms de seno a 16 kHz, PCM de 16 bits en base64, por cada lectura (como system_audio.rs).
+      const n = 4000;
+      const pcm = new Int16Array(n);
+      for (let i = 0; i < n; i++) pcm[i] = Math.round(Math.sin((2 * Math.PI * 440 * i) / 16000) * 12000);
+      let bin = '';
+      new Uint8Array(pcm.buffer).forEach((b) => (bin += String.fromCharCode(b)));
+      const b64 = btoa(bin);
+      const w = window as unknown as Record<string, unknown> & { __sys: { started: number; stopped: number; settings: number; displayAudio: unknown[]; recAudio: number[] } };
+      w.__sys = { started: 0, stopped: 0, settings: 0, displayAudio: [], recAudio: [] };
+      // Pantalla con imagen (un canvas que cambia) y sin audio, como getDisplayMedia en WKWebView.
+      navigator.mediaDevices.getDisplayMedia = async (opts?: DisplayMediaStreamOptions) => {
+        w.__sys.displayAudio.push(opts?.audio);
+        const c = document.createElement('canvas');
+        c.width = 640;
+        c.height = 360;
+        const g = c.getContext('2d')!;
+        let k = 0;
+        setInterval(() => {
+          g.fillStyle = k++ % 2 ? '#3a7' : '#47b';
+          g.fillRect(0, 0, c.width, c.height);
+        }, 50);
+        return c.captureStream(30);
+      };
+      const MR = window.MediaRecorder;
+      window.MediaRecorder = class extends MR {
+        constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+          super(stream, options);
+          if (stream.getVideoTracks().length) w.__sys.recAudio.push(stream.getAudioTracks().length);
+        }
+      } as typeof MediaRecorder;
+      w.zerosoftDesktop = {
+        version: '99.0.0',
+        platform: 'darwin',
+        systemAudio: true,
+        dictation: false,
+        startLogin() {},
+        openSettings() {
+          w.__sys.settings += 1;
+        },
+        recOverlay: () => Promise.resolve(),
+        recLevel: () => Promise.resolve(),
+        async systemAudioStart() {
+          w.__sys.started += 1;
+          return start;
+        },
+        async systemAudioRead() {
+          return b64;
+        },
+        async systemAudioStop() {
+          w.__sys.stopped += 1;
+        },
+      };
+    }, start);
+    const sys = () => page.evaluate(() => (window as unknown as { __sys: { started: number; stopped: number; settings: number; displayAudio: unknown[]; recAudio: number[] } }).__sys);
+
+    await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+    await page.getByRole('radio', { name: 'Screen only' }).check({ force: true });
+    await expect(page.getByTestId('rec-system-audio')).toBeChecked();
+    await page.getByTestId('rec-start').click();
+    await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 20_000 });
+    // La app captura el audio de la compu; a getDisplayMedia no se le pide (WKWebView no lo da).
+    expect((await sys()).started).toBe(1);
+    expect((await sys()).displayAudio).toEqual([false]);
+    // Micrófono y audio de la compu van mezclados en una sola pista del video.
+    expect((await sys()).recAudio).toEqual([1]);
+    const notice = page.getByTestId('rec-system-audio-notice');
+    if (start === 'ok') {
+      // Llega sonido: no hay aviso.
+      await page.waitForTimeout(2500);
+      await expect(notice).toHaveCount(0);
+    } else {
+      // No arrancó (apagado en Ajustes o macOS viejo): lo dice y lleva a los ajustes de la app.
+      await expect(notice).toHaveAttribute('data-reason', 'failed');
+      await page.getByTestId('rec-system-audio-settings').click();
+      expect((await sys()).settings).toBe(1);
+    }
+    await page.getByTestId('rec-discard').click();
+    await page.getByTestId('rec-discard-yes').click();
+    await expect(page.getByTestId('rec-recorder')).toHaveAttribute('data-phase', 'setup');
+    // Al descartar se corta la captura nativa.
+    if (start === 'ok') await expect.poll(async () => (await sys()).stopped).toBeGreaterThan(0);
+  });
+}
+
+test('app de escritorio en Mac: con el audio de la compu apagado no se captura', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown> & { __started: number };
+    w.__started = 0;
+    w.zerosoftDesktop = {
+      version: '99.0.0',
+      platform: 'darwin',
+      systemAudio: true,
+      dictation: false,
+      startLogin() {},
+      openSettings() {},
+      recOverlay: () => Promise.resolve(),
+      recLevel: () => Promise.resolve(),
+      async systemAudioStart() {
+        w.__started += 1;
+        return 'ok';
+      },
+      async systemAudioRead() {
+        return '';
+      },
+      async systemAudioStop() {},
+    };
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      const c = document.createElement('canvas');
+      c.width = 320;
+      c.height = 180;
+      const g = c.getContext('2d')!;
+      setInterval(() => {
+        g.fillStyle = '#58c';
+        g.fillRect(0, 0, c.width, c.height);
+      }, 50);
+      return c.captureStream(30);
+    };
+  });
+  await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+  await page.getByRole('radio', { name: 'Screen only' }).check({ force: true });
+  await page.getByTestId('rec-system-audio').uncheck();
+  await page.getByTestId('rec-start').click();
+  await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => (window as unknown as { __started: number }).__started)).toBe(0);
+  await expect(page.getByTestId('rec-system-audio-notice')).toHaveCount(0);
+  await page.getByTestId('rec-discard').click();
+  await page.getByTestId('rec-discard-yes').click();
+});
+
 test('controles: silenciar, empezar de nuevo y la barra de la app de escritorio (pausa, sigue y termina)', async ({ page }) => {
   test.setTimeout(120_000);
   // El puente de la app de escritorio, falso: anota lo que la página le cuenta a la barra flotante.
