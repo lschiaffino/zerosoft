@@ -80,7 +80,7 @@
     "fleet": { "names": ["fleet"], "specs": ["fleet"] },
     "mcp": { "names": ["mcp"], "paths": ["scripts/mcp-catalog.mjs"], "specs": ["mcp"] },
     "status": { "names": ["status"], "specs": ["status-page"] },
-    "settings": { "names": ["settings"], "specs": ["settings", "settings-*", "platform-settings", "privacy", "lifecycle-emails", "display-settings"] },
+    "settings": { "names": ["settings"], "specs": ["settings", "settings-*", "platform-settings", "privacy", "lifecycle-emails", "display-settings", "looks"] },
     "desktop-web": { "names": ["desktop", "download"], "paths": ["app/[locale]/download/**", "styles/desktop-download.css"], "specs": ["desktop-*", "download"] },
     "site": {
       "names": ["site", "blog", "products", "pages", "compare", "changelog", "tools", "videos", "legal"],

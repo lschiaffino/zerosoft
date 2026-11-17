@@ -1696,7 +1696,7 @@
   },
   "keywords": {
     "profile": "nome, idioma, fuso horário, foto, email, conta",
-    "appearance": "tema, modo escuro, modo claro, cores, sistema",
+    "appearance": "tema, modo escuro, modo claro, cores, sistema, visual, estilo, linhas, clássico, líquido, retrô",
     "notifications": "email, emails, resumo, avisos, cancelar inscrição",
     "workspace": "nome, logo, modo, empresa",
     "members": "pessoas, convidar, funções, permissões, convidados",
@@ -1725,11 +1725,38 @@
   },
   "appearance": {
     "title": "Aparência",
-    "desc": "Como o zerosoft aparece neste navegador.",
+    "desc": "Modo claro ou escuro neste navegador.",
     "themeHelp": "Sistema segue o modo claro ou escuro do seu computador. É a mesma opção do seletor no rodapé da barra lateral.",
     "languageTitle": "Idioma",
     "languageDesc": "O idioma da interface e dos emails que o zerosoft envia.",
-    "languageLink": "Altere em Perfil"
+    "languageLink": "Altere em Perfil",
+    "lookTitle": "Visual",
+    "lookDesc": "Como menus, botões, popovers e janelas aparecem em todos os apps. Fica salvo na sua conta.",
+    "lookLabel": "Visual",
+    "lookSaved": "Salvo na sua conta.",
+    "lookError": "Não foi possível salvar. O visual vale só neste navegador.",
+    "looks": {
+      "current": {
+        "name": "Atual",
+        "desc": "O padrão. Como o zerosoft aparece hoje: linhas finas com os menus arredondados do chat do Lines e do Inbox."
+      },
+      "lines": {
+        "name": "Linhas",
+        "desc": "Plano e reto: linhas de 1px, sem sombras, e a cor do app nas bordas ativas, nos botões principais e nos filetes."
+      },
+      "classic": {
+        "name": "Clássico",
+        "desc": "Como o WhatsApp e o Linear: superfícies brancas arredondadas com sombras suaves, menus com preenchimento ao passar o mouse e botões de ícone redondos."
+      },
+      "liquid": {
+        "name": "Líquido",
+        "desc": "Camadas translúcidas com desfoque, cantos maiores e menus que flutuam."
+      },
+      "retro": {
+        "name": "Retrô",
+        "desc": "Uma área de trabalho dos anos noventa: botões e janelas cinza em relevo, campos brancos afundados e barras de título."
+      }
+    }
   },
   "offline": {
     "title": "Modo sem conexão",

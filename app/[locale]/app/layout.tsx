@@ -40,6 +40,9 @@ import { settingsSectionHref, settingsSectionKeys } from '@/lib/settings-nav';
 import AppPwa from '@/components/app/AppPwa';
 import ThemeProvider from '@/components/theme/ThemeProvider';
 import { getThemePref } from '@/lib/color-theme-server';
+import LookProvider from '@/components/theme/LookProvider';
+import { lookSyncScript } from '@/lib/look';
+import { lookOf } from '@/lib/look-server';
 // CSS común a toda la app: link.css trae la base de páginas, tablas y filtros
 // que usan todas las apps, app-shared.css las reglas de otras hojas que se usan
 // fuera de su app (ver su encabezado). Cada app importa su hoja en su layout.
@@ -130,8 +133,9 @@ export default async function AppLayout(
     return (
       <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
         <ThemeProvider initial={embedTheme}>
+          <LookProvider initial={lookOf(real)}>
           <div className="st-embed">
-            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) + sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
             <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
             <SettingsEmbedGuard />
             <PlatformSettingsNav
@@ -144,6 +148,7 @@ export default async function AppLayout(
             />
             <main className="st-embed-main app-content">{children}</main>
           </div>
+          </LookProvider>
         </ThemeProvider>
       </ClientMessages>
     );
@@ -228,6 +233,9 @@ export default async function AppLayout(
     // namespace en su layout.
     <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'settings.appUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
+      <LookProvider initial={lookOf(real)}>
+      {/* El aspecto de la cuenta (users.ui_look) antes del primer paint de la app, aunque este navegador no tenga la cookie. */}
+      <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: lookSyncScript(lookOf(real)) }} />
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -871,6 +879,7 @@ export default async function AppLayout(
         )}
       </div>
       </RecorderProvider>
+      </LookProvider>
       </ThemeProvider>
     </ClientMessages>
   );

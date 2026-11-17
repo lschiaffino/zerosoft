@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { appCsp, newNonce, rootInlineScripts, rootScriptHashes, sha256Source } from '@/lib/csp';
 import { cspReportLines } from '@/lib/csp-report';
 import { THEME_INIT_SCRIPT } from '@/lib/color-theme';
+import { LOOK_INIT_SCRIPT } from '@/lib/look';
 import { SESSION_HINT_SCRIPT } from '@/lib/session-hint';
 import { localeCookieScript } from '@/lib/locale-cookie';
 import { TZ_COOKIE_SCRIPT } from '@/lib/tz-client';
@@ -17,7 +18,7 @@ describe('CSP de la app', () => {
   it('los hashes cubren los scripts en línea del layout raíz, tal cual', async () => {
     // Si cambia el layout raíz ([locale]/layout.tsx), esta lista tiene que cambiar con él.
     expect(rootInlineScripts()).toEqual([
-      ...['en', 'es', 'pt'].map((l) => THEME_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(l)),
+      ...['en', 'es', 'pt'].map((l) => THEME_INIT_SCRIPT + LOOK_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(l)),
       TZ_COOKIE_SCRIPT,
     ]);
     const expected = rootInlineScripts().map((s) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`);
