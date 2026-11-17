@@ -129,6 +129,8 @@ export async function GET(req: NextRequest) {
   // Claves de envíos de Lines e Inbox (lib/send-once.ts).
   const sendClaims = await pruneSendClaims().catch(() => null);
   const linkHistory = await pruneLinkHistory().catch(() => null);
+  // Inbox y Lines: caché global de vistas previas de links (vencido hace dos semanas y claves viejas con la URL).
+  const linkPreviewsPruned = await import('@/lib/wa-extras').then((m) => m.prunePreviewCache()).catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);
   // Alertas de insights: con su propio tope de tiempo y claim por alerta.
@@ -216,5 +218,5 @@ export async function GET(req: NextRequest) {
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
   return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
-    docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
+    docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

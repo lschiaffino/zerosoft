@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { cleanPreviewUrl, linkPreview, readTranscript, transcribeMessage } from '@/lib/wa-extras';
+import { cleanPreviewUrl, linkPreview, previewKey, PREVIEW_KEEP_MS, prunePreviewCache, readTranscript, transcribeMessage } from '@/lib/wa-extras';
 import { waveformFrom } from '@/lib/groups-media';
 import { firstUrl, waveBars } from '@/components/groups/wa/format';
 import { listMessages, listThreads, type AccountRow } from '@/lib/inbox/core';
@@ -30,10 +30,37 @@ describe('vista previa de links', () => {
     const url = `https://example.test/p/${Math.random().toString(36).slice(2)}`;
     const a = await linkPreview(url);
     expect(a).toMatchObject({ url, title: 'example.test page', site: 'example.test' });
-    await getDb().prepare("UPDATE wa_link_previews SET title = 'Guardado' WHERE url = ?").run(url);
+    await getDb().prepare("UPDATE wa_link_previews SET title = 'Guardado' WHERE url = ?").run(previewKey(url));
     expect((await linkPreview(url))!.title).toBe('Guardado');
     // Vencida (una semana): se vuelve a leer.
     expect((await linkPreview(url, new Date(Date.now() + 8 * 86_400_000)))!.title).toBe('example.test page');
+  });
+
+  it('la caché global no guarda la URL: la clave es un HMAC', async () => {
+    const url = `https://example.test/share?token=${Math.random().toString(36).slice(2)}`;
+    await linkPreview(url);
+    const like = (await getDb().prepare('SELECT COUNT(*) AS n FROM wa_link_previews WHERE url LIKE ?').get('%token=%')) as { n: number };
+    expect(Number(like.n)).toBe(0);
+    expect(previewKey(url)).toMatch(/^h1:[0-9a-f]{64}$/);
+    expect(previewKey(url)).not.toBe(previewKey(`${url}x`));
+    expect(await getDb().prepare('SELECT 1 FROM wa_link_previews WHERE url = ?').get(previewKey(url))).toBeTruthy();
+  });
+
+  it('el cron borra lo vencido hace más de dos semanas y las filas con la URL como clave', async () => {
+    const now = Date.now();
+    const fresh = `https://example.test/fresh/${Math.random().toString(36).slice(2)}`;
+    await linkPreview(fresh, new Date(now));
+    const oldUrl = `https://example.test/old/${Math.random().toString(36).slice(2)}`;
+    await linkPreview(oldUrl, new Date(now - PREVIEW_KEEP_MS - 60_000));
+    const legacy = `https://example.test/legacy/${Math.random().toString(36).slice(2)}`;
+    await getDb()
+      .prepare("INSERT INTO wa_link_previews (url, title, description, site, image, fetched_at) VALUES (?, 'x', '', 'example.test', '', ?)")
+      .run(legacy, new Date(now).toISOString());
+    expect(await prunePreviewCache(now)).toBeGreaterThanOrEqual(2);
+    const has = async (key: string) => !!(await getDb().prepare('SELECT 1 FROM wa_link_previews WHERE url = ?').get(key));
+    expect(await has(legacy)).toBe(false);
+    expect(await has(previewKey(oldUrl))).toBe(false);
+    expect(await has(previewKey(fresh))).toBe(true);
   });
 });
 
