@@ -395,7 +395,7 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
 
   // ---------- Inbox: el contacto, su empresa y su negocio ----------
   await request.post('/api/inbox/whatsapp', waLinkIp());
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: process.env.CI ? 10_000 : 60_000 }).toBe('connected');
   const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, {
     data: { events: [{ type: 'message', chatId: `${DANA_PHONE}@s.whatsapp.net`, isGroup: false, fromMe: false, senderPhone: DANA_PHONE, senderName: `Dana ${tag}`, providerMessageId: `obj-${tag}`, body: 'hola', timestamp: new Date().toISOString() }] },

@@ -209,8 +209,10 @@ export function formatHubspotValue(def: Pick<HubspotPropDef, 'kind' | 'options'>
   if (def.kind === 'date' || def.kind === 'datetime') {
     const ms = hubspotTime(v);
     if (ms === null) return v;
-    // Una fecha de HubSpot es un día, no un instante: se muestra en UTC.
-    return def.kind === 'date'
+    // Una fecha de HubSpot es un día, no un instante: se muestra en UTC. Una fecha y hora justo a la medianoche UTC
+    // también (la fecha de cierre de un negocio es así): en la hora local caería el día anterior.
+    const day = def.kind === 'date' || ms % 86_400_000 === 0;
+    return day
       ? new Date(ms).toLocaleDateString(f.locale, { timeZone: 'UTC', dateStyle: 'medium' })
       : new Date(ms).toLocaleString(f.locale, { dateStyle: 'medium', timeStyle: 'short' });
   }
