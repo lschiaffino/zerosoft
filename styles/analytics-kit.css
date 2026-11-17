@@ -24,6 +24,12 @@
 .la[data-product='fleet'] { --la-accent: var(--c-fleet); }
 .la[data-product='time'] { --la-accent: var(--c-time); }
 .la[data-product='crm'] { --la-accent: var(--c-crm); }
+.la[data-product='cal'] { --la-accent: var(--c-cal); }
+.la[data-product='link'] { --la-accent: var(--c-link); }
+.la[data-product='social'] { --la-accent: var(--c-social); }
+.la[data-product='track'] { --la-accent: var(--c-track); }
+.la[data-product='send'] { --la-accent: var(--c-send); }
+.la[data-product='forms'] { --la-accent: var(--c-forms); }
 
 .la-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .la-periods { display: flex; gap: 4px; }
@@ -206,6 +212,16 @@
 @keyframes la-grow-x { from { transform: scaleX(0); } }
 @keyframes la-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes la-rise { from { opacity: 0; transform: translateY(6px); } }
+
+/* Un texto largo en una celda (una URL, un título): una línea con puntos suspensivos; el resto en el title. */
+.la-trunc { display: block; max-width: 44ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la-table td.la-wide { width: 100%; max-width: 0; }
+.la-table td.la-wide .la-trunc { max-width: 100%; }
+.la-link-cell { font-family: var(--mono); font-size: 0.8125rem; white-space: nowrap; }
+@media (max-width: 640px) {
+  /* En angosto, las columnas secundarias de texto se ocultan: entran el nombre y los números. */
+  .la-table .la-hide-sm { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .la-kpi, .la-panel, .la-empty, .la-dot, .la-bar, .la-bars-fill, .la-heat-cell, .la-spark, .la-skel { animation: none; }

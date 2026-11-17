@@ -974,7 +974,7 @@ test.describe('link d9', () => {
 
     await page.goto('/en/app/links/analytics', { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: 'Analytics' })).toBeVisible();
-    await expect(page.getByTestId('analytics-scans')).not.toHaveText('0');
+    await expect(page.locator('.la-kpi[data-kpi="QR scans"] .la-num')).not.toHaveAttribute('data-value', '0');
     const csv = await request.get('/api/links/analytics/export.csv');
     expect(csv.headers()['content-type']).toContain('text/csv');
     expect(await csv.text()).toContain(slug);

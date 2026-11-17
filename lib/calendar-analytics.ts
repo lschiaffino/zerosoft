@@ -10,6 +10,8 @@
  * reserva.
  */
 import { getDb } from './db';
+import { analyticsRange, median, rangeInfo, type RangeInfo, type RangeInput } from './analytics-kit/period';
+import { shortCache } from './analytics-kit/cache';
 
 export interface AnalyticsBookingRow {
   created_at: string;
@@ -36,6 +38,11 @@ export interface BookingAnalytics {
   noShowRate: number | null;
   /** Reservas creadas por día del rango (YYYY-MM-DD, zona del workspace). */
   byDay: Array<{ date: string; count: number }>;
+  /** Alineadas con byDay: de las creadas ese día, cuántas se cancelaron y cuántas quedaron como no-show. */
+  cancelledByDay: number[];
+  noShowByDay: number[];
+  /** Mediana, en minutos, de cuánto antes se reserva (de creada a inicio), de las que siguen en pie. */
+  leadMin: number | null;
   /** [día de la semana 0=domingo][hora 0..23] → reservas que empiezan ahí. */
   heatmap: number[][];
   /** Los horarios (día + hora) más reservados, de mayor a menor. */
@@ -93,10 +100,20 @@ export function computeBookingAnalytics(
   let cancelled = 0;
   let noShow = 0;
   let pending = 0;
+  const cancelledPerDay = new Map<string, number>();
+  const noShowPerDay = new Map<string, number>();
+  const leads: number[] = [];
 
   for (const r of live) {
-    const day = partsInTz(parseDbDate(r.created_at), opts.timezone).date;
+    const createdAt = parseDbDate(r.created_at);
+    const day = partsInTz(createdAt, opts.timezone).date;
     if (perDay.has(day)) perDay.set(day, (perDay.get(day) ?? 0) + 1);
+    if (r.status === 'cancelled') cancelledPerDay.set(day, (cancelledPerDay.get(day) ?? 0) + 1);
+    if (r.status === 'no_show') noShowPerDay.set(day, (noShowPerDay.get(day) ?? 0) + 1);
+    if (r.status !== 'cancelled') {
+      const lead = (parseDbDate(r.starts_at).getTime() - createdAt.getTime()) / 60_000;
+      if (Number.isFinite(lead)) leads.push(Math.max(0, Math.round(lead)));
+    }
     const type = byType.get(r.event_type_id) ?? { id: r.event_type_id, title: r.event_type_title, created: 0, cancelled: 0, noShow: 0 };
     const hostKey = r.host_user_id ?? '';
     const host = byHost.get(hostKey) ?? { id: hostKey, name: r.host_name || '', created: 0, cancelled: 0, noShow: 0 };
@@ -139,6 +156,9 @@ export function computeBookingAnalytics(
     cancelRate: created ? cancelled / created : null,
     noShowRate: created ? noShow / created : null,
     byDay: days.map((date) => ({ date, count: perDay.get(date) ?? 0 })),
+    cancelledByDay: days.map((date) => cancelledPerDay.get(date) ?? 0),
+    noShowByDay: days.map((date) => noShowPerDay.get(date) ?? 0),
+    leadMin: median(leads),
     heatmap,
     topSlots: topSlots.slice(0, 5),
     byEventType: [...byType.values()].sort((a, b) => b.created - a.created || a.title.localeCompare(b.title)),
@@ -195,6 +215,55 @@ export async function analyticsHosts(userId: string): Promise<Array<{ id: string
        ORDER BY name LIMIT 200`,
     )
     .all(userId)) as Array<{ id: string; name: string }>;
+}
+
+export interface CalAnalytics {
+  range: RangeInfo;
+  /** El período elegido y el anterior, del mismo largo (días en la zona de quien mira). */
+  cur: BookingAnalytics;
+  prev: BookingAnalytics;
+}
+
+export interface CalAnalyticsFilters {
+  hostId?: string | null;
+  eventTypeId?: string | null;
+}
+
+/** 'YYYY-MM-DD HH:MM:SS' o ISO → milisegundos. */
+const stampMs = (v: string) => parseDbDate(v).getTime();
+
+/**
+ * La analítica de Cal con el período del kit: una sola lectura que cubre el
+ * período anterior y el elegido, partida por la fecha de creación.
+ */
+export async function calAnalytics(ws: string, filters: CalAnalyticsFilters, query: RangeInput = {}, opts: { now?: Date } = {}): Promise<CalAnalytics> {
+  const range = analyticsRange(query, opts.now ?? new Date());
+  const since = Date.parse(range.since);
+  const rows = await loadAnalyticsRows(ws, new Date(range.prevSince), new Date(Date.parse(range.until) - 1), filters);
+  return {
+    range: rangeInfo(range),
+    cur: computeBookingAnalytics(
+      rows.filter((r) => stampMs(r.created_at) >= since),
+      { fromDate: range.from, toDate: range.to, timezone: range.tz },
+    ),
+    prev: computeBookingAnalytics(
+      rows.filter((r) => stampMs(r.created_at) < since),
+      { fromDate: range.prevFrom, toDate: range.prevTo, timezone: range.tz },
+    ),
+  };
+}
+
+const cache = shortCache<CalAnalytics>();
+
+/** Con la caché corta del kit. La clave lleva el workspace, quién mira y los filtros. */
+export function cachedCalAnalytics(ws: string, viewerId: string, filters: CalAnalyticsFilters, query: RangeInput = {}): Promise<CalAnalytics> {
+  const now = new Date();
+  const r = analyticsRange(query, now);
+  return cache.get(JSON.stringify([ws, viewerId, filters.hostId ?? '', filters.eventTypeId ?? '', r.since, r.until, r.tz]), () => calAnalytics(ws, filters, query, { now }));
+}
+
+export function clearCalAnalyticsCache(): void {
+  cache.clear();
 }
 
 /** Rango del reporte: días YYYY-MM-DD válidos, `to` hoy por defecto y 30 días hacia atrás. */

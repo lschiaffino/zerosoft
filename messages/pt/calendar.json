@@ -749,7 +749,14 @@
     "allEventTypes": "Todos os tipos de evento",
     "byHost": "Por pessoa",
     "unknownHost": "Sem anfitrião",
-    "pollPrefix": "Enquete: {title}"
+    "pollPrefix": "Enquete: {title}",
+    "desc": "Reservas criadas no período, comparadas com o período anterior.",
+    "cancelRate": "Taxa de cancelamento",
+    "leadTime": "Antecedência (mediana)",
+    "cancelledN": "{n, plural, one {# cancelada} other {# canceladas}}",
+    "noShowN": "{n, plural, one {# não compareceu} other {# não compareceram}}",
+    "peak": "A maioria das reuniões começa {day} às {hour} ({n})",
+    "scopeNote": "Você vê as reservas em que é anfitrião."
   },
   "location": {
     "title": "Local",

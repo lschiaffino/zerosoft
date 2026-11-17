@@ -632,7 +632,9 @@
     "conversions": "Conversões",
     "conversionsEmpty": "Não há leads nem vendas neste período. Ative a medição de conversões em um link e informe-as pelo seu site.",
     "funnel": "De cliques a vendas",
-    "topConverting": "Links que mais convertem"
+    "topConverting": "Links que mais convertem",
+    "desc": "Cliques, leituras do QR e conversões de todos os seus links, comparados com o período anterior.",
+    "convRate": "Taxa de leads"
   },
   "targeting": {
     "title": "Roteamento",
