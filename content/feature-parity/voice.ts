@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-11-14',
+  lastReviewed: '2026-11-17',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -183,9 +183,9 @@ const parity: ProductParity = {
     }),
     row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'have', {
       detail: [
-        'Words this week, dictations, minutes and the apps where you dictate most; admins see a team panel per person (numbers only, never the text)',
-        'Palabras de la semana, dictados, minutos y las apps donde más dictás; los admins ven un panel del equipo por persona (solo números, nunca el texto)',
-        'Palavras da semana, ditados, minutos e os apps onde você mais dita; admins veem um painel da equipe por pessoa (só números, nunca o texto)',
+        'Words this week, dictations, minutes and the apps where you dictate most, plus an Analytics page with meetings, words per minute, activity per day and by hour against the previous period; admins see a team panel per person (numbers only, never the text)',
+        'Palabras de la semana, dictados, minutos y las apps donde más dictás, y una página de Analítica con reuniones, palabras por minuto, actividad por día y por hora contra el período anterior; los admins ven un panel del equipo por persona (solo números, nunca el texto)',
+        'Palavras da semana, ditados, minutos e os apps onde você mais dita, e uma página de Análises com reuniões, palavras por minuto, atividade por dia e por hora contra o período anterior; admins veem um painel da equipe por pessoa (só números, nunca o texto)',
       ],
     }),
 

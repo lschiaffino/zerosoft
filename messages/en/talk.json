@@ -810,5 +810,42 @@
     "noMic": "No microphone access. Allow it in the browser and try again.",
     "noCamera": "No camera or microphone access. Allow them in the browser and try again.",
     "empty": "Nothing was recorded. Try again."
+  },
+  "report": {
+    "nav": "Analytics",
+    "title": "Analytics",
+    "desc": "Messages, thread replies, who posts and when, reactions and huddles in the conversations you can read, against the previous period.",
+    "channel": "Channel",
+    "allChannels": "All channels",
+    "messages": "Messages",
+    "replies": "Thread replies",
+    "people": "People posting",
+    "reactions": "Reactions",
+    "huddles": "Huddles",
+    "huddleTime": "Time in huddles",
+    "posters": "People",
+    "members": "Members",
+    "perDay": "Messages, replies and reactions per day",
+    "whoPosts": "Who posts",
+    "whenPosted": "When people post",
+    "peak": "Most messages are sent on {day} at {hour} ({n})",
+    "byKind": "Where conversations happen",
+    "kinds": {
+      "public": "Public channels",
+      "private": "Private channels",
+      "dm": "Direct messages",
+      "group": "Group messages"
+    },
+    "byChannel": "By channel",
+    "lastMessage": "Last message",
+    "someone": "Someone",
+    "messagesN": "{n, plural, one {# message} other {# messages}}",
+    "repliesN": "{n, plural, one {# reply} other {# replies}}",
+    "conversationsN": "{n, plural, one {# conversation} other {# conversations}}",
+    "noChannelsTitle": "No channels yet",
+    "noChannelsBody": "Join or create a channel and its activity shows up here.",
+    "emptyTitle": "Nothing happened in this period",
+    "emptyBody": "When someone posts, replies or reacts in a conversation you can read, the numbers show up here.",
+    "note": "Counts messages and replies from people in public channels, the private channels you are in and your direct messages. Bot messages and deleted messages are left out, and the text of messages is never read for this report. Time in huddles runs from start to end; a huddle still going counts up to now."
   }
 }

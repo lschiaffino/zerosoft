@@ -19,6 +19,8 @@
 
 /* ---------- Encabezado, filtros y pestañas ---------- */
 /* El color de cada producto (la página pone data-product). */
+.la[data-product='talk'] { --la-accent: var(--c-talk); }
+.la[data-product='voice'] { --la-accent: var(--c-voice); }
 .la[data-product='inbox'] { --la-accent: var(--c-inbox); }
 .la[data-product='calls'] { --la-accent: var(--c-calls); }
 .la[data-product='fleet'] { --la-accent: var(--c-fleet); }
