@@ -224,6 +224,9 @@ body:has(.bp-root) .fl-root {
 .fl-root { transition: transform 200ms var(--ease-out-expo, ease-out), opacity 200ms ease-out, visibility 0s linear 0s; }
 .fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
 @media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
+/* Abierto a pedido (también desde "Enviar feedback" del menú de la cuenta) se ve aunque la pestaña esté escondida
+   por un chat abierto u otra regla de la página. */
+:root body .fl-root.is-open { display: block !important; visibility: visible !important; pointer-events: auto !important; }
 /*
  * El botón es una pestaña angosta pegada al borde derecho, por encima de las
  * barras de acción de abajo: no tapa botones, menús de fila ni la última columna.
