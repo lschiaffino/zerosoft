@@ -338,7 +338,41 @@
     "emptyBody": "Mentions, assignments, comments and changes on the issues you follow land here.",
     "unread": "Unread",
     "loadError": "Couldn't load the inbox.",
-    "someone": "Someone"
+    "someone": "Someone",
+    "filter": {
+      "read": "Status",
+      "kind": "Type",
+      "project": "Project",
+      "team": "Team",
+      "from": "From",
+      "unread": "Unread",
+      "readOnes": "Read",
+      "noProject": "No project",
+      "noTeam": "No team",
+      "noValues": "Nothing to filter by here yet",
+      "emptyTitle": "No notifications match these filters",
+      "emptyBody": "Change or clear the filters to see the rest."
+    },
+    "kinds": {
+      "mention": "Mentions",
+      "assigned": "Assignments",
+      "status": "Status changes",
+      "update": "Issue changes",
+      "comment": "Comments",
+      "reminder": "Reminders",
+      "project": "Project updates",
+      "other": "Other apps"
+    },
+    "order": {
+      "newest": "Newest first",
+      "oldest": "Oldest first"
+    },
+    "group": {
+      "none": "No grouping",
+      "kind": "Type",
+      "project": "Project",
+      "team": "Team"
+    }
   },
   "notifications": {
     "title": "Notifications",
