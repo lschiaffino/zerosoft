@@ -5,10 +5,21 @@ import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import LocalText from '@/components/ui/LocalText';
 import type { ChatCompanyDto } from '@/lib/groups-hubspot-sync';
-import { HUBSPOT_MAX_PINNED, formatHubspotValue, hubspotMulti, hubspotTime, type HubspotOwner, type HubspotPropDef, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
+import {
+  HUBSPOT_MAX_PINNED,
+  HUBSPOT_OBJECT_KINDS,
+  formatHubspotValue,
+  hubspotMulti,
+  hubspotTime,
+  type HubspotObjectKind,
+  type HubspotOwner,
+  type HubspotPropDef,
+  type HubspotSchemaDto,
+} from '@/lib/groups-hubspot-shared';
 import { parseDbUtc } from '@/lib/utils';
 import { setHubspotSchema, useHubspotSchema } from './hubspot-client';
 import { setHubspotPanelPinned } from './hubspot-dock';
+import HubspotKindTabs from './HubspotKindTabs';
 import { api, useErrorText } from './dialog-kit';
 import { useRelativeTime } from './relative-time';
 import { PinIcon } from './wa/icons';
@@ -144,13 +155,15 @@ function Editor({
 
 /**
  * La pantalla de HubSpot de un chat o grupo: todas las propiedades de la
- * empresa vinculada, agrupadas como en HubSpot, con las fijadas arriba,
+ * empresa, el contacto y el negocio vinculados (una pestaña por cada uno que
+ * haya), agrupadas como en HubSpot, con las fijadas arriba,
  * búsqueda por nombre, un editor por tipo (el cambio va a HubSpot en el
  * momento), "Sincronizar ahora", el registro de cambios y el link a HubSpot.
  * Las vacías quedan detrás de "Mostrar vacías". Es un panel a pantalla
  * completa en el teléfono y una hoja lateral ancha en el escritorio, que se
  * puede fijar al costado del chat (`docked`, components/groups/hubspot-dock.ts):
- * ahí no tapa la conversación y sigue al chat que se abre.
+ * ahí no tapa la conversación y sigue al chat que se abre. El registro de
+ * cambios es solo de la empresa (la única con copia local).
  */
 export default function HubspotScreen({
   source,
@@ -172,7 +185,8 @@ export default function HubspotScreen({
   const ref = useRef<HTMLDialogElement>(null);
   const panelId = useId();
   const shown = open || docked;
-  const { schema, failed: schemaFailed, reload: reloadSchema } = useHubspotSchema(shown);
+  const [kind, setKind] = useState<HubspotObjectKind>('company');
+  const { schema, failed: schemaFailed, reload: reloadSchema } = useHubspotSchema(shown, kind);
   const key = sourceKey(source);
   const base = source.app === 'lines' ? '/api/groups/hubspot/company' : '/api/inbox/hubspot/company';
   const query = source.app === 'lines' ? `chat=${encodeURIComponent(source.chatId)}` : `thread=${encodeURIComponent(source.threadId)}&fresh=1`;
@@ -180,8 +194,14 @@ export default function HubspotScreen({
   const syncBody = source.app === 'lines' ? { chatId: source.chatId } : { threadId: source.threadId };
   const syncBodyRef = useRef(syncBody);
   syncBodyRef.current = syncBody;
-  const [data, setData] = useState<CompanyData | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Lo cargado de cada objeto: undefined mientras carga, null si no se pudo leer.
+  const [datas, setDatas] = useState<Partial<Record<HubspotObjectKind, CompanyData | null>>>({});
+  const data = datas[kind] ?? null;
+  const failed = datas[kind] === null;
+  const setKindData = useCallback(
+    (k: HubspotObjectKind, fn: (d: CompanyData | null) => CompanyData | null) => setDatas((all) => ({ ...all, [k]: fn(all[k] ?? null) })),
+    [],
+  );
   const [q, setQ] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
   const [tab, setTab] = useState<'props' | 'log'>('props');
@@ -201,17 +221,25 @@ export default function HubspotScreen({
   const editingRef = useRef<string | null>(null);
   editingRef.current = editing;
 
+  // Fijado, el panel cambia de chat: lo que llega tarde del chat anterior no se muestra en el nuevo.
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const loadKind = useCallback(
+    async (k: HubspotObjectKind) => {
+      const res = await api<CompanyData>(`${base}?${query}${k === 'company' ? '' : `&type=${k}`}`);
+      if (queryRef.current !== query) return;
+      setDatas((all) => ({ ...all, [k]: res.data ?? null }));
+    },
+    [base, query],
+  );
+  /** Los tres a la vez: las pestañas son las de los registros que el chat tiene. */
   const load = useCallback(async () => {
-    const res = await api<CompanyData>(`${base}?${query}`);
-    if (res.data) {
-      setData(res.data);
-      setFailed(false);
-    } else setFailed(true);
-  }, [base, query]);
+    await Promise.all(HUBSPOT_OBJECT_KINDS.map((k) => loadKind(k)));
+  }, [loadKind]);
 
   const reset = useCallback(() => {
-    setData(null);
-    setFailed(false);
+    setDatas({});
+    setKind('company');
     setQ('');
     setTab('props');
     setEditing(null);
@@ -248,6 +276,20 @@ export default function HubspotScreen({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Las pestañas: los objetos que el chat tiene vinculados. Si el elegido no está, el primero que haya.
+  const loaded = HUBSPOT_OBJECT_KINDS.every((k) => datas[k] !== undefined);
+  const kinds = HUBSPOT_OBJECT_KINDS.filter((k) => Boolean(datas[k]?.company));
+  useEffect(() => {
+    if (loaded && kinds.length > 0 && !kinds.includes(kind)) setKind(kinds[0]);
+  }, [loaded, kinds, kind]);
+  useEffect(() => {
+    setQ('');
+    setEditing(null);
+    setErrors({});
+    setShowEmpty(false);
+    if (kind !== 'company') setTab('props');
+  }, [kind]);
+
   const yesText = t('props.yes');
   const noText = t('hubspot.screen.no');
   const format = useMemo(() => ({ locale, owners: schema?.owners ?? [], yes: yesText, no: noText }), [locale, schema?.owners, yesText, noText]);
@@ -263,7 +305,8 @@ export default function HubspotScreen({
     setErrors((e) => ({ ...e, [def.name]: '' }));
     if (next === prev) return;
     // Optimista: el valor nuevo se ve ya; si HubSpot lo rechaza, vuelve el anterior con el motivo.
-    const put = (v: string) => setData((d) => (d ? { ...d, values: { ...d.values, [def.name]: v } } : d));
+    const k = kind;
+    const put = (v: string) => setKindData(k, (d) => (d ? { ...d, values: { ...d.values, [def.name]: v } } : d));
     put(next);
     setSaving((s) => [...s, def.name]);
     let code = 'network_error';
@@ -273,7 +316,7 @@ export default function HubspotScreen({
       const res = await fetch('/api/groups/hubspot/company', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId, property: def.name, value: raw }),
+        body: JSON.stringify({ chatId, property: def.name, value: raw, ...(k === 'company' ? {} : { type: k }) }),
       });
       const json = (await res.json().catch(() => ({}))) as { value?: string; updatedAt?: string; error?: string; detail?: string };
       if (res.ok && typeof json.value === 'string') saved = { value: json.value, updatedAt: json.updatedAt ?? '' };
@@ -293,15 +336,17 @@ export default function HubspotScreen({
     }
     put(saved.value);
     showToast(t('hubspot.screen.saved', { label: def.label }));
-    void load();
+    void loadKind(k);
   }
 
   async function syncNow() {
     setSyncing(true);
-    const res = await api<CompanyData>(base, { body: syncBodyRef.current });
+    const k = kind;
+    const res = await api<CompanyData>(base, { body: { ...syncBodyRef.current, ...(k === 'company' ? {} : { type: k }) } });
     setSyncing(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setData(res.data);
+    const fresh = res.data;
+    setKindData(k, () => fresh);
     reloadSchema();
     showToast(t('hubspot.screen.synced'));
   }
@@ -316,10 +361,12 @@ export default function HubspotScreen({
     if (!on && shownNames.length >= HUBSPOT_MAX_PINNED) return showToast(t('hubspot.screen.pinMax', { n: HUBSPOT_MAX_PINNED }), true);
     setPinning(true);
     const next = on ? shownNames.filter((n) => n !== def.name) : [...shownNames, def.name];
-    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', { body: personal ? { mine: next } : { pinned: next } });
+    const res = await api<HubspotSchemaDto>('/api/groups/hubspot/properties', {
+      body: { ...(personal ? { mine: next } : { pinned: next }), ...(kind === 'company' ? {} : { type: kind }) },
+    });
     setPinning(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setHubspotSchema(res.data);
+    setHubspotSchema(res.data, kind);
   }
 
   const text = q.trim().toLowerCase();
@@ -388,7 +435,7 @@ export default function HubspotScreen({
               <h2 className="ui-drawer-title">
                 {t('hubspot.screen.title')}
               </h2>
-              {company && <p className="gr-hsx-company">{company.name}</p>}
+              {company && <p className="gr-hsx-company" data-testid="hubspot-record-name">{company.name}</p>}
             </div>
             <div className="gr-hsx-head-actions">
               <button
@@ -411,6 +458,9 @@ export default function HubspotScreen({
               </button>
             </div>
           </div>
+          {kinds.length > 1 && (
+            <HubspotKindTabs value={kind} onChange={setKind} kinds={kinds} label={t('hubspot.screen.objects')} className="gr-hsx-kinds" />
+          )}
           {company && (
             <div className="gr-hsx-bar">
               <div className="gr-hsx-synced" role="status">
@@ -425,14 +475,17 @@ export default function HubspotScreen({
                   {t('hubspot.screen.openIn')}
                 </a>
               </div>
-              <div className="ui-tabs gr-hsx-tabs" role="tablist" aria-label={t('hubspot.screen.views')}>
-                <button type="button" role="tab" className="ui-tab" aria-selected={tab === 'props'} aria-controls={panelId} onClick={() => setTab('props')}>
-                  {t('hubspot.screen.tabProps')}
-                </button>
-                <button type="button" role="tab" className="ui-tab" aria-selected={tab === 'log'} aria-controls={panelId} onClick={() => setTab('log')}>
-                  {t('hubspot.screen.tabLog')}
-                </button>
-              </div>
+              {/* El registro de cambios es solo de la empresa: el contacto y el negocio no tienen copia local. */}
+              {kind === 'company' && (
+                <div className="ui-tabs gr-hsx-tabs" role="tablist" aria-label={t('hubspot.screen.views')}>
+                  <button type="button" role="tab" className="ui-tab" aria-selected={tab === 'props'} aria-controls={panelId} onClick={() => setTab('props')}>
+                    {t('hubspot.screen.tabProps')}
+                  </button>
+                  <button type="button" role="tab" className="ui-tab" aria-selected={tab === 'log'} aria-controls={panelId} onClick={() => setTab('log')}>
+                    {t('hubspot.screen.tabLog')}
+                  </button>
+                </div>
+              )}
               {tab === 'props' && (
                 <div className="gr-hsx-tools">
                   <input
@@ -459,7 +512,13 @@ export default function HubspotScreen({
               )}
             </div>
           )}
-          <div className="ui-drawer-body gr-hsx-body" id={panelId} role="tabpanel" aria-label={tab === 'props' ? t('hubspot.screen.tabProps') : t('hubspot.screen.tabLog')}>
+          <div
+            className="ui-drawer-body gr-hsx-body"
+            id={panelId}
+            role={kind === 'company' && company ? 'tabpanel' : 'region'}
+            aria-label={tab === 'props' ? `${t(`hubspot.types.${kind}`)}: ${t('hubspot.screen.tabProps')}` : t('hubspot.screen.tabLog')}
+            data-kind={kind}
+          >
             {failed || schemaFailed ? (
               <p className="ui-help" role="alert">
                 {t('hubspot.loadError')}{' '}
@@ -474,12 +533,12 @@ export default function HubspotScreen({
                   {t('common.retry')}
                 </button>
               </p>
-            ) : !data || !schema ? (
+            ) : !loaded || !data || !schema ? (
               <p className="ui-help" role="status">
                 {t('common.loading')}
               </p>
             ) : !company ? (
-              <p className="ui-help">{t('hubspot.screen.noCompany')}</p>
+              <p className="ui-help">{t('hubspot.screen.noRecord')}</p>
             ) : tab === 'log' ? (
               data.log.length === 0 ? (
                 <p className="ui-help">{t('hubspot.screen.logEmpty')}</p>
@@ -509,7 +568,16 @@ export default function HubspotScreen({
               <>
                 {company.broken && (
                   <p className="ui-error gr-hsx-notice" role="alert">
-                    {company.broken.reason === 'merged' ? t('hubspot.brokenMerged', { name: company.broken.mergedName || company.broken.mergedInto }) : t('hubspot.brokenDeleted')}
+                    {kind !== 'company'
+                      ? t('hubspot.screen.recordGone')
+                      : company.broken.reason === 'merged'
+                        ? t('hubspot.brokenMerged', { name: company.broken.mergedName || company.broken.mergedInto })
+                        : t('hubspot.brokenDeleted')}
+                  </p>
+                )}
+                {schema.error && schema.props.length === 0 && (
+                  <p className="ui-help gr-hsx-notice" role="note">
+                    {t('hubspot.mine.schemaError', { reason: errText(schema.error) })}
                   </p>
                 )}
                 {data.refreshError && (
@@ -517,7 +585,7 @@ export default function HubspotScreen({
                     {t('hubspot.screen.stale', { reason: errText(data.refreshError) })}
                   </p>
                 )}
-                {!company.broken && !data.canWrite && <p className="ui-help gr-hsx-notice">{t('hubspot.screen.noWrite')}</p>}
+                {!company.broken && !data.canWrite && <p className="ui-help gr-hsx-notice">{t(`hubspot.screen.noWriteKind.${kind}`)}</p>}
                 {pinned.length > 0 && (
                   <section className="gr-hsx-section" aria-label={t('hubspot.screen.pinned')}>
                     <h3 className="gr-detail-title">{t('hubspot.screen.pinned')}</h3>
@@ -532,7 +600,7 @@ export default function HubspotScreen({
                 ))}
                 {pinned.length === 0 && sections.length === 0 && (
                   <p className="ui-help" role="status">
-                    {text ? t('hubspot.screen.noMatch') : t('hubspot.screen.allEmpty')}
+                    {text ? t('hubspot.screen.noMatch') : t(`hubspot.screen.allEmptyKind.${kind}`)}
                   </p>
                 )}
               </>

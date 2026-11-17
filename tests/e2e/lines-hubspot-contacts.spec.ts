@@ -1,4 +1,4 @@
-import { expect as baseExpect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { waLinkIp } from './helpers/wa-link';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
@@ -6,9 +6,11 @@ import { PHONE, check, setTheme, settle } from './responsive-audit';
 /**
  * HubSpot en Lines e Inbox, contra el HubSpot falso en memoria
  * (GROUPS_INTEGRATIONS_FAKE): crear el contacto de un chat 1:1 desde el chat,
- * el alta automática (ajuste), elegir qué propiedades de la empresa ve cada
- * persona y el panel de HubSpot fijado al costado del chat, que sigue al chat
- * abierto. Nada sale a internet ni a WhatsApp.
+ * el alta automática (ajuste), elegir qué propiedades de la empresa, del
+ * contacto y del negocio ve cada persona, editarlas desde el panel, y el
+ * panel de HubSpot fijado al costado del chat, que sigue al chat abierto. El
+ * último test recorre los cinco aspectos (Ajustes › Apariencia) en claro y
+ * oscuro, a 1280 y a 390. Nada sale a internet ni a WhatsApp.
  *
  * El workspace del e2e es uno solo: cada test conecta HubSpot como lo necesita
  * y el spec lo deja desconectado (y el panel sin fijar) al terminar.
@@ -47,8 +49,10 @@ async function connect(request: APIRequestContext) {
   await request.post('/api/groups/hubspot/fake', { data: { rateLimit: 0 } });
   const res = await request.post('/api/groups/hubspot', { data: { token: TOKEN } });
   expect(res.ok(), await res.text()).toBe(true);
-  await request.post('/api/groups/hubspot/properties', { data: { pinned: [] } });
-  await request.post('/api/groups/hubspot/properties', { data: { mine: null } });
+  for (const type of ['company', 'contact', 'deal']) {
+    await request.post('/api/groups/hubspot/properties', { data: { type, pinned: [] } });
+    await request.post('/api/groups/hubspot/properties', { data: { type, mine: null } });
+  }
 }
 
 async function fakeNumber(request: APIRequestContext, name: string): Promise<{ id: string; webhookUrl: string }> {
@@ -92,7 +96,7 @@ async function openLinesDetails(page: Page) {
 }
 
 test.afterAll(async ({ request }) => {
-  await request.post('/api/groups/hubspot/properties', { data: { mine: null } }).catch(() => null);
+  for (const type of ['company', 'contact', 'deal']) await request.post('/api/groups/hubspot/properties', { data: { type, mine: null } }).catch(() => null);
   await request.post('/api/inbox/hubspot', { data: { autoCreate: false } }).catch(() => null);
   await request.delete('/api/groups/hubspot').catch(() => null);
 });
@@ -294,5 +298,188 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   await shot(page, 'inbox-settings-1280');
   await toggle.click();
   await expect(toggle).not.toBeChecked();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
+/** El aspecto va en la cookie de este navegador: no toca la cuenta demo, que otros specs comparten. */
+async function setLook(context: BrowserContext, baseURL: string, look: (typeof LOOKS)[number]) {
+  await context.addCookies([{ name: 'zs_look', value: look, url: baseURL }]);
+}
+
+test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarlas y verlas en los cinco aspectos', async ({ page, request, browser, baseURL }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await connect(request);
+  const tag = uid();
+  const n = await fakeNumber(request, `HubSpot objetos ${tag}`);
+  const chat = await linesDm(request, n, randomPhone(), `Rita ${tag}`);
+  for (const [type, objectId] of [['company', '9001'], ['contact', '7001'], ['deal', '8001']]) {
+    const res = await request.post('/api/groups/hubspot/links', { data: { chatId: chat, type, objectId } });
+    expect(res.ok(), await res.text()).toBe(true);
+  }
+  // Valores de partida (otro test pudo haberlos cambiado en el HubSpot falso compartido).
+  await request.patch('/api/groups/hubspot/company', { data: { chatId: chat, type: 'contact', property: 'jobtitle', value: 'Operations lead' } });
+
+  // ---------- Los detalles del chat: las de siempre del contacto y del negocio ----------
+  await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+  await openLinesDetails(page);
+  const contactProps = hubspotRegion(page).getByTestId('hubspot-props-contact');
+  const dealProps = hubspotRegion(page).getByTestId('hubspot-props-deal');
+  await expect(contactProps.locator('[data-prop="jobtitle"]')).toBeVisible();
+  await expect(dealProps.locator('[data-prop="dealstage"]')).toBeVisible();
+
+  // ---------- Elegir propiedades: una pestaña por objeto, con el teclado ----------
+  await hubspotRegion(page).getByTestId('hubspot-choose-props').click();
+  const picker = page.getByRole('dialog').filter({ has: page.getByRole('tablist') });
+  await expect(picker.getByTestId('hubspot-kind-company')).toHaveAttribute('aria-selected', 'true');
+  await picker.getByTestId('hubspot-kind-company').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(picker.getByTestId('hubspot-kind-contact')).toHaveAttribute('aria-selected', 'true');
+  await expect(picker.getByTestId('hubspot-kind-contact')).toBeFocused();
+  await expect(picker.getByTestId('hubspot-my-props')).toHaveAttribute('data-kind', 'contact');
+  await picker.getByTestId('hubspot-my-props-add').selectOption('hs_lead_status');
+  await expect(picker.getByTestId('hubspot-my-props-reset')).toBeVisible();
+  await expect(picker.locator('[data-prop="hs_lead_status"]')).toBeVisible();
+  await check(page, 'lines hubspot elegir propiedades contacto 1280', { tap: false });
+  await shot(page, 'objects-picker-contact-1280');
+  await picker.getByTestId('hubspot-kind-deal').click();
+  await expect(picker.getByTestId('hubspot-my-props')).toHaveAttribute('data-kind', 'deal');
+  await picker.getByTestId('hubspot-my-props-add').selectOption('dealtype');
+  await expect(picker.locator('[data-prop="dealtype"]')).toBeVisible();
+  const mine = async (type: string) => ((await (await request.get(`/api/groups/hubspot/properties?type=${type}`)).json()) as { mine: string[] | null }).mine;
+  expect(await mine('contact')).toEqual(['email', 'jobtitle', 'lifecyclestage', 'hubspot_owner_id', 'hs_lead_status']);
+  expect(await mine('deal')).toEqual(['dealstage', 'amount', 'closedate', 'hubspot_owner_id', 'dealtype']);
+  expect(await mine('company')).toBeNull();
+  // Esc cierra el selector y los detalles muestran lo elegido.
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeHidden();
+  await expect(contactProps.locator('[data-prop="hs_lead_status"]')).toBeVisible();
+  await expect(dealProps.locator('[data-prop="dealtype"]')).toBeVisible();
+
+  // ---------- El panel: pestaña por registro, editar el contacto ----------
+  await hubspotRegion(page).getByTestId('hubspot-open-screen').click();
+  const screen = page.getByRole('dialog', { name: 'HubSpot', exact: true });
+  await expect(screen).toBeVisible();
+  await expect(screen.getByTestId('hubspot-kind-company')).toHaveAttribute('aria-selected', 'true');
+  await screen.getByTestId('hubspot-kind-contact').click();
+  await expect(screen.getByTestId('hubspot-record-name')).not.toBeEmpty();
+  const row = screen.locator('.gr-hsx-body[data-kind="contact"] [data-prop="jobtitle"]').first();
+  await expect(row).toBeVisible();
+  await row.getByRole('button').first().click();
+  const field = row.getByRole('textbox');
+  await expect(field).toBeFocused();
+  // Esc cierra el editor, no el panel.
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveCount(0);
+  await expect(screen).toBeVisible();
+  await row.getByRole('button').first().click();
+  await row.getByRole('textbox').fill(`Head of ops ${tag}`);
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/groups/hubspot/company') && r.request().method() === 'PATCH');
+  await page.keyboard.press('Enter');
+  expect((await saved).status()).toBe(200);
+  const contact = (await (await request.get(`/api/groups/hubspot/company?chat=${chat}&type=contact`)).json()) as { values: Record<string, string> };
+  expect(contact.values.jobtitle).toBe(`Head of ops ${tag}`);
+  // Un valor que HubSpot no acepta: no se guarda y el panel dice por qué.
+  const amount = screen.getByTestId('hubspot-kind-deal');
+  await amount.click();
+  const amountRow = screen.locator('.gr-hsx-body[data-kind="deal"] [data-prop="amount"]').first();
+  await amountRow.getByRole('button').first().click();
+  await amountRow.getByRole('textbox').fill('mucho');
+  await page.keyboard.press('Enter');
+  await expect(amountRow.getByRole('alert')).toBeVisible();
+  await check(page, 'lines hubspot panel negocio 1280', { tap: false });
+  await shot(page, 'objects-panel-deal-1280');
+  await page.keyboard.press('Escape');
+  await expect(screen).toBeHidden();
+
+  // ---------- Inbox: el contacto, su empresa y su negocio ----------
+  await request.post('/api/inbox/whatsapp', waLinkIp());
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
+  const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, {
+    data: { events: [{ type: 'message', chatId: `${DANA_PHONE}@s.whatsapp.net`, isGroup: false, fromMe: false, senderPhone: DANA_PHONE, senderName: `Dana ${tag}`, providerMessageId: `obj-${tag}`, body: 'hola', timestamp: new Date().toISOString() }] },
+  });
+  expect(res.ok()).toBe(true);
+  const [th] = await sql("SELECT id FROM inbox_threads WHERE account_id = ? AND handle = ? AND kind = 'dm'", [String(acc.id), DANA_PHONE]);
+  const who = (await (await request.get(`/api/inbox/people/person?thread=${th.id}`)).json()) as { row: { id: string; hubspot: { contact: { id: string } | null } | null } };
+  if (who.row.hubspot?.contact?.id !== '7001') {
+    const linked = await request.post('/api/inbox/people/person', { data: { id: who.row.id, action: 'link', contactId: '7001' } });
+    expect(linked.ok(), await linked.text()).toBe(true);
+  }
+  const card = page.getByTestId('inbox-chat-hubspot');
+  const openInbox = async (p: Page) => {
+    await p.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'networkidle' });
+    await expect(async () => {
+      if (!(await p.getByTestId('inbox-chat-hubspot').isVisible())) await p.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 });
+      await baseExpect(p.getByTestId('inbox-chat-hubspot')).toBeVisible({ timeout: 5_000 });
+    }).toPass();
+  };
+  await openInbox(page);
+  await expect(card.getByTestId('inbox-hs-props-contact').locator('[data-prop="hs_lead_status"]')).toBeVisible();
+  await expect(card.getByTestId('inbox-hs-deal').locator('[data-prop="dealtype"]')).toBeVisible();
+  await card.getByTestId('inbox-hs-open').click();
+  await expect(screen).toBeVisible();
+  await screen.getByTestId('hubspot-kind-deal').click();
+  await expect(screen.locator('.gr-hsx-body[data-kind="deal"] [data-prop="dealstage"]').first()).toBeVisible();
+  // En Inbox es solo lectura, como la empresa.
+  await expect(screen.locator('.gr-hsx-edit')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(screen).toBeHidden();
+
+  // ---------- Los cinco aspectos, claro y oscuro, a 1280 (panel fijo) y a 390 ----------
+  await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+  await openLinesDetails(page);
+  await hubspotRegion(page).getByTestId('hubspot-open-screen').click();
+  await screen.getByTestId('hubspot-pin-panel').click();
+  await expect(dock(page)).toBeVisible();
+  const phone = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
+  try {
+    const mobile = await phone.newPage();
+    for (const look of LOOKS) {
+      for (const theme of ['light', 'dark'] as const) {
+        await setLook(page.context(), baseURL!, look);
+        await setTheme(page.context(), baseURL!, theme);
+        await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+        await expect(page.locator('html')).toHaveAttribute('data-look', look);
+        await dock(page).getByTestId('hubspot-kind-contact').click();
+        await expect(dock(page).locator('[data-kind="contact"] [data-prop="hs_lead_status"]').first()).toBeVisible();
+        await check(page, `lines hubspot contacto fijo 1280 ${look} ${theme}`, { tap: false });
+        await shot(page, `objects-dock-1280-${look}-${theme}`);
+        await openInbox(page);
+        await expect(card.getByTestId('inbox-hs-deal')).toBeVisible();
+        await check(page, `inbox hubspot negocio 1280 ${look} ${theme}`, { tap: false });
+        await shot(page, `objects-inbox-1280-${look}-${theme}`);
+
+        await setLook(phone, baseURL!, look);
+        await setTheme(phone, baseURL!, theme);
+        await mobile.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'domcontentloaded' });
+        await settle(mobile);
+        await expect(async () => {
+          if (!(await hubspotRegion(mobile).isVisible())) await mobile.getByRole('button', { name: 'Details', exact: true }).click();
+          await baseExpect(hubspotRegion(mobile)).toBeVisible({ timeout: 3_000 });
+        }).toPass();
+        await hubspotRegion(mobile).getByTestId('hubspot-props-deal').scrollIntoViewIfNeeded();
+        await check(mobile, `lines hubspot detalles 390 ${look} ${theme}`);
+        await shot(mobile, `objects-details-390-${look}-${theme}`);
+        await hubspotRegion(mobile).getByTestId('hubspot-open-screen').click();
+        const sheet = mobile.getByRole('dialog', { name: 'HubSpot', exact: true });
+        await expect(sheet).toBeVisible();
+        await sheet.getByTestId('hubspot-kind-deal').click();
+        await expect(sheet.locator('[data-kind="deal"] [data-prop="dealtype"]').first()).toBeVisible();
+        await check(mobile, `lines hubspot panel 390 ${look} ${theme}`);
+        await shot(mobile, `objects-sheet-390-${look}-${theme}`);
+        await mobile.keyboard.press('Escape');
+        await expect(sheet).toBeHidden();
+      }
+    }
+  } finally {
+    await phone.close();
+    await setLook(page.context(), baseURL!, 'current');
+    await setTheme(page.context(), baseURL!, 'light');
+  }
+  await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+  await dock(page).getByTestId('hubspot-pin-panel').click();
+  await expect(dock(page)).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });

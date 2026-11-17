@@ -167,10 +167,10 @@ describe('HubSpot: esquema de propiedades', () => {
     const url = 'http://x/api/groups/hubspot/properties';
     const post = (body: unknown) => propsRoute.POST(new Request(url, { method: 'POST', body: JSON.stringify(body) }));
     session.user = { ...w.owner, role: 'member', actingUser: { id: member.id } };
-    expect((await propsRoute.GET()).status).toBe(200);
+    expect((await propsRoute.GET(new Request(url))).status).toBe(200);
     expect((await post({ pinned: ['plan_tier'] })).status).toBe(403);
     session.user = { ...w.owner, role: 'guest', actingUser: { id: member.id } };
-    expect((await propsRoute.GET()).status).toBe(403);
+    expect((await propsRoute.GET(new Request(url))).status).toBe(403);
     session.user = { ...w.owner, role: 'owner' };
     // Lo que no existe o está oculto no se fija.
     const res = (await (await post({ pinned: ['plan_tier', 'health_score', 'nope', 'internal_sync_key', 'plan_tier'] })).json()) as { pinned: string[] };

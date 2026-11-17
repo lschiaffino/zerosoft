@@ -1,52 +1,56 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
+import type { HubspotObjectKind, HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import { api } from './dialog-kit';
 
 /**
- * El esquema de propiedades de HubSpot del workspace, compartido entre la
- * pantalla de un chat, el filtro de la bandeja y los ajustes: se pide una vez
- * por pestaña y se refresca cuando alguien lo cambia (fijar, actualizar).
+ * El esquema de propiedades de HubSpot del workspace (de la empresa, del
+ * contacto o del negocio), compartido entre la pantalla de un chat, el filtro
+ * de la bandeja y los ajustes: se pide una vez por pestaña y objeto, y se
+ * refresca cuando alguien lo cambia (fijar, actualizar).
  */
-let cached: HubspotSchemaDto | null = null;
-let pending: Promise<HubspotSchemaDto | null> | null = null;
-const listeners = new Set<(s: HubspotSchemaDto | null) => void>();
+const cached: Record<HubspotObjectKind, HubspotSchemaDto | null> = { company: null, contact: null, deal: null };
+const pending: Record<HubspotObjectKind, Promise<HubspotSchemaDto | null> | null> = { company: null, contact: null, deal: null };
+const listeners: Record<HubspotObjectKind, Set<(s: HubspotSchemaDto | null) => void>> = { company: new Set(), contact: new Set(), deal: new Set() };
 
-export function setHubspotSchema(schema: HubspotSchemaDto | null): void {
-  cached = schema;
-  pending = null;
-  for (const fn of listeners) fn(schema);
+/** Guarda un esquema que devolvió el servidor (el objeto sale del esquema; sin él, la empresa). */
+export function setHubspotSchema(schema: HubspotSchemaDto | null, kind: HubspotObjectKind = schema?.object ?? 'company'): void {
+  cached[kind] = schema;
+  pending[kind] = null;
+  for (const fn of listeners[kind]) fn(schema);
 }
 
-export function loadHubspotSchema(force = false): Promise<HubspotSchemaDto | null> {
-  if (!force && cached) return Promise.resolve(cached);
-  if (!force && pending) return pending;
-  const mine = api<HubspotSchemaDto>('/api/groups/hubspot/properties').then((r) => {
-    if (pending === mine) pending = null;
-    if (r.data) setHubspotSchema(r.data);
+export function loadHubspotSchema(force = false, kind: HubspotObjectKind = 'company'): Promise<HubspotSchemaDto | null> {
+  if (!force && cached[kind]) return Promise.resolve(cached[kind]);
+  if (!force && pending[kind]) return pending[kind] as Promise<HubspotSchemaDto | null>;
+  const mine = api<HubspotSchemaDto>(`/api/groups/hubspot/properties${kind === 'company' ? '' : `?type=${kind}`}`).then((r) => {
+    if (pending[kind] === mine) pending[kind] = null;
+    if (r.data) setHubspotSchema(r.data, kind);
     return r.data;
   });
-  pending = mine;
+  pending[kind] = mine;
   return mine;
 }
 
 /** El esquema (null mientras carga o si no se pudo leer) y cómo volver a pedirlo. */
-export function useHubspotSchema(enabled: boolean): { schema: HubspotSchemaDto | null; failed: boolean; reload: () => void } {
-  const [schema, setSchema] = useState<HubspotSchemaDto | null>(cached);
+export function useHubspotSchema(enabled: boolean, kind: HubspotObjectKind = 'company'): { schema: HubspotSchemaDto | null; failed: boolean; reload: () => void } {
+  const [schema, setSchema] = useState<HubspotSchemaDto | null>(cached[kind]);
   const [failed, setFailed] = useState(false);
   const reload = useCallback(() => {
     setFailed(false);
-    void loadHubspotSchema(true).then((s) => setFailed(s === null));
-  }, []);
+    void loadHubspotSchema(true, kind).then((s) => setFailed(s === null));
+  }, [kind]);
   useEffect(() => {
     if (!enabled) return;
-    listeners.add(setSchema);
-    setSchema(cached);
-    if (!cached) void loadHubspotSchema().then((s) => setFailed(s === null));
+    const set = listeners[kind];
+    set.add(setSchema);
+    setSchema(cached[kind]);
+    setFailed(false);
+    if (!cached[kind]) void loadHubspotSchema(false, kind).then((s) => setFailed(s === null));
     return () => {
-      listeners.delete(setSchema);
+      set.delete(setSchema);
     };
-  }, [enabled]);
+  }, [enabled, kind]);
   return { schema, failed, reload };
 }

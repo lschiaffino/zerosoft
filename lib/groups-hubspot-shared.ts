@@ -57,7 +57,24 @@ export interface HubspotSchemaDto {
   mine?: string[] | null;
   /** El token puede escribir empresas (editar desde Lines). */
   canWrite: boolean;
+  /** De qué objeto son las propiedades (sin el campo: empresa). */
+  object?: HubspotObjectKind;
+  /**
+   * Contacto o negocio: por qué no se pudieron leer sus propiedades (por
+   * ejemplo `hubspot_missing_scopes:crm.schemas.contacts.read`). '' si se leyeron.
+   */
+  error?: string;
 }
+
+/** Los objetos de HubSpot de un chat cuyas propiedades se eligen y se muestran. */
+export const HUBSPOT_OBJECT_KINDS = ['company', 'contact', 'deal'] as const;
+export type HubspotObjectKind = (typeof HUBSPOT_OBJECT_KINDS)[number];
+
+/** Las que se muestran del contacto y del negocio mientras el workspace no elija otras. */
+export const HUBSPOT_OBJECT_DEFAULT_PINNED: Record<'contact' | 'deal', string[]> = {
+  contact: ['email', 'jobtitle', 'lifecyclestage', 'hubspot_owner_id'],
+  deal: ['dealstage', 'amount', 'closedate', 'hubspot_owner_id'],
+};
 
 export const HUBSPOT_PROP_NAME = /^[A-Za-z0-9_.-]{1,120}$/;
 export const HUBSPOT_DEFAULT_PINNED = ['domain', 'hubspot_owner_id', 'lifecyclestage'];
