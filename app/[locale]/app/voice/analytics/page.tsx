@@ -4,7 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { voiceOwner } from '@/lib/voice';
 import { cachedVoiceAnalytics, isVoiceAnalyticsEmpty, type VoiceAnalytics, type VoiceKindFilter } from '@/lib/voice-analytics';
-import { periodChoice, periodParams } from '@/lib/analytics-kit/period';
+import { localDay, periodChoice, periodParams } from '@/lib/analytics-kit/period';
 import { viewerTz } from '@/lib/analytics-kit/server';
 import { TrendChart } from '@/components/analytics-kit/charts';
 import { AnalyticsPage, BarList, DataTable, Heatmap, KpiTile, Kpis, Panel, PanelGrid, analyticsFmt, chartAria, pctOf, queryString, type Fmt } from '@/components/analytics-kit/kit';
@@ -142,7 +142,7 @@ function VoiceView({ f, d, kind }: { f: Fmt; d: VoiceAnalytics; kind: VoiceKindF
             empty={f.k('noneInPeriod')}
             columns={[
               { key: 'meeting', label: f.t('report.meeting'), wide: true, cell: (m) => <Link href={`/app/voice/meetings/${m.id}`}>{m.title || f.t('meetings.untitled')}</Link> },
-              { key: 'when', label: f.t('report.when'), cell: (m) => f.dateTime(new Date(m.at).toISOString()) },
+              { key: 'when', label: f.t('report.when'), cell: (m) => f.day(localDay(m.at, d.range.tz)) },
               { key: 'length', label: f.t('report.length'), num: true, cell: (m) => f.dur(m.minutes) },
               { key: 'words', label: f.t('report.transcriptWords'), num: true, hideNarrow: true, cell: (m) => f.num(m.words) },
               { key: 'notes', label: f.t('report.aiNotes'), hideNarrow: true, cell: (m) => (m.notes ? f.t('report.yes') : '—') },
