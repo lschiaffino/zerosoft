@@ -2,6 +2,7 @@ import { getDb, type DocsPageRow } from './db';
 import { parseBlocks, updateDocPage } from './docs';
 import type { DocsBlock, DocsVersionSummary } from './docs-types';
 import { stripSyncedChildren } from './docs-synced-refs';
+import { markEdit } from './edit-marks';
 
 /**
  * Historial de versiones de Docs.
@@ -94,6 +95,8 @@ export async function maybeAutoSnapshot(
   previous?: Pick<DocsPageRow, 'id' | 'user_id' | 'title' | 'icon' | 'content' | 'updated_at'> | null,
   now = new Date(),
 ): Promise<boolean> {
+  // Cada guardado suma a la marca de edición de la hora (la analítica no depende de las versiones, que se podan).
+  await markEdit('docs', ownerId, pageId, authorId, now);
   const last = (await getDb()
     .prepare('SELECT created_at FROM docs_versions WHERE page_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1')
     .get(pageId)) as { created_at: string } | undefined;

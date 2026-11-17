@@ -108,6 +108,8 @@ export interface SidebarLabels {
     trash: string;
     /** "Ask AI": preguntas sobre todas las páginas. */
     askAi: string;
+    /** Analítica (opcional: los tests viejos arman labels sin esta clave). */
+    analytics?: string;
   };
   calendar: {
     overview: string;
@@ -166,7 +168,7 @@ export interface SidebarLabels {
     credentials: string;
   };
   notes: { all: string; newNote: string; clip: string };
-  board: { boards: string; newBoard: string };
+  board: { boards: string; newBoard: string; analytics?: string };
   agents: {
     agents: string;
   };
@@ -627,13 +629,16 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs') && !at('/app/docs/settings'), icon: 'docs', branch: true },
+            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs') && !at('/app/docs/settings') && !at('/app/docs/analytics'), icon: 'docs', branch: true },
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },
             { href: '/app/docs?ask=1', label: labels.docs.askAi, active: false, icon: 'agents' },
           ],
         },
+        ...(labels.docs.analytics
+          ? [{ section: labels.insights, items: [{ href: '/app/docs/analytics', label: labels.docs.analytics, active: at('/app/docs/analytics'), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup('/app/docs/settings'),
       ];
 
@@ -811,9 +816,12 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/board', label: labels.board.boards, active: at('/app/board') && !at('/app/board/settings'), icon: 'board', branch: true },
+            { href: '/app/board', label: labels.board.boards, active: at('/app/board') && !at('/app/board/settings') && !at('/app/board/analytics'), icon: 'board', branch: true },
           ],
         },
+        ...(labels.board.analytics
+          ? [{ section: labels.insights, items: [{ href: '/app/board/analytics', label: labels.board.analytics, active: at('/app/board/analytics'), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup('/app/board/settings'),
       ];
 

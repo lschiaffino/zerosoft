@@ -30,6 +30,8 @@
 .la[data-product='track'] { --la-accent: var(--c-track); }
 .la[data-product='send'] { --la-accent: var(--c-send); }
 .la[data-product='forms'] { --la-accent: var(--c-forms); }
+.la[data-product='docs'] { --la-accent: var(--c-docs); }
+.la[data-product='board'] { --la-accent: var(--c-board); }
 
 .la-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .la-periods { display: flex; gap: 4px; }

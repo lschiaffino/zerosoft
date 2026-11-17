@@ -588,6 +588,7 @@ export default async function AppLayout(
               templates: tSide('docsTemplates'),
               trash: tDocs('trash.title'),
               askAi: tDocs('ask.open'),
+              analytics: tDocs('report.nav'),
             },
             calendar: {
               overview: tCalendar('sidebar.overview'),
@@ -641,7 +642,7 @@ export default async function AppLayout(
               credentials: tFlow('sidebar.credentials'),
             },
             notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote'), clip: tNotes('clip.button') },
-            board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new') },
+            board: { boards: tBoard('sidebar.boards'), newBoard: tBoard('list.new'), analytics: tBoard('report.nav') },
             agents: {
               agents: tAgents('sidebar.agents'),
             },
