@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-17',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -254,6 +254,13 @@ const parity: ProductParity = {
     }),
 
     // Admin
+    row('analytics', 'admin', ['Workspace and channel analytics', 'Analítica del workspace y de los canales', 'Análises do workspace e dos canais'], 'have', {
+      detail: [
+        'Messages, replies, people posting, reactions and huddles against the previous period, per day, by hour, by person and by channel, over the conversations you can read',
+        'Mensajes, respuestas, personas que escriben, reacciones y huddles contra el período anterior, por día, por hora, por persona y por canal, sobre las conversaciones que podés leer',
+        'Mensagens, respostas, pessoas que escrevem, reações e huddles contra o período anterior, por dia, por hora, por pessoa e por canal, sobre as conversas que você pode ler',
+      ],
+    }),
     row('roles', 'admin', ['Member, admin and owner roles', 'Roles de miembro, admin y owner', 'Papéis de membro, admin e owner'], 'missing'),
     row('retention-export', 'admin', ['Retention policies and data export', 'Políticas de retención y export de datos', 'Políticas de retenção e exportação de dados'], 'missing', {
       detail: [
