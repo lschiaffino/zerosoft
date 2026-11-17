@@ -107,6 +107,18 @@ describe('archivos de una vista', () => {
     expect(sw.staticUrlsIn(html).sort()).toEqual(['/_next/static/chunks/12-ab.js', '/_next/static/chunks/app/page-9f.js', '/_next/static/css/a1.css']);
     expect(sw.staticUrlsIn('')).toEqual([]);
   });
+
+  it('respeta los grupos de rutas y corta en el cierre de un url() de CSS', () => {
+    const html = `<script src="/_next/static/chunks/app/%5Blocale%5D/app/docs/(home)/page-3f.js"></script>
+      <style>@font-face{src:url(/_next/static/media/f1.woff2)format("woff2")}</style>`;
+    expect(sw.staticUrlsIn(html).sort()).toEqual(['/_next/static/chunks/app/%5Blocale%5D/app/docs/(home)/page-3f.js', '/_next/static/media/f1.woff2']);
+  });
+
+  it('no deja afuera los archivos del final de una vista grande (los de la propia app)', () => {
+    const shared = Array.from({ length: 150 }, (_, i) => `<script src="/_next/static/chunks/${i}-aa.js"></script>`).join('');
+    const html = `${shared}<script src="/_next/static/chunks/app/%5Blocale%5D/app/track/page-9f.js"></script>`;
+    expect(sw.staticUrlsIn(html)).toContain('/_next/static/chunks/app/%5Blocale%5D/app/track/page-9f.js');
+  });
 });
 
 describe('rootsDue', () => {
