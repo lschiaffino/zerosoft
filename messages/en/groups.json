@@ -203,7 +203,9 @@
     "fileUnavailable": "Not available",
     "fetchMissing": "Fetch missing messages",
     "receivedOnLine": "Received on {line}",
-    "sentFromLine": "Sent from {line}"
+    "sentFromLine": "Sent from {line}",
+    "replyFrom": "Reply from",
+    "lineUnavailable": "can't send"
   },
   "status": {
     "queued": "Waiting for connection",

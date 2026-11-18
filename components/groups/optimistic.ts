@@ -91,7 +91,8 @@ export function withLocalMedia(m: MessageDto): MessageDto['media'] {
 export function tempMessage(u: Unsent, me: string): MessageDto {
   return {
     id: tempIdFor(u.clientId),
-    chatId: u.chatId,
+    // Sale por otra línea ("Responder desde"): la burbuja ya lleva esa línea.
+    chatId: u.via || u.chatId,
     direction: 'out',
     senderPhone: '',
     senderName: '',
@@ -164,8 +165,10 @@ export function sendLinesMedia(input: {
   preview?: string;
   /** La subida que ya está en curso (o terminada) desde la bandeja. */
   upload?: Promise<UploadedFile> | null;
+  /** "Responder desde": el chat de otra línea por el que sale. */
+  via?: string;
 }): string {
-  const entry = unsentLines.add({ chatId: input.chatId, body: input.body, replyToId: input.replyToId, media: input.media });
+  const entry = unsentLines.add({ chatId: input.chatId, body: input.body, replyToId: input.replyToId, media: input.media, ...(input.via ? { via: input.via } : {}) });
   const cid = entry.clientId;
   const preview = input.preview || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(input.file) : '');
   if (preview) localPreviews.set(cid, preview, `lines:${input.chatId}`, input.media.kind);
@@ -232,7 +235,7 @@ export function sendLinesText(clientId: string, fromQueue = false): Promise<void
     let saved: MessageDto | null = null;
     let error = 'network';
     try {
-      const res = await fetch(`/api/groups/chats/${entry.chatId}/messages`, {
+      const res = await fetch(`/api/groups/chats/${entry.via || entry.chatId}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

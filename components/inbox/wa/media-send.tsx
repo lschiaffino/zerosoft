@@ -86,6 +86,8 @@ async function sendOne(
 /** Un archivo que se mandó desde esta pestaña y todavía no está guardado: saliendo, o no salió (con el archivo, para reintentar). */
 interface OutgoingMedia {
   threadId: string;
+  /** "Responder desde": el chat de otra cuenta por el que sale (el mismo chat en varias cuentas). */
+  via?: string;
   file: Blob;
   caption: string;
   media: UnsentMedia;
@@ -104,6 +106,7 @@ const outbox = new Map<string, OutgoingMedia>();
  */
 export function sendInboxMedia(input: {
   threadId: string;
+  via?: string;
   file: Blob;
   name: string;
   caption?: string;
@@ -121,7 +124,7 @@ export function sendInboxMedia(input: {
   const media: UnsentMedia = { kind: input.kind ?? mediaKindOf(type), name: input.name, type, size: input.file.size, width: input.width, height: input.height, duration: input.duration };
   const preview = input.preview || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(input.file) : '');
   if (preview) localPreviews.set(clientId, preview, `inbox:${input.threadId}`, media.kind);
-  outbox.set(clientId, { threadId: input.threadId, file: input.file, caption: input.caption ?? '', media, replyTo: input.replyTo, sentAt: new Date().toISOString(), running: false, onError: input.onError });
+  outbox.set(clientId, { threadId: input.threadId, ...(input.via ? { via: input.via } : {}), file: input.file, caption: input.caption ?? '', media, replyTo: input.replyTo, sentAt: new Date().toISOString(), running: false, onError: input.onError });
   run(clientId);
   return clientId;
 }
@@ -134,7 +137,7 @@ function run(clientId: string): void {
   const temp = tempInboxMedia(clientId, job.media, job.caption, 'pending', job.sentAt);
   pendingSends.emit({ type: 'add', threadId, message: temp });
   const kind = job.media.kind === 'voice' || job.media.kind === 'sticker' ? job.media.kind : undefined;
-  sendOne(threadId, { file: job.file, name: job.media.name, caption: job.caption || undefined, kind, duration: job.media.duration, replyTo: job.replyTo, clientId }, (p) => uploadProgress.set(clientId, p)).then(
+  sendOne(job.via || threadId, { file: job.file, name: job.media.name, caption: job.caption || undefined, kind, duration: job.media.duration, replyTo: job.replyTo, clientId }, (p) => uploadProgress.set(clientId, p)).then(
     (r) => {
       outbox.delete(clientId);
       uploadProgress.clear(clientId);
@@ -172,7 +175,7 @@ export function discardInboxMedia(tempId: string): void {
  * vista previa de WhatsApp Web): uno por uno con su comentario, en orden.
  * Lo que falla queda en la bandeja para reintentar o sacar.
  */
-export function useSendTray(threadId: string, onError?: (code: string) => void) {
+export function useSendTray(threadId: string, onError?: (code: string) => void, via?: string) {
   const [items, setItems] = useState<TrayItem[]>([]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -227,14 +230,14 @@ export function useSendTray(threadId: string, onError?: (code: string) => void) 
         return false;
       }
       list.forEach((it, i) =>
-        sendInboxMedia({ threadId, file: it.file, name: it.name, caption: it.caption?.trim(), width: it.width, height: it.height, replyTo: i === 0 ? replyTo : undefined, preview: it.preview, onError }),
+        sendInboxMedia({ threadId, ...(via ? { via } : {}), file: it.file, name: it.name, caption: it.caption?.trim(), width: it.width, height: it.height, replyTo: i === 0 ? replyTo : undefined, preview: it.preview, onError }),
       );
       // Las vistas previas pasaron a las burbujas: salen de la bandeja sin soltarlas.
       itemsRef.current = [];
       setItems([]);
       return list.length > 0;
     },
-    [threadId, onError],
+    [threadId, onError, via],
   );
 
   /** Cambia el archivo de un ítem por otro (la foto editada o achicada en la vista previa). */
@@ -294,6 +297,7 @@ function recorderMime(): string {
  */
 export function VoiceBar({
   threadId,
+  via,
   replyTo,
   onQueued,
   onScheduled,
@@ -302,6 +306,8 @@ export function VoiceBar({
   onStart,
 }: {
   threadId: string;
+  /** "Responder desde": el chat de otra cuenta por el que sale. */
+  via?: string;
   replyTo?: string;
   /** La nota ya está en el chat (con el reloj): la grabadora se cierra y el envío sigue por detrás. */
   onQueued: () => void;
@@ -355,7 +361,7 @@ export function VoiceBar({
         const blob = new Blob(state.chunks, { type });
         const seconds = Math.max(1, Math.round(state.carried));
         // La nota aparece ya en el chat, con el reloj y lista para escuchar; la grabadora se cierra y el envío sigue solo.
-        sendInboxMedia({ threadId, file: blob, name: `voice.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'webm'}`, kind: 'voice', duration: seconds, replyTo, onError });
+        sendInboxMedia({ threadId, ...(via ? { via } : {}), file: blob, name: `voice.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'webm'}`, kind: 'voice', duration: seconds, replyTo, onError });
         onQueued();
         onDone();
       };
