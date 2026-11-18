@@ -355,7 +355,8 @@
     },
     "email_dropped": "Email not accepted ({reason})",
     "unverified": "Sender not verified",
-    "anotherJob": "another job"
+    "anotherJob": "another job",
+    "restored": "Restored from the trash"
   },
   "score": {
     "submitted": "Scorecard submitted.",
@@ -514,7 +515,7 @@
     "retention": "Delete candidates after",
     "retentionOff": "Never",
     "months": "{count} months without activity",
-    "retentionHelp": "Hired candidates and those who agreed to stay for future openings are kept.",
+    "retentionHelp": "Hired candidates and those who agreed to stay for future openings are kept. Others go to the trash below before the term ends and are deleted for good, with their CV and documents, when it ends. Until then an admin can restore them.",
     "consentText": "Consent text on the application form",
     "membersCreateJobs": "Members with Hiring can create jobs (otherwise only admins)",
     "approvals": "Approvals",
@@ -522,7 +523,20 @@
     "jobApprovers": "To publish a new job",
     "offerApprovers": "To send an offer",
     "addApprover": "Add a person",
-    "feed": "Job feed in XML, for aggregators that accept one:"
+    "feed": "Job feed in XML, for aggregators that accept one:",
+    "trash": {
+      "title": "Trash",
+      "help": "Candidates removed by the retention. Only their name shows here: their applications, notes and files come back if you restore them.",
+      "empty": "The trash is empty.",
+      "loading": "Loading the trash…",
+      "error": "Could not load the trash.",
+      "purge": "Deleted for good on {date}",
+      "restore": "Restore",
+      "restoreNamed": "Restore {name}",
+      "restored": "{name} is back in Hiring.",
+      "conflict": "This candidate cannot be restored.",
+      "restoreError": "Could not restore the candidate."
+    }
   },
   "errors": {
     "generic": "Something went wrong. Try again.",

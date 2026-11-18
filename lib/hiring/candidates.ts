@@ -9,6 +9,7 @@ import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
 import { deleteHiringFiles, storeHiringFile } from './files';
+import { retentionPlan, softDelete } from '../soft-delete';
 import { pdfToText } from '../pdf-text';
 import {
   EMAIL_RE,
@@ -1030,7 +1031,19 @@ export async function forgetByToken(token: string): Promise<boolean> {
   const row = (await getDb().prepare('SELECT id, workspace_id, email FROM hiring_candidates WHERE forget_token_hash = ?').get(sha256(token))) as
     | { id: string; workspace_id: string; email: string }
     | undefined;
-  if (!row) return false;
+  const trash = await import('./trash');
+  if (!row) {
+    // El candidato está en la papelera de la retención: se purga ya, con lo que haya de su email.
+    const trashed = await trash.trashedByForgetHash(sha256(token));
+    if (!trashed) return false;
+    for (const c of await sameEmail(trashed.ws, trashed.email)) await deleteCandidateRows(trashed.ws, c.id);
+    await trash.purgeTrashedByEmail(trashed.ws, trashed.email);
+    await getDb()
+      .prepare('INSERT INTO hiring_audit (id, workspace_id, kind, data, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(newId('haud'), trashed.ws, 'candidate_forget', JSON.stringify({ fromTrash: true }), nowIso());
+    return true;
+  }
+  await trash.purgeTrashedByEmail(row.workspace_id, row.email);
   const records = await sameEmail(row.workspace_id, row.email);
   // Registro del workspace sin datos personales: que el candidato pidió el borrado, de qué puestos y las ofertas aceptadas (anónimas).
   const ids = records.map((c) => c.id);
@@ -1052,12 +1065,30 @@ export async function forgetByToken(token: string): Promise<boolean> {
 }
 
 const PURGE_CLAIM_TTL_MS = 15 * 60_000;
+const DAY_MS = 86_400_000;
 
 /**
- * Retención: borra candidatos sin actividad hace más de N meses (ajuste del
- * workspace; 0 = nunca), salvo que hayan aceptado quedar para futuras
- * búsquedas o estén contratados. Cada fila se reclama con compare-and-set
- * (purge_claimed_at) para que dos corridas del cron no la borren dos veces.
+ * Cuándo se borraba antes un candidato con última actividad `base` y retención de `months` meses: el primer
+ * momento en que cutoffIso(months, t) pasa a `base`. Es base + months (calendario); en fin de mes, donde
+ * setUTCMonth desborda, ese momento llega unos días antes y se retrocede de a un día. Lo ya vencido se purga
+ * en el próximo tick (nunca antes de now).
+ */
+export function retentionDeadline(base: string, months: number, now: Date): Date {
+  const b = Date.parse(base);
+  const t = new Date(b);
+  t.setUTCMonth(t.getUTCMonth() + months);
+  let at = t.getTime();
+  for (let i = 0; i < 4 && Date.parse(cutoffIso(months, new Date(at - DAY_MS))) > b; i++) at -= DAY_MS;
+  return new Date(Math.max(now.getTime(), at));
+}
+
+/**
+ * Retención: los candidatos sin actividad hace más de N meses (ajuste del workspace; 0 = nunca), salvo los que
+ * aceptaron quedar para futuras búsquedas o están contratados, van a la papelera de Hiring (lib/soft-delete.ts)
+ * con retentionPlan: entran hasta 30 días antes del plazo y se purgan, con su CV y documentos, en el mismo
+ * momento en que antes se borraban. Mientras tanto un admin los restaura desde Ajustes (lib/hiring/trash.ts).
+ * Cada fila se reclama con compare-and-set (purge_claimed_at) para que dos corridas del cron no la manden dos
+ * veces.
  */
 export async function purgeExpiredCandidates(now = new Date(), limit = 50): Promise<{ purged: number }> {
   const db = getDb();
@@ -1065,27 +1096,59 @@ export async function purgeExpiredCandidates(now = new Date(), limit = 50): Prom
   let purged = 0;
   const stale = new Date(now.getTime() - PURGE_CLAIM_TTL_MS).toISOString();
   for (const s of settings) {
-    const cutoff = cutoffIso(s.retention_months, now);
+    const trashBefore = retentionPlan(new Date(cutoffIso(s.retention_months, now)), now).trashBefore.toISOString();
     const rows = (await db
       .prepare(
-        `SELECT id FROM hiring_candidates c WHERE c.workspace_id = ? AND c.last_activity_at < ? AND c.keep_consent = 0
+        `SELECT id, name, last_activity_at FROM hiring_candidates c WHERE c.workspace_id = ? AND c.last_activity_at < ? AND c.keep_consent = 0
            AND (c.purge_claimed_at IS NULL OR c.purge_claimed_at < ?)
            AND NOT EXISTS (SELECT 1 FROM hiring_applications a WHERE a.candidate_id = c.id AND a.status = 'hired')
          LIMIT ?`,
       )
-      .all(s.workspace_id, cutoff, stale, limit - purged)) as Array<{ id: string }>;
+      .all(s.workspace_id, trashBefore, stale, limit - purged)) as Array<{ id: string; name: string; last_activity_at: string }>;
     for (const r of rows) {
       const claim = await db
         .prepare(
           `UPDATE hiring_candidates SET purge_claimed_at = ? WHERE id = ? AND last_activity_at < ? AND keep_consent = 0 AND (purge_claimed_at IS NULL OR purge_claimed_at < ?)`,
         )
-        .run(now.toISOString(), r.id, cutoff, stale);
+        .run(now.toISOString(), r.id, trashBefore, stale);
       if (!claim.changes) continue;
-      if (await deleteCandidateRows(s.workspace_id, r.id)) purged++;
+      if (await trashCandidate(s.workspace_id, r, retentionDeadline(r.last_activity_at, s.retention_months, now), now)) purged++;
     }
     if (purged >= limit) break;
   }
   return { purged };
+}
+
+/**
+ * Pasa un candidato a la papelera: el snapshot sigue las FKs (postulaciones, documentos, eventos, evaluadores,
+ * scorecards, entrevistas y ofertas); las aprobaciones de sus ofertas no tienen FK y van como extra. El CV y
+ * los documentos se borran recién al purgar. Los tipos de evento de Cal de sus entrevistas dejan de aceptar
+ * reservas, como antes.
+ */
+async function trashCandidate(ws: string, c: { id: string; name: string }, purgeAt: Date, now: Date): Promise<boolean> {
+  const db = getDb();
+  const row = await getCandidateRow(ws, c.id);
+  if (!row) return false;
+  const docs = (await db.prepare('SELECT ref FROM hiring_documents WHERE candidate_id = ?').all(c.id)) as Array<{ ref: string }>;
+  const offers = (await db.prepare('SELECT o.id FROM hiring_offers o JOIN hiring_applications a ON a.id = o.application_id WHERE a.candidate_id = ?').all(c.id)) as Array<{ id: string }>;
+  const eventTypes = (await db.prepare('SELECT i.event_type_id FROM hiring_interviews i JOIN hiring_applications a ON a.id = i.application_id WHERE a.candidate_id = ? AND i.event_type_id IS NOT NULL').all(c.id)) as Array<{ event_type_id: string }>;
+  const id = await softDelete({
+    workspaceId: ws,
+    app: 'hiring',
+    kind: 'candidate',
+    recordId: c.id,
+    label: c.name,
+    reason: 'retention',
+    root: { table: 'hiring_candidates' },
+    extra: offers.length ? [{ table: 'hiring_approvals', column: 'subject_id', values: offers.map((o) => o.id) }] : [],
+    files: [row.resume_url ?? '', ...docs.map((d) => d.ref)].filter(Boolean),
+    purgeAt,
+    now,
+    also: eventTypes.length
+      ? [{ sql: `UPDATE calendar_event_types SET active = 0 WHERE kind = 'hiring' AND id IN (${eventTypes.map(() => '?').join(',')})`, args: eventTypes.map((e) => e.event_type_id) }]
+      : [],
+  });
+  return id !== null;
 }
 
 // ---------- Búsqueda ----------

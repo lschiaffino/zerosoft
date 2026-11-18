@@ -355,7 +355,8 @@
     },
     "email_dropped": "Email no aceptado ({reason})",
     "unverified": "Remitente sin verificar",
-    "anotherJob": "otro puesto"
+    "anotherJob": "otro puesto",
+    "restored": "Restaurado de la papelera"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -514,7 +515,7 @@
     "retention": "Borrar candidatos después de",
     "retentionOff": "Nunca",
     "months": "{count} meses sin actividad",
-    "retentionHelp": "Se conservan los contratados y quienes aceptaron quedar para futuras búsquedas.",
+    "retentionHelp": "Se conservan los contratados y quienes aceptaron quedar para futuras búsquedas. Los demás pasan a la papelera de abajo antes de que se cumpla el plazo y se borran para siempre, con su CV y documentos, cuando se cumple. Hasta entonces un admin los puede restaurar.",
     "consentText": "Texto de consentimiento del formulario",
     "membersCreateJobs": "Los miembros con Hiring pueden crear puestos (si no, solo los admins)",
     "approvals": "Aprobaciones",
@@ -522,7 +523,20 @@
     "jobApprovers": "Para publicar un puesto nuevo",
     "offerApprovers": "Para enviar una oferta",
     "addApprover": "Sumar a alguien",
-    "feed": "Feed de avisos en XML, para los agregadores que lo aceptan:"
+    "feed": "Feed de avisos en XML, para los agregadores que lo aceptan:",
+    "trash": {
+      "title": "Papelera",
+      "help": "Candidatos que sacó la retención. Acá solo se ve el nombre: sus postulaciones, notas y archivos vuelven si lo restaurás.",
+      "empty": "La papelera está vacía.",
+      "loading": "Cargando la papelera…",
+      "error": "No se pudo cargar la papelera.",
+      "purge": "Se borra para siempre el {date}",
+      "restore": "Restaurar",
+      "restoreNamed": "Restaurar a {name}",
+      "restored": "{name} volvió a Hiring.",
+      "conflict": "Este candidato no se puede restaurar.",
+      "restoreError": "No se pudo restaurar al candidato."
+    }
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
