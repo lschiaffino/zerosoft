@@ -116,3 +116,14 @@ export async function setVisitorProfile(visitorId: string, patch: { companyId?: 
 export async function setCampaignOptIn(visitorId: string, optIn: boolean): Promise<void> {
   await getDb().prepare('UPDATE chat_visitors SET campaign_opt_in_at = ? WHERE id = ?').run(optIn ? new Date().toISOString() : null, visitorId);
 }
+
+/** Suma los atributos que manda el sitio con identidad firmada a los que ya tiene la persona (pisa por clave). */
+export async function mergeVisitorAttributes(visitorId: string, raw: unknown): Promise<void> {
+  const incoming = cleanVisitorAttributes(raw);
+  if (!Object.keys(incoming).length) return;
+  const db = getDb();
+  const row = (await db.prepare('SELECT attributes FROM chat_visitors WHERE id = ?').get(visitorId)) as { attributes: string | null } | undefined;
+  if (!row) return;
+  const merged = cleanVisitorAttributes({ ...parseVisitorAttributes(row.attributes), ...incoming });
+  await db.prepare('UPDATE chat_visitors SET attributes = ? WHERE id = ?').run(JSON.stringify(merged), visitorId);
+}
