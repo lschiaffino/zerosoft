@@ -9,6 +9,7 @@ import * as m3 from '@/lib/routes/forms/[id]/responses/route';
 import * as m4 from '@/lib/routes/forms/[id]/responses/[rid]/route';
 import * as m5 from '@/lib/routes/forms/[id]/summary/route';
 import * as m6 from '@/lib/routes/forms/files/[fileId]/route';
+import * as m7 from '@/lib/routes/forms/[id]/trash/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ const d = createDispatcher('zsPath', [
   { pattern: '[id]/responses/[rid]', mod: m4 }, // lib/routes/forms/[id]/responses/[rid]
   { pattern: '[id]/summary', mod: m5 }, // lib/routes/forms/[id]/summary
   { pattern: 'files/[fileId]', mod: m6 }, // lib/routes/forms/files/[fileId]
+  { pattern: '[id]/trash', mod: m7 }, // lib/routes/forms/[id]/trash
 ]);
 
 export const GET = d.GET;
