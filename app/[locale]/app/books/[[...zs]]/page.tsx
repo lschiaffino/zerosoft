@@ -25,7 +25,7 @@ import { listBankAccounts, listTxns, suggestions } from '@/lib/books-bank';
 import { getExpense, getPurchaseOrder, listExpenses, listPurchaseOrders } from '@/lib/books-purchasing';
 import { getRecurring, listRecurring } from '@/lib/books-recurring';
 import { getJournal, listJournals } from '@/lib/books-ledger';
-import { aging, balanceSheet, cashFlow, overview, profitAndLoss, taxReport } from '@/lib/books-reports';
+import { aging, balanceSheet, budgetVariance, cashFlow, comparePeriod, generalLedger, overview, profitAndLoss, reconciliationSummary, salesByItem, taxReport, trialBalance } from '@/lib/books-reports';
 import { paymentsView } from '@/lib/books-payments';
 import { einvoiceView } from '@/lib/books-einvoice';
 import { quotesToInvoice } from '@/lib/books-integrations';
@@ -41,6 +41,13 @@ import { AccountsView, BankAccountNew, BankAccountView, JournalList, JournalNew,
 import { AgingView, BalanceSheetView, CashFlowView, ProfitLossView, ReportsIndex, TaxView } from '@/components/books/Reports';
 import BooksSettings from '@/components/books/Settings';
 import { booksSettingsTab } from '@/lib/books-tabs';
+import { listBatches } from '@/lib/books-batch';
+import { getQuote, listQuotes } from '@/lib/books-quotes';
+import { getAsset, getBudget, listAssets, listBudgets, listTracking } from '@/lib/books-accounting';
+import { listRules, ruleSuggestions } from '@/lib/books-bankrules';
+import { portalState } from '@/lib/books-statements';
+import { AssetEditor, AssetsList, BankRulesView, BatchList, BatchNew, BudgetEditor, BudgetsList, OpeningBalances, QuoteEditor, QuotesIndex } from '@/components/books/Extras';
+import { BudgetVarianceView, GeneralLedgerView, ReconciliationView, SalesByItemView, TrialBalanceView } from '@/components/books/Reports';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +59,9 @@ const SECTION_NAV: Record<string, string> = {
   bills: 'bills',
   recurring: 'recurring',
   quotes: 'quotes',
+  'batch-payments': 'batchPayments',
+  'fixed-assets': 'fixedAssets',
+  budgets: 'budgets',
   contacts: 'contacts',
   items: 'items',
   expenses: 'expenses',
@@ -101,12 +111,13 @@ export default async function BooksPage(props: Props) {
   const q = sp.q ?? '';
 
   const editorRefs = async (kind: DocKind): Promise<EditorRefs> => {
-    const [contacts, items, taxes, series, banks] = await Promise.all([
+    const [contacts, items, taxes, series, banks, tracking] = await Promise.all([
       listContacts(ws, { kind: kind === 'bill' ? 'supplier' : 'customer' }),
       read('items') ? listItems(ws) : Promise.resolve([]),
       listTaxRates(ws),
       listSeries(ws),
       read('banking') ? listBankAccounts(ws) : Promise.resolve([]),
+      listTracking(ws),
     ]);
     const einvoice = actor.admin ? einvoiceView(settings).provider : (JSON.parse(settings.einvoice || '{}') as { provider?: string }).provider ?? null;
     return {
@@ -119,6 +130,7 @@ export default async function BooksPage(props: Props) {
       bankAccounts: banks.map((b) => ({ id: b.id, name: b.name })),
       termsDays: s.termsDays,
       einvoiceProvider: einvoice ?? null,
+      tracking,
     };
   };
 
@@ -184,28 +196,86 @@ export default async function BooksPage(props: Props) {
 
   switch (section) {
     case 'recurring': {
-      if (!read('invoices')) return <NoAccess />;
-      if (!id) return <RecurringList items={await listRecurring(ws, { q })} canWrite={write('invoices')} />;
+      const recTypes = [...(read('invoices') ? (['invoice'] as const) : []), ...(read('bills') ? (['bill'] as const) : [])];
+      if (!recTypes.length) return <NoAccess />;
+      if (!id) return <RecurringList items={await listRecurring(ws, { q, types: recTypes })} canWrite={write('invoices') || write('bills')} />;
       if (sub) notFound();
-      const [customers, items, taxes] = await Promise.all([listContacts(ws, { kind: 'customer' }), listItems(ws), listTaxRates(ws)]);
+      const [customers, suppliersRec, items, taxes] = await Promise.all([listContacts(ws, { kind: 'customer' }), read('bills') ? listContacts(ws, { kind: 'supplier' }) : Promise.resolve([]), listItems(ws), listTaxRates(ws)]);
       const refs = {
         baseCurrency: base,
         customers: customers.map((c) => ({ id: c.id, name: c.name })),
-        items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, taxRateId: i.taxRateId })),
+        suppliers: suppliersRec.map((c) => ({ id: c.id, name: c.name })),
+        canInvoices: write('invoices'),
+        canBills: write('bills'),
+        items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, cost: i.cost, taxRateId: i.taxRateId })),
         taxes: taxes.map((x) => ({ id: x.id, name: x.name })),
       };
-      if (id === 'new') return write('invoices') ? <RecurringEditor rec={null} documents={[]} canWrite {...refs} /> : <NoAccess />;
+      if (id === 'new') return write('invoices') || write('bills') ? <RecurringEditor rec={null} documents={[]} canWrite {...refs} /> : <NoAccess />;
       const rec = await getRecurring(ws, id);
       if (!rec) notFound();
+      if (!recTypes.includes(rec.docType)) return <NoAccess />;
       const ids = ((await getDb().prepare('SELECT id FROM books_documents WHERE workspace_id = ? AND recurring_id = ?').all(ws, rec.id)) as Array<{ id: string }>).map((x) => x.id);
-      const docs = ids.length ? (await listDocuments(ws, { docType: 'invoice', contactId: rec.contactId, limit: 500 })).items.filter((d) => ids.includes(d.id)) : [];
-      return <RecurringEditor rec={rec} documents={docs} canWrite={write('invoices')} {...refs} />;
+      const docs = ids.length ? (await listDocuments(ws, { docType: rec.docType, contactId: rec.contactId, limit: 500 })).items.filter((d) => ids.includes(d.id)) : [];
+      return <RecurringEditor rec={rec} documents={docs} canWrite={write(rec.docType === 'bill' ? 'bills' : 'invoices')} {...refs} />;
     }
     case 'quotes': {
-      if (!write('invoices')) return <NoAccess />;
-      if (id) notFound();
-      const crm = userCanUseApp(user, 'crm');
-      return <QuotesList quotes={crm ? await quotesToInvoice(ws) : []} crm={crm} />;
+      if (!read('invoices')) return <NoAccess />;
+      if (sub) notFound();
+      if (!id) {
+        const crm = userCanUseApp(user, 'crm') && write('invoices');
+        const crmQuotes = crm ? await quotesToInvoice(ws) : [];
+        return <QuotesIndex quotes={await listQuotes(ws, { q })} q={q} canWrite={write('invoices')} crmSlot={crmQuotes.length ? <QuotesList quotes={crmQuotes} crm={crm} embedded /> : undefined} />;
+      }
+      const [customers, items, taxes] = await Promise.all([listContacts(ws, { kind: 'customer' }), read('items') ? listItems(ws) : Promise.resolve([]), listTaxRates(ws)]);
+      const refs = {
+        baseCurrency: base,
+        contacts: customers.map((c) => ({ id: c.id, name: c.name })),
+        items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, taxRateId: i.taxRateId, description: i.description })),
+        taxes: taxes.map((x) => ({ id: x.id, name: x.name, rate_bps: x.rate_bps, is_default: x.is_default })),
+        appUrl: appUrl(),
+      };
+      if (id === 'new') return write('invoices') ? <QuoteEditor quote={null} refs={refs} canWrite /> : <NoAccess />;
+      const quote = await getQuote(ws, id);
+      if (!quote) notFound();
+      return <QuoteEditor quote={quote} refs={refs} canWrite={write('invoices')} />;
+    }
+    case 'batch-payments': {
+      const types = [...(read('invoices') ? (['invoice'] as const) : []), ...(read('bills') ? (['bill'] as const) : [])];
+      if (!types.length) return <NoAccess />;
+      if (sub) notFound();
+      if (!id) return <BatchList batches={await listBatches(ws, types)} canInvoices={write('invoices')} canBills={write('bills')} />;
+      if (id !== 'new') notFound();
+      const docType = sp.type === 'bill' ? 'bill' : 'invoice';
+      if (!write(docType === 'bill' ? 'bills' : 'invoices')) return <NoAccess />;
+      const [open, banks] = await Promise.all([listDocuments(ws, { docType, status: 'open', limit: 500 }), read('banking') || write('invoices') || write('bills') ? listBankAccounts(ws) : Promise.resolve([])]);
+      return (
+        <BatchNew
+          docType={docType}
+          baseCurrency={base}
+          banks={banks.map((b) => ({ id: b.id, name: b.name }))}
+          docs={open.items.filter((d) => d.amountDue > 0).map((d) => ({ id: d.id, label: d.numberLabel || d.reference, contactName: d.contactName, dueDate: d.dueDate, currency: d.currency, amountDue: d.amountDue }))}
+        />
+      );
+    }
+    case 'fixed-assets': {
+      if (!read('accounting')) return <NoAccess />;
+      if (sub) notFound();
+      if (!id) return <AssetsList assets={await listAssets(ws, { q })} q={q} canWrite={write('accounting')} currency={base} />;
+      const accounts = (await listAccounts(ws)).map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, subtype: a.subtype }));
+      if (id === 'new') return write('accounting') ? <AssetEditor asset={null} accounts={accounts} currency={base} canWrite /> : <NoAccess />;
+      const asset = await getAsset(ws, id);
+      if (!asset) notFound();
+      return <AssetEditor asset={asset} accounts={accounts} currency={base} canWrite={write('accounting')} />;
+    }
+    case 'budgets': {
+      if (!read('accounting')) return <NoAccess />;
+      if (sub) notFound();
+      if (!id) return <BudgetsList budgets={await listBudgets(ws)} canWrite={write('accounting')} />;
+      const accounts = (await listAccounts(ws)).filter((a) => a.type === 'income' || a.type === 'expense').map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, subtype: a.subtype }));
+      if (id === 'new') return write('accounting') ? <BudgetEditor budget={null} accounts={accounts} currency={base} canWrite fiscalStartMonth={s.fiscalStartMonth} /> : <NoAccess />;
+      const budget = await getBudget(ws, id);
+      if (!budget) notFound();
+      return <BudgetEditor budget={budget} accounts={accounts} currency={base} canWrite={write('accounting')} fiscalStartMonth={s.fiscalStartMonth} />;
     }
     case 'contacts': {
       if (!read('contacts')) return <NoAccess />;
@@ -217,7 +287,8 @@ export default async function BooksPage(props: Props) {
       if (!contact) notFound();
       const types = (['invoice', 'credit_note', 'bill'] as const).filter((t) => read(docArea(t)));
       const docs = types.length ? (await listDocuments(ws, { contactId: contact.id, docType: [...types], limit: 200 })).items : [];
-      return <ContactEditor contact={contact} documents={docs} canWrite={write('contacts')} country={s.country} crm={crm} importMode={false} baseCurrency={base} />;
+      const portal = await portalState(ws, contact.id);
+      return <ContactEditor contact={contact} documents={docs} canWrite={write('contacts')} country={s.country} crm={crm} importMode={false} baseCurrency={base} portalToken={read('invoices') ? portal.token : null} canStatement={read('invoices') || read('bills')} canPortal={write('invoices')} appUrl={appUrl()} />;
     }
     case 'items': {
       if (!read('items')) return <NoAccess />;
@@ -268,19 +339,25 @@ export default async function BooksPage(props: Props) {
       if (!read('banking')) return <NoAccess />;
       if (!id) return <BankAccountsList accounts={await listBankAccounts(ws)} canWrite={write('banking')} currency={base} />;
       if (sub) notFound();
-      if (id === 'new') return write('banking') ? <BankAccountNew currency={base} /> : <NoAccess />;
+ if (id === 'new') return write('banking') ? <BankAccountNew currency={base} /> : <NoAccess />;
+      if (id === 'rules') {
+        const [rules, all, banks] = await Promise.all([listRules(ws), listAccounts(ws), listBankAccounts(ws)]);
+        return <BankRulesView rules={rules} accounts={all.map((a) => ({ id: a.id, code: a.code, name: a.name, subtype: a.subtype }))} banks={banks.map((b) => ({ id: b.id, name: b.name }))} canWrite={write('banking')} currency={base} />;
+      }
       const account = (await listBankAccounts(ws, { includeArchived: true })).find((b) => b.id === id);
       if (!account) notFound();
       const status = ['unmatched', 'matched', 'ignored'].includes(sp.status ?? '') ? sp.status! : '';
-      const [txns, sugg, accounts] = await Promise.all([listTxns(ws, id, { status: status || undefined }), suggestions(ws, id), listAccounts(ws)]);
+      const [txns, sugg, accounts, rulesSugg, allBanks] = await Promise.all([listTxns(ws, id, { status: status || undefined }), suggestions(ws, id), listAccounts(ws), ruleSuggestions(ws, id), listBankAccounts(ws)]);
       return (
         <BankAccountView
           account={account}
           transactions={txns}
           suggestions={sugg}
-          accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))}
+          accounts={accounts.filter((a) => a.subtype !== 'receivable' && a.subtype !== 'payable').map((a) => ({ id: a.id, code: a.code, name: a.name }))}
           canWrite={write('banking')}
           status={status}
+          ruleSuggestions={rulesSugg}
+          banks={allBanks.map((b) => ({ id: b.id, name: b.name }))}
         />
       );
     }
@@ -299,7 +376,12 @@ export default async function BooksPage(props: Props) {
       if (id === 'new') {
         if (!write('accounting')) return <NoAccess />;
         const accounts = await listAccounts(ws);
-        return <JournalNew accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} currency={base} lockDate={s.lockDate} />;
+        return <JournalNew accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name }))} currency={base} lockDate={s.lockDate} tracking={await listTracking(ws)} />;
+      }
+      if (id === 'opening') {
+        if (!write('accounting')) return <NoAccess />;
+        const accounts = await listAccounts(ws);
+        return <OpeningBalances accounts={accounts.map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, subtype: a.subtype }))} currency={base} lockDate={s.lockDate} />;
       }
       const journal = await getJournal(ws, id);
       if (!journal) notFound();
@@ -315,10 +397,33 @@ export default async function BooksPage(props: Props) {
       switch (id) {
         case undefined:
           return <ReportsIndex />;
-        case 'pnl':
-          return <ProfitLossView report={await profitAndLoss(ws, from, to)} asOf={asOf} />;
-        case 'balance-sheet':
-          return <BalanceSheetView report={await balanceSheet(ws, asOf)} from={from} to={to} />;
+        case 'pnl': {
+          const mode = sp.compare === 'prev' || sp.compare === 'year' ? sp.compare : '';
+          const tracking = await listTracking(ws);
+          const opt = sp.tracking && tracking.some((c) => c.options.some((o) => o.id === sp.tracking)) ? sp.tracking : undefined;
+          const period = mode ? comparePeriod(from, to, mode) : null;
+          return <ProfitLossView report={await profitAndLoss(ws, from, to, { tracking: opt })} compare={period ? await profitAndLoss(ws, period.from, period.to, { tracking: opt }) : null} mode={mode} asOf={asOf} tracking={tracking} trackingId={opt ?? ''} />;
+        }
+        case 'balance-sheet': {
+          const prior = sp.compare === 'year' ? await balanceSheet(ws, comparePeriod(asOf, asOf, 'year').to) : null;
+          return <BalanceSheetView report={await balanceSheet(ws, asOf)} compare={prior} from={from} to={to} />;
+        }
+        case 'trial-balance':
+          return <TrialBalanceView report={await trialBalance(ws, asOf)} from={from} to={to} />;
+        case 'general-ledger': {
+          const all = await listAccounts(ws, { includeArchived: true });
+          const account = sp.account && all.some((a) => a.id === sp.account) ? sp.account : '';
+          return <GeneralLedgerView report={await generalLedger(ws, from, to, { accountId: account || undefined })} asOf={asOf} accounts={all.map((a) => ({ id: a.id, name: `${a.code} ${a.name}` }))} accountId={account} />;
+        }
+        case 'sales-by-item':
+          return <SalesByItemView report={await salesByItem(ws, from, to)} asOf={asOf} />;
+        case 'budget-variance': {
+          const budgets = await listBudgets(ws);
+          const budgetId = sp.budget && budgets.some((b) => b.id === sp.budget) ? sp.budget : (budgets[0]?.id ?? '');
+          return <BudgetVarianceView report={budgetId ? await budgetVariance(ws, budgetId, from, to) : null} budgets={budgets.map((b) => ({ id: b.id, name: b.name }))} budgetId={budgetId} from={from} to={to} asOf={asOf} currency={base} canWrite={write('accounting')} />;
+        }
+        case 'reconciliation':
+          return <ReconciliationView report={await reconciliationSummary(ws)} from={from} to={to} asOf={asOf} />;
         case 'cash-flow':
           return <CashFlowView report={await cashFlow(ws, from, to)} asOf={asOf} />;
         case 'aged-receivables':
@@ -335,12 +440,14 @@ export default async function BooksPage(props: Props) {
     case 'settings': {
       if (id) notFound();
       const tab = booksSettingsTab(sp.tab);
-      const [taxes, series, audit, roles, people] = await Promise.all([
+      if (!read('settings')) return <NoAccess />;
+      const [taxes, series, audit, roles, people, trackingCats] = await Promise.all([
         listTaxRates(ws),
         listSeries(ws),
         tab === 'audit' && read('accounting') ? listAudit(ws, { limit: 300 }) : Promise.resolve([]),
         actor.admin ? listRoles(ws) : Promise.resolve(null),
         actor.admin && tab === 'roles' ? listOwnerSpacePeople(ws, { app: 'books' }).catch(() => []) : Promise.resolve([]),
+        tab === 'tracking' ? listTracking(ws) : Promise.resolve([]),
       ]);
       return (
         <BooksSettings
@@ -356,6 +463,8 @@ export default async function BooksPage(props: Props) {
           roles={roles}
           people={people.map((p) => ({ id: p.id, name: p.name ?? null, email: p.email, role: p.role }))}
           audit={audit}
+          tracking={trackingCats}
+          canTracking={write('accounting')}
         />
       );
     }

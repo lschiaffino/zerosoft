@@ -71,7 +71,7 @@
       "paths": ["app/[locale]/stats/**"],
       "specs": ["analytics", "analytics-*", "bi"]
     },
-    "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**"], "specs": ["books"] },
+    "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**", "app/[locale]/quote/**", "app/[locale]/statement/**"], "specs": ["books", "books-*"] },
     "shop": { "names": ["shop"], "paths": ["app/store/**", "styles/store.css"], "specs": ["shop", "shop-*"] },
     "social": { "names": ["social"], "specs": ["social", "social-*"] },
     "design": { "names": ["design"], "paths": ["app/[locale]/d/**"], "specs": ["design"] },

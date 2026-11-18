@@ -64,6 +64,8 @@ export interface DocRow {
   shop_order_id: string | null;
   po_id: string | null;
   payment_session: string | null;
+  tax_inclusive: number;
+  applied_base: number | null;
   einvoice_status: string | null;
   einvoice_data: string;
   last_reminder_at: string | null;
@@ -91,6 +93,8 @@ export interface LineRow {
   net: number;
   tax: number;
   total: number;
+  tracking_a: string | null;
+  tracking_b: string | null;
 }
 
 export interface LineInputDto {
@@ -102,6 +106,8 @@ export interface LineInputDto {
   discountBps?: number;
   taxRateId?: string | null;
   accountId?: string | null;
+  trackingA?: string | null;
+  trackingB?: string | null;
 }
 
 export interface DocInput {
@@ -115,6 +121,7 @@ export interface DocInput {
   fxRate?: string | number;
   reference?: string;
   notes?: string;
+  taxInclusive?: boolean;
   lines?: LineInputDto[];
 }
 
@@ -153,6 +160,8 @@ export interface DocLineDto {
   taxRateId: string | null;
   taxBps: number;
   accountId: string | null;
+  trackingA: string | null;
+  trackingB: string | null;
   net: number;
   tax: number;
   total: number;
@@ -166,6 +175,7 @@ export interface PaymentDto {
   accountId: string;
   reference: string;
   journalId: string | null;
+  batchId: string | null;
   createdAt: string;
 }
 
@@ -185,6 +195,7 @@ export interface DocDto {
   termsDays: number | null;
   currency: string;
   fxRate: string;
+  taxInclusive: boolean;
   subtotal: number;
   discountTotal: number;
   taxTotal: number;
@@ -259,7 +270,7 @@ export async function getDocument(ws: string, id: string): Promise<DocDto | null
       Array<{ id: string; number_label: string; total: number; status: DocStatus }>
     >,
   ]);
-  const totals = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxBps: l.tax_bps })));
+  const totals = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxBps: l.tax_bps })), d.tax_inclusive === 1);
   return {
     id: d.id,
     docType: d.doc_type,
@@ -276,6 +287,7 @@ export async function getDocument(ws: string, id: string): Promise<DocDto | null
     termsDays: d.terms_days,
     currency: d.currency,
     fxRate: d.fx_rate,
+    taxInclusive: d.tax_inclusive === 1,
     subtotal: d.subtotal,
     discountTotal: d.discount_total,
     taxTotal: d.tax_total,
@@ -311,6 +323,8 @@ export async function getDocument(ws: string, id: string): Promise<DocDto | null
       taxRateId: l.tax_rate_id,
       taxBps: l.tax_bps,
       accountId: l.account_id,
+      trackingA: l.tracking_a ?? null,
+      trackingB: l.tracking_b ?? null,
       net: l.net,
       tax: l.tax,
       total: l.total,
@@ -323,6 +337,7 @@ export async function getDocument(ws: string, id: string): Promise<DocDto | null
       accountId: String(p.account_id),
       reference: String(p.reference ?? ''),
       journalId: (p.journal_id as string) ?? null,
+      batchId: (p.batch_id as string) ?? null,
       createdAt: String(p.created_at),
     })),
     creditNotes: cns.map((c) => ({ id: c.id, numberLabel: c.number_label, total: Number(c.total), status: c.status })),
@@ -382,7 +397,7 @@ export async function listDocuments(
 
 // ---------- Borradores ----------
 
-interface ResolvedLine {
+export interface ResolvedLine {
   itemId: string | null;
   description: string;
   quantity: number;
@@ -391,9 +406,19 @@ interface ResolvedLine {
   taxRateId: string | null;
   taxBps: number;
   accountId: string | null;
+  trackingA: string | null;
+  trackingB: string | null;
 }
 
-async function resolveLines(ws: string, docType: DocType, currency: string, lines: LineInputDto[], opts: { allowNegative?: boolean } = {}): Promise<ResolvedLine[]> {
+/** Opción de centro de costo del mismo workspace (nada apunta a datos ajenos). */
+export async function checkTracking(ws: string, id: string | null | undefined): Promise<string | null> {
+  if (!id) return null;
+  const row = await getDb().prepare('SELECT 1 AS x FROM books_tracking_options WHERE id = ? AND workspace_id = ?').get(id, ws);
+  if (!row) throw new BooksError('invalid_tracking');
+  return id;
+}
+
+export async function resolveLines(ws: string, docType: DocType, currency: string, lines: LineInputDto[], opts: { allowNegative?: boolean } = {}): Promise<ResolvedLine[]> {
   if (!Array.isArray(lines) || lines.length > MAX_LINES) throw new BooksError('too_many_lines');
   const out: ResolvedLine[] = [];
   for (const l of lines) {
@@ -420,24 +445,26 @@ async function resolveLines(ws: string, docType: DocType, currency: string, line
     const accountId = l.accountId ?? (docType === 'bill' ? item?.purchase_account_id : item?.sales_account_id) ?? null;
     if (accountId && !(await getAccount(ws, accountId))) throw new BooksError('invalid_account');
     if (!description && !item) continue;
+    const trackingA = await checkTracking(ws, l.trackingA);
+    const trackingB = await checkTracking(ws, l.trackingB);
     if (Math.abs(quantity * unitPrice) > MAX_LINE_AMOUNT) throw new BooksError('invalid_amount');
-    out.push({ itemId: item?.id ?? null, description, quantity, unitPrice, discountBps, taxRateId: tax?.id ?? null, taxBps: tax?.rate_bps ?? 0, accountId });
+    out.push({ itemId: item?.id ?? null, description, quantity, unitPrice, discountBps, taxRateId: tax?.id ?? null, taxBps: tax?.rate_bps ?? 0, accountId, trackingA, trackingB });
   }
   return out;
 }
 
-async function writeLines(db: Db, ws: string, docId: string, lines: ResolvedLine[]): Promise<ReturnType<typeof docTotals>> {
-  const totals = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxBps })));
+async function writeLines(db: Db, ws: string, docId: string, lines: ResolvedLine[], taxInclusive = false): Promise<ReturnType<typeof docTotals>> {
+  const totals = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxBps })), taxInclusive);
   await db.prepare('DELETE FROM books_lines WHERE doc_id = ?').run(docId);
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     const a = totals.lines[i];
     await db
       .prepare(
-        `INSERT INTO books_lines (id, doc_id, workspace_id, position, item_id, description, quantity, unit_price, discount_bps, tax_rate_id, tax_bps, account_id, gross, discount, net, tax, total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO books_lines (id, doc_id, workspace_id, position, item_id, description, quantity, unit_price, discount_bps, tax_rate_id, tax_bps, account_id, gross, discount, net, tax, total, tracking_a, tracking_b)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(newId('ln'), docId, ws, i, l.itemId, l.description, l.quantity, l.unitPrice, l.discountBps, l.taxRateId, l.taxBps, l.accountId, a.gross, a.discount, a.net, a.tax, a.total);
+      .run(newId('ln'), docId, ws, i, l.itemId, l.description, l.quantity, l.unitPrice, l.discountBps, l.taxRateId, l.taxBps, l.accountId, a.gross, a.discount, a.net, a.tax, a.total, l.trackingA, l.trackingB);
   }
   return totals;
 }
@@ -498,8 +525,8 @@ export async function createDraft(
     await db
       .prepare(
         `INSERT INTO books_documents (id, workspace_id, doc_type, status, contact_id, series_id, reference, issue_date, due_date, terms_days, currency, fx_rate, notes,
-           recurring_id, quote_id, shop_order_id, po_id, credit_for_id, created_by, created_at, updated_at, number_label)
-         VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           recurring_id, quote_id, shop_order_id, po_id, credit_for_id, created_by, created_at, updated_at, number_label, tax_inclusive)
+         VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -523,8 +550,9 @@ export async function createDraft(
         ts,
         ts,
         docType === 'bill' ? f.reference : '',
+        input.taxInclusive ? 1 : 0,
       );
-    const totals = await writeLines(db, actor.ws, id, lines);
+    const totals = await writeLines(db, actor.ws, id, lines, Boolean(input.taxInclusive));
     await db
       .prepare('UPDATE books_documents SET subtotal = ?, discount_total = ?, tax_total = ?, total = ? WHERE id = ?')
       .run(totals.subtotal, totals.discountTotal, totals.taxTotal, totals.total, id);
@@ -556,18 +584,25 @@ export async function updateDraft(actor: BooksActor, id: string, input: DocInput
     if (input.seriesId && (!series || series.doc_type !== cur.doc_type)) throw new BooksError('invalid_series');
     seriesId = series?.id ?? null;
   }
-  const lines = input.lines ? await resolveLines(actor.ws, cur.doc_type, f.currency, input.lines) : null;
+  const taxInclusive = input.taxInclusive !== undefined ? Boolean(input.taxInclusive) : cur.tax_inclusive === 1;
+  // Cambiar el modo sin mandar las líneas recalcula con las que ya están.
+  const stored = !input.lines && taxInclusive !== (cur.tax_inclusive === 1) ? await docLines(id) : null;
+  const lines = input.lines
+    ? await resolveLines(actor.ws, cur.doc_type, f.currency, input.lines)
+    : stored
+      ? stored.map((l) => ({ itemId: l.item_id, description: l.description, quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxRateId: l.tax_rate_id, taxBps: l.tax_bps, accountId: l.account_id, trackingA: l.tracking_a ?? null, trackingB: l.tracking_b ?? null }))
+      : null;
   await inTransaction(async (db) => {
     const res = await db
       .prepare(
-        `UPDATE books_documents SET contact_id = ?, series_id = ?, reference = ?, issue_date = ?, due_date = ?, terms_days = ?, currency = ?, fx_rate = ?, notes = ?, updated_at = ?,
+        `UPDATE books_documents SET contact_id = ?, series_id = ?, reference = ?, issue_date = ?, due_date = ?, terms_days = ?, currency = ?, fx_rate = ?, notes = ?, tax_inclusive = ?, updated_at = ?,
          number_label = CASE WHEN doc_type = 'bill' THEN ? ELSE number_label END
          WHERE id = ? AND status = 'draft'`,
       )
-      .run(contact?.id ?? null, seriesId, f.reference, f.issueDate, f.dueDate, f.termsDays, f.currency, f.fx, f.notes, nowDb(), f.reference, id);
+      .run(contact?.id ?? null, seriesId, f.reference, f.issueDate, f.dueDate, f.termsDays, f.currency, f.fx, f.notes, taxInclusive ? 1 : 0, nowDb(), f.reference, id);
     if (!res.changes) throw new BooksError('document_posted', 409);
     if (lines) {
-      const totals = await writeLines(db, actor.ws, id, lines);
+      const totals = await writeLines(db, actor.ws, id, lines, taxInclusive);
       await db
         .prepare('UPDATE books_documents SET subtotal = ?, discount_total = ?, tax_total = ?, total = ? WHERE id = ?')
         .run(totals.subtotal, totals.discountTotal, totals.taxTotal, totals.total, id);
@@ -592,33 +627,60 @@ export async function deleteDraft(actor: BooksActor, id: string): Promise<void> 
 
 // ---------- Aprobar (emitir) ----------
 
-/** Líneas del asiento de un documento, en moneda base. */
-export async function documentJournalLines(ws: string, d: DocRow, lines: LineRow[], s: SettingsRow): Promise<JournalLineInput[]> {
+/**
+ * Líneas del asiento de un documento, en moneda base. Deudores o proveedores
+ * llevan la conversión del TOTAL (la misma que usan el saldo y los cobros): lo
+ * que redondea distinto línea por línea va a la cuenta de diferencia de cambio
+ * y el documento pagado deja la cuenta en cero exacto. `arBase` lo pisa para
+ * una nota de crédito aplicada a una factura.
+ */
+export async function documentJournalLines(ws: string, d: DocRow, lines: LineRow[], s: SettingsRow, opts: { arBase?: number } = {}): Promise<JournalLineInput[]> {
   const k = await keyAccounts(ws, ['ar', 'ap', 'tax_out', 'tax_in', 'sales', 'services', 'expense', 'cogs', 'fx'] as const);
   const base = (minor: number) => convert(minor, d.currency, d.fx_rate, s.base_currency);
   const out: JournalLineInput[] = [];
   const contactId = d.contact_id;
   const sign = d.doc_type === 'credit_note' ? -1 : 1;
+  const totalBase = opts.arBase ?? base(d.total);
   if (d.doc_type === 'bill') {
     for (const l of lines) {
       const item = l.item_id ? await getItemRow(ws, l.item_id) : null;
       const acc = l.account_id ?? item?.purchase_account_id ?? (item?.kind === 'product' ? k.cogs : k.expense);
-      out.push({ accountId: acc, debit: base(l.net), contactId, description: l.description.slice(0, 200) });
+      out.push({ accountId: acc, debit: base(l.net), contactId, description: l.description.slice(0, 200), trackingA: l.tracking_a, trackingB: l.tracking_b });
       if (l.tax) out.push({ accountId: k.tax_in, debit: base(l.tax), contactId, taxRateId: l.tax_rate_id, description: 'Tax' });
     }
-    const credits = out.reduce((s2, l) => s2 + (l.debit ?? 0), 0);
-    out.push({ accountId: k.ap, credit: credits, contactId, description: d.number_label || d.reference });
+    out.push({ accountId: k.ap, credit: totalBase, contactId, description: d.number_label || d.reference });
     return balanceRounding(out, k.fx);
   }
   for (const l of lines) {
     const item = l.item_id ? await getItemRow(ws, l.item_id) : null;
     const acc = l.account_id ?? item?.sales_account_id ?? (item?.kind === 'product' ? k.sales : item ? k.services : k.sales);
-    out.push({ accountId: acc, credit: sign * base(l.net), contactId, description: l.description.slice(0, 200) });
+    out.push({ accountId: acc, credit: sign * base(l.net), contactId, description: l.description.slice(0, 200), trackingA: l.tracking_a, trackingB: l.tracking_b });
     if (l.tax) out.push({ accountId: k.tax_out, credit: sign * base(l.tax), contactId, taxRateId: l.tax_rate_id, description: 'Tax' });
   }
-  const credit = out.reduce((s2, l) => s2 + (l.credit ?? 0), 0);
-  out.push({ accountId: k.ar, debit: credit, contactId, description: d.number_label });
+  out.push({ accountId: k.ar, debit: sign * totalBase, contactId, description: d.number_label });
   return balanceRounding(out, k.fx);
+}
+
+/**
+ * Lo que ya salió de deudores o proveedores (en base) por este documento:
+ * cobros y notas de crédito aplicadas. Con esto cada cobro lleva exactamente
+ * lo que falta para la conversión del total: tres cobros de 1 centavo a 1,5
+ * no dejan un centavo suelto en la cuenta.
+ */
+export async function clearedBase(db: Db, d: Pick<DocRow, 'id' | 'workspace_id' | 'currency' | 'fx_rate'>, baseCurrency: string): Promise<number> {
+  const pays = (await db.prepare('SELECT amount, base_cleared FROM books_payments WHERE doc_id = ? AND workspace_id = ?').all(d.id, d.workspace_id)) as Array<{ amount: number; base_cleared: number | null }>;
+  const cns = (await db
+    .prepare("SELECT paid_total, applied_base FROM books_documents WHERE credit_for_id = ? AND workspace_id = ? AND doc_type = 'credit_note' AND status NOT IN ('draft','void')")
+    .all(d.id, d.workspace_id)) as Array<{ paid_total: number; applied_base: number | null }>;
+  let sum = 0;
+  for (const p of pays) sum += p.base_cleared != null ? Number(p.base_cleared) : convert(Number(p.amount), d.currency, d.fx_rate, baseCurrency);
+  for (const c of cns) sum += c.applied_base != null ? Number(c.applied_base) : convert(Number(c.paid_total), d.currency, d.fx_rate, baseCurrency);
+  return sum;
+}
+
+/** Base que corresponde a saldar `amount` más de un documento que ya tenía `settled` saldado. */
+export function settleBase(d: Pick<DocRow, 'currency' | 'fx_rate'>, baseCurrency: string, settled: number, amount: number, cleared: number): number {
+  return convert(settled + amount, d.currency, d.fx_rate, baseCurrency) - cleared;
 }
 
 async function pickSeries(ws: string, d: DocRow, s: SettingsRow, contact: ContactRow | null) {
@@ -656,9 +718,17 @@ export async function approveDocument(actor: BooksActor, id: string, opts: { sys
   }
   const series = d.doc_type === 'bill' ? null : await pickSeries(actor.ws, d, s, contact);
   if (d.doc_type !== 'bill' && !series) throw new BooksError('series_required', 409);
-  const jLines = await documentJournalLines(actor.ws, d, lines, s);
   const ts = nowDb();
   await inTransaction(async (db) => {
+    let appliedBase: number | null = null;
+    let jLines: JournalLineInput[];
+    if (creditFor) {
+      // Dentro de la transacción: lo aplicado sale de lo que falta para cerrar la factura, y lo que sobra queda como crédito.
+      const inv = (await getDocRow(actor.ws, creditFor.id, db))!;
+      const apply = Math.min(d.total, amountDue(inv));
+      appliedBase = apply > 0 ? settleBase(inv, s.base_currency, inv.paid_total + inv.credited_total, apply, await clearedBase(db, inv, s.base_currency)) : 0;
+      jLines = await documentJournalLines(actor.ws, d, lines, s, { arBase: appliedBase + convert(d.total - apply, d.currency, d.fx_rate, s.base_currency) });
+    } else jLines = await documentJournalLines(actor.ws, d, lines, s);
     let number: number | null = null;
     let label = d.number_label;
     if (series) {
@@ -688,7 +758,7 @@ export async function approveDocument(actor: BooksActor, id: string, opts: { sys
           .prepare('UPDATE books_documents SET credited_total = credited_total + ?, updated_at = ? WHERE id = ? AND credited_total = ? AND paid_total = ?')
           .run(apply, ts, fresh.id, fresh.credited_total, fresh.paid_total);
         if (!upd.changes) throw new BooksError('conflict', 409);
-        await db.prepare('UPDATE books_documents SET paid_total = ? WHERE id = ?').run(apply, d.id);
+        await db.prepare('UPDATE books_documents SET paid_total = ?, applied_base = ? WHERE id = ?').run(apply, appliedBase, d.id);
         const after = (await getDocRow(actor.ws, fresh.id, db))!;
         await db.prepare('UPDATE books_documents SET status = ? WHERE id = ?').run(statusFor(after), fresh.id);
       }
@@ -761,7 +831,7 @@ export async function createCreditNote(actor: BooksActor, invoiceId: string, inp
   if ((await creditedSoFar(actor.ws, inv.id)) >= inv.total) throw new BooksError('already_credited', 409);
   const lines =
     input.lines ??
-    (await docLines(invoiceId)).map((l) => ({ itemId: l.item_id, description: l.description, quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxRateId: l.tax_rate_id, accountId: l.account_id }));
+    (await docLines(invoiceId)).map((l) => ({ itemId: l.item_id, description: l.description, quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxRateId: l.tax_rate_id, accountId: l.account_id, trackingA: l.tracking_a, trackingB: l.tracking_b }));
   // Misma letra que la factura (AR): NC A para una A.
   const invSeries = await getSeries(actor.ws, inv.series_id);
   const cnSeries = invSeries ? await defaultSeries(actor.ws, 'credit_note', invSeries.letter || undefined) : null;
@@ -773,6 +843,7 @@ export async function createCreditNote(actor: BooksActor, invoiceId: string, inp
       seriesId: cnSeries?.id ?? null,
       currency: inv.currency,
       fxRate: inv.fx_rate,
+      taxInclusive: inv.tax_inclusive === 1,
       issueDate: todayIso(),
       termsDays: 0,
       reference: inv.number_label,
@@ -844,9 +915,8 @@ export async function recordPayment(actor: BooksActor, docId: string, input: Pay
   const accountId = await paymentAccount(actor.ws, input, method);
   const payFx = d.currency === s.base_currency ? '1' : (normalizeRate(input.fxRate) ?? d.fx_rate);
   const k = await keyAccounts(actor.ws, ['ar', 'ap', 'fx'] as const);
-  const atDoc = convert(amount, d.currency, d.fx_rate, s.base_currency);
   const atPay = convert(amount, d.currency, payFx, s.base_currency);
-  const lines: JournalLineInput[] =
+  const paymentLines = (atDoc: number): JournalLineInput[] =>
     d.doc_type === 'bill'
       ? [
           { accountId: k.ap, debit: atDoc, contactId: d.contact_id },
@@ -863,18 +933,24 @@ export async function recordPayment(actor: BooksActor, docId: string, input: Pay
   const ts = nowDb();
   try {
     await inTransaction(async (db) => {
-      const journalId = await postJournal(
-        actor.ws,
-        opts.system ? null : actor.person,
-        { date, memo: `${d.doc_type === 'bill' ? 'Payment' : 'Receipt'} ${d.number_label}`, sourceType: 'payment', sourceId: paymentId, lines },
-        { db },
-      );
+      const before = (await getDocRow(actor.ws, d.id, db))!;
+      const atDoc = settleBase(before, s.base_currency, before.paid_total + before.credited_total, amount, await clearedBase(db, before, s.base_currency));
+      // Un importe tan chico que en la base no llega a la unidad mínima no mueve el libro.
+      const journalId =
+        atDoc === 0 && atPay === 0
+          ? null
+          : await postJournal(
+              actor.ws,
+              opts.system ? null : actor.person,
+              { date, memo: `${d.doc_type === 'bill' ? 'Payment' : 'Receipt'} ${d.number_label}`, sourceType: 'payment', sourceId: paymentId, lines: paymentLines(atDoc) },
+              { db },
+            );
       await db
         .prepare(
-          `INSERT INTO books_payments (id, workspace_id, doc_id, amount, date, method, account_id, fx_rate, reference, provider_ref, journal_id, bank_txn_id, created_by, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO books_payments (id, workspace_id, doc_id, amount, date, method, account_id, fx_rate, reference, provider_ref, journal_id, bank_txn_id, created_by, created_at, base_cleared)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(paymentId, actor.ws, d.id, amount, date, method, accountId, payFx, clean(input.reference ?? '', 120), input.providerRef ?? null, journalId, input.bankTxnId ?? null, opts.system ? null : actor.person, ts);
+        .run(paymentId, actor.ws, d.id, amount, date, method, accountId, payFx, clean(input.reference ?? '', 120), input.providerRef ?? null, journalId, input.bankTxnId ?? null, opts.system ? null : actor.person, ts, atDoc);
       const fresh = (await getDocRow(actor.ws, d.id, db))!;
       if (amount > amountDue(fresh)) throw new BooksError('amount_exceeds_due', 409, { due: amountDue(fresh) });
       const res = await db
@@ -904,12 +980,16 @@ export async function recordPayment(actor: BooksActor, docId: string, input: Pay
 /** Quita un cobro registrado por error: revierte su asiento y devuelve el saldo. */
 export async function deletePayment(actor: BooksActor, paymentId: string): Promise<DocDto> {
   const p = (await getDb().prepare('SELECT * FROM books_payments WHERE id = ? AND workspace_id = ?').get(paymentId, actor.ws)) as
-    | { id: string; doc_id: string; amount: number; journal_id: string | null; provider_ref: string | null; bank_txn_id: string | null }
+    | { id: string; doc_id: string; amount: number; date: string; journal_id: string | null; provider_ref: string | null; bank_txn_id: string | null; batch_id: string | null }
     | undefined;
   if (!p) throw new BooksError('not_found', 404);
   const d = (await getDocRow(actor.ws, p.doc_id))!;
   assertCan(actor, d.doc_type === 'bill' ? 'bills.write' : 'invoices.write');
   if (p.provider_ref) throw new BooksError('provider_payment_refund_in_provider', 409);
+  if (p.batch_id) throw new BooksError('payment_in_batch', 409, { batchId: p.batch_id });
+  // Un cobro de un período cerrado no se quita: el saldo a esa fecha y el libro dejarían de coincidir.
+  const settings = await ensureBooks(actor.ws);
+  if (settings.lock_date && p.date <= settings.lock_date) throw new BooksError('period_locked', 409, { lockDate: settings.lock_date });
   const ts = nowDb();
   await inTransaction(async (db) => {
     if (p.journal_id) await reverseJournal(actor.ws, actor.person, p.journal_id, { memo: `Payment removed ${d.number_label}`, db });

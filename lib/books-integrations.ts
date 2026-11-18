@@ -177,12 +177,19 @@ export async function sendDocument(actor: BooksActor, id: string, input: { to?: 
   if (!d || d.doc_type === 'bill') throw new BooksError('not_found', 404);
   assertCan(actor, 'invoices.write');
   if (d.status === 'void') throw new BooksError('invalid_status', 409);
+  const contact = await getContactRow(actor.ws, d.contact_id);
+  const to = clean(input.to ?? contact?.email ?? '', 200).toLowerCase();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new BooksError('email_required');
+  // Topes antes de emitir: un envío frenado no deja una factura aprobada de más.
+  const { assertBooksMailAllowed, freeTextAllowed } = await import('./books-mail-guard');
+  await assertBooksMailAllowed(actor.ws, to);
+  const message = input.message?.trim() && (await freeTextAllowed(actor.ws, to)) ? input.message : undefined;
   let row = d;
   if (d.status === 'draft') {
     await approveDocument(actor, id);
     row = (await getDocRow(actor.ws, id))!;
   }
-  const res = await emailDocument(actor.ws, row, { to: input.to, message: input.message, kind: 'document', locale: input.locale });
+  const res = await emailDocument(actor.ws, row, { to, message, kind: 'document', locale: input.locale });
   if (!res.ok) throw new BooksError('email_failed', 502);
   await getDb().prepare('UPDATE books_documents SET sent_at = COALESCE(sent_at, ?), updated_at = ? WHERE id = ?').run(nowDb(), nowDb(), id);
   await audit(actor, 'doc.send', d.doc_type, id, res.to);
