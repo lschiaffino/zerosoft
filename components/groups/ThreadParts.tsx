@@ -58,6 +58,9 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
       case 'auto_assigned':
         text = t('autoAssigned', { to, rule: String(meta.rule ?? '') });
         break;
+      case 'reassigned_offline':
+        text = t('reassignedOffline', { from: nameOf(meta.from as string | undefined) || t('someone'), to, rule: String(meta.rule ?? '') });
+        break;
       case 'team':
         text = meta.team ? t('team', { by, team: String(meta.teamName ?? '') }) : t('noTeam', { by });
         break;

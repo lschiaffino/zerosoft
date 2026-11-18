@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import LocalText from '@/components/ui/LocalText';
+import QuickModal from '@/components/app/QuickModal';
+import { formatDateTime } from '@/lib/utils';
 import ChatCollection, { type CollectionItem } from './ChatCollection';
 
 interface Campaign extends CollectionItem {
@@ -15,6 +18,8 @@ interface Campaign extends CollectionItem {
   sent: number;
   failed: number;
   waiting_cap?: boolean;
+  scheduled_at?: string | null;
+  schedule_error?: string | null;
 }
 
 /** Campañas por email a las personas de un widget. Enviar pide confirmar con la cantidad real. */
@@ -31,6 +36,10 @@ export default function CampaignsClient({
   const [confirm, setConfirm] = useState<{ campaign: Campaign; size: number; noOptIn: number; unsubscribed: number; cap: { limit: number; used: number; remaining: number } | null; reload: () => Promise<void> } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState<{ campaign: Campaign; reload: () => Promise<void> } | null>(null);
+  const [when, setWhen] = useState('');
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const locale = useLocale();
 
   async function askSend(campaign: Campaign, reload: () => Promise<void>) {
     setError(null);
@@ -69,6 +78,37 @@ export default function CampaignsClient({
     }
   }
 
+  async function saveSchedule() {
+    if (!scheduling || busy) return;
+    setBusy(true);
+    setScheduleError(null);
+    const res = await fetch(`/api/chat/campaigns/${scheduling.campaign.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'schedule', at: new Date(when).toISOString() }),
+    }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) {
+      const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error ?? '';
+      const known: Record<string, string> = { missing_body: t('campaigns.missingBody'), no_recipients: t('campaigns.noRecipients'), invalid_schedule: t('campaigns.scheduleInvalid') };
+      setScheduleError(known[code] ?? t('errors.generic'));
+      return;
+    }
+    await scheduling.reload();
+    setScheduling(null);
+  }
+
+  async function unschedule(c: Campaign, reload: () => Promise<void>) {
+    await fetch(`/api/chat/campaigns/${c.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unschedule' }) }).catch(() => null);
+    await reload();
+  }
+
+  const statusLabel = (c: Campaign) => {
+    if (c.status === 'draft' && c.scheduled_at) return <LocalText>{t('campaigns.scheduledFor', { when: formatDateTime(c.scheduled_at, locale) })}</LocalText>;
+    if (c.status === 'draft' && c.schedule_error) return t('campaigns.scheduleFailed', { reason: c.schedule_error === 'no_recipients' ? t('campaigns.noRecipients') : c.schedule_error === 'missing_body' ? t('campaigns.missingBody') : t('errors.generic') });
+    return t(`campaigns.statuses.${c.status}`);
+  };
+
   const audienceLabel = (a: string) =>
     a.startsWith('company:') ? (companies.find((c) => `company:${c.id}` === a)?.name ?? t('campaigns.audiences.all')) : t(`campaigns.audiences.${a}`);
 
@@ -100,17 +140,56 @@ export default function CampaignsClient({
         columns={[
           { label: t('campaigns.name'), render: (c) => c.name },
           { label: t('campaigns.audience'), render: (c) => audienceLabel(c.audience) },
-          { label: t('campaigns.status'), render: (c) => t(`campaigns.statuses.${c.status}`) },
+          { label: t('campaigns.status'), render: statusLabel },
           { label: t('campaigns.results'), render: (c) => (c.status === 'draft' ? '–' : `${t('campaigns.counts', { sent: c.sent, total: c.total, failed: c.failed })}${c.waiting_cap ? ` ${t('campaigns.waitingCap')}` : ''}`) },
         ]}
         rowActions={(c, reload) =>
           canManage && c.status === 'draft' ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void askSend(c, reload)}>
-              {t('campaigns.send')}
-            </button>
+            <>
+              {c.scheduled_at ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void unschedule(c, reload)} data-testid="chat-campaign-unschedule">
+                  {t('campaigns.unschedule')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setScheduleError(null);
+                    setWhen('');
+                    setScheduling({ campaign: c, reload });
+                  }}
+                  data-testid="chat-campaign-schedule"
+                >
+                  {t('campaigns.schedule')}
+                </button>
+              )}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void askSend(c, reload)}>
+                {t('campaigns.send')}
+              </button>
+            </>
           ) : null
         }
       />
+      <QuickModal
+        open={scheduling !== null}
+        onClose={() => setScheduling(null)}
+        title={t('campaigns.scheduleTitle')}
+        onSubmit={() => void saveSchedule()}
+        submitLabel={t('campaigns.schedule')}
+        cancelLabel={t('common.cancel')}
+        submitDisabled={!when}
+        busy={busy}
+        error={scheduleError}
+      >
+        <div className="ui-field">
+          <label className="label" htmlFor="chat-campaign-when">
+            {t('campaigns.scheduleWhen')}
+          </label>
+          <input id="chat-campaign-when" className="input" type="datetime-local" data-autofocus value={when} onChange={(e) => setWhen(e.target.value)} data-testid="chat-campaign-when" />
+          <p className="ui-help">{t('campaigns.scheduleHelp')}</p>
+        </div>
+      </QuickModal>
       <ConfirmDialog
         open={confirm !== null}
         title={t('campaigns.confirmTitle')}

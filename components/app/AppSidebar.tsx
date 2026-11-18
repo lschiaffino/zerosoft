@@ -35,12 +35,19 @@ import { DEFAULT_WORKSPACE_MODE, appsByCategory, type WorkspaceMode } from '@/li
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import { useLinesPresence } from './usePresence';
+import { PRESENCES, type Presence } from '@/lib/groups-inbox-rules';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import { inDesktopApp } from '@/lib/desktop-detect';
 import { useLayer } from '@/lib/ui/layers';
 import { openFeedback } from '@/lib/ui/feedback-open';
+
+const PRESENCE_LABEL: Record<Presence, 'presenceOnline' | 'presenceAway' | 'presenceOffline'> = {
+  online: 'presenceOnline',
+  away: 'presenceAway',
+  offline: 'presenceOffline',
+};
 
 export type { SidebarLabels };
 
@@ -788,25 +795,37 @@ export default function AppSidebar({
                       {(user.name ?? user.email).slice(0, 1).toUpperCase()}
                     </span>
                   )}
-                  {presence.available !== null && <span className={`side-presence${presence.available ? ' is-on' : ''}`} aria-hidden="true" />}
+                  {presence.status && <span className={`side-presence is-${presence.status}`} aria-hidden="true" />}
                 </span>
               }
             >
-              {presence.available !== null && (
+              {presence.status && (
                 <>
-                  <button
-                    type="button"
-                    role="menuitemcheckbox"
-                    aria-checked={presence.available}
-                    className="side-menu-item ws-switcher-item side-presence-item"
-                    onClick={() => void presence.toggle()}
-                    title={t('presenceHelp')}
-                    data-testid="side-presence"
-                  >
-                    <span className={`side-presence-dot${presence.available ? ' is-on' : ''}`} aria-hidden="true" />
-                    {presence.available ? t('presenceAvailable') : t('presenceAway')}
-                    <span className="side-presence-hint">{presence.available ? t('presenceSetAway') : t('presenceSetAvailable')}</span>
-                  </button>
+                  {/* Estado de Lines: online recibe chats nuevos, away conserva los suyos, offline puede repartirlos. */}
+                  <p className="side-menu-note ws-switcher-heading" id="side-presence-label" title={t('presenceHelp')}>
+                    {t('presenceStatus')}
+                  </p>
+                  <div role="group" aria-labelledby="side-presence-label" data-testid="side-presence">
+                    {PRESENCES.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={presence.status === p}
+                        className={`side-menu-item ws-switcher-item side-presence-item${presence.status === p ? ' is-current' : ''}`}
+                        onClick={() => void presence.set(p)}
+                        data-testid={`side-presence-${p}`}
+                      >
+                        <span className={`side-presence-dot is-${p}`} aria-hidden="true" />
+                        {t(PRESENCE_LABEL[p])}
+                        {presence.status === p && (
+                          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="ws-check">
+                            <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                   <div className="ws-switcher-sep" role="separator" />
                 </>
               )}

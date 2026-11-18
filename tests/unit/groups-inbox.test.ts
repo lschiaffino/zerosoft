@@ -16,7 +16,7 @@ import {
   forwardMessage,
   listPinned,
   pinMessage,
-  setAvailability,
+  setPresence,
   sweepAutoAssign,
 } from '@/lib/groups-inbox';
 import { draftReply, translateMessages, translateText } from '@/lib/groups-ai';
@@ -374,21 +374,21 @@ describe('asignación automática round-robin', () => {
     expect(history?.meta).toMatchObject({ rule: 'Resto' });
 
     // Nadie disponible: el chat espera sin asignar; cuando vuelve alguien, se lo lleva.
-    await setAvailability(user.id, a.id, false);
-    await setAvailability(user.id, b.id, false);
+    await setPresence(user.id, a.id, 'offline');
+    await setPresence(user.id, b.id, 'offline');
     await ingestEvents(row, [inbound('5491100000013@c.us', 'R-4', 'cuatro')]);
     const waiting = (await listChats(user.id, user.id)).rows.find((r) => r.phone === '5491100000013')!;
     expect(waiting.assignedTo).toBeNull();
-    await setAvailability(user.id, b.id, true);
+    await setPresence(user.id, b.id, 'online');
     expect((await listChats(user.id, user.id)).rows.find((r) => r.id === waiting.id)?.assignedTo).toBe(b.id);
 
     // Con la etiqueta VIP gana la regla VIP (la primera de la lista).
-    await setAvailability(user.id, b.id, false);
+    await setPresence(user.id, b.id, 'offline');
     await ingestEvents(row, [inbound('5491100000014@c.us', 'R-5', 'soy vip')]);
     const vipChat = (await listChats(user.id, user.id)).rows.find((r) => r.phone === '5491100000014')!;
     await updateChat(user.id, vipChat.id, { labelIds: [vip.id] }, user.id);
     expect((await listChats(user.id, user.id)).rows.find((r) => r.id === vipChat.id)?.assignedTo).toBeNull();
-    await setAvailability(user.id, a.id, true);
+    await setPresence(user.id, a.id, 'online');
     expect((await listChats(user.id, user.id)).rows.find((r) => r.id === vipChat.id)?.assignedTo).toBe(a.id);
     expect((await listMessages(user.id, vipChat.id)).find((m) => m.meta.event === 'auto_assigned')?.meta).toMatchObject({ rule: 'VIP' });
   });
@@ -396,13 +396,13 @@ describe('asignación automática round-robin', () => {
   it('dos corridas a la vez no asignan dos veces (claim)', async () => {
     const { user, row } = await setup('inbox-rr-claim');
     const a = await addTeammate(user.id, 'Gabi');
-    await setAvailability(user.id, a.id, false);
+    await setPresence(user.id, a.id, 'offline');
     await createRule(user.id, { name: 'Todos', personIds: [a.id] });
     await ingestEvents(row, [inbound('5491100000020@c.us', 'C-1', 'hola')]);
     const chat = (await listChats(user.id, user.id)).rows[0];
     expect(chat.assignedTo).toBeNull();
     // Vuelve sin pasar por el barrido: las tres corridas compiten por el mismo chat.
-    await getDb().prepare('UPDATE groups_availability SET available = 1 WHERE user_id = ?').run(user.id);
+    await getDb().prepare("UPDATE groups_availability SET available = 1, status = 'online' WHERE user_id = ?").run(user.id);
     const results = await Promise.all([autoAssignChat(user.id, chat.id), autoAssignChat(user.id, chat.id), sweepAutoAssign({ ws: user.id })]);
     expect(results.filter((r) => r === a.id).length).toBeLessThanOrEqual(1);
     const events = (await listMessages(user.id, chat.id)).filter((m) => m.meta.event === 'auto_assigned');

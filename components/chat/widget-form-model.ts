@@ -30,6 +30,9 @@ export interface WidgetFormValues {
   locale: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes: number;
+  font: string;
+  visitorAttachments: string;
+  replyTime: string;
 }
 
 /** Opciones del aviso por email de respuestas sin leer (minutos; 0 = apagado). */
@@ -105,6 +108,9 @@ export function initialValues(w: ChatWidgetRow): WidgetFormValues {
     helpEnabled: w.help_enabled === 1,
     locale: w.locale ?? 'auto',
     offlineEmailMinutes: typeof w.offline_email_minutes === 'number' ? w.offline_email_minutes : 10,
+    font: w.font ?? 'system',
+    visitorAttachments: w.visitor_attachments ?? 'all',
+    replyTime: w.reply_time ?? '',
   };
 }
 
@@ -200,6 +206,9 @@ export function buildWidgetPayload(
     helpEnabled: values.helpEnabled,
     locale: values.locale,
     offlineEmailMinutes: values.offlineEmailMinutes,
+    font: values.font,
+    visitorAttachments: values.visitorAttachments,
+    replyTime: values.replyTime,
     ...(attributes ? { conversationAttributes: buildAttributeDefs(attributes) } : {}),
   };
 }

@@ -2,6 +2,8 @@
 
 import { type MouseEvent as ReactMouseEvent, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import ReplyFromSelect from '@/components/groups/ReplyFromSelect';
+import { defaultReplyLine } from '@/lib/same-chat';
 import { useRouter } from '@/i18n/navigation';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import { useScrollAnchor } from '@/components/ui/useScrollAnchor';
@@ -191,14 +193,27 @@ const WaConversation = forwardRef<
     anchor.toBottom();
     props.onSent(msgs);
   };
-  const tray = useSendTray(thread.id, onError);
+  // "Responder desde" (el mismo chat en varias cuentas, thread.lines): por defecto la cuenta del último mensaje que
+  // entró o salió, si puede mandar; elegir otra vale hasta cambiar de chat.
+  const [pickedFrom, setPickedFrom] = useState<{ chat: string; line: string } | null>(null);
+  const sameLines = thread.lines ?? [];
+  let lastLineChat: string | null = null;
+  for (let i = messages.length - 1; i >= 0 && !lastLineChat; i--) {
+    const m = messages[i];
+    if (m.mediaType !== 'system' && !isTempId(m.id)) lastLineChat = m.threadId ?? thread.id;
+  }
+  const pickedLine = pickedFrom?.chat === thread.id ? pickedFrom.line : null;
+  const replyLine =
+    pickedLine && sameLines.some((l) => l.chatId === pickedLine && l.canSend) ? pickedLine : (defaultReplyLine(sameLines, lastLineChat, thread.id)?.chatId ?? thread.id);
+  const via = sameLines.length > 1 && replyLine !== thread.id ? replyLine : '';
+  const tray = useSendTray(thread.id, onError, via || undefined);
   const attachRef = useRef<AttachMenuHandle>(null);
   // Menú + de WhatsApp: contacto y encuesta (diálogos compartidos con Lines) y sticker nuevo.
   const [contactOpen, setContactOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   /** Encuesta o tarjetas de contacto: '' si salió; si no, el código de error (el diálogo lo muestra). */
   const sendCard = async (card: { poll: PollDraft } | { contacts: Array<{ name: string; phone: string }> }): Promise<string> => {
-    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
+    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${via || thread.id}/messages`, {
       method: 'POST',
       json: { ...card, clientId: newClientId() },
     });
@@ -1222,6 +1237,7 @@ const WaConversation = forwardRef<
           {banner}
           <VoiceBar
             threadId={thread.id}
+            via={via || undefined}
             replyTo={replyTo?.id}
             onQueued={() => setReplyTo(null)}
             onScheduled={(iso) => {
@@ -1239,10 +1255,22 @@ const WaConversation = forwardRef<
           key={thread.id}
           ref={composerRef}
           thread={thread}
+          via={via || undefined}
           snippets={props.snippets}
           disabled={!connected}
           paused={props.paused}
           banner={banner}
+          above={
+            !editing && sameLines.length > 1 ? (
+              <ReplyFromSelect
+                lines={sameLines}
+                value={replyLine}
+                onChange={(id) => setPickedFrom({ chat: thread.id, line: id })}
+                label={w('replyFrom')}
+                unavailable={w('lineUnavailable')}
+              />
+            ) : null
+          }
           editing={editing}
           replyToId={replyTo?.id ?? null}
           attach={(extra) => (

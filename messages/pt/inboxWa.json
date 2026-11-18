@@ -57,6 +57,8 @@
   "deletedTag": "Apagada para todos · mantida aqui",
   "receivedOnLine": "Chegou por {line}",
   "sentFromLine": "Saiu por {line}",
+  "replyFrom": "Responder de",
+  "lineUnavailable": "não pode enviar",
   "starred": "Favoritada",
   "edited": "Editada",
   "messageMenu": "Opções da mensagem",

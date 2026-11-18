@@ -171,19 +171,36 @@ function rateUnits(rate: string): bigint {
   return BigInt(i) * RATE_SCALE + BigInt((f + '000000000').slice(0, 9));
 }
 
+/** a × b ÷ c con enteros exactos, mitad lejos del cero. Nada de floats ni pérdida arriba de 2^53. */
+export function mulDiv(a: number, b: number, c: number): number {
+  const num = BigInt(Math.trunc(a)) * BigInt(Math.trunc(b));
+  const den = BigInt(Math.trunc(c));
+  if (den === 0n) return 0;
+  const neg = num < 0n !== den < 0n;
+  const absN = num < 0n ? -num : num;
+  const absD = den < 0n ? -den : den;
+  let q = absN / absD;
+  if ((absN % absD) * 2n >= absD) q += 1n;
+  return Number(neg ? -q : q);
+}
+
 /**
  * Importe en la moneda del documento → moneda base con el tipo de cambio
  * manual (unidades base por 1 unidad del documento), redondeado a la unidad
- * mínima de la base. Aritmética entera con BigInt.
+ * mínima de la base. Se multiplica primero y se redondea una sola vez al
+ * final: USD 12,34 a 900 son CLP 11.106, no 12 × 900.
  */
 export function convert(minor: number, docCurrency: string, rate: string, baseCurrency: string): number {
-  const scaled = rescale(minor, docCurrency, baseCurrency);
-  if (docCurrency.toUpperCase() === baseCurrency.toUpperCase()) return scaled;
-  const num = BigInt(Math.trunc(scaled)) * rateUnits(rate);
+  if (docCurrency.toUpperCase() === baseCurrency.toUpperCase()) return Math.trunc(minor);
+  const diff = currencyDecimals(baseCurrency) - currencyDecimals(docCurrency);
+  let num = BigInt(Math.trunc(minor)) * rateUnits(rate);
+  let den = RATE_SCALE;
+  if (diff > 0) num *= 10n ** BigInt(diff);
+  else if (diff < 0) den *= 10n ** BigInt(-diff);
   const neg = num < 0n;
   const abs = neg ? -num : num;
-  let q = abs / RATE_SCALE;
-  if ((abs % RATE_SCALE) * 2n >= RATE_SCALE) q += 1n;
+  let q = abs / den;
+  if ((abs % den) * 2n >= den) q += 1n;
   return Number(neg ? -q : q);
 }
 
@@ -197,6 +214,8 @@ export interface LineInput {
   discountBps?: number;
   /** Tasa del impuesto en basis points (2100 = 21 %, 1050 = 10,5 %). */
   taxBps?: number;
+  /** El precio ya incluye el impuesto (factura B, consumidor final). */
+  taxInclusive?: boolean;
 }
 
 export interface LineAmounts {
@@ -215,12 +234,21 @@ export function normalizeQuantity(q: number): number {
 
 export function lineAmounts(l: LineInput): LineAmounts {
   const qty = normalizeQuantity(l.quantity);
-  // qty con 4 decimales × precio entero: se calcula en diezmilésimos para no arrastrar error de float.
-  const gross = roundHalfAway((Math.round(qty * 10_000) * Math.trunc(l.unitPrice)) / 10_000);
-  const discount = roundHalfAway((gross * Math.max(0, Math.min(10_000, Math.trunc(l.discountBps ?? 0)))) / 10_000);
-  const net = gross - discount;
-  const tax = roundHalfAway((net * Math.max(0, Math.trunc(l.taxBps ?? 0))) / 10_000);
-  return { gross, discount, net, tax, total: net + tax };
+  const bps = Math.max(0, Math.trunc(l.taxBps ?? 0));
+  const discBps = Math.max(0, Math.min(10_000, Math.trunc(l.discountBps ?? 0)));
+  // qty con 4 decimales × precio entero, en BigInt: exacto aunque el importe sea enorme.
+  const rawGross = mulDiv(Math.round(qty * 10_000), Math.trunc(l.unitPrice), 10_000);
+  const rawDiscount = mulDiv(rawGross, discBps, 10_000);
+  const after = rawGross - rawDiscount;
+  if (l.taxInclusive) {
+    // El total de la línea es lo que dice el precio; el impuesto sale de adentro y el neto es la resta.
+    const tax = mulDiv(after, bps, 10_000 + bps);
+    const net = after - tax;
+    const discount = mulDiv(rawDiscount, 10_000, 10_000 + bps);
+    return { gross: net + discount, discount, net, tax, total: after };
+  }
+  const tax = mulDiv(after, bps, 10_000);
+  return { gross: rawGross, discount: rawDiscount, net: after, tax, total: after + tax };
 }
 
 export interface DocTotals {
@@ -233,8 +261,8 @@ export interface DocTotals {
   lines: LineAmounts[];
 }
 
-export function docTotals(lines: LineInput[]): DocTotals {
-  const amounts = lines.map(lineAmounts);
+export function docTotals(lines: LineInput[], taxInclusive = false): DocTotals {
+  const amounts = lines.map((l) => lineAmounts(taxInclusive ? { ...l, taxInclusive: true } : l));
   const byRate = new Map<number, { net: number; tax: number }>();
   lines.forEach((l, i) => {
     const k = Math.trunc(l.taxBps ?? 0);
@@ -299,4 +327,19 @@ export function daysBetween(from: string, to: string): number {
 
 export function todayIso(now = new Date()): string {
   return now.toISOString().slice(0, 10);
+}
+
+/** Mes de arranque del ejercicio (1-12) → primer día del ejercicio que contiene `date`. */
+export function fiscalYearStart(date: string, startMonth = 1): string {
+  const y = Number(date.slice(0, 4));
+  const m = Number(date.slice(5, 7));
+  const sm = Math.max(1, Math.min(12, Math.trunc(startMonth) || 1));
+  return `${m >= sm ? y : y - 1}-${String(sm).padStart(2, '0')}-01`;
+}
+
+/** Último día del mes de una fecha o de "YYYY-MM". */
+export function endOfMonth(date: string): string {
+  const y = Number(date.slice(0, 4));
+  const m = Number(date.slice(5, 7));
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 }

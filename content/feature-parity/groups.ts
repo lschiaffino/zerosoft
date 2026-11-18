@@ -54,6 +54,13 @@ const parity: ProductParity = {
         'Um grupo ou contato que fala com duas ou mais das suas linhas é uma linha só na lista, com as não lidas de todas. Ao abrir, aparecem as mensagens de todas as linhas em ordem, sem as cópias que um grupo manda para cada linha, e cada mensagem diz por qual linha chegou. Ler, arquivar, adiar ou fechar vale para todas as linhas. Só contam as linhas que a pessoa pode ver',
       ],
     }),
+    row('reply-from', 'inbox', ['Reply from another line', 'Responder desde otra línea', 'Responder de outra linha'], 'have', {
+      detail: [
+        'A chat that is on several lines shows Reply from in the composer, on the line of the last message by default. Everything you send goes out on the line you pick, and lines that are disconnected or left the group can not be picked. A 1:1 can only be answered from lines that already have that chat',
+        'Un chat que está en varias líneas muestra Responder desde en el campo de escribir, por defecto en la línea del último mensaje. Todo lo que mandes sale por la línea elegida, y no se pueden elegir líneas desconectadas o que salieron del grupo. Un 1:1 solo se responde por líneas que ya tienen ese chat',
+        'Uma conversa que está em várias linhas mostra Responder de no campo de escrever, por padrão na linha da última mensagem. Tudo o que você manda sai pela linha escolhida, e não dá para escolher linhas desconectadas ou que saíram do grupo. Uma conversa 1:1 só é respondida por linhas que já têm essa conversa',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
@@ -419,9 +426,9 @@ const parity: ProductParity = {
     row('send-action', 'automation', ['Send a WhatsApp message from an automation', 'Mandar un WhatsApp desde una automatización', 'Enviar um WhatsApp por uma automação'], 'have'),
     row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'have', {
       detail: [
-        'Rules by number, label or chat type that rotate among a team or some people, only those marked available',
-        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, solo entre quienes están disponibles',
-        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, só entre quem está disponível',
+        'Rules by number, label or chat type that rotate among a team or some people who are online (online, away or offline status). A rule can hand the open chats of someone who goes offline to the people online',
+        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas en línea (estado en línea, ausente o desconectado). Una regla puede pasar los chats abiertos de quien se desconecta a quienes están en línea',
+        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas online (status online, ausente ou offline). Uma regra pode passar os chats abertos de quem fica offline para quem está online',
       ],
     }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
