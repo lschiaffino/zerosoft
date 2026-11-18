@@ -123,7 +123,7 @@ export async function createRule(actor: BooksActor, input: RuleInput): Promise<B
       `INSERT INTO books_bank_rules (id, workspace_id, name, direction, match_op, match_text, min_amount, max_amount, bank_account_id, account_id, memo, position, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, actor.ws, clean(input.name ?? '', 120) || text, input.direction === 'in' || input.direction === 'out' ? input.direction : 'any', ['starts', 'equals'].includes(input.op ?? '') ? input.op : 'contains', text, min, max, input.bankAccountId ?? null, accountId, clean(input.memo ?? '', 200), Number(pos.n), actor.person, ts, ts);
+    .run(id, actor.ws, clean(input.name ?? '', 120) || text, input.direction === 'in' || input.direction === 'out' ? input.direction : 'any', input.op === 'starts' || input.op === 'equals' ? input.op : 'contains', text, min, max, input.bankAccountId ?? null, accountId, clean(input.memo ?? '', 200), Number(pos.n), actor.person, ts, ts);
   await audit(actor, 'rule.create', 'bank_rule', id, text);
   return (await listRules(actor.ws)).find((r) => r.id === id)!;
 }
