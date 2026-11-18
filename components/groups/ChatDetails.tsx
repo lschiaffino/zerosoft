@@ -17,6 +17,7 @@ import PropertyInput from './PropertyInput';
 import { ChatTasksSection } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
+import AssignmentHistory from './AssignmentHistory';
 import { parseDbUtc } from '@/lib/utils';
 
 interface CrmRef {
@@ -591,6 +592,8 @@ export default function ChatDetails({
           </ul>
         </section>
       )}
+
+      <AssignmentHistory chatId={chat.id} people={people} version={chat.assignedTo ?? ''} />
 
       <section className="gr-detail-section" aria-labelledby={`gr-activity-${chat.id}`}>
         <details className="gr-activity" onToggle={(e) => setActivityOpen((e.currentTarget as HTMLDetailsElement).open)}>

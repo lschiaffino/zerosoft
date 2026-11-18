@@ -1106,6 +1106,21 @@
     "select": "Select chat {name}",
     "done": "{n, plural, one {# chat updated} other {# chats updated}}"
   },
+  "assignHistory": {
+    "title": "Assignment history",
+    "loading": "Loading history…",
+    "empty": "Nobody has been assigned to this chat yet.",
+    "retry": "Try again",
+    "auto": "Rule {rule} gave it to {to}",
+    "offline": "{from} went offline: rule {rule} gave it to {to}",
+    "manual": "{by} assigned it to {to}",
+    "took": "{by} took it",
+    "removed": "{by} removed the assignee",
+    "nobody": "nobody",
+    "someone": "Someone",
+    "more": "Show {n} more",
+    "less": "Show less"
+  },
   "assign": {
     "teams": "Teams",
     "teamsIntro": "Group people to assign chats to a team and to rotate new chats among them.",

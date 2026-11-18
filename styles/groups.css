@@ -793,6 +793,14 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-audit-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .gr-audit-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
 .gr-audit-list li > span { min-width: 0; overflow-wrap: anywhere; }
+/* Historial de asignaciones en el panel de detalles: una línea por cambio, punto por motivo. */
+.gr-assign-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.gr-assign-history li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 4px 0; font-size: 0.8125rem; }
+.gr-assign-history .gr-assign-text { min-width: 0; overflow-wrap: anywhere; }
+.gr-assign-history time { white-space: nowrap; font-size: 0.75rem; }
+.gr-assign-reason { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); align-self: center; }
+.gr-assign-reason.is-auto { background: var(--ok); }
+.gr-assign-reason.is-offline { background: var(--warn); }
 .gr-activity > summary { cursor: pointer; list-style: revert; }
 .gr-activity[open] > summary { margin-bottom: 8px; }
 .gr-days { display: flex; flex-wrap: wrap; gap: 6px 14px; }

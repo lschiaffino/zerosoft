@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { isFileUrlPath } from './files/url';
 import { createNotification } from './notifications';
+import { recordAssignment } from './groups-assignments';
 import { findMentions, newMentions } from './crm-mentions';
 import {
   GroupsError,
@@ -128,6 +129,7 @@ export async function afterChatChange(ws: string, actor: string | null, before: 
   if (patch.assignedTo !== undefined && (patch.assignedTo || null) !== before.assigned_to) {
     const to = patch.assignedTo || null;
     await logEvent(ws, before, actor, { event: to ? 'assigned' : 'unassigned', to, by: actor });
+    await recordAssignment(ws, { chatId: before.id, from: before.assigned_to, to, actorId: actor, reason: 'manual' });
     if (to && to !== actor) await notifyAssigned(actor, before, to);
   }
   if (patch.assignedTeamId !== undefined && (patch.assignedTeamId || null) !== (before.assigned_team_id ?? null)) {
@@ -776,6 +778,7 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
     if (pick === 'lost') return null;
     if (!pick) continue;
     await logEvent(ws, chat, null, { event: 'auto_assigned', to: pick, rule: rule.name });
+    await recordAssignment(ws, { chatId: chat.id, from: null, to: pick, actorId: null, reason: 'auto', rule: rule.name });
     await notifyAssigned(null, chat, pick, rule.name);
     return pick;
   }
@@ -817,6 +820,7 @@ export async function reassignOnOffline(ws: string, personId: string, limit = 20
       if (pick === 'lost') break;
       if (!pick) continue;
       await logEvent(ws, chat, null, { event: 'reassigned_offline', from: personId, to: pick, rule: rule.name });
+      await recordAssignment(ws, { chatId: chat.id, from: personId, to: pick, actorId: null, reason: 'offline', rule: rule.name });
       await notifyAssigned(null, chat, pick, rule.name);
       moved++;
       break;
