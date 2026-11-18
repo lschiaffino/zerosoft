@@ -950,12 +950,15 @@ export default function InboxShell({
     // El chat que se deja muestra su borrador ya, desde el clic (sin esperar a que el otro termine de abrir).
     const draft = c.id !== (switchingTo ?? current) ? readDraft(me, c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
+    // El mismo chat en varias líneas es una sola fila: está abierta si el chat abierto es el de cualquiera de ellas.
+    const isOpen = c.id === current || Boolean(current && c.lines?.some((l) => l.chatId === current));
     return (
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
         data-testid="chat-row"
         data-chat-id={c.id}
+        data-lines={c.lines?.length ? c.lines.length : undefined}
         data-overdue={c.flagged ? 'true' : undefined}
         {...gestures.rowProps(c.id)}
         {...ctxMenu.handlers(c.id, t('wa.chatOptions', { name: c.name }), !showCheck)}
@@ -979,8 +982,9 @@ export default function InboxShell({
               else if (switchingTo) markChatSwitch(null);
             }
           }}
-          className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
-          aria-current={c.id === current ? 'page' : undefined}
+          className={`gr-row${isOpen ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
+          aria-current={isOpen ? 'page' : undefined}
+          title={c.lines?.length ? c.lines.map((l) => l.name).join(' · ') : undefined}
           draggable={false}
         >
           {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}

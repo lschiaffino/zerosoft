@@ -204,21 +204,29 @@ export function useWaLive(app: WaLiveApp, onChange: (chatIds: string[]) => void 
  * mientras una relectura está en curso, corre una sola más al terminar.
  * `live`: el aviso anda, así el chat deja de consultarse cada pocos segundos.
  */
-export function useWaLiveChat(app: WaLiveApp, chatId: string | null | undefined, onChange: () => void | Promise<unknown>): { live: boolean } {
+export function useWaLiveChat(
+  app: WaLiveApp,
+  chatId: string | null | undefined,
+  onChange: () => void | Promise<unknown>,
+  /** El mismo chat en otras líneas (lib/same-chat.ts): un aviso de cualquiera relee el hilo. */
+  alsoIds: readonly string[] = [],
+): { live: boolean } {
   const cb = useRef(onChange);
   cb.current = onChange;
   const [live, setLive] = useState(false);
+  const also = alsoIds.join(',');
   useEffect(() => {
     if (!chatId) return;
     const run = coalesced(() => cb.current());
+    const ids = new Set([chatId, ...(also ? also.split(',') : [])]);
     return joinWaLive(
       app,
       (change) => {
-        if (change === null || change.some((c) => c.chatId === chatId)) run();
+        if (change === null || change.some((c) => ids.has(c.chatId))) run();
       },
       (s) => setLive(isLive(s)),
     );
-  }, [app, chatId]);
+  }, [app, chatId, also]);
   return { live: live && !!chatId };
 }
 

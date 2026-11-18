@@ -35,8 +35,11 @@ export async function POST(req: Request) {
   for (const id of all) if (await canSeeChat(viewer, id)) ids.push(id);
   if (all.length === 0) return groupsError(400, 'no_recipients');
   try {
-    const res = await bulkChats(s.ws, s.me, ids, action as BulkAction, b.assignedTo === null ? null : str(b.assignedTo, 100));
-    return NextResponse.json({ updated: res.updated, failed: res.failed + (all.length - ids.length) });
+    // Cerrar, reabrir y leer valen para el mismo chat en las otras líneas (la bandeja lo muestra una vez).
+    const { withSameChatIds } = await import('@/lib/groups-same-chat');
+    const targets = action === 'close' || action === 'reopen' || action === 'read' ? await withSameChatIds(s.ws, viewer, ids) : ids;
+    const res = await bulkChats(s.ws, s.me, targets, action as BulkAction, b.assignedTo === null ? null : str(b.assignedTo, 100));
+    return NextResponse.json({ updated: Math.min(res.updated, ids.length), failed: res.failed + (all.length - ids.length) });
   } catch (err) {
     return handleGroupsError(err);
   }

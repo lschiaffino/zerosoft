@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getChat, listMembers, type ChatPatch } from '@/lib/groups';
+import { getChat, getChatRow, listMembers, type ChatPatch } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, strArr } from '@/lib/groups-http';
 import { maskChat, maskMember } from '@/lib/groups-access';
 import { patchChatAs, removeChatAs } from '@/lib/groups-chat-ops';
@@ -15,9 +15,10 @@ export async function GET(_req: Request, ctx: Ctx) {
   const id = (await ctx.params).id;
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
-  const chat = await getChat(s.ws, id);
-  if (!chat) return groupsError(404, 'not_found');
-  return NextResponse.json({ chat: maskChat(guard.viewer, chat), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
+  const [chat, row] = await Promise.all([getChat(s.ws, id), getChatRow(s.ws, id)]);
+  if (!chat || !row) return groupsError(404, 'not_found');
+  const { withSameChatLines } = await import('@/lib/groups-same-chat');
+  return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
 }
 
 /** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar y posponer. */
@@ -52,7 +53,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
       const { moveChatsToFolder } = await import('@/lib/groups-lines');
       await moveChatsToFolder(s.ws, guard.viewer, [id], (b.folderId as string | null) || null);
     }
-    return NextResponse.json(maskChat(guard.viewer, await patchChatAs(s.ws, { id: s.me }, id, patch)));
+    const after = await patchChatAs(s.ws, { id: s.me }, id, patch);
+    // El mismo chat en otras líneas: leer, archivar, posponer, cerrar, silenciar o eliminar vale para todas.
+    const { SAME_CHAT_PATCH_KEYS, withSameChatIds } = await import('@/lib/groups-same-chat');
+    const shared: ChatPatch = {};
+    for (const k of SAME_CHAT_PATCH_KEYS) if (patch[k] !== undefined) Object.assign(shared, { [k]: patch[k] });
+    if (patch.read === true) shared.read = true;
+    if (Object.keys(shared).length) {
+      for (const other of (await withSameChatIds(s.ws, guard.viewer, [id])).filter((x) => x !== id)) {
+        await patchChatAs(s.ws, { id: s.me }, other, shared).catch(() => null);
+      }
+    }
+    return NextResponse.json(maskChat(guard.viewer, after));
   } catch (err) {
     return handleGroupsError(err);
   }
