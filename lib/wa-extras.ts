@@ -5,8 +5,9 @@
  * Lines) y se encarga de bajar el audio. Server-only.
  *
  * - Links: se leen del lado del servidor (lib/docs-unfurl.ts, con
- *   safeFetch: sin redes internas ni redirecciones a ellas) y se guardan por
- *   URL una semana, con la imagen (y sus medidas), una segunda imagen y el
+ *   safeFetch: sin redes internas ni redirecciones a ellas) y se guardan una
+ *   semana con un HMAC de la URL como clave (la URL no queda guardada; el
+ *   cron horario borra lo de más de dos semanas), con la imagen (y sus medidas), una segunda imagen y el
  *   ícono del sitio ya bajados: el navegador no le pide nada al sitio, la
  *   imagen la sirve /api/wa/link-preview/image. Si el mensaje trae la vista
  *   previa de WhatsApp, la pantalla la muestra enseguida.
@@ -14,6 +15,7 @@
  *   dueño); los largos llevan un resumen con IA. Queda guardado por dueño y
  *   mensaje: nadie más lo ve.
  */
+import { createHmac } from 'crypto';
 import { aiGenerateText, AiError } from './ai';
 import { getDb } from './db';
 import { deflateSync } from 'zlib';
@@ -39,6 +41,10 @@ export interface LinkPreviewDto {
 }
 
 const PREVIEW_TTL_MS = 7 * 86_400_000;
+/** Lo vencido hace más de esto lo borra el cron horario (prunePreviewCache). */
+export const PREVIEW_KEEP_MS = 2 * PREVIEW_TTL_MS;
+/** Prefijo de la clave de la caché: HMAC de la URL, nunca la URL (puede llevar tokens en la query). */
+const KEY_PREFIX = 'h1:';
 /** Versión del lector: las filas guardadas con una anterior se vuelven a leer (no tenían medidas ni ícono). */
 const PREVIEW_VERSION = 3;
 /** Una vista previa pobre (sin imagen ni descripción: solo el nombre del sitio) se vuelve a leer al día, no a la semana. */
@@ -117,7 +123,20 @@ async function fetchImage(url: string | undefined, max: number, types: RegExp): 
   }
 }
 
+/**
+ * Clave de la caché de vistas previas: la tabla es global (sin dueño; al
+ * borrar una cuenta se borran las claves de los links de sus mensajes, ver
+ * forgetPreviews), así que guarda un HMAC de la URL y nunca la URL. Con
+ * la clave del servidor, quien lea la tabla no puede probar URLs a ver si
+ * alguien las compartió. Si la clave cambia, la caché solo se vuelve a llenar.
+ */
+export function previewKey(url: string): string {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'zerosoft-link-preview';
+  return KEY_PREFIX + createHmac('sha256', secret).update(`wa-link-preview:${url}`).digest('hex');
+}
+
 interface PreviewRow {
+  /** En la tabla, la columna `url` guarda la clave (previewKey); acá va la URL del pedido. */
   url: string;
   title: string;
   description: string;
@@ -153,10 +172,10 @@ function toDto(r: PreviewRow): LinkPreviewDto {
 const inflight = new Map<string, Promise<PreviewRow>>();
 
 async function readPreview(url: string, now: Date): Promise<PreviewRow> {
-  const hit = (await getDb().prepare('SELECT * FROM wa_link_previews WHERE url = ?').get(url)) as PreviewRow | undefined;
+  const hit = (await getDb().prepare('SELECT * FROM wa_link_previews WHERE url = ?').get(previewKey(url))) as PreviewRow | undefined;
   if (hit && Number(hit.version) >= PREVIEW_VERSION) {
     const age = now.getTime() - Date.parse(hit.fetched_at);
-    if (age < (hit.image || hit.description ? PREVIEW_TTL_MS : WEAK_TTL_MS)) return hit;
+    if (age < (hit.image || hit.description ? PREVIEW_TTL_MS : WEAK_TTL_MS)) return { ...hit, url };
   }
   let p = inflight.get(url);
   if (!p) {
@@ -201,15 +220,61 @@ async function fetchPreview(url: string, now: Date): Promise<PreviewRow> {
        ON CONFLICT (url) DO UPDATE SET title = excluded.title, description = excluded.description, site = excluded.site, image = excluded.image,
          image_w = excluded.image_w, image_h = excluded.image_h, image2 = excluded.image2, favicon = excluded.favicon, version = excluded.version, fetched_at = excluded.fetched_at`,
     )
-    .run(row.url, row.title, row.description, row.site, row.image, row.image_w, row.image_h, row.image2, row.favicon, row.version, row.fetched_at);
-  // De vez en cuando se borra lo vencido hace rato: las imágenes pesan y la caché no crece sin fin.
-  if (Math.random() < 0.02) {
-    await getDb()
-      .prepare('DELETE FROM wa_link_previews WHERE fetched_at < ?')
-      .run(new Date(now.getTime() - 2 * PREVIEW_TTL_MS).toISOString())
-      .catch(() => null);
-  }
+    .run(previewKey(row.url), row.title, row.description, row.site, row.image, row.image_w, row.image_h, row.image2, row.favicon, row.version, row.fetched_at);
   return row;
+}
+
+/**
+ * Retención de la caché de vistas previas (cron horario): borra lo vencido
+ * hace más de dos semanas y toda fila guardada con la URL como clave (las de
+ * antes del HMAC, o las que escriba una instancia vieja durante un deploy).
+ * Por lotes acotados; borrar es idempotente.
+ */
+export async function prunePreviewCache(now = Date.now(), batch = 2000, maxBatches = 20): Promise<number> {
+  const db = getDb();
+  const cutoff = new Date(now - PREVIEW_KEEP_MS).toISOString();
+  let total = 0;
+  for (let i = 0; i < maxBatches; i++) {
+    const res = await db
+      .prepare(
+        `DELETE FROM wa_link_previews WHERE url IN (
+           SELECT url FROM wa_link_previews WHERE fetched_at < ? OR substr(url, 1, ${KEY_PREFIX.length}) <> ? LIMIT ?
+         )`,
+      )
+      .run(cutoff, KEY_PREFIX, batch);
+    total += res.changes;
+    if (res.changes < batch) break;
+  }
+  return total;
+}
+
+/** Claves de la caché de los links http(s) de un texto (todos, no solo el primero). */
+export function previewKeysIn(text: string, out: Set<string> = new Set()): Set<string> {
+  for (const m of String(text ?? '').matchAll(/\bhttps?:\/\/[^\s<>"']+/gi)) {
+    for (const raw of new Set([m[0], m[0].replace(/[).,;:!?]+$/, '')])) {
+      const url = cleanPreviewUrl(raw);
+      if (url) out.add(previewKey(url));
+    }
+  }
+  return out;
+}
+
+/**
+ * Borra de la caché las vistas previas de estas claves (borrado de cuenta o
+ * workspace: los links de sus mensajes no quedan en la tabla compartida). Si
+ * otra persona compartió el mismo link, su vista previa solo se vuelve a leer.
+ */
+export async function forgetPreviews(keys: Iterable<string>, batch = 200): Promise<number> {
+  const all = [...keys];
+  let total = 0;
+  for (let i = 0; i < all.length; i += batch) {
+    const part = all.slice(i, i + batch);
+    const res = await getDb()
+      .prepare(`DELETE FROM wa_link_previews WHERE url IN (${part.map(() => '?').join(', ')})`)
+      .run(...part);
+    total += res.changes;
+  }
+  return total;
 }
 
 /** Vista previa de un link (de la caché, o la lee y la guarda). null si no es un link válido. */
@@ -228,7 +293,7 @@ export async function linkPreview(raw: string, now = new Date()): Promise<LinkPr
 export async function linkPreviewImage(raw: string, n: 0 | 1): Promise<{ type: string; bytes: Buffer } | null> {
   const url = cleanPreviewUrl(raw);
   if (!url) return null;
-  const row = (await getDb().prepare('SELECT image, image2 FROM wa_link_previews WHERE url = ?').get(url)) as { image: string; image2: string } | undefined;
+  const row = (await getDb().prepare('SELECT image, image2 FROM wa_link_previews WHERE url = ?').get(previewKey(url))) as { image: string; image2: string } | undefined;
   const data = (n === 1 ? row?.image2 : row?.image) ?? '';
   const m = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(data);
   if (!m) return null;
