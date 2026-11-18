@@ -50,6 +50,11 @@ const WaComposer = forwardRef<
     paused?: boolean;
     /** Barra de la cita o de la edición (la arma la conversación). */
     banner?: ReactNode;
+    /**
+     * Lo que va arriba del campo sin ser una barra que Esc cierra ("Responder desde"). Aparte de `banner`: si fuera
+     * parte de él, Esc lo tomaría por una cita abierta y no soltaría el foco.
+     */
+    above?: ReactNode;
     editing: MessageDto | null;
     replyToId: string | null;
     /** Adjuntar (lo agrega la conversación cuando hay envío de archivos). Recibe lo que el composer suma a ese menú. */
@@ -71,7 +76,7 @@ const WaComposer = forwardRef<
     /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
     commands?: SlashCommand[];
   }
->(function WaComposer({ thread, via, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
+>(function WaComposer({ thread, via, snippets, disabled, paused, banner, above, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
@@ -431,6 +436,7 @@ const WaComposer = forwardRef<
   const hasText = !!text.trim();
   return (
     <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
+      {above}
       {banner}
       {linkPv.card}
       {slash.menu}

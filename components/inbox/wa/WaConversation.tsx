@@ -1259,19 +1259,17 @@ const WaConversation = forwardRef<
           snippets={props.snippets}
           disabled={!connected}
           paused={props.paused}
-          banner={
-            <>
-              {!editing && sameLines.length > 1 && (
-                <ReplyFromSelect
-                  lines={sameLines}
-                  value={replyLine}
-                  onChange={(id) => setPickedFrom({ chat: thread.id, line: id })}
-                  label={w('replyFrom')}
-                  unavailable={w('lineUnavailable')}
-                />
-              )}
-              {banner}
-            </>
+          banner={banner}
+          above={
+            !editing && sameLines.length > 1 ? (
+              <ReplyFromSelect
+                lines={sameLines}
+                value={replyLine}
+                onChange={(id) => setPickedFrom({ chat: thread.id, line: id })}
+                label={w('replyFrom')}
+                unavailable={w('lineUnavailable')}
+              />
+            ) : null
           }
           editing={editing}
           replyToId={replyTo?.id ?? null}

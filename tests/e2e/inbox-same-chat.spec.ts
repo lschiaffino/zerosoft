@@ -170,5 +170,9 @@ test('Responder desde: por defecto la cuenta del último mensaje; elegir otra ma
   await field.fill(`respuesta ${w.tag}`);
   await field.press('Enter');
   await expect(msgs.filter({ hasText: `respuesta ${w.tag}` })).toHaveAttribute('data-line', personalChat, { timeout: 30_000 });
+  // El selector no es una cita: Esc suelta el campo (para usar los atajos de la bandeja) y el selector sigue.
+  await field.press('Escape');
+  await expect(field).not.toBeFocused();
+  await expect(from).toHaveValue(personalChat);
   expect(errors, errors.join('\n')).toEqual([]);
 });
