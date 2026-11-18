@@ -361,9 +361,7 @@ export async function decideQuote(token: string, decision: 'accepted' | 'decline
   const { notifyStaff } = await import('./books-integrations');
   const { localized } = await import('./notification-copy');
   const label = found.quote.label;
-  const title = decision === 'accepted'
-    ? localized({ en: `Quote ${label} accepted`, es: `Presupuesto ${label} aceptado`, pt: `Orçamento ${label} aceito` })
-    : localized({ en: `Quote ${label} declined`, es: `Presupuesto ${label} rechazado`, pt: `Orçamento ${label} recusado` });
-  await notifyStaff(found.ws, title, localized({ en: found.quote.contactName, es: found.quote.contactName, pt: found.quote.contactName }), `/app/books/quotes/${found.quote.id}`, found.quote.id).catch(() => undefined);
+  const title = localized(decision === 'accepted' ? 'quoteAccepted' : 'quoteDeclined', { number: label });
+  await notifyStaff(found.ws, title, found.quote.contactName, `/app/books/quotes/${found.quote.id}`, found.quote.id).catch(() => undefined);
   return (await getQuote(found.ws, found.quote.id))!;
 }

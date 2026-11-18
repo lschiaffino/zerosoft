@@ -111,7 +111,7 @@ export function BatchList({ batches, canInvoices, canBills }: { batches: BatchDt
           ))}
         </StackTable>
       )}
-      <ConfirmDialog open={!!remove} title={t('batch.removeTitle')} message={t('batch.removeBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={doRemove} onCancel={() => setRemove(null)} />
+      <ConfirmDialog open={!!remove} title={t('batch.removeTitle')} body={t('batch.removeBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={doRemove} onCancel={() => setRemove(null)} />
     </div>
   );
 }
@@ -543,7 +543,7 @@ export function QuoteEditor({ quote, refs, canWrite }: { quote: QuoteDto | null;
             {quote.status === 'sent' && !quote.contactEmail && <p className="ui-help">{t('quotesNative.noEmail')}</p>}
           </section>
         )}
-        <ConfirmDialog open={confirm} title={t('quotesNative.deleteTitle')} message={t('quotesNative.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={remove} onCancel={() => setConfirm(false)} />
+        <ConfirmDialog open={confirm} title={t('quotesNative.deleteTitle')} body={t('quotesNative.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={remove} onCancel={() => setConfirm(false)} />
       </div>
     );
   }
@@ -728,7 +728,7 @@ export function QuoteEditor({ quote, refs, canWrite }: { quote: QuoteDto | null;
           </section>
         </aside>
       </form>
-      <ConfirmDialog open={confirm} title={t('quotesNative.deleteTitle')} message={t('quotesNative.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={remove} onCancel={() => setConfirm(false)} />
+      <ConfirmDialog open={confirm} title={t('quotesNative.deleteTitle')} body={t('quotesNative.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={remove} onCancel={() => setConfirm(false)} />
     </div>
   );
 }
@@ -828,7 +828,7 @@ export function AssetsList({ assets, q, canWrite, currency }: { assets: AssetDto
           ))}
         </StackTable>
       )}
-      <ConfirmDialog open={confirmUndo} title={t('assets.undoTitle')} message={t('assets.undoBody')} confirmLabel={t('assets.undo')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={undo} onCancel={() => setConfirmUndo(false)} />
+      <ConfirmDialog open={confirmUndo} title={t('assets.undoTitle')} body={t('assets.undoBody')} confirmLabel={t('assets.undo')} cancelLabel={t('common.cancel')} danger onConfirm={undo} onCancel={() => setConfirmUndo(false)} />
     </div>
   );
 }
@@ -1061,7 +1061,7 @@ export function AssetEditor({ asset, accounts, currency, canWrite }: { asset: As
           </form>
         )}
       </Dialog>
-      <ConfirmDialog open={confirm} title={t('assets.deleteTitle')} message={t('assets.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={remove} onCancel={() => setConfirm(false)} />
+      <ConfirmDialog open={confirm} title={t('assets.deleteTitle')} body={t('assets.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={remove} onCancel={() => setConfirm(false)} />
     </div>
   );
 }
@@ -1281,7 +1281,7 @@ export function BudgetEditor({ budget, accounts, currency, canWrite, fiscalStart
           </form>
         )}
       </Dialog>
-      <ConfirmDialog open={confirm} title={t('budgets.deleteTitle')} message={t('budgets.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={remove} onCancel={() => setConfirm(false)} />
+      <ConfirmDialog open={confirm} title={t('budgets.deleteTitle')} body={t('budgets.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={remove} onCancel={() => setConfirm(false)} />
     </div>
   );
 }
@@ -1449,7 +1449,7 @@ export function BankRulesView({ rules, accounts, banks, canWrite, currency }: { 
           </form>
         )}
       </Dialog>
-      <ConfirmDialog open={!!remove} title={t('rules.deleteTitle')} message={t('rules.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} tone="danger" onConfirm={doRemove} onCancel={() => setRemove(null)} />
+      <ConfirmDialog open={!!remove} title={t('rules.deleteTitle')} body={t('rules.deleteBody')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} danger onConfirm={doRemove} onCancel={() => setRemove(null)} />
     </div>
   );
 }
