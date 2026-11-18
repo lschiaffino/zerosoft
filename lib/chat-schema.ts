@@ -40,6 +40,10 @@ const conversationAttributeDef = z
   })
   .refine((d) => d.type !== 'select' || d.options.length > 0, { message: 'missing_options' });
 
+export const WIDGET_FONTS = ['system', 'humanist', 'geometric', 'rounded', 'serif', 'slab', 'mono'] as const;
+export const WIDGET_ATTACHMENT_MODES = ['all', 'identified', 'none'] as const;
+export const WIDGET_REPLY_TIMES = ['', 'minutes', 'hour', 'day'] as const;
+
 export const officeHoursDaySchema = z.object({
   enabled: z.boolean(),
   start: time,
@@ -65,6 +69,9 @@ const widgetBase = {
   locale: z.enum(['auto', 'en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'pl', 'sv', 'ru', 'tr', 'ja', 'ko', 'zh', 'id']).optional(),
   // Minutos sin leer antes de mandar la respuesta por email (0 = nunca, tope 1 día).
   offlineEmailMinutes: z.number().int().min(0).max(1440).optional(),
+  font: z.enum(WIDGET_FONTS).optional(),
+  visitorAttachments: z.enum(WIDGET_ATTACHMENT_MODES).optional(),
+  replyTime: z.enum(WIDGET_REPLY_TIMES).optional(),
   conversationAttributes: z
     .array(conversationAttributeDef)
     .max(20)

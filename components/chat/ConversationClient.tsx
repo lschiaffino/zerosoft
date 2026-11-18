@@ -25,6 +25,7 @@ import ChatIcon, { initials } from './icons';
 import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
 import { SNOOZE_OPTIONS } from './inbox-model';
+import { useSnoozeOptions } from './useSnoozeOptions';
 import { fillReplyVariables } from '@/lib/chat-reply-variables';
 import Copilot from './Copilot';
 import TrackLink from './TrackLink';
@@ -91,6 +92,7 @@ export default function ConversationClient({
   currentUser,
 }: ConversationClientProps) {
   const t = useTranslations('chat');
+  const snoozeOptions = useSnoozeOptions();
   const locale = useLocale();
 
   const [conversation, setConversation] = useState<ChatConversationWithVisitor>(initialConversation);
@@ -583,6 +585,7 @@ export default function ConversationClient({
   }
 
   function insertCanned(response: ChatCannedResponseRow) {
+    void fetch(`/api/chat/canned/${response.id}`, { method: 'POST' }).catch(() => undefined);
     const before = reply.slice(0, reply.lastIndexOf('/'));
     // Variables ({{first_name}}, {{agent_name}}, atributos…): se completan al insertar, como en Intercom.
     let attributes: Record<string, string | number | boolean | null> = {};
@@ -784,6 +787,11 @@ export default function ConversationClient({
                   {SNOOZE_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.value}>
                       {t(`conversation.snooze.${opt.key}`)}
+                    </option>
+                  ))}
+                  {snoozeOptions.map((o) => (
+                    <option key={o.id} value={o.minutes * 60_000}>
+                      {o.label}
                     </option>
                   ))}
                 </select>
