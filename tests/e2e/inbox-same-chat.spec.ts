@@ -145,3 +145,30 @@ test('a 390 px la conversación de dos cuentas no tiene scroll lateral', async (
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('Responder desde: por defecto la cuenta del último mensaje; elegir otra manda por esa', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
+  const w = await twoAccounts(request);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const dmRow = page.getByTestId('inbox-row').filter({ hasText: w.dmName });
+  await expect(dmRow).toHaveCount(1, { timeout: 60_000 });
+  await dmRow.locator('.ib-row-btn').click();
+  const msgs = page.getByTestId('wa-message');
+  const first = msgs.filter({ hasText: `por personal ${w.tag}` });
+  const last = msgs.filter({ hasText: `por trabajo ${w.tag}` });
+  await expect(last).toHaveCount(1, { timeout: 30_000 });
+  const personalChat = (await first.getAttribute('data-line'))!;
+  const trabajoChat = (await last.getAttribute('data-line'))!;
+  // Por defecto: la cuenta por la que llegó el último mensaje.
+  const from = page.getByTestId('reply-from').getByRole('combobox');
+  await expect(from).toHaveValue(trabajoChat);
+  // Elegir la otra y mandar: el mensaje sale por esa cuenta.
+  await from.selectOption(personalChat);
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill(`respuesta ${w.tag}`);
+  await field.press('Enter');
+  await expect(msgs.filter({ hasText: `respuesta ${w.tag}` })).toHaveAttribute('data-line', personalChat, { timeout: 30_000 });
+  expect(errors, errors.join('\n')).toEqual([]);
+});

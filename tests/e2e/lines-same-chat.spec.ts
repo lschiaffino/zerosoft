@@ -126,3 +126,34 @@ test('a 390 px el hilo de dos líneas no tiene scroll lateral', async ({ page, r
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('Responder desde: por defecto la línea del último mensaje; elegir otra manda por esa', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
+  const w = await twoLines(request);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+  const dmRow = page.getByTestId('chat-row').filter({ hasText: w.dmName });
+  await expect(dmRow).toHaveCount(1, { timeout: 60_000 });
+  await dmRow.getByRole('link').click();
+  const msgs = page.getByTestId('wa-message');
+  const first = msgs.filter({ hasText: `por ventas ${w.tag}` });
+  const last = msgs.filter({ hasText: `por soporte ${w.tag}` });
+  await expect(last).toHaveCount(1, { timeout: 30_000 });
+  const ventasChat = (await first.getAttribute('data-line'))!;
+  const soporteChat = (await last.getAttribute('data-line'))!;
+  // Por defecto: la línea por la que llegó el último mensaje.
+  const from = page.getByTestId('reply-from').getByRole('combobox');
+  await expect(from).toHaveValue(soporteChat);
+  // Elegir la otra y mandar: el mensaje sale por esa línea.
+  await from.selectOption(ventasChat);
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill(`respuesta ${w.tag}`);
+  await field.press('Enter');
+  const sent = msgs.filter({ hasText: `respuesta ${w.tag}` });
+  await expect(sent).toHaveAttribute('data-line', ventasChat, { timeout: 30_000 });
+  await expect(sent).toHaveAttribute('data-status', /sent|delivered|read/, { timeout: 30_000 });
+  // La línea elegida sigue elegida para la próxima respuesta.
+  await expect(from).toHaveValue(ventasChat);
+  expect(errors).toEqual([]);
+});

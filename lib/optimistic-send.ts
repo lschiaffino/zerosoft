@@ -167,6 +167,11 @@ export interface Unsent {
   noPreview?: boolean;
   /** Un archivo (con `body` como su pie). */
   media?: UnsentMedia;
+  /**
+   * "Responder desde": el chat de otra línea por el que sale (el mismo chat en varias líneas, lib/same-chat.ts).
+   * `chatId` sigue siendo el chat abierto, donde se ve la burbuja.
+   */
+  via?: string;
 }
 
 export type UnsentEvent<S> =
@@ -323,7 +328,7 @@ export function unsentStore<S>(storageKey: string, opts: UnsentStoreOptions = {}
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     },
     /** `clientId`: el de un envío que ya empezó (se cortó la red a mitad): el reintento lleva el mismo. */
-    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[]; media?: UnsentMedia; clientId?: string }, status: 'pending' | 'queued' = 'pending'): Unsent {
+    add(input: { chatId: string; body: string; replyToId: string | null; noPreview?: boolean; mentions?: string[]; media?: UnsentMedia; clientId?: string; via?: string }, status: 'pending' | 'queued' = 'pending'): Unsent {
       const { media, clientId: given, ...rest } = input;
       const clientId = cleanClientId(given) ?? newClientId();
       const list = reread().filter((x) => x.clientId !== clientId);

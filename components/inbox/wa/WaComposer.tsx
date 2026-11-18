@@ -56,6 +56,8 @@ const WaComposer = forwardRef<
     attach?: (extra: MenuItem[]) => ReactNode;
     onCancelBanner: () => void;
     onSent: (messages: MessageDto[]) => void;
+    /** "Responder desde": el chat de otra cuenta por el que sale (vacío: este). */
+    via?: string;
     onSaveEdit: (m: MessageDto, body: string) => Promise<boolean>;
     onSendLater: (text: string) => void;
     onError: (code: string) => void;
@@ -69,7 +71,7 @@ const WaComposer = forwardRef<
     /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
     commands?: SlashCommand[];
   }
->(function WaComposer({ thread, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
+>(function WaComposer({ thread, via, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
@@ -235,7 +237,7 @@ const WaComposer = forwardRef<
       void inboxQueue(threadId)(async () => {
         // Sin respuesta en 30 s: no salió (el texto vuelve al campo). Si en verdad salió, mandarlo de nuevo con el mismo
         // clientId no lo duplica. La cola del chat no se traba.
-        const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${threadId}/messages`, {
+        const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${via || threadId}/messages`, {
           method: 'POST',
           json: { body: out, clientId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
           signal: withTimeout(undefined, 30_000),
@@ -270,7 +272,7 @@ const WaComposer = forwardRef<
     retryIds.current.delete(replyKey);
     // Por la misma cola del chat: una respuesta no se adelanta a un texto que todavía está saliendo.
     const r = await inboxQueue(thread.id)(() =>
-      api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
+      api<{ messages: MessageDto[] }>(`/api/inbox/threads/${via || thread.id}/messages`, {
         method: 'POST',
         json: { body: out, clientId: replyClientId, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}), ...(noPreview ? { linkPreview: false } : {}) },
       }),
@@ -289,7 +291,7 @@ const WaComposer = forwardRef<
     ai.clearUndo();
     if (replyToId) onCancelBanner();
     onSent(r.data.messages);
-  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset, mentionPool]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, busy, disabled, editing, thread.id, via, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo, linkPv.linkPreview, linkPv.reset, mentionPool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Un sticker del panel de emojis (pestaña Stickers): sale por la cola del chat, como respuesta si hay una cita. */
   const sendSticker = async (stickerId: string): Promise<boolean> => {
