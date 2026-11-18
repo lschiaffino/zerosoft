@@ -159,6 +159,8 @@ export async function GET(req: NextRequest) {
   const forms = await import('@/lib/forms/responses').then((m) => m.purgeFormsRetention()).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Papelera de las limpiezas por retención e inactividad (lib/soft-delete.ts): lo vencido se purga con sus archivos.
+  const softDeletedPurged = await import('@/lib/soft-delete').then((m) => m.purgeDueSoftDeleted()).catch(() => null);
   // Push de Lines y Talk: los avisos guardan texto del mensaje; lo no pedido en 24 h se borra.
   const pushNotificationsPruned = await import('@/lib/groups-push').then((m) => m.pruneNotifications()).catch(() => null);
   // Retención de seguridad: eventos de más de un año, sesiones terminadas hace más de 90 días.
@@ -217,6 +219,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

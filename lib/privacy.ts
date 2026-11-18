@@ -25,6 +25,7 @@
 import type { Client, InValue } from '@libsql/client';
 import { getClient, getDb, type UserRow } from './db';
 import { buildZip } from './zip-writer';
+import { softDeletedFiles } from './soft-delete';
 
 export const ERASURE_GRACE_DAYS = 30;
 const MAX_ATTEMPTS = 5;
@@ -241,6 +242,11 @@ function collectFiles(table: string, row: Record<string, unknown>, out: Map<stri
       if (key.startsWith('uploads/')) out.set(`/${key}`, 'public');
       else if (host && /^[A-Za-z0-9._/-]+$/.test(key) && !key.includes('..')) out.set(`https://${host}/${key}`, 'public');
     }
+    return;
+  }
+  // Papelera de las limpiezas (lib/soft-delete.ts): los archivos de la app que siguen guardados hasta la purga.
+  if (table === 'soft_deleted') {
+    for (const f of softDeletedFiles(row)) collectFiles(`${f.app}_files`, { ref: f.ref }, out);
     return;
   }
   const app = table.split('_')[0] as PrivateApp;
