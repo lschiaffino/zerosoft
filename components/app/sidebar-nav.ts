@@ -1193,7 +1193,7 @@ export function buildNav(
             { href: '/app/books/credit-notes', label: labels.books.creditNotes, active: at('/app/books/credit-notes'), icon: 'lists' },
             { href: '/app/books/recurring', label: labels.books.recurring, active: at('/app/books/recurring'), icon: 'cycles' },
             { href: '/app/books/quotes', label: labels.books.quotes, active: at('/app/books/quotes'), icon: 'deals' },
-            { href: '/app/books/batch-payments', label: labels.books.batchPayments, active: at('/app/books/batch-payments'), icon: 'bulk' },
+            { href: '/app/books/batch-payments', label: labels.books.batchPayments, active: at('/app/books/batch-payments'), icon: 'tasks' },
           ],
         },
         {
@@ -1216,8 +1216,8 @@ export function buildNav(
           items: [
             { href: '/app/books/accounts', label: labels.books.accounts, active: at('/app/books/accounts'), icon: 'objects' },
             { href: '/app/books/journal', label: labels.books.journal, active: at('/app/books/journal'), icon: 'books' },
-            { href: '/app/books/fixed-assets', label: labels.books.fixedAssets, active: at('/app/books/fixed-assets'), icon: 'products' },
-            { href: '/app/books/budgets', label: labels.books.budgets, active: at('/app/books/budgets'), icon: 'reports' },
+            { href: '/app/books/fixed-assets', label: labels.books.fixedAssets, active: at('/app/books/fixed-assets'), icon: 'archive' },
+            { href: '/app/books/budgets', label: labels.books.budgets, active: at('/app/books/budgets'), icon: 'forecast' },
           ],
         },
         {
