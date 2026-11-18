@@ -43,6 +43,11 @@ test('historial de asignaciones: vacío, asignar y sacar quedan en la lista', as
 
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.locator('.gr-row', { hasText: who }).click();
+  await expect(page.getByRole('heading', { level: 2, name: who })).toBeVisible();
+  // El panel de detalles puede venir cerrado: se abre con su botón.
+  const toggle = page.locator('.gr-details-toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const history = page.getByTestId('assign-history');
   await expect(history.getByTestId('assign-history-empty')).toBeVisible();
 
