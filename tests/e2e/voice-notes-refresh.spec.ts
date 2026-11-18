@@ -34,6 +34,8 @@ for (const width of [1280, 390]) {
       { text: 'Book the next call', owner: '', due: '' },
     ];
     await sql('UPDATE voice_notes SET enhanced = ? WHERE session_id = ?', [JSON.stringify(note), id]);
+    // La página solo se refresca sola si la reunión figuraba grabando (la API la crea ya cerrada).
+    await sql("UPDATE voice_sessions SET status = 'recording', recorder_id = NULL WHERE id = ?", [id]);
 
     // El primer refresco de la página (a los 1,5 s) queda retenido hasta que se terminó de editar; al soltarlo,
     // el pedido sale en ese momento y trae la versión que el editor ya guardó.
