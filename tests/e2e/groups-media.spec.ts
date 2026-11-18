@@ -97,9 +97,11 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     expect(((await state.json()) as { status: string }).status).toBe('connected');
     const createHit = hits.find((h) => h.path === '/instance/create')!;
     const instance = String(createHit.body?.instanceName);
-    const hookPath = new URL(String((createHit.body?.webhook as { url: string }).url)).pathname;
+    // Como Evolution: a la URL registrada, con los headers registrados (el secreto va en uno).
+    const registered = createHit.body?.webhook as { url: string; headers?: Record<string, string> };
+    const hookPath = new URL(String(registered.url)).pathname;
     const remoteJid = '5491100003333@s.whatsapp.net';
-    const hook = (data: unknown) => ctx.request.post(hookPath, { data: { event: 'messages.upsert', instance, data } });
+    const hook = (data: unknown) => ctx.request.post(hookPath, { data: { event: 'messages.upsert', instance, data }, headers: registered.headers ?? {} });
 
     // Un mensaje de texto abre el chat.
     expect((await hook({ key: { remoteJid, fromMe: false, id: `T-${uid()}` }, pushName: 'Marta Media', message: { conversation: 'Hola, te paso los archivos' } })).ok()).toBe(true);

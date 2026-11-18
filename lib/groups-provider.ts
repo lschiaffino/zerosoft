@@ -468,8 +468,18 @@ export interface GroupsProvider {
    * true si lo actualizó.
    */
   syncWebhookEvents?(): Promise<boolean>;
-  /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
-  connect(webhookUrl: string): Promise<ConnectState>;
+  /**
+   * Arranca la sesión (o valida las credenciales) y registra el webhook.
+   * `headers`: los que el servidor tiene que mandar en cada evento (el secreto,
+   * lib/wa-webhook-secret.ts); un proveedor que no los soporta los ignora.
+   */
+  connect(webhookUrl: string, headers?: Record<string, string>): Promise<ConnectState>;
+  /**
+   * Vuelve a registrar el webhook (URL, headers y eventos) sin tocar la
+   * sesión. Solo los proveedores que mandan headers propios (Evolution, WAHA,
+   * el QR administrado).
+   */
+  setWebhook?(webhookUrl: string, headers: Record<string, string>): Promise<void>;
   state(): Promise<ConnectState>;
   disconnect(): Promise<void>;
   /** `mentions`: teléfonos mencionados con "@teléfono" en el texto (grupos). */
@@ -521,7 +531,7 @@ export interface GroupsProvider {
   /** Entra al grupo con el código o link de invitación. */
   joinGroup(inviteCode: string): Promise<{ id: string; name?: string }>;
   leaveGroup(groupId: string): Promise<void>;
-  /** Firma o token del webhook. `secret` es el del número (va en la URL). */
+  /** Firma o token del webhook. `secret` es el del número (va en el header o, en la ruta vieja, en la URL). */
   verifyWebhook(req: WebhookRequest, secret: string): boolean;
   parseWebhook(body: unknown): InboundEvent[];
 }
