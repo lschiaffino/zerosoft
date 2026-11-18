@@ -108,6 +108,8 @@ export interface SidebarLabels {
     trash: string;
     /** "Ask AI": preguntas sobre todas las páginas. */
     askAi: string;
+    /** Analítica (opcional: los tests viejos arman labels sin esta clave). */
+    analytics?: string;
   };
   calendar: {
     overview: string;
@@ -166,7 +168,7 @@ export interface SidebarLabels {
     credentials: string;
   };
   notes: { all: string; newNote: string; clip: string };
-  board: { boards: string; newBoard: string };
+  board: { boards: string; newBoard: string; analytics?: string };
   agents: {
     agents: string;
   };
@@ -185,13 +187,14 @@ export interface SidebarLabels {
     analytics: string;
     settings: string;
   };
-  voice: { meetings: string; dictation: string; newMeeting: string };
+  /** analytics: opcional (los tests viejos arman labels sin esta clave). */
+  voice: { meetings: string; dictation: string; newMeeting: string; analytics?: string };
   /** Rec: Mis videos (con las carpetas colgando), Workspace y grabar. */
   rec: { home: string; workspace: string; newVideo: string; later: string; archive: string };
   /** Design: inicio (con carpetas y diseños colgando), plantillas y kit de marca. */
   design: { home: string; templates: string; brand: string; newDesign: string };
   /** Apps en construcción (Talk ya no; queda el shell genérico): por ahora solo su inicio. */
-  talk: { home: string };
+  talk: { home: string; analytics?: string };
   /** Shop: inicio, pedidos, productos, colecciones, inventario, clientes, descuentos, analítica, tienda. */
   shop: {
     home: string;
@@ -627,13 +630,16 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs') && !at('/app/docs/settings'), icon: 'docs', branch: true },
+            { href: '/app/docs', label: labels.docs.pages, active: at('/app/docs') && !at('/app/docs/settings') && !at('/app/docs/analytics'), icon: 'docs', branch: true },
             // Plantillas y papelera son secciones de la portada de Docs.
             { href: '/app/docs#templates', label: labels.docs.templates, active: false, icon: 'templates' },
             { href: '/app/docs?trash=1#trash', label: labels.docs.trash, active: false, icon: 'trash' },
             { href: '/app/docs?ask=1', label: labels.docs.askAi, active: false, icon: 'agents' },
           ],
         },
+        ...(labels.docs.analytics
+          ? [{ section: labels.insights, items: [{ href: '/app/docs/analytics', label: labels.docs.analytics, active: at('/app/docs/analytics'), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup('/app/docs/settings'),
       ];
 
@@ -811,9 +817,12 @@ export function buildNav(
       return [
         {
           items: [
-            { href: '/app/board', label: labels.board.boards, active: at('/app/board') && !at('/app/board/settings'), icon: 'board', branch: true },
+            { href: '/app/board', label: labels.board.boards, active: at('/app/board') && !at('/app/board/settings') && !at('/app/board/analytics'), icon: 'board', branch: true },
           ],
         },
+        ...(labels.board.analytics
+          ? [{ section: labels.insights, items: [{ href: '/app/board/analytics', label: labels.board.analytics, active: at('/app/board/analytics'), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup('/app/board/settings'),
       ];
 
@@ -875,12 +884,15 @@ export function buildNav(
             {
               href: '/app/voice',
               label: labels.voice.meetings,
-              active: at('/app/voice') && !at('/app/voice/dictation') && !at('/app/voice/settings'),
+              active: at('/app/voice') && !at('/app/voice/dictation') && !at('/app/voice/settings') && !at('/app/voice/analytics'),
               icon: 'notes',
             },
             { href: '/app/voice/dictation', label: labels.voice.dictation, active: at('/app/voice/dictation'), icon: 'voice' },
           ],
         },
+        ...(labels.voice.analytics
+          ? [{ section: labels.insights, items: [{ href: '/app/voice/analytics', label: labels.voice.analytics, active: at('/app/voice/analytics'), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup('/app/voice/settings'),
       ];
 
@@ -1227,7 +1239,10 @@ export function buildNav(
     case 'talk': {
       const base = `/app/${product}`;
       return [
-        { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`), icon: product }] },
+        { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`) && !at(`${base}/analytics`), icon: product }] },
+        ...(labels.talk.analytics
+          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const }] }]
+          : []),
         appSettingsGroup(`${base}/settings`),
       ];
     }

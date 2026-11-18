@@ -15,6 +15,7 @@ import { boardFileUrls, copyBoardFiles, deleteOrphanUploads, externalizeSceneFil
 import { getSnapshot, maybeSnapshot } from './board-history';
 import { boardVisibleSql, normalizeAccessMode, type BoardViewer } from './board-access';
 import { sanitizeElements } from './board-import';
+import { markEdit } from './edit-marks';
 
 const nowIso = () => new Date().toISOString();
 
@@ -418,7 +419,11 @@ export async function saveBoardScene(
       workspaceId,
       baseVersion,
     );
-  if (res.changes > 0) return { ok: true, version: baseVersion + 1, updated_at: now };
+  if (res.changes > 0) {
+    // Quién editó y en qué hora, para la analítica (el historial de fotos se poda a 30 días).
+    await markEdit('board', workspaceId, id, personId, new Date(now));
+    return { ok: true, version: baseVersion + 1, updated_at: now };
+  }
   const current = (await getDb()
     .prepare(
       `SELECT b.version, b.updated_at, u.name AS name, u.email AS email
