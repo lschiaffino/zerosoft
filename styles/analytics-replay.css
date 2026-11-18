@@ -7,6 +7,15 @@
 .an-replay-settings { scroll-margin-top: 80px; }
 .an-replay-rate { width: auto; max-width: 240px; }
 
+/* ---------- Papelera de la retención ---------- */
+.an-trash-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-1); max-height: 320px; overflow-y: auto; }
+.an-trash-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; min-width: 0; }
+.an-trash-item + .an-trash-item { border-top: 1px solid var(--line); }
+.an-trash-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.an-trash-title { font-weight: 600; overflow-wrap: anywhere; }
+.an-trash-meta { font-size: 0.75rem; color: var(--brand-gray-2); font-family: var(--font-data); overflow-wrap: anywhere; }
+.an-trash-item .btn { flex: 0 0 auto; }
+
 /* ---------- Lista ---------- */
 .an-replay-filters .input { flex: 1 1 180px; min-width: 0; }
 .an-replay-person { overflow-wrap: anywhere; }
