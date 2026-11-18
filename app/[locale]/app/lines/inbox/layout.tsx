@@ -86,7 +86,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         properties={properties}
         me={me}
         initialLists={lists}
-        numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName }))}
+        numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName, color: n.color }))}
         initialLine={await getSelectedLine(viewer)}
         agentsRow={agents ? { href: '/app/lines/agents', label: tf('mirror.row'), unread: agents.unread, waiting: agents.waiting, waitingLabel: tf('mirror.waiting', { n: agents.waiting }) } : null}
       >

@@ -10,6 +10,7 @@
 import { getDb } from './db';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
+import { lineColor } from './line-colors';
 import { mergedUnread, sameChatKey, type ChatLineRef } from './same-chat';
 
 export interface SiblingRow {
@@ -22,6 +23,7 @@ export interface SiblingRow {
   pinned_at: string | null;
   sort_key: string;
   line_name: string;
+  line_color?: string;
   line_phone: string;
   line_status: string;
   left_at: string | null;
@@ -68,7 +70,7 @@ export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | un
   const found = (await getDb()
     .prepare(
       `SELECT c.id, c.kind, c.phone, c.provider_chat_id, c.number_id, c.unread_count, c.marked_unread, c.last_message_at, c.pinned_at, c.left_at,
-         ${linesSortKey('c')} AS sort_key, n.name AS line_name, n.phone AS line_phone, n.status AS line_status
+         ${linesSortKey('c')} AS sort_key, n.name AS line_name, n.color AS line_color, n.phone AS line_phone, n.status AS line_status
        FROM groups_chats c JOIN groups_numbers n ON n.id = c.number_id AND n.user_id = c.user_id
        WHERE c.user_id = ? AND c.hidden_at IS NULL AND (${ors.join(' OR ')})${access ? ` AND ${access.sql}` : ''}`,
     )
@@ -90,6 +92,7 @@ export function lineRefs(siblings: SiblingRow[] | undefined): ChatLineRef[] {
       chatId: s.id,
       lineId: s.number_id,
       name: s.line_name || (s.line_phone ? `+${s.line_phone}` : ''),
+      color: lineColor(s.line_color),
       unread: Number(s.unread_count) || 0,
       lastMessageAt: s.last_message_at,
       canSend: s.line_status === 'connected' && !s.left_at,

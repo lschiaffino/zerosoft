@@ -9,6 +9,8 @@ import LineAccess from './LineAccess';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
 import MenuSelect from '@/components/ui/MenuSelect';
+import { LINE_COLORS } from '@/lib/line-colors';
+import LineDot from './LineDot';
 
 const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeholder?: string; optional?: boolean }>> = {
   cloud: [
@@ -112,6 +114,22 @@ export default function NumbersSettings({
     showToast(t('wa.reimportStarted'));
   }
 
+  // Color de la línea: se guarda en el acto y la bandeja lo toma al volver (router.refresh).
+  async function setColor(n: NumberDto, color: string) {
+    const prev = n.color;
+    setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, color: color as NumberDto['color'] } : x)));
+    const res = await api<NumberDto>(`/api/groups/numbers/${n.id}`, { method: 'PATCH', body: { color } });
+    if (!res.data) {
+      setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, color: prev } : x)));
+      return showToast(errText(res.error), true);
+    }
+    router.refresh();
+  }
+  const colorOptions = [
+    { value: '', label: t('numbers.colorNone'), lead: <span className="gr-line-dot is-none" aria-hidden="true" /> },
+    ...LINE_COLORS.map((c) => ({ value: c, label: t(`numbers.colors.${c}`), lead: <LineDot color={c} /> })),
+  ];
+
   async function remove() {
     if (!removing) return;
     const res = await api(`/api/groups/numbers/${removing.id}`, { method: 'DELETE' });
@@ -152,7 +170,10 @@ export default function NumbersSettings({
           {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
             <li key={n.id} className="panel gr-number" data-number-id={n.id}>
               <div className="gr-number-main">
-                <strong>{n.name}</strong>
+                <strong className="gr-number-name" data-testid="line-name">
+                  <LineDot color={n.color} />
+                  {n.name}
+                </strong>
                 <span className="ui-help">
                   {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
                 </span>
@@ -185,6 +206,14 @@ export default function NumbersSettings({
               </div>
               {n.canManage && (
                 <div className="gr-number-actions">
+                  <MenuSelect
+                    className="gr-line-color-select"
+                    testId="line-color-select"
+                    label={t('numbers.color')}
+                    value={n.color}
+                    onChange={(v) => void setColor(n, v)}
+                    options={colorOptions}
+                  />
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
                     {t('lines.access')}
                   </button>

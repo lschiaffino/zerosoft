@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface MenuSelectOption {
@@ -10,6 +10,8 @@ export interface MenuSelectOption {
   hint?: string;
   /** Sangría (carpetas anidadas). */
   depth?: number;
+  /** Marca chica antes del texto (p. ej. el punto de color de una línea); también va en el botón. */
+  lead?: ReactNode;
 }
 
 interface Box {
@@ -156,6 +158,7 @@ export default function MenuSelect({
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKey}
       >
+        {current?.lead}
         <span className="zs-msel-value">{current?.label}</span>
         <svg className="zs-msel-chevron" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4.5 6.5 8 10l3.5-3.5" />
@@ -188,6 +191,7 @@ export default function MenuSelect({
                   onPointerMove={() => i !== active && setActive(i)}
                   onClick={() => pick(o.value)}
                 >
+                  {o.lead}
                   <span className="zs-msel-label">{o.label}</span>
                   {o.hint && <span className="zs-msel-hint">{o.hint}</span>}
                   <svg className="zs-msel-check" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ visibility: selected ? 'visible' : 'hidden' }}>

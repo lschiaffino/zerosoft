@@ -1,6 +1,7 @@
 'use client';
 
 import type { ChatLineRef } from '@/lib/same-chat';
+import LineDot from './LineDot';
 
 /**
  * "Responder desde": el chat está en varias líneas (Lines) o cuentas (Inbox) y
@@ -26,9 +27,12 @@ export default function ReplyFromSelect({
   unavailable: string;
 }) {
   if (lines.length < 2) return null;
+  // El select nativo no dibuja colores en las opciones: el punto de la línea elegida va al lado.
+  const picked = lines.find((l) => l.chatId === value);
   return (
     <label className="gr-replyfrom" data-testid="reply-from">
       <span className="gr-replyfrom-label">{label}</span>
+      <LineDot color={picked?.color} />
       <select className="select gr-replyfrom-select" value={value} aria-label={label} onChange={(e) => onChange(e.target.value)}>
         {lines.map((l) => (
           <option key={l.chatId} value={l.chatId} disabled={!l.canSend}>
