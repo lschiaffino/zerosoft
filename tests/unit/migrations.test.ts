@@ -41,13 +41,17 @@ describe('migraciones versionadas', () => {
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 
-  it('aplica todas en una base vacía y ninguna la segunda vez', async () => {
+  // Estas dos corren la lista entera a propósito: son cientos de migraciones y en
+  // CI, con los workers en paralelo, pasan los 20 s por defecto.
+  const FULL_RUN_TIMEOUT = 90_000;
+
+  it('aplica todas en una base vacía y ninguna la segunda vez', { timeout: FULL_RUN_TIMEOUT }, async () => {
     const client = freshClient();
     expect(await runMigrations(client)).toEqual(MIGRATIONS.map((m) => m.id));
     expect(await runMigrations(client)).toEqual([]);
   });
 
-  it('tolera dos instancias migrando a la vez', async () => {
+  it('tolera dos instancias migrando a la vez', { timeout: FULL_RUN_TIMEOUT }, async () => {
     const client = freshClient();
     await Promise.all([runMigrations(client), runMigrations(client)]);
     const rows = (await client.execute('SELECT id FROM schema_migrations')).rows.map((r) => r.id);
@@ -63,7 +67,7 @@ describe('migraciones versionadas', () => {
     await client.execute("INSERT INTO users (id, email, handle) VALUES ('g1', 'g1@test.local', 'g1')");
     await client.execute("INSERT INTO groups_property_defs (id, user_id, key, label, type, options) VALUES ('p1', 'g1', 'plan', 'Plan', 'select', '[\"Pro\"]')");
     await expect(client.execute("INSERT INTO groups_property_defs (id, user_id, key, label, type) VALUES ('p2', 'g1', 'tags', 'Tags', 'multiselect')")).rejects.toThrow(/CHECK/);
-    await runMigrations(client);
+    await runMigrations(client, MIGRATIONS.slice(0, idx + 1));
     const rows = (await client.execute('SELECT id, scope, key, type, options, required FROM groups_property_defs')).rows;
     expect(rows.map((r) => ({ ...r }))).toEqual([{ id: 'p1', scope: 'chat', key: 'plan', type: 'select', options: '["Pro"]', required: 0 }]);
     // Los tipos nuevos y la misma clave en tickets entran.
@@ -88,7 +92,9 @@ describe('migraciones versionadas', () => {
     await client.execute("INSERT INTO chat_visitors (id, widget_id, external_id) VALUES ('v1', 'w1', 'ext1')");
     await client.execute("INSERT INTO chat_conversations (id, widget_id, visitor_id) VALUES ('c1', 'w1', 'v1')");
 
-    await runMigrations(client);
+    // Solo hasta esta migración: lo que se prueba es su rebuild, y correr todas
+    // las de después (las de la base vacía ya lo cubren) lo llevaba al timeout en CI.
+    await runMigrations(client, MIGRATIONS.slice(0, idx + 1));
     const convs = (await client.execute("SELECT id FROM chat_conversations WHERE widget_id = 'w1'")).rows;
     expect(convs.map((r) => r.id)).toEqual(['c1']);
     const fkErrors = (await client.execute('PRAGMA foreign_key_check')).rows;
@@ -121,7 +127,7 @@ describe('migraciones versionadas', () => {
     await client.execute("INSERT INTO chat_conversations (id, widget_id, visitor_id) VALUES ('c1', 'w1', 'v1')");
     await client.execute("INSERT INTO chat_messages (id, conversation_id, sender_type, body) VALUES ('m1', 'c1', 'visitor', 'hola')");
 
-    await runMigrations(client);
+    await runMigrations(client, MIGRATIONS.slice(0, idx + 1));
     expect((await client.execute("SELECT id FROM chat_conversations WHERE widget_id = 'w1'")).rows.map((r) => r.id)).toEqual(['c1']);
     expect((await client.execute("SELECT id FROM chat_messages WHERE conversation_id = 'c1'")).rows).toHaveLength(1);
     expect((await client.execute('PRAGMA foreign_key_check')).rows).toEqual([]);
