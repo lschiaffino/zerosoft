@@ -294,12 +294,13 @@ test('presupuesto: se publica, el cliente lo acepta sin login y pasa a factura',
   const anon = await browser.newContext({ baseURL });
   const pub = await anon.newPage();
   await pub.goto(`/en/quote/${sent.quote.publicToken}`);
-  await expect(pub.getByRole('heading', { name: 'Quote' })).toBeVisible();
-  await pub.getByLabel('Your name').fill('Ana Cliente');
-  await pub.getByRole('button', { name: 'Accept quote' }).click();
-  await expect(pub.getByText('Accepted by Ana Cliente')).toBeVisible();
+  await expect(pub.getByRole('heading', { level: 1 })).toBeVisible();
+  await pub.getByRole('textbox').fill('Ana Cliente');
+  await pub.getByTestId('quote-accept').click();
+  await expect(pub.getByTestId('quote-decision')).toHaveAttribute('data-state', 'accepted');
+  await expect(pub.getByTestId('quote-decision')).toContainText('Ana Cliente');
   await anon.close();
   await page.goto(`/en/app/books/quotes/${quote.id}`);
-  await page.getByRole('button', { name: 'Create invoice' }).click();
+  await page.getByTestId('quote-to-invoice').click();
   await expect(page).toHaveURL(/\/app\/books\/invoices\/inv_/);
 });

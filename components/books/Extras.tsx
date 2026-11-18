@@ -515,7 +515,7 @@ export function QuoteEditor({ quote, refs, canWrite }: { quote: QuoteDto | null;
             )}
             <div className="bk-row">
               {!quote.invoiceId && quote.status !== 'declined' && (
-                <button type="button" className={`btn ${quote.status === 'accepted' ? 'btn-primary' : 'btn-secondary'}`} disabled={busy} onClick={toInvoice}>
+                <button type="button" className={`btn ${quote.status === 'accepted' ? 'btn-primary' : 'btn-secondary'}`} disabled={busy} onClick={toInvoice} data-testid="quote-to-invoice">
                   {t('quotesNative.toInvoice')}
                 </button>
               )}

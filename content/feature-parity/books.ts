@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Xero',
   alsoCompared: ['QuickBooks Online', 'Alegra', 'Colppy', 'Odoo Invoicing'],
-  lastReviewed: '2026-11-07',
+  lastReviewed: '2026-11-18',
   areas: [
     { id: 'invoicing', label: loc(['Invoicing', 'Facturación', 'Faturamento']) },
     { id: 'einvoicing', label: loc(['E-invoicing', 'Factura electrónica', 'Nota fiscal eletrônica']) },
@@ -260,7 +260,11 @@ const parity: ProductParity = {
 
     // Contactos
     row('contacts', 'contacts', ['Customers and suppliers', 'Clientes y proveedores', 'Clientes e fornecedores'], 'have', {
-      detail: ['Import and export as CSV', 'Se importan y exportan en CSV', 'Importação e exportação em CSV'],
+      detail: [
+        'Import and export as CSV; contacts and items exported from Xero import as is',
+        'Se importan y exportan en CSV; los contactos e ítems exportados de Xero entran tal cual',
+        'Importação e exportação em CSV; contatos e itens exportados do Xero entram como estão',
+      ],
     }),
     row('tax-ids', 'contacts', ['Tax ID validation', 'Validación de identificación fiscal', 'Validação de identificação fiscal'], 'better', {
       detail: [

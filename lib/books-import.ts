@@ -24,7 +24,8 @@ export function parseCsvTable(text: string): Array<Record<string, string>> {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
   const delim = [';', '\t', ','].sort((a, b) => lines[0].split(b).length - lines[0].split(a).length)[0];
-  const head = splitCsvLine(lines[0], delim).map((h) => h.trim().toLowerCase().replace(/[\s-]+/g, '_'));
+  // Los exports de Xero marcan las columnas obligatorias con `*` (`*ContactName`, `*ItemCode`): se ignora.
+  const head = splitCsvLine(lines[0], delim).map((h) => h.trim().replace(/^\*+/, '').toLowerCase().replace(/[\s-]+/g, '_'));
   return lines.slice(1).map((l) => {
     const cells = splitCsvLine(l, delim);
     return Object.fromEntries(head.map((h, i) => [h, (cells[i] ?? '').trim()]));
@@ -41,7 +42,7 @@ export async function importContactsCsv(actor: BooksActor, text: string): Promis
   const existing = new Set((await listContacts(actor.ws, { includeArchived: true, limit: 100_000 })).map((c) => c.name.toLowerCase()));
   const out: ImportResult = { created: 0, skipped: 0, errors: [] };
   for (const [i, r] of rows.entries()) {
-    const name = pick(r, 'name', 'nombre', 'nome', 'contact', 'contactname');
+    const name = pick(r, 'name', 'nombre', 'nome', 'contact', 'contactname', 'customer', 'display_name');
     if (!name) {
       out.errors.push({ row: i + 2, error: 'invalid_name' });
       continue;
@@ -53,7 +54,10 @@ export async function importContactsCsv(actor: BooksActor, text: string): Promis
     const kindRaw = pick(r, 'kind', 'type', 'tipo').toLowerCase();
     const kind = /supp|prov|forn/.test(kindRaw) ? 'supplier' : /both|ambos/.test(kindRaw) ? 'both' : 'customer';
     try {
-      await createContact(actor, { name, kind, email: pick(r, 'email', 'correo', 'emailaddress'), phone: pick(r, 'phone', 'telefono', 'teléfono', 'telefone'), taxId: pick(r, 'tax_id', 'taxid', 'cuit', 'rfc', 'cnpj'), address: pick(r, 'address', 'direccion', 'dirección', 'endereco', 'endereço'), country: pick(r, 'country', 'pais', 'país').slice(0, 2).toUpperCase() }, { syncCrm: false });
+      // Xero: EmailAddress, PhoneNumber, TaxNumber, POAddressLine1 y POCountry (el país viene con el nombre
+      // completo: solo se toma si es un código de dos letras).
+      const country = pick(r, 'country', 'pais', 'país', 'pocountry', 'sacountry');
+      await createContact(actor, { name, kind, email: pick(r, 'email', 'correo', 'emailaddress'), phone: pick(r, 'phone', 'telefono', 'teléfono', 'telefone', 'phonenumber', 'mobilenumber'), taxId: pick(r, 'tax_id', 'taxid', 'cuit', 'rfc', 'cnpj', 'taxnumber'), address: pick(r, 'address', 'direccion', 'dirección', 'endereco', 'endereço', 'poaddressline1', 'saaddressline1'), country: /^[a-z]{2}$/i.test(country) ? country.toUpperCase() : '' }, { syncCrm: false });
       existing.add(name.toLowerCase());
       out.created++;
     } catch (err) {
@@ -71,7 +75,8 @@ export async function importItemsCsv(actor: BooksActor, text: string): Promise<I
   const existing = new Set((await listItems(actor.ws, { includeArchived: true, limit: 100_000 })).map((c) => c.name.toLowerCase()));
   const out: ImportResult = { created: 0, skipped: 0, errors: [] };
   for (const [i, r] of rows.entries()) {
-    const name = pick(r, 'name', 'nombre', 'nome', 'item', 'itemname');
+    // Xero: *ItemCode, ItemName, SalesDescription, SalesUnitPrice y PurchasesUnitPrice; sin ItemName, el código.
+    const name = pick(r, 'name', 'nombre', 'nome', 'item', 'itemname', 'itemcode');
     if (!name) {
       out.errors.push({ row: i + 2, error: 'invalid_name' });
       continue;
@@ -82,7 +87,7 @@ export async function importItemsCsv(actor: BooksActor, text: string): Promise<I
     }
     const kindRaw = pick(r, 'kind', 'type', 'tipo').toLowerCase();
     try {
-      await createItem(actor, { name, kind: /prod/.test(kindRaw) ? 'product' : 'service', sku: pick(r, 'sku', 'code', 'codigo', 'código'), description: pick(r, 'description', 'descripcion', 'descripción', 'descricao'), unit: pick(r, 'unit', 'unidad', 'unidade'), price: pick(r, 'price', 'precio', 'preco', 'preço', 'unitprice') || '0', cost: pick(r, 'cost', 'costo', 'custo', 'purchaseprice') || '0' });
+      await createItem(actor, { name, kind: /prod/.test(kindRaw) ? 'product' : 'service', sku: pick(r, 'sku', 'code', 'codigo', 'código', 'itemcode'), description: pick(r, 'description', 'descripcion', 'descripción', 'descricao', 'salesdescription'), unit: pick(r, 'unit', 'unidad', 'unidade'), price: pick(r, 'price', 'precio', 'preco', 'preço', 'unitprice', 'salesunitprice') || '0', cost: pick(r, 'cost', 'costo', 'custo', 'purchaseprice', 'purchasesunitprice') || '0' });
       existing.add(name.toLowerCase());
       out.created++;
     } catch (err) {

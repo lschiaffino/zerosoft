@@ -742,6 +742,32 @@ describe('Books importar CSV', () => {
     await expectCode(importContactsCsv(a, ''), 'csv_empty');
     await expectCode(importContactsCsv({ ...a, role: 'viewer', admin: false }, 'name\nX'), 'forbidden');
   });
+
+  it('entiende los exports de contactos e ítems de Xero', async () => {
+    const a = await workspace('generic', 'USD');
+    const contacts = await importContactsCsv(
+      a,
+      '*ContactName,EmailAddress,PhoneNumber,TaxNumber,POAddressLine1,POCountry\n' +
+        'Xero Uno,uno@example.com,555 0100,TX-1,Calle 1,US\n' +
+        'Xero Dos,dos@example.com,,,,New Zealand\n',
+    );
+    expect(contacts).toEqual({ created: 2, skipped: 0, errors: [] });
+    const { listContacts, listItems } = await import('@/lib/books');
+    const all = await listContacts(a.ws);
+    const uno = all.find((c) => c.name === 'Xero Uno')!;
+    expect(uno).toMatchObject({ email: 'uno@example.com', phone: '555 0100', taxId: 'TX-1', address: 'Calle 1', country: 'US' });
+    expect(all.find((c) => c.name === 'Xero Dos')!.country).toBe('');
+    const items = await importItemsCsv(
+      a,
+      '*ItemCode,ItemName,PurchasesDescription,PurchasesUnitPrice,SalesDescription,SalesUnitPrice\n' +
+        'SRV-1,Consultoría,,,Hora de consultoría,150.00\n' +
+        'BOX-1,,Caja,4.25,,9.90\n',
+    );
+    expect(items.created).toBe(2);
+    const list = await listItems(a.ws);
+    expect(list.find((x) => x.name === 'Consultoría')).toMatchObject({ sku: 'SRV-1', description: 'Hora de consultoría', price: 15000 });
+    expect(list.find((x) => x.name === 'BOX-1')).toMatchObject({ sku: 'BOX-1', price: 990, cost: 425 });
+  });
 });
 
 describe('Books recurrentes de proveedor', () => {

@@ -37,15 +37,15 @@ export default function PublicQuoteActions({ token, status, decidedName }: { tok
             <span className="bk-public-label">{t('yourName')}</span>
             <input className="input" required maxLength={120} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
+          <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy} data-testid="quote-accept">
             {t('acceptQuote')}
           </button>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => decide('declined')}>
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => decide('declined')} data-testid="quote-decline">
             {t('declineQuote')}
           </button>
         </form>
       ) : (
-        <p className={state === 'accepted' || state === 'invoiced' ? 'bk-public-ok' : 'bk-public-muted'} role="status">
+        <p className={state === 'accepted' || state === 'invoiced' ? 'bk-public-ok' : 'bk-public-muted'} role="status" data-testid="quote-decision" data-state={state}>
           {state === 'declined' ? t('quoteDeclined') : state === 'expired' ? t('quoteExpired') : who ? t('quoteAcceptedBy', { name: who }) : t('quoteAccepted')}
         </p>
       )}

@@ -1297,8 +1297,8 @@
     "import": "Importar CSV",
     "imported": "{created} creados, {skipped} ya estaban, {errors} con errores",
     "help": {
-      "contacts": "Columnas: name, kind, email, phone, tax_id, address, country",
-      "items": "Columnas: name, kind, sku, description, unit, price, cost"
+      "contacts": "Columnas: name, kind, email, phone, tax_id, address, country. También sirve tal cual el export de contactos de Xero.",
+      "items": "Columnas: name, kind, sku, description, unit, price, cost. También sirve tal cual el export de ítems de Xero."
     }
   }
 }
