@@ -730,6 +730,10 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-question-tag { color: var(--warn-ink); font-weight: 600; }
 /* El mismo chat en varias líneas: por cuál entró o salió el mensaje (lib/same-chat.ts). */
 .gr-line-tag { color: var(--wa-text-2, currentColor); min-width: 0; overflow-wrap: anywhere; }
+/* "Responder desde": la línea por la que sale la respuesta (components/groups/ReplyFromSelect.tsx). */
+.gr-replyfrom { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 10px 2px; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text-2, currentColor); }
+.gr-replyfrom-label { flex: none; }
+.gr-replyfrom-select { min-width: 0; max-width: 100%; flex: 0 1 auto; width: auto; height: 28px; padding-top: 0; padding-bottom: 0; font-size: inherit; }
 .gr-task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .gr-task-list li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .gr-task-list li.is-done .gr-task-title,

@@ -4,6 +4,9 @@ import { useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import type { TrackingCategoryDto } from '@/lib/books-accounting';
+import type { RuleSuggestion } from '@/lib/books-bankrules';
+import { TransferDialog } from './Extras';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { BankAccountDto, BankTxnDto, MatchCandidate } from '@/lib/books-bank';
@@ -64,6 +67,8 @@ export function BankAccountView({
   accounts,
   canWrite,
   status,
+  ruleSuggestions,
+  banks,
 }: {
   account: BankAccountDto;
   transactions: BankTxnDto[];
@@ -71,6 +76,8 @@ export function BankAccountView({
   accounts: Array<{ id: string; code: string; name: string }>;
   canWrite: boolean;
   status: string;
+  ruleSuggestions: Record<string, RuleSuggestion>;
+  banks: Array<{ id: string; name: string }>;
 }) {
   const t = useTranslations('books');
   const locale = useLocale();
@@ -83,6 +90,16 @@ export function BankAccountView({
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [format, setFormat] = useState('auto');
+  const [transfer, setTransfer] = useState(false);
+  const ruleCount = Object.keys(ruleSuggestions).length;
+  const applyAll = async () => {
+    setBusy('rules');
+    const res = await api<{ applied?: number; failed?: number }>(`/api/books/bank-accounts/${account.id}/apply-rules`, { method: 'POST' });
+    setBusy(null);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('rules.applied', { n: res.data.applied ?? 0, failed: res.data.failed ?? 0 }), res.data.failed ? 'bad' : 'ok');
+    router.refresh();
+  };
   const money = (v: number, cur = account.currency) => formatMoney(v, cur, locale);
 
   const upload = async (file: File) => {
@@ -198,6 +215,22 @@ export function BankAccountView({
           </Link>
         ))}
       </div>
+      {canWrite && (
+        <div className="bk-row bk-rule-bar">
+          {ruleCount > 0 && (
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'rules'} aria-busy={busy === 'rules'} onClick={applyAll}>
+              {t('rules.applyAll', { n: ruleCount })}
+            </button>
+          )}
+          <Link className="btn btn-ghost btn-sm" href="/app/books/banking/rules">
+            {t('rules.title')}
+          </Link>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={banks.length < 2} title={banks.length < 2 ? t('transfer.needTwo') : undefined} onClick={() => setTransfer(true)}>
+            {t('transfer.title')}
+          </button>
+          {banks.length < 2 && <span className="ui-help">{t('transfer.needTwo')}</span>}
+        </div>
+      )}
       {transactions.length === 0 ? (
         status ? (
           <EmptyState compact body={t('common.noMatch')} />
@@ -208,6 +241,7 @@ export function BankAccountView({
         <ul className="bk-txns">
           {transactions.map((x) => {
             const sugg = suggestions[x.id] ?? [];
+            const rule = ruleSuggestions[x.id];
             return (
               <li key={x.id} className="bk-txn" data-status={x.status}>
                 <div className="bk-txn-main">
@@ -228,15 +262,20 @@ export function BankAccountView({
                 ) : (
                   canWrite && (
                     <div className="bk-txn-actions">
+                      {rule && (
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={busy === x.id} onClick={() => reconcile(x.id, { kind: 'account', accountId: rule.accountId, description: rule.memo || x.description })}>
+                          {t('rules.suggest', { rule: rule.ruleName, account: rule.accountName })}
+                        </button>
+                      )}
                       {sugg.map((c) => (
                         <button
                           key={`${c.kind}:${c.id}`}
                           type="button"
                           className="btn btn-secondary btn-sm"
                           disabled={busy === x.id}
-                          onClick={() => reconcile(x.id, c.kind === 'payment' ? { kind: 'payment', paymentId: c.id } : { kind: c.kind, docId: c.docId })}
+                          onClick={() => reconcile(x.id, c.kind === 'payment' ? { kind: 'payment', paymentId: c.id } : c.kind === 'batch' ? { kind: 'batch', batchId: c.id } : c.kind === 'journal' ? { kind: 'journal', journalId: c.id } : { kind: c.kind, docId: c.docId })}
                         >
-                          {t(c.kind === 'payment' ? 'banking.matchPayment' : c.kind === 'bill' ? 'banking.matchBill' : 'banking.matchInvoice', { label: c.label, contact: c.contactName || '-' })}
+                          {t(c.kind === 'payment' ? 'banking.matchPayment' : c.kind === 'batch' ? 'banking.matchBatch' : c.kind === 'journal' ? 'banking.matchTransfer' : c.kind === 'bill' ? 'banking.matchBill' : 'banking.matchInvoice', { label: c.label, contact: c.contactName || '-' })}
                         </button>
                       ))}
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCategorize({ txn: x, accountId: '', description: x.description })}>
@@ -260,6 +299,17 @@ export function BankAccountView({
           </button>
         </div>
       )}
+      <TransferDialog
+        open={transfer}
+        onClose={() => setTransfer(false)}
+        banks={banks}
+        currency={account.currency}
+        initialFrom={account.id}
+        onDone={(msg, bad) => {
+          push(msg, bad ? 'bad' : 'ok');
+          if (!bad) router.refresh();
+        }}
+      />
       <Dialog open={!!categorize} title={t('banking.categorize')} onClose={() => setCategorize(null)}>
         {categorize && (
           <form onSubmit={doCategorize}>
@@ -463,14 +513,19 @@ export function JournalList({ journals, currency, canWrite, accountName }: { jou
         description={accountName ? t('journal.forAccount', { account: accountName }) : t('journal.desc')}
         actions={
           canWrite ? (
-            <Link className="btn btn-primary" href="/app/books/journal/new">
-              {t('journal.new')}
-            </Link>
+            <>
+              <Link className="btn btn-secondary" href="/app/books/journal/opening">
+                {t('opening.title')}
+              </Link>
+              <Link className="btn btn-primary" href="/app/books/journal/new">
+                {t('journal.new')}
+              </Link>
+            </>
           ) : undefined
         }
       />
       {journals.length === 0 ? (
-        <EmptyState product="books" title={t('journal.emptyTitle')} body={t('journal.emptyBody')} />
+        <EmptyState product="books" title={t('journal.emptyTitle')} body={t('journal.emptyBody')} action={canWrite ? { label: t('opening.title'), href: '/app/books/journal/opening' } : undefined} />
       ) : (
         <div className="table-wrap bk-table-wrap table-stack">
           <table className="table bk-table">
@@ -478,9 +533,7 @@ export function JournalList({ journals, currency, canWrite, accountName }: { jou
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">{t('journal.memo')}</th>
-                <th scope="col" className="bk-hide-sm">
-                  {t('journal.source')}
-                </th>
+                <th scope="col">{t('journal.source')}</th>
                 <th scope="col" className="num">
                   {t('journal.amount')}
                 </th>
@@ -489,7 +542,7 @@ export function JournalList({ journals, currency, canWrite, accountName }: { jou
             <tbody>
               {journals.map((j) => (
                 <tr key={j.id}>
-                  <td className="data">
+                  <td className="data" data-label="#">
                     <Link href={`/app/books/journal/${j.id}`}>{j.number}</Link>
                   </td>
                   <th scope="row">
@@ -498,8 +551,10 @@ export function JournalList({ journals, currency, canWrite, accountName }: { jou
                       <span className="bk-rowmeta">{date(j.date)}</span>
                     </Link>
                   </th>
-                  <td className="bk-hide-sm">{t.has(`journal.sources.${j.sourceType}`) ? t(`journal.sources.${j.sourceType}`) : j.sourceType}</td>
-                  <td className="num">{formatMoney(j.total, currency, locale)}</td>
+                  <td data-label={t('journal.source')}>{t.has(`journal.sources.${j.sourceType}`) ? t(`journal.sources.${j.sourceType}`) : j.sourceType}</td>
+                  <td className="num" data-label={t('journal.amount')}>
+                    {formatMoney(j.total, currency, locale)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -516,10 +571,12 @@ interface JLine {
   debit: number | null;
   credit: number | null;
   description: string;
+  trackingA?: string | null;
+  trackingB?: string | null;
 }
 let jSeq = 0;
 
-export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{ id: string; code: string; name: string }>; currency: string; lockDate: string | null }) {
+export function JournalNew({ accounts, currency, lockDate, tracking }: { accounts: Array<{ id: string; code: string; name: string }>; currency: string; lockDate: string | null; tracking: TrackingCategoryDto[] }) {
   const t = useTranslations('books');
   const locale = useLocale();
   const router = useRouter();
@@ -543,7 +600,7 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
     setBusy(true);
     const res = await api<{ journal?: JournalDto }>('/api/books/journals', {
       method: 'POST',
-      json: { date, memo, lines: lines.filter((l) => l.accountId).map((l) => ({ accountId: l.accountId, debit: l.debit ?? 0, credit: l.credit ?? 0, description: l.description })) },
+      json: { date, memo, lines: lines.filter((l) => l.accountId).map((l) => ({ accountId: l.accountId, debit: l.debit ?? 0, credit: l.credit ?? 0, description: l.description, trackingA: l.trackingA ?? null, trackingB: l.trackingB ?? null })) },
     });
     setBusy(false);
     if (!res.ok || !res.data.journal) return push(errText(res.data.error), 'bad');
@@ -572,6 +629,11 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
               <tr>
                 <th scope="col">{t('journal.account')}</th>
                 <th scope="col">{t('editor.colDescription')}</th>
+                {tracking.map((c) => (
+                  <th key={c.id} scope="col">
+                    {c.name}
+                  </th>
+                ))}
                 <th scope="col" className="num">
                   {t('journal.debit')}
                 </th>
@@ -599,6 +661,23 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
                   <td data-label={t('editor.colDescription')}>
                     <input className="input bk-cell bk-cell-wide" aria-label={t('editor.colDescription')} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} />
                   </td>
+                  {tracking.map((c) => {
+                    const key = c.slot === 'a' ? 'trackingA' : 'trackingB';
+                    return (
+                      <td key={c.id} data-label={c.name}>
+                        <select className="select bk-cell" aria-label={c.name} value={l[key] ?? ''} onChange={(e) => setLine(l.key, { [key]: e.target.value || null })}>
+                          <option value="">{t('common.none')}</option>
+                          {c.options
+                            .filter((o) => !o.archived)
+                            .map((o) => (
+                              <option key={o.id} value={o.id}>
+                                {o.name}
+                              </option>
+                            ))}
+                        </select>
+                      </td>
+                    );
+                  })}
                   <td data-label={t('journal.debit')}>
                     <MoneyInput value={l.debit} onChange={(v) => setLine(l.key, { debit: v, ...(v ? { credit: null } : {}) })} currency={currency} label={t('journal.debit')} />
                   </td>
@@ -615,7 +694,7 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row" colSpan={2}>
+                <th scope="row" colSpan={2 + tracking.length}>
                   {t('journal.totals')}
                 </th>
                 <td className="num data">{formatMoney(debit, currency, locale)}</td>
@@ -680,14 +759,12 @@ export function JournalView({ journal, currency, canWrite }: { journal: JournalD
       />
       <section className="panel bk-panel">
         {journal.memo && <p>{journal.memo}</p>}
-        <div className="bk-table-wrap">
+        <div className="table-wrap bk-table-wrap table-stack">
           <table className="table bk-table">
             <thead>
               <tr>
                 <th scope="col">{t('journal.account')}</th>
-                <th scope="col" className="bk-hide-sm">
-                  {t('editor.colDescription')}
-                </th>
+                <th scope="col">{t('editor.colDescription')}</th>
                 <th scope="col" className="num">
                   {t('journal.debit')}
                 </th>
@@ -702,16 +779,20 @@ export function JournalView({ journal, currency, canWrite }: { journal: JournalD
                   <th scope="row">
                     <span className="data">{l.accountCode}</span> {l.accountName}
                   </th>
-                  <td className="bk-hide-sm">{l.description}</td>
-                  <td className="num">{l.debit ? formatMoney(l.debit, currency, locale) : ''}</td>
-                  <td className="num">{l.credit ? formatMoney(l.credit, currency, locale) : ''}</td>
+                  <td data-label={t('editor.colDescription')}>{l.description}</td>
+                  <td className="num" data-label={t('journal.debit')}>
+                    {l.debit ? formatMoney(l.debit, currency, locale) : ''}
+                  </td>
+                  <td className="num" data-label={t('journal.credit')}>
+                    {l.credit ? formatMoney(l.credit, currency, locale) : ''}
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
                 <th scope="row">{t('journal.totals')}</th>
-                <td className="bk-hide-sm" />
+                <td />
                 <td className="num data">{formatMoney(journal.total, currency, locale)}</td>
                 <td className="num data">{formatMoney(journal.total, currency, locale)}</td>
               </tr>

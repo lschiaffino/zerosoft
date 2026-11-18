@@ -139,7 +139,12 @@ test('Docs: el botón se borra desde su configuración, con Backspace y desde el
   await expect(block).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+z');
   await expect(block).toHaveCount(1);
-  await block.getByTestId('docs-button-run').focus();
+  // Deshacer devuelve el foco a la tarjeta en el próximo frame: se espera eso
+  // antes de pasar el foco al botón de adentro, o la tarjeta se lo vuelve a sacar.
+  await expect(block).toBeFocused();
+  const run = block.getByTestId('docs-button-run');
+  await run.focus();
+  await expect(run).toBeFocused();
   await page.keyboard.press('Backspace');
   await expect(block).toHaveCount(1);
 

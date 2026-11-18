@@ -23,6 +23,8 @@ import { useLinesPersonSheet } from './person-sheet';
 import { knownPrivateQuote, peekPendingPrivateReply, setPendingPrivateReply, takePendingPrivateReply } from './private-reply';
 import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
+import ReplyFromSelect from './ReplyFromSelect';
+import { defaultReplyLine } from '@/lib/same-chat';
 import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
@@ -258,6 +260,8 @@ export default function ChatThread(props: ThreadProps) {
   });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  // "Responder desde" elegido a mano, por chat (cambiar de chat vuelve a la línea por defecto).
+  const [pickedFrom, setPickedFrom] = useState<{ chat: string; line: string } | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   // El cuadro de quién reaccionó: el mensaje (el primero del álbum) y su globito.
   const [rxFor, setRxFor] = useState<{ id: string; anchor: HTMLElement } | null>(null);
@@ -878,6 +882,7 @@ export default function ChatThread(props: ThreadProps) {
         const withCaption = kind !== 'audio';
         const cid = sendLinesMedia({
           chatId: chat.id,
+          ...(via ? { via } : {}),
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
           file: f.file,
@@ -920,7 +925,9 @@ export default function ChatThread(props: ThreadProps) {
    * componente (./optimistic.ts): si falla cuando ya se abrió otro chat, al volver a este la burbuja sigue acá.
    */
   function sendTextNow(body: string, replyToId: string | null, mentions: string[] = [], noPreview = false) {
-    void sendLinesText(unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}) }).clientId);
+    void sendLinesText(
+      unsentLines.add({ chatId: chat.id, body, replyToId, ...(mentions.length ? { mentions } : {}), ...(noPreview ? { noPreview: true } : {}), ...(via ? { via } : {}) }).clientId,
+    );
   }
   // Lo pendiente de este chat, a la vista: al abrirlo (lo que no salió antes sigue acá) y cada vez que cambia.
   useEffect(() => {
@@ -1089,7 +1096,7 @@ export default function ChatThread(props: ThreadProps) {
       const file = new File(state.chunks, name, { type });
       // La burbuja aparece ya, con el reloj y el audio que se puede escuchar; la subida y el envío siguen por detrás.
       notifyChatSent(chatId);
-      sendLinesMedia({ chatId, body: '', replyToId: replyToRef.current?.id ?? null, file, media: { kind: 'voice', name, type, size: file.size, duration: seconds } });
+      sendLinesMedia({ chatId, ...(via ? { via } : {}), body: '', replyToId: replyToRef.current?.id ?? null, file, media: { kind: 'voice', name, type, size: file.size, duration: seconds } });
       setReplyTo(null);
       setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
       refresh();
@@ -1288,7 +1295,7 @@ export default function ChatThread(props: ThreadProps) {
 
   /** La encuesta del menú +: '' si salió (el diálogo se cierra), o el código de error. */
   async function sendPoll(poll: PollDraft): Promise<string> {
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll } });
+    const res = await api<MessageDto>(`/api/groups/chats/${via || chat.id}/messages`, { body: { poll } });
     if (!res.data) return res.error || 'send_failed';
     merge([res.data]);
     if (res.data.status === 'failed') return res.data.error || 'send_failed';
@@ -1559,6 +1566,7 @@ export default function ChatThread(props: ThreadProps) {
     void sendLinesText(
       unsentLines.add({
         chatId: chat.id,
+        ...(via ? { via } : {}),
         body: '',
         replyToId: replyTo?.id ?? null,
         media: { kind: 'sticker', url: m.url, type: m.mimetype || 'image/webp', name: m.filename || 'sticker.webp', size: m.size ?? 0, width: m.width, height: m.height },
@@ -1728,6 +1736,19 @@ export default function ChatThread(props: ThreadProps) {
         ? `+${chat.phone}`
         : t('wa.whatsappContact');
 
+  // "Responder desde": por defecto, la línea del último mensaje que entró o salió (si puede mandar), si no la del chat
+  // abierto. Elegir otra queda hasta cambiar de chat.
+  const lastLineChat = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if ((m.direction === 'in' || m.direction === 'out') && !isTempId(m.id)) return m.chatId;
+    }
+    return null;
+  })();
+  const pickedLine = pickedFrom?.chat === chat.id ? pickedFrom.line : null;
+  const replyLine = pickedLine &&chat.lines?.some((l) => l.chatId === pickedLine && l.canSend) ? pickedLine : (defaultReplyLine(chat.lines ?? [], lastLineChat, chat.id)?.chatId ?? chat.id);
+  // El chat por el que sale (vacío: el abierto). Las notas internas siempre quedan en el abierto.
+  const via = (chat.lines?.length ?? 0) > 1 && replyLine !== chat.id ? replyLine : '';
   // El mismo chat en varias líneas: cada mensaje sabe por cuál entró o salió (MessageDto.chatId). La etiqueta de la
   // línea va en el primero y cada vez que cambia; todos la llevan en el título de la hora.
   const lineNames = new Map((chat.lines ?? []).map((l) => [l.chatId, l.name]));
@@ -2502,6 +2523,18 @@ export default function ChatThread(props: ThreadProps) {
               ))}
             </div>
           )}
+          {mode === 'reply' && !editing && (chat.lines?.length ?? 0) > 1 && (
+            <ReplyFromSelect
+              lines={chat.lines ?? []}
+              value={replyLine}
+              onChange={(id) => {
+                setPickedFrom({ chat: chat.id, line: id });
+                inputRef.current?.focus();
+              }}
+              label={t('thread.replyFrom')}
+              unavailable={t('thread.lineUnavailable')}
+            />
+          )}
           {mode === 'note' && (
             <p className="wa-note-strip">
               {t('thread.noteHint')}
@@ -3018,7 +3051,7 @@ export default function ChatThread(props: ThreadProps) {
       </Modal>
       <ContactPicker
         open={contactOpen}
-        chatId={chat.id}
+        chatId={via || chat.id}
         onClose={() => setContactOpen(false)}
         onSent={(m) => {
           merge([m]);
