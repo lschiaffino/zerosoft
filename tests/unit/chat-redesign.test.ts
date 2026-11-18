@@ -25,6 +25,9 @@ const values: WidgetFormValues = {
   helpEnabled: false,
   locale: 'es',
   offlineEmailMinutes: 30,
+  font: 'system',
+  visitorAttachments: 'all',
+  replyTime: '',
 };
 
 describe('editor de widget en pestañas', () => {

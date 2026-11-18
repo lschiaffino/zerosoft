@@ -1,6 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { chatError, chatSession, collabError, readBody, type ChatSession } from '@/lib/chat-http';
-import { campaignCap, describeAudience, deleteCampaign, getCampaign, processChatCampaigns, startCampaign, updateCampaign } from '@/lib/chat-campaigns';
+import { campaignCap, describeAudience, deleteCampaign, getCampaign, processChatCampaigns, scheduleCampaign, startCampaign, unscheduleCampaign, updateCampaign } from '@/lib/chat-campaigns';
 import { recordChatAudit } from '@/lib/chat-audit';
 
 export const dynamic = 'force-dynamic';
@@ -45,8 +45,14 @@ export async function POST(req: Request, props: Ctx) {
   if (s instanceof NextResponse) return s;
   if (!(await visible(s, id))) return chatError(404, 'not_found');
   const body = await readBody(req);
-  if (body?.action !== 'send') return chatError(400, 'invalid_input');
   try {
+    if (body?.action === 'schedule') {
+      const campaign = await scheduleCampaign(s.ws, id, body.at);
+      await recordChatAudit(s.ws, s.me, 'campaign.scheduled', { id, at: campaign.scheduled_at });
+      return NextResponse.json(campaign);
+    }
+    if (body?.action === 'unschedule') return NextResponse.json(await unscheduleCampaign(s.ws, id));
+    if (body?.action !== 'send') return chatError(400, 'invalid_input');
     const campaign = await startCampaign(s.ws, id);
     await recordChatAudit(s.ws, s.me, 'campaign.sent', { id, recipients: campaign.total });
     const origin = new URL(req.url).origin;
