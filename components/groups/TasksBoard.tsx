@@ -240,13 +240,18 @@ function EditTaskModal({
   const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('');
   const [busy, setBusy] = useState(false);
+  // Se carga al abrir otra tarea, no cada vez que llega el mismo objeto de nuevo (la lista se recarga).
+  const taskRef = useRef(task);
+  taskRef.current = task;
+  const taskId = task?.id ?? null;
   useEffect(() => {
-    if (!task) return;
-    setTitle(task.title);
-    setDue(isoToLocal(task.dueAt));
-    setNotes(task.notes);
-    setPriority(task.priority ?? '');
-  }, [task]);
+    const cur = taskRef.current;
+    if (!cur) return;
+    setTitle(cur.title);
+    setDue(isoToLocal(cur.dueAt));
+    setNotes(cur.notes);
+    setPriority(cur.priority ?? '');
+  }, [taskId]);
   return (
     <Modal
       open={!!task}

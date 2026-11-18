@@ -137,9 +137,10 @@ test('Inbox: documento con texto editado, como la tarjeta de WhatsApp', async ({
   const title = `Documentos Inbox ${uid()}`;
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: events('inbox', gid, title) } });
   expect(res.ok(), await res.text()).toBe(true);
+  // Los mensajes son de hace una hora: con muchos chats del worker no entran en la primera página de la lista.
+  const [th] = await sql('SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?', [String(acc.id), gid]);
   const open = async () => {
-    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+    await page.goto(`/en/app/inbox?t=${String(th.id)}`, { waitUntil: 'networkidle' });
     await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 30_000 });
   };
   await open();

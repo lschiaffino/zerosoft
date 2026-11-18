@@ -12,6 +12,9 @@ import { waLinkIp } from './helpers/wa-link';
 /** Lleva un chat a una carpeta como una persona: lo levanta hacia abajo y recién después va al lateral.
  *  Un movimiento de costado desde la fila es deslizar, no arrastrar. */
 async function liftTo(page: Page, from: Locator, to: Locator) {
+  // Con muchas carpetas (otras pruebas del mismo worker) la de destino puede quedar fuera del sidebar visible.
+  await to.scrollIntoViewIfNeeded();
+  await from.scrollIntoViewIfNeeded();
   const a = (await from.boundingBox())!;
   const b = (await to.boundingBox())!;
   const x = a.x + a.width / 2;
@@ -553,10 +556,10 @@ test('traer todo el historial de WhatsApp (servidor falso): espera, pagina, avan
   await expect(job).toContainText('Done', { timeout: 60_000 });
   await expect(job).toContainText('3 of 3 chats');
   await expect(job.getByRole('progressbar')).toHaveAttribute('value', '100');
-  await page.goto('/en/app/inbox/v/whatsapp', { waitUntil: 'networkidle' });
-  const ana = page.locator('.ib-item', { hasText: 'Historial Ana' });
-  await expect(ana).toBeVisible();
-  await ana.locator('.ib-row-btn').click();
+  // Los mensajes del historial son viejos: con muchos chats del worker el de Ana queda fuera de la primera página
+  // de la lista, así que se abre por id.
+  const [anaThread] = await sql("SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = '5491170000001@s.whatsapp.net'", [acc.id]);
+  await page.goto(`/en/app/inbox?t=${String(anaThread.id)}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.gr-msg', { hasText: 'Historial Ana mensaje 230' })).toBeVisible();
   const n = await sql("SELECT COUNT(*) AS n FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.account_id = ? AND t.external_id = '5491170000001@s.whatsapp.net'", [acc.id]);
   expect(Number(n[0].n)).toBe(230);

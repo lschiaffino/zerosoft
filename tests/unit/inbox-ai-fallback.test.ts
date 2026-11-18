@@ -26,7 +26,7 @@ vi.mock('@/lib/assistant/config', async (orig) => ({ ...(await orig<typeof impor
 import { setAiModelOverride } from '@/lib/ai';
 import { withoutReasoning } from '@/lib/assistant/config';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
-import { inboxAiText } from '@/lib/inbox/ai';
+import { aiFailureLogLine, inboxAiText } from '@/lib/inbox/ai';
 import { makeUser } from './helpers';
 
 function words(text: string) {
@@ -67,7 +67,7 @@ describe('Inbox IA: si un modelo no escribe nada, prueba el siguiente', () => {
     setAiModelOverride(words('dale, mañana'));
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(await inboxAiText(owner, { action: 'draft', threadId: t.id })).toBe('dale, mañana');
-    expect(err).toHaveBeenCalledWith(expect.stringContaining('empty response'));
+    expect(err).toHaveBeenCalledWith(expect.stringContaining('EmptyResponse'));
     err.mockRestore();
   });
 
@@ -82,5 +82,20 @@ describe('Inbox IA: si un modelo no escribe nada, prueba el siguiente', () => {
     vi.unstubAllGlobals();
     expect(JSON.parse(seen[0]).reasoning).toEqual({ enabled: false });
     expect(JSON.parse(seen[1]).reasoning).toEqual({ effort: 'high' });
+  });
+});
+
+describe('Inbox IA: el log de un fallo no lleva contenido', () => {
+  it('solo nombre, estado y código; nunca el mensaje del proveedor', () => {
+    const err = Object.assign(new Error('Bad request: "hola, te paso mi clave 1234"'), { name: 'AI_APICallError', statusCode: 400, code: 'invalid_request' });
+    const line = aiFailureLogLine('openrouter', 'openrouter:m', err);
+    expect(line).toBe('[inbox-ai] openrouter openrouter:m failed: AI_APICallError 400 invalid_request');
+    expect(line).not.toContain('clave');
+  });
+
+  it('un nombre o código raro no se copia al log', () => {
+    const line = aiFailureLogLine('gateway', 'g', { name: 'texto del chat con espacios', code: 'x y z', message: 'secreto' });
+    expect(line).toBe('[inbox-ai] gateway g failed: Error');
+    expect(aiFailureLogLine('gateway', 'g', null)).toBe('[inbox-ai] gateway g failed: Error');
   });
 });

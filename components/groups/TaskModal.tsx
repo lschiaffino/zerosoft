@@ -1,7 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { GroupsPerson } from '@/lib/groups';
@@ -71,15 +71,22 @@ export default function TaskModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // El formulario arranca de cero al abrirse o al cambiar de mensaje, nada más. El chat le pasa un objeto
+  // nuevo cada vez que se refresca (llegan miembros o mensajes): depender del objeto borraba lo que se escribía.
+  const messageRef = useRef(message);
+  messageRef.current = message;
+  const meRef = useRef(me);
+  meRef.current = me;
+  const messageId = message?.id ?? null;
   useEffect(() => {
     if (!open) return;
     setPriority('');
-    setTitle((message?.body.split('\n').find((l) => l.trim()) ?? '').trim().slice(0, 120));
+    setTitle((messageRef.current?.body.split('\n').find((l) => l.trim()) ?? '').trim().slice(0, 120));
     setDue(quickDue('tomorrow'));
-    setOwnerId(me);
+    setOwnerId(meRef.current);
     setNotes('');
     setError('');
-  }, [open, message, me]);
+  }, [open, messageId]);
 
   async function submit() {
     if (!title.trim()) return;
