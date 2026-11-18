@@ -124,8 +124,9 @@ async function fetchImage(url: string | undefined, max: number, types: RegExp): 
 }
 
 /**
- * Clave de la caché de vistas previas: la tabla es global (sin dueño, no se
- * borra con la cuenta), así que guarda un HMAC de la URL y nunca la URL. Con
+ * Clave de la caché de vistas previas: la tabla es global (sin dueño; al
+ * borrar una cuenta se borran las claves de los links de sus mensajes, ver
+ * forgetPreviews), así que guarda un HMAC de la URL y nunca la URL. Con
  * la clave del servidor, quien lea la tabla no puede probar URLs a ver si
  * alguien las compartió. Si la clave cambia, la caché solo se vuelve a llenar.
  */
@@ -243,6 +244,35 @@ export async function prunePreviewCache(now = Date.now(), batch = 2000, maxBatch
       .run(cutoff, KEY_PREFIX, batch);
     total += res.changes;
     if (res.changes < batch) break;
+  }
+  return total;
+}
+
+/** Claves de la caché de los links http(s) de un texto (todos, no solo el primero). */
+export function previewKeysIn(text: string, out: Set<string> = new Set()): Set<string> {
+  for (const m of String(text ?? '').matchAll(/\bhttps?:\/\/[^\s<>"']+/gi)) {
+    for (const raw of new Set([m[0], m[0].replace(/[).,;:!?]+$/, '')])) {
+      const url = cleanPreviewUrl(raw);
+      if (url) out.add(previewKey(url));
+    }
+  }
+  return out;
+}
+
+/**
+ * Borra de la caché las vistas previas de estas claves (borrado de cuenta o
+ * workspace: los links de sus mensajes no quedan en la tabla compartida). Si
+ * otra persona compartió el mismo link, su vista previa solo se vuelve a leer.
+ */
+export async function forgetPreviews(keys: Iterable<string>, batch = 200): Promise<number> {
+  const all = [...keys];
+  let total = 0;
+  for (let i = 0; i < all.length; i += batch) {
+    const part = all.slice(i, i + batch);
+    const res = await getDb()
+      .prepare(`DELETE FROM wa_link_previews WHERE url IN (${part.map(() => '?').join(', ')})`)
+      .run(...part);
+    total += res.changes;
   }
   return total;
 }
