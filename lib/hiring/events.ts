@@ -24,7 +24,8 @@ export type EventKind =
   | 'rejected'
   | 'reactivated'
   | 'hired'
-  | 'ai';
+  | 'ai'
+  | 'restored';
 
 export async function addEvent(
   ws: string,
