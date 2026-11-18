@@ -115,6 +115,11 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
     no previous op`: dos intentos y Baileys abandonaba `regular_low`, también en líneas recién vinculadas). Se
     saltea ese cambio, como WhatsApp Web y Baileys 7.0.0-rc14 (`sed` sobre `chat-utils.js`; el build falla si la
     línea cambió);
+  - un registro que no se puede descifrar (`bad decrypt`) ya no tira la colección entera. El 18/11 la línea del
+    dueño, recién vinculada, no pudo leer nunca `regular_low` por un registro así en su snapshot, y no archivaba en
+    ninguna dirección. Ese registro se saltea, pero su MAC igual entra en el hash de la colección (el hash se arma
+    con los MAC, no con el contenido), así el estado local sigue igual al del teléfono. Baileys 7.0.0-rc14 también
+    lo saltea, pero sin sumar el MAC;
   - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
     claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
 

@@ -1,8 +1,8 @@
 diff --git a/Dockerfile b/Dockerfile
-index 0fe7534..d0885c5 100644
+index 0fe7534..ca2176e 100644
 --- a/Dockerfile
 +++ b/Dockerfile
-@@ -25,6 +25,21 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
+@@ -25,6 +25,30 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
      sed -i 's/: () => { }, true);/: () => { }, validateMacs);/' "$f" && \
      grep -q ': () => { }, validateMacs);' "$f"
  
@@ -20,6 +20,15 @@ index 0fe7534..d0885c5 100644
 +    grep -q "throw new Boom('tried remove, but no previous op', { data: { indexMac, valueMac } });" "$f" && \
 +    sed -i "s/throw new Boom('tried remove, but no previous op', { data: { indexMac, valueMac } });/return;/" "$f" && \
 +    ! grep -q 'tried remove, but no previous op' "$f"
++
++# zerosoft: un registro de app-state que no se puede descifrar ("bad decrypt") tiraba la colección entera: en la
++# línea del dueño, recién vinculada el 18/11, regular_low no se pudo leer nunca por un registro así de su snapshot,
++# y la línea no archivaba en ninguna dirección. Ahora ese registro se saltea, pero su MAC igual entra en el hash de
++# la colección (el hash se arma con los MAC, no con el contenido), así el estado local sigue igual al del teléfono.
++RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
++    grep -q '        const result = aesDecrypt(encContent, key.valueEncryptionKey);' "$f" && \
++    sed -i 's/        const result = aesDecrypt(encContent, key.valueEncryptionKey);/        let result; try { result = aesDecrypt(encContent, key.valueEncryptionKey); } catch (zsErr) { ltGenerator.mix({ indexMac: record.index.blob, valueMac: ogValueMac, operation: operation }); continue; }/' "$f" && \
++    grep -q 'catch (zsErr) { ltGenerator.mix' "$f"
 +
  COPY ./src ./src
  COPY ./public ./public
