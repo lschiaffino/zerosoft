@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
  * proveedores disponibles. `canEdit`: puede agregar líneas. Con `?stats=1`, cada
  * línea trae su último mensaje y sus chats abiertos (la tabla de Números).
  */
-export async function GET(req: Request) {
+export async function GET(req?: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const viewer = await sessionViewer(s);
   const list = withManage(s.manager, await listNumbers(s.ws, viewer));
-  const numbers = new URL(req.url).searchParams.get('stats') === '1' ? await withNumberStats(s.ws, viewer, list) : list;
+  const numbers = req && new URL(req.url).searchParams.get('stats') === '1' ? await withNumberStats(s.ws, viewer, list) : list;
   return NextResponse.json({ numbers, providers: availableProviders(), canEdit: s.manager.canAdd, isAdmin: s.isAdmin });
 }
 
