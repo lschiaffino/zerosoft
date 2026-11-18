@@ -1,5 +1,5 @@
 diff --git a/Dockerfile b/Dockerfile
-index 0fe7534..7a1d7e0 100644
+index 0fe7534..9180cc4 100644
 --- a/Dockerfile
 +++ b/Dockerfile
 @@ -25,6 +25,45 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
@@ -30,11 +30,11 @@ index 0fe7534..7a1d7e0 100644
 +RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
 +    grep -q '        const result = aesDecrypt(encContent, key.valueEncryptionKey);' "$f" && \
 +    grep -q '        const syncAction = proto.SyncActionData.decode(result);' "$f" && \
-+    sed -i 's/        const result = aesDecrypt(encContent, key.valueEncryptionKey);/        let result; try { result = aesDecrypt(encContent, key.valueEncryptionKey); } catch (zsErr) { zsCount(record, "bad"); ltGenerator.mix({ indexMac: record.index.blob, valueMac: ogValueMac, operation: operation }); continue; }/' "$f" && \
-+    sed -i 's/        const syncAction = proto.SyncActionData.decode(result);/        let syncAction; try { syncAction = proto.SyncActionData.decode(result); JSON.parse(Buffer.from(syncAction.index).toString()); } catch (zsErr) { zsCount(record, "bad"); ltGenerator.mix({ indexMac: record.index.blob, valueMac: ogValueMac, operation: operation }); continue; } zsCount(record, "ok");/' "$f" && \
++    sed -i 's/        const result = aesDecrypt(encContent, key.valueEncryptionKey);/        let result; try { result = aesDecrypt(encContent, key.valueEncryptionKey); } catch (zsErr) { zsCount(record, "badDecrypt", zsErr, () => Buffer.compare(generateMac(operation, encContent, record.keyId.id, key.valueMacKey), ogValueMac) === 0); ltGenerator.mix({ indexMac: record.index.blob, valueMac: ogValueMac, operation: operation }); continue; }/' "$f" && \
++    sed -i 's/        const syncAction = proto.SyncActionData.decode(result);/        let syncAction; try { syncAction = proto.SyncActionData.decode(result); JSON.parse(Buffer.from(syncAction.index).toString()); } catch (zsErr) { zsCount(record, "badDecode", zsErr, () => Buffer.compare(generateMac(operation, encContent, record.keyId.id, key.valueMacKey), ogValueMac) === 0); ltGenerator.mix({ indexMac: record.index.blob, valueMac: ogValueMac, operation: operation }); continue; } zsCount(record, "ok");/' "$f" && \
 +    echo >> "$f" && \
-+    echo 'function zsCount(record, k) { try { const id = Buffer.from(record.keyId.id).toString("base64"); const s = (globalThis.__zsAppStateStats = globalThis.__zsAppStateStats || {}); const e = (s[id] = s[id] || { ok: 0, bad: 0 }); e[k]++; } catch { } }' >> "$f" && \
-+    grep -c 'zsCount(record, "bad")' "$f" | grep -q 2 && \
++    echo 'function zsCount(record, k, err, macFn) { try { const id = Buffer.from(record.keyId.id).toString("base64"); const s = (globalThis.__zsAppStateStats = globalThis.__zsAppStateStats || { keys: {}, errors: [] }); const e = (s.keys[id] = s.keys[id] || { ok: 0, badDecrypt: 0, badDecode: 0, macOk: 0, macBad: 0 }); e[k]++; if (macFn) e[macFn() ? "macOk" : "macBad"]++; if (err && s.errors.length < 6) s.errors.push(k + ": " + String(err.message).slice(0, 140)); } catch { } }' >> "$f" && \
++    grep -c 'zsCount(record, "bad' "$f" | grep -q 2 && \
 +    tail -n 1 "$f" | grep -q '^function zsCount'
 +
 +# zerosoft: qué respondió WhatsApp al pedir cada colección de app-state (atributos y nombres de los nodos, sin
@@ -67,7 +67,7 @@ index bba2ec5..6425754 100644
    public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
      const instance = this.waMonitor.waInstances[instanceName];
 diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-index 25d8ff7..51acef5 100644
+index 25d8ff7..3a1984d 100644
 --- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 +++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 @@ -644,7 +644,7 @@ export class BaileysStartupService extends ChannelStartupService {
@@ -79,7 +79,7 @@ index 25d8ff7..51acef5 100644
        },
        msgRetryCounterCache: this.msgRetryCounterCache,
        generateHighQualityLinkPreview: true,
-@@ -3861,21 +3861,141 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -3861,21 +3861,154 @@ export class BaileysStartupService extends ChannelStartupService {
      return lastMessage as unknown as LastMessage;
    }
  
@@ -201,10 +201,23 @@ index 25d8ff7..51acef5 100644
 +  // zerosoft: por id de clave (un identificador, no la clave), cuántos registros de app-state se leyeron y cuántos
 +  // no desde que arrancó el proceso (todas las líneas juntas), y si esta línea tiene guardada esa clave.
 +  private async zsRecordStats(stored: any) {
-+    const stats: Record<string, { ok: number; bad: number }> = (globalThis as any).__zsAppStateStats ?? {};
-+    const ids = Object.keys(stats);
++    const stats: any = (globalThis as any).__zsAppStateStats ?? { keys: {}, errors: [] };
++    const ids = Object.keys(stats.keys);
 +    const have: any = stored && ids.length ? await stored.get('app-state-sync-key', ids) : {};
-+    return ids.map((id) => ({ keyId: id, ok: stats[id].ok, bad: stats[id].bad, stored: !!have?.[id] }));
++    const total: Record<string, number> = { keys: ids.length, stored: 0 };
++    for (const id of ids) {
++      if (have?.[id]) total.stored++;
++      for (const k in stats.keys[id]) total[k] = (total[k] ?? 0) + stats.keys[id][k];
++    }
++    const ownId = this.client?.authState?.creds?.myAppStateKeyId;
++    const own: any = ownId && stored ? (await stored.get('app-state-sync-key', [ownId]))?.[ownId] : null;
++    const data: any = own?.keyData;
++    return {
++      total,
++      errors: stats.errors,
++      ownKey: { id: ownId ?? null, stats: stats.keys[ownId] ?? null },
++      ownKeyData: data ? { buffer: Buffer.isBuffer(data), ctor: data?.constructor?.name, length: data?.length ?? null } : null,
++    };
 +  }
 +
 +  // zerosoft: diagnóstico del archivado de la línea, sin tocar nada ni mostrar claves.
