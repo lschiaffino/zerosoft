@@ -50,6 +50,8 @@
 }
 .gr-banner.is-warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn-ink) 35%, var(--bg)); }
 .gr-banner.is-bad { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad-ink) 35%, var(--bg)); }
+.gr-import-result { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.gr-import-result ul { margin: 0; padding-left: 18px; font-size: 0.8125rem; }
 .gr-banner.is-ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok-ink) 35%, var(--bg)); }
 
 /* Placa cuadrada (iniciales o el ícono de grupo). */

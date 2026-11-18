@@ -20,6 +20,7 @@ import SettingsTabs from '@/components/ui/SettingsTabs';
 import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
 import DisplaySection from '@/components/chat-style/DisplaySection';
 import NumbersSettings from '@/components/groups/NumbersSettings';
+import PeriskopeImport from '@/components/groups/PeriskopeImport';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
 
@@ -40,7 +41,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/mcp',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'api', 'apps', 'appearance'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -58,6 +59,8 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   log: 'audit',
   mobile: 'apps',
   notifications: 'apps',
+  periskope: 'migrate',
+  import: 'migrate',
 };
 
 export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string; reconnect?: string }> }) {
@@ -147,6 +150,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     ) : (
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
+  else if (tab === 'migrate') body = admin ? <PeriskopeImport /> : <p className="ui-help">{t('access.adminsOnly')}</p>;
   else if (tab === 'apps') body = <AppsPanel />;
   else if (tab === 'appearance')
     body = (
