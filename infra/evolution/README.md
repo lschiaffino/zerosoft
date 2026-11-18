@@ -99,6 +99,37 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   versión oficial; `evolutionStickerBody` en lib/groups-media.ts), así salen tal cual. Sin este parche ese camino ya
   conserva la animación del archivo, pero el mensaje no lleva `isAnimated`.
 
+- **La causa de fondo del archivado roto (18/11), arreglada en 0010.** Evolution guarda cada clave de app-state en
+  disco con `JSON.stringify`, que usa el `toJSON` del mensaje protobuf y deja los bytes de la clave como texto
+  base64. Al leerla usa `AppStateSyncKeyData.create`, que no los convierte: la clave vuelve como texto, todas las
+  claves derivadas salen mal, y la línea no puede leer ni firmar ningún cambio de archivado. Una línea recién
+  vinculada andaba unos minutos (la clave seguía en la caché en memoria de Baileys, 5 minutos) y después dejaba de
+  archivar en las dos direcciones. Ahora, al leer una clave guardada como texto, se convierte a bytes.
+
+- `0010-ask-phone-for-app-state-keys.patch`: una línea sin su clave de app-state ya no queda sin archivar para
+  siempre. Las claves viven en disco, y las líneas vinculadas antes de que hubiera volumen las perdieron en un
+  deploy: el teléfono solo las manda al vincular, o si se las piden. Ahora:
+  - antes de archivar o marcar no leído, si falta la clave de la línea se le pide al teléfono
+    (`APP_STATE_SYNC_KEY_REQUEST`, el mensaje entre dispositivos propios que usa WhatsApp Web) y se espera hasta 12 s;
+    Baileys la guarda sola al recibir la respuesta. Lo mismo si `regular_low` no se puede leer porque tiene cambios
+    cifrados con claves anteriores que faltan: se piden esas y se relee una vez. Cada clave se pide como mucho una
+    vez cada 10 minutos;
+  - si el teléfono no las manda, sigue el `409` (`missing_key`, `sync_failed`, o `sync_failed_missing_keys` cuando
+    lo que impide leer la colección son claves que faltan) y hay que volver a vincular;
+  - cuando Baileys no puede leer una colección de app-state, el motivo sale en el log como error (antes iba en
+    nivel info, que no se guarda, y la línea dejaba de archivar sin rastro);
+  - un `REMOVE` sobre una entrada que el estado local no tiene ya no tira la colección entera (`tried remove, but
+    no previous op`: dos intentos y Baileys abandonaba `regular_low`, también en líneas recién vinculadas). Se
+    saltea ese cambio, como WhatsApp Web y Baileys 7.0.0-rc14 (`sed` sobre `chat-utils.js`; el build falla si la
+    línea cambió);
+  - un registro que no se puede descifrar (`bad decrypt`) ya no tira la colección entera. El 18/11 la línea del
+    dueño, recién vinculada, no pudo leer nunca `regular_low` por un registro así en su snapshot, y no archivaba en
+    ninguna dirección. Ese registro se saltea, pero su MAC igual entra en el hash de la colección (el hash se arma
+    con los MAC, no con el contenido), así el estado local sigue igual al del teléfono. Baileys 7.0.0-rc14 también
+    lo saltea, pero sin sumar el MAC;
+  - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
+    claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
+
 **Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
 workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
 después de publicarse `zs6`. Para ver cuál corre: `railway deployment list -p <proyecto> -s evolution --json`
