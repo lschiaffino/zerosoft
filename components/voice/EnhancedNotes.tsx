@@ -40,10 +40,18 @@ export default function EnhancedNotes({
   const [sent, setSent] = useState<NonNullable<VoiceEnhanced['sent']>>(enhanced.sent ?? {});
   const [error, setError] = useState<string | null>(null);
 
+  // Un refresco de la reunión (cada pocos segundos) trae la misma nota en un objeto nuevo: las tildes solo
+  // vuelven a todas cuando cambian los próximos pasos (nota regenerada), y lo ya creado se suma a lo de acá.
+  const itemsKey = JSON.stringify(enhanced.actionItems);
+  const sentKey = JSON.stringify(enhanced.sent ?? {});
   useEffect(() => {
-    setPicked(new Set(enhanced.actionItems.map((_, i) => i)));
-    setSent(enhanced.sent ?? {});
-  }, [enhanced]);
+    setPicked(new Set((JSON.parse(itemsKey) as unknown[]).map((_, i) => i)));
+    setSent(JSON.parse(sentKey) as NonNullable<VoiceEnhanced['sent']>);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
+  useEffect(() => {
+    setSent((prev) => ({ ...prev, ...(JSON.parse(sentKey) as NonNullable<VoiceEnhanced['sent']>) }));
+  }, [sentKey]);
 
   useEffect(() => {
     if (!enhanced.actionItems.length) return;

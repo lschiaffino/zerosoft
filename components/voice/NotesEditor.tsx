@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { VoiceEnhanced, VoiceEnhancedPoint } from '@/lib/voice-types';
+import { incomingReplacesNote, rememberSent } from '@/lib/voice-notes-sync';
 
 type Point = VoiceEnhancedPoint & { id: string };
 interface Section {
@@ -120,12 +121,15 @@ export default function NotesEditor({
   // Una nota nueva (regenerada) reemplaza el documento. No al montar (ya se armó con ella) ni
   // cuando llega la misma nota otra vez (un refresco de la reunión): rehacerlo cambia los ids de
   // las viñetas y se pierde el foco y lo que se está escribiendo.
+  // Tampoco cuando trae algo que este editor mandó a guardar (llega tarde, ya se siguió escribiendo) ni con
+  // cambios escritos sin mandar: el refresco no pisa lo local.
   const seen = useRef(signature(enhanced));
+  const mine = useRef(new Set<string>());
   useEffect(() => {
     const sig = signature(enhanced);
     if (sig === seen.current) return;
     seen.current = sig;
-    if (sig === signature(fromDoc(latest.current))) return;
+    if (!incomingReplacesNote(sig, signature(fromDoc(latest.current)), mine.current, dirty.current)) return;
     const next = toDoc(enhanced);
     // `latest` es de donde salen las ediciones: tiene que ser el documento que se muestra.
     latest.current = next;
@@ -138,7 +142,9 @@ export default function NotesEditor({
     timer.current = null;
     if (dirty.current) {
       dirty.current = false;
-      onSave(fromDoc(latest.current));
+      const out = fromDoc(latest.current);
+      rememberSent(mine.current, signature(out));
+      onSave(out);
     }
   };
   useEffect(() => () => flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
