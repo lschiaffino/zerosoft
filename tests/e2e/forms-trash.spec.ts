@@ -82,38 +82,48 @@ test('Forms: la retención manda a la papelera, se ve en Ajustes y se restaura',
   expect((await request.post(`/api/forms/${formId}/trash`, { data: { entryId: 'sdel_nope' } })).status()).toBe(404);
 });
 
-for (const look of ['current', 'lines', 'classic', 'liquid', 'retro'] as const) {
-  test(`Forms: papelera en ${look}, claro a 1280 y oscuro a 390`, async ({ browser, baseURL, request }, info) => {
-    test.setTimeout(120_000);
-    const { formId } = await formWithOldResponses(request);
-    for (const [theme, width] of [
-      ['light', 1280],
-      ['dark', 390],
-    ] as const) {
-      const context = await browser.newContext({ baseURL });
-      await context.addCookies([
-        { name: 'zs_look', value: look, url: baseURL! },
-        { name: 'zs_theme', value: theme, url: baseURL! },
-      ]);
-      const page = await context.newPage();
-      const errors: string[] = [];
-      page.on('pageerror', (e) => errors.push(e.message));
-      await page.setViewportSize({ width, height: 900 });
-      await openSettings(page, formId);
-      await expect(page.locator('html')).toHaveAttribute('data-look', look);
-      const item = page.getByTestId('forms-trash-item');
-      await expect(item).toHaveCount(1);
-      const restore = item.getByTestId('forms-trash-restore');
-      await expect(restore).toBeVisible();
-      // El botón entra entero en la fila y la fila en la pantalla.
-      const [row, btn] = await Promise.all([item.boundingBox(), restore.boundingBox()]);
-      expect(btn!.x + btn!.width).toBeLessThanOrEqual(row!.x + row!.width + 0.5);
-      expect(row!.x + row!.width).toBeLessThanOrEqual(width);
-      expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
-      await page.getByTestId('forms-trash').scrollIntoViewIfNeeded();
-      await info.attach(`trash-${look}-${theme}-${width}`, { body: await page.getByTestId('forms-trash').screenshot(), contentType: 'image/png' });
-      expect(errors).toEqual([]);
-      await context.close();
-    }
-  });
+const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
+
+/** El aspecto es de la cuenta (users.ui_look manda sobre la cookie zs_look); el usuario demo es compartido. */
+async function setLook(request: APIRequestContext, look: (typeof LOOKS)[number]) {
+  const res = await request.put('/api/profile/look', { data: { look } });
+  expect(res.ok(), await res.text()).toBe(true);
 }
+
+test('Forms: la papelera en los cinco aspectos, claro a 1280 y oscuro a 390', async ({ browser, baseURL, request }, info) => {
+  test.setTimeout(240_000);
+  const { formId } = await formWithOldResponses(request);
+  try {
+    for (const look of LOOKS) {
+      await setLook(request, look);
+      for (const [theme, width] of [
+        ['light', 1280],
+        ['dark', 390],
+      ] as const) {
+        const context = await browser.newContext({ baseURL });
+        await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+        const page = await context.newPage();
+        const errors: string[] = [];
+        page.on('pageerror', (e) => errors.push(e.message));
+        await page.setViewportSize({ width, height: 900 });
+        await openSettings(page, formId);
+        await expect(page.locator('html')).toHaveAttribute('data-look', look);
+        const item = page.getByTestId('forms-trash-item');
+        await expect(item).toHaveCount(1);
+        const restore = item.getByTestId('forms-trash-restore');
+        await expect(restore).toBeVisible();
+        // El botón entra entero en la fila y la fila en la pantalla.
+        const [row, btn] = await Promise.all([item.boundingBox(), restore.boundingBox()]);
+        expect(btn!.x + btn!.width).toBeLessThanOrEqual(row!.x + row!.width + 0.5);
+        expect(row!.x + row!.width).toBeLessThanOrEqual(width);
+        expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
+        await page.getByTestId('forms-trash').scrollIntoViewIfNeeded();
+        await info.attach(`trash-${look}-${theme}-${width}`, { body: await page.getByTestId('forms-trash').screenshot(), contentType: 'image/png' });
+        expect(errors).toEqual([]);
+        await context.close();
+      }
+    }
+  } finally {
+    await setLook(request, 'current');
+  }
+});
