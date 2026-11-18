@@ -90,7 +90,9 @@ const ENTRY_COLS = 'id, workspace_id, app, kind, record_id, scope_id, label, rea
  * Archivos de cada app: cómo se borran al purgar. Import dinámico: este módulo no carga las apps.
  * Cada app que usa el borrado suave con archivos suma su entrada.
  */
-const FILE_DROPPERS: Record<string, () => Promise<(refs: string[]) => Promise<unknown>>> = {};
+const FILE_DROPPERS: Record<string, () => Promise<(refs: string[]) => Promise<unknown>>> = {
+  forms: () => import('./forms/files').then((m) => m.deleteFormFiles),
+};
 
 // ---------- Plazos ----------
 

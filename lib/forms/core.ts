@@ -409,6 +409,7 @@ export async function deleteForm(actor: FormsActor, id: string): Promise<boolean
   const res = await db.prepare('DELETE FROM forms_forms WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
   const { deleteFormFiles } = await import('./files');
   await deleteFormFiles(files.map((f) => f.ref));
+  if (res.changes) await (await import('./trash')).purgeFormTrash(actor.ws, id);
   return res.changes > 0;
 }
 
