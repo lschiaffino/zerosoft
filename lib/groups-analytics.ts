@@ -177,7 +177,7 @@ const SECTION_SQL: Record<Exclude<MessageSection, 'pc'>, string> = {
   a: `SELECT 'a', author_kind, author_id, cur, NULL, COUNT(*), COUNT(DISTINCT chat_id), 0 FROM b WHERE direction = 'out' GROUP BY author_kind, author_id, cur`,
   // Asignaciones (a quién) y cierres (quién) del historial del chat.
   ev: `SELECT 'ev', ev, CASE WHEN ev = 'closed' THEN author_id ELSE ev_to END AS who, cur, NULL, COUNT(*), 0, 0 FROM b
-       WHERE direction = 'system' AND ev IN ('assigned', 'auto_assigned', 'closed') GROUP BY ev, who, cur`,
+       WHERE direction = 'system' AND ev IN ('assigned', 'auto_assigned', 'reassigned_offline', 'closed') GROUP BY ev, who, cur`,
   // Primera respuesta: minutos y cantidad, por período.
   r: `SELECT 'r', cur, NULL, NULL, NULL, (rts - ts + 30) / 60 AS mins, COUNT(*), 0 FROM p WHERE direction = 'in' AND rts IS NOT NULL GROUP BY cur, mins`,
   // Primera respuesta con el día de la consulta y quién respondió.

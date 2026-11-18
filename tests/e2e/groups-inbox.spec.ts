@@ -294,20 +294,20 @@ test('round-robin: equipo y regla en Ajustes, el chat nuevo llega asignado', asy
   await expect(page.getByLabel('Assigned to')).toHaveValue(/.+/);
   await expect(page.locator('.gr-row', { hasText: who }).locator('.gr-row-assignee')).toHaveText('Demo User');
 
-  // Ausente: los chats nuevos esperan sin asignar.
-  // Disponible/ausente vive en el menú de la cuenta (pie del sidebar), con un punto en la foto.
+  // Away: los chats nuevos esperan sin asignar.
+  // El estado (online / away / offline) vive en el menú de la cuenta (pie del sidebar), con un punto en la foto.
   await page.getByTestId('workspace-switcher').click();
-  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'true');
-  await page.getByTestId('side-presence').click();
-  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('side-presence-online')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('side-presence-away').click();
+  await expect(page.getByTestId('side-presence-away')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Escape');
   const later = `Fran${tag}`;
   await inbound(request, n, dm(), 'Anyone?', later);
   await openChat(page, later);
   await expect(page.getByLabel('Assigned to')).toHaveValue('');
   await page.getByTestId('workspace-switcher').click();
-  await page.getByTestId('side-presence').click();
-  await expect(page.getByTestId('side-presence')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('side-presence-online').click();
+  await expect(page.getByTestId('side-presence-online')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Escape');
   await expect(page.locator('.gr-row', { hasText: later }).locator('.gr-row-assignee')).toHaveText('Demo User', { timeout: 10_000 });
 
