@@ -9,6 +9,8 @@
  *   files-migrate    dry | apply | apply-delete   archivos de antes al storage privado (lib/files/migrate.ts)
  *   files-scheduled  dry | apply | apply-delete   lo mismo, solo los mensajes programados de Inbox y Lines
  *   lid-repair       dry | apply                  chats duplicados por lid de WhatsApp (lib/wa-dedupe-repair.ts)
+ *   wa-webhook-header dry | apply                 webhook de las líneas conectadas con el secreto en un header
+ *                                                 (lib/wa-webhook-migrate.ts)
  *
  * Cada tick corre una tanda acotada (~20 s entre todos) y guarda el cursor en `maintenance_jobs` (una fila por
  * trabajo y modo), así retoma en el tick siguiente y se detiene al terminar. Seguridad: `apply` no arranca si el
@@ -24,6 +26,7 @@ import type { Client } from '@libsql/client';
 import { ensureMigrated, getClient } from './db';
 import { migrateStep, newMigrateProgress, SCHEDULED_TABLES, type MigrateOptions, type MigrateProgress, type SeenKeys } from './files/migrate';
 import type { LidRepairReport } from './wa-dedupe-repair';
+import type { WebhookMigrateDeps, WebhookMigrateState } from './wa-webhook-migrate';
 
 export type JobMode = 'dry' | 'apply' | 'apply-delete';
 
@@ -32,6 +35,7 @@ export const MAINTENANCE_JOBS: Record<string, readonly JobMode[]> = {
   'files-migrate': ['dry', 'apply', 'apply-delete'],
   'files-scheduled': ['dry', 'apply', 'apply-delete'],
   'lid-repair': ['dry', 'apply'],
+  'wa-webhook-header': ['dry', 'apply'],
 };
 
 const MODE_ORDER: Record<JobMode, number> = { dry: 0, apply: 1, 'apply-delete': 2 };
@@ -105,6 +109,8 @@ export interface RunOptions {
   files?: Pick<MigrateOptions, 'tables' | 'batch' | 'readOriginal' | 'sizeOf' | 'deleteOriginal'>;
   /** Para tests: el arreglo de lids. */
   lidRepair?: (client: Client, opts: { apply: boolean }) => Promise<LidRepairReport>;
+  /** Para tests: cómo se registra el webhook de cada línea. */
+  webhookDeps?: WebhookMigrateDeps;
 }
 
 interface StepResult {
@@ -221,6 +227,18 @@ async function lidStep(client: Client, spec: JobSpec, o: RunOptions): Promise<St
   return { state: {}, report, done: true, line };
 }
 
+async function webhookStep(spec: JobSpec, state: unknown, deadline: number, o: RunOptions): Promise<StepResult> {
+  const { newWebhookMigrateState, webhookMigrateStep } = await import('./wa-webhook-migrate');
+  const s: WebhookMigrateState = state && typeof state === 'object' && 'phase' in state ? (state as WebhookMigrateState) : newWebhookMigrateState();
+  const done = await webhookMigrateStep(s, { apply: spec.mode === 'apply', deadline, deps: o.webhookDeps });
+  const side = (name: string, c: WebhookMigrateState['inbox']) =>
+    spec.mode === 'apply'
+      ? `${name} migrated ${c.migrated} of ${c.eligible}, failed ${c.failed}, skipped ${c.skipped}`
+      : `${name} would migrate ${c.eligible} of ${c.seen}, skipped ${c.skipped}`;
+  const report = { phase: s.phase, inbox: s.inbox, lines: s.lines };
+  return { state: s, report, done, line: `${side('inbox', s.inbox)}; ${side('lines', s.lines)}, phase ${s.phase}` };
+}
+
 /**
  * Un tick: corre lo que pide MAINTENANCE_JOBS con el tiempo que haya. Devuelve null si la variable no está.
  * Nunca tira: un trabajo que falla queda anotado en su fila.
@@ -284,7 +302,12 @@ export async function runMaintenanceJobs(o: RunOptions = {}): Promise<TickResult
       const ticks = Number(cur?.ticks ?? 0) + 1;
       worked = true;
       try {
-        const step = spec.job === 'lid-repair' ? await lidStep(client, spec, o) : await filesStep(client, spec, safeJson(cur?.state), deadline, o);
+        const step =
+          spec.job === 'lid-repair'
+            ? await lidStep(client, spec, o)
+            : spec.job === 'wa-webhook-header'
+              ? await webhookStep(spec, safeJson(cur?.state), deadline, o)
+              : await filesStep(client, spec, safeJson(cur?.state), deadline, o);
         const at = Date.now();
         await client.execute({
           sql: `UPDATE maintenance_jobs SET status = ?, state = ?, report = ?, ticks = ?, errors = 0, last_error = NULL, locked_until = NULL,

@@ -37,6 +37,7 @@ idempotently, so overlapping runs never double-process.
 | Link history and deferred clicks | Bounded windows | `pruneLinkHistory`, `pruneDeferredClicks` (tick) |
 | Pulse cookieless salts | 2 days (after that, visitor ids cannot be recomputed) | `lib/analytics/cookieless.ts` |
 | Send download cache and leftovers | Short-lived | `purgeSendLeftovers` (minute) |
+| Link preview cache for Inbox and Lines (`wa_link_previews`, shared, keyed by an HMAC of the URL; the URL is not stored) | Refreshed after 7 days, deleted after 14, and on account or workspace deletion (the links in its Inbox and Lines messages) | `prunePreviewCache` (tick); `forgetPreviews` (`eraseNow`) |
 | Recordings and transcripts (Voice, Rec) | While the customer keeps them | The customer; account/workspace deletion |
 
 Customer-configurable retention (Talk, Flow, Hiring, Forms) lets each controller apply its own

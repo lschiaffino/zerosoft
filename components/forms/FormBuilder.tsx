@@ -14,6 +14,7 @@ import SettingsPanel from './SettingsPanel';
 import TranslatePanel from './TranslatePanel';
 import SharePanel from './SharePanel';
 import TitleInput from '@/components/ui/TitleInput';
+import { mergeSaved } from '@/lib/save-merge';
 
 const PANELS = ['build', 'logic', 'design', 'settings', 'translate'] as const;
 type Panel = (typeof PANELS)[number] | 'share';
@@ -84,7 +85,9 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
       }
       setForm(data.form);
       const next = fromForm(data.form);
-      setState(next);
+      // Lo tecleado mientras se guardaba no se pisa: solo lo que no cambió toma el valor del servidor. Si algo
+      // cambió, sigue distinto de lo guardado y el aviso de cambios sin guardar queda.
+      setState((cur) => mergeSaved(cur, state, next));
       setSaved(JSON.stringify(next));
       setMsg({ kind: 'ok', text: extra.status === 'published' ? t('builder.published') : extra.status === 'closed' ? t('builder.closedMsg') : t('builder.saved') });
       router.refresh();
@@ -127,7 +130,7 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
             maxLength={200}
           />
           <StatusBadge status={form.status} open={form.open} />
-          {dirty && <span className="fm-dirty">{t('builder.unsaved')}</span>}
+          {dirty && <span className="fm-dirty" data-testid="fm-dirty">{t('builder.unsaved')}</span>}
         </div>
         <div className="fm-head-actions">
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPreview((v) => !v)} aria-pressed={preview}>

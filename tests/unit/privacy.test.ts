@@ -6,6 +6,7 @@ import { createApiKey } from '@/lib/api-auth';
 import { createSession, recordSecurityEvent } from '@/lib/account-security';
 import { cancelErasure, eraseNow, exportAccountData, pendingErasure, requestErasure, runDueErasures, scopeWhere, secretColumn } from '@/lib/privacy';
 import { seal } from '@/lib/secret-box';
+import { previewKey } from '@/lib/wa-extras';
 import { addMember, createTeam } from '@/lib/teams';
 import { ensureWorkspace } from '@/lib/workspace';
 import { uploadsRoot } from '@/lib/uploads';
@@ -177,6 +178,27 @@ describe('lo de otros workspaces queda', () => {
     await eraseNow(a.id, 'account');
     expect(await ids('zz_comments')).toEqual(['cA-on-C']);
     expect(await ids('zz_items')).toEqual(['iA-on-C']);
+  });
+});
+
+describe('vistas previas de links (caché sin dueño)', () => {
+  it('borrar el workspace borra de wa_link_previews los links de sus mensajes de Inbox y Lines, y no los de otros', async () => {
+    await getClient().executeMultiple('CREATE TABLE IF NOT EXISTS groups_zz_msgs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, body TEXT);');
+    const a = await makeUser('lpa');
+    const b = await makeUser('lpb');
+    const tok = crypto.randomUUID();
+    const mine = `https://example.test/share?token=${tok}`;
+    const theirs = `https://example.test/other/${tok}`;
+    const ins = (sql: string, ...args: string[]) => db().prepare(sql).run(...args);
+    await ins('INSERT INTO groups_zz_msgs (id, user_id, body) VALUES (?, ?, ?)', `m-${tok}-a`, a.id, `mirá ${mine}.`);
+    await ins('INSERT INTO groups_zz_msgs (id, user_id, body) VALUES (?, ?, ?)', `m-${tok}-b`, b.id, theirs);
+    const now = new Date().toISOString();
+    for (const u of [mine, theirs]) {
+      await ins("INSERT INTO wa_link_previews (url, title, description, site, image, fetched_at) VALUES (?, 'x', '', 'example.test', '', ?)", previewKey(u), now);
+    }
+    await eraseNow(a.id, 'workspace');
+    expect(await db().prepare('SELECT 1 FROM wa_link_previews WHERE url = ?').get(previewKey(mine))).toBeUndefined();
+    expect(await db().prepare('SELECT 1 FROM wa_link_previews WHERE url = ?').get(previewKey(theirs))).toBeTruthy();
   });
 });
 

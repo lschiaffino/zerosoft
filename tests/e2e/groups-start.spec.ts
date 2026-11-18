@@ -151,8 +151,13 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
     const instance = String(create.body?.instanceName);
     const token = String(create.body?.token);
     expect(instance).toMatch(/^zs-[a-f0-9]{20}$/);
-    const webhookUrl = String((create.body?.webhook as { url: string }).url);
-    expect(webhookUrl).toMatch(/\/api\/groups\/webhook\/[^/]+\/[a-f0-9]{48}$/);
+    // El secreto va en un header, no en la ruta (la ruta queda en los logs del hosting).
+    const registered = create.body?.webhook as { url: string; headers?: Record<string, string> };
+    const webhookUrl = String(registered.url);
+    expect(webhookUrl).toMatch(/\/api\/groups\/webhook\/[^/]+$/);
+    const hookHeaders = registered.headers ?? {};
+    expect(hookHeaders['x-zerosoft-webhook-secret']).toMatch(/^[a-f0-9]{48}$/);
+    expect(webhookUrl).not.toContain(hookHeaders['x-zerosoft-webhook-secret']);
     for (const h of hits.filter((x) => x !== create)) expect(h.apikey).toBe(token);
 
     await connect.getByRole('button', { name: 'Go to inbox' }).click();
@@ -160,6 +165,7 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
 
     // Llega un mensaje por el webhook (como lo manda Evolution) y aparece sin recargar.
     const hook = await ctx.request.post(new URL(webhookUrl).pathname, {
+      headers: hookHeaders,
       data: {
         event: 'messages.upsert',
         instance,

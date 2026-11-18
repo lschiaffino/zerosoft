@@ -9,7 +9,7 @@ import { getDb } from '@/lib/db';
 import { imageSize } from '@/lib/image-size';
 import { cleanDisplay, DEFAULT_DISPLAY, displayCss, isDefaultDisplay, linkImageRatio, linkLayout, patchDisplay } from '@/lib/chat-display';
 import { getChatDisplay, setChatDisplay } from '@/lib/chat-style';
-import { linkPreview, linkPreviewImage } from '@/lib/wa-extras';
+import { linkPreview, linkPreviewImage, previewKey } from '@/lib/wa-extras';
 import { parseImageHints } from '@/lib/docs-unfurl';
 import { dataUrlSize, fromGiven, needsFetch, pickPreview, safeHref, safeImage } from '@/components/groups/wa/link-preview-data';
 import { makeUser } from './helpers';
@@ -143,7 +143,7 @@ describe('lector de vistas previas', () => {
     const url = `https://example.test/old/${Math.random().toString(36).slice(2)}`;
     await getDb()
       .prepare("INSERT INTO wa_link_previews (url, title, description, site, image, fetched_at) VALUES (?, 'Viejo', '', 'example.test', 'data:image/png;base64,AAAA', ?)")
-      .run(url, new Date().toISOString());
+      .run(previewKey(url), new Date().toISOString());
     const p = (await linkPreview(url))!;
     expect(p.title).toBe('example.test page');
     expect(p.imageWidth).toBe(1200);
