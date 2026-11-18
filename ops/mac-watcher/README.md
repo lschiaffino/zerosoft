@@ -16,6 +16,9 @@ Corre cada minuto con launchd (`ai.zerosoft.watcher`).
 3. Revisa los incidentes abiertos (`GET /api/status/incidents?state=open`). Si alguno lleva más de 3 minutos abierto, lanza `claude -p` con [incident-prompt.md](incident-prompt.md) y los datos del incidente:
    - Como máximo una sesión por incidente por hora, y cada una dura 30 minutos o menos.
    - Lo que responde Claude queda como nota en el incidente.
+   - Mientras Claude trabaja, esta misma vuelta sigue informando el estado de Railway una vez por minuto, sin aplicar runbooks. launchd no arranca otra vuelta hasta que termine la anterior.
+
+Si la CLI de Railway no devuelve datos, no hay reporte y queda una línea `railway: la CLI no devolvió datos` en el log (una cada 10 minutos como mucho). Pasados 10 minutos sin reportes, la página de estado abre "not reporting".
 
 ## Instalar
 

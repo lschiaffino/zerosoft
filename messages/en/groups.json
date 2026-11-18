@@ -201,7 +201,9 @@
     "task": "Task",
     "question": "Needs reply",
     "fileUnavailable": "Not available",
-    "fetchMissing": "Fetch missing messages"
+    "fetchMissing": "Fetch missing messages",
+    "receivedOnLine": "Received on {line}",
+    "sentFromLine": "Sent from {line}"
   },
   "status": {
     "queued": "Waiting for connection",
