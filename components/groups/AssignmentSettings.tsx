@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, LabelDto } from '@/lib/groups';
 import type { AssignRuleDto, TeamDto } from '@/lib/groups-inbox';
+import type { Presence } from '@/lib/groups-inbox-rules';
 import { Modal, api, useErrorText, useToast } from './ui';
 
 interface NumberLite {
@@ -19,7 +20,7 @@ interface Props {
   people: GroupsPerson[];
   numbers: NumberLite[];
   labels: LabelDto[];
-  availability: Record<string, boolean>;
+  presence: Record<string, Presence>;
   canEdit: boolean;
 }
 
@@ -32,6 +33,7 @@ type RuleDraft = {
   target: 'team' | 'people';
   teamId: string;
   personIds: string[];
+  reassignOffline: boolean;
 };
 
 const emptyRule = (teams: TeamDto[]): RuleDraft => ({
@@ -42,6 +44,7 @@ const emptyRule = (teams: TeamDto[]): RuleDraft => ({
   target: teams.length ? 'team' : 'people',
   teamId: teams[0]?.id ?? '',
   personIds: [],
+  reassignOffline: false,
 });
 
 /**
@@ -65,7 +68,8 @@ export default function AssignmentSettings(props: Props) {
     const p = props.people.find((x) => x.id === id);
     return p ? p.name || p.email : '';
   };
-  const available = (id: string) => props.availability[id] !== false;
+  const presenceOf = (id: string): Presence => props.presence[id] ?? 'online';
+  const presenceLabel = { online: t('assign.presenceOnline'), away: t('assign.presenceAway'), offline: t('assign.presenceOffline') };
 
   async function saveTeam() {
     if (!teamDraft) return;
@@ -94,6 +98,7 @@ export default function AssignmentSettings(props: Props) {
       kind: ruleDraft.kind || null,
       teamId: ruleDraft.target === 'team' ? ruleDraft.teamId || null : null,
       personIds: ruleDraft.target === 'people' ? ruleDraft.personIds : [],
+      reassignOffline: ruleDraft.reassignOffline,
     };
     const res = ruleDraft.id
       ? await api<AssignRuleDto>(`/api/groups/rules/${ruleDraft.id}`, { method: 'PATCH', body })
@@ -196,6 +201,11 @@ export default function AssignmentSettings(props: Props) {
                 <strong>{r.name}</strong>
                 <span className="ui-help">{describe(r)}</span>
                 {r.lastPersonId && <span className="ui-help">{t('assign.lastPerson', { name: personName(r.lastPersonId) })}</span>}
+                {r.reassignOffline && (
+                  <span className="ui-help" data-testid="rule-reassign-offline">
+                    {t('assign.reassignOfflineOn')}
+                  </span>
+                )}
                 <label className="gr-toggle">
                   <input type="checkbox" checked={r.enabled} onChange={() => void toggleRule(r)} disabled={!props.canEdit} />
                   {r.enabled ? t('assign.on') : t('assign.off')}
@@ -205,6 +215,7 @@ export default function AssignmentSettings(props: Props) {
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
+                      data-testid="rule-edit"
                       onClick={() =>
                         setRuleDraft({
                           id: r.id,
@@ -215,6 +226,7 @@ export default function AssignmentSettings(props: Props) {
                           target: r.teamId ? 'team' : 'people',
                           teamId: r.teamId ?? teams[0]?.id ?? '',
                           personIds: r.personIds,
+                          reassignOffline: r.reassignOffline,
                         })
                       }
                     >
@@ -238,11 +250,11 @@ export default function AssignmentSettings(props: Props) {
         <p className="ui-help">{t('assign.availabilityIntro')}</p>
         <ul className="gr-mini-list">
           {props.people.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} data-testid="presence-row" data-presence={presenceOf(p.id)}>
               <span>
-                <i className={`gr-presence-dot${available(p.id) ? ' is-on' : ''}`} aria-hidden="true" /> {p.name || p.email}
+                <i className={`gr-presence-dot is-${presenceOf(p.id)}`} aria-hidden="true" /> {p.name || p.email}
               </span>
-              <span className="ui-help">{available(p.id) ? t('inbox.available') : t('inbox.away')}</span>
+              <span className="ui-help">{presenceLabel[presenceOf(p.id)]}</span>
             </li>
           ))}
         </ul>
@@ -399,6 +411,21 @@ export default function AssignmentSettings(props: Props) {
               </fieldset>
             )}
             <p className="ui-help">{t('assign.onlyAvailable')}</p>
+            <div className="ui-field gr-checks">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={ruleDraft.reassignOffline}
+                  onChange={(e) => setRuleDraft({ ...ruleDraft, reassignOffline: e.target.checked })}
+                  aria-describedby="gr-reassign-help"
+                  data-testid="rule-reassign-offline-input"
+                />
+                {t('assign.reassignOffline')}
+              </label>
+              <p className="ui-help" id="gr-reassign-help">
+                {t('assign.reassignOfflineHelp')}
+              </p>
+            </div>
             {formError && (
               <p className="ui-error" role="alert">
                 {formError}
