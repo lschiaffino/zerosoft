@@ -49,6 +49,8 @@ async function openSettings(page: Page, context: BrowserContext, baseURL: string
   await context.addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL }]);
   await page.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-replay-trash')).toBeVisible();
+  // La papelera se carga aparte (la primera vez, con la ruta recién compilada en dev, tarda más).
+  await expect(page.getByTestId('an-replay-trash-loading')).toHaveCount(0, { timeout: 30_000 });
 }
 
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -74,7 +76,9 @@ test('Pulse: la retención de replay manda a la papelera, se ve en Ajustes y se 
   await expect(items).toHaveCount(1);
 
   // Restaurar: sale de la papelera y vuelve a la lista de grabaciones.
+  const restored = page.waitForResponse((r) => r.url().endsWith(`/api/analytics/projects/${projectId}/trash`) && r.request().method() === 'POST', { timeout: 60_000 });
   await items.first().getByTestId('an-replay-trash-restore').click();
+  expect((await restored).ok()).toBe(true);
   await expect(page.getByTestId('an-replay-trash-notice')).toHaveAttribute('role', 'status');
   await expect(items).toHaveCount(0);
   await expect(page.getByTestId('an-replay-trash-empty')).toBeVisible();
