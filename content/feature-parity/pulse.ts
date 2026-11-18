@@ -147,7 +147,7 @@ const parity: ProductParity = {
     row('retention-setting', 'privacy', ['Data retention per project', 'Retención de datos por proyecto', 'Retenção de dados por projeto'], 'have', {
       detail: [
         'Older events and sessions are purged by the hourly job. Recordings near the end of their term go to a trash in the project settings first and can be restored until the day they are deleted for good',
-        'El trabajo de cada hora borra los eventos y sesiones más viejos. Las grabaciones que llegan al final de su plazo pasan antes por una papelera en los ajustes del proyecto y se pueden restaurar hasta el día en que se borran para siempre',
+        'El trabajo de cada hora borra los eventos y sesiones más viejos. Las grabaciones que llegan al final de su plazo pasan antes por una papelera en los ajustes del proyecto y se pueden restaurar hasta el día en que se borran del todo',
         'O job de cada hora apaga eventos e sessões mais antigos. As gravações que chegam ao fim do prazo passam antes por uma lixeira nos ajustes do projeto e podem ser restauradas até o dia em que são excluídas de vez',
       ],
     }),
