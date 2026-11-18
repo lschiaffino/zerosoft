@@ -8,7 +8,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { collapseSameChats, dedupeLineMessages, firstBy } from '../same-chat';
-import { inboxLineRefs, inboxSiblingsByKey, threadKey } from './same-chat';
+import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from './same-chat';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
@@ -1067,10 +1067,12 @@ export async function listMessages(
   threadId: string,
   opts: { before?: string; limit?: number; around?: string; /** false: solo este chat, aunque esté en otras cuentas. */ merge?: boolean } = {},
 ): Promise<MessagePage> {
-  const thread = await getThreadRow(owner, threadId);
   // El mismo chat en otras cuentas de WhatsApp (lib/inbox/same-chat.ts): la conversación junta los mensajes de todas.
-  const key = opts.merge === false ? '' : threadKey(thread);
-  const siblings = key ? ((await inboxSiblingsByKey(owner, [thread])).get(key) ?? []) : [];
+  // Viene en la misma consulta que el chat.
+  const all = await threadWithSiblings<ThreadRow>(owner, threadId);
+  const thread = all.find((x) => x.id === threadId);
+  if (!thread) throw new InboxError('not_found', 404);
+  const siblings = opts.merge === false ? [] : all;
   const ids = siblings.length > 1 ? [threadId, ...siblings.map((x) => x.id).filter((x) => x !== threadId)] : [threadId];
   const page = await messagePage(owner, ids, opts);
   if (thread.channel === 'whatsapp') {

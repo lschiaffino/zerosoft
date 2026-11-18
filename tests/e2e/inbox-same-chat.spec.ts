@@ -34,18 +34,29 @@ async function linkWhatsapp(request: APIRequestContext): Promise<Acc> {
   return { id: String(row.id), secret: String(row.webhook_secret), owner: String(row.owner_id) };
 }
 
-/** Una segunda cuenta de WhatsApp de la misma persona, ya conectada (la pantalla vincula una; la base admite varias). */
-async function secondAccount(owner: string, label: string): Promise<Acc> {
+/**
+ * Una segunda cuenta de WhatsApp de la misma persona (la pantalla vincula una; la base admite varias). Se vincula
+ * con el WhatsApp falso poniéndola un momento como la primera; después vuelve al final, así la cuenta que usa la
+ * pantalla (y los otros tests) sigue siendo la de siempre.
+ */
+async function secondAccount(request: APIRequestContext, owner: string, label: string): Promise<Acc> {
   const id = `iba_e2e_${uid()}${uid()}`;
   const secret = randomBytes(24).toString('hex');
-  // Fecha de alta lejana: la cuenta que usa la pantalla (y los otros tests) sigue siendo la vinculada.
-  const now = '2999-01-01T00:00:00.000Z';
   await sql(
     `INSERT INTO inbox_accounts (id, owner_id, kind, provider, label, address, status, webhook_secret, created_at, updated_at)
-     VALUES (?, ?, 'whatsapp', 'fake', ?, '', 'connected', ?, ?, ?)`,
-    [id, owner, label, secret, now, now],
+     VALUES (?, ?, 'whatsapp', '', ?, '', 'disconnected', ?, '2000-01-01T00:00:00.000Z', '2000-01-01T00:00:00.000Z')`,
+    [id, owner, label, secret],
   );
-  return { id, secret, owner };
+  try {
+    await request.post('/api/inbox/whatsapp', waLinkIp());
+    await expect
+      .poll(async () => (await sql('SELECT status FROM inbox_accounts WHERE id = ?', [id]))[0]?.status, { timeout: 20_000 })
+      .toBe('connected');
+  } finally {
+    await sql("UPDATE inbox_accounts SET created_at = '2999-01-01T00:00:00.000Z' WHERE id = ?", [id]);
+  }
+  const [row] = await sql('SELECT webhook_secret FROM inbox_accounts WHERE id = ?', [id]);
+  return { id, secret: String(row.webhook_secret), owner };
 }
 
 async function events(request: APIRequestContext, acc: Acc, list: Array<Record<string, unknown>>) {
@@ -81,7 +92,7 @@ function watchErrors(page: Page): string[] {
 async function twoAccounts(request: APIRequestContext) {
   const tag = uid();
   const a = await linkWhatsapp(request);
-  const b = await secondAccount(a.owner, `Trabajo ${tag}`);
+  const b = await secondAccount(request, a.owner, `Trabajo ${tag}`);
   const gid = `1203630${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;
   const groupName = `Grupo ${tag}`;
   const t0 = Date.now() - 60_000;
@@ -122,10 +133,13 @@ test('el mismo grupo y el mismo contacto en dos cuentas: una fila y la conversac
   await expect(msgs.filter({ hasText: `primero ${w.tag}` })).toHaveCount(1, { timeout: 30_000 });
   await expect(msgs.filter({ hasText: `segundo ${w.tag}` })).toHaveCount(1);
 
-  await dmRow.locator('.ib-row-btn').click();
   const first = msgs.filter({ hasText: `por personal ${w.tag}` });
   const second = msgs.filter({ hasText: `por trabajo ${w.tag}` });
-  await expect(first).toHaveCount(1, { timeout: 30_000 });
+  // La lista se pone al día al abrir el grupo (queda leído): el clic se repite si cayó mientras se redibujaba.
+  await expect(async () => {
+    await dmRow.locator('.ib-row-btn').click();
+    await expect(first).toHaveCount(1, { timeout: 10_000 });
+  }).toPass({ timeout: 60_000 });
   await expect(second).toHaveCount(1);
   await expect(first.getByTestId('msg-line')).toHaveCount(1);
   await expect(second.getByTestId('msg-line')).toHaveCount(1);

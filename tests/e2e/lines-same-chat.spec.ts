@@ -100,10 +100,13 @@ test('el mismo grupo y el mismo contacto en dos líneas: una fila y el hilo unid
   await expect(groupRow.getByRole('link')).toHaveAttribute('aria-current', 'page');
 
   // El 1:1: los mensajes de las dos líneas, cada uno con la línea por la que entró.
-  await dmRow.getByRole('link').click();
   const first = msgs.filter({ hasText: `por ventas ${w.tag}` });
   const second = msgs.filter({ hasText: `por soporte ${w.tag}` });
-  await expect(first).toHaveCount(1, { timeout: 30_000 });
+  // La lista se pone al día al abrir el grupo (queda leído): el clic se repite si cayó mientras se redibujaba.
+  await expect(async () => {
+    await dmRow.getByRole('link').click();
+    await expect(first).toHaveCount(1, { timeout: 10_000 });
+  }).toPass({ timeout: 60_000 });
   await expect(second).toHaveCount(1);
   await expect(first.getByTestId('msg-line')).toHaveCount(1);
   await expect(second.getByTestId('msg-line')).toHaveCount(1);

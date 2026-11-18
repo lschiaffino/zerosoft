@@ -99,6 +99,23 @@ async function keyRows(owner: string, ids: string[]): Promise<Array<KeyRow & { i
     .all(owner, ...ids)) as Array<KeyRow & { id: string }>;
 }
 
+/**
+ * El chat (fila completa) y sus filas en las otras cuentas, en una sola consulta: abrir una conversación no suma
+ * una ida a la base. Vacío si el chat no existe, no es de la persona o se sacó de Inbox.
+ */
+export async function threadWithSiblings<T extends { id: string; account_id: string }>(owner: string, id: string): Promise<T[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT s.* FROM inbox_threads t JOIN inbox_threads s ON s.owner_id = t.owner_id AND s.removed_at IS NULL
+         AND (s.id = t.id OR (t.channel = 'whatsapp' AND s.channel = 'whatsapp' AND s.kind = t.kind
+           AND ((t.kind = 'group' AND s.external_id = t.external_id)
+             OR (t.kind = 'dm' AND t.handle != '' AND s.handle = t.handle)
+             OR (t.kind = 'dm' AND t.handle = '' AND s.handle = '' AND s.external_id = t.external_id))))
+       WHERE t.id = ? AND t.owner_id = ? AND t.removed_at IS NULL`,
+    )
+    .all(id, owner)) as unknown as T[];
+}
+
 /** Los chats pedidos más sus filas en otras cuentas (sin repetir, los pedidos primero). */
 export async function withInboxSameChatIds(owner: string, ids: string[]): Promise<string[]> {
   const rows = await keyRows(owner, ids);
