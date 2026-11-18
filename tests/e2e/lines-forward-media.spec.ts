@@ -76,10 +76,12 @@ test('Lines: reenviar una nota de voz por Evolution sale como nota de voz y qued
     await ctx.request.post(`/api/groups/numbers/${number.id}/connect`, { data: {} });
     const createHit = hits.find((h) => h.path === '/instance/create')!;
     const instance = String(createHit.body?.instanceName);
-    const hookPath = new URL(String((createHit.body?.webhook as { url: string }).url)).pathname;
+    // Como Evolution: a la URL registrada, con los headers registrados (el secreto va en uno).
+    const registered = createHit.body?.webhook as { url: string; headers?: Record<string, string> };
+    const hookPath = new URL(String(registered.url)).pathname;
     const marta = '5491100004441@s.whatsapp.net';
     const nico = '5491100004442@s.whatsapp.net';
-    const hook = (data: unknown) => ctx.request.post(hookPath, { data: { event: 'messages.upsert', instance, data } });
+    const hook = (data: unknown) => ctx.request.post(hookPath, { data: { event: 'messages.upsert', instance, data }, headers: registered.headers ?? {} });
     expect((await hook({ key: { remoteJid: nico, fromMe: false, id: `T-${uid()}` }, pushName: 'Nico Reenvío', message: { conversation: 'Pasame el audio de Marta' } })).ok()).toBe(true);
     expect(
       (

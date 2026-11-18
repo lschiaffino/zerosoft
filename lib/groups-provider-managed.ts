@@ -13,7 +13,7 @@
  * - Desconectar o borrar el número cierra la sesión y borra la instancia.
  */
 import { randomBytes } from 'crypto';
-import { bridgeRequest, defaultBridgeFetch, evolutionProvider, EVOLUTION_EVENTS, syncEvolutionWebhook } from './groups-provider-bridge';
+import { bridgeRequest, defaultBridgeFetch, evolutionProvider, evolutionWebhook, syncEvolutionWebhook } from './groups-provider-bridge';
 import { PROVIDER_CAPS, ProviderError, safeEqual, type BridgeConfig, type FetchLike, type GroupsProvider } from './groups-provider';
 
 export interface ManagedEnv {
@@ -123,8 +123,8 @@ export function managedProvider(
     ...inner,
     kind: 'managed',
     caps: PROVIDER_CAPS.managed,
-    async connect(webhookUrl) {
-      const webhook = { enabled: true, url: webhookUrl, byEvents: false, base64: false, events: EVOLUTION_EVENTS };
+    async connect(webhookUrl, headers) {
+      const webhook = evolutionWebhook(webhookUrl, headers);
       try {
         await asGlobal('/instance/create', 'POST', {
           instanceName: instance,
@@ -156,13 +156,16 @@ export function managedProvider(
       await asInstance(`/webhook/set/${instance}`, 'POST', { webhook });
       return inner.start();
     },
+    async setWebhook(webhookUrl, headers) {
+      await asInstance(`/webhook/set/${instance}`, 'POST', { webhook: evolutionWebhook(webhookUrl, headers) });
+    },
     syncWebhookEvents: () => syncEvolutionWebhook(asInstance, instance),
     async disconnect() {
       await asInstance(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
       await asGlobal(`/instance/delete/${instance}`, 'DELETE').catch(() => null);
     },
     /**
-     * Evolution no firma los webhooks: el secreto va en la URL. Además, el
+     * Evolution no firma los webhooks: el secreto va en un header (o en la URL, la ruta vieja). Además, el
      * cuerpo tiene que venir de la instancia de este número.
      */
     verifyWebhook(req) {
