@@ -91,6 +91,7 @@ const ENTRY_COLS = 'id, workspace_id, app, kind, record_id, scope_id, label, rea
  * Cada app que usa el borrado suave con archivos suma su entrada.
  */
 const FILE_DROPPERS: Record<string, () => Promise<(refs: string[]) => Promise<unknown>>> = {
+  forms: () => import('./forms/files').then((m) => m.deleteFormFiles),
   rec: () => import('./rec').then((m) => m.dropRecFiles),
 };
 

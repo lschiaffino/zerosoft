@@ -8,6 +8,7 @@ import type { FormDto } from '@/lib/forms/core';
 import type { FormSettings } from '@/lib/forms/types';
 import type { BuilderState } from './FormBuilder';
 import { Field } from './BuildPanel';
+import FormTrash from './FormTrash';
 
 interface Person {
   id: string;
@@ -169,6 +170,7 @@ export default function SettingsPanel({
           ))}
         </select>
       </Field>
+      <FormTrash formId={form.id} onRestored={() => router.refresh()} />
       <fieldset className="fm-radio-row">
         <legend className="label">{t('access')}</legend>
         {(['workspace', 'people'] as const).map((v) => (
