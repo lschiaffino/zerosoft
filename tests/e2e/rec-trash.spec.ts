@@ -3,7 +3,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 
 /**
  * Rec: la retención manda los videos vencidos a la papelera (lib/rec-trash.ts) en vez de borrarlos. El cron
- * horario los saca de la app; en Ajustes se ve la papelera (título y cuándo se borra para siempre) y Restaurar
+ * de cada minuto (processPendingRec) los saca de la app; en Ajustes se ve la papelera (título y cuándo se borra para siempre) y Restaurar
  * devuelve el video. Se ve bien en los cinco aspectos, claro y oscuro, a 1280 y 390 sin scroll de costado.
  */
 
@@ -48,7 +48,7 @@ async function trashedVideo(request: APIRequestContext) {
   await sql("UPDATE rec_videos SET created_at = datetime('now', '-350 days') WHERE id = ?", [id]);
   const ws = String((await sql('SELECT workspace_id FROM rec_videos WHERE id = ?', [id]))[0].workspace_id);
   await sql("UPDATE rec_settings SET retention_starts_at = datetime('now', '-1 hour'), retention_checked_at = NULL WHERE workspace_id = ?", [ws]);
-  expect((await request.get('/api/cron/tick', { headers: CRON })).ok()).toBe(true);
+  expect((await request.get('/api/cron/minute', { headers: CRON, timeout: 120_000 })).ok()).toBe(true);
   const entry = await sql("SELECT id FROM soft_deleted WHERE app = 'rec' AND record_id = ?", [id]);
   expect(entry).toHaveLength(1);
   return { id, title, ws, entryId: String(entry[0].id) };
@@ -83,7 +83,7 @@ test('Rec: la retención manda a la papelera, se ve en Ajustes y se restaura', a
 
   // La corrida siguiente no lo vuelve a sacar: el plazo cuenta desde la restauración.
   await sql('UPDATE rec_settings SET retention_checked_at = NULL WHERE workspace_id = ?', [ws]);
-  expect((await request.get('/api/cron/tick', { headers: CRON })).ok()).toBe(true);
+  expect((await request.get('/api/cron/minute', { headers: CRON, timeout: 120_000 })).ok()).toBe(true);
   expect(await sql('SELECT 1 FROM rec_videos WHERE id = ?', [id])).toHaveLength(1);
   // Una entrada que ya no está: 404.
   expect((await request.post('/api/rec/trash', { data: { entryId } })).status()).toBe(404);
