@@ -145,7 +145,7 @@ export default async function PublicInvoicePage(props: Props) {
                   <td className="num">{l.quantity}</td>
                   <td className="num">{money(l.unitPrice)}</td>
                   {anyDisc && <td className="num">{l.discountBps ? `${bpsToPercent(l.discountBps)}%` : ''}</td>}
-                  <td className="num">{money(l.net)}</td>
+                  <td className="num">{money(doc.taxInclusive ? l.total : l.net)}</td>
                 </tr>
               ))}
             </tbody>
@@ -160,7 +160,7 @@ export default async function PublicInvoicePage(props: Props) {
             .filter((r) => r.taxBps > 0)
             .map((r) => (
               <div key={r.taxBps}>
-                <dt>{t('taxAt', { rate: bpsToPercent(r.taxBps) })}</dt>
+                <dt>{doc.taxInclusive ? t('taxIncludedAt', { rate: bpsToPercent(r.taxBps) }) : t('taxAt', { rate: bpsToPercent(r.taxBps) })}</dt>
                 <dd>{money(r.tax)}</dd>
               </div>
             ))}

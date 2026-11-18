@@ -54,6 +54,13 @@ const parity: ProductParity = {
         'Um grupo ou contato que fala com duas ou mais das suas linhas é uma linha só na lista, com as não lidas de todas. Ao abrir, aparecem as mensagens de todas as linhas em ordem, sem as cópias que um grupo manda para cada linha, e cada mensagem diz por qual linha chegou. Ler, arquivar, adiar ou fechar vale para todas as linhas. Só contam as linhas que a pessoa pode ver',
       ],
     }),
+    row('reply-from', 'inbox', ['Reply from another line', 'Responder desde otra línea', 'Responder de outra linha'], 'have', {
+      detail: [
+        'A chat that is on several lines shows Reply from in the composer, on the line of the last message by default. Everything you send goes out on the line you pick, and lines that are disconnected or left the group can not be picked. A 1:1 can only be answered from lines that already have that chat',
+        'Un chat que está en varias líneas muestra Responder desde en el campo de escribir, por defecto en la línea del último mensaje. Todo lo que mandes sale por la línea elegida, y no se pueden elegir líneas desconectadas o que salieron del grupo. Un 1:1 solo se responde por líneas que ya tienen ese chat',
+        'Uma conversa que está em várias linhas mostra Responder de no campo de escrever, por padrão na linha da última mensagem. Tudo o que você manda sai pela linha escolhida, e não dá para escolher linhas desconectadas ou que saíram do grupo. Uma conversa 1:1 só é respondida por linhas que já têm essa conversa',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',

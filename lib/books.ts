@@ -40,6 +40,8 @@ export interface SettingsRow {
   webhook_token: string;
   next_journal: number;
   next_po: number;
+  next_quote: number;
+  fiscal_start_month: number;
   created_at: string;
   updated_at: string;
 }
@@ -293,6 +295,7 @@ export interface SettingsDto {
   shopAutoPost: boolean;
   crmSync: boolean;
   lockDate: string | null;
+  fiscalStartMonth: number;
 }
 
 export function settingsDto(s: SettingsRow): SettingsDto {
@@ -314,6 +317,7 @@ export function settingsDto(s: SettingsRow): SettingsDto {
     shopAutoPost: s.shop_auto_post === 1,
     crmSync: s.crm_sync === 1,
     lockDate: s.lock_date,
+    fiscalStartMonth: Number(s.fiscal_start_month ?? 1),
   };
 }
 
@@ -332,6 +336,7 @@ export interface SettingsPatch {
   reminders?: Partial<ReminderSettings>;
   shopAutoPost?: boolean;
   crmSync?: boolean;
+  fiscalStartMonth?: number;
   lockDate?: string | null;
   baseCurrency?: string;
 }
@@ -386,6 +391,7 @@ export async function updateSettings(actor: BooksActor, patch: SettingsPatch): P
     if (patch.shopAutoPost && !s.shop_auto_post) set('shop_auto_post_since', nowDb());
   }
   if (patch.crmSync !== undefined) set('crm_sync', patch.crmSync ? 1 : 0);
+  if (patch.fiscalStartMonth !== undefined) set('fiscal_start_month', Math.max(1, Math.min(12, Math.trunc(Number(patch.fiscalStartMonth)) || 1)));
   if (patch.lockDate !== undefined && patch.lockDate !== s.lock_date) {
     // El cierre de período lo mueven solo owner y admins, y queda en la auditoría con el valor anterior.
     if (!actor.admin) throw new BooksError('forbidden', 403, { need: 'admin' });
