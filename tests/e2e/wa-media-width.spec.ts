@@ -158,7 +158,8 @@ test('Inbox: una foto con texto que no se pudo bajar mantiene el ancho de la fot
   // Por id: con muchos chats del worker este puede no entrar en la primera página de la lista.
   const [th] = await sql('SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?', [String(acc.id), `${phone}@s.whatsapp.net`]);
   const open = async () => {
-    await page.goto(`/en/app/inbox?t=${String(th.id)}`, { waitUntil: 'networkidle' });
+    // Sin networkidle: con el chat abierto, la foto que no se pudo bajar sigue pidiéndose y la red no queda quieta.
+    await page.goto(`/en/app/inbox?t=${String(th.id)}`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 });
   };
   await open();
