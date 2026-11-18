@@ -254,7 +254,9 @@ export default function AssignmentSettings(props: Props) {
               <span>
                 <i className={`gr-presence-dot is-${presenceOf(p.id)}`} aria-hidden="true" /> {p.name || p.email}
               </span>
-              <span className="ui-help">{presenceLabel[presenceOf(p.id)]}</span>
+              <span className="ui-help" data-testid="presence-status">
+                {presenceLabel[presenceOf(p.id)]}
+              </span>
             </li>
           ))}
         </ul>
