@@ -201,7 +201,9 @@
     "task": "Tarea",
     "question": "Pide respuesta",
     "fileUnavailable": "No disponible",
-    "fetchMissing": "Traer mensajes que faltan"
+    "fetchMissing": "Traer mensajes que faltan",
+    "receivedOnLine": "Entró por {line}",
+    "sentFromLine": "Salió por {line}"
   },
   "status": {
     "queued": "Esperando conexión",

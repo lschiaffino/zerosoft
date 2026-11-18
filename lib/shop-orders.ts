@@ -14,9 +14,12 @@ import {
   checkLowStock,
   claimDiscountUse,
   commitStock,
+  discountEligibleProducts,
   ensureStore,
   findDiscountByCode,
+  getDiscount,
   getStore,
+  listAutomaticDiscounts,
   listShippingRates,
   listTaxRates,
   newId,
@@ -30,7 +33,7 @@ import {
   type StockItem,
   type StoreRow,
 } from './shop';
-import { computeTotals, discountError, type Totals } from './shop-money';
+import { computeTotals, discountError, discountLineError, lineDiscountAmount, type MoneyLine, type Totals } from './shop-money';
 import { ShopError, checkoutSchema, normalizeSettings, parseJson, type OrderStatus, type ShippingAddress, type ShopActor } from './shop-schema';
 
 // ---------- Carrito ----------
@@ -54,6 +57,10 @@ export interface PricedLine {
   stock: number | null;
   /** La cantidad pedida supera lo disponible. */
   short: boolean;
+  /** La variante se sigue vendiendo sin stock. */
+  continueSelling: boolean;
+  /** Esta línea sale de lo que todavía no hay (se avisa en el carrito). */
+  backorder: boolean;
 }
 
 export interface PricedCart {
@@ -61,7 +68,10 @@ export interface PricedCart {
   /** Variantes que ya no se venden (borradas o en borrador). */
   removed: string[];
   totals: Totals;
+  /** El código escrito y si se pudo usar. */
   discount: { code: string; kind: string; error: string | null } | null;
+  /** El descuento que quedó aplicado (código o automático). */
+  applied: { id: string; label: string; kind: string; automatic: boolean; oncePerCustomer: boolean } | null;
   currency: string;
 }
 
@@ -71,7 +81,7 @@ export interface PricedCart {
  */
 export async function priceCart(
   store: StoreRow,
-  raw: { lines: Array<{ variantId: string; quantity: number }>; address?: { country: string; region?: string } | null; shippingRateId?: string | null; discountCode?: string | null },
+  raw: { lines: Array<{ variantId: string; quantity: number }>; address?: { country: string; region?: string } | null; shippingRateId?: string | null; discountCode?: string | null; paymentMethod?: string | null },
 ): Promise<PricedCart> {
   const ws = store.workspace_id;
   const merged = new Map<string, number>();
@@ -84,7 +94,7 @@ export async function priceCart(
   const rows = ids.length
     ? ((await db
         .prepare(
-          `SELECT v.id, v.title AS vtitle, v.sku, v.price_cents, v.compare_at_cents, v.weight_grams, v.track_inventory, v.image_url, v.options,
+          `SELECT v.id, v.title AS vtitle, v.sku, v.price_cents, v.compare_at_cents, v.weight_grams, v.track_inventory, v.continue_selling, v.image_url, v.options,
              p.id AS pid, p.handle, p.title, p.images, p.requires_shipping,
              (SELECT COALESCE(MAX(MAX(i.available - i.reserved, 0)), 0) FROM shop_inventory i WHERE i.variant_id = v.id) AS free
            FROM shop_variants v JOIN shop_products p ON p.id = v.product_id
@@ -102,7 +112,9 @@ export async function priceCart(
     }
     const quantity = merged.get(id)!;
     const track = Number(r.track_inventory) === 1;
-    const stock = track ? Number(r.free) : null;
+    const free = track ? Number(r.free) : null;
+    const keepSelling = track && Number(r.continue_selling ?? 0) === 1;
+    const stock = keepSelling ? null : free;
     const opts = parseJson<string[]>(r.options, []);
     lines.push({
       variantId: id,
@@ -121,21 +133,49 @@ export async function priceCart(
       requiresShipping: Number(r.requires_shipping) === 1,
       stock,
       short: stock != null && quantity > stock,
+      continueSelling: keepSelling,
+      backorder: keepSelling && free != null && quantity > free,
     });
   }
   const [rates, taxes] = await Promise.all([listShippingRates(ws), listTaxRates(ws)]);
   const subtotal = lines.reduce((s, l) => s + l.totalCents, 0);
+  const moneyLines: MoneyLine[] = lines.map((l) => ({ unitCents: l.unitCents, quantity: l.quantity, weightGrams: l.weightGrams, requiresShipping: l.requiresShipping, productId: l.productId }));
   let discount: PricedCart['discount'] = null;
-  let rule = null;
+  // Un solo descuento por pedido: el código si lo escribieron y sirve, salvo que un automático ahorre más.
+  type Candidate = { rule: Awaited<ReturnType<typeof listAutomaticDiscounts>>[number]; amount: number };
+  let best: Candidate | null = null;
   if (raw.discountCode?.trim()) {
     const d = await findDiscountByCode(ws, raw.discountCode);
-    const error = discountError(d, subtotal);
+    let error: string | null = discountError(d, subtotal);
+    // Un descuento automático no se usa escribiendo su nombre interno.
+    if (!error && d?.method === 'automatic') error = 'discount_invalid';
+    if (!error && d) {
+      const eligible = await discountEligibleProducts(ws, d);
+      error = discountLineError(d, moneyLines, eligible);
+      if (!error) best = { rule: d, amount: lineDiscountAmount(d, moneyLines, eligible) };
+    }
     discount = { code: raw.discountCode.trim().toUpperCase(), kind: d?.kind ?? '', error };
-    if (!error && d) rule = d;
   }
+  if (lines.length) {
+    for (const d of await listAutomaticDiscounts(ws)) {
+      if (discountError(d, subtotal)) continue;
+      const eligible = await discountEligibleProducts(ws, d);
+      if (discountLineError(d, moneyLines, eligible)) continue;
+      const amount = lineDiscountAmount(d, moneyLines, eligible);
+      const beats = !best || amount > best.amount;
+      if (beats && (amount > 0 || (d.kind === 'free_shipping' && !best))) {
+        if (best && discount && !discount.error) discount = { ...discount, error: 'discount_auto_better' };
+        best = { rule: d, amount };
+      }
+    }
+  }
+  const settings = normalizeSettings(parseJson(store.settings, {}));
+  const method = raw.paymentMethod as keyof typeof settings.paymentDiscounts | null | undefined;
   const totals = computeTotals({
-    lines: lines.map((l) => ({ unitCents: l.unitCents, quantity: l.quantity, weightGrams: l.weightGrams, requiresShipping: l.requiresShipping })),
-    discount: rule,
+    lines: moneyLines,
+    discount: best?.rule ?? null,
+    discountCentsOverride: best ? (best.rule.kind === 'free_shipping' ? 0 : best.amount) : undefined,
+    paymentDiscountBps: method && method in settings.paymentDiscounts ? settings.paymentDiscounts[method] : 0,
     shippingRates: rates,
     shippingRateId: raw.shippingRateId ?? null,
     address: raw.address ?? null,
@@ -143,7 +183,10 @@ export async function priceCart(
     taxIncluded: store.tax_included === 1,
     currency: store.currency,
   });
-  return { lines, removed, totals, discount, currency: store.currency };
+  const applied = best
+    ? { id: best.rule.id, label: best.rule.method === 'automatic' ? best.rule.title || best.rule.code : best.rule.code, kind: best.rule.kind, automatic: best.rule.method === 'automatic', oncePerCustomer: best.rule.oncePerCustomer === true }
+    : null;
+  return { lines, removed, totals, discount, applied, currency: store.currency };
 }
 
 // ---------- Pedidos ----------
@@ -169,6 +212,10 @@ export interface OrderRow {
   shipping_name: string | null;
   shipping_address: string;
   payment_method: 'stripe' | 'mercadopago' | 'manual';
+  tax_id: string;
+  source: string;
+  pickup: number;
+  payment_discount_cents: number;
   payment_ref: string | null;
   payment_id: string | null;
   paid_at: string | null;
@@ -180,7 +227,7 @@ export interface OrderRow {
   tracking_company: string | null;
   tracking_url: string | null;
   customer_note: string;
-  stock_state: 'reserved' | 'committed' | 'released' | 'oversold' | 'restocked';
+  stock_state: 'none' | 'reserved' | 'committed' | 'released' | 'oversold' | 'restocked';
   status_token: string;
   locale: string;
   expires_at: string | null;
@@ -200,6 +247,8 @@ export interface OrderItemRow extends StockItem {
   total_cents: number;
   weight_grams: number;
   image_url: string | null;
+  fulfilled_qty: number;
+  returned_qty: number;
 }
 
 export interface OrderEventDto {
@@ -239,7 +288,13 @@ export interface OrderDto {
   stockState: string;
   cancelReason: string | null;
   createdAt: string;
-  items: Array<{ id: string; productId: string | null; variantId: string | null; title: string; variantTitle: string; sku: string; quantity: number; unitCents: number; totalCents: number; imageUrl: string | null }>;
+  taxId: string;
+  source: string;
+  pickup: boolean;
+  paymentDiscountCents: number;
+  /** none, partial o full: lo que salió de cada línea. */
+  fulfillment: 'none' | 'partial' | 'full';
+  items: Array<{ id: string; productId: string | null; variantId: string | null; title: string; variantTitle: string; sku: string; quantity: number; unitCents: number; totalCents: number; imageUrl: string | null; fulfilledQty: number; returnedQty: number; backorder: boolean }>;
   events?: OrderEventDto[];
 }
 
@@ -274,6 +329,11 @@ export function orderDto(o: OrderRow, items: OrderItemRow[], events?: OrderEvent
     stockState: o.stock_state,
     cancelReason: o.cancel_reason,
     createdAt: o.created_at,
+    taxId: o.tax_id ?? '',
+    source: o.source ?? 'online',
+    pickup: o.pickup === 1,
+    paymentDiscountCents: o.payment_discount_cents ?? 0,
+    fulfillment: fulfillmentState(o, items),
     items: items.map((i) => ({
       id: i.id,
       productId: i.product_id,
@@ -285,9 +345,20 @@ export function orderDto(o: OrderRow, items: OrderItemRow[], events?: OrderEvent
       unitCents: i.unit_cents,
       totalCents: i.total_cents,
       imageUrl: i.image_url,
+      fulfilledQty: Number(i.fulfilled_qty ?? 0),
+      returnedQty: Number(i.returned_qty ?? 0),
+      backorder: Number(i.backorder ?? 0) === 1,
     })),
     ...(events ? { events } : {}),
   };
+}
+
+/** Un pedido enviado de antes de los envíos parciales no tiene cantidades por línea. */
+function fulfillmentState(o: Pick<OrderRow, 'status' | 'fulfilled_at'>, items: OrderItemRow[]): 'none' | 'partial' | 'full' {
+  const total = items.reduce((s, i) => s + i.quantity, 0);
+  const done = items.reduce((s, i) => s + Number(i.fulfilled_qty ?? 0), 0);
+  if (o.status === 'fulfilled' || (total > 0 && done >= total)) return 'full';
+  return done > 0 ? 'partial' : 'none';
 }
 
 export async function getOrderRow(ws: string, id: string): Promise<OrderRow | null> {
@@ -343,9 +414,12 @@ export async function listOrders(
     if (num) args.push(Number(num));
     args.push(l, l);
   }
-  if (opts.status && ['pending', 'paid', 'fulfilled', 'cancelled', 'refunded'].includes(opts.status)) {
+  if (opts.status && ['draft', 'pending', 'paid', 'fulfilled', 'cancelled', 'refunded'].includes(opts.status)) {
     where.push('o.status = ?');
     args.push(opts.status);
+  } else {
+    // Un borrador todavía no es un pedido: solo se ve en su pestaña.
+    where.push("o.status != 'draft'");
   }
   if (opts.customerId) {
     where.push('o.customer_id = ?');
@@ -408,26 +482,33 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
   const { enabledMethods } = await import('./shop');
   if (!enabledMethods(store).includes(input.paymentMethod)) throw new ShopError('payment_unavailable', 409);
   const ws = store.workspace_id;
-  const cart = await priceCart(store, { lines: input.lines, address: input.address ?? null, shippingRateId: input.shippingRateId, discountCode: input.discountCode });
+  const cart = await priceCart(store, { lines: input.lines, address: input.address ?? null, shippingRateId: input.shippingRateId, discountCode: input.discountCode, paymentMethod: input.paymentMethod });
   if (cart.removed.length) throw new ShopError('cart_changed', 409, { removed: cart.removed });
   if (!cart.lines.length) throw new ShopError('empty_cart');
   const short = cart.lines.filter((l) => l.short);
   if (short.length) throw new ShopError('out_of_stock', 409, { variantId: short[0].variantId });
-  if (cart.discount?.error) throw new ShopError(cart.discount.error, 409);
+  if (cart.discount?.error && cart.discount.error !== 'discount_auto_better') throw new ShopError(cart.discount.error, 409);
   const needsShipping = cart.totals.needsShipping;
-  if (needsShipping && !input.address) throw new ShopError('address_required');
+  if (cart.totals.needsAddress && !input.address) throw new ShopError('address_required');
   if (needsShipping && !cart.totals.shipping) throw new ShopError('no_shipping_rate', 409);
+  const isPickup = cart.totals.shipping?.pickup === true;
+  if (isPickup && !input.contactName && !input.address?.name) throw new ShopError('invalid_input', 400, { issues: ['contactName'] });
   if (cart.totals.totalCents <= 0 && input.paymentMethod !== 'manual') throw new ShopError('invalid_total');
 
   // Uso del código: compare-and-set contra el tope antes de reservar.
-  const discount = cart.discount && !cart.discount.error ? await findDiscountByCode(ws, cart.discount.code) : null;
+  const discount = cart.applied ? await getDiscount(ws, cart.applied.id) : null;
+  // Una vez por cliente: cuenta cualquier pedido no cancelado con este descuento.
+  if (discount?.oncePerCustomer) {
+    const used = await getDb().prepare("SELECT 1 AS x FROM shop_orders WHERE workspace_id = ? AND email = ? AND discount_id = ? AND status NOT IN ('cancelled', 'draft') LIMIT 1").get(ws, input.email, discount.id);
+    if (used) throw new ShopError('discount_once', 409);
+  }
   if (discount && !(await claimDiscountUse(discount.id))) throw new ShopError('discount_used_up', 409);
 
   let locations: Array<string | null>;
   try {
     locations = await reserveStock(
       ws,
-      cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, track: l.trackInventory })),
+      cart.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, track: l.trackInventory, continueSelling: l.continueSelling })),
     );
   } catch (err) {
     if (discount) await releaseDiscountUse(discount.id);
@@ -439,8 +520,8 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
   const statusToken = randomBytes(18).toString('base64url');
   const number = await nextOrderNumber(ws);
   const ts = new Date();
-  const name = input.address?.name ?? '';
-  const phone = input.address?.phone ?? '';
+  const name = input.address?.name || input.contactName;
+  const phone = input.address?.phone || input.contactPhone;
   const customerId = await upsertCustomer(ws, { email: input.email, name, phone });
   // El pedido por transferencia espera al comercio (no vence solo); el online vence.
   const hold = input.paymentMethod === 'stripe' ? Math.min(23 * 60, Math.max(31, settings.holdMinutes)) : settings.holdMinutes;
@@ -449,8 +530,8 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
   await db
     .prepare(
       `INSERT INTO shop_orders (id, workspace_id, number, status, email, customer_id, name, phone, currency, subtotal_cents, discount_cents, shipping_cents, tax_cents, total_cents,
-         tax_included, discount_code, discount_id, shipping_name, shipping_address, payment_method, customer_note, stock_state, status_token, locale, expires_at, created_at, updated_at)
-       VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?)`,
+         tax_included, discount_code, discount_id, shipping_name, shipping_address, payment_method, customer_note, stock_state, status_token, locale, expires_at, created_at, updated_at, tax_id, pickup, payment_discount_cents)
+       VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -467,10 +548,10 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
       cart.totals.taxCents,
       cart.totals.totalCents,
       cart.totals.taxIncluded ? 1 : 0,
-      discount?.code ?? null,
+      cart.applied?.label ?? null,
       discount?.id ?? null,
       cart.totals.shipping?.name ?? null,
-      JSON.stringify(input.address ?? {}),
+      JSON.stringify(isPickup ? {} : (input.address ?? {})),
       input.paymentMethod,
       input.note.trim(),
       statusToken,
@@ -478,14 +559,17 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
       expires,
       nowDb(ts),
       nowDb(ts),
+      settings.askTaxId ? input.taxId : '',
+      isPickup ? 1 : 0,
+      cart.totals.paymentDiscountCents,
     );
   for (const [i, l] of cart.lines.entries()) {
     await db
       .prepare(
-        `INSERT INTO shop_order_items (id, order_id, workspace_id, product_id, variant_id, location_id, title, variant_title, sku, quantity, unit_cents, total_cents, weight_grams, image_url, track_inventory)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO shop_order_items (id, order_id, workspace_id, product_id, variant_id, location_id, title, variant_title, sku, quantity, unit_cents, total_cents, weight_grams, image_url, track_inventory, backorder)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(newId('oit'), id, ws, l.productId, l.variantId, locations[i], l.title, l.variantTitle, l.sku, l.quantity, l.unitCents, l.totalCents, l.weightGrams, l.imageUrl, l.trackInventory ? 1 : 0);
+      .run(newId('oit'), id, ws, l.productId, l.variantId, locations[i], l.title, l.variantTitle, l.sku, l.quantity, l.unitCents, l.totalCents, l.weightGrams, l.imageUrl, l.trackInventory ? 1 : 0, l.continueSelling ? 1 : 0);
   }
   await addOrderEvent({ id, workspace_id: ws }, 'created', `Order placed (${input.paymentMethod})`);
   await getDb()
@@ -507,6 +591,8 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
   }
   const { onOrderCreated } = await import('./shop-effects');
   await onOrderCreated(store, row, items);
+  // Si había un checkout a medias con este email, ya no hace falta el recordatorio.
+  await import('./shop-abandoned').then((m) => m.markCheckoutRecovered(ws, input.email, id)).catch(() => undefined);
   return { order: orderDto((await getOrderRow(ws, id))!, items), statusToken, redirectUrl };
 }
 
@@ -570,26 +656,51 @@ export async function markPaidManually(actor: ShopActor, orderId: string): Promi
 export async function fulfillOrder(
   actor: ShopActor,
   orderId: string,
-  input: { trackingNumber?: string; trackingCompany?: string; trackingUrl?: string; notify?: boolean },
+  input: { trackingNumber?: string; trackingCompany?: string; trackingUrl?: string; notify?: boolean; items?: Array<{ itemId: string; quantity: number }> },
 ): Promise<OrderDto> {
   const o = await getOrderRow(actor.ws, orderId);
   if (!o) throw new ShopError('not_found', 404);
+  if (o.status !== 'paid') throw new ShopError('invalid_status', 409);
   const trackingUrl = (input.trackingUrl ?? '').trim();
   if (trackingUrl && !/^https?:\/\/[^\s]{3,500}$/i.test(trackingUrl)) throw new ShopError('invalid_tracking_url');
+  const db = getDb();
+  const items = await orderItems(orderId);
+  // Sin detalle: todo lo que falta salir.
+  const wanted = input.items?.length
+    ? input.items.map((w) => ({ item: items.find((i) => i.id === w.itemId), quantity: Math.trunc(Number(w.quantity) || 0) }))
+    : items.map((item) => ({ item: item as OrderItemRow | undefined, quantity: item.quantity - Number(item.fulfilled_qty ?? 0) })).filter((w) => w.quantity > 0);
+  if (!wanted.length || wanted.some((w) => !w.item || w.quantity < 1)) throw new ShopError('invalid_input');
+  // Cada línea con compare-and-set: dos personas no mandan dos veces la misma unidad.
+  const claimed: Array<{ itemId: string; quantity: number }> = [];
+  for (const w of wanted) {
+    const res = await db.prepare('UPDATE shop_order_items SET fulfilled_qty = fulfilled_qty + ? WHERE id = ? AND order_id = ? AND fulfilled_qty + ? <= quantity').run(w.quantity, w.item!.id, orderId, w.quantity);
+    if (!res.changes) {
+      for (const c of claimed) await db.prepare('UPDATE shop_order_items SET fulfilled_qty = MAX(fulfilled_qty - ?, 0) WHERE id = ?').run(c.quantity, c.itemId);
+      throw new ShopError('conflict', 409);
+    }
+    claimed.push({ itemId: w.item!.id, quantity: w.quantity });
+  }
   const ts = nowDb();
-  const res = await getDb()
-    .prepare(
-      `UPDATE shop_orders SET status = 'fulfilled', fulfilled_at = ?, tracking_number = ?, tracking_company = ?, tracking_url = ?, updated_at = ?
-       WHERE id = ? AND workspace_id = ? AND status = 'paid'`,
-    )
-    .run(ts, (input.trackingNumber ?? '').trim().slice(0, 80) || null, (input.trackingCompany ?? '').trim().slice(0, 80) || null, trackingUrl || null, ts, orderId, actor.ws);
-  if (!res.changes) throw new ShopError('invalid_status', 409);
+  const number = (input.trackingNumber ?? '').trim().slice(0, 80) || null;
+  const company = (input.trackingCompany ?? '').trim().slice(0, 80) || null;
+  const fulfillmentId = newId('ful');
+  await db
+    .prepare('INSERT INTO shop_fulfillments (id, order_id, workspace_id, items, tracking_number, tracking_company, tracking_url, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(fulfillmentId, orderId, actor.ws, JSON.stringify(claimed), number, company, trackingUrl || null, actor.person, ts);
+  const after = await orderItems(orderId);
+  const complete = after.every((i) => Number(i.fulfilled_qty ?? 0) >= i.quantity);
+  // El pedido guarda el último seguimiento; pasa a enviado cuando salió todo.
+  await db
+    .prepare(`UPDATE shop_orders SET ${complete ? "status = 'fulfilled', fulfilled_at = ?," : 'fulfilled_at = COALESCE(fulfilled_at, ?),'} tracking_number = COALESCE(?, tracking_number), tracking_company = COALESCE(?, tracking_company), tracking_url = COALESCE(?, tracking_url), updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(ts, number, company, trackingUrl || null, ts, orderId, actor.ws);
   const next = (await getOrderRow(actor.ws, orderId))!;
-  await addOrderEvent(next, 'fulfilled', next.tracking_number ? `Fulfilled. Tracking ${next.tracking_company ? `${next.tracking_company} ` : ''}${next.tracking_number}` : 'Fulfilled', actor.person);
+  const summary = claimed.map((c) => `${after.find((i) => i.id === c.itemId)?.title ?? ''} x${c.quantity}`).join(', ').slice(0, 300);
+  const prefix = complete && claimed.length === items.length && claimed.every((c, i) => c.quantity === items[i]?.quantity) ? 'Fulfilled' : complete ? `Fulfilled the rest: ${summary}` : `Partly fulfilled: ${summary}`;
+  await addOrderEvent(next, 'fulfilled', number ? `${prefix}. Tracking ${company ? `${company} ` : ''}${number}` : prefix, actor.person);
   const store = await getStore(actor.ws);
   if (store) {
     const { onOrderFulfilled } = await import('./shop-effects');
-    await onOrderFulfilled(store, next, await orderItems(orderId), input.notify !== false);
+    await onOrderFulfilled(store, next, after, input.notify !== false, { fulfillmentId, complete });
   }
   return (await getOrder(actor.ws, orderId))!;
 }
@@ -654,6 +765,8 @@ export async function cancelOrder(actor: ShopActor, orderId: string, opts: { res
   const o = await getOrderRow(actor.ws, orderId);
   if (!o) throw new ShopError('not_found', 404);
   if (o.status !== 'pending' && o.status !== 'paid') throw new ShopError('invalid_status', 409);
+  // Con parte ya enviada no se cancela: eso es una devolución.
+  if (o.status === 'paid' && (await orderItems(orderId)).some((i) => Number(i.fulfilled_qty ?? 0) > 0)) throw new ShopError('partly_fulfilled', 409);
   // Reembolsar es de admins: se chequea antes de cancelar para no dejar un pedido a medias.
   const refund = opts.refund === true && o.status === 'paid' && o.total_cents - o.refunded_cents > 0;
   if (refund && !actor.admin) throw new ShopError('forbidden', 403);
@@ -763,12 +876,42 @@ export interface PublicOrder {
   /** Transferencia: las instrucciones del comercio. */
   instructions: string | null;
   statusToken: string;
+  pickup: boolean;
+  /** Dirección y horario del retiro. */
+  pickupNote: string;
+  fulfillment: 'none' | 'partial' | 'full';
+  /** Envíos con su seguimiento (el pedido puede salir en partes). */
+  shipments: Array<{ number: string | null; company: string | null; url: string | null; items: Array<{ title: string; quantity: number }>; createdAt: string }>;
+  /** Medios con los que se puede pagar desde esta página (pedido pendiente). */
+  payMethods: string[];
+  /** Se puede pedir la devolución desde esta página, y qué líneas. */
+  returnable: Array<{ itemId: string; title: string; variantTitle: string; quantity: number }>;
+  returnRequested: boolean;
 }
 
 export async function publicOrder(store: StoreRow, o: OrderRow): Promise<PublicOrder> {
   const items = await orderItems(o.id);
-  const { storedPayments } = await import('./shop');
+  const { storedPayments, enabledMethods, listShippingRates: rates } = await import('./shop');
   const manual = storedPayments(store).manual;
+  const db = getDb();
+  const settings = normalizeSettings(parseJson(store.settings, {}));
+  const shipRows = (await db.prepare('SELECT * FROM shop_fulfillments WHERE order_id = ? ORDER BY created_at ASC, rowid ASC').all(o.id)) as Array<Record<string, unknown>>;
+  const shipments = shipRows.map((r) => ({
+    number: (r.tracking_number as string | null) ?? null,
+    company: (r.tracking_company as string | null) ?? null,
+    url: (r.tracking_url as string | null) ?? null,
+    createdAt: String(r.created_at),
+    items: parseJson<Array<{ itemId: string; quantity: number }>>(r.items, []).map((x) => ({ title: items.find((i) => i.id === x.itemId)?.title ?? '', quantity: x.quantity })),
+  }));
+  const pickupNote = o.pickup === 1 ? ((await rates(o.workspace_id)).find((r) => r.name === o.shipping_name)?.note ?? '') : '';
+  const fulfilledAt = o.fulfilled_at ? Date.parse(`${o.fulfilled_at.replace(' ', 'T')}Z`) : null;
+  const inWindow = settings.returnsDays > 0 && fulfilledAt != null && Date.now() - fulfilledAt <= settings.returnsDays * 86_400_000;
+  const open = (await db.prepare("SELECT 1 AS x FROM shop_returns WHERE order_id = ? AND status IN ('requested', 'approved') LIMIT 1").get(o.id)) != null;
+  const returnable = inWindow && (o.status === 'fulfilled' || o.status === 'paid') && !open
+    ? items
+        .map((i) => ({ itemId: i.id, title: i.title, variantTitle: i.variant_title, quantity: Number(i.fulfilled_qty ?? 0) - Number(i.returned_qty ?? 0) }))
+        .filter((i) => i.quantity > 0)
+    : [];
   return {
     number: o.number,
     status: o.status,
@@ -790,12 +933,24 @@ export async function publicOrder(store: StoreRow, o: OrderRow): Promise<PublicO
     items: items.map((i) => ({ title: i.title, variantTitle: i.variant_title, quantity: i.quantity, totalCents: i.total_cents, imageUrl: i.image_url })),
     instructions: o.payment_method === 'manual' && o.status === 'pending' ? (manual?.instructions ?? '') : null,
     statusToken: o.status_token,
+    pickup: o.pickup === 1,
+    pickupNote,
+    fulfillment: fulfillmentState(o, items),
+    shipments,
+    // Una factura de borrador se paga con cualquier medio de la tienda; un pedido online, reintentando el suyo.
+    payMethods:
+      o.status !== 'pending' || o.total_cents <= 0
+        ? []
+        : enabledMethods(store).filter((m) => m !== 'manual' && (o.source === 'draft' || m === o.payment_method)),
+    returnable,
+    returnRequested: open,
   };
 }
 
 export async function orderByStatusToken(store: StoreRow, token: string): Promise<OrderRow | null> {
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(token)) return null;
-  return ((await getDb().prepare('SELECT * FROM shop_orders WHERE workspace_id = ? AND status_token = ?').get(store.workspace_id, token)) as OrderRow | undefined) ?? null;
+  // Un borrador no existe para el cliente hasta que se confirma.
+  return ((await getDb().prepare("SELECT * FROM shop_orders WHERE workspace_id = ? AND status_token = ? AND status != 'draft'").get(store.workspace_id, token)) as OrderRow | undefined) ?? null;
 }
 
 /** Número + email (los dos tienen que coincidir, como la página de estado de Shopify). */
@@ -804,7 +959,7 @@ export async function lookupOrder(store: StoreRow, number: string, email: string
   const e = email.trim().toLowerCase();
   if (!n || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return null;
   return (
-    ((await getDb().prepare('SELECT * FROM shop_orders WHERE workspace_id = ? AND number = ? AND email = ?').get(store.workspace_id, Number(n), e)) as OrderRow | undefined) ??
+    ((await getDb().prepare("SELECT * FROM shop_orders WHERE workspace_id = ? AND number = ? AND email = ? AND status != 'draft'").get(store.workspace_id, Number(n), e)) as OrderRow | undefined) ??
     null
   );
 }

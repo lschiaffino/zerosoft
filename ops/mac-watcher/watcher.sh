@@ -77,8 +77,13 @@ PY
 }
 
 # ---------- 1 y 2: Railway (Postgres, disco, Evolution) ----------
-if [ -d "$RAILWAY_DIR" ] && [ -n "$RAILWAY_BIN" ]; then
-  cd "$RAILWAY_DIR" || exit 0
+# railway_pass [solo-reporte]: lee Railway y lo informa. Con "solo-reporte" no aplica runbooks (Claude está trabajando
+# sobre esos mismos servicios y un reinicio nuestro se le cruzaría).
+railway_pass() {
+  local only_report="${1:-}" t0 vol pg evo used size pct st
+  [ -d "$RAILWAY_DIR" ] && [ -n "$RAILWAY_BIN" ] || return 0
+  cd "$RAILWAY_DIR" || return 0
+  t0=$(now)
   vol=$(railway volume list --json 2>/dev/null | python3 -I -c 'import sys,json
 try:
   v=json.load(sys.stdin)["volumes"]; v=[x for x in v if x.get("serviceName")=="Postgres"][0]
@@ -86,6 +91,14 @@ try:
 except Exception: print("")' 2>/dev/null)
   pg=$(railway service status --service Postgres 2>/dev/null | awk -F': ' '/^Status/{print $2}')
   evo=$(railway service status --service evolution 2>/dev/null | awk -F': ' '/^Status/{print $2}')
+
+  # Sin datos de Railway no hay reporte y el estado termina abriendo "no report from the watcher": que quede
+  # anotado acá (una línea cada 10 min como mucho) para poder distinguirlo de un watcher que no corrió.
+  if { [ -z "$vol" ] || [ -z "$pg" ]; } && [ "$(since railway-silent-log)" -gt 600 ]; then
+    log "railway: la CLI no devolvió datos (volumen='${vol}' postgres='${pg}', $(( $(now) - t0 ))s): no hay reporte en esta pasada"
+    mark railway-silent-log
+  fi
+  [ $(( $(now) - t0 )) -gt 120 ] && log "railway: la lectura tardó $(( $(now) - t0 ))s"
 
   if [ -n "$vol" ]; then
     used=${vol% *}; size=${vol#* }; pct=$(( used * 100 / (size > 0 ? size : 1) ))
@@ -99,7 +112,7 @@ except Exception: print("")' 2>/dev/null)
     *)
       report "evolution-db" down "Postgres: $pg"
       # Runbook: Postgres caído con disco disponible → reiniciar (con disco lleno no sirve: lo resuelve Claude/el dueño).
-      if [ -n "$vol" ] && [ "${pct:-100}" -lt 95 ] && [ "$(since restart-postgres)" -gt $RESTART_GAP_S ]; then
+      if [ -z "$only_report" ] && [ -n "$vol" ] && [ "${pct:-100}" -lt 95 ] && [ "$(since restart-postgres)" -gt $RESTART_GAP_S ]; then
         log "runbook: Postgres $pg con disco al ${pct}% → reinicio"
         if [ "$pg" = "NO DEPLOYMENT" ]; then act deploy_service Postgres; else act railway service restart --service Postgres --yes || act railway service redeploy --service Postgres --yes; fi
         mark restart-postgres
@@ -110,18 +123,20 @@ except Exception: print("")' 2>/dev/null)
   case "$evo" in
     SUCCESS|"") ;;
     *)
-      if [ "$(since restart-evolution)" -gt $RESTART_GAP_S ]; then
+      if [ -z "$only_report" ] && [ "$(since restart-evolution)" -gt $RESTART_GAP_S ]; then
         log "runbook: Evolution $evo → reinicio"
         if [ "$evo" = "NO DEPLOYMENT" ]; then act deploy_service evolution; else act railway service restart --service evolution --yes; fi || true
         mark restart-evolution
       fi
       ;;
   esac
-fi
+}
+railway_pass
 
 # ---------- 3: incidentes abiertos → Claude ----------
-# Claude corre con su propio lock y suelta el del watcher: si no, mientras trabaja (hasta 30 min) no hay reportes,
-# el estado abre "no report from the watcher" por la sesión misma y el incidente no se puede cerrar.
+# launchd no arranca otra pasada mientras ésta siga viva, así que mientras Claude trabaja (hasta 30 min) los reportes
+# los sigue mandando esta misma pasada, una vez por minuto. Si no, el estado abre "no report from the watcher" por la
+# sesión misma y el incidente no se puede cerrar.
 rm -rf "$LOCK"
 CLAUDE_LOCK="$STATE/claude-lock"
 if ! mkdir "$CLAUDE_LOCK" 2>/dev/null; then
@@ -156,7 +171,14 @@ $(tail -n 30 "$LOG")
   ( cd "$REPO_DIR" && perl -e 'alarm shift; exec @ARGV' "$CLAUDE_TIMEOUT_S" claude -p "$prompt" \
       --permission-mode acceptEdits \
       --allowedTools "Read" "Grep" "Glob" "Edit" "Write" "Bash(railway:*)" "Bash(gh:*)" "Bash(vercel:*)" "Bash(curl:*)" "Bash(git:*)" "Bash(cat:*)" "Bash(ls:*)" "Bash(python3:*)" \
-      --add-dir "$HOME_DIR" > "$out" 2>&1 ) || true
+      --add-dir "$HOME_DIR" < /dev/null > "$out" 2>&1 ) &
+  claude_pid=$!
+  # stdin va a /dev/null: heredado, Claude se llevaba el resto de la lista de incidentes como parte del prompt.
+  while kill -0 "$claude_pid" 2>/dev/null; do
+    n=0; while [ $n -lt 12 ] && kill -0 "$claude_pid" 2>/dev/null; do sleep 5; n=$(( n + 1 )); done
+    kill -0 "$claude_pid" 2>/dev/null && railway_pass solo-reporte < /dev/null
+  done
+  wait "$claude_pid" 2>/dev/null || true
   summary=$(tail -c 1500 "$out" | python3 -I -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
   api POST "/api/status/incidents/$id/notes" "{\"by\":\"claude\",\"text\":$summary}" >/dev/null || true
   log "claude: incidente $id terminado, log en $out"

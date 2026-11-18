@@ -17,6 +17,8 @@ import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
 import { openWire, sealWire } from './wa-media-wire-seal';
 import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
+import { chatKey, lineRefs, siblingsByKey, type SiblingRow } from './groups-same-chat';
+import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from './same-chat';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
 import {
@@ -638,6 +640,11 @@ export interface ChatDto {
   hubspotName?: string;
   /** Le falta un mensaje que WhatsApp no pudo entregar: al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
   historyGap?: boolean;
+  /**
+   * El mismo chat en otras líneas (lib/groups-same-chat.ts): la bandeja lo lista una vez, con `unread` sumado, y
+   * el hilo junta los mensajes de todas. Solo si está en más de una línea que quien mira ve.
+   */
+  lines?: import('./same-chat').ChatLineRef[];
 }
 
 export interface ChatPresence {
@@ -1101,6 +1108,42 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       )
       .all(...matchArgs, ...args, limit, offset)) as ListRow[];
   }
+  // El mismo chat en varias líneas: una sola fila (la primera en este orden entre las que cumplen los filtros), con
+  // los no leídos de todas. La que encabeza puede estar en una página anterior: entonces esta no se repite.
+  const merge = !query.numberId && !query.hidden;
+  const sameChat = merge ? await siblingsByKey(ws, query.viewer, rows) : new Map<string, SiblingRow[]>();
+  if (sameChat.size) {
+    const multi = [...sameChat.values()].filter((list) => list.length > 1);
+    const ids = multi.flat().map((s) => s.id);
+    const matching = new Set(
+      ids.length
+        ? ((await db.prepare(`SELECT c.id FROM groups_chats c WHERE ${whereSql} AND c.id IN (${ids.map(() => '?').join(',')})`).all(...args, ...ids)) as Array<{ id: string }>).map(
+            (r) => r.id,
+          )
+        : [],
+    );
+    type Sib = (typeof multi)[number][number];
+    // Mismo orden que la lista: fijados primero (el más reciente), después por actividad y por id.
+    const before = (a: Sib, b: Sib) => {
+      if (Boolean(a.pinned_at) !== Boolean(b.pinned_at)) return Boolean(a.pinned_at);
+      if (a.pinned_at && b.pinned_at && a.pinned_at !== b.pinned_at) return a.pinned_at > b.pinned_at;
+      if (a.sort_key !== b.sort_key) return (a.sort_key ?? '') > (b.sort_key ?? '');
+      return keyset ? a.id > b.id : a.id < b.id;
+    };
+    const leads = new Map<string, string>();
+    for (const list of multi) {
+      const lead = firstBy(
+        list.filter((s) => matching.has(s.id)),
+        before,
+      );
+      if (lead) leads.set(lead.key, lead.id);
+    }
+    rows = collapseSameChats(
+      rows.map((r) => ({ ...r, key: chatKey(r) })),
+      leads,
+    );
+    if (keyset) pinnedCount = rows.filter((r) => r.pinned_at).length;
+  }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
   // Líneas con las confirmaciones de lectura apagadas: solo si hay algún 1:1 cuyo último mensaje salió leído.
@@ -1134,11 +1177,19 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
+        ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
       });
     }),
     total: Number(total.c),
     ...(keyset ? { next, pinned: pinnedCount } : {}),
   };
+}
+
+/** Lo que suma una fila de la bandeja que junta el mismo chat en varias líneas: sus líneas y los no leídos de todas. */
+function sameChatFields(kind: string, siblings: SiblingRow[] | undefined): Partial<Pick<ChatDto, 'lines' | 'unread' | 'markedUnread'>> {
+  const lines = lineRefs(siblings);
+  if (!lines.length) return {};
+  return { lines, unread: mergedUnread(kind, lines), markedUnread: (siblings ?? []).some((s) => Boolean(s.marked_unread)) };
 }
 
 /** El fragmento del mensaje alrededor de lo buscado (160 caracteres), para que la coincidencia se vea. */
@@ -1701,15 +1752,25 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
 export async function listMessages(
   ws: string,
   chatId: string,
-  opts: { after?: string; before?: string; limit?: number } = {},
+  opts: {
+    after?: string;
+    before?: string;
+    limit?: number;
+    /**
+     * El mismo chat en otras líneas (lib/groups-same-chat.ts, ya filtradas por acceso): el hilo junta los mensajes de
+     * todas, en orden y sin repetidos (cada `MessageDto.chatId` dice por qué línea entró o salió).
+     */
+    chatIds?: string[];
+  } = {},
 ): Promise<MessageDto[]> {
   const limit = Math.min(Math.max(1, opts.limit ?? 200), 500);
   // `before`: los anteriores (cargar más al subir en el hilo). Con "<createdAt>~<seq>" el corte es exacto: los
   // mensajes de la misma hora que el más viejo no se saltean. Con una fecha sola, los estrictamente anteriores.
   const [beforeAt, beforeSeq] = (opts.before ?? '').split('~');
   const seq = beforeSeq && /^\d{1,15}$/.test(beforeSeq) ? Number(beforeSeq) : null;
-  const where = ['m.chat_id = ?', 'm.user_id = ?'];
-  const args: Array<string | number> = [chatId, ws];
+  const ids = [chatId, ...(opts.chatIds ?? []).filter((x) => x && x !== chatId)].slice(0, 20);
+  const where = [ids.length > 1 ? `m.chat_id IN (${ids.map(() => '?').join(',')})` : 'm.chat_id = ?', 'm.user_id = ?'];
+  const args: Array<string | number> = [...ids, ws];
   if (opts.after) {
     where.push('m.created_at > ?');
     args.push(opts.after);
@@ -1731,9 +1792,24 @@ export async function listMessages(
        ) ORDER BY created_at ASC, rn ASC`,
     )
     .all(...args, limit)) as Array<MessageRow & { ticket_id: string | null; rn: number }>;
-  const out = rows.map(toMessageDto);
-  // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
-  if (rows.length) await withLinesMentions(rows[0].number_id, out, rows[0].chat_id).catch(() => null);
+  // Varias líneas en el mismo grupo: cada una recibe el mensaje (mismo id de WhatsApp). Queda uno, el propio si hay.
+  const kept =
+    ids.length > 1
+      ? dedupeLineMessages(
+          rows,
+          (m) => (m.direction === 'in' || m.direction === 'out' ? m.provider_message_id : null),
+          (m) => m.direction === 'out',
+        )
+      : rows;
+  const out = kept.map(toMessageDto);
+  // "@<dígitos>" → "@Nombre" con la libreta de cada número (los mensajes de un chat son de un solo número).
+  for (const cid of ids) {
+    const own = kept.filter((r) => r.chat_id === cid);
+    if (own.length) {
+      const dtos = out.filter((m) => m.chatId === cid);
+      await withLinesMentions(own[0].number_id, dtos, cid).catch(() => null);
+    }
+  }
   await withReplyQuotes(ws, out).catch(() => null);
   // Tarjetas de contacto: la foto de cada persona, si está guardada en la libreta del número.
   if (rows.length && out.some((m) => m.contacts?.length)) {

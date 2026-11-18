@@ -55,6 +55,8 @@
   "pollMulti": "Escolha uma ou mais",
   "pollSingle": "Escolha uma",
   "deletedTag": "Apagada para todos · mantida aqui",
+  "receivedOnLine": "Chegou por {line}",
+  "sentFromLine": "Saiu por {line}",
   "starred": "Favoritada",
   "edited": "Editada",
   "messageMenu": "Opções da mensagem",

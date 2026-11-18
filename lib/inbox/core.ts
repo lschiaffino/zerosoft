@@ -7,6 +7,8 @@
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
+import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from '../same-chat';
+import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from './same-chat';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
@@ -777,8 +779,56 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const more = rows.length > limit;
   const page = more ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
+  // El mismo chat en varias cuentas de WhatsApp: una sola fila (la primera en este orden entre las que cumplen la
+  // vista), con los no leídos de todas. Si la que encabeza quedó en una página anterior, esta no se repite.
+  let shown = [...pinned, ...page];
+  const sameChat = await inboxSiblingsByKey(owner, shown, mode.key);
+  const multi = [...sameChat.values()].filter((list) => list.length > 1);
+  if (multi.length) {
+    const ids = multi.flat().map((x) => x.id);
+    const matching = new Set(
+      ((await db.prepare(`SELECT t.id FROM inbox_threads t WHERE t.owner_id = ? AND ${where.join(' AND ')} AND t.id IN (${ids.map(() => '?').join(',')})`).all(owner, ...args, ...ids)) as Array<{
+        id: string;
+      }>).map((r) => r.id),
+    );
+    const asc = mode.dir === 'ASC';
+    type Sib = (typeof multi)[number][number];
+    const before = (a: Sib, b: Sib) => {
+      if (mode.pinnedFirst && Boolean(a.pinned_at) !== Boolean(b.pinned_at)) return Boolean(a.pinned_at);
+      const ak = a.sort_key ?? '';
+      const bk = b.sort_key ?? '';
+      if (ak !== bk) return asc ? ak < bk : ak > bk;
+      return asc ? a.id < b.id : a.id > b.id;
+    };
+    const leads = new Map<string, string>();
+    for (const list of multi) {
+      const lead = firstBy(
+        list.filter((x) => matching.has(x.id)),
+        before,
+      );
+      if (lead) leads.set(lead.key, lead.id);
+    }
+    const pinnedIds = new Set(pinned.map((r) => r.id));
+    shown = collapseSameChats(
+      shown.map((r) => ({ ...r, key: threadKey(r) })),
+      leads,
+    );
+    const threads = await withPreviewMentions(
+      owner,
+      shown.map((r) => {
+        const dto = threadDto(r, now);
+        const lines = inboxLineRefs(sameChat.get(threadKey(r)));
+        return lines.length ? { ...dto, lines, unread: mergedUnread(r.kind, lines) } : dto;
+      }),
+    );
+    return {
+      threads,
+      next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
+      pinned: shown.filter((r) => pinnedIds.has(r.id)).length,
+    };
+  }
   return {
-    threads: await withPreviewMentions(owner, [...pinned, ...page].map((r) => threadDto(r, now))),
+    threads: await withPreviewMentions(owner, shown.map((r) => threadDto(r, now))),
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };
@@ -932,6 +982,8 @@ async function withPresenceNames(threads: ThreadDto[]): Promise<void> {
 
 interface MessageRow {
   id: string;
+  thread_id?: string;
+  external_id?: string | null;
   from_me: number;
   sender_name: string;
   sender_handle: string;
@@ -1010,14 +1062,29 @@ export interface MessagePage {
  * varios mensajes en el mismo segundo no se saltean ni se repiten); también
  * acepta una fecha sola. Lo nuevo que llega mientras se sube no mueve las páginas.
  */
-export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<MessagePage> {
-  const thread = await getThreadRow(owner, threadId);
-  const page = await messagePage(owner, threadId, opts);
+export async function listMessages(
+  owner: string,
+  threadId: string,
+  opts: { before?: string; limit?: number; around?: string; /** false: solo este chat, aunque esté en otras cuentas. */ merge?: boolean } = {},
+): Promise<MessagePage> {
+  // El mismo chat en otras cuentas de WhatsApp (lib/inbox/same-chat.ts): la conversación junta los mensajes de todas.
+  // Viene en la misma consulta que el chat.
+  const all = await threadWithSiblings<ThreadRow>(owner, threadId);
+  const thread = all.find((x) => x.id === threadId);
+  if (!thread) throw new InboxError('not_found', 404);
+  const siblings = opts.merge === false ? [] : all;
+  const ids = siblings.length > 1 ? [threadId, ...siblings.map((x) => x.id).filter((x) => x !== threadId)] : [threadId];
+  const page = await messagePage(owner, ids, opts);
   if (thread.channel === 'whatsapp') {
-    await withMentionNames(thread.account_id, page.messages).catch(() => null);
-    // Tarjetas de contacto: la foto de cada persona, si está guardada.
-    const { withCardPictures } = await import('../wa-contact-pictures');
-    await withCardPictures({ app: 'inbox', accountId: thread.account_id }, page.messages.map((m) => m.meta?.contacts)).catch(() => null);
+    const accountOf = new Map(siblings.map((x) => [x.id, x.account_id]));
+    for (const accountId of new Set([thread.account_id, ...accountOf.values()])) {
+      const own = ids.length > 1 ? page.messages.filter((m) => (accountOf.get(m.threadId ?? threadId) ?? thread.account_id) === accountId) : page.messages;
+      if (!own.length) continue;
+      await withMentionNames(accountId, own).catch(() => null);
+      // Tarjetas de contacto: la foto de cada persona, si está guardada.
+      const { withCardPictures } = await import('../wa-contact-pictures');
+      await withCardPictures({ app: 'inbox', accountId }, own.map((m) => m.meta?.contacts)).catch(() => null);
+    }
   }
   return page;
 }
@@ -1048,29 +1115,43 @@ async function withMentionNames(accountId: string, messages: MessageDto[]): Prom
   }
 }
 
-async function messagePage(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string }): Promise<MessagePage> {
+async function messagePage(owner: string, ids: string[], opts: { before?: string; limit?: number; around?: string }): Promise<MessagePage> {
   type Row = MessageRow & { rid: number };
+  const multi = ids.length > 1;
+  const inThreads = multi ? `thread_id IN (${ids.map(() => '?').join(',')})` : 'thread_id = ?';
+  // Varias cuentas en el mismo grupo: cada una recibe el mensaje (mismo id de WhatsApp). Queda uno, el propio si hay.
+  const finish = (rows: Row[], more: boolean): MessagePage => {
+    const kept = multi ? dedupeLineMessages(rows, (r) => r.external_id ?? null, (r) => r.from_me === 1) : rows;
+    return {
+      messages: kept.map((r) => ({ ...messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null), ...(multi ? { threadId: r.thread_id } : {}) })),
+      more,
+      cursor: messageCursor(rows[0]),
+    };
+  };
+  let quotes = new Map<string, MessageQuote>();
   if (opts.around) {
     // Ir a un mensaje (desde la búsqueda): 40 anteriores y todo lo que sigue hasta el más nuevo (con tope).
-    const target = (await getDb().prepare('SELECT sent_at FROM inbox_messages WHERE id = ? AND thread_id = ? AND owner_id = ?').get(opts.around, threadId, owner)) as { sent_at: string } | undefined;
+    const target = (await getDb().prepare(`SELECT sent_at FROM inbox_messages WHERE id = ? AND ${inThreads} AND owner_id = ?`).get(opts.around, ...ids, owner)) as
+      | { sent_at: string }
+      | undefined;
     if (target) {
       const older = (await getDb()
-        .prepare('SELECT sent_at FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND sent_at < ? ORDER BY sent_at DESC LIMIT 1 OFFSET 39')
-        .get(threadId, owner, target.sent_at)) as { sent_at: string } | undefined;
+        .prepare(`SELECT sent_at FROM inbox_messages WHERE ${inThreads} AND owner_id = ? AND sent_at < ? ORDER BY sent_at DESC LIMIT 1 OFFSET 39`)
+        .get(...ids, owner, target.sent_at)) as { sent_at: string } | undefined;
       const from = older?.sent_at ?? '';
       const rows = (await getDb()
-        .prepare('SELECT *, rowid AS rid FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND sent_at >= ? ORDER BY sent_at ASC, rowid ASC LIMIT 3000')
-        .all(threadId, owner, from)) as unknown as Row[];
-      const quotes = await quotesFor(threadId, rows);
-      return { messages: rows.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more: !!older, cursor: messageCursor(rows[0]) };
+        .prepare(`SELECT *, rowid AS rid FROM inbox_messages WHERE ${inThreads} AND owner_id = ? AND hidden_at IS NULL AND sent_at >= ? ORDER BY sent_at ASC, rowid ASC LIMIT 3000`)
+        .all(...ids, owner, from)) as unknown as Row[];
+      quotes = await quotesFor(ids, rows);
+      return finish(rows, !!older);
     }
   }
   const limit = Math.min(Math.max(opts.limit ?? 150, 1), 500);
   const [rawAt, rawRid] = (opts.before ?? '').split('~');
   const before = validIso(rawAt);
   const rid = rawRid && /^\d{1,15}$/.test(rawRid) ? Number(rawRid) : null;
-  const where = ['thread_id = ?', 'owner_id = ?', 'hidden_at IS NULL'];
-  const args: Array<string | number> = [threadId, owner];
+  const where = [inThreads, 'owner_id = ?', 'hidden_at IS NULL'];
+  const args: Array<string | number> = [...ids, owner];
   if (before && rid !== null) {
     where.push('sent_at <= ?', '(sent_at < ? OR rowid < ?)');
     args.push(before, before, rid);
@@ -1083,20 +1164,21 @@ async function messagePage(owner: string, threadId: string, opts: { before?: str
     .all(...args, limit + 1)) as unknown as Row[];
   const more = rows.length > limit;
   const page = rows.slice(0, limit).reverse();
-  const quotes = await quotesFor(threadId, page);
-  return { messages: page.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more, cursor: messageCursor(page[0]) };
+  quotes = await quotesFor(ids, page);
+  return finish(page, more);
 }
 
 /** Los mensajes citados por las respuestas de una página (por id del proveedor, dentro del mismo chat). */
-async function quotesFor(threadId: string, rows: MessageRow[]): Promise<Map<string, MessageQuote>> {
+async function quotesFor(threadIds: string[], rows: MessageRow[]): Promise<Map<string, MessageQuote>> {
+  const threadId = threadIds[0];
   const ids = [...new Set(rows.map((r) => r.reply_to).filter((x): x is string => !!x))].slice(0, 200);
   const out = new Map<string, MessageQuote>();
   if (!ids.length) return out;
   const found = (await getDb()
     .prepare(
-      `SELECT id, external_id, from_me, sender_name, sender_handle, body, media_type, revoked_at FROM inbox_messages WHERE thread_id = ? AND external_id IN (${ids.map(() => '?').join(',')})`,
+      `SELECT id, external_id, from_me, sender_name, sender_handle, body, media_type, revoked_at FROM inbox_messages WHERE thread_id IN (${threadIds.map(() => '?').join(',')}) AND external_id IN (${ids.map(() => '?').join(',')})`,
     )
-    .all(threadId, ...ids)) as Array<{ id: string; external_id: string; from_me: number; sender_name: string; sender_handle: string; body: string; media_type: string; revoked_at: string | null }>;
+    .all(...threadIds, ...ids)) as Array<{ id: string; external_id: string; from_me: number; sender_name: string; sender_handle: string; body: string; media_type: string; revoked_at: string | null }>;
   for (const q of found) {
     out.set(q.external_id, {
       id: q.id,

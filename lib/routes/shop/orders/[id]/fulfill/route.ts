@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       trackingCompany: str(body.trackingCompany),
       trackingUrl: str(body.trackingUrl),
       notify: body.notify !== false,
+      items: Array.isArray(body.items) ? (body.items as Array<{ itemId: string; quantity: number }>).slice(0, 100) : undefined,
     });
     return shopJson({ order });
   } catch (err) {

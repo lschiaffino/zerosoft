@@ -682,13 +682,26 @@ const WaConversation = forwardRef<
     { key: 'delete', label: mo('delete'), divider: true, onSelect: () => onAction('delete') },
   ];
 
+  // El mismo chat en varias cuentas (thread.lines): cada mensaje sabe por cuál entró o salió (MessageDto.threadId). La
+  // etiqueta de la cuenta va en el primero y cada vez que cambia; todos la llevan en el título de la hora.
+  const lineNames = new Map((thread.lines ?? []).map((l) => [l.chatId, l.name]));
+  const lineOf = (m: MessageDto) => m.threadId ?? thread.id;
+  const lineTags = new Set<string>();
+  if (lineNames.size > 1) {
+    let last = '';
+    for (const m of messages) {
+      if (m.mediaType === 'system') continue;
+      if (lineOf(m) !== last) lineTags.add(m.id);
+      last = lineOf(m);
+    }
+  }
   // Mensajes agrupados por día; cola en el primero de cada tanda del mismo remitente.
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
   // Fotos y videos mandados juntos van en un álbum (lib/wa-albums.ts): una tanda, una burbuja.
   const runs = groupAlbums(messages, (m) => ({
     media: (m.mediaType === 'image' || m.mediaType === 'video') && m.hasMedia && !m.revoked && !m.reply && !m.meta?.viewOnce && !m.meta?.poll && m.status !== 'failed',
-    key: `${senderKey(m)}|${localDayKey(m.sentAt)}|${m.forwarded ? 'f' : ''}`,
+    key: `${senderKey(m)}|${localDayKey(m.sentAt)}|${m.forwarded ? 'f' : ''}|${lineNames.size > 1 ? lineOf(m) : ''}`,
     at: new Date(m.sentAt).getTime(),
     caption: Boolean(m.body?.trim()),
   }));
@@ -706,7 +719,7 @@ const WaConversation = forwardRef<
       prev = null;
       continue;
     }
-    const cont = !!prev && senderKey(prev) === senderKey(m);
+    const cont = !!prev && senderKey(prev) === senderKey(m) && !lineTags.has(m.id);
     prev = run[run.length - 1];
     days[days.length - 1].items.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
   }
@@ -750,6 +763,7 @@ const WaConversation = forwardRef<
         data-testid="wa-message"
         data-status={m.fromMe ? m.status : undefined}
         data-unsent={isTempId(m.id) ? 'true' : undefined}
+        data-line={lineNames.size > 1 ? lineOf(m) : undefined}
         className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}${selected ? ' is-selected' : ''}`}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
@@ -925,7 +939,16 @@ const WaConversation = forwardRef<
               <span className="wa-spacer" aria-hidden="true" style={{ width: `${spacer}px` }} />
             </p>
           )}
-          {m.revoked && !hidden && <p className="wa-tags"><span className="gr-deleted-tag">{w('deletedTag')}</span></p>}
+          {((m.revoked && !hidden) || lineTags.has(m.id)) && (
+            <p className="wa-tags">
+              {lineTags.has(m.id) && (
+                <span className="gr-line-tag" data-testid="msg-line">
+                  {w(m.fromMe ? 'sentFromLine' : 'receivedOnLine', { line: lineNames.get(lineOf(m)) ?? '' })}
+                </span>
+              )}
+              {m.revoked && !hidden && <span className="gr-deleted-tag">{w('deletedTag')}</span>}
+            </p>
+          )}
           <p className="gr-msg-foot">
             {m.starred && (
               <span className="wa-star" role="img" aria-label={w('starred')}>
@@ -933,7 +956,9 @@ const WaConversation = forwardRef<
               </span>
             )}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
-            <time dateTime={m.sentAt}>{time}</time>
+            <time dateTime={m.sentAt} title={lineNames.size > 1 ? lineNames.get(lineOf(m)) : undefined}>
+              {time}
+            </time>
             {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(m.status === 'read' && thread.readHidden ? 'message.status.readHidden' : `message.status.${['pending', 'queued', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
             {isTempId(m.id) && m.status === 'failed' && (m.hasMedia || queuedText(m.id)) && (
               <button type="button" className="wa-retry" onClick={() => (m.hasMedia ? retryInboxMedia(m.id) : retryInboxText(m.id))} aria-label={w('retry')} title={w('retry')}>
