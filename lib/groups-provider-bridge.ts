@@ -443,19 +443,26 @@ export function wahaProvider(
     return phones.map((phone) => ({ phone, ok: true }));
   }
 
+  /** Config de la sesión: el webhook con su firma HMAC y los headers propios (el secreto). */
+  function wahaConfig(webhookUrl: string, headers?: Record<string, string>) {
+    const customHeaders = Object.entries(headers ?? {}).map(([name, value]) => ({ name, value }));
+    return {
+      webhooks: [
+        {
+          url: webhookUrl,
+          events: WAHA_EVENTS,
+          ...(opts.webhookSecret ? { hmac: { key: opts.webhookSecret } } : {}),
+          ...(customHeaders.length ? { customHeaders } : {}),
+        },
+      ],
+    };
+  }
+
   return {
     kind: 'waha',
     caps: PROVIDER_CAPS.waha,
-    async connect(webhookUrl) {
-      const config = {
-        webhooks: [
-          {
-            url: webhookUrl,
-            events: WAHA_EVENTS,
-            ...(opts.webhookSecret ? { hmac: { key: opts.webhookSecret } } : {}),
-          },
-        ],
-      };
+    async connect(webhookUrl, headers) {
+      const config = wahaConfig(webhookUrl, headers);
       try {
         await api('/api/sessions', 'POST', { name: cfg.session || 'default', start: true, config });
       } catch (err) {
@@ -619,14 +626,31 @@ export const EVOLUTION_EVENTS = [
  * Suma al webhook de una instancia de Evolution los eventos de EVOLUTION_EVENTS que le falten, con su
  * misma URL (la instancia se vinculó antes de sumarlos). No toca nada si ya están o si no hay webhook.
  */
+/**
+ * Webhook de Evolution (v2.3: /webhook/set y el alta de la instancia aceptan `headers`, que
+ * Evolution manda en cada evento). Sin headers no se manda el campo.
+ */
+export function evolutionWebhook(url: string, headers?: Record<string, string>) {
+  return { enabled: true, url, byEvents: false, base64: false, events: EVOLUTION_EVENTS, ...(headers && Object.keys(headers).length ? { headers } : {}) };
+}
+
 export async function syncEvolutionWebhook(call: (path: string, method: string, body?: unknown) => Promise<unknown>, instance: string): Promise<boolean> {
   const found = (await call(`/webhook/find/${instance}`, 'GET')) as Json | null;
   const url = typeof found?.url === 'string' ? found.url : '';
   if (!url || !/^https?:\/\//.test(url)) return false;
   const have = new Set(Array.isArray(found?.events) ? (found!.events as unknown[]).map(String) : []);
   if (EVOLUTION_EVENTS.every((e) => have.has(e))) return false;
+  // Los headers registrados (el secreto) se mandan de nuevo tal cual: este arreglo solo suma eventos.
+  const headers = found?.headers && typeof found.headers === 'object' && !Array.isArray(found.headers) ? (found.headers as Record<string, string>) : undefined;
   await call(`/webhook/set/${instance}`, 'POST', {
-    webhook: { enabled: found?.enabled !== false, url, byEvents: found?.webhookByEvents === true, base64: found?.webhookBase64 === true, events: EVOLUTION_EVENTS },
+    webhook: {
+      enabled: found?.enabled !== false,
+      url,
+      byEvents: found?.webhookByEvents === true,
+      base64: found?.webhookBase64 === true,
+      events: EVOLUTION_EVENTS,
+      ...(headers ? { headers } : {}),
+    },
   });
   return true;
 }
@@ -1413,8 +1437,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     kind: 'evolution',
     caps: PROVIDER_CAPS.evolution,
     history,
-    async connect(webhookUrl) {
-      const webhook = { enabled: true, url: webhookUrl, byEvents: false, base64: false, events: EVOLUTION_EVENTS };
+    async connect(webhookUrl, headers) {
+      const webhook = evolutionWebhook(webhookUrl, headers);
       try {
         await api('/instance/create', 'POST', {
           instanceName: cfg.session || 'zerosoft',
@@ -1429,6 +1453,9 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         await api(`/webhook/set/${instance}`, 'POST', { webhook });
       }
       return start();
+    },
+    async setWebhook(webhookUrl, headers) {
+      await api(`/webhook/set/${instance}`, 'POST', { webhook: evolutionWebhook(webhookUrl, headers) });
     },
     syncWebhookEvents: () => syncEvolutionWebhook((path, method, body) => api(path, method, body), instance),
     state,

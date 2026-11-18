@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import DocsViewsChart, { type ViewsDay } from './DocsViewsChart';
+import { Link } from '@/i18n/navigation';
+import type { ViewsDay } from './DocsViewsChart';
 import { downloadExport, type DocsExportFormat } from './DocsExportDialog';
 
 interface Site {
@@ -282,53 +283,11 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
                 <dd>{analytics.visitors}</dd>
               </div>
             </dl>
-            <DocsViewsChart series={analytics.series} label={t('chart', { days: analytics.days })} />
-            <div className="docs-site-tables">
-              <div className="docs-dns-wrap">
-                <table className="docs-dns">
-                  <caption className="docs-analytics-h">{t('topPages')}</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">{t('page')}</th>
-                      <th scope="col">{t('views')}</th>
-                      <th scope="col">{t('helpful')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analytics.pages.map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.title || t('untitled')}</td>
-                        <td className="data">{p.views}</td>
-                        <td className="data">
-                          {p.helpful + p.notHelpful > 0 ? `${Math.round((p.helpful / (p.helpful + p.notHelpful)) * 100)}%` : '–'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {analytics.referrers.length > 0 && (
-                <div className="docs-dns-wrap">
-                  <table className="docs-dns">
-                    <caption className="docs-analytics-h">{t('referrers')}</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">{t('source')}</th>
-                        <th scope="col">{t('visitors')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.referrers.map((r) => (
-                        <tr key={r.host}>
-                          <td className="data">{r.host}</td>
-                          <td className="data">{r.visitors}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <p className="docs-site-analytics-link">
+              <Link href="/app/docs/analytics?tab=site" data-testid="docs-site-analytics-link">
+                {t('analyticsLink')}
+              </Link>
+            </p>
           </div>
         )}
       </FormSection>

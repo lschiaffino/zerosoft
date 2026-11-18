@@ -810,5 +810,42 @@
     "noMic": "Sem acesso ao microfone. Permita no navegador e tente de novo.",
     "noCamera": "Sem acesso à câmera ou ao microfone. Permita no navegador e tente de novo.",
     "empty": "Nada foi gravado. Tente de novo."
+  },
+  "report": {
+    "nav": "Análises",
+    "title": "Análises",
+    "desc": "Mensagens, respostas em threads, quem escreve e quando, reações e huddles das conversas que você pode ler, comparados com o período anterior.",
+    "channel": "Canal",
+    "allChannels": "Todos os canais",
+    "messages": "Mensagens",
+    "replies": "Respostas em threads",
+    "people": "Pessoas que escrevem",
+    "reactions": "Reações",
+    "huddles": "Huddles",
+    "huddleTime": "Tempo em huddles",
+    "posters": "Pessoas",
+    "members": "Membros",
+    "perDay": "Mensagens, respostas e reações por dia",
+    "whoPosts": "Quem escreve",
+    "whenPosted": "Quando se escreve",
+    "peak": "A maioria das mensagens é enviada {day} às {hour} ({n})",
+    "byKind": "Onde se conversa",
+    "kinds": {
+      "public": "Canais públicos",
+      "private": "Canais privados",
+      "dm": "Mensagens diretas",
+      "group": "Mensagens em grupo"
+    },
+    "byChannel": "Por canal",
+    "lastMessage": "Última mensagem",
+    "someone": "Alguém",
+    "messagesN": "{n, plural, one {# mensagem} other {# mensagens}}",
+    "repliesN": "{n, plural, one {# resposta} other {# respostas}}",
+    "conversationsN": "{n, plural, one {# conversa} other {# conversas}}",
+    "noChannelsTitle": "Ainda não há canais",
+    "noChannelsBody": "Entre em um canal ou crie um e a atividade dele aparece aqui.",
+    "emptyTitle": "Nada aconteceu neste período",
+    "emptyBody": "Quando alguém escreve, responde ou reage em uma conversa que você pode ler, os números aparecem aqui.",
+    "note": "Conta as mensagens e respostas de pessoas nos canais públicos, nos privados em que você está e nas suas mensagens diretas. Mensagens de bots e apagadas ficam de fora, e este relatório nunca lê o texto das mensagens. O tempo em huddles vai do início ao fim; um huddle ainda em andamento conta até agora."
   }
 }

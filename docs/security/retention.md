@@ -33,9 +33,11 @@ idempotently, so overlapping runs never double-process.
 | Hiring candidates | Per job retention setting | `purgeExpiredCandidates` (tick) |
 | Forms responses, partial responses (30 days), unsent uploads, old visits | Per form setting | `purgeFormsRetention` (tick) |
 | Assistant attachments never sent | 24 hours | `sweepUnclaimedAttachments` (tick) |
+| Push notification text (Lines, Talk; `groups_notifications`) | Until the browser picks it up, at most 24 hours | `takePending` deletes on delivery; `pruneNotifications` (tick) |
 | Link history and deferred clicks | Bounded windows | `pruneLinkHistory`, `pruneDeferredClicks` (tick) |
 | Pulse cookieless salts | 2 days (after that, visitor ids cannot be recomputed) | `lib/analytics/cookieless.ts` |
 | Send download cache and leftovers | Short-lived | `purgeSendLeftovers` (minute) |
+| Link preview cache for Inbox and Lines (`wa_link_previews`, shared, keyed by an HMAC of the URL; the URL is not stored) | Refreshed after 7 days, deleted after 14, and on account or workspace deletion (the links in its Inbox and Lines messages) | `prunePreviewCache` (tick); `forgetPreviews` (`eraseNow`) |
 | Recordings and transcripts (Voice, Rec) | While the customer keeps them | The customer; account/workspace deletion |
 
 Customer-configurable retention (Talk, Flow, Hiring, Forms) lets each controller apply its own

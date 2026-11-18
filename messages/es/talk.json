@@ -810,5 +810,42 @@
     "noMic": "Sin acceso al micrófono. Permitilo en el navegador y probá de nuevo.",
     "noCamera": "Sin acceso a la cámara o al micrófono. Permitilos en el navegador y probá de nuevo.",
     "empty": "No se grabó nada. Probá de nuevo."
+  },
+  "report": {
+    "nav": "Analítica",
+    "title": "Analítica",
+    "desc": "Mensajes, respuestas en hilos, quién escribe y cuándo, reacciones y huddles de las conversaciones que podés leer, comparados con el período anterior.",
+    "channel": "Canal",
+    "allChannels": "Todos los canales",
+    "messages": "Mensajes",
+    "replies": "Respuestas en hilos",
+    "people": "Personas que escriben",
+    "reactions": "Reacciones",
+    "huddles": "Huddles",
+    "huddleTime": "Tiempo en huddles",
+    "posters": "Personas",
+    "members": "Miembros",
+    "perDay": "Mensajes, respuestas y reacciones por día",
+    "whoPosts": "Quién escribe",
+    "whenPosted": "Cuándo se escribe",
+    "peak": "La mayoría de los mensajes se mandan el {day} a las {hour} ({n})",
+    "byKind": "Dónde se conversa",
+    "kinds": {
+      "public": "Canales públicos",
+      "private": "Canales privados",
+      "dm": "Mensajes directos",
+      "group": "Mensajes de grupo"
+    },
+    "byChannel": "Por canal",
+    "lastMessage": "Último mensaje",
+    "someone": "Alguien",
+    "messagesN": "{n, plural, one {# mensaje} other {# mensajes}}",
+    "repliesN": "{n, plural, one {# respuesta} other {# respuestas}}",
+    "conversationsN": "{n, plural, one {# conversación} other {# conversaciones}}",
+    "noChannelsTitle": "Todavía no hay canales",
+    "noChannelsBody": "Sumate a un canal o creá uno y su actividad aparece acá.",
+    "emptyTitle": "No pasó nada en este período",
+    "emptyBody": "Cuando alguien escribe, responde o reacciona en una conversación que podés leer, los números aparecen acá.",
+    "note": "Cuenta los mensajes y respuestas de personas en los canales públicos, los privados donde estás y tus mensajes directos. Quedan afuera los mensajes de bots y los borrados, y este reporte nunca lee el texto de los mensajes. El tiempo en huddles va del comienzo al final; uno que sigue en curso cuenta hasta ahora."
   }
 }

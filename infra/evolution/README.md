@@ -110,6 +110,29 @@ ese camino tiene un volumen de Railway (el deploy lo muestra en `volumeMounts`),
 borra. Sin el volumen, después de un deploy las líneas no podían leer ni mandar archivado (`failed to find key`)
 hasta volver a vincularse.
 
+## Secreto del webhook en un header
+
+Desde el 17/11, al vincular (o volver a vincular) una línea de Inbox o Lines se registra el webhook como
+`/api/{inbox|groups}/webhook/{id}` con el header `x-zerosoft-webhook-secret` (el campo `headers` del webhook, que
+Evolution 2.3.7 manda en cada evento). Antes el secreto iba en la ruta (`/webhook/{id}/{secreto}`), que queda en los
+logs de requests de Vercel. La ruta vieja se sigue aceptando: las instancias ya vinculadas siguen andando sin tocar
+nada. Lo explica `lib/wa-webhook-secret.ts`.
+
+**Pasar las instancias ya vinculadas (paso del dueño, no se hizo solo).** Con el trabajo de mantenimiento
+`wa-webhook-header` (lib/wa-webhook-migrate.ts), que solo llama a `/webhook/set/{instancia}` de cada línea conectada
+(no toca la sesión ni la vinculación):
+
+1. En Vercel, `MAINTENANCE_JOBS=wa-webhook-header:dry`. El cron de cada minuto escribe
+   `[maintenance] wa-webhook-header dry: inbox would migrate N of M …` (solo cuentas).
+2. Cambiarla a `wa-webhook-header:apply` (espera a que el dry haya terminado). Mirar `migrated` y `failed`; una línea
+   que falla sigue con la ruta vieja y se pasa sola la próxima vez que se vincule.
+3. Sacar la variable. Para comprobar una línea: `GET /webhook/find/{instancia}` muestra la URL sin secreto y
+   `headers`.
+4. Cuando ninguna instancia use la ruta vieja (en los logs de Vercel no aparecen más POST a
+   `/api/inbox/webhook/{id}/{…}` ni a `/api/groups/webhook/{id}/{…}` de Evolution), se puede borrar
+   `app/api/inbox/webhook/[id]/[secret]`. La de Lines se queda: la usa la Cloud API de Meta, que no deja mandar
+   headers propios (y firma cada evento con `X-Hub-Signature-256`).
+
 ## Mantenimiento (automático)
 
 El workflow corre todos los lunes:
