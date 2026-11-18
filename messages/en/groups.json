@@ -668,7 +668,6 @@
     "lastNow": "just now",
     "noMessages": "No messages yet",
     "color": "Color",
-    "colorOf": "Color of {name}",
     "colorNone": "No color",
     "colors": {"blue": "Blue", "green": "Green", "orange": "Orange", "red": "Red", "purple": "Purple", "teal": "Teal", "yellow": "Yellow", "pink": "Pink"},
     "intro": "Each number is a WhatsApp line your team answers from. Credentials are stored encrypted and are not shown again.",
