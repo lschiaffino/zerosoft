@@ -231,6 +231,8 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       status: d.status ? t(`ticketStatus.${String(d.status)}`) : '',
       previous: String(d.previousName || d.previousId || ''),
       company: String(d.companyName || d.companyId || ''),
+      kind: e.action === 'imported' && d.kind ? t(`migrate.kinds.${String(d.kind)}`) : '',
+      applied: String(d.applied ?? ''),
     };
     // Sin "sacó: " vacío ni "asignó el chat a <sí mismo>".
     if (e.action === 'labels' && (!v.added || !v.removed)) {
