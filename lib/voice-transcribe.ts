@@ -14,7 +14,9 @@
  * gateway prueba en orden Groq whisper-large-v3-turbo si hay GROQ_API_KEY (el
  * más rápido), VOICE_DICTATION_TRANSCRIBE_MODEL por el Gateway (default
  * openai/gpt-4o-mini-transcribe: más preciso y más barato que whisper-1) y el
- * modelo de siempre. Si uno falla, sigue con el próximo.
+ * modelo de siempre. Si uno falla, sigue con el próximo. El resto (reuniones,
+ * notas de voz, llamadas) también tiene respaldo: whisper-1, el modelo de
+ * dictado y Groq (ver transcribeAttempts).
  *
  * Aparte, `tier: 'economy'` (Calls en modo económico) usa Groq con GROQ_API_KEY
  * (whisper-large-v3-turbo, GROQ_TRANSCRIBE_MODEL lo cambia): unas diez veces más
@@ -176,23 +178,60 @@ export function dictationTranscribeModel(): string {
 
 /** Un modelo que falló (no por tiempo) se saltea un rato en esta instancia: no se paga la falla en cada dictado. */
 const SKIP_FAILED_MS = 10 * 60_000;
-const failedAt = new Map<string, number>();
+/** Un modelo con el rate limit del proveedor lleno se saltea hasta que pasa la ventana (un minuto). */
+const SKIP_RATE_LIMITED_MS = 60_000;
+/** Hasta cuándo se saltea cada modelo (provider/model → epoch ms). */
+const skipUntil = new Map<string, number>();
+
+/** Solo para tests: olvida los modelos salteados. */
+export function resetTranscribeSkips(): void {
+  skipUntil.clear();
+}
 
 /**
- * Proveedores y modelos a probar, en orden, para este pedido. Un dictado con el
- * proveedor gateway prueba primero los rápidos; el resto, uno solo.
+ * ¿El proveedor dijo que se llenó su rate limit? El Gateway tira
+ * GatewayRateLimitError, a veces envuelto en el RetryError del AI SDK
+ * ("Failed after 2 attempts. Last error: GatewayRateLimitError ...").
+ */
+export function isProviderRateLimit(err: unknown): boolean {
+  let e: unknown = err;
+  for (let i = 0; i < 4 && e && typeof e === 'object'; i++) {
+    const x = e as { name?: string; statusCode?: number; message?: string; lastError?: unknown; cause?: unknown };
+    if (x.name === 'GatewayRateLimitError' || x.statusCode === 429 || /rate limit/i.test(x.message ?? '')) return true;
+    e = x.lastError ?? x.cause;
+  }
+  return false;
+}
+
+/**
+ * Proveedores y modelos a probar, en orden, para este pedido.
+ *
+ * Con el proveedor gateway siempre hay respaldo: el Gateway le pone a cada modelo
+ * de transcripción un rate limit propio del equipo (whisper-1: 5 pedidos por
+ * minuto), y una reunión con dos pistas manda unos 6 trozos por minuto. Con un
+ * solo modelo, los trozos que pasaban el límite se perdían y la transcripción de
+ * la reunión quedaba vacía.
+ * - Dictado: Groq si hay clave (el más rápido), el modelo de dictado y whisper-1.
+ * - El resto (reuniones, notas de voz, llamadas): whisper-1 primero (devuelve
+ *   tramos con tiempo), después el modelo de dictado y Groq si hay clave.
+ * Otro proveedor elegido a mano (openai, deepgram, assemblyai) o el económico
+ * de Calls (Groq) van solos.
  */
 export function transcribeAttempts(input: Pick<TranscribeInput, 'tier' | 'purpose'>, now = Date.now()): Array<{ provider: TranscribeProvider; model: string }> {
   const base = providerFor(input.tier);
-  if (input.purpose !== 'dictation' || base !== 'gateway') return [{ provider: base, model: transcribeModel(base) }];
+  if (base !== 'gateway') return [{ provider: base, model: transcribeModel(base) }];
   const all: Array<{ provider: TranscribeProvider; model: string }> = [];
-  if (transcriptionConfigured('groq')) all.push({ provider: 'groq', model: transcribeModel('groq') });
-  if (aiEnabled()) {
-    all.push({ provider: 'gateway', model: dictationTranscribeModel() });
-    all.push({ provider: 'gateway', model: transcribeModel('gateway') });
-  }
+  const groq = transcriptionConfigured('groq') ? [{ provider: 'groq' as const, model: transcribeModel('groq') }] : [];
+  const viaGatewayModels = aiEnabled()
+    ? input.purpose === 'dictation'
+      ? [dictationTranscribeModel(), transcribeModel('gateway')]
+      : [transcribeModel('gateway'), dictationTranscribeModel()]
+    : [];
+  const gatewayAttempts = viaGatewayModels.map((model) => ({ provider: 'gateway' as const, model }));
+  if (input.purpose === 'dictation') all.push(...groq, ...gatewayAttempts);
+  else all.push(...gatewayAttempts, ...groq);
   const unique = all.filter((a, i) => all.findIndex((b) => b.provider === a.provider && b.model === a.model) === i);
-  const fresh = unique.filter((a) => now - (failedAt.get(`${a.provider}/${a.model}`) ?? 0) > SKIP_FAILED_MS);
+  const fresh = unique.filter((a) => now >= (skipUntil.get(`${a.provider}/${a.model}`) ?? 0));
   // Si todos fallaron hace poco, se prueban igual (mejor intentar que no transcribir).
   return fresh.length ? fresh : unique.length ? unique : [{ provider: base, model: transcribeModel(base) }];
 }
@@ -234,12 +273,13 @@ function isTimeoutError(err: unknown): boolean {
   return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError' || /timeout|aborted/i.test(err.message));
 }
 
-async function viaGateway(input: TranscribeInput, model: string, timeoutMs = 120_000): Promise<Omit<TranscriptResult, 'provider'>> {
+async function viaGateway(input: TranscribeInput, model: string, timeoutMs = 120_000, last = true): Promise<Omit<TranscriptResult, 'provider'>> {
   const language = lang(input);
   const res = await transcribe({
     model: gateway.transcription(model),
     audio: input.audio,
-    maxRetries: input.purpose === 'dictation' ? 0 : 1,
+    // Con otro modelo de respaldo no se reintenta el mismo: se pasa al siguiente.
+    maxRetries: input.purpose === 'dictation' || !last ? 0 : 1,
     abortSignal: AbortSignal.timeout(timeoutMs),
     providerOptions: {
       openai: {
@@ -398,25 +438,37 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrip
   if (!input.prechecked) await transcribePrecheck(input.workspaceId);
   let result: Omit<TranscriptResult, 'provider'> | null = null;
   let used = configured[0];
+  let rateLimited = false;
   for (const attempt of configured) {
     used = attempt;
     const { provider, model } = attempt;
+    const last = attempt === configured[configured.length - 1];
     // Un dictado no espera dos minutos a un proveedor colgado: pasa al siguiente.
-    const timeoutMs = input.purpose === 'dictation' && attempt !== configured[configured.length - 1] ? 15_000 : 120_000;
+    const timeoutMs = input.purpose === 'dictation' && !last ? 15_000 : 120_000;
     try {
       if (provider === 'fake') result = fakeResult(input);
       else if (provider === 'openai') result = await viaOpenAi(input, model, undefined, timeoutMs);
       else if (provider === 'deepgram') result = await viaDeepgram(input, model);
       else if (provider === 'assemblyai') result = await viaAssembly(input, model);
       else if (provider === 'groq') result = await viaOpenAi(input, model, { url: 'https://api.groq.com/openai/v1/audio/transcriptions', key: process.env.GROQ_API_KEY }, timeoutMs);
-      else result = await viaGateway(input, model, timeoutMs);
+      else result = await viaGateway(input, model, timeoutMs, last);
       break;
     } catch (err) {
       if (err instanceof AiError) throw err;
-      console.error('[voice] transcribe failed', provider, model, err instanceof Error ? err.message : 'error');
-      if (!isTimeoutError(err)) failedAt.set(`${provider}/${model}`, Date.now());
+      const limited = isProviderRateLimit(err);
+      if (limited) {
+        rateLimited = true;
+        console.warn('[voice] transcribe rate limited', provider, model);
+        skipUntil.set(`${provider}/${model}`, Date.now() + SKIP_RATE_LIMITED_MS);
+      } else {
+        console.error('[voice] transcribe failed', provider, model, err instanceof Error ? err.message : 'error');
+        if (!isTimeoutError(err)) skipUntil.set(`${provider}/${model}`, Date.now() + SKIP_FAILED_MS);
+      }
     }
   }
+  // Todos llenos: es un rate limit (429 con retry-after), no una falla. La reunión
+  // espera y vuelve a mandar el trozo en vez de darlo por perdido.
+  if (!result && rateLimited) throw new AiError('rate_limited');
   if (!result) throw new VoiceTranscribeError('transcribe_failed');
   const usage = () =>
     recordAiUsage({
