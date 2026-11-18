@@ -147,7 +147,7 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   await expect(from).toHaveValue(soporteChat);
   // Elegir la otra y mandar: el mensaje sale por esa línea.
   await from.selectOption(ventasChat);
-  const field = page.getByRole('textbox', { name: 'Message' });
+  const field = page.getByTestId('composer-input');
   await field.fill(`respuesta ${w.tag}`);
   await field.press('Enter');
   const sent = msgs.filter({ hasText: `respuesta ${w.tag}` });
