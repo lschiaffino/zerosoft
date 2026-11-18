@@ -10,6 +10,7 @@ import { looksLikeSpam } from '../form-engine';
 import { accessibleRow, definitionOf, getPublicFormRow, openState, settingsOf, type FormRow } from './core';
 import { checkResponse, cleanPartial, dropOff, localize, pickLang, responsesCsv, summarize, type AnswerError, type CsvRow, type DisplayLabels, type QuestionSummary } from './engine';
 import { checkRenderToken } from './render-token';
+import { retentionPlan, softDelete, type RetentionPlan } from '../soft-delete';
 import { FORMS_FILE_MAX_BYTES, deleteFormFiles, safeFileName, sniffFormFile, storeFormFile } from './files';
 import { FormsError, newId, type AnswerValue, type Answers, type FileAnswer, type FormDefinition, type FormsActor } from './types';
 
@@ -94,7 +95,7 @@ export const MAX_PARTIALS_PER_FORM = 10_000;
 export const MAX_OPEN_PARTIALS_PER_IP = 3;
 /** Tamaño máximo del JSON de respuestas de una parcial. */
 export const MAX_PARTIAL_BYTES = 200_000;
-/** Las parciales abandonadas se borran a los 30 días, sea cual sea la retención. */
+/** Las parciales abandonadas se purgan a los 30 días, sea cual sea la retención (antes pasan por la papelera). */
 export const PARTIAL_TTL_DAYS = 30;
 
 /**
@@ -203,7 +204,7 @@ export async function submitResponse(slug: string, body: SubmitBody, meta: { ip?
  * Respuesta parcial: solo si el form las pide y quien responde aceptó. Se
  * guarda por un token que vive en su navegador (en la base, solo el hash).
  * Topes: 10.000 parciales por form, 3 abiertas por IP y 200 KB por parcial;
- * las abandonadas se borran a los 30 días (purgeFormsRetention).
+ * las abandonadas van a la papelera y se purgan a los 30 días (purgeFormsRetention).
  */
 export async function savePartial(slug: string, body: { token?: string; answers: Record<string, unknown>; hidden?: Record<string, string>; lang?: string; consent: boolean }, meta: { ip?: string } = {}): Promise<{ token: string } | null> {
   const row = await getPublicFormRow(slug);
@@ -441,15 +442,52 @@ export async function countSince(formId: string, sinceIso: string): Promise<numb
 
 // ---------- Retención (cron) ----------
 
+type DueRow = { id: string; workspace_id: string; form_id: string; status: string; base: string };
+
 /**
- * Borra respuestas más viejas que la retención de su form, parciales
- * abandonadas hace más de 30 días (sea cual sea la retención), archivos
- * subidos que nunca se enviaron (más de un día) y visitas de más de 180 días.
- * Cada fila se reclama con compare-and-set sobre su valor anterior de
- * purge_claimed_at antes de borrar sus archivos: dos corridas a la vez no
- * borran lo mismo dos veces, y un reclamo de más de una hora (una corrida que
- * murió a mitad de camino) se puede volver a tomar. Una respuesta completa
- * borrada baja el contador del form (el tope de respuestas libera ese lugar).
+ * Pasa una respuesta a la papelera (lib/soft-delete.ts) con sus archivos. Las
+ * filas de forms_files no tienen FK a la respuesta: van como extra. Los
+ * archivos se borran recién al purgar. Una respuesta completa baja el contador
+ * del form en la misma transacción (el tope de respuestas libera ese lugar).
+ * Dos corridas a la vez no la mandan dos veces: la entrada es única por
+ * respuesta y la segunda devuelve null.
+ */
+async function trashResponse(r: DueRow, plan: RetentionPlan, at: Date): Promise<boolean> {
+  const db = getDb();
+  const files = (await db.prepare('SELECT ref FROM forms_files WHERE response_id = ?').all(r.id)) as Array<{ ref: string }>;
+  const completed = r.status === 'completed';
+  const id = await softDelete({
+    workspaceId: r.workspace_id,
+    app: 'forms',
+    kind: completed ? 'response' : 'partial',
+    recordId: r.id,
+    scopeId: r.form_id,
+    // Solo la fecha: el contenido no se ve mientras está en la papelera.
+    label: r.base,
+    reason: completed ? 'retention' : 'inactivity',
+    root: { table: 'forms_responses' },
+    extra: [{ table: 'forms_files', column: 'response_id', values: [r.id] }],
+    files: files.map((f) => f.ref),
+    purgeAt: plan.purgeAt(r.base),
+    now: at,
+    also: completed ? [{ sql: 'UPDATE forms_forms SET response_count = MAX(0, response_count - 1) WHERE id = ?', args: [r.form_id] }] : [],
+  });
+  return id !== null;
+}
+
+/** Fecha desde la que corre la retención: el envío (o la última edición de una parcial), o la restauración si fue después. */
+const RESPONSE_BASE = "MAX(COALESCE(retained_at, ''), COALESCE(submitted_at, updated_at))";
+const PARTIAL_BASE = "MAX(COALESCE(retained_at, ''), updated_at)";
+
+/**
+ * Retención de respuestas (cron horario). Las respuestas más viejas que la
+ * retención de su form y las parciales abandonadas hace más de 30 días (sea
+ * cual sea la retención) van a la papelera de Forms con retentionPlan: entran
+ * hasta 30 días antes del plazo (nunca más de un tercio de él) y se purgan,
+ * con sus archivos, en el mismo momento en que antes se borraban
+ * (purgeDueSoftDeleted). Mientras tanto se pueden restaurar desde los ajustes
+ * del form. Archivos subidos que nunca se enviaron (más de un día) y visitas
+ * de más de 180 días se siguen borrando en duro: no son registros de nadie.
  */
 export async function purgeFormsRetention(at = new Date(), limit = 500): Promise<{ responses: number; partials: number; orphans: number; visits: number }> {
   const db = getDb();
@@ -457,34 +495,25 @@ export async function purgeFormsRetention(at = new Date(), limit = 500): Promise
   const stale = new Date(at.getTime() - 3_600_000).toISOString();
   const claimable = '(purge_claimed_at IS NULL OR purge_claimed_at < ?)';
 
-  const purgeResponse = async (r: { id: string; form_id: string; status: string; purge_claimed_at: string | null }): Promise<boolean> => {
-    const claim = await db.prepare("UPDATE forms_responses SET purge_claimed_at = ? WHERE id = ? AND COALESCE(purge_claimed_at, '') = ?").run(stamp, r.id, r.purge_claimed_at ?? '');
-    if (!claim.changes) return false;
-    const files = (await db.prepare('DELETE FROM forms_files WHERE response_id = ? RETURNING ref').all(r.id)) as Array<{ ref: string }>;
-    await deleteFormFiles(files.map((x) => x.ref));
-    const gone = await db.prepare('DELETE FROM forms_responses WHERE id = ? AND purge_claimed_at = ?').run(r.id, stamp);
-    if (gone.changes && r.status === 'completed') await db.prepare('UPDATE forms_forms SET response_count = MAX(0, response_count - 1) WHERE id = ?').run(r.form_id);
-    return gone.changes > 0;
-  };
-
   let responses = 0;
+  let partials = 0;
+  const count = (r: DueRow) => (r.status === 'completed' ? responses++ : partials++);
   const forms = (await db.prepare("SELECT id, settings FROM forms_forms WHERE settings LIKE '%retentionDays%'").all()) as Array<{ id: string; settings: string }>;
   for (const f of forms) {
     const days = settingsOf(f).retentionDays;
     if (!days) continue;
-    const cutoff = new Date(at.getTime() - days * 86_400_000).toISOString();
+    const plan = retentionPlan(new Date(at.getTime() - days * 86_400_000), at);
     const due = (await db
-      .prepare(`SELECT id, form_id, status, purge_claimed_at FROM forms_responses WHERE form_id = ? AND COALESCE(submitted_at, updated_at) < ? AND ${claimable} LIMIT ?`)
-      .all(f.id, cutoff, stale, limit)) as Array<{ id: string; form_id: string; status: string; purge_claimed_at: string | null }>;
-    for (const r of due) if (await purgeResponse(r)) responses++;
+      .prepare(`SELECT id, workspace_id, form_id, status, ${RESPONSE_BASE} AS base FROM forms_responses WHERE form_id = ? AND ${RESPONSE_BASE} < ? LIMIT ?`)
+      .all(f.id, plan.trashBefore.toISOString(), limit)) as DueRow[];
+    for (const r of due) if (await trashResponse(r, plan, at)) count(r);
   }
 
-  let partials = 0;
-  const partialCut = new Date(at.getTime() - PARTIAL_TTL_DAYS * 86_400_000).toISOString();
+  const partialPlan = retentionPlan(new Date(at.getTime() - PARTIAL_TTL_DAYS * 86_400_000), at);
   const abandoned = (await db
-    .prepare(`SELECT id, form_id, status, purge_claimed_at FROM forms_responses WHERE status = 'partial' AND updated_at < ? AND ${claimable} LIMIT ?`)
-    .all(partialCut, stale, limit)) as Array<{ id: string; form_id: string; status: string; purge_claimed_at: string | null }>;
-  for (const r of abandoned) if (await purgeResponse(r)) partials++;
+    .prepare(`SELECT id, workspace_id, form_id, status, ${PARTIAL_BASE} AS base FROM forms_responses WHERE status = 'partial' AND ${PARTIAL_BASE} < ? LIMIT ?`)
+    .all(partialPlan.trashBefore.toISOString(), limit)) as DueRow[];
+  for (const r of abandoned) if (await trashResponse(r, partialPlan, at)) count(r);
 
   let orphans = 0;
   const old = new Date(at.getTime() - 86_400_000).toISOString();

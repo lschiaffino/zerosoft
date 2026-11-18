@@ -6,10 +6,12 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { OrderDto } from '@/lib/shop-orders';
+import type { ReturnDto } from '@/lib/shop-ops';
+import { ReturnCard } from './ReturnsList';
 import { MoneyInput, ShopDialog, StatusBadge, api, useDate, useErrorText, useMoney, useToast } from './shop-ui';
 
 /** Pedido: ítems, totales, cliente, envío, línea de tiempo y acciones (pagado, enviar, reembolsar, cancelar). */
-export default function OrderDetail({ initial, storeHandle, canAdmin }: { initial: OrderDto; storeHandle: string; canAdmin: boolean }) {
+export default function OrderDetail({ initial, storeHandle, canAdmin, returns = [] }: { initial: OrderDto; storeHandle: string; canAdmin: boolean; returns?: ReturnDto[] }) {
   const t = useTranslations('shop');
   const router = useRouter();
   const [order, setOrder] = useState(initial);
@@ -17,7 +19,8 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
   const date = useDate();
   const errText = useErrorText();
   const [toast, push] = useToast();
-  const [fulfill, setFulfill] = useState<{ number: string; company: string; url: string; notify: boolean } | null>(null);
+  const [fulfill, setFulfill] = useState<{ number: string; company: string; url: string; notify: boolean; qty: Record<string, string> } | null>(null);
+  const [newReturn, setNewReturn] = useState<{ qty: Record<string, string>; reason: string; note: string } | null>(null);
   const [refund, setRefund] = useState<{ amount: number | null; restock: boolean; reason: string } | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [refundOnCancel, setRefundOnCancel] = useState(true);
@@ -42,7 +45,32 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
   const doFulfill = async (e: FormEvent) => {
     e.preventDefault();
     if (!fulfill) return;
-    if (await act('fulfill', { trackingNumber: fulfill.number, trackingCompany: fulfill.company, trackingUrl: fulfill.url, notify: fulfill.notify }, t('order.fulfilledToast'))) setFulfill(null);
+    const items = Object.entries(fulfill.qty).map(([itemId, q]) => ({ itemId, quantity: Number(q) || 0 })).filter((i) => i.quantity > 0);
+    if (!items.length) return push(t('order.nothingToFulfill'), 'bad');
+    if (await act('fulfill', { trackingNumber: fulfill.number, trackingCompany: fulfill.company, trackingUrl: fulfill.url, notify: fulfill.notify, items }, t('order.fulfilledToast'))) setFulfill(null);
+  };
+  const openFulfill = () => setFulfill({ number: '', company: '', url: '', notify: true, qty: Object.fromEntries(order.items.filter((i) => i.quantity > i.fulfilledQty).map((i) => [i.id, String(i.quantity - i.fulfilledQty)])) });
+  const openReturn = () => setNewReturn({ reason: 'other', note: '', qty: Object.fromEntries(order.items.filter((i) => i.fulfilledQty > i.returnedQty).map((i) => [i.id, String(i.fulfilledQty - i.returnedQty)])) });
+  const doReturn = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newReturn) return;
+    const items = Object.entries(newReturn.qty).map(([itemId, q]) => ({ itemId, quantity: Number(q) || 0 })).filter((i) => i.quantity > 0);
+    if (!items.length) return push(t('returns.noItems'), 'bad');
+    setBusy(true);
+    const res = await api(`/api/shop/orders/${order.id}/returns`, { method: 'POST', json: { items, reason: newReturn.reason, note: newReturn.note } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setNewReturn(null);
+    push(t('returns.created'));
+    router.refresh();
+  };
+  const resend = async () => {
+    setBusy(true);
+    const res = await api(`/api/shop/orders/${order.id}/invoice`, { method: 'POST' });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('order.invoiceSent'));
+    router.refresh();
   };
   const doRefund = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,6 +86,7 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
   const a = order.shippingAddress;
   const remaining = order.totalCents - order.refundedCents;
   const paidAfterCancel = order.status === 'cancelled' && !!order.paidAt && remaining > 0;
+  const canReturn = (order.status === 'paid' || order.status === 'fulfilled') && order.items.some((i) => i.fulfilledQty > i.returnedQty);
   const canRefund = canAdmin && remaining > 0 && (order.status === 'paid' || order.status === 'fulfilled' || paidAfterCancel);
   return (
     <div className="app-page ui-page shop-page">
@@ -70,14 +99,19 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
             <Link className="btn btn-secondary" href={`/app/shop/orders/${order.id}/packing-slip`}>
               {t('order.packingSlip')}
             </Link>
+            {order.status === 'pending' && order.source === 'draft' && (
+              <button type="button" className="btn btn-secondary" onClick={() => void resend()} disabled={busy}>
+                {t('order.resendInvoice')}
+              </button>
+            )}
             {order.status === 'pending' && (
               <button type="button" className="btn btn-secondary" onClick={() => setConfirmPaid(true)} disabled={busy}>
                 {t('order.markPaid')}
               </button>
             )}
             {order.status === 'paid' && (
-              <button type="button" className="btn btn-primary" onClick={() => setFulfill({ number: '', company: '', url: '', notify: true })} disabled={busy}>
-                {t('order.fulfill')}
+              <button type="button" className="btn btn-primary" onClick={openFulfill} disabled={busy}>
+                {order.fulfillment === 'partial' ? t('order.fulfillRest') : t('order.fulfill')}
               </button>
             )}
           </>
@@ -85,6 +119,8 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
       />
       <div className="shop-order-status">
         <StatusBadge status={order.status} />
+        {order.fulfillment === 'partial' && <span className="badge badge-warn" data-testid="order-partial">{t('order.partlyFulfilled')}</span>}
+        {order.pickup && <span className="badge badge-outline">{t('order.pickup')}</span>}
         {order.stockState === 'oversold' && <span className="badge badge-bad">{t('order.oversold')}</span>}
         {order.cancelReason === 'expired' && <span className="ui-help">{t('order.expired')}</span>}
       </div>
@@ -105,7 +141,16 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
                   <span className="shop-thumb">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : null}</span>
                   <span className="shop-rowtext">
                     {i.productId ? <Link href={`/app/shop/products/${i.productId}`}>{i.title}</Link> : i.title}
-                    <span className="shop-rowmeta">{[i.variantTitle, i.sku].filter(Boolean).join(' · ')}</span>
+                    <span className="shop-rowmeta">
+                      {[
+                        i.variantTitle,
+                        i.sku,
+                        i.fulfilledQty > 0 ? t('order.shippedOf', { done: i.fulfilledQty, total: i.quantity }) : '',
+                        i.returnedQty > 0 ? t('order.returnedN', { n: i.returnedQty }) : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                   </span>
                   <span className="data">
                     {money(i.unitCents)} × {i.quantity}
@@ -152,7 +197,17 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
                   {t('order.refund')}
                 </button>
               )}
-              {(order.status === 'pending' || order.status === 'paid') && (
+              {canReturn && (
+                <button type="button" className="btn btn-secondary" onClick={openReturn}>
+                  {t('returns.open')}
+                </button>
+              )}
+              {canReturn && (
+                <Link className="btn btn-secondary" href={`/app/shop/orders/new?from=${order.id}`}>
+                  {t('returns.exchange')}
+                </Link>
+              )}
+              {(order.status === 'pending' || (order.status === 'paid' && order.fulfillment === 'none')) && (
                 <button type="button" className="btn btn-ghost" onClick={() => setConfirmCancel(true)}>
                   {t('order.cancel')}
                 </button>
@@ -160,6 +215,14 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
             </div>
           </section>
 
+          {returns.length > 0 && (
+            <section className="panel shop-panel" aria-labelledby="ord-returns">
+              <h2 className="shop-panel-title" id="ord-returns">{t('returns.title')}</h2>
+              {returns.map((r) => (
+                <ReturnCard key={r.id} r={r} currency={order.currency} canAdmin={canAdmin} onChange={() => router.refresh()} />
+              ))}
+            </section>
+          )}
           <section className="panel shop-panel" aria-labelledby="ord-timeline">
             <h2 className="shop-panel-title" id="ord-timeline">
               {t('order.timeline')}
@@ -191,6 +254,7 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
             </p>
             <p className="shop-rowmeta">{order.email}</p>
             {order.phone && <p className="shop-rowmeta">{order.phone}</p>}
+            {order.taxId && <p className="shop-rowmeta">{t('order.taxId', { id: order.taxId })}</p>}
             {order.note && (
               <p className="shop-customer-note">
                 <strong>{t('order.customerNote')}:</strong> {order.note}
@@ -244,6 +308,18 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
         {fulfill && (
           <form onSubmit={doFulfill}>
             <div className="ui-modal-body">
+              <fieldset className="ui-field shop-fieldset">
+                <legend className="label">{t('order.fulfillItems')}</legend>
+                {order.items.filter((i) => i.quantity > i.fulfilledQty).map((i) => (
+                  <label key={i.id} className="shop-qty-row">
+                    <span className="shop-rowtext">
+                      <span className="shop-rowtitle">{i.title}</span>
+                      <span className="shop-rowmeta">{[i.variantTitle, t('order.pendingOf', { n: i.quantity - i.fulfilledQty })].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <input className="input shop-num-input" type="number" min={0} max={i.quantity - i.fulfilledQty} aria-label={t('drafts.quantity')} value={fulfill.qty[i.id] ?? '0'} onChange={(e) => setFulfill({ ...fulfill, qty: { ...fulfill.qty, [i.id]: e.target.value } })} />
+                  </label>
+                ))}
+              </fieldset>
               <label className="ui-field">
                 <span className="label">{t('order.trackingNumber')}</span>
                 <input className="input" autoFocus value={fulfill.number} maxLength={80} onChange={(e) => setFulfill({ ...fulfill, number: e.target.value })} />
@@ -268,6 +344,41 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
               <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>
                 {t('order.fulfillConfirm')}
               </button>
+            </div>
+          </form>
+        )}
+      </ShopDialog>
+
+      <ShopDialog open={!!newReturn} title={t('returns.openTitle', { n: order.number })} onClose={() => setNewReturn(null)}>
+        {newReturn && (
+          <form onSubmit={doReturn}>
+            <div className="ui-modal-body">
+              <fieldset className="ui-field shop-fieldset">
+                <legend className="label">{t('returns.which')}</legend>
+                {order.items.filter((i) => i.fulfilledQty > i.returnedQty).map((i) => (
+                  <label key={i.id} className="shop-qty-row">
+                    <span className="shop-rowtext">
+                      <span className="shop-rowtitle">{i.title}</span>
+                      <span className="shop-rowmeta">{i.variantTitle}</span>
+                    </span>
+                    <input className="input shop-num-input" type="number" min={0} max={i.fulfilledQty - i.returnedQty} aria-label={t('drafts.quantity')} value={newReturn.qty[i.id] ?? '0'} onChange={(e) => setNewReturn({ ...newReturn, qty: { ...newReturn.qty, [i.id]: e.target.value } })} />
+                  </label>
+                ))}
+              </fieldset>
+              <label className="ui-field">
+                <span className="label">{t('order.reason')}</span>
+                <select className="select" value={newReturn.reason} onChange={(e) => setNewReturn({ ...newReturn, reason: e.target.value })}>
+                  {['size', 'damaged', 'wrong_item', 'not_as_described', 'changed_mind', 'other'].map((r) => <option key={r} value={r}>{t(`returns.reasons.${r}`)}</option>)}
+                </select>
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('returns.note')}</span>
+                <input className="input" maxLength={500} value={newReturn.note} onChange={(e) => setNewReturn({ ...newReturn, note: e.target.value })} />
+              </label>
+            </div>
+            <div className="ui-modal-foot">
+              <button type="button" className="btn btn-secondary" onClick={() => setNewReturn(null)}>{t('common.cancel')}</button>
+              <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>{t('returns.create')}</button>
             </div>
           </form>
         )}

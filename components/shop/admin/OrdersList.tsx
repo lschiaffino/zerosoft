@@ -8,7 +8,19 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { OrderListItem } from '@/lib/shop-orders';
 import { StatusBadge, useDate, useMoney } from './shop-ui';
 
-export default function OrdersList({ initial, total, currency, q, status }: { initial: OrderListItem[]; total: number; currency: string; q: string; status: string }) {
+/** Pedidos, devoluciones y checkouts abandonados: tres vistas de la misma sección. */
+export function OrdersNav({ active }: { active: 'orders' | 'returns' | 'abandoned' }) {
+  const t = useTranslations('shop');
+  return (
+    <nav className="shop-subnav" aria-label={t('nav.orders')}>
+      <Link href="/app/shop/orders" aria-current={active === 'orders' ? 'page' : undefined}>{t('nav.orders')}</Link>
+      <Link href="/app/shop/returns" aria-current={active === 'returns' ? 'page' : undefined}>{t('returns.title')}</Link>
+      <Link href="/app/shop/abandoned" aria-current={active === 'abandoned' ? 'page' : undefined}>{t('abandoned.title')}</Link>
+    </nav>
+  );
+}
+
+export default function OrdersList({ initial, total, currency, q, status, canAdmin }: { initial: OrderListItem[]; total: number; currency: string; q: string; status: string; canAdmin: boolean }) {
   const t = useTranslations('shop');
   const router = useRouter();
   const money = useMoney(currency);
@@ -21,10 +33,20 @@ export default function OrdersList({ initial, total, currency, q, status }: { in
     if (status) p.set('status', status);
     router.push(`/app/shop/orders${p.size ? `?${p}` : ''}`);
   };
-  const statuses = ['', 'pending', 'paid', 'fulfilled', 'cancelled', 'refunded'];
+  const statuses = ['', 'draft', 'pending', 'paid', 'fulfilled', 'cancelled', 'refunded'];
   return (
     <div className="app-page ui-page shop-page">
-      <PageHeader title={t('nav.orders')} description={t('orders.desc')} />
+      <PageHeader
+        title={t('nav.orders')}
+        description={t('orders.desc')}
+        actions={
+          <>
+            {canAdmin && initial.length > 0 && <a className="btn btn-secondary" href="/api/shop/reports/export?type=orders" download>{t('reports.exportOrders')}</a>}
+            <Link className="btn btn-primary" href="/app/shop/orders/new">{t('drafts.new')}</Link>
+          </>
+        }
+      />
+      <OrdersNav active="orders" />
       <div className="shop-toolbar">
         <form onSubmit={search} role="search" className="shop-search">
           <input className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('orders.search')} aria-label={t('orders.search')} />

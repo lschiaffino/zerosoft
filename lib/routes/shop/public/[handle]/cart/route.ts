@@ -14,6 +14,7 @@ const schema = z.object({
   address: z.object({ country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/), region: z.string().trim().max(120).optional() }).nullable().optional(),
   shippingRateId: z.string().max(80).nullable().optional(),
   discountCode: z.string().trim().max(40).nullable().optional(),
+  paymentMethod: z.enum(['stripe', 'mercadopago', 'manual']).nullable().optional(),
 });
 
 /**
