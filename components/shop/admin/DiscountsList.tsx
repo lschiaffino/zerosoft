@@ -8,8 +8,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { DiscountDto } from '@/lib/shop';
 import { useDate, useMoney } from './shop-ui';
 
-export function discountSummary(d: Pick<DiscountDto, 'kind' | 'value' | 'minOrderCents'>, t: (k: string, v?: Record<string, string | number>) => string, money: (c: number) => string): string {
-  const what = d.kind === 'percent' ? t('discounts.percentOff', { n: d.value / 100 }) : d.kind === 'fixed' ? t('discounts.fixedOff', { amount: money(d.value) }) : t('discounts.freeShipping');
+export function discountSummary(d: Pick<DiscountDto, 'kind' | 'value' | 'minOrderCents' | 'buyQuantity' | 'getQuantity'>, t: (k: string, v?: Record<string, string | number>) => string, money: (c: number) => string): string {
+  const what = d.kind === 'bxgy' ? t('discounts.bxgySummary', { buy: d.buyQuantity ?? 0, get: d.getQuantity ?? 0, n: d.value / 100 }) : d.kind === 'percent' ? t('discounts.percentOff', { n: d.value / 100 }) : d.kind === 'fixed' ? t('discounts.fixedOff', { amount: money(d.value) }) : t('discounts.freeShipping');
   return d.minOrderCents > 0 ? `${what} · ${t('discounts.minOrder', { amount: money(d.minOrderCents) })}` : what;
 }
 

@@ -628,10 +628,16 @@ export default function InboxApp(props: {
   const { live: liveOn } = useWaLive('inbox', () => Promise.all([reloadList(), reloadState()]));
   // El chat abierto no espera a que se junten los avisos de la lista: se relee apenas llega el suyo (un mensaje, las
   // tildes, una reacción, escribiendo…).
-  useWaLiveChat('inbox', openId, () => {
-    const o = openRef.current;
-    return o ? loadDetail(o, true) : undefined;
-  });
+  useWaLiveChat(
+    'inbox',
+    openId,
+    () => {
+      const o = openRef.current;
+      return o ? loadDetail(o, true) : undefined;
+    },
+    // El mismo chat en otras cuentas: un mensaje por cualquiera relee la conversación.
+    detail?.thread.id === openId ? (detail?.thread.lines ?? []).map((l) => l.chatId) : [],
+  );
 
   // La primera lista viene con la página: una relectura al arrancar pide los datos que faltan de los chats a la vista
   // (asunto de un grupo, foto), que llegan después por el aviso.
@@ -1208,14 +1214,17 @@ export default function InboxApp(props: {
 
   const rowFor = (th: ThreadDto, i: number) => {
     const isSel = selected.has(th.id);
+    // El mismo chat en varias cuentas es una sola fila: está abierta si el chat abierto es el de cualquiera de ellas.
+    const isOpen = th.id === openId || Boolean(openId && th.lines?.some((l) => l.chatId === openId));
     const marker = th.woke === 'snooze' ? t('list.woke') : th.woke === 'followup' ? t('list.noReply') : '';
     return (
       <li
         key={th.id}
         data-idx={i}
         data-thread-id={th.id}
-        className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        className={`ib-item${i === cursor ? ' is-cursor' : ''}${isOpen ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
         data-testid="inbox-row"
+        data-lines={th.lines?.length ? th.lines.length : undefined}
         data-overdue={th.woke ? 'true' : undefined}
         {...gestures.rowProps(th.id)}
         {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}
@@ -1238,7 +1247,8 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
-          aria-current={th.id === openId ? 'true' : undefined}
+          aria-current={isOpen ? 'true' : undefined}
+          title={th.lines?.length ? th.lines.map((l) => l.name).join(' · ') : undefined}
           onClick={(e) => {
             if (e.shiftKey || e.metaKey) {
               setSelected((s) => new Set(s).add(th.id));

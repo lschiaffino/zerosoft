@@ -58,7 +58,7 @@ export default function AnalyticsView({ analytics }: { analytics: ShopAnalytics 
   const money = useMoney(analytics.currency);
   return (
     <div className="app-page ui-page shop-page">
-      <PageHeader title={t('nav.analytics')} description={t('analytics.desc')} />
+      <PageHeader title={t('nav.analytics')} description={t('analytics.desc')} actions={<Link className="btn btn-secondary" href="/app/shop/reports">{t('reports.title')}</Link>} />
       <div className="ui-tabs shop-filter" role="tablist" aria-label={t('analytics.range')}>
         {[7, 30, 90, 365].map((d) => (
           <Link key={d} role="tab" className="ui-tab" aria-selected={analytics.days === d} href={`/app/shop/analytics?days=${d}`}>

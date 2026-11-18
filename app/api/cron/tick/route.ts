@@ -1,3 +1,4 @@
+import { sendAbandonedEmails } from '@/lib/shop-abandoned';
 import { runVoiceCron } from '@/lib/voice-jobs';
 import { retryManagedDeletes } from '@/lib/groups-provider-managed';
 import { applyRetention } from '@/lib/talk-admin';
@@ -203,6 +204,8 @@ export async function GET(req: NextRequest) {
   const agentKnowledge = await resyncStaleKnowledgeUrls({ limit: 30 }).catch(() => null);
   // Agents: eventos ya procesados de Slack/Messenger/Instagram de más de 3 días.
   await import('@/lib/agents-channels').then((m) => m.pruneChannelEvents()).catch(() => null);
+  // Shop: recordatorios de checkouts abandonados (reclama cada fila; topes por tienda y de tiempo).
+  const shopAbandoned = await sendAbandonedEmails().catch(() => null);
   // Agents: picos de la última hora → email al dueño (con throttle por agente).
   const agentAlerts = await checkAgentAlerts().catch(() => null);
   // Agents: puntaje con AI y memoria de las conversaciones inactivas (claim por fila), y redacción de datos personales.
@@ -221,6 +224,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }
