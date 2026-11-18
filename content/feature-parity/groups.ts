@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-17',
+  lastReviewed: '2026-11-18',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -324,6 +324,14 @@ const parity: ProductParity = {
         'Filters by tab, label, type, assignee and property; shared or personal, in the sidebar and ⌘K, and as a broadcast audience',
         'Filtros por pestaña, etiqueta, tipo, asignado y propiedad; compartidas o personales, en el sidebar y ⌘K, y como audiencia de envíos',
         'Filtros por aba, etiqueta, tipo, responsável e propriedade; compartilhadas ou pessoais, na barra lateral e no ⌘K, e como público de envios',
+      ],
+    }),
+    row('migrate-from-periskope', 'organize', ['Move from Periskope', 'Migrar de Periskope', 'Migrar do Periskope'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'CSV files of labels, quick replies, chats and contacts with a preview; chats get labels, assignee and custom properties. Periskope does not publish its export columns, so common names are read and the rest is reported',
+        'Archivos CSV de etiquetas, respuestas rápidas, chats y contactos con vista previa; los chats reciben etiquetas, asignado y propiedades. Periskope no publica las columnas de sus exports: se leen los nombres comunes y se avisa el resto',
+        'Arquivos CSV de etiquetas, respostas rápidas, chats e contatos com prévia; os chats recebem etiquetas, responsável e propriedades. O Periskope não publica as colunas dos exports: lemos os nomes comuns e avisamos o resto',
       ],
     }),
 
