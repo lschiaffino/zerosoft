@@ -13,12 +13,13 @@
  * Redondeo: half away from zero en cada paso, una vez por pedido.
  */
 
-export type DiscountKind = 'percent' | 'fixed' | 'free_shipping';
+export type DiscountKind = 'percent' | 'fixed' | 'free_shipping' | 'bxgy';
+export type DiscountMethod = 'code' | 'automatic';
 
 export interface DiscountRule {
   code: string;
   kind: DiscountKind;
-  /** percent: puntos básicos (1500 = 15 %); fixed: cents; free_shipping: 0. */
+  /** percent y bxgy: puntos básicos (1500 = 15 %; bxgy: el descuento de lo que se lleva, 10000 = gratis); fixed: cents; free_shipping: 0. */
   value: number;
   minOrderCents: number;
   usageLimit: number | null;
@@ -26,11 +27,28 @@ export interface DiscountRule {
   startsAt: string | null;
   endsAt: string | null;
   active: boolean;
+  /** Código que escribe el cliente o automático (se aplica solo cuando se cumplen las condiciones). */
+  method?: DiscountMethod;
+  /** Nombre que ve el cliente en un descuento automático. */
+  title?: string;
+  /** Unidades mínimas (de los productos a los que aplica). 0 = sin mínimo. */
+  minQuantity?: number;
+  /** bxgy: lleva buyQuantity + getQuantity y getQuantity salen con el descuento. */
+  buyQuantity?: number;
+  getQuantity?: number;
+  /** A qué aplica; vacío = todo el pedido. */
+  scope?: DiscountScope;
+  oncePerCustomer?: boolean;
 }
 
-export type DiscountError = 'discount_invalid' | 'discount_inactive' | 'discount_not_started' | 'discount_expired' | 'discount_used_up' | 'discount_min_order';
+export interface DiscountScope {
+  productIds?: string[];
+  collectionIds?: string[];
+}
 
-export type ShippingKind = 'flat' | 'weight';
+export type DiscountError = 'discount_invalid' | 'discount_inactive' | 'discount_not_started' | 'discount_expired' | 'discount_used_up' | 'discount_min_order' | 'discount_min_quantity' | 'discount_not_applicable';
+
+export type ShippingKind = 'flat' | 'weight' | 'pickup';
 
 export interface ShippingRate {
   id: string;
@@ -44,6 +62,8 @@ export interface ShippingRate {
   maxWeightG: number | null;
   /** Gratis cuando el subtotal (después del descuento) llega a este monto. */
   freeOverCents: number | null;
+  /** Retiro: dirección y horario que ve el cliente. */
+  note?: string;
 }
 
 export interface TaxRate {
@@ -62,6 +82,7 @@ export interface MoneyLine {
   weightGrams: number;
   /** Sin envío (producto digital o servicio). */
   requiresShipping?: boolean;
+  productId?: string;
 }
 
 export interface Address {
@@ -74,14 +95,24 @@ export interface ShippingOption {
   name: string;
   priceCents: number;
   free: boolean;
+  /** Retiro en un local: no hace falta dirección. */
+  pickup?: boolean;
+  note?: string;
+  /** Retiro: el impuesto es el del país del local. */
+  taxCountry?: string;
 }
 
 export interface Totals {
   subtotalCents: number;
+  /** Todo lo descontado, también por medio de pago. */
   discountCents: number;
+  /** Parte de discountCents que viene del medio de pago elegido. */
+  paymentDiscountCents: number;
   shippingCents: number;
   taxCents: number;
   totalCents: number;
+  /** Hay que pedir dirección (hay envío y no es retiro). */
+  needsAddress: boolean;
   /** El envío lo descontó un código de envío gratis. */
   freeShippingByCode: boolean;
   shippingOptions: ShippingOption[];
@@ -150,7 +181,43 @@ export function discountAmount(d: Pick<DiscountRule, 'kind' | 'value'> | null, s
   return 0;
 }
 
+/**
+ * Descuento según las líneas: un alcance (productos o colecciones ya resueltos
+ * a ids; null = todo), porcentaje o monto fijo sobre lo elegible, y "lleve X
+ * pague Y": de cada grupo de buy + get unidades, las más baratas llevan el
+ * descuento. Monedas sin decimales: redondea computeTotals.
+ */
+export function lineDiscountAmount(d: Pick<DiscountRule, 'kind' | 'value' | 'buyQuantity' | 'getQuantity'>, lines: MoneyLine[], eligible: Set<string> | null): number {
+  const inScope = lines.filter((l) => !eligible || (l.productId != null && eligible.has(l.productId)));
+  const base = subtotalOf(inScope);
+  if (d.kind !== 'bxgy') return discountAmount(d, base);
+  const buy = Math.max(0, Math.trunc(d.buyQuantity ?? 0));
+  const get = Math.max(0, Math.trunc(d.getQuantity ?? 0));
+  if (buy < 1 || get < 1) return 0;
+  const units: number[] = [];
+  for (const l of inScope) for (let i = 0; i < Math.min(999, l.quantity); i++) units.push(Math.max(0, Math.trunc(l.unitCents)));
+  units.sort((a, b) => b - a);
+  const groups = Math.floor(units.length / (buy + get));
+  const bps = Math.min(10_000, Math.max(0, d.value));
+  let off = 0;
+  for (let g = 0; g < groups; g++) {
+    const start = g * (buy + get);
+    for (let i = start + buy; i < start + buy + get; i++) off += roundCents((units[i] * bps) / 10_000);
+  }
+  return Math.min(base, off);
+}
+
+/** Condiciones que dependen de las líneas (unidades mínimas, productos elegibles). null = se cumplen. */
+export function discountLineError(d: Pick<DiscountRule, 'kind' | 'minQuantity' | 'buyQuantity' | 'getQuantity'>, lines: MoneyLine[], eligible: Set<string> | null): DiscountError | null {
+  const inScope = lines.filter((l) => !eligible || (l.productId != null && eligible.has(l.productId)));
+  const qty = inScope.reduce((s, l) => s + Math.max(0, l.quantity), 0);
+  if (eligible && qty === 0) return 'discount_not_applicable';
+  const need = Math.max(d.minQuantity ?? 0, d.kind === 'bxgy' ? (d.buyQuantity ?? 0) + (d.getQuantity ?? 0) : 0);
+  return qty < need ? 'discount_min_quantity' : null;
+}
+
 function rateApplies(rate: ShippingRate, country: string, weightGrams: number): boolean {
+  if (rate.kind === 'pickup') return true;
   if (rate.countries.length && !rate.countries.includes(country)) return false;
   if (rate.kind === 'weight') {
     if (rate.minWeightG != null && weightGrams < rate.minWeightG) return false;
@@ -162,12 +229,18 @@ function rateApplies(rate: ShippingRate, country: string, weightGrams: number): 
 /** Tarifas que aplican a la dirección y al peso, más baratas primero. */
 export function shippingOptions(rates: ShippingRate[], address: Address | null, weightGrams: number, merchandiseCents: number): ShippingOption[] {
   const country = (address?.country ?? '').toUpperCase();
-  if (!country) return [];
+  // Sin país todavía solo se puede ofrecer el retiro en un local.
   return rates
-    .filter((r) => rateApplies(r, country, weightGrams))
+    .filter((r) => (country ? rateApplies(r, country, weightGrams) : r.kind === 'pickup'))
     .map((r) => {
       const free = r.freeOverCents != null && merchandiseCents >= r.freeOverCents;
-      return { id: r.id, name: r.name, priceCents: free ? 0 : Math.max(0, r.priceCents), free };
+      return {
+        id: r.id,
+        name: r.name,
+        priceCents: free ? 0 : Math.max(0, r.priceCents),
+        free,
+        ...(r.kind === 'pickup' ? { pickup: true, note: r.note ?? '', taxCountry: r.countries[0] ?? '' } : {}),
+      };
     })
     .sort((a, b) => a.priceCents - b.priceCents || a.name.localeCompare(b.name));
 }
@@ -193,23 +266,32 @@ export interface TotalsInput {
   taxIncluded?: boolean;
   /** Moneda: en las que no tienen decimales, descuento e impuesto se redondean a enteros. */
   currency?: string;
+  /** Ya calculado por líneas (lineDiscountAmount); si está, reemplaza al cálculo sobre el subtotal. */
+  discountCentsOverride?: number;
+  /** Descuento del medio de pago, sobre lo que queda de mercadería (como Tiendanube: no toca el envío). */
+  paymentDiscountBps?: number;
 }
 
 export function computeTotals(input: TotalsInput): Totals {
   const unit = input.currency && ZERO_DECIMAL.has(input.currency.toLowerCase()) ? 100 : 1;
   const toUnit = (n: number) => (unit === 1 ? n : Math.round(n / unit) * unit);
   const subtotalCents = subtotalOf(input.lines);
-  const discountCents = Math.min(subtotalCents, toUnit(discountAmount(input.discount ?? null, subtotalCents)));
+  const ruleDiscount = Math.min(subtotalCents, toUnit(input.discountCentsOverride ?? discountAmount(input.discount ?? null, subtotalCents)));
+  const paymentBps = Math.min(10_000, Math.max(0, Math.trunc(input.paymentDiscountBps ?? 0)));
+  const paymentDiscountCents = Math.min(subtotalCents - ruleDiscount, toUnit(roundCents(((subtotalCents - ruleDiscount) * paymentBps) / 10_000)));
+  const discountCents = ruleDiscount + paymentDiscountCents;
   const merchandise = subtotalCents - discountCents;
   const needsShipping = input.lines.some((l) => l.requiresShipping !== false && l.quantity > 0);
   const weightGrams = weightOf(input.lines);
   const options = needsShipping ? shippingOptions(input.shippingRates, input.address, weightGrams, merchandise) : [];
-  let shipping = needsShipping ? (options.find((o) => o.id === input.shippingRateId) ?? options[0] ?? null) : null;
+  // El retiro solo se aplica si se eligió: nadie queda sin dirección por ser la opción más barata.
+  let shipping = needsShipping ? (options.find((o) => o.id === input.shippingRateId) ?? options.find((o) => !o.pickup) ?? null) : null;
   const freeShippingByCode = input.discount?.kind === 'free_shipping' && shipping != null && shipping.priceCents > 0;
   if (shipping && input.discount?.kind === 'free_shipping') shipping = { ...shipping, priceCents: 0, free: true };
   const shippingCents = shipping?.priceCents ?? 0;
 
-  const rate = taxRateFor(input.taxRates, input.address);
+  const taxAddress = shipping?.pickup ? (shipping.taxCountry ? { country: shipping.taxCountry } : input.address) : input.address;
+  const rate = taxRateFor(input.taxRates, taxAddress);
   const bps = rate ? Math.max(0, rate.rateBps) : 0;
   const taxable = merchandise + (rate?.appliesToShipping ? shippingCents : 0);
   const taxIncluded = Boolean(input.taxIncluded);
@@ -219,9 +301,11 @@ export function computeTotals(input: TotalsInput): Totals {
   return {
     subtotalCents,
     discountCents,
+    paymentDiscountCents,
     shippingCents,
     taxCents,
     totalCents,
+    needsAddress: needsShipping && !shipping?.pickup,
     freeShippingByCode,
     shippingOptions: options,
     shipping,

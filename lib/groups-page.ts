@@ -6,6 +6,7 @@ import { getDb } from './db';
 import type { SessionUser } from './session';
 import {
   getChat,
+  getChatRow,
   getNumberRow,
   getSettings,
   listLabels,
@@ -29,12 +30,16 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
   const ws = user.id;
   const viewer = await pageViewer(user);
   if (!(await canSeeChat(viewer, chatId))) return null;
-  const raw = await getChat(ws, chatId);
-  if (!raw) return null;
+  const [found, rawRow] = await Promise.all([getChat(ws, chatId), getChatRow(ws, chatId)]);
+  if (!found || !rawRow) return null;
+  // El mismo chat en otras líneas que quien mira ve: sus líneas en el chat y sus mensajes en el hilo.
+  const { sameChatIds, withSameChatLines } = await import('./groups-same-chat');
+  const raw = await withSameChatLines(ws, viewer, rawRow, found);
+  const chatIds = raw.lines?.length ? await sameChatIds(ws, viewer, rawRow) : undefined;
   const chat = maskChat(viewer, raw);
   const db = getDb();
   const [messages, members, people, labels, quickReplies, properties, number, settings, agents, pinned, teams] = await Promise.all([
-    listMessages(ws, chatId),
+    listMessages(ws, chatId, { chatIds }),
     listMembers(ws, chatId),
     listPeople(ws),
     listLabels(ws, viewer),

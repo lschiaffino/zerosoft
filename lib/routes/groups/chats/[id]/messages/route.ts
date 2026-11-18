@@ -8,6 +8,7 @@ import { normalizePoll } from '@/lib/groups-polls';
 import { mediaFromBody } from '@/lib/groups-media-input';
 import { onceInFlight } from '@/lib/send-once';
 import { conditionalJson } from '@/lib/etag';
+import { sameChatIds } from '@/lib/groups-same-chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,8 +33,10 @@ export async function GET(req: Request, ctx: Ctx) {
   // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
   const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
+  // El mismo chat en otras líneas que quien mira ve: el hilo junta los mensajes de todas.
+  const chatIds = await sameChatIds(s.ws, guard.viewer, chat);
   const [messages, presence] = await Promise.all([
-    listMessages(s.ws, id, { after, before, limit }),
+    listMessages(s.ws, id, { after, before, limit, chatIds }),
     // Escribiendo, grabando o en línea (llega por webhook; dura unos segundos).
     presenceWithName(chat).catch(() => null),
   ]);

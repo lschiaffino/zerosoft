@@ -47,6 +47,13 @@ const parity: ProductParity = {
         'Um seletor na caixa alterna entre uma linha e todas (uma etiqueta mostra a linha de cada conversa). A escolha é lembrada por pessoa',
       ],
     }),
+    row('same-chat-lines', 'inbox', ['The same chat on several lines, listed once', 'El mismo chat en varias líneas, una sola vez', 'A mesma conversa em várias linhas, uma vez só'], 'have', {
+      detail: [
+        'A group or contact that talks to two or more of your lines is one row with the unread of all of them. Opening it shows the messages of every line in order, without the copies a group sends to each line, and each message says which line it came in on. Reading, archiving, snoozing or closing the row applies to every line. Only the lines a person can see count',
+        'Un grupo o contacto que habla con dos o más de tus líneas es una sola fila con los no leídos de todas. Al abrirlo se ven los mensajes de todas las líneas en orden, sin las copias que un grupo manda a cada línea, y cada mensaje dice por qué línea entró. Leer, archivar, posponer o cerrar la fila vale para todas las líneas. Solo cuentan las líneas que la persona puede ver',
+        'Um grupo ou contato que fala com duas ou mais das suas linhas é uma linha só na lista, com as não lidas de todas. Ao abrir, aparecem as mensagens de todas as linhas em ordem, sem as cópias que um grupo manda para cada linha, e cada mensagem diz por qual linha chegou. Ler, arquivar, adiar ou fechar vale para todas as linhas. Só contam as linhas que a pessoa pode ver',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',

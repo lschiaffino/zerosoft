@@ -8,6 +8,7 @@ import { isInboxView } from '@/lib/inbox/types';
 import { ownerRev, versionTag, versioned } from '@/lib/inbox/revisions';
 import { purgeThreads, removeThreads, restoreThreads } from '@/lib/inbox/removed';
 import { InboxError } from '@/lib/inbox/types';
+import { SAME_CHAT_ACTIONS, withInboxSameChatIds } from '@/lib/inbox/same-chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,12 +68,14 @@ export async function POST(req: Request) {
     if (removed.success) {
       const { ids, action } = removed.data;
       const run = action === 'remove' ? removeThreads : action === 'restore' ? restoreThreads : purgeThreads;
-      return iJson({ changed: await run(owner, ids) });
+      return iJson({ changed: await run(owner, action === 'remove' ? await withInboxSameChatIds(owner, ids) : ids) });
     }
     const parsed = bulkActionSchema.safeParse(raw);
     if (!parsed.success) throw new InboxError('invalid_input', 400);
     const { ids, ...action } = parsed.data;
-    const changed = await threadAction(owner, ids, action);
-    return iJson({ changed });
+    // El mismo chat en otras cuentas (una fila en la bandeja): leer, Hecho, archivar, posponer y silenciar valen para todas.
+    const targets = (SAME_CHAT_ACTIONS as readonly string[]).includes(action.action) ? await withInboxSameChatIds(owner, ids) : ids;
+    const changed = await threadAction(owner, targets, action);
+    return iJson({ changed: changed.filter((x) => ids.includes(x)) });
   });
 }
