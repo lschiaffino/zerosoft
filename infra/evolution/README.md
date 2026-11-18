@@ -109,6 +109,8 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
     vez cada 10 minutos;
   - si el teléfono no las manda, sigue el `409` (`missing_key`, `sync_failed`, o `sync_failed_missing_keys` cuando
     lo que impide leer la colección son claves que faltan) y hay que volver a vincular;
+  - cuando Baileys no puede leer una colección de app-state, el motivo sale en el log como error (antes iba en
+    nivel info, que no se guarda, y la línea dejaba de archivar sin rastro);
   - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
     claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
 
