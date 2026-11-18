@@ -204,6 +204,8 @@ export interface SidebarLabels {
     inventory: string;
     customers: string;
     discounts: string;
+    /** Contenido de la tienda (páginas y blog). */
+    pages?: string;
     analytics: string;
     store: string;
     newProduct: string;
@@ -1119,17 +1121,19 @@ export function buildNav(
         {
           items: [
             { href: '/app/shop', label: labels.shop.home, active: pathname === '/app/shop', icon: 'overview' },
-            { href: '/app/shop/orders', label: labels.shop.orders, active: at('/app/shop/orders'), icon: 'inbox' },
+            // Devoluciones y carritos abandonados son pestañas de Pedidos; órdenes de compra, de Inventario; reportes, de Analytics.
+            { href: '/app/shop/orders', label: labels.shop.orders, active: at('/app/shop/orders') || at('/app/shop/returns') || at('/app/shop/abandoned'), icon: 'inbox' },
             { href: '/app/shop/products', label: labels.shop.products, active: at('/app/shop/products'), icon: 'products' },
             { href: '/app/shop/collections', label: labels.shop.collections, active: at('/app/shop/collections'), icon: 'lists' },
-            { href: '/app/shop/inventory', label: labels.shop.inventory, active: at('/app/shop/inventory'), icon: 'bulk' },
+            { href: '/app/shop/inventory', label: labels.shop.inventory, active: at('/app/shop/inventory') || at('/app/shop/purchase-orders'), icon: 'bulk' },
             { href: '/app/shop/customers', label: labels.shop.customers, active: at('/app/shop/customers'), icon: 'contacts' },
             { href: '/app/shop/discounts', label: labels.shop.discounts, active: at('/app/shop/discounts'), icon: 'discounts' },
+            ...(labels.shop.pages ? [{ href: '/app/shop/pages', label: labels.shop.pages, active: at('/app/shop/pages'), icon: 'docs' as const }] : []),
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/shop/analytics', label: labels.shop.analytics, active: at('/app/shop/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/shop/analytics', label: labels.shop.analytics, active: at('/app/shop/analytics') || at('/app/shop/reports'), icon: 'reports' }],
         },
         appSettingsGroup('/app/shop/settings'),
       ];

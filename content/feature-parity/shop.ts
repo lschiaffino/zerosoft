@@ -24,12 +24,12 @@ function row(
 /**
  * Shop contra Shopify (y Tiendanube, la referencia en LATAM). Fuente: la
  * documentación pública de Shopify (Help Center: products, inventory,
- * checkout, orders, discounts, shipping, taxes) y de Tiendanube, leída el
- * 2026-10-29, contra el código de esta primera versión. Los ids son estables.
+ * checkout, orders, discounts, returns, shipping, taxes, reports, customers) y
+ * de Tiendanube (medios de pago, carritos abandonados), leída el 2026-11-01, contra el código de esta primera versión. Los ids son estables.
  */
 const parity: ProductParity = {
   competitor: 'Shopify',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-01',
   areas: [
     { id: 'catalog', label: loc(['Catalog', 'Catálogo', 'Catálogo']) },
     { id: 'inventory', label: loc(['Inventory', 'Inventario', 'Estoque']) },
@@ -97,6 +97,13 @@ const parity: ProductParity = {
         'Um produto pode dispensar frete, mas não há downloads nem cobrança recorrente',
       ],
     }),
+    row('bulk-editor', 'catalog', ['Bulk product editor', 'Edición masiva de productos', 'Edição em massa de produtos'], 'partial', {
+      detail: [
+        'Select products to change their status or delete them. No spreadsheet to edit prices and fields of many products at once',
+        'Seleccionar productos para cambiarles el estado o borrarlos. Sin planilla para editar precios y campos de muchos productos a la vez',
+        'Selecionar produtos para mudar o status ou excluí-los. Sem planilha para editar preços e campos de muitos produtos de uma vez',
+      ],
+    }),
     row('product-seo', 'catalog', ['SEO title, description and URL handle', 'Título, descripción y URL para buscadores', 'Título, descrição e URL para buscadores'], 'have'),
     // Inventario
     row('multi-location', 'inventory', ['Stock per location', 'Stock por ubicación', 'Estoque por local'], 'partial', {
@@ -129,12 +136,18 @@ const parity: ProductParity = {
         'Limite por loja; aviso aos admins e gatilho do Flow',
       ],
     }),
-    row('transfers-purchase-orders', 'inventory', ['Transfers between locations and purchase orders', 'Transferencias entre ubicaciones y órdenes de compra', 'Transferências entre locais e ordens de compra'], 'missing'),
-    row('backorders', 'inventory', ['Keep selling when out of stock', 'Seguir vendiendo sin stock', 'Continuar vendendo sem estoque'], 'partial', {
+    row('transfers-purchase-orders', 'inventory', ['Transfers between locations and purchase orders', 'Transferencias entre ubicaciones y órdenes de compra', 'Transferências entre locais e ordens de compra'], 'partial', {
       detail: [
-        'Only by turning off stock tracking for the variant',
-        'Solo apagando el control de stock de la variante',
-        'Só desligando o controle de estoque da variante',
+        'Move free stock between locations in one step, with history, and purchase orders with partial receiving that add to stock. Transfers have no in-transit state and costs don’t feed margin reports',
+        'Mover stock libre entre ubicaciones en un paso, con historial, y órdenes de compra con recepción parcial que suman al stock. Las transferencias no tienen estado en tránsito y los costos no alimentan reportes de margen',
+        'Mover estoque livre entre locais em um passo, com histórico, e ordens de compra com recebimento parcial que somam ao estoque. As transferências não têm estado em trânsito e os custos não alimentam relatórios de margem',
+      ],
+    }),
+    row('backorders', 'inventory', ['Keep selling when out of stock', 'Seguir vendiendo sin stock', 'Continuar vendendo sem estoque'], 'have', {
+      detail: [
+        'Per variant: keep selling when out of stock, and the cart tells the customer it ships when restocked',
+        'Por variante: seguir vendiendo sin stock, y el carrito le avisa al cliente que sale cuando vuelva a haber',
+        'Por variante: continuar vendendo sem estoque, e o carrinho avisa o cliente que sai quando voltar',
       ],
     }),
     // Tienda
@@ -168,6 +181,16 @@ const parity: ProductParity = {
         'As páginas do catálogo são geradas uma vez e regeneradas quando você muda a loja, ou a cada 5 minutos; carrinho e pedido carregam no navegador',
       ],
     }),
+    row('storefront-filters', 'storefront', ['Sort and filter a collection', 'Ordenar y filtrar una colección', 'Ordenar e filtrar uma coleção'], 'partial', {
+      detail: ['Sort, maximum price and in stock. No filters by option like size or color', 'Orden, precio máximo y con stock. Sin filtros por opción como talle o color', 'Ordem, preço máximo e com estoque. Sem filtros por opção como tamanho ou cor'],
+    }),
+    row('related-products', 'storefront', ['Related products', 'Productos relacionados', 'Produtos relacionados'], 'have', {
+      detail: ['From the same collection or product type', 'De la misma colección o tipo de producto', 'Da mesma coleção ou tipo de produto'],
+    }),
+    row('whatsapp-button', 'storefront', ['WhatsApp button in the store', 'Botón de WhatsApp en la tienda', 'Botão de WhatsApp na loja'], 'have'),
+    row('navigation-menus', 'storefront', ['Menus you can edit', 'Menús editables', 'Menus editáveis'], 'partial', {
+      detail: ['The footer lists your pages by itself; menus can’t be arranged by hand', 'El pie lista tus páginas solo; los menús no se ordenan a mano', 'O rodapé lista suas páginas sozinho; os menus não são organizados à mão'],
+    }),
     row('custom-domain', 'storefront', ['Custom domain', 'Dominio propio', 'Domínio próprio'], 'missing', {
       detail: [
         'The store lives on the zerosoft address; custom domains of Link and Docs don’t serve stores',
@@ -175,7 +198,13 @@ const parity: ProductParity = {
         'A loja fica no endereço do zerosoft; os domínios próprios do Link e do Docs não servem lojas',
       ],
     }),
-    row('blog-pages', 'storefront', ['Blog and content pages', 'Blog y páginas de contenido', 'Blog e páginas de conteúdo'], 'missing'),
+    row('blog-pages', 'storefront', ['Blog and content pages', 'Blog y páginas de contenido', 'Blog e páginas de conteúdo'], 'have', {
+      detail: [
+        'Content pages linked from the store footer and a blog, in the sitemap, with basic formatting. No blog comments',
+        'Páginas de contenido con link en el pie de la tienda y un blog, en el sitemap, con formato básico. Sin comentarios en el blog',
+        'Páginas de conteúdo com link no rodapé da loja e um blog, no sitemap, com formatação básica. Sem comentários no blog',
+      ],
+    }),
     row('multi-currency-language', 'storefront', ['Several currencies and languages per store', 'Varias monedas e idiomas por tienda', 'Várias moedas e idiomas por loja'], 'missing', {
       detail: ['One currency and one language per store', 'Una moneda y un idioma por tienda', 'Uma moeda e um idioma por loja'],
     }),
@@ -188,20 +217,20 @@ const parity: ProductParity = {
         'O carrinho só manda variante e quantidade; preço, desconto, frete e imposto vêm dos dados da loja',
       ],
     }),
-    row('stripe', 'checkout', ['Card payments (Stripe Checkout)', 'Pagos con tarjeta (Stripe Checkout)', 'Pagamentos com cartão (Stripe Checkout)'], 'have', {
+    row('stripe', 'checkout', ['Card payments (Stripe Checkout)', 'Pagos con tarjeta (Stripe Checkout)', 'Pagamentos com cartão (Stripe Checkout)'], 'partial', {
       weight: 2,
       detail: [
-        'With your own Stripe account; signed webhook marks the order paid once',
-        'Con tu cuenta de Stripe; el webhook firmado marca el pedido pagado una sola vez',
-        'Com sua conta Stripe; o webhook assinado marca o pedido como pago uma vez',
+        'With your own Stripe account; a signed webhook marks the order paid once. So far tested with simulated payments only, not against a live Stripe account',
+        'Con tu cuenta de Stripe; el webhook firmado marca el pedido pagado una sola vez. Hasta ahora probado solo con pagos simulados, no contra una cuenta real de Stripe',
+        'Com sua conta Stripe; o webhook assinado marca o pedido como pago uma vez. Até agora testado só com pagamentos simulados, não em uma conta real do Stripe',
       ],
     }),
-    row('mercadopago', 'checkout', ['Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)'], 'have', {
+    row('mercadopago', 'checkout', ['Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)'], 'partial', {
       weight: 2,
       detail: [
-        'Built in with your access token and signed webhooks (on Shopify it comes as Mercado Pago’s own app)',
-        'Integrado con tu access token y webhooks firmados (en Shopify llega como la app de Mercado Pago)',
-        'Integrado com seu access token e webhooks assinados (no Shopify chega como o app do Mercado Pago)',
+        'Built in with your access token and signed webhooks (on Shopify it comes as Mercado Pago’s own app). So far tested with simulated payments only, not against a live account',
+        'Integrado con tu access token y webhooks firmados (en Shopify llega como la app de Mercado Pago). Hasta ahora probado solo con pagos simulados, no contra una cuenta real',
+        'Integrado com seu access token e webhooks assinados (no Shopify chega como o app do Mercado Pago). Até agora testado só com pagamentos simulados, não em uma conta real',
       ],
     }),
     row('manual-payment', 'checkout', ['Bank transfer and other manual payments', 'Transferencia y otros pagos manuales', 'Transferência e outros pagamentos manuais'], 'have', {
@@ -211,7 +240,35 @@ const parity: ProductParity = {
         'Suas instruções na página do pedido; o pedido espera até você marcar como pago',
       ],
     }),
-    row('shipping-rates', 'checkout', ['Shipping rates: flat, by weight, by zone, free over an amount', 'Envíos: fijo, por peso, por zona, gratis desde un monto', 'Frete: fixo, por peso, por zona, grátis a partir de um valor'], 'have', { weight: 2 }),
+    row('shipping-rates', 'checkout', ['Shipping rates: flat, by weight, by zone, free over an amount', 'Envíos: fijo, por peso, por zona, gratis desde un monto', 'Frete: fixo, por peso, por zona, grátis a partir de um valor'], 'have', {
+      weight: 2,
+      detail: [
+        'Flat or by weight, per country, free over an amount. See postal zones and pickup below',
+        'Fijo o por peso, por país, gratis desde un monto. Ver zonas postales y retiro más abajo',
+        'Fixo ou por peso, por país, grátis a partir de um valor. Veja zonas postais e retirada abaixo',
+      ],
+    }),
+    row('local-pickup', 'checkout', ['Pickup at a location', 'Retiro en un local', 'Retirada em um local'], 'have', {
+      detail: [
+        'A pickup option with address and hours; the customer leaves no shipping address and the order shows who picks it up',
+        'Una opción de retiro con dirección y horario; el cliente no deja dirección de envío y el pedido muestra quién retira',
+        'Uma opção de retirada com endereço e horário; o cliente não deixa endereço de envio e o pedido mostra quem retira',
+      ],
+    }),
+    row('postal-zones', 'checkout', ['Shipping rates by postal code or province', 'Tarifas por código postal o provincia', 'Frete por CEP ou estado'], 'missing', {
+      detail: ['Zones are per country', 'Las zonas son por país', 'As zonas são por país'],
+    }),
+    row('payment-discount', 'checkout', ['Discount by payment method', 'Descuento por medio de pago', 'Desconto por forma de pagamento'], 'have', {
+      detail: [
+        'A percentage per method, like Tiendanube: off the products, not shipping, and shown apart in the checkout',
+        'Un porcentaje por medio, como Tiendanube: sobre los productos, no el envío, y aparte en el checkout',
+        'Uma porcentagem por forma, como a Nuvemshop: sobre os produtos, não o frete, e à parte no checkout',
+      ],
+    }),
+    row('checkout-tax-id', 'checkout', ['Ask for a tax ID at checkout', 'Pedir documento en el checkout', 'Pedir documento no checkout'], 'have', {
+      detail: ['Optional, per store. It is stored on the order, not validated', 'Opcional, por tienda. Queda en el pedido, sin validarlo', 'Opcional, por loja. Fica no pedido, sem validação'],
+    }),
+    row('checkout-customization', 'checkout', ['Checkout fields and layout you can customize', 'Campos y diseño del checkout a medida', 'Campos e layout do checkout personalizáveis'], 'missing'),
     row('carrier-rates', 'checkout', ['Live carrier rates and labels', 'Tarifas de transportistas en vivo y etiquetas', 'Tarifas de transportadoras ao vivo e etiquetas'], 'missing', {
       detail: [
         'No Correo Argentino, Andreani, Correios or UPS integration yet',
@@ -226,7 +283,13 @@ const parity: ProductParity = {
         'Uma taxa por país e região, somada ou incluída no preço, opcional sobre o frete. Sem cálculo automático nem nota fiscal',
       ],
     }),
-    row('abandoned-checkout', 'checkout', ['Abandoned checkout emails', 'Emails de carrito abandonado', 'Emails de carrinho abandonado'], 'missing'),
+    row('abandoned-checkout', 'checkout', ['Abandoned checkout emails', 'Emails de carrito abandonado', 'Emails de carrinho abandonado'], 'partial', {
+      detail: [
+        'List with recovery link and one reminder email if you turn it on, with caps per recipient and store and an opt-out link. Fixed text: no editable template or discount in the email',
+        'Lista con link para recuperar y un recordatorio por email si lo activás, con topes por destinatario y tienda y link para darse de baja. Texto fijo: sin plantilla editable ni descuento en el email',
+        'Lista com link de recuperação e um lembrete por email se você ativar, com limites por destinatário e loja e link de descadastro. Texto fixo: sem modelo editável nem desconto no email',
+      ],
+    }),
     row('checkout-rate-limits', 'checkout', ['Abuse limits on checkout and discount codes', 'Límites contra abuso en el checkout y los códigos', 'Limites contra abuso no checkout e nos cupons'], 'partial', {
       detail: [
         'Limits per IP on orders placed, unknown discount codes and order lookups, plus a bot trap field. No fraud analysis of its own: card checks are the payment provider’s',
@@ -238,29 +301,41 @@ const parity: ProductParity = {
     row('order-management', 'orders', ['Order list and detail with statuses', 'Lista y detalle de pedidos con estados', 'Lista e detalhe de pedidos com status'], 'have', { weight: 2 }),
     row('fulfillment', 'orders', ['Fulfill with tracking number', 'Envío con número de seguimiento', 'Envio com código de rastreio'], 'have', {
       detail: [
-        'Whole order at once, with carrier and tracking link; no partial fulfillments',
-        'El pedido completo, con transportista y link de seguimiento; sin envíos parciales',
-        'O pedido inteiro, com transportadora e link de rastreio; sem envios parciais',
+        'Whole order or part of it, line by line, with carrier and tracking link for each shipment; the customer sees every shipment',
+        'El pedido completo o una parte, línea por línea, con transportista y link de seguimiento por envío; el cliente ve cada envío',
+        'O pedido inteiro ou parte dele, linha por linha, com transportadora e link de rastreio por envio; o cliente vê cada envio',
       ],
     }),
-    row('refunds', 'orders', ['Refunds through the payment provider', 'Reembolsos por el proveedor de pago', 'Reembolsos pelo provedor de pagamento'], 'have', {
+    row('refunds', 'orders', ['Refunds through the payment provider', 'Reembolsos por el proveedor de pago', 'Reembolsos pelo provedor de pagamento'], 'partial', {
       detail: [
-        'Full or partial, through Stripe or Mercado Pago, with restock on full refunds. Cancelling a paid order can refund it in the same step, and a payment that lands on a cancelled order is recorded and flagged for a refund',
-        'Total o parcial, por Stripe o Mercado Pago, con reposición en los reembolsos totales. Cancelar un pedido pagado puede reembolsarlo en el mismo paso, y un pago que llega a un pedido cancelado queda registrado y marcado para reembolsar',
-        'Total ou parcial, pelo Stripe ou Mercado Pago, com reposição nos reembolsos totais. Cancelar um pedido pago pode reembolsá-lo no mesmo passo, e um pagamento que chega a um pedido cancelado fica registrado e marcado para reembolso',
+        'Full or partial, with restock on full refunds; cancelling a paid order can refund it in the same step, and a payment that lands on a cancelled order is flagged. Calls to Stripe and Mercado Pago were tested with simulated payments only',
+        'Total o parcial, con reposición en los reembolsos totales; cancelar un pedido pagado puede reembolsarlo en el mismo paso y un pago que llega a un pedido cancelado queda marcado. Las llamadas a Stripe y Mercado Pago se probaron solo con pagos simulados',
+        'Total ou parcial, com reposição nos reembolsos totais; cancelar um pedido pago pode reembolsá-lo no mesmo passo e um pagamento que chega a um pedido cancelado fica marcado. As chamadas ao Stripe e ao Mercado Pago foram testadas só com pagamentos simulados',
       ],
     }),
     row('order-timeline', 'orders', ['Timeline and internal notes', 'Línea de tiempo y notas internas', 'Linha do tempo e notas internas'], 'have'),
-    row('customer-emails', 'orders', ['Order confirmation and shipping emails', 'Emails de confirmación y de envío', 'Emails de confirmação e de envio'], 'have', {
+    row('customer-emails', 'orders', ['Order confirmation and shipping emails', 'Emails de confirmación y de envío', 'Emails de confirmação e de envio'], 'partial', {
       detail: [
-        'In the store language, with your logo; templates are not editable yet',
-        'En el idioma de la tienda, con tu logo; las plantillas todavía no se editan',
-        'No idioma da loja, com seu logo; os modelos ainda não são editáveis',
+        'In the store language, with your logo, limited per recipient and per store. Templates can’t be edited: they go out from a sender shared with the rest of the app',
+        'En el idioma de la tienda, con tu logo y con topes por destinatario y por tienda. Las plantillas no se editan: salen de un remitente compartido con el resto de la app',
+        'No idioma da loja, com seu logo e com limites por destinatário e por loja. Os modelos não são editáveis: saem de um remetente compartilhado com o resto do app',
       ],
     }),
     row('packing-slip', 'orders', ['Printable packing slip', 'Remito para imprimir', 'Romaneio para imprimir'], 'have'),
-    row('draft-orders-pos', 'orders', ['Draft orders and point of sale', 'Pedidos en borrador y punto de venta', 'Pedidos em rascunho e ponto de venda'], 'missing'),
-    row('returns-exchanges', 'orders', ['Returns and exchanges', 'Devoluciones y cambios', 'Devoluções e trocas'], 'missing'),
+    row('draft-orders-pos', 'orders', ['Draft orders and point of sale', 'Pedidos en borrador y punto de venta', 'Pedidos em rascunho e ponto de venda'], 'partial', {
+      detail: [
+        'Draft orders with catalog or custom items, manual discount and shipping, invoice by email with a payment link, or mark as paid. No point of sale',
+        'Pedidos en borrador con productos o ítems sueltos, descuento y envío a mano, factura por email con link de pago, o marcar pagado. Sin punto de venta',
+        'Pedidos em rascunho com produtos ou itens avulsos, desconto e frete à mão, fatura por email com link de pagamento, ou marcar como pago. Sem ponto de venda',
+      ],
+    }),
+    row('returns-exchanges', 'orders', ['Returns and exchanges', 'Devoluciones y cambios', 'Devoluções e trocas'], 'partial', {
+      detail: [
+        'Returns line by line with reason, restock and refund, opened by your team or requested from the order page within your window. An exchange is a new order for the same customer. No return labels',
+        'Devoluciones por línea con motivo, reposición y reembolso, abiertas por tu equipo o pedidas desde la página del pedido dentro de tu plazo. Un cambio es un pedido nuevo para el mismo cliente. Sin etiquetas de devolución',
+        'Devoluções por linha com motivo, reposição e reembolso, abertas pela equipe ou solicitadas na página do pedido dentro do seu prazo. Uma troca é um novo pedido para o mesmo cliente. Sem etiquetas de devolução',
+      ],
+    }),
     // Marketing
     row('discount-codes', 'marketing', ['Discount codes', 'Códigos de descuento', 'Cupons de desconto'], 'have', {
       weight: 2,
@@ -270,7 +345,13 @@ const parity: ProductParity = {
         'Porcentagem, valor fixo ou frete grátis, com pedido mínimo, limite de usos e datas',
       ],
     }),
-    row('automatic-discounts', 'marketing', ['Automatic discounts and buy X get Y', 'Descuentos automáticos y lleve X pague Y', 'Descontos automáticos e leve X pague Y'], 'missing'),
+    row('automatic-discounts', 'marketing', ['Automatic discounts and buy X get Y', 'Descuentos automáticos y lleve X pague Y', 'Descontos automáticos e leve X pague Y'], 'have', {
+      detail: [
+        'Applied without a code, percentage, amount, free shipping or buy X get Y, for the whole order or some products and collections, with minimum units and once per customer. One discount per order: the largest wins',
+        'Sin código: porcentaje, monto, envío gratis o lleve X pague Y, para todo el pedido o algunos productos y colecciones, con unidades mínimas y una vez por cliente. Un descuento por pedido: gana el mayor',
+        'Sem cupom: porcentagem, valor, frete grátis ou leve X pague Y, para todo o pedido ou alguns produtos e coleções, com unidades mínimas e uma vez por cliente. Um desconto por pedido: vence o maior',
+      ],
+    }),
     row('utm-links', 'marketing', ['Short links with UTM for products', 'Links cortos con UTM para productos', 'Links curtos com UTM para produtos'], 'better', {
       competitorHas: false,
       detail: [
@@ -279,11 +360,22 @@ const parity: ProductParity = {
         'Um clique cria um link curto do Link com tags de campanha, com análise de cliques',
       ],
     }),
-    row('sales-channels', 'marketing', ['Marketplaces and social channels', 'Marketplaces y canales sociales', 'Marketplaces e canais sociais'], 'missing', {
-      detail: ['No Mercado Libre, Google or Meta catalog sync', 'Sin sincronizar con Mercado Libre, Google o Meta', 'Sem sincronizar com Mercado Livre, Google ou Meta'],
+    row('email-marketing', 'marketing', ['Email campaigns to customers', 'Campañas de email a clientes', 'Campanhas de email para clientes'], 'missing'),
+    row('sales-channels', 'marketing', ['Marketplaces and social channels', 'Marketplaces y canales sociales', 'Marketplaces e canais sociais'], 'partial', {
+      detail: [
+        'A product feed URL in the format Google Merchant Center and Meta read. Not yet checked inside those two tools; no Mercado Libre, and no order sync',
+        'Una URL de feed de productos en el formato que leen Google Merchant Center y Meta. Todavía sin comprobar dentro de esas dos herramientas; sin Mercado Libre ni sincronización de pedidos',
+        'Uma URL de feed de produtos no formato que o Google Merchant Center e a Meta leem. Ainda não verificado nessas duas ferramentas; sem Mercado Livre nem sincronização de pedidos',
+      ],
     }),
     // Clientes
-    row('customer-list', 'customers', ['Customer list with orders and spend', 'Lista de clientes con pedidos y gasto', 'Lista de clientes com pedidos e gasto'], 'have'),
+    row('customer-list', 'customers', ['Customer list with orders and spend', 'Lista de clientes con pedidos y gasto', 'Lista de clientes com pedidos e gasto'], 'have', {
+      detail: [
+        'Orders, spend, tags and an internal note per customer',
+        'Pedidos, gasto, etiquetas y una nota interna por cliente',
+        'Pedidos, gasto, tags e uma nota interna por cliente',
+      ],
+    }),
     row('crm-sync', 'customers', ['Customers in the CRM with each order', 'Clientes en el CRM con cada pedido', 'Clientes no CRM com cada pedido'], 'better', {
       competitorHas: false,
       detail: [
@@ -293,8 +385,16 @@ const parity: ProductParity = {
       ],
     }),
     row('order-status-page', 'customers', ['Order status page by number and email', 'Estado del pedido por número y email', 'Status do pedido por número e email'], 'have'),
-    row('customer-accounts', 'customers', ['Customer accounts', 'Cuentas de clientes', 'Contas de clientes'], 'missing', {
-      detail: ['Checkout is always as a guest', 'El checkout es siempre como invitado', 'O checkout é sempre como convidado'],
+    row('customer-segments', 'customers', ['Customer segments', 'Segmentos de clientes', 'Segmentos de clientes'], 'partial', {
+      detail: ['Tags on each customer and the list filtered by tag, without saved segments by behavior (spend, last order)', 'Etiquetas por cliente y la lista filtrada por etiqueta, sin segmentos guardados por comportamiento (gasto, último pedido)', 'Tags por cliente e a lista filtrada por tag, sem segmentos salvos por comportamento (gasto, último pedido)'],
+    }),
+    row('b2b', 'customers', ['Wholesale: company accounts and price lists', 'Mayorista: cuentas de empresa y listas de precios', 'Atacado: contas de empresa e listas de preços'], 'missing'),
+    row('customer-accounts', 'customers', ['Customer accounts', 'Cuentas de clientes', 'Contas de clientes'], 'partial', {
+      detail: [
+        '“My orders” with a link sent to the email, no password: order history and status. No saved addresses or login at checkout',
+        '“Mis pedidos” con un link al email, sin contraseña: historial y estado. Sin direcciones guardadas ni login en el checkout',
+        '“Meus pedidos” com um link enviado ao email, sem senha: histórico e status. Sem endereços salvos nem login no checkout',
+      ],
     }),
     // Analítica
     row('sales-dashboard', 'analytics', ['Sales, orders, average order and conversion', 'Ventas, pedidos, ticket promedio y conversión', 'Vendas, pedidos, ticket médio e conversão'], 'have', {
@@ -304,7 +404,13 @@ const parity: ProductParity = {
         '7, 30, 90 ou 365 dias, vendas por dia e mais vendidos. A conversão conta páginas vistas, não sessões únicas',
       ],
     }),
-    row('reports', 'analytics', ['Custom reports and exports', 'Reportes a medida y exportaciones', 'Relatórios personalizados e exportações'], 'missing'),
+    row('reports', 'analytics', ['Custom reports and exports', 'Reportes a medida y exportaciones', 'Relatórios personalizados e exportações'], 'partial', {
+      detail: [
+        'Fixed reports by product, payment method, discount, day and top customers, and CSV export of orders and customers (admins). No custom report builder',
+        'Reportes fijos por producto, medio de pago, descuento, día y mejores clientes, y exportar pedidos y clientes a CSV (admins). Sin armador de reportes a medida',
+        'Relatórios fixos por produto, forma de pagamento, desconto, dia e melhores clientes, e exportação de pedidos e clientes em CSV (admins). Sem criador de relatórios personalizados',
+      ],
+    }),
     // Plataforma
     row('flow-triggers', 'platform', ['Automations on orders and stock', 'Automatizaciones con pedidos y stock', 'Automações com pedidos e estoque'], 'have', {
       detail: [
