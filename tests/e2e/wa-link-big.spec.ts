@@ -113,9 +113,10 @@ test('Inbox: un link con la imagen grande de WhatsApp se ve como en WhatsApp', a
   const name = `Julia Links ${uid()}`;
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: events(phone, name) } });
   expect(res.ok(), await res.text()).toBe(true);
+  // Los mensajes son de hace una hora: con muchos chats del worker no entran en la primera página de la lista.
+  const [th] = await sql('SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?', [String(acc.id), `${phone}@s.whatsapp.net`]);
   const open = async () => {
-    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+    await page.goto(`/en/app/inbox?t=${String(th.id)}`, { waitUntil: 'networkidle' });
     await expect(page.locator('.ib-wa-thread').getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 });
   };
   await open();
