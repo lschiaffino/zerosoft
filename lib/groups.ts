@@ -62,6 +62,7 @@ import { sampleProvider } from './groups-provider-sample';
 import { learnLinesEvents, withLinesMentions } from './groups-wa-names';
 import { resolveLidChats } from './wa-contacts';
 import type { MentionMap } from './wa-mentions';
+import { headerWebhookTarget, type WebhookTarget } from './wa-webhook-secret';
 import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
@@ -424,8 +425,18 @@ export function groupsBaseUrl(origin?: string | null): string {
   return String(env || origin || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
+/**
+ * URL con el secreto en la ruta. La usa la Cloud API de Meta (se pega a mano en la app de Meta y no
+ * deja mandar headers propios); para los demás proveedores es la ruta vieja, que se sigue aceptando.
+ */
 export function webhookUrlFor(row: Pick<NumberRow, 'id' | 'webhook_secret'>, origin?: string | null): string {
   return `${groupsBaseUrl(origin)}/api/groups/webhook/${row.id}/${row.webhook_secret}`;
+}
+
+/** Lo que se le registra al proveedor: con el secreto en un header (lib/wa-webhook-secret.ts), salvo la Cloud API. */
+export function webhookTargetFor(row: Pick<NumberRow, 'id' | 'webhook_secret' | 'provider'>, origin?: string | null): WebhookTarget {
+  if (row.provider === 'cloud') return { url: webhookUrlFor(row, origin), headers: {} };
+  return headerWebhookTarget(groupsBaseUrl(origin), '/api/groups/webhook', row.id, row.webhook_secret);
 }
 
 export function providerErrorCode(err: unknown): string {
@@ -458,7 +469,8 @@ export async function connectNumber(ws: string, id: string, origin?: string | nu
   const row = await getNumberRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
   try {
-    const state = await providerFor(row).connect(webhookUrlFor(row, origin));
+    const target = webhookTargetFor(row, origin);
+    const state = await providerFor(row).connect(target.url, target.headers);
     await saveState(row, state);
     return state;
   } catch (err) {

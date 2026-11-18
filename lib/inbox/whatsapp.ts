@@ -38,6 +38,7 @@ import { contactsFromMessage, lidPhonePairs, lookupContacts, displayName, phoneF
 import { inboxTwinsFromMessages, mergeLidChats, routeLidByKnownMessages } from '../wa-dedupe-run';
 import { pokeLive } from '../wa-live';
 import { transientError } from '../transient-error';
+import { headerWebhookTarget, type WebhookTarget } from '../wa-webhook-secret';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -59,8 +60,14 @@ export function whatsappAvailable(): boolean {
   return fakeProviderAllowed() || inboxBridgeEnv() !== null;
 }
 
+/** URL vieja, con el secreto en la ruta. Solo la aceptamos (instancias registradas antes); no se registra más. */
 export function webhookUrlFor(account: Pick<AccountRow, 'id' | 'webhook_secret'>): string {
   return `${appBase()}/api/inbox/webhook/${account.id}/${account.webhook_secret}`;
+}
+
+/** Lo que se le registra al servidor de WhatsApp: la URL sin secreto y el header que lo lleva (lib/wa-webhook-secret.ts). */
+export function webhookTargetFor(account: Pick<AccountRow, 'id' | 'webhook_secret'>): WebhookTarget {
+  return headerWebhookTarget(appBase(), '/api/inbox/webhook', account.id, account.webhook_secret ?? '');
 }
 
 /** Proveedor de la cuenta. Lanza si la cuenta no tiene credenciales válidas o el modo no está disponible. */
@@ -117,7 +124,8 @@ export async function connectWhatsapp(owner: string): Promise<{ account: Account
   }
   let state: ConnectState;
   try {
-    state = await waProviderFor(account).connect(webhookUrlFor(account));
+    const target = webhookTargetFor(account);
+    state = await waProviderFor(account).connect(target.url, target.headers);
   } catch (err) {
     await setAccountState(account.id, { status: 'error', error: err instanceof ProviderError ? err.code : 'provider_error' });
     throw new InboxError(err instanceof ProviderError && err.code === 'unreachable' ? 'whatsapp_unreachable' : 'whatsapp_error', 502);

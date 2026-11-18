@@ -113,7 +113,10 @@ describe('QR administrado: llamadas a Evolution', () => {
     const create = mock.calls.find((c) => c.url.endsWith('/instance/create'))!;
     expect(create.apikey).toBe(GLOBAL_KEY);
     expect(create.body).toMatchObject({ instanceName: cfg.session, token: cfg.instanceToken, integration: 'WHATSAPP-BAILEYS', qrcode: true });
-    expect((create.body as { webhook: { url: string } }).webhook.url).toMatch(new RegExp(`/api/groups/webhook/${n.id}/[a-f0-9]{48}$`));
+    // El secreto va en un header, no en la URL (la URL queda en los logs de requests).
+    const hook = (create.body as { webhook: { url: string; headers?: Record<string, string> } }).webhook;
+    expect(hook.url).toMatch(new RegExp(`/api/groups/webhook/${n.id}$`));
+    expect(hook.headers?.['x-zerosoft-webhook-secret']).toMatch(/^[a-f0-9]{48}$/);
     const rest = mock.calls.filter((c) => c !== create);
     expect(rest.length).toBeGreaterThan(0);
     for (const c of rest) {

@@ -13,6 +13,7 @@ import CalIcon from './cal-icons';
 import CalCopyButton from './CalCopyButton';
 import CalDeleteButton from './CalDeleteButton';
 import WeeklyHours, { type HourRule } from './WeeklyHours';
+import { mergeSaved, sameValue } from '@/lib/save-merge';
 import {
   LIMIT_KEYS,
   bookingRulesPayload,
@@ -314,6 +315,9 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
     [],
   );
   const [d, setD] = useState<Draft>(initial);
+  // El borrador de este render: al volver un guardado se compara con lo que se mandó.
+  const latest = useRef(d);
+  latest.current = d;
   const oneOff = et.oneOffTimes !== null;
   const [baseline, setBaseline] = useState<Draft>(initial);
   const [tab, setTab] = useState<Tab>(
@@ -535,9 +539,11 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       locations,
       seats: seats > 0 ? String(seats) : '',
     };
-    setD(savedDraft);
+    // Lo que se cambió mientras se guardaba no se pisa: solo los campos que siguen como se mandaron toman lo
+    // guardado. Si algo cambió, el borrador queda distinto de `baseline` y sigue marcado sin guardar.
+    setD((cur) => mergeSaved(cur, d, savedDraft));
     setBaseline(savedDraft);
-    setState('saved');
+    setState(sameValue(mergeSaved(latest.current, d, savedDraft), savedDraft) ? 'saved' : 'idle');
     router.refresh();
   }
 

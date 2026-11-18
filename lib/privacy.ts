@@ -400,6 +400,9 @@ function rootOrder(schema: Schema): string[] {
 
 // ---------- Borrado ----------
 
+/** Tablas de Inbox (inbox_*) y Lines (groups_*) cuyos links pueden tener vista previa en wa_link_previews. */
+const PREVIEW_TABLES = /^(inbox|groups)_/;
+
 export interface ErasureStats {
   rows: number;
   files: number;
@@ -474,13 +477,22 @@ export async function eraseNow(userId: string, kind: Scope['kind'], erasureId: s
   await disconnectExternal(userId, stats);
   const scope = await scopeFor(userId, kind);
   const schema = await readSchema(client);
+  // Links de los mensajes de Inbox y Lines: su vista previa vive en una caché sin dueño (wa_link_previews).
+  const { previewKeysIn, forgetPreviews } = await import('./wa-extras');
+  const previewKeys = new Set<string>();
   for (const table of rootOrder(schema)) {
     const where = scopeWhere(table, schema.tables.get(table)!, scope, schema);
     if (!where) continue;
     await walk(client, schema, table, where, 'erase', async (t, w) => {
       // Primero a la cola los archivos de estas filas, después se borran las filas.
       const files = new Map<string, string>();
-      await readRows(client, schema, t, w, (rows) => rows.forEach((r) => collectFiles(t, r, files)));
+      const withLinks = PREVIEW_TABLES.test(t);
+      await readRows(client, schema, t, w, (rows) =>
+        rows.forEach((r) => {
+          collectFiles(t, r, files);
+          if (withLinks) for (const v of Object.values(r)) if (typeof v === 'string' && v.includes('http')) previewKeysIn(v, previewKeys);
+        }),
+      );
       for (const [ref, app] of files) {
         await client.execute({ sql: 'INSERT OR IGNORE INTO privacy_file_queue (erasure_id, ref, app) VALUES (?, ?, ?)', args: [erasureId, ref, app] });
       }
@@ -491,6 +503,7 @@ export async function eraseNow(userId: string, kind: Scope['kind'], erasureId: s
       }
     }, []);
   }
+  await forgetPreviews(previewKeys).catch(() => undefined);
   if (kind === 'account') {
     if (email) await client.execute({ sql: 'DELETE FROM email_login_codes WHERE email = ?', args: [email.toLowerCase()] }).catch(() => undefined);
     await anonymizeUser(client, userId);

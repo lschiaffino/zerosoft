@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import QuickModal from '@/components/app/QuickModal';
 
@@ -77,11 +77,16 @@ export default function ScheduleOnBehalfModal({
   const [error, setError] = useState<string | null>(null);
   const tzOptions = useMemo(() => (COMMON_TZ.includes(tz) ? COMMON_TZ : [tz, ...COMMON_TZ]), [tz]);
 
-  // Al cambiar de evento: su primer anfitrión elegible (member: él) y su primera ubicación.
+  // Al cambiar de evento: su primer anfitrión elegible (member: él) y su primera ubicación. Solo cuando cambia
+  // el evento elegido: una lista nueva de eventos (la página se refresca) trae objetos nuevos y no puede borrar
+  // el anfitrión o la ubicación que ya se eligieron (ni, con eso, el horario).
+  const etRef = useRef(et);
+  etRef.current = et;
   useEffect(() => {
-    setHost(canChooseHost ? '' : (et?.hosts?.[0]?.token ?? ''));
-    setLocKey(et?.locations?.[0]?.key ?? '');
-  }, [eventTypeId, canChooseHost, et]);
+    const cur = etRef.current;
+    setHost(canChooseHost ? '' : (cur?.hosts?.[0]?.token ?? ''));
+    setLocKey(cur?.locations?.[0]?.key ?? '');
+  }, [eventTypeId, canChooseHost]);
 
   useEffect(() => {
     if (!open || !eventTypeId) return;
