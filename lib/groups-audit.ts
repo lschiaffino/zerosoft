@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = [
   'ticket_deleted',
   /** La empresa de HubSpot del chat se reemplazó por la del mismo grupo en otra línea (lib/groups-identity.ts). */
   'hubspot_company',
+  /** Importación desde Periskope (lib/groups-periskope.ts); chat_id null. */
+  'imported',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

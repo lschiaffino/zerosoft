@@ -647,7 +647,8 @@
       "access": "Access and privacy",
       "audit": "Audit log",
       "integrations": "Integrations",
-      "apps": "Mobile and desktop"
+      "apps": "Mobile and desktop",
+      "migrate": "Move from Periskope"
     }
   },
   "numbers": {
@@ -1391,7 +1392,8 @@
       "labelsAdded": "added labels: {added}",
       "labelsRemoved": "removed labels: {removed}",
       "assignedSelf": "assigned the chat to themselves",
-      "hubspot_company": "replaced the HubSpot company {previous} with {company}, the one this group has in its other lines"
+      "hubspot_company": "replaced the HubSpot company {previous} with {company}, the one this group has in its other lines",
+      "imported": "imported from Periskope: {kind}, {applied} rows"
     },
     "memberActions": {
       "add": "added",
@@ -2595,5 +2597,48 @@
     "done": "Snoozed until {when}. It stays in Archived until then.",
     "cancelled": "Snooze cancelled",
     "until": "Snoozed until {when}"
+  },
+  "migrate": {
+    "intro": "Bring your labels, quick replies and chat organization from Periskope. Messages come from WhatsApp when you connect each line by QR, not from the file. This import is partial: Periskope does not publish its export columns, so we read the common names and tell you what we skipped.",
+    "step1": "Connect your lines by QR in the Numbers tab and wait for the chats to import.",
+    "step2": "In Periskope, export the chat list or a CSV from Analytics › Data Exports. For labels and quick replies, use a sheet with Name and Color, or Command and Message.",
+    "step3": "Upload each file here, check the preview and import.",
+    "kind": "What the file has",
+    "kinds": {
+      "chats": "Chats (labels, assignee, properties)",
+      "contacts": "Contacts (names and labels)",
+      "labels": "Labels",
+      "quick_replies": "Quick replies"
+    },
+    "columns": {
+      "chats": "Columns: Chat ID (required), Chat Name, Chat Type, Org Phone, Labels, Assigned To (email), and one column per custom property with its name.",
+      "contacts": "Columns: Phone (required), Name, Labels. Applies to the 1:1 chats with that phone.",
+      "labels": "Columns: Name (required), Color (name or hex).",
+      "quick_replies": "Columns: Command (required, like /hello), Message (required)."
+    },
+    "file": "CSV file",
+    "paste": "Or paste the CSV",
+    "tooBig": "The file is larger than 4 MB. Split it and import each part.",
+    "preview": "Preview",
+    "import": "Import",
+    "previewResult": "{applied} of {rows} rows would be applied.",
+    "done": "Imported: {applied} of {rows} rows.",
+    "created": "New labels: {labels}. New quick replies: {replies}.",
+    "ignored": "Columns not used: {cols}.",
+    "issueLine": "Row {line}: {reason}",
+    "issues": {
+      "empty_file": "the file is empty",
+      "missing_column": "missing column {detail}",
+      "too_many_rows": "only the first {detail} rows are read; split the file",
+      "empty_name": "no name",
+      "exists": "already exists",
+      "invalid_shortcut": "no command",
+      "empty_message": "no message",
+      "unknown_line": "no connected line with that Org Phone",
+      "invalid_phone": "invalid phone",
+      "chat_not_found": "the chat is not in Lines yet",
+      "unknown_assignee": "the assignee is not in the workspace",
+      "not_applied": "could not be applied (check line access)"
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getDb, type FlowFlowRow } from '@/lib/db';
 import {
   createContact,
@@ -182,14 +182,23 @@ describe('forms: envío público', () => {
   it('rate limit por IP y form: el 6º envío en un minuto recibe 429', async () => {
     const ws = await makeUser('rl');
     const form = await createForm(ws.id, { name: 'RL', fields: FIELDS, settings: { minSubmitSeconds: 0 } });
-    const statuses: number[] = [];
-    for (let i = 0; i < 6; i++) {
-      statuses.push((await post(form.token, { values: { email: `p${i}@rl.io` } }, '10.9.9.9')).status);
+    // La ventana es de minuto fijo: con el reloj real, si los envíos cruzan el
+    // cambio de minuto el contador vuelve a cero y el 6º pasa. Se congela Date
+    // al principio del minuto actual (solo Date: los timers siguen reales).
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Math.floor(Date.now() / 60_000) * 60_000 + 1_000);
+    try {
+      const statuses: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        statuses.push((await post(form.token, { values: { email: `p${i}@rl.io` } }, '10.9.9.9')).status);
+      }
+      expect(statuses.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
+      expect(statuses[5]).toBe(429);
+      // Otra IP no está limitada.
+      expect((await post(form.token, { values: { email: 'other@rl.io' } }, '10.9.9.10')).status).toBe(200);
+    } finally {
+      vi.useRealTimers();
     }
-    expect(statuses.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
-    expect(statuses[5]).toBe(429);
-    // Otra IP no está limitada.
-    expect((await post(form.token, { values: { email: 'other@rl.io' } }, '10.9.9.10')).status).toBe(200);
   });
 
   it('slug único entre forms y CSV con escape de fórmulas', async () => {
