@@ -260,7 +260,8 @@ describe('/api/files: sesión, permiso y rangos', () => {
     const row = (await store.fileRowForUrl(url))!;
     const signed = store.signedFileUrl(row, 'http://localhost', 300);
     expect((await get(signed)).status).toBe(200);
-    expect((await get(signed.replace(/sig=./, 'sig=A'))).status).toBe(404);
+    // Siempre otra letra: con 'A' fija, una firma que ya empezaba con A (1 en 64) quedaba igual.
+    expect((await get(signed.replace(/sig=(.)/, (_m, c: string) => `sig=${c === 'A' ? 'B' : 'A'}`))).status).toBe(404);
     const other = (await store.fileRowForUrl(await saveUpload('docs', 'b.pdf', 'application/pdf', Buffer.from('%PDF-4'), { workspaceId: OWNER, userId: OWNER })))!;
     // La firma de un archivo no sirve para otro.
     const q = signed.split('?')[1];
