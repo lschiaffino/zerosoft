@@ -222,7 +222,7 @@ test('todas las páginas de Books abren sin errores (build de producción), con 
   page.on('console', (msg) => {
     if (msg.type() === 'error' && /Server Components render|digest/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
   });
-  const tabs = ['company', 'taxes', 'series', 'reminders', 'payments', 'einvoice', 'roles', 'integrations', 'audit'];
+  const tabs = ['company', 'taxes', 'series', 'tracking', 'reminders', 'payments', 'einvoice', 'roles', 'integrations', 'audit'];
   const pages = [
     '/en/app/books',
     '/en/app/books/invoices',
@@ -233,6 +233,16 @@ test('todas las páginas de Books abren sin errores (build de producción), con 
     '/en/app/books/recurring',
     '/en/app/books/recurring/new',
     '/en/app/books/quotes',
+    '/en/app/books/quotes/new',
+    '/en/app/books/batch-payments',
+    '/en/app/books/batch-payments/new?type=invoice',
+    '/en/app/books/batch-payments/new?type=bill',
+    '/en/app/books/fixed-assets',
+    '/en/app/books/fixed-assets/new',
+    '/en/app/books/budgets',
+    '/en/app/books/budgets/new',
+    '/en/app/books/banking/rules',
+    '/en/app/books/journal/opening',
     '/en/app/books/contacts',
     '/en/app/books/contacts/new',
     '/en/app/books/items',
@@ -250,6 +260,13 @@ test('todas las páginas de Books abren sin errores (build de producción), con 
     '/en/app/books/reports/aged-receivables',
     '/en/app/books/reports/aged-payables',
     '/en/app/books/reports/tax',
+    '/en/app/books/reports/trial-balance',
+    '/en/app/books/reports/general-ledger',
+    '/en/app/books/reports/sales-by-item',
+    '/en/app/books/reports/budget-variance',
+    '/en/app/books/reports/reconciliation',
+    '/en/app/books/reports/pnl?compare=prev',
+    '/en/app/books/reports/balance-sheet?compare=year',
     '/en/app/books/settings',
     ...tabs.map((tab) => `/en/app/books/settings?tab=${tab}`),
   ];
@@ -268,4 +285,21 @@ test('el editor de facturas entra en 390px sin scroll horizontal', async ({ page
     const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
     expect(scroll, `${url}: scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
   }
+});
+
+test('presupuesto: se publica, el cliente lo acepta sin login y pasa a factura', async ({ page, request, browser, baseURL }) => {
+  const { contact } = await ok<{ contact: { id: string } }>(request.post('/api/books/contacts', { data: { name: `Quote customer ${uid()}`, syncCrm: false } }));
+  const { quote } = await ok<{ quote: { id: string } }>(request.post('/api/books/quotes', { data: { contactId: contact.id, title: 'Obra e2e', expiryDate: '2099-01-01', lines: [{ description: 'Trabajo', unitPrice: 50000 }] } }));
+  const sent = await ok<{ quote: { publicToken: string; label: string } }>(request.post(`/api/books/quotes/${quote.id}/send`, { data: {} }));
+  const anon = await browser.newContext({ baseURL });
+  const pub = await anon.newPage();
+  await pub.goto(`/en/quote/${sent.quote.publicToken}`);
+  await expect(pub.getByRole('heading', { name: 'Quote' })).toBeVisible();
+  await pub.getByLabel('Your name').fill('Ana Cliente');
+  await pub.getByRole('button', { name: 'Accept quote' }).click();
+  await expect(pub.getByText('Accepted by Ana Cliente')).toBeVisible();
+  await anon.close();
+  await page.goto(`/en/app/books/quotes/${quote.id}`);
+  await page.getByRole('button', { name: 'Create invoice' }).click();
+  await expect(page).toHaveURL(/\/app\/books\/invoices\/inv_/);
 });

@@ -8,9 +8,12 @@ import { getDocument } from '@/lib/books-docs';
 import { getJournal } from '@/lib/books-ledger';
 import { getExpense, getPurchaseOrder } from '@/lib/books-purchasing';
 import { getRecurring } from '@/lib/books-recurring';
+import { REPORT_KINDS } from '@/lib/books-tabs';
+import { getQuote } from '@/lib/books-quotes';
+import { getAsset, getBudget } from '@/lib/books-accounting';
 
 const DOC_KINDS: Record<string, string> = { invoices: 'invoice', 'credit-notes': 'credit_note', bills: 'bill' };
-const REPORT_IDS = ['pnl', 'balance-sheet', 'cash-flow', 'aged-receivables', 'aged-payables', 'tax'];
+const REPORT_IDS = REPORT_KINDS as readonly string[];
 
 /** Arriba de loading.tsx: una sección o un registro desconocido responde 404 y no 200 (ver lib/app-sections.ts). */
 export default async function Layout(props: { children: ReactNode; params: Promise<{ locale: string; zs?: string[] }> }) {
@@ -18,7 +21,8 @@ export default async function Layout(props: { children: ReactNode; params: Promi
   const [section, id] = zs;
   if (zs.length > 2 || !isAppSection('books', section) || !sectionTakesId('books', section, id)) notFound();
   if (section === 'reports' && id && !REPORT_IDS.includes(id)) notFound();
-  if (section && id && id !== 'new') {
+  if (section === 'batch-payments' && id && id !== 'new') notFound();
+  if (section && id && id !== 'new' && section !== 'batch-payments' && !(section === 'banking' && id === 'rules') && !(section === 'journal' && id === 'opening')) {
     const user = await requireUser(locale);
     const ws = user.id;
     if (section === 'banking' && !(await listBankAccounts(ws, { includeArchived: true })).some((b) => b.id === id)) notFound();
@@ -32,6 +36,9 @@ export default async function Layout(props: { children: ReactNode; params: Promi
     else if (section === 'expenses' && !(await getExpense(ws, id))) notFound();
     else if (section === 'purchase-orders' && !(await getPurchaseOrder(ws, id))) notFound();
     else if (section === 'journal' && !(await getJournal(ws, id))) notFound();
+    else if (section === 'quotes' && !(await getQuote(ws, id))) notFound();
+    else if (section === 'fixed-assets' && !(await getAsset(ws, id))) notFound();
+    else if (section === 'budgets' && !(await getBudget(ws, id))) notFound();
   }
   return props.children;
 }

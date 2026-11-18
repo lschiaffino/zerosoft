@@ -10,7 +10,7 @@ import { likeEsc } from './books-schema';
 
 export interface BooksSearchHit {
   id: string;
-  group: 'booksInvoices' | 'booksCreditNotes' | 'booksBills' | 'booksContacts' | 'booksItems' | 'booksBankAccounts' | 'booksRecurring';
+  group: 'booksInvoices' | 'booksCreditNotes' | 'booksBills' | 'booksContacts' | 'booksItems' | 'booksBankAccounts' | 'booksRecurring' | 'booksQuotes' | 'booksAssets' | 'booksBudgets';
   label: string;
   meta: string;
   href: string;
@@ -60,7 +60,26 @@ export async function searchBooks(user: { id: string; role?: string | null; acti
     for (const r of rows) out.push({ id: `bnk:${r.id}`, group: 'booksBankAccounts', label: r.name, meta: r.bank_name, href: `/app/books/banking/${r.id}` });
   }
   if (can(actor.role, 'invoices.read')) {
-    const rows = (await db.prepare(`SELECT id, name, next_date FROM books_recurring WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' LIMIT 5`).all(user.id, like)) as Array<{ id: string; name: string; next_date: string }>;
+    const quotes = (await db
+      .prepare(
+        `SELECT q.id, q.title, q.number, c.name AS contact FROM books_quotes q LEFT JOIN books_contacts c ON c.id = q.contact_id
+         WHERE q.workspace_id = ? AND (q.title LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\' OR ('Q-' || printf('%06d', q.number)) LIKE ? ESCAPE '\\') ORDER BY q.updated_at DESC LIMIT 5`,
+      )
+      .all(user.id, like, like, like)) as Array<{ id: string; title: string; number: number | null; contact: string | null }>;
+    for (const r of quotes) {
+      const label = r.number != null ? `Q-${String(r.number).padStart(6, '0')}` : '';
+      out.push({ id: `quo:${r.id}`, group: 'booksQuotes', label: r.title || label || r.contact || r.id, meta: [label, r.contact].filter(Boolean).join(' · '), href: `/app/books/quotes/${r.id}` });
+    }
+  }
+  if (can(actor.role, 'accounting.read')) {
+    const assets = (await db.prepare(`SELECT id, name, reference FROM books_fixed_assets WHERE workspace_id = ? AND (name LIKE ? ESCAPE '\\' OR reference LIKE ? ESCAPE '\\') LIMIT 5`).all(user.id, like, like)) as Array<{ id: string; name: string; reference: string }>;
+    for (const r of assets) out.push({ id: `ast:${r.id}`, group: 'booksAssets', label: r.name, meta: r.reference, href: `/app/books/fixed-assets/${r.id}` });
+    const budgets = (await db.prepare(`SELECT id, name, start_month FROM books_budgets WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' LIMIT 5`).all(user.id, like)) as Array<{ id: string; name: string; start_month: string }>;
+    for (const r of budgets) out.push({ id: `bud:${r.id}`, group: 'booksBudgets', label: r.name, meta: r.start_month, href: `/app/books/budgets/${r.id}` });
+  }
+  const recurringTypes = [...(can(actor.role, 'invoices.read') ? ['invoice'] : []), ...(can(actor.role, 'bills.read') ? ['bill'] : [])];
+  if (recurringTypes.length) {
+    const rows = (await db.prepare(`SELECT id, name, next_date FROM books_recurring WHERE workspace_id = ? AND doc_type IN (${recurringTypes.map(() => '?').join(',')}) AND name LIKE ? ESCAPE '\\' LIMIT 5`).all(user.id, ...recurringTypes, like)) as Array<{ id: string; name: string; next_date: string }>;
     for (const r of rows) out.push({ id: `rec:${r.id}`, group: 'booksRecurring', label: r.name, meta: r.next_date, href: `/app/books/recurring/${r.id}` });
   }
   return out;

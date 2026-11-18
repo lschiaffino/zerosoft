@@ -117,6 +117,7 @@
   "lib/routes/boards/guest/[token]/scene/route.ts": "share link: unguessable token",
   "lib/routes/boards/guest/[token]/version/route.ts": "share link: unguessable token",
   "lib/routes/boards/guest/[token]/workshop/route.ts": "share link: unguessable token",
+  "lib/routes/books/public/[token]/decide/route.ts": "share link: unguessable token",
   "lib/routes/books/public/[token]/pay/route.ts": "share link: unguessable token",
   "lib/routes/books/public/[token]/pdf/route.ts": "share link: unguessable token",
   "lib/routes/books/webhooks/mercadopago/[token]/route.ts": "webhook: verified signature or secret",
