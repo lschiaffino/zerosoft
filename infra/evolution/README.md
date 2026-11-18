@@ -111,6 +111,10 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
     lo que impide leer la colección son claves que faltan) y hay que volver a vincular;
   - cuando Baileys no puede leer una colección de app-state, el motivo sale en el log como error (antes iba en
     nivel info, que no se guarda, y la línea dejaba de archivar sin rastro);
+  - un `REMOVE` sobre una entrada que el estado local no tiene ya no tira la colección entera (`tried remove, but
+    no previous op`: dos intentos y Baileys abandonaba `regular_low`, también en líneas recién vinculadas). Se
+    saltea ese cambio, como WhatsApp Web y Baileys 7.0.0-rc14 (`sed` sobre `chat-utils.js`; el build falla si la
+    línea cambió);
   - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
     claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
 
