@@ -209,7 +209,7 @@ export default function NumbersSettings({
                   <MenuSelect
                     className="gr-line-color-select"
                     testId="line-color-select"
-                    label={t('numbers.colorOf', { name: n.name })}
+                    label={t('numbers.color')}
                     value={n.color}
                     onChange={(v) => void setColor(n, v)}
                     options={colorOptions}

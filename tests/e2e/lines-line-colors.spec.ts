@@ -52,9 +52,12 @@ async function twoLines(request: APIRequestContext) {
 async function pickColor(page: Page, numberId: string, i: number) {
   const row = page.locator(`[data-number-id="${numberId}"]`);
   const saved = page.waitForResponse((r) => r.url().endsWith(`/api/groups/numbers/${numberId}`) && r.request().method() === 'PATCH');
-  await row.getByTestId('line-color-select').click();
   const list = page.getByRole('listbox');
-  await expect(list).toBeVisible();
+  // El clic puede caer antes de que la página termine de hidratar: se repite hasta que abre la lista.
+  await expect(async () => {
+    if (!(await list.isVisible())) await row.getByTestId('line-color-select').click();
+    await expect(list).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await list.getByRole('option').nth(i).click();
   expect((await saved).ok()).toBe(true);
   await expect(list).toHaveCount(0);

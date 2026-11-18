@@ -657,7 +657,6 @@
   },
   "numbers": {
     "color": "Cor",
-    "colorOf": "Cor de {name}",
     "colorNone": "Sem cor",
     "colors": {"blue": "Azul", "green": "Verde", "orange": "Laranja", "red": "Vermelho", "purple": "Roxo", "teal": "Turquesa", "yellow": "Amarelo", "pink": "Rosa"},
     "intro": "Cada número é uma linha de WhatsApp pela qual a sua equipe responde. As credenciais são guardadas criptografadas e não aparecem de novo.",
