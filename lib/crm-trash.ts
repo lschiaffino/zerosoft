@@ -26,6 +26,17 @@ import { syncContactPrimary, syncDealPrimary } from './crm-assoc';
 import { activityDatesUpdateSql, type ActivityDateTable } from './crm-activity-dates';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { deleteUploads } from './uploads';
+import {
+  chunks,
+  collectRows as collect,
+  encodeRow,
+  insertSnapshotRow,
+  restoreNulls,
+  schemaInfo as schema,
+  type Row,
+  type RowSnapshot,
+  type SchemaInfo,
+} from './row-snapshot';
 
 export const TRASH_RETENTION_DAYS = 90;
 
@@ -45,27 +56,7 @@ const ACTIVITY_REF: Record<Exclude<TrashEntity, 'activity'>, string> = {
   deal: 'deal_id',
 };
 
-type Row = Record<string, unknown>;
-
-interface TableRows {
-  table: string;
-  rows: Row[];
-}
-
-/** Columna que el borrado dejó en NULL (o que hay que re-apuntar al restaurar). */
-interface NulledRef {
-  table: string;
-  key: Row;
-  col: string;
-  value: unknown;
-}
-
-export interface TrashSnapshot {
-  v: 1;
-  /** En orden de inserción: el registro primero, después sus hijas. */
-  tables: TableRows[];
-  nulls: NulledRef[];
-}
+export type TrashSnapshot = RowSnapshot;
 
 export interface TrashRow {
   id: string;
@@ -94,172 +85,6 @@ export interface TrashOptions {
 
 function nowDb(): string {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
-}
-
-function q(ident: string): string {
-  return `"${ident.replace(/"/g, '""')}"`;
-}
-
-function chunks<T>(items: T[], size = 400): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
-
-// ---------- Esquema (FKs, PKs, columnas) ----------
-
-interface FkEdge {
-  child: string;
-  from: string;
-  to: string;
-  onDelete: string;
-}
-
-interface SchemaInfo {
-  /** Tabla padre → FKs de otras tablas que la referencian. */
-  children: Map<string, FkEdge[]>;
-  columns: Map<string, string[]>;
-  pks: Map<string, string[]>;
-}
-
-let schemaCache: Promise<SchemaInfo> | null = null;
-
-async function loadSchema(db: Db): Promise<SchemaInfo> {
-  type FkRow = { child: string; parent: string; from_col: string; to_col: string | null; on_delete: string };
-  type ColRow = { tbl: string; col: string; pk: number };
-  let fks: FkRow[];
-  let cols: ColRow[];
-  try {
-    fks = (await db
-      .prepare(
-        `SELECT m.name AS child, p."table" AS parent, p."from" AS from_col, p."to" AS to_col, p.on_delete AS on_delete
-         FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) p
-         WHERE m.type = 'table'`,
-      )
-      .all()) as FkRow[];
-    cols = (await db
-      .prepare(
-        `SELECT m.name AS tbl, p.name AS col, p.pk AS pk
-         FROM sqlite_master m JOIN pragma_table_info(m.name) p
-         WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'`,
-      )
-      .all()) as ColRow[];
-  } catch {
-    // Si el servidor no expone las funciones pragma_* como tablas, se arma lo
-    // mismo con un PRAGMA por tabla (más consultas, mismo resultado).
-    const tables = (await db
-      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)
-      .all()) as Array<{ name: string }>;
-    fks = [];
-    cols = [];
-    for (const { name } of tables) {
-      const quoted = `"${name.replace(/"/g, '""')}"`;
-      const fkRows = (await db.prepare(`PRAGMA foreign_key_list(${quoted})`).all()) as Array<{ table: string; from: string; to: string | null; on_delete: string }>;
-      for (const r of fkRows) fks.push({ child: name, parent: r.table, from_col: r.from, to_col: r.to, on_delete: r.on_delete });
-      const colRows = (await db.prepare(`PRAGMA table_info(${quoted})`).all()) as Array<{ name: string; pk: number }>;
-      for (const r of colRows) cols.push({ tbl: name, col: r.name, pk: r.pk });
-    }
-  }
-  const children = new Map<string, FkEdge[]>();
-  for (const fk of fks) {
-    const list = children.get(fk.parent) ?? [];
-    list.push({ child: fk.child, from: fk.from_col, to: fk.to_col ?? 'id', onDelete: String(fk.on_delete).toUpperCase() });
-    children.set(fk.parent, list);
-  }
-  const columns = new Map<string, string[]>();
-  const pks = new Map<string, Array<{ col: string; pk: number }>>();
-  for (const c of cols) {
-    columns.set(c.tbl, [...(columns.get(c.tbl) ?? []), c.col]);
-    if (Number(c.pk) > 0) pks.set(c.tbl, [...(pks.get(c.tbl) ?? []), { col: c.col, pk: Number(c.pk) }]);
-  }
-  return {
-    children,
-    columns,
-    pks: new Map([...pks].map(([t, list]) => [t, list.sort((a, b) => a.pk - b.pk).map((x) => x.col)])),
-  };
-}
-
-function schema(db: Db): Promise<SchemaInfo> {
-  if (!schemaCache) {
-    const p = loadSchema(db);
-    schemaCache = p;
-    p.catch(() => {
-      if (schemaCache === p) schemaCache = null;
-    });
-  }
-  return schemaCache;
-}
-
-// ---------- Serialización (BLOBs → base64) ----------
-
-function encodeValue(v: unknown): unknown {
-  if (v instanceof ArrayBuffer) return { $blob: Buffer.from(v).toString('base64') };
-  if (ArrayBuffer.isView(v)) return { $blob: Buffer.from(v.buffer, v.byteOffset, v.byteLength).toString('base64') };
-  if (typeof v === 'bigint') return Number(v);
-  return v;
-}
-
-function decodeValue(v: unknown): string | number | null | Uint8Array {
-  if (v && typeof v === 'object' && '$blob' in v) return new Uint8Array(Buffer.from(String((v as { $blob: string }).$blob), 'base64'));
-  if (v === undefined || v === null) return null;
-  if (typeof v === 'number' || typeof v === 'string') return v;
-  if (typeof v === 'boolean') return v ? 1 : 0;
-  return String(v);
-}
-
-function encodeRow(row: Row): Row {
-  return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, encodeValue(v)]));
-}
-
-// ---------- Snapshot ----------
-
-async function collect(
-  db: Db,
-  info: SchemaInfo,
-  snap: TrashSnapshot,
-  table: string,
-  col: string,
-  values: unknown[],
-  depth: number,
-): Promise<void> {
-  const vals = [...new Set(values.filter((v) => v !== null && v !== undefined))] as Array<string | number>;
-  if (!vals.length || depth > 6) return;
-  const rows: Row[] = [];
-  for (const part of chunks(vals)) {
-    rows.push(
-      ...((await db
-        .prepare(`SELECT * FROM ${q(table)} WHERE ${q(col)} IN (${part.map(() => '?').join(',')})`)
-        .all(...part)) as Row[]),
-    );
-  }
-  if (!rows.length) return;
-  snap.tables.push({ table, rows: rows.map(encodeRow) });
-  for (const edge of info.children.get(table) ?? []) {
-    const keys = rows.map((r) => r[edge.to]);
-    if (edge.onDelete === 'CASCADE') {
-      await collect(db, info, snap, edge.child, edge.from, keys, depth + 1);
-    } else if (edge.onDelete === 'SET NULL') {
-      const pk = info.pks.get(edge.child);
-      if (!pk?.length) continue;
-      const keyVals = [...new Set(keys.filter((v) => v !== null && v !== undefined))] as Array<string | number>;
-      for (const part of chunks(keyVals)) {
-        const hits = (await db
-          .prepare(
-            `SELECT ${[...pk, edge.from].map(q).join(', ')} FROM ${q(edge.child)}
-             WHERE ${q(edge.from)} IN (${part.map(() => '?').join(',')})`,
-          )
-          .all(...part)) as Row[];
-        for (const h of hits) {
-          snap.nulls.push({
-            table: edge.child,
-            key: Object.fromEntries(pk.map((k) => [k, encodeValue(h[k])])),
-            col: edge.from,
-            value: encodeValue(h[edge.from]),
-          });
-        }
-      }
-    }
-  }
 }
 
 /** Actividades que solo apuntan a registros de `deleting` (se van con ellos). */
@@ -424,20 +249,11 @@ export async function trashRecords(
 const PRIMARY_ASSOC: Record<string, true> = { crm_contact_companies: true, crm_deal_companies: true };
 
 async function insertRow(db: Db, info: SchemaInfo, table: string, row: Row): Promise<boolean> {
-  const current = new Set(info.columns.get(table) ?? []);
-  const cols = Object.keys(row).filter((c) => current.has(c));
-  if (!cols.length) return false;
-  const run = (r: Row) =>
-    db
-      .prepare(`INSERT OR IGNORE INTO ${q(table)} (${cols.map(q).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
-      .run(...cols.map((c) => decodeValue(r[c]) as string | number | null));
   try {
-    const res = await run(row);
+    if (await insertSnapshotRow(db, info, table, row)) return true;
     // Si mientras tanto otra empresa pasó a primaria, la restaurada vuelve como secundaria.
-    if (!res.changes && PRIMARY_ASSOC[table] && Number(row.is_primary) === 1) {
-      return (await run({ ...row, is_primary: 0 })).changes > 0;
-    }
-    return res.changes > 0;
+    if (PRIMARY_ASSOC[table] && Number(row.is_primary) === 1) return insertSnapshotRow(db, info, table, { ...row, is_primary: 0 });
+    return false;
   } catch {
     // FK a algo que ya no existe (p. ej. un deal borrado definitivamente): se omite.
     return false;
@@ -491,16 +307,7 @@ export async function restoreTrash(
       if (t === 'crm_contacts' || t === 'crm_companies' || t === 'crm_deals') dated[t].add(String(row.id));
     }
   }
-  for (const n of snap.nulls) {
-    const keys = Object.keys(n.key);
-    try {
-      await db
-        .prepare(`UPDATE ${q(n.table)} SET ${q(n.col)} = ? WHERE ${keys.map((k) => `${q(k)} = ?`).join(' AND ')} AND ${q(n.col)} IS NULL`)
-        .run(decodeValue(n.value) as string | number | null, ...keys.map((k) => decodeValue(n.key[k]) as string | number | null));
-    } catch {
-      // La fila referenciada ya no existe: nada que re-apuntar.
-    }
-  }
+  await restoreNulls(db, snap.nulls);
   for (const id of contacts) await syncContactPrimary(id, db);
   for (const id of deals) await syncDealPrimary(id, db);
   if (entry.entity === 'company') {
