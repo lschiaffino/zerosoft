@@ -68,6 +68,13 @@ const parity: ProductParity = {
         'Cada linha pode ter uma cor, escolhida em Configurações › Números numa paleta curta. A lista de conversas mostra um ponto dessa cor em cada conversa, um por linha quando a conversa está em várias, e também o seletor de linha e Responder de',
       ],
     }),
+    row('numbers-table', 'inbox', ['Lines table with status, last message and open chats', 'Tabla de líneas con estado, último mensaje y chats abiertos', 'Tabela de linhas com status, última mensagem e conversas abertas'], 'have', {
+      detail: [
+        'Settings › Numbers lists every line with its status and since when, the time of its last message (no content) and how many chats it has open. On a phone the rows stack',
+        'Ajustes › Números lista cada línea con su estado y desde cuándo, la hora de su último mensaje (sin contenido) y cuántos chats tiene abiertos. En el teléfono las filas se apilan',
+        'Configurações › Números lista cada linha com o status e desde quando, a hora da última mensagem (sem conteúdo) e quantas conversas estão abertas. No celular as linhas se empilham',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',

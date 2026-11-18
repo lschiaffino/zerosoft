@@ -656,6 +656,17 @@
     }
   },
   "numbers": {
+    "colLine": "Línea",
+    "colStatus": "Estado",
+    "colLastMessage": "Último mensaje",
+    "colOpenChats": "Chats abiertos",
+    "colActions": "Acciones",
+    "sinceRel": "desde hace {time}",
+    "sinceNow": "desde recién",
+    "sinceDate": "desde el {date}",
+    "lastAgo": "hace {time}",
+    "lastNow": "recién",
+    "noMessages": "Todavía sin mensajes",
     "color": "Color",
     "colorOf": "Color de {name}",
     "colorNone": "Sin color",

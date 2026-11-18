@@ -69,6 +69,7 @@ import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './g
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 import { lineColor, type LineColor } from './line-colors';
+import type { NumberStats } from './groups-number-stats';
 
 export { mediaKind, propertyText };
 
@@ -113,6 +114,8 @@ export interface NumberRow {
   privacy_at?: string | null;
   /** Color de la línea (lib/line-colors.ts); '' = sin color. */
   color?: string;
+  /** Desde cuándo está en `status` (null: línea anterior a la columna, todavía sin cambios). */
+  status_since?: string | null;
 }
 
 export interface NumberDto {
@@ -135,6 +138,10 @@ export interface NumberDto {
   visibility: 'all' | 'restricted';
   /** Color elegido para la línea (lib/line-colors.ts); '' = sin color. */
   color: LineColor | '';
+  /** Desde cuándo está en su estado actual; null si no se sabe (ver la migración lines_number_status_since). */
+  statusSince: string | null;
+  /** Último mensaje y chats abiertos de la línea (lib/groups-number-stats.ts), para la tabla de Números. */
+  stats?: NumberStats;
   /** Quién la ve cuando es restringida (solo se devuelve a admins y a quien es dueño de la línea). */
   access?: { personIds: string[]; teamIds: string[] };
   /** Quien mira puede conectarla, editarla y borrarla (lib/groups-number-perms.ts). Lo completan la ruta y la página. */
@@ -175,6 +182,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     ownerName: '',
     visibility: row.visibility === 'restricted' ? 'restricted' : 'all',
     color: lineColor(row.color),
+    statusSince: row.status_since ?? null,
   };
 }
 
@@ -310,8 +318,8 @@ export async function createNumber(
   const now = nowIso();
   await getDb()
     .prepare(
-      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at, owner_id, visibility)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at, owner_id, visibility, status_since)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -325,6 +333,7 @@ export async function createNumber(
       now,
       input.ownerId ?? null,
       input.visibility === 'restricted' ? 'restricted' : 'all',
+      now,
     );
   return toNumberDto((await getNumberRow(ws, id)) as NumberRow);
 }
@@ -461,9 +470,12 @@ export function providerErrorCode(err: unknown): string {
 }
 
 async function saveState(row: NumberRow, state: ConnectState | null, error = ''): Promise<void> {
+  const status = state?.status ?? 'error';
+  const now = nowIso();
+  // status_since solo se mueve cuando el estado cambia (el SET lee los valores de antes del UPDATE).
   await getDb()
-    .prepare('UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
-    .run(state?.status ?? 'error', state?.phone ? phoneDigits(state.phone) : row.phone, error, nowIso(), row.id);
+    .prepare('UPDATE groups_numbers SET status_since = CASE WHEN status = ? THEN status_since ELSE ? END, status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
+    .run(status, now, status, state?.phone ? phoneDigits(state.phone) : row.phone, error, now, row.id);
   // Recién conectado: se leen sus confirmaciones de lectura (lib/wa-privacy.ts).
   if (state?.status === 'connected' && row.status !== 'connected') {
     const { refreshPrivacy } = await import('./wa-privacy');
