@@ -656,6 +656,10 @@
     }
   },
   "numbers": {
+    "color": "Color",
+    "colorOf": "Color of {name}",
+    "colorNone": "No color",
+    "colors": {"blue": "Blue", "green": "Green", "orange": "Orange", "red": "Red", "purple": "Purple", "teal": "Teal", "yellow": "Yellow", "pink": "Pink"},
     "intro": "Each number is a WhatsApp line your team answers from. Credentials are stored encrypted and are not shown again.",
     "add": "Add number",
     "empty": "No numbers yet.",
@@ -885,6 +889,7 @@
     "invalid_reply": "That message is not in this chat.",
     "not_sent": "That message has no WhatsApp id yet.",
     "invalid_provider": "Pick how the number connects.",
+    "invalid_color": "Pick a color from the list.",
     "too_many_numbers": "Up to 50 numbers per workspace.",
     "invalid_phone_number_id": "The phone number ID is the number Meta shows in API setup (digits only).",
     "missing_access_token": "Paste the access token.",
