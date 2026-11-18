@@ -7,7 +7,7 @@
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
-import { collapseSameChats, dedupeLineMessages, firstBy } from '../same-chat';
+import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from '../same-chat';
 import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from './same-chat';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
@@ -818,7 +818,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
       shown.map((r) => {
         const dto = threadDto(r, now);
         const lines = inboxLineRefs(sameChat.get(threadKey(r)));
-        return lines.length ? { ...dto, lines, unread: lines.reduce((n, l) => n + l.unread, 0) } : dto;
+        return lines.length ? { ...dto, lines, unread: mergedUnread(r.kind, lines) } : dto;
       }),
     );
     return {

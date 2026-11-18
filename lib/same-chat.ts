@@ -54,6 +54,15 @@ export function collapseSameChats<T extends SameChatRow>(rows: T[], leadByKey: M
   });
 }
 
+/**
+ * No leídos de la fila unida. En un 1:1 cada línea es otra conversación: se suman. En un grupo cada línea recibe
+ * los mismos mensajes: se toma la que más tiene (sumar contaría dos veces lo que llegó a las dos).
+ */
+export function mergedUnread(kind: string, lines: Array<Pick<ChatLineRef, 'unread'>>): number {
+  if (kind === 'group') return lines.reduce((n, l) => Math.max(n, l.unread), 0);
+  return lines.reduce((n, l) => n + l.unread, 0);
+}
+
 /** La primera según `before` (true si a va antes que b en la lista). */
 export function firstBy<T>(list: T[], before: (a: T, b: T) => boolean): T | undefined {
   let best: T | undefined;

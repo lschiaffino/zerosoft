@@ -24,6 +24,7 @@ import { purgeThreads, removeThreads } from '@/lib/inbox/removed';
 import { InboxError } from '@/lib/inbox/types';
 import { SAME_CHAT_ACTIONS, inboxChatLines, withInboxSameChatIds } from '@/lib/inbox/same-chat';
 import { getDb } from '@/lib/db';
+import { mergedUnread } from '@/lib/same-chat';
 
 /** Las versiones de las filas del mismo chat en otras cuentas, para la etiqueta del 304. */
 async function sameChatRev(owner: string, ids: string[]): Promise<string> {
@@ -71,7 +72,7 @@ async function buildDetail(owner: string, id: string, around: string | undefined
   }
   const lines = await inboxChatLines(owner, id);
   const one = await getThread(owner, id);
-  const thread = lines.length ? { ...one, lines, unread: lines.reduce((n, l) => n + l.unread, 0) } : one;
+  const thread = lines.length ? { ...one, lines, unread: mergedUnread(one.kind, lines) } : one;
   const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
   const account = row.channel === 'whatsapp' ? await getAccount(owner, row.account_id) : null;
   const wa = account ? await waDetails(owner, row, account) : null;

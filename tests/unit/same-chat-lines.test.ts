@@ -107,7 +107,8 @@ describe('Lines: el mismo chat en dos líneas', () => {
     const groupRows = rows.filter((r) => r.kind === 'group');
     expect(groupRows).toHaveLength(1);
     expect(groupRows[0].lines?.map((l) => l.name).sort()).toEqual(['Soporte demo', 'Ventas demo']);
-    expect(groupRows[0].unread).toBe(3);
+    // El grupo: el mensaje que llegó a las dos líneas cuenta una vez (la línea con más no leídos).
+    expect(groupRows[0].unread).toBe(2);
     const dmRows = rows.filter((r) => r.kind === 'dm');
     expect(dmRows).toHaveLength(1);
     expect(dmRows[0].unread).toBe(2);
@@ -192,7 +193,7 @@ describe('Inbox: el mismo chat en dos cuentas', () => {
     expect(threads.filter((t) => t.kind === 'group')).toHaveLength(1);
     const g = threads.find((t) => t.kind === 'group')!;
     expect(g.lines?.map((l) => l.name).sort()).toEqual(['Personal demo', 'Trabajo demo']);
-    expect(g.unread).toBe(3);
+    expect(g.unread).toBe(2);
     const dm = threads.find((t) => t.kind === 'dm')!;
     expect(threads.filter((t) => t.kind === 'dm')).toHaveLength(1);
     expect(dm.unread).toBe(2);

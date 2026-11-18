@@ -10,7 +10,7 @@
 import { getDb } from './db';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
-import { sameChatKey, type ChatLineRef } from './same-chat';
+import { mergedUnread, sameChatKey, type ChatLineRef } from './same-chat';
 
 export interface SiblingRow {
   id: string;
@@ -117,7 +117,7 @@ export async function withSameChatLines<T extends { id: string; unread: number; 
   if (!key) return dto;
   const lines = lineRefs((await siblingsByKey(ws, viewer, [row])).get(key));
   if (!lines.length) return dto;
-  return { ...dto, lines, unread: lines.reduce((n, l) => n + l.unread, 0) };
+  return { ...dto, lines, unread: mergedUnread(row.kind, lines) };
 }
 
 /**

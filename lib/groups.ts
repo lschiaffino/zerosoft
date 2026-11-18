@@ -18,7 +18,7 @@ import { openWire, sealWire } from './wa-media-wire-seal';
 import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { chatKey, lineRefs, siblingsByKey, type SiblingRow } from './groups-same-chat';
-import { collapseSameChats, dedupeLineMessages, firstBy } from './same-chat';
+import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from './same-chat';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
 import {
@@ -1177,7 +1177,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
-        ...sameChatFields(sameChat.get(chatKey(r))),
+        ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
       });
     }),
     total: Number(total.c),
@@ -1186,10 +1186,10 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
 }
 
 /** Lo que suma una fila de la bandeja que junta el mismo chat en varias líneas: sus líneas y los no leídos de todas. */
-function sameChatFields(siblings: SiblingRow[] | undefined): Partial<Pick<ChatDto, 'lines' | 'unread' | 'markedUnread'>> {
+function sameChatFields(kind: string, siblings: SiblingRow[] | undefined): Partial<Pick<ChatDto, 'lines' | 'unread' | 'markedUnread'>> {
   const lines = lineRefs(siblings);
   if (!lines.length) return {};
-  return { lines, unread: lines.reduce((n, l) => n + l.unread, 0), markedUnread: (siblings ?? []).some((s) => Boolean(s.marked_unread)) };
+  return { lines, unread: mergedUnread(kind, lines), markedUnread: (siblings ?? []).some((s) => Boolean(s.marked_unread)) };
 }
 
 /** El fragmento del mensaje alrededor de lo buscado (160 caracteres), para que la coincidencia se vea. */
