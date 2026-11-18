@@ -104,7 +104,7 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   base64. Al leerla usa `AppStateSyncKeyData.create`, que no los convierte: la clave vuelve como texto, todas las
   claves derivadas salen mal, y la línea no puede leer ni firmar ningún cambio de archivado. Una línea recién
   vinculada andaba unos minutos (la clave seguía en la caché en memoria de Baileys, 5 minutos) y después dejaba de
-  archivar en las dos direcciones. Ahora, al leer una clave guardada como texto, se convierte con `fromObject`.
+  archivar en las dos direcciones. Ahora, al leer una clave guardada como texto, se convierte a bytes.
 
 - `0010-ask-phone-for-app-state-keys.patch`: una línea sin su clave de app-state ya no queda sin archivar para
   siempre. Las claves viven en disco, y las líneas vinculadas antes de que hubiera volumen las perdieron en un

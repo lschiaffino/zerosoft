@@ -67,7 +67,7 @@ index bba2ec5..6425754 100644
    public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
      const instance = this.waMonitor.waInstances[instanceName];
 diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-index 25d8ff7..94707fa 100644
+index 25d8ff7..7aecbdd 100644
 --- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 +++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 @@ -644,7 +644,7 @@ export class BaileysStartupService extends ChannelStartupService {
@@ -79,7 +79,7 @@ index 25d8ff7..94707fa 100644
        },
        msgRetryCounterCache: this.msgRetryCounterCache,
        generateHighQualityLinkPreview: true,
-@@ -3861,21 +3861,159 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -3861,21 +3861,160 @@ export class BaileysStartupService extends ChannelStartupService {
      return lastMessage as unknown as LastMessage;
    }
  
@@ -100,7 +100,8 @@ index 25d8ff7..94707fa 100644
 +            // bytes como texto base64; al leerla, Evolution usa `create`, que no los convierte. Con la clave como
 +            // texto, todas las claves derivadas salen mal y no se puede leer ni firmar ningún cambio de app-state.
 +            // Recién vinculada andaba unos minutos porque la clave seguía en la caché en memoria.
-+            if (typeof data?.[id]?.keyData === 'string') data[id] = proto.Message.AppStateSyncKeyData.fromObject(data[id]);
++            // (`fromObject` devuelve tal cual un mensaje ya creado, así que se convierte el campo a mano.)
++            if (typeof data?.[id]?.keyData === 'string') data[id].keyData = Buffer.from(data[id].keyData, 'base64');
 +            if (data?.[id]) this.zsMissingAppStateKeys.delete(id);
 +            else this.zsMissingAppStateKeys.add(id);
 +          }
