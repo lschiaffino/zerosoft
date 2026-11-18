@@ -1,8 +1,8 @@
 diff --git a/Dockerfile b/Dockerfile
-index 0fe7534..73c037c 100644
+index 0fe7534..fa4f2f8 100644
 --- a/Dockerfile
 +++ b/Dockerfile
-@@ -25,6 +25,35 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
+@@ -25,6 +25,43 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
      sed -i 's/: () => { }, true);/: () => { }, validateMacs);/' "$f" && \
      grep -q ': () => { }, validateMacs);' "$f"
  
@@ -35,6 +35,14 @@ index 0fe7534..73c037c 100644
 +    echo 'function zsCount(record, k) { try { const id = Buffer.from(record.keyId.id).toString("base64"); const s = (globalThis.__zsAppStateStats = globalThis.__zsAppStateStats || {}); const e = (s[id] = s[id] || { ok: 0, bad: 0 }); e[k]++; } catch { } }' >> "$f" && \
 +    grep -c 'zsCount(record, "bad")' "$f" | grep -q 2
 +
++# zerosoft: qué respondió WhatsApp al pedir cada colección de app-state (atributos y nombres de los nodos, sin
++# contenido): si responde un error o nada, Baileys no lo anota y la colección queda sin leer sin motivo a la vista.
++# Queda en globalThis.__zsAppStateLast y lo muestra /chat/appState.
++RUN f=node_modules/baileys/lib/Socket/chats.js && \
++    grep -q '                const decoded = await extractSyncdPatches(result, config?.options);' "$f" && \
++    sed -i 's/                const decoded = await extractSyncdPatches(result, config?.options);/                try { for (const c of getBinaryNodeChildren(getBinaryNodeChild(result, "sync"), "collection")) { (globalThis.__zsAppStateLast = globalThis.__zsAppStateLast || {})[(authState.creds.me?.id || "").split(":")[0].slice(-4) + ":" + c.attrs.name] = { attrs: c.attrs, children: (Array.isArray(c.content) ? c.content : []).map(n => ({ tag: n.tag, attrs: n.attrs, size: n.content?.length })), at: new Date().toISOString() }; } } catch { }\n                const decoded = await extractSyncdPatches(result, config?.options);/' "$f" && \
++    grep -q '__zsAppStateLast' "$f"
++
  COPY ./src ./src
  COPY ./public ./public
  COPY ./prisma ./prisma
@@ -57,7 +65,7 @@ index bba2ec5..6425754 100644
    public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
      const instance = this.waMonitor.waInstances[instanceName];
 diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-index 25d8ff7..9fd81c4 100644
+index 25d8ff7..51acef5 100644
 --- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 +++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 @@ -644,7 +644,7 @@ export class BaileysStartupService extends ChannelStartupService {
@@ -69,7 +77,7 @@ index 25d8ff7..9fd81c4 100644
        },
        msgRetryCounterCache: this.msgRetryCounterCache,
        generateHighQualityLinkPreview: true,
-@@ -3861,21 +3861,140 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -3861,21 +3861,141 @@ export class BaileysStartupService extends ChannelStartupService {
      return lastMessage as unknown as LastMessage;
    }
  
@@ -213,6 +221,7 @@ index 25d8ff7..9fd81c4 100644
 +      missingKeys: this.zsMissingAppStateKeys.size,
 +      keysAsked: this.zsAppStateKeyAskedAt.size,
 +      records: await this.zsRecordStats(stored),
++      lastServerAnswer: (globalThis as any).__zsAppStateLast ?? {},
 +      versions,
 +    };
    }
