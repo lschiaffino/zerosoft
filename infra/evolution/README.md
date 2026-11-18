@@ -99,6 +99,13 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   versión oficial; `evolutionStickerBody` en lib/groups-media.ts), así salen tal cual. Sin este parche ese camino ya
   conserva la animación del archivo, pero el mensaje no lleva `isAnimated`.
 
+- **La causa de fondo del archivado roto (18/11), arreglada en 0010.** Evolution guarda cada clave de app-state en
+  disco con `JSON.stringify`, que usa el `toJSON` del mensaje protobuf y deja los bytes de la clave como texto
+  base64. Al leerla usa `AppStateSyncKeyData.create`, que no los convierte: la clave vuelve como texto, todas las
+  claves derivadas salen mal, y la línea no puede leer ni firmar ningún cambio de archivado. Una línea recién
+  vinculada andaba unos minutos (la clave seguía en la caché en memoria de Baileys, 5 minutos) y después dejaba de
+  archivar en las dos direcciones. Ahora, al leer una clave guardada como texto, se convierte con `fromObject`.
+
 - `0010-ask-phone-for-app-state-keys.patch`: una línea sin su clave de app-state ya no queda sin archivar para
   siempre. Las claves viven en disco, y las líneas vinculadas antes de que hubiera volumen las perdieron en un
   deploy: el teléfono solo las manda al vincular, o si se las piden. Ahora:

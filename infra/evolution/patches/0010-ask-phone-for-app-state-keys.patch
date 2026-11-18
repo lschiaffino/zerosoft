@@ -67,7 +67,7 @@ index bba2ec5..6425754 100644
    public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
      const instance = this.waMonitor.waInstances[instanceName];
 diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
-index 25d8ff7..3a1984d 100644
+index 25d8ff7..94707fa 100644
 --- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 +++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
 @@ -644,7 +644,7 @@ export class BaileysStartupService extends ChannelStartupService {
@@ -79,7 +79,7 @@ index 25d8ff7..3a1984d 100644
        },
        msgRetryCounterCache: this.msgRetryCounterCache,
        generateHighQualityLinkPreview: true,
-@@ -3861,21 +3861,154 @@ export class BaileysStartupService extends ChannelStartupService {
+@@ -3861,21 +3861,159 @@ export class BaileysStartupService extends ChannelStartupService {
      return lastMessage as unknown as LastMessage;
    }
  
@@ -96,6 +96,11 @@ index 25d8ff7..3a1984d 100644
 +        const data = await keys.get(type, ids);
 +        if (type === 'app-state-sync-key') {
 +          for (const id of ids) {
++            // La clave se guarda en disco con JSON.stringify, que usa el toJSON del mensaje protobuf y deja los
++            // bytes como texto base64; al leerla, Evolution usa `create`, que no los convierte. Con la clave como
++            // texto, todas las claves derivadas salen mal y no se puede leer ni firmar ningún cambio de app-state.
++            // Recién vinculada andaba unos minutos porque la clave seguía en la caché en memoria.
++            if (typeof data?.[id]?.keyData === 'string') data[id] = proto.Message.AppStateSyncKeyData.fromObject(data[id]);
 +            if (data?.[id]) this.zsMissingAppStateKeys.delete(id);
 +            else this.zsMissingAppStateKeys.add(id);
 +          }
@@ -210,7 +215,7 @@ index 25d8ff7..3a1984d 100644
 +      for (const k in stats.keys[id]) total[k] = (total[k] ?? 0) + stats.keys[id][k];
 +    }
 +    const ownId = this.client?.authState?.creds?.myAppStateKeyId;
-+    const own: any = ownId && stored ? (await stored.get('app-state-sync-key', [ownId]))?.[ownId] : null;
++    const own: any = ownId ? (await this.client.authState.keys.get('app-state-sync-key', [ownId]))?.[ownId] : null;
 +    const data: any = own?.keyData;
 +    return {
 +      total,
