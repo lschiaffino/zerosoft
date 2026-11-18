@@ -1,0 +1,191 @@
+diff --git a/src/api/controllers/chat.controller.ts b/src/api/controllers/chat.controller.ts
+index bba2ec5..6425754 100644
+--- a/src/api/controllers/chat.controller.ts
++++ b/src/api/controllers/chat.controller.ts
+@@ -43,6 +43,13 @@ export class ChatController {
+     return await instance.syncChatState();
+   }
+ 
++  // zerosoft: why a line can or cannot sync archived chats (no key material in the answer).
++  public async appStateInfo({ instanceName }: InstanceDto) {
++    const instance = this.waMonitor.waInstances[instanceName];
++    if (typeof instance?.appStateInfo !== 'function') throw new BadRequestException('App state info is not available here');
++    return await instance.appStateInfo();
++  }
++
+   // zerosoft: only the Baileys channel has on-demand history.
+   public async fetchHistory({ instanceName }: InstanceDto, data: FetchHistoryDto) {
+     const instance = this.waMonitor.waInstances[instanceName];
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 25d8ff7..f3c3af6 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -644,7 +644,7 @@ export class BaileysStartupService extends ChannelStartupService {
+       printQRInTerminal: false,
+       auth: {
+         creds: this.instance.authState.state.creds,
+-        keys: makeCacheableSignalKeyStore(this.instance.authState.state.keys, P({ level: 'error' }) as any),
++        keys: makeCacheableSignalKeyStore(this.zsTrackAppStateKeys(this.instance.authState.state.keys), P({ level: 'error' }) as any),
+       },
+       msgRetryCounterCache: this.msgRetryCounterCache,
+       generateHighQualityLinkPreview: true,
+@@ -3861,21 +3861,130 @@ export class BaileysStartupService extends ChannelStartupService {
+     return lastMessage as unknown as LastMessage;
+   }
+ 
++  // zerosoft: claves de app-state que Baileys buscó y no estaban guardadas (por id, en base64). Las claves viven en
++  // disco: una línea vinculada antes de tener volumen las perdió en un deploy, y el teléfono solo las manda al
++  // vincular o si se las piden.
++  private zsMissingAppStateKeys = new Set<string>();
++  private zsAppStateKeyAskedAt = new Map<string, number>();
++
++  private zsTrackAppStateKeys(keys: any) {
++    return {
++      ...keys,
++      get: async (type: string, ids: string[]) => {
++        const data = await keys.get(type, ids);
++        if (type === 'app-state-sync-key') {
++          for (const id of ids) {
++            if (data?.[id]) this.zsMissingAppStateKeys.delete(id);
++            else this.zsMissingAppStateKeys.add(id);
++          }
++        }
++        return data;
++      },
++      set: async (data: any) => {
++        for (const id in data?.['app-state-sync-key'] ?? {}) {
++          if (data['app-state-sync-key'][id]) this.zsMissingAppStateKeys.delete(id);
++        }
++        return await keys.set(data);
++      },
++    };
++  }
++
++  // zerosoft: le pide al teléfono las claves de app-state que faltan (APP_STATE_SYNC_KEY_REQUEST, el mismo mensaje
++  // entre dispositivos propios que usa WhatsApp Web) y espera hasta 12 s a que lleguen: Baileys las guarda solo al
++  // recibir APP_STATE_SYNC_KEY_SHARE. Cada clave se pide como mucho una vez cada 10 minutos. Devuelve si llegó alguna.
++  private async zsRecoverAppStateKeys(ids: string[]): Promise<boolean> {
++    const now = Date.now();
++    const due = [...new Set(ids)].filter((id) => id && now - (this.zsAppStateKeyAskedAt.get(id) ?? 0) > 600_000).slice(0, 20);
++    if (!due.length || !this.client?.user?.id) return false;
++    for (const id of due) this.zsAppStateKeyAskedAt.set(id, now);
++    try {
++      await this.client.relayMessage(
++        jidNormalizedUser(this.client.user.id),
++        {
++          protocolMessage: {
++            type: proto.Message.ProtocolMessage.Type.APP_STATE_SYNC_KEY_REQUEST,
++            appStateSyncKeyRequest: { keyIds: due.map((id) => ({ keyId: Buffer.from(id, 'base64') })) },
++          },
++        } as any,
++        {
++          additionalAttributes: { category: 'peer', push_priority: 'high_force' },
++          additionalNodes: [{ tag: 'meta', attrs: { appdata: 'default' } }],
++        } as any,
++      );
++    } catch (error) {
++      this.logger.warn(`zerosoft: app-state key request failed: ${(error as any)?.message ?? error}`);
++      return false;
++    }
++    this.logger.warn(`zerosoft: asked the phone for ${due.length} app-state key(s)`);
++    const stored: any = this.instance.authState.state.keys;
++    for (let i = 0; i < 24; i++) {
++      await new Promise((resolve) => setTimeout(resolve, 500));
++      const got = await stored.get('app-state-sync-key', due);
++      const arrived = due.filter((id) => got?.[id]);
++      if (arrived.length) {
++        for (const id of arrived) this.zsMissingAppStateKeys.delete(id);
++        this.logger.warn(`zerosoft: the phone sent ${arrived.length} of ${due.length} app-state key(s)`);
++        return true;
++      }
++    }
++    this.logger.warn('zerosoft: the phone did not send the app-state key(s)');
++    return false;
++  }
++
++  private async zsRegularLowVersion(): Promise<number> {
++    const versions: any = await this.client.authState.keys.get('app-state-sync-version', ['regular_low']);
++    return Number(versions?.regular_low?.version) || 0;
++  }
++
+   // zerosoft: antes de mandar un cambio de app-state (archivar, no leído): la clave de la línea tiene que estar y la
+   // colección regular_low tiene que poder sincronizarse. Si no, Baileys arma el cambio sobre un estado vacío o viejo,
+-  // WhatsApp no lo aplica (o lo guarda roto) y antes se respondía "archivado" igual. Ahora es un 409 con
+-  // `app_state_unavailable` y el motivo, y quien llama le dice al usuario que vuelva a vincular la línea.
++  // WhatsApp no lo aplica (o lo guarda roto) y antes se respondía "archivado" igual. Si falta una clave, primero se
++  // le pide al teléfono. Si aun así no se puede, es un 409 con `app_state_unavailable` y el motivo, y quien llama le
++  // dice al usuario que vuelva a vincular la línea.
+   private async assertAppStateReady() {
+     // Mismo formato que las excepciones de Evolution (el middleware responde { status, error, response: { message } }).
+     const unavailable = (reason: string) => ({ status: 409, error: 'Conflict', message: [`app_state_unavailable: ${reason}`] });
+     if (this.stateConnection?.state !== 'open') throw unavailable('not_connected');
+-    const keyId = this.client?.authState?.creds?.myAppStateKeyId;
+-    if (!keyId) throw unavailable('missing_key');
+-    const keys = await this.client.authState.keys.get('app-state-sync-key', [keyId]);
+-    if (!keys?.[keyId]) throw unavailable('missing_key');
++    const hasOwnKey = async () => {
++      const id = this.client?.authState?.creds?.myAppStateKeyId;
++      if (!id) return false;
++      const keys: any = await this.client.authState.keys.get('app-state-sync-key', [id]);
++      return !!keys?.[id];
++    };
++    if (!(await hasOwnKey())) {
++      const keyId = this.client?.authState?.creds?.myAppStateKeyId;
++      if (!keyId || !(await this.zsRecoverAppStateKeys([keyId])) || !(await hasOwnKey())) throw unavailable('missing_key');
++    }
+     await (this.client as any).resyncAppState(['regular_low'], false);
+-    const versions = await this.client.authState.keys.get('app-state-sync-version', ['regular_low']);
+-    if (!versions?.regular_low?.version) throw unavailable('sync_failed');
++    if (!(await this.zsRegularLowVersion())) {
++      // La colección tiene cambios cifrados con claves anteriores que tampoco están: se piden y se relee una vez.
++      const missing = [...this.zsMissingAppStateKeys];
++      if (missing.length && (await this.zsRecoverAppStateKeys(missing))) {
++        await (this.client as any).resyncAppState(['regular_low'], false);
++      }
++      if (!(await this.zsRegularLowVersion())) {
++        throw unavailable(this.zsMissingAppStateKeys.size ? 'sync_failed_missing_keys' : 'sync_failed');
++      }
++    }
++  }
++
++  // zerosoft: diagnóstico del archivado de la línea, sin tocar nada ni mostrar claves.
++  public async appStateInfo() {
++    const keyId = this.client?.authState?.creds?.myAppStateKeyId;
++    const stored: any = this.instance?.authState?.state?.keys;
++    const own: any = keyId && stored ? await stored.get('app-state-sync-key', [keyId]) : null;
++    const names = ['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'];
++    const found: any = stored ? await stored.get('app-state-sync-version', names) : {};
++    const versions: Record<string, number | null> = {};
++    for (const name of names) versions[name] = found?.[name] ? Number(found[name].version) || 0 : null;
++    return {
++      connection: this.stateConnection?.state ?? 'close',
++      hasKeyId: !!keyId,
++      hasKey: !!(keyId && own?.[keyId]),
++      missingKeys: this.zsMissingAppStateKeys.size,
++      keysAsked: this.zsAppStateKeyAskedAt.size,
++      versions,
++    };
+   }
+ 
+   public async archiveChat(data: ArchiveChatDto) {
+diff --git a/src/api/routes/chat.router.ts b/src/api/routes/chat.router.ts
+index 6c354b4..6813c8a 100644
+--- a/src/api/routes/chat.router.ts
++++ b/src/api/routes/chat.router.ts
+@@ -92,6 +92,16 @@ export class ChatRouter extends RouterBroker {
+ 
+         return res.status(HttpStatus.OK).json(response);
+       })
++      .post(this.routerPath('appState'), ...guards, async (req, res) => {
++        const response = await this.dataValidate<InstanceDto>({
++          request: req,
++          schema: null,
++          ClassRef: InstanceDto,
++          execute: (instance) => chatController.appStateInfo(instance),
++        });
++
++        return res.status(HttpStatus.OK).json(response);
++      })
+       .post(this.routerPath('fetchHistory'), ...guards, async (req, res) => {
+         const response = await this.dataValidate<FetchHistoryDto>({
+           request: req,

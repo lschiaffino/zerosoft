@@ -99,6 +99,19 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   versión oficial; `evolutionStickerBody` en lib/groups-media.ts), así salen tal cual. Sin este parche ese camino ya
   conserva la animación del archivo, pero el mensaje no lleva `isAnimated`.
 
+- `0010-ask-phone-for-app-state-keys.patch`: una línea sin su clave de app-state ya no queda sin archivar para
+  siempre. Las claves viven en disco, y las líneas vinculadas antes de que hubiera volumen las perdieron en un
+  deploy: el teléfono solo las manda al vincular, o si se las piden. Ahora:
+  - antes de archivar o marcar no leído, si falta la clave de la línea se le pide al teléfono
+    (`APP_STATE_SYNC_KEY_REQUEST`, el mensaje entre dispositivos propios que usa WhatsApp Web) y se espera hasta 12 s;
+    Baileys la guarda sola al recibir la respuesta. Lo mismo si `regular_low` no se puede leer porque tiene cambios
+    cifrados con claves anteriores que faltan: se piden esas y se relee una vez. Cada clave se pide como mucho una
+    vez cada 10 minutos;
+  - si el teléfono no las manda, sigue el `409` (`missing_key`, `sync_failed`, o `sync_failed_missing_keys` cuando
+    lo que impide leer la colección son claves que faltan) y hay que volver a vincular;
+  - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
+    claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
+
 **Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
 workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
 después de publicarse `zs6`. Para ver cuál corre: `railway deployment list -p <proyecto> -s evolution --json`
