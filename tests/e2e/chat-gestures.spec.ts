@@ -463,6 +463,8 @@ test.describe('Inbox', () => {
     const item = tray.locator(`[data-chat-drop="${parent.id}"]`);
     await item.scrollIntoViewIfNeeded();
     await carryTo(page, item);
+    // Con muchas carpetas la bandeja puede correrse al llegar el puntero: se vuelve a apuntar a donde quedó.
+    await carryTo(page, item);
     await expect(item).toHaveAttribute('data-drop-hover', '');
     await page.mouse.up();
     await expect(tray).toHaveCount(0);

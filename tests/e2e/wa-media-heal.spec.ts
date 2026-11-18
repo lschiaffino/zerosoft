@@ -134,9 +134,10 @@ test('Inbox: tocar reproducir va a buscar el audio; lo que ya no está lo dice y
   expect(res.ok(), await res.text()).toBe(true);
   const row = async (ext: string) => (await sql('SELECT id FROM inbox_messages WHERE external_id = ?', [ext]))[0] as { id: string };
 
+  // Por id: con muchos chats del worker este puede no entrar en la primera página de la lista.
+  const [th] = await sql('SELECT thread_id FROM inbox_messages WHERE external_id = ?', [ids.heal]);
   const open = async () => {
-    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+    await page.goto(`/en/app/inbox?t=${String(th.thread_id)}`, { waitUntil: 'networkidle' });
     await openedThread(page, name);
   };
   await open();
