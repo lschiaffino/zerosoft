@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // El Gateway de transcripción, de mentira: cada test dice qué modelo falla.
-const gatewayCalls = vi.hoisted(() => ({ models: [] as string[], failing: new Set<string>() }));
+const gatewayCalls = vi.hoisted(() => ({ models: [] as string[], failing: new Set<string>(), rateLimited: new Set<string>() }));
 vi.mock('ai', async (importOriginal) => {
   const real = await importOriginal<typeof import('ai')>();
   return {
@@ -10,6 +10,9 @@ vi.mock('ai', async (importOriginal) => {
     experimental_transcribe: async ({ model }: { model: string }) => {
       gatewayCalls.models.push(model);
       if (gatewayCalls.failing.has(model)) throw new Error('model not available');
+      if (gatewayCalls.rateLimited.has(model)) {
+        throw Object.assign(new Error(`Rate limit exceeded for ${model}`), { name: 'GatewayRateLimitError', statusCode: 429 });
+      }
       return { text: `hola desde ${model}`, segments: [], language: 'es', durationInSeconds: 2 };
     },
   };
@@ -23,7 +26,7 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const { getDb } = await import('@/lib/db');
-const { transcribeAttempts, transcribeAudio, DICTATION_TRANSCRIBE_MODEL } = await import('@/lib/voice-transcribe');
+const { isProviderRateLimit, resetTranscribeSkips, transcribeAttempts, transcribeAudio, DICTATION_TRANSCRIBE_MODEL } = await import('@/lib/voice-transcribe');
 const { addDictionaryEntry, getDictationProfile, saveVoiceSettings, voiceOwner } = await import('@/lib/voice');
 const { dictate } = await import('@/lib/voice-service');
 const dictateRoute = await import('@/app/api/voice/dictate/route');
@@ -33,6 +36,8 @@ afterEach(() => {
   vi.unstubAllEnvs();
   gatewayCalls.models = [];
   gatewayCalls.failing.clear();
+  gatewayCalls.rateLimited.clear();
+  resetTranscribeSkips();
   session.user = null;
 });
 
@@ -45,17 +50,52 @@ describe('transcripción de un dictado: el modelo más rápido, con respaldo', (
     vi.stubEnv('GROQ_API_KEY', '');
   });
 
-  it('dictado: el modelo de dictado del Gateway y después whisper-1; reuniones: whisper-1 solo', () => {
+  it('dictado: el modelo de dictado del Gateway y después whisper-1; reuniones: whisper-1 y el de dictado de respaldo', () => {
     expect(transcribeAttempts({ purpose: 'dictation' })).toEqual([
       { provider: 'gateway', model: DICTATION_TRANSCRIBE_MODEL },
       { provider: 'gateway', model: 'openai/whisper-1' },
     ]);
-    expect(transcribeAttempts({})).toEqual([{ provider: 'gateway', model: 'openai/whisper-1' }]);
+    expect(transcribeAttempts({})).toEqual([
+      { provider: 'gateway', model: 'openai/whisper-1' },
+      { provider: 'gateway', model: DICTATION_TRANSCRIBE_MODEL },
+    ]);
   });
 
-  it('con GROQ_API_KEY, Groq primero', () => {
+  it('con GROQ_API_KEY, Groq primero en el dictado y último en reuniones', () => {
     vi.stubEnv('GROQ_API_KEY', 'test');
     expect(transcribeAttempts({ purpose: 'dictation' }).map((a) => a.provider)).toEqual(['groq', 'gateway', 'gateway']);
+    expect(transcribeAttempts({}).map((a) => a.provider)).toEqual(['gateway', 'gateway', 'groq']);
+  });
+
+  it('reconoce el rate limit del Gateway, también envuelto en el RetryError del AI SDK', () => {
+    const limited = Object.assign(new Error('Rate limit exceeded for openai/whisper-1'), { name: 'GatewayRateLimitError', statusCode: 429 });
+    expect(isProviderRateLimit(limited)).toBe(true);
+    expect(isProviderRateLimit(Object.assign(new Error('Failed after 2 attempts.'), { name: 'AI_RetryError', lastError: limited }))).toBe(true);
+    expect(isProviderRateLimit(new Error('model not available'))).toBe(false);
+  });
+
+  it('reunión: si whisper-1 llegó a su rate limit, el trozo sale con el modelo de respaldo y whisper-1 se saltea un minuto', async () => {
+    vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
+    vi.stubEnv('VOICE_TRANSCRIBE_FREE_MINUTES', 'unlimited');
+    gatewayCalls.rateLimited.add('openai/whisper-1');
+    const u = await makeUser('voice-meeting-rl');
+    const audio = new Uint8Array(1024).fill(3);
+    const res = await transcribeAudio({ workspaceId: u.id, audio, mimeType: 'audio/webm' });
+    expect(res.text).toBe(`hola desde ${DICTATION_TRANSCRIBE_MODEL}`);
+    expect(gatewayCalls.models).toEqual(['openai/whisper-1', DICTATION_TRANSCRIBE_MODEL]);
+    gatewayCalls.models = [];
+    await transcribeAudio({ workspaceId: u.id, audio, mimeType: 'audio/webm' });
+    expect(gatewayCalls.models).toEqual([DICTATION_TRANSCRIBE_MODEL]);
+  });
+
+  it('reunión: con todos los modelos en su rate limit es un rate limit (el grabador espera y reintenta), no una falla', async () => {
+    vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
+    vi.stubEnv('VOICE_TRANSCRIBE_FREE_MINUTES', 'unlimited');
+    gatewayCalls.rateLimited.add('openai/whisper-1');
+    gatewayCalls.rateLimited.add(DICTATION_TRANSCRIBE_MODEL);
+    const u = await makeUser('voice-meeting-rl-all');
+    const audio = new Uint8Array(1024).fill(3);
+    await expect(transcribeAudio({ workspaceId: u.id, audio, mimeType: 'audio/webm' })).rejects.toMatchObject({ code: 'rate_limited' });
   });
 
   it('VOICE_DICTATION_TRANSCRIBE_MODEL lo cambia, y un proveedor elegido a mano se respeta', () => {
