@@ -97,6 +97,11 @@ export interface ThreadDto {
   /** Solo en "Sacados de Inbox": cuándo se sacó y cuándo se borra solo (lib/inbox/removed.ts). */
   removedAt?: string;
   purgeAt?: string;
+  /**
+   * El mismo chat en otras cuentas de WhatsApp (lib/inbox/same-chat.ts): la bandeja lo lista una vez, con `unread`
+   * sumado, y la conversación junta los mensajes de todas. Solo si está en más de una cuenta.
+   */
+  lines?: import('../same-chat').ChatLineRef[];
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
@@ -223,6 +228,8 @@ export interface MessageDto {
   meta?: WaMessageMeta | null;
   /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono), si se sabe. */
   mentionNames?: MentionNames;
+  /** Conversación de varias cuentas (ThreadDto.lines): el chat (y con él la cuenta) por el que entró o salió. */
+  threadId?: string;
 }
 
 /** Una página de mensajes de WhatsApp trae, aparte, a quién son las menciones ("@<dígitos>" → nombre y teléfono). */

@@ -22,6 +22,16 @@ import { inboxScope } from '@/lib/inbox/wa-names';
 import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
 import { purgeThreads, removeThreads } from '@/lib/inbox/removed';
 import { InboxError } from '@/lib/inbox/types';
+import { SAME_CHAT_ACTIONS, inboxChatLines, withInboxSameChatIds } from '@/lib/inbox/same-chat';
+import { getDb } from '@/lib/db';
+
+/** Las versiones de las filas del mismo chat en otras cuentas, para la etiqueta del 304. */
+async function sameChatRev(owner: string, ids: string[]): Promise<string> {
+  const rows = (await getDb()
+    .prepare(`SELECT id, rev FROM inbox_threads WHERE owner_id = ? AND id IN (${ids.map(() => '?').join(',')}) ORDER BY id`)
+    .all(owner, ...ids)) as Array<{ id: string; rev: number }>;
+  return rows.map((r) => `,${r.id}=${Number(r.rev ?? 0)}`).join('');
+}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,7 +50,10 @@ export async function GET(req: Request, ctx: Ctx) {
     // Sin cambios desde la última vez (una fila): 304 sin armar el chat.
     const rev = await threadRev(owner, id);
     if (rev === null) await getThreadRow(owner, id);
-    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}`), () => buildDetail(owner, id, around));
+    // El mismo chat en otras cuentas: un mensaje en cualquiera cambia la conversación (y su versión).
+    const same = await withInboxSameChatIds(owner, [id]);
+    const extraRev = same.length > 1 ? await sameChatRev(owner, same.slice(1)) : '';
+    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}${extraRev}`), () => buildDetail(owner, id, around));
   });
 }
 
@@ -56,7 +69,9 @@ async function buildDetail(owner: string, id: string, around: string | undefined
     }).catch(() => 0);
     row = await getThreadRow(owner, id);
   }
-  const thread = await getThread(owner, id);
+  const lines = await inboxChatLines(owner, id);
+  const one = await getThread(owner, id);
+  const thread = lines.length ? { ...one, lines, unread: lines.reduce((n, l) => n + l.unread, 0) } : one;
   const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
   const account = row.channel === 'whatsapp' ? await getAccount(owner, row.account_id) : null;
   const wa = account ? await waDetails(owner, row, account) : null;
@@ -104,11 +119,15 @@ export async function PATCH(req: Request, ctx: Ctx) {
     else if ('title' in body) await renameThread(owner, id, body.title);
     else {
       await getThread(owner, id);
-      await threadAction(owner, [id], body as ThreadAction);
+      // El mismo chat en otras cuentas: leer, Hecho, archivar, posponer y silenciar valen para todas (la bandeja lo
+      // muestra una vez); fijar, no leído, recordatorios y carpetas, solo en este.
+      const action = (body as ThreadAction).action;
+      const ids = (SAME_CHAT_ACTIONS as readonly string[]).includes(action) ? await withInboxSameChatIds(owner, [id]) : [id];
+      await threadAction(owner, ids, body as ThreadAction);
       // Abrir el chat: tildes azules en WhatsApp (como WhatsApp Web), después de responder.
       if ((body as ThreadAction).action === 'seen') {
         try {
-          after(() => markChatReadOnWhatsapp(owner, id).catch(() => null));
+          after(() => Promise.all(ids.map((x) => markChatReadOnWhatsapp(owner, x).catch(() => null))));
         } catch {
           /* fuera de un pedido (tests) */
         }
@@ -126,7 +145,8 @@ export async function DELETE(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
     const purge = new URL(req.url).searchParams.get('purge') === '1';
-    const done = purge ? await purgeThreads(owner, [id]) : await removeThreads(owner, [id]);
+    // Sacar de Inbox saca el chat de todas las cuentas donde está (si no, volvería por la otra).
+    const done = purge ? await purgeThreads(owner, [id]) : await removeThreads(owner, await withInboxSameChatIds(owner, [id]));
     if (!done.length) throw new InboxError('not_found', 404);
     return iJson({ ok: true });
   });

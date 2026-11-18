@@ -636,7 +636,12 @@ export default function ChatThread(props: ThreadProps) {
   // vivo andando (lib/wa-live-client.ts) se releen apenas algo cambia en este chat, y cada 20 s como red de seguridad;
   // sin el aviso, cada 4 s como antes.
   const pollNow = useRef<() => void>(() => {});
-  const { live: liveOn } = useWaLiveChat('groups', chat.id, () => pollNow.current());
+  const { live: liveOn } = useWaLiveChat(
+    'groups',
+    chat.id,
+    () => pollNow.current(),
+    (chat.lines ?? []).map((l) => l.chatId),
+  );
   useEffect(() => {
     // Una relectura a la vez; un pedido que llega mientras corre otra no se pierde: corre una más al terminar.
     const poll = coalesced(async () => {
@@ -1723,13 +1728,25 @@ export default function ChatThread(props: ThreadProps) {
         ? `+${chat.phone}`
         : t('wa.whatsappContact');
 
+  // El mismo chat en varias líneas: cada mensaje sabe por cuál entró o salió (MessageDto.chatId). La etiqueta de la
+  // línea va en el primero y cada vez que cambia; todos la llevan en el título de la hora.
+  const lineNames = new Map((chat.lines ?? []).map((l) => [l.chatId, l.name]));
+  const lineTags = new Set<string>();
+  if (lineNames.size > 1) {
+    let last = '';
+    for (const m of messages) {
+      if (m.direction !== 'in' && m.direction !== 'out') continue;
+      if (m.chatId !== last) lineTags.add(m.id);
+      last = m.chatId;
+    }
+  }
   // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
   // Fotos y videos mandados juntos van en un álbum (lib/wa-albums.ts): una tanda, una burbuja.
   const runs = groupAlbums(messages, (m) => ({
     media: (m.media?.kind === 'image' || m.media?.kind === 'video') && Boolean(m.media.url) && !m.media.viewOnce && !m.deletedAt && !m.replyToId && !m.poll && m.status !== 'failed' && (m.direction === 'in' || m.direction === 'out'),
-    key: `${senderKey(m)}|${localDayKey(m.createdAt)}|${m.forwarded ? 'f' : ''}`,
+    key: `${senderKey(m)}|${localDayKey(m.createdAt)}|${m.forwarded ? 'f' : ''}|${lineNames.size > 1 ? m.chatId : ''}`,
     at: parseDbUtc(m.createdAt).getTime(),
     caption: Boolean(m.body.trim()),
     start: unreadMark?.id === m.id,
@@ -1755,7 +1772,7 @@ export default function ChatThread(props: ThreadProps) {
       );
       prev = null;
     }
-    const cont = Boolean(prev && senderKey(prev) === senderKey(m));
+    const cont = Boolean(prev && senderKey(prev) === senderKey(m) && !lineTags.has(m.id));
     prev = run[run.length - 1];
     rows.push(run.length > 1 ? renderMessage(prev, cont, run) : renderMessage(m, cont));
   }
@@ -1822,6 +1839,7 @@ export default function ChatThread(props: ThreadProps) {
         data-testid="wa-message"
         data-status={m.direction === 'out' ? m.status : undefined}
         data-unsent={isTempId(m.id) ? 'true' : undefined}
+        data-line={lineNames.size > 1 ? m.chatId : undefined}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
@@ -2121,8 +2139,13 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </p>
           )}
-          {(m.ticketId || (m.direction === 'in' && m.needsReply === true) || (m.deletedAt && !hidden)) && (
+          {(m.ticketId || (m.direction === 'in' && m.needsReply === true) || (m.deletedAt && !hidden) || lineTags.has(m.id)) && (
             <p className="wa-tags">
+              {lineTags.has(m.id) && (
+                <span className="gr-line-tag" data-testid="msg-line">
+                  {t(m.direction === 'out' ? 'thread.sentFromLine' : 'thread.receivedOnLine', { line: lineNames.get(m.chatId) ?? '' })}
+                </span>
+              )}
               {m.deletedAt && !hidden && <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>}
               {m.ticketId && (
                 <Link href={`/app/lines/tickets?open=${m.ticketId}`} className="gr-ticket-tag">
@@ -2136,7 +2159,7 @@ export default function ChatThread(props: ThreadProps) {
             {starred && <span className="wa-star" role="img" aria-label={t('wa.starred')}>★</span>}
             {m.pinnedAt && <PinIcon size={12} label={t('thread.pinned')} />}
             {m.editedAt && !m.deletedAt && <span className="wa-edited">{t('thread.edited')}</span>}
-            <time dateTime={m.createdAt}>
+            <time dateTime={m.createdAt} title={lineNames.size > 1 ? lineNames.get(m.chatId) : undefined}>
               <LocalText>{time}</LocalText>
             </time>
             {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(m.status === 'read' && chat.readHidden ? 'status.readHidden' : `status.${m.status}`)} />}
