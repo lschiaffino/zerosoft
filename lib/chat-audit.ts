@@ -11,6 +11,7 @@ export type ChatAuditAction =
   | 'campaign.created'
   | 'visitor.opt_in'
   | 'campaign.sent'
+  | 'campaign.scheduled'
   | 'import.done'
   | 'routing.updated'
   | 'widget.access'
