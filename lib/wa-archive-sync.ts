@@ -387,13 +387,14 @@ async function attempt(row: PushRow): Promise<Attempt> {
   const ref = await target.ref(main);
   try {
     try {
-      await provider.archiveChat(main, want, ref);
+      // El otro id del mismo 1:1 va de dato: el último mensaje puede estar guardado bajo cualquiera de los dos.
+      await provider.archiveChat(main, want, ref, alt || undefined);
       await target.setSyncError('').catch(() => null);
       return { kind: 'sent', sent: JSON.stringify({ jid: main, archive: want, ts: ref?.timestamp ?? null }) };
     } catch (err) {
       if (isAppStateError(err)) throw err;
       if (!alt) throw err;
-      await provider.archiveChat(alt, want, await target.ref(alt));
+      await provider.archiveChat(alt, want, await target.ref(alt), main);
       await target.setSyncError('').catch(() => null);
       return { kind: 'sent', sent: JSON.stringify({ jid: alt, archive: want, ts: ref?.timestamp ?? null, mainFailed: true }) };
     }

@@ -88,22 +88,27 @@ export default function AppUpdateBanner() {
           <strong>{t('title')}</strong> {t('body')}
         </p>
         {news && news.titles.length > 0 && (
-          // Qué trae: lo último del changelog, en una o dos líneas, y el enlace a todo.
+          // Qué trae: lo último del changelog, en una o dos líneas.
           <p className="zs-app-update-news" data-testid="app-update-news">
-            <span className="zs-app-update-news-text">{t('news', { titles: news.titles.join(' · ') })}</span>{' '}
-            <Link href={`/changelog#${news.id}`} prefetch={false} target="_blank" className="zs-app-update-link">
-              {t('seeNews')}
-            </Link>
+            <span className="zs-app-update-news-text">{t('news', { titles: news.titles.join(' · ') })}</span>
           </p>
         )}
       </div>
-      <div className="zs-desk-update-actions">
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
-          {t('reload')}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={dismiss}>
-          {t('dismiss')}
-        </button>
+      {/* Pie: el enlace a todo lo nuevo a la izquierda y los botones a la derecha, en una sola fila. */}
+      <div className="zs-app-update-foot">
+        {news && news.titles.length > 0 && (
+          <Link href={`/changelog#${news.id}`} prefetch={false} target="_blank" className="zs-app-update-link">
+            {t('seeNews')}
+          </Link>
+        )}
+        <div className="zs-desk-update-actions">
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+            {t('reload')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={dismiss}>
+            {t('dismiss')}
+          </button>
+        </div>
       </div>
     </div>
   );

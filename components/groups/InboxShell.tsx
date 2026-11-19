@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesChatName } from '@/lib/chat-search-rank';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
@@ -769,9 +770,7 @@ export default function InboxShell({
 
   /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
   function nameHit(c: ChatDto): boolean {
-    const q = debounced.trim().toLowerCase();
-    const digits = q.replace(/[^\d]/g, '');
-    return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
+    return !c.match || matchesChatName(c.name, c.phone, debounced);
   }
 
   /**
