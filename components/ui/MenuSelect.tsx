@@ -39,6 +39,7 @@ export default function MenuSelect({
   label,
   className,
   testId,
+  tour,
 }: {
   value: string;
   options: MenuSelectOption[];
@@ -47,6 +48,8 @@ export default function MenuSelect({
   label: string;
   className?: string;
   testId?: string;
+  /** Anclaje de un tour guiado (data-tour, ver lib/tours). */
+  tour?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -157,6 +160,7 @@ export default function MenuSelect({
         aria-controls={open ? id : undefined}
         aria-label={`${label}: ${current?.label ?? ''}`}
         data-testid={testId}
+        data-tour={tour}
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKey}
       >

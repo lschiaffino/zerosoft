@@ -969,6 +969,7 @@ export default function InboxShell({
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
         data-testid="chat-row"
+        data-tour="lines-chat-row"
         data-chat-id={c.id}
         data-lines={c.lines?.length ? c.lines.length : undefined}
         data-overdue={c.flagged ? 'true' : undefined}
@@ -1415,7 +1416,7 @@ export default function InboxShell({
               </p>
             )}
             <div className="wa-search-row" ref={searchRow}>
-            <span className="wa-search">
+            <span className="wa-search" data-tour="lines-search">
               <Search size={18} />
             <DebouncedInput
               ref={searchRef}
@@ -1474,7 +1475,7 @@ export default function InboxShell({
               </button>
             </FilterChips>
             {/* Cada pestaña es un atajo de un campo del panel: marcada cuando ese filtro está puesto, también si se puso desde el panel. */}
-            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')}>
+            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')} data-tour="lines-filters">
               {LINES_TABS.map((tab) => {
                 const on = tabsOn.includes(tab);
                 return (
@@ -1632,7 +1633,7 @@ export default function InboxShell({
               <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
-            <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
+            <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list data-tour="lines-chat-list">
               {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (

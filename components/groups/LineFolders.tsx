@@ -60,6 +60,7 @@ export function LineSelector({ numbers, groups = [], value, onChange }: { number
     <MenuSelect
       className="gr-line-select"
       testId="lines-line-select"
+      tour="lines-line-select"
       label={t('selectorLabel')}
       value={value}
       onChange={onChange}

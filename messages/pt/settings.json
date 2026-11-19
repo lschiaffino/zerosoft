@@ -1759,7 +1759,13 @@
         "name": "Retrô",
         "desc": "Uma área de trabalho dos anos noventa: botões e janelas cinza em relevo, campos brancos afundados e barras de título."
       }
-    }
+    },
+    "toursTitle": "Tours guiados",
+    "toursDesc": "Na primeira vez que você abre um app, um tour curto mostra as partes principais.",
+    "toursAuto": "Mostrar o tour na primeira vez que abro um app",
+    "toursReset": "Mostrar todos os tours de novo",
+    "toursResetDone": "Pronto. Cada tour abre de novo na próxima vez que você entrar no app.",
+    "toursError": "Não foi possível salvar. Tente de novo."
   },
   "offline": {
     "title": "Modo sem conexão",

@@ -5,6 +5,7 @@ import GroupsListsBranch from '@/components/groups/GroupsListsBranch';
 import GroupsFoldersBranch from '@/components/groups/GroupsFoldersBranch';
 import GroupsPwa from '@/components/groups/GroupsPwa';
 import CalmFocus from '@/components/app/CalmFocus';
+import AppTour from '@/components/tour/AppTour';
 import { ChatStyleProvider } from '@/components/chat-style/ChatStyle';
 import { getChatDisplay, getChatStyle, type ChatStyle } from '@/lib/chat-style';
 import { DEFAULT_DISPLAY } from '@/lib/chat-display';
@@ -29,8 +30,8 @@ export const metadata: Metadata = {
 /**
  * Lines: su hoja de estilos, los textos de sus componentes cliente, las
  * listas guardadas en el sidebar, el registro del service worker de la suite
- * (push y app instalable) y el estilo y la visualización de los chats de la
- * persona (los mismos ajustes que Inbox).
+ * (push y app instalable), el tour guiado y el estilo y la visualización de
+ * los chats de la persona (los mismos ajustes que Inbox).
  */
 export default async function GroupsLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -46,6 +47,10 @@ export default async function GroupsLayout(props: { children: ReactNode; params:
         </Suspense>
         <GroupsPwa />
         <CalmFocus />
+        {/* Tour guiado de Lines (lib/tours/lines.ts): la primera vez, y desde el menú de la cuenta. */}
+        <Suspense fallback={null}>
+          <AppTour tour="lines" />
+        </Suspense>
         {props.children}
       </ChatStyleProvider>
     </ClientMessages>
