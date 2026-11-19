@@ -117,7 +117,11 @@ final class MainWindowUITests: XCTestCase {
         let app = launch(lockdown: "on")
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20), "the page did not show with Lockdown on")
         let features = app.staticTexts
-            .matching(NSPredicate(format: "label BEGINSWITH 'features ' OR value BEGINSWITH 'features '")).firstMatch
+            .matching(NSPredicate { obj, _ in
+                // value can be a number for some elements: compare strings only.
+                guard let el = obj as? XCUIElementAttributes else { return false }
+                return el.label.hasPrefix("features ") || (el.value as? String)?.hasPrefix("features ") == true
+            }).firstMatch
         if features.waitForExistence(timeout: 5) {
             let line = "\(features.label) \(features.value as? String ?? "")"
             let note = XCTAttachment(string: line)
