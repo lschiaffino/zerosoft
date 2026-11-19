@@ -93,6 +93,7 @@ const ENTRY_COLS = 'id, workspace_id, app, kind, record_id, scope_id, label, rea
 const FILE_DROPPERS: Record<string, () => Promise<(refs: string[]) => Promise<unknown>>> = {
   forms: () => import('./forms/files').then((m) => m.deleteFormFiles),
   hiring: () => import('./hiring/files').then((m) => m.deleteHiringFiles),
+  rec: () => import('./rec').then((m) => m.dropRecFiles),
 };
 
 // ---------- Plazos ----------

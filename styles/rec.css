@@ -772,3 +772,13 @@ body:has(.has-brand) .powered-by { display: none; }
   background: var(--warn-soft);
   border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, var(--bg));
 }
+
+/* Papelera de la retención (Ajustes) */
+.rec-trash { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rec-trash h3, .rec-trash .ui-help, .rec-trash .ui-error { margin: 0; }
+.rec-trash-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-1); max-height: 320px; overflow-y: auto; }
+.rec-trash-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; min-width: 0; }
+.rec-trash-item + .rec-trash-item { border-top: 1px solid var(--line); }
+.rec-trash-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rec-trash-title { overflow-wrap: anywhere; }
+.rec-trash-item .btn { flex: 0 0 auto; }
