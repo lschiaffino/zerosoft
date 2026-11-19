@@ -306,7 +306,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
         }
       >
         <div className="ui-fields">
-          {row.connected && <HubspotKeySummary portalId={row.portalId} kind={row.tokenKind} scopes={row.scopes} missing={lacking} />}
+          {row.connected && <HubspotKeySummary portalId={row.portalId} kind={row.tokenKind} scopes={row.scopes} missing={lacking} codes={false} />}
           <HubspotKeyHelp />
           <label className="ui-field">
             <span className="label">{t('hubspot.card.token')}</span>

@@ -22,7 +22,8 @@ export function useHubspotScopeText(): (scope: string) => string {
   };
 }
 
-export function HubspotScopeList({ scopes, testId }: { scopes: readonly string[]; testId?: string }) {
+/** `codes={false}`: solo las palabras (cuando los nombres de HubSpot ya están listados al lado). */
+export function HubspotScopeList({ scopes, testId, codes = true }: { scopes: readonly string[]; testId?: string; codes?: boolean }) {
   const t = useTranslations('common.hubspot');
   return (
     <ul className="hs-key-scopes" data-testid={testId}>
@@ -31,7 +32,7 @@ export function HubspotScopeList({ scopes, testId }: { scopes: readonly string[]
         return (
           <li key={s}>
             {key && <span>{t(`scopes.${key}`)}</span>}
-            <code>{s}</code>
+            {(codes || !key) && <code>{s}</code>}
           </li>
         );
       })}
@@ -75,7 +76,7 @@ export function HubspotKeyHelp() {
 }
 
 /** La clave conectada: a qué cuenta entra, de qué tipo es, qué puede hacer y qué todavía no. */
-export function HubspotKeySummary({ portalId, kind, scopes, missing }: { portalId: string; kind: Kind; scopes: readonly string[]; missing: readonly string[] }) {
+export function HubspotKeySummary({ portalId, kind, scopes, missing, codes = true }: { portalId: string; kind: Kind; scopes: readonly string[]; missing: readonly string[]; codes?: boolean }) {
   const t = useTranslations('common.hubspot');
   const known = scopes.filter((s) => hubspotScopeKey(s));
   return (
@@ -87,13 +88,13 @@ export function HubspotKeySummary({ portalId, kind, scopes, missing }: { portalI
       {known.length > 0 && (
         <div>
           <p className="label">{t('can')}</p>
-          <HubspotScopeList scopes={known} testId="hubspot-key-can" />
+          <HubspotScopeList scopes={known} testId="hubspot-key-can" codes={codes} />
         </div>
       )}
       {missing.length > 0 && (
         <div>
           <p className="label">{t('cannot')}</p>
-          <HubspotScopeList scopes={missing} testId="hubspot-key-cannot" />
+          <HubspotScopeList scopes={missing} testId="hubspot-key-cannot" codes={codes} />
         </div>
       )}
     </div>
