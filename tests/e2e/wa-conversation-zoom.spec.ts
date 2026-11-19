@@ -36,7 +36,9 @@ type Ev = Record<string, unknown>;
 function chatEvents(app: 'inbox' | 'lines', phone: string, name: string): Ev[] {
   const tag = uid();
   const chatId = `${phone}@s.whatsapp.net`;
-  const t0 = Date.now() - 3_600_000;
+  // Mensajes de hace segundos: con una hora de antigüedad, los chats que crean las demás pruebas en la misma cuenta
+  // dejaban a este fuera de la primera tanda de la lista, y la prueba necesita su fila a la vista.
+  const t0 = Date.now() - 45_000;
   const base = { type: 'message', chatId, isGroup: false, fromMe: false, senderPhone: phone, senderName: name };
   const at = (s: number) => new Date(t0 + s * 1000).toISOString();
   const pid = `gone-z-${tag}`;
