@@ -29,7 +29,8 @@ export const LINES_TOUR = {
     { id: 'search', targets: ['lines-search'] },
     { id: 'openChat', targets: ['lines-chat-row'], advanceOn: 'click' },
     { id: 'composer', targets: ['lines-composer'] },
-    { id: 'assign', targets: ['lines-assign'], audience: 'team' },
+    // En el teléfono el responsable va en el menú del chat: el paso sale centrado igual.
+    { id: 'assign', targets: ['lines-assign'], ifMissing: 'center', audience: 'team' },
     { id: 'note', targets: ['lines-note'], audience: 'team' },
     { id: 'lineAccess', targets: ['lines-settings'], ifMissing: 'center', audience: 'team', adminOnly: true },
     { id: 'settings', targets: ['lines-settings'], audience: 'solo', adminOnly: true },

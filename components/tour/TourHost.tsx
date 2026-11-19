@@ -251,7 +251,8 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
     if (!running) return;
     let raf = 0;
     let vp = { w: 0, h: 0 };
-    let last: Box | null = null;
+    // undefined: todavía no se midió en este paso (un paso centrado borra el resalte del anterior).
+    let last: Box | null | undefined;
     const loop = () => {
       if (vp.w !== window.innerWidth || vp.h !== window.innerHeight) {
         vp = { w: window.innerWidth, h: window.innerHeight };
@@ -266,7 +267,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
         setNonce((n) => n + 1);
         return;
       }
-      if (!sameBox(last, b)) {
+      if (last === undefined || !sameBox(last, b)) {
         last = b;
         setBox(b);
       }
@@ -333,6 +334,14 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [running, idx, steps, close, next, back]);
+
+  // El total de pasos depende de lo que hay en pantalla (una lista que termina de cargar): se recalcula.
+  const [, setRecount] = useState(0);
+  useEffect(() => {
+    if (!shown) return;
+    const id = window.setInterval(() => setRecount((n) => n + 1), 700);
+    return () => window.clearInterval(id);
+  }, [shown]);
 
   // El foco va al botón principal de cada paso.
   useEffect(() => {

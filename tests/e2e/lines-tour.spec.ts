@@ -158,9 +158,13 @@ test('equipo sin dato en el workspace: pregunta una vez y suma asignar, notas y 
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'lineAccess');
     // Resalta los ajustes de Lines en el lateral.
-    const spot = await p.locator('.zs-tour-spot').boundingBox();
     const link = await p.locator('[data-tour="lines-settings"]').boundingBox();
-    expect(spot && link && spot.x <= link.x && spot.y <= link.y && spot.x + spot.width >= link.x + link.width).toBe(true);
+    await expect
+      .poll(async () => {
+        const spot = await p.locator('.zs-tour-spot').boundingBox();
+        return !!spot && !!link && spot.x <= link.x && spot.y <= link.y && spot.x + spot.width >= link.x + link.width && spot.y + spot.height >= link.y + link.height;
+      })
+      .toBe(true);
     await p.getByTestId('tour-exit').click();
     await expect(tour(p)).toHaveCount(0);
 
