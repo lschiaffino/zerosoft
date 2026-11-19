@@ -25,7 +25,7 @@ import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
-import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -2557,7 +2557,7 @@ export default function ChatThread(props: ThreadProps) {
               {t('thread.noteHint')}
             </p>
           )}
-          {aiAllowed && <AiComposeBar ai={ai} />}
+          {aiAllowed && <AiComposeBar ai={ai} floating />}
           {editing && (
             <div className="wa-replying wa-editing">
               <span className="gr-quote wa-q-me">
@@ -2703,6 +2703,7 @@ export default function ChatThread(props: ThreadProps) {
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 data-testid="composer-input"
+                adornment={aiAllowed ? <AiComposeChip ai={ai} /> : null}
                 rows={1}
                 highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}

@@ -149,6 +149,46 @@ for (const width of [1280, 390]) {
   });
 }
 
+for (const width of [1280, 390]) {
+  test(`Lines: "Polish" flota sobre el campo y no mueve la conversación (${width})`, async ({ page, request }) => {
+    test.setTimeout(240_000);
+    const errors = watchErrors(page);
+    await openChat(page, request, width);
+    const input = page.getByTestId('composer-input');
+    const polish = page.getByTestId('ai-compose-polish');
+    const boxes = () =>
+      page.evaluate(() => {
+        const r = (sel: string) => (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
+        return { pane: r('.wa-messages').height, top: r('.wa-composer').top, field: r('.wa-input').height };
+      });
+    // 14 palabras: todavía no se ofrece pulir. La 15.ª lo ofrece; el campo sigue en un renglón.
+    await input.fill(Array.from({ length: 14 }, () => 'a').join(' '));
+    await expect(polish).toHaveCount(0);
+    const before = await boxes();
+    await input.pressSequentially(' z');
+    await expect(polish).toBeVisible();
+    const after = await boxes();
+    expect(after.field).toBe(before.field);
+    expect(after.pane).toBe(before.pane);
+    expect(after.top).toBe(before.top);
+    // El chip flota sobre el borde de arriba del campo, dentro de la pantalla y sin tapar el renglón del texto.
+    const chip = (await polish.boundingBox())!;
+    const field = (await input.boundingBox())!;
+    expect(chip.x).toBeGreaterThanOrEqual(0);
+    expect(chip.x + chip.width).toBeLessThanOrEqual(width);
+    expect(chip.y).toBeGreaterThanOrEqual(0);
+    expect(chip.y + chip.height).toBeLessThanOrEqual(field.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // Con el teclado se llega desde el campo; un clic abre la barra.
+    await input.focus();
+    await page.keyboard.press('Tab');
+    await expect(polish.getByRole('button')).toBeFocused();
+    await polish.getByRole('button').click();
+    await expect(page.getByTestId('ai-compose')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
+
 test('Lines: capturas de las solapas en los cinco aspectos', async ({ page, request }) => {
   const dir = process.env.LINES_TABS_SHOTS;
   test.skip(!dir, 'solo para la pasada visual (LINES_TABS_SHOTS=<carpeta>)');
@@ -170,6 +210,12 @@ test('Lines: capturas de las solapas en los cinco aspectos', async ({ page, requ
           const r = (await composer.boundingBox())!;
           await page.screenshot({ path: `${dir}/zoom-${name}.png`, clip: { x: 0, y: Math.max(0, r.y - 80), width: Math.min(width, r.x + r.width), height: Math.min(r.height + 80, 260) } });
         }
+        await page.getByRole('tab', { name: 'WhatsApp' }).click();
+        await page.getByTestId('composer-input').fill('Hola, te escribo para confirmar que el presupuesto sale mañana a primera hora sin falta.');
+        await expect(page.getByTestId('ai-compose-polish')).toBeVisible();
+        const box = (await page.locator('.wa-composer').boundingBox())!;
+        await page.screenshot({ path: `${dir}/polish-${look}-${theme}-${width}.png`, clip: { x: 0, y: Math.max(0, box.y - 80), width: Math.min(width, box.x + box.width), height: Math.min(box.height + 80, 260) } });
+        await page.getByTestId('composer-input').fill('');
       }
     }
   }
