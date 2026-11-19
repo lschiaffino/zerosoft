@@ -21,7 +21,7 @@ export interface QuickModalProps {
   submitDisabled?: boolean;
   busy?: boolean;
   /** Error de servidor/validación para mostrar en el pie. */
-  error?: string | null;
+  error?: ReactNode;
   /** Texto chico en el pie (p. ej. "⌘↵ to create"). Se oculta en mobile. */
   hint?: ReactNode;
   /** Elemento extra en el pie (p. ej. "Create more", "Open full form"). */
@@ -78,6 +78,15 @@ function QuickModalBody({
       returnFocus.current?.focus?.();
     };
   }, []);
+
+  // Mientras guarda, el botón de enviar queda deshabilitado y el navegador le
+  // saca el foco: si el guardado falla, el foco vuelve al diálogo para que Esc
+  // lo siga cerrando.
+  useEffect(() => {
+    if (busy) return;
+    const el = dialogRef.current;
+    if (el && !el.contains(document.activeElement)) el.focus();
+  }, [busy]);
 
   const submit = () => {
     if (submitDisabled || busy) return;

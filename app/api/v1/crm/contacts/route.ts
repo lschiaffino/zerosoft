@@ -3,7 +3,8 @@ import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } fr
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { apiScope } from '@/lib/crm-visibility';
 import { assignNewLead } from '@/lib/crm-assignment';
 
@@ -41,8 +42,10 @@ export async function POST(req: NextRequest) {
   // regla round-robin para la fuente "api", la regla decide.
   const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'contact', null, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
-  const contact = await catchRef(createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
+  const contact = await catchContactWrite(createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, 'A referenced record does not exist.');
+  // El email es la identidad del contacto: 409 con el id del existente solo si la key lo ve.
+  if (contact instanceof ContactEmailTakenError) return apiEmailTakenResponse(contact, await apiScope(auth));
   if (!parsed.data.ownerId) {
     const assigned = await assignNewLead(auth.user.id, contact.id, 'api');
     if (assigned) contact.owner_id = assigned;

@@ -20,7 +20,7 @@ interface ImportSummary {
 }
 
 /** Productos: búsqueda, estado, importar (Shopify / Tiendanube) y exportar CSV. */
-export default function ProductsList({ initial, total, currency, q, status }: { initial: ProductListItem[]; total: number; currency: string; q: string; status: string }) {
+export default function ProductsList({ initial, total, currency, q, status, facets }: { initial: ProductListItem[]; total: number; currency: string; q: string; status: string; facets: { tag: string; vendor: string; type: string } }) {
   const t = useTranslations('shop');
   const router = useRouter();
   const money = useMoney(currency);
@@ -45,12 +45,17 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
     router.refresh();
   };
 
+  const hrefWith = (over: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    const cur: Record<string, string> = { q, status, ...facets };
+    for (const [k, v] of Object.entries({ ...cur, ...over })) if (v) params.set(k, v);
+    return `/app/shop/products${params.size ? `?${params}` : ''}`;
+  };
+  const activeFacets = (['tag', 'vendor', 'type'] as const).filter((k) => facets[k]);
+
   const search = (e: FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (status) params.set('status', status);
-    router.push(`/app/shop/products${params.size ? `?${params}` : ''}`);
+    router.push(hrefWith({ q: query.trim() }));
   };
 
   const doImport = async (e: FormEvent) => {
@@ -103,15 +108,26 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
               role="tab"
               aria-selected={status === s}
               className="ui-tab"
-              href={`/app/shop/products${s || q ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(s ? { status: s } : {}) })}` : ''}`}
+              href={hrefWith({ status: s })}
             >
               {s ? t(`productStatus.${s}`) : t('products.all')}
             </Link>
           ))}
         </div>
       </div>
+      {activeFacets.length > 0 && (
+        <ul className="shop-facets" data-testid="shop-product-facets" aria-label={t('products.activeFilters')}>
+          {activeFacets.map((k) => (
+            <li key={k}>
+              <Link className="shop-facet" data-testid={`shop-facet-${k}`} href={hrefWith({ [k]: '' })} aria-label={t('products.removeFilter', { kind: t(`products.facet.${k}`), value: facets[k] })}>
+                {t(`products.facet.${k}`)}: {facets[k]} ×
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
       {initial.length === 0 ? (
-        q || status ? (
+        q || status || activeFacets.length > 0 ? (
           <EmptyState compact body={t('products.noMatch')} />
         ) : (
           <EmptyState
@@ -178,6 +194,20 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
                         </span>
                       </span>
                     </Link>
+                    {(p.vendor || p.productType) && (
+                      <span className="shop-rowfacets">
+                        {p.vendor && (
+                          <Link className="shop-facet-link" data-testid="shop-facet-add-vendor" href={hrefWith({ vendor: p.vendor })}>
+                            {p.vendor}
+                          </Link>
+                        )}
+                        {p.productType && (
+                          <Link className="shop-facet-link" data-testid="shop-facet-add-type" href={hrefWith({ type: p.productType })}>
+                            {p.productType}
+                          </Link>
+                        )}
+                      </span>
+                    )}
                   </th>
                   <td>
                     <StatusBadge status={p.status} kind="product" />

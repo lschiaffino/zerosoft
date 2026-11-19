@@ -30,6 +30,7 @@ import { getCrmSettings } from './crm-currency';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
 import { coerceCustom, normalizeImportValue, parseImportDate, workspacePeople, type Person } from './crm-import';
 import { createPipeline, listCustomFields, listPipelinesWithStages, mergeFillPatch, parseCustom } from './crm';
+import { emailFreeSql, findContactByEmail, sameContactEmail } from './crm-contact-email';
 import {
   IMPORT_GROUPS,
   isFatalSourceError,
@@ -763,10 +764,18 @@ async function updateRow(db: Db, table: string, id: string, cols: Array<[string,
     .run(...cols.map(([, v]) => v), nowDb(), id);
 }
 
-async function insertRow(db: Db, table: string, cols: Array<[string, string | number | null]>) {
-  await db
-    .prepare(`INSERT INTO ${table} (${cols.map(([c]) => c).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
-    .run(...cols.map(([, v]) => v));
+/** `onlyIf`: condición SQL en la misma sentencia; false = no se cumplió y no se insertó nada. */
+async function insertRow(
+  db: Db,
+  table: string,
+  cols: Array<[string, string | number | null]>,
+  onlyIf?: { sql: string; args: string[] },
+): Promise<boolean> {
+  const marks = cols.map(() => '?').join(', ');
+  const res = await db
+    .prepare(`INSERT INTO ${table} (${cols.map(([c]) => c).join(', ')}) ${onlyIf ? `SELECT ${marks} WHERE ${onlyIf.sql}` : `VALUES (${marks})`}`)
+    .run(...cols.map(([, v]) => v), ...(onlyIf?.args ?? []));
+  return res.changes > 0;
 }
 
 async function writeCompany(ctx: WriteCtx, src: SrcCompany, extMap: Map<string, string>): Promise<void> {
@@ -877,6 +886,13 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
   let id: string;
   let deduped = false;
   let touch = true;
+  // El email es la identidad del contacto (lib/crm-contact-email.ts): si en el
+  // otro CRM cambió por uno que acá ya es de OTRO contacto, el email no se
+  // pisa (quedarían dos con el mismo) y se avisa; el resto se actualiza.
+  if (existing && email && !sameContactEmail(existing.email, email) && (await findContactByEmail(userId, email, db, existing.id))) {
+    pushError(ctx, `contact ${src.id}: email not updated, another contact already uses it`);
+    for (const col of cols) if (col[0] === 'email') col[1] = '';
+  }
   if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'contact', src.id))) {
     const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify({ ...custom, ...parseCustom(existing.custom) }) } as CrmContactRow;
     await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
@@ -890,29 +906,38 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
     id = existing.id;
     ctx.counts.updated++;
   } else {
-    existing = email
-      ? ((await db
-          .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at LIMIT 1')
-          .get(userId, email)) as CrmContactRow | undefined)
-      : undefined;
+    existing = (await findContactByEmail(userId, email, db)) ?? undefined;
+    id = existing?.id ?? crypto.randomUUID();
+    if (!existing) {
+      // El alta lleva el chequeo del email en la misma sentencia (como
+      // createContact): si alguien creó ese email entre la búsqueda y el
+      // alta, no se inserta y se sigue con el contacto que ya está.
+      const inserted = await insertRow(
+        db,
+        'crm_contacts',
+        [
+          ['id', id],
+          ['user_id', userId],
+          ...cols.map(([c, v]): [string, string | number | null] => [
+            c,
+            c === 'lifecycle_stage' ? v || 'lead' : c === 'lead_status' ? v || 'new' : v,
+          ]),
+          ['custom', JSON.stringify(custom)],
+        ],
+        email ? emailFreeSql(userId, email) : undefined,
+      );
+      if (inserted) ctx.counts.created++;
+      else {
+        existing = (await findContactByEmail(userId, email, db)) ?? undefined;
+        if (!existing) throw new Error('contact_not_created');
+        id = existing.id;
+      }
+    }
     if (existing) {
       const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify(custom) } as CrmContactRow;
       await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
-      id = existing.id;
       deduped = true;
       ctx.counts.updated++;
-    } else {
-      id = crypto.randomUUID();
-      await insertRow(db, 'crm_contacts', [
-        ['id', id],
-        ['user_id', userId],
-        ...cols.map(([c, v]): [string, string | number | null] => [
-          c,
-          c === 'lifecycle_stage' ? v || 'lead' : c === 'lead_status' ? v || 'new' : v,
-        ]),
-        ['custom', JSON.stringify(custom)],
-      ]);
-      ctx.counts.created++;
     }
   }
   await extSet(db, userId, ctx.provider, 'contact', src.id, id, touch);

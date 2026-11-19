@@ -41,6 +41,14 @@ import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } f
 
 export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import {
+  cleanContactEmail,
+  ContactEmailTakenError,
+  emailFreeSql,
+  emailKeySql,
+  findContactByEmail,
+  sameContactEmail,
+} from './crm-contact-email';
 import { baseAmountSql, getCrmSettings } from './crm-currency';
 import {
   ensureMigrated,
@@ -831,15 +839,20 @@ export async function createContact(
 ): Promise<CrmContactRow> {
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   const id = crypto.randomUUID();
+  const email = cleanContactEmail(data.email);
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
   const companyId =
-    data.companyId ?? (await findCompanyByDomain(userId, domainOf(data.email ?? ''), db));
-  await db
+    data.companyId ?? (await findCompanyByDomain(userId, domainOf(email), db));
+  // El email es la identidad del contacto (lib/crm-contact-email.ts): el
+  // NOT EXISTS va en la misma sentencia para que dos altas a la vez no pasen.
+  const inserted = await db
     .prepare(
       `INSERT INTO crm_contacts
        (id, user_id, owner_id, first_name, last_name, email, phone, job_title, website, city, country,
         lifecycle_stage, lead_status, source, company_id, custom)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+     WHERE ? = '' OR NOT EXISTS (
+       SELECT 1 FROM crm_contacts WHERE user_id = ? AND ${emailKeySql()} = lower(trim(?)))`,
     )
     .run(
       id,
@@ -847,7 +860,7 @@ export async function createContact(
       data.ownerId ?? userId,
       data.firstName ?? '',
       data.lastName ?? '',
-      data.email ?? '',
+      email,
       data.phone ?? '',
       data.jobTitle ?? '',
       data.website ?? '',
@@ -858,7 +871,15 @@ export async function createContact(
       data.source ?? '',
       companyId,
       JSON.stringify(data.custom ?? {}),
+      email,
+      userId,
+      email,
     );
+  if (!inserted.changes) {
+    const taken = await findContactByEmail(userId, email, db);
+    if (taken) throw new ContactEmailTakenError(taken);
+    throw new Error('contact_not_created');
+  }
   if (companyId) await setContactPrimaryCompany(userId, id, companyId, db);
   const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
   await fireEvent(userId, { type: 'contact_created', entity: 'contact', entityId: id });
@@ -878,6 +899,11 @@ export async function updateContact(
   if (!existing) return null;
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
+  // El email es la identidad del contacto (lib/crm-contact-email.ts). Solo se
+  // chequea cuando cambia: un duplicado de antes se puede seguir editando.
+  const emailSet = sets.find(([c]) => c === 'email');
+  if (emailSet) emailSet[1] = cleanContactEmail(String(emailSet[1] ?? ''));
+  const newEmail = emailSet && !sameContactEmail(emailSet[1] as string, existing.email) ? (emailSet[1] as string) : '';
   // Auto-link: si cambia el email, no vino companyId explícito y el contacto
   // no tiene empresa, intentamos vincular por dominio del email nuevo.
   if (data.email !== undefined && data.companyId === undefined && !existing.company_id) {
@@ -885,9 +911,17 @@ export async function updateContact(
     if (linked) sets.push(['company_id', linked]);
   }
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');
-  await db
-    .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?`)
-    .run(...sets.map(([, v]) => v), now(), id);
+  const free = newEmail
+    ? ` AND NOT EXISTS (SELECT 1 FROM crm_contacts o WHERE o.user_id = ? AND o.id != ? AND ${emailKeySql('o')} = lower(trim(?)))`
+    : '';
+  const written = await db
+    .prepare(`UPDATE crm_contacts SET ${setSql ? `${setSql}, ` : ''}updated_at = ? WHERE id = ?${free}`)
+    .run(...sets.map(([, v]) => v), now(), id, ...(newEmail ? [userId, id, newEmail] : []));
+  if (newEmail && !written.changes) {
+    const taken = await findContactByEmail(userId, newEmail, db, id);
+    if (taken) throw new ContactEmailTakenError(taken);
+    return null;
+  }
   // company_id es el espejo de la asociación primaria: la tabla de
   // asociaciones manda (asocia la nueva como primaria o quita la actual).
   const companySet = sets.find(([c]) => c === 'company_id');
@@ -906,35 +940,7 @@ export async function deleteContact(userId: string, id: string, actorEmail = '')
   return (await trashRecords(userId, 'contact', [id], actorEmail)) > 0;
 }
 
-export interface DuplicateGroup {
-  email: string;
-  contacts: CrmContactRow[];
-}
-
-/** Grupos de contactos que comparten lower(email) (email no vacío, count > 1). */
-export async function findDuplicateContacts(userId: string): Promise<DuplicateGroup[]> {
-  const db = getDb();
-  const groups = (await db
-    .prepare(
-      `SELECT lower(email) AS lemail, COUNT(*) AS c
-       FROM crm_contacts
-       WHERE user_id = ? AND email != ''
-       GROUP BY lemail
-       HAVING c > 1
-       ORDER BY c DESC`,
-    )
-    .all(userId)) as Array<{ lemail: string; c: number }>;
-  return Promise.all(
-    groups.map(async (g) => ({
-      email: g.lemail,
-      contacts: (await db
-        .prepare(
-          'SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at ASC',
-        )
-        .all(userId, g.lemail)) as CrmContactRow[],
-    })),
-  );
-}
+export { findDuplicateContacts, type DuplicateGroup } from './crm-contact-email';
 
 /**
  * Merge: mueve todo lo del contacto `dropId` a `keepId` y borra `dropId`.
@@ -1011,11 +1017,19 @@ export async function mergeContacts(
     await tdb.prepare('DELETE FROM crm_contact_companies WHERE contact_id = ?').run(dropId);
     await syncContactPrimary(keepId, tdb);
     // Campos vacíos del que queda se completan con los del descartado.
-    const fill = mergeFillPatch(keep, drop);
+    const filled = mergeFillPatch(keep, drop);
+    const fill = filled.filter(([col]) => col !== 'email');
     const sets = ['updated_at = ?', ...fill.map(([col]) => `${col} = ?`)];
     await tdb
       .prepare(`UPDATE crm_contacts SET ${sets.join(', ')} WHERE id = ?`)
       .run(now(), ...fill.map(([, v]) => v), keepId);
+    // El email del descartado pasa al que queda solo si ningún tercero lo
+    // tiene (el chequeo va en la misma sentencia; lib/crm-contact-email.ts).
+    const email = filled.find(([col]) => col === 'email')?.[1];
+    if (email) {
+      const free = emailFreeSql(userId, email, [keepId, dropId]);
+      await tdb.prepare(`UPDATE crm_contacts SET email = ? WHERE id = ? AND ${free.sql}`).run(email.trim(), keepId, ...free.args);
+    }
     // Tags del descartado.
     await tdb
       .prepare("UPDATE OR IGNORE crm_record_tags SET record_id = ? WHERE entity = 'contact' AND record_id = ?")

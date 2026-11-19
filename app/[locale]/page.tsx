@@ -28,9 +28,9 @@ import ProductGlyph from '@/components/brand/ProductGlyph';
 import DesktopCta from '@/components/site/DesktopCta';
 import DesktopHud from '@/components/site/DesktopHud';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
-import { PRODUCT_CONFIG, isComingSoon, productHref } from '@/lib/products';
+import { AVAILABLE_PRODUCT_KEYS, PRODUCT_CONFIG, isComingSoon, productHref } from '@/lib/products';
 import { staticPageMetadata } from '@/lib/seo-pages';
-import { faqLd, graphLd, jsonLdString, organizationLd, websiteLd } from '@/lib/seo';
+import { faqLd, graphLd, jsonLdString, organizationLd, softwareLd, websiteLd } from '@/lib/seo';
 import '@/styles/pages.css';
 
 const SHOWCASE = [
@@ -83,6 +83,14 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             graphLd([
               organizationLd(),
               websiteLd(t('meta.description')),
+              // La suite como software: licencia, ofertas reales ($0 self-host, plan gratis en Cloud) y las apps que se usan hoy.
+              softwareLd({
+                locale,
+                name: 'zerosoft',
+                description: t('meta.description'),
+                path: '',
+                features: AVAILABLE_PRODUCT_KEYS.map((k) => PRODUCT_CONFIG[k].name),
+              }),
               faqLd(FAQ.map((n) => ({ q: h(`faq.q${n}`), a: h(`faq.a${n}`) }))),
             ]),
           ),

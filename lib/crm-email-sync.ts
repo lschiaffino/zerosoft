@@ -90,8 +90,8 @@ export async function contactsByEmail(userId: string, emails: string[]): Promise
   if (!emails.length) return out;
   const rows = (await getDb()
     .prepare(
-      `SELECT id, lower(email) AS email FROM crm_contacts
-       WHERE user_id = ? AND lower(email) IN (${emails.map(() => '?').join(',')})
+      `SELECT id, lower(trim(email)) AS email FROM crm_contacts
+       WHERE user_id = ? AND lower(trim(email)) IN (${emails.map(() => '?').join(',')})
        ORDER BY created_at ASC`,
     )
     .all(userId, ...emails)) as Array<{ id: string; email: string }>;

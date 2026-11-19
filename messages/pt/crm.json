@@ -264,6 +264,23 @@
       "companies": "Empresas",
       "mergeConfirmTitle": "Mesclar contatos"
     },
+    "emailTaken": {
+      "exists": "Já existe um contato com este email: {name}.",
+      "open": "Abrir",
+      "hidden": "Já existe um contato com este email. Ele é de outra pessoa da equipe, então você não pode abri-lo. Peça a um admin do workspace."
+    },
+    "dupes": {
+      "title": "Contatos duplicados",
+      "description": "Contatos que compartilham um email. Escolha qual fica e mescle os demais nele.",
+      "find": "Buscar duplicados",
+      "none": "Não há contatos que compartilhem um email.",
+      "keepLabel": "Contato que fica",
+      "keep": "Fica",
+      "merge": "{count, plural, one {Mesclar # contato no que fica} other {Mesclar # contatos no que fica}}",
+      "confirm": "{count, plural, one {Mesclar # contato em {keep}?} other {Mesclar # contatos em {keep}?}} Os deals, atividades, emails e listas passam para {keep}, e os campos vazios dele são preenchidos. Não dá para desfazer.",
+      "merged": "{count, plural, one {# contato mesclado} other {# contatos mesclados}}",
+      "note": "Mesclar não pode ser desfeito. O contato que fica recebe os deals, atividades, emails e listas dos outros, e os campos vazios dele são preenchidos com os deles."
+    },
     "form": {
       "firstName": "Nome",
       "lastName": "Sobrenome",
@@ -1195,6 +1212,8 @@
     "invalid_currency": "Use um código de moeda de 3 letras (por exemplo EUR) diferente da moeda base.",
     "invalid_rate": "A taxa precisa ser um número maior que zero.",
     "trash_conflict": "Já existe um registro com este id, então não é possível restaurar.",
+    "trash_email_taken": "Outro contato usa este email agora, então este não pode ser restaurado. Mude o email desse contato ou exclua-o, e depois restaure.",
+    "contact_email_taken": "Já existe um contato com este email.",
     "file_too_large": "O arquivo tem mais de 10 MB.",
     "file_type_not_allowed": "Esse tipo de arquivo não pode ser anexado.",
     "storage_unavailable": "Este servidor não tem onde guardar arquivos.",
@@ -1753,7 +1772,7 @@
       "successMessage": "Mensagem de agradecimento",
       "crm": "No CRM",
       "crmDesc": "O que acontece com o contato em cada envio.",
-      "dedupe": "Atualizar o contato existente quando o email coincidir",
+      "dedupe": "Atualizar o contato existente quando o email coincidir. Desativado: o envio é salvo e esse contato fica como está",
       "ownerAuto": "Round-robin ou dono do workspace",
       "list": "Adicionar à lista",
       "sequence": "Inscrever na sequência",

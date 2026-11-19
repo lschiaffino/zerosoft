@@ -174,7 +174,7 @@ export default async function ContactDetailPage(props: {
             key: 'duplicates',
             label: t('record.more.duplicates'),
             title: t('contacts.detail.duplicates'),
-            content: <DuplicatesPanel contactId={contact.id} autoFind />,
+            content: <DuplicatesPanel contactId={contact.id} />,
           },
           {
             key: 'history',

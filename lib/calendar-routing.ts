@@ -569,7 +569,7 @@ export interface CrmContactMatch {
 /** Contacto del CRM del workspace con ese email (el más viejo si hay duplicados). */
 export async function findCrmContact(workspaceId: string, email: string): Promise<CrmContactMatch | null> {
   const row = (await getDb()
-    .prepare('SELECT id, owner_id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at LIMIT 1')
+    .prepare('SELECT id, owner_id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
     .get(workspaceId, email.trim().toLowerCase())) as { id: string; owner_id: string | null } | undefined;
   return row ? { id: row.id, ownerId: row.owner_id } : null;
 }

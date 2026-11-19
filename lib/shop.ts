@@ -526,7 +526,7 @@ const likeEsc = (q: string) => `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 
 export async function listProducts(
   ws: string,
-  opts: { q?: string; status?: string; collectionId?: string; limit?: number; offset?: number } = {},
+  opts: { q?: string; status?: string; collectionId?: string; tag?: string; vendor?: string; productType?: string; limit?: number; offset?: number } = {},
 ): Promise<{ items: ProductListItem[]; total: number }> {
   const where = ['p.workspace_id = ?'];
   const args: Array<string | number> = [ws];
@@ -538,6 +538,18 @@ export async function listProducts(
   if (opts.status && ['draft', 'active', 'archived'].includes(opts.status)) {
     where.push('p.status = ?');
     args.push(opts.status);
+  }
+  if (opts.tag?.trim()) {
+    where.push('EXISTS (SELECT 1 FROM json_each(p.tags) jt WHERE lower(jt.value) = lower(?))');
+    args.push(opts.tag.trim());
+  }
+  if (opts.vendor?.trim()) {
+    where.push('lower(p.vendor) = lower(?)');
+    args.push(opts.vendor.trim());
+  }
+  if (opts.productType?.trim()) {
+    where.push('lower(p.product_type) = lower(?)');
+    args.push(opts.productType.trim());
   }
   if (opts.collectionId) {
     where.push('EXISTS (SELECT 1 FROM shop_collection_products cp WHERE cp.product_id = p.id AND cp.collection_id = ?)');
