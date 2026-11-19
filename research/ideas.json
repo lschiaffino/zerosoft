@@ -3231,5 +3231,41 @@
     "product": "crm",
     "kind": "idea",
     "parity": "two-way-data-sync"
+  },
+  {
+    "title": "Shop: Schedule when a product goes on sale",
+    "description": "Shopify lets you set a future publish date per product and sales channel (https://help.shopify.com/en/manual/products/details/product-availability). Our products only have draft, active and archived (PRODUCT_STATUSES in lib/shop-schema.ts), so a launch means someone logs in at the right minute. A small store drops collections on a fixed day and wants the page live without being there. First scope: an optional publish date on the product editor, and the hourly tick (app/api/cron/tick) moves draft products to active once it passes, claiming each row first.",
+    "product": "shop",
+    "kind": "idea"
+  },
+  {
+    "title": "Shop: Redirect old product URLs when a handle changes",
+    "description": "Shopify creates a URL redirect automatically when you rename a product handle and lets you manage redirects by hand or by CSV (https://help.shopify.com/en/manual/online-store/menus-and-links/url-redirect). We have no redirect table: lib/shop-storefront.ts resolves only the current handle, so a renamed product breaks links already shared on social media and in email. First scope: save the old handle on rename, redirect it with a 301 on the storefront, and list redirects in settings with add and delete.",
+    "product": "shop",
+    "kind": "idea"
+  },
+  {
+    "title": "Shop: Add product reviews with moderation",
+    "description": "Shopify's free Product Reviews app collects star ratings and comments on each product page and lets staff approve them (https://apps.shopify.com/product-reviews). The Shop storefront has no review table or form (nothing in lib/shop-schema.ts). Social proof is the most common reason a small store gets abandoned carts. First scope: a verified-buyer review form after delivery, a moderation queue in the admin, and the average rating in the product page structured data.",
+    "product": "shop",
+    "kind": "idea"
+  },
+  {
+    "title": "Shop: Show related products on a product page",
+    "description": "Shopify's Search & Discovery app adds related and complementary product recommendations to product pages (https://help.shopify.com/en/manual/online-store/search-and-discovery/product-recommendations). Our storefront product page (lib/shop-storefront.ts, components/shop/store) shows no other products. For a store with 20 items this is the cheapest way to raise order value. First scope: pick up to 4 related products by hand in the editor, with a fallback to the same collection.",
+    "product": "shop",
+    "kind": "idea"
+  },
+  {
+    "title": "Shop: Import customers from a CSV",
+    "description": "Shopify imports customers from a CSV with name, email, phone, address and tags, and merges by email (https://help.shopify.com/en/manual/customers/import-customers). We import and export products and export orders and customers (lib/shop-csv.ts, lib/shop-reports.ts), but a store moving from another platform cannot bring its customer list. First scope: upload a CSV, preview the rows, create or update customers by email, and honor marketing consent only when the column says so.",
+    "product": "shop",
+    "kind": "idea"
+  },
+  {
+    "title": "Shop: Sell gift cards with a code and balance",
+    "description": "Shopify sells gift cards as a product that emails a code, and the balance is spent at checkout in one or several orders (https://help.shopify.com/en/manual/products/gift-card-products). Our parity table marks gift cards as missing (content/feature-parity/shop.ts) and checkout has only discount codes. Gifts are a large share of sales for small shops around holidays. First scope: a gift card product type, a code emailed to the recipient, a balance field, and a checkout box that applies the balance.",
+    "product": "shop",
+    "kind": "idea"
   }
 ]
