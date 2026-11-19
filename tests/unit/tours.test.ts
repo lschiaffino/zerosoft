@@ -13,9 +13,23 @@ describe('tours: registro y rutas', () => {
     expect(tourForPath('/app/lines')?.key).toBe('lines');
     expect(tourForPath('/app/linesx')).toBeNull();
     expect(tourForPath('/app/inbox')).toBeNull();
+    expect(tourForPath('/app/trackx')).toBeNull();
     expect(tourForPath(null)).toBeNull();
     expect(atTourStart(TOURS.lines, '/pt/app/lines/inbox')).toBe(true);
     expect(atTourStart(TOURS.lines, '/app/lines/inbox/abc')).toBe(false);
+  });
+
+  it('el tour de Track arranca en el resumen y sigue en Issues', () => {
+    expect(tourForPath('/app/track')?.key).toBe('track');
+    expect(tourForPath('/es/app/track/issues')?.key).toBe('track');
+    expect(atTourStart(TOURS.track, '/pt/app/track')).toBe(true);
+    expect(atTourStart(TOURS.track, '/app/track/issues')).toBe(false);
+    // Track no pregunta equipo o sola: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.track, { audience: 'team', admin: false }))).toEqual(ids(stepsFor(TOURS.track, { audience: 'solo', admin: true })));
+    const steps = ids([...TOURS.track.steps]);
+    // Abrir Issues (un clic en el lateral) va antes de filtros, visualización y vistas, que viven ahí.
+    expect(steps.indexOf('issues')).toBeLessThan(steps.indexOf('filters'));
+    expect(TOURS.track.steps.find((s) => s.id === 'issues')).toMatchObject({ advanceOn: 'click' });
   });
 
   it('ids de pasos únicos por tour', () => {

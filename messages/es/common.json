@@ -1355,6 +1355,56 @@
     "ask": "¿La usás por tu cuenta o con un equipo?",
     "solo": "Por mi cuenta",
     "team": "Con un equipo",
+    "track": {
+      "intro": {
+        "title": "Te damos la bienvenida a Track",
+        "body": "Track junta los issues, proyectos y ciclos de tu equipo en un lugar. Este tour te muestra las partes principales."
+      },
+      "newTeam": {
+        "title": "Creá un equipo",
+        "body": "Los issues viven en equipos, como un producto o un área. Creá el primero para empezar a cargar issues."
+      },
+      "overview": {
+        "title": "Tus equipos de un vistazo",
+        "body": "Cada fila es un equipo con su ciclo en curso, los issues vencidos y lo que espera en triage. Abrí uno para ver sus issues."
+      },
+      "newIssue": {
+        "title": "Creá un issue",
+        "body": "Nuevo crea un issue, un proyecto o un equipo. En cualquier parte de Track, apretá C para un issue nuevo."
+      },
+      "inbox": {
+        "title": "Bandeja",
+        "body": "Acá llegan las asignaciones, menciones, comentarios y cambios de estado de los issues que seguís."
+      },
+      "myIssues": {
+        "title": "Mis issues",
+        "body": "Todo lo que tenés asignado, en todos los equipos."
+      },
+      "issues": {
+        "title": "Abrí Issues",
+        "body": "Issues lista todos los issues del espacio. Abrilo para ver los filtros y las vistas."
+      },
+      "filters": {
+        "title": "Filtrar",
+        "body": "Filtrá por estado, prioridad, responsable, ciclo, etiquetas o vencimiento. Apretá F para sumar un filtro y / para buscar."
+      },
+      "display": {
+        "title": "Visualización",
+        "body": "Pasá de lista a tablero, calendario o Gantt, y elegí cómo se agrupan y ordenan los issues."
+      },
+      "views": {
+        "title": "Vistas guardadas",
+        "body": "Guardá como vista los filtros y la visualización que usás seguido y volvé a ellos con un clic."
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "body": "C crea un issue, J y K recorren la lista y Enter lo abre. G y después I va a la Bandeja. Cmd+K encuentra cualquier cosa."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Te damos la bienvenida a Lines",
