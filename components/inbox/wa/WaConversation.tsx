@@ -288,7 +288,6 @@ const WaConversation = forwardRef<
     setRevealed(new Set());
     setNotesOpen(false);
     setHeld(null);
-    setSelecting(null);
   }, [thread.id]);
 
   // "Responder en privado": este chat 1:1 se abre respondiendo al mensaje del grupo (una vez).
