@@ -320,6 +320,8 @@ export interface NavItem {
   branch?: boolean;
   /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
   branchOnly?: boolean;
+  /** Anclaje de un tour guiado (data-tour, ver lib/tours). */
+  tour?: string;
   /** App en construcción: el sidebar le suma la marca "pronto". */
   /** Etiqueta: 'preview' = vista previa interna (staff); true = Próximamente. */
   soon?: boolean | 'preview';
@@ -899,7 +901,7 @@ export function buildNav(
           items: [{ href: '/app/lines/analytics', label: labels.groups.analytics, active: at('/app/lines/analytics'), icon: 'reports' }],
         },
         {
-          items: [{ href: '/app/lines/settings', label: labels.groups.settings, active: at('/app/lines/settings'), icon: 'settings' }],
+          items: [{ href: '/app/lines/settings', label: labels.groups.settings, active: at('/app/lines/settings'), icon: 'settings', tour: 'lines-settings' }],
         },
       ];
 

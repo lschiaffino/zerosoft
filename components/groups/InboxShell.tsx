@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesChatName } from '@/lib/chat-search-rank';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
@@ -770,9 +771,7 @@ export default function InboxShell({
 
   /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
   function nameHit(c: ChatDto): boolean {
-    const q = debounced.trim().toLowerCase();
-    const digits = q.replace(/[^\d]/g, '');
-    return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
+    return !c.match || matchesChatName(c.name, c.phone, debounced);
   }
 
   /**
@@ -960,6 +959,7 @@ export default function InboxShell({
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
         data-testid="chat-row"
+        data-tour="lines-chat-row"
         data-chat-id={c.id}
         data-lines={c.lines?.length ? c.lines.length : undefined}
         data-overdue={c.flagged ? 'true' : undefined}
@@ -990,8 +990,7 @@ export default function InboxShell({
           title={c.lines?.length ? c.lines.map((l) => l.name).join(' · ') : undefined}
           draggable={false}
         >
-          {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}
-          {c.flagged && <span className="wa-overdue-edge" data-testid="row-overdue-edge" aria-hidden="true" title={t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' })} />}
+          {/* Vencido: lo dice el reloj junto a la hora. El filete al borde se sacó: con muchos chats vencidos marcaba casi toda la lista. */}
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
             <span className="gr-row-top">
@@ -1407,7 +1406,7 @@ export default function InboxShell({
               </p>
             )}
             <div className="wa-search-row" ref={searchRow}>
-            <span className="wa-search">
+            <span className="wa-search" data-tour="lines-search">
               <Search size={18} />
             <DebouncedInput
               ref={searchRef}
@@ -1466,7 +1465,7 @@ export default function InboxShell({
               </button>
             </FilterChips>
             {/* Cada pestaña es un atajo de un campo del panel: marcada cuando ese filtro está puesto, también si se puso desde el panel. */}
-            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')}>
+            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')} data-tour="lines-filters">
               {LINES_TABS.map((tab) => {
                 const on = tabsOn.includes(tab);
                 return (
@@ -1624,7 +1623,7 @@ export default function InboxShell({
               <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
-            <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
+            <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list data-tour="lines-chat-list">
               {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (

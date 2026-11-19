@@ -87,6 +87,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         providers={availableProviders()}
         canEdit={manager.canAdd}
         isAdmin={admin}
+        me={manager.me}
         openNew={sp.new === '1'}
         reconnect={sp.reconnect ?? null}
       />

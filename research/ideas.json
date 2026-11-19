@@ -2548,7 +2548,8 @@
     "title": "CRM: Make custom properties required on the create form",
     "description": "HubSpot properties can be marked required so a record cannot be created without them (https://knowledge.hubspot.com/object-settings/set-required-properties-for-records). Our custom fields in lib/crm-custom-fields.ts only support types and options, and stage rules in lib/crm-stage-rules.ts cover deals entering a stage, not creation. For a small team this keeps owner, source or region from being empty in reports. First scope: a required flag per custom field, enforced in the create forms and the v1 API with a clear error.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "property-required-on-create"
   },
   {
     "title": "CRM: Set default values for properties on new records",
@@ -2560,7 +2561,8 @@
     "title": "CRM: Add formula properties that calculate from other properties",
     "description": "HubSpot calculation properties compute a number, date or text from other properties on the record (https://knowledge.hubspot.com/properties/create-calculation-properties). We only have stored custom fields in lib/crm-custom-fields.ts. A small team uses this for margin, days to close or weighted amount without a report. First scope: a formula field type with arithmetic over number and currency fields, computed on read, usable in table columns and filters.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "calculated-properties"
   },
   {
     "title": "CRM: Separate the permission to create records from the permission to edit",
@@ -2790,19 +2792,22 @@
     "title": "CRM: Let admins arrange the cards and properties of the record sidebar",
     "description": "HubSpot admins customize record layouts under Settings > Objects > Record Customization, adding cards and choosing which properties show in the About card, and each user can reorder cards (https://knowledge.hubspot.com/object-settings/customize-records). In our CRM the contact, company and deal pages show a fixed set of panels under app/[locale]/app/crm. Teams with many custom fields end up scrolling past properties they never use. A first scope is a per-object list of visible properties and their order for the side panel, stored per workspace, with a reset to default.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "record-customization"
   },
   {
     "title": "CRM: Group custom properties into named sections",
     "description": "HubSpot organizes properties into property groups that appear as sections in forms, record pages and imports (https://knowledge.hubspot.com/properties/create-and-edit-property-groups). Our custom fields in crm_custom_fields have a name, label, type and position with no grouping, so a workspace with 20 fields gets one flat list in components/crm/CustomFieldsPanel.tsx. A first scope is an optional group name on each field, shown as collapsible sections on the record page and the settings screen, with a migration that keeps existing fields ungrouped.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "property-groups"
   },
   {
     "title": "CRM: Add a unique-value option to custom properties to block duplicate IDs",
     "description": "HubSpot custom properties can be marked as unique identifiers so two records cannot share the same value, which keeps external IDs and tax numbers clean (https://knowledge.hubspot.com/properties/create-and-edit-properties). Our custom field definitions in lib/crm-custom-fields.ts have no uniqueness rule, so the same external ID can be saved on two contacts and only the duplicate finder catches it later. A first scope is a unique flag on text and number fields that rejects the save in the UI, the CSV import and API v1 with a message naming the record that already has the value.",
     "product": "crm",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "property-unique"
   },
   {
     "title": "CRM: Propose stakeholders and pain points from deal notes and call transcripts",
@@ -3023,5 +3028,208 @@
     "description": "Loom lets you share a request link so a customer or teammate can record a video straight into your library, without an account in some plans (https://support.atlassian.com/loom/). Rec only records by signed-in members (app/[locale]/app/rec/new), so collecting a bug repro or a client walkthrough means asking them to send a file. First scope: a request link per folder with a prompt and a max length, an anonymous recorder page that uploads through the existing chunked upload (lib/rec-upload.ts), and a Requests entry in the library listing what came in.",
     "product": "rec",
     "kind": "idea"
+  },
+  {
+    "title": "CRM: Rebuild the record page in three columns (properties, activity, associations)",
+    "description": "HubSpot: Every record has a left sidebar (actions and About this record properties), a middle column (Overview and Activities tabs) and a right sidebar (association cards and tools) (https://knowledge.hubspot.com/records/work-with-records). Today: components/crm/recordTab.ts:1 RECORD_TABS; app/[locale]/app/crm/contacts/[id]/page.tsx:140-246 header, :263-380 activity tab with aside. This is the page a sales rep lives in. First scope: on contacts, companies and deals at desktop width, a left column with the record name, the action buttons and the editable About properties (the existing PropertiesPanel in compact mode), the timeline in the middle and association cards (companies, deals, contacts, lists, files) on the right; at 390px the columns collapse to the current tabs. Also covers the parity rows record-sidebar-inline-edit.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "record-three-columns"
+  },
+  {
+    "title": "CRM: Load the whole timeline and filter it by type, person and text",
+    "description": "HubSpot: The timeline loads older activity as you scroll, grouped by month, with no cap (https://knowledge.hubspot.com/records/filter-activities-on-a-record-timeline). Today: app/[locale]/app/crm/contacts/[id]/page.tsx:255-256 limit: 100; no load-more in components/crm/Timeline.tsx. After a migration records carry years of history and the page stops at the latest 100 items. First scope: cursor pagination in listTimeline with a load-more at the end, a multi-select of activity types, a filter by person or team, a search box, and formatting (bold, lists, links) in notes. Also covers the parity rows timeline-filters, rich-text-notes.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "timeline-full-history"
+  },
+  {
+    "title": "CRM: Make saved views hold columns and sort, update in place and share with a team",
+    "description": "HubSpot: Saved views keep filters, columns and sort; they can be updated, cloned, pinned as tabs and set as default (https://knowledge.hubspot.com/records/create-and-manage-saved-views). Today: lib/crm.ts:3050-3080 create, list and delete only; app/api/crm/views/route.ts has no update; lib/schema/baseline.ts:244-251. A HubSpot team rebuilds its views on day one of a migration. First scope: store columns, column order and sort in the view (server side), an Update view action, a visibility of private, team or everyone, and drag to reorder columns. Also covers the parity rows view-columns, view-sharing.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "saved-views"
+  },
+  {
+    "title": "CRM: Add is known, is any of, relative dates and AND/OR groups to filters",
+    "description": "HubSpot: Operators depend on the property type: is any of, is none of, contains, is known, is unknown, is between, is more or less than X days ago, rolling date ranges and more (https://knowledge.hubspot.com/segments/determine-filter-criteria). Today: lib/crm.ts:159-162 TEXT_OPS, NUMBER_OPS, SELECT_OPS, DATE_OPS; :204-300 buildRuleCondition. Views and lists copied from HubSpot use these operators all the time (no owner, lead status is any of, last activity more than 30 days ago). First scope: extend buildRuleCondition with known and unknown, any of and none of, not contains, greater or equal, relative date ranges, then OR between groups of AND rules, then filters on the primary company of a contact and the contacts of a deal. Also covers the parity rows filter-groups, filter-associated.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "filter-operators"
+  },
+  {
+    "title": "CRM: Select every record that matches the filter for bulk actions",
+    "description": "HubSpot: Select rows or all records in the view, then Assign, Edit any property, Delete, Create tasks, Add to list, Enroll in sequence (https://knowledge.hubspot.com/records/bulk-edit-records). Today: lib/crm-bulk-fields.ts:10-14 BULK_FIELDS; components/crm/ContactsTable.tsx:120-137 enroll; no select-all-matching found in ContactsTable.tsx or BulkEditControls.tsx. Reassigning 2,000 contacts today means 20 pages of selecting. First scope: a Select all N records link that sends the filter to the bulk route instead of ids, with a confirmation that shows the count, plus bulk task creation.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "bulk-actions"
+  },
+  {
+    "title": "CRM: Import Excel files and several objects in one file, with an import history and undo",
+    "description": "HubSpot: Import one or several objects from a file, map columns to properties, dedupe by email, domain or Record ID, and associate the objects of each row (https://knowledge.hubspot.com/import-and-export/import-objects). Today: lib/crm-import.ts:97 one entity per import; :10 and :58-92 company and contact link columns; :439, :514 dedupe. Teams leaving HubSpot export XLSX files with contacts and their companies or deals in one sheet. First scope: accept .xlsx, let one file create contacts plus companies plus deals with the associations of each row, add an Imports page with the result of each import, a downloadable error file and Delete imported records. Also covers the parity rows import-xlsx, import-history.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "csv-import"
+  },
+  {
+    "title": "CRM: Export the current view with its columns and filters, to CSV or Excel",
+    "description": "HubSpot: Export a view or all records to CSV, XLS or XLSX, choosing the view columns or all properties and including associations (https://knowledge.hubspot.com/import-and-export/export-records). Today: app/api/crm/export/route.ts:46-68 fixed COLUMNS per entity, csv or json. The export today has a fixed column list per object. First scope: export what the table shows (filters, columns incl. custom properties) or all properties, in CSV or XLSX, with the associated record names.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "export"
+  },
+  {
+    "title": "CRM: Lists of companies and deals",
+    "description": "HubSpot: Active and static lists (now called segments) for contacts, companies, deals and custom objects (https://knowledge.hubspot.com/segments/create-active-or-static-lists). Today: crm_list_members references contacts only (lib/schema/baseline.ts:227-231); lib/crm.ts:2832-3040. HubSpot segments exist for contacts, companies and deals; account-based teams keep company lists. First scope: an entity on the list (the column exists) honoured by members, dynamic filters and the list page, for companies and deals.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "contact-lists"
+  },
+  {
+    "title": "CRM: Stop a second contact with the same email from being created",
+    "description": "HubSpot: HubSpot deduplicates contacts by email: creating a contact with an email that exists is blocked in the form and updates the existing record in imports, forms and the API (https://knowledge.hubspot.com/records/deduplication-of-records). Today: createContact inserts without checking the email (lib/crm.ts:827-861); the index on email is not unique (lib/schema/baseline.ts:90). Only the CSV import and the API migration dedupe (lib/crm-import.ts:439). Email is the identity of a contact in HubSpot, and the two-way sync needs the same rule on our side or every sync creates duplicates. First scope: the create form and quick create show the existing contact and block the save; the API returns 409 with the existing id; forms, Cal bookings and chats update the existing contact; a unique index per workspace on the lowercased email once existing duplicates are merged.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "contact-email-unique"
+  },
+  {
+    "title": "CRM: Additional email addresses on a contact",
+    "description": "HubSpot: A contact can hold a primary email plus additional emails; all of them match incoming mail, forms and dedupe (https://knowledge.hubspot.com/records/add-multiple-email-addresses-to-a-contact). Today: One email column per contact (lib/schema/baseline.ts:74). People change jobs and write from two addresses; HubSpot keeps them on one contact and matches mail and dedupe on all of them. First scope: a secondary emails list on the contact, used by email sync matching, dedupe, merge (the losing email becomes a secondary one) and search.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "contact-multiple-emails"
+  },
+  {
+    "title": "CRM: Create the company from the contact email domain when it does not exist",
+    "description": "HubSpot: With the setting on, HubSpot creates a company from the contact email domain and associates it automatically. Today: lib/crm.ts:816-837 findCompanyByDomain links only; no create. HubSpot teams rely on companies appearing on their own. First scope: a workspace setting (off by default) that creates the company from a business domain on contact create, using the existing enrichment to name it.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "auto-create-company"
+  },
+  {
+    "title": "CRM: Add the HubSpot default properties that are missing on contacts, companies and deals",
+    "description": "HubSpot: Contacts ship with about 200 default properties, including Mobile phone number, Street address, State/Region, Postal code, Time zone, LinkedIn URL, Number of times contacted and the Became a ... date for each lifecycle stage (https://knowledge.hubspot.com/properties/hubspots-default-contact-properties). Today: lib/schema/baseline.ts:69-87, lib/crm.ts:756-787 ContactInput, lib/crm-activity-dates.ts:1-12. Imports and the sync have to map these somewhere, and reps look for them. First scope: contacts get mobile phone, state or region, street address, postal code, time zone and LinkedIn URL; companies get annual revenue, type, state or region, postal code, street address and time zone; deals get deal type, next step and closed won reason. All show in forms, columns, filters, import mapping and the API. Also covers the parity rows default-company-properties, default-deal-properties.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "default-contact-properties"
+  },
+  {
+    "title": "CRM: Editable lifecycle stages that move on their own when a deal is created or won",
+    "description": "HubSpot: Eight default lifecycle stages (Subscriber, Lead, Marketing qualified lead, Sales qualified lead, Opportunity, Customer, Evangelist, Other); admins can add and edit stages (https://knowledge.hubspot.com/records/use-lifecycle-stages). Today: lib/crm-constants.ts:5-13 LIFECYCLE_STAGES is a const list. HubSpot moves the contact and company to Opportunity and Customer automatically; without it lifecycle reports go stale after the migration. First scope: add the Other stage, let admins add and rename stages, and a setting (on by default) that sets Opportunity on deal create and Customer on deal won, never moving a record backwards. Also covers the parity rows lifecycle-auto-sync.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "lifecycle-stages-editable"
+  },
+  {
+    "title": "CRM: Let admins edit the options of lead status, source, priority, industry and deal type",
+    "description": "HubSpot: Lead status is an editable dropdown with eight defaults: New, Open, In progress, Open deal, Unqualified, Attempted to contact, Connected, Bad timing (https://knowledge.hubspot.com/records/use-lifecycle-stages). Today: lib/crm-constants.ts:14-22 LEAD_STATUSES is a const list. Every HubSpot portal has its own lead status list; a fixed list forces the team to change process during the migration and makes the sync lose values. First scope: store the options of built-in dropdowns per workspace (seeded with the HubSpot defaults, Attempted to contact included), editable in Settings › Data, with a migration of existing values. Also covers the parity rows standard-property-options.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "lead-status-editable"
+  },
+  {
+    "title": "CRM: One properties page per object with built-in and custom properties, search and descriptions",
+    "description": "HubSpot: Settings › Properties lists every default and custom property of an object with search, filters by group, type and creator, usage, archive and restore, and export (https://knowledge.hubspot.com/properties/create-and-edit-properties). Today: components/crm/CustomFieldsPanel.tsx; lib/crm.ts:3119-3200. Read in code, not seen running. Admins coming from HubSpot manage everything from Settings › Properties. First scope: list built-in and custom properties together per object with type, group, description and where they are used, with search; descriptions show as help text next to the field.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "property-settings-page"
+  },
+  {
+    "title": "CRM: Admin-defined association labels, also between deals and contacts",
+    "description": "HubSpot: Association labels describe the relationship between any two records (Decision maker, Billing contact...); admins create single and paired labels per object pair (https://knowledge.hubspot.com/object-settings/create-and-use-association-labels). Today: lib/crm-constants.ts:38-45 six fixed contact to company labels; lib/crm-assoc.ts:41-44 rejects others; crm_deal_contacts has no label (lib/schema/baseline.ts:153-157). Deal contact roles (decision maker, champion, billing) are how HubSpot teams run multi-threaded deals, and the sync has to keep them. First scope: labels defined per object pair in settings (the six current ones become the defaults for contact and company), a label on deal to contact and deal to company links, shown and editable on the association cards.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "association-labels"
+  },
+  {
+    "title": "CRM: Associate an activity with several contacts, companies and deals",
+    "description": "HubSpot: An activity can be associated with many contacts, companies, deals and tickets; logging on a contact also associates its primary company and up to five recent open deals (https://knowledge.hubspot.com/connected-email/log-email-in-your-crm-with-the-bcc-or-forwarding-address). Today: crm_activities has single contact_id, company_id and deal_id columns (lib/schema/baseline.ts:172-174). A meeting with three people from one account shows on one contact today. HubSpot shows it on all of them and on the deal, and imported activities lose links. First scope: an association table for activities (keeping the current columns as the primary link), auto-association with the contact company and open deals when logging, and an Associated with picker in the composer.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "activity-multi-association"
+  },
+  {
+    "title": "CRM: Tickets object with a support pipeline",
+    "description": "HubSpot: Tickets are a standard CRM object with a support pipeline (New, Waiting on contact, Waiting on us, Closed), a board and associations (https://knowledge.hubspot.com/object-settings/set-up-and-customize-pipelines). Today: No ticket table among the CRM tables (lib/crm-schema.ts, lib/schema/baseline.ts:69-380). Tickets exist only inside Lines (app/api/v1/groups/tickets). Teams that use HubSpot tickets for onboarding or support cannot leave without them. First scope: tickets with name, pipeline and status, priority, owner, source and description, a board and a table, associations with contacts, companies and deals, the timeline, and the HubSpot default support pipeline (New, Waiting on contact, Waiting on us, Closed).",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "tickets-object"
+  },
+  {
+    "title": "CRM: Named task queues, a tasks table with views, and reminders",
+    "description": "HubSpot: Task queues: named queues a rep fills and then works one task after another; any filtered task view can be started (https://knowledge.hubspot.com/tasks/create-tasks). Today: lib/crm-work-queue.ts:11-12 scopes due, overdue, today; components/crm/QueueFilters.tsx (scope and owner). Reps organise their day in HubSpot with queues (calls to make, follow-ups) and the tasks table. First scope: queues a person creates and adds tasks to, Start tasks from any filtered task view, a table view of tasks with type, priority, queue and associated record columns and bulk edit, a reminder time on a task and a daily email with the tasks of the day. Also covers the parity rows tasks-index, task-reminders.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "work-queue"
+  },
+  {
+    "title": "CRM: BCC address to log email from any client, and a never-log list",
+    "description": "HubSpot: Each account has a BCC address (logs outgoing mail) and a forwarding address (logs received mail) that work from any mail client (https://knowledge.hubspot.com/connected-email/log-email-in-your-crm-with-the-bcc-or-forwarding-address). Today: No BCC or forwarding address in lib/crm-email.ts, lib/crm-email-sync.ts or lib/crm-extension.ts. Not everyone connects an inbox; the BCC address is the fallback HubSpot users know, and the never-log list keeps private and internal mail out. First scope: a per-workspace inbound address that logs the message on the contacts in To and Cc, plus a list of addresses and domains that sync, the extension and BCC all skip. Also covers the parity rows email-never-log.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "email-bcc-logging"
+  },
+  {
+    "title": "CRM: Two-way Google Calendar sync and scheduling a meeting from the record",
+    "description": "HubSpot: With Google Calendar or Outlook Calendar connected, meetings created on a record go to the calendar with invites, and calendar events with contacts are logged on the record (https://knowledge.hubspot.com/integrations/use-hubspots-integration-with-google-calendar-or-outlook-calendar). Today: lib/crm-integrations.ts:166 (Cal bookings), lib/crm-outlook-sync.ts; no Google Calendar read in lib/crm-email-sync.ts. Meetings are the main logged activity for most sales teams and today only Cal bookings and Outlook events arrive. First scope: read Google Calendar events with contacts into the timeline (the Gmail connection already exists), and a Meeting action on the record that creates the event with attendees on the connected calendar.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "calendar-sync"
+  },
+  {
+    "title": "CRM: Delays in workflows",
+    "description": "HubSpot: Delay actions wait a set time, until a date, a day and time, or until an event happens (https://knowledge.hubspot.com/workflows/choose-your-workflow-actions). Today: No delay or wait in ACTION_TYPES (lib/crm-workflows.ts:57-69); only sequences have wait steps (lib/crm-sequences.ts:23). Most HubSpot workflows wait between steps (send, wait 3 days, create a task). Without delays they cannot be rebuilt. First scope: a delay action (minutes, hours, days, until a date property) backed by a scheduled run claimed from the minute cron, visible in the run log, cancelled when the record no longer exists.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "workflow-delays"
+  },
+  {
+    "title": "CRM: Enroll in a workflow by filter criteria, with re-enrollment, for companies too",
+    "description": "HubSpot: Enrolment triggers can be filter criteria (property values, list membership, activity) evaluated continuously, with optional re-enrolment and enrolling existing records (https://knowledge.hubspot.com/workflows/set-your-workflow-enrollment-triggers). Today: Triggers are events with a small config (form, score threshold) (lib/crm-workflows.ts:36-54, :816-825); no criteria or re-enrolment setting. HubSpot workflows start with When a record meets these conditions. First scope: trigger conditions built with the list filter builder on contact, company and deal workflows, checked on record changes and on a schedule, an Enroll existing records option, and a re-enrollment switch. Also covers the parity rows workflow-company-objects.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "workflow-filter-enrollment"
+  },
+  {
+    "title": "CRM: More workflow actions: rotate owner, create a deal, remove from a list, several branches",
+    "description": "HubSpot: Actions include Rotate record to owner, Create record, Edit record (incl. associated records), Add to and Remove from static list, Send internal notifications, branches with many paths (https://knowledge.hubspot.com/workflows/choose-your-workflow-actions). Today: lib/crm-workflows.ts:57-69 ACTION_TYPES; branch semantics at :917-925. These are the actions HubSpot sales workflows use most after tasks and emails. First scope: rotate owner among a team (reusing round-robin assignment), create a deal or a task on the associated record, remove from a static list, set a property on associated records, and a branch with more than two paths.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "workflow-action-catalog"
+  },
+  {
+    "title": "CRM: Permissions per object for view, edit and delete (all, team, owned), with export and import switches",
+    "description": "HubSpot: Permissions per object: view, edit and delete, each set to everything, team only, owned only or none, plus export, import and bulk delete, saved as permission sets (https://knowledge.hubspot.com/user-management/hubspot-user-permissions-guide). Today: lib/crm-visibility.ts:19 one MEMBER_VISIBILITIES setting for the workspace; lib/roles.ts:11. A HubSpot admin limits who can edit or delete other people records and who can export the database. Today whoever sees a record can delete it. First scope: per role or per person, for contacts, companies, deals and tasks: view, edit and delete each set to all, team, owned or none, plus switches for export, import and bulk delete, enforced in the same place as ownerScope.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "record-visibility"
+  },
+  {
+    "title": "CRM: Audit log of exports, imports, bulk deletes and settings changes",
+    "description": "HubSpot: Account audit logs list who exported, deleted, imported or changed settings, with an export history page (https://knowledge.hubspot.com/account-management/view-and-export-account-activity-history). Today: lib/crm.ts:433 property events; lib/crm-trash.ts; no CRM audit module among lib/*-audit.ts (board, chat, docs, groups, track). When data leaves or disappears an admin needs to know who did it. First scope: a CRM audit table and page (admins only) with exports, imports, bulk edits and deletes, merges, permission and pipeline changes, with who and when, never the record contents.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "audit-log"
+  },
+  {
+    "title": "CRM API: search with filters, batch endpoints, and endpoints for properties and owners",
+    "description": "HubSpot: CRM API: objects, properties, associations, owners, pipelines, lists, search and batch endpoints (https://developers.hubspot.com/docs/api-reference/latest/crm/using-object-apis.md). Today: app/api/v1/crm/{contacts,companies,deals,leads,objects,tasks,activities,products,quotes,pipelines,associations,tags,sequences,forms,email-templates}. Integrations written for HubSpot rely on search and batch calls; without them every sync is one request per record. First scope: POST search on contacts, companies and deals with the filter rules of the UI, batch create, update and read of up to 100 records, and read endpoints for property definitions and workspace members.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "rest-api"
+  },
+  {
+    "title": "CRM: Start new workspaces with the HubSpot default pipeline and a HubSpot-style setup option",
+    "description": "HubSpot: The default Sales pipeline has seven stages with preset probabilities (https://knowledge.hubspot.com/object-settings/set-up-and-customize-pipelines). Today: lib/seed.ts:20-22, :34-40. A team that arrives from HubSpot expects the stages and names it knows. First scope: seed the seven HubSpot default stages with their probabilities for new workspaces (or as a Use HubSpot defaults button in pipeline settings), and review menu names against HubSpot (goals, recycle bin, properties). Also covers the parity rows nav-structure.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "default-pipeline"
+  },
+  {
+    "title": "CRM: Two-way sync with HubSpot so a team can use both during a migration",
+    "description": "HubSpot: Data sync keeps HubSpot and another app in step in one or both directions, with field mappings, filters and conflict rules (https://knowledge.hubspot.com/integrations/connect-and-use-hubspot-data-sync). Today: lib/crm-import-jobs.ts:16-24 (re-import updates through crm_external_ids); lib/groups-hubspot-sync.ts:1-25 syncs company properties for Lines only. Moving a sales team takes weeks; during that time both CRMs must show the same contacts, companies, deals and activity. First scope: connect a HubSpot private app token from CRM settings, preview what would sync, keep contacts, companies and deals fresh from HubSpot, then write changes back with per-property conflict rules, a status page with errors and retry, and a switch to pause everything.",
+    "product": "crm",
+    "kind": "idea",
+    "parity": "two-way-data-sync"
   }
 ]

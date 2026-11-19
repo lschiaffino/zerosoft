@@ -38,6 +38,7 @@ import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import { useLinesPresence } from './usePresence';
 import { PRESENCES, type Presence } from '@/lib/groups-inbox-rules';
 import Logo from '@/components/brand/Logo';
+import { requestTour, tourForPath } from '@/lib/tours';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import { inDesktopApp } from '@/lib/desktop-detect';
@@ -174,6 +175,7 @@ export default function AppSidebar({
   const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
   useEffect(() => setDesktop(desktopBridge()), []);
   const pathname = usePathname();
+  const appTour = tourForPath(pathname);
   // En Lines: disponible o ausente para recibir chats, en el menú de la cuenta (con un punto en la foto).
   const presence = useLinesPresence(/^\/app\/lines(\/|$)/.test(pathname));
   const product = appProductFromPath(pathname);
@@ -209,6 +211,7 @@ export default function AppSidebar({
   // Cambios de CRM y Track en la cola del service worker: al salir se borran, así que primero se avisa.
   const [queueWarn, setQueueWarn] = useState(0);
   const tOffline = useTranslations('common.offline');
+  const tTour = useTranslations('common.tour');
   const doSignOut = () => void clearOfflineData(recOwner ?? undefined).finally(() => signOut({ callbackUrl: '/' }));
   async function requestSignOut(opts: { skipQueue?: boolean } = {}) {
     if (recOwner && !opts.skipQueue) {
@@ -792,6 +795,7 @@ export default function AppSidebar({
                     className={`side-stop${item.active ? ' active' : ''}`}
                     aria-current={item.active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
+                    data-tour={item.tour}
                   >
                     <span className="side-icon" aria-hidden="true">
                       <Icon name={item.icon} size={15} />
@@ -895,6 +899,17 @@ export default function AppSidebar({
                   <Icon name="desktop" size={14} />
                   {t('downloadDesktop')}
                 </Link>
+              )}
+              {/* El tour guiado de la app abierta (lib/tours), si tiene uno: se puede volver a ver cuando se quiera. */}
+              {appTour && (
+                <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={() => {
+                    // En el teléfono el lateral es un cajón: se cierra para que el tour vea la pantalla.
+                    setDrawerOpen(false);
+                    requestTour(appTour.key);
+                  }} data-testid="side-tour">
+                  <Icon name="roadmap" size={14} />
+                  {tTour('menu')}
+                </button>
               )}
               <Link href="/docs" role="menuitem" className="side-menu-item" data-testid="side-help">
                 <Icon name="help" size={14} />

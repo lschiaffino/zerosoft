@@ -1763,7 +1763,13 @@
         "name": "Retro",
         "desc": "Un escritorio de los noventa: botones y ventanas grises en relieve, campos blancos hundidos y barras de título."
       }
-    }
+    },
+    "toursTitle": "Tours guiados",
+    "toursDesc": "La primera vez que abrís una app, un tour corto te muestra sus partes principales.",
+    "toursAuto": "Mostrar el tour la primera vez que abro una app",
+    "toursReset": "Volver a mostrar todos los tours",
+    "toursResetDone": "Listo. Cada tour se abre de nuevo la próxima vez que entres a su app.",
+    "toursError": "No se pudo guardar. Probá de nuevo."
   },
   "offline": {
     "title": "Modo sin conexión",

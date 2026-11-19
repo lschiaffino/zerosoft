@@ -112,6 +112,7 @@ import {
 } from './wa/icons';
 import TouchMessageMenu from './wa/TouchMessageMenu';
 import SelectionBar from './wa/SelectionBar';
+import { SelectCheck, useMessageSelection } from './wa/useMessageSelection';
 import { useBackLayer } from './wa/backLayer';
 import { swipeAndHold } from '@/components/inbox/wa/gestures';
 import { NewGroupCard } from './wa/GroupEvent';
@@ -215,11 +216,9 @@ export default function ChatThread(props: ThreadProps) {
   const { refresh } = useGroupsInbox();
   const [toast, showToast] = useToast();
   const router = useRouter();
-  const [selecting, setSelecting] = useState<Set<string> | null>(null);
   // Toque largo (teléfono): el mensaje marcado, con la barra de reacciones y la hoja de acciones.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
   const [deletingSel, setDeletingSel] = useState(false);
-  useBackLayer(!!selecting, () => setSelecting(null));
   const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
@@ -434,6 +433,17 @@ export default function ChatThread(props: ThreadProps) {
   // La tarea que sale de un mensaje lleva el texto con las menciones nombradas.
   const taskMessage = useMemo(() => (taskFor ? { id: taskFor.id, body: waText(taskFor) } : null), [taskFor, waText]);
   const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
+  // Elegir mensajes: con "Reenviar" solo los que se pueden reenviar (las mismas reglas que aplica el servidor).
+  const canPickMsg = (m: MessageDto, forward: boolean) => !isTempId(m.id) && (!forward || messageActions(m, props.caps, viewer).forward);
+  const selection = useMessageSelection({
+    resetKey: props.chat.id,
+    box: boxRef,
+    canPick: (id, forward) => {
+      const m = messages.find((x) => x.id === id);
+      return !!m && canPickMsg(m, forward);
+    },
+  });
+  const { selecting, setSelecting } = selection;
   const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
 
   // "Responder en privado" desde un grupo: este chat 1:1 se abre respondiendo al mensaje del grupo.
@@ -1457,10 +1467,6 @@ export default function ChatThread(props: ThreadProps) {
         setDetailsOpen(false);
         return;
       }
-      if (selecting) {
-        setSelecting(new Set());
-        return;
-      }
       router.push(`/app/lines/inbox${window.location.search}`);
     };
     window.addEventListener('keydown', onKey);
@@ -1507,7 +1513,7 @@ export default function ChatThread(props: ThreadProps) {
     if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
     if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
-    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
+    if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => selection.startForward(m.id) });
     if (m.body.trim() && !m.deletedAt) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
     if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
     if (m.media?.kind === 'sticker' && m.media.url && !m.media.pending && !m.deletedAt) items.push({ key: 'stickerFav', label: t('wa.stickers.addFavorite'), onSelect: () => void favoriteSticker(m.id) });
@@ -1842,20 +1848,15 @@ export default function ChatThread(props: ThreadProps) {
     const hidden = Boolean(m.deletedAt) && !revealed.has(m.id);
     // En un álbum cada foto se elige sola (su casilla va en la foto).
     const selected = !album && ((selecting?.has(m.id) ?? false) || held?.id === m.id);
-    const toggleSelected = (id: string) =>
-      setSelecting((prevSel) => {
-        const next = new Set(prevSel ?? []);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
+    const toggleSelected = selection.toggle;
+    const pickable = canPickMsg(m, selection.forwardOnly);
     // Reaccionar desde el menú de una foto del álbum abre las reacciones de esa foto.
     const reactTo = album?.find((x) => x.id === pickerFor) ?? (pickerFor === m.id ? m : null);
     const fullFor = album?.find((x) => x.id === fullPickerFor) ?? (fullPickerFor === m.id ? m : null);
     return (
       <article
         key={m.id}
-        className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
+        className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}${selecting && !pickable ? ' is-unpickable' : ''}`}
         id={`m-${m.id}`}
         data-testid="wa-message"
         data-status={m.direction === 'out' ? m.status : undefined}
@@ -1896,7 +1897,7 @@ export default function ChatThread(props: ThreadProps) {
               : undefined
         }
       >
-        {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
+        {selecting && !album && pickable && <SelectCheck id={m.id} checked={selecting.has(m.id)} label={t('wa.selectMessage')} preview={m.body} onToggle={toggleSelected} />}
         <span className="wa-swipe-reply" aria-hidden="true">
           <ArrowLeft size={18} />
         </span>
@@ -2342,7 +2343,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
           <div className="gr-thread-actions">
             {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
-            <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
+            <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')} data-tour="lines-assign">
               {assignee ? <Avatar name={assignee} kind="dm" size={28} seed={chat.assignedTo ?? ''} /> : <UserPlus size={20} />}
               <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')} data-testid="chat-assignee">
                 <option value="">{t('thread.unassigned')}</option>
@@ -2500,10 +2501,10 @@ export default function ChatThread(props: ThreadProps) {
 
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
           {!editing && (
-            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')}>
+            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')} data-tour="lines-note">
               {(['reply', 'note'] as const).map((m) => (
                 <button
                   key={m}

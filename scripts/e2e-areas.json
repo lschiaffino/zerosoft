@@ -41,6 +41,10 @@
       "specs": ["groups", "groups-*", "lines-*", "offline-lines-inbox", "member-capabilities", "tasks-unified"],
       "with": ["chat-ui", "inbox"]
     },
+    "tours": {
+      "names": ["tour", "tours"],
+      "specs": ["lines-tour"]
+    },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**", "lib/kbd-nav.ts", "components/app/CalmFocus.tsx", "styles/calm-focus.css"],
