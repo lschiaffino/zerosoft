@@ -2344,7 +2344,7 @@ export default function ChatThread(props: ThreadProps) {
             {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
             <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
               {assignee ? <Avatar name={assignee} kind="dm" size={28} seed={chat.assignedTo ?? ''} /> : <UserPlus size={20} />}
-              <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
+              <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')} data-testid="chat-assignee">
                 <option value="">{t('thread.unassigned')}</option>
                 {props.people.map((p) => (
                   <option key={p.id} value={p.id}>

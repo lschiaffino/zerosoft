@@ -34,6 +34,10 @@ vi.mock('@/lib/mcp/route-table.generated', () => ({
 
 const uid = () => randomBytes(4).toString('hex');
 
+/** El mensaje de un error de herramienta, ya sin el JSON de afuera. */
+const toolMessage = (r: { json: { result?: Record<string, unknown> } }) =>
+  String((JSON.parse((r.json.result?.content as Array<{ text: string }>)[0].text) as { message?: string }).message);
+
 async function keyFor(scopes: Parameters<typeof createApiKey>[3] = '*') {
   const id = `dt-${uid()}`;
   await upsertUser({ id, email: `${id}@example.com`, name: id, image: null });
@@ -197,6 +201,40 @@ describe('asistente: el catálogo del MCP', () => {
     expect(JSON.stringify(unread.json.result)).toContain('must be one of: true');
     const extra = await rpc(key, 'tools/call', { name: 'send_group_message', arguments: { id: 'c1', body: 'hi', confirm: true, media: { url: 'https://evil.example/x.png' } } });
     expect(JSON.stringify(extra.json.result)).toContain('Unknown field');
+  });
+
+  it('un atajo con esquema derivado tampoco pierde campos callado, y nombra lo que falta', async () => {
+    const { key } = await keyFor();
+    seen.length = 0;
+    // Antes: name se descartaba y se creaba un contacto sin nombre.
+    const named = await rpc(key, 'tools/call', { name: 'create_crm_contact', arguments: { name: 'Ada' } });
+    expect((named.json.result as { isError?: boolean }).isError).toBe(true);
+    expect(toolMessage(named)).toContain('Unknown field "name"');
+    expect(toolMessage(named)).toContain('firstName');
+    const missing = await rpc(key, 'tools/call', { name: 'update_track_issue', arguments: { priority: 'high' } });
+    expect(toolMessage(missing)).toContain('Missing required field: "id"');
+    expect(seen).toHaveLength(0);
+    const ok = await rpc(key, 'tools/call', { name: 'create_crm_contact', arguments: { firstName: 'Ada', lastName: 'L' } });
+    expect((ok.json.result as { isError?: boolean }).isError).toBeUndefined();
+    expect(JSON.parse(seen[0].body)).toEqual({ firstName: 'Ada', lastName: 'L' });
+    // El esquema que ve el cliente lo dice.
+    const tools = (await rpc(key, 'tools/list')).json.result?.tools as Array<{ name: string; inputSchema: { additionalProperties?: boolean } }>;
+    expect(tools.find((t) => t.name === 'create_crm_contact')?.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it('invoke_operation rechaza un campo del body que el esquema real no conoce', async () => {
+    const { key } = await keyFor();
+    seen.length = 0;
+    const bad = await rpc(key, 'tools/call', { name: 'invoke_operation', arguments: { operation: 'v1.notes.create', args: { body: { title: 'x', content: 'y' } } } });
+    expect(toolMessage(bad)).toContain('Unknown body field "content"');
+    expect(toolMessage(bad)).toContain('markdown');
+    // Plano también: lo que no es path ni query va al body.
+    const flat = await rpc(key, 'tools/call', { name: 'invoke_operation', arguments: { operation: 'v1.notes.create', args: { title: 'x', content: 'y' } } });
+    expect(JSON.stringify(flat.json.result)).toContain('Unknown body field');
+    expect(seen).toHaveLength(0);
+    const good = await rpc(key, 'tools/call', { name: 'invoke_operation', arguments: { operation: 'v1.notes.create', args: { body: { title: 'x', markdown: 'y' } } } });
+    expect((good.json.result as { isError?: boolean }).isError).toBeUndefined();
+    expect(seen).toHaveLength(1);
   });
 });
 

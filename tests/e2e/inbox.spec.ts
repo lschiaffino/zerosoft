@@ -641,3 +641,28 @@ test('la ayuda de atajos abre con ? y cierra con Esc; claro y oscuro sin errores
     expect(errors, errors.join('\n')).toEqual([]);
   }
 });
+
+test('buscar: el chat que coincide por nombre va primero, aunque sea más viejo que los que coinciden por mensajes', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const word = `zorbak${uid()}`;
+  const named = `${word} Demo`;
+  // El de nombre llega primero (queda más viejo); los que solo lo mencionan, después.
+  await inbound(request, acc, { phone: phone(), name: named, body: 'hola' });
+  for (let i = 0; i < 3; i++) await inbound(request, acc, { phone: phone(), name: `Contacto ${i} ${uid()}`, body: `vimos el ${word} ayer` });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.getByLabel('Search chats and messages').first().fill(word);
+  const rows = page.getByTestId('inbox-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.first()).toContainText(named);
+  // La lista dice qué es cada parte: primero "Chats" con el de nombre, después los encontrados en mensajes.
+  const kinds = () => page.locator('[data-chat-list] > li').evaluateAll((els) => els.slice(0, 3).map((el) => el.getAttribute('data-testid')));
+  await expect.poll(kinds).toEqual(['inbox-search-chats', 'inbox-row', 'inbox-search-in-messages']);
+
+  // A 390 px los títulos no agregan scroll de costado.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByTestId('inbox-search-chats')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

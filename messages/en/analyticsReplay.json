@@ -111,5 +111,18 @@
     "reached": "Reached {n}%",
     "noScroll": "No scroll data on this page and screen size in this period.",
     "error": "Heatmap data didn't load. Try again."
+  },
+  "trash": {
+    "title": "Recordings trash",
+    "help": "Recordings that pass their retention come here first. You can restore them until the date shown; after that they are deleted for good, on the same day as before. A restored recording counts its retention again from today.",
+    "loading": "Loading the trash…",
+    "error": "Couldn't load the trash. Try again in a moment.",
+    "empty": "The trash is empty.",
+    "recording": "Recording from {date}",
+    "purge": "Deleted for good on {date}",
+    "restore": "Restore",
+    "restored": "Restored. It's back in the recordings list.",
+    "conflict": "That session was recorded again in the meantime, so this recording can't come back.",
+    "restoreError": "Couldn't restore it. Try again."
   }
 }

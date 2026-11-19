@@ -154,9 +154,9 @@ const parity: ProductParity = {
     row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
       weight: 2,
       detail: [
-        'To a person and a team, Mine, Unassigned and team filters, history in the thread and a notification to the assignee',
-        'A una persona y a un equipo, filtros Míos, Sin asignar y por equipo, historial en el hilo y aviso a quien lo recibe',
-        'A uma pessoa e a uma equipe, filtros Minhas, Sem atribuição e por equipe, histórico no fio e aviso para quem recebe',
+        'To a person and a team, Mine, Unassigned and team filters, history in the thread and in the chat details (who, to whom, when and why, also by API) and a notification to the assignee',
+        'A una persona y a un equipo, filtros Míos, Sin asignar y por equipo, historial en el hilo y en los detalles del chat (quién, a quién, cuándo y por qué, también por API) y aviso a quien lo recibe',
+        'A uma pessoa e a uma equipe, filtros Minhas, Sem atribuição e por equipe, histórico no fio e nos detalhes do chat (quem, para quem, quando e por quê, também por API) e aviso para quem recebe',
       ],
     }),
     row('private-notes', 'inbox', ['Internal notes', 'Notas internas', 'Notas internas'], 'have', {

@@ -362,3 +362,23 @@ test('390px y modo oscuro: hilo con menú y Ajustes de asignación sin scroll ho
   w = await width();
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
 });
+
+test('buscar: el chat que coincide por nombre va primero, aunque sea más viejo que los que coinciden por mensajes', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const n = await fakeNumber(request);
+  const word = `zorbak${uid()}`;
+  const named = `${word} Demo`;
+  // El de nombre llega primero (queda más viejo); los que solo lo mencionan, después.
+  await inbound(request, n, dm(), 'hola', named);
+  for (let i = 0; i < 3; i++) await inbound(request, n, dm(), `vimos el ${word} ayer`, `Contacto ${i} ${uid()}`);
+
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+  await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(word);
+  const rows = page.locator('.gr-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.first()).toContainText(named);
+  // Debajo de "Chats" queda solo el de nombre; los otros tres van en "Mensajes", con su fragmento.
+  const kinds = () => page.locator('[data-chat-list] > li').evaluateAll((els) => els.slice(0, 3).map((el) => (el.classList.contains('gr-rows-head') ? 'head' : 'row')));
+  await expect.poll(kinds).toEqual(['head', 'row', 'head']);
+  expect(errors).toEqual([]);
+});

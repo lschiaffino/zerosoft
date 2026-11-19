@@ -24,7 +24,7 @@ import {
   type OperationAccess,
 } from './catalog';
 import { authenticate, credentialAllows, personCanUseApp, resolvePerson, type McpCaller, type ResolvedPerson } from './caller';
-import { invokeOperation, OperationError, type InvokeArgs, type InvokeResult } from './invoke';
+import { invokeOperation, normalizeArgs, OperationError, type InvokeArgs, type InvokeResult } from './invoke';
 
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'] as const;
 export const SERVER_INFO = { name: 'zerosoft', title: 'zerosoft', version: '1.0.0' };
@@ -100,7 +100,7 @@ export const DIRECT_TOOLS: DirectTool[] = [
     op: 'v1.crm.contacts.list',
     inputSchema: obj({ q: str('Name, email, phone or company.', { maxLength: 200 }), page: int('Page number, from 1.', 1, 10000), pageSize: int('Contacts per page.', 1, 100) }),
   },
-  { name: 'create_crm_contact', title: 'Create a CRM contact', description: 'Create a contact in the CRM. Search first with list_crm_contacts to avoid duplicates.', op: 'crm.contacts.create' },
+  { name: 'create_crm_contact', title: 'Create a CRM contact', description: 'Create a contact in the CRM. The name goes in firstName and lastName. Search first with list_crm_contacts to avoid duplicates.', op: 'crm.contacts.create' },
 
   // Groups (WhatsApp)
   {
@@ -275,6 +275,7 @@ export function directSchema(tool: DirectTool, op: Operation): JsonSchema {
       ...(op.access === 'destructive' ? confirm : {}),
     },
     ...(required.length ? { required } : {}),
+    ...(op.quality === 'real' ? { additionalProperties: false } : {}),
   };
 }
 
@@ -296,7 +297,11 @@ export function directArgs(op: Operation, flat: Record<string, unknown>): Invoke
   return { path, query, ...(op.method === 'GET' || op.method === 'DELETE' ? {} : { body }) };
 }
 
-/** Campos desconocidos o valores fuera del enum de un esquema a mano: el mensaje dice cuál. */
+/**
+ * Campos desconocidos, obligatorios que faltan o valores fuera del enum: el
+ * mensaje dice cuál. Sin esto un campo con otro nombre (name en vez de
+ * firstName) se perdía callado y la operación igual se hacía.
+ */
 export function directArgsProblem(schema: JsonSchema, args: Record<string, unknown>): string | null {
   const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
   for (const [k, v] of Object.entries(args)) {
@@ -305,7 +310,30 @@ export function directArgsProblem(schema: JsonSchema, args: Record<string, unkno
     const allowed = p.enum as unknown[] | undefined;
     if (allowed && v !== undefined && !allowed.includes(v)) return `"${k}" must be one of: ${allowed.map((a) => JSON.stringify(a)).join(', ')}.`;
   }
+  const missing = ((schema.required as string[] | undefined) ?? []).filter((k) => k !== 'confirm' && (args[k] === undefined || args[k] === null || args[k] === ''));
+  if (missing.length) return `Missing required field${missing.length > 1 ? 's' : ''}: ${missing.map((k) => `"${k}"`).join(', ')}.`;
   return null;
+}
+
+/**
+ * invoke_operation: un campo del body que el esquema derivado del código no
+ * conoce se perdía callado (content en vez de markdown creaba una nota vacía).
+ * Solo con esquema real, JSON y propiedades listadas; uno parcial puede no saberlas todas.
+ */
+export function unknownBodyField(op: Operation, args: InvokeArgs): string | null {
+  if (op.quality !== 'real' || op.body !== 'json') return null;
+  const schema = op.inputSchema.properties.body as JsonSchema | undefined;
+  const props = schema?.properties as Record<string, unknown> | undefined;
+  if (!schema || !props || !Object.keys(props).length || schema.additionalProperties !== undefined || schema.anyOf || schema.oneOf || schema.allOf) return null;
+  const { body } = normalizeArgs(op, args);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const extra = Object.keys(body).find((k) => !(k in props));
+  return extra ? `Unknown body field "${extra}" for ${op.id}. Accepted: ${Object.keys(props).join(', ')}.` : null;
+}
+
+/** Un esquema derivado del código se puede cerrar; uno parcial o suelto no, porque le pueden faltar campos. */
+function directSchemaIsClosed(tool: DirectTool, op: Operation): boolean {
+  return Boolean(tool.inputSchema) || op.quality === 'real';
 }
 
 const CORE_TOOLS = [
@@ -519,14 +547,17 @@ async function callTool(req: Request, caller: McpCaller, name: string, args: Rec
       if (!op) return toolError('not_found', 'No such operation. Use search_operations.');
       const a = args.args;
       if (a !== undefined && (a === null || typeof a !== 'object' || Array.isArray(a))) return toolError('invalid_arguments', 'args must be an object.');
+      // Sin permiso para la operación, ese error dice más que un campo mal puesto: lo da runOperation.
+      const unknownField = credentialAllows(caller, op) ? unknownBodyField(op, (a ?? {}) as InvokeArgs) : null;
+      if (unknownField) return toolError('invalid_arguments', unknownField);
       return runOperation(req, caller, op, (a ?? {}) as InvokeArgs, args);
     }
     default: {
       const tool = DIRECT_TOOLS.find((t) => t.name === name);
       const op = tool ? getOperation(tool.op) : null;
       if (!op) throw new RpcError(-32602, `Unknown tool: ${name}`);
-      // Un atajo con esquema a mano no acepta campos de más ni valores fuera de su lista.
-      const bad = tool?.inputSchema ? directArgsProblem(tool.inputSchema, args) : null;
+      // Un atajo con esquema cerrado no acepta campos de más ni valores fuera de su lista.
+      const bad = tool && credentialAllows(caller, op) && directSchemaIsClosed(tool, op) ? directArgsProblem(directSchema(tool, op), args) : null;
       if (bad) return toolError('invalid_arguments', bad);
       // confirm es de la llamada, no de la operación: nunca llega al body.
       const { confirm, ...rest } = args;

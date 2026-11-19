@@ -8,6 +8,7 @@
  * eliminadas con "Eliminar chat" no cuentan. Server-only.
  */
 import { getDb } from './db';
+import type { SearchRank } from './chat-search-rank';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { lineColor } from './line-colors';
@@ -22,6 +23,8 @@ export interface SiblingRow {
   last_message_at: string | null;
   pinned_at: string | null;
   sort_key: string;
+  /** Con búsqueda: rango de la coincidencia (lib/chat-search-rank.ts), que va antes que la actividad. */
+  rank?: string | null;
   line_name: string;
   line_color?: string;
   line_phone: string;
@@ -39,7 +42,7 @@ export function chatKey(r: KeyRow): string {
  * Las filas de todas las líneas para estos chats, agrupadas por clave (cada
  * grupo trae también la fila pedida). Solo las que quien mira ve.
  */
-export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | undefined, rows: KeyRow[]): Promise<Map<string, SiblingRow[]>> {
+export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | undefined, rows: KeyRow[], rank?: SearchRank | null): Promise<Map<string, SiblingRow[]>> {
   const out = new Map<string, SiblingRow[]>();
   const groups = new Set<string>();
   const phones = new Set<string>();
@@ -51,7 +54,7 @@ export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | un
   }
   if (!groups.size && !phones.size && !jids.size) return out;
   const ors: string[] = [];
-  const args: string[] = [ws];
+  const args: string[] = [...(rank?.args ?? []), ws];
   const marks = (s: Set<string>) => [...s].map(() => '?').join(',');
   if (groups.size) {
     ors.push(`(c.kind = 'group' AND c.provider_chat_id IN (${marks(groups)}))`);
@@ -70,7 +73,7 @@ export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | un
   const found = (await getDb()
     .prepare(
       `SELECT c.id, c.kind, c.phone, c.provider_chat_id, c.number_id, c.unread_count, c.marked_unread, c.last_message_at, c.pinned_at, c.left_at,
-         ${linesSortKey('c')} AS sort_key, n.name AS line_name, n.color AS line_color, n.phone AS line_phone, n.status AS line_status
+         ${linesSortKey('c')} AS sort_key${rank ? `, ${rank.sql} AS rank` : ''}, n.name AS line_name, n.color AS line_color, n.phone AS line_phone, n.status AS line_status
        FROM groups_chats c JOIN groups_numbers n ON n.id = c.number_id AND n.user_id = c.user_id
        WHERE c.user_id = ? AND c.hidden_at IS NULL AND (${ors.join(' OR ')})${access ? ` AND ${access.sql}` : ''}`,
     )

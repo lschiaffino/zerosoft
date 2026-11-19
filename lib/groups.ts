@@ -17,6 +17,7 @@ import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
 import { openWire, sealWire } from './wa-media-wire-seal';
 import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
+import { chatNameRank, type SearchRank } from './chat-search-rank';
 import { chatKey, lineRefs, siblingsByKey, type SiblingRow } from './groups-same-chat';
 import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from './same-chat';
 import { open, seal } from './secret-box';
@@ -1045,8 +1046,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const matchArgs: string[] = [];
   // Fragmento del mensaje que coincide, por chat (cuando la búsqueda usa el índice de texto completo).
   let snippets: Map<string, string> | null = null;
+  // Con búsqueda, como en WhatsApp: primero los chats que coinciden por nombre o teléfono, después los que coinciden
+  // por mensajes; los fijados no van adelante.
+  let rank: SearchRank | null = null;
   if (q) {
     const like = likeArg(q);
+    rank = chatNameRank('c.name', 'c.phone', q);
     snippets = await chatsMatchingMessages(ws, q);
     if (snippets) {
       const ids = [...snippets.keys()];
@@ -1085,10 +1090,14 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (keyset) {
     // Por cursor: los fijados entran todos en la primera página; el resto va por (orden, id) y cada página lee solo
     // sus filas (idx_groups_chats_list). Una carpeta es un conjunto chico: `+` hace que se filtre por carpeta y se ordene eso.
-    const key = linesSortKey('c');
+    // Buscando, la clave es rango + actividad (el cursor sirve igual). Lleva parámetros: se calcula una vez en el
+    // SELECT y el filtro y el orden usan su alias.
+    const key = rank ? `(${rank.sql} || ${linesSortKey('c')})` : linesSortKey('c');
+    const keyRef = rank ? 'sort_key' : key;
+    const keyArgs = rank?.args ?? [];
     const cursor = decodeChatCursor(query.cursor);
     const smallSet = Boolean(query.folderId && query.folderId !== 'none');
-    const pinned = cursor
+    const pinned = cursor || rank
       ? []
       : ((await db
           // Los fijados son pocos: se leen por su índice (sin él, el motor recorre la bandeja entera buscándolos).
@@ -1096,16 +1105,16 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
             `${select}, ${key} AS sort_key FROM groups_chats c INDEXED BY idx_groups_chats_pinned WHERE ${whereSql} AND c.pinned_at IS NOT NULL ORDER BY c.pinned_at DESC, ${key} DESC, c.id DESC LIMIT 100`,
           )
           .all(...matchArgs, ...args)) as ListRow[]);
-    const rest = [whereSql, 'c.pinned_at IS NULL'];
+    const rest = rank ? [whereSql] : [whereSql, 'c.pinned_at IS NULL'];
     const restArgs: Array<string | number> = [...args];
     if (cursor) {
       // El primer término deja que el índice arranque en la clave del cursor.
-      rest.push(`${key} <= ?`, `(${key} < ? OR c.id < ?)`);
+      rest.push(`${keyRef} <= ?`, `(${keyRef} < ? OR c.id < ?)`);
       restArgs.push(cursor.k, cursor.k, cursor.id);
     }
     const page = (await db
-      .prepare(`${select}, ${key} AS sort_key FROM groups_chats c WHERE ${rest.join(' AND ')} ORDER BY ${smallSet ? '+' : ''}${key} DESC, c.id DESC LIMIT ?`)
-      .all(...matchArgs, ...restArgs, limit + 1)) as ListRow[];
+      .prepare(`${select}, ${key} AS sort_key FROM groups_chats c WHERE ${rest.join(' AND ')} ORDER BY ${smallSet ? '+' : ''}${keyRef} DESC, c.id DESC LIMIT ?`)
+      .all(...matchArgs, ...keyArgs, ...restArgs, limit + 1)) as ListRow[];
     const more = page.length > limit;
     const shown = more ? page.slice(0, limit) : page;
     const last = shown[shown.length - 1];
@@ -1117,14 +1126,14 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       .prepare(
         `${select}
        FROM groups_chats c WHERE ${whereSql}
-       ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
+       ORDER BY ${rank ? `${rank.sql} DESC` : '(c.pinned_at IS NULL), c.pinned_at DESC'}, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
       )
-      .all(...matchArgs, ...args, limit, offset)) as ListRow[];
+      .all(...matchArgs, ...args, ...(rank?.args ?? []), limit, offset)) as ListRow[];
   }
   // El mismo chat en varias líneas: una sola fila (la primera en este orden entre las que cumplen los filtros), con
   // los no leídos de todas. La que encabeza puede estar en una página anterior: entonces esta no se repite.
   const merge = !query.numberId && !query.hidden;
-  const sameChat = merge ? await siblingsByKey(ws, query.viewer, rows) : new Map<string, SiblingRow[]>();
+  const sameChat = merge ? await siblingsByKey(ws, query.viewer, rows, rank) : new Map<string, SiblingRow[]>();
   if (sameChat.size) {
     const multi = [...sameChat.values()].filter((list) => list.length > 1);
     const ids = multi.flat().map((s) => s.id);
@@ -1138,8 +1147,13 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     type Sib = (typeof multi)[number][number];
     // Mismo orden que la lista: fijados primero (el más reciente), después por actividad y por id.
     const before = (a: Sib, b: Sib) => {
-      if (Boolean(a.pinned_at) !== Boolean(b.pinned_at)) return Boolean(a.pinned_at);
-      if (a.pinned_at && b.pinned_at && a.pinned_at !== b.pinned_at) return a.pinned_at > b.pinned_at;
+      if (rank) {
+        // Buscando: por rango de la coincidencia y después por actividad, sin fijados.
+        if ((a.rank ?? '') !== (b.rank ?? '')) return (a.rank ?? '') > (b.rank ?? '');
+      } else {
+        if (Boolean(a.pinned_at) !== Boolean(b.pinned_at)) return Boolean(a.pinned_at);
+        if (a.pinned_at && b.pinned_at && a.pinned_at !== b.pinned_at) return a.pinned_at > b.pinned_at;
+      }
       if (a.sort_key !== b.sort_key) return (a.sort_key ?? '') > (b.sort_key ?? '');
       return keyset ? a.id > b.id : a.id < b.id;
     };
@@ -1155,7 +1169,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       rows.map((r) => ({ ...r, key: chatKey(r) })),
       leads,
     );
-    if (keyset) pinnedCount = rows.filter((r) => r.pinned_at).length;
+    if (keyset) pinnedCount = rank ? 0 : rows.filter((r) => r.pinned_at).length;
   }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);

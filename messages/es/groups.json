@@ -1110,6 +1110,21 @@
     "select": "Elegir chat {name}",
     "done": "{n, plural, one {# chat actualizado} other {# chats actualizados}}"
   },
+  "assignHistory": {
+    "title": "Historial de asignaciones",
+    "loading": "Cargando historial…",
+    "empty": "Todavía nadie tuvo asignado este chat.",
+    "retry": "Reintentar",
+    "auto": "La regla {rule} se lo dio a {to}",
+    "offline": "{from} se desconectó: la regla {rule} se lo dio a {to}",
+    "manual": "{by} se lo asignó a {to}",
+    "took": "{by} lo tomó",
+    "removed": "{by} sacó la asignación",
+    "nobody": "nadie",
+    "someone": "Alguien",
+    "more": "Ver {n} más",
+    "less": "Ver menos"
+  },
   "assign": {
     "teams": "Equipos",
     "teamsIntro": "Agrupá personas para asignar chats a un equipo y rotar los chats nuevos entre ellas.",

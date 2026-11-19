@@ -21,6 +21,7 @@ import { recordProject } from '@/lib/analytics/http';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { deletePerson } from '@/lib/analytics/persons';
 import { storeEvents } from '@/lib/analytics/ingest';
+import { purgeDueSoftDeleted } from '@/lib/soft-delete';
 
 const NOW = Date.parse('2026-10-29T12:00:00Z');
 const DAY = 86_400_000;
@@ -329,6 +330,8 @@ describe('replay con base', () => {
     const purged = await runReplayRetention({ now: later });
     expect(purged).toBeGreaterThan(0);
     expect((await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_replay_recordings WHERE project_id = ?').get(q.id)) as { n: number }).toMatchObject({ n: 0 });
+    // Ya vencida: pasa por la papelera y la purga del tick siguiente se lleva los chunks.
+    await purgeDueSoftDeleted(new Date(later));
     expect((await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_replay_chunks WHERE project_id = ?').get(q.id)) as { n: number }).toMatchObject({ n: 0 });
     expect((await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_replay_recordings WHERE project_id = ?').get(other.id)) as { n: number }).toMatchObject({ n: 1 });
     // Reclamado: una segunda corrida enseguida no hace el trabajo de nuevo.
