@@ -241,11 +241,11 @@
     "groupBiCollections": "Analytics collections",
     "downloadDesktop": "Desktop app",
     "sendFeedback": "Send feedback",
-    "presenceAvailable": "Available",
+    "presenceOnline": "Online",
     "presenceAway": "Away",
-    "presenceSetAway": "Set away",
-    "presenceSetAvailable": "Set available",
-    "presenceHelp": "Lines: automatic assignment only sends new chats to people who are available."
+    "presenceOffline": "Offline",
+    "presenceStatus": "Lines status",
+    "presenceHelp": "Lines: only people online get new chats. Away keeps their chats; Offline can hand them to others if a rule says so."
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

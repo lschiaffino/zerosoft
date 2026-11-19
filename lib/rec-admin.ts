@@ -56,7 +56,7 @@ const TEXT = {
     asked: (who: string, title: string) => `${who} asked to watch "${title}"`,
     moved: (who: string, v: number, f: number) => `${who} moved ${v} ${v === 1 ? 'video' : 'videos'} and ${f} ${f === 1 ? 'folder' : 'folders'} of someone who left to your library`,
     retentionStart: (n: number, days: number, date: string) => `${n} of your videos ${n === 1 ? 'is' : 'are'} older than ${days} days and will be deleted from ${date}`,
-    retentionDeleted: (n: number) => `Retention deleted ${n} of your videos`,
+    retentionDeleted: (n: number) => `Retention moved ${n} of your videos to the Rec trash. You can restore them from Rec settings until they are deleted for good`,
   },
   es: {
     accessSubject: 'Ya podés ver el video que pediste',
@@ -68,7 +68,7 @@ const TEXT = {
     asked: (who: string, title: string) => `${who} pidió ver "${title}"`,
     moved: (who: string, v: number, f: number) => `${who} pasó a tu biblioteca ${v} ${v === 1 ? 'video' : 'videos'} y ${f} ${f === 1 ? 'carpeta' : 'carpetas'} de alguien que se fue`,
     retentionStart: (n: number, days: number, date: string) => `${n} de tus videos ${n === 1 ? 'tiene' : 'tienen'} más de ${days} días y se ${n === 1 ? 'va' : 'van'} a borrar desde el ${date}`,
-    retentionDeleted: (n: number) => `La retención borró ${n} de tus videos`,
+    retentionDeleted: (n: number) => `La retención mandó ${n} de tus videos a la papelera de Rec. Los podés restaurar desde los ajustes de Rec hasta que se borren para siempre`,
   },
   pt: {
     accessSubject: 'Você já pode assistir ao vídeo que pediu',
@@ -80,7 +80,7 @@ const TEXT = {
     asked: (who: string, title: string) => `${who} pediu para assistir "${title}"`,
     moved: (who: string, v: number, f: number) => `${who} passou para sua biblioteca ${v} ${v === 1 ? 'vídeo' : 'vídeos'} e ${f} ${f === 1 ? 'pasta' : 'pastas'} de alguém que saiu`,
     retentionStart: (n: number, days: number, date: string) => `${n} dos seus vídeos ${n === 1 ? 'tem' : 'têm'} mais de ${days} dias e ${n === 1 ? 'será apagado' : 'serão apagados'} a partir de ${date}`,
-    retentionDeleted: (n: number) => `A retenção apagou ${n} dos seus vídeos`,
+    retentionDeleted: (n: number) => `A retenção mandou ${n} dos seus vídeos para a lixeira do Rec. Você pode restaurá-los nos ajustes do Rec até serem excluídos de vez`,
   },
 };
 
@@ -380,20 +380,26 @@ async function notifyRetentionStart(ws: string, days: number, startsAt: string):
   }
 }
 
+/** Fecha desde la que corre la retención de un video: su creación, o la restauración si fue después. */
+const RETENTION_BASE = "MAX(created_at, COALESCE(retained_at, ''))";
+
 /**
- * Borra los videos vencidos de los workspaces que prendieron la retención, pasado
- * el plazo de aviso. Cada workspace se reclama (compare-and-set de
- * retention_checked_at) para que dos corridas no hagan lo mismo; con el lote
- * lleno, queda libre para la corrida siguiente. Tiene tope de tiempo y de filas
+ * Retención de los workspaces que la prendieron, pasado el plazo de aviso. Los videos vencidos van a la
+ * papelera de Rec (lib/soft-delete.ts) con retentionPlan: entran hasta 30 días antes del plazo (nunca más de
+ * un tercio de él) y se purgan, con sus archivos, en el mismo momento en que antes se borraban. Mientras tanto
+ * quien lo grabó o un admin los restaura desde los ajustes de Rec (lib/rec-trash.ts). Cada workspace se
+ * reclama (compare-and-set de retention_checked_at) para que dos corridas no hagan lo mismo, y la entrada es
+ * única por video; con el lote lleno, queda libre para la corrida siguiente. Tiene tope de tiempo y de filas
  * para no comerse el resto del cron.
  */
-export async function applyRetention(opts: { budgetMs?: number; limit?: number } = {}): Promise<{ deleted: number }> {
+export async function applyRetention(opts: { budgetMs?: number; limit?: number; at?: Date } = {}): Promise<{ deleted: number }> {
   const start = Date.now();
   const budget = opts.budgetMs ?? 3000;
   let left = opts.limit ?? 20;
   const db = getDb();
-  const now = nowDb();
-  const hourAgo = dateDb(Date.now() - 3_600_000);
+  const at = opts.at ?? new Date();
+  const now = dateDb(at.getTime());
+  const hourAgo = dateDb(at.getTime() - 3_600_000);
   const rows = (await db
     .prepare(
       `SELECT workspace_id, retention_days, retention_checked_at FROM rec_settings
@@ -402,17 +408,23 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
     )
     .all(now, hourAgo)) as Array<{ workspace_id: string; retention_days: number; retention_checked_at: string | null }>;
   let deleted = 0;
+  const { retentionPlan, softDelete } = await import('./soft-delete');
   for (const w of rows) {
     if (left <= 0 || Date.now() - start > budget) break;
     const claim = await db
       .prepare('UPDATE rec_settings SET retention_checked_at = ? WHERE workspace_id = ? AND retention_checked_at IS ?')
       .run(now, w.workspace_id, w.retention_checked_at);
     if (!claim.changes) continue;
-    const cutoff = dateDb(Date.now() - w.retention_days * 86_400_000);
+    const plan = retentionPlan(new Date(at.getTime() - w.retention_days * 86_400_000), at);
     const asked = left;
     const videos = (await db
-      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url, mp4_url, sprite_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
-      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url' | 'mp4_url' | 'sprite_url'>>;
+      .prepare(
+        `SELECT id, created_by, title, url, audio_url, thumb_url, gif_url, trimmed_url, mp4_url, sprite_url, ${RETENTION_BASE} AS base
+         FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND ${RETENTION_BASE} < ? LIMIT ?`,
+      )
+      .all(w.workspace_id, dateDb(plan.trashBefore.getTime()), left)) as Array<
+      Pick<RecVideoRow, 'id' | 'created_by' | 'title' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url' | 'mp4_url' | 'sprite_url'> & { base: string }
+    >;
     let here = 0;
     let stopped = false;
     const byAuthor = new Map<string, number>();
@@ -421,11 +433,23 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
         stopped = true;
         break;
       }
-      const res = await db.prepare("DELETE FROM rec_videos WHERE id = ? AND status = 'ready' AND created_at < ?").run(v.id, cutoff);
-      if (!res.changes) continue;
+      const entry = await softDelete({
+        workspaceId: w.workspace_id,
+        app: 'rec',
+        kind: 'video',
+        recordId: v.id,
+        // Quién lo grabó: ve y restaura los suyos.
+        scopeId: v.created_by,
+        label: v.title,
+        reason: 'retention',
+        root: { table: 'rec_videos' },
+        files: [v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url, v.sprite_url].filter((u): u is string => !!u),
+        purgeAt: plan.purgeAt(v.base),
+        now: at,
+      });
+      if (!entry) continue;
       here++;
       byAuthor.set(v.created_by, (byAuthor.get(v.created_by) ?? 0) + 1);
-      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url, v.sprite_url].filter((u): u is string => !!u)).catch(() => undefined);
     }
     left -= here;
     deleted += here;
@@ -434,7 +458,7 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
       const { createNotification } = await import('./notifications');
       for (const [author, n] of byAuthor) {
         const l = await userLang(author);
-        await createNotification({ userId: author, type: 'rec_retention', title: TEXT[l].retentionDeleted(n), href: '/app/rec', sourceType: 'rec_retention', sourceId: w.workspace_id, meta: {} }).catch(() => undefined);
+        await createNotification({ userId: author, type: 'rec_retention', title: TEXT[l].retentionDeleted(n), href: '/app/rec/settings', sourceType: 'rec_retention', sourceId: w.workspace_id, meta: {} }).catch(() => undefined);
       }
     }
     // Quedó trabajo: la próxima corrida sigue, sin esperar una hora.

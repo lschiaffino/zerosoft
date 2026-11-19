@@ -40,7 +40,17 @@ import {
 } from './groups';
 import { PROVIDER_CAPS, phoneDigits, type InboundEvent } from './groups-provider';
 import type { MediaInfo, MediaKind } from './groups-media';
-import { MAX_FORWARD_TARGETS, MAX_PINNED, callStatusRank, messageActions, nextInRotation, ruleMatches } from './groups-inbox-rules';
+import {
+  MAX_FORWARD_TARGETS,
+  MAX_PINNED,
+  callStatusRank,
+  messageActions,
+  nextInRotation,
+  presenceOf,
+  receivesNewChats,
+  ruleMatches,
+  type Presence,
+} from './groups-inbox-rules';
 
 const nowIso = () => new Date().toISOString();
 
@@ -75,6 +85,7 @@ async function personName(id: string | null): Promise<string> {
 export type ChatEvent =
   | { event: 'assigned' | 'unassigned'; to: string | null; by: string | null }
   | { event: 'auto_assigned'; to: string; rule: string }
+  | { event: 'reassigned_offline'; from: string; to: string; rule: string }
   | { event: 'team'; team: string | null; teamName: string; by: string | null }
   | { event: 'closed' | 'reopened'; by: string | null };
 
@@ -520,24 +531,38 @@ async function syncWorkspaceGroup(ws: string, id: string): Promise<void> {
   await syncGroupFromApp('groups', ws, id);
 }
 
-/** Disponibilidad por persona. Sin fila = disponible. */
-export async function getAvailability(ws: string): Promise<Record<string, boolean>> {
-  const rows = (await getDb().prepare('SELECT person_id, available FROM groups_availability WHERE user_id = ?').all(ws)) as Array<{
+/** Estado por persona (online / away / offline). Sin fila = online. */
+export async function getPresence(ws: string): Promise<Record<string, Presence>> {
+  const rows = (await getDb().prepare('SELECT person_id, available, status FROM groups_availability WHERE user_id = ?').all(ws)) as Array<{
     person_id: string;
     available: number;
+    status: string | null;
   }>;
-  return Object.fromEntries(rows.map((r) => [r.person_id, r.available === 1]));
+  return Object.fromEntries(rows.map((r) => [r.person_id, presenceOf(r)]));
 }
 
-export async function setAvailability(ws: string, personId: string, available: boolean): Promise<void> {
-  await getDb()
+/**
+ * Cambia el estado de una persona. Online: los chats que esperaban sin nadie
+ * pueden ir a ella. Offline: sus chats abiertos se reparten entre los online
+ * si la regla que los cubre lo pide (reassign_offline). Away no mueve nada.
+ */
+export async function setPresence(ws: string, personId: string, status: Presence): Promise<{ status: Presence; reassigned: number }> {
+  const db = getDb();
+  const prev = presenceOf(
+    (await db.prepare('SELECT available, status FROM groups_availability WHERE user_id = ? AND person_id = ?').get(ws, personId)) as
+      | { available: number; status: string | null }
+      | undefined,
+  );
+  await db
     .prepare(
-      `INSERT INTO groups_availability (user_id, person_id, available, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id, person_id) DO UPDATE SET available = excluded.available, updated_at = excluded.updated_at`,
+      `INSERT INTO groups_availability (user_id, person_id, available, status, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, person_id) DO UPDATE SET available = excluded.available, status = excluded.status, updated_at = excluded.updated_at`,
     )
-    .run(ws, personId, available ? 1 : 0, nowIso());
-  // Alguien volvió: los chats que esperaban sin nadie pueden ir a esa persona.
-  if (available) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
+    .run(ws, personId, status === 'online' ? 1 : 0, status, nowIso());
+  let reassigned = 0;
+  if (status === 'online') await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
+  else if (status === 'offline' && prev !== 'offline') reassigned = await reassignOnOffline(ws, personId).catch(() => 0);
+  return { status, reassigned };
 }
 
 // ======================================================================
@@ -556,6 +581,7 @@ interface RuleRow {
   team_id: string | null;
   person_ids: string;
   last_person_id: string | null;
+  reassign_offline: number;
 }
 
 export interface AssignRuleDto {
@@ -568,6 +594,8 @@ export interface AssignRuleDto {
   teamId: string | null;
   personIds: string[];
   lastPersonId: string | null;
+  /** Si alguien pasa a offline, sus chats abiertos que caen en esta regla se reparten entre los online. */
+  reassignOffline: boolean;
 }
 
 function toRuleDto(r: RuleRow): AssignRuleDto {
@@ -581,6 +609,7 @@ function toRuleDto(r: RuleRow): AssignRuleDto {
     teamId: r.team_id,
     personIds: parseJson<string[]>(r.person_ids, []),
     lastPersonId: r.last_person_id,
+    reassignOffline: r.reassign_offline === 1,
   };
 }
 
@@ -597,6 +626,7 @@ interface RuleInput {
   kind?: unknown;
   teamId?: unknown;
   personIds?: unknown;
+  reassignOffline?: unknown;
 }
 
 async function cleanRule(ws: string, input: RuleInput, prev?: AssignRuleDto): Promise<Omit<AssignRuleDto, 'id' | 'lastPersonId'>> {
@@ -616,6 +646,7 @@ async function cleanRule(ws: string, input: RuleInput, prev?: AssignRuleDto): Pr
     kind: input.kind !== undefined ? (input.kind === 'dm' || input.kind === 'group' ? input.kind : null) : (prev?.kind ?? null),
     teamId: await ref(input.teamId, 'groups_teams', prev?.teamId ?? null),
     personIds: input.personIds !== undefined ? await cleanMemberIds(ws, input.personIds) : (prev?.personIds ?? []),
+    reassignOffline: input.reassignOffline !== undefined ? input.reassignOffline === true : (prev?.reassignOffline ?? false),
   };
   // A quién rota: un equipo o una lista de personas.
   if (out.teamId) out.personIds = [];
@@ -632,10 +663,10 @@ export async function createRule(ws: string, input: RuleInput): Promise<AssignRu
   const now = nowIso();
   await db
     .prepare(
-      `INSERT INTO groups_assign_rules (id, user_id, name, enabled, position, number_id, label_id, kind, team_id, person_ids, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO groups_assign_rules (id, user_id, name, enabled, position, number_id, label_id, kind, team_id, person_ids, reassign_offline, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, r.name, r.enabled ? 1 : 0, Number(count.c), r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), now, now);
+    .run(id, ws, r.name, r.enabled ? 1 : 0, Number(count.c), r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), r.reassignOffline ? 1 : 0, now, now);
   if (r.enabled) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
   return (await listRules(ws)).find((x) => x.id === id) as AssignRuleDto;
 }
@@ -646,10 +677,10 @@ export async function updateRule(ws: string, id: string, input: RuleInput): Prom
   const r = await cleanRule(ws, input, prev);
   await getDb()
     .prepare(
-      `UPDATE groups_assign_rules SET name = ?, enabled = ?, number_id = ?, label_id = ?, kind = ?, team_id = ?, person_ids = ?, updated_at = ?
+      `UPDATE groups_assign_rules SET name = ?, enabled = ?, number_id = ?, label_id = ?, kind = ?, team_id = ?, person_ids = ?, reassign_offline = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
-    .run(r.name, r.enabled ? 1 : 0, r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), nowIso(), id, ws);
+    .run(r.name, r.enabled ? 1 : 0, r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), r.reassignOffline ? 1 : 0, nowIso(), id, ws);
   if (r.enabled) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
   return (await listRules(ws)).find((x) => x.id === id) as AssignRuleDto;
 }
@@ -658,9 +689,64 @@ export async function deleteRule(ws: string, id: string): Promise<boolean> {
   return (await getDb().prepare('DELETE FROM groups_assign_rules WHERE id = ? AND user_id = ?').run(id, ws)).changes > 0;
 }
 
+/** Personas de la regla (su equipo o su lista). */
+async function rulePool(rule: RuleRow): Promise<string[]> {
+  if (!rule.team_id) return parseJson<string[]>(rule.person_ids, []);
+  return ((await getDb().prepare('SELECT person_id FROM groups_team_members WHERE team_id = ?').all(rule.team_id)) as Array<{ person_id: string }>).map(
+    (r) => r.person_id,
+  );
+}
+
+/** Quién de la regla puede recibir este chat: del workspace, online y que vea la línea del chat. */
+async function ruleCandidates(
+  ws: string,
+  rule: RuleRow,
+  chatId: string,
+  people: Set<string>,
+  presence: Record<string, Presence>,
+  exclude: string | null = null,
+): Promise<string[]> {
+  // Solo a quien ve la línea del chat: la visibilidad por línea no se salta con una asignación.
+  const { personCanSeeChat } = await import('./groups-access');
+  const out: string[] = [];
+  for (const id of await rulePool(rule)) {
+    if (id !== exclude && people.has(id) && receivesNewChats(presence[id]) && (await personCanSeeChat(ws, id, chatId))) out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Avanza la rotación de la regla con compare-and-set sobre last_person_id y
+ * reclama el chat con `claim`. 'lost' = otro se llevó el chat; null = la regla
+ * no pudo elegir a nadie.
+ */
+async function rotateAndClaim(rule: RuleRow, candidates: string[], claim: (pick: string) => Promise<boolean>): Promise<string | 'lost' | null> {
+  const db = getDb();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const current = (await db.prepare('SELECT last_person_id FROM groups_assign_rules WHERE id = ?').get(rule.id)) as
+      | { last_person_id: string | null }
+      | undefined;
+    if (!current) return null;
+    const pick = nextInRotation(candidates, current.last_person_id);
+    if (!pick) return null;
+    const moved = await db
+      .prepare('UPDATE groups_assign_rules SET last_person_id = ?, updated_at = ? WHERE id = ? AND last_person_id IS ?')
+      .run(pick, nowIso(), rule.id, current.last_person_id);
+    if (moved.changes === 0) continue;
+    return (await claim(pick)) ? pick : 'lost';
+  }
+  return null;
+}
+
+async function chatLabelIds(chatId: string): Promise<string[]> {
+  return ((await getDb().prepare('SELECT label_id FROM groups_chat_labels WHERE chat_id = ?').all(chatId)) as Array<{ label_id: string }>).map(
+    (r) => r.label_id,
+  );
+}
+
 /**
  * Asigna un chat abierto y sin asignar con la primera regla que aplica y
- * tiene alguien disponible. La rotación avanza con compare-and-set sobre
+ * tiene alguien online. La rotación avanza con compare-and-set sobre
  * last_person_id y el chat se reclama con assigned_to IS NULL: dos mensajes
  * a la vez (o webhook y cron) no asignan dos veces ni saltean a nadie.
  */
@@ -672,46 +758,71 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
     .prepare('SELECT * FROM groups_assign_rules WHERE user_id = ? AND enabled = 1 ORDER BY position, created_at')
     .all(ws)) as RuleRow[];
   if (rules.length === 0) return null;
-  const labelIds = ((await db.prepare('SELECT label_id FROM groups_chat_labels WHERE chat_id = ?').all(chat.id)) as Array<{ label_id: string }>).map(
-    (r) => r.label_id,
-  );
+  const labelIds = await chatLabelIds(chat.id);
   const people = new Set((await workspacePeople(ws)).map((p) => p.id));
-  const availability = await getAvailability(ws);
+  const presence = await getPresence(ws);
   for (const rule of rules) {
     if (!ruleMatches({ ...toRuleDto(rule), enabled: true }, { numberId: chat.number_id, kind: chat.kind, labelIds })) continue;
-    const pool = rule.team_id
-      ? ((await db.prepare('SELECT person_id FROM groups_team_members WHERE team_id = ?').all(rule.team_id)) as Array<{ person_id: string }>).map(
-          (r) => r.person_id,
-        )
-      : parseJson<string[]>(rule.person_ids, []);
-    // Solo a quien ve la línea del chat: la visibilidad por línea no se salta con una asignación.
-    const { personCanSeeChat } = await import('./groups-access');
-    const candidates: string[] = [];
-    for (const id of pool) if (people.has(id) && availability[id] !== false && (await personCanSeeChat(ws, id, chat.id))) candidates.push(id);
+    const candidates = await ruleCandidates(ws, rule, chat.id, people, presence);
     if (candidates.length === 0) continue;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const current = (await db.prepare('SELECT last_person_id FROM groups_assign_rules WHERE id = ?').get(rule.id)) as
-        | { last_person_id: string | null }
-        | undefined;
-      if (!current) break;
-      const pick = nextInRotation(candidates, current.last_person_id);
-      if (!pick) break;
-      const moved = await db
-        .prepare('UPDATE groups_assign_rules SET last_person_id = ?, updated_at = ? WHERE id = ? AND last_person_id IS ?')
-        .run(pick, nowIso(), rule.id, current.last_person_id);
-      if (moved.changes === 0) continue;
+    const pick = await rotateAndClaim(rule, candidates, async (to) => {
       const claimed = await db
         .prepare(
           "UPDATE groups_chats SET assigned_to = ?, assigned_team_id = COALESCE(assigned_team_id, ?), updated_at = ? WHERE id = ? AND assigned_to IS NULL AND status = 'open'",
         )
-        .run(pick, rule.team_id, nowIso(), chat.id);
-      if (claimed.changes === 0) return null;
-      await logEvent(ws, chat, null, { event: 'auto_assigned', to: pick, rule: rule.name });
-      await notifyAssigned(null, chat, pick, rule.name);
-      return pick;
-    }
+        .run(to, rule.team_id, nowIso(), chat.id);
+      return claimed.changes > 0;
+    });
+    if (pick === 'lost') return null;
+    if (!pick) continue;
+    await logEvent(ws, chat, null, { event: 'auto_assigned', to: pick, rule: rule.name });
+    await notifyAssigned(null, chat, pick, rule.name);
+    return pick;
   }
   return null;
+}
+
+/**
+ * Alguien pasó a offline: sus chats abiertos que caen en una regla prendida
+ * con reassign_offline se reparten entre los online de esa regla, por turno.
+ * Cada chat se reclama con assigned_to = la persona que se fue: si otro lo
+ * reasignó a mano mientras tanto, queda como está. Un chat sin regla que lo
+ * cubra, o sin nadie online, sigue con su persona. Devuelve cuántos movió.
+ */
+export async function reassignOnOffline(ws: string, personId: string, limit = 200): Promise<number> {
+  const db = getDb();
+  const rules = (await db
+    .prepare('SELECT * FROM groups_assign_rules WHERE user_id = ? AND enabled = 1 AND reassign_offline = 1 ORDER BY position, created_at')
+    .all(ws)) as RuleRow[];
+  if (rules.length === 0) return 0;
+  const chats = (await db
+    .prepare("SELECT * FROM groups_chats WHERE user_id = ? AND assigned_to = ? AND status = 'open' ORDER BY COALESCE(awaiting_since, updated_at) LIMIT ?")
+    .all(ws, personId, limit)) as ChatRow[];
+  if (chats.length === 0) return 0;
+  const people = new Set((await workspacePeople(ws)).map((p) => p.id));
+  const presence = await getPresence(ws);
+  let moved = 0;
+  for (const chat of chats) {
+    const labelIds = await chatLabelIds(chat.id);
+    for (const rule of rules) {
+      if (!ruleMatches({ ...toRuleDto(rule), enabled: true }, { numberId: chat.number_id, kind: chat.kind, labelIds })) continue;
+      const candidates = await ruleCandidates(ws, rule, chat.id, people, presence, personId);
+      if (candidates.length === 0) continue;
+      const pick = await rotateAndClaim(rule, candidates, async (to) => {
+        const claimed = await db
+          .prepare("UPDATE groups_chats SET assigned_to = ?, updated_at = ? WHERE id = ? AND user_id = ? AND assigned_to = ? AND status = 'open'")
+          .run(to, nowIso(), chat.id, ws, personId);
+        return claimed.changes > 0;
+      });
+      if (pick === 'lost') break;
+      if (!pick) continue;
+      await logEvent(ws, chat, null, { event: 'reassigned_offline', from: personId, to: pick, rule: rule.name });
+      await notifyAssigned(null, chat, pick, rule.name);
+      moved++;
+      break;
+    }
+  }
+  return moved;
 }
 
 /** Cron: chats abiertos que esperan respuesta sin nadie asignado, en workspaces con reglas. */

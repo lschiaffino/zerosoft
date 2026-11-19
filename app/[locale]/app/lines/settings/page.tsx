@@ -7,7 +7,7 @@ import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers
 import { pageViewer } from '@/lib/groups-page';
 import { numberManager, withManage } from '@/lib/groups-number-perms';
 import { withNumberStats } from '@/lib/groups-number-stats';
-import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
+import { getPresence, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
 import { groupsAiFakeActive } from '@/lib/groups-flag';
@@ -98,13 +98,13 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   else if (tab === 'ticketFields') body = <PropertiesPanel initial={await listPropertyDefs(user.id, 'ticket')} canEdit={admin} scope="ticket" />;
   else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} aiAvailable={aiEnabled() || groupsAiFakeActive()} />;
   else if (tab === 'assignment') {
-    const [teams, rules, people, numbers, labels, availability] = await Promise.all([
+    const [teams, rules, people, numbers, labels, presence] = await Promise.all([
       listTeams(user.id),
       listRules(user.id),
       workspacePeople(user.id),
       listNumbers(user.id, await pageViewer(user)),
       listLabels(user.id),
-      getAvailability(user.id),
+      getPresence(user.id),
     ]);
     body = (
       <AssignmentSettings
@@ -113,7 +113,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         people={people}
         numbers={numbers.map((n) => ({ id: n.id, name: n.name, phone: n.phone }))}
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
-        availability={availability}
+        presence={presence}
         canEdit={admin}
       />
     );

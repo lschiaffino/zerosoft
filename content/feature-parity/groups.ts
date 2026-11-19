@@ -440,9 +440,9 @@ const parity: ProductParity = {
     row('send-action', 'automation', ['Send a WhatsApp message from an automation', 'Mandar un WhatsApp desde una automatización', 'Enviar um WhatsApp por uma automação'], 'have'),
     row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'have', {
       detail: [
-        'Rules by number, label or chat type that rotate among a team or some people, only those marked available',
-        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, solo entre quienes están disponibles',
-        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, só entre quem está disponível',
+        'Rules by number, label or chat type that rotate among a team or some people who are online (online, away or offline status). A rule can hand the open chats of someone who goes offline to the people online',
+        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas en línea (estado en línea, ausente o desconectado). Una regla puede pasar los chats abiertos de quien se desconecta a quienes están en línea',
+        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas online (status online, ausente ou offline). Uma regra pode passar os chats abertos de quem fica offline para quem está online',
       ],
     }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),

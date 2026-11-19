@@ -355,7 +355,8 @@
     },
     "email_dropped": "Email não aceito ({reason})",
     "unverified": "Remetente não verificado",
-    "anotherJob": "outra vaga"
+    "anotherJob": "outra vaga",
+    "restored": "Restaurado da lixeira"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -514,7 +515,7 @@
     "retention": "Excluir candidatos depois de",
     "retentionOff": "Nunca",
     "months": "{count} meses sem atividade",
-    "retentionHelp": "Contratados e quem aceitou ficar para futuras vagas são mantidos.",
+    "retentionHelp": "Contratados e quem aceitou ficar para futuras vagas são mantidos. Os demais vão para a lixeira abaixo antes do fim do prazo e são excluídos de vez, com currículo e documentos, quando ele termina. Até lá um admin pode restaurá-los.",
     "consentText": "Texto de consentimento do formulário",
     "membersCreateJobs": "Membros com Hiring podem criar vagas (senão, só admins)",
     "approvals": "Aprovações",
@@ -522,7 +523,20 @@
     "jobApprovers": "Para publicar uma vaga nova",
     "offerApprovers": "Para enviar uma oferta",
     "addApprover": "Adicionar alguém",
-    "feed": "Feed de vagas em XML, para agregadores que aceitam:"
+    "feed": "Feed de vagas em XML, para agregadores que aceitam:",
+    "trash": {
+      "title": "Lixeira",
+      "help": "Candidatos removidos pela retenção. Aqui aparece só o nome: candidaturas, notas e arquivos voltam se você restaurar.",
+      "empty": "A lixeira está vazia.",
+      "loading": "Carregando a lixeira…",
+      "error": "Não foi possível carregar a lixeira.",
+      "purge": "Excluído de vez em {date}",
+      "restore": "Restaurar",
+      "restoreNamed": "Restaurar {name}",
+      "restored": "{name} voltou ao Hiring.",
+      "conflict": "Este candidato não pode ser restaurado.",
+      "restoreError": "Não foi possível restaurar o candidato."
+    }
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",

@@ -661,7 +661,9 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-presence-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-gray-2); }
 .gr-presence.is-on { color: var(--ink); }
 .gr-presence.is-on i,
-.gr-presence-dot.is-on { background: var(--ok); }
+.gr-presence-dot.is-on,
+.gr-presence-dot.is-online { background: var(--ok); }
+.gr-presence-dot.is-away { background: var(--warn); }
 .gr-thread-actions .btn[aria-pressed='true'] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
 .gr-thread-actions .btn[aria-pressed='true'] .kbd { color: inherit; border-color: currentColor; }
 .gr-bulkbar {
