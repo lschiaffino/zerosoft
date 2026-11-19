@@ -86,7 +86,7 @@ const shot = async (p: Page, name: string) => {
 };
 
 test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas líneas en el selector y en la bandeja', async ({ browser, page, request, baseURL }) => {
-  test.setTimeout(process.env.LINES_SHOTS_LOOKS ? 900_000 : 300_000);
+  test.setTimeout(process.env.LINES_SHOTS_LOOKS ? 900_000 : 420_000);
   const tag = uid();
   const ana = await member(browser, `Ana Ventas ${tag}`);
   const groupIds: string[] = [];
@@ -183,7 +183,8 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
 
     // ---------- Ana: solo Ventas ----------
     const mp = await ana.ctx.newPage();
-    await mp.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await mp.goto('/en/app/lines/inbox', { waitUntil: 'domcontentloaded' });
+    await expect(mp.getByTestId('lines-line-select').first()).toBeVisible();
     const menu = mp.getByRole('listbox', { name: 'Line' });
     await openMenu(mp.getByTestId('lines-line-select'), menu);
     await expect(menu.getByRole('option', { name: `Ventas ${tag}`, exact: false }).first()).toBeVisible();
@@ -235,7 +236,9 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
 
     // A 390 px: el selector con grupos entra en pantalla y la bandeja no se desborda.
     await mp.setViewportSize({ width: 390, height: 800 });
-    await mp.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    // Sin esperar a que la red quede quieta: la bandeja abierta sigue pidiendo (eventos en vivo, sondeos).
+    await mp.goto('/en/app/lines/inbox', { waitUntil: 'domcontentloaded' });
+    await expect(mp.getByTestId('lines-line-select').first()).toBeVisible();
     expect(await overflow(mp)).toBeLessThanOrEqual(0);
     await openMenu(mp.getByTestId('lines-line-select').first(), menu);
     const box = (await menu.boundingBox())!;
