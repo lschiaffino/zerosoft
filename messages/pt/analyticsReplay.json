@@ -111,5 +111,18 @@
     "reached": "Chegou a {n}%",
     "noScroll": "Não há dados de scroll nesta página e neste tamanho de tela no período.",
     "error": "Os dados do mapa de calor não carregaram. Tente de novo."
+  },
+  "trash": {
+    "title": "Lixeira de gravações",
+    "help": "As gravações que passam da retenção vêm para cá primeiro. Você pode restaurá-las até a data mostrada; depois são excluídas de vez, no mesmo dia de antes. Uma gravação restaurada volta a contar a retenção a partir de hoje.",
+    "loading": "Carregando a lixeira…",
+    "error": "Não foi possível carregar a lixeira. Tente de novo daqui a pouco.",
+    "empty": "A lixeira está vazia.",
+    "recording": "Gravação de {date}",
+    "purge": "Excluída de vez em {date}",
+    "restore": "Restaurar",
+    "restored": "Restaurada. Voltou para a lista de gravações.",
+    "conflict": "Essa sessão foi gravada de novo nesse meio-tempo: esta gravação não pode voltar.",
+    "restoreError": "Não foi possível restaurar. Tente de novo."
   }
 }
