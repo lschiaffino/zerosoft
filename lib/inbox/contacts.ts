@@ -26,6 +26,7 @@ import {
   type ContactsQuery,
 } from '../groups-contacts';
 import type { HubspotSuggestion } from '../groups-hubspot';
+import type { GroupsViewer } from '../groups-access';
 import { isPersonId, mergePeople, personId, type BookEntry, type Person, type PersonSighting } from '../wa-people';
 import { InboxError } from './types';
 import { parseThreadInfo } from './wa-meta';
@@ -35,6 +36,8 @@ export interface InboxHubspotScope {
   ws: string;
   me: string;
   mask: boolean;
+  /** Quién es en Lines (su acceso por línea y por etiqueta): lo que se escribe en chats de Lines lo respeta. */
+  lines: GroupsViewer;
 }
 
 const marks = (n: number) => Array.from({ length: n }, () => '?').join(',');
@@ -179,10 +182,11 @@ export async function inboxContactHubspot(
   action: { kind: 'link'; contactId: string } | { kind: 'unlink' } | { kind: 'create' },
 ): Promise<{ row: ContactRowDto | null; existing: HubspotSuggestion[] }> {
   const { person } = await findPerson(owner, id);
-  if (action.kind === 'link') await linkPersonHubspot(scope.ws, scope.me, person, action.contactId);
-  else if (action.kind === 'unlink') await unlinkPersonHubspot(scope.ws, person);
+  // Las copias en los chats de Lines: solo en los de las líneas que esta persona ve.
+  if (action.kind === 'link') await linkPersonHubspot(scope.lines, scope.me, person, action.contactId);
+  else if (action.kind === 'unlink') await unlinkPersonHubspot(scope.lines, person);
   else {
-    const res = await createPersonHubspot(scope.ws, scope.me, scope.mask, person);
+    const res = await createPersonHubspot(scope.lines, scope.me, person);
     if (!res.created) return { row: null, existing: res.existing };
   }
   return { row: (await inboxContact(owner, scope, id)).row, existing: [] };

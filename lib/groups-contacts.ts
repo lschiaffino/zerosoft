@@ -334,18 +334,25 @@ export async function personHubspotMatches(ws: string, mask: boolean, person: Pe
   return list.map((s) => ({ contact: redactHubspot(mask, s.contact), company: s.company }));
 }
 
-/** Los chats 1:1 de Lines de la persona en todo el workspace (por teléfono o por su lid). */
-async function personDmIds(ws: string, p: PersonKey): Promise<string[]> {
+/**
+ * Los chats 1:1 de Lines de la persona (por teléfono o por su lid) que `scope` puede ver: quien vincula solo
+ * escribe en los chats de las líneas que ve. Dueño, admins y lo automático (systemViewer): los de todo el workspace.
+ */
+async function personDmIds(scope: GroupsViewer, p: PersonKey): Promise<string[]> {
   const ids = [...(p.phone ? [`${p.phone}@s.whatsapp.net`, `${p.phone}@c.us`] : []), ...(p.lid ? [`${p.lid}@lid`] : [])];
   if (!ids.length) return [];
+  const access = chatAccessSql(scope);
   const rows = (await getDb()
-    .prepare(`SELECT id FROM groups_chats WHERE user_id = ? AND kind = 'dm' AND (phone = ? OR provider_chat_id IN (${marks(ids.length)}))`)
-    .all(ws, p.phone || '\u0000', ...ids)) as Array<{ id: string }>;
+    .prepare(
+      `SELECT c.id FROM groups_chats c WHERE c.user_id = ? AND c.kind = 'dm' AND (c.phone = ? OR c.provider_chat_id IN (${marks(ids.length)}))${access ? ` AND ${access.sql}` : ''}`,
+    )
+    .all(scope.ws, p.phone || '\u0000', ...ids, ...(access?.args ?? []))) as Array<{ id: string }>;
   return rows.map((r) => r.id);
 }
 
-async function saveContactLink(ws: string, actor: string | null, p: PersonKey, contact: HubspotRecord, company: HubspotRecord | null): Promise<void> {
+async function saveContactLink(scope: GroupsViewer, actor: string | null, p: PersonKey, contact: HubspotRecord, company: HubspotRecord | null): Promise<void> {
   const db = getDb();
+  const ws = scope.ws;
   const now = new Date().toISOString();
   const existing = (await db
     .prepare("SELECT id FROM groups_contact_links WHERE user_id = ? AND ((phone <> '' AND phone = ?) OR (lid <> '' AND lid = ?)) LIMIT 1")
@@ -366,13 +373,13 @@ async function saveContactLink(ws: string, actor: string | null, p: PersonKey, c
       )
       .run(randomUUID(), ws, p.phone, p.lid, ...values, now);
   }
-  // Copia en los chats 1:1 de Lines (el panel del chat y las notas los leen ahí). Un chat con otro contacto elegido a mano queda como está.
+  // Copia en los chats 1:1 de Lines que ve quien vincula (el panel del chat y las notas los leen ahí). Un chat con otro contacto elegido a mano queda como está.
   const props = (rec: HubspotRecord) => {
     const o: Partial<HubspotRecord> = { ...rec };
     for (const k of ['type', 'id', 'name', 'url', 'missing'] as const) delete o[k];
     return JSON.stringify(o);
   };
-  for (const chatId of await personDmIds(ws, p)) {
+  for (const chatId of await personDmIds(scope, p)) {
     for (const rec of [contact, company]) {
       if (!rec) continue;
       await db
@@ -387,22 +394,24 @@ async function saveContactLink(ws: string, actor: string | null, p: PersonKey, c
   }
 }
 
-/** Vincula la persona a un contacto de HubSpot (y a su empresa principal). */
-export async function linkPersonHubspot(ws: string, actor: string, person: PersonKey, contactId: string): Promise<void> {
+/** Vincula la persona a un contacto de HubSpot (y a su empresa principal). `scope`: quién lo hace, con su acceso a Lines. */
+export async function linkPersonHubspot(scope: GroupsViewer, actor: string, person: PersonKey, contactId: string): Promise<void> {
+  const ws = scope.ws;
   if (!/^\d{1,20}$/.test(contactId)) throw new HubspotError('invalid_input');
   const contact = await readHubspotRecord(ws, 'contact', contactId);
   let company: HubspotRecord | null = null;
   if (contact.companyId) company = await readHubspotRecord(ws, 'company', contact.companyId).catch(() => null);
-  await saveContactLink(ws, actor, person, contact, company);
+  await saveContactLink(scope, actor, person, contact, company);
 }
 
-/** Quita el vínculo de la persona (y la copia en sus chats 1:1 de Lines que tenían ese mismo contacto). */
-export async function unlinkPersonHubspot(ws: string, person: PersonKey): Promise<void> {
+/** Quita el vínculo de la persona (y la copia en sus chats 1:1 de Lines, de los que `scope` ve, que tenían ese mismo contacto). */
+export async function unlinkPersonHubspot(scope: GroupsViewer, person: PersonKey): Promise<void> {
   const db = getDb();
+  const ws = scope.ws;
   const row = (await db
     .prepare("SELECT contact_id FROM groups_contact_links WHERE user_id = ? AND ((phone <> '' AND phone = ?) OR (lid <> '' AND lid = ?)) LIMIT 1")
     .get(ws, person.phone, person.lid)) as { contact_id: string } | undefined;
-  const dmIds = await personDmIds(ws, person);
+  const dmIds = await personDmIds(scope, person);
   const linked = row?.contact_id
     ? row.contact_id
     : dmIds.length
@@ -456,13 +465,15 @@ export async function personHasHubspotLink(ws: string, person: PersonKey): Promi
  * la empresa de sus grupos si es una sola) y lo vincula. `actor` null: lo creó
  * el alta automática (lib/hubspot-auto-contacts.ts).
  */
-export async function createPersonHubspot(ws: string, actor: string | null, mask: boolean, person: PersonLite): Promise<{ created: boolean; existing: HubspotSuggestion[] }> {
+export async function createPersonHubspot(scope: GroupsViewer, actor: string | null, person: PersonLite): Promise<{ created: boolean; existing: HubspotSuggestion[] }> {
+  const ws = scope.ws;
+  const mask = scope.mask;
   if (!person.phone) throw new GroupsError('invalid_phone');
   const companyId = await groupsCompany(ws, person);
   const res = await createHubspotContact(ws, { name: person.name, phone: person.phone, companyId });
   if (!res.created) return { created: false, existing: res.existing.map((s) => ({ contact: redactHubspot(mask, s.contact), company: s.company })) };
   const company = res.created.companyId ? await readHubspotRecord(ws, 'company', res.created.companyId).catch(() => null) : null;
-  await saveContactLink(ws, actor, person, res.created, company);
+  await saveContactLink(scope, actor, person, res.created, company);
   return { created: true, existing: [] };
 }
 
@@ -475,19 +486,19 @@ export async function contactHubspotMatches(viewer: GroupsViewer, id: string): P
 
 export async function linkContactHubspot(viewer: GroupsViewer, actor: string, id: string, contactId: string): Promise<ContactRowDto> {
   const { person } = await findPerson(viewer, id);
-  await linkPersonHubspot(viewer.ws, actor, person, contactId);
+  await linkPersonHubspot(viewer, actor, person, contactId);
   return (await linesContact(viewer, id)).row;
 }
 
 export async function unlinkContactHubspot(viewer: GroupsViewer, id: string): Promise<ContactRowDto> {
   const { person } = await findPerson(viewer, id);
-  await unlinkPersonHubspot(viewer.ws, person);
+  await unlinkPersonHubspot(viewer, person);
   return (await linesContact(viewer, id)).row;
 }
 
 export async function createContactHubspot(viewer: GroupsViewer, actor: string, id: string): Promise<{ row: ContactRowDto | null; existing: HubspotSuggestion[] }> {
   const { person } = await findPerson(viewer, id);
-  const res = await createPersonHubspot(viewer.ws, actor, viewer.mask, person);
+  const res = await createPersonHubspot(viewer, actor, person);
   return { row: res.created ? (await linesContact(viewer, id)).row : null, existing: res.existing };
 }
 

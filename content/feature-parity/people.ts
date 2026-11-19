@@ -267,7 +267,13 @@ const parity: ProductParity = {
     row('custom-tabs', 'records', ['Custom profile tabs', 'Pestañas personalizadas', 'Abas personalizadas no perfil'], 'missing'),
     row('custom-tables', 'records', ['Custom tables with rows', 'Tablas personalizadas', 'Tabelas personalizadas com linhas'], 'missing'),
     row('multi-level-approvals', 'records', ['Multi-level approvals', 'Aprobaciones en varios niveles', 'Aprovações em vários níveis'], 'missing'),
-    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'missing'),
+    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'have', {
+      detail: [
+        'A Notes tab on the profile for HR and the person\'s managers, never the person. Each note shows who wrote it and when; its author edits it, and the author or HR deletes it. Reading and changes go to the access log',
+        'Una pestaña Notas en la ficha para HR y los managers de la persona, nunca para la persona. Cada nota muestra quién la escribió y cuándo; la edita su autor, y la borra su autor o HR. Leerlas y cambiarlas queda en el registro de accesos',
+        'Uma aba Notas no perfil para o RH e os gestores da pessoa, nunca para a pessoa. Cada nota mostra quem a escreveu e quando; o autor a edita, e o autor ou o RH a exclui. Ler e alterar fica no registro de acessos',
+      ],
+    }),
     row('training-tracking', 'records', ['Training tracking', 'Seguimiento de capacitaciones', 'Acompanhamento de treinamentos'], 'missing'),
     row('termination-tracking', 'records', ['Termination records', 'Registro de terminaciones', 'Registro de desligamentos'], 'partial', {
       detail: ['Offboarding, end date and exit interview. Built; not yet walked end to end in a browser for each role', 'Offboarding, fecha de salida y entrevista de salida. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Desligamento, data de saída e entrevista de saída. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
@@ -280,7 +286,13 @@ const parity: ProductParity = {
     row('directory-export', 'org', ['Directory export', 'Exportar directorio', 'Exportar diretório'], 'partial', {
       detail: ['Through a custom report CSV, for HR. Built; not yet walked end to end in a browser for each role', 'Con el CSV de un reporte a medida, para HR. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Pelo CSV de um relatório personalizado, para o RH. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'missing'),
+    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'have', {
+      detail: [
+        'Approved time off shows as "Out until" (or the half day) on the directory row and the profile, and an "Out today" filter lists only who is away. The leave type stays private',
+        'Una licencia aprobada se ve como "Fuera hasta" (o la media jornada) en la fila del directorio y en la ficha, y el filtro "Fuera hoy" muestra solo a quien no está. El tipo de licencia sigue siendo privado',
+        'Uma folga aprovada aparece como "Fora até" (ou o meio período) na linha do diretório e no perfil, e o filtro "Fora hoje" mostra só quem está fora. O tipo de folga continua privado',
+      ],
+    }),
     row('birthday-opt-out', 'org', ['Hide your own birthday', 'Ocultar el propio cumpleaños', 'Ocultar o próprio aniversário'], 'partial', {
       detail: [
         'HR chooses who sees birthdays (everyone, managers or HR only) for the whole workspace, and the year is never shown. A person cannot hide only their own',

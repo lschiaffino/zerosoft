@@ -92,7 +92,11 @@
     "emailHint": "Se a pessoa já está no workspace, o perfil fica vinculado à conta dela.",
     "countryHint": "Define os feriados que não contam nas folgas.",
     "onboarding": "Checklist de onboarding",
-    "noOnboarding": "Nenhum por enquanto"
+    "noOnboarding": "Nenhum por enquanto",
+    "outFilter": "Fora hoje ({count})",
+    "outUntil": "Fora até {date}",
+    "outAm": "Fora de manhã",
+    "outPm": "Fora à tarde"
   },
   "profile": {
     "tabs": {
@@ -103,7 +107,8 @@
       "compensation": "Salário",
       "onboarding": "Onboarding",
       "notes": "Notas 1:1",
-      "history": "Histórico"
+      "history": "Histórico",
+      "hrnotes": "Notas"
     },
     "sections": "Seções do perfil",
     "job": "Trabalho",
@@ -604,7 +609,9 @@
     "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está.",
     "stale_change": "Este valor mudou depois do pedido. Confira e confirme.",
     "work_email_locked": "Só o owner ou um HR admin marcado podem mudar este email de trabalho.",
-    "not_leaving": "Esta pessoa não está saindo."
+    "not_leaving": "Esta pessoa não está saindo.",
+    "note_required": "Escreva a nota primeiro.",
+    "note_too_long": "Uma nota pode ter até 5.000 caracteres."
   },
   "home": {
     "inbox": "Aguardando você",
@@ -731,5 +738,17 @@
     "delete_has_pay": "Este perfil tem histórico de salários. Só o owner ou um admin de RH podem excluí-lo.",
     "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil.",
     "auto": "Automático"
+  },
+  "hrNotes": {
+    "title": "Notas sobre {name}",
+    "privacy": "O RH e os gestores veem estas notas. A pessoa não.",
+    "new": "Escreva uma nota",
+    "add": "Adicionar nota",
+    "empty": "Ainda não há notas. Anote acordos, conversas ou o que o RH precisa lembrar.",
+    "someone": "Alguém que já saiu",
+    "edited": "editada",
+    "editLabel": "Editar nota",
+    "deleteTitle": "Excluir esta nota?",
+    "deleteBody": "Ela é excluída para todos que veem este perfil."
   }
 }

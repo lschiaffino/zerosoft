@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { Balance } from '@/lib/people-time';
 import type { Policy, RequestDto } from '@/lib/people-timeoff';
 import type { PeopleDocument } from '@/lib/people-docs';
@@ -11,6 +12,7 @@ import type { CompEntry } from '@/lib/people';
 import type { Checklist } from '@/lib/people-onboarding';
 import type { Goal, OneOnOne, ReviewDto } from '@/lib/people-perf';
 import type { JobHistoryEntry, ScheduledChange } from '@/lib/people-extras';
+import type { EmployeeNote } from '@/lib/people-notes';
 import { api, Bar, Dialog, Field, useDay, useErrorText, useNumber, useToast } from './people-ui';
 import RequestDialog from './RequestDialog';
 import RequestsTable from './RequestsTable';
@@ -810,6 +812,152 @@ export function OneOnOneSection({ employeeId, name }: { employeeId: string; name
           ))}
         </ul>
       )}
+    </Panel>
+  );
+}
+
+/**
+ * Notas sobre la persona (como la pestaña Notes de BambooHR): HR y su cadena
+ * de managers las leen y escriben; la persona no las ve. Cada una dice quién
+ * la escribió y cuándo. La edita su autor; la borra su autor o HR.
+ */
+export function NotesSection({ employeeId, name }: { employeeId: string; name: string }) {
+  const t = useTranslations('people');
+  const day = useDay();
+  const [toast, push] = useToast();
+  const errText = useErrorText();
+  const notes = useLoad<{ notes: EmployeeNote[] }>(`/api/people/employees/${employeeId}/notes`);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    const res = await api(`/api/people/employees/${employeeId}/notes`, { method: 'POST', json: { body: text } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setText('');
+    notes.reload();
+  };
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editing || !editing.body.trim() || busy) return;
+    setBusy(true);
+    const res = await api(`/api/people/notes/${editing.id}`, { method: 'PATCH', json: { body: editing.body } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setEditing(null);
+    notes.reload();
+  };
+  const remove = async () => {
+    if (!removing) return;
+    setBusy(true);
+    const res = await api(`/api/people/notes/${removing}`, { method: 'DELETE' });
+    setBusy(false);
+    setRemoving(null);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    notes.reload();
+  };
+  if (notes.error) return <LoadError retry={notes.reload} />;
+  if (!notes.data) return <Loading />;
+  return (
+    <Panel title={t('hrNotes.title', { name })} testId="people-notes">
+      {toast}
+      <p className="ppl-hint">{t('hrNotes.privacy')}</p>
+      <form className="ppl-stack" onSubmit={add}>
+        <label className="sr-only" htmlFor="ppl-note-new">
+          {t('hrNotes.new')}
+        </label>
+        <textarea
+          id="ppl-note-new"
+          className="textarea"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void add(e);
+          }}
+          placeholder={t('hrNotes.new')}
+          maxLength={5000}
+        />
+        <div>
+          <button type="submit" className="btn btn-secondary" disabled={busy || !text.trim()}>
+            {t('hrNotes.add')}
+          </button>
+        </div>
+      </form>
+      {notes.data.notes.length === 0 ? (
+        <EmptyState compact quiet body={t('hrNotes.empty')} />
+      ) : (
+        <ul className="ppl-notes">
+          {notes.data.notes.map((n) => (
+            <li key={n.id} className="ppl-note-item" data-testid="people-note">
+              <div className="ppl-panel-head">
+                <span className="ppl-note-meta">
+                  <strong>{n.authorName || t('hrNotes.someone')}</strong>
+                  <span className="ppl-hint"> · {day(n.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  {n.updatedAt !== n.createdAt && <span className="ppl-hint"> · {t('hrNotes.edited')}</span>}
+                </span>
+                {editing?.id !== n.id && (n.canEdit || n.canDelete) && (
+                  <span className="ppl-note-actions">
+                    {n.canEdit && (
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing({ id: n.id, body: n.body })}>
+                        {t('common.edit')}
+                      </button>
+                    )}
+                    {n.canDelete && (
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRemoving(n.id)}>
+                        {t('common.delete')}
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
+              {editing?.id === n.id ? (
+                <form className="ppl-stack" onSubmit={save}>
+                  <label className="sr-only" htmlFor={`ppl-note-${n.id}`}>
+                    {t('hrNotes.editLabel')}
+                  </label>
+                  <textarea
+                    id={`ppl-note-${n.id}`}
+                    className="textarea"
+                    value={editing.body}
+                    autoFocus
+                    maxLength={5000}
+                    onChange={(e) => setEditing({ id: n.id, body: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setEditing(null);
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void save(e);
+                    }}
+                  />
+                  <div className="ppl-row-gap">
+                    <button type="submit" className="btn btn-sm btn-primary" disabled={busy || !editing.body.trim()}>
+                      {t('common.save')}
+                    </button>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(null)}>
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="ppl-pre">{n.body}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <ConfirmDialog
+        open={removing !== null}
+        title={t('hrNotes.deleteTitle')}
+        body={t('hrNotes.deleteBody')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        danger
+        busy={busy}
+        onConfirm={() => void remove()}
+        onCancel={() => setRemoving(null)}
+      />
     </Panel>
   );
 }

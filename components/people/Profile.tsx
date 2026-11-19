@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { CustomField, EmployeeDto } from '@/lib/people';
-import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
-import { CompensationSection, DocumentsSection, HistorySection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
+import { HOLIDAY_COUNTRIES, type OutStatus } from '@/lib/people-time';
+import { api, Avatar, Dialog, Fact, Field, OutBadge, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
+import { CompensationSection, DocumentsSection, HistorySection, NotesSection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
-type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes';
+type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes' | 'hrnotes';
 
 export interface ProfileProps {
   employee: EmployeeDto;
@@ -23,11 +23,13 @@ export interface ProfileProps {
   wsAdmin?: boolean;
   /** HR con la app Sign: puede abrir un sobre desde Documentos. */
   signEnabled?: boolean;
+  /** Fuera hoy por una licencia aprobada. */
+  out?: OutStatus | null;
 }
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
-export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false }: ProfileProps) {
+export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false, out = null }: ProfileProps) {
   const t = useTranslations('people');
   const countryName = useCountry();
   const router = useRouter();
@@ -48,6 +50,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     ...(e.can.seePerformance ? [{ key: 'performance' as const, label: t('profile.tabs.performance') }, { key: 'history' as const, label: t('profile.tabs.history') }] : []),
     ...(e.can.seeCompensation ? [{ key: 'compensation' as const, label: t('profile.tabs.compensation') }] : []),
     ...(hr || e.can.isSelf || e.can.isManager ? [{ key: 'onboarding' as const, label: t('profile.tabs.onboarding') }] : []),
+    ...(e.can.seeNotes ? [{ key: 'hrnotes' as const, label: t('profile.tabs.hrnotes') }] : []),
     ...(myEmployeeId && !e.can.isSelf ? [{ key: 'notes' as const, label: t('profile.tabs.notes') }] : []),
   ];
   const [tab, setTab] = useState<TabKey>(tabs.some((x) => x.key === initialTab) ? (initialTab as TabKey) : 'overview');
@@ -186,6 +189,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
               )}
             </span>
             <span>{e.name}</span>
+            <OutBadge out={out} />
           </span>
         }
         description={[e.jobTitle, e.department].filter(Boolean).join(' · ') || t('profile.noTitle')}
@@ -337,6 +341,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
         {tab === 'history' && <HistorySection employeeId={e.id} hr={hr} people={people} />}
         {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={e.can.editCompensation} />}
         {tab === 'onboarding' && <OnboardingSection employeeId={e.id} hr={hr} templates={templates} />}
+        {tab === 'hrnotes' && <NotesSection employeeId={e.id} name={e.name} />}
         {tab === 'notes' && <OneOnOneSection employeeId={e.id} name={e.name} />}
       </div>
 
