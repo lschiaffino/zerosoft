@@ -3034,7 +3034,9 @@
     "description": "HubSpot: Every record has a left sidebar (actions and About this record properties), a middle column (Overview and Activities tabs) and a right sidebar (association cards and tools) (https://knowledge.hubspot.com/records/work-with-records). Today: components/crm/recordTab.ts:1 RECORD_TABS; app/[locale]/app/crm/contacts/[id]/page.tsx:140-246 header, :263-380 activity tab with aside. This is the page a sales rep lives in. First scope: on contacts, companies and deals at desktop width, a left column with the record name, the action buttons and the editable About properties (the existing PropertiesPanel in compact mode), the timeline in the middle and association cards (companies, deals, contacts, lists, files) on the right; at 390px the columns collapse to the current tabs. Also covers the parity rows record-sidebar-inline-edit.",
     "product": "crm",
     "kind": "idea",
-    "parity": "record-three-columns"
+    "parity": "record-three-columns",
+    "status": "done",
+    "changelog": "2026-11-19-crm-record-columns"
   },
   {
     "title": "CRM: Load the whole timeline and filter it by type, person and text",

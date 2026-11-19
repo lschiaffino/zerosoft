@@ -313,8 +313,14 @@ export default async function ContactDetailPage(props: {
       key: 'companyId',
       label: t('contacts.form.company'),
       type: 'select',
-      value: contact.company_id ?? '',
-      options: companies.map((c) => ({ value: c.id, label: c.name })),
+      // `company` ya pasó por el alcance de la persona: si la empresa principal no se le muestra,
+      // la propiedad queda vacía en vez de mostrar su id. Si es visible pero no entró en las 100
+      // primeras del selector, se suma para que se lea su nombre.
+      value: company ? company.id : '',
+      options: [
+        ...(company && !companies.some((c) => c.id === company.id) ? [{ value: company.id, label: company.name }] : []),
+        ...companies.map((c) => ({ value: c.id, label: c.name })),
+      ],
       nullOption: true,
     },
     {

@@ -75,7 +75,26 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const rawDetail = await getCompany(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.company.owner_id, user.id)) notFound();
   const detail = scopeCompanyDetail(rawDetail, scope);
-  const { company, contacts, deals, parent, ancestors, children, rollup } = detail;
+  const { company, contacts, deals, children, rollup } = detail;
+  // La madre y las abuelas vienen sin dueño: se muestran solo las que la persona puede ver
+  // (mismo alcance que el resto de la ficha), ni su nombre ni su link si no.
+  const companyScope = scopeAnd('crm_companies', scope);
+  const ancestorIds = detail.ancestors.map((a) => a.id);
+  const visibleAncestorIds = new Set(
+    ancestorIds.length
+      ? (
+          (await getDb()
+            .prepare(
+              `SELECT id FROM crm_companies WHERE user_id = ? AND id IN (${ancestorIds.map(() => '?').join(', ')})${companyScope.sql}`,
+            )
+            .all(user.id, ...ancestorIds, ...companyScope.args)) as Array<{ id: string }>
+        ).map((r) => r.id)
+      : [],
+  );
+  const ancestors = detail.ancestors.filter((a) => visibleAncestorIds.has(a.id));
+  const parent = detail.parent && visibleAncestorIds.has(detail.parent.id) ? detail.parent : null;
+  // Con una madre que no se le muestra, tampoco se ofrece elegir otra (la pisaría sin verla).
+  const parentHidden = !!detail.parent && !parent;
   const base = `/app/crm/companies/${company.id}`;
   const [allTags, recordTags, teamMembers, stageRows] = await Promise.all([
     listTags(user.id),
@@ -237,7 +256,6 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const contactScope = scopeAnd('crm_contacts', scope);
-  const companyScope = scopeAnd('crm_companies', scope);
   const dealScope = scopeAnd('crm_deals', scope);
   const [timeline, threads, nextTask, aiAvailable, aiSummary, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
     await Promise.all([
@@ -515,10 +533,10 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         />
       </RecordCard>
 
-      <RecordCard id="company.parent" label={t('companies.detail.parent')} addLabel={parent ? undefined : t('record.cards.add')}>
+      <RecordCard id="company.parent" label={t('companies.detail.parent')} addLabel={parent || parentHidden ? undefined : t('record.cards.add')}>
         <AssociationPanel
           records={parent ? [{ id: parent.id, name: parent.name, href: `/app/crm/companies/${parent.id}` }] : []}
-          options={parent ? [] : allCompanies.map((c) => ({ id: c.id, value: c.name }))}
+          options={parent || parentHidden ? [] : allCompanies.map((c) => ({ id: c.id, value: c.name }))}
           onAssociate={setCompanyParent.bind(null, company.id)}
           onRemove={clearCompanyParent.bind(null, company.id)}
           addLabel={t('companies.detail.pickParent')}
