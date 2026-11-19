@@ -60,11 +60,11 @@ import { aiEnabled } from '@/lib/ai';
 import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
-import PageHeader from '@/components/ui/PageHeader';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
-import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
-import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
+import RecordColumns, { RecordIdentity, RecordRecentActivity } from '@/components/crm/RecordColumns';
+import RecordCard from '@/components/crm/RecordCard';
+import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export const dynamic = 'force-dynamic';
@@ -86,7 +86,8 @@ export default async function ContactDetailPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [{ locale, id }, searchParams] = await Promise.all([props.params, props.searchParams]);
-  const tab = parseRecordTab(searchParams.tab);
+  const tab = parseLayoutTab(searchParams.tab);
+  const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
@@ -137,388 +138,115 @@ export default async function ContactDetailPage(props: {
     source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
   };
 
-  const header = (
+  const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));
+
+  const actions = (
     <>
-      <PageHeader
-        back={{ href: '/app/crm/contacts', label: t('record.back.contacts') }}
-        title={name}
-        description={
-          <span className="record-meta">
-            {contact.lifecycle_stage && (
-              <span className={`badge stage-${contact.lifecycle_stage}`}>
-                {t(`enums.lifecycle.${contact.lifecycle_stage}`)}
-              </span>
-            )}
-            {contact.lead_status && (
-              <span className="badge badge-outline">{t(`enums.leadStatus.${contact.lead_status}`)}</span>
-            )}
-            {contact.job_title && <span>{contact.job_title}</span>}
-            {company && (
-              <Link href={`/app/crm/companies/${company.id}`} className="record-meta-link">
-                {company.name}
-              </Link>
-            )}
-          </span>
-        }
-        actions={
-          <>
-            {contact.phone && <PhoneTouch phone={contact.phone} contactId={contact.id} name={name} />}
-            <PlaybookLauncher
-              entity="contact"
-              entityId={contact.id}
-              values={{
-                jobTitle: contact.job_title,
-                lifecycleStage: contact.lifecycle_stage,
-                leadStatus: contact.lead_status,
-                phone: contact.phone,
-                city: contact.city,
-                country: contact.country,
-                website: contact.website,
-                ...Object.fromEntries(Object.entries(parseCustom(contact.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
-              }}
-            />
-            {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
-              <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=contact:${contact.id}`}>
-                {t('record.sendForSignature')}
-              </Link>
-            )}
-            <BookMeetingMenu
-              eventTypes={meetingTypes}
-              name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}
-              email={contact.email || undefined}
-              locale={locale}
-            />
-            <RecordMoreMenu
-              items={[
-                {
-                  key: 'duplicates',
-                  label: t('record.more.duplicates'),
-                  title: t('contacts.detail.duplicates'),
-                  content: <DuplicatesPanel contactId={contact.id} autoFind />,
-                },
-                {
-                  key: 'history',
-                  label: t('record.more.history'),
-                  title: t('history.title'),
-                  content: (
-                    <HistoryPanel
-                      entity="contact"
-                      entityId={contact.id}
-                      locale={locale}
-                      labels={{
-                        title: t('history.title'),
-                        empty: t('history.empty'),
-                        fields: historyFields,
-                        values: historyValues,
-                      }}
-                    />
-                  ),
-                },
-                {
-                  key: 'delete',
-                  label: t('record.more.deleteContact'),
-                  title: t('contacts.detail.deleteTitle'),
-                  tone: 'danger',
-                  content: (
-                    <DangerDelete
-                      bare
-                      endpoint={`/api/crm/contacts/${contact.id}`}
-                      confirmToken={contact.email || name}
-                      redirectTo="/app/crm/contacts"
-                      title={t('contacts.detail.deleteTitle')}
-                      desc={t('contacts.detail.deleteDesc')}
-                      buttonLabel={t('contacts.detail.deleteButton')}
-                      confirmLabel={t('record.confirmType', { token: contact.email || name })}
-                      errorLabel={t('errors.generic')}
-                    />
-                  ),
-                },
-              ]}
-            />
-          </>
-        }
-      />
-      <RecordTags
+      {contact.phone && <PhoneTouch phone={contact.phone} contactId={contact.id} name={name} />}
+      <PlaybookLauncher
         entity="contact"
-        recordId={contact.id}
-        tags={recordTags.get(contact.id) ?? []}
-        allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
+        entityId={contact.id}
+        values={{
+          jobTitle: contact.job_title,
+          lifecycleStage: contact.lifecycle_stage,
+          leadStatus: contact.lead_status,
+          phone: contact.phone,
+          city: contact.city,
+          country: contact.country,
+          website: contact.website,
+          ...Object.fromEntries(Object.entries(parseCustom(contact.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+        }}
+      />
+      {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
+        <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=contact:${contact.id}`}>
+          {t('record.sendForSignature')}
+        </Link>
+      )}
+      <BookMeetingMenu
+        eventTypes={meetingTypes}
+        name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}
+        email={contact.email || undefined}
+        locale={locale}
+      />
+      <RecordMoreMenu
+        items={[
+          {
+            key: 'duplicates',
+            label: t('record.more.duplicates'),
+            title: t('contacts.detail.duplicates'),
+            content: <DuplicatesPanel contactId={contact.id} autoFind />,
+          },
+          {
+            key: 'history',
+            label: t('record.more.history'),
+            title: t('history.title'),
+            content: (
+              <HistoryPanel
+                entity="contact"
+                entityId={contact.id}
+                locale={locale}
+                labels={{
+                  title: t('history.title'),
+                  empty: t('history.empty'),
+                  fields: historyFields,
+                  values: historyValues,
+                }}
+              />
+            ),
+          },
+          {
+            key: 'delete',
+            label: t('record.more.deleteContact'),
+            title: t('contacts.detail.deleteTitle'),
+            tone: 'danger',
+            content: (
+              <DangerDelete
+                bare
+                endpoint={`/api/crm/contacts/${contact.id}`}
+                confirmToken={contact.email || name}
+                redirectTo="/app/crm/contacts"
+                title={t('contacts.detail.deleteTitle')}
+                desc={t('contacts.detail.deleteDesc')}
+                buttonLabel={t('contacts.detail.deleteButton')}
+                confirmLabel={t('record.confirmType', { token: contact.email || name })}
+                errorLabel={t('errors.generic')}
+              />
+            ),
+          },
+        ]}
       />
     </>
   );
 
-  // ---------- Actividad: timeline + resumen a la derecha ----------
-  if (tab === 'activity') {
-    const primaryScore = (await listScores(user.id)).find((x) => x.isPrimary);
-    const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
-    const [timeline, threads, emailTemplates, emailSettings, nextTask] = await Promise.all([
-      listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope }),
-      listEmailThreads(user.id, { contactId: id, limit: 100 }),
-      listEmailTemplates(user.id),
-      getEmailSettings(user.id),
-      nextTaskFor(user.id, { contactId: id }),
-    ]);
-    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
-    const [aiAvailable, aiSummary] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'contact', contact.id, scope)]);
-    const recordFiles = (await listRecordFiles(user.id, 'contact', contact.id)).map(toView);
-    return (
-      <div className="ui-page record-page">
-        {header}
-        <RecordTabs>
-          <div className="record-activity">
-            <div className="record-activity-main">
-              <NextTaskBanner
-                task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
-                locale={locale}
-              />
-              <Timeline
-                recordType="contact"
-                recordId={contact.id}
-                items={timelineItems}
-                emptyLabel={t('contacts.detail.emptyTimeline')}
-                mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
-                locale={locale}
-                defaultEmail={contact.email}
-                emailTools={{
-                  templates: emailTemplates.map((x) => ({
-                    id: x.id,
-                    kind: x.kind,
-                    name: x.name,
-                    subject: x.subject,
-                    body: x.body,
-                  })),
-                  aiEnabled: aiEnabled(),
-                  trackingDefault: emailSettings.trackingEnabled,
-                  contactId: contact.id,
-                }}
-              />
-            </div>
-            <aside className="record-summary" aria-label={t('record.summary')}>
-              <AiSummaryCard entity="contact" id={contact.id} locale={locale} initial={aiSummary} available={aiAvailable} />
-              <dl className="record-facts">
-                <div>
-                  <dt>{t('contacts.form.email')}</dt>
-                  <dd>{contact.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : '—'}</dd>
-                </div>
-                <div>
-                  <dt>{t('contacts.form.phone')}</dt>
-                  <dd>
-                    {contact.phone ? (
-                      <a href={`tel:${contact.phone}`} className="num">
-                        {formatPhoneDisplay(contact.phone)}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('contacts.form.owner')}</dt>
-                  <dd>{ownerLabel}</dd>
-                </div>
-                <div>
-                  <dt>{primaryScore?.name ?? t('scoring.column')}</dt>
-                  <dd className="num">
-                    {contact.score ?? 0}
-                    {primaryTier && <span className="score-tier">{primaryTier}</span>}
-                  </dd>
-                </div>
-                <ActivityDateFacts record={contact} locale={locale} />
-              </dl>
-              <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
-                {t('contacts.detail.viewAllProperties')}
-              </Link>
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('contacts.detail.deals')} <span className="num">{deals.length}</span>
-                </h2>
-                {deals.length === 0 ? (
-                  <p className="muted">{t('contacts.detail.noDeals')}</p>
-                ) : (
-                  <ul className="record-summary-list">
-                    {deals.slice(0, 5).map((d) => (
-                      <li key={d.id}>
-                        <Link href={`/app/crm/deals/${d.id}`}>{d.name}</Link>
-                        <span className="muted">
-                          {d.stage_name ? `${d.stage_name} · ` : ''}
-                          <span className="num">{money(d.amount, d.currency, locale)}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('contacts.detail.companies')} <span className="num">{contactCompanies.length}</span>
-                </h2>
-                {contactCompanies.length === 0 ? (
-                  <p className="muted">{t('contacts.detail.noCompany')}</p>
-                ) : (
-                  <ul className="record-summary-list">
-                    {contactCompanies.slice(0, 5).map((c) => (
-                      <li key={c.id}>
-                        <Link href={`/app/crm/companies/${c.id}`}>{c.name}</Link>
-                        {c.domain && <span className="muted">{c.domain}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <Link href={recordTabHref(base, 'related')} className="record-summary-more">
-                {t('record.manageRelated')}
-              </Link>
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('files.title')} <span className="num">{recordFiles.length}</span>
-                </h2>
-                <FilesPanel endpoint={`/api/crm/contacts/${contact.id}/files`} files={recordFiles} />
-              </div>
-              <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
-            </aside>
-          </div>
-        </RecordTabs>
-      </div>
-    );
-  }
-
-  // ---------- Propiedades: todas, editables en línea, + score ----------
-  if (tab === 'properties') {
-    const [companiesPage, fieldAccess] = await Promise.all([
-      listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope }),
-      fieldAccessFor(sessionFieldViewer(user), 'contacts'),
-    ]);
-    const companies = companiesPage.rows;
-    const customFieldDefs = fieldAccess.visible;
-    const custom = parseCustom(redactCustomJson(contact.custom, fieldAccess.hidden));
-    const customFields = customPropFields(customFieldDefs, custom, {
-      yes: t('common.yes'),
-      no: t('common.no'),
-      locale,
-      owners: ownerOptions,
-    });
-    const scoreViews = await contactScores(user.id, contact);
-    const fields: PropField[] = [
-      { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
-      { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
-      { key: 'email', label: t('contacts.form.email'), type: 'text', value: contact.email },
-      { key: 'phone', label: t('contacts.form.phone'), type: 'text', value: contact.phone, display: formatPhoneDisplay(contact.phone) },
-      { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text', value: contact.job_title },
-      { key: 'website', label: t('contacts.form.website'), type: 'text', value: contact.website },
-      { key: 'city', label: t('contacts.form.city'), type: 'text', value: contact.city },
-      { key: 'country', label: t('contacts.form.country'), type: 'text', value: contact.country },
-      {
-        key: 'lifecycleStage',
-        label: t('contacts.form.lifecycle'),
-        type: 'select',
-        value: contact.lifecycle_stage,
-        options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
-      },
-      {
-        key: 'leadStatus',
-        label: t('contacts.form.leadStatus'),
-        type: 'select',
-        value: contact.lead_status,
-        options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
-      },
-      {
-        key: 'source',
-        label: t('contacts.form.source'),
-        type: 'select',
-        value: contact.source,
-        // La API no acepta source vacío: solo se muestra '—' si ya está vacío (no-op).
-        options: [
-          ...(contact.source === '' ? [{ value: '', label: '—' }] : []),
-          ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
-        ],
-      },
-      {
-        key: 'companyId',
-        label: t('contacts.form.company'),
-        type: 'select',
-        value: contact.company_id ?? '',
-        options: companies.map((c) => ({ value: c.id, label: c.name })),
-        nullOption: true,
-      },
-      {
-        key: 'ownerId',
-        label: t('contacts.form.owner'),
-        type: 'select',
-        value: contact.owner_id ?? user.id,
-        options: ownerOptions,
-      },
-      ...customFields,
-    ];
-    const sections: PropSection[] = [
-      {
-        title: t('contacts.detail.aboutSection'),
-        keys: ['firstName', 'lastName', 'email', 'phone', 'jobTitle', 'website', 'city', 'country'],
-      },
-      { title: t('contacts.detail.lifecycleSection'), keys: ['lifecycleStage', 'leadStatus', 'source'] },
-      { title: t('contacts.detail.ownershipSection'), keys: ['ownerId', 'companyId'] },
-      ...(customFields.length
-        ? [{ title: t('contacts.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-        : []),
-    ];
-    return (
-      <div className="ui-page record-page">
-        {header}
-        <RecordTabs>
-          <div className="record-props">
-            <PropertiesPanel
-              endpoint={`/api/crm/contacts/${contact.id}`}
-              fields={fields}
-              custom={custom}
-              sections={sections}
-            />
-            {scoreViews.map((sv) => (
-              <section
-                key={sv.scoreId}
-                className="record-block score-card"
-                id={sv.isPrimary ? 'score' : `score-${sv.scoreId}`}
-                data-testid="contact-score-card"
-              >
-                <div className="assoc-head">
-                  <h2 className="assoc-title">{sv.name}</h2>
-                  <span className="num score-card-value">{sv.score}</span>
-                  {sv.tier && (
-                    <span className="score-tier" data-testid="score-card-tier">
-                      {sv.tier}
-                    </span>
-                  )}
-                </div>
-                {sv.breakdown.length === 0 ? (
-                  <p className="assoc-empty">{t('scoring.noBreakdown')}</p>
-                ) : (
-                  <ul className="score-breakdown">
-                    {sv.breakdown.map((b) => (
-                      <li key={b.ruleId}>
-                        <span className={`num score-points ${b.points >= 0 ? 'pos' : 'neg'}`}>
-                          {b.points > 0 ? `+${b.points}` : b.points}
-                        </span>
-                        <span className="score-why">{b.name || t('scoring.unnamedRule')}</span>
-                        {(b.detail || b.decayed) && (
-                          <span className="muted score-detail">
-                            {b.detail}
-                            {b.decayed ? ` · ${t('scoring.decayedNote')}` : ''}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-          </div>
-        </RecordTabs>
-      </div>
-    );
-  }
-
-  // ---------- Relacionados: empresas, deals, secuencias, listas ----------
+  // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const dealScope = ownerScopeSql('d', scope);
-  const [companiesPage, allDeals, enrollments, sequences, pipelines] = await Promise.all([
+  const [
+    scores,
+    timeline,
+    threads,
+    emailTemplates,
+    emailSettings,
+    nextTask,
+    companiesPage,
+    fieldAccess,
+    scoreViews,
+    allDeals,
+    enrollments,
+    sequences,
+    pipelines,
+    aiAvailable,
+    aiSummary,
+    recordFilesRaw,
+  ] = await Promise.all([
+    listScores(user.id),
+    listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope }),
+    listEmailThreads(user.id, { contactId: id, limit: 100 }),
+    listEmailTemplates(user.id),
+    getEmailSettings(user.id),
+    nextTaskFor(user.id, { contactId: id }),
     listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope }),
+    fieldAccessFor(sessionFieldViewer(user), 'contacts'),
+    contactScores(user.id, contact),
     getDb()
       .prepare(
         `SELECT d.id, d.name FROM crm_deals d WHERE d.user_id = ?${dealScope.sql ? ` AND ${dealScope.sql}` : ''}
@@ -528,8 +256,212 @@ export default async function ContactDetailPage(props: {
     listEnrollments(user.id, { contactId: id, limit: 20 }),
     listSequences(user.id),
     listPipelinesWithStages(user.id),
+    crmAiAvailable(),
+    getRecordSummary(user.id, 'contact', contact.id, scope),
+    listRecordFiles(user.id, 'contact', contact.id),
   ]);
+  const primaryScore = scores.find((x) => x.isPrimary);
+  const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
+  const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
+  const recordFiles = recordFilesRaw.map(toView);
   const companies = companiesPage.rows;
+
+  // ---------- Izquierda: propiedades, editables en línea ----------
+  const customFieldDefs = fieldAccess.visible;
+  const custom = parseCustom(redactCustomJson(contact.custom, fieldAccess.hidden));
+  const customFields = customPropFields(customFieldDefs, custom, {
+    yes: t('common.yes'),
+    no: t('common.no'),
+    locale,
+    owners: ownerOptions,
+  });
+  const fields: PropField[] = [
+    { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
+    { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
+    { key: 'email', label: t('contacts.form.email'), type: 'text', value: contact.email },
+    { key: 'phone', label: t('contacts.form.phone'), type: 'text', value: contact.phone, display: formatPhoneDisplay(contact.phone) },
+    { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text', value: contact.job_title },
+    { key: 'website', label: t('contacts.form.website'), type: 'text', value: contact.website },
+    { key: 'city', label: t('contacts.form.city'), type: 'text', value: contact.city },
+    { key: 'country', label: t('contacts.form.country'), type: 'text', value: contact.country },
+    {
+      key: 'lifecycleStage',
+      label: t('contacts.form.lifecycle'),
+      type: 'select',
+      value: contact.lifecycle_stage,
+      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+    },
+    {
+      key: 'leadStatus',
+      label: t('contacts.form.leadStatus'),
+      type: 'select',
+      value: contact.lead_status,
+      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    },
+    {
+      key: 'source',
+      label: t('contacts.form.source'),
+      type: 'select',
+      value: contact.source,
+      // La API no acepta source vacío: solo se muestra '—' si ya está vacío (no-op).
+      options: [
+        ...(contact.source === '' ? [{ value: '', label: '—' }] : []),
+        ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
+      ],
+    },
+    {
+      key: 'companyId',
+      label: t('contacts.form.company'),
+      type: 'select',
+      value: contact.company_id ?? '',
+      options: companies.map((c) => ({ value: c.id, label: c.name })),
+      nullOption: true,
+    },
+    {
+      key: 'ownerId',
+      label: t('contacts.form.owner'),
+      type: 'select',
+      value: contact.owner_id ?? user.id,
+      options: ownerOptions,
+    },
+    ...customFields,
+  ];
+  const sections: Array<PropSection & { id: string }> = [
+    {
+      id: 'about',
+      title: t('contacts.detail.aboutSection'),
+      keys: ['firstName', 'lastName', 'email', 'phone', 'jobTitle', 'website', 'city', 'country'],
+    },
+    { id: 'lifecycle', title: t('contacts.detail.lifecycleSection'), keys: ['lifecycleStage', 'leadStatus', 'source'] },
+    { id: 'ownership', title: t('contacts.detail.ownershipSection'), keys: ['ownerId', 'companyId'] },
+    ...(customFields.length
+      ? [{ id: 'custom', title: t('contacts.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
+      : []),
+  ];
+
+  const about = (
+    <>
+      {sections.map((s) => (
+        <RecordCard key={s.id} id={`contact.${s.id}`} label={s.title}>
+          <PropertiesPanel
+            endpoint={`/api/crm/contacts/${contact.id}`}
+            fields={fields.filter((f) => s.keys.includes(f.key))}
+            custom={custom}
+          />
+        </RecordCard>
+      ))}
+      {scoreViews.map((sv) => (
+        <RecordCard
+          key={sv.scoreId}
+          id={sv.isPrimary ? 'contact.score' : `contact.score.${sv.scoreId}`}
+          label={sv.name}
+          className="score-card"
+          anchor={sv.isPrimary ? 'score' : `score-${sv.scoreId}`}
+          testId="contact-score-card"
+          aside={
+            <span className="rec-card-aside">
+              <span className="num score-card-value">{sv.score}</span>
+              {sv.tier && (
+                <span className="score-tier" data-testid="score-card-tier">
+                  {sv.tier}
+                </span>
+              )}
+            </span>
+          }
+        >
+          {sv.breakdown.length === 0 ? (
+            <p className="assoc-empty">{t('scoring.noBreakdown')}</p>
+          ) : (
+            <ul className="score-breakdown">
+              {sv.breakdown.map((b) => (
+                <li key={b.ruleId}>
+                  <span className={`num score-points ${b.points >= 0 ? 'pos' : 'neg'}`}>
+                    {b.points > 0 ? `+${b.points}` : b.points}
+                  </span>
+                  <span className="score-why">{b.name || t('scoring.unnamedRule')}</span>
+                  {(b.detail || b.decayed) && (
+                    <span className="muted score-detail">
+                      {b.detail}
+                      {b.decayed ? ` · ${t('scoring.decayedNote')}` : ''}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </RecordCard>
+      ))}
+    </>
+  );
+
+  // ---------- Medio: Resumen y Actividad ----------
+  const nextTaskBanner = (
+    <NextTaskBanner
+      task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
+      locale={locale}
+    />
+  );
+  const overview = (
+    <>
+      {nextTaskBanner}
+      <section className="rec-overview-block" data-testid="record-highlights">
+        <h2 className="rec-overview-title">{t('record.highlights')}</h2>
+        <dl className="record-facts">
+          <div>
+            <dt>{t('contacts.form.owner')}</dt>
+            <dd>{ownerLabel}</dd>
+          </div>
+          <div>
+            <dt>{primaryScore?.name ?? t('scoring.column')}</dt>
+            <dd className="num">
+              {contact.score ?? 0}
+              {primaryTier && <span className="score-tier">{primaryTier}</span>}
+            </dd>
+          </div>
+          <ActivityDateFacts record={contact} locale={locale} />
+        </dl>
+      </section>
+      <RecordRecentActivity
+        items={timelineItems.slice(0, 5)}
+        locale={locale}
+        title={t('record.recentActivity')}
+        emptyLabel={t('contacts.detail.emptyTimeline')}
+        moreLabel={t('record.seeAllActivity')}
+        moreHref={layoutTabHref(base, 'activity')}
+        typeLabels={activityTypeLabels}
+      />
+    </>
+  );
+
+  const activity = (
+    <>
+      {nextTaskBanner}
+      <Timeline
+        recordType="contact"
+        recordId={contact.id}
+        items={timelineItems}
+        emptyLabel={t('contacts.detail.emptyTimeline')}
+        mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
+        locale={locale}
+        defaultEmail={contact.email}
+        compose={compose}
+        emailTools={{
+          templates: emailTemplates.map((x) => ({
+            id: x.id,
+            kind: x.kind,
+            name: x.name,
+            subject: x.subject,
+            body: x.body,
+          })),
+          aiEnabled: aiEnabled(),
+          trackingDefault: emailSettings.trackingEnabled,
+          contactId: contact.id,
+        }}
+      />
+    </>
+  );
+
+  // ---------- Derecha: asociaciones ----------
   // Pipeline default + primer stage abierto (para crear deals desde el detalle).
   const defaultPipeline = pipelines[0];
   const firstOpenStage =
@@ -537,120 +469,179 @@ export default async function ContactDetailPage(props: {
   const priorities = PRIORITIES.map((value) => ({ value, label: t(`enums.priority.${value}`) }));
   const sourceOpts = SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }));
 
+  const right = (
+    <>
+      <RecordCard id="contact.ai" label={t('ai.summary.title')} bare>
+        <AiSummaryCard entity="contact" id={contact.id} locale={locale} initial={aiSummary} available={aiAvailable} />
+      </RecordCard>
+
+      <RecordCard
+        id="contact.companies"
+        label={t('contacts.detail.companies')}
+        count={contactCompanies.length}
+        addLabel={t('record.cards.add')}
+      >
+        <AssociationPanel
+          records={contactCompanies.map((c) => ({
+            id: c.id,
+            name: c.name,
+            href: `/app/crm/companies/${c.id}`,
+            meta: c.domain || undefined,
+            primary: !!c.is_primary,
+            label: c.label,
+          }))}
+          options={companies
+            .filter((c) => !contactCompanies.some((cc) => cc.id === c.id))
+            .map((c) => ({ id: c.id, value: c.name }))}
+          onAssociate={associateCompanyToContact.bind(null, contact.id)}
+          onRemove={removeCompanyFromContact.bind(null, contact.id)}
+          onSetPrimary={setContactCompanyPrimary.bind(null, contact.id)}
+          onSetLabel={setContactCompanyLabel.bind(null, contact.id)}
+          labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({
+            value: v,
+            label: t(`enums.contactCompanyLabel.${v}`),
+          }))}
+          addLabel={t('contacts.detail.associateCompany')}
+          emptyLabel={t('contacts.detail.noCompany')}
+          action={<CompanyQuickCreate contactId={contact.id} />}
+        />
+      </RecordCard>
+
+      <RecordCard id="contact.deals" label={t('contacts.detail.deals')} count={deals.length} addLabel={t('record.cards.add')}>
+        <AssociationPanel
+          records={deals.map((d) => ({
+            id: d.id,
+            name: d.name,
+            href: `/app/crm/deals/${d.id}`,
+            meta: [d.stage_name, money(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
+          }))}
+          options={allDeals
+            .filter((d) => !deals.some((dd) => dd.id === d.id))
+            .map((d) => ({ id: d.id, value: d.name }))}
+          onAssociate={associateDealToContact.bind(null, contact.id)}
+          onRemove={removeDealFromContact.bind(null, contact.id)}
+          addLabel={t('assoc.pickDeal')}
+          emptyLabel={t('contacts.detail.noDeals')}
+          action={
+            defaultPipeline && firstOpenStage ? (
+              <ContactAddDeal
+                pipelineId={defaultPipeline.id}
+                stageId={firstOpenStage.id}
+                contactId={contact.id}
+                priorities={priorities}
+                sources={sourceOpts}
+              />
+            ) : undefined
+          }
+        />
+      </RecordCard>
+
+      <RecordCard id="contact.files" label={t('files.title')} count={recordFiles.length}>
+        <FilesPanel endpoint={`/api/crm/contacts/${contact.id}/files`} files={recordFiles} />
+      </RecordCard>
+
+      <RecordCard id="contact.sequences" label={t('sequences.panelTitle')} bare>
+        <SequencePanel
+          contactId={contact.id}
+          sequences={sequences.map((sq) => ({ id: sq.id, name: sq.name }))}
+          enrollments={enrollments.map((e) => ({
+            id: e.id,
+            sequenceId: e.sequence_id,
+            sequenceName: e.sequence_name,
+            status: e.status,
+            exitReason: e.exit_reason,
+            step: Math.min(e.current_step + 1, e.step_count),
+            stepCount: e.step_count,
+          }))}
+        />
+      </RecordCard>
+
+      <RecordCard id="contact.lists" label={t('contacts.detail.lists')} count={lists.length}>
+        {lists.length === 0 ? (
+          <p className="assoc-empty">{t('contacts.detail.noLists')}</p>
+        ) : (
+          <ul className="assoc-list">
+            {lists.map((l) => (
+              <li key={l.id} className="assoc-row">
+                <span className="assoc-main">
+                  <Link href={`/app/crm/lists/${l.id}`} className="assoc-name">
+                    {l.name}
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </RecordCard>
+
+      <RecordCard id="contact.leads" label={t('leads.contactLeads')} bare>
+        <RelatedLeads
+          workspaceId={user.id}
+          contactId={contact.id}
+          contactName={[contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email}
+          scope={scope}
+          locale={locale}
+          owners={ownerOptions}
+          defaultOwner={realUserId(user)}
+        />
+      </RecordCard>
+      <RecordCard id="contact.objects" label={t('record.cards.objects')} bare>
+        <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
+      </RecordCard>
+      <RecordCard id="contact.groups" label={t('record.cards.groups')} bare>
+        <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
+      </RecordCard>
+      <RecordCard id="contact.track" label={t('record.cards.track')} bare>
+        <CrmTrackRequests contactId={contact.id} locale={locale} />
+      </RecordCard>
+    </>
+  );
+
   return (
-    <div className="ui-page record-page">
-      {header}
-      <RecordTabs>
-        <div className="record-related">
-          <section className="record-block">
-            <AssociationPanel
-              title={t('contacts.detail.companies')}
-              count={contactCompanies.length}
-              records={contactCompanies.map((c) => ({
-                id: c.id,
-                name: c.name,
-                href: `/app/crm/companies/${c.id}`,
-                meta: c.domain || undefined,
-                primary: !!c.is_primary,
-                label: c.label,
-              }))}
-              options={companies
-                .filter((c) => !contactCompanies.some((cc) => cc.id === c.id))
-                .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={associateCompanyToContact.bind(null, contact.id)}
-              onRemove={removeCompanyFromContact.bind(null, contact.id)}
-              onSetPrimary={setContactCompanyPrimary.bind(null, contact.id)}
-              onSetLabel={setContactCompanyLabel.bind(null, contact.id)}
-              labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({
-                value: v,
-                label: t(`enums.contactCompanyLabel.${v}`),
-              }))}
-              addLabel={t('contacts.detail.associateCompany')}
-              emptyLabel={t('contacts.detail.noCompany')}
-              action={<CompanyQuickCreate contactId={contact.id} />}
+    <RecordColumns
+      tab={tab}
+      base={base}
+      back={{ href: '/app/crm/contacts', label: t('record.back.contacts') }}
+      actions={actions}
+      identity={
+        <RecordIdentity
+          name={name}
+          base={base}
+          quick={COMPOSE_TYPES}
+          keyLine={
+            <>
+              {contact.lifecycle_stage && (
+                <span className={`badge stage-${contact.lifecycle_stage}`}>
+                  {t(`enums.lifecycle.${contact.lifecycle_stage}`)}
+                </span>
+              )}
+              {contact.lead_status && (
+                <span className="badge badge-outline">{t(`enums.leadStatus.${contact.lead_status}`)}</span>
+              )}
+              {contact.job_title && <span>{contact.job_title}</span>}
+              {company && (
+                <Link href={`/app/crm/companies/${company.id}`} className="record-meta-link">
+                  {company.name}
+                </Link>
+              )}
+            </>
+          }
+          tags={
+            <RecordTags
+              entity="contact"
+              recordId={contact.id}
+              tags={recordTags.get(contact.id) ?? []}
+              allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
             />
-          </section>
-
-          <section className="record-block">
-            <AssociationPanel
-              title={t('contacts.detail.deals')}
-              count={deals.length}
-              records={deals.map((d) => ({
-                id: d.id,
-                name: d.name,
-                href: `/app/crm/deals/${d.id}`,
-                meta: [d.stage_name, money(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
-              }))}
-              options={allDeals
-                .filter((d) => !deals.some((dd) => dd.id === d.id))
-                .map((d) => ({ id: d.id, value: d.name }))}
-              onAssociate={associateDealToContact.bind(null, contact.id)}
-              onRemove={removeDealFromContact.bind(null, contact.id)}
-              addLabel={t('assoc.pickDeal')}
-              emptyLabel={t('contacts.detail.noDeals')}
-              action={
-                defaultPipeline && firstOpenStage ? (
-                  <ContactAddDeal
-                    pipelineId={defaultPipeline.id}
-                    stageId={firstOpenStage.id}
-                    contactId={contact.id}
-                    priorities={priorities}
-                    sources={sourceOpts}
-                  />
-                ) : undefined
-              }
-            />
-          </section>
-
-          <SequencePanel
-            contactId={contact.id}
-            sequences={sequences.map((sq) => ({ id: sq.id, name: sq.name }))}
-            enrollments={enrollments.map((e) => ({
-              id: e.id,
-              sequenceId: e.sequence_id,
-              sequenceName: e.sequence_name,
-              status: e.status,
-              exitReason: e.exit_reason,
-              step: Math.min(e.current_step + 1, e.step_count),
-              stepCount: e.step_count,
-            }))}
-          />
-
-          <section className="record-block">
-            <div className="assoc-head">
-              <h2 className="assoc-title">{t('contacts.detail.lists')}</h2>
-              <span className="assoc-count num">{lists.length}</span>
-            </div>
-            {lists.length === 0 ? (
-              <p className="assoc-empty">{t('contacts.detail.noLists')}</p>
-            ) : (
-              <ul className="assoc-list">
-                {lists.map((l) => (
-                  <li key={l.id} className="assoc-row">
-                    <span className="assoc-main">
-                      <Link href={`/app/crm/lists/${l.id}`} className="assoc-name">
-                        {l.name}
-                      </Link>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <RelatedLeads
-            workspaceId={user.id}
-            contactId={contact.id}
-            contactName={[contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email}
-            scope={scope}
-            locale={locale}
-            owners={ownerOptions}
-            defaultOwner={realUserId(user)}
-          />
-          <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
-          <CrmTrackRequests contactId={contact.id} locale={locale} />
-        </div>
-      </RecordTabs>
-    </div>
+          }
+        />
+      }
+      about={about}
+      aboutLabel={t('record.layoutTabs.properties')}
+      overview={overview}
+      activity={activity}
+      right={right}
+      rightLabel={t('record.layoutTabs.related')}
+    />
   );
 }
-

@@ -1,0 +1,322 @@
+/* ============================================================
+   CRM: ficha en tres columnas (contacto, empresa, deal).
+   components/crm/RecordColumns.tsx. Izquierda: identidad, acciones
+   rápidas y propiedades. Medio: pestañas Resumen / Actividad. Derecha:
+   tarjetas de asociaciones.
+
+   Desde 1240px de ventana (WIDE_MIN_PX en components/crm/recordLayout.ts)
+   las tres columnas están a la vista. Por debajo queda una columna: la
+   identidad arriba y cuatro pestañas; `data-tab` decide cuál se ve.
+
+   Solo tokens (--line, --ink, --ui-hover, --radius-1…): cada aspecto y el
+   modo oscuro los cambian por su cuenta.
+   ============================================================ */
+
+.rec3-page { gap: 12px; }
+
+.rec-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 32px;
+}
+.rec-topbar-actions { justify-content: flex-end; margin-left: auto; }
+
+.rec3 {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 272px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+}
+.rec3-left,
+.rec3-right {
+  position: sticky;
+  top: calc(var(--band-h, 48px) + 8px);
+  /* Cada costado se queda a la vista mientras se lee el timeline; si es más alto que la ventana, tiene su propio scroll. */
+  max-height: calc(100dvh - var(--band-h, 48px) - 16px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+}
+.rec3-left { display: flex; flex-direction: column; gap: 16px; padding: 16px 16px 24px 2px; border-right: 1px solid var(--line); }
+.rec3-mid { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 12px 20px 24px; }
+.rec3-right { padding: 4px 2px 24px 16px; border-left: 1px solid var(--line); }
+.rec3-panel { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.rec3-identity { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+@media (min-width: 1500px) {
+  .rec3 { grid-template-columns: 300px minmax(0, 1fr) 320px; }
+}
+@media (min-width: 1800px) {
+  .rec3 { grid-template-columns: 340px minmax(0, 1fr) 360px; }
+}
+
+/* ---------- Identidad ---------- */
+
+.rec-identity { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.rec-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--surface-1);
+  font-family: var(--font-data);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--brand-gray-1);
+}
+.rec-identity-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rec-name {
+  margin: 0;
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.375rem;
+  line-height: 1.15;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.rec-keyline { gap: 4px 10px; font-size: 0.8125rem; min-width: 0; }
+.rec-keyline > * { min-width: 0; overflow-wrap: anywhere; }
+.rec3-identity .record-tags { margin-top: 0; }
+
+/* Acciones rápidas: ícono arriba, nombre abajo, cinco en una fila. */
+.rec-quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.rec-quick .rec-quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: auto;
+  min-height: 48px;
+  min-width: 0;
+  padding: 6px 0;
+  font-size: 0.65625rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+.rec-quick-btn > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Tarjetas plegables ---------- */
+
+.rec-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.rec-card:first-child { border-top: 0; }
+/* Un panel que decidió no mostrar nada (sin objetos propios, sin Track) no deja una tarjeta vacía. */
+.rec-card-bare:has(> .rec-card-body:empty) { display: none; }
+
+.rec-card-toggle {
+  position: absolute;
+  top: 12px;
+  left: -2px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+/* Área de toque más grande que el ícono, sin mover nada. */
+.rec-card-toggle::before { content: ''; position: absolute; inset: -6px; }
+.rec-card-toggle:hover { color: var(--ink); background: var(--ui-hover); }
+.rec-card-toggle svg { transition: transform var(--ui-dur, 120ms) var(--ease, ease); }
+.rec-card[data-collapsed] > .rec-card-toggle svg { transform: rotate(-90deg); }
+
+.rec-card-head { display: flex; align-items: center; gap: 8px; min-height: 24px; padding-left: 26px; }
+.rec-card-title,
+.rec-overview-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.rec-card-count {
+  margin-left: 8px;
+  font-family: var(--font-ui);
+  font-stretch: 100%;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  color: var(--brand-gray-2);
+}
+.rec-card-add { flex: none; }
+.rec-card-aside { display: inline-flex; align-items: baseline; flex: none; }
+.rec-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rec-card-body[hidden] { display: none; }
+
+/* Tarjetas cuyo contenido trae su propio título: el título queda al lado de la flecha y, plegada, es lo único que se ve. */
+.rec-card-bare > .rec-card-body > * > :first-child { padding-left: 26px; min-height: 24px; }
+.rec-card-bare[data-collapsed] > .rec-card-body > * > :not(:first-child) { display: none; }
+
+/* Registros de objetos propios: el título está un nivel más adentro (dentro del panel de asociación). */
+.rec-card-bare > .rec-card-body > .record-block > .association-panel:first-child { padding-left: 0; }
+.rec-card-bare > .rec-card-body > .record-block > .association-panel > :first-child { padding-left: 26px; min-height: 24px; }
+.rec-card-bare[data-collapsed] > .rec-card-body > .record-block > .association-panel > :not(:first-child) { display: none; }
+
+/* Los paneles de antes traían su borde y su relleno de bloque: dentro de una tarjeta no hacen falta. */
+.rec3 .rec-card-body > :is(.record-block, .panel, .record-summary-block) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.rec3 .rec-card-body > .record-block + .record-block { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.rec3 :is(.assoc-title, .record-summary-title, .track-section-title, .prop-section-title),
+.rec3 .rec-card-body > .panel .section-label {
+  margin: 0;
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  text-transform: none;
+  color: var(--ink);
+}
+
+/* La cuenta al lado del título, igual en todas las tarjetas. */
+.rec3 :is(.assoc-title, .record-summary-title) > .num {
+  margin-left: 8px;
+  font-family: var(--font-ui);
+  font-stretch: 100%;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  color: var(--brand-gray-2);
+}
+.rec3 .rec-card-body > .record-summary-block > .record-summary-title { justify-content: flex-start; }
+
+/* ---------- Izquierda: propiedades apiladas (nombre arriba, valor abajo) ---------- */
+
+.rec3 .rec3-about { display: flex; flex-direction: column; align-items: stretch; gap: 0; min-width: 0; }
+.rec3-about .prop-table { border-top: 0; }
+.rec3-about .prop-row { grid-template-columns: minmax(0, 1fr) 28px; gap: 0 8px; min-height: 0; padding: 6px 0; }
+.rec3-about .prop-row:last-child { border-bottom: 0; }
+.rec3-about .prop-row .prop-label { grid-column: 1; }
+.rec3-about .prop-row > .prop-value { grid-column: 1; }
+.rec3-about .prop-row .prop-edit,
+.rec3-about .prop-row .prop-lock { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+/* El valor arranca alineado con su nombre; el relleno del botón queda hacia afuera. */
+.rec3-about .prop-row .prop-value.prop-btn { width: calc(100% + 6px); min-height: 28px; margin-left: -6px; padding: 2px 6px; }
+.rec3-about .record-facts > div { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
+.rec3-about .score-card-value { font-size: 1.125rem; }
+
+/* ---------- Medio ---------- */
+
+.rec3-tabs { flex: none; }
+.rec3-lead { min-width: 0; }
+.rec3-lead .record-stage { padding: 0; }
+.rec3-lead .stage-row-wrap { flex-wrap: wrap; gap: 12px; }
+.rec3-lead .stage-progress { flex: 1 1 100%; }
+/* La columna del medio es angosta aunque la ventana sea ancha: los tipos de actividad pasan a dos filas. */
+.rec3 .tl-filters { flex-wrap: wrap; overflow: visible; padding-top: 1px; }
+.rec3 .tl-filters > .btn { margin-top: -1px; }
+
+.rec-overview-block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rec-overview-block + .rec-overview-block { padding-top: 16px; border-top: 1px solid var(--line); }
+.rec-overview-title { flex: none; }
+.rec-overview-block .co-about { font-size: 0.875rem; line-height: 1.5; color: var(--brand-gray-1); overflow-wrap: anywhere; }
+.rec-overview-block .li-add .filter-select { min-width: 0; }
+
+.rec-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rec-recent li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.rec-recent-type { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.rec-recent-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.rec-recent-date { font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; }
+
+/* ---------- Derecha: filas de asociación en columna angosta ---------- */
+
+.rec3-right.record-related { display: flex; flex-direction: column; }
+.rec3-right.record-related > .rec-card:first-child { padding-top: 12px; }
+.rec3-right .association-panel { gap: 8px; }
+.rec3-right .assoc-list { border-top: 0; }
+.rec3-right .assoc-row { flex-wrap: wrap; min-height: 40px; }
+.rec3-right .assoc-row:last-child { border-bottom: 0; }
+.rec3-right .assoc-row-meta { order: 3; width: 100%; flex-wrap: wrap; }
+.rec3-right .assoc-add-row .assoc-add { flex: 1 1 100%; }
+.rec3-right .record-summary-list a,
+.rec3-right .assoc-name { overflow-wrap: anywhere; }
+
+/* ---------- Una columna ---------- */
+
+@media (min-width: 1240px) {
+  .rec3-tab-narrow { display: none; }
+}
+
+@media (max-width: 1239.98px) {
+  .rec3 { display: flex; flex-direction: column; gap: 16px; border-top: 0; }
+  /* Los envoltorios de columna dejan de existir: sus partes se ordenan en una sola pila. */
+  .rec3-left,
+  .rec3-mid { display: contents; }
+  .rec3-right { position: static; max-height: none; overflow: visible; padding: 0; border-left: 0; }
+  .rec3-identity { order: 1; }
+  .rec3-lead { order: 2; }
+  .rec3-tabs { order: 3; }
+  .rec3-about,
+  .rec3-panel,
+  .rec3-right { order: 4; }
+  .rec3:is([data-tab='overview'], [data-tab='activity']) :is(.rec3-about, .rec3-right),
+  .rec3[data-tab='properties'] :is(.rec3-panel, .rec3-right),
+  .rec3[data-tab='related'] :is(.rec3-panel, .rec3-about) { display: none; }
+  .rec-quick { max-width: 420px; }
+  /* Con ancho de sobra, las propiedades vuelven a nombre y valor lado a lado. */
+  .rec3-about .prop-row { grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 28px; gap: 12px; }
+  .rec3-about .prop-row > .prop-value { grid-column: 2; }
+  .rec3-about .prop-row .prop-edit,
+  .rec3-about .prop-row .prop-lock { grid-column: 3; grid-row: auto; }
+}
+
+@media (max-width: 520px) {
+  .rec3-about .prop-row { grid-template-columns: minmax(0, 1fr) 28px; gap: 0 8px; }
+  .rec3-about .prop-row > .prop-value { grid-column: 1; }
+  .rec3-about .prop-row .prop-edit,
+  .rec3-about .prop-row .prop-lock { grid-column: 2; grid-row: 1 / span 2; }
+  .rec-topbar-actions { justify-content: flex-start; margin-left: 0; }
+  .rec-recent li { grid-template-columns: minmax(0, 1fr) auto; }
+  .rec-recent-type { grid-column: 1 / -1; }
+}
+
+@media (hover: none) {
+  .rec-card-toggle { width: 28px; height: 28px; top: 10px; left: -4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-card-toggle svg { transition: none; }
+}

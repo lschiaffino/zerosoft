@@ -50,10 +50,10 @@ import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
-import PageHeader from '@/components/ui/PageHeader';
-import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
-import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
+import RecordColumns, { RecordIdentity, RecordRecentActivity } from '@/components/crm/RecordColumns';
+import RecordCard from '@/components/crm/RecordCard';
+import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab } from '@/components/crm/recordLayout';
 import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +65,8 @@ interface DealDetailPageProps {
 
 export default async function DealDetailPage(props: DealDetailPageProps) {
   const [{ locale, id }, searchParams] = await Promise.all([props.params, props.searchParams]);
-  const tab = parseRecordTab(searchParams.tab);
+  const tab = parseLayoutTab(searchParams.tab);
+  const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
@@ -193,481 +194,501 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     t('deals.detail.cloneSuffix'),
   );
 
-  const header = (
+  const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));
+
+  const actions = (
     <>
-      <PageHeader
-        back={{ href: '/app/crm/deals', label: t('record.back.deals') }}
-        title={deal.name}
-        description={
-          <span className="record-meta">
-            <span className="record-amount num">{fmtAmount(deal.amount, deal.currency)}</span>
-            {baseAmount !== null && (
-              <span className="num" title={t('currency.convertedHint', { base: currencyCtx.base })}>
-                ≈ {formatMoney(baseAmount, currencyCtx.base, locale)}
-              </span>
-            )}
-            <span className={`badge prio-${deal.priority}`}>{priorityLabel}</span>
-            {pipeline && <span>{pipeline.name}</span>}
-            {company && (
-              <Link href={`/app/crm/companies/${company.id}`} className="record-meta-link">
-                {company.name}
-              </Link>
-            )}
-          </span>
-        }
-        actions={
-          <>
-            <PlaybookLauncher
-              entity="deal"
-              entityId={deal.id}
-              values={{
-                amount: String(deal.amount ?? ''),
-                closeDate: deal.close_date ? deal.close_date.slice(0, 10) : '',
-                priority: deal.priority,
-                description: deal.description,
-                ...Object.fromEntries(Object.entries(parseCustom(deal.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
-              }}
-            />
-            {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
-              <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=deal:${deal.id}`}>
-                {t('record.sendForSignature')}
-              </Link>
-            )}
-            <BookMeetingMenu
-              eventTypes={meetingTypes}
-              name={primaryContact ? contactName(primaryContact) || undefined : undefined}
-              email={primaryContact?.email || undefined}
-              locale={locale}
-            />
-            <RecordMoreMenu
-              items={[
-                {
-                  key: 'history',
-                  label: t('record.more.history'),
-                  title: t('history.title'),
-                  content: (
-                    <HistoryPanel
-                      entity="deal"
-                      entityId={deal.id}
-                      locale={locale}
-                      labels={{
-                        title: t('history.title'),
-                        empty: t('history.empty'),
-                        fields: historyFields,
-                        values: historyValues,
-                      }}
-                    />
-                  ),
-                },
-                ...(cloneBody && user.role !== 'guest'
-                  ? [
-                      {
-                        key: 'clone',
-                        label: t('record.more.cloneDeal'),
-                        title: t('deals.detail.cloneTitle'),
-                        content: <CloneDeal body={cloneBody} name={deal.name} />,
-                      },
-                    ]
-                  : []),
-                {
-                  key: 'delete',
-                  label: t('record.more.deleteDeal'),
-                  title: t('deals.detail.deleteTitle'),
-                  tone: 'danger',
-                  content: (
-                    <DangerDelete
-                      bare
-                      endpoint={`/api/crm/deals/${deal.id}`}
-                      confirmToken={deal.name}
-                      redirectTo="/app/crm/deals"
-                      title={t('deals.detail.deleteTitle')}
-                      desc={t('deals.detail.deleteDesc')}
-                      buttonLabel={t('deals.detail.deleteButton')}
-                      confirmLabel={t('record.confirmType', { token: deal.name })}
-                      errorLabel={t('errors.generic')}
-                    />
-                  ),
-                },
-              ]}
-            />
-          </>
-        }
-      />
-      <RecordTags
+      <PlaybookLauncher
         entity="deal"
-        recordId={deal.id}
-        tags={recordTags.get(deal.id) ?? []}
-        allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
+        entityId={deal.id}
+        values={{
+          amount: String(deal.amount ?? ''),
+          closeDate: deal.close_date ? deal.close_date.slice(0, 10) : '',
+          priority: deal.priority,
+          description: deal.description,
+          ...Object.fromEntries(Object.entries(parseCustom(deal.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+        }}
       />
-      <section className="record-stage" aria-label={t('deals.form.stage')}>
-        <DealStagePanel
-          dealId={deal.id}
-          stages={stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost }))}
-          currentStageId={deal.stage_id}
-        />
-        {approvalItem && <ApprovalBanner approval={approvalItem} me={realUserId(user)} />}
-        {(deal.closed_at || deal.lost_reason) && (
-          <p className="record-stage-note">
-            {deal.closed_at && (
-              <span>
-                {t('deals.detail.closedAt')}: {fmtDate(deal.closed_at)}
-              </span>
-            )}
-            {deal.lost_reason && (
-              <span>
-                {t('deals.detail.lostReason')}: {deal.lost_reason}
-              </span>
-            )}
-          </p>
-        )}
-      </section>
+      {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
+        <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=deal:${deal.id}`}>
+          {t('record.sendForSignature')}
+        </Link>
+      )}
+      <BookMeetingMenu
+        eventTypes={meetingTypes}
+        name={primaryContact ? contactName(primaryContact) || undefined : undefined}
+        email={primaryContact?.email || undefined}
+        locale={locale}
+      />
+      <RecordMoreMenu
+        items={[
+          {
+            key: 'history',
+            label: t('record.more.history'),
+            title: t('history.title'),
+            content: (
+              <HistoryPanel
+                entity="deal"
+                entityId={deal.id}
+                locale={locale}
+                labels={{
+                  title: t('history.title'),
+                  empty: t('history.empty'),
+                  fields: historyFields,
+                  values: historyValues,
+                }}
+              />
+            ),
+          },
+          ...(cloneBody && user.role !== 'guest'
+            ? [
+                {
+                  key: 'clone',
+                  label: t('record.more.cloneDeal'),
+                  title: t('deals.detail.cloneTitle'),
+                  content: <CloneDeal body={cloneBody} name={deal.name} />,
+                },
+              ]
+            : []),
+          {
+            key: 'delete',
+            label: t('record.more.deleteDeal'),
+            title: t('deals.detail.deleteTitle'),
+            tone: 'danger',
+            content: (
+              <DangerDelete
+                bare
+                endpoint={`/api/crm/deals/${deal.id}`}
+                confirmToken={deal.name}
+                redirectTo="/app/crm/deals"
+                title={t('deals.detail.deleteTitle')}
+                desc={t('deals.detail.deleteDesc')}
+                buttonLabel={t('deals.detail.deleteButton')}
+                confirmLabel={t('record.confirmType', { token: deal.name })}
+                errorLabel={t('errors.generic')}
+              />
+            ),
+          },
+        ]}
+      />
     </>
   );
 
-  // ---------- Actividad ----------
-  if (tab === 'activity') {
-    const [activities, threads, emailTemplates, emailSettings, nextTask] = await Promise.all([
-      listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope }),
-      listEmailThreads(user.id, { dealId: id, limit: 100 }),
-      listEmailTemplates(user.id),
-      getEmailSettings(user.id),
-      nextTaskFor(user.id, { dealId: id }),
-    ]);
-    const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(activities, threads)))));
-    const [aiAvailable, aiSummary, aiScore] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'deal', deal.id, scope), getDealScore(user.id, deal.id, scope)]);
-    const recordFiles = (await listRecordFiles(user.id, 'deal', deal.id)).map(toView);
-    return (
-      <div className="ui-page record-page">
-        {header}
-        <RecordTabs>
-          <div className="record-activity">
-            <div className="record-activity-main">
-              <NextTaskBanner
-                task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
-                locale={locale}
-              />
-              <Timeline
-                recordType="deal"
-                recordId={deal.id}
-                items={timeline}
-                emptyLabel={t('deals.detail.emptyTimeline')}
-                mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
-                locale={locale}
-                defaultEmail={primaryContact?.email ?? ''}
-                emailTools={{
-                  templates: emailTemplates.map((x) => ({
-                    id: x.id,
-                    kind: x.kind,
-                    name: x.name,
-                    subject: x.subject,
-                    body: x.body,
-                  })),
-                  aiEnabled: aiEnabled(),
-                  trackingDefault: emailSettings.trackingEnabled,
-                  contactId: primaryContact?.id,
-                  dealId: deal.id,
-                }}
-              />
-            </div>
-            <aside className="record-summary" aria-label={t('record.summary')}>
-              <AiSummaryCard entity="deal" id={deal.id} locale={locale} initial={aiSummary} available={aiAvailable} />
-              <DealInsightCard dealId={deal.id} locale={locale} initial={aiScore} available={aiAvailable} closed={!!(detail.stage?.is_won || detail.stage?.is_lost)} />
-              <dl className="record-facts">
-                <div>
-                  <dt>{t('deals.form.amount')}</dt>
-                  <dd className="num">{fmtAmount(deal.amount, deal.currency)}</dd>
-                </div>
-                <div>
-                  <dt>{t('deals.form.closeDate')}</dt>
-                  <dd>{closeDateLabel || '—'}</dd>
-                </div>
-                <div>
-                  <dt>{t('deals.form.owner')}</dt>
-                  <dd>{ownerLabel}</dd>
-                </div>
-                <div>
-                  <dt>{t('deals.form.priority')}</dt>
-                  <dd>{priorityLabel}</dd>
-                </div>
-                <ActivityDateFacts record={deal} locale={locale} />
-              </dl>
-              <Link href={recordTabHref(base, 'properties')} className="record-summary-more">
-                {t('deals.detail.viewAllProperties')}
-              </Link>
-              <DealSplitsPanel
-                key={splits.map((s) => `${s.ownerId}:${s.percent}`).join(',')}
-                dealId={deal.id}
-                ownerId={deal.owner_id ?? user.id}
-                amount={deal.amount}
-                currency={deal.currency}
-                locale={locale}
-                people={ownerOptions}
-                splits={splits}
-              />
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('deals.detail.contacts')} <span className="num">{contacts.length}</span>
-                </h2>
-                {contacts.length === 0 ? (
-                  <p className="muted">{t('deals.detail.noContacts')}</p>
-                ) : (
-                  <ul className="record-summary-list">
-                    {contacts.slice(0, 5).map((c) => (
-                      <li key={c.id}>
-                        <Link href={`/app/crm/contacts/${c.id}`}>{contactName(c)}</Link>
-                        {c.email && <span className="muted">{c.email}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('deals.detail.companies')} <span className="num">{dealCompanies.length}</span>
-                </h2>
-                {dealCompanies.length === 0 ? (
-                  <p className="muted">{t('deals.detail.noCompany')}</p>
-                ) : (
-                  <ul className="record-summary-list">
-                    {dealCompanies.slice(0, 5).map((c) => (
-                      <li key={c.id}>
-                        <Link href={`/app/crm/companies/${c.id}`}>{c.name}</Link>
-                        {c.domain && <span className="muted">{c.domain}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <Link href={recordTabHref(base, 'related')} className="record-summary-more">
-                {t('record.manageRelated')}
-              </Link>
-              <div className="record-summary-block">
-                <h2 className="record-summary-title">
-                  {t('files.title')} <span className="num">{recordFiles.length}</span>
-                </h2>
-                <FilesPanel endpoint={`/api/crm/deals/${deal.id}/files`} files={recordFiles} />
-              </div>
-            </aside>
-          </div>
-        </RecordTabs>
-      </div>
-    );
-  }
+  // Etapa del deal: arriba de las pestañas, a la vista en todas.
+  const stagePanel = (
+    <section className="record-stage" aria-label={t('deals.form.stage')}>
+      <DealStagePanel
+        dealId={deal.id}
+        stages={stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost }))}
+        currentStageId={deal.stage_id}
+      />
+      {approvalItem && <ApprovalBanner approval={approvalItem} me={realUserId(user)} />}
+      {(deal.closed_at || deal.lost_reason) && (
+        <p className="record-stage-note">
+          {deal.closed_at && (
+            <span>
+              {t('deals.detail.closedAt')}: {fmtDate(deal.closed_at)}
+            </span>
+          )}
+          {deal.lost_reason && (
+            <span>
+              {t('deals.detail.lostReason')}: {deal.lost_reason}
+            </span>
+          )}
+        </p>
+      )}
+    </section>
+  );
 
-  // ---------- Propiedades ----------
-  if (tab === 'properties') {
-    const fieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'deals');
-    const customFieldDefs = fieldAccess.visible;
-    const custom = parseCustom(redactCustomJson(deal.custom, fieldAccess.hidden));
-    const customFields = customPropFields(customFieldDefs, custom, {
-      yes: t('common.yes'),
-      no: t('common.no'),
-      locale,
-      owners: ownerOptions,
-    });
-    const fields: PropField[] = [
-      { key: 'name', label: t('deals.form.name'), type: 'text', value: deal.name },
-      {
-        key: 'amount',
-        label: t('deals.form.amount'),
-        type: 'number',
-        value: String(deal.amount),
-        display: fmtAmount(deal.amount, deal.currency),
-      },
-      { key: 'currency', label: t('deals.form.currency'), type: 'text', value: deal.currency },
-      {
-        key: 'closeDate',
-        label: t('deals.form.closeDate'),
-        type: 'date',
-        value: deal.close_date ?? '',
-        display: closeDateLabel || undefined,
-        nullOption: true,
-      },
-      {
-        key: 'priority',
-        label: t('deals.form.priority'),
-        type: 'select',
-        value: deal.priority,
-        options: PRIORITIES.map((v) => ({ value: v, label: t(`enums.priority.${v}`) })),
-      },
-      {
-        key: 'source',
-        label: t('deals.form.source'),
-        type: 'select',
-        value: deal.source,
-        // La API no acepta source vacío: solo se muestra '—' si ya está vacío (no-op).
-        options: [
-          ...(deal.source === '' ? [{ value: '', label: '—' }] : []),
-          ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
-        ],
-      },
-      { key: 'description', label: t('deals.form.description'), type: 'text', value: deal.description },
-      {
-        key: 'ownerId',
-        label: t('deals.form.owner'),
-        type: 'select',
-        value: deal.owner_id ?? user.id,
-        options: ownerOptions,
-      },
-      ...customFields,
-    ];
-    const sections: PropSection[] = [
-      {
-        title: t('deals.detail.aboutSection'),
-        keys: ['name', 'amount', 'currency', 'closeDate', 'priority', 'source', 'description'],
-      },
-      { title: t('deals.detail.ownershipSection'), keys: ['ownerId'] },
-      ...(customFields.length
-        ? [{ title: t('deals.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-        : []),
-    ];
-    return (
-      <div className="ui-page record-page">
-        {header}
-        <RecordTabs>
-          <div className="record-props">
-            <PropertiesPanel endpoint={`/api/crm/deals/${deal.id}`} fields={fields} custom={custom} sections={sections} />
-          </div>
-        </RecordTabs>
-      </div>
-    );
-  }
-
-  // ---------- Relacionados: empresas, contactos, productos, cotizaciones ----------
-  const [lineSummary, activeProducts, dealQuotes, contactRows, allCompanies] = await Promise.all([
+  // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
+  const contactScope = scopeAnd('crm_contacts', scope);
+  const companyScope = scopeAnd('crm_companies', scope);
+  const [
+    activities,
+    threads,
+    emailTemplates,
+    emailSettings,
+    nextTask,
+    aiAvailable,
+    aiSummary,
+    aiScore,
+    recordFilesRaw,
+    fieldAccess,
+    lineSummary,
+    activeProducts,
+    dealQuotes,
+    contactRows,
+    allCompanies,
+  ] = await Promise.all([
+    listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope }),
+    listEmailThreads(user.id, { dealId: id, limit: 100 }),
+    listEmailTemplates(user.id),
+    getEmailSettings(user.id),
+    nextTaskFor(user.id, { dealId: id }),
+    crmAiAvailable(),
+    getRecordSummary(user.id, 'deal', deal.id, scope),
+    getDealScore(user.id, deal.id, scope),
+    listRecordFiles(user.id, 'deal', deal.id),
+    fieldAccessFor(sessionFieldViewer(user), 'deals'),
     listLineItems(user.id, id),
     listProducts(user.id, { active: true, pageSize: 200 }),
     listQuotes(user.id, { dealId: id, pageSize: 50 }),
     getDb()
       .prepare(
         `SELECT id, first_name, last_name, email FROM crm_contacts
-         WHERE user_id = ?${scopeAnd('crm_contacts', scope).sql} ORDER BY created_at DESC LIMIT 200`,
+         WHERE user_id = ?${contactScope.sql} ORDER BY created_at DESC LIMIT 200`,
       )
-      .all(user.id, ...scopeAnd('crm_contacts', scope).args) as Promise<
+      .all(user.id, ...contactScope.args) as Promise<
       Array<{ id: string; first_name: string; last_name: string; email: string }>
     >,
     getDb()
       .prepare(
-        `SELECT id, name, domain FROM crm_companies WHERE user_id = ?${scopeAnd('crm_companies', scope).sql} ORDER BY name ASC LIMIT 200`,
+        `SELECT id, name, domain FROM crm_companies WHERE user_id = ?${companyScope.sql} ORDER BY name ASC LIMIT 200`,
       )
-      .all(user.id, ...scopeAnd('crm_companies', scope).args) as Promise<Array<{ id: string; name: string; domain: string }>>,
+      .all(user.id, ...companyScope.args) as Promise<Array<{ id: string; name: string; domain: string }>>,
   ]);
+  const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(activities, threads)))));
+  const recordFiles = recordFilesRaw.map(toView);
   const realPerson = user.actingUser ?? user;
   const associatedContactIds = new Set(contacts.map((c) => c.id));
 
+  // ---------- Izquierda: propiedades, editables en línea ----------
+  const customFieldDefs = fieldAccess.visible;
+  const custom = parseCustom(redactCustomJson(deal.custom, fieldAccess.hidden));
+  const customFields = customPropFields(customFieldDefs, custom, {
+    yes: t('common.yes'),
+    no: t('common.no'),
+    locale,
+    owners: ownerOptions,
+  });
+  const fields: PropField[] = [
+    { key: 'name', label: t('deals.form.name'), type: 'text', value: deal.name },
+    {
+      key: 'amount',
+      label: t('deals.form.amount'),
+      type: 'number',
+      value: String(deal.amount),
+      display: fmtAmount(deal.amount, deal.currency),
+    },
+    { key: 'currency', label: t('deals.form.currency'), type: 'text', value: deal.currency },
+    {
+      key: 'closeDate',
+      label: t('deals.form.closeDate'),
+      type: 'date',
+      value: deal.close_date ?? '',
+      display: closeDateLabel || undefined,
+      nullOption: true,
+    },
+    {
+      key: 'priority',
+      label: t('deals.form.priority'),
+      type: 'select',
+      value: deal.priority,
+      options: PRIORITIES.map((v) => ({ value: v, label: t(`enums.priority.${v}`) })),
+    },
+    {
+      key: 'source',
+      label: t('deals.form.source'),
+      type: 'select',
+      value: deal.source,
+      // La API no acepta source vacío: solo se muestra '—' si ya está vacío (no-op).
+      options: [
+        ...(deal.source === '' ? [{ value: '', label: '—' }] : []),
+        ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
+      ],
+    },
+    { key: 'description', label: t('deals.form.description'), type: 'text', value: deal.description },
+    {
+      key: 'ownerId',
+      label: t('deals.form.owner'),
+      type: 'select',
+      value: deal.owner_id ?? user.id,
+      options: ownerOptions,
+    },
+    ...customFields,
+  ];
+  const sections: Array<PropSection & { id: string }> = [
+    {
+      id: 'about',
+      title: t('deals.detail.aboutSection'),
+      keys: ['name', 'amount', 'currency', 'closeDate', 'priority', 'source', 'description'],
+    },
+    { id: 'ownership', title: t('deals.detail.ownershipSection'), keys: ['ownerId'] },
+    ...(customFields.length
+      ? [{ id: 'custom', title: t('deals.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
+      : []),
+  ];
+
+  const about = (
+    <>
+      {sections.map((s) => (
+        <RecordCard key={s.id} id={`deal.${s.id}`} label={s.title}>
+          <PropertiesPanel
+            endpoint={`/api/crm/deals/${deal.id}`}
+            fields={fields.filter((f) => s.keys.includes(f.key))}
+            custom={custom}
+          />
+        </RecordCard>
+      ))}
+    </>
+  );
+
+  // ---------- Medio: Resumen y Actividad ----------
+  const nextTaskBanner = (
+    <NextTaskBanner
+      task={nextTask ? { id: nextTask.id, subject: nextTask.subject, due_at: nextTask.due_at } : null}
+      locale={locale}
+    />
+  );
+  // Productos y cotizaciones van en el medio: sus tablas no entran en una columna lateral.
+  const overview = (
+    <>
+      {nextTaskBanner}
+      <section className="rec-overview-block" data-testid="record-highlights">
+        <h2 className="rec-overview-title">{t('record.highlights')}</h2>
+        <dl className="record-facts">
+          <div>
+            <dt>{t('deals.form.amount')}</dt>
+            <dd className="num">{fmtAmount(deal.amount, deal.currency)}</dd>
+          </div>
+          <div>
+            <dt>{t('deals.form.closeDate')}</dt>
+            <dd>{closeDateLabel || '—'}</dd>
+          </div>
+          <div>
+            <dt>{t('deals.form.owner')}</dt>
+            <dd>{ownerLabel}</dd>
+          </div>
+          <div>
+            <dt>{t('deals.form.priority')}</dt>
+            <dd>{priorityLabel}</dd>
+          </div>
+          <ActivityDateFacts record={deal} locale={locale} />
+        </dl>
+      </section>
+
+      <section className="rec-overview-block" id="line-items">
+        <h2 className="rec-overview-title">
+          {t('lineItems.title')}
+          {lineSummary && lineSummary.items.length > 0 && (
+            <span className="rec-card-count num">{lineSummary.items.length}</span>
+          )}
+        </h2>
+        <LineItemsPanel
+          dealId={deal.id}
+          currency={deal.currency}
+          locale={locale}
+          items={(lineSummary?.items ?? []).map((i) => ({
+            id: i.id,
+            product_id: i.product_id,
+            name: i.name,
+            sku: i.sku,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            discount_pct: i.discount_pct,
+            tax_pct: i.tax_pct,
+            recurring: i.recurring,
+            net: i.net,
+            total: i.total,
+            updated_at: i.updated_at,
+          }))}
+          totals={lineSummary?.totals ?? { subtotal: 0, discount: 0, net: 0, tax: 0, total: 0 }}
+          amountOverride={!!deal.amount_override}
+          dealAmount={deal.amount}
+          products={activeProducts.rows.map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            currency: p.currency,
+            recurring: p.recurring,
+          }))}
+        />
+      </section>
+
+      <section className="rec-overview-block" id="quotes">
+        <h2 className="rec-overview-title">
+          {t('quotes.title')}
+          {dealQuotes.total > 0 && <span className="rec-card-count num">{dealQuotes.total}</span>}
+        </h2>
+        <DealQuotesPanel
+          dealId={deal.id}
+          dealName={deal.name}
+          locale={locale}
+          hasLineItems={(lineSummary?.items.length ?? 0) > 0}
+          quotes={dealQuotes.rows.map((q) => ({
+            id: q.id,
+            number: q.number,
+            status: q.status,
+            total: q.total,
+            currency: q.currency,
+            title: q.title,
+          }))}
+          sender={{
+            name: realPerson.name ?? '',
+            email: realPerson.email,
+            company: user.team?.name ?? '',
+          }}
+        />
+      </section>
+
+      <RecordRecentActivity
+        items={timeline.slice(0, 5)}
+        locale={locale}
+        title={t('record.recentActivity')}
+        emptyLabel={t('deals.detail.emptyTimeline')}
+        moreLabel={t('record.seeAllActivity')}
+        moreHref={layoutTabHref(base, 'activity')}
+        typeLabels={activityTypeLabels}
+      />
+    </>
+  );
+
+  const activity = (
+    <>
+      {nextTaskBanner}
+      <Timeline
+        recordType="deal"
+        recordId={deal.id}
+        items={timeline}
+        emptyLabel={t('deals.detail.emptyTimeline')}
+        mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
+        locale={locale}
+        defaultEmail={primaryContact?.email ?? ''}
+        compose={compose}
+        emailTools={{
+          templates: emailTemplates.map((x) => ({
+            id: x.id,
+            kind: x.kind,
+            name: x.name,
+            subject: x.subject,
+            body: x.body,
+          })),
+          aiEnabled: aiEnabled(),
+          trackingDefault: emailSettings.trackingEnabled,
+          contactId: primaryContact?.id,
+          dealId: deal.id,
+        }}
+      />
+    </>
+  );
+
+  // ---------- Derecha: asociaciones ----------
+  const right = (
+    <>
+      <RecordCard id="deal.ai" label={t('ai.summary.title')} bare>
+        <AiSummaryCard entity="deal" id={deal.id} locale={locale} initial={aiSummary} available={aiAvailable} />
+      </RecordCard>
+      <RecordCard id="deal.insight" label={t('ai.score.title')} bare>
+        <DealInsightCard dealId={deal.id} locale={locale} initial={aiScore} available={aiAvailable} closed={!!(detail.stage?.is_won || detail.stage?.is_lost)} />
+      </RecordCard>
+
+      <RecordCard id="deal.contacts" label={t('deals.detail.contacts')} count={contacts.length} addLabel={t('record.cards.add')}>
+        <AssociationPanel
+          records={contacts.map((c) => ({
+            id: c.id,
+            name: contactName(c),
+            href: `/app/crm/contacts/${c.id}`,
+            meta: c.email || undefined,
+          }))}
+          options={contactRows
+            .filter((c) => !associatedContactIds.has(c.id))
+            .map((c) => ({ id: c.id, value: contactName(c) }))}
+          onAssociate={associateContactToDeal.bind(null, deal.id)}
+          onRemove={removeContactFromDeal.bind(null, deal.id)}
+          addLabel={t('assoc.pickContact')}
+          emptyLabel={t('deals.detail.noContacts')}
+        />
+      </RecordCard>
+
+      <RecordCard id="deal.companies" label={t('deals.detail.companies')} count={dealCompanies.length} addLabel={t('record.cards.add')}>
+        <AssociationPanel
+          records={dealCompanies.map((c) => ({
+            id: c.id,
+            name: c.name,
+            href: `/app/crm/companies/${c.id}`,
+            meta: c.domain || undefined,
+            primary: !!c.is_primary,
+          }))}
+          options={allCompanies
+            .filter((c) => !dealCompanies.some((dc) => dc.id === c.id))
+            .map((c) => ({ id: c.id, value: c.name }))}
+          onAssociate={associateCompanyToDeal.bind(null, deal.id)}
+          onRemove={removeCompanyFromDealByDeal.bind(null, deal.id)}
+          onSetPrimary={setDealCompanyPrimary.bind(null, deal.id)}
+          addLabel={t('assoc.pickCompany')}
+          emptyLabel={t('deals.detail.noCompany')}
+        />
+      </RecordCard>
+
+      <RecordCard id="deal.splits" label={t('splits.title')} bare>
+        <DealSplitsPanel
+          key={splits.map((s) => `${s.ownerId}:${s.percent}`).join(',')}
+          dealId={deal.id}
+          ownerId={deal.owner_id ?? user.id}
+          amount={deal.amount}
+          currency={deal.currency}
+          locale={locale}
+          people={ownerOptions}
+          splits={splits}
+        />
+      </RecordCard>
+
+      <RecordCard id="deal.files" label={t('files.title')} count={recordFiles.length}>
+        <FilesPanel endpoint={`/api/crm/deals/${deal.id}/files`} files={recordFiles} />
+      </RecordCard>
+
+      <RecordCard id="deal.objects" label={t('record.cards.objects')} bare>
+        <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
+      </RecordCard>
+    </>
+  );
+
   return (
-    <div className="ui-page record-page">
-      {header}
-      <RecordTabs>
-        <div className="record-related">
-          <section className="record-block">
-            <AssociationPanel
-              title={t('deals.detail.contacts')}
-              count={contacts.length}
-              records={contacts.map((c) => ({
-                id: c.id,
-                name: contactName(c),
-                href: `/app/crm/contacts/${c.id}`,
-                meta: c.email || undefined,
-              }))}
-              options={contactRows
-                .filter((c) => !associatedContactIds.has(c.id))
-                .map((c) => ({ id: c.id, value: contactName(c) }))}
-              onAssociate={associateContactToDeal.bind(null, deal.id)}
-              onRemove={removeContactFromDeal.bind(null, deal.id)}
-              addLabel={t('assoc.pickContact')}
-              emptyLabel={t('deals.detail.noContacts')}
-            />
-          </section>
-
-          <section className="record-block">
-            <AssociationPanel
-              title={t('deals.detail.companies')}
-              count={dealCompanies.length}
-              records={dealCompanies.map((c) => ({
-                id: c.id,
-                name: c.name,
-                href: `/app/crm/companies/${c.id}`,
-                meta: c.domain || undefined,
-                primary: !!c.is_primary,
-              }))}
-              options={allCompanies
-                .filter((c) => !dealCompanies.some((dc) => dc.id === c.id))
-                .map((c) => ({ id: c.id, value: c.name }))}
-              onAssociate={associateCompanyToDeal.bind(null, deal.id)}
-              onRemove={removeCompanyFromDealByDeal.bind(null, deal.id)}
-              onSetPrimary={setDealCompanyPrimary.bind(null, deal.id)}
-              addLabel={t('assoc.pickCompany')}
-              emptyLabel={t('deals.detail.noCompany')}
-            />
-          </section>
-
-          <section className="record-block record-block-wide" id="line-items">
-            <div className="assoc-head">
-              <h2 className="assoc-title">{t('lineItems.title')}</h2>
-              {lineSummary && lineSummary.items.length > 0 && (
-                <span className="assoc-count num">{lineSummary.items.length}</span>
+    <RecordColumns
+      tab={tab}
+      base={base}
+      back={{ href: '/app/crm/deals', label: t('record.back.deals') }}
+      actions={actions}
+      identity={
+        <RecordIdentity
+          name={deal.name}
+          avatar={null}
+          base={base}
+          quick={COMPOSE_TYPES}
+          keyLine={
+            <>
+              <span className="record-amount num">{fmtAmount(deal.amount, deal.currency)}</span>
+              {baseAmount !== null && (
+                <span className="num" title={t('currency.convertedHint', { base: currencyCtx.base })}>
+                  ≈ {formatMoney(baseAmount, currencyCtx.base, locale)}
+                </span>
               )}
-            </div>
-            <LineItemsPanel
-              dealId={deal.id}
-              currency={deal.currency}
-              locale={locale}
-              items={(lineSummary?.items ?? []).map((i) => ({
-                id: i.id,
-                product_id: i.product_id,
-                name: i.name,
-                sku: i.sku,
-                quantity: i.quantity,
-                unit_price: i.unit_price,
-                discount_pct: i.discount_pct,
-                tax_pct: i.tax_pct,
-                recurring: i.recurring,
-                net: i.net,
-                total: i.total,
-                updated_at: i.updated_at,
-              }))}
-              totals={lineSummary?.totals ?? { subtotal: 0, discount: 0, net: 0, tax: 0, total: 0 }}
-              amountOverride={!!deal.amount_override}
-              dealAmount={deal.amount}
-              products={activeProducts.rows.map((p) => ({
-                id: p.id,
-                name: p.name,
-                price: p.price,
-                currency: p.currency,
-                recurring: p.recurring,
-              }))}
+              <span className={`badge prio-${deal.priority}`}>{priorityLabel}</span>
+              {pipeline && <span>{pipeline.name}</span>}
+              {company && (
+                <Link href={`/app/crm/companies/${company.id}`} className="record-meta-link">
+                  {company.name}
+                </Link>
+              )}
+            </>
+          }
+          tags={
+            <RecordTags
+              entity="deal"
+              recordId={deal.id}
+              tags={recordTags.get(deal.id) ?? []}
+              allTags={allTags.map((x) => ({ id: x.id, name: x.name, color: x.color }))}
             />
-          </section>
-
-          <section className="record-block record-block-wide" id="quotes">
-            <div className="assoc-head">
-              <h2 className="assoc-title">{t('quotes.title')}</h2>
-              {dealQuotes.total > 0 && <span className="assoc-count num">{dealQuotes.total}</span>}
-            </div>
-            <DealQuotesPanel
-              dealId={deal.id}
-              dealName={deal.name}
-              locale={locale}
-              hasLineItems={(lineSummary?.items.length ?? 0) > 0}
-              quotes={dealQuotes.rows.map((q) => ({
-                id: q.id,
-                number: q.number,
-                status: q.status,
-                total: q.total,
-                currency: q.currency,
-                title: q.title,
-              }))}
-              sender={{
-                name: realPerson.name ?? '',
-                email: realPerson.email,
-                company: user.team?.name ?? '',
-              }}
-            />
-          </section>
-          <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
-        </div>
-      </RecordTabs>
-    </div>
+          }
+        />
+      }
+      about={about}
+      aboutLabel={t('record.layoutTabs.properties')}
+      lead={stagePanel}
+      overview={overview}
+      activity={activity}
+      right={right}
+      rightLabel={t('record.layoutTabs.related')}
+    />
   );
 }

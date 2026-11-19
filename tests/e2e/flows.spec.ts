@@ -1004,21 +1004,23 @@ test.describe('link d9', () => {
 
 // ---------- CRM core: detalle en tabs, menú "More" y altas cortas ----------
 
-test('CRM: el detalle del contacto separa Actividad, Propiedades y Relacionados', async ({ request, page }) => {
+test('CRM: el detalle del contacto tiene propiedades, actividad y asociaciones a la vista', async ({ request, page }) => {
   const email = `tabs-${uid()}@example.com`;
   const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Tabs' } })).json();
   await page.goto(`/en/app/crm/contacts/${contact.id}`);
   const tabs = page.getByRole('navigation', { name: 'Record sections' });
-  await expect(tabs.getByRole('link', { name: 'Activity' })).toHaveAttribute('aria-current', 'page');
-  // El resumen de Actividad muestra el email sin cambiar de tab.
-  await expect(page.getByRole('complementary', { name: 'Summary' }).getByText(email)).toBeVisible();
-
-  await tabs.getByRole('link', { name: 'Properties' }).click();
-  await expect(page).toHaveURL(/tab=properties/);
+  await expect(tabs.getByRole('link', { name: 'Activities' })).toHaveAttribute('aria-current', 'page');
+  // Las propiedades están a la izquierda sin cambiar de pestaña, y las asociaciones a la derecha.
+  await expect(page.getByRole('region', { name: 'About' }).getByText(email)).toBeVisible();
   await expect(page.getByTestId('contact-score-card')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Associations' }).getByRole('heading', { name: 'Lists' })).toBeVisible();
 
-  await tabs.getByRole('link', { name: 'Related' }).click();
-  await expect(page).toHaveURL(/tab=related/);
+  await tabs.getByRole('link', { name: 'Overview' }).click();
+  await expect(page).toHaveURL(/tab=overview/);
+  await expect(page.getByTestId('record-highlights')).toBeVisible();
+
+  // Los links de antes (?tab=properties, ?tab=related) abren la misma ficha.
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=related`);
   await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
 });
 
