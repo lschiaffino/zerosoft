@@ -606,9 +606,11 @@ export default function ChatDetails({
 
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
-        <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
+        {isAdmin && (
+          <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>
+        )}
         {isAdmin && (
           <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setConfirmDelete(true)}>
             {t('details.remove')}

@@ -205,6 +205,7 @@ export default function InboxShell({
   teams = [],
   properties = [],
   me = '',
+  canExport = false,
   initialLists = [],
   numbers = [],
   lineGroups = [],
@@ -218,6 +219,8 @@ export default function InboxShell({
   teams?: Array<{ id: string; name: string }>;
   properties?: PropertyDef[];
   me?: string;
+  /** Admin o dueño: puede exportar los mensajes de un chat. */
+  canExport?: boolean;
   initialLists?: SavedListDto[];
   /** Líneas que esta persona ve (visibilidad por línea). */
   numbers?: LineOption[];
@@ -918,7 +921,8 @@ export default function InboxShell({
           if (current !== c.id) router.push(`/app/lines/inbox/${c.id}${listSuffix}`);
         },
       },
-      { key: 'export', icon: <Download size={18} />, label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
+      // Exportar mensajes: solo admins (el servidor también lo frena).
+      ...(canExport ? [{ key: 'export', icon: <Download size={18} />, label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) }] : []),
       ...from('hide', { divider: true }),
     ];
   }
