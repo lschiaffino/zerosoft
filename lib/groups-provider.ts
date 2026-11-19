@@ -445,7 +445,7 @@ export interface GroupsProvider {
    * Archivar o sacar de archivados un chat en WhatsApp. `last`: el mensaje más
    * nuevo del chat (WhatsApp arma la acción con su clave y su hora).
    */
-  archiveChat?(chatId: string, archive: boolean, last?: ArchiveRef): Promise<void>;
+  archiveChat?(chatId: string, archive: boolean, last?: ArchiveRef, altId?: string): Promise<void>;
   /** Presencia propia en un chat (escribiendo, grabando) y suscribirse a la del otro (escribiendo, en línea). */
   sendPresence?(chatId: string, state: 'composing' | 'recording' | 'paused', ms: number): Promise<void>;
   readonly caps: ProviderCaps;

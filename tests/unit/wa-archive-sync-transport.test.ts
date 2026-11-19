@@ -216,4 +216,58 @@ describe('WhatsApp → zerosoft', () => {
     expect((await getChat(ws, c.id))!.archived).toBe(false);
     expect(fakeArchives(number.id).map((a) => a.archive)).toEqual([true, false]);
   });
+  /** Evolution de mentira: guarda mensajes por id de chat y anota lo que recibe /chat/archiveChat. */
+  function evolutionWith(stored: Record<string, Array<{ id: string; fromMe: boolean; ts: number }>>, failLookup = false) {
+    const archives: unknown[] = [];
+    vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+      const url = String(input instanceof Request ? input.url : input);
+      const body = typeof init.body === 'string' ? JSON.parse(init.body) : null;
+      if (url.includes('/chat/findMessages/')) {
+        if (failLookup) return Response.json({ error: 'boom' }, { status: 500 });
+        const list = (stored[body?.where?.key?.remoteJid] ?? []).slice().sort((a, b) => b.ts - a.ts).slice(0, body?.offset ?? 50);
+        return Response.json({ messages: { total: list.length, pages: 1, currentPage: 1, records: list.map((m) => ({ key: { id: m.id, fromMe: m.fromMe, remoteJid: body.where.key.remoteJid }, messageTimestamp: m.ts })) } });
+      }
+      archives.push(body);
+      return Response.json({ archived: true }, { status: 201 });
+    });
+    return archives;
+  }
+
+  it('Evolution: si lo último del 1:1 está guardado bajo el otro id (lo mandado por número), la orden lleva ese mensaje con el id del chat', async () => {
+    const lid = '204700000005205@lid';
+    const pn = '5491100005205@s.whatsapp.net';
+    const archives = evolutionWith({ [lid]: [{ id: 'IN1', fromMe: false, ts: 1_800_000_000 }], [pn]: [{ id: 'OUT1', fromMe: true, ts: 1_800_000_050 }, { id: 'OUT0', fromMe: true, ts: 1_800_000_010 }] });
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs' });
+    await p.archiveChat!(lid, true, { id: 'X', fromMe: true, timestamp: 1_800_000_049 }, pn);
+    expect(archives).toEqual([{ chat: lid, archive: true, lastMessage: { key: { remoteJid: lid, fromMe: true, id: 'OUT1' }, messageTimestamp: 1_800_000_050 } }]);
+  });
+
+  it('Evolution: si lo último está bajo el id del chat, la orden sale como siempre (Evolution usa su propio último mensaje)', async () => {
+    const lid = '204700000005206@lid';
+    const pn = '5491100005206@s.whatsapp.net';
+    const archives = evolutionWith({ [lid]: [{ id: 'IN2', fromMe: false, ts: 1_800_000_090 }], [pn]: [{ id: 'OUT2', fromMe: true, ts: 1_800_000_050 }] });
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs' });
+    await p.archiveChat!(lid, true, undefined, pn);
+    expect(archives).toEqual([{ chat: lid, archive: true }]);
+  });
+
+  it('Evolution: sin mensajes bajo el id del chat, vale el del otro id; y si la búsqueda falla, la orden sale igual', async () => {
+    const lid = '204700000005207@lid';
+    const pn = '5491100005207@s.whatsapp.net';
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs' });
+    const a = evolutionWith({ [pn]: [{ id: 'OUT3', fromMe: true, ts: 1_800_000_070 }] });
+    await p.archiveChat!(lid, false, undefined, pn);
+    expect(a).toEqual([{ chat: lid, archive: false, lastMessage: { key: { remoteJid: lid, fromMe: true, id: 'OUT3' }, messageTimestamp: 1_800_000_070 } }]);
+    const b = evolutionWith({}, true);
+    await p.archiveChat!(lid, true, undefined, pn);
+    expect(b).toEqual([{ chat: lid, archive: true }]);
+  });
+
+  it('Evolution: un grupo no busca por otro id', async () => {
+    const gid = '120363000000005208@g.us';
+    const archives = evolutionWith({});
+    const p = evolutionProvider({ baseUrl: 'https://evo.example.test', apiKey: 'k', session: 'zs' });
+    await p.archiveChat!(gid, true, undefined, '5491100005208@s.whatsapp.net');
+    expect(archives).toEqual([{ chat: gid, archive: true }]);
+  });
 });

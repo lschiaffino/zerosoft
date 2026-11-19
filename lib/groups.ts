@@ -17,7 +17,7 @@ import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
 import { openWire, sealWire } from './wa-media-wire-seal';
 import { publicLink, storeLinkHq, type StoredLink } from './wa-link-thumb';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
-import { chatNameRank, type SearchRank } from './chat-search-rank';
+import { chatNameHit, chatNameRank, type SearchRank } from './chat-search-rank';
 import { chatKey, lineRefs, siblingsByKey, type SiblingRow } from './groups-same-chat';
 import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from './same-chat';
 import { open, seal } from './secret-box';
@@ -1075,16 +1075,17 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (q) {
     const like = likeArg(q);
     rank = chatNameRank('c.name', 'c.phone', q);
+    const byName = chatNameHit('c.name', 'c.phone', q);
     snippets = await chatsMatchingMessages(ws, q);
     if (snippets) {
       const ids = [...snippets.keys()];
-      where.push(`(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\'${ids.length ? ` OR c.id IN (${ids.map(() => '?').join(',')})` : ''})`);
-      args.push(like, like, ...ids);
+      where.push(`(${byName.sql}${ids.length ? ` OR c.id IN (${ids.map(() => '?').join(',')})` : ''})`);
+      args.push(...byName.args, ...ids);
     } else {
       where.push(
-        `(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\'))`,
+        `(${byName.sql} OR EXISTS (SELECT 1 FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\'))`,
       );
-      args.push(like, like, like);
+      args.push(...byName.args, like);
       matchSelect = `(SELECT body FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 1) AS match`;
       matchArgs.push(like);
     }

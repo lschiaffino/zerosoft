@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesChatName } from '@/lib/chat-search-rank';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
@@ -780,9 +781,7 @@ export default function InboxShell({
 
   /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
   function nameHit(c: ChatDto): boolean {
-    const q = debounced.trim().toLowerCase();
-    const digits = q.replace(/[^\d]/g, '');
-    return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
+    return !c.match || matchesChatName(c.name, c.phone, debounced);
   }
 
   /**
@@ -1000,8 +999,7 @@ export default function InboxShell({
           title={c.lines?.length ? c.lines.map((l) => l.name).join(' · ') : undefined}
           draggable={false}
         >
-          {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}
-          {c.flagged && <span className="wa-overdue-edge" data-testid="row-overdue-edge" aria-hidden="true" title={t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' })} />}
+          {/* Vencido: lo dice el reloj junto a la hora. El filete al borde se sacó: con muchos chats vencidos marcaba casi toda la lista. */}
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
             <span className="gr-row-top">
