@@ -84,7 +84,17 @@ export default function ImportNotices({
               </span>
             )}
           </div>
-          <button type="button" className="wa-icon-btn wa-import-close" onClick={() => close(n.key)} aria-label={closeLabel} title={closeLabel}>
+          <button
+            type="button"
+            className="wa-icon-btn wa-import-close"
+            onClick={() => close(n.key)}
+            // Enter y Espacio son de este botón: los atajos de una tecla de la bandeja (Enter abre el chat marcado) no se los llevan.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+            }}
+            aria-label={closeLabel}
+            title={closeLabel}
+          >
             <Close size={16} />
           </button>
         </div>

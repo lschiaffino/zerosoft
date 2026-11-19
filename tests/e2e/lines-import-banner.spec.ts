@@ -56,9 +56,16 @@ async function showing(page: Page, kind: string) {
   }).toPass({ timeout: 30_000 });
 }
 
+// La línea elegida no queda puesta para las pruebas que siguen.
+test.afterEach(async ({ request }) => {
+  await request.put('/api/groups/prefs', { data: { line: 'all' } });
+});
+
 test('Lines: el aviso de importación dice en qué anda, se va solo al terminar y lo cerrado no vuelve', async ({ page, request }) => {
   test.setTimeout(300_000);
   const numberId = await seedLine(request);
+  // La línea elegida se guarda por persona y la bandeja solo avisa de las importaciones de esa línea: se elige la de esta prueba.
+  await request.put('/api/groups/prefs', { data: { line: numberId } });
   const im = (patch: Import): Import => ({
     numberId,
     status: 'running',
