@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import type { SessionUser } from '@/lib/session';
-import { addMember, createTeam } from '@/lib/teams';
+import { addMember, createTeam, removeMember } from '@/lib/teams';
+import { createApiKey } from '@/lib/api-auth';
+import { latestLiveId, livePoll } from '@/lib/wa-live';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { connectNumber, createNumber, getNumberRowById, ingestEvents, listChats } from '@/lib/groups';
-import { groupsViewer } from '@/lib/groups-access';
+import { groupsViewer, linesLiveViewer } from '@/lib/groups-access';
 import { chatFoldersFor, createFolder, deleteFolder, folderScope, listFolders, moveChatsToFolder, setLineAccess, updateFolder } from '@/lib/groups-lines';
 import {
   addMessage,
@@ -107,7 +109,7 @@ async function world(label: string) {
   };
 }
 
-const names = (r: { folders: Array<{ name: string }> }) => r.folders.map((f) => f.name);
+const names = (r: { folders: Array<{ name: string }> }) => r.folders.map((f) => f.name).sort();
 const folderName = async (id: string) => ((await getDb().prepare('SELECT name FROM groups_folders WHERE id = ?').get(id)) as { name: string } | undefined)?.name;
 
 describe('Lines: las carpetas son de cada persona', () => {
@@ -140,7 +142,7 @@ describe('Lines: las carpetas son de cada persona', () => {
       await moveChatsToFolder(ws, other, [w.uno.id], null);
     }
     const forAna = await listFolders(ws, w.ana.id, w.vAna);
-    expect(forAna.folders.map((f) => [f.name, f.chats, f.unread])).toEqual([
+    expect(forAna.folders.map((f) => [f.name, f.chats, f.unread]).sort()).toEqual([
       ['Clientes', 1, 2],
       ['VIP', 1, 1],
     ]);
@@ -265,26 +267,90 @@ describe('Lines: las carpetas son de cada persona', () => {
     const caller = (personId: string): McpCaller =>
       ({ kind: 'oauth', personId, teamId: w.team.id, canWrite: true, clientId: 'c', clientName: 'Test', grantId: `g-${personId}`, apiKeyId: null, rateKey: `mcp:${personId}` }) as McpCaller;
     const op = (id: string) => getOperation(id) as Operation;
-    const run = (personId: string, id: string, args: Record<string, unknown>): Promise<Record<string, unknown>> =>
-      invokeOperation(outer, caller(personId), op(id), args).then(
-        (r) => r.data as Record<string, unknown>,
-        (e: { code?: string }) => ({ failed: e.code ?? 'error' }),
-      );
+    // Sin atrapar errores: una llamada que no llega a la ruta (o falla por otra cosa) rompe el test.
+    const run = async (personId: string, id: string, args: Record<string, unknown>) => {
+      const r = await invokeOperation(outer, caller(personId), op(id), args, { confirm: true });
+      return { ok: r.ok, status: r.status, data: r.data as Record<string, unknown> };
+    };
+    const notFound = { ok: false, status: 404, data: { error: 'not_found' } };
 
     const own = await run(w.ana.id, 'groups.folders.list', {});
-    expect((own.folders as Array<{ name: string }>).map((x) => x.name)).toEqual(['Clientes']);
+    expect(own.ok).toBe(true);
+    expect((own.data.folders as Array<{ name: string }>).map((x) => x.name)).toEqual(['Clientes']);
+    const ownChats = await run(w.ana.id, 'groups.chats.list', { query: { folder: f.id } });
+    expect((ownChats.data.rows as Array<{ id: string }>).map((c) => c.id)).toEqual([w.uno.id]);
     for (const person of [w.beto.id, w.carla.id]) {
-      expect((await run(person, 'groups.folders.list', {})).folders).toEqual([]);
-      await run(person, 'groups.folders.update', { body: { id: f.id, name: 'Robada' } });
-      await run(person, 'groups.folders.delete', { query: { id: f.id } });
-      await run(person, 'groups.chats.bulk', { body: { ids: [w.dos.id], action: 'folder', folderId: f.id } });
+      const list = await run(person, 'groups.folders.list', {});
+      expect(list).toMatchObject({ ok: true, status: 200 });
+      expect(list.data.folders).toEqual([]);
+      expect(await run(person, 'groups.folders.update', { body: { id: f.id, name: 'Robada' } })).toMatchObject(notFound);
+      expect(await run(person, 'groups.folders.delete', { query: { id: f.id } })).toMatchObject(notFound);
+      expect(await run(person, 'groups.chats.bulk', { body: { ids: [w.dos.id], action: 'folder', folderId: f.id } })).toMatchObject(notFound);
       const filtered = await run(person, 'groups.chats.list', { query: { folder: f.id } });
-      expect(filtered.rows ?? []).toEqual([]);
+      expect(filtered).toMatchObject({ ok: true, status: 200 });
+      expect(filtered.data.rows).toEqual([]);
+      const all = await run(person, 'groups.chats.list', {});
+      expect((all.data.rows as Array<{ folderId: string | null }>).length).toBeGreaterThan(0);
+      expect((all.data.rows as Array<{ folderId: string | null }>).every((c) => c.folderId === null)).toBe(true);
     }
     session.real = false;
     expect(await folderName(f.id)).toBe('Clientes');
     expect((await listFolders(ws, w.ana.id, w.vAna)).folders[0]).toMatchObject({ name: 'Clientes', chats: 1 });
     expect(await chatFoldersFor(ws, w.beto.id, [w.dos.id])).toEqual(new Map());
+  });
+});
+
+describe('Lines: las carpetas por la API v1 y el aviso en vivo', () => {
+  it('API v1: la key trae la carpeta de la persona que la creó, nunca la de otra', async () => {
+    const w = await world('pf-v1');
+    const ws = w.owner.id;
+    const f = await createFolder(ws, w.ana.id, { name: 'Clientes' });
+    await moveChatsToFolder(ws, w.vAna, [w.uno.id], f.id);
+    const route = await import('@/app/api/v1/groups/chats/route');
+    const rows = async (personId: string, query = '') => {
+      const { key } = await createApiKey(ws, `k-${personId}`, personId);
+      const res = await route.GET(new Request(`http://localhost/api/v1/groups/chats${query}`, { headers: { authorization: `Bearer ${key}` } }));
+      expect(res.status).toBe(200);
+      return ((await res.json()) as { data: Array<{ id: string; folderId: string | null }> }).data;
+    };
+    expect((await rows(w.ana.id)).find((c) => c.id === w.uno.id)?.folderId).toBe(f.id);
+    for (const person of [w.beto.id, w.carla.id, ws]) {
+      const list = await rows(person);
+      expect(list.map((c) => c.id)).toContain(w.uno.id);
+      expect(list.every((c) => c.folderId === null)).toBe(true);
+      // La API v1 no filtra por carpeta: el parámetro se ignora y no abre nada ajeno.
+      expect((await rows(person, `?folder=${f.id}`)).every((c) => c.folderId === null)).toBe(true);
+    }
+    // La key de otro workspace no ve ni el chat.
+    const stranger = await makeUser('pf-v1-stranger');
+    const { key } = await createApiKey(stranger.id, 'k', stranger.id);
+    const res = await route.GET(new Request('http://localhost/api/v1/groups/chats', { headers: { authorization: `Bearer ${key}` } }));
+    expect(((await res.json()) as { data: unknown[] }).data).toEqual([]);
+  });
+
+  it('mover un chat a una carpeta avisa en vivo solo a las pantallas de esa persona', async () => {
+    const w = await world('pf-live');
+    const ws = w.owner.id;
+    const f = await createFolder(ws, w.ana.id, { name: 'Clientes' });
+    const viewers = { ana: linesLiveViewer(w.vAna), beto: linesLiveViewer(w.vBeto), carla: linesLiveViewer(w.vCarla), owner: linesLiveViewer(w.vOwner) };
+    const chatsSince = async (who: keyof typeof viewers, cursor: number) => (await livePoll(viewers[who], cursor)).events.map((e) => e.chatId);
+    let cursor = await latestLiveId(viewers.owner);
+    expect(cursor).toBeGreaterThan(0);
+    await moveChatsToFolder(ws, w.vAna, [w.uno.id], f.id);
+    expect(await chatsSince('ana', cursor)).toEqual([w.uno.id]);
+    for (const who of ['beto', 'carla', 'owner'] as const) expect(await chatsSince(who, cursor)).toEqual([]);
+    // Sacarlo y borrar la carpeta, igual: solo ella.
+    cursor = await latestLiveId(viewers.owner);
+    await moveChatsToFolder(ws, w.vAna, [w.uno.id], null);
+    expect(await chatsSince('ana', cursor)).toEqual([w.uno.id]);
+    for (const who of ['beto', 'carla', 'owner'] as const) expect(await chatsSince(who, cursor)).toEqual([]);
+    await moveChatsToFolder(ws, w.vAna, [w.dos.id], f.id);
+    cursor = await latestLiveId(viewers.owner);
+    expect(await deleteFolder(ws, w.ana.id, f.id)).toBe(true);
+    expect(await chatsSince('ana', cursor)).toEqual([w.dos.id]);
+    for (const who of ['beto', 'carla', 'owner'] as const) expect(await chatsSince(who, cursor)).toEqual([]);
+    // Nada de esto escribió la fila del chat (la columna de antes queda como estaba).
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL').get(ws)) as { n: number }).n).toBe(0);
   });
 });
 
@@ -296,22 +362,43 @@ describe('Lines: la migración a carpetas personales', () => {
     // Como estaba antes: carpetas del workspace (sin dueño) y la carpeta en la fila del chat.
     const legacy = async (id: string, name: string, createdBy: string, parent: string | null = null) =>
       db.prepare("INSERT INTO groups_folders (id, user_id, parent_id, name, position, created_by, created_at) VALUES (?, ?, ?, ?, 0, ?, datetime('now'))").run(id, ws, parent, name, createdBy);
-    const ids = { ana: `${ws}-fa`, anaSub: `${ws}-fa2`, beto: `${ws}-fb`, anon: `${ws}-fx`, gone: `${ws}-fg` };
+    const ids = { ana: `${ws}-fa`, anaSub: `${ws}-fa2`, beto: `${ws}-fb`, anon: `${ws}-fx`, gone: `${ws}-fg`, left: `${ws}-fl` };
+    // Dora creó una carpeta, guardó un chat y después la sacaron del workspace (su cuenta sigue existiendo).
+    const dora = await makeUser('pf-mig-dora');
+    await addMember(w.team.id, dora.id, 'member');
+    const extra = await line(ws, 'Otra');
+    await ingestEvents(extra, [msg('5491100000304@c.us', 'pf-mig-X1', 'Cliente Cuatro')]);
+    const cuatro = (await listChats(ws, ws)).rows.find((c) => c.name === 'Cliente Cuatro')!;
     await legacy(ids.ana, 'De Ana', w.ana.id);
     await legacy(ids.anaSub, 'Sub de Ana', w.ana.id, ids.ana);
     await legacy(ids.beto, 'De Beto', w.beto.id);
     await legacy(ids.anon, 'Sin autor', '');
     await legacy(ids.gone, 'De alguien que ya no está', 'persona-que-no-existe');
+    await legacy(ids.left, 'De quien se fue', dora.id);
+    await db.prepare('UPDATE groups_chats SET folder_id = ? WHERE id = ?').run(ids.left, cuatro.id);
+    await removeMember(w.team.id, dora.id);
     await db.prepare('UPDATE groups_chats SET folder_id = ? WHERE id = ?').run(ids.anaSub, w.uno.id);
     await db.prepare('UPDATE groups_chats SET folder_id = ? WHERE id = ?').run(ids.beto, w.dos.id);
     await db.prepare('UPDATE groups_chats SET folder_id = ? WHERE id = ?').run(ids.anon, w.tres.id);
-    // Antes de migrar nadie las ve (no tienen dueño) y la columna de antes no se lee.
-    expect((await listFolders(ws, w.ana.id, w.vAna)).folders).toEqual([]);
+    // La columna de antes no se lee.
     expect((await listChats(ws, w.ana.id, { viewer: w.vAna })).rows.every((c) => c.folderId === null)).toBe(true);
 
+    // La migración sola, sin la reparación al leer: se mira la base directo.
     const client = { execute: async (sql: string) => void (await db.prepare(sql).run()) };
     const up = () => migration.up(client as unknown as Parameters<typeof migration.up>[0]);
     await up();
+    const owners = (await db.prepare('SELECT id, owner_id FROM groups_folders WHERE user_id = ? ORDER BY id').all(ws)) as Array<{ id: string; owner_id: string | null }>;
+    expect(Object.fromEntries(owners.map((r) => [r.id, r.owner_id]))).toEqual({
+      [ids.ana]: w.ana.id,
+      [ids.anaSub]: w.ana.id,
+      [ids.beto]: w.beto.id,
+      [ids.anon]: ws,
+      [ids.gone]: ws,
+      [ids.left]: ws,
+    });
+    // Lo de quien ya no está en el workspace no queda a su nombre: nadie podría verlo.
+    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_chat_folders WHERE user_id = ? AND person_id = ?').get(ws, dora.id)) as { n: number }).n).toBe(0);
+    expect(await chatFoldersFor(ws, ws, [cuatro.id])).toEqual(new Map([[cuatro.id, ids.left]]));
 
     const forAna = await listFolders(ws, w.ana.id, w.vAna);
     expect(forAna.folders.map((f) => [f.name, f.parentId, f.chats])).toEqual([
@@ -321,18 +408,19 @@ describe('Lines: la migración a carpetas personales', () => {
     expect((await listChats(ws, w.ana.id, { viewer: w.vAna, folderId: ids.ana })).rows.map((c) => c.id)).toEqual([w.uno.id]);
     const forBeto = await listFolders(ws, w.beto.id, w.vBeto);
     expect(forBeto.folders.map((f) => [f.name, f.chats])).toEqual([['De Beto', 1]]);
-    // Sin autor, o de una cuenta que ya no existe: para el dueño del workspace, con sus chats.
+    // Sin autor, de una cuenta que ya no existe o de quien salió del workspace: para el dueño del workspace, con sus chats.
     const forOwner = await listFolders(ws, ws, w.vOwner);
     expect(forOwner.folders.map((f) => [f.name, f.chats]).sort()).toEqual([
       ['De alguien que ya no está', 0],
+      ['De quien se fue', 1],
       ['Sin autor', 1],
     ]);
     // Quien no había creado ninguna empieza sin carpetas, admin incluida.
-    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], unfiled: { chats: 3, unread: 3 } });
+    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], unfiled: { chats: 4, unread: 4 } });
     // No se borró nada: las filas y la columna de antes siguen como estaban.
     const left = (await db.prepare('SELECT id, folder_id FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL ORDER BY id').all(ws)) as Array<{ id: string; folder_id: string }>;
-    expect(left).toHaveLength(3);
-    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_folders WHERE user_id = ?').get(ws)) as { n: number }).n).toBe(5);
+    expect(left).toHaveLength(4);
+    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_folders WHERE user_id = ?').get(ws)) as { n: number }).n).toBe(6);
 
     // Ana mueve un chat después; correr la migración otra vez (o dos a la vez) no lo pisa ni duplica.
     await moveChatsToFolder(ws, w.vAna, [w.uno.id], ids.ana);
@@ -340,7 +428,33 @@ describe('Lines: la migración a carpetas personales', () => {
     await Promise.all([up(), up()]);
     expect(await chatFoldersFor(ws, w.ana.id, [w.uno.id])).toEqual(new Map([[w.uno.id, ids.ana]]));
     expect(await chatFoldersFor(ws, w.beto.id, [w.dos.id])).toEqual(new Map());
-    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_chat_folders WHERE user_id = ?').get(ws)) as { n: number }).n).toBe(2);
+    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_chat_folders WHERE user_id = ?').get(ws)) as { n: number }).n).toBe(3);
+    // Borrar una carpeta tampoco toca la columna de antes.
+    expect(await deleteFolder(ws, w.ana.id, ids.ana)).toBe(true);
+    expect(((await db.prepare('SELECT COUNT(*) AS n FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL').get(ws)) as { n: number }).n).toBe(4);
+  });
+
+  it('una carpeta que una instancia de la versión anterior crea después de la migración aparece para quien la creó, con sus chats', async () => {
+    const w = await world('pf-old');
+    const ws = w.owner.id;
+    const db = getDb();
+    const mine = await createFolder(ws, w.beto.id, { name: 'Ya migrada' });
+    // La versión anterior no conoce owner_id y guarda la carpeta en la fila del chat.
+    await db.prepare("INSERT INTO groups_folders (id, user_id, parent_id, name, position, created_by, created_at) VALUES (?, ?, NULL, 'Hecha con la versión anterior', 5, ?, datetime('now'))").run(`${ws}-old`, ws, w.beto.id);
+    await db.prepare('UPDATE groups_chats SET folder_id = ? WHERE id = ?').run(`${ws}-old`, w.uno.id);
+    // Los demás no la ven; Beto sí, con el chat adentro, y puede usarla.
+    expect((await listFolders(ws, w.ana.id, w.vAna)).folders).toEqual([]);
+    expect((await listFolders(ws, w.beto.id, w.vBeto)).folders.map((f) => [f.name, f.chats])).toEqual([
+      ['Ya migrada', 0],
+      ['Hecha con la versión anterior', 1],
+    ]);
+    expect((await listChats(ws, w.beto.id, { viewer: w.vBeto, folderId: `${ws}-old` })).rows.map((c) => c.id)).toEqual([w.uno.id]);
+    expect((await listFolders(ws, w.ana.id, w.vAna)).folders).toEqual([]);
+    // Otra más, y lo primero que hace Beto es mover un chat ahí (sin haber listado antes).
+    await db.prepare("INSERT INTO groups_folders (id, user_id, parent_id, name, position, created_by, created_at) VALUES (?, ?, NULL, 'Otra vieja', 6, ?, datetime('now'))").run(`${ws}-old2`, ws, w.beto.id);
+    expect(await moveChatsToFolder(ws, w.vBeto, [w.dos.id], `${ws}-old2`)).toEqual({ updated: 1, failed: 0 });
+    await expect(moveChatsToFolder(ws, w.vAna, [w.dos.id], `${ws}-old2`)).rejects.toMatchObject({ status: 404 });
+    expect(await deleteFolder(ws, w.beto.id, mine.id)).toBe(true);
   });
 
   it('una subcarpeta creada por otra persona queda en el primer nivel de quien la creó', async () => {

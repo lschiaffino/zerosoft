@@ -19,6 +19,7 @@ import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { GroupsError, getNumberRow } from './groups';
 import { chatAccessSql, canSeeNumber, type GroupsViewer } from './groups-access';
+import { folderOwnerBackfill } from './schema/lines-folder-owner';
 import { MAX_FOLDER_DEPTH, canMoveFolder, depthOf, descendantIds, siblingOrder, type TreeFolder } from './inbox/folder-tree';
 
 const nowIso = () => new Date().toISOString();
@@ -130,11 +131,40 @@ interface FolderRow {
 }
 
 /**
+ * Carpetas sin dueño: las que creó una instancia de la versión anterior que
+ * seguía viva después de la migración (no conoce owner_id y guarda la carpeta
+ * del chat en la columna de antes). Se reparan acá, antes de leer, con la misma
+ * regla que la migración: pasan a quien las creó, con los chats que tenían.
+ * Sin carpetas sin dueño es una sola consulta por su índice.
+ */
+export async function adoptOwnerlessFolders(ws: string): Promise<void> {
+  const db = getDb();
+  if (!(await db.prepare('SELECT 1 AS x FROM groups_folders WHERE user_id = ? AND owner_id IS NULL LIMIT 1').get(ws))) return;
+  for (const sql of folderOwnerBackfill(true)) await db.prepare(sql).run(ws);
+}
+
+/** Avisa en vivo solo a las otras pantallas de esta persona (nunca a otra) que cambió en qué carpeta tiene estos chats. */
+async function notifyOwnScreens(ws: string, me: string, chatIds: string[]): Promise<void> {
+  if (!chatIds.length) return;
+  try {
+    await getDb()
+      .prepare(
+        `INSERT INTO wa_live_events (app, scope_id, chat_id, number_id, person_id)
+         SELECT 'lines', c.user_id, c.id, c.number_id, ? FROM groups_chats c WHERE c.user_id = ? AND c.id IN (${chatIds.map(() => '?').join(',')})`,
+      )
+      .run(me, ws, ...chatIds);
+  } catch {
+    // El aviso es una cortesía: si falla, la carpeta ya quedó guardada y la pantalla la trae en su próxima consulta.
+  }
+}
+
+/**
  * Las carpetas de la persona (nunca las de otra). Una subcarpeta cuya carpeta
  * de arriba no es suya (quedó así al pasar de carpetas del workspace a
  * carpetas personales) se muestra en el primer nivel.
  */
 async function folderRows(ws: string, me: string): Promise<FolderRow[]> {
+  await adoptOwnerlessFolders(ws);
   const rows = (await getDb()
     .prepare('SELECT id, parent_id, name, position FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id')
     .all(ws, me)) as FolderRow[];
@@ -293,10 +323,13 @@ export async function deleteFolder(ws: string, me: string, id: string): Promise<
   if (ids.length === 0) return false;
   const db = getDb();
   const marks = ids.map(() => '?').join(',');
+  const inside = (await db.prepare(`SELECT chat_id FROM groups_chat_folders WHERE user_id = ? AND person_id = ? AND folder_id IN (${marks}) LIMIT 500`).all(ws, me, ...ids)) as Array<{
+    chat_id: string;
+  }>;
+  // La columna de antes (groups_chats.folder_id) no se toca: ni se lee ni se escribe.
   await db.prepare(`DELETE FROM groups_chat_folders WHERE user_id = ? AND folder_id IN (${marks})`).run(ws, ...ids);
-  // La columna de antes (groups_chats.folder_id) ya no se lee: se limpia para que no apunte a una carpeta que no existe.
-  await db.prepare(`UPDATE groups_chats SET folder_id = NULL WHERE user_id = ? AND folder_id IN (${marks})`).run(ws, ...ids);
   await db.prepare(`DELETE FROM groups_folders WHERE user_id = ? AND owner_id = ? AND id IN (${marks})`).run(ws, me, ...ids);
+  await notifyOwnScreens(ws, me, inside.map((r) => r.chat_id));
   return true;
 }
 
@@ -311,6 +344,7 @@ export async function moveChatsToFolder(ws: string, viewer: GroupsViewer, chatId
   if (ids.length === 0) return { updated: 0, failed: 0 };
   const db = getDb();
   const me = viewer.me;
+  if (folderId) await adoptOwnerlessFolders(ws);
   if (folderId && !(await db.prepare('SELECT 1 AS x FROM groups_folders WHERE id = ? AND user_id = ? AND owner_id = ?').get(folderId, ws, me))) throw new GroupsError('not_found', 404);
   const access = chatAccessSql(viewer, 'c');
   const marks = ids.map(() => '?').join(',');
@@ -331,6 +365,7 @@ export async function moveChatsToFolder(ws: string, viewer: GroupsViewer, chatId
     } else {
       await db.prepare(`DELETE FROM groups_chat_folders WHERE user_id = ? AND person_id = ? AND chat_id IN (${vm})`).run(ws, me, ...vids);
     }
+    await notifyOwnScreens(ws, me, vids);
   }
   return { updated: visible.length, failed: ids.length - visible.length };
 }

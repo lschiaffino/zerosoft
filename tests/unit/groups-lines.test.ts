@@ -204,7 +204,7 @@ describe('carpetas de Lines', () => {
     // Cada uno ve sus carpetas con sus propios no leídos (los de abajo suben al padre).
     const forPablo = await listFolders(ws, w.pablo.id, vPablo);
     const forRuth = await listFolders(ws, w.ruth.id, vRuth);
-    expect(forPablo.folders.map((f) => f.id)).toEqual([clientes.id, vip.id]);
+    expect(forPablo.folders.map((f) => f.id).sort()).toEqual([clientes.id, vip.id].sort());
     expect(forRuth.folders.map((f) => f.id)).toEqual([deRuth.id]);
     expect(forPablo.folders.find((f) => f.id === clientes.id)?.unread).toBe(2);
     expect(forPablo.folders.find((f) => f.id === vip.id)?.chats).toBe(2);

@@ -29,7 +29,7 @@ import { ensureWhatsappAccount } from '../inbox/whatsapp';
 import { flattenTree, MAX_FOLDER_DEPTH } from '../inbox/folder-tree';
 import { LIMITS as INBOX_LIMITS, waPhoneOf } from '../inbox/types';
 import { chatAccessSql, canSeeNumber, groupsViewer, type GroupsViewer } from '../groups-access';
-import { chatFoldersFor, createFolder as createLineFolder, listFolders as listLineFolders, moveChatsToFolder } from '../groups-lines';
+import { adoptOwnerlessFolders, chatFoldersFor, createFolder as createLineFolder, listFolders as listLineFolders, moveChatsToFolder } from '../groups-lines';
 import { GroupsError } from '../groups';
 import enMessages from '../../messages/en/assistant.json';
 import esMessages from '../../messages/es/assistant.json';
@@ -198,6 +198,7 @@ async function inboxSnapshot(owner: string): Promise<Snapshot> {
 
 /** Las carpetas de Lines de la persona (nunca las de otra). */
 async function lineFolderRows(ws: string, me: string): Promise<ExistingFolder[]> {
+  await adoptOwnerlessFolders(ws);
   const rows = (await getDb().prepare('SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id').all(ws, me)) as Array<{
     id: string;
     name: string;

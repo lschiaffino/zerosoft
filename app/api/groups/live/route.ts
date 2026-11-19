@@ -34,6 +34,7 @@ export async function GET(req: Request) {
     const lazy: LiveViewer = {
       app: 'lines',
       ws: s.ws,
+      me: s.me,
       visible: async (ids) => {
         filter ??= (who ??= sessionViewer(s)).then(chatFilterFor);
         const f = await filter;
