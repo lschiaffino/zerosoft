@@ -36,11 +36,12 @@ async function ask(u: { id: string }, input: { title: string; details?: string; 
   return (await requestFeature.run(toolCtx(owner(u), 'en'), { details: '', ...input })) as Record<string, unknown>;
 }
 
+/** El ítem del pedido más nuevo con ese título (created_at va al segundo: dos pedidos del mismo segundo se ordenan por rowid). */
 async function itemFor(feedbackTitle: string) {
   return (await getDb()
     .prepare(
       `SELECT s.item_id FROM roadmap_signals s JOIN feedback f ON f.id = s.source_id
-       WHERE s.source = 'feedback' AND f.message LIKE ? ORDER BY f.created_at DESC LIMIT 1`,
+       WHERE s.source = 'feedback' AND f.message LIKE ? ORDER BY f.created_at DESC, f.rowid DESC LIMIT 1`,
     )
     .get(`${feedbackTitle}%`)) as { item_id: string } | undefined;
 }
