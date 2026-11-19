@@ -90,6 +90,7 @@ export async function GET(req: Request) {
       props: [...(base.props ?? []), ...props],
       teamId: p.get('team') || base.teamId,
       numberId: p.get('number') || base.numberId,
+      lineGroupId: p.get('linegroup')?.slice(0, 100) || undefined,
       folderId: p.get('folder') || base.folderId,
       ownerId: p.get('owner') || base.ownerId,
       kind: kind ?? base.kind,

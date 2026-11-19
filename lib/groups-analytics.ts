@@ -16,7 +16,7 @@
 import { getDb } from './db';
 import { idxDay, num, rangeInfo } from './analytics-kit/period';
 import { listPeople } from './groups';
-import { chatAccessSql, maskedChatName, numberAccessSql, type GroupsViewer } from './groups-access';
+import { chatAccessSql, maskedChatName, numberAccessSql, visibleNumberIds, type GroupsViewer } from './groups-access';
 import {
   analyticsRange,
   dayList,
@@ -954,10 +954,12 @@ const cache = new Map<string, { at: number; data: Promise<AnalyticsData> }>();
  * persona, pestaña y filtros: recargar la página o bajar el CSV no vuelve a
  * leer la base. La clave lleva quién mira y qué puede ver.
  */
-export function cachedLinesAnalytics(ws: string, viewer: GroupsViewer, tab: AnalyticsTab, query: AnalyticsQuery = {}, options?: FilterOptions): Promise<AnalyticsData> {
+export async function cachedLinesAnalytics(ws: string, viewer: GroupsViewer, tab: AnalyticsTab, query: AnalyticsQuery = {}, options?: FilterOptions): Promise<AnalyticsData> {
+  // Las líneas que ve van en la clave: si le dan o le sacan una línea o un grupo, no se le sirve lo guardado de antes.
+  const lines = viewer.linesScoped ? [...((await visibleNumberIds(viewer)) ?? [])].sort().join(',') : '';
   const now = Date.now();
   const range = analyticsRange(query, new Date(now));
-  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '']);
+  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, lines, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '']);
   const hit = cache.get(key);
   if (hit && now - hit.at < CACHE_MS) return hit.data;
   if (cache.size >= CACHE_MAX) {

@@ -16,6 +16,7 @@ import { listSavedLists } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
+import { listLineGroups } from '@/lib/groups-line-groups';
 import GetStarted from '@/components/groups/GetStarted';
 import { mirrorSummary } from '@/lib/fleet/link';
 import SampleBanner from '@/components/groups/SampleBanner';
@@ -31,8 +32,10 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const viewer = await pageViewer(user);
   // Admins, o members con permiso para conectar números: ven el camino para conectar uno.
   const canConnect = numberManager(user).canAdd;
-  const [numbers, labels, people, teams, properties, lists, agents, tf] = await Promise.all([
+  const [numbers, lineGroups, labels, people, teams, properties, lists, agents, tf] = await Promise.all([
     listNumbers(user.id, viewer),
+    // Solo los grupos donde ve alguna línea (lib/groups-line-groups.ts).
+    listLineGroups(user.id, viewer),
     listLabels(user.id, viewer),
     listPeople(user.id),
     listTeams(user.id),
@@ -86,7 +89,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         properties={properties}
         me={me}
         initialLists={lists}
-        numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName, color: n.color }))}
+        numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName, color: n.color, groupId: n.groupId }))}
+        lineGroups={lineGroups.map((g) => ({ id: g.id, name: g.name }))}
         initialLine={await getSelectedLine(viewer)}
         agentsRow={agents ? { href: '/app/lines/agents', label: tf('mirror.row'), unread: agents.unread, waiting: agents.waiting, waitingLabel: tf('mirror.waiting', { n: agents.waiting }) } : null}
       >

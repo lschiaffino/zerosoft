@@ -13,7 +13,10 @@ export default function LineAccess({
   onClose,
   onSaved,
   isOwner = false,
+  groupName = "",
 }: {
+  /** Grupo de líneas de la línea, si tiene: quien tiene el grupo también la ve. */
+  groupName?: string;
   /** Quien mira es el dueño de la línea (el dueño se cambia en la tabla, y solo un admin). */
   isOwner?: boolean;
   number: NumberDto | null;
@@ -118,6 +121,11 @@ export default function LineAccess({
             {t("visibilityRestricted")}
           </label>
           <span className="ui-help">{t("visibilityHelp")}</span>
+          {groupName && visibility === "restricted" && (
+            <span className="ui-help" data-testid="line-access-group-note">
+              {t("accessGroupNote", { group: groupName })}
+            </span>
+          )}
         </fieldset>
         {visibility === "restricted" && (
           <>
