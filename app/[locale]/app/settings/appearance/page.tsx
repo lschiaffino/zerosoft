@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
+import { getTours } from '@/lib/tours/server';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import AppearanceSettings from '@/components/settings/AppearanceSettings';
 
@@ -8,9 +9,10 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return settingsSectionMetadata(locale, 'appearance');
 }
 
-/** Ajustes › Apariencia: el modo de color (el idioma vive en Perfil). */
+/** Ajustes › Apariencia: el modo de color, el aspecto y los tours guiados (el idioma vive en Perfil). */
 export default async function AppearanceSettingsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  await requireUser(locale);
-  return <AppearanceSettings />;
+  const user = await requireUser(locale);
+  const tours = await getTours(realUserId(user)).catch(() => ({ off: false }));
+  return <AppearanceSettings toursOff={Boolean(tours.off)} />;
 }

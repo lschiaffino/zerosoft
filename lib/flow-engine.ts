@@ -398,21 +398,35 @@ async function crmContactNode(ws: string, cfg: Record<string, unknown>, tctx: Re
   const firstName = renderString(cfg.firstName ?? '', tctx).trim();
   const lastName = renderString(cfg.lastName ?? '', tctx).trim();
   if (!email && !firstName && !lastName) throw new StepError('missing_contact');
-  if (email) {
-    const existing = (await getDb()
-      .prepare('SELECT id, first_name, last_name, email FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
-      .get(ws, email)) as { id: string; first_name: string; last_name: string; email: string } | undefined;
-    if (existing) return { created: false, contact: existing };
+  const phone = renderString(cfg.phone ?? '', tctx).trim();
+  const { createContact, updateContact } = await import('./crm');
+  const { catchEmailTaken, ContactEmailTakenError, findContactByEmail } = await import('./crm-contact-email');
+  // El email es la identidad del contacto: si ya existe se usa ese y solo se
+  // completa lo que tenía vacío (nunca se pisa ni se duplica).
+  let existing = email ? await findContactByEmail(ws, email) : null;
+  if (!existing) {
+    const c = await catchEmailTaken(
+      createContact(ws, {
+        email,
+        firstName,
+        lastName,
+        phone,
+        source: renderString(cfg.source ?? 'flow', tctx).trim() || 'flow',
+      }),
+    );
+    if (!(c instanceof ContactEmailTakenError)) {
+      return { created: true, contact: { id: c.id, first_name: c.first_name, last_name: c.last_name, email: c.email } };
+    }
+    existing = c.existing;
   }
-  const { createContact } = await import('./crm');
-  const c = await createContact(ws, {
-    email,
-    firstName,
-    lastName,
-    phone: renderString(cfg.phone ?? '', tctx).trim(),
-    source: renderString(cfg.source ?? 'flow', tctx).trim() || 'flow',
-  });
-  return { created: true, contact: { id: c.id, first_name: c.first_name, last_name: c.last_name, email: c.email } };
+  const fill: Record<string, string> = {};
+  if (firstName && !existing.first_name.trim() && !existing.last_name.trim()) {
+    fill.firstName = firstName;
+    if (lastName) fill.lastName = lastName;
+  }
+  if (phone && !existing.phone.trim()) fill.phone = phone;
+  const row = Object.keys(fill).length ? ((await updateContact(ws, existing.id, fill)) ?? existing) : existing;
+  return { created: false, contact: { id: row.id, first_name: row.first_name, last_name: row.last_name, email: row.email } };
 }
 
 async function crmSequenceNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
@@ -421,7 +435,7 @@ async function crmSequenceNode(ws: string, cfg: Record<string, unknown>, tctx: R
   const email = renderString(cfg.email ?? '', tctx).trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new StepError('invalid_email');
   const contact = (await getDb()
-    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
     .get(ws, email)) as { id: string } | undefined;
   if (!contact) throw new StepError('missing_contact');
   const { enrollContacts, defaultSenderFor } = await import('./crm-sequences');

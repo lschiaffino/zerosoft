@@ -7,6 +7,7 @@ import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers
 import { pageViewer } from '@/lib/groups-page';
 import { numberManager, withManage } from '@/lib/groups-number-perms';
 import { withNumberStats } from '@/lib/groups-number-stats';
+import { listLineGroups } from '@/lib/groups-line-groups';
 import { getPresence, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
@@ -87,6 +88,8 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         providers={availableProviders()}
         canEdit={manager.canAdd}
         isAdmin={admin}
+        me={manager.me}
+        initialGroups={await listLineGroups(user.id, await pageViewer(user))}
         openNew={sp.new === '1'}
         reconnect={sp.reconnect ?? null}
       />

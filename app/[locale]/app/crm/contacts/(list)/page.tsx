@@ -322,7 +322,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
     <div className="ui-page crm-list-page">
       <PageHeader
         title={t('contacts.title')}
-        actions={<CrmQuickCreate kind="contact" buttonClassName="btn btn-primary btn-sm" label={t('record.createContact')} />}
+        actions={
+          <>
+            <Link href="/app/crm/contacts/duplicates" className="btn btn-secondary btn-sm" data-testid="contacts-find-duplicates">
+              {t('contacts.dupes.find')}
+            </Link>
+            <CrmQuickCreate kind="contact" buttonClassName="btn btn-primary btn-sm" label={t('record.createContact')} />
+          </>
+        }
       />
 
       <ContactsFilters

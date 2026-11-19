@@ -22,7 +22,7 @@ export async function contactsForEmails(ws: string, emails: string[]): Promise<A
   const list = [...new Set(emails.map((e) => e.trim().toLowerCase()).filter((e) => e.includes('@')))].slice(0, 20);
   if (!list.length) return [];
   return (await db()
-    .prepare(`SELECT id, lower(email) AS email, company_id FROM crm_contacts WHERE user_id = ? AND lower(email) IN (${list.map(() => '?').join(',')})`)
+    .prepare(`SELECT id, lower(trim(email)) AS email, company_id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) IN (${list.map(() => '?').join(',')})`)
     .all(ws, ...list)) as Array<{ id: string; email: string; company_id: string | null }>;
 }
 

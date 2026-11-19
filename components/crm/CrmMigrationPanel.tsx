@@ -2,6 +2,7 @@
 
 import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { HubspotKeyHelp, HubspotKeySummary, HubspotMissingScopes, HubspotScopeList } from '@/components/hubspot/HubspotKeyHelp';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ImportJobView } from '@/lib/crm-import-jobs';
@@ -209,6 +210,7 @@ function ConnectStep({
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => inputRef.current?.focus(), []);
@@ -218,6 +220,7 @@ function ConnectStep({
     if (!token.trim() || busy) return;
     setBusy(true);
     setError(null);
+    setMissing([]);
     const res = await fetch('/api/crm/import/jobs', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -229,30 +232,32 @@ function ConnectStep({
       onPreview((await res.json()) as ImportJobView);
       return;
     }
-    const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
-    setError(errorText(t, data?.error));
+    const data = res ? ((await res.json().catch(() => null)) as { error?: string; missing?: unknown } | null) : null;
+    // HubSpot: si a la clave le faltan permisos obligatorios, se dicen en palabras.
+    const lacks = Array.isArray(data?.missing) ? data.missing.filter((x): x is string => typeof x === 'string').slice(0, 30) : [];
+    if (data?.error === 'missing_scope' && lacks.length) setMissing(lacks);
+    else setError(errorText(t, data?.error));
   }
 
   return (
     <form className="mig-body" onSubmit={submit} onKeyDown={(e) => e.key === 'Escape' && onBack()}>
       <h3 className="mig-title">{t('connectTitle', { provider: NAMES[provider] })}</h3>
-      {!embedded && (
+      {!embedded && provider === 'pipedrive' && (
         <ol className="mig-steps-list">
-          {(provider === 'hubspot' ? ['hs1', 'hs2', 'hs3'] : ['pd1', 'pd2']).map((k) => (
+          {['pd1', 'pd2'].map((k) => (
             <li key={k}>{t(`howto.${k}`)}</li>
           ))}
         </ol>
       )}
       {provider === 'hubspot' && !embedded && (
-        <div>
-          <p className="label">{t('scopes')}</p>
-          <ul className="mig-scopes mono">
-            {HUBSPOT_SCOPES.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ul>
-          <p className="muted mig-note">{t('scopesNote')}</p>
-        </div>
+        <>
+          <HubspotKeyHelp />
+          <div>
+            <p className="label">{t('scopes')}</p>
+            <HubspotScopeList scopes={HUBSPOT_SCOPES} />
+            <p className="muted mig-note">{t('scopesNote')}</p>
+          </div>
+        </>
       )}
       <label className="mig-field">
         <span className="label">{t(provider === 'hubspot' ? 'tokenLabelHubspot' : 'tokenLabelPipedrive')}</span>
@@ -270,6 +275,7 @@ function ConnectStep({
       <p id="mig-token-help" className="muted mig-note">
         {t('tokenHelp')}
       </p>
+      {missing.length > 0 && <HubspotMissingScopes scopes={missing} />}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -352,6 +358,12 @@ function PreviewStep({
     <div className="mig-body" data-testid="migrate-preview">
       <h3 className="mig-title">{t('previewTitle', { provider: NAMES[job.provider] })}</h3>
       <p className="muted">{t('previewIntro')}</p>
+      {p.connection && (
+        <div className="mig-section">
+          <HubspotKeySummary portalId={p.connection.portalId} kind={p.connection.kind} scopes={p.connection.scopes} missing={p.connection.missing} />
+          <p className="muted mig-note">{t('connectedNote')}</p>
+        </div>
+      )}
 
       <fieldset className="mig-groups">
         <legend className="label">{t('whatToImport')}</legend>

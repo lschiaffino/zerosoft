@@ -117,10 +117,10 @@ test('ajustes: dueño y acceso de una línea', async ({ page, request }) => {
   await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   const card = page.locator('.gr-number', { hasText: `Linea Acceso ${tag}` });
   await card.getByTestId('line-access-btn').click();
-  await expect(page.getByTestId('line-owner')).toBeVisible();
+  await expect(page.getByTestId('line-owner-note')).toBeVisible();
   await page.getByTestId('line-restricted').check();
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(card.getByTestId('line-owner-label')).toContainText('Restricted');
+  await expect(card.getByTestId('line-restricted-tag')).toBeVisible();
   const row = (await (await request.get(`/api/groups/numbers/${n.id}`)).json()) as { visibility: string };
   expect(row.visibility).toBe('restricted');
 });

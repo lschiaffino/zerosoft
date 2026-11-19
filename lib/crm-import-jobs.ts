@@ -30,6 +30,7 @@ import { getCrmSettings } from './crm-currency';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
 import { coerceCustom, normalizeImportValue, parseImportDate, workspacePeople, type Person } from './crm-import';
 import { createPipeline, listCustomFields, listPipelinesWithStages, mergeFillPatch, parseCustom } from './crm';
+import { emailFreeSql, findContactByEmail, sameContactEmail } from './crm-contact-email';
 import {
   IMPORT_GROUPS,
   isFatalSourceError,
@@ -38,6 +39,7 @@ import {
   SourceError,
   fieldNameFrom,
   type CrmSource,
+  type SourceConnection,
   type ImportGroup,
   type ImportPhase,
   type ImportProvider,
@@ -49,7 +51,7 @@ import {
   type SrcList,
   type SrcRecord,
 } from './crm-import-source';
-import { createHubspotSource } from './crm-import-hubspot';
+import { HUBSPOT_REQUIRED_SCOPES, HUBSPOT_SCOPES, createHubspotSource } from './crm-import-hubspot';
 import { createPipedriveSource } from './crm-import-pipedrive';
 import { fakeDatasetFromToken, fakeHubspotFetch, fakeImportAllowed, fakePipedriveFetch, isFakeToken } from './crm-import-fake';
 import {
@@ -114,6 +116,8 @@ export interface PreviewPipeline {
 }
 
 export interface ImportPreview {
+  /** HubSpot: la cuenta a la que entra la clave, su tipo, sus permisos y los que le faltan (de los que usa el import). */
+  connection?: SourceConnection & { missing: string[] };
   counts: Partial<Record<ImportPhase, number | null>>;
   /** Fases sin permiso en el token (p. ej. emails sin sales-email-read): se saltean. */
   unavailable: ImportPhase[];
@@ -251,11 +255,12 @@ export function jobProgress(counts: JobCounts, groups: ImportGroup[]): number | 
 
 // ---------- Fuente ----------
 
-type SourceFactory = (provider: ImportProvider, token: string, ctx: { ownerEmail: string }) => CrmSource;
+type SourceFactory = (provider: ImportProvider, token: string, ctx: { ownerEmail: string; portalId?: string }) => CrmSource;
 
 const defaultFactory: SourceFactory = (provider, token, ctx) => {
   // Proveedor falso solo en tests/e2e (CRM_IMPORT_FAKE=1 con NODE_ENV=test o DEMO_MODE).
-  if (fakeImportAllowed() && isFakeToken(token)) {
+  // Con el falso prendido, HubSpot siempre es la cuenta falsa: una clave que no es de prueba recibe su 401 ahí y nada sale a internet.
+  if (fakeImportAllowed() && (isFakeToken(token) || provider === 'hubspot')) {
     const ds = fakeDatasetFromToken(token, ctx.ownerEmail);
     // Sin tope de pedidos: con `sleep` instantáneo, el limitador real (100 cada
     // 10 s) giraba en microtasks hasta que se vaciara la ventana y frenaba el
@@ -265,7 +270,7 @@ const defaultFactory: SourceFactory = (provider, token, ctx) => {
       ? createHubspotSource(token, { fetch: fakeHubspotFetch(ds), sleep: async () => {}, limiter })
       : createPipedriveSource(token, { fetch: fakePipedriveFetch(ds), sleep: async () => {}, limiter });
   }
-  return provider === 'hubspot' ? createHubspotSource(token) : createPipedriveSource(token);
+  return provider === 'hubspot' ? createHubspotSource(token, { portalId: ctx.portalId }) : createPipedriveSource(token);
 };
 
 let sourceFactory: SourceFactory = defaultFactory;
@@ -284,7 +289,7 @@ async function creatorEmail(userId: string): Promise<string> {
 
 export type PreviewResult =
   | { ok: true; job: ImportJobView }
-  | { ok: false; code: 'invalid_token' | 'missing_scope' | 'provider_error' | 'import_running' };
+  | { ok: false; code: 'invalid_token' | 'missing_scope' | 'provider_error' | 'import_running'; /** Permisos obligatorios que le faltan a la clave (si se pudieron leer). */ missing?: string[] };
 
 export async function activeImportJob(userId: string): Promise<ImportJobView | null> {
   const row = (await getDb()
@@ -322,6 +327,18 @@ export async function createImportPreview(
   if (active) await cancelImportJob(userId, active.id);
 
   const source = sourceFactory(provider, token, { ownerEmail: await creatorEmail(createdBy) });
+  // HubSpot: primero la clave (cuenta, tipo y permisos). Si le falta un permiso obligatorio, se dice cuál.
+  let connection: ImportPreview['connection'];
+  if (source.connection) {
+    try {
+      const info = await source.connection();
+      const missing = HUBSPOT_REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
+      if (missing.length) return { ok: false, code: 'missing_scope', missing };
+      connection = { ...info, missing: HUBSPOT_SCOPES.filter((s) => !info.scopes.includes(s)) };
+    } catch (e) {
+      return { ok: false, code: previewErrorCode(e) };
+    }
+  }
   let owners, fields, pipelines;
   try {
     owners = await source.owners();
@@ -375,6 +392,7 @@ export async function createImportPreview(
     .get(userId, provider)) as { c: number };
 
   const preview: ImportPreview = {
+    ...(connection ? { connection } : {}),
     counts,
     unavailable,
     samples,
@@ -763,10 +781,18 @@ async function updateRow(db: Db, table: string, id: string, cols: Array<[string,
     .run(...cols.map(([, v]) => v), nowDb(), id);
 }
 
-async function insertRow(db: Db, table: string, cols: Array<[string, string | number | null]>) {
-  await db
-    .prepare(`INSERT INTO ${table} (${cols.map(([c]) => c).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
-    .run(...cols.map(([, v]) => v));
+/** `onlyIf`: condición SQL en la misma sentencia; false = no se cumplió y no se insertó nada. */
+async function insertRow(
+  db: Db,
+  table: string,
+  cols: Array<[string, string | number | null]>,
+  onlyIf?: { sql: string; args: string[] },
+): Promise<boolean> {
+  const marks = cols.map(() => '?').join(', ');
+  const res = await db
+    .prepare(`INSERT INTO ${table} (${cols.map(([c]) => c).join(', ')}) ${onlyIf ? `SELECT ${marks} WHERE ${onlyIf.sql}` : `VALUES (${marks})`}`)
+    .run(...cols.map(([, v]) => v), ...(onlyIf?.args ?? []));
+  return res.changes > 0;
 }
 
 async function writeCompany(ctx: WriteCtx, src: SrcCompany, extMap: Map<string, string>): Promise<void> {
@@ -877,6 +903,13 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
   let id: string;
   let deduped = false;
   let touch = true;
+  // El email es la identidad del contacto (lib/crm-contact-email.ts): si en el
+  // otro CRM cambió por uno que acá ya es de OTRO contacto, el email no se
+  // pisa (quedarían dos con el mismo) y se avisa; el resto se actualiza.
+  if (existing && email && !sameContactEmail(existing.email, email) && (await findContactByEmail(userId, email, db, existing.id))) {
+    pushError(ctx, `contact ${src.id}: email not updated, another contact already uses it`);
+    for (const col of cols) if (col[0] === 'email') col[1] = '';
+  }
   if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'contact', src.id))) {
     const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify({ ...custom, ...parseCustom(existing.custom) }) } as CrmContactRow;
     await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
@@ -890,29 +923,38 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
     id = existing.id;
     ctx.counts.updated++;
   } else {
-    existing = email
-      ? ((await db
-          .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at LIMIT 1')
-          .get(userId, email)) as CrmContactRow | undefined)
-      : undefined;
+    existing = (await findContactByEmail(userId, email, db)) ?? undefined;
+    id = existing?.id ?? crypto.randomUUID();
+    if (!existing) {
+      // El alta lleva el chequeo del email en la misma sentencia (como
+      // createContact): si alguien creó ese email entre la búsqueda y el
+      // alta, no se inserta y se sigue con el contacto que ya está.
+      const inserted = await insertRow(
+        db,
+        'crm_contacts',
+        [
+          ['id', id],
+          ['user_id', userId],
+          ...cols.map(([c, v]): [string, string | number | null] => [
+            c,
+            c === 'lifecycle_stage' ? v || 'lead' : c === 'lead_status' ? v || 'new' : v,
+          ]),
+          ['custom', JSON.stringify(custom)],
+        ],
+        email ? emailFreeSql(userId, email) : undefined,
+      );
+      if (inserted) ctx.counts.created++;
+      else {
+        existing = (await findContactByEmail(userId, email, db)) ?? undefined;
+        if (!existing) throw new Error('contact_not_created');
+        id = existing.id;
+      }
+    }
     if (existing) {
       const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify(custom) } as CrmContactRow;
       await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
-      id = existing.id;
       deduped = true;
       ctx.counts.updated++;
-    } else {
-      id = crypto.randomUUID();
-      await insertRow(db, 'crm_contacts', [
-        ['id', id],
-        ['user_id', userId],
-        ...cols.map(([c, v]): [string, string | number | null] => [
-          c,
-          c === 'lifecycle_stage' ? v || 'lead' : c === 'lead_status' ? v || 'new' : v,
-        ]),
-        ['custom', JSON.stringify(custom)],
-      ]);
-      ctx.counts.created++;
     }
   }
   await extSet(db, userId, ctx.provider, 'contact', src.id, id, touch);
@@ -1306,7 +1348,7 @@ export async function runImportStep(id: string, opts: RunStepOptions = {}): Prom
   const errors = parseJson<string[]>(job.errors, []);
   let errorCount = job.error_count;
   const phases = jobPhases(job.provider, options, { ...preview, unavailable: preview.unavailable ?? [] });
-  const source = sourceFactory(job.provider, token, { ownerEmail: await creatorEmail(job.created_by) });
+  const source = sourceFactory(job.provider, token, { ownerEmail: await creatorEmail(job.created_by), portalId: preview.connection?.portalId });
 
   try {
     let plan = parseJson<Plan | null>(job.plan, null);

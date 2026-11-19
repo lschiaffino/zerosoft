@@ -31,12 +31,14 @@ import {
   type SidebarLabels,
 } from './sidebar-nav';
 import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isComingSoon, type ProductKey } from '@/lib/products';
-import { DEFAULT_WORKSPACE_MODE, appsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
+import { DEFAULT_WORKSPACE_MODE, type WorkspaceMode } from '@/lib/workspace-mode';
+import { switcherLayout } from '@/lib/featured-apps';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import { useLinesPresence } from './usePresence';
 import { PRESENCES, type Presence } from '@/lib/groups-inbox-rules';
 import Logo from '@/components/brand/Logo';
+import { requestTour, tourForPath } from '@/lib/tours';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import { inDesktopApp } from '@/lib/desktop-detect';
@@ -144,7 +146,10 @@ export default function AppSidebar({
   docsCanCreate = true,
   staff = false,
   chosenApps = null,
+  featuredApps = null,
 }: {
+  /** Apps destacadas del workspace (Ajustes › Apps del workspace): arriba en el switcher, el resto plegado en "Otras apps". */
+  featuredApps?: ProductKey[] | null;
   /** Staff de zerosoft (ADMIN_EMAILS): abre las apps "Próximamente" como vista previa. */
   staff?: boolean;
   /** Apps que la persona eligió en el onboarding: van primero en el switcher y el inicio. */
@@ -170,6 +175,7 @@ export default function AppSidebar({
   const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
   useEffect(() => setDesktop(desktopBridge()), []);
   const pathname = usePathname();
+  const appTour = tourForPath(pathname);
   // En Lines: disponible o ausente para recibir chats, en el menú de la cuenta (con un punto en la foto).
   const presence = useLinesPresence(/^\/app\/lines(\/|$)/.test(pathname));
   const product = appProductFromPath(pathname);
@@ -182,10 +188,13 @@ export default function AppSidebar({
   const [soonOpen, setSoonOpen] = useState(false);
   // Apagadas para esta cuenta: también plegadas, en su propio grupo.
   const [offOpen, setOffOpen] = useState(false);
+  // "Otras apps": las que el workspace no destacó, plegadas igual (solo si hay destacadas).
+  const [otherOpen, setOtherOpen] = useState(false);
   useEffect(() => {
     if (!switcherOpen) {
       setSoonOpen(false);
       setOffOpen(false);
+      setOtherOpen(false);
     }
   }, [switcherOpen]);
   const [newOpen, setNewOpen] = useState(false);
@@ -202,6 +211,7 @@ export default function AppSidebar({
   // Cambios de CRM y Track en la cola del service worker: al salir se borran, así que primero se avisa.
   const [queueWarn, setQueueWarn] = useState(0);
   const tOffline = useTranslations('common.offline');
+  const tTour = useTranslations('common.tour');
   const doSignOut = () => void clearOfflineData(recOwner ?? undefined).finally(() => signOut({ callbackUrl: '/' }));
   async function requestSignOut(opts: { skipQueue?: boolean } = {}) {
     if (recOwner && !opts.skipQueue) {
@@ -379,7 +389,7 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps, workspaceFeatured: featuredApps });
   const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
   // Lines e Inbox: "Nuevo" abre el panel de chat nuevo sin pasar por un menú.
   const directNew = directNewItem(product, labels);
@@ -390,15 +400,14 @@ export default function AppSidebar({
     window.dispatchEvent(new CustomEvent('zs:open-search'));
   }
 
-  // Switcher: todas las apps por categoría, sin un grupo de destacadas.
+  // Switcher: todas las apps por categoría. Si el workspace destacó apps, esas van arriba y el resto se pliega en "Otras apps".
   const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
   const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
   // Apagadas para esta cuenta (Ajustes › Apps): aparte, plegadas, y llevan a esos ajustes.
   const offApps = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && !allowed(k));
-  const more = appsByCategory()
-    .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
-    .filter((g) => g.apps.length > 0);
+  const layout = switcherLayout(APP_SWITCHER_ORDER.filter(allowed), featuredApps);
+  const more = layout.groups;
   const switcherItem = (line: ProductKey) => {
     const key = appProductOf(line);
     return (
@@ -419,6 +428,19 @@ export default function AppSidebar({
       </Link>
     );
   };
+
+  const categoryGrid = (
+    <div className="band-menu-grid" role="group" aria-label={labels.moreApps}>
+      {more.map(({ category, apps }) => (
+        <div key={category} className="band-menu-cat" role="group" aria-label={labels.categories[category]}>
+          <p className="band-menu-cat-title" aria-hidden="true">
+            {labels.categories[category]}
+          </p>
+          {apps.map(switcherItem)}
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -513,16 +535,30 @@ export default function AppSidebar({
               <p className="band-menu-offline-hint" data-testid="switcher-offline-hint">
                 {tOffline('switcherHint')}
               </p>
-              {more.length > 0 && (
-                <div className="band-menu-grid" role="group" aria-label={labels.moreApps}>
-                  {more.map(({ category, apps }) => (
-                    <div key={category} className="band-menu-cat" role="group" aria-label={labels.categories[category]}>
-                      <p className="band-menu-cat-title" aria-hidden="true">
-                        {labels.categories[category]}
-                      </p>
-                      {apps.map(switcherItem)}
-                    </div>
-                  ))}
+              {layout.featured.length > 0 && (
+                <div className="band-menu-featured-block" role="group" aria-label={labels.featured} data-testid="switcher-featured">
+                  <p className="band-menu-cat-title" aria-hidden="true">
+                    {labels.featured}
+                  </p>
+                  <div className="band-menu-featured">{layout.featured.map(switcherItem)}</div>
+                </div>
+              )}
+              {more.length > 0 && !layout.collapsed && categoryGrid}
+              {layout.collapsed && (
+                <div className="band-menu-soon band-menu-other" role="group" aria-label={labels.otherApps ?? labels.moreApps}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`band-menu-item band-menu-soon-toggle${otherOpen ? ' open' : ''}`}
+                    aria-expanded={otherOpen}
+                    onClick={() => setOtherOpen((v) => !v)}
+                    data-testid="switcher-other-toggle"
+                  >
+                    <Icon name="chevronRight" size={12} />
+                    <span>{labels.otherApps ?? labels.moreApps}</span>
+                    <span className="band-menu-soon-count">{layout.restCount}</span>
+                  </button>
+                  {otherOpen && categoryGrid}
                 </div>
               )}
               {offApps.length > 0 && labels.disabledApps && (
@@ -759,6 +795,7 @@ export default function AppSidebar({
                     className={`side-stop${item.active ? ' active' : ''}`}
                     aria-current={item.active ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
+                    data-tour={item.tour}
                   >
                     <span className="side-icon" aria-hidden="true">
                       <Icon name={item.icon} size={15} />
@@ -862,6 +899,17 @@ export default function AppSidebar({
                   <Icon name="desktop" size={14} />
                   {t('downloadDesktop')}
                 </Link>
+              )}
+              {/* El tour guiado de la app abierta (lib/tours), si tiene uno: se puede volver a ver cuando se quiera. */}
+              {appTour && (
+                <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={() => {
+                    // En el teléfono el lateral es un cajón: se cierra para que el tour vea la pantalla.
+                    setDrawerOpen(false);
+                    requestTour(appTour.key);
+                  }} data-testid="side-tour">
+                  <Icon name="roadmap" size={14} />
+                  {tTour('menu')}
+                </button>
               )}
               <Link href="/docs" role="menuitem" className="side-menu-item" data-testid="side-help">
                 <Icon name="help" size={14} />

@@ -839,3 +839,33 @@ section.ui-section.shop-section {
 .shop-tag:hover {
   border-color: var(--ink-muted, var(--line));
 }
+
+.shop-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.shop-facet {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+}
+.shop-facet:hover { border-color: var(--muted); }
+.shop-facet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shop-rowfacets {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  padding-left: 52px;
+  font-size: 12px;
+}
+.shop-facet-link { color: var(--muted); text-decoration: underline; }
+.shop-facet-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

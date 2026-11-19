@@ -33,12 +33,13 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
     {
       '@type': 'ItemList',
       name: t('index.meta.title'),
-      itemListElement: comparisons.map((c, i) => ({
-        '@type': 'ListItem',
-        position: i + 1,
-        name: t('index.vsLink', { name: c.name, competitor: c.competitor }),
-        url: absoluteUrl(localePath(locale, `/compare/${c.vsSlug}`)),
-      })),
+      // Las dos páginas de cada app: la tabla (vs) y la de alternativa, que es la que se busca.
+      itemListElement: comparisons
+        .flatMap((c) => [
+          { name: t('index.vsLink', { name: c.name, competitor: c.competitor }), path: `/compare/${c.vsSlug}` },
+          { name: t('index.altLink', { name: c.name, competitor: c.competitor }), path: `/compare/${c.altSlug}` },
+        ])
+        .map((item, i) => ({ '@type': 'ListItem', position: i + 1, name: item.name, url: absoluteUrl(localePath(locale, item.path)) })),
     },
   ]);
 

@@ -38,7 +38,7 @@ test('la tabla de Números muestra estado y desde cuándo, último mensaje y cha
   await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
 
   const table = page.getByTestId('numbers-table');
-  await expect(table.getByRole('columnheader')).toHaveCount(4);
+  await expect(table.getByRole('columnheader')).toHaveCount(5);
   const line = page.locator(`[data-number-id="${id}"]`);
   await expect(line).toBeVisible({ timeout: 30_000 });
   await expect(line.getByTestId('line-status').locator('.badge-ok')).toBeVisible();

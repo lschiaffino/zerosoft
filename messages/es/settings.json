@@ -1246,11 +1246,8 @@
     "openImporter": "Abrir el importador de {app}",
     "steps": {
       "hubspot": {
-        "1": "En HubSpot, abrí Configuración › Integraciones › Apps privadas (en cuentas nuevas: Desarrollo › Apps heredadas) y creá una app privada.",
-        "2": "Ponele un nombre (por ejemplo, import zerosoft). En Alcances, agregá los permisos de lectura de abajo. No se escribe nada en HubSpot.",
-        "3": "Creá la app y copiá su token de acceso (empieza con pat-).",
-        "4": "Pegalo abajo y conectá. Probamos el token y te mostramos qué va a entrar: cantidades, owners, pipelines y propiedades propias.",
-        "5": "Asigná cada owner de HubSpot a una persona del workspace (coinciden por email) o invitá a quienes faltan, y arrancá."
+        "1": "Pegá la clave abajo y conectá. La revisamos y te mostramos de qué cuenta es, qué puede leer y qué va a entrar: cantidades, owners, pipelines y propiedades propias.",
+        "2": "Asigná cada owner de HubSpot a una persona del workspace (coinciden por email) o invitá a quienes faltan, y arrancá."
       },
       "pipedrive": {
         "1": "En Pipedrive, abrí tu avatar › Preferencias personales › API.",
@@ -1500,7 +1497,11 @@
   },
   "appsPanel": {
     "title": "Apps del workspace",
-    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra.",
+    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra. Marcá con la estrella las apps que más usa tu equipo: van arriba en el menú de apps.",
+    "feature": "Destacar {name}",
+    "unfeature": "Dejar de destacar {name}",
+    "alwaysOn": "Siempre activada para todos.",
+    "featuredNote": "Destacadas: con al menos una, el menú de apps las muestra arriba y deja el resto en \"Otras apps\". Sin ninguna, muestra todas las apps por categoría.",
     "readOnly": "Solo el owner y los admins cambian esto.",
     "modes": {
       "all": "Todos",
@@ -1759,7 +1760,13 @@
         "name": "Retro",
         "desc": "Un escritorio de los noventa: botones y ventanas grises en relieve, campos blancos hundidos y barras de título."
       }
-    }
+    },
+    "toursTitle": "Tours guiados",
+    "toursDesc": "La primera vez que abrís una app, un tour corto te muestra sus partes principales.",
+    "toursAuto": "Mostrar el tour la primera vez que abro una app",
+    "toursReset": "Volver a mostrar todos los tours",
+    "toursResetDone": "Listo. Cada tour se abre de nuevo la próxima vez que entres a su app.",
+    "toursError": "No se pudo guardar. Probá de nuevo."
   },
   "offline": {
     "title": "Modo sin conexión",

@@ -7,6 +7,7 @@
  *   admins y las personas o equipos que figuren en groups_number_access). La
  *   regla vive en groups-access.ts (numberAccessSql / chatAccessSql) y se
  *   aplica en todas las rutas que leen chats.
+ * - Grupos de líneas y acceso por grupo: lib/groups-line-groups.ts.
  * - Carpetas: del workspace (todos ven las mismas), con subcarpetas hasta
  *   MAX_FOLDER_DEPTH. Los no leídos se cuentan por persona: solo chats que esa
  *   persona puede ver.
@@ -70,19 +71,34 @@ export async function setLineAccess(ws: string, numberId: string, input: LineAcc
 
 const LINE_KEY = 'line';
 
-/** Línea guardada de esta persona: id, o 'all' (todas). Si ya no la ve o no existe, 'all'. */
+/** Prefijo de un grupo de líneas en la elección de la bandeja: 'g:<id del grupo>'. */
+export const LINE_GROUP_PREFIX = 'g:';
+
+/** ¿Puede elegir esto? Una línea que ve, o un grupo donde ve alguna línea. */
+async function canSelectLine(viewer: GroupsViewer, value: string): Promise<boolean> {
+  if (value.startsWith(LINE_GROUP_PREFIX)) {
+    const { canSeeLineGroup } = await import('./groups-line-groups');
+    return canSeeLineGroup(viewer, value.slice(LINE_GROUP_PREFIX.length));
+  }
+  return canSeeNumber(viewer, value);
+}
+
+/**
+ * Lo que esta persona tiene elegido: el id de una línea, 'g:<id>' (un grupo de líneas entero) o 'all' (todas).
+ * Si ya no lo ve o no existe, 'all'.
+ */
 export async function getSelectedLine(viewer: GroupsViewer): Promise<string> {
   const r = (await getDb().prepare('SELECT value FROM groups_user_prefs WHERE user_id = ? AND person_id = ? AND key = ?').get(viewer.ws, viewer.me, LINE_KEY)) as
     | { value: string }
     | undefined;
   const v = r?.value ?? 'all';
   if (v === 'all') return 'all';
-  return (await canSeeNumber(viewer, v)) ? v : 'all';
+  return (await canSelectLine(viewer, v)) ? v : 'all';
 }
 
 export async function setSelectedLine(viewer: GroupsViewer, line: string): Promise<string> {
   const value = line === 'all' || !line ? 'all' : line;
-  if (value !== 'all' && !(await canSeeNumber(viewer, value))) throw new GroupsError('not_found', 404);
+  if (value !== 'all' && !(await canSelectLine(viewer, value))) throw new GroupsError('not_found', 404);
   await getDb()
     .prepare(
       `INSERT INTO groups_user_prefs (user_id, person_id, key, value, updated_at) VALUES (?, ?, ?, ?, ?)

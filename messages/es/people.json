@@ -92,7 +92,11 @@
     "emailHint": "Si ya está en el workspace, la ficha queda enlazada a su cuenta.",
     "countryHint": "Define los feriados que no cuentan en sus licencias.",
     "onboarding": "Checklist de onboarding",
-    "noOnboarding": "Ninguna por ahora"
+    "noOnboarding": "Ninguna por ahora",
+    "outFilter": "Fuera hoy ({count})",
+    "outUntil": "Fuera hasta el {date}",
+    "outAm": "Fuera a la mañana",
+    "outPm": "Fuera a la tarde"
   },
   "profile": {
     "tabs": {

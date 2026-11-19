@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, NumberDto } from '@/lib/groups';
 import LineAccess from './LineAccess';
+import PersonPicker from './PersonPicker';
+import LineGroups from './LineGroups';
+import type { LineGroupDto } from '@/lib/groups-line-groups';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
 import MenuSelect from '@/components/ui/MenuSelect';
@@ -55,7 +58,13 @@ export default function NumbersSettings({
   reconnect = null,
   people = [],
   teams = [],
+  me = '',
+  initialGroups = [],
 }: {
+  /** Grupos de líneas: todos para un admin; para los demás, los que tienen alguna línea que ven. */
+  initialGroups?: LineGroupDto[];
+  /** Quien mira: su nombre no hace falta en la columna Dueño ("Vos"). */
+  me?: string;
   /** Owner o admin: administra todas las líneas y cambia dueños. Si no, solo las suyas (`canManage`). */
   isAdmin?: boolean;
   initial: NumberDto[];
@@ -73,6 +82,7 @@ export default function NumbersSettings({
   const router = useRouter();
   const [toast, showToast] = useToast();
   const [numbers, setNumbers] = useState(initial);
+  const [groups, setGroups] = useState(initialGroups);
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(() => (reconnect ? (initial.find((n) => n.id === reconnect && n.canManage) ?? null) : null));
   // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
@@ -89,9 +99,29 @@ export default function NumbersSettings({
   }, []);
 
   const reload = useCallback(async () => {
-    const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers?stats=1');
+    const [res, gr] = await Promise.all([api<{ numbers: NumberDto[] }>('/api/groups/numbers?stats=1'), api<{ groups: LineGroupDto[] }>('/api/groups/line-groups')]);
     if (res.data) setNumbers(res.data.numbers);
+    if (gr.data) setGroups(gr.data.groups);
   }, []);
+
+  // La tabla va por grupo de líneas, en el orden de los grupos; las líneas sin grupo, al final.
+  const sections = useMemo(() => {
+    const shown = numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter);
+    const known = new Set(groups.map((g) => g.id));
+    const out = groups.map((g) => ({ id: g.id, name: g.name, lines: shown.filter((n) => n.groupId === g.id) })).filter((s) => s.lines.length > 0);
+    const loose = shown.filter((n) => !n.groupId || !known.has(n.groupId));
+    return { grouped: out, loose };
+  }, [numbers, groups, ownerFilter]);
+
+  // Grupo de la línea: lo elige un admin en la fila y se guarda en el acto.
+  async function setGroup(n: NumberDto, groupId: string) {
+    const res = await api<NumberDto>(`/api/groups/numbers/${n.id}`, { method: 'PATCH', body: { groupId: groupId || null } });
+    if (!res.data) return showToast(errText(res.error), true);
+    setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, groupId: groupId || null } : x)));
+    void reload();
+    router.refresh();
+  }
+  const groupOptions = useMemo(() => [{ value: '', label: t('lineGroups.noGroup') }, ...groups.map((g) => ({ value: g.id, label: g.name }))], [groups, t]);
 
   // El estado cambia solo (el teléfono se desvincula, el gateway se cae): la lista se refresca cada 10 s.
   useEffect(() => {
@@ -126,6 +156,18 @@ export default function NumbersSettings({
       setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, color: prev } : x)));
       return showToast(errText(res.error), true);
     }
+    router.refresh();
+  }
+  // Dueño de la línea: lo elige un admin en la misma fila y se guarda en el acto.
+  const [ownerBusy, setOwnerBusy] = useState('');
+  async function setOwner(n: NumberDto, ownerId: string) {
+    setOwnerBusy(n.id);
+    const res = await api<NumberDto>(`/api/groups/numbers/${n.id}`, { method: 'PATCH', body: { ownerId: ownerId || null } });
+    setOwnerBusy('');
+    if (!res.data) return showToast(errText(res.error), true);
+    const saved = res.data;
+    setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, ...saved } : x)));
+    showToast(saved.ownerName ? t('lines.ownerSaved', { name: saved.ownerName, line: n.name }) : t('lines.ownerCleared', { line: n.name }));
     router.refresh();
   }
   const colorOptions = [
@@ -169,6 +211,9 @@ export default function NumbersSettings({
           </button>
         )}
       </div>
+      <p className="ui-help" data-testid="lines-owner-help">
+        {t(isAdmin ? 'lines.ownerExplainAdmin' : 'lines.ownerExplain')}
+      </p>
       {owners.length > 0 && (
         <MenuSelect
           testId="lines-owner-filter"
@@ -188,6 +233,7 @@ export default function NumbersSettings({
             <thead>
               <tr>
                 <th scope="col">{t('numbers.colLine')}</th>
+                <th scope="col">{t('lines.owner')}</th>
                 <th scope="col">{t('numbers.colStatus')}</th>
                 <th scope="col">{t('numbers.colLastMessage')}</th>
                 <th scope="col" className="num">
@@ -195,7 +241,16 @@ export default function NumbersSettings({
                 </th>
               </tr>
             </thead>
-            {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
+            {[...sections.grouped, ...(sections.loose.length ? [{ id: '', name: sections.grouped.length ? t('lineGroups.ungrouped') : '', lines: sections.loose }] : [])].map((section) => (
+              <Fragment key={section.id || 'loose'}>
+                {section.name && (
+                  <tbody className="gr-number-grouphead" data-testid="numbers-group-head">
+                    <tr>
+                      <td colSpan={5}>{section.name}</td>
+                    </tr>
+                  </tbody>
+                )}
+                {section.lines.map((n) => (
               <tbody key={n.id} className="gr-number" data-number-id={n.id}>
                 <tr className="gr-number-row">
                   <th scope="row" className="gr-number-line">
@@ -207,10 +262,22 @@ export default function NumbersSettings({
                       <span className="ui-help">
                         {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
                       </span>
-                      <span className="ui-help" data-testid="line-owner-label">
-                        {n.ownerName ? t('lines.ownerIs', { name: n.ownerName }) : t('lines.noOwner')}
-                        {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
-                      </span>
+                      {n.visibility === 'restricted' && (
+                        <span className="ui-help" data-testid="line-restricted-tag">
+                          {t('lines.restrictedTag')}
+                        </span>
+                      )}
+                      {/* Grupo de la línea: lo cambia un admin acá mismo (los grupos se arman más abajo). */}
+                      {isAdmin && groups.length > 0 && (
+                        <MenuSelect
+                          className={`gr-line-group-select${n.groupId ? '' : ' is-none'}`}
+                          testId="line-group-select"
+                          label={t('lineGroups.groupOf', { name: n.name })}
+                          value={n.groupId ?? ''}
+                          onChange={(v) => void setGroup(n, v)}
+                          options={groupOptions}
+                        />
+                      )}
                       {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
                       {n.archiveSyncBroken && n.provider !== 'sample' && (
                         <span className="ui-error" role="status" data-testid="line-archive-broken">
@@ -230,6 +297,26 @@ export default function NumbersSettings({
                       )}
                     </div>
                   </th>
+                  <td className="gr-number-cell gr-number-owner" data-label={t('lines.owner')} data-testid="line-owner-cell">
+                    {isAdmin ? (
+                      <PersonPicker
+                        testId="line-owner"
+                        label={t('lines.ownerOf', { name: n.name })}
+                        value={n.ownerId ?? ''}
+                        people={people}
+                        onChange={(v) => void setOwner(n, v)}
+                        noneLabel={t('lines.noOwner')}
+                        searchLabel={t('lines.ownerSearch')}
+                        emptyLabel={t('lines.ownerNoMatch')}
+                        help={t('lines.ownerHelp')}
+                        busy={ownerBusy === n.id}
+                      />
+                    ) : (
+                      <span className={n.ownerName ? undefined : 'ui-help'} data-testid="line-owner-name">
+                        {n.ownerId && n.ownerId === me ? t('lines.ownerYou') : n.ownerName || t('lines.noOwner')}
+                      </span>
+                    )}
+                  </td>
                   <td className="gr-number-cell" data-label={t('numbers.colStatus')} data-testid="line-status">
                     <span className="gr-number-status">
                       {n.provider === 'sample' ? (
@@ -259,7 +346,7 @@ export default function NumbersSettings({
                 </tr>
                 {n.canManage && (
                   <tr className="gr-number-actions-row">
-                    <td colSpan={4} className="table-stack-actions">
+                    <td colSpan={5} className="table-stack-actions">
                       <div className="gr-number-actions">
                         <MenuSelect
                           className="gr-line-color-select"
@@ -320,11 +407,27 @@ export default function NumbersSettings({
                   </tr>
                 )}
               </tbody>
+                ))}
+              </Fragment>
             ))}
           </table>
         </div>
       )}
 
+      {isAdmin && (
+        <LineGroups
+          groups={groups}
+          numbers={numbers}
+          people={people}
+          teams={teams}
+          notify={showToast}
+          onChanged={(next) => {
+            if (next) setGroups(next);
+            void reload();
+            router.refresh();
+          }}
+        />
+      )}
       <NumberForm
         open={adding || !!editing}
         editing={editing}
@@ -344,7 +447,8 @@ export default function NumbersSettings({
         }}
       />
       <LineAccess
-        canChangeOwner={isAdmin}
+        isOwner={Boolean(accessFor?.ownerId) && accessFor?.ownerId === me}
+        groupName={groups.find((g) => g.id === accessFor?.groupId)?.name ?? ''}
         number={accessFor}
         people={people}
         teams={teams}

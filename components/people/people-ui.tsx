@@ -214,3 +214,16 @@ export function Bar({ value, max, label }: { value: number; max: number; label: 
     </div>
   );
 }
+
+/** "Fuera hasta…" en el directorio y la ficha (solo licencias aprobadas; sin el tipo). */
+export function OutBadge({ out }: { out: { until: string; half: '' | 'am' | 'pm' } | null | undefined }) {
+  const t = useTranslations('people');
+  const day = useDay();
+  if (!out) return null;
+  const label = out.half ? t(out.half === 'am' ? 'directory.outAm' : 'directory.outPm') : t('directory.outUntil', { date: day(out.until, { month: 'short', day: 'numeric' }) });
+  return (
+    <span className="badge badge-info" data-testid="people-out">
+      {label}
+    </span>
+  );
+}

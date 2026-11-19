@@ -16,6 +16,9 @@ export function ownWorkspace(tag: string): string {
     try {
       const res = await ctx.post('/api/onboarding', { data: { kind: 'full', mode: 'personal', name: tag, locale: 'en' } });
       expect(res.ok(), await res.text()).toBe(true);
+      // Una cuenta nueva ve el tour guiado de cada app la primera vez (lib/tours): acá no se prueba eso.
+      const off = await ctx.post('/api/tours', { data: { kind: 'off', off: true } });
+      expect(off.ok(), await off.text()).toBe(true);
     } finally {
       await ctx.dispose();
     }

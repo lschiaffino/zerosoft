@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getDb, upsertUser } from '@/lib/db';
 import { computeTotals, discountLineError, lineDiscountAmount, shippingOptions, type ShippingRate } from '@/lib/shop-money';
-import { bulkProducts, createDiscount, createLocation, createProduct, ensureStore, getProduct, listCustomers, listInventory, nowDb, updateCustomer, updateStore } from '@/lib/shop';
+import { bulkProducts, createDiscount, createLocation, createProduct, ensureStore, getProduct, listCustomers, listInventory, listProducts, nowDb, updateCustomer, updateStore } from '@/lib/shop';
 import { createCheckoutOrder, fulfillOrder, getOrder, markPaidManually, orderByStatusToken, priceCart, publicOrder } from '@/lib/shop-orders';
 import { confirmDraftOrder, createDraftOrder, createPurchaseOrder, createReturn, declineReturn, approveReturn, deleteDraftOrder, receivePurchaseOrder, receiveReturn, requestReturnAsCustomer, transferStock, orderReturns } from '@/lib/shop-ops';
 import { SHOP_EMAIL_CAPS, claimShopEmail, optOut } from '@/lib/shop-email-guard';
@@ -373,5 +373,25 @@ describe('Shop: operaciones', () => {
     expect(vip.map((c) => c.id)).toContain(order.customerId);
     expect((await listCustomers(ws, { tag: 'vi' })).map((c) => c.id)).not.toContain(order.customerId);
     expect(vip.find((c) => c.id === order.customerId)!.note).toBe('Llama antes');
+  });
+});
+
+describe('lista de productos: filtros por etiqueta, proveedor y tipo', () => {
+  it('filtra sin distinguir mayúsculas y respeta el workspace', async () => {
+    const rnd = () => Math.random().toString(36).slice(2, 8);
+    const w = `facet-${rnd()}${rnd()}`;
+    await upsertUser({ id: w, email: `${w}@example.com`, name: 'F' });
+    await ensureStore(w);
+    const a: ShopActor = { ws: w, person: w, admin: true };
+    const mk = (title: string, extra: Record<string, unknown>) =>
+      createProduct(a, { title, description: '', vendor: '', productType: '', tags: [], status: 'active', options: [], images: [], seoTitle: '', seoDescription: '', requiresShipping: true, variants: [{ title: 'Default', priceCents: 1000, trackInventory: false }], ...extra } as never);
+    await mk('Remera', { tags: ['Verano', 'oferta'], vendor: 'Acme', productType: 'Ropa' });
+    await mk('Taza', { tags: ['hogar'], vendor: 'Otra', productType: 'Cocina' });
+    expect((await listProducts(w, { tag: 'verano' })).items.map((p) => p.title)).toEqual(['Remera']);
+    expect((await listProducts(w, { vendor: 'ACME' })).total).toBe(1);
+    expect((await listProducts(w, { productType: 'cocina' })).items[0]?.title).toBe('Taza');
+    expect((await listProducts(w, { tag: 'ver' })).total).toBe(0);
+    expect((await listProducts(w, { tag: 'oferta', vendor: 'Otra' })).total).toBe(0);
+    expect((await listProducts(`${w}x`, { tag: 'oferta' })).total).toBe(0);
   });
 });

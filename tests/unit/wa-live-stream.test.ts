@@ -11,7 +11,7 @@ import type { AccountRow } from '@/lib/inbox/core';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { LIVE_MAX_PER_PERSON, fetchLive, latestLiveId, liveHubCount, livePoll, liveStream, liveStreamAllowed, pokeLive, subscribeLive, wantsLiveStream, type LiveViewer } from '@/lib/wa-live';
 import { liveSessionValid, linesViewerNow } from '@/lib/wa-live-auth';
-import { canSeeChat, chatFilterFor, groupsViewer, setLabelAccess, updatePlatformSettings } from '@/lib/groups-access';
+import { canSeeChat, chatFilterFor, groupsViewer, linesLiveViewer, setLabelAccess, updatePlatformSettings } from '@/lib/groups-access';
 import { makeUser } from './helpers';
 
 beforeEach(() => {
@@ -240,9 +240,9 @@ describe('el stream', () => {
     expect(gv.restricted).toBe(true);
     expect(await canSeeChat(gv, mine)).toBe(true);
     expect(await canSeeChat(gv, other)).toBe(false);
-    const viewer: LiveViewer = { app: 'lines', ws, visible: chatFilterFor(gv) };
+    const viewer: LiveViewer = linesLiveViewer(gv);
     const restricted = open(viewer);
-    const admin = open({ app: 'lines', ws, visible: chatFilterFor(await groupsViewer(ws, ws, 'owner')) });
+    const admin = open(linesLiveViewer(await groupsViewer(ws, ws, 'owner')));
     await restricted.rd.next('ready');
     await admin.rd.next('ready');
     // Actividad en el chat que NO puede abrir: mensaje, tildes de adentro, escribiendo. Al admin le llega; al miembro, nada.
@@ -272,6 +272,53 @@ describe('el stream', () => {
     await updatePlatformSettings(ws, { labelAccess: false });
   });
 
+  it('con mucho atraso, el "releé todo" se decide con lo que la persona ve: lo de chats que no puede abrir no cuenta', async () => {
+    const { ws, number } = await linesSetup('stream-gap-hidden');
+    const member = await makeUser('stream-gap-member');
+    await updatePlatformSettings(ws, { labelAccess: true });
+    const jidMine = '5491100095321@s.whatsapp.net';
+    const jidOther = '5491100095322@s.whatsapp.net';
+    await ingestEvents(number, [message(jidMine), message(jidOther)]);
+    const chats = (await getDb().prepare('SELECT id, provider_chat_id FROM groups_chats WHERE number_id = ?').all(number.id)) as Array<{ id: string; provider_chat_id: string }>;
+    const mine = chats.find((c) => c.provider_chat_id === jidMine)!.id;
+    const other = chats.find((c) => c.provider_chat_id === jidOther)!.id;
+    await getDb().prepare('UPDATE groups_chats SET assigned_to = ? WHERE id = ?').run(member.id, mine);
+    const viewer = linesLiveViewer(await groupsViewer(ws, member.id, 'member'));
+    const admin: LiveViewer = { app: 'lines', ws, visible: null };
+    const cursor = await latestLiveId(admin);
+    const note = (chatId: string) => getDb().prepare("INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) VALUES ('lines', ?, ?, ?)").run(ws, chatId, number.id);
+    const quiet = async () => {
+      const o = open(viewer, { cursor });
+      await o.rd.next('ready');
+      const frames = await o.rd.drain(500);
+      o.abort.abort();
+      await o.rd.close();
+      return frames;
+    };
+
+    // Más de una página de avisos, todos de un chat que no puede abrir: ni "releé todo" ni ningún aviso.
+    for (let i = 0; i < 205; i++) await note(other);
+    const hidden = await livePoll(viewer, cursor);
+    expect(hidden.events).toEqual([]);
+    expect(hidden.cursor).toBe(await latestLiveId(admin));
+    expect(await quiet()).toEqual([]);
+    // Quien ve todo sí recibe el "releé todo".
+    expect((await livePoll(admin, cursor)).events.map((e) => e.chatId)).toEqual(['']);
+
+    // Uno de los suyos, después de esa página: le llega ese solo, sin "releé todo".
+    await note(mine);
+    expect((await livePoll(viewer, cursor)).events.map((e) => e.chatId)).toEqual([mine]);
+    const one = await quiet();
+    expect(one.map((f) => f.event)).toEqual(['events']);
+    expect((one[0].data.events as Array<{ chatId: string }>).map((e) => e.chatId)).toEqual([mine]);
+
+    // Una página de avisos de lo que sí ve: ahí sí conviene releer todo.
+    for (let i = 0; i < 200; i++) await note(mine);
+    expect((await livePoll(viewer, cursor)).events.map((e) => e.chatId)).toEqual(['']);
+    expect((await quiet()).map((f) => f.event)).toEqual(['reset']);
+    await updatePlatformSettings(ws, { labelAccess: false });
+  });
+
   it('M4: si no se puede consultar el acceso, no sale nada sin filtrar: la conexión se corta para reconectar', async () => {
     const { ws, number } = await linesSetup('stream-filter-fails');
     const { rd } = open({
@@ -280,6 +327,7 @@ describe('el stream', () => {
       visible: async () => {
         throw new Error('la base no responde');
       },
+      pending: async () => null,
     });
     await rd.next('ready');
     await ingestEvents(number, [message('5491100095311@s.whatsapp.net')]);

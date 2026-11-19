@@ -183,6 +183,7 @@
     "groupSettings": "Ajustes",
     "featured": "Destaques",
     "moreApps": "Mais apps",
+    "otherApps": "Outros apps",
     "groupApps": "Apps",
     "openApp": "Abrir {name}",
     "goHome": "Ir para o início",
@@ -1292,5 +1293,121 @@
     "timeError": "Digite uma hora, como 9, 9:30 ou 21.",
     "zone": "Horário de {city}",
     "pastError": "Escolha um horário no futuro."
+  },
+  "hubspot": {
+    "key": {
+      "label": "Chave do HubSpot",
+      "intro": "Cole uma service key ou o token de acesso de um private app legado. Qualquer um dos dois serve. Conferimos a chave ao conectar e mostramos o que ela pode fazer.",
+      "newTitle": "Você precisa de uma chave nova: crie uma service key",
+      "newNote": "O HubSpot não deixa mais criar private apps. As service keys ocupam o lugar deles.",
+      "new": {
+        "1": "No HubSpot, abra Development › Keys › Service keys (Desenvolvimento › Chaves › Chaves de serviço). Em algumas contas fica em Settings › Integrations › Service keys. Você precisa ser superadmin ou ter acesso a Developer tools.",
+        "2": "Selecione Create service key e dê um nome, por exemplo zerosoft.",
+        "3": "Selecione Add new scope, marque as permissões listadas aqui e selecione Update.",
+        "4": "Selecione Create e confirme. Depois selecione Show, copie a chave e cole aqui."
+      },
+      "legacyTitle": "Sua conta já tem um private app",
+      "legacyNote": "Os private apps que já existem continuam funcionando. O HubSpot planeja encerrar o suporte a eles em setembro de 2027, então no longo prazo vale passar para uma service key.",
+      "legacy": {
+        "1": "No HubSpot, abra Development › Legacy apps (Desenvolvimento › Apps legados) e selecione seu private app.",
+        "2": "Na aba Scopes, confira se ele tem as permissões listadas aqui e adicione as que faltam.",
+        "3": "Na aba Auth, selecione Show token, copie e cole aqui."
+      },
+      "newDocs": "Guia do HubSpot sobre service keys",
+      "legacyDocs": "Guia do HubSpot sobre private apps legados"
+    },
+    "account": "Conta do HubSpot {id}",
+    "kind": {
+      "service_key": "Conectado com uma service key",
+      "private_app": "Conectado com um private app legado",
+      "unknown": "Conectado"
+    },
+    "can": "Esta chave pode",
+    "cannot": "Esta chave ainda não pode",
+    "missingTitle": "Faltam permissões nesta chave",
+    "missingHelp": "No HubSpot, adicione estas permissões à chave e cole de novo.",
+    "scopeWithName": "{label} ({scope})",
+    "webhooksServiceKey": "Se esta for uma service key, ela não recebe webhooks: o Lines confere as mudanças do HubSpot mais ou menos uma vez por minuto, e o campo abaixo só vale para um private app legado.",
+    "scopes": {
+      "crm_objects_contacts_read": "Ler contatos",
+      "crm_objects_contacts_write": "Criar e editar contatos, e deixar notas",
+      "crm_objects_companies_read": "Ler empresas",
+      "crm_objects_companies_write": "Criar e editar empresas",
+      "crm_objects_deals_read": "Ler negócios e pipelines",
+      "crm_objects_deals_write": "Criar e editar negócios",
+      "crm_objects_owners_read": "Ler os owners, as pessoas responsáveis pelos registros",
+      "crm_schemas_contacts_read": "Ler a lista de propriedades de contato",
+      "crm_schemas_companies_read": "Ler a lista de propriedades de empresa",
+      "crm_schemas_deals_read": "Ler a lista de propriedades de negócio",
+      "crm_lists_read": "Ler listas",
+      "sales_email_read": "Ler os emails registrados nos registros"
+    }
+  },
+  "tour": {
+    "menu": "Tour deste app",
+    "count": "{n} de {total}",
+    "next": "Próximo",
+    "back": "Voltar",
+    "finish": "Concluir",
+    "skipStep": "Pular etapa",
+    "exit": "Sair do tour",
+    "off": "Não mostrar mais tours",
+    "ask": "Você vai usar por conta própria ou com uma equipe?",
+    "solo": "Por conta própria",
+    "team": "Com uma equipe",
+    "lines": {
+      "intro": {
+        "title": "Boas-vindas ao Lines",
+        "body": "O Lines reúne as conversas dos seus números de WhatsApp em uma só caixa de entrada. Este tour mostra as partes principais."
+      },
+      "connect": {
+        "title": "Conecte uma linha",
+        "body": "Cada número de WhatsApp que você conecta é uma linha. Comece aqui para trazer as conversas dele para o Lines."
+      },
+      "lineSelect": {
+        "title": "Troque de linha",
+        "body": "Veja as conversas de uma linha ou de todas juntas."
+      },
+      "chatList": {
+        "title": "Suas conversas",
+        "body": "As conversas das suas linhas chegam aqui, as mais recentes primeiro. As não lidas levam um contador."
+      },
+      "filters": {
+        "title": "Filtre a lista",
+        "body": "Abas como Não lidas e Aguardando reduzem a lista. O botão de filtros, ao lado da busca, combina mais campos."
+      },
+      "search": {
+        "title": "Busque",
+        "body": "Encontre uma conversa pelo nome ou por algo que foi dito nela. Aperte / para vir direto aqui."
+      },
+      "openChat": {
+        "title": "Abra uma conversa",
+        "body": "Abra qualquer conversa da lista para ler e responder."
+      },
+      "composer": {
+        "title": "Responda",
+        "body": "Escreva aqui e aperte Enter para enviar. Digite / para ver os comandos desta conversa."
+      },
+      "assign": {
+        "title": "Defina um responsável",
+        "body": "Atribua a conversa a alguém da equipe para deixar claro quem responde. Com A você mesmo assume."
+      },
+      "note": {
+        "title": "Notas para a equipe",
+        "body": "Mude para Nota interna para escrever algo que só a equipe vê. Nunca chega ao WhatsApp."
+      },
+      "lineAccess": {
+        "title": "Quem vê cada linha",
+        "body": "Nas configurações do Lines você escolhe quem da equipe vê e responde cada linha."
+      },
+      "settings": {
+        "title": "Configurações do Lines",
+        "body": "Nas configurações do Lines você conecta mais números e escolhe uma cor para cada linha."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
+    }
   }
 }

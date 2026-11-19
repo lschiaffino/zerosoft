@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-19',
   percentHidden: { note: loc(['This table lists everything BambooHR documents, feature by feature, including payroll, benefits, time tracking and global employment, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que BambooHR documenta, función por función, con nómina, beneficios, registro de horas y empleo global, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o BambooHR documenta, função por função, com folha, benefícios, registro de horas e emprego global, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
@@ -257,7 +257,13 @@ const parity: ProductParity = {
     row('feedback-ai-summary', 'performance', ['AI summaries of feedback', 'Resúmenes de feedback con IA', 'Resumos de feedback com IA'], 'missing'),
     row('company-community', 'platform', ['Company announcements hub', 'Centro de anuncios de la empresa', 'Central de comunicados da empresa'], 'missing'),
     // Del benchmark completo: docs/benchmark/people.md
-    row('emergency-contacts', 'records', ['Emergency contacts', 'Contactos de emergencia', 'Contatos de emergência'], 'missing'),
+    row('emergency-contacts', 'records', ['Emergency contacts', 'Contactos de emergencia', 'Contatos de emergência'], 'have', {
+      detail: [
+        'Up to five per person in the personal data, which the person edits themselves. HR and the person see them; encrypted at rest',
+        'Hasta cinco por persona en los datos personales, que edita la propia persona. Los ven HR y la persona; cifrados en la base',
+        'Até cinco por pessoa nos dados pessoais, que a própria pessoa edita. O RH e a pessoa os veem; criptografados no banco',
+      ],
+    }),
     row('custom-tabs', 'records', ['Custom profile tabs', 'Pestañas personalizadas', 'Abas personalizadas no perfil'], 'missing'),
     row('custom-tables', 'records', ['Custom tables with rows', 'Tablas personalizadas', 'Tabelas personalizadas com linhas'], 'missing'),
     row('multi-level-approvals', 'records', ['Multi-level approvals', 'Aprobaciones en varios niveles', 'Aprovações em vários níveis'], 'missing'),
@@ -274,9 +280,21 @@ const parity: ProductParity = {
     row('directory-export', 'org', ['Directory export', 'Exportar directorio', 'Exportar diretório'], 'partial', {
       detail: ['Through a custom report CSV, for HR. Built; not yet walked end to end in a browser for each role', 'Con el CSV de un reporte a medida, para HR. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Pelo CSV de um relatório personalizado, para o RH. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'missing'),
-    row('birthday-opt-out', 'org', ['Hide your own birthday', 'Ocultar el propio cumpleaños', 'Ocultar o próprio aniversário'], 'missing'),
-    row('pto-policy-scope', 'timeoff', ['Policies per segment or person', 'Políticas por segmento o persona', 'Políticas por segmento ou pessoa'], 'have', {
+    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'have', {
+      detail: [
+        'Approved time off shows as "Out until" (or the half day) on the directory row and the profile, and an "Out today" filter lists only who is away. The leave type stays private',
+        'Una licencia aprobada se ve como "Fuera hasta" (o la media jornada) en la fila del directorio y en la ficha, y el filtro "Fuera hoy" muestra solo a quien no está. El tipo de licencia sigue siendo privado',
+        'Uma folga aprovada aparece como "Fora até" (ou o meio período) na linha do diretório e no perfil, e o filtro "Fora hoje" mostra só quem está fora. O tipo de folga continua privado',
+      ],
+    }),
+    row('birthday-opt-out', 'org', ['Hide your own birthday', 'Ocultar el propio cumpleaños', 'Ocultar o próprio aniversário'], 'partial', {
+      detail: [
+        'HR chooses who sees birthdays (everyone, managers or HR only) for the whole workspace, and the year is never shown. A person cannot hide only their own',
+        'HR elige quién ve los cumpleaños (todos, managers o solo HR) para todo el workspace, y el año nunca se muestra. Una persona no puede ocultar solo el suyo',
+        'O RH escolhe quem vê os aniversários (todos, gestores ou só o RH) para todo o workspace, e o ano nunca aparece. Uma pessoa não pode ocultar só o seu',
+      ],
+    }),
+    row('pto-policy-scope', 'timeoff', ['Policies per segment or person', 'Políticas por segmento o persona', 'Políticas por segmento ou pessoa'], 'partial', {
       detail: ['By department, location, country and type, from Settings. Not per individual person', 'Por área, ubicación, país y tipo, desde Ajustes. No por persona individual', 'Por departamento, localização, país e tipo, em Ajustes. Não por pessoa individual'],
     }),
     row('leave-types', 'timeoff', ['Leave types', 'Tipos de licencia', 'Tipos de licença'], 'partial', {
@@ -459,7 +477,13 @@ const parity: ProductParity = {
     row('api-sdks', 'platform', ['Official SDKs', 'SDK oficiales', 'SDKs oficiais'], 'missing'),
     row('webhooks-global', 'platform', ['Global webhooks', 'Webhooks globales', 'Webhooks globais'], 'missing'),
     row('webhooks-permissioned', 'platform', ['Permissioned webhooks', 'Webhooks por permiso', 'Webhooks por permissão'], 'missing'),
-    row('webhooks-events', 'platform', ['Event-based webhooks', 'Webhooks por evento', 'Webhooks por evento'], 'missing'),
+    row('webhooks-events', 'platform', ['Event-based webhooks', 'Webhooks por evento', 'Webhooks por evento'], 'partial', {
+      detail: [
+        'Hire, approved time off and offboarding start Flow flows built by HR, and a flow can send an HTTP request. People events are not on the workspace webhooks list, and profile field changes fire nothing',
+        'Un ingreso, una licencia aprobada y un offboarding disparan flows de Flow armados por HR, y un flow puede mandar un pedido HTTP. Los eventos de People no están en la lista de webhooks del workspace, y los cambios de campos de la ficha no disparan nada',
+        'Uma admissão, uma folga aprovada e um desligamento disparam flows do Flow criados pelo RH, e um flow pode enviar uma requisição HTTP. Os eventos do People não estão na lista de webhooks do workspace, e mudanças de campos do perfil não disparam nada',
+      ],
+    }),
     row('assistant-policies', 'platform', ['Assistant on company policies', 'Asistente sobre políticas', 'Assistente sobre políticas'], 'missing'),
     row('ai-analytics', 'platform', ['Natural language analytics', 'Análisis en lenguaje natural', 'Análise em linguagem natural'], 'missing'),
     row('ai-risk', 'platform', ['AI risk signals', 'Riesgos detectados por AI', 'Sinais de risco por AI'], 'missing'),

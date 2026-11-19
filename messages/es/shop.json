@@ -163,7 +163,14 @@
     "bulkDelete": "Borrar",
     "bulkApply": "Aplicar",
     "bulkDeleteTitle": "¿Borrar {n} productos?",
-    "bulkDeleteBody": "Se van sus variantes y su stock. Los pedidos anteriores conservan sus líneas. No se puede deshacer."
+    "bulkDeleteBody": "Se van sus variantes y su stock. Los pedidos anteriores conservan sus líneas. No se puede deshacer.",
+    "activeFilters": "Filtros activos",
+    "removeFilter": "Quitar filtro {kind}: {value}",
+    "facet": {
+      "tag": "Etiqueta",
+      "vendor": "Proveedor",
+      "type": "Tipo"
+    }
   },
   "editor": {
     "title": "Título",
