@@ -327,9 +327,12 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
         return;
       }
       if (!pop.current?.contains(document.activeElement)) return;
-      // Con el foco en la tarjeta, las teclas son de la tarjeta: los atajos de la app (Enter abre el chat
-      // marcado en Inbox, J/K mueven la lista) no las ven, y Enter aprieta el botón como siempre.
-      e.stopPropagation();
+      // Enter y espacio aprietan el botón de la tarjeta: no llegan a los atajos de la app (en Inbox y
+      // en Track, Enter abre la fila marcada y cancelaba el botón). Las letras sí, para probar C o J/K.
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.stopPropagation();
+        return;
+      }
       if (e.key === 'ArrowRight' && steps[idx] && !steps[idx].advanceOn && !steps[idx].askAudience) {
         e.preventDefault();
         next();
