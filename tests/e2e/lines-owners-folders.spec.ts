@@ -92,8 +92,29 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   await side.getByRole('button', { name: `Expand Clientes ${tag}` }).click();
   await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).hover();
   await side.getByRole('button', { name: `Actions for Clientes ${tag}` }).click();
-  await expect(side.getByRole('menuitem', { name: 'Move to…' })).toBeVisible();
+  // El menú va fuera de la barra lateral: entero dentro de la ventana y sin que la barra lo recorte.
+  const menu = page.getByTestId('lines-folder-menu');
+  await expect(menu.getByRole('menuitem', { name: 'Move to…' })).toBeVisible();
+  const uncut = () =>
+    menu.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight) return false;
+      // Cada opción se puede tocar: en su centro está ella y no otra cosa.
+      return Array.from(el.querySelectorAll('button')).every((b) => {
+        const q = b.getBoundingClientRect();
+        return b.contains(document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2));
+      });
+    });
+  expect(await uncut()).toBe(true);
+  // Un clic afuera lo cierra.
+  await page.mouse.click(900, 500);
+  await expect(menu).toHaveCount(0);
+  await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).hover();
+  await side.getByRole('button', { name: `Actions for Clientes ${tag}` }).click();
+  await expect(menu).toBeVisible();
+  expect(await uncut()).toBe(true);
   await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
   await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).click();
   await expect(page).toHaveURL(new RegExp(`folder=${folder.id}`));
   await expect(page.getByTestId('lines-folder-current')).toContainText(`Clientes ${tag}`);

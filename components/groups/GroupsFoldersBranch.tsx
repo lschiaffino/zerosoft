@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBranch';
 import FolderRail from '@/components/ui/FolderRail';
 import type { LineFolderDto } from '@/lib/groups-lines';
+import { menuPlace } from '@/lib/menu-place';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { Modal, api, useErrorText } from './ui';
 import { FOLDERS_CHANGED, notifyFoldersChanged } from './LineFolders';
@@ -65,6 +66,43 @@ export default function GroupsFoldersBranch() {
   const [moving, setMoving] = useState<FolderDto | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
+  // El menú va fuera de la barra lateral (que recorta lo que se sale) y fijo junto a su botón.
+  const menuBtn = useRef<HTMLButtonElement | null>(null);
+  const menuBox = useRef<HTMLUListElement | null>(null);
+  const [menuAt, setMenuAt] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!menu) return setMenuAt(null);
+    const btn = menuBtn.current?.getBoundingClientRect();
+    const box = menuBox.current?.getBoundingClientRect();
+    if (!btn || !box) return;
+    setMenuAt(menuPlace(btn, box.width, box.height, window.innerWidth, window.innerHeight));
+  }, [menu]);
+  useEffect(() => {
+    if (!menu) return;
+    // Al mover la página o cambiar el tamaño el botón ya no está donde estaba: se cierra.
+    const close = (e: Event) => {
+      if (e.type === 'scroll' && menuBox.current?.contains(e.target as Node | null)) return;
+      setMenu(null);
+    };
+    // Un clic afuera lo cierra (no depende del foco: un clic en algo que no se enfoca no lo mueve).
+    const outside = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (menuBox.current?.contains(t) || menuBtn.current?.contains(t)) return;
+      setMenu(null);
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    document.addEventListener('pointerdown', outside, true);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('pointerdown', outside, true);
+    };
+  }, [menu]);
+  // Ya ubicado (antes estaba oculto y no se podía enfocar): el foco va a la primera opción.
+  useEffect(() => {
+    if (menuAt) menuBox.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }, [menuAt]);
   const [drop, setDrop] = useState<{ id: string; zone: Zone } | null>(null);
   const [error, setError] = useState('');
   const dragId = useRef<string | null>(null);
@@ -396,7 +434,10 @@ export default function GroupsFoldersBranch() {
                       aria-label={t('actionsFor', { name: f.name })}
                       aria-haspopup="menu"
                       aria-expanded={menu === f.id}
-                      onClick={() => setMenu((m) => (m === f.id ? null : f.id))}
+                      onClick={(e) => {
+                        menuBtn.current = e.currentTarget;
+                        setMenu((m) => (m === f.id ? null : f.id));
+                      }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                         <circle cx="5" cy="12" r="1.8" />
@@ -404,9 +445,14 @@ export default function GroupsFoldersBranch() {
                         <circle cx="19" cy="12" r="1.8" />
                       </svg>
                     </button>
-                    {menu === f.id && (
+                    {menu === f.id && createPortal(
                       <ul
+                        ref={menuBox}
                         className="grf-menu grf-ftree-menu"
+                        data-testid="lines-folder-menu"
+                        // El clic en una opción no le saca el foco al menú antes de tiempo (Safari no enfoca botones al hacer clic).
+                        onMouseDown={(e) => e.preventDefault()}
+                        style={menuAt ? { top: menuAt.top, left: menuAt.left } : { top: 0, left: 0, visibility: 'hidden' }}
                         role="menu"
                         aria-label={t('actionsFor', { name: f.name })}
                         onKeyDown={(e) => {
@@ -423,17 +469,17 @@ export default function GroupsFoldersBranch() {
                           }
                         }}
                         onBlur={(e) => {
-                          if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node | null)) setMenu(null);
+                          const to = e.relatedTarget as Node | null;
+                          if (!e.currentTarget.contains(to) && !menuBtn.current?.contains(to)) setMenu(null);
                         }}
                       >
-                        {menuItems(f).map((it, i) => (
+                        {menuItems(f).map((it) => (
                           <li key={it.key} role="none">
                             <button
                               type="button"
                               role="menuitem"
                               className={`grf-menu-item${it.danger ? ' grf-danger' : ''}`}
                               disabled={it.disabled}
-                              autoFocus={i === 0}
                               onClick={() => {
                                 setMenu(null);
                                 it.run();
@@ -443,7 +489,8 @@ export default function GroupsFoldersBranch() {
                             </button>
                           </li>
                         ))}
-                      </ul>
+                      </ul>,
+                      document.body,
                     )}
                   </span>
                 )}
