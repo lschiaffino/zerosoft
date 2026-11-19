@@ -13,7 +13,7 @@
 .grf-ftree-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--brand-gray-2); cursor: pointer; }
 .grf-ftree-btn:hover { color: var(--ink); background: var(--ui-press); }
 /* Fuera de la barra lateral (que recorta lo que se sale): fijo, donde lo pone lib/menu-place.ts. */
-.grf-ftree-menu { position: fixed; bottom: auto; right: auto; z-index: var(--z-menu, 1000); min-width: 180px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; }
+.grf-menu.grf-ftree-menu { position: fixed; bottom: auto; right: auto; z-index: var(--z-menu, 1000); min-width: 180px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; }
 .grf-ftree-menu .grf-menu-item:disabled { opacity: 0.45; cursor: not-allowed; }
 .grf-ftree-rename { flex: 1; min-width: 0; height: 24px; padding: 0 6px; font-size: 0.8125rem; }
 .grf-ftree-error { padding: 4px 8px; font-size: 0.75rem; }
