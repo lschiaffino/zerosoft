@@ -932,7 +932,7 @@ test('el conector de claude.ai está publicado: docs, pie de página y Ajustes c
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const settings = await page.context().newPage();
   await settings.goto('/en/app/settings/api');
-  const connector = settings.locator('#connected').getByTestId('connector-url');
+  const connector = settings.locator('#connected:visible').getByTestId('connector-url');
   await expect(connector.getByRole('textbox')).toHaveValue(ENDPOINT);
   await connector.getByTestId('connector-url-copy').getByRole('button').click();
   expect(await settings.evaluate(() => navigator.clipboard.readText())).toBe(ENDPOINT);
@@ -953,7 +953,9 @@ test('la URL del conector en Ajustes y la página de docs en los cinco aspectos,
         const page = await ctx.newPage();
         await page.goto('/en/app/settings/api');
         await expect(page.locator('html')).toHaveAttribute('data-look', look);
-        const connector = page.locator('#connected').getByTestId('connector-url');
+        // :visible: mientras la página llega por streaming, React deja un instante la sección
+        // también en su contenedor oculto (div[hidden] S:0) y el locator estricto veía dos.
+        const connector = page.locator('#connected:visible').getByTestId('connector-url');
         await expect(connector).toBeVisible();
         // El botón entra en la pantalla, sin scroll lateral.
         const copy = connector.getByTestId('connector-url-copy').getByRole('button');
