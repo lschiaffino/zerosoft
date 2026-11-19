@@ -163,6 +163,11 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-mail-body { white-space: pre-wrap; font-size: 0.84375rem; line-height: 1.5; overflow-wrap: anywhere; max-width: 72ch; }
 .ib-quoted { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--line); color: var(--brand-gray-2); }
 .ib-quote-toggle { margin-top: 6px; }
+/* Zoom de la conversación (useConversationZoom): en el correo y los hilos sin el diseño de WhatsApp escala el texto del mensaje. */
+.ib-messages .ib-bubble, .ib-messages .ib-mail-body { font-size: calc(0.84375rem * var(--wa-zoom, 1)); }
+.ib-messages .ib-mail-head, .ib-messages .ib-mail-subject { font-size: calc(0.8125rem * var(--wa-zoom, 1)); }
+.ib-messages .ib-sender { font-size: calc(0.75rem * var(--wa-zoom, 1)); }
+.ib-messages .ib-meta, .ib-messages .ib-mail-time { font-size: calc(0.6875rem * var(--wa-zoom, 1)); }
 
 .ib-scheduled { list-style: none; margin: 0; padding: 8px 16px; display: grid; gap: 6px; background: var(--bg); border-top: 1px solid var(--line); max-height: 30vh; overflow-y: auto; }
 .ib-sched { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.8125rem; }

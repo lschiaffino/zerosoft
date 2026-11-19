@@ -61,6 +61,7 @@ import { useCollapsedBranch, useShellBranch } from '@/components/app/useShellBra
 import PanelSplitters from './PanelSplitters';
 import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
+import { useConversationZoom } from './wa/useConversationZoom';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
 import { linesDraftKey, linesOutbox, unsentLines } from './optimistic';
@@ -300,6 +301,8 @@ export default function InboxShell({
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
   const [saving, setSaving] = useState<'new' | 'rename' | null>(null);
   const { hidden: detailsHidden } = useDetailsHidden();
+  // Pellizcar en el trackpad agranda solo los mensajes, no la app entera.
+  useConversationZoom();
   // "Importación terminada" se puede cerrar y queda cerrado (por navegador) hasta la próxima importación.
   const [importsClosed, setImportsClosed] = useState<string[]>([]);
   useEffect(() => {

@@ -48,6 +48,7 @@ import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
+import { useConversationZoom } from '@/components/groups/wa/useConversationZoom';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -156,6 +157,8 @@ export default function InboxApp(props: {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
   const { style: chatStyle } = useChatStyle();
+  // Pellizcar en el trackpad agranda solo los mensajes, no la app entera.
+  useConversationZoom();
   const locale = useLocale();
   // La hora de "vencido desde" va en la zona del navegador: recién después de hidratar.
   const mounted = useMounted();
