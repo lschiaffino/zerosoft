@@ -272,6 +272,26 @@
 .gr-inbox .gr-pinned { background: var(--wa-panel-header); border-bottom: 1px solid var(--wa-border); }
 
 /* ---------- Conversación: fondo y mensajes ---------- */
+/* Zoom de la conversación (components/groups/wa/useConversationZoom.ts): pellizcar en el trackpad sobre los mensajes
+   sube --wa-zoom (1 a 2) y acá se escalan con él la tipografía y los adjuntos del panel, nada más. .gr-inbox guarda
+   el valor de cada token (una variable no puede multiplicarse a sí misma) y el panel lo vuelve a definir escalado.
+   Sin `zoom` ni `transform`: las burbujas se reacomodan al ancho y no aparece scroll lateral. */
+.gr-inbox {
+  --wa-z-name: var(--wa-fs-name); --wa-z-ui: var(--wa-fs-ui); --wa-z-body: var(--wa-fs-body); --wa-z-preview: var(--wa-fs-preview);
+  --wa-z-small: var(--wa-fs-small);
+  --wa-z-lh: var(--wa-lh-body); --wa-z-media: var(--wa-media-w, 300px);
+}
+.gr-inbox .wa-messages {
+  --wa-fs-name: calc(var(--wa-z-name) * var(--wa-zoom, 1)); --wa-fs-ui: calc(var(--wa-z-ui) * var(--wa-zoom, 1));
+  --wa-fs-body: calc(var(--wa-z-body) * var(--wa-zoom, 1)); --wa-fs-preview: calc(var(--wa-z-preview) * var(--wa-zoom, 1));
+  --wa-fs-small: calc(var(--wa-z-small) * var(--wa-zoom, 1));
+  --wa-lh-body: calc(var(--wa-z-lh) * var(--wa-zoom, 1)); --wa-media-w: calc(var(--wa-z-media) * var(--wa-zoom, 1));
+}
+/* La hora de cada burbuja y los contadores no se escalan: la hora va en un lugar reservado al pie y al doble pisaba el
+   texto. La fecha que queda pegada arriba tampoco: flota sobre los mensajes. */
+.gr-inbox .wa-messages .wa-day { --wa-fs-small: var(--wa-z-small); }
+/* Con zoom, el lugar de una foto que no está no pasa del ancho de su burbuja (tiene ancho fijo: sin esto quedaba cortado). */
+[data-wa-zoom] .gr-inbox .wa-messages .wa-media-ph { max-width: 100%; }
 .wa-scroll { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .gr-inbox .wa-messages {
   flex: 1; gap: 2px; padding: 10px clamp(12px, 6%, 56px) 14px;

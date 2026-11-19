@@ -8,7 +8,7 @@ import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
 import { CSP_NONCE_HEADER } from '@/lib/csp';
 import { appFromPath, isComingSoon, PRODUCT_KEYS } from '@/lib/products';
-import { isStaff } from '@/lib/workspace-apps';
+import { isStaff, loadWorkspaceFeaturedApps } from '@/lib/workspace-apps';
 import PreviewBanner from '@/components/app/PreviewBanner';
 import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
@@ -178,7 +178,7 @@ export default async function AppLayout(
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   const tBi = await getTranslations({ locale, namespace: 'bi' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tCalls, tFleet, tTime, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tCalls, tFleet, tTime, tasksDue, serverTz, tPlanning, mode, tCat, featuredApps] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -220,6 +220,11 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'trackPlanning' }),
       getWorkspaceMode(user),
       getTranslations({ locale, namespace: 'common.categories' }),
+      // Apps destacadas del workspace (Ajustes › Apps del workspace); el menú no puede tirar la app: con un error, ninguna.
+      loadWorkspaceFeaturedApps(user.id).catch((err) => {
+        console.error('[app layout] loadWorkspaceFeaturedApps', err);
+        return [];
+      }),
     ]);
   const [workspaceRows, docsCanCreate, supportUserHash] = await Promise.all([workspacesP, docsCanCreateP, supportUserHashP]);
   const workspaces: SwitcherEntry[] = workspaceRows.map((w) => ({ ...w, current: w.teamId === effective }));
@@ -252,6 +257,7 @@ export default async function AppLayout(
           demo={DEMO_MODE}
           mode={mode}
           chosenApps={chosenApps(real.profile)}
+          featuredApps={featuredApps}
           tasksDue={tasksDue}
           user={{
             name: user.actingUser?.name ?? user.name,
@@ -533,6 +539,7 @@ export default async function AppLayout(
             apps: tSide('apps'),
             featured: tSide('featured'),
             moreApps: tSide('moreApps'),
+            otherApps: tSide('otherApps'),
             categories: {
               sell: tCat('sell.title'),
               support: tCat('support.title'),

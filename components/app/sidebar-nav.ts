@@ -52,6 +52,8 @@ export interface SidebarLabels {
   /** Encabezados del switcher: destacadas y el resto. */
   featured: string;
   moreApps: string;
+  /** Switcher: las apps que el workspace no destacó, plegadas (solo si destacó alguna). */
+  otherApps?: string;
   /** Nombre del shell neutro en el switcher. */
   platform: string;
   collapse: string;
@@ -502,7 +504,15 @@ export const HOME_APPS_LIMIT = 8;
  */
 export function homeAppGroups(
   labels: SidebarLabels,
-  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
+  opts: {
+    allowed?: '*' | readonly string[];
+    recentApps?: readonly string[];
+    mode?: WorkspaceMode;
+    staff?: boolean;
+    chosen?: readonly ProductKey[] | null;
+    /** Apps destacadas del workspace: sin elección propia, "Tus apps" son esas (y las recientes). */
+    workspaceFeatured?: readonly ProductKey[] | null;
+  } = {},
 ): NavGroup[] {
   const can = (k: ProductKey) => appAllowed(opts.allowed, k);
   // Las "Próximamente" van aparte, al final: nadie las usa salvo el staff (vista previa).
@@ -510,7 +520,9 @@ export function homeAppGroups(
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
   // Con apps elegidas en el onboarding, "Tus apps" son esas (y las recientes); si no, se completa con todas.
   const ready = (k: ProductKey) => !isComingSoon(k) && can(k);
-  const chosen = opts.chosen?.length ? opts.chosen.filter(ready) : null;
+  const own = opts.chosen?.length ? opts.chosen.filter(ready) : [];
+  const shared = opts.workspaceFeatured?.length ? opts.workspaceFeatured.filter(ready) : [];
+  const chosen = own.length ? own : shared.length ? shared : null;
   const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter((k) => all.includes(k)), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
   const rest = all.filter((k) => !top.includes(k));
   const item = (line: ProductKey): NavItem => ({
@@ -554,7 +566,16 @@ export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
+  counts: {
+    tasksDue?: number;
+    unread?: number;
+    allowed?: '*' | readonly string[];
+    recentApps?: readonly string[];
+    mode?: WorkspaceMode;
+    staff?: boolean;
+    chosen?: readonly ProductKey[] | null;
+    workspaceFeatured?: readonly ProductKey[] | null;
+  } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;

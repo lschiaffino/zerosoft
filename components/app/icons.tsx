@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export type IconName =
   | 'archive'
+  | 'star'
   | 'overview'
   | 'help'
   | 'contacts'
@@ -579,6 +580,7 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   // Conectar una cuenta externa.
   plug: <path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4" />,
+  star: <path d="M12 3.5l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 17.1 6.7 20l1.1-6-4.4-4.2 6-.8z" />,
 };
 
 export default function Icon({ name, size = 14 }: { name: IconName; size?: number }) {

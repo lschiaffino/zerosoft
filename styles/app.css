@@ -172,6 +172,9 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 var(--switcher-gap);
 }
+/* Destacadas del workspace: un bloque arriba, sin categorías; el resto va plegado en "Otras apps" (.band-menu-other). */
+.band-menu-featured-block { margin-top: 6px; padding-bottom: 2px; }
+.band-menu-other .band-menu-grid { margin-top: 2px; }
 /* Columnas CSS, no grilla: cada categoría sube al hueco que deja la anterior y las tres quedan parejas. */
 .band-menu-grid {
   columns: 3;
