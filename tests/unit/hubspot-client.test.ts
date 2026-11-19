@@ -257,6 +257,22 @@ describe('errores sin datos', () => {
     expect(`${err.message} ${err.stack ?? ''} ${JSON.stringify(err)}`).not.toMatch(/very-secret|northwind|Bearer/);
   });
 
+  it('la clave no viaja a otro host: una URL absoluta que no es la de HubSpot no se pide', async () => {
+    const seen: string[] = [];
+    const spy = async (url: string, init?: RequestInit) => {
+      seen.push(`${url} ${JSON.stringify(init?.headers ?? {})}`);
+      return response(200, {});
+    };
+    const client = createHubspotClient({ token: TOKEN, fetch: spy, budget: null });
+    for (const url of ['https://evil.example/crm/v3/owners', 'http://api.hubapi.com/crm/v3/owners', 'https://api.hubapi.com.evil.example/x', 'https://api.hubapi.com@evil.example/x']) {
+      await expect(client.send(url)).rejects.toMatchObject({ code: 'blocked' });
+    }
+    expect(seen).toEqual([]);
+    await client.send('https://api.hubapi.com/crm/v3/owners');
+    await client.send('/crm/v3/owners');
+    expect(seen).toHaveLength(2);
+  });
+
   it('la ruta segura tapa tokens, emails y valores largos, y deja los ids', () => {
     expect(safeHubspotPath('https://api.hubapi.com/crm/v3/objects/contacts/4001?properties=email')).toBe('/crm/v3/objects/contacts/4001');
     expect(safeHubspotPath('/oauth/v1/access-tokens/pat-na1-abc')).toBe('/oauth/v1/access-tokens/:redacted');

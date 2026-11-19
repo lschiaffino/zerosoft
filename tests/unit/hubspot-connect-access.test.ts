@@ -184,6 +184,17 @@ describe('Importador del CRM › HubSpot: quién conecta', () => {
     expect(n.c).toBe(0);
   });
 
+  it('una clave cuya lista de permisos no nombra uno obligatorio, pero que puede leerlo, conecta igual', async () => {
+    const w = await workspaceWithMember('hsimp4');
+    session.user = asOwner(w.owner);
+    const res = await jobsPost({ provider: 'hubspot', token: 'fake-oldnames' });
+    expect(res.status).toBe(201);
+    const view = (await res.json()) as { preview: { connection: { kind: string; scopes: string[]; missing: string[] }; owners: unknown[] } };
+    expect(view.preview.connection).toMatchObject({ kind: 'private_app', missing: [] });
+    expect(view.preview.connection.scopes).toContain('crm.objects.owners.read');
+    expect(view.preview.owners).toHaveLength(2);
+  });
+
   it('sin el permiso de emails la vista previa arranca igual y lo dice', async () => {
     const w = await workspaceWithMember('hsimp3');
     session.user = asOwner(w.owner);

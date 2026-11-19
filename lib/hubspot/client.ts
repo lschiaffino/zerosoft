@@ -19,11 +19,12 @@
  * frenan cuando la cuenta real se acerca al tope.
  */
 import { createHash } from 'crypto';
-import { backoffMs, realSleep, type FetchLike, type SleepFn } from '../crm-import-source';
+import { backoffMs, realSleep, type FetchLike, type SleepFn } from './retry';
 
 export const HUBSPOT_API_BASE = 'https://api.hubapi.com';
 
-export type HubspotApiErrorCode = 'auth' | 'scope' | 'not_found' | 'rate_limited' | 'locked' | 'http' | 'network';
+/** `blocked`: el pedido iba a otro host que el de HubSpot y no se hizo. */
+export type HubspotApiErrorCode = 'auth' | 'scope' | 'not_found' | 'rate_limited' | 'locked' | 'http' | 'network' | 'blocked';
 /** Qué límite cortó: la ráfaga de 10 s, el diario o el de la búsqueda. */
 export type HubspotRatePolicy = '' | 'burst' | 'daily' | 'search';
 
@@ -341,6 +342,15 @@ export interface HubspotClient {
   request<T = Record<string, unknown>>(path: string, opts?: HubspotSendOptions): Promise<T>;
 }
 
+function hostOf(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}`.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
 function parse(text: string): Record<string, unknown> {
   try {
     const v = text ? (JSON.parse(text) as unknown) : {};
@@ -370,6 +380,8 @@ export function createHubspotClient(opts: HubspotClientOptions): HubspotClient {
   async function send(path: string, o: HubspotSendOptions = {}): Promise<HubspotResponse> {
     const url = /^https?:\/\//.test(path) ? path : `${base}${path}`;
     const safe = safeHubspotPath(url);
+    // La clave solo viaja al host configurado: una URL absoluta a otro lado no se pide.
+    if (hostOf(url) !== hostOf(base)) throw new HubspotApiError('blocked', 0, safe);
     const retries = o.retries ?? 0;
     let waited = 0;
     const canWait = (ms: number) => o.maxWaitMs === undefined || waited + ms <= o.maxWaitMs;

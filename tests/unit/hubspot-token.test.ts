@@ -66,6 +66,21 @@ describe('validar la clave', () => {
     expect(missingHubspotScopes(key.scopes, need)).toEqual(['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.schemas.companies.read']);
   });
 
+  it('si la info del token no nombra un permiso, manda lo que responde su endpoint (cuando se pide verificar)', async () => {
+    const portal = seedSyncPortal();
+    // Una clave vieja: puede leer dueños, pero su lista de permisos no lo dice.
+    portal.grant = () => ({ kind: 'private_app', scopes: LINES_SCOPES, reported: LINES_SCOPES.filter((s) => s !== 'crm.objects.owners.read' && s !== 'crm.objects.deals.write') });
+    const plain = await inspect(portal, PRIVATE);
+    expect(plain.scopes).not.toContain('crm.objects.owners.read');
+    const checked = await inspectHubspotToken(PRIVATE, { fetch: portal.fetch, budget: null, probe: LINES_SCOPES, verifyMissing: true });
+    expect(checked.scopesFrom).toBe('token_info');
+    expect(checked.scopes).toEqual(expect.arrayContaining(['crm.objects.owners.read', 'crm.objects.deals.write']));
+    // Y el que de verdad falta (403 en su endpoint) sigue faltando.
+    portal.grant = () => ({ kind: 'private_app', scopes: LINES_SCOPES.filter((s) => s !== 'crm.objects.owners.read') });
+    const lacking = await inspectHubspotToken(PRIVATE, { fetch: portal.fetch, budget: null, probe: LINES_SCOPES, verifyMissing: true });
+    expect(missingHubspotScopes(lacking.scopes, LINES_SCOPES)).toEqual(['crm.objects.owners.read']);
+  });
+
   it('una clave que HubSpot no acepta es `auth`, también si responde 400 por la forma', async () => {
     const portal = seedSyncPortal();
     await expect(inspect(portal, 'not-a-hubspot-key')).rejects.toMatchObject({ code: 'auth' });

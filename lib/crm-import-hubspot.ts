@@ -61,7 +61,9 @@ export const HUBSPOT_SCOPES = [
  * Sin estos la vista previa no se puede armar: dueños, la definición de las
  * propiedades de los tres objetos y los pipelines (que se leen con el permiso
  * de negocios). Los demás solo dejan afuera su parte (contactos, empresas,
- * listas, emails).
+ * listas, emails). Un permiso cuenta como faltante solo si su endpoint
+ * responde 403: que la info del token no lo nombre no alcanza (una private app
+ * vieja puede leerlo igual).
  */
 export const HUBSPOT_REQUIRED_SCOPES = [
   'crm.objects.owners.read',
@@ -424,7 +426,7 @@ export function createHubspotSource(token: string, opts: HubspotOptions = {}): C
 
     async connection() {
       try {
-        const info = await inspectHubspotToken(token, { client, probe: HUBSPOT_SCOPES });
+        const info = await inspectHubspotToken(token, { client, probe: HUBSPOT_SCOPES, verifyMissing: true });
         return { portalId: info.portalId, kind: info.kind, scopes: info.scopes };
       } catch (e) {
         throw toSourceError(e);

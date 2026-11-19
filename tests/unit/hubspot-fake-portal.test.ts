@@ -38,7 +38,10 @@ describe('objetos y fechas de modificación', () => {
     expect(co.json.properties.name).toBe('Northwind Parts');
     expect(Date.parse(co.json.properties.hs_lastmodifieddate)).toBeGreaterThan(0);
     // Empresas y negocios no tienen `lastmodifieddate`: esa es de los contactos.
-    expect(co.json.properties.lastmodifieddate).toBeUndefined();
+    // Pedida y sin valor: null, como HubSpot (también en el listado y la búsqueda).
+    expect(co.json.properties.lastmodifieddate).toBeNull();
+    expect((await call('GET', '/crm/v3/objects/contacts?limit=100&properties=email')).json.results.find((r: Json) => r.id === '4003').properties).toEqual({ email: null });
+    expect((await call('POST', '/crm/v3/objects/contacts/search', { properties: ['email', 'jobtitle'], filterGroups: [{ filters: [{ propertyName: 'hs_object_id', operator: 'EQ', value: '4003' }] }] })).json.results[0].properties).toEqual({ email: null, jobtitle: null });
     const d = await call('GET', '/crm/v3/objects/deals/6001?properties=dealname,amount,dealstage,hs_lastmodifieddate');
     expect(d.json.properties).toMatchObject({ dealname: 'Northwind annual plan', amount: '18000', dealstage: 'contractsent' });
   });
@@ -213,6 +216,14 @@ describe('lotes', () => {
     expect((await call('POST', '/crm/v3/objects/companies/batch/archive', { inputs: res.json.results.map((r: Json) => ({ id: r.id })) })).status).toBe(204);
     expect(portal.companies.size).toBe(3);
     expect(portal.archived.companies.size).toBe(2);
+    // Los lotes de archivar y de asociaciones también tienen el tope de 100.
+    const many = Array.from({ length: 101 }, (_, i) => ({ id: String(i) }));
+    expect((await call('POST', '/crm/v3/objects/companies/batch/archive', { inputs: many })).status).toBe(400);
+    const pairs = many.map((m) => ({ from: m, to: { id: '3001' } }));
+    expect((await call('POST', '/crm/v4/associations/contacts/companies/batch/create', { inputs: pairs })).status).toBe(400);
+    expect((await call('POST', '/crm/v4/associations/contacts/companies/batch/archive', { inputs: pairs })).status).toBe(400);
+    expect((await call('POST', '/crm/v4/associations/contacts/companies/batch/create', { inputs: [{ from: { id: '4003' }, to: { id: '3001' } }] })).status).toBe(201);
+    expect(portal.companies.size).toBe(3);
   });
 });
 
@@ -354,6 +365,8 @@ describe('archivar y fusionar', () => {
   });
 
   it('fusionar: el que pierde deja de existir, el que queda guarda su id y hereda sus asociaciones', async () => {
+    // Con el comportamiento viejo (se conserva el id del principal).
+    portal.mergeCreatesNewRecord = false;
     const before = portal.companies.get('3002')!.properties.hs_lastmodifieddate;
     const res = await call('POST', '/crm/v3/objects/companies/merge', { primaryObjectId: '3002', objectIdToMerge: '3003' });
     expect(res.status).toBe(200);
@@ -372,10 +385,10 @@ describe('archivar y fusionar', () => {
     expect((await call('GET', '/crm/v4/objects/contacts/4001/associations/companies')).json.results[0].toObjectId).toBe(3002);
   });
 
-  it('fusionar contactos conserva el id del principal; empresas y negocios pueden quedar con id nuevo', async () => {
+  it('fusionar contactos conserva el id del principal; empresas y negocios quedan con id nuevo por defecto', async () => {
     const c = await call('POST', '/crm/v3/objects/contacts/merge', { primaryObjectId: '4001', objectIdToMerge: '4003' });
     expect(c.json.id).toBe('4001');
-    portal.mergeCreatesNewRecord = true;
+    expect(portal.mergeCreatesNewRecord).toBe(true);
     const d = await call('POST', '/crm/v3/objects/deals/merge', { primaryObjectId: '6001', objectIdToMerge: '6002' });
     expect(['6001', '6002']).not.toContain(d.json.id);
     expect(portal.deals.size).toBe(1);

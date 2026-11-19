@@ -15,7 +15,7 @@
  * sobre el id 0, que no puede cambiar nada: 403 es "falta el permiso").
  */
 import { open, seal } from '../secret-box';
-import type { FetchLike, SleepFn } from '../crm-import-source';
+import type { FetchLike, SleepFn } from './retry';
 import { HubspotApiError, bindHubspotTokenPortal, createHubspotClient, type HubspotBudgetLike, type HubspotClient } from './client';
 
 export type HubspotTokenKind = 'private_app' | 'service_key' | 'unknown';
@@ -67,6 +67,12 @@ export interface InspectOptions {
   budget?: HubspotBudgetLike | null;
   /** Permisos que le importan a la función que conecta: si la info del token no responde, se prueban estos (en este orden). */
   probe?: readonly string[];
+  /**
+   * true: si la info del token responde pero no nombra alguno de `probe`, ese
+   * también se prueba contra su endpoint. Una clave vieja puede poder leer algo
+   * sin que su lista lo nombre igual; manda lo que responde HubSpot.
+   */
+  verifyMissing?: boolean;
   client?: HubspotClient;
 }
 
@@ -110,18 +116,21 @@ export async function inspectHubspotToken(token: string, opts: InspectOptions = 
     if (!portalId && e.code !== 'scope') throw e;
   }
 
+  const probeOne = async (scope: string): Promise<boolean> => {
+    const p = probeFor(scope);
+    if (!p) return false;
+    const res = await client.send(p.path, { method: p.method, body: p.body });
+    if (res.status === 401) throw new HubspotApiError('auth', 401, res.path);
+    // 403: falta. Cualquier otra respuesta (200, 404 del id 0, 400 del cuerpo vacío) pasó el control de permisos.
+    return res.status !== 403 && res.status < 500;
+  };
   let scopesFrom: HubspotTokenInfo['scopesFrom'] = 'token_info';
   if (!scopes) {
     scopesFrom = 'probe';
     scopes = [];
-    for (const scope of opts.probe ?? []) {
-      const p = probeFor(scope);
-      if (!p) continue;
-      const res = await client.send(p.path, { method: p.method, body: p.body });
-      if (res.status === 401) throw new HubspotApiError('auth', 401, res.path);
-      // 403: falta. Cualquier otra respuesta (200, 404 del id 0, 400 del cuerpo vacío) pasó el control de permisos.
-      if (res.status !== 403 && res.status < 500) scopes.push(scope);
-    }
+    for (const scope of opts.probe ?? []) if (await probeOne(scope)) scopes.push(scope);
+  } else if (opts.verifyMissing) {
+    for (const scope of opts.probe ?? []) if (!scopes.includes(scope) && (await probeOne(scope))) scopes.push(scope);
   }
   if (!/^\d{1,20}$/.test(portalId)) throw new HubspotApiError('auth', 401);
   bindHubspotTokenPortal(token, portalId);

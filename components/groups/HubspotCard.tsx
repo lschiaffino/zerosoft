@@ -363,12 +363,13 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
               {row.missingSyncScopes.length > 0 && <p className="ui-help">{t('hubspot.card.syncNeedsScope', { scopes: words(row.missingSyncScopes) })}</p>}
             </fieldset>
           )}
-          {row.connected && row.tokenKind === 'service_key' && !row.webhook && (
+          {/* El tipo de clave se deduce (HubSpot no lo informa): el campo no se esconde, solo se avisa. */}
+          {row.connected && row.tokenKind === 'service_key' && (
             <p className="ui-help" data-testid="hubspot-no-webhooks">
               {th('webhooksServiceKey')}
             </p>
           )}
-          {row.connected && (row.tokenKind !== 'service_key' || row.webhook) && (
+          {row.connected && (
             <div className="ui-field">
               <label className="ui-field">
                 <span className="label">{t('hubspot.card.webhookSecret')}</span>

@@ -25,7 +25,7 @@
  * Límites conocidos: no simula el retraso del índice de búsqueda, ni
  * webhooks, ni el historial de propiedades.
  */
-import type { FetchLike } from '../crm-import-source';
+import type { FetchLike } from './retry';
 
 export type FakeProps = Record<string, string>;
 
@@ -105,6 +105,8 @@ export interface FakeTokenGrant {
   kind: FakeTokenKind;
   /** '*': todos los permisos. */
   scopes: string[] | '*';
+  /** Lo que la info del token dice que tiene, si difiere de lo que de verdad puede (una clave vieja con otros nombres). */
+  reported?: string[];
 }
 
 export interface FakeFault {
@@ -312,8 +314,13 @@ export class FakeHubspotPortal {
   searchCap = 10_000;
   /** Qué dice la consulta de info de private apps de una service key. HubSpot no lo documenta. */
   serviceKeyTokenInfo: 'unsupported' | 'supported' = 'unsupported';
-  /** true: fusionar empresas o negocios crea un registro nuevo con otro id (como hace HubSpot desde 2025). */
-  mergeCreatesNewRecord = false;
+  /**
+   * Fusionar por la API: empresas y negocios quedan en un registro nuevo con otro
+   * id, y los dos anteriores van a hs_merged_object_ids (como hace HubSpot desde
+   * 2025). Los contactos conservan siempre el id del principal. false: empresas
+   * y negocios también conservan el id del principal (el comportamiento viejo).
+   */
+  mergeCreatesNewRecord = true;
   validate: boolean;
   grant: (token: string) => FakeTokenGrant | null;
 
@@ -584,10 +591,10 @@ export class FakeHubspotPortal {
     return false;
   }
 
-  /** Solo las propiedades pedidas que tienen valor (lectura simple, listado y búsqueda). */
+  /** Las propiedades pedidas; como HubSpot, una pedida y sin valor vuelve como null. */
   private pick(o: FakeObject, properties: string[]) {
-    const out: FakeProps = {};
-    for (const p of properties) if (o.properties[p] !== undefined) out[p] = o.properties[p];
+    const out: Record<string, string | null> = {};
+    for (const p of properties) out[p] = o.properties[p] === undefined || o.properties[p] === '' ? null : o.properties[p];
     return {
       id: o.id,
       properties: out,
@@ -700,7 +707,7 @@ export class FakeHubspotPortal {
       const grant = this.grant(String(body.tokenKey ?? ''));
       if (!grant) return json(401, { category: 'INVALID_AUTHENTICATION' });
       if (grant.kind === 'service_key' && this.serviceKeyTokenInfo === 'unsupported') return json(400, { status: 'error', category: 'VALIDATION_ERROR', message: 'Not a private app access token' });
-      const scopes = grant.scopes === '*' ? [...ALL_FAKE_SCOPES] : grant.scopes;
+      const scopes = grant.reported ?? (grant.scopes === '*' ? [...ALL_FAKE_SCOPES] : grant.scopes);
       return json(200, { hubId: Number(this.portalId), userId: 1, ...(grant.kind === 'private_app' ? { appId: 1 } : {}), scopes });
     }
 
@@ -813,6 +820,7 @@ export class FakeHubspotPortal {
       const denied = need(objectScope(from, 'read')) ?? need(objectScope(to, 'read')) ?? (op === 'read' ? null : need(objectScope(from, 'write')));
       if (denied) return denied;
       const inputs = Array.isArray(body.inputs) ? (body.inputs as Array<Record<string, unknown>>) : [];
+      if (op !== 'read' && inputs.length > 100) return json(400, { status: 'error', category: 'VALIDATION_ERROR', message: 'The maximum number of inputs supported in a batch request is 100' });
       if (op === 'read') {
         if (inputs.length > 1000) return json(400, { status: 'error', category: 'VALIDATION_ERROR', message: 'The maximum number of inputs supported in a batch request is 1000' });
         const results = inputs
@@ -978,6 +986,7 @@ export class FakeHubspotPortal {
     if (sub === 'batch/archive' && method === 'POST') {
       const noWrite = writeDenied();
       if (noWrite) return noWrite;
+      if (inputs.length > 100) return tooMany();
       for (const i of inputs) this.archive(type, String(i.id ?? ''));
       return json(204, null);
     }

@@ -19,10 +19,12 @@ export function fakeImportAllowed(): boolean {
 /**
  * Claves del proveedor falso: "fake" o "fake-<n>" (private app heredada con
  * todos los permisos). Con "-svc" es una service key; con "-noowners" le
- * falta un permiso obligatorio y con "-noemail" el de los emails. Ejemplos:
+ * falta un permiso obligatorio y con "-noemail" el de los emails; con
+ * "-oldnames" puede todo, pero su info del token no nombra el permiso de
+ * dueños (una clave vieja). Ejemplos:
  * "fake-svc", "fake-svc-noemail", "fake-noowners-40".
  */
-const FAKE_TOKEN_RE = /^fake(-svc)?(-noowners|-noemail)?(-\d{1,6})?$/;
+const FAKE_TOKEN_RE = /^fake(-svc)?(-noowners|-noemail|-oldnames)?(-\d{1,6})?$/;
 
 export function isFakeToken(token: string): boolean {
   return FAKE_TOKEN_RE.test(token);
@@ -126,6 +128,7 @@ export function fakeImportPortal(ds: FakeDataset): FakeHubspotPortal {
       if (!m) return null;
       const kind: FakeTokenKind = m[1] ? 'service_key' : 'private_app';
       if (!m[2]) return { kind, scopes: '*' };
+      if (m[2] === '-oldnames') return { kind, scopes: '*', reported: ALL_FAKE_SCOPES.filter((s) => s !== 'crm.objects.owners.read') };
       const without = m[2] === '-noowners' ? 'crm.objects.owners.read' : 'sales-email-read';
       return { kind, scopes: ALL_FAKE_SCOPES.filter((s) => s !== without) };
     },

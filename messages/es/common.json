@@ -1327,7 +1327,7 @@
     "missingTitle": "A esta clave le faltan permisos",
     "missingHelp": "En HubSpot, sumale estos permisos a la clave y volvé a pegarla.",
     "scopeWithName": "{label} ({scope})",
-    "webhooksServiceKey": "Las service keys no pueden recibir webhooks. Lines revisa los cambios de HubSpot más o menos una vez por minuto.",
+    "webhooksServiceKey": "Si esta es una service key, no puede recibir webhooks: Lines revisa los cambios de HubSpot más o menos una vez por minuto, y el campo de abajo solo sirve con una private app heredada.",
     "scopes": {
       "crm_objects_contacts_read": "Leer contactos",
       "crm_objects_contacts_write": "Crear y editar contactos, y dejar notas",
