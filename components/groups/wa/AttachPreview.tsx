@@ -108,6 +108,7 @@ export default function AttachPreview({
   onFiles,
   onReplace,
   stickerApi,
+  stickerLine,
   sending,
 }: {
   items: TrayItem[];
@@ -127,6 +128,8 @@ export default function AttachPreview({
   onReplace?: (key: string, file: File, size?: { width: number; height: number }) => void;
   /** Stickers de la colección para poner encima de una foto (/api/groups/stickers o /api/inbox/stickers). */
   stickerApi?: string;
+  /** La línea del chat abierto (los stickers son por línea). */
+  stickerLine?: string;
   sending: boolean;
 }) {
   const t = useTranslations('groups');
@@ -311,6 +314,7 @@ export default function AttachPreview({
             onUndo={() => undo(it.key)}
             canUndo={st.history.length > 0}
             stickerApi={stickerApi}
+            stickerLine={stickerLine}
             onBusyKey={setTyping}
           />
         ) : it.preview && it.type.startsWith('image/') ? (

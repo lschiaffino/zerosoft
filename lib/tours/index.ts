@@ -11,10 +11,11 @@
  *
  * Puro: lo usan el servidor, el cliente y los tests.
  */
+import { INBOX_TOUR } from './inbox';
 import { LINES_TOUR } from './lines';
 import { TRACK_TOUR } from './track';
 
-export const TOUR_KEYS = ['lines', 'track'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'track'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -48,6 +49,7 @@ export interface TourDef {
 
 export const TOURS: Record<TourKey, TourDef> = {
   lines: LINES_TOUR,
+  inbox: INBOX_TOUR,
   track: TRACK_TOUR,
 };
 

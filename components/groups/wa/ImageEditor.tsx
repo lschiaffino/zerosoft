@@ -51,6 +51,7 @@ export default function ImageEditor({
   onUndo,
   canUndo,
   stickerApi,
+  stickerLine,
   onBusyKey,
 }: {
   /** La foto original (URL local). */
@@ -63,6 +64,8 @@ export default function ImageEditor({
   canUndo: boolean;
   /** Para poner stickers de la colección (la pestaña Stickers del panel de emojis). */
   stickerApi?: string;
+  /** La línea del chat: los stickers que se ofrecen son los de esa. */
+  stickerLine?: string;
   /** Avisa si el editor está usando el teclado (escribiendo un texto): Enter no manda. */
   onBusyKey?: (busy: boolean) => void;
 }) {
@@ -408,9 +411,10 @@ export default function ImageEditor({
                     setEmojiOpen(false);
                   }}
                   stickers={
-                    stickerApi
+                    stickerApi && stickerLine
                       ? {
                           api: stickerApi,
+                          line: stickerLine,
                           onSend: async (s: StickerItem) => {
                             addOverlay({ kind: 'image', size: STICKER_PX / (scale || 1), src: s.url, ratio: 1 });
                             setEmojiOpen(false);

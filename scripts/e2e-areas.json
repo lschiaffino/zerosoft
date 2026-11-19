@@ -43,7 +43,7 @@
     },
     "tours": {
       "names": ["tour", "tours"],
-      "specs": ["lines-tour", "track-tour"]
+      "specs": ["lines-tour", "inbox-tour", "track-tour"]
     },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
@@ -62,7 +62,7 @@
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
     "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms", "forms-*"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
-    "time": { "names": ["time"], "specs": ["time", "time-week"] },
+    "time": { "names": ["time"], "specs": ["time", "time-week", "time-assign"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-gauntlet", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
     "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
     "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },

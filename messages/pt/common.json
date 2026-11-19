@@ -1458,6 +1458,48 @@
         "title": "Fim do tour",
         "body": "Você pode refazer este tour pelo menu da sua conta."
       }
+    },
+    "inbox": {
+      "intro": {
+        "title": "Boas-vindas ao Inbox",
+        "body": "O Inbox junta seu WhatsApp e seu Gmail em uma só lista que só você vê. Este tour mostra as partes principais."
+      },
+      "connect": {
+        "title": "Conecte uma conta",
+        "body": "Vincule seu WhatsApp com um código QR ou conecte o Gmail. As conversas e os e-mails aparecem aqui."
+      },
+      "chatList": {
+        "title": "Suas conversas",
+        "body": "Aqui chegam as conversas do WhatsApp e os e-mails, os mais recentes primeiro. Navegue com J e K."
+      },
+      "filters": {
+        "title": "Filtre a lista",
+        "body": "Escolha o que a lista mostra: tudo, só WhatsApp, só e-mail, grupos ou não lidos."
+      },
+      "search": {
+        "title": "Busque",
+        "body": "Encontre uma conversa pelo nome, pelo número ou por algo que foi dito nela. Aperte / para vir aqui."
+      },
+      "openChat": {
+        "title": "Abra uma conversa",
+        "body": "Abra qualquer conversa da lista para ler e responder."
+      },
+      "composer": {
+        "title": "Responda",
+        "body": "Escreva aqui e aperte Enter para enviar. Digite / para ver os comandos desta conversa."
+      },
+      "triage": {
+        "title": "Zere a caixa",
+        "body": "Arquive uma conversa quando estiver resolvida (E), adie para depois (H) ou peça um lembrete caso ninguém responda."
+      },
+      "settings": {
+        "title": "Configurações do Inbox",
+        "body": "Nas configurações do Inbox você conecta mais contas, importa do inbox-zero e salva respostas rápidas."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
     }
   }
 }

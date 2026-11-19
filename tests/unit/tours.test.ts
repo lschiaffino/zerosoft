@@ -12,7 +12,7 @@ describe('tours: registro y rutas', () => {
     expect(tourForPath('/es/app/lines/settings')?.key).toBe('lines');
     expect(tourForPath('/app/lines')?.key).toBe('lines');
     expect(tourForPath('/app/linesx')).toBeNull();
-    expect(tourForPath('/app/inbox')).toBeNull();
+    expect(tourForPath('/app/inboxes')).toBeNull();
     expect(tourForPath('/app/trackx')).toBeNull();
     expect(tourForPath(null)).toBeNull();
     expect(atTourStart(TOURS.lines, '/pt/app/lines/inbox')).toBe(true);
@@ -30,6 +30,16 @@ describe('tours: registro y rutas', () => {
     // Abrir Issues (un clic en el lateral) va antes de filtros, visualización y vistas, que viven ahí.
     expect(steps.indexOf('issues')).toBeLessThan(steps.indexOf('filters'));
     expect(TOURS.track.steps.find((s) => s.id === 'issues')).toMatchObject({ advanceOn: 'click' });
+  });
+
+  it('el tour de Inbox vive en /app/inbox, arranca en la bandeja y no tiene pasos de equipo', () => {
+    expect(tourForPath('/app/inbox')?.key).toBe('inbox');
+    expect(tourForPath('/es/app/inbox/v/reply')?.key).toBe('inbox');
+    expect(atTourStart(TOURS.inbox, '/en/app/inbox')).toBe(true);
+    expect(atTourStart(TOURS.inbox, '/app/inbox/settings')).toBe(false);
+    // Inbox es de cada persona: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.inbox, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.inbox.steps]));
+    expect(ids(stepsFor(TOURS.inbox, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.inbox.steps]));
   });
 
   it('ids de pasos únicos por tour', () => {

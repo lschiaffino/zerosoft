@@ -6,10 +6,30 @@
  * - Cada persona carga, edita y borra solo sus entradas.
  * - Clientes, proyectos, tareas y la moneda los maneja quien administra.
  * - Los reportes de un miembro muestran solo sus horas; los de un admin, las de todos.
+ * - Un proyecto es de todas las personas con Time o solo de las elegidas, y usa todas las
+ *   tareas o solo las elegidas. Un miembro ve y carga solo en los suyos; un admin ve todos
+ *   pero carga, como cualquiera, solo donde está asignado.
  */
 import { randomBytes } from 'crypto';
 import { getDb } from '../db';
-import { CURRENCIES, MAX_ENTRY_MINUTES, MAX_NOTES, TimeError, addDays, cleanName, isIsoDate, liveMinutes, weekStart, type Currency, type ReportEntry, type TimeActor } from './types';
+import { canUseApp, workspaceMemberSql } from '../workspace';
+import {
+  CURRENCIES,
+  MAX_ENTRY_MINUTES,
+  MAX_NOTES,
+  TimeError,
+  addDays,
+  canTrackOn,
+  cleanName,
+  isIsoDate,
+  liveMinutes,
+  weekStart,
+  type Currency,
+  type ProjectAssignments,
+  type ProjectTask,
+  type ReportEntry,
+  type TimeActor,
+} from './types';
 
 const now = () => new Date().toISOString();
 
@@ -19,6 +39,35 @@ export function newTimeId(prefix: 'tcl' | 'tpr' | 'ttk' | 'ten'): string {
 
 function requireAdmin(actor: TimeActor) {
   if (!actor.admin) throw new TimeError('forbidden', 403);
+}
+
+/* ---------- Personas ---------- */
+
+export interface TimePerson {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+/**
+ * Personas del workspace que pueden usar Time (el dueño primero; sin guests):
+ * las que se eligen para el equipo de un proyecto.
+ */
+export async function listTimePeople(ws: string): Promise<TimePerson[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT u.id, u.email, u.name,
+              (SELECT wm.role FROM team_members wm JOIN teams wt ON wt.id = wm.team_id
+               WHERE wt.owner_id = ? AND wm.user_id = u.id AND wm.role != 'guest' ORDER BY wm.role = 'admin' DESC LIMIT 1) AS role,
+              (SELECT wm.apps FROM team_members wm JOIN teams wt ON wt.id = wm.team_id
+               WHERE wt.owner_id = ? AND wm.user_id = u.id AND wm.role != 'guest' ORDER BY wm.apps = '*' DESC LIMIT 1) AS apps
+       FROM users u WHERE ${workspaceMemberSql('?', 'u.id')}
+       ORDER BY u.id = ? DESC, u.name COLLATE NOCASE, u.email`,
+    )
+    .all(ws, ws, ws, ws, ws)) as Array<{ id: string; email: string; name: string | null; role: string | null; apps: string | null }>;
+  return rows
+    .filter((r) => r.id === ws || canUseApp({ role: r.role ?? 'member', apps: r.apps }, 'time'))
+    .map((r) => ({ id: r.id, name: r.name, email: r.email }));
 }
 
 /* ---------- Clientes ---------- */
@@ -180,12 +229,13 @@ export async function deleteTask(actor: TimeActor, id: string): Promise<void> {
   if (!(await taskRow(actor.ws, id))) throw new TimeError('not_found', 404);
   const used = await getDb().prepare('SELECT 1 AS x FROM time_entries WHERE task_id = ? AND workspace_id = ? LIMIT 1').get(id, actor.ws);
   if (used) throw new TimeError('in_use', 409);
+  await getDb().prepare('DELETE FROM time_project_tasks WHERE task_id = ? AND workspace_id = ?').run(id, actor.ws);
   await getDb().prepare('DELETE FROM time_tasks WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
 }
 
 /* ---------- Proyectos ---------- */
 
-export interface ProjectDto {
+export interface ProjectDto extends ProjectAssignments {
   id: string;
   name: string;
   code: string;
@@ -212,13 +262,39 @@ interface ProjectRow {
   archived_at: string | null;
   spent: number | null;
   updated_at: string;
+  everyone: number;
+  all_tasks: number;
 }
 
-const PROJECT_SELECT = `SELECT p.id, p.name, p.code, p.client_id, c.name AS client_name, p.billable, p.rate_cents, p.budget_minutes, p.archived_at, p.updated_at,
+const PROJECT_SELECT = `SELECT p.id, p.name, p.code, p.client_id, c.name AS client_name, p.billable, p.rate_cents, p.budget_minutes, p.archived_at, p.updated_at, p.everyone, p.all_tasks,
   (SELECT COALESCE(SUM(e.minutes), 0) FROM time_entries e WHERE e.project_id = p.id) AS spent
   FROM time_projects p LEFT JOIN time_clients c ON c.id = p.client_id`;
 
-function projectDto(r: ProjectRow): ProjectDto {
+type AssignmentMaps = { people: Map<string, string[]>; tasks: Map<string, ProjectTask[]> };
+
+/** Personas y tareas elegidas de los proyectos del workspace (o de uno). */
+async function loadAssignments(ws: string, projectId?: string): Promise<AssignmentMaps> {
+  const db = getDb();
+  const filter = projectId ? ' AND project_id = ?' : '';
+  const args = projectId ? [ws, projectId] : [ws];
+  const [people, tasks] = await Promise.all([
+    db.prepare(`SELECT project_id, person_id FROM time_project_people WHERE workspace_id = ?${filter} ORDER BY created_at`).all(...args) as Promise<Array<{ project_id: string; person_id: string }>>,
+    db
+      .prepare(
+        `SELECT pt.project_id, pt.task_id, pt.billable FROM time_project_tasks pt JOIN time_tasks t ON t.id = pt.task_id
+         WHERE pt.workspace_id = ?${filter.replace('project_id', 'pt.project_id')} ORDER BY t.name COLLATE NOCASE`,
+      )
+      .all(...args) as Promise<Array<{ project_id: string; task_id: string; billable: number }>>,
+  ]);
+  const maps: AssignmentMaps = { people: new Map(), tasks: new Map() };
+  for (const r of people) maps.people.set(r.project_id, [...(maps.people.get(r.project_id) ?? []), r.person_id]);
+  for (const r of tasks) maps.tasks.set(r.project_id, [...(maps.tasks.get(r.project_id) ?? []), { taskId: r.task_id, billable: Boolean(r.billable) }]);
+  return maps;
+}
+
+function projectDto(r: ProjectRow, maps: AssignmentMaps): ProjectDto {
+  const everyone = Number(r.everyone ?? 1) !== 0;
+  const allTasks = Number(r.all_tasks ?? 1) !== 0;
   return {
     id: r.id,
     name: r.name,
@@ -231,6 +307,10 @@ function projectDto(r: ProjectRow): ProjectDto {
     archived: Boolean(r.archived_at),
     spentMinutes: Number(r.spent ?? 0),
     updatedAt: r.updated_at,
+    everyone,
+    people: everyone ? [] : (maps.people.get(r.id) ?? []),
+    allTasks,
+    tasks: allTasks ? [] : (maps.tasks.get(r.id) ?? []),
   };
 }
 
@@ -243,12 +323,17 @@ export async function listProjects(actor: TimeActor, opts: { q?: string } = {}):
        ORDER BY p.archived_at IS NOT NULL, c.name IS NULL, c.name COLLATE NOCASE, p.name COLLATE NOCASE`,
     )
     .all(...(q ? [actor.ws, like, like, like] : [actor.ws]))) as unknown as ProjectRow[];
-  return rows.map(projectDto);
+  const maps = await loadAssignments(actor.ws);
+  const all = rows.map((r) => projectDto(r, maps));
+  // Un miembro ve solo los proyectos donde carga horas.
+  return actor.admin ? all : all.filter((p) => canTrackOn(p, actor.person));
 }
 
 export async function getProject(actor: TimeActor, id: string): Promise<ProjectDto | null> {
   const row = (await getDb().prepare(`${PROJECT_SELECT} WHERE p.id = ? AND p.workspace_id = ?`).get(id, actor.ws)) as unknown as ProjectRow | undefined;
-  return row ? projectDto(row) : null;
+  if (!row) return null;
+  const project = projectDto(row, await loadAssignments(actor.ws, id));
+  return actor.admin || canTrackOn(project, actor.person) ? project : null;
 }
 
 export interface ProjectInput {
@@ -259,6 +344,53 @@ export interface ProjectInput {
   rateCents?: number | null;
   budgetMinutes?: number | null;
   archived?: boolean;
+  everyone?: boolean;
+  people?: string[];
+  allTasks?: boolean;
+  tasks?: ProjectTask[];
+}
+
+/**
+ * Guarda el equipo y las tareas del proyecto si vienen en el cuerpo. Las
+ * personas tienen que tener Time en el workspace y las tareas ser del
+ * workspace; elegir "solo estas" con la lista vacía no se permite.
+ */
+async function saveAssignments(actor: TimeActor, projectId: string, input: ProjectInput): Promise<void> {
+  const db = getDb();
+  const t = now();
+  if (input.everyone !== undefined || input.people !== undefined) {
+    const everyone = input.everyone ?? false;
+    const people = [...new Set(input.people ?? [])];
+    if (!everyone) {
+      if (!people.length) throw new TimeError('invalid_input', 400);
+      const allowed = new Set((await listTimePeople(actor.ws)).map((p) => p.id));
+      if (people.some((id) => !allowed.has(id))) throw new TimeError('not_found', 404);
+    }
+    await db.prepare('DELETE FROM time_project_people WHERE project_id = ? AND workspace_id = ?').run(projectId, actor.ws);
+    if (!everyone) {
+      for (const person of people) {
+        await db.prepare('INSERT OR IGNORE INTO time_project_people (project_id, workspace_id, person_id, created_at) VALUES (?, ?, ?, ?)').run(projectId, actor.ws, person, t);
+      }
+    }
+    await db.prepare('UPDATE time_projects SET everyone = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(everyone ? 1 : 0, t, projectId, actor.ws);
+  }
+  if (input.allTasks !== undefined || input.tasks !== undefined) {
+    const allTasks = input.allTasks ?? false;
+    const tasks = [...new Map((input.tasks ?? []).map((x) => [x.taskId, x])).values()];
+    if (!allTasks) {
+      if (!tasks.length) throw new TimeError('invalid_input', 400);
+      for (const x of tasks) if (!(await taskRow(actor.ws, x.taskId))) throw new TimeError('not_found', 404);
+    }
+    await db.prepare('DELETE FROM time_project_tasks WHERE project_id = ? AND workspace_id = ?').run(projectId, actor.ws);
+    if (!allTasks) {
+      for (const x of tasks) {
+        await db
+          .prepare('INSERT OR IGNORE INTO time_project_tasks (project_id, workspace_id, task_id, billable, created_at) VALUES (?, ?, ?, ?, ?)')
+          .run(projectId, actor.ws, x.taskId, x.billable ? 1 : 0, t);
+      }
+    }
+    await db.prepare('UPDATE time_projects SET all_tasks = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(allTasks ? 1 : 0, t, projectId, actor.ws);
+  }
 }
 
 async function checkClient(ws: string, clientId: string | null | undefined): Promise<string | null> {
@@ -277,6 +409,13 @@ export async function createProject(actor: TimeActor, input: ProjectInput): Prom
   await getDb()
     .prepare('INSERT INTO time_projects (id, workspace_id, client_id, name, code, billable, rate_cents, budget_minutes, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(id, actor.ws, clientId, name, cleanName(input.code, 24), input.billable === false ? 0 : 1, input.rateCents ?? null, input.budgetMinutes ?? null, actor.person, t, t);
+  try {
+    await saveAssignments(actor, id, input);
+  } catch (err) {
+    // Un equipo o tareas inválidos no dejan un proyecto a medias.
+    await getDb().prepare('DELETE FROM time_projects WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
+    throw err;
+  }
   return (await getProject(actor, id))!;
 }
 
@@ -287,6 +426,7 @@ export async function updateProject(actor: TimeActor, id: string, patch: Project
   const name = patch.name !== undefined ? cleanName(patch.name) : cur.name;
   if (!name) throw new TimeError('invalid_input', 400);
   const clientId = patch.clientId !== undefined ? await checkClient(actor.ws, patch.clientId) : cur.clientId;
+  await saveAssignments(actor, id, patch);
   const archivedAt = patch.archived === undefined ? (cur.archived ? 'keep' : null) : patch.archived ? 'set' : null;
   await getDb()
     .prepare(
@@ -315,6 +455,8 @@ export async function deleteProject(actor: TimeActor, id: string): Promise<void>
   requireAdmin(actor);
   if (!(await getProject(actor, id))) throw new TimeError('not_found', 404);
   await getDb().prepare('DELETE FROM time_entries WHERE project_id = ? AND workspace_id = ?').run(id, actor.ws);
+  await getDb().prepare('DELETE FROM time_project_people WHERE project_id = ? AND workspace_id = ?').run(id, actor.ws);
+  await getDb().prepare('DELETE FROM time_project_tasks WHERE project_id = ? AND workspace_id = ?').run(id, actor.ws);
   await getDb().prepare('DELETE FROM time_projects WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
 }
 
@@ -420,16 +562,36 @@ async function myEntryRow(actor: TimeActor, id: string) {
     | undefined;
 }
 
-async function activeProjectAndTask(ws: string, projectId: string, taskId: string, allowArchived: { project?: string; task?: string } = {}) {
+/**
+ * Valida proyecto y tarea para cargar horas y devuelve si la entrada es
+ * facturable. La persona tiene que estar en el equipo del proyecto y la tarea
+ * ser una de las del proyecto. `keep` es lo que la entrada ya tenía: una
+ * entrada vieja se puede seguir editando aunque el proyecto o la tarea se
+ * hayan archivado o la persona ya no esté asignada.
+ */
+async function activeProjectAndTask(actor: TimeActor, projectId: string, taskId: string, keep: { project?: string; task?: string } = {}) {
   const db = getDb();
-  const p = (await db.prepare('SELECT id, billable, archived_at FROM time_projects WHERE id = ? AND workspace_id = ?').get(projectId, ws)) as
-    | { id: string; billable: number; archived_at: string | null }
+  const ws = actor.ws;
+  const p = (await db.prepare('SELECT id, billable, archived_at, everyone, all_tasks FROM time_projects WHERE id = ? AND workspace_id = ?').get(projectId, ws)) as
+    | { id: string; billable: number; archived_at: string | null; everyone: number; all_tasks: number }
     | undefined;
   const t = await taskRow(ws, taskId);
   if (!p || !t) throw new TimeError('not_found', 404);
-  if (p.archived_at && allowArchived.project !== projectId) throw new TimeError('project_archived', 409);
-  if (t.archived_at && allowArchived.task !== taskId) throw new TimeError('task_archived', 409);
-  return { billable: Boolean(p.billable) && Boolean(t.billable) };
+  const sameProject = keep.project === projectId;
+  const sameTask = sameProject && keep.task === taskId;
+  if (p.archived_at && !sameProject) throw new TimeError('project_archived', 409);
+  if (!sameProject && !Number(p.everyone)) {
+    const on = await db.prepare('SELECT 1 AS x FROM time_project_people WHERE project_id = ? AND person_id = ?').get(projectId, actor.person);
+    if (!on) throw new TimeError('not_assigned', 403);
+  }
+  let taskBillable = Boolean(t.billable);
+  if (!Number(p.all_tasks)) {
+    const pt = (await db.prepare('SELECT billable FROM time_project_tasks WHERE project_id = ? AND task_id = ?').get(projectId, taskId)) as { billable: number } | undefined;
+    if (pt) taskBillable = Boolean(pt.billable);
+    else if (!sameTask) throw new TimeError('task_not_in_project', 409);
+  }
+  if (t.archived_at && keep.task !== taskId) throw new TimeError('task_archived', 409);
+  return { billable: Boolean(p.billable) && taskBillable };
 }
 
 /** Para el cronómetro de la persona que esté corriendo (si hay), sumando lo que corrió. */
@@ -462,7 +624,7 @@ export async function createEntry(actor: TimeActor, input: EntryInput): Promise<
   const minutes = input.minutes ?? 0;
   if (!Number.isInteger(minutes) || minutes < 0) throw new TimeError('invalid_input', 400);
   if (minutes > MAX_ENTRY_MINUTES) throw new TimeError('too_long', 400);
-  const { billable } = await activeProjectAndTask(actor.ws, input.projectId, input.taskId);
+  const { billable } = await activeProjectAndTask(actor, input.projectId, input.taskId);
   const start = Boolean(input.start) || input.minutes == null;
   if (start) await stopRunning(actor);
   const id = newTimeId('ten');
@@ -504,7 +666,7 @@ export async function updateEntry(actor: TimeActor, id: string, patch: EntryPatc
     const projectId = patch.projectId ?? row.project_id;
     const taskId = patch.taskId ?? row.task_id;
     // Una entrada vieja de un proyecto archivado se puede seguir editando sin moverla.
-    const { billable } = await activeProjectAndTask(actor.ws, projectId, taskId, { project: row.project_id, task: row.task_id });
+    const { billable } = await activeProjectAndTask(actor, projectId, taskId, { project: row.project_id, task: row.task_id });
     sets.push('project_id = ?', 'task_id = ?', 'billable = ?');
     args.push(projectId, taskId, billable ? 1 : 0);
   }

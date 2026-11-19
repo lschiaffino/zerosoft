@@ -1003,6 +1003,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-stk:hover .wa-stk-more, .wa-stk-more:focus-visible, .wa-stk-more[aria-expanded='true'] { opacity: 1; }
 .wa-stk-more:focus-visible { outline: 2px solid var(--wa-primary); }
 @media (hover: none) { .wa-stk-more { opacity: 1; } }
+.wa-stk-more-btn { margin: 6px 2px 8px; }
 .wa-stk-skel { aspect-ratio: 1; margin: 6px; background: var(--wa-row-hover); border-radius: 6px; }
 .wa-stk-empty { padding: 20px 12px; text-align: center; font-size: 0.875rem; line-height: 1.45; color: var(--wa-text-2); }
 .wa-stk-empty p { margin: 0 0 10px; }

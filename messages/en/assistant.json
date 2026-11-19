@@ -389,7 +389,10 @@
     "attention": "Checking what is waiting in {app}",
     "readChats": "Reading your {app} chats",
     "waitingPermission": "Waiting for your permission to read {app}",
-    "inboxActions": "Preparing changes in Inbox"
+    "inboxActions": "Preparing changes in Inbox",
+    "featureRecorded": "Recorded a request for the team: {title}",
+    "problemReported": "Reported a problem to the team: {title}",
+    "recording": "Recording the request for the team"
   },
   "panel": {
     "pin": "Keep open at the side",
@@ -452,5 +455,9 @@
     "showAll": "Show all {count}",
     "showMore": "Show {count} more"
   },
-  "jumpToLatest": "Jump to latest"
+  "jumpToLatest": "Jump to latest",
+  "requestNote": {
+    "feature": "Request recorded for the team: {title}",
+    "problem": "Problem reported to the team: {title}"
+  }
 }

@@ -12,18 +12,21 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * Inbox: los stickers de la persona (lib/wa-stickers.ts).
- * GET: { stickers, imported }; ?img=<id> devuelve la imagen.
- * POST JSON: { action: 'import' }, { action: 'favorite', id, favorite },
- * { action: 'favoriteMessage', messageId }, { action: 'remove', id },
- * { action: 'send', id, threadId, replyTo?, clientId? } (devuelve los mensajes
- * del chat, como mandar un archivo). Multipart con `file`: crea un sticker
- * desde una imagen.
+ * Inbox: los stickers de la persona, por cuenta de WhatsApp (lib/wa-stickers.ts).
+ * GET ?line=<cuenta>: { stickers, imported } de esa cuenta, directo de la base
+ * (no baja nada de WhatsApp); ?img=<id> devuelve la imagen. Una cuenta que no
+ * es suya responde 404, igual que una que no existe.
+ * POST JSON: { action: 'import', line } (de los chats de esa cuenta, por
+ * tandas: `more`), { action: 'favorite', id, favorite }, { action:
+ * 'favoriteMessage', messageId } (queda en la cuenta del chat del mensaje),
+ * { action: 'remove', id }, { action: 'send', id, threadId, replyTo?,
+ * clientId? } (devuelve los mensajes del chat, como mandar un archivo).
+ * Multipart con `file` y `line`: crea un sticker desde una imagen en esa cuenta.
  */
 export async function GET(req: Request) {
   return withOwner(async (owner) => {
     try {
-      return await stickerResponse(req, inboxStickerOwner(owner), () => inboxStickerSource(owner));
+      return await stickerResponse(req, inboxStickerOwner(owner));
     } catch (err) {
       return fail(err);
     }
@@ -35,7 +38,7 @@ export async function POST(req: Request) {
   if (limited) return limited;
   return withOwner(async (owner) => {
     try {
-      return await stickerRequest(req, inboxStickerOwner(owner), () => inboxStickerSource(owner), {
+      return await stickerRequest(req, inboxStickerOwner(owner), (line) => inboxStickerSource(owner, line), {
         favoriteMessage: (messageId) => favoriteInboxMessage(owner, messageId),
         extra: async (action, b) => {
           if (action !== 'send') return null;

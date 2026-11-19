@@ -145,6 +145,10 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   // Por defecto: la línea por la que llegó el último mensaje.
   const from = page.getByTestId('reply-from').getByRole('combobox');
   await expect(from).toHaveValue(soporteChat);
+  // Compacto, como el resto de la barra del compositor: no el alto ni el borde de un campo de formulario.
+  const box = await from.boundingBox();
+  expect(box && box.height).toBeLessThanOrEqual(30);
+  expect(await from.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
   // Elegir la otra y mandar: el mensaje sale por esa línea.
   await from.selectOption(ventasChat);
   const field = page.getByTestId('composer-input');

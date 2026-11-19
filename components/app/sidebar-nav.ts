@@ -1100,7 +1100,8 @@ export function buildNav(
           section: labels.insights,
           items: [{ href: '/app/inbox/analytics', label: l.analytics, active: at('/app/inbox/analytics'), icon: 'reports' }],
         },
-        appSettingsGroup('/app/inbox/settings'),
+        // Con el anclaje del tour de Inbox (lib/tours/inbox.ts).
+        { items: [{ href: '/app/inbox/settings', label: labels.appSettings, active: at('/app/inbox/settings'), icon: 'settings', tour: 'inbox-settings' }] },
       ];
     }
     case 'fleet':
