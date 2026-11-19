@@ -93,6 +93,8 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await edited.hover();
   await edited.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Forward' }).click();
+  // "Forward" entra en selección con ese mensaje; el reenvío sale de la barra.
+  await page.getByTestId('selection-bar').locator('[data-action="forward"]').click();
   const fw = page.getByRole('dialog', { name: 'Forward message' });
   await fw.getByLabel('Search chats and groups').fill(b);
   await fw.getByRole('checkbox').first().check();
