@@ -216,10 +216,15 @@ function retentionCutoff(project: Pick<ProjectRow, 'retention_days'>, now: numbe
   return now - recordingRetentionDays(project.retention_days) * DAY;
 }
 
+/** Desde cuándo corre la retención de una grabación: su fin, o la restauración de la papelera si fue después. */
+const KEPT_SINCE = 'MAX(r.end_ts, COALESCE(r.retained_at, 0))';
+/** Lo que la lista muestra: empezó dentro de la retención, o se restauró hace menos que ella. */
+const VISIBLE = 'MAX(r.start_ts, COALESCE(r.retained_at, 0)) >= ?';
+
 /** Grabaciones que se pueden reproducir (con foto inicial), lo más nuevo primero. */
 export async function listRecordings(project: Pick<ProjectRow, 'id' | 'retention_days'>, q: RecordingsQuery = {}, now = Date.now()): Promise<{ recordings: RecordingDto[]; hasMore: boolean }> {
   const limit = Math.min(Math.max(q.limit ?? 50, 1), 200);
-  const parts = ['r.project_id = ?', 'r.has_snapshot = 1', 'r.start_ts >= ?'];
+  const parts = ['r.project_id = ?', 'r.has_snapshot = 1', VISIBLE];
   const args: Arg[] = [project.id, retentionCutoff(project, now)];
   if (q.from) {
     parts.push('r.start_ts >= ?');
@@ -256,7 +261,7 @@ export async function listRecordings(project: Pick<ProjectRow, 'id' | 'retention
 
 export async function getRecording(project: Pick<ProjectRow, 'id' | 'retention_days'>, id: string, now = Date.now()): Promise<RecordingDto | null> {
   const r = (await getDb()
-    .prepare(`${SELECT} WHERE r.id = ? AND r.project_id = ? AND r.has_snapshot = 1 AND r.start_ts >= ?`)
+    .prepare(`${SELECT} WHERE r.id = ? AND r.project_id = ? AND r.has_snapshot = 1 AND ${VISIBLE}`)
     .get(id, project.id, retentionCutoff(project, now))) as Row | undefined;
   return r ? toDto(r) : null;
 }
@@ -307,8 +312,8 @@ export async function recordingsForSessions(project: Pick<ProjectRow, 'id' | 're
   if (!ids.length) return {};
   const rows = (await getDb()
     .prepare(
-      `SELECT session_id, id FROM analytics_replay_recordings
-       WHERE project_id = ? AND has_snapshot = 1 AND start_ts >= ? AND session_id IN (${ids.map(() => '?').join(',')}) ORDER BY start_ts DESC`,
+      `SELECT r.session_id, r.id FROM analytics_replay_recordings r
+       WHERE r.project_id = ? AND r.has_snapshot = 1 AND ${VISIBLE} AND r.session_id IN (${ids.map(() => '?').join(',')}) ORDER BY r.start_ts DESC`,
     )
     .all(project.id, retentionCutoff(project, now), ...ids)) as Array<{ session_id: string; id: string }>;
   const out: Record<string, string> = {};
@@ -337,7 +342,7 @@ export async function deleteRecording(projectId: string, id: string): Promise<bo
   return true;
 }
 
-/** Las grabaciones de estos distinct_ids (borrar una persona se lleva las suyas). */
+/** Las grabaciones de estos distinct_ids (borrar una persona se lleva las suyas, también las de la papelera). */
 export async function deleteRecordingsOf(projectId: string, distinctIds: string[]): Promise<void> {
   if (!distinctIds.length) return;
   const db = getDb();
@@ -347,6 +352,25 @@ export async function deleteRecordingsOf(projectId: string, distinctIds: string[
       .all(projectId, ...distinctIds)) as Array<{ id: string }>;
     await dropRecordings(projectId, rows.map((r) => r.id));
     if (rows.length < 50) break;
+  }
+  const { purgeReplayTrashOf } = await import('./trash');
+  await purgeReplayTrashOf(projectId, distinctIds);
+}
+
+/** Referencia de los chunks de una grabación en la papelera: se borran recién al purgarla (lib/soft-delete.ts). */
+export function replayChunksRef(projectId: string, recordingId: string): string {
+  return `replay:${projectId}:${recordingId}`;
+}
+
+/** Borra los chunks de grabaciones purgadas de la papelera (el FILE_DROPPER de analytics). */
+export async function dropReplayChunks(refs: string[]): Promise<void> {
+  const db = getDb();
+  for (const ref of refs) {
+    const m = /^replay:([^:]+):([^:]+)$/.exec(ref);
+    if (!m) continue;
+    // La grabación pudo volver (restaurada, o la misma sesión otra vez): sus chunks quedan.
+    if (await db.prepare('SELECT 1 AS x FROM analytics_replay_recordings WHERE id = ? AND project_id = ?').get(m[2], m[1])) continue;
+    await db.prepare('DELETE FROM analytics_replay_chunks WHERE project_id = ? AND recording_id = ?').run(m[1], m[2]);
   }
 }
 
@@ -371,8 +395,14 @@ const RECORDINGS_PER_PROJECT = 200;
 
 /**
  * Retención (una vez por hora por proyecto, reclamado con compare-and-set): lo
- * más viejo que 30 días o que la retención del proyecto. Primero el proyecto
- * que hace más que no se atiende, así nadie queda sin turno.
+ * más viejo que 30 días o que la retención del proyecto va a la papelera de
+ * Analytics (lib/soft-delete.ts) con retentionPlan: entra hasta un tercio del
+ * plazo antes (10 días con los 30 de replay) y se purga, con sus chunks, en el
+ * mismo momento en que antes se borraba. Mientras tanto un admin la restaura
+ * desde los ajustes del proyecto (lib/analytics/trash.ts). En la papelera
+ * queda solo la fila de la grabación (sin nada de la persona a la vista); los
+ * chunks siguen en su tabla, sin nada que los lea, hasta la purga. Primero el
+ * proyecto que hace más que no se atiende, así nadie queda sin turno.
  */
 export async function runReplayRetention(opts: { now?: number; budgetMs?: number } = {}): Promise<number> {
   const started = Date.now();
@@ -380,15 +410,16 @@ export async function runReplayRetention(opts: { now?: number; budgetMs?: number
   const budget = opts.budgetMs ?? 4000;
   const left = () => budget - (Date.now() - started);
   const db = getDb();
+  const { retentionPlan, softDelete } = await import('../soft-delete');
   let purged = 0;
   const due = (await db
     .prepare(
-      `SELECT p.id, p.retention_days FROM analytics_projects p
+      `SELECT p.id, p.workspace_id, p.retention_days FROM analytics_projects p
        WHERE p.deleted_at IS NULL AND (p.replay_purged_at IS NULL OR p.replay_purged_at < ?)
          AND EXISTS (SELECT 1 FROM analytics_replay_recordings r WHERE r.project_id = p.id)
        ORDER BY p.replay_purged_at IS NOT NULL, p.replay_purged_at LIMIT 50`,
     )
-    .all(now - RETENTION_EVERY_MS)) as Array<{ id: string; retention_days: number }>;
+    .all(now - RETENTION_EVERY_MS)) as Array<{ id: string; workspace_id: string; retention_days: number }>;
   for (const p of due) {
     if (left() <= 0) break;
     try {
@@ -396,15 +427,35 @@ export async function runReplayRetention(opts: { now?: number; budgetMs?: number
         .prepare('UPDATE analytics_projects SET replay_purged_at = ? WHERE id = ? AND (replay_purged_at IS NULL OR replay_purged_at < ?)')
         .run(now, p.id, now - RETENTION_EVERY_MS);
       if (claim.changes !== 1) continue;
-      const cutoff = retentionCutoff(p, now);
+      const at = new Date(now);
+      const plan = retentionPlan(new Date(retentionCutoff(p, now)), at);
       let done = 0;
       while (done < RECORDINGS_PER_PROJECT && left() > 0) {
         const rows = (await db
-          .prepare('SELECT id FROM analytics_replay_recordings WHERE project_id = ? AND end_ts < ? LIMIT 25')
-          .all(p.id, cutoff)) as Array<{ id: string }>;
+          .prepare(`SELECT r.id, r.start_ts, ${KEPT_SINCE} AS base FROM analytics_replay_recordings r WHERE r.project_id = ? AND ${KEPT_SINCE} < ? LIMIT 25`)
+          .all(p.id, plan.trashBefore.getTime())) as Array<{ id: string; start_ts: number; base: number }>;
         if (!rows.length) break;
-        await dropRecordings(p.id, rows.map((r) => r.id));
-        done += rows.length;
+        let moved = 0;
+        for (const r of rows) {
+          const entry = await softDelete({
+            workspaceId: p.workspace_id,
+            app: 'analytics',
+            kind: 'recording',
+            recordId: r.id,
+            scopeId: p.id,
+            // Solo cuándo empezó: nada de la persona ni de las páginas.
+            label: new Date(Number(r.start_ts)).toISOString(),
+            reason: 'retention',
+            root: { table: 'analytics_replay_recordings' },
+            files: [replayChunksRef(p.id, r.id)],
+            purgeAt: plan.purgeAt(new Date(Number(r.base))),
+            now: at,
+          });
+          if (entry) moved++;
+        }
+        done += moved;
+        // Nada se movió (ya había una entrada para esas grabaciones): la próxima corrida, no en loop.
+        if (!moved) break;
       }
       purged += done;
     } catch (err) {

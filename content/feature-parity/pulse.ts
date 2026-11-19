@@ -35,7 +35,7 @@ const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 
 
 const parity: ProductParity = {
   competitor: 'PostHog',
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-18',
   percentHidden: {
     note: loc([
       'This comparison goes through the full PostHog docs, feature by feature, so it has many more rows than the other apps and its numbers are not comparable with their percentages. That is why there is no overall percentage here.',
@@ -145,7 +145,11 @@ const parity: ProductParity = {
       ],
     }),
     row('retention-setting', 'privacy', ['Data retention per project', 'Retención de datos por proyecto', 'Retenção de dados por projeto'], 'have', {
-      detail: ['Older events and sessions are purged by the hourly job', 'El trabajo de cada hora borra los eventos y sesiones más viejos', 'O job de cada hora apaga eventos e sessões mais antigos'],
+      detail: [
+        'Older events and sessions are purged by the hourly job. Recordings near the end of their term go to a trash in the project settings first and can be restored until the day they are deleted for good',
+        'El trabajo de cada hora borra los eventos y sesiones más viejos. Las grabaciones que llegan al final de su plazo pasan antes por una papelera en los ajustes del proyecto y se pueden restaurar hasta el día en que se borran del todo',
+        'O job de cada hora apaga eventos e sessões mais antigos. As gravações que chegam ao fim do prazo passam antes por uma lixeira nos ajustes do projeto e podem ser restauradas até o dia em que são excluídas de vez',
+      ],
     }),
 
     // Insights

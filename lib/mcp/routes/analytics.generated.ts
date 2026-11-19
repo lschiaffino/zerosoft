@@ -30,21 +30,22 @@ import * as r27 from "@/app/api/analytics/persons/route";
 import * as r28 from "@/lib/routes/analytics/persons/[id]/route";
 import * as r29 from "@/app/api/analytics/projects/route";
 import * as r30 from "@/lib/routes/analytics/projects/[id]/route";
-import * as r31 from "@/app/api/analytics/properties/route";
-import * as r32 from "@/app/api/analytics/query/route";
-import * as r33 from "@/app/api/analytics/replay/route";
-import * as r34 from "@/lib/routes/analytics/replay/[id]/route";
-import * as r35 from "@/app/api/analytics/replay/sessions/route";
-import * as r36 from "@/app/api/analytics/shares/route";
-import * as r37 from "@/lib/routes/analytics/shares/[id]/route";
-import * as r38 from "@/app/api/analytics/subscriptions/route";
-import * as r39 from "@/lib/routes/analytics/subscriptions/[id]/route";
-import * as r40 from "@/app/api/analytics/surveys/route";
-import * as r41 from "@/lib/routes/analytics/surveys/[id]/route";
-import * as r42 from "@/lib/routes/analytics/surveys/[id]/export/route";
-import * as r43 from "@/lib/routes/analytics/surveys/[id]/results/route";
-import * as r44 from "@/app/api/analytics/web-live/route";
-import * as r45 from "@/app/api/analytics/web-vitals/route";
+import * as r31 from "@/lib/routes/analytics/projects/[id]/trash/route";
+import * as r32 from "@/app/api/analytics/properties/route";
+import * as r33 from "@/app/api/analytics/query/route";
+import * as r34 from "@/app/api/analytics/replay/route";
+import * as r35 from "@/lib/routes/analytics/replay/[id]/route";
+import * as r36 from "@/app/api/analytics/replay/sessions/route";
+import * as r37 from "@/app/api/analytics/shares/route";
+import * as r38 from "@/lib/routes/analytics/shares/[id]/route";
+import * as r39 from "@/app/api/analytics/subscriptions/route";
+import * as r40 from "@/lib/routes/analytics/subscriptions/[id]/route";
+import * as r41 from "@/app/api/analytics/surveys/route";
+import * as r42 from "@/lib/routes/analytics/surveys/[id]/route";
+import * as r43 from "@/lib/routes/analytics/surveys/[id]/export/route";
+import * as r44 from "@/lib/routes/analytics/surveys/[id]/results/route";
+import * as r45 from "@/app/api/analytics/web-live/route";
+import * as r46 from "@/app/api/analytics/web-vitals/route";
 
 export const routes: Record<string, unknown> = {
   "/api/analytics/actions": r0,
@@ -78,19 +79,20 @@ export const routes: Record<string, unknown> = {
   "/api/analytics/persons/[id]": r28,
   "/api/analytics/projects": r29,
   "/api/analytics/projects/[id]": r30,
-  "/api/analytics/properties": r31,
-  "/api/analytics/query": r32,
-  "/api/analytics/replay": r33,
-  "/api/analytics/replay/[id]": r34,
-  "/api/analytics/replay/sessions": r35,
-  "/api/analytics/shares": r36,
-  "/api/analytics/shares/[id]": r37,
-  "/api/analytics/subscriptions": r38,
-  "/api/analytics/subscriptions/[id]": r39,
-  "/api/analytics/surveys": r40,
-  "/api/analytics/surveys/[id]": r41,
-  "/api/analytics/surveys/[id]/export": r42,
-  "/api/analytics/surveys/[id]/results": r43,
-  "/api/analytics/web-live": r44,
-  "/api/analytics/web-vitals": r45,
+  "/api/analytics/projects/[id]/trash": r31,
+  "/api/analytics/properties": r32,
+  "/api/analytics/query": r33,
+  "/api/analytics/replay": r34,
+  "/api/analytics/replay/[id]": r35,
+  "/api/analytics/replay/sessions": r36,
+  "/api/analytics/shares": r37,
+  "/api/analytics/shares/[id]": r38,
+  "/api/analytics/subscriptions": r39,
+  "/api/analytics/subscriptions/[id]": r40,
+  "/api/analytics/surveys": r41,
+  "/api/analytics/surveys/[id]": r42,
+  "/api/analytics/surveys/[id]/export": r43,
+  "/api/analytics/surveys/[id]/results": r44,
+  "/api/analytics/web-live": r45,
+  "/api/analytics/web-vitals": r46,
 };

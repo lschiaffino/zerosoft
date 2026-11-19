@@ -1121,6 +1121,21 @@
     "select": "Selecionar chat {name}",
     "done": "{n, plural, one {# chat atualizado} other {# chats atualizados}}"
   },
+  "assignHistory": {
+    "title": "Histórico de atribuições",
+    "loading": "Carregando histórico…",
+    "empty": "Ninguém foi atribuído a este chat ainda.",
+    "retry": "Tentar de novo",
+    "auto": "A regra {rule} passou para {to}",
+    "offline": "{from} ficou offline: a regra {rule} passou para {to}",
+    "manual": "{by} atribuiu a {to}",
+    "took": "{by} pegou o chat",
+    "removed": "{by} tirou a atribuição",
+    "nobody": "ninguém",
+    "someone": "Alguém",
+    "more": "Ver mais {n}",
+    "less": "Ver menos"
+  },
   "assign": {
     "teams": "Equipes",
     "teamsIntro": "Agrupe pessoas para atribuir chats a uma equipe e revezar os chats novos entre elas.",

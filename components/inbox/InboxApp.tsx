@@ -1523,7 +1523,16 @@ export default function InboxApp(props: {
                 <AgentsRow {...props.agentsRow} />
               </li>
             )}
-            {threads.map(rowFor)}
+            {/* Buscando, la lista ya viene ordenada: primero lo que coincide por nombre, después lo que coincide por mensajes. */}
+            {threads.flatMap((th, i) => {
+              const head =
+                q.trim() && th.nameHit !== undefined && th.nameHit !== threads[i - 1]?.nameHit ? (
+                  <li key={`head-${th.id}`} className="ib-list-head" role="presentation" data-testid={th.nameHit ? 'inbox-search-chats' : 'inbox-search-in-messages'}>
+                    {th.nameHit ? t('list.chatsFound') : t('list.foundInMessages')}
+                  </li>
+                ) : null;
+              return head ? [head, rowFor(th, i)] : [rowFor(th, i)];
+            })}
             {next && !switching && (
               <li ref={moreRef} className="ib-list-more" role="presentation" aria-busy={loadingMore || undefined} data-testid="inbox-list-more">
                 <span className="ui-skeleton ui-skeleton-row" />

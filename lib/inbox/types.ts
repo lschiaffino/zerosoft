@@ -47,6 +47,8 @@ export interface InboxAccountDto {
 
 export interface ThreadDto {
   id: string;
+  /** Solo en una búsqueda: el chat coincide por nombre, teléfono o dirección (si no, por el texto de sus mensajes). */
+  nameHit?: boolean;
   accountId: string;
   channel: InboxChannel;
   kind: ThreadKind;

@@ -4,7 +4,9 @@
  * mismo dos veces:
  * - rollup diario: cuenta eventos y personas únicas por día y evento en
  *   analytics_daily (las tendencias sin filtros leen de ahí los días cerrados);
- * - retención: borra los eventos y sesiones más viejos que retention_days;
+ * - retención: borra los eventos y sesiones más viejos que retention_days (son
+ *   filas sueltas y agregados, no un registro que alguien restauraría; las
+ *   grabaciones de replay sí pasan por la papelera, ver runReplayRetention);
  * - proyectos borrados: purga sus datos por tandas y después la fila.
  * Todo con presupuesto de tiempo: lo que no entra sigue en la próxima corrida.
  */
@@ -116,6 +118,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     ]) {
       await db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(id);
     }
+    // La papelera del proyecto (grabaciones de la retención): sus chunks ya se fueron con purgeProjectRecordings.
+    await db.prepare("DELETE FROM soft_deleted WHERE app = 'analytics' AND scope_id = ?").run(id);
     await db.prepare('DELETE FROM analytics_projects WHERE id = ?').run(id);
     out.deletedProjects++;
   }

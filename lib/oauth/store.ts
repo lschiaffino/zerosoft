@@ -401,6 +401,16 @@ export async function grantForAccessToken(raw: string): Promise<GrantRow | null>
   return row.scope === null ? grant : { ...grant, scope: row.scope };
 }
 
+/**
+ * ¿Lo emitimos nosotros, aunque ya venció? Un token vencido es lo normal cada
+ * hora y el cliente lo renueva con el 401: no es un intento de adivinar.
+ */
+export async function isIssuedAccessToken(raw: string): Promise<boolean> {
+  if (!raw.startsWith(ACCESS_PREFIX) || raw.length > 200) return false;
+  const row = await getDb().prepare(`SELECT 1 AS ok FROM oauth_tokens WHERE token_hash = ? AND kind = 'access'`).get(hashToken(raw));
+  return Boolean(row);
+}
+
 /** Revocación (RFC 7009): el dueño del token puede cortarlo; siempre responde bien. */
 export async function revokeToken(raw: string, clientId: string | null): Promise<void> {
   const db = getDb();
