@@ -102,6 +102,8 @@
     "searchResults": "Resultados",
     "archivedTag": "Arquivado",
     "messagesFound": "Mensagens",
+    "chatsFound": "Conversas",
+    "foundInMessages": "Encontrado nas mensagens",
     "moreMessages": "Mais mensagens",
     "search": "Buscar conversas e mensagens",
     "searchPlaceholder": "Buscar (/)",

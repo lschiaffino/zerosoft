@@ -10,6 +10,7 @@ import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from '../same-chat';
 import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from './same-chat';
 import { open, seal } from '../secret-box';
+import { chatNameRank, isNameHit, type SearchRank } from '../chat-search-rank';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
@@ -643,11 +644,14 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const active = '(t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?))';
   // Una carpeta sin reglas es un conjunto chico de chats: se buscan por id y se ordenan, en vez de recorrer la bandeja en orden.
   let smallSet = false;
+  // Con búsqueda: primero los chats que coinciden por nombre, después los que coinciden por mensajes.
+  let rank: SearchRank | null = null;
   if (q) {
     // Nombre, número o vista previa del chat, o algún mensaje (índice de texto completo; sin él, LIKE).
     const parsed = parseSearch(q);
     const text = [...parsed.phrases, ...parsed.terms].join(' ') || q;
     const l = likeArg(text);
+    rank = chatNameRank('t.title', 't.handle', text);
     const hits = await threadIdsMatching(owner, q);
     if (hits === null) {
       where.push(
@@ -736,8 +740,12 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   }
   // Orden: una sola clave más el id (desempate estable para el cursor). Los fijados van aparte, primero.
   const plain = !q && !opts.folderId;
+  // Buscando, los fijados no van adelante (uno que coincide solo por mensajes no tapa a uno que coincide por nombre)
+  // y la clave es rango + actividad: el cursor sigue sirviendo y lo que coincide por nombre entra en la primera página.
   const mode: { key: string; dir: 'ASC' | 'DESC'; pinnedFirst: boolean } =
-    plain && view === 'snoozed'
+    rank
+      ? { key: `(${rank.sql} || ${SORT_KEY})`, dir: 'DESC', pinnedFirst: false }
+      : plain && view === 'snoozed'
       ? { key: 't.snoozed_until', dir: 'ASC', pinnedFirst: false }
       : plain && (view === 'done' || view === 'archived')
           ? { key: SORT_KEY, dir: 'DESC', pinnedFirst: false }
@@ -747,7 +755,10 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const cursor = decodeListCursor(opts.cursor);
   // `+` saca al índice del orden: el motor filtra por los ids de la carpeta y ordena ese conjunto.
   const ownerSql = smallSet ? '+t.owner_id = ?' : 't.owner_id = ?';
-  const orderSql = `${smallSet ? '+' : ''}${mode.key} ${mode.dir}, t.id ${mode.dir}`;
+  // La clave de búsqueda lleva parámetros: se calcula una vez en el SELECT y el filtro y el orden usan su alias.
+  const keyRef = rank ? 'sort_key' : mode.key;
+  const keyArgs = rank?.args ?? [];
+  const orderSql = `${smallSet ? '+' : ''}${keyRef} ${mode.dir}, t.id ${mode.dir}`;
   const select = `SELECT ${LIST_COLS}, ${mode.key} AS sort_key,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
@@ -772,17 +783,19 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   if (cursor) {
     // (clave, id) después del cursor. El primer término deja que el índice arranque en la clave.
     const op = mode.dir === 'DESC' ? '<' : '>';
-    rest.push(`${mode.key} ${op}= ?`, `(${mode.key} ${op} ? OR t.id ${op} ?)`);
+    rest.push(`${keyRef} ${op}= ?`, `(${keyRef} ${op} ? OR t.id ${op} ?)`);
     restArgs.push(cursor.k, cursor.k, cursor.id);
   }
-  const rows = (await db.prepare(`${select} WHERE ${rest.join(' AND ')} ORDER BY ${orderSql} LIMIT ${limit + 1}`).all(...restArgs)) as unknown as Row[];
+  const rows = (await db.prepare(`${select} WHERE ${rest.join(' AND ')} ORDER BY ${orderSql} LIMIT ${limit + 1}`).all(...keyArgs, ...restArgs)) as unknown as Row[];
   const more = rows.length > limit;
   const page = more ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
   // El mismo chat en varias cuentas de WhatsApp: una sola fila (la primera en este orden entre las que cumplen la
   // vista), con los no leídos de todas. Si la que encabeza quedó en una página anterior, esta no se repite.
   let shown = [...pinned, ...page];
-  const sameChat = await inboxSiblingsByKey(owner, shown, mode.key);
+  const sameChat = await inboxSiblingsByKey(owner, shown, rank ? SORT_KEY : mode.key, rank);
+  // Con búsqueda cada fila dice si coincide por nombre, para que la lista separe "Chats" de "Mensajes".
+  const dtoOf = (r: Row): ThreadDto => (rank ? { ...threadDto(r, now), nameHit: isNameHit(r.sort_key) } : threadDto(r, now));
   const multi = [...sameChat.values()].filter((list) => list.length > 1);
   if (multi.length) {
     const ids = multi.flat().map((x) => x.id);
@@ -795,8 +808,8 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
     type Sib = (typeof multi)[number][number];
     const before = (a: Sib, b: Sib) => {
       if (mode.pinnedFirst && Boolean(a.pinned_at) !== Boolean(b.pinned_at)) return Boolean(a.pinned_at);
-      const ak = a.sort_key ?? '';
-      const bk = b.sort_key ?? '';
+      const ak = (a.rank ?? '') + (a.sort_key ?? '');
+      const bk = (b.rank ?? '') + (b.sort_key ?? '');
       if (ak !== bk) return asc ? ak < bk : ak > bk;
       return asc ? a.id < b.id : a.id > b.id;
     };
@@ -816,7 +829,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
     const threads = await withPreviewMentions(
       owner,
       shown.map((r) => {
-        const dto = threadDto(r, now);
+        const dto = dtoOf(r);
         const lines = inboxLineRefs(sameChat.get(threadKey(r)));
         return lines.length ? { ...dto, lines, unread: mergedUnread(r.kind, lines) } : dto;
       }),
@@ -828,7 +841,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
     };
   }
   return {
-    threads: await withPreviewMentions(owner, shown.map((r) => threadDto(r, now))),
+    threads: await withPreviewMentions(owner, shown.map(dtoOf)),
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };

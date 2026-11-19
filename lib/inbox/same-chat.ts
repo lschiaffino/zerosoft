@@ -8,6 +8,7 @@
  * los chats de la persona y nunca los sacados de Inbox. Server-only.
  */
 import { getDb } from '../db';
+import type { SearchRank } from '../chat-search-rank';
 import { sameChatKey, type ChatLineRef } from '../same-chat';
 
 export interface InboxSibling {
@@ -18,6 +19,8 @@ export interface InboxSibling {
   last_message_at: string | null;
   pinned_at: string | null;
   sort_key: string | null;
+  /** Con búsqueda: rango de la coincidencia (lib/chat-search-rank.ts), que va antes que la actividad. */
+  rank?: string | null;
   line_name: string;
   line_status: string;
 }
@@ -32,9 +35,10 @@ export function threadKey(r: KeyRow): string {
 /**
  * Las filas de todas las cuentas para estos chats, agrupadas por clave (cada
  * grupo trae también la fila pedida). `sortExpr` es la clave de orden de la
- * lista (alias t), para decidir cuál encabeza.
+ * lista (alias t), para decidir cuál encabeza; `rank`, el rango de la
+ * búsqueda cuando la hay.
  */
-export async function inboxSiblingsByKey(owner: string, rows: KeyRow[], sortExpr = 't.last_message_at'): Promise<Map<string, InboxSibling[]>> {
+export async function inboxSiblingsByKey(owner: string, rows: KeyRow[], sortExpr = 't.last_message_at', rank?: SearchRank | null): Promise<Map<string, InboxSibling[]>> {
   const out = new Map<string, InboxSibling[]>();
   const groups = new Set<string>();
   const phones = new Set<string>();
@@ -47,7 +51,7 @@ export async function inboxSiblingsByKey(owner: string, rows: KeyRow[], sortExpr
   }
   if (!groups.size && !phones.size && !jids.size) return out;
   const ors: string[] = [];
-  const args: string[] = [owner];
+  const args: string[] = [...(rank?.args ?? []), owner];
   const marks = (s: Set<string>) => [...s].map(() => '?').join(',');
   if (groups.size) {
     ors.push(`(t.kind = 'group' AND t.external_id IN (${marks(groups)}))`);
@@ -63,7 +67,7 @@ export async function inboxSiblingsByKey(owner: string, rows: KeyRow[], sortExpr
   }
   const found = (await getDb()
     .prepare(
-      `SELECT t.id, t.channel, t.kind, t.handle, t.external_id, t.account_id, t.unread, t.last_message_at, t.pinned_at, ${sortExpr} AS sort_key,
+      `SELECT t.id, t.channel, t.kind, t.handle, t.external_id, t.account_id, t.unread, t.last_message_at, t.pinned_at, ${sortExpr} AS sort_key${rank ? `, ${rank.sql} AS rank` : ''},
          COALESCE(NULLIF(a.label, ''), a.address) AS line_name, a.status AS line_status
        FROM inbox_threads t JOIN inbox_accounts a ON a.id = t.account_id AND a.owner_id = t.owner_id
        WHERE t.owner_id = ? AND t.channel = 'whatsapp' AND t.removed_at IS NULL AND (${ors.join(' OR ')})`,
