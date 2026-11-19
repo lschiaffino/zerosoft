@@ -14,7 +14,7 @@ const PAD = 6;
 /** Al abrirse, cuánto se espera a que la página termine de pintar antes de dar un paso por ausente. */
 const SETTLE_MS = 1200;
 /** Después de un paso que se cumple con un clic (abrir un chat), cuánto se espera al elemento siguiente. */
-const AFTER_CLICK_MS = 3500;
+const AFTER_CLICK_MS = 8000;
 /** Mínimo que se espera a un elemento antes de darlo por ausente (una lista que se está refrescando). */
 const GRACE_MS = 300;
 /** Tope de espera mientras algo de la pantalla está cargando. */

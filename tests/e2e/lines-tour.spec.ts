@@ -36,7 +36,7 @@ async function person(
   const baseURL = test.info().project.use.baseURL as string;
   const width = opts.width ?? 1280;
   const ctx = await browser.newContext({ baseURL, viewport: { width, height: width < 500 ? 844 : 900 }, colorScheme: opts.scheme ?? 'light' });
-  const email = `tour-${uid()}@tour-e2e.test`;
+  const email = `tour-${uid()}@${uid()}.tour-e2e.test`;
   await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
   const onb = await ctx.request.post('/api/onboarding', { data: { kind: 'full', mode: opts.mode, name: 'Tour', locale: 'en', apps: ['groups'] } });
   expect(onb.ok(), await onb.text()).toBe(true);
@@ -71,6 +71,7 @@ test('persona sola: se abre solo, va y vuelve, abrir un chat avanza, termina y s
   const { ctx, p } = await person(browser, { mode: 'personal', sample: true });
   try {
     await p.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await expect(p.getByTestId('chat-row').first()).toBeVisible();
     await expect(tour(p)).toBeVisible({ timeout: 20_000 });
     await stepIs(p, 'intro');
     // Persona sola deducida del workspace: no pregunta.
@@ -97,7 +98,7 @@ test('persona sola: se abre solo, va y vuelve, abrir un chat avanza, termina y s
     await expect(p.getByTestId('tour-skip')).toBeVisible();
     await p.getByTestId('chat-row').first().click();
     await stepIs(p, 'composer');
-    expect((await tours(p)).seen?.lines).toMatchObject({ status: 'active', step: 'composer' });
+    await expect.poll(async () => (await tours(p)).seen?.lines).toMatchObject({ status: 'active', step: 'composer' });
     // Persona sola: ni asignar ni notas; los ajustes de Lines en el lateral.
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'settings');
@@ -105,7 +106,7 @@ test('persona sola: se abre solo, va y vuelve, abrir un chat avanza, termina y s
     await stepIs(p, 'done');
     await p.getByTestId('tour-next').click();
     await expect(tour(p)).toHaveCount(0);
-    expect((await tours(p)).seen?.lines?.status).toBe('done');
+    await expect.poll(async () => (await tours(p)).seen?.lines?.status).toBe('done');
 
     // Terminado: no vuelve a abrirse solo.
     await p.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
@@ -118,7 +119,7 @@ test('persona sola: se abre solo, va y vuelve, abrir un chat avanza, termina y s
     await stepIs(p, 'intro');
     await p.keyboard.press('Escape');
     await expect(tour(p)).toHaveCount(0);
-    expect((await tours(p)).seen?.lines?.status).toBe('exited');
+    await expect.poll(async () => (await tours(p)).seen?.lines?.status).toBe('exited');
 
     // Desde otra página de Lines, el menú lleva a la bandeja y lo abre ahí.
     await p.goto('/en/app/lines/templates', { waitUntil: 'networkidle' });
@@ -136,11 +137,12 @@ test('equipo sin dato en el workspace: pregunta una vez y suma asignar, notas y 
   const { ctx, p } = await person(browser, { mode: 'team', sample: true, unknownMode: true });
   try {
     await p.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await expect(p.getByTestId('chat-row').first()).toBeVisible();
     await stepIs(p, 'intro');
     await expect(p.getByTestId('tour-solo')).toBeFocused();
     await p.getByTestId('tour-team').click();
     await stepIs(p, 'chatList');
-    expect((await tours(p)).audience).toBe('team');
+    await expect.poll(async () => (await tours(p)).audience).toBe('team');
     for (const id of ['filters', 'search']) {
       await p.getByTestId('tour-next').click();
       await stepIs(p, id);
@@ -177,6 +179,7 @@ test('saltear un paso, "No mostrar más tours" y volver a prenderlos en Ajustes 
   const { ctx, p } = await person(browser, { mode: 'personal', sample: true });
   try {
     await p.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await expect(p.getByTestId('chat-row').first()).toBeVisible();
     await stepIs(p, 'intro');
     for (const id of ['chatList', 'filters', 'search', 'openChat']) {
       await p.getByTestId('tour-next').click();
@@ -187,7 +190,7 @@ test('saltear un paso, "No mostrar más tours" y volver a prenderlos en Ajustes 
     await stepIs(p, 'settings');
     await p.getByTestId('tour-off').click();
     await expect(tour(p)).toHaveCount(0);
-    expect((await tours(p)).off).toBe(true);
+    await expect.poll(async () => (await tours(p)).off).toBe(true);
 
     await p.goto('/en/app/settings/appearance', { waitUntil: 'networkidle' });
     await expect(p.getByTestId('appearance-tours-auto')).not.toBeChecked();
