@@ -7,7 +7,8 @@
  * la derecha. En pantalla angosta queda una sola columna y las propiedades y
  * las asociaciones pasan a ser dos pestañas más. Las cuatro comparten `?tab=`,
  * con los mismos valores que la ficha anterior (`properties`, `related`) para
- * que los links guardados sigan abriendo lo mismo.
+ * que los links guardados sigan abriendo lo mismo. Cambiar de pestaña es del
+ * navegador: la ficha ya trae todo y no vuelve a pedirlo.
  */
 
 export const LAYOUT_TABS = ['overview', 'activity', 'properties', 'related'] as const;
@@ -23,22 +24,26 @@ export const NARROW_ONLY_TABS: readonly LayoutTab[] = ['properties', 'related'];
 export const WIDE_MIN_PX = 1240;
 export const WIDE_QUERY = `(min-width: ${WIDE_MIN_PX}px)`;
 
-/** `?tab=` → pestaña válida; cualquier otra cosa cae en Actividad (el default). */
+/**
+ * `?tab=` → pestaña válida. Sin parámetro (o con cualquier otra cosa) abre el
+ * Resumen, como HubSpot. `activities` vale como `activity`.
+ */
 export function parseLayoutTab(value: string | string[] | undefined): LayoutTab {
+  if (value === 'activities') return 'activity';
   return typeof value === 'string' && (LAYOUT_TABS as readonly string[]).includes(value)
     ? (value as LayoutTab)
-    : 'activity';
+    : 'overview';
 }
 
 export type MiddlePanel = 'overview' | 'activity';
 
 /**
  * Qué muestra la columna del medio. Con `properties` y `related` (pestañas de
- * una columna) el medio sigue cargado para la pantalla ancha: Actividad con
- * las propiedades, Resumen con las asociaciones.
+ * una columna) el medio queda en el Resumen, que es donde siguen estando los
+ * productos y las cotizaciones de los links guardados (`?tab=related#quotes`).
  */
 export function middlePanelFor(tab: LayoutTab): MiddlePanel {
-  return tab === 'overview' || tab === 'related' ? 'overview' : 'activity';
+  return tab === 'activity' ? 'activity' : 'overview';
 }
 
 /** Pestaña que se marca como activa: en tres columnas, la del panel del medio. */
@@ -46,9 +51,17 @@ export function shownTab(tab: LayoutTab, wide: boolean): LayoutTab {
   return wide && NARROW_ONLY_TABS.includes(tab) ? middlePanelFor(tab) : tab;
 }
 
-/** Href a una pestaña del mismo registro; Actividad es la ruta sin parámetros. */
+/** Href a una pestaña del mismo registro; el Resumen es la ruta sin parámetros. */
 export function layoutTabHref(base: string, tab: LayoutTab): string {
-  return tab === 'activity' ? base : `${base}?tab=${tab}`;
+  return tab === 'overview' ? base : `${base}?tab=${tab}`;
+}
+
+/** Anclas que viven en el Resumen: un link viejo a ellas abre esa pestaña. */
+export const OVERVIEW_ANCHORS: readonly string[] = ['line-items', 'quotes'];
+
+/** Pestaña a mostrar para un link con ancla (`?tab=related#line-items` → Resumen). */
+export function tabForHash(tab: LayoutTab, hash: string): LayoutTab {
+  return OVERVIEW_ANCHORS.includes(hash.replace(/^#/, '')) ? 'overview' : tab;
 }
 
 // ---------- Acciones rápidas ----------
@@ -63,11 +76,17 @@ export function parseCompose(value: string | string[] | undefined): ComposeType 
     : null;
 }
 
-/** Evento que escucha el timeline cuando ya está en pantalla. */
+/** Lo emite una acción rápida; la ficha pasa a Actividad y después avisa al timeline. */
+export const COMPOSE_REQUEST_EVENT = 'crm:compose-request';
+/** Lo escucha el timeline cuando ya está en pantalla. */
 export const COMPOSE_EVENT = 'crm:compose';
 
-export function composeHref(base: string, type: ComposeType): string {
-  return `${base}?tab=activity&compose=${type}`;
+/** Tipos de actividad que cuentan como comunicación (Resumen › Comunicaciones recientes). */
+export const COMMUNICATION_TYPES: readonly string[] = ['email', 'call', 'meeting'];
+
+/** Las últimas comunicaciones de una lista ya ordenada de más nueva a más vieja. */
+export function recentCommunications<T extends { type: string }>(items: T[], limit = 5): T[] {
+  return items.filter((i) => COMMUNICATION_TYPES.includes(i.type)).slice(0, limit);
 }
 
 // ---------- Tarjetas plegables ----------

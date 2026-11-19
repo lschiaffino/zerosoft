@@ -108,7 +108,7 @@ test('asistente: propuestas confirmadas o descartadas no vuelven tras recargar; 
   test.slow();
   const tag = uid();
   const d = await deal(request, tag);
-  await page.goto(`/en/app/crm/deals/${d.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/deals/${d.id}?tab=activity`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Ask AI' }).click();
   const panel = page.getByRole('dialog', { name: 'CRM assistant' });
   const input = panel.getByRole('textbox', { name: 'Ask about the CRM…' });
@@ -166,7 +166,7 @@ test('asistente: propuestas confirmadas o descartadas no vuelven tras recargar; 
 test('plan del deal: el paso pasado a tarea queda marcado tras recargar y no se duplica', async ({ page, request }) => {
   const tag = uid();
   const d = await deal(request, tag);
-  await page.goto(`/en/app/crm/deals/${d.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/deals/${d.id}?tab=activity`, { waitUntil: 'networkidle' });
   const score = page.getByRole('region', { name: /Deal score/ });
   // La tarjeta no hereda el padding de sección de la landing.
   expect(await score.evaluate((el) => getComputedStyle(el).paddingTop)).toBe('0px');

@@ -26,7 +26,7 @@
 
 .rec3 {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 272px;
+  grid-template-columns: 276px minmax(0, 1fr) 264px;
   align-items: start;
   border-top: 1px solid var(--line);
 }
@@ -44,6 +44,8 @@
 .rec3-mid { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 12px 20px 24px; }
 .rec3-right { padding: 4px 2px 24px 16px; border-left: 1px solid var(--line); }
 .rec3-panel { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+/* La Actividad queda montada y oculta al pasar al Resumen (no se pierde lo escrito en el composer). */
+.rec3-panel[hidden] { display: none; }
 .rec3-identity { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
 @media (min-width: 1500px) {
@@ -88,7 +90,9 @@
 .rec-keyline > * { min-width: 0; overflow-wrap: anywhere; }
 .rec3-identity .record-tags { margin-top: 0; }
 
-/* Acciones rápidas: ícono arriba, nombre abajo, cinco en una fila. */
+/* Acciones rápidas: ícono arriba, nombre abajo, cinco en una fila. El nombre más largo
+   ("Meeting", "Llamada") entra con aire a los costados en los cinco aspectos; si un idioma
+   trae uno más largo, pasa a dos líneas en vez de cortarse. */
 .rec-quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
 .rec-quick .rec-quick-btn {
   display: flex;
@@ -99,13 +103,14 @@
   height: auto;
   min-height: 48px;
   min-width: 0;
-  padding: 6px 0;
-  font-size: 0.65625rem;
+  padding: 6px 2px;
+  font-size: 0.625rem;
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.1;
+  line-height: 1.15;
+  white-space: normal;
 }
-.rec-quick-btn > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-quick-btn > span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
 
 /* ---------- Tarjetas plegables ---------- */
 
@@ -177,10 +182,8 @@
 .rec-card-bare > .rec-card-body > * > :first-child { padding-left: 26px; min-height: 24px; }
 .rec-card-bare[data-collapsed] > .rec-card-body > * > :not(:first-child) { display: none; }
 
-/* Registros de objetos propios: el título está un nivel más adentro (dentro del panel de asociación). */
-.rec-card-bare > .rec-card-body > .record-block > .association-panel:first-child { padding-left: 0; }
-.rec-card-bare > .rec-card-body > .record-block > .association-panel > :first-child { padding-left: 26px; min-height: 24px; }
-.rec-card-bare[data-collapsed] > .rec-card-body > .record-block > .association-panel > :not(:first-child) { display: none; }
+/* Plegada, de la cabecera queda solo el título: sus botones ("Link to issue", "Create lead") se van con el resto. */
+.rec-card-bare[data-collapsed] > .rec-card-body > * > :first-child > :not(:first-child) { display: none; }
 
 /* Los paneles de antes traían su borde y su relleno de bloque: dentro de una tarjeta no hacen falta. */
 .rec3 .rec-card-body > :is(.record-block, .panel, .record-summary-block) {
@@ -230,6 +233,7 @@
 .rec3-about .prop-row .prop-value.prop-btn { width: calc(100% + 6px); min-height: 28px; margin-left: -6px; padding: 2px 6px; }
 .rec3-about .record-facts > div { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
 .rec3-about .score-card-value { font-size: 1.125rem; }
+.rec3-about .prop-row .prop-value.prop-link { min-height: 28px; padding: 2px 0; }
 
 /* ---------- Medio ---------- */
 
@@ -248,6 +252,23 @@
 .rec-overview-title { flex: none; }
 .rec-overview-block .co-about { font-size: 0.875rem; line-height: 1.5; color: var(--brand-gray-1); overflow-wrap: anywhere; }
 .rec-overview-block .li-add .filter-select { min-width: 0; }
+
+.rec-assoc-summary { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rec-assoc-summary li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.rec-assoc-summary a { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.rec-assoc-summary a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rec-assoc-summary .muted { font-size: 0.8125rem; overflow-wrap: anywhere; }
+.rec-assoc-more { font-size: 0.8125rem; }
 
 .rec-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .rec-recent li {

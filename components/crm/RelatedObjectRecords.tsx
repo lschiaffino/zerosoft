@@ -3,11 +3,13 @@ import { midSentence } from '@/lib/crm-object-text';
 import { listObjects, listRecords, recordsLinkedTo, type ObjectLinkEntity } from '@/lib/crm-objects';
 import { filterByScope, type OwnerScope } from '@/lib/crm-visibility';
 import AssociationPanel from './AssociationPanel';
+import RecordCard from './RecordCard';
 import { linkFromEntity, unlinkFromEntity } from './objectActions';
 
 /**
- * Registros de objetos propios asociados a un contacto, empresa o deal (un
- * bloque por objeto, en la pestaña Relacionados). Sin objetos no muestra nada.
+ * Registros de objetos propios asociados a un contacto, empresa o deal: una
+ * tarjeta plegable por objeto en la columna de asociaciones. Sin objetos no
+ * muestra nada.
  */
 export default async function RelatedObjectRecords({
   workspaceId,
@@ -36,10 +38,15 @@ export default async function RelatedObjectRecords({
   return (
     <>
       {blocks.map(({ o, mine, options }) => (
-        <section className="record-block" key={o.id} data-testid={`related-object-${o.slug}`}>
+        <RecordCard
+          key={o.id}
+          id={`${entity}.object.${o.slug}`}
+          label={t('objects.relatedTitle', { plural: o.plural })}
+          count={mine.length}
+          addLabel={options.length > 0 ? t('record.cards.add') : undefined}
+          testId={`related-object-${o.slug}`}
+        >
           <AssociationPanel
-            title={t('objects.relatedTitle', { plural: o.plural })}
-            count={mine.length}
             records={mine.map((r) => ({ id: r.id, name: r.name, href: `/app/crm/objects/${o.slug}/${r.id}` }))}
             options={options.map((r) => ({ id: r.id, value: r.name }))}
             onAssociate={linkFromEntity.bind(null, entity, entityId)}
@@ -47,7 +54,7 @@ export default async function RelatedObjectRecords({
             addLabel={t('objects.pickRecord', { singular: midSentence(o.singular, locale) })}
             emptyLabel={t('objects.noRecords', { plural: midSentence(o.plural, locale) })}
           />
-        </section>
+        </RecordCard>
       ))}
     </>
   );

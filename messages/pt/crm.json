@@ -2064,13 +2064,14 @@
     },
     "quickActions": "Ações rápidas",
     "highlights": "Destaques",
-    "recentActivity": "Atividade recente",
+    "recentCommunications": "Comunicações recentes",
+    "noCommunications": "Ainda não há emails, ligações nem reuniões.",
+    "moreCount": "e mais {count}",
     "seeAllActivity": "Ver toda a atividade",
     "cards": {
       "collapse": "Recolher {name}",
       "expand": "Expandir {name}",
       "add": "Adicionar",
-      "objects": "Registros de objetos próprios",
       "groups": "WhatsApp",
       "track": "Pedidos do Track"
     },

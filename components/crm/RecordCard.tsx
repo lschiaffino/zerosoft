@@ -31,7 +31,11 @@ interface RecordCardProps {
   /** Nombre de la tarjeta: título visible (salvo `bare`) y nombre del botón de plegar. */
   label: string;
   count?: number;
-  /** Texto del botón "Agregar": abre la tarjeta y lleva el foco a su control de alta. */
+  /**
+   * Texto del botón "Agregar". Va solo con la tarjeta plegada: la abre y lleva el foco a su
+   * control de alta. Abierta, ese control ya está a la vista y el botón sobraría. La página lo
+   * pasa solo si hay algo para asociar o crear.
+   */
   addLabel?: string;
   /**
    * El contenido ya trae su propio título (paneles que existían antes de la
@@ -69,7 +73,8 @@ export default function RecordCard({
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Antes de pintar, así una tarjeta plegada no parpadea abierta al cargar.
+  // El HTML del server llega con la tarjeta abierta (no conoce el navegador); al hidratar,
+  // antes del pintado siguiente, se pliega si la persona la había dejado así.
   useBrowserLayoutEffect(() => {
     if (readCollapsed(id)) setCollapsed(true);
   }, [id]);
@@ -81,10 +86,8 @@ export default function RecordCard({
   }
 
   function add() {
-    if (collapsed) {
-      setCollapsed(false);
-      writeCollapsed(id, false);
-    }
+    setCollapsed(false);
+    writeCollapsed(id, false);
     // Con la tarjeta ya abierta: el selector de "asociar existente" o, si no hay, el botón de crear.
     window.setTimeout(() => {
       const body = bodyRef.current;
@@ -113,6 +116,7 @@ export default function RecordCard({
         aria-controls={bodyId}
         aria-label={toggleLabel}
         title={toggleLabel}
+        data-testid="record-card-toggle"
         onClick={toggle}
       >
         <CrmIcon name="chevronDown" size={14} />
@@ -124,8 +128,8 @@ export default function RecordCard({
             {count !== undefined && <span className="rec-card-count num">{count}</span>}
           </h2>
           {aside}
-          {addLabel && (
-            <button type="button" className="btn btn-ghost btn-sm rec-card-add" onClick={add}>
+          {addLabel && collapsed && (
+            <button type="button" className="btn btn-ghost btn-sm rec-card-add" data-testid="record-card-add" onClick={add}>
               <span aria-hidden="true">+</span> {addLabel}
             </button>
           )}

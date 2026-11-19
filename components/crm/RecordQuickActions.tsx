@@ -1,8 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
-import { COMPOSE_EVENT, composeHref, type ComposeType } from './recordLayout';
+import { COMPOSE_REQUEST_EVENT, type ComposeType } from './recordLayout';
 
 // Trazo 2, 24×24, como CrmIcon. Decorativos: el botón lleva el texto.
 const ICONS: Record<ComposeType, string> = {
@@ -18,18 +17,12 @@ const ICONS: Record<ComposeType, string> = {
  * composer del timeline en ese tipo de actividad. No crean nada por su cuenta:
  * es el mismo composer de siempre, a un clic desde cualquier pestaña.
  */
-export default function RecordQuickActions({ base, types }: { base: string; types: readonly ComposeType[] }) {
+export default function RecordQuickActions({ types }: { types: readonly ComposeType[] }) {
   const t = useTranslations('crm');
-  const router = useRouter();
 
+  // La ficha (RecordShell) pasa a la pestaña Actividad y le avisa al timeline.
   function open(type: ComposeType) {
-    // Timeline a la vista: se le avisa. Si no (otra pestaña), se navega a Actividad con el tipo.
-    const composer = document.querySelector<HTMLElement>('.rec3 .tl-composer');
-    if (composer && composer.offsetParent !== null) {
-      window.dispatchEvent(new CustomEvent(COMPOSE_EVENT, { detail: { type } }));
-      return;
-    }
-    router.push(composeHref(base, type), { scroll: false });
+    window.dispatchEvent(new CustomEvent(COMPOSE_REQUEST_EVENT, { detail: { type } }));
   }
 
   return (
@@ -40,6 +33,7 @@ export default function RecordQuickActions({ base, types }: { base: string; type
           type="button"
           className="btn btn-secondary btn-sm rec-quick-btn"
           data-compose={type}
+          data-testid={`record-quick-${type}`}
           onClick={() => open(type)}
         >
           <svg

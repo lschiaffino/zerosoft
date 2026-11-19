@@ -10,7 +10,7 @@ import { listApprovals } from '@/lib/crm-approvals';
 import { getSplits } from '@/lib/crm-splits';
 import ApprovalBanner, { type ApprovalBannerItem } from '@/components/crm/ApprovalBanner';
 import DealSplitsPanel from '@/components/crm/DealSplitsPanel';
-import { canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
@@ -51,9 +51,9 @@ import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
-import RecordColumns, { RecordIdentity, RecordRecentActivity } from '@/components/crm/RecordColumns';
+import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
-import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab } from '@/components/crm/recordLayout';
+import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -305,13 +305,13 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const companyScope = scopeAnd('crm_companies', scope);
   const [
     activities,
-    threads,
+    threadsRaw,
     emailTemplates,
     emailSettings,
-    nextTask,
+    nextTaskRaw,
     aiAvailable,
-    aiSummary,
-    aiScore,
+    aiSummaryRaw,
+    aiScoreRaw,
     recordFilesRaw,
     fieldAccess,
     lineSummary,
@@ -347,6 +347,13 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       )
       .all(user.id, ...companyScope.args) as Promise<Array<{ id: string; name: string; domain: string }>>,
   ]);
+  // Con alcance restringido (ver la ficha de contacto): próxima tarea, resumen y score de IA
+  // solo si corresponden a lo que la persona ve; los hilos de email, que se buscan por los
+  // contactos del deal, solo si todos esos contactos se le muestran.
+  const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
+  const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
+  const aiScore = scope && aiScoreRaw?.stale ? null : aiScoreRaw;
+  const threads = scope && rawDetail.contacts.length !== contacts.length ? { threads: [], activityIds: [] } : threadsRaw;
   const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(activities, threads)))));
   const recordFiles = recordFilesRaw.map(toView);
   const realPerson = user.actingUser ?? user;
@@ -531,14 +538,28 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         />
       </section>
 
-      <RecordRecentActivity
-        items={timeline.slice(0, 5)}
+      <RecordRecentCommunications
+        items={recentCommunications(timeline)}
         locale={locale}
-        title={t('record.recentActivity')}
-        emptyLabel={t('deals.detail.emptyTimeline')}
+        title={t('record.recentCommunications')}
+        emptyLabel={t('record.noCommunications')}
         moreLabel={t('record.seeAllActivity')}
         moreHref={layoutTabHref(base, 'activity')}
         typeLabels={activityTypeLabels}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-contacts"
+        title={t('deals.detail.contacts')}
+        rows={contacts.map((c) => ({ id: c.id, name: contactName(c), href: `/app/crm/contacts/${c.id}`, meta: c.email || undefined }))}
+        emptyLabel={t('deals.detail.noContacts')}
+        moreLabel={t('record.moreCount', { count: Math.max(contacts.length - 5, 0) })}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-companies"
+        title={t('deals.detail.companies')}
+        rows={dealCompanies.map((c) => ({ id: c.id, name: c.name, href: `/app/crm/companies/${c.id}`, meta: c.domain || undefined }))}
+        emptyLabel={t('deals.detail.noCompany')}
+        moreLabel={t('record.moreCount', { count: Math.max(dealCompanies.length - 5, 0) })}
       />
     </>
   );
@@ -582,7 +603,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         <DealInsightCard dealId={deal.id} locale={locale} initial={aiScore} available={aiAvailable} closed={!!(detail.stage?.is_won || detail.stage?.is_lost)} />
       </RecordCard>
 
-      <RecordCard id="deal.contacts" label={t('deals.detail.contacts')} count={contacts.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="deal.contacts"
+        label={t('deals.detail.contacts')}
+        count={contacts.length}
+        addLabel={contactRows.some((c) => !associatedContactIds.has(c.id)) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={contacts.map((c) => ({
             id: c.id,
@@ -600,7 +626,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         />
       </RecordCard>
 
-      <RecordCard id="deal.companies" label={t('deals.detail.companies')} count={dealCompanies.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="deal.companies"
+        label={t('deals.detail.companies')}
+        count={dealCompanies.length}
+        addLabel={allCompanies.some((c) => !dealCompanies.some((dc) => dc.id === c.id)) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={dealCompanies.map((c) => ({
             id: c.id,
@@ -637,9 +668,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         <FilesPanel endpoint={`/api/crm/deals/${deal.id}/files`} files={recordFiles} />
       </RecordCard>
 
-      <RecordCard id="deal.objects" label={t('record.cards.objects')} bare>
-        <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
-      </RecordCard>
+      <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
     </>
   );
 
@@ -653,7 +682,6 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         <RecordIdentity
           name={deal.name}
           avatar={null}
-          base={base}
           quick={COMPOSE_TYPES}
           keyLine={
             <>

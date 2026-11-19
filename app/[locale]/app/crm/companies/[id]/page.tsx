@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
-import { canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { getCompany, LIFECYCLE_STAGES, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
@@ -45,9 +45,10 @@ import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
-import RecordColumns, { RecordIdentity, RecordRecentActivity } from '@/components/crm/RecordColumns';
+import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
-import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab } from '@/components/crm/recordLayout';
+import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
+import { scopedCompanyRollup, visibleRecordIds } from '@/lib/crm-record-scope';
 import CompanyLogo from '@/components/crm/CompanyLogo';
 import CompanyEnrichButton from '@/components/crm/CompanyEnrichButton';
 import { normalizeCompanyDomain } from '@/lib/crm-domain';
@@ -75,21 +76,17 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const rawDetail = await getCompany(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.company.owner_id, user.id)) notFound();
   const detail = scopeCompanyDetail(rawDetail, scope);
-  const { company, contacts, deals, children, rollup } = detail;
+  const { company, contacts, deals, children } = detail;
+  // El valor en deals y la cantidad de hijas, solo con lo que la persona puede ver.
+  const rollup = scope ? await scopedCompanyRollup(user.id, company.id, scope) : detail.rollup;
   // La madre y las abuelas vienen sin dueño: se muestran solo las que la persona puede ver
   // (mismo alcance que el resto de la ficha), ni su nombre ni su link si no.
   const companyScope = scopeAnd('crm_companies', scope);
-  const ancestorIds = detail.ancestors.map((a) => a.id);
-  const visibleAncestorIds = new Set(
-    ancestorIds.length
-      ? (
-          (await getDb()
-            .prepare(
-              `SELECT id FROM crm_companies WHERE user_id = ? AND id IN (${ancestorIds.map(() => '?').join(', ')})${companyScope.sql}`,
-            )
-            .all(user.id, ...ancestorIds, ...companyScope.args)) as Array<{ id: string }>
-        ).map((r) => r.id)
-      : [],
+  const visibleAncestorIds = await visibleRecordIds(
+    user.id,
+    'crm_companies',
+    detail.ancestors.map((a) => a.id),
+    scope,
   );
   const ancestors = detail.ancestors.filter((a) => visibleAncestorIds.has(a.id));
   const parent = detail.parent && visibleAncestorIds.has(detail.parent.id) ? detail.parent : null;
@@ -257,7 +254,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const contactScope = scopeAnd('crm_contacts', scope);
   const dealScope = scopeAnd('crm_deals', scope);
-  const [timeline, threads, nextTask, aiAvailable, aiSummary, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
+  const [timeline, threadsRaw, nextTaskRaw, aiAvailable, aiSummaryRaw, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
     await Promise.all([
       listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope }),
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
@@ -284,6 +281,13 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         .prepare(`SELECT id, name FROM crm_deals WHERE user_id = ?${dealScope.sql} ORDER BY created_at DESC LIMIT 200`)
         .all(user.id, ...dealScope.args) as Promise<Array<{ id: string; name: string }>>,
     ]);
+  // Con alcance restringido (ver la ficha de contacto): próxima tarea y resumen de IA solo si
+  // corresponden a lo que la persona ve. Los hilos de email se buscan por los contactos de la
+  // empresa: si alguno no se le muestra, no se listan (quedan las actividades de email, que sí
+  // respetan el alcance).
+  const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
+  const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
+  const threads = scope && rawDetail.contacts.length !== contacts.length ? { threads: [], activityIds: [] } : threadsRaw;
   const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
   const recordFiles = recordFilesRaw.map(toView);
   const allContacts = contactRows.map((c) => ({
@@ -456,14 +460,38 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
           <ActivityDateFacts record={company} locale={locale} />
         </dl>
       </section>
-      <RecordRecentActivity
-        items={timelineItems.slice(0, 5)}
+      <RecordRecentCommunications
+        items={recentCommunications(timelineItems)}
         locale={locale}
-        title={t('record.recentActivity')}
-        emptyLabel={t('companies.detail.emptyTimeline')}
+        title={t('record.recentCommunications')}
+        emptyLabel={t('record.noCommunications')}
         moreLabel={t('record.seeAllActivity')}
         moreHref={layoutTabHref(base, 'activity')}
         typeLabels={activityTypeLabels}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-contacts"
+        title={t('companies.detail.contacts')}
+        rows={contacts.map((c) => ({
+          id: c.id,
+          name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
+          href: `/app/crm/contacts/${c.id}`,
+          meta: c.email || undefined,
+        }))}
+        emptyLabel={t('companies.detail.noContacts')}
+        moreLabel={t('record.moreCount', { count: Math.max(contacts.length - 5, 0) })}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-deals"
+        title={t('companies.detail.deals')}
+        rows={deals.map((d) => ({
+          id: d.id,
+          name: d.name,
+          href: `/app/crm/deals/${d.id}`,
+          meta: `${stageName.get(d.stage_id) ?? '—'} · ${fmtAmount(d.amount, d.currency)}`,
+        }))}
+        emptyLabel={t('companies.detail.noDeals')}
+        moreLabel={t('record.moreCount', { count: Math.max(deals.length - 5, 0) })}
       />
     </>
   );
@@ -490,7 +518,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         <AiSummaryCard entity="company" id={company.id} locale={locale} initial={aiSummary} available={aiAvailable} />
       </RecordCard>
 
-      <RecordCard id="company.contacts" label={t('companies.detail.contacts')} count={contacts.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="company.contacts"
+        label={t('companies.detail.contacts')}
+        count={contacts.length}
+        addLabel={allContacts.some((c) => !contacts.some((cc) => cc.id === c.id)) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={contacts.map((c) => ({
             id: c.id,
@@ -513,7 +546,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         />
       </RecordCard>
 
-      <RecordCard id="company.deals" label={t('companies.detail.deals')} count={deals.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="company.deals"
+        label={t('companies.detail.deals')}
+        count={deals.length}
+        addLabel={allDeals.some((d) => !deals.some((dd) => dd.id === d.id)) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={deals.map((d) => ({
             id: d.id,
@@ -533,7 +571,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         />
       </RecordCard>
 
-      <RecordCard id="company.parent" label={t('companies.detail.parent')} addLabel={parent || parentHidden ? undefined : t('record.cards.add')}>
+      <RecordCard id="company.parent" label={t('companies.detail.parent')} addLabel={parent || parentHidden || allCompanies.length === 0 ? undefined : t('record.cards.add')}>
         <AssociationPanel
           records={parent ? [{ id: parent.id, name: parent.name, href: `/app/crm/companies/${parent.id}` }] : []}
           options={parent || parentHidden ? [] : allCompanies.map((c) => ({ id: c.id, value: c.name }))}
@@ -544,7 +582,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         />
       </RecordCard>
 
-      <RecordCard id="company.children" label={t('companies.detail.children')} count={children.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="company.children"
+        label={t('companies.detail.children')}
+        count={children.length}
+        addLabel={allCompanies.some((c) => c.id !== parent?.id && !children.some((ch) => ch.id === c.id)) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={children.map((c) => ({
             id: c.id,
@@ -577,9 +620,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
           defaultOwner={realUserId(user)}
         />
       </RecordCard>
-      <RecordCard id="company.objects" label={t('record.cards.objects')} bare>
-        <RelatedObjectRecords workspaceId={user.id} entity="company" entityId={company.id} scope={scope} locale={locale} />
-      </RecordCard>
+      <RelatedObjectRecords workspaceId={user.id} entity="company" entityId={company.id} scope={scope} locale={locale} />
       <RecordCard id="company.groups" label={t('record.cards.groups')} bare>
         <CrmGroupsBlock ws={user.id} kind="company" recordId={company.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
       </RecordCard>
@@ -600,7 +641,6 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         <RecordIdentity
           name={company.name}
           avatar={<CompanyLogo domain={company.domain} name={company.name} size={40} />}
-          base={base}
           quick={COMPOSE_TYPES}
           keyLine={
             <>

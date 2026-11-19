@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import { parseDbUtc } from '@/lib/utils';
-import RecordLayoutTabs from './RecordLayoutTabs';
+import RecordShell from './RecordShell';
 import RecordQuickActions from './RecordQuickActions';
-import { middlePanelFor, recordInitials, type ComposeType, type LayoutTab } from './recordLayout';
+import { recordInitials, type ComposeType, type LayoutTab } from './recordLayout';
 
 /**
  * Ficha de un registro en tres columnas, como la de HubSpot:
@@ -12,7 +12,8 @@ import { middlePanelFor, recordInitials, type ComposeType, type LayoutTab } from
  * - derecha: tarjetas de asociaciones.
  * En pantalla angosta (styles/crm-record-layout.css) queda una columna: la
  * identidad arriba y cuatro pestañas, con propiedades y asociaciones entre
- * ellas. Todo se renderiza siempre; el CSS decide qué se ve según `data-tab`.
+ * ellas. El server arma todo; RecordShell (cliente) cambia de pestaña sin
+ * volver a pedir la ficha.
  */
 export default function RecordColumns({
   tab,
@@ -47,7 +48,6 @@ export default function RecordColumns({
   right: ReactNode;
   rightLabel: string;
 }) {
-  const panel = middlePanelFor(tab);
   return (
     <div className="ui-page record-page rec3-page">
       {before}
@@ -60,24 +60,18 @@ export default function RecordColumns({
         </Link>
         {actions && <div className="ui-page-actions rec-topbar-actions">{actions}</div>}
       </div>
-      <div className="rec3" data-tab={tab} data-testid="record-columns">
-        <div className="rec3-left" data-testid="record-left">
-          <div className="rec3-identity">{identity}</div>
-          <section className="rec3-about record-props" aria-label={aboutLabel} data-testid="record-about">
-            {about}
-          </section>
-        </div>
-        <div className="rec3-mid" data-testid="record-middle">
-          {lead && <div className="rec3-lead">{lead}</div>}
-          <RecordLayoutTabs base={base} tab={tab} />
-          <div className="rec3-panel" data-panel={panel} data-testid={`record-panel-${panel}`}>
-            {panel === 'overview' ? overview : activity}
-          </div>
-        </div>
-        <aside className="rec3-right record-related" aria-label={rightLabel} data-testid="record-right">
-          {right}
-        </aside>
-      </div>
+      <RecordShell
+        tab={tab}
+        base={base}
+        identity={identity}
+        about={about}
+        aboutLabel={aboutLabel}
+        lead={lead}
+        overview={overview}
+        activity={activity}
+        right={right}
+        rightLabel={rightLabel}
+      />
     </div>
   );
 }
@@ -88,7 +82,6 @@ export function RecordIdentity({
   avatar,
   keyLine,
   tags,
-  base,
   quick,
 }: {
   name: string;
@@ -96,7 +89,6 @@ export function RecordIdentity({
   avatar?: ReactNode | null;
   keyLine?: ReactNode;
   tags?: ReactNode;
-  base: string;
   quick: readonly ComposeType[];
 }) {
   return (
@@ -115,7 +107,7 @@ export function RecordIdentity({
         </div>
       </div>
       {tags}
-      <RecordQuickActions base={base} types={quick} />
+      <RecordQuickActions types={quick} />
     </>
   );
 }
@@ -128,8 +120,8 @@ export interface RecentActivityItem {
   created_at: string;
 }
 
-/** Resumen: las últimas actividades, solo lectura, con el link a la pestaña Actividad. */
-export function RecordRecentActivity({
+/** Resumen: las últimas comunicaciones (emails, llamadas, reuniones), solo lectura, con el link a Actividad. */
+export function RecordRecentCommunications({
   items,
   locale,
   title,
@@ -144,12 +136,12 @@ export function RecordRecentActivity({
   emptyLabel: string;
   moreLabel: string;
   moreHref: string;
-  /** Nombre de cada tipo de actividad (nota, tarea, llamada, reunión, email). */
+  /** Nombre de cada tipo de actividad (llamada, reunión, email). */
   typeLabels: Record<string, string>;
 }) {
   const fmt = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
   return (
-    <section className="rec-overview-block" data-testid="record-recent-activity">
+    <section className="rec-overview-block" data-testid="record-recent-communications">
       <h2 className="rec-overview-title">{title}</h2>
       {items.length === 0 ? (
         <p className="muted">{emptyLabel}</p>
@@ -166,9 +158,58 @@ export function RecordRecentActivity({
           ))}
         </ul>
       )}
-      <Link href={moreHref} className="record-summary-more">
+      <Link href={moreHref} className="record-summary-more" data-testid="record-see-activity">
         {moreLabel}
       </Link>
+    </section>
+  );
+}
+
+export interface AssociationSummaryRow {
+  id: string;
+  name: string;
+  href: string;
+  meta?: string;
+}
+
+/**
+ * Resumen: una tabla corta por asociación (las primeras cinco), con los mismos
+ * registros que las tarjetas de la derecha: ya vienen filtrados por el alcance
+ * de quien mira.
+ */
+export function RecordAssociationSummary({
+  testId,
+  title,
+  rows,
+  emptyLabel,
+  moreLabel,
+}: {
+  testId: string;
+  title: string;
+  rows: AssociationSummaryRow[];
+  emptyLabel: string;
+  /** "y N más", cuando hay más de cinco. */
+  moreLabel?: string;
+}) {
+  return (
+    <section className="rec-overview-block" data-testid={testId}>
+      <h2 className="rec-overview-title">
+        {title}
+        <span className="rec-card-count num">{rows.length}</span>
+      </h2>
+      {rows.length === 0 ? (
+        <p className="muted">{emptyLabel}</p>
+      ) : (
+        <ul className="rec-assoc-summary">
+          {rows.slice(0, 5).map((row) => (
+            <li key={row.id}>
+              <Link href={row.href}>{row.name}</Link>
+              {row.meta && <span className="muted">{row.meta}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows.length > 5 && moreLabel && <p className="muted rec-assoc-more">{moreLabel}</p>}
     </section>
   );
 }

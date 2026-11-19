@@ -7,14 +7,15 @@ import {
   NARROW_ONLY_TABS,
   WIDE_MIN_PX,
   WIDE_QUERY,
-  composeHref,
   layoutTabHref,
   middlePanelFor,
   parseCollapsed,
   parseCompose,
   parseLayoutTab,
+  recentCommunications,
   recordInitials,
   shownTab,
+  tabForHash,
   withCollapsed,
 } from '@/components/crm/recordLayout';
 import en from '@/messages/en/crm.json';
@@ -22,26 +23,36 @@ import es from '@/messages/es/crm.json';
 import pt from '@/messages/pt/crm.json';
 
 describe('CRM: pestañas de la ficha en columnas', () => {
-  it('cae en Actividad con cualquier valor que no sea una pestaña', () => {
-    expect(parseLayoutTab(undefined)).toBe('activity');
-    expect(parseLayoutTab('nope')).toBe('activity');
-    expect(parseLayoutTab(['overview'])).toBe('activity');
+  it('sin pestaña (o con cualquier otra cosa) abre el Resumen, como HubSpot', () => {
+    expect(parseLayoutTab(undefined)).toBe('overview');
+    expect(parseLayoutTab('nope')).toBe('overview');
+    expect(parseLayoutTab(['activity'])).toBe('overview');
     for (const tab of LAYOUT_TABS) expect(parseLayoutTab(tab)).toBe(tab);
+    // El nombre en plural que usa HubSpot también vale.
+    expect(parseLayoutTab('activities')).toBe('activity');
   });
 
   it('los links de la ficha anterior siguen valiendo', () => {
     // ?tab=properties y ?tab=related existían antes de las columnas.
     expect(parseLayoutTab('properties')).toBe('properties');
     expect(parseLayoutTab('related')).toBe('related');
-    expect(layoutTabHref('/app/crm/contacts/1', 'activity')).toBe('/app/crm/contacts/1');
+    expect(layoutTabHref('/app/crm/contacts/1', 'overview')).toBe('/app/crm/contacts/1');
+    expect(layoutTabHref('/app/crm/contacts/1', 'activity')).toBe('/app/crm/contacts/1?tab=activity');
     expect(layoutTabHref('/app/crm/contacts/1', 'related')).toBe('/app/crm/contacts/1?tab=related');
-    expect(layoutTabHref('/app/crm/deals/9', 'overview')).toBe('/app/crm/deals/9?tab=overview');
+  });
+
+  it('productos y cotizaciones están en el Resumen: un link viejo a su ancla abre esa pestaña', () => {
+    expect(tabForHash('related', '#line-items')).toBe('overview');
+    expect(tabForHash('related', '#quotes')).toBe('overview');
+    expect(tabForHash('activity', 'quotes')).toBe('overview');
+    expect(tabForHash('related', '#score')).toBe('related');
+    expect(tabForHash('properties', '')).toBe('properties');
   });
 
   it('el medio muestra Resumen o Actividad, también con las pestañas de una columna', () => {
     expect(middlePanelFor('overview')).toBe('overview');
     expect(middlePanelFor('activity')).toBe('activity');
-    expect(middlePanelFor('properties')).toBe('activity');
+    expect(middlePanelFor('properties')).toBe('overview');
     expect(middlePanelFor('related')).toBe('overview');
   });
 
@@ -49,7 +60,7 @@ describe('CRM: pestañas de la ficha en columnas', () => {
     for (const tab of LAYOUT_TABS) expect(shownTab(tab, false)).toBe(tab);
     expect(shownTab('overview', true)).toBe('overview');
     expect(shownTab('activity', true)).toBe('activity');
-    expect(shownTab('properties', true)).toBe('activity');
+    expect(shownTab('properties', true)).toBe('overview');
     expect(shownTab('related', true)).toBe('overview');
     // Lo que se marca en ancho siempre es una pestaña que está a la vista.
     for (const tab of LAYOUT_TABS) expect(NARROW_ONLY_TABS).not.toContain(shownTab(tab, true));
@@ -77,8 +88,11 @@ describe('CRM: acciones rápidas de la ficha', () => {
     expect(parseCompose(['note'])).toBeNull();
   });
 
-  it('lleva a la pestaña Actividad con el tipo', () => {
-    expect(composeHref('/app/crm/companies/7', 'call')).toBe('/app/crm/companies/7?tab=activity&compose=call');
+  it('comunicaciones recientes: emails, llamadas y reuniones, en el orden que vienen', () => {
+    const items = ['note', 'email', 'task', 'call', 'meeting', 'email', 'call', 'email'].map((type, i) => ({ type, id: i }));
+    expect(recentCommunications(items).map((i) => i.id)).toEqual([1, 3, 4, 5, 6]);
+    expect(recentCommunications(items, 2).map((i) => i.type)).toEqual(['email', 'call']);
+    expect(recentCommunications([{ type: 'note' }, { type: 'task' }])).toEqual([]);
   });
 });
 
@@ -126,10 +140,11 @@ describe('CRM: textos de la ficha en los tres idiomas', () => {
       expect(Object.keys(messages.record.layoutTabs)).toEqual([...LAYOUT_TABS]);
       expect(Object.keys(messages.record.cards)).toEqual(Object.keys(en.record.cards));
       for (const key of ['collapse', 'expand'] as const) expect(messages.record.cards[key]).toContain('{name}');
-      for (const key of ['quickActions', 'highlights', 'recentActivity', 'seeAllActivity'] as const) {
+      for (const key of ['quickActions', 'highlights', 'recentCommunications', 'noCommunications', 'seeAllActivity'] as const) {
         expect(messages.record[key]).toBeTruthy();
       }
       for (const type of COMPOSE_TYPES) expect(messages.enums.activityType[type]).toBeTruthy();
+      expect(messages.record.moreCount).toContain('{count}');
     }
   });
 });

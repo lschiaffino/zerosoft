@@ -7,16 +7,19 @@ import { expect as baseExpect, test, type APIRequestContext, type Locator, type 
  * Asociaciones como pestañas, sin scroll lateral.
  *
  * Los registros se crean por API y se abren por id: la cuenta demo es
- * compartida y una fila nueva puede no estar en la primera página.
+ * compartida y una fila nueva puede no estar en la primera página. Los
+ * elementos se buscan por testid, rol o atributo, no por su texto.
  */
 const uid = () => Math.random().toString(36).slice(2, 8);
 const DESKTOP = { width: 1280, height: 900 };
 const PHONE = { width: 390, height: 844 };
 const KINDS = ['contact', 'company', 'deal'] as const;
 type Kind = (typeof KINDS)[number];
+const QUICK = ['note', 'email', 'call', 'task', 'meeting'] as const;
+type Tab = 'overview' | 'activity' | 'properties' | 'related';
 
 test.describe.configure({ timeout: 150_000 });
-// La ficha carga las tres columnas de una vez: una navegación entre pestañas puede pasar los 5 s por defecto.
+// La ficha carga las tres columnas de una vez: en `next dev` puede pasar los 5 s por defecto.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
 function watchErrors(page: Page) {
@@ -44,16 +47,18 @@ interface Seed {
   paths: Record<Kind, string>;
   names: Record<Kind, string>;
   ids: Record<Kind, string>;
+  email: string;
 }
 
 /** Una empresa, un contacto en ella y un deal con los dos, creados recién. */
 async function seed(request: APIRequestContext): Promise<Seed> {
   const tag = uid();
   const names = { company: `Columns Co ${tag}`, contact: `Cora Columns ${tag}`, deal: `Columns deal ${tag}` };
+  const email = `cora-${tag}@columns.example`;
   const company = await json<{ id: string }>(request.post('/api/crm/companies', { data: { name: names.company, domain: `columns-${tag}.example` } }));
   const contact = await json<{ id: string }>(
     request.post('/api/crm/contacts', {
-      data: { firstName: 'Cora', lastName: `Columns ${tag}`, email: `cora-${tag}@columns.example`, jobTitle: 'Buyer', companyId: company.id },
+      data: { firstName: 'Cora', lastName: `Columns ${tag}`, email, jobTitle: 'Buyer', companyId: company.id },
     }),
   );
   const pipeline = await json<{ id: string }>(request.post('/api/crm/pipelines', { data: { name: `Columns ${tag}` } }));
@@ -66,6 +71,7 @@ async function seed(request: APIRequestContext): Promise<Seed> {
   return {
     tag,
     names,
+    email,
     ids: { contact: contact.id, company: company.id, deal: deal.id },
     paths: {
       contact: `/en/app/crm/contacts/${contact.id}`,
@@ -89,9 +95,14 @@ async function seedLongOptions(request: APIRequestContext, tag: string) {
   await json(request.post('/api/crm/deals', { data: { name: `${long} deal`, pipelineId: pipeline.id, stageId: pipeline.stages[0].id } }));
 }
 
-const tabsNav = (page: Page) => page.getByRole('navigation', { name: 'Record sections' });
-const tabLink = (page: Page, name: string) => tabsNav(page).getByRole('link', { name, exact: true });
+const tab = (page: Page, key: Tab) => page.getByTestId(`record-tab-${key}`);
 const card = (page: Page, id: string) => page.locator(`[data-card="${id}"]`);
+const toggle = (c: Locator) => c.getByTestId('record-card-toggle');
+const prop = (page: Page, key: string) => page.getByTestId('record-about').locator(`[data-prop="${key}"]`);
+const quick = (page: Page, type: (typeof QUICK)[number]) => page.getByTestId(`record-quick-${type}`);
+const composer = (page: Page) => page.getByTestId('record-panel-activity').locator('form.tl-composer');
+/** El select de tipo del composer (solo existe con la lista en "Todas"). */
+const composerType = (page: Page) => composer(page).locator('select.tl-type-select');
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -99,10 +110,25 @@ async function box(locator: Locator) {
   return b!;
 }
 
+/** El nombre de cada acción rápida entra en su botón, con aire a los costados. */
+async function quickLabelsFit(page: Page) {
+  for (const type of QUICK) {
+    const fit = await quick(page, type).evaluate((btn) => {
+      const label = btn.querySelector('span')!;
+      const b = btn.getBoundingClientRect();
+      const l = label.getBoundingClientRect();
+      return { clipped: label.scrollWidth > label.clientWidth + 1, left: l.left - b.left, right: b.right - l.right };
+    });
+    expect(fit.clipped, `${type} cortado`).toBe(false);
+    expect(fit.left, `${type} toca el borde izquierdo`).toBeGreaterThanOrEqual(2);
+    expect(fit.right, `${type} toca el borde derecho`).toBeGreaterThanOrEqual(2);
+  }
+}
+
 test.describe('ficha en tres columnas a 1280', () => {
   test.use({ viewport: DESKTOP });
 
-  test('contacto, empresa y deal: izquierda, medio y derecha a la vista a la vez', async ({ page, request }) => {
+  test('contacto, empresa y deal: izquierda, medio y derecha a la vista a la vez; abre en el Resumen', async ({ page, request }) => {
     const errors = watchErrors(page);
     const s = await seed(request);
     for (const kind of KINDS) {
@@ -126,44 +152,48 @@ test.describe('ficha en tres columnas a 1280', () => {
 
       // Izquierda: identidad, acciones rápidas y propiedades. Derecha: asociaciones.
       await expect(left.getByRole('heading', { level: 1 })).toBeVisible();
-      const quick = left.getByRole('group', { name: 'Quick actions' });
-      for (const action of ['Note', 'Email', 'Call', 'Task', 'Meeting']) {
-        await expect(quick.getByRole('button', { name: action, exact: true })).toBeVisible();
-      }
+      for (const type of QUICK) await expect(quick(page, type)).toBeVisible();
+      await quickLabelsFit(page);
       await expect(page.getByTestId('record-about').locator('.prop-row').first()).toBeVisible();
       await expect(right.locator('.rec-card').first()).toBeVisible();
 
-      // Medio: dos pestañas; Propiedades y Asociaciones ya están a los costados.
-      await expect(tabLink(page, 'Overview')).toBeVisible();
-      await expect(tabLink(page, 'Activities')).toHaveAttribute('aria-current', 'page');
-      await expect(tabLink(page, 'About')).toBeHidden();
-      await expect(tabLink(page, 'Associations')).toBeHidden();
-      await expect(mid.locator('.tl-composer')).toBeVisible();
+      // Medio: dos pestañas, abre en el Resumen; Propiedades y Asociaciones ya están a los costados.
+      await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
+      await expect(tab(page, 'activity')).toBeVisible();
+      await expect(tab(page, 'properties')).toBeHidden();
+      await expect(tab(page, 'related')).toBeHidden();
+      await expect(page.getByTestId('record-highlights')).toBeVisible();
+      await expect(page.getByTestId('record-recent-communications')).toBeVisible();
       await noSideScroll(page);
     }
 
-    // Las asociaciones del seed, cada una en su tarjeta con su cuenta.
+    // Las asociaciones del seed: en su tarjeta con su cuenta, y resumidas en el Resumen.
     await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
     await expect(card(page, 'contact.companies')).toContainText(s.names.company);
     await expect(card(page, 'contact.deals')).toContainText(s.names.deal);
     await expect(card(page, 'contact.deals').locator('.rec-card-count')).toHaveText('1');
+    await expect(page.getByTestId('record-summary-companies').getByRole('link', { name: s.names.company })).toBeVisible();
+    await expect(page.getByTestId('record-summary-deals').getByRole('link', { name: s.names.deal })).toBeVisible();
+    // El email del contacto es un link para escribirle.
+    await expect(prop(page, 'email').getByRole('link')).toHaveAttribute('href', `mailto:${s.email}`);
     await page.goto(s.paths.company, { waitUntil: 'networkidle' });
     await expect(card(page, 'company.contacts')).toContainText(s.names.contact);
     await expect(card(page, 'company.deals')).toContainText(s.names.deal);
+    await expect(page.getByTestId('record-summary-contacts').getByRole('link', { name: s.names.contact })).toBeVisible();
     await page.goto(s.paths.deal, { waitUntil: 'networkidle' });
     await expect(card(page, 'deal.contacts')).toContainText(s.names.contact);
     await expect(card(page, 'deal.companies')).toContainText(s.names.company);
+    await expect(page.getByTestId('record-summary-companies').getByRole('link', { name: s.names.company })).toBeVisible();
     expect(errors).toEqual([]);
   });
 
   test('una propiedad se edita en la columna izquierda con el timeline a la vista, y queda guardada', async ({ page, request }) => {
     const s = await seed(request);
-    await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
-    const about = page.getByTestId('record-about');
-    const row = about.locator('.prop-row').filter({ hasText: 'Job title' });
+    await page.goto(`${s.paths.contact}?tab=activity`, { waitUntil: 'networkidle' });
+    const row = prop(page, 'jobTitle');
     await expect(row.locator('.prop-btn')).toHaveText('Buyer');
     // El timeline sigue en pantalla mientras se edita.
-    await expect(page.getByTestId('record-middle').locator('.tl-composer')).toBeVisible();
+    await expect(composer(page)).toBeVisible();
 
     await row.locator('.prop-btn').click();
     const input = row.locator('input');
@@ -184,11 +214,11 @@ test.describe('ficha en tres columnas a 1280', () => {
     await expect(page.getByTestId('record-left').locator('.rec-keyline')).toContainText(title);
 
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.getByTestId('record-about').locator('.prop-row').filter({ hasText: 'Job title' }).locator('.prop-btn')).toHaveText(title);
+    await expect(prop(page, 'jobTitle').locator('.prop-btn')).toHaveText(title);
 
-    // Lo mismo en empresa y deal: un select y un número.
+    // Lo mismo en empresa y deal: un texto y un número.
     await page.goto(s.paths.company, { waitUntil: 'networkidle' });
-    const industry = page.getByTestId('record-about').locator('.prop-row').filter({ hasText: 'Industry' });
+    const industry = prop(page, 'industry');
     await industry.locator('.prop-btn').click();
     const savedCo = page.waitForResponse((r) => r.url().endsWith(`/api/crm/companies/${s.ids.company}`) && r.request().method() === 'PATCH');
     await industry.locator('input').fill('Logistics');
@@ -197,7 +227,7 @@ test.describe('ficha en tres columnas a 1280', () => {
     await expect(industry.locator('.prop-btn')).toHaveText('Logistics');
 
     await page.goto(s.paths.deal, { waitUntil: 'networkidle' });
-    const amount = page.getByTestId('record-about').locator('.prop-row').filter({ hasText: 'Amount' });
+    const amount = prop(page, 'amount');
     await amount.locator('.prop-btn').click();
     const savedDeal = page.waitForResponse((r) => r.url().endsWith(`/api/crm/deals/${s.ids.deal}`) && r.request().method() === 'PATCH');
     await amount.locator('input').fill('5300');
@@ -207,118 +237,153 @@ test.describe('ficha en tres columnas a 1280', () => {
     await expect(page.getByTestId('record-left').locator('.record-amount')).toContainText('5,300');
   });
 
-  test('una tarjeta de asociaciones se pliega, sigue plegada al recargar y "Add" la abre', async ({ page, request }) => {
+  test('una tarjeta de asociaciones se pliega, sigue plegada al recargar y "Agregar" la abre', async ({ page, request }) => {
     const s = await seed(request);
     await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
     const deals = card(page, 'contact.deals');
-    const toggle = deals.locator('.rec-card-toggle');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(toggle).toHaveAccessibleName('Collapse Deals');
+    await expect(toggle(deals)).toHaveAttribute('aria-expanded', 'true');
     await expect(deals.getByRole('link', { name: s.names.deal })).toBeVisible();
+    // Abierta, el selector ya está a la vista: no hay un "Agregar" de más.
+    await expect(deals.locator('.assoc-add-row')).toBeVisible();
+    await expect(deals.getByTestId('record-card-add')).toHaveCount(0);
 
     // El control está quieto bajo el mouse: pasar por encima no lo mueve ni lo esconde.
-    const before = await box(toggle);
-    await toggle.hover();
-    await expect(toggle).toBeVisible();
-    const after = await box(toggle);
+    const before = await box(toggle(deals));
+    await toggle(deals).hover();
+    await expect(toggle(deals)).toBeVisible();
+    const after = await box(toggle(deals));
     expect(after.x).toBe(before.x);
     expect(after.y).toBe(before.y);
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(toggle).toHaveAccessibleName('Expand Deals');
+    await toggle(deals).click();
+    await expect(toggle(deals)).toHaveAttribute('aria-expanded', 'false');
     await expect(deals.getByRole('link', { name: s.names.deal })).toBeHidden();
     // El título y la cuenta siguen a la vista.
-    await expect(deals.getByRole('heading', { name: 'Deals' })).toBeVisible();
+    await expect(deals.getByRole('heading', { level: 2 })).toBeVisible();
     await expect(deals.locator('.rec-card-count')).toHaveText('1');
 
     await page.reload({ waitUntil: 'networkidle' });
     const again = card(page, 'contact.deals');
-    await expect(again.locator('.rec-card-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle(again)).toHaveAttribute('aria-expanded', 'false');
     await expect(again.getByRole('link', { name: s.names.deal })).toBeHidden();
     // Las demás no se tocaron.
-    await expect(card(page, 'contact.companies').locator('.rec-card-toggle')).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle(card(page, 'contact.companies'))).toHaveAttribute('aria-expanded', 'true');
     // Vale para todos los contactos, no para uno: otro contacto la abre plegada también.
     const other = await json<{ id: string }>(request.post('/api/crm/contacts', { data: { firstName: 'Otto', lastName: `Other ${s.tag}`, email: `otto-${s.tag}@columns.example` } }));
     await page.goto(`/en/app/crm/contacts/${other.id}`, { waitUntil: 'networkidle' });
-    await expect(card(page, 'contact.deals').locator('.rec-card-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle(card(page, 'contact.deals'))).toHaveAttribute('aria-expanded', 'false');
 
-    // "Add" abre la tarjeta y deja el foco en el selector de asociar.
+    // Plegada, "Agregar" la abre y deja el foco en el selector de asociar.
     await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
-    await card(page, 'contact.deals').getByRole('button', { name: 'Add', exact: true }).click();
-    await expect(card(page, 'contact.deals').locator('.rec-card-toggle')).toHaveAttribute('aria-expanded', 'true');
+    await card(page, 'contact.deals').getByTestId('record-card-add').click();
+    await expect(toggle(card(page, 'contact.deals'))).toHaveAttribute('aria-expanded', 'true');
     await expect(card(page, 'contact.deals').getByRole('link', { name: s.names.deal })).toBeVisible();
     await expect(card(page, 'contact.deals').locator('.assoc-add-row').locator('select, button, a').first()).toBeFocused();
 
-    // Las tarjetas de propiedades y las que traen su propio título se pliegan igual.
+    // Las tarjetas de propiedades se pliegan igual.
     const lifecycle = card(page, 'contact.lifecycle');
-    await lifecycle.locator('.rec-card-toggle').click();
+    await toggle(lifecycle).click();
     await expect(lifecycle.locator('.prop-row').first()).toBeHidden();
-    await lifecycle.locator('.rec-card-toggle').click();
+    await toggle(lifecycle).click();
     await expect(lifecycle.locator('.prop-row').first()).toBeVisible();
+    // Y las que traen su propio título: plegadas dejan el título y nada más, tampoco los botones de su cabecera.
     const ai = card(page, 'contact.ai');
     await expect(ai.locator('.ai-actions')).toBeVisible();
-    await ai.locator('.rec-card-toggle').click();
-    await expect(ai.getByRole('heading', { name: 'AI summary' })).toBeVisible();
+    await toggle(ai).click();
+    await expect(ai.getByRole('heading', { level: 2 })).toBeVisible();
     await expect(ai.locator('.ai-actions')).toBeHidden();
-    await ai.locator('.rec-card-toggle').click();
+    await toggle(ai).click();
     await expect(ai.locator('.ai-actions')).toBeVisible();
+    const leads = card(page, 'contact.leads');
+    await expect(leads.getByRole('button').nth(1)).toBeVisible();
+    await toggle(leads).click();
+    await expect(leads.getByRole('heading', { level: 2 })).toBeVisible();
+    await expect(leads.getByRole('button')).toHaveCount(1);
+    await toggle(leads).click();
+    // Una empresa sin nada para asociar a su tarjeta de madre no ofrece "Agregar" aunque esté plegada...
+    // (con la cuenta compartida siempre hay otra empresa, así que se prueba el caso con algo para asociar).
+    await page.goto(s.paths.company, { waitUntil: 'networkidle' });
+    const parent = card(page, 'company.parent');
+    await toggle(parent).click();
+    await expect(parent.getByTestId('record-card-add')).toBeVisible();
+    await toggle(parent).click();
+    await expect(parent.getByTestId('record-card-add')).toHaveCount(0);
   });
 
-  test('pestañas del medio: Resumen y Actividad; las acciones rápidas abren el composer', async ({ page, request }) => {
+  test('Resumen y Actividad cambian sin volver a pedir la ficha; las acciones rápidas abren el composer', async ({ page, request }) => {
     const s = await seed(request);
+    const call = `Columns call ${s.tag}`;
+    await json(request.post('/api/crm/activities', { data: { type: 'call', subject: call, contactId: s.ids.contact } }));
     await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
-    await tabLink(page, 'Overview').click();
-    await expect(page).toHaveURL(/tab=overview/);
-    await expect(tabLink(page, 'Overview')).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByTestId('record-highlights')).toBeVisible();
-    await expect(page.getByTestId('record-recent-activity')).toBeVisible();
-    await expect(page.locator('.tl-composer')).toHaveCount(0);
+    await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByTestId('record-recent-communications')).toContainText(call);
+    await expect(composer(page)).toHaveCount(0);
+
+    // Desde acá, ningún pedido de la página del registro: cambiar de pestaña es del navegador.
+    const documentRequests: string[] = [];
+    page.on('request', (r) => {
+      if (r.url().includes(`/crm/contacts/${s.ids.contact}`) && !r.url().includes('/api/')) documentRequests.push(r.url());
+    });
+    await tab(page, 'activity').click();
+    await expect(page).toHaveURL(/[?&]tab=activity/);
+    await expect(tab(page, 'activity')).toHaveAttribute('aria-current', 'page');
+    await expect(composer(page)).toBeVisible();
+    await expect(page.getByTestId('record-highlights')).toHaveCount(0);
     // Los costados no cambian con la pestaña.
     await expect(page.getByTestId('record-about').locator('.prop-row').first()).toBeVisible();
     await expect(card(page, 'contact.companies')).toContainText(s.names.company);
+    await tab(page, 'overview').click();
+    await expect(page).not.toHaveURL(/tab=/);
+    await expect(page.getByTestId('record-highlights')).toBeVisible();
+    await expect(composer(page)).toBeHidden();
 
-    // Acción rápida desde Resumen: va a Actividad con el composer en "Task" y el foco adentro.
-    await page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name: 'Task', exact: true }).click();
-    await expect(page).toHaveURL(/tab=activity/);
-    const composer = page.locator('.tl-composer');
-    await expect(composer).toBeVisible();
-    const types = page.getByRole('tablist', { name: 'Activity type' });
-    // La lista sigue en "All": la acción elige qué se escribe, no filtra el timeline.
-    await expect(types.getByRole('tab', { name: /^All/ })).toHaveAttribute('aria-selected', 'true');
-    await expect(composer.getByLabel('Activity type')).toHaveValue('task');
-    await expect(composer.getByRole('button', { name: 'Add task' })).toBeVisible();
-    await expect(composer.locator('input, textarea').first()).toBeFocused();
+    // Acción rápida desde el Resumen: pasa a Actividad con el composer en "tarea" y el foco adentro.
+    await quick(page, 'task').click();
+    await expect(page).toHaveURL(/[?&]tab=activity/);
+    await expect(composer(page)).toBeVisible();
+    // La lista sigue en "Todas": la acción elige qué se escribe, no filtra el timeline.
+    const types = page.getByTestId('record-panel-activity').getByRole('tablist');
+    await expect(types.getByRole('tab').first()).toHaveAttribute('aria-selected', 'true');
+    await expect(composerType(page)).toHaveValue('task');
+    await expect(composer(page).locator('input, textarea').first()).toBeFocused();
+    expect(documentRequests, 'cambiar de pestaña no vuelve a pedir la ficha').toEqual([]);
 
-    // Con el timeline ya en pantalla, otra acción cambia el tipo sin navegar.
-    await page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name: 'Note', exact: true }).click();
-    await expect(composer.getByLabel('Activity type')).toHaveValue('note');
-    await expect(composer.locator('input, textarea').first()).toBeFocused();
+    // Con el timeline ya en pantalla, otra acción cambia el tipo.
+    await quick(page, 'note').click();
+    await expect(composerType(page)).toHaveValue('note');
+    await expect(composer(page).locator('input, textarea').first()).toBeFocused();
     const subject = `Columns note ${s.tag}`;
-    await composer.locator('input').first().fill(subject);
-    await composer.getByRole('button', { name: 'Add note' }).click();
-    await expect(page.locator('.timeline .tl-item').filter({ hasText: subject })).toBeVisible();
+    await composer(page).locator('input').first().fill(subject);
+    await composer(page).locator('button[type="submit"]').click();
+    const items = page.getByTestId('record-panel-activity').locator('.timeline .tl-item');
+    await expect(items.filter({ hasText: subject })).toBeVisible();
 
-    // El filtro por tipo sigue andando, y el Resumen muestra la nota entre lo reciente.
-    await types.getByRole('tab', { name: /^Call/ }).click();
-    await expect(page.locator('.timeline .tl-item').filter({ hasText: subject })).toHaveCount(0);
-    await types.getByRole('tab', { name: /^All/ }).click();
-    await expect(page.locator('.timeline .tl-item').filter({ hasText: subject })).toBeVisible();
-    await tabLink(page, 'Overview').click();
-    await expect(page.getByTestId('record-recent-activity')).toContainText(subject);
-    await page.getByTestId('record-recent-activity').getByRole('link', { name: 'See all activity' }).click();
-    await expect(page.locator('.tl-composer')).toBeVisible();
+    // El filtro por tipo sigue andando (pestañas en el orden: todas, nota, tarea, llamada…).
+    await types.getByRole('tab').nth(3).click();
+    await expect(items.filter({ hasText: subject })).toHaveCount(0);
+    await expect(items.filter({ hasText: call })).toBeVisible();
+    await types.getByRole('tab').first().click();
+    await expect(items.filter({ hasText: subject })).toBeVisible();
+    // Lo que se estaba escribiendo no se pierde al ir al Resumen y volver.
+    await composer(page).locator('input').first().fill('Half written');
+    await tab(page, 'overview').click();
+    await page.getByTestId('record-see-activity').click();
+    await expect(composer(page)).toBeVisible();
+    await expect(composer(page).locator('input').first()).toHaveValue('Half written');
 
-    // Los links guardados de la ficha anterior abren la misma ficha, con los costados a la vista.
+    // Los links guardados: Actividad (también en plural), y las pestañas de la ficha anterior.
+    await page.goto(`${s.paths.contact}?tab=activities`, { waitUntil: 'networkidle' });
+    await expect(tab(page, 'activity')).toHaveAttribute('aria-current', 'page');
+    await expect(composer(page)).toBeVisible();
     await page.goto(`${s.paths.contact}?tab=properties`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('contact-score-card').first()).toBeVisible();
-    await expect(tabLink(page, 'Activities')).toHaveAttribute('aria-current', 'page');
+    await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
     await page.goto(`${s.paths.contact}?tab=related`, { waitUntil: 'networkidle' });
-    await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
-    await expect(tabLink(page, 'Overview')).toHaveAttribute('aria-current', 'page');
+    await expect(card(page, 'contact.lists')).toBeVisible();
+    await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
 
     // Deal: productos y cotizaciones viven en el Resumen, y la etapa queda arriba de las pestañas.
-    await page.goto(`${s.paths.deal}?tab=overview`, { waitUntil: 'networkidle' });
+    await page.goto(`${s.paths.deal}?tab=related#quotes`, { waitUntil: 'networkidle' });
     await expect(page.locator('#line-items')).toBeVisible();
     await expect(page.locator('#quotes')).toBeVisible();
     await expect(page.getByTestId('record-middle').locator('.record-stage')).toBeVisible();
@@ -329,8 +394,8 @@ test.describe('ficha en tres columnas a 1280', () => {
     const s = await seed(request);
     for (const kind of KINDS) {
       await page.goto(s.paths[kind], { waitUntil: 'networkidle' });
-      const more = page.getByRole('button', { name: 'More', exact: true });
-      const menu = page.getByRole('menu', { name: 'More' });
+      const more = page.getByTestId('record-more');
+      const menu = page.getByRole('menu');
       await more.click();
       await expect(menu).toBeVisible();
       await page.keyboard.press('Escape');
@@ -343,9 +408,9 @@ test.describe('ficha en tres columnas a 1280', () => {
       await page.getByRole('heading', { level: 1 }).click();
       await expect(menu).toBeHidden();
 
-      // El historial abre en su panel y Esc lo cierra.
+      // El primer ítem abre su panel y Esc lo cierra.
       await more.click();
-      await menu.getByRole('menuitem', { name: 'History' }).click();
+      await menu.getByRole('menuitem').first().click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       await page.keyboard.press('Escape');
@@ -365,38 +430,47 @@ test.describe('ficha en una columna a 390', () => {
       await page.goto(s.paths[kind], { waitUntil: 'networkidle' });
       const name = page.getByRole('heading', { level: 1, name: s.names[kind] });
       await expect(name).toBeVisible();
-      const quick = page.getByRole('group', { name: 'Quick actions' });
-      await expect(quick.getByRole('button', { name: 'Note', exact: true })).toBeVisible();
-      for (const tab of ['Overview', 'Activities', 'About', 'Associations']) await expect(tabLink(page, tab)).toBeVisible();
+      const actions = page.locator('.rec-quick');
+      await expect(quick(page, 'note')).toBeVisible();
+      await quickLabelsFit(page);
+      for (const key of ['overview', 'activity', 'properties', 'related'] as const) await expect(tab(page, key)).toBeVisible();
 
       // Orden: nombre, acciones rápidas, pestañas, contenido.
-      const [n, q, t] = await Promise.all([box(name), box(quick), box(tabsNav(page))]);
+      const nav = page.locator('.rec3-tabs');
+      const [n, q, t] = await Promise.all([box(name), box(actions), box(nav)]);
       expect(n.y).toBeLessThan(q.y);
       expect(q.y + q.height).toBeLessThanOrEqual(t.y + 1);
       expect(q.x + q.width).toBeLessThanOrEqual(PHONE.width);
 
-      // Actividad (default): el timeline; propiedades y asociaciones esperan en su pestaña.
+      // Resumen (default): propiedades y asociaciones esperan en su pestaña.
       const about = page.getByTestId('record-about');
       const right = page.getByTestId('record-right');
-      await expect(tabLink(page, 'Activities')).toHaveAttribute('aria-current', 'page');
-      await expect(page.locator('.tl-composer')).toBeVisible();
+      await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByTestId('record-highlights')).toBeVisible();
       await expect(about).toBeHidden();
       await expect(right).toBeHidden();
-      expect((await box(page.locator('.tl-composer'))).y).toBeGreaterThan(t.y);
+      expect((await box(page.getByTestId('record-highlights'))).y).toBeGreaterThan(t.y);
       await noSideScroll(page);
 
-      await tabLink(page, 'About').click();
-      await expect(page).toHaveURL(/tab=properties/);
-      await expect(tabLink(page, 'About')).toHaveAttribute('aria-current', 'page');
+      await tab(page, 'activity').click();
+      await expect(page).toHaveURL(/[?&]tab=activity/);
+      await expect(composer(page)).toBeVisible();
+      await expect(about).toBeHidden();
+      await expect(right).toBeHidden();
+      await noSideScroll(page);
+
+      await tab(page, 'properties').click();
+      await expect(page).toHaveURL(/[?&]tab=properties/);
+      await expect(tab(page, 'properties')).toHaveAttribute('aria-current', 'page');
       await expect(about.locator('.prop-row').first()).toBeVisible();
       const a = await box(about);
       expect(a.x + a.width).toBeLessThanOrEqual(PHONE.width);
-      await expect(page.locator('.tl-composer')).toBeHidden();
+      await expect(composer(page)).toBeHidden();
       await expect(right).toBeHidden();
       await noSideScroll(page);
 
-      await tabLink(page, 'Associations').click();
-      await expect(page).toHaveURL(/tab=related/);
+      await tab(page, 'related').click();
+      await expect(page).toHaveURL(/[?&]tab=related/);
       await expect(right.locator('.rec-card').first()).toBeVisible();
       await expect(about).toBeHidden();
       const r = await box(right);
@@ -404,19 +478,26 @@ test.describe('ficha en una columna a 390', () => {
       expect(r.x + r.width).toBeLessThanOrEqual(PHONE.width);
       await noSideScroll(page);
 
-      await tabLink(page, 'Overview').click();
-      await expect(page).toHaveURL(/tab=overview/);
+      await tab(page, 'overview').click();
+      await expect(page).not.toHaveURL(/tab=/);
       await expect(page.getByTestId('record-highlights')).toBeVisible();
       await expect(right).toBeHidden();
       await noSideScroll(page);
     }
+
+    // Un link viejo a las cotizaciones del deal cae en la pestaña que ahora las tiene.
+    await page.goto(`${s.paths.deal}?tab=related#quotes`, { waitUntil: 'networkidle' });
+    await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('#quotes')).toBeVisible();
+    await expect(page.locator('#line-items')).toBeVisible();
+    await noSideScroll(page);
     expect(errors).toEqual([]);
   });
 
   test('editar una propiedad, plegar una tarjeta y abrir el composer desde otra pestaña', async ({ page, request }) => {
     const s = await seed(request);
     await page.goto(`${s.paths.contact}?tab=properties`, { waitUntil: 'networkidle' });
-    const row = page.getByTestId('record-about').locator('.prop-row').filter({ hasText: 'Job title' });
+    const row = prop(page, 'jobTitle');
     await row.locator('.prop-btn').click();
     const title = `Buyer at 390 ${s.tag}`;
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/crm/contacts/${s.ids.contact}`) && r.request().method() === 'PATCH');
@@ -427,29 +508,29 @@ test.describe('ficha en una columna a 390', () => {
     await noSideScroll(page);
 
     // Acción rápida desde Propiedades: pasa a Actividad con el composer listo.
-    await page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name: 'Call', exact: true }).click();
-    await expect(page).toHaveURL(/tab=activity/);
-    await expect(page.locator('.tl-composer')).toBeVisible();
-    await expect(page.locator('.tl-composer').getByLabel('Activity type')).toHaveValue('call');
+    await quick(page, 'call').click();
+    await expect(page).toHaveURL(/[?&]tab=activity/);
+    await expect(composer(page)).toBeVisible();
+    await expect(composerType(page)).toHaveValue('call');
     await noSideScroll(page);
 
     await page.goto(`${s.paths.contact}?tab=related`, { waitUntil: 'networkidle' });
     const companies = card(page, 'contact.companies');
     await expect(companies.getByRole('link', { name: s.names.company })).toBeVisible();
-    await companies.locator('.rec-card-toggle').click();
+    await toggle(companies).click();
     await expect(companies.getByRole('link', { name: s.names.company })).toBeHidden();
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(card(page, 'contact.companies').locator('.rec-card-toggle')).toHaveAttribute('aria-expanded', 'false');
-    await card(page, 'contact.companies').locator('.rec-card-toggle').click();
+    await expect(toggle(card(page, 'contact.companies'))).toHaveAttribute('aria-expanded', 'false');
+    await toggle(card(page, 'contact.companies')).click();
     await expect(card(page, 'contact.companies').getByRole('link', { name: s.names.company })).toBeVisible();
     await noSideScroll(page);
   });
 
-  test('el menú "More" cierra con Esc y con un toque afuera', async ({ page, request }) => {
+  test('el menú de la ficha cierra con Esc y con un toque afuera', async ({ page, request }) => {
     const s = await seed(request);
     await page.goto(s.paths.deal, { waitUntil: 'networkidle' });
-    const more = page.getByRole('button', { name: 'More', exact: true });
-    const menu = page.getByRole('menu', { name: 'More' });
+    const more = page.getByTestId('record-more');
+    const menu = page.getByRole('menu');
     await more.click();
     await expect(menu).toBeVisible();
     const m = await box(menu);
@@ -474,10 +555,10 @@ async function setLook(request: APIRequestContext, look: (typeof LOOKS)[number])
 }
 
 test('la ficha en los cinco aspectos, claro y oscuro: tres columnas a 1280 y una a 390 sin scroll lateral', async ({ browser, baseURL, request }, info) => {
-  test.setTimeout(420_000);
+  test.setTimeout(480_000);
   const s = await seed(request);
   await seedLongOptions(request, s.tag);
-  // Un nombre largo y una nota, para ver cómo aguanta la columna angosta.
+  // Un nombre largo y una reunión, para ver cómo aguanta la columna angosta.
   const long = await json<{ id: string }>(
     request.post('/api/crm/contacts', {
       data: {
@@ -489,7 +570,7 @@ test('la ficha en los cinco aspectos, claro y oscuro: tres columnas a 1280 y una
       },
     }),
   );
-  await json(request.post('/api/crm/activities', { data: { type: 'note', subject: `Columns look note ${s.tag}`, body: 'Asked for the yearly plan.', contactId: long.id } }));
+  await json(request.post('/api/crm/activities', { data: { type: 'meeting', subject: `Columns look meeting ${s.tag}`, body: 'Asked for the yearly plan.', contactId: long.id } }));
   const shots = process.env.RECORD_SHOTS_DIR;
   try {
     for (const look of LOOKS) {
@@ -502,13 +583,19 @@ test('la ficha en los cinco aspectos, claro y oscuro: tres columnas a 1280 y una
           const errors = watchErrors(page);
           const targets: Array<[string, string]> = [
             ['contact', `/en/app/crm/contacts/${long.id}`],
-            ['deal', `${s.paths.deal}?tab=overview`],
-            ...(width === 390 ? ([['contact-about', `/en/app/crm/contacts/${long.id}?tab=properties`], ['company-assoc', `${s.paths.company}?tab=related`]] as Array<[string, string]>) : ([['company', s.paths.company]] as Array<[string, string]>)),
+            ['deal', s.paths.deal],
+            ...(width === 390
+              ? ([
+                  ['contact-about', `/en/app/crm/contacts/${long.id}?tab=properties`],
+                  ['company-assoc', `${s.paths.company}?tab=related`],
+                ] as Array<[string, string]>)
+              : ([['company-activity', `${s.paths.company}?tab=activity`]] as Array<[string, string]>)),
           ];
           for (const [name, path] of targets) {
             await page.goto(path, { waitUntil: 'networkidle' });
             await expect(page.locator('html')).toHaveAttribute('data-look', look);
             await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+            await quickLabelsFit(page);
             if (width === 1280) {
               const [l, m, r] = await Promise.all([
                 box(page.getByTestId('record-left')),

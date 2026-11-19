@@ -8,7 +8,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
-import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
 import { scoreTier } from '@/lib/crm-scoring-schema';
 import { contactScores, listScores } from '@/lib/crm-scoring';
 import { getDb } from '@/lib/db';
@@ -62,9 +62,9 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
-import RecordColumns, { RecordIdentity, RecordRecentActivity } from '@/components/crm/RecordColumns';
+import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
-import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab } from '@/components/crm/recordLayout';
+import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export const dynamic = 'force-dynamic';
@@ -226,7 +226,7 @@ export default async function ContactDetailPage(props: {
     threads,
     emailTemplates,
     emailSettings,
-    nextTask,
+    nextTaskRaw,
     companiesPage,
     fieldAccess,
     scoreViews,
@@ -235,7 +235,7 @@ export default async function ContactDetailPage(props: {
     sequences,
     pipelines,
     aiAvailable,
-    aiSummary,
+    aiSummaryRaw,
     recordFilesRaw,
   ] = await Promise.all([
     listScores(user.id),
@@ -260,6 +260,11 @@ export default async function ContactDetailPage(props: {
     getRecordSummary(user.id, 'contact', contact.id, scope),
     listRecordFiles(user.id, 'contact', contact.id),
   ]);
+  // Con alcance restringido: la próxima tarea solo si la persona puede ver esa actividad, y el
+  // resumen de IA guardado solo si se generó con lo mismo que ella ve (mismo hash de contexto);
+  // uno generado por alguien que ve más no se le muestra.
+  const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
+  const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
   const primaryScore = scores.find((x) => x.isPrimary);
   const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
   const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
@@ -278,7 +283,7 @@ export default async function ContactDetailPage(props: {
   const fields: PropField[] = [
     { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: contact.first_name },
     { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: contact.last_name },
-    { key: 'email', label: t('contacts.form.email'), type: 'text', value: contact.email },
+    { key: 'email', label: t('contacts.form.email'), type: 'text', value: contact.email, href: contact.email ? `mailto:${contact.email}` : undefined },
     { key: 'phone', label: t('contacts.form.phone'), type: 'text', value: contact.phone, display: formatPhoneDisplay(contact.phone) },
     { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text', value: contact.job_title },
     { key: 'website', label: t('contacts.form.website'), type: 'text', value: contact.website },
@@ -309,20 +314,22 @@ export default async function ContactDetailPage(props: {
         ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
       ],
     },
-    {
-      key: 'companyId',
-      label: t('contacts.form.company'),
-      type: 'select',
-      // `company` ya pasó por el alcance de la persona: si la empresa principal no se le muestra,
-      // la propiedad queda vacía en vez de mostrar su id. Si es visible pero no entró en las 100
-      // primeras del selector, se suma para que se lea su nombre.
-      value: company ? company.id : '',
-      options: [
-        ...(company && !companies.some((c) => c.id === company.id) ? [{ value: company.id, label: company.name }] : []),
-        ...companies.map((c) => ({ value: c.id, label: c.name })),
-      ],
-      nullOption: true,
-    },
+    // `company` ya pasó por el alcance de la persona. Si la empresa principal existe pero no se
+    // le muestra, la propiedad queda vacía y sin selector: no ve cuál es ni puede pisarla.
+    // Si es visible pero no entró en las 100 primeras del selector, se suma para leer su nombre.
+    contact.company_id && !company
+      ? { key: 'companyId', label: t('contacts.form.company'), type: 'select', value: '', options: [], readOnly: true }
+      : {
+          key: 'companyId',
+          label: t('contacts.form.company'),
+          type: 'select',
+          value: company ? company.id : '',
+          options: [
+            ...(company && !companies.some((c) => c.id === company.id) ? [{ value: company.id, label: company.name }] : []),
+            ...companies.map((c) => ({ value: c.id, label: c.name })),
+          ],
+          nullOption: true,
+        },
     {
       key: 'ownerId',
       label: t('contacts.form.owner'),
@@ -427,14 +434,33 @@ export default async function ContactDetailPage(props: {
           <ActivityDateFacts record={contact} locale={locale} />
         </dl>
       </section>
-      <RecordRecentActivity
-        items={timelineItems.slice(0, 5)}
+      <RecordRecentCommunications
+        items={recentCommunications(timelineItems)}
         locale={locale}
-        title={t('record.recentActivity')}
-        emptyLabel={t('contacts.detail.emptyTimeline')}
+        title={t('record.recentCommunications')}
+        emptyLabel={t('record.noCommunications')}
         moreLabel={t('record.seeAllActivity')}
         moreHref={layoutTabHref(base, 'activity')}
         typeLabels={activityTypeLabels}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-companies"
+        title={t('contacts.detail.companies')}
+        rows={contactCompanies.map((c) => ({ id: c.id, name: c.name, href: `/app/crm/companies/${c.id}`, meta: c.domain || undefined }))}
+        emptyLabel={t('contacts.detail.noCompany')}
+        moreLabel={t('record.moreCount', { count: Math.max(contactCompanies.length - 5, 0) })}
+      />
+      <RecordAssociationSummary
+        testId="record-summary-deals"
+        title={t('contacts.detail.deals')}
+        rows={deals.map((d) => ({
+          id: d.id,
+          name: d.name,
+          href: `/app/crm/deals/${d.id}`,
+          meta: [d.stage_name, money(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
+        }))}
+        emptyLabel={t('contacts.detail.noDeals')}
+        moreLabel={t('record.moreCount', { count: Math.max(deals.length - 5, 0) })}
       />
     </>
   );
@@ -513,7 +539,12 @@ export default async function ContactDetailPage(props: {
         />
       </RecordCard>
 
-      <RecordCard id="contact.deals" label={t('contacts.detail.deals')} count={deals.length} addLabel={t('record.cards.add')}>
+      <RecordCard
+        id="contact.deals"
+        label={t('contacts.detail.deals')}
+        count={deals.length}
+        addLabel={allDeals.some((d) => !deals.some((dd) => dd.id === d.id)) || (defaultPipeline && firstOpenStage) ? t('record.cards.add') : undefined}
+      >
         <AssociationPanel
           records={deals.map((d) => ({
             id: d.id,
@@ -591,9 +622,7 @@ export default async function ContactDetailPage(props: {
           defaultOwner={realUserId(user)}
         />
       </RecordCard>
-      <RecordCard id="contact.objects" label={t('record.cards.objects')} bare>
-        <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
-      </RecordCard>
+      <RelatedObjectRecords workspaceId={user.id} entity="contact" entityId={contact.id} scope={scope} locale={locale} />
       <RecordCard id="contact.groups" label={t('record.cards.groups')} bare>
         <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
       </RecordCard>
@@ -612,7 +641,6 @@ export default async function ContactDetailPage(props: {
       identity={
         <RecordIdentity
           name={name}
-          base={base}
           quick={COMPOSE_TYPES}
           keyLine={
             <>

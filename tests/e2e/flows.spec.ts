@@ -177,7 +177,7 @@ test('CRM: contacto → deal en el board → nota en el timeline', async ({ requ
   expect(bad.status()).toBe(400);
   expect((await bad.json()).error).toBe('invalid_company');
 
-  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`);
   await expect(page.getByText(`Nota ${tag}`).first()).toBeVisible();
   await expect(page.getByText(`Deal ${tag}`).first()).toBeVisible();
 
@@ -204,7 +204,7 @@ test('Cal → CRM: reservar crea el contacto con la reunión en su timeline', as
   const list = await (await request.get(`/api/crm/contacts?q=${encodeURIComponent(email)}`)).json();
   expect(list.rows).toHaveLength(1);
   const contactId = list.rows[0].id;
-  await page.goto(`/en/app/crm/contacts/${contactId}`);
+  await page.goto(`/en/app/crm/contacts/${contactId}?tab=activity`);
   await expect(page.getByText(`Demo ${tag}`).first()).toBeVisible();
 });
 
@@ -409,7 +409,7 @@ test('CRM: deal rápido desde el board queda en la columna del pipeline', async 
 test('CRM: el timeline tiene una sola fila de tabs y el tab elige el tipo', async ({ request, page }) => {
   const email = `tl-${uid()}@example.com`;
   const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Timeline' } })).json();
-  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`);
   await expect(page.getByRole('tablist')).toHaveCount(1);
   await page.getByRole('tab', { name: /Call/ }).click();
   await page.getByPlaceholder(/Subject/).first().fill('Intro call');
@@ -1004,24 +1004,25 @@ test.describe('link d9', () => {
 
 // ---------- CRM core: detalle en tabs, menú "More" y altas cortas ----------
 
-test('CRM: el detalle del contacto tiene propiedades, actividad y asociaciones a la vista', async ({ request, page }) => {
+test('CRM: el detalle del contacto abre en el Resumen, con propiedades y asociaciones a la vista', async ({ request, page }) => {
   const email = `tabs-${uid()}@example.com`;
   const contact = await (await request.post('/api/crm/contacts', { data: { email, firstName: 'Tabs' } })).json();
-  await page.goto(`/en/app/crm/contacts/${contact.id}`);
-  const tabs = page.getByRole('navigation', { name: 'Record sections' });
-  await expect(tabs.getByRole('link', { name: 'Activities' })).toHaveAttribute('aria-current', 'page');
-  // Las propiedades están a la izquierda sin cambiar de pestaña, y las asociaciones a la derecha.
-  await expect(page.getByRole('region', { name: 'About' }).getByText(email)).toBeVisible();
-  await expect(page.getByTestId('contact-score-card')).toBeVisible();
-  await expect(page.getByRole('complementary', { name: 'Associations' }).getByRole('heading', { name: 'Lists' })).toBeVisible();
-
-  await tabs.getByRole('link', { name: 'Overview' }).click();
-  await expect(page).toHaveURL(/tab=overview/);
+  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('record-tab-overview')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('record-highlights')).toBeVisible();
+  // Las propiedades están a la izquierda sin cambiar de pestaña, y las asociaciones a la derecha.
+  await expect(page.getByTestId('record-about').getByRole('link', { name: email })).toHaveAttribute('href', `mailto:${email}`);
+  await expect(page.getByTestId('contact-score-card')).toBeVisible();
+  await expect(page.getByTestId('record-right').locator('[data-card="contact.lists"]')).toBeVisible();
+
+  // Actividad se abre en el navegador: cambia la URL y aparece el composer.
+  await page.getByTestId('record-tab-activity').click();
+  await expect(page).toHaveURL(/tab=activity/);
+  await expect(page.locator('form.tl-composer')).toBeVisible();
 
   // Los links de antes (?tab=properties, ?tab=related) abren la misma ficha.
   await page.goto(`/en/app/crm/contacts/${contact.id}?tab=related`);
-  await expect(page.getByRole('heading', { name: 'Lists' })).toBeVisible();
+  await expect(page.locator('[data-card="contact.lists"]')).toBeVisible();
 });
 
 test('CRM: "More" abre el historial en un drawer, Esc devuelve el foco y eliminar pide confirmación', async ({
