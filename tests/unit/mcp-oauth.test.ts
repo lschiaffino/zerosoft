@@ -343,6 +343,24 @@ describe('endpoint HTTP', () => {
     expect((await handleMcpPost(bearer('zsat_inventado'))).status).toBe(401);
   });
 
+  it('un token nuestro vencido nunca da 429 por IP (conectores en IPs compartidas); uno inventado sí', async () => {
+    const u = await person('shared-ip');
+    const { tokens } = await connect(u.id);
+    await getDb().prepare('UPDATE oauth_tokens SET expires_at = ? WHERE token_hash = ?').run('2000-01-01T00:00:00.000Z', hashToken(tokens.access_token));
+    const ip = { 'x-forwarded-for': `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` };
+    process.env.RATE_LIMIT_DISABLED = 'false';
+    try {
+      const statuses: number[] = [];
+      for (let i = 0; i < 35; i++) statuses.push((await handleMcpPost(bearer(tokens.access_token, undefined, ip))).status);
+      expect(new Set(statuses)).toEqual(new Set([401]));
+      const invented: number[] = [];
+      for (let i = 0; i < 35; i++) invented.push((await handleMcpPost(bearer(`zsat_inventado${i}`, undefined, ip))).status);
+      expect(invented).toContain(429);
+    } finally {
+      process.env.RATE_LIMIT_DISABLED = 'true';
+    }
+  });
+
   it('Origin ajeno 403, versión desconocida 400, tipo equivocado 415, notificación 202, GET 405', async () => {
     const u = await person('http');
     const { tokens } = await connect(u.id);
@@ -524,7 +542,7 @@ describe('permisos sobre operaciones reales', () => {
   it('crea, lee y audita sin guardar argumentos', async () => {
     const u = await person('audit');
     const { tokens } = await connect(u.id);
-    const created = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.contacts.create', args: { body: { name: 'Secreto Pérez' } } });
+    const created = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.contacts.create', args: { body: { firstName: 'Secreto', lastName: 'Pérez' } } });
     expect(created.isError).toBeFalsy();
     expect(created.content[0].text).toContain('<untrusted_data');
     const rows = (await getDb().prepare('SELECT * FROM mcp_audit_log WHERE user_id = ?').all(u.id)) as Array<Record<string, unknown>>;

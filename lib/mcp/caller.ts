@@ -9,7 +9,7 @@ import { getDb, type TeamRow, type UserRow } from '../db';
 import { rateLimit, clientIp } from '../rate-limit';
 import { resolveWorkspace, type TeamRole } from '../teams';
 import { userCanUseApp, type AppAccess } from '../workspace';
-import { canonicalResource, grantForAccessToken, hasWriteScope, mcpResourceUrl, type GrantRow } from '../oauth/store';
+import { canonicalResource, grantForAccessToken, hasWriteScope, isIssuedAccessToken, mcpResourceUrl, type GrantRow } from '../oauth/store';
 import type { DelegatedIdentity } from './identity';
 import type { Operation } from './catalog';
 import type { ProductKey } from '../products';
@@ -55,7 +55,11 @@ export async function authenticate(req: Request): Promise<McpCaller | AuthFailur
   const caller = raw.startsWith('zs_') ? await fromApiKey(raw) : await fromOAuth(raw);
   if (caller === 'no_mcp_access') return NO_MCP_ACCESS;
   if (caller) return caller;
-  return (await failedAttempt(req)) ?? { status: 401, error: 'invalid_token', description: 'The token is invalid, expired, revoked or for another resource.' };
+  const invalid: AuthFailure = { status: 401, error: 'invalid_token', description: 'The token is invalid, expired, revoked or for another resource.' };
+  // Un token nuestro ya vencido no cuenta contra la IP: claude.ai y otros conectores llaman
+  // desde pocas IPs compartidas, y un 429 ahí cortaría a todos en vez de pedirles que renueven.
+  if (await isIssuedAccessToken(raw)) return invalid;
+  return (await failedAttempt(req)) ?? invalid;
 }
 
 async function fromOAuth(raw: string): Promise<McpCaller | null> {
