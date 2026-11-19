@@ -11,7 +11,7 @@ import ParityOverview from '@/components/products/ParityOverview';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import { PARITY } from '@/content/feature-parity';
 import { computeParity } from '@/lib/feature-parity';
-import { isComingSoon, PRODUCT_KEYS } from '@/lib/products';
+import { isComingSoon, PRODUCT_CONFIG, PRODUCT_KEYS, productHref } from '@/lib/products';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -40,7 +40,25 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
       { name: 'zerosoft', path: '' },
       { name: seoText.title, path: '/products' },
     ]),
-    { '@type': 'CollectionPage', name: seoText.title, description: seoText.description, url: absoluteUrl(localePath(locale, '/products')), inLanguage: locale },
+    {
+      '@type': 'CollectionPage',
+      name: seoText.title,
+      description: seoText.description,
+      url: absoluteUrl(localePath(locale, '/products')),
+      inLanguage: locale,
+      // Cada app con su página: los buscadores y las IAs leen la suite como una lista.
+      mainEntity: {
+        '@type': 'ItemList',
+        numberOfItems: PRODUCT_KEYS.length,
+        itemListElement: PRODUCT_KEYS.map((k, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: `zerosoft ${PRODUCT_CONFIG[k].name}`,
+          description: t(`${k}.meta.description` as never),
+          url: absoluteUrl(localePath(locale, productHref(k))),
+        })),
+      },
+    },
   ]);
 
 
