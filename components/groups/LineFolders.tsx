@@ -35,6 +35,7 @@ export function LineSelector({ numbers, value, onChange }: { numbers: LineOption
     <MenuSelect
       className="gr-line-select"
       testId="lines-line-select"
+      tour="lines-line-select"
       label={t('selectorLabel')}
       value={value}
       onChange={onChange}

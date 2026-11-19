@@ -1085,6 +1085,15 @@ export default function InboxApp(props: {
   const detailAccount = detail ? accounts.find((a) => a.id === detail.thread.accountId) : null;
   const tabView = folder ? null : TABS.includes(view) ? view : null;
 
+  // El botón de la barra de selección: desarchiva si todo lo elegido está en Archivados (archivado o "hecho"), también
+  // buscando desde otra vista; antes miraba solo la vista y ofrecía "Archivar" para chats ya archivados.
+  const selectionArchived =
+    selected.size > 0
+      ? [...selected].every((id) => {
+          const x = threads.find((y) => y.id === id);
+          return Boolean(x && (x.archived || x.done));
+        })
+      : view === 'archived';
   const viewTitle = folder ? folder.name : q ? t('list.searchResults') : t(`views.${view}`);
   const loading = switching;
   // El título de la pestaña sigue a la vista (la página no se vuelve a pedir al cambiarla).
@@ -1114,7 +1123,7 @@ export default function InboxApp(props: {
       unarchive: () => void runAction([id], { action: 'unarchive' }),
       more: () => openMoreFor(id),
     };
-    const layout = rowSwipeLayout({ unread: th.unread > 0, pinned: Boolean(th.pinned), archived: Boolean(th.archived), snoozed: Boolean(th.snoozedUntil) });
+    const layout = rowSwipeLayout({ unread: th.unread > 0, pinned: Boolean(th.pinned), archived: Boolean(th.archived || th.done), snoozed: Boolean(th.snoozedUntil) });
     const action = (key: RowSwipeKey) => ({ key: swipeActionKey(key), label: t(`swipe.${key}`), icon: key, onSelect: run[key], ...(key === 'archive' || key === 'unarchive' ? { leaves: true } : {}) });
     return { right: layout.right.map(action), left: layout.left.map(action) };
   };
@@ -1139,7 +1148,8 @@ export default function InboxApp(props: {
         },
       },
       { key: 'unread', label: th.unread > 0 ? t('more.read') : t('more.unread'), onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
-      { key: 'archive', label: th.archived ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
+      // En Archivados están los archivados y los "hechos": los dos llevan la etiqueta Archivado y los dos se desarchivan.
+      { key: 'archive', label: th.archived || th.done ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived || th.done ? 'unarchive' : 'archive' }) },
       th.snoozedUntil
         ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
@@ -1395,8 +1405,8 @@ export default function InboxApp(props: {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('move')}>
                 {t('actions.move')}
               </button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => act(view === 'archived' ? 'unarchive' : 'archive')}>
-                {view === 'archived' ? t('actions.unarchive') : t('actions.archive')}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => act(selectionArchived ? 'unarchive' : 'archive')}>
+                {selectionArchived ? t('actions.unarchive') : t('actions.archive')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>
                 {t('actions.clear')}

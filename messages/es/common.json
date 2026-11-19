@@ -1292,5 +1292,72 @@
     "timeError": "Escribí una hora, como 9, 9:30 o 21.",
     "zone": "Hora de {city}",
     "pastError": "Elegí una hora en el futuro."
+  },
+  "tour": {
+    "menu": "Tour de esta app",
+    "count": "{n} de {total}",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "finish": "Listo",
+    "skipStep": "Saltear paso",
+    "exit": "Salir del tour",
+    "off": "No mostrar más tours",
+    "ask": "¿La usás por tu cuenta o con un equipo?",
+    "solo": "Por mi cuenta",
+    "team": "Con un equipo",
+    "lines": {
+      "intro": {
+        "title": "Te damos la bienvenida a Lines",
+        "body": "Lines junta los chats de tus números de WhatsApp en una sola bandeja. Este tour te muestra las partes principales."
+      },
+      "connect": {
+        "title": "Conectá una línea",
+        "body": "Cada número de WhatsApp que conectás es una línea. Empezá acá para traer sus chats a Lines."
+      },
+      "lineSelect": {
+        "title": "Cambiá de línea",
+        "body": "Mirá los chats de una línea o de todas juntas."
+      },
+      "chatList": {
+        "title": "Tus chats",
+        "body": "Acá llegan los chats de tus líneas, los más recientes primero. Los no leídos llevan un contador."
+      },
+      "filters": {
+        "title": "Filtrá la lista",
+        "body": "Pestañas como No leídos y Esperando achican la lista. El botón de filtros, al lado del buscador, combina más campos."
+      },
+      "search": {
+        "title": "Buscá",
+        "body": "Encontrá un chat por su nombre o por algo que se dijo en él. Apretá / para saltar acá."
+      },
+      "openChat": {
+        "title": "Abrí un chat",
+        "body": "Abrí cualquier chat de la lista para leerlo y responder."
+      },
+      "composer": {
+        "title": "Respondé",
+        "body": "Escribí acá y apretá Enter para enviar. Con / ves los comandos de este chat."
+      },
+      "assign": {
+        "title": "Asignale un responsable",
+        "body": "Asigná el chat a alguien del equipo para que quede claro quién responde. Con A lo tomás vos."
+      },
+      "note": {
+        "title": "Notas para tu equipo",
+        "body": "Pasá a Nota interna para escribir algo que solo ve tu equipo. Nunca llega a WhatsApp."
+      },
+      "lineAccess": {
+        "title": "Quién ve cada línea",
+        "body": "En los ajustes de Lines elegís qué personas del equipo ven y responden cada línea."
+      },
+      "settings": {
+        "title": "Ajustes de Lines",
+        "body": "En los ajustes de Lines conectás más números y elegís un color para cada línea."
+      },
+      "done": {
+        "title": "Eso es todo",
+        "body": "Podés volver a hacer este tour desde el menú de tu cuenta."
+      }
+    }
   }
 }

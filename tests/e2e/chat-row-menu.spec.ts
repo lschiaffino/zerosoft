@@ -465,3 +465,31 @@ test('Lines: el borrador aparece en la fila del chat que se deja al instante, y 
   await expect(rowA.locator('.gr-row-draft')).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('Inbox: un chat de Archivados que aparece al buscar ofrece Desarchivar, no Archivar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const name = `Hecho ${uid()}`;
+  await events(request, acc, [dm(phone(), name, 'listo, gracias')]);
+  // "Hecho": está en Archivados y lleva la etiqueta Archivado, aunque no se haya archivado con el botón Archivar.
+  await sql('UPDATE inbox_threads SET done_at = ? WHERE title = ?', [new Date().toISOString(), name]);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('#ib-search').fill(name);
+  const row = inboxRow(page, name);
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toContainText('Archived');
+  await rightClick(page, row);
+  await expect(menu(page).getByRole('menuitem', { name: 'Archive chat', exact: true })).toHaveCount(0);
+  await menu(page).getByRole('menuitem', { name: 'Unarchive chat' }).click();
+  await expect(menu(page)).toHaveCount(0);
+  // Salió de Archivados: sin etiqueta, y el menú vuelve a ofrecer Archivar.
+  await expect(row).not.toContainText('Archived');
+  const [th] = await sql('SELECT done_at, archived_at FROM inbox_threads WHERE title = ?', [name]);
+  expect([th.done_at, th.archived_at]).toEqual([null, null]);
+  await rightClick(page, row);
+  await expect(menu(page).getByRole('menuitem', { name: 'Archive chat', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

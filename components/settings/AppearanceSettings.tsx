@@ -13,9 +13,10 @@ import { LOOKS, type Look } from '@/lib/look';
  * Ajustes › Apariencia: modo de color (sistema, claro u oscuro) con una
  * muestra de cada uno. Es el mismo valor que el selector del sidebar: se
  * aplica al momento y se recuerda en este navegador. Debajo, el aspecto
- * (lib/look.ts): se aplica al momento y se guarda en la cuenta.
+ * (lib/look.ts): se aplica al momento y se guarda en la cuenta. Al final, los
+ * tours guiados (lib/tours): si se abren solos y volver a verlos todos.
  */
-export default function AppearanceSettings() {
+export default function AppearanceSettings({ toursOff = false }: { toursOff?: boolean }) {
   const t = useTranslations('settings.appearance');
   const tTheme = useTranslations('common.theme');
   const { pref, setPref } = useThemePref();
@@ -24,6 +25,27 @@ export default function AppearanceSettings() {
   const chooseLook = async (next: Look) => {
     setLookStatus('idle');
     setLookStatus((await setLook(next)) ? 'saved' : 'error');
+  };
+  const [toursOn, setToursOn] = useState(!toursOff);
+  const [toursStatus, setToursStatus] = useState<'idle' | 'reset' | 'error'>('idle');
+  const saveTours = async (body: Record<string, unknown>) =>
+    fetch('/api/tours', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then((r) => r.ok)
+      .catch(() => false);
+  const toggleTours = async (on: boolean) => {
+    setToursOn(on);
+    setToursStatus('idle');
+    if (!(await saveTours({ kind: 'off', off: !on }))) {
+      setToursOn(!on);
+      setToursStatus('error');
+    }
+  };
+  const resetTours = async () => {
+    setToursStatus('idle');
+    if (await saveTours({ kind: 'reset' })) {
+      setToursOn(true);
+      setToursStatus('reset');
+    } else setToursStatus('error');
   };
 
   return (
@@ -69,6 +91,20 @@ export default function AppearanceSettings() {
         </fieldset>
         <p className="ui-help" role="status" data-testid="appearance-look-status">
           {lookStatus === 'saved' ? t('lookSaved') : lookStatus === 'error' ? t('lookError') : null}
+        </p>
+      </FormSection>
+      <FormSection title={t('toursTitle')} description={t('toursDesc')}>
+        <label className="ui-check">
+          <input type="checkbox" checked={toursOn} onChange={(e) => void toggleTours(e.target.checked)} data-testid="appearance-tours-auto" />
+          <span>{t('toursAuto')}</span>
+        </label>
+        <div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void resetTours()} data-testid="appearance-tours-reset">
+            {t('toursReset')}
+          </button>
+        </div>
+        <p className={toursStatus === 'error' ? 'ui-error' : 'ui-help'} role="status" data-testid="appearance-tours-status">
+          {toursStatus === 'reset' ? t('toursResetDone') : toursStatus === 'error' ? t('toursError') : null}
         </p>
       </FormSection>
       <FormSection title={t('languageTitle')} description={t('languageDesc')}>
