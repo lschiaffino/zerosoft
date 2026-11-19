@@ -2478,6 +2478,19 @@
     "kind": "idea"
   },
   {
+    "title": "Cal: Challenge suspicious public bookings with a captcha",
+    "description": "Calendly shows invitees a Captcha when a booking attempt looks suspicious (https://community.calendly.com/featured-tips-tricks-32/change-log-march-13-2026-5463). Our public booking endpoint at app/api/calendar/bookings/route.ts has a rate limit but no bot challenge, so a team that shares its page widely can get junk bookings that hold real slots and trigger emails. First scope: a workspace toggle that adds a lightweight proof-of-work or Turnstile challenge to the booking form after repeated attempts from one IP, and logs the blocked attempts in settings.\n\nPriority: medium. Effort: M.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Sell meeting packages that bundle several sessions into one payment",
+    "description": "Calendly added Meeting Packages and Payment Links in beta as part of its commerce tools (https://community.calendly.com/featured-tips-tricks-32/change-log-march-13-2026-5463). We charge per event type through Stripe (lib/calendar-payments.ts) and each booking is paid on its own. Coaches and consultants who sell five sessions at a price cannot do it without a manual invoice. First scope: a package with a session count and price, a payment link, and a credit counter that is spent as the invitee books each session.\n\nPriority: medium. Effort: M.",
+    "product": "cal",
+    "kind": "idea",
+    "parity": "packages-invoices"
+  },
+  {
     "title": "Track: Create a Slack channel automatically for each new project",
     "description": "Linear can create and link a Slack channel when a project is created, and posts project updates there (https://linear-web.pages.dev/changelog/2026-05-21-project-slack-channels). Track lets a project post issue activity to a channel chosen by hand in lib/track-slack.ts, but it never creates the channel. A small team loses time setting up one channel per project and wiring the notifications. First scope: a project setting that creates a channel named after the project through the existing Slack connection, links it and posts the project updates there.",
     "product": "track",
