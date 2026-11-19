@@ -1425,7 +1425,7 @@
     "emptyBody": "Quando você conectar o Claude ou a CLI, vai aparecer aqui.",
     "connectorLabel": "URL do conector",
     "connectorHelp": "Cole no claude.ai, em Settings, Connectors, Add custom connector. Também funciona no Claude Desktop, no Claude Code e em outros clientes MCP.",
-    "connectorHowTo": "Como conectar",
+    "connectorHowTo": "Ver os passos",
     "colClient": "App",
     "colWorkspace": "Workspace",
     "colAccess": "Acesso",

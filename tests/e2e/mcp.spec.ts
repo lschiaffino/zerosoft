@@ -921,17 +921,18 @@ test('el conector de claude.ai está publicado: docs, pie de página y Ajustes c
   await page.waitForURL(/\/docs\/mcp$/, { timeout: 60_000 });
   const section = page.getByTestId('mcp-docs-claude-ai');
   await expect(section).toBeVisible();
-  await expect(section.getByTestId('mcp-docs-endpoint')).toHaveText(ENDPOINT);
+  // La página es estática: en CI se arma en el build, con el origen de ese momento. Alcanza con la ruta.
+  await expect(section.getByTestId('mcp-docs-endpoint')).toHaveText(/^https?:\/\/[^/]+\/api\/mcp$/);
   for (const locale of ['es', 'pt']) {
     await page.goto(`/${locale}/docs/mcp`);
-    await expect(page.getByTestId('mcp-docs-endpoint')).toHaveText(ENDPOINT);
+    await expect(page.getByTestId('mcp-docs-endpoint')).toHaveText(/^https?:\/\/[^/]+\/api\/mcp$/);
   }
 
   // Página nueva: la anterior puede seguir con una navegación del cliente en curso.
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const settings = await page.context().newPage();
   await settings.goto('/en/app/settings/api');
-  const connector = settings.getByTestId('connector-url');
+  const connector = settings.locator('#connected').getByTestId('connector-url');
   await expect(connector.getByRole('textbox')).toHaveValue(ENDPOINT);
   await connector.getByTestId('connector-url-copy').getByRole('button').click();
   expect(await settings.evaluate(() => navigator.clipboard.readText())).toBe(ENDPOINT);
@@ -952,7 +953,7 @@ test('la URL del conector en Ajustes y la página de docs en los cinco aspectos,
         const page = await ctx.newPage();
         await page.goto('/en/app/settings/api');
         await expect(page.locator('html')).toHaveAttribute('data-look', look);
-        const connector = page.getByTestId('connector-url');
+        const connector = page.locator('#connected').getByTestId('connector-url');
         await expect(connector).toBeVisible();
         // El botón entra en la pantalla, sin scroll lateral.
         const copy = connector.getByTestId('connector-url-copy').getByRole('button');
