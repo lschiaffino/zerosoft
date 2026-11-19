@@ -10,6 +10,7 @@
  */
 import { getDb } from './db';
 import { agentConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSqlFor } from './groups-access';
 import type { AgentRow } from './db';
 import { extractDocsText } from './chat-data';
 import { parseCsv } from './csv-parse';
@@ -539,7 +540,11 @@ function suggestionKey(q: string): string {
  */
 export async function listSuggestions(workspaceId: string, agentId: string, days = 30, now = new Date(), viewerId?: string): Promise<AgentSuggestionDto[]> {
   const from = new Date(now.getTime() - days * 86_400_000).toISOString();
-  const visible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
+  const chatVisible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
+  // Las corridas de un chat de Lines: solo si la persona ve ese chat.
+  const linesVisible = viewerId ? await linesAgentConversationSqlFor(workspaceId, viewerId, 'agent_runs.conversation_id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
+  const visible = parts.length ? { sql: parts.map((x) => x.sql).join(' AND '), args: parts.flatMap((x) => x.args) } : null;
   const rows = (await getDb()
     .prepare(
       `SELECT id, conversation_id, question, created_at FROM agent_runs
@@ -562,12 +567,18 @@ export async function listSuggestions(workspaceId: string, agentId: string, days
   return [...groups.values()].sort((a, b) => b.count - a.count || b.lastAt.localeCompare(a.lastAt)).slice(0, 30);
 }
 
-export async function dismissSuggestions(workspaceId: string, agentId: string, runIds: string[]): Promise<number> {
+/** Con `viewerId` (persona sin rol de admin), solo las corridas que esa persona ve: las demás se ignoran. */
+export async function dismissSuggestions(workspaceId: string, agentId: string, runIds: string[], viewerId?: string): Promise<number> {
   const ids = runIds.slice(0, 500);
   if (ids.length === 0) return 0;
+  const chatVisible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
+  const linesVisible = viewerId ? await linesAgentConversationSqlFor(workspaceId, viewerId, 'agent_runs.conversation_id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
   const res = await getDb()
-    .prepare(`UPDATE agent_runs SET suggestion_dismissed = 1 WHERE user_id = ? AND agent_id = ? AND id IN (${ids.map(() => '?').join(', ')})`)
-    .run(workspaceId, agentId, ...ids);
+    .prepare(
+      `UPDATE agent_runs SET suggestion_dismissed = 1 WHERE user_id = ? AND agent_id = ? AND id IN (${ids.map(() => '?').join(', ')})${parts.map((x) => ` AND ${x.sql}`).join('')}`,
+    )
+    .run(workspaceId, agentId, ...ids, ...parts.flatMap((x) => x.args));
   return res.changes;
 }
 

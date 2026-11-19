@@ -1,7 +1,10 @@
 /**
  * Lines: integración con HubSpot.
  *
- * - Conexión: un token de private app de HubSpot por workspace. Se guarda
+ * - Conexión: una clave de HubSpot por workspace (una service key o el token
+ *   de una private app heredada; HubSpot ya no deja crear private apps
+ *   nuevas). El cliente HTTP y la validación de la clave son los compartidos
+ *   de lib/hubspot/. Se guarda
  *   cifrado (secret-box) y nunca vuelve por la API; al guardarlo se valida y
  *   se leen sus permisos (scopes).
  * - Vínculo: cada chat o grupo puede tener una empresa, un negocio y un
@@ -25,6 +28,8 @@
 import { getDb } from './db';
 import { open, seal } from './secret-box';
 import { safeFetch } from './safe-fetch';
+import { HubspotApiError, bindHubspotTokenPortal, createHubspotClient, hubspotBudget, type HubspotClient } from './hubspot/client';
+import { inspectHubspotToken, looksLikeHubspotToken, type HubspotTokenInfo, type HubspotTokenKind } from './hubspot/token';
 import type { FetchLike } from './groups-provider';
 import { fakeMode } from './groups-integrations';
 import { fakeHubspotFetch } from './groups-hubspot-fake';
@@ -37,7 +42,7 @@ export const HUBSPOT_TYPES = ['company', 'deal', 'contact'] as const;
 export type HubspotType = (typeof HUBSPOT_TYPES)[number];
 
 /**
- * Permisos de la private app. `read` hacen falta siempre (el último es para
+ * Permisos de la clave. `read` hacen falta siempre (el último es para
  * leer la definición de las propiedades de la empresa); `sync` para editar
  * propiedades desde Lines; `optional` para el nombre y el selector de dueño;
  * `log` solo para dejar notas.
@@ -54,6 +59,15 @@ export const HUBSPOT_WRITE_SCOPE = 'crm.objects.companies.write';
 const NOTE_SCOPE = 'crm.objects.contacts.write';
 /** Sin este no se crean contactos (a mano o al entrar un chat nuevo). */
 export const HUBSPOT_CONTACT_WRITE_SCOPE = 'crm.objects.contacts.write';
+
+/** Los permisos que se prueban uno por uno cuando HubSpot no informa los de la clave. */
+const LINES_PROBE_SCOPES = [
+  ...HUBSPOT_SCOPES.read,
+  ...HUBSPOT_SCOPES.optional,
+  'crm.schemas.contacts.read',
+  'crm.schemas.deals.read',
+  ...HUBSPOT_SCOPES.log,
+] as const;
 
 const PLURAL: Record<HubspotType, string> = { company: 'companies', deal: 'deals', contact: 'contacts' };
 const TYPE_ID: Record<HubspotType, string> = { contact: '0-1', company: '0-2', deal: '0-3' };
@@ -112,6 +126,7 @@ interface ConnRow {
   schema_synced_at?: string | null;
   synced_at?: string | null;
   webhook_secret?: string;
+  token_kind?: string;
 }
 
 export interface HubspotConn {
@@ -148,6 +163,8 @@ export interface HubspotDto {
   syncedAt: string | null;
   /** Hay un secreto guardado para validar los webhooks de HubSpot (nunca vuelve). */
   webhook: boolean;
+  /** Con qué se conectó: una service key o una private app heredada ('unknown' si no se pudo saber). */
+  tokenKind: HubspotTokenKind;
 }
 
 type Conn = HubspotConn;
@@ -174,6 +191,8 @@ function toConn(row: ConnRow | null): Conn | null {
     token = '';
   }
   if (!token) return null;
+  // El cupo diario de HubSpot es de la cuenta: lo comparten todas las claves que entran a ella.
+  bindHubspotTokenPortal(token, row.portal_id);
   return {
     ws: row.user_id,
     token,
@@ -221,6 +240,7 @@ function toDto(row: ConnRow | null): HubspotDto {
     schemaSyncedAt: connected && row ? (row.schema_synced_at ?? null) : null,
     syncedAt: connected && row ? (row.synced_at ?? null) : null,
     webhook: connected && Boolean(row?.webhook_secret),
+    tokenKind: connected && (row?.token_kind === 'service_key' || row?.token_kind === 'private_app') ? row.token_kind : 'unknown',
   };
 }
 
@@ -254,28 +274,39 @@ function fetcher(): FetchLike {
 export const hubspotFetcher = fetcher;
 export const HUBSPOT_API = API;
 
+/** Un error del cliente compartido con los códigos que muestra Lines. */
+function fromApiError(err: unknown): unknown {
+  if (!(err instanceof HubspotApiError)) return err;
+  if (err.code === 'network') return new HubspotError('hubspot_unreachable', 502);
+  if (err.code === 'rate_limited' || err.code === 'locked') return new HubspotError('hubspot_rate_limited', 429);
+  if (err.code === 'auth') return new HubspotError('hubspot_invalid_token', 502);
+  if (err.code === 'scope') return new HubspotError('hubspot_missing_scopes', 502);
+  if (err.code === 'not_found') return new HubspotError('hubspot_not_found', 404);
+  return new HubspotError('hubspot_error', 502);
+}
+
+/**
+ * El cliente compartido (lib/hubspot/client.ts) con el fetch de Lines. El
+ * presupuesto es el de la clave y su cuenta: lo comparte con el importador
+ * del CRM si usan la misma. Una acción de pantalla no espera más de 3 s por
+ * un lugar. Con el HubSpot falso no hay presupuesto.
+ */
+export function hubspotClient(token: string, maxWaitMs = 3_000): HubspotClient {
+  return createHubspotClient({ token, fetch: fetcher(), budget: fakeMode() ? null : hubspotBudget({ token, maxWaitMs }) });
+}
+
 async function request(token: string, method: string, path: string, body?: unknown, auth = true): Promise<Record<string, unknown>> {
-  let res: Response;
+  let res;
   try {
-    res = await fetcher()(`${API}${path}`, {
-      method,
-      headers: { ...(auth ? { authorization: `Bearer ${token}` } : {}), 'content-type': 'application/json', accept: 'application/json' },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw new HubspotError('hubspot_unreachable', 502);
+    res = await hubspotClient(token).send(path, { method, body, auth });
+  } catch (err) {
+    throw fromApiError(err);
   }
   if (res.status === 401) throw new HubspotError('hubspot_invalid_token', 502);
   if (res.status === 403) throw new HubspotError('hubspot_missing_scopes', 502);
   if (res.status === 404) throw new HubspotError('hubspot_not_found', 404);
-  if (res.status === 429) throw new HubspotError('hubspot_rate_limited', 429);
   if (!res.ok) throw new HubspotError('hubspot_error', 502);
-  const text = await res.text().catch(() => '');
-  try {
-    return text ? (JSON.parse(text) as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
+  return res.json();
 }
 
 /** Llamada con la conexión del workspace: anota el último error (o lo limpia). */
@@ -290,62 +321,24 @@ async function hs(conn: Conn, method: string, path: string, body?: unknown): Pro
 }
 
 /**
- * Valida un token: quién es (portal) y qué permisos tiene. Primero con la
- * info del token; si esa llamada no está disponible, probando cada lectura.
+ * Valida la clave (una service key o el token de una private app heredada):
+ * de qué cuenta es, de qué tipo y qué permisos tiene. La validación es la
+ * compartida de lib/hubspot/token.ts; si HubSpot no informa los permisos de
+ * esa clave, se prueban los que usa Lines.
  */
-async function inspectToken(token: string): Promise<{ portalId: string; uiDomain: string; scopes: string[] }> {
-  let portalId = '';
-  let scopes: string[] | null = null;
+async function inspectToken(token: string): Promise<HubspotTokenInfo> {
   try {
-    const info = await request(token, 'POST', '/oauth/v2/private-apps/get/access-token-info', { tokenKey: token }, false);
-    portalId = info.hubId ? String(info.hubId) : '';
-    if (Array.isArray(info.scopes)) scopes = info.scopes.filter((x): x is string => typeof x === 'string');
+    return await inspectHubspotToken(token, { client: hubspotClient(token, 10_000), probe: LINES_PROBE_SCOPES });
   } catch (err) {
-    if (!(err instanceof HubspotError)) throw err;
-    if (err.code === 'hubspot_invalid_token' || err.code === 'hubspot_unreachable' || err.code === 'hubspot_rate_limited') throw err;
+    throw fromApiError(err);
   }
-  let uiDomain = 'app.hubspot.com';
-  try {
-    const details = await request(token, 'GET', '/account-info/v3/details');
-    if (!portalId && details.portalId) portalId = String(details.portalId);
-    if (typeof details.uiDomain === 'string' && /^app[a-z0-9-]*\.hubspot\.com$/.test(details.uiDomain)) uiDomain = details.uiDomain;
-  } catch (err) {
-    if (!(err instanceof HubspotError)) throw err;
-    if (err.code === 'hubspot_invalid_token' || (!portalId && err.code !== 'hubspot_missing_scopes')) throw err;
-  }
-  if (!scopes) {
-    // Sin la lista: se prueba cada lectura; un 403 es un permiso que falta.
-    scopes = [];
-    for (const type of HUBSPOT_TYPES) {
-      try {
-        await request(token, 'GET', `/crm/v3/objects/${PLURAL[type]}?limit=1`);
-        scopes.push(`crm.objects.${PLURAL[type]}.read`);
-      } catch (err) {
-        if (!(err instanceof HubspotError) || err.code !== 'hubspot_missing_scopes') throw err;
-      }
-    }
-    // La definición de las propiedades y los dueños: lecturas que se pueden probar. Escribir no se prueba.
-    for (const [path, scope] of [
-      ['/crm/v3/properties/companies/name', 'crm.schemas.companies.read'],
-      ['/crm/v3/owners?limit=1', 'crm.objects.owners.read'],
-    ] as const) {
-      try {
-        await request(token, 'GET', path);
-        scopes.push(scope);
-      } catch (err) {
-        if (!(err instanceof HubspotError) || err.code !== 'hubspot_missing_scopes') throw err;
-      }
-    }
-  }
-  if (!/^\d{1,20}$/.test(portalId)) throw new HubspotError('hubspot_invalid_token');
-  return { portalId, uiDomain, scopes };
 }
 
 /** Conecta (o cambia el token). Valida el token y sus permisos antes de guardar. */
 export async function connectHubspot(ws: string, actor: string, rawToken: string): Promise<HubspotDto> {
   const token = String(rawToken ?? '').trim();
-  if (!token || token.length > 400 || /\s/.test(token)) throw new HubspotError('hubspot_invalid_token');
-  let info: Awaited<ReturnType<typeof inspectToken>>;
+  if (!looksLikeHubspotToken(token)) throw new HubspotError('hubspot_invalid_token');
+  let info: HubspotTokenInfo;
   try {
     info = await inspectToken(token);
   } catch (err) {
@@ -363,13 +356,13 @@ export async function connectHubspot(ws: string, actor: string, rawToken: string
   const canLog = info.scopes.includes(NOTE_SCOPE);
   await db
     .prepare(
-      `INSERT INTO groups_hubspot (user_id, token, portal_id, ui_domain, scopes, auto_link, log_notes, last_error, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 0, 0, '', ?, ?, ?)
+      `INSERT INTO groups_hubspot (user_id, token, portal_id, ui_domain, scopes, auto_link, log_notes, last_error, created_by, created_at, updated_at, token_kind)
+       VALUES (?, ?, ?, ?, ?, 0, 0, '', ?, ?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET token = excluded.token, portal_id = excluded.portal_id, ui_domain = excluded.ui_domain,
-         scopes = excluded.scopes, last_error = '', updated_at = excluded.updated_at,
+         scopes = excluded.scopes, last_error = '', updated_at = excluded.updated_at, token_kind = excluded.token_kind,
          log_notes = CASE WHEN ? = 1 THEN groups_hubspot.log_notes ELSE 0 END`,
     )
-    .run(ws, seal(token), info.portalId, info.uiDomain, JSON.stringify(info.scopes), actor, now, now, canLog ? 1 : 0);
+    .run(ws, seal(token), info.portalId, info.uiDomain, JSON.stringify(info.scopes), actor, now, now, info.kind, canLog ? 1 : 0);
   caches.delete(ws);
   // Al conectar se importan las propiedades de la empresa. Si falla, lo reintenta el cron.
   const { refreshHubspotSchema } = await import('./groups-hubspot-sync');
@@ -422,7 +415,7 @@ async function clearWorkspaceData(ws: string): Promise<void> {
  */
 export async function disconnectHubspot(ws: string): Promise<boolean> {
   const res = await getDb()
-    .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, auto_create = 0, auto_create_since = NULL, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
+    .prepare("UPDATE groups_hubspot SET token = '', token_kind = '', scopes = '[]', auto_link = 0, log_notes = 0, auto_create = 0, auto_create_since = NULL, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
     .run(new Date().toISOString(), ws);
   caches.delete(ws);
   // El esquema del contacto y del negocio es de esa cuenta: otra cuenta lo vuelve a importar.

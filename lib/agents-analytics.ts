@@ -7,6 +7,7 @@
  */
 import { getDb } from './db';
 import { agentConversationVisibleSql, chatConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSqlFor } from './groups-access';
 import { clusterTopics, type TopicClusters } from './agents-topics';
 
 export const ANALYTICS_RANGES = [7, 30, 90] as const;
@@ -73,21 +74,23 @@ export async function getAgentAnalytics(
   agentId: string,
   days: AnalyticsRange = 30,
   now = new Date(),
-  /** Persona sin rol de admin: sin lo de bandejas de Chat que no ve. */
+  /** Persona sin rol de admin: sin lo de bandejas de Chat ni de chats de Lines que no ve. */
   viewerId?: string,
 ): Promise<AgentAnalytics> {
   const db = getDb();
-  const vis = (column: string) => {
+  // Las conversaciones que vienen de un chat de Lines siguen el acceso a ese chat (`id`: la columna con el id de la conversación).
+  const vis = async (column: string, id = column) => {
     if (!viewerId) return { sql: '', args: [] as string[] };
     const v = column.includes('chat_conversation_id') ? chatConversationVisibleSql(column, viewerId) : agentConversationVisibleSql(column, viewerId);
-    return { sql: ` AND ${v.sql}`, args: v.args };
+    const lines = await linesAgentConversationSqlFor(workspaceId, viewerId, id);
+    return { sql: ` AND ${v.sql}${lines ? ` AND ${lines.sql}` : ''}`, args: [...v.args, ...(lines?.args ?? [])] };
   };
-  const vc = vis('c.chat_conversation_id');
-  const vbare = vis('chat_conversation_id');
-  const vr = vis('conversation_id');
-  const vt = vis('t.conversation_id');
-  const vf = vis('f.conversation_id');
-  const ve = vis('e.conversation_id');
+  const vc = await vis('c.chat_conversation_id', 'c.id');
+  const vbare = await vis('chat_conversation_id', 'agent_conversations.id');
+  const vr = await vis('conversation_id', 'agent_runs.conversation_id');
+  const vt = await vis('t.conversation_id');
+  const vf = await vis('f.conversation_id');
+  const ve = await vis('e.conversation_id');
   const from = new Date(now.getTime() - days * 86_400_000).toISOString();
 
   const conv = (await db

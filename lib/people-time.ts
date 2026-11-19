@@ -360,3 +360,43 @@ export function zonedInstant(date: string, tz: string | null | undefined, hour =
     return new Date(base).toISOString();
   }
 }
+
+/** Quién está fuera un día: hasta cuándo (encadenando licencias seguidas) y si es medio día. */
+export interface OutStatus {
+  /** Último día fuera (incluido). */
+  until: string;
+  /** '' = el día entero; 'am' o 'pm' = solo esa mitad (licencia de un solo día). */
+  half: HalfDay;
+}
+
+/**
+ * De licencias aprobadas (cualquier orden), quién está fuera `day` y hasta
+ * cuándo. Una licencia que empieza al día siguiente de otra (o se pisa con
+ * ella) alarga la vuelta. Se encadena solo lo contiguo en el calendario: acá
+ * no se sabe qué días son hábiles para esa persona.
+ */
+export function outOnDay(rows: Array<{ employeeId: string; startDate: string; endDate: string; half?: string }>, day: string): Map<string, OutStatus> {
+  const byPerson = new Map<string, Array<{ startDate: string; endDate: string; half: HalfDay }>>();
+  for (const r of rows) {
+    if (!isIsoDate(r.startDate) || !isIsoDate(r.endDate) || r.endDate < day) continue;
+    const list = byPerson.get(r.employeeId) ?? [];
+    list.push({ startDate: r.startDate, endDate: r.endDate, half: r.half === 'am' || r.half === 'pm' ? r.half : '' });
+    byPerson.set(r.employeeId, list);
+  }
+  const out = new Map<string, OutStatus>();
+  for (const [id, list] of byPerson) {
+    list.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const current = list.filter((r) => r.startDate <= day && r.endDate >= day);
+    if (current.length === 0) continue;
+    // Medio día solo si es lo único que hay ese día.
+    const half = current.length === 1 && current[0].startDate === current[0].endDate ? current[0].half : '';
+    let until = current.reduce((max, r) => (r.endDate > max ? r.endDate : max), day);
+    if (!half) {
+      for (const r of list) {
+        if (r.startDate > until && r.startDate <= addDays(until, 1) && !r.half) until = r.endDate > until ? r.endDate : until;
+      }
+    }
+    out.set(id, { until, half });
+  }
+  return out;
+}

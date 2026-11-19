@@ -17,7 +17,7 @@ async function connect(page: import('@playwright/test').Page, provider: 'HubSpot
     await card.getByRole('button', { name: `Connect ${provider}` }).click();
     await expect(page.getByRole('heading', { name: `Connect ${provider}` })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 20_000 });
-  await page.getByLabel(provider === 'HubSpot' ? 'Access token' : 'API token').fill(token);
+  await page.getByLabel(provider === 'HubSpot' ? 'Service key or private app token' : 'API token').fill(token);
   await page.getByRole('button', { name: 'Connect and preview' }).click();
   await expect(page.getByTestId('migrate-preview')).toBeVisible({ timeout: 30_000 });
 }
@@ -35,7 +35,7 @@ test('HubSpot: token, vista previa, import completo y reimport que actualiza', a
     await expect(page.getByRole('heading', { name: 'Connect HubSpot' })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 20_000 });
   await expect(page.getByText('crm.objects.owners.read')).toBeVisible();
-  await page.getByLabel('Access token').fill('wrong-token');
+  await page.getByLabel('Service key or private app token').fill('wrong-token');
   await page.getByRole('button', { name: 'Connect and preview' }).click();
   await expect(page.locator('p.form-error[role="alert"]')).toContainText("That token didn't work");
   await page.getByRole('button', { name: 'Back', exact: true }).click();

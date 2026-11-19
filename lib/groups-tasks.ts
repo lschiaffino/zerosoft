@@ -117,6 +117,18 @@ function recordScope(crm: OwnerScope | false | undefined): { sql: string; args: 
   return activityScopeSql('a', crm);
 }
 
+/** El título neutro de una tarea creada desde un mensaje sin título (en los tres idiomas: la tarea guarda el suyo). */
+const DEFAULT_TITLES = new Set([en.taskEmail.defaultTitle, es.taskEmail.defaultTitle, pt.taskEmail.defaultTitle]);
+
+/**
+ * El título para quien ve el chat: una tarea que quedó con el título neutro muestra la primera línea de su
+ * mensaje. Sale del mensaje (que solo se lee con acceso al chat), no de la tarea del CRM.
+ */
+function titleFor(r: Pick<TaskJoin, 'subject' | 'message_body'>): string {
+  if (!DEFAULT_TITLES.has(r.subject) || !r.message_body) return r.subject;
+  return r.message_body.split('\n').find((l) => l.trim())?.trim().slice(0, 120) || r.subject;
+}
+
 function toDto(r: TaskJoin): GroupTaskDto {
   return {
     id: r.id,
@@ -125,7 +137,7 @@ function toDto(r: TaskJoin): GroupTaskDto {
     chatName: chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid }),
     messageId: r.message_id,
     messageBody: (r.message_body ?? '').slice(0, 280),
-    title: r.subject,
+    title: titleFor(r),
     notes: r.body,
     dueAt: dbToIso(r.due_at),
     done: Boolean(r.done),
@@ -219,18 +231,15 @@ export interface CreateTaskInput {
 export async function createGroupTask(ws: string, actor: string, input: CreateTaskInput, now = new Date(), viewer?: GroupsViewer): Promise<GroupTaskDto> {
   const chat = await getChatRow(ws, input.chatId);
   if (!chat || (viewer && !(await canSeeChat(viewer, chat.id)))) throw new GroupsError('not_found', 404);
-  let messageBody = '';
   if (input.messageId) {
     const msg = await getMessageRow(ws, input.messageId);
     if (!msg || msg.chat_id !== chat.id) throw new GroupsError('invalid_message');
-    messageBody = msg.body;
-    // "@<dígitos>" → "@Nombre" en lo que la tarea copia del mensaje.
-    if (messageBody.includes('@')) {
-      const { linesRowTexts } = await import('./groups-wa-names');
-      messageBody = (await linesRowTexts(ws, [msg], { shared: true }))[0];
-    }
   }
-  const title = (input.title ?? '').trim().slice(0, 200) || messageBody.split('\n').find((l) => l.trim())?.trim().slice(0, 120) || '';
+  const locale = input.locale === 'es' || input.locale === 'pt' ? input.locale : 'en';
+  // La tarea del CRM se lee con la visibilidad del CRM, que no es la de Lines: no lleva copia del nombre del chat
+  // ni del texto del mensaje. De dónde salió queda como vínculo (groups_tasks y task_links), y el chat y el
+  // mensaje se muestran solo a quien ve ese chat. Desde un mensaje y sin título, uno neutro.
+  const title = (input.title ?? '').trim().slice(0, 200) || (input.messageId ? STRINGS[locale].defaultTitle : '');
   if (!title) throw new GroupsError('invalid_title');
   const dueAt = cleanDue(input.dueAt, now);
   const ownerId = input.ownerId || actor;
@@ -239,7 +248,7 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
   const activity = await createActivity(ws, {
     type: 'task',
     subject: title,
-    body: notes || (messageBody ? `${chatDisplayName(chat)}: ${messageBody.slice(0, 1000)}` : chatDisplayName(chat)),
+    body: notes,
     dueAt,
     ownerId,
     priority: cleanPriority(input.priority),
@@ -248,7 +257,6 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
   });
   // Mismo id que la tarea del CRM: un solo id en Groups, CRM, ⌘K y la API.
   const id = activity.id;
-  const locale = input.locale === 'es' || input.locale === 'pt' ? input.locale : 'en';
   await getDb()
     .prepare(
       'INSERT INTO groups_tasks (id, user_id, chat_id, message_id, activity_id, created_by, locale, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -415,9 +423,10 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
   const rows = (await db
     .prepare(
       `SELECT t.id, t.user_id, t.chat_id, t.created_by, t.locale, t.timezone, a.subject, a.due_at, a.owner_id, c.name AS chat_name, c.phone AS chat_phone,
-         c.provider_chat_id AS chat_pid, u.email AS owner_email
+         c.provider_chat_id AS chat_pid, u.email AS owner_email, m.body AS message_body
        FROM groups_tasks t CROSS JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id
        LEFT JOIN users u ON u.id = COALESCE(a.owner_id, t.created_by)
+       LEFT JOIN groups_messages m ON m.id = t.message_id
        WHERE a.done = 0 AND a.due_at IS NOT NULL AND datetime(a.due_at) <= datetime(?) AND (t.reminded_for IS NULL OR t.reminded_for != a.due_at)
        ORDER BY a.due_at ASC LIMIT ?`,
     )
@@ -435,6 +444,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     chat_phone: string;
     chat_pid: string;
     owner_email: string | null;
+    message_body: string | null;
   }>;
   let fired = 0;
   for (const r of rows) {
@@ -447,7 +457,9 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     const locale: Locale = r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en';
     const chatName = chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid });
     const href = `/app/lines/inbox/${encodeURIComponent(r.chat_id)}`;
-    const mail = buildTaskEmail({ title: r.subject, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
+    // El aviso va solo a quien ve el chat (más abajo): puede llevar el título que se ve en Lines.
+    const title = titleFor(r);
+    const mail = buildTaskEmail({ title, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
     const { personCanSeeChat } = await import('./groups-access');
     // Sin ver la línea del chat no hay aviso: ni la notificación ni el email nombran el chat.
     if (person && !(await personCanSeeChat(r.user_id, person, r.chat_id).catch(() => false))) continue;
@@ -455,7 +467,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
       await createNotification({
         userId: person,
         type: 'groups_reminder',
-        title: fill(STRINGS[locale].notification, { title: r.subject }),
+        title: fill(STRINGS[locale].notification, { title }),
         body: chatName,
         href,
         sourceType: 'groups_task',

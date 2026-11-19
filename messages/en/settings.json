@@ -1246,11 +1246,8 @@
     "openImporter": "Open the {app} importer",
     "steps": {
       "hubspot": {
-        "1": "In HubSpot, open Settings › Integrations › Private Apps (in newer accounts: Development › Legacy apps) and create a private app.",
-        "2": "Name it (for example, zerosoft import). In Scopes, add the read scopes listed below. Nothing is written to HubSpot.",
-        "3": "Create the app and copy its access token (it starts with pat-).",
-        "4": "Paste it below and connect. We check the token and show what will come in: counts, owners, pipelines and custom properties.",
-        "5": "Map each HubSpot owner to a person in the workspace (they match by email) or invite the ones who are missing, then start."
+        "1": "Paste the key below and connect. We check it and show the account it belongs to, what it can read and what will come in: counts, owners, pipelines and custom properties.",
+        "2": "Map each HubSpot owner to a person in the workspace (they match by email) or invite the ones who are missing, then start."
       },
       "pipedrive": {
         "1": "In Pipedrive, open your avatar › Personal preferences › API.",
