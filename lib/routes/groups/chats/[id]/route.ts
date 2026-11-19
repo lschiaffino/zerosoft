@@ -64,7 +64,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
         await patchChatAs(s.ws, { id: s.me }, other, shared).catch(() => null);
       }
     }
-    return NextResponse.json(maskChat(guard.viewer, after));
+    // La carpeta es de quien pide: la respuesta lleva la suya.
+    const { chatFoldersFor } = await import('@/lib/groups-lines');
+    const mine = (await chatFoldersFor(s.ws, guard.viewer.me, [id])).get(id) ?? null;
+    return NextResponse.json(maskChat(guard.viewer, { ...after, folderId: mine }));
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -2116,7 +2116,8 @@
     "renameFolder": "Renomear pasta",
     "rename": "Renomear",
     "folderName": "Nome da pasta",
-    "foldersEmpty": "Ainda não há pastas. Crie uma para organizar as conversas; todo o workspace vê as mesmas pastas.",
+    "foldersEmpty": "Você ainda não tem pastas. Crie uma para organizar suas conversas. Suas pastas são suas: ninguém mais as vê.",
+    "createAndMove": "Criar e mover para cá",
     "unfiled": "Sem pasta",
     "unfiledEmpty": "Todas as conversas estão em uma pasta",
     "folderUnread": "{n, plural, one {# conversa não lida} other {# conversas não lidas}}",
@@ -2154,7 +2155,7 @@
     "filterOwner": "Filtrar por dono",
     "allOwners": "Todos os donos",
     "branch": {
-      "branchEmpty": "Ainda não há pastas.",
+      "branchEmpty": "Você ainda não tem pastas. As que você criar só você vê.",
       "new": "Nova pasta",
       "collapse": "Recolher {name}",
       "expand": "Expandir {name}",

@@ -413,7 +413,7 @@ describe('carpetas desde JSON en Lines (con base)', () => {
     return { ws, line, uno: chats.find((c) => c.name === 'Cliente Uno')!, dos: chats.find((c) => c.name === 'Cliente Dos')! };
   }
 
-  it('crea carpetas compartidas, mueve solo los que no tienen carpeta y repetir no duplica', async () => {
+  it('crea carpetas de la persona, mueve solo los que no tienen carpeta y repetir no duplica', async () => {
     const w = await linesWorld('fj-lines');
     const user = owner(w.ws);
     const old = await createLineFolder(w.ws.id, w.ws.id, { name: 'Viejos' });
@@ -422,7 +422,7 @@ describe('carpetas desde JSON en Lines (con base)', () => {
     const { action } = await planTurn(user, json, { target: 'lines' });
     expect(action!.details.some((d) => d.label.startsWith('Ya están en otra carpeta (1)'))).toBe(true);
     await decideAction({ user, locale: 'es', id: action!.id, decision: 'confirm' });
-    const folder = (await getDb().prepare('SELECT c.name AS chat, f.name AS folder FROM groups_chats c LEFT JOIN groups_folders f ON f.id = c.folder_id WHERE c.user_id = ? ORDER BY c.name').all(w.ws.id)) as Array<{ chat: string; folder: string }>;
+    const folder = (await getDb().prepare('SELECT c.name AS chat, f.name AS folder FROM groups_chats c LEFT JOIN groups_chat_folders cf ON cf.chat_id = c.id AND cf.person_id = ? LEFT JOIN groups_folders f ON f.id = cf.folder_id WHERE c.user_id = ? ORDER BY c.name').all(w.ws.id, w.ws.id)) as Array<{ chat: string; folder: string }>;
     expect(folder).toEqual([
       { chat: 'Cliente Dos', folder: 'Viejos' },
       { chat: 'Cliente Uno', folder: 'Activos' },
@@ -445,7 +445,7 @@ describe('carpetas desde JSON en Lines (con base)', () => {
     await setLineAccess(w.ws.id, w.line.id, { visibility: 'restricted', personIds: [] });
     const as = { ...w.ws, actingUser: outsider, role: 'member', apps: '*' } as unknown as SessionUser;
     const { action, result } = await planTurn(as, JSON.stringify({ Clientes: ['Cliente Uno'] }), { target: 'lines' });
-    // La carpeta se puede crear (las carpetas son del workspace), pero el chat no aparece.
+    // La carpeta se puede crear (es de la persona), pero el chat no aparece.
     expect(action!.details.find((d) => d.label.startsWith('No encontrados'))?.after).toContain('Cliente Uno');
     expect(JSON.stringify(result?.output)).not.toContain(w.uno.id);
   });

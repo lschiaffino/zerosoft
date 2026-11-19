@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const b = await readJson(req);
   const action = str(b.action, 20) as BulkAction | 'folder' | undefined;
   if (action === 'folder') {
-    // Mover a una carpeta compartida (folderId null la saca): solo chats que esta persona ve.
+    // Mover a una carpeta propia (folderId null la saca): solo chats que esta persona ve. La de otra persona es 404.
     const ids = strArr(b.ids, 200);
     if (ids.length === 0) return groupsError(400, 'no_recipients');
     try {

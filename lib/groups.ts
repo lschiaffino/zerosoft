@@ -722,7 +722,9 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
   return {
     id: row.id,
     numberId: row.number_id,
-    folderId: row.folder_id ?? null,
+    // La carpeta es de cada persona (groups_chat_folders): la pone quien arma la respuesta para esa persona
+    // (listChats). La columna folder_id de antes no se lee.
+    folderId: null,
     kind: row.kind,
     name: chatDisplayName(row),
     phone: row.phone,
@@ -1006,14 +1008,18 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push('c.number_id IN (SELECT zo.id FROM groups_numbers zo WHERE zo.user_id = c.user_id AND zo.owner_id = ?)');
     args.push(query.ownerId === 'me' ? me : query.ownerId);
   }
-  if (query.folderId === 'none') where.push('c.folder_id IS NULL');
-  else if (query.folderId) {
+  // Carpetas: las de quien pide (`me`) y lo que esa persona puso en ellas. Una carpeta de otra persona es como una
+  // que no existe: no trae nada.
+  if (query.folderId === 'none') {
+    where.push('NOT EXISTS (SELECT 1 FROM groups_chat_folders zcf WHERE zcf.chat_id = c.id AND zcf.person_id = ?)');
+    args.push(me);
+  } else if (query.folderId) {
     const { folderScope } = await import('./groups-lines');
-    const ids = await folderScope(ws, query.folderId);
+    const ids = await folderScope(ws, me, query.folderId);
     if (ids.length === 0) where.push('0 = 1');
     else {
-      where.push(`c.folder_id IN (${ids.map(() => '?').join(',')})`);
-      args.push(...ids);
+      where.push(`c.id IN (SELECT zcf.chat_id FROM groups_chat_folders zcf WHERE zcf.user_id = ? AND zcf.person_id = ? AND zcf.folder_id IN (${ids.map(() => '?').join(',')}))`);
+      args.push(ws, me, ...ids);
     }
   }
   if (query.teamId) {
@@ -1211,6 +1217,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
     { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
+  // En qué carpeta tiene cada chat quien pide (nunca la de otra persona).
+  const myFolders = rows.length ? await (await import('./groups-lines')).chatFoldersFor(ws, me, rows.map((r) => r.id)) : new Map<string, string>();
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
@@ -1219,6 +1227,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       const match = (r.match ?? snippets?.get(r.id)) ? named[i * 2 + 1] : null;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
+        folderId: myFolders.get(r.id) ?? null,
         lastDirection: dir || null,
         lastStatus: st || null,
         ...(r.kind === 'dm' && receiptsOff.has(r.number_id) ? { readHidden: true } : {}),

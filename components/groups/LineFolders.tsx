@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import MenuSelect from '@/components/ui/MenuSelect';
-import { Modal } from './ui';
+import { Modal, api, useErrorText } from './ui';
 import LineDot from './LineDot';
 
 export { LineDot };
@@ -101,7 +101,10 @@ export function FolderSelect({ folders, value, onChange }: { folders: LineFolder
   );
 }
 
-/** "Mover a carpeta" desde el menú de un chat o la barra de selección (alternativa al arrastre, con teclado). */
+/**
+ * "Mover a carpeta" desde el menú de un chat o la barra de selección (alternativa al arrastre, con teclado).
+ * Las carpetas son de cada persona: quien todavía no tiene ninguna crea la primera acá mismo y el chat va a esa.
+ */
 export function MoveToFolderModal({
   open,
   folders,
@@ -111,22 +114,45 @@ export function MoveToFolderModal({
   open: boolean;
   folders: LineFolderDto[];
   onClose: () => void;
-  onPick: (folderId: string | null) => void;
+  onPick: (folderId: string | null, name?: string) => void;
 }) {
   const t = useTranslations('groups.lines');
   const tc = useTranslations('groups.common');
+  const errText = useErrorText();
   const rows = useMemo(() => flattenTree(folders), [folders]);
+  const [name, setName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!open) {
+      setName(null);
+      setError('');
+    }
+  }, [open]);
+  const create = async () => {
+    const clean = (name ?? '').trim();
+    if (!clean || busy) return;
+    setBusy(true);
+    const r = await api<{ id: string; name: string }>('/api/groups/folders', { body: { name: clean } });
+    setBusy(false);
+    if (!r.data) return setError(errText(r.error));
+    notifyFoldersChanged();
+    onPick(r.data.id, r.data.name);
+  };
   return (
     <Modal
       open={open}
       title={t('moveTitle')}
       onClose={onClose}
+      onSubmit={name !== null ? () => void create() : undefined}
+      busy={busy}
       foot={
         <button type="button" className="btn btn-ghost" onClick={onClose}>
           {tc('cancel')}
         </button>
       }
     >
+      {folders.length === 0 && <p className="ui-help">{t('foldersEmpty')}</p>}
       <ul className="gr-folder-list gr-folder-pick">
         {rows.map(({ folder: f, depth }) => (
           <li key={f.id} style={{ paddingInlineStart: depth * 14 }}>
@@ -135,13 +161,34 @@ export function MoveToFolderModal({
             </button>
           </li>
         ))}
-        <li>
-          <button type="button" className="gr-folder" onClick={() => onPick(null)}>
-            <span className="gr-folder-name">{t('unfiled')}</span>
-          </button>
-        </li>
+        {folders.length > 0 && (
+          <li>
+            <button type="button" className="gr-folder" onClick={() => onPick(null)}>
+              <span className="gr-folder-name">{t('unfiled')}</span>
+            </button>
+          </li>
+        )}
       </ul>
-      {folders.length === 0 && <p className="ui-help">{t('foldersEmpty')}</p>}
+      {name === null ? (
+        <button type="button" className={`btn btn-sm ${folders.length === 0 ? 'btn-primary' : 'btn-ghost'} gr-folder-create`} onClick={() => setName('')} data-testid="lines-move-new-folder">
+          + {t('newFolder')}
+        </button>
+      ) : (
+        <div className="gr-folder-new">
+          <label className="ui-field">
+            <span className="label">{t('folderName')}</span>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus required data-testid="lines-move-new-name" />
+          </label>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!name.trim()} aria-busy={busy || undefined} data-testid="lines-move-new-save">
+            {t('createAndMove')}
+          </button>
+          {error && (
+            <p className="ui-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
