@@ -105,8 +105,13 @@ export default function PersonPicker({
       if (!panel.current?.contains(t) && !btn.current?.contains(t)) close(false);
     };
     const shut = () => close(false);
+    // La página se mueve con la lista abierta (también el scroll que trajo el botón a la vista justo antes del
+    // clic): la lista sigue al botón, y se cierra solo si el botón salió de la pantalla.
     const onScroll = (e: Event) => {
-      if (!panel.current?.contains(e.target as Node)) shut();
+      if (panel.current?.contains(e.target as Node)) return;
+      const b = btn.current?.getBoundingClientRect();
+      if (!b || b.bottom < 0 || b.top > window.innerHeight) shut();
+      else place();
     };
     document.addEventListener('pointerdown', away, true);
     window.addEventListener('resize', shut);
@@ -116,7 +121,7 @@ export default function PersonPicker({
       window.removeEventListener('resize', shut);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [open, close]);
+  }, [open, close, place]);
 
   useEffect(() => {
     if (open) panel.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' });

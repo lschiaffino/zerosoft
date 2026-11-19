@@ -1,5 +1,5 @@
 import { e2eDb } from './helpers/db';
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
 /**
  * Lines › Ajustes › Números: el dueño de una línea se elige en la misma fila,
@@ -42,10 +42,22 @@ async function member(browser: Browser, name: string) {
   return { ctx, email, id, name };
 }
 
+/**
+ * Abre un menú o selector y espera a verlo. El clic puede caer antes de que la página termine de hidratar,
+ * o justo cuando el scroll trae el botón a la vista: se repite hasta que abre.
+ */
+async function openMenu(trigger: Locator, menu: Locator) {
+  await trigger.scrollIntoViewIfNeeded();
+  await expect(async () => {
+    if (!(await menu.isVisible())) await trigger.click();
+    await expect(menu).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 const overflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const shot = async (p: Page, name: string) => {
   const dir = process.env.LINES_SHOTS_DIR;
-  if (dir) await p.screenshot({ path: `${dir}/${name}.png`, fullPage: false });
+  if (dir) await p.screenshot({ path: `${dir}/${name}.png`, fullPage: false, animations: 'disabled' });
 };
 
 test('un admin elige el dueño de una línea en su fila; el member lo ve y no lo cambia', async ({ browser, page, request }) => {
@@ -66,8 +78,8 @@ test('un admin elige el dueño de una línea en su fila; el member lo ve y no lo
     await expect(picker).toHaveAccessibleName(`Owner of Linea Dueño ${tag}: No owner`);
 
     // Abre: buscador con foco, la lista y la explicación. Esc cierra y devuelve el foco.
-    await picker.click();
     const panel = page.getByTestId('line-owner-panel');
+    await openMenu(picker, panel);
     await expect(panel.getByRole('combobox')).toBeFocused();
     await expect(panel).toContainText('Chats are not assigned to the owner');
     await shot(page, 'owner-picker-open-1280');
@@ -76,13 +88,12 @@ test('un admin elige el dueño de una línea en su fila; el member lo ve y no lo
     await expect(picker).toBeFocused();
 
     // Clic afuera también la cierra.
-    await picker.click();
-    await expect(panel).toBeVisible();
+    await openMenu(picker, panel);
     await page.getByTestId('lines-owner-help').click();
     await expect(panel).toHaveCount(0);
 
     // Busca por nombre y elige con Enter: se guarda en el acto.
-    await picker.click();
+    await openMenu(picker, panel);
     await panel.getByRole('combobox').fill(`dueña ${tag}`);
     await expect(panel.getByRole('option')).toHaveCount(1);
     const saved = page.waitForResponse((r) => r.url().includes(`/api/groups/numbers/${id}`) && r.request().method() === 'PATCH');
@@ -94,7 +105,7 @@ test('un admin elige el dueño de una línea en su fila; el member lo ve y no lo
     await shot(page, 'owner-set-1280');
 
     // Una búsqueda sin resultados lo dice.
-    await picker.click();
+    await openMenu(picker, panel);
     await panel.getByRole('combobox').fill('zzzz-nadie');
     await expect(panel).toContainText('Nobody matches');
     await page.keyboard.press('Escape');
@@ -112,8 +123,7 @@ test('un admin elige el dueño de una línea en su fila; el member lo ve y no lo
     await page.reload({ waitUntil: 'networkidle' });
     await line.scrollIntoViewIfNeeded();
     expect(await overflow(page)).toBeLessThanOrEqual(0);
-    await picker.click();
-    await expect(panel).toBeVisible();
+    await openMenu(picker, panel);
     const box = (await panel.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
