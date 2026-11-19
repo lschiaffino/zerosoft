@@ -39,9 +39,9 @@ async function mockImports(page: Page, current: () => Import[]) {
     delete headers['if-none-match'];
     const res = await route.fetch({ headers });
     const json = (await res.json()) as Record<string, unknown>;
-    const out = { ...res.headers() };
-    delete out.etag;
-    await route.fulfill({ status: 200, headers: out, json: { ...json, imports: current() } });
+    // Sin los encabezados de la respuesta real: traen la compresión y el largo del cuerpo original (y el ETag), y con
+    // un cuerpo nuevo el navegador no la puede leer.
+    await route.fulfill({ status: 200, json: { ...json, imports: current() } });
   });
 }
 
