@@ -530,7 +530,7 @@ test('Chat: responder con Enter (y "/" inserta una respuesta guardada) y resolve
 test('CRM: "Add deal" en la company abre el modal y el deal queda asociado, sin salir', async ({ request, page }) => {
   const co = await request.post('/api/crm/companies', { data: { name: `Co ${uid()}` } });
   const company = await co.json();
-  await page.goto(`/en/app/crm/companies/${company.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/companies/${company.id}?tab=activity`, { waitUntil: 'networkidle' });
   await page.getByTestId('crm-quick-deal-company').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByTestId('quick-deal-company')).toContainText(company.name);
