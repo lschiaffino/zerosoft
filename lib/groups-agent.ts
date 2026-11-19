@@ -22,9 +22,20 @@ export async function replyWithAgent(ws: string, chatId: string, messageId: stri
   if (!agent || agent.enabled !== 1) return 'skipped';
   const who = msg.sender_name || (msg.sender_phone ? `+${msg.sender_phone}` : '');
   const text = chat.kind === 'group' && who ? `${who}: ${msg.body}` : msg.body;
+  // La conversación queda atada al chat antes de que corra el modelo: si la corrida falla, igual sigue las reglas del chat.
+  const { linkAgentConversation } = await import('./groups-access');
+  let conversationId = chat.agent_conversation_id;
+  if (!conversationId) {
+    const { createConversation } = await import('./agents');
+    conversationId = (await createConversation(agent, 'api')).id;
+    await linkAgentConversation(ws, chat.id, conversationId);
+    await getDb().prepare('UPDATE groups_chats SET agent_conversation_id = ? WHERE id = ? AND user_id = ?').run(conversationId, chat.id, ws);
+  } else {
+    await linkAgentConversation(ws, chat.id, conversationId);
+  }
   let res;
   try {
-    res = await sendAgentMessage({ agent, channel: 'api', text, conversationId: chat.agent_conversation_id, createdBy: null });
+    res = await sendAgentMessage({ agent, channel: 'api', text, conversationId, createdBy: null });
   } catch (err) {
     // La conversación del agente se borró: empieza una nueva la próxima vez.
     if ((err as { code?: string })?.code === 'conversation_not_found') {
@@ -32,9 +43,7 @@ export async function replyWithAgent(ws: string, chatId: string, messageId: stri
     }
     return 'skipped';
   }
-  if (res.conversation.id !== chat.agent_conversation_id) {
-    // Primero el vínculo que no se pierde (la conversación sigue las reglas del chat aunque el chat cambie de agente).
-    const { linkAgentConversation } = await import('./groups-access');
+  if (res.conversation.id !== conversationId) {
     await linkAgentConversation(ws, chat.id, res.conversation.id);
     await getDb().prepare('UPDATE groups_chats SET agent_conversation_id = ? WHERE id = ?').run(res.conversation.id, chat.id);
   }

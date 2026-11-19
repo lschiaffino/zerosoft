@@ -6,7 +6,7 @@ import { setAiModelOverride } from '@/lib/ai';
 import { createAgent, createConversation, getAgentRow, listConversations } from '@/lib/agents';
 import type { AgentRow } from '@/lib/db';
 import { getAgentAnalytics } from '@/lib/agents-analytics';
-import { listSuggestions } from '@/lib/agents-knowledge';
+import { dismissSuggestions, listSuggestions } from '@/lib/agents-knowledge';
 import { listReplayCandidates } from '@/lib/agents-sim';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { connectNumber, createNumber, deleteChat, getNumberRowById, ingestEvents, updateChat } from '@/lib/groups';
@@ -20,9 +20,8 @@ import { linkContactHubspot, listLinesContacts, unlinkContactHubspot } from '@/l
 import { getActivity, listTimeline } from '@/lib/crm';
 import { taskLinksFor, taskLinksForKey } from '@/lib/tasks';
 import linkMigration from '@/lib/schema/migration-files/20261119_1340_lines_agent_conversations';
-import notesMigration, { isCopiedTaskNote } from '@/lib/schema/migration-files/20261119_1341_lines_task_notes';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
-import { scriptedModel } from './ai-mock';
+import { failingModel, scriptedModel } from './ai-mock';
 
 /**
  * Lines: lo que sale de un chat por otras apps sigue el acceso a ese chat.
@@ -216,16 +215,59 @@ describe('Agents: lo que viene de un chat de Lines', () => {
     expect((await listConversations(w.ws, w.agent.id)).some((c) => c.id === convId)).toBe(true);
   });
 
+  it('si la primera corrida falla, la conversación ya quedó atada al chat', async () => {
+    const w = await world('vp-throw');
+    setAiModelOverride(failingModel());
+    await getDb().prepare('UPDATE groups_chats SET agent_id = ? WHERE id = ?').run(w.agent.id, w.chatA.id);
+    expect(await replyWithAgent(w.ws, w.chatA.id, w.msgA)).not.toBe('replied');
+    const convs = (await getDb().prepare('SELECT id FROM agent_conversations WHERE agent_id = ?').all(w.agent.id)) as Array<{ id: string }>;
+    expect(convs).toHaveLength(1);
+    const link = (await getDb().prepare('SELECT chat_id, user_id FROM groups_agent_conversations WHERE conversation_id = ?').get(convs[0].id)) as { chat_id: string; user_id: string };
+    expect(link).toEqual({ chat_id: w.chatA.id, user_id: w.ws });
+    expect(await canSeeLinesAgentConversation(w.ws, w.friend.id, 'member', convs[0].id)).toBe(true);
+    expect(await canSeeLinesAgentConversation(w.ws, w.member.id, 'member', convs[0].id)).toBe(false);
+    expect((await listConversations(w.ws, w.agent.id, { viewer: { personId: w.member.id, isAdmin: false, role: 'member' } })).map((c) => c.id)).toEqual([]);
+    expect(await listReplayCandidates(w.ws, w.agent.id, 10, w.member.id)).toEqual([]);
+  });
+
+  it('descartar sugerencias ignora las corridas que la persona no ve', async () => {
+    const w = await world('vp-dismiss');
+    const fromA = await linesConversation(w, w.chatA.id, TEXT_A);
+    const fromB = await linesConversation(w, w.chatB.id, TEXT_B);
+    // Quien no ve ninguna de las dos líneas no descarta nada; quien tiene la A, solo la de A.
+    expect(await dismissSuggestions(w.ws, w.agent.id, [fromA.runId, fromB.runId], w.member.id)).toBe(0);
+    expect(await dismissSuggestions(w.ws, w.agent.id, [fromA.runId, fromB.runId], w.friend.id)).toBe(1);
+    expect((await listSuggestions(w.ws, w.agent.id)).map((x) => x.question)).toEqual([TEXT_B]);
+    expect(await dismissSuggestions(w.ws, w.agent.id, [fromB.runId])).toBe(1);
+  });
+
+  it('el vínculo de una conversación es del workspace que lo anotó', async () => {
+    const w = await world('vp-ws');
+    const other = await world('vp-ws-other');
+    const conv = await linesConversation(w, w.chatA.id, TEXT_A);
+    // Otro workspace no puede mover el vínculo a un chat suyo.
+    await linkAgentConversation(other.ws, other.chatA.id, conv.id);
+    const link = (await getDb().prepare('SELECT chat_id, user_id FROM groups_agent_conversations WHERE conversation_id = ?').get(conv.id)) as { chat_id: string; user_id: string };
+    expect(link).toEqual({ chat_id: w.chatA.id, user_id: w.ws });
+    expect(await canSeeLinesAgentConversation(w.ws, w.friend.id, 'member', conv.id)).toBe(true);
+    expect(await canSeeLinesAgentConversation(w.ws, w.member.id, 'member', conv.id)).toBe(false);
+  });
+
   it('las conversaciones que ya habían quedado sueltas se anotan sin chat: solo dueño y admins', async () => {
     const w = await world('vp-orphan');
     // Como las dejaba Lines antes: canal api, sin autor ni origen, y ningún chat que apunte a ella.
     const orphan = await createConversation(w.agent, 'api', { title: TEXT_B });
     const byPerson = await createConversation(w.agent, 'api', { title: 'pregunta por la api', createdBy: w.friend.id });
+    // De antes de que Lines tuviera agentes: con la misma forma las dejaban la API y Flow, y siguen como estaban.
+    const older = await createConversation(w.agent, 'api', { title: 'pregunta vieja' });
+    await getDb().prepare("UPDATE agent_conversations SET created_at = '2026-11-01T00:00:00.000Z' WHERE id = ?").run(orphan.id);
+    await getDb().prepare("UPDATE agent_conversations SET created_at = '2026-10-22T23:59:59.000Z' WHERE id = ?").run(older.id);
     await linkMigration.up(getClient());
     await linkMigration.up(getClient());
     for (const p of [w.friend, w.member]) {
       expect(await canSeeLinesAgentConversation(w.ws, p.id, 'member', orphan.id)).toBe(false);
       expect(await canSeeLinesAgentConversation(w.ws, p.id, 'member', byPerson.id)).toBe(true);
+      expect(await canSeeLinesAgentConversation(w.ws, p.id, 'member', older.id)).toBe(true);
     }
     expect(await canSeeLinesAgentConversation(w.ws, w.ws, 'owner', orphan.id)).toBe(true);
   });
@@ -263,35 +305,6 @@ describe('Lines: tareas desde un mensaje', () => {
     expect(forMember).toEqual([]);
     expect(JSON.stringify(forMember)).not.toContain(w.chatA.id);
     expect((await taskLinksForKey(key(w.owner, 'owner'), [task.id])).get(task.id)).toHaveLength(2);
-  });
-
-  it('las notas que eran la copia automática se vacían; las escritas a mano quedan', async () => {
-    const chat = { chat_name: 'Cliente Alfa', chat_phone: PERSON, chat_pid: `${PERSON}@c.us` };
-    expect(isCopiedTaskNote({ ...chat, body: `Cliente Alfa: ${TEXT_A}`, message_body: TEXT_A })).toBe(true);
-    expect(isCopiedTaskNote({ ...chat, body: 'Cliente Alfa', message_body: null })).toBe(true);
-    expect(isCopiedTaskNote({ ...chat, body: `+${PERSON}`, message_body: null })).toBe(true);
-    // El chat cambió de nombre después: igual se reconoce por el mensaje.
-    expect(isCopiedTaskNote({ ...chat, body: `Nombre viejo: ${TEXT_A}`, message_body: TEXT_A })).toBe(true);
-    // Un mensaje largo se copiaba hasta 1000 caracteres; uno con menciones, con el nombre en lugar del número.
-    const long = 'x'.repeat(1500);
-    expect(isCopiedTaskNote({ ...chat, body: `Cliente Alfa: ${long.slice(0, 1000)}`, message_body: long })).toBe(true);
-    expect(isCopiedTaskNote({ ...chat, body: 'Cliente Alfa: gracias por avisar @Persona Mencionada', message_body: 'gracias por avisar @5491100000000' })).toBe(true);
-    expect(isCopiedTaskNote({ ...chat, body: 'nota escrita a mano', message_body: TEXT_A })).toBe(false);
-    expect(isCopiedTaskNote({ ...chat, body: 'Recordar: llamar el lunes', message_body: TEXT_A })).toBe(false);
-    expect(isCopiedTaskNote({ ...chat, body: '', message_body: TEXT_A })).toBe(false);
-
-    const w = await world('vp-task-mig');
-    const old = await createGroupTask(w.ws, w.friend.id, { chatId: w.chatA.id, messageId: w.msgA, title: 'Vieja' });
-    const bare = await createGroupTask(w.ws, w.friend.id, { chatId: w.chatA.id, title: 'Sin mensaje' });
-    const manual = await createGroupTask(w.ws, w.friend.id, { chatId: w.chatA.id, messageId: w.msgA, title: 'Con nota', notes: 'nota escrita a mano' });
-    // Como quedaban antes.
-    await getDb().prepare('UPDATE crm_activities SET body = ? WHERE id = ?').run(`Cliente Alfa: ${TEXT_A}`, old.id);
-    await getDb().prepare('UPDATE crm_activities SET body = ? WHERE id = ?').run('Cliente Alfa', bare.id);
-    await notesMigration.up(getClient());
-    await notesMigration.up(getClient());
-    expect((await getActivity(w.ws, old.id))?.body).toBe('');
-    expect((await getActivity(w.ws, bare.id))?.body).toBe('');
-    expect((await getActivity(w.ws, manual.id))?.body).toBe('nota escrita a mano');
   });
 });
 

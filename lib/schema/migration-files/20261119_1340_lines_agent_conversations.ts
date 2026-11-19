@@ -9,6 +9,8 @@ import type { Migration } from '../migrations';
  * Se llena con las actuales y con las que ya quedaron sueltas: las del canal
  * 'api' sin autor, sin origen (Flow, Slack…) y sin referencia externa son las
  * que crea Lines; sin chat conocido (chat_id '') las ven solo dueño y admins.
+ * Solo las creadas desde que Lines tiene agentes (2026-10-23): antes de esa fecha
+ * la API y Flow dejaban conversaciones con esa misma forma.
  * Idempotente: IF NOT EXISTS e INSERT OR IGNORE.
  */
 export default {
@@ -31,7 +33,8 @@ export default {
     await c.execute(
       `INSERT OR IGNORE INTO groups_agent_conversations (conversation_id, user_id, chat_id)
        SELECT ac.id, ac.user_id, '' FROM agent_conversations ac
-       WHERE ac.channel = 'api' AND ac.created_by IS NULL AND ac.source IS NULL AND ac.external_ref IS NULL AND ac.chat_conversation_id IS NULL`,
+       WHERE ac.channel = 'api' AND ac.created_by IS NULL AND ac.source IS NULL AND ac.external_ref IS NULL AND ac.chat_conversation_id IS NULL
+         AND ac.created_at >= '2026-10-23'`,
     );
   },
 } satisfies Migration;

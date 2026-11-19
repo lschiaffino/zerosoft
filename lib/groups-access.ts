@@ -173,7 +173,7 @@ export async function linkAgentConversation(ws: string, chatId: string, conversa
   await getDb()
     .prepare(
       `INSERT INTO groups_agent_conversations (conversation_id, user_id, chat_id, created_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(conversation_id) DO UPDATE SET chat_id = excluded.chat_id`,
+       ON CONFLICT(conversation_id) DO UPDATE SET chat_id = excluded.chat_id WHERE groups_agent_conversations.user_id = excluded.user_id`,
     )
     .run(conversationId, ws, chatId, new Date().toISOString());
 }
@@ -191,19 +191,19 @@ export async function linesAgentConversationSql(ws: string, personId: string, ro
   const viewer = await groupsViewer(ws, personId, role);
   if (viewer.mask) {
     return {
-      sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.conversation_id = ${column})
-        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column}))`,
-      args: [],
+      sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.user_id = ? AND zgl.conversation_id = ${column})
+        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.user_id = ? AND zgc.agent_conversation_id = ${column}))`,
+      args: [ws, ws],
     };
   }
   const linked = chatAccessSql(viewer, 'zgk');
   const current = chatAccessSql(viewer, 'zgc');
   if (!linked || !current) return null;
   return {
-    sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.conversation_id = ${column}
-          AND NOT EXISTS (SELECT 1 FROM groups_chats zgk WHERE zgk.id = zgl.chat_id AND ${linked.sql}))
-        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column} AND NOT (${current.sql})))`,
-    args: [...linked.args, ...current.args],
+    sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.user_id = ? AND zgl.conversation_id = ${column}
+          AND NOT EXISTS (SELECT 1 FROM groups_chats zgk WHERE zgk.id = zgl.chat_id AND zgk.user_id = ? AND ${linked.sql}))
+        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.user_id = ? AND zgc.agent_conversation_id = ${column} AND NOT (${current.sql})))`,
+    args: [ws, ws, ...linked.args, ws, ...current.args],
   };
 }
 
