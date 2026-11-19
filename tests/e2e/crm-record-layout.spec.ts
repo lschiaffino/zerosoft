@@ -75,6 +75,20 @@ async function seed(request: APIRequestContext): Promise<Seed> {
   };
 }
 
+/**
+ * Registros sin asociar con nombres muy largos: quedan como opciones de los selectores
+ * "asociar existente". Un <select> mide lo que su opción más larga, así que con ellos se
+ * ve si una tarjeta se sale de la pantalla (en la cuenta compartida siempre hay alguno).
+ */
+async function seedLongOptions(request: APIRequestContext, tag: string) {
+  const long = `Unlinked record with a very long name that keeps going and going and going ${tag}`;
+  await json(request.post('/api/crm/companies', { data: { name: `${long} company` } }));
+  await json(request.post('/api/crm/contacts', { data: { firstName: long, lastName: 'contact', email: `long-${tag}@columns.example` } }));
+  const pipelines = await json<{ rows: Array<{ id: string; stages: Array<{ id: string }> }> }>(request.get('/api/crm/pipelines'));
+  const pipeline = pipelines.rows.find((p) => p.stages.length > 0)!;
+  await json(request.post('/api/crm/deals', { data: { name: `${long} deal`, pipelineId: pipeline.id, stageId: pipeline.stages[0].id } }));
+}
+
 const tabsNav = (page: Page) => page.getByRole('navigation', { name: 'Record sections' });
 const tabLink = (page: Page, name: string) => tabsNav(page).getByRole('link', { name, exact: true });
 const card = (page: Page, id: string) => page.locator(`[data-card="${id}"]`);
@@ -346,6 +360,7 @@ test.describe('ficha en una columna a 390', () => {
   test('identidad y acciones arriba, cuatro pestañas, sin scroll lateral', async ({ page, request }) => {
     const errors = watchErrors(page);
     const s = await seed(request);
+    await seedLongOptions(request, s.tag);
     for (const kind of KINDS) {
       await page.goto(s.paths[kind], { waitUntil: 'networkidle' });
       const name = page.getByRole('heading', { level: 1, name: s.names[kind] });
@@ -374,6 +389,8 @@ test.describe('ficha en una columna a 390', () => {
       await expect(page).toHaveURL(/tab=properties/);
       await expect(tabLink(page, 'About')).toHaveAttribute('aria-current', 'page');
       await expect(about.locator('.prop-row').first()).toBeVisible();
+      const a = await box(about);
+      expect(a.x + a.width).toBeLessThanOrEqual(PHONE.width);
       await expect(page.locator('.tl-composer')).toBeHidden();
       await expect(right).toBeHidden();
       await noSideScroll(page);
@@ -459,6 +476,7 @@ async function setLook(request: APIRequestContext, look: (typeof LOOKS)[number])
 test('la ficha en los cinco aspectos, claro y oscuro: tres columnas a 1280 y una a 390 sin scroll lateral', async ({ browser, baseURL, request }, info) => {
   test.setTimeout(420_000);
   const s = await seed(request);
+  await seedLongOptions(request, s.tag);
   // Un nombre largo y una nota, para ver cómo aguanta la columna angosta.
   const long = await json<{ id: string }>(
     request.post('/api/crm/contacts', {

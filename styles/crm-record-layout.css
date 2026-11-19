@@ -283,7 +283,8 @@
 }
 
 @media (max-width: 1239.98px) {
-  .rec3 { display: flex; flex-direction: column; gap: 16px; border-top: 0; }
+  /* align-items vuelve a stretch: con el start de la grilla, cada parte tomaría el ancho de su contenido (un selector con nombres largos) y se saldría de la pantalla. */
+  .rec3 { display: flex; flex-direction: column; align-items: stretch; gap: 16px; border-top: 0; }
   /* Los envoltorios de columna dejan de existir: sus partes se ordenan en una sola pila. */
   .rec3-left,
   .rec3-mid { display: contents; }
