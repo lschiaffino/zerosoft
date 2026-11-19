@@ -88,6 +88,13 @@ describe('llms.txt', () => {
     }
     expect(txt).toContain(`${origin}/llms-full.txt`);
   });
+  it('responde "alternativa open source a X" para cada competidor, con la página de alternativa', () => {
+    expect(txt).toMatch(/^## Open-source alternatives to paid software$/m);
+    for (const c of getComparisons()) {
+      expect(txt).toContain(`- ${c.competitor}: zerosoft ${c.name} is an open-source alternative`);
+      expect(txt).toContain(`${origin}/en/compare/${c.altSlug}`);
+    }
+  });
   it('sin rayas largas ni marca en mayúscula', () => {
     expect(txt).not.toMatch(/Zerosoft(?!-Signature)/);
   });

@@ -85,6 +85,12 @@ export function llmsTxt(): string {
     const soon = isComingSoon(k) ? ' (coming soon: not usable yet, waitlist only)' : '';
     lines.push(`- [${PRODUCT_CONFIG[k].name}](${url(productHref(k))})${soon}: ${oneLine(c.meta.description)}`);
   }
+  // Respuestas directas a "alternativa gratis / open source a X", una por app.
+  lines.push('', '## Open-source alternatives to paid software', '');
+  for (const c of getComparisons()) {
+    const soon = isComingSoon(c.product) ? ' (coming soon: not usable yet)' : '';
+    lines.push(`- ${c.competitor}: zerosoft ${c.name} is an open-source alternative${soon}, $0 self-hosted. ${url(`/compare/${c.altSlug}`)}`);
+  }
   lines.push('', '## Comparisons', '');
   for (const c of getComparisons()) {
     lines.push(

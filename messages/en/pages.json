@@ -4440,7 +4440,7 @@
       "metaDescription": "zerosoft {name} is an open-source {competitor} alternative: $0 on your server, free plan on zerosoft Cloud. It covers {percent}% of what we measure in {competitor}.",
       "title": "{competitor} alternative",
       "titleDim": "zerosoft {name}, open source.",
-      "lead": "{name} does the core of what {competitor} does. It runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. By our count it covers {percent}% of the {count} {competitor} capabilities we measure.",
+      "lead": "zerosoft {name} is an open-source alternative to {competitor} that does the core of what {competitor} does. It runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. By our count it covers {percent}% of the {count} {competitor} capabilities we measure.",
       "getTitle": "What you get",
       "gapsTitle": "What is still missing",
       "gapsLead": "Capabilities {competitor} has that {name} lacks or only covers in part. Vote on the public board for the ones you need.",
@@ -4452,7 +4452,7 @@
       "partial": "partial",
       "missing": "missing",
       "metaDescriptionCounts": "zerosoft {name} is an open-source {competitor} alternative: $0 on your server, free plan on zerosoft Cloud. Of {count} capabilities from its docs, {have} are included and {partial} partial.",
-      "leadCounts": "{name} runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. Of the {count} capabilities in the {competitor} docs, we count {have} included, {partial} partial and {missing} missing."
+      "leadCounts": "zerosoft {name} is an open-source alternative to {competitor}. It runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. Of the {count} capabilities in the {competitor} docs, we count {have} included, {partial} partial and {missing} missing."
     },
     "faqTitle": "Questions.",
     "relatedTitle": "Guides and posts",
