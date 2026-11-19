@@ -86,6 +86,8 @@
     "newItemPlaceholder": "Título de un ítem nuevo",
     "create": "Crear",
     "edit": "Editar ítem",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "fromAssistant": "Del asistente",
+    "priority": "Prioridad"
   }
 }

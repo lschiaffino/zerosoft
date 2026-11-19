@@ -389,7 +389,10 @@
     "attention": "Revisando qué espera en {app}",
     "readChats": "Leyendo tus chats de {app}",
     "waitingPermission": "Esperando tu permiso para leer {app}",
-    "inboxActions": "Preparando cambios en Inbox"
+    "inboxActions": "Preparando cambios en Inbox",
+    "featureRecorded": "Anotó un pedido para el equipo: {title}",
+    "problemReported": "Reportó un problema al equipo: {title}",
+    "recording": "Anotando el pedido para el equipo"
   },
   "panel": {
     "pin": "Fijar al costado",
@@ -452,5 +455,9 @@
     "showAll": "Ver todo ({count})",
     "showMore": "Mostrar {count} más"
   },
-  "jumpToLatest": "Ir al final"
+  "jumpToLatest": "Ir al final",
+  "requestNote": {
+    "feature": "Pedido anotado para el equipo: {title}",
+    "problem": "Problema reportado al equipo: {title}"
+  }
 }
