@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, NumberDto } from '@/lib/groups';
 import LineAccess from './LineAccess';
+import PersonPicker from './PersonPicker';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
 import MenuSelect from '@/components/ui/MenuSelect';
@@ -55,7 +56,10 @@ export default function NumbersSettings({
   reconnect = null,
   people = [],
   teams = [],
+  me = '',
 }: {
+  /** Quien mira: su nombre no hace falta en la columna Dueño ("Vos"). */
+  me?: string;
   /** Owner o admin: administra todas las líneas y cambia dueños. Si no, solo las suyas (`canManage`). */
   isAdmin?: boolean;
   initial: NumberDto[];
@@ -128,6 +132,18 @@ export default function NumbersSettings({
     }
     router.refresh();
   }
+  // Dueño de la línea: lo elige un admin en la misma fila y se guarda en el acto.
+  const [ownerBusy, setOwnerBusy] = useState('');
+  async function setOwner(n: NumberDto, ownerId: string) {
+    setOwnerBusy(n.id);
+    const res = await api<NumberDto>(`/api/groups/numbers/${n.id}`, { method: 'PATCH', body: { ownerId: ownerId || null } });
+    setOwnerBusy('');
+    if (!res.data) return showToast(errText(res.error), true);
+    const saved = res.data;
+    setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, ...saved } : x)));
+    showToast(saved.ownerName ? t('lines.ownerSaved', { name: saved.ownerName, line: n.name }) : t('lines.ownerCleared', { line: n.name }));
+    router.refresh();
+  }
   const colorOptions = [
     { value: '', label: t('numbers.colorNone'), lead: <span className="gr-line-dot is-none" aria-hidden="true" /> },
     ...LINE_COLORS.map((c) => ({ value: c, label: t(`numbers.colors.${c}`), lead: <LineDot color={c} /> })),
@@ -169,6 +185,9 @@ export default function NumbersSettings({
           </button>
         )}
       </div>
+      <p className="ui-help" data-testid="lines-owner-help">
+        {t(isAdmin ? 'lines.ownerExplainAdmin' : 'lines.ownerExplain')}
+      </p>
       {owners.length > 0 && (
         <MenuSelect
           testId="lines-owner-filter"
@@ -188,6 +207,7 @@ export default function NumbersSettings({
             <thead>
               <tr>
                 <th scope="col">{t('numbers.colLine')}</th>
+                <th scope="col">{t('lines.owner')}</th>
                 <th scope="col">{t('numbers.colStatus')}</th>
                 <th scope="col">{t('numbers.colLastMessage')}</th>
                 <th scope="col" className="num">
@@ -207,10 +227,11 @@ export default function NumbersSettings({
                       <span className="ui-help">
                         {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
                       </span>
-                      <span className="ui-help" data-testid="line-owner-label">
-                        {n.ownerName ? t('lines.ownerIs', { name: n.ownerName }) : t('lines.noOwner')}
-                        {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
-                      </span>
+                      {n.visibility === 'restricted' && (
+                        <span className="ui-help" data-testid="line-restricted-tag">
+                          {t('lines.restrictedTag')}
+                        </span>
+                      )}
                       {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
                       {n.archiveSyncBroken && n.provider !== 'sample' && (
                         <span className="ui-error" role="status" data-testid="line-archive-broken">
@@ -230,6 +251,26 @@ export default function NumbersSettings({
                       )}
                     </div>
                   </th>
+                  <td className="gr-number-cell gr-number-owner" data-label={t('lines.owner')} data-testid="line-owner-cell">
+                    {isAdmin ? (
+                      <PersonPicker
+                        testId="line-owner"
+                        label={t('lines.ownerOf', { name: n.name })}
+                        value={n.ownerId ?? ''}
+                        people={people}
+                        onChange={(v) => void setOwner(n, v)}
+                        noneLabel={t('lines.noOwner')}
+                        searchLabel={t('lines.ownerSearch')}
+                        emptyLabel={t('lines.ownerNoMatch')}
+                        help={t('lines.ownerHelp')}
+                        busy={ownerBusy === n.id}
+                      />
+                    ) : (
+                      <span className={n.ownerName ? undefined : 'ui-help'} data-testid="line-owner-name">
+                        {n.ownerId && n.ownerId === me ? t('lines.ownerYou') : n.ownerName || t('lines.noOwner')}
+                      </span>
+                    )}
+                  </td>
                   <td className="gr-number-cell" data-label={t('numbers.colStatus')} data-testid="line-status">
                     <span className="gr-number-status">
                       {n.provider === 'sample' ? (
@@ -259,7 +300,7 @@ export default function NumbersSettings({
                 </tr>
                 {n.canManage && (
                   <tr className="gr-number-actions-row">
-                    <td colSpan={4} className="table-stack-actions">
+                    <td colSpan={5} className="table-stack-actions">
                       <div className="gr-number-actions">
                         <MenuSelect
                           className="gr-line-color-select"
@@ -344,7 +385,7 @@ export default function NumbersSettings({
         }}
       />
       <LineAccess
-        canChangeOwner={isAdmin}
+        isOwner={Boolean(accessFor?.ownerId) && accessFor?.ownerId === me}
         number={accessFor}
         people={people}
         teams={teams}

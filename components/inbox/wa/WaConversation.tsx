@@ -25,7 +25,7 @@ import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/compon
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
-import { useBackLayer } from '@/components/groups/wa/backLayer';
+import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
 import { api, longWhen } from '../api';
@@ -174,9 +174,20 @@ const WaConversation = forwardRef<
   const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
   // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
-  const [selecting, setSelecting] = useState<Set<string> | null>(null);
+  // Lo que el reenvío acepta (lo mismo que rechaza el servidor): ni borrado, ni "ver una vez", ni sin salir, ni un archivo que no está.
+  const canForwardMsg = (m: MessageDto) =>
+    !isTempId(m.id) && !m.revoked && m.mediaType !== 'system' && !m.meta?.viewOnce && !(m.fromMe && m.status === 'failed') && (m.mediaType ? m.hasMedia : Boolean(m.body?.trim()));
+  const canPickMsg = (m: MessageDto, forward: boolean) => !isTempId(m.id) && (!forward || canForwardMsg(m));
+  const selection = useMessageSelection({
+    resetKey: thread.id,
+    box: scroller,
+    canPick: (id, forward) => {
+      const m = messages.find((x) => x.id === id);
+      return !!m && canPickMsg(m, forward);
+    },
+  });
+  const { selecting, setSelecting } = selection;
   const [deletingSel, setDeletingSel] = useState(false);
-  useBackLayer(!!selecting, () => setSelecting(null));
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
@@ -277,7 +288,6 @@ const WaConversation = forwardRef<
     setRevealed(new Set());
     setNotesOpen(false);
     setHeld(null);
-    setSelecting(null);
   }, [thread.id]);
 
   // "Responder en privado": este chat 1:1 se abre respondiendo al mensaje del grupo (una vez).
@@ -545,7 +555,7 @@ const WaConversation = forwardRef<
       if (url) items.push({ key: 'download', label: w('download'), onSelect: () => downloadFile(url, m.mediaName) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
       // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
-      if ((m.body || m.mediaType) && !m.meta?.viewOnce) items.push({ key: 'forward', label: w('forward'), onSelect: () => setForwardFor(m) });
+      if (canForwardMsg(m)) items.push({ key: 'forward', label: w('forward'), onSelect: () => selection.startForward(m.id) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
       if (canEdit(m)) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
       if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
@@ -562,14 +572,8 @@ const WaConversation = forwardRef<
     return items;
   };
 
-  // Selección (toque largo y después tocar otros, como WhatsApp): tocar un mensaje lo suma o lo saca; sin ninguno, se sale.
-  const toggleSelected = (id: string) =>
-    setSelecting((prev) => {
-      const next = new Set(prev ?? []);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next.size ? next : null;
-    });
+  // Selección ("Reenviar" o "Seleccionar" en un mensaje, o toque largo y tocar otros, como WhatsApp): tocar un mensaje lo suma o lo saca.
+  const toggleSelected = selection.toggle;
   const selectedMsgs = () => messages.filter((m) => selecting?.has(m.id) && !isTempId(m.id));
   const copySelected = async () => {
     const list = selectedMsgs().filter((m) => m.body && !m.revoked);
@@ -779,7 +783,7 @@ const WaConversation = forwardRef<
         data-status={m.fromMe ? m.status : undefined}
         data-unsent={isTempId(m.id) ? 'true' : undefined}
         data-line={lineNames.size > 1 ? lineOf(m) : undefined}
-        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}${selected ? ' is-selected' : ''}`}
+        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${has(flash) ? ' is-target' : ''}${has(hitId) ? ' ib-msg-hit' : ''}${selected ? ' is-selected' : ''}${selecting && !canPickMsg(m, selection.forwardOnly) ? ' is-unpickable' : ''}`}
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
@@ -788,7 +792,7 @@ const WaConversation = forwardRef<
         {...gestures}
         onClick={selecting ? (album ? undefined : () => toggleSelected(m.id)) : group ? (e) => openMention(e, m) : undefined}
       >
-        {selecting && !album && <input type="checkbox" className="wa-select-check" checked={selected} readOnly tabIndex={-1} aria-label={gw('selectMessage')} />}
+        {selecting && !album && canPickMsg(m, selection.forwardOnly) && <SelectCheck id={m.id} checked={Boolean(selecting.has(m.id))} label={gw('selectMessage')} preview={body} onToggle={toggleSelected} />}
         <span className="wa-swipe-reply" aria-hidden="true">
           <ArrowLeft size={18} />
         </span>
@@ -1225,8 +1229,8 @@ const WaConversation = forwardRef<
                 key: 'forward',
                 label: w('forward'),
                 icon: <Forwarded size={22} />,
-                onClick: () => setForwardFor(selectedMsgs().filter((m) => !m.revoked && (m.body || m.mediaType) && !m.meta?.viewOnce)),
-                disabled: !connected || !selectedMsgs().some((m) => !m.revoked && (m.body || m.mediaType) && !m.meta?.viewOnce),
+                onClick: () => setForwardFor(selectedMsgs().filter(canForwardMsg)),
+                disabled: !connected || !selectedMsgs().some(canForwardMsg),
               },
               { key: 'delete', label: w('deleteForMe'), icon: <Trash size={22} />, onClick: () => setDeletingSel(true), danger: true },
             ]}

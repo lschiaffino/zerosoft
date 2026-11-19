@@ -1,5 +1,5 @@
 /** Inbox en Cmd+K: carpetas, chats y correos de la persona por nombre, teléfono, email o último mensaje, y los mensajes que coinciden. Nunca de otra persona. */
-import { chatNameRank } from '../chat-search-rank';
+import { chatNameHit, chatNameRank } from '../chat-search-rank';
 import { getDb } from '../db';
 import { HIT_END, HIT_START, searchMessages } from './message-search';
 
@@ -16,13 +16,14 @@ export async function searchInbox(owner: string, q: string, limit = 8): Promise<
   const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   // Como en la lista: primero los chats que coinciden por nombre, después los que coinciden por el último mensaje.
   const rank = chatNameRank('title', 'handle', term);
+  const byName = chatNameHit('title', 'handle', term);
   const rows = (await getDb()
     .prepare(
       `SELECT id, title, handle, channel FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL
-         AND (title LIKE ? ESCAPE '\\' OR handle LIKE ? ESCAPE '\\' OR preview LIKE ? ESCAPE '\\')
+         AND (${byName.sql} OR preview LIKE ? ESCAPE '\\')
        ORDER BY ${rank.sql} DESC, COALESCE(last_message_at, created_at) DESC LIMIT ?`,
     )
-    .all(owner, like, like, like, ...rank.args, limit)) as Array<{ id: string; title: string; handle: string; channel: string }>;
+    .all(owner, ...byName.args, like, ...rank.args, limit)) as Array<{ id: string; title: string; handle: string; channel: string }>;
   const folders = (await getDb()
     .prepare(`SELECT id, name FROM inbox_folders WHERE owner_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY position LIMIT ?`)
     .all(owner, like, limit)) as Array<{ id: string; name: string }>;

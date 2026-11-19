@@ -38,6 +38,7 @@
       "settings": "Ajustes de la app"
     },
     "screenHint": "Cuando tocás Empezar, el navegador te pregunta qué pantalla, ventana o pestaña compartir.",
+    "screenHintDesktop": "Cuando tocás Empezar, macOS te pregunta qué pantalla o ventana compartir.",
     "cancel": "Cancelar",
     "start": "Empezar a grabar",
     "cameraPreview": "Vista previa de la cámara",
@@ -60,6 +61,8 @@
       "screen_black": "La pantalla salió en negro: tu computadora no deja que el navegador la grabe. En Mac, abrí Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, activá tu navegador y volvé a abrirlo.",
       "screen_black_desktop": "La pantalla salió en negro: macOS no deja que zerosoft la grabe. Abrí Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, activá zerosoft, cerralo con ⌘Q y volvé a abrirlo.",
       "screen_denied": "Se canceló o se bloqueó compartir la pantalla.",
+      "screen_denied_desktop": "No arrancó compartir la pantalla. Si cerraste el selector, tocá Empezar de nuevo. Si no apareció nada para elegir, macOS lo está bloqueando: abrí Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, activá zerosoft, cerralo con ⌘Q y volvé a abrirlo.",
+      "screen_failed": "No se pudo empezar a compartir la pantalla en esta computadora. Cerrá otras apps que estén grabando la pantalla y probá de nuevo.",
       "upload": "La grabación no pudo empezar. Probá de nuevo.",
       "unsupported": "Este navegador no puede grabar video. Probá con Chrome, Edge o Firefox."
     },

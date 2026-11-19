@@ -38,6 +38,7 @@
       "settings": "App settings"
     },
     "screenHint": "When you press Start, your browser asks which screen, window or tab to share.",
+    "screenHintDesktop": "When you press Start, macOS asks which screen or window to share.",
     "cancel": "Cancel",
     "start": "Start recording",
     "cameraPreview": "Camera preview",
@@ -60,6 +61,8 @@
       "screen_black": "The screen came out black: your computer isn't letting the browser record it. On a Mac, open System Settings › Privacy & Security › Screen & System Audio Recording, turn on your browser and reopen it.",
       "screen_black_desktop": "The screen came out black: macOS isn't letting zerosoft record it. Open System Settings › Privacy & Security › Screen & System Audio Recording, turn on zerosoft, quit it with ⌘Q and open it again.",
       "screen_denied": "Screen sharing was cancelled or blocked.",
+      "screen_denied_desktop": "Screen sharing did not start. If you closed the picker, press Start again. If nothing appeared to choose from, macOS is blocking it: open System Settings › Privacy & Security › Screen & System Audio Recording, turn on zerosoft, quit it with ⌘Q and open it again.",
+      "screen_failed": "Screen sharing could not start on this computer. Close other apps that are recording the screen and try again.",
       "upload": "The recording could not start. Try again.",
       "unsupported": "This browser cannot record video. Try Chrome, Edge or Firefox."
     },

@@ -462,6 +462,18 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 }
 /* Qué historial trae la conexión: en su propio renglón. */
 .gr-number-note { flex-basis: 100%; }
+/* Dueño de la línea: el botón muestra a la persona; "Sin dueño" va atenuado. La lista trae buscador y qué implica. */
+.gr-numbers-table .gr-number-owner .gr-person-pick { margin-left: -8px; max-width: 200px; }
+.gr-person-pick.is-none .zs-msel-value { color: var(--dim); font-weight: 400; }
+.gr-person-panel { display: flex; flex-direction: column; gap: 4px; padding: 6px; overflow: hidden; }
+.gr-person-search { flex: none; width: 100%; height: 32px; font-size: 0.8125rem; }
+.gr-person-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.gr-person-email { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-person-empty { margin: 0; padding: 8px 10px; }
+.gr-person-help { flex: none; margin: 0; padding: 8px 10px 4px; border-top: 1px solid var(--line); font-size: 0.75rem; line-height: 1.45; }
+@media (max-width: 640px) {
+  .gr-numbers-table .gr-number-owner .gr-person-pick { margin-left: 0; justify-self: start; }
+}
 .gr-number-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .gr-provider-pick { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .gr-provider {

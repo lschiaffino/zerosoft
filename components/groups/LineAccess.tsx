@@ -5,17 +5,17 @@ import { useTranslations } from "next-intl";
 import type { GroupsPerson, NumberDto } from "@/lib/groups";
 import { Modal, api, useErrorText } from "./ui";
 
-/** Dueño de la línea y quién la ve (todo el workspace, o personas y equipos elegidos). */
+/** Quién ve la línea (todo el workspace, o personas y equipos elegidos). El dueño se elige en la tabla de Números. */
 export default function LineAccess({
   number,
   people,
   teams,
   onClose,
   onSaved,
-  canChangeOwner = true,
+  isOwner = false,
 }: {
-  /** Cambiar el dueño es de admins: quien administra solo su línea la comparte, no la pasa. */
-  canChangeOwner?: boolean;
+  /** Quien mira es el dueño de la línea (el dueño se cambia en la tabla, y solo un admin). */
+  isOwner?: boolean;
   number: NumberDto | null;
   people: GroupsPerson[];
   teams: Array<{ id: string; name: string }>;
@@ -25,7 +25,6 @@ export default function LineAccess({
   const t = useTranslations("groups.lines");
   const tc = useTranslations("groups.common");
   const errText = useErrorText();
-  const [owner, setOwner] = useState("");
   const [visibility, setVisibility] = useState<"all" | "restricted">("all");
   const [personIds, setPersonIds] = useState<Set<string>>(new Set());
   const [teamIds, setTeamIds] = useState<Set<string>>(new Set());
@@ -34,7 +33,6 @@ export default function LineAccess({
 
   useEffect(() => {
     if (!number) return;
-    setOwner(number.ownerId ?? "");
     setVisibility(number.visibility);
     setPersonIds(new Set(number.access?.personIds ?? []));
     setTeamIds(new Set(number.access?.teamIds ?? []));
@@ -58,7 +56,6 @@ export default function LineAccess({
     const r = await api<NumberDto>(`/api/groups/numbers/${number.id}`, {
       method: "PATCH",
       body: {
-        ...(canChangeOwner ? { ownerId: owner || null } : {}),
         visibility,
         personIds: [...personIds],
         teamIds: [...teamIds],
@@ -92,29 +89,13 @@ export default function LineAccess({
       }
     >
       <div className="ui-fields">
-        {canChangeOwner ? (
-          <label className="ui-field">
-            <span className="label">{t("owner")}</span>
-            <select
-              className="select"
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              data-testid="line-owner"
-            >
-              <option value="">{t("noOwner")}</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name || p.email}
-                </option>
-              ))}
-            </select>
-            <span className="ui-help">{t("ownerHelp")}</span>
-          </label>
-        ) : (
-          <p className="ui-help" data-testid="line-owner-fixed">
-            {t("ownerFixed")}
-          </p>
-        )}
+        <p className="ui-help" data-testid={isOwner ? "line-owner-fixed" : "line-owner-note"}>
+          {isOwner
+            ? t("ownerFixed")
+            : number?.ownerName
+              ? t("accessOwnerNote", { name: number.ownerName })
+              : t("accessNoOwnerNote")}
+        </p>
         <fieldset className="ui-field">
           <legend className="label">{t("visibility")}</legend>
           <label className="gr-check-label">
