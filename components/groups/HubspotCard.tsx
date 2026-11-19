@@ -8,6 +8,8 @@ import { Link } from '@/i18n/navigation';
 import type { HubspotDto } from '@/lib/groups-hubspot';
 import { HUBSPOT_MAX_PINNED, type HubspotObjectKind, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import { parseDbUtc } from '@/lib/utils';
+import { HubspotKeyHelp, HubspotKeySummary, HubspotMissingScopes, HubspotScopeList, useHubspotScopeText } from '@/components/hubspot/HubspotKeyHelp';
+import { scopesFromErrorCode } from '@/lib/hubspot/scopes';
 import { setHubspotSchema, useHubspotSchema } from './hubspot-client';
 import HubspotKindTabs from './HubspotKindTabs';
 import { Modal, api, useErrorText, useToast } from './ui';
@@ -143,14 +145,17 @@ function PropertiesModal({ open, onClose, showToast }: { open: boolean; onClose:
 }
 
 /**
- * HubSpot en Ajustes › Integraciones: conectar con el token de una private
- * app (se muestran los permisos que necesita), y los dos ajustes del
- * workspace: vincular solo con una única coincidencia y registrar la
+ * HubSpot en Ajustes › Integraciones: conectar con una service key o con el
+ * token de una private app heredada (se muestran los pasos de cada caso, los
+ * permisos que necesita y, ya conectado, de qué cuenta es la clave y qué
+ * puede hacer), y los ajustes del workspace: vincular solo con una única coincidencia y registrar la
  * conversación como notas. El token nunca vuelve del servidor.
  */
 export default function HubspotCard({ initial, scopes, canEdit }: { initial: HubspotDto; scopes: HubspotScopes; canEdit: boolean }) {
   const t = useTranslations('groups');
+  const th = useTranslations('common.hubspot');
   const errText = useErrorText();
+  const scopeText = useHubspotScopeText();
   const [toast, showToast] = useToast();
   const scopesId = useId();
   const [row, setRow] = useState(initial);
@@ -161,6 +166,8 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
   const [autoCreate, setAutoCreate] = useState(initial.autoCreate);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  /** Permisos obligatorios que le faltan a la clave que se quiso conectar. */
+  const [missing, setMissing] = useState<string[]>([]);
   const [removing, setRemoving] = useState(false);
   const [propsOpen, setPropsOpen] = useState(false);
   const [secret, setSecret] = useState('');
@@ -175,6 +182,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     setLogNotes(row.logNotes);
     setAutoCreate(row.autoCreate);
     setError('');
+    setMissing([]);
     setOpen(true);
   }
 
@@ -182,6 +190,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     if (!row.connected && !token.trim()) return setError(errText('hubspot_invalid_token'));
     setBusy(true);
     setError('');
+    setMissing([]);
     const body: Record<string, unknown> = {};
     if (token.trim()) body.token = token.trim();
     if (row.connected) {
@@ -193,7 +202,10 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     const res = await api<HubspotDto>('/api/groups/hubspot', { body });
     setBusy(false);
     if (!res.data) {
-      setError(errText(res.error));
+      // Faltan permisos obligatorios: se dicen en palabras, uno por línea.
+      const lacks = res.error?.startsWith('hubspot_missing_scopes:') ? scopesFromErrorCode(res.error) : [];
+      if (lacks.length) setMissing(lacks);
+      else setError(errText(res.error));
       // El token pudo guardarse aunque un ajuste haya fallado: se relee el estado.
       const now = await api<HubspotDto>('/api/groups/hubspot');
       if (now.data) setRow(now.data);
@@ -208,7 +220,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     const res = await api('/api/groups/hubspot', { method: 'DELETE' });
     setRemoving(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false });
+    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false, tokenKind: 'unknown' });
     setHubspotSchema(null, 'company');
     setHubspotSchema(null, 'contact');
     setHubspotSchema(null, 'deal');
@@ -224,13 +236,11 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
   }
 
   const missingLog = row.connected && row.missingLogScopes.length > 0;
-  const scopeList = (items: readonly string[]) => (
-    <ul className="gr-hs-scopes gr-mono">
-      {items.map((s) => (
-        <li key={s}>{s}</li>
-      ))}
-    </ul>
-  );
+  const scopeList = (items: readonly string[]) => <HubspotScopeList scopes={items} />;
+  const words = (items: readonly string[]) => items.map(scopeText).join(', ');
+  /** De los permisos que usa Lines, los que la clave conectada todavía no tiene. */
+  const wanted = [...new Set([...scopes.read, ...(scopes.sync ?? []), ...scopes.optional, ...scopes.log])];
+  const lacking = wanted.filter((s) => !row.scopes.includes(s));
 
   return (
     <li className="gr-integration">
@@ -244,6 +254,14 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
               ? t('integrations.error', { code: errText(row.lastError) || row.lastError })
               : t('hubspot.card.connectedTo', { id: row.portalId })}
         </span>
+        {row.connected && row.tokenKind !== 'unknown' && (
+          <>
+            <br />
+            <span className="ui-help" data-testid="hubspot-card-kind">
+              {th(`kind.${row.tokenKind}`)}
+            </span>
+          </>
+        )}
         {row.connected && (
           <>
             <br />
@@ -288,7 +306,8 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
         }
       >
         <div className="ui-fields">
-          <p className="ui-help">{t('hubspot.card.help')}</p>
+          {row.connected && <HubspotKeySummary portalId={row.portalId} kind={row.tokenKind} scopes={row.scopes} missing={lacking} />}
+          <HubspotKeyHelp />
           <label className="ui-field">
             <span className="label">{t('hubspot.card.token')}</span>
             <input
@@ -339,12 +358,17 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
                 {t('hubspot.card.autoCreate')}
               </label>
               <p className="ui-help">{t('hubspot.card.autoCreateHelp')}</p>
-              {row.missingContactScopes.length > 0 && <p className="ui-help">{t('hubspot.card.autoCreateNeedsScope', { scopes: row.missingContactScopes.join(', ') })}</p>}
-              {missingLog && <p className="ui-help">{t('hubspot.card.logNotesNeedsScope', { scopes: row.missingLogScopes.join(', ') })}</p>}
-              {row.missingSyncScopes.length > 0 && <p className="ui-help">{t('hubspot.card.syncNeedsScope', { scopes: row.missingSyncScopes.join(', ') })}</p>}
+              {row.missingContactScopes.length > 0 && <p className="ui-help">{t('hubspot.card.autoCreateNeedsScope', { scopes: words(row.missingContactScopes) })}</p>}
+              {missingLog && <p className="ui-help">{t('hubspot.card.logNotesNeedsScope', { scopes: words(row.missingLogScopes) })}</p>}
+              {row.missingSyncScopes.length > 0 && <p className="ui-help">{t('hubspot.card.syncNeedsScope', { scopes: words(row.missingSyncScopes) })}</p>}
             </fieldset>
           )}
-          {row.connected && (
+          {row.connected && row.tokenKind === 'service_key' && !row.webhook && (
+            <p className="ui-help" data-testid="hubspot-no-webhooks">
+              {th('webhooksServiceKey')}
+            </p>
+          )}
+          {row.connected && (row.tokenKind !== 'service_key' || row.webhook) && (
             <div className="ui-field">
               <label className="ui-field">
                 <span className="label">{t('hubspot.card.webhookSecret')}</span>
@@ -368,6 +392,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
               )}
             </div>
           )}
+          {missing.length > 0 && <HubspotMissingScopes scopes={missing} />}
           {error && (
             <p className="ui-error" role="alert">
               {error}

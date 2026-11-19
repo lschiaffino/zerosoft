@@ -2280,15 +2280,12 @@
     },
     "connectTitle": "Connect {provider}",
     "howto": {
-      "hs1": "In HubSpot, open Settings › Integrations › Private Apps and create a private app.",
-      "hs2": "On the Scopes tab, add the read scopes below. Nothing is written back to HubSpot.",
-      "hs3": "Create the app and copy its access token.",
       "pd1": "In Pipedrive, open your avatar › Personal preferences › API.",
       "pd2": "Copy your personal API token. Use an admin account so every user's records come through."
     },
     "scopes": "Scopes",
     "scopesNote": "sales-email-read is only needed for logged emails. Without it, emails are skipped.",
-    "tokenLabelHubspot": "Access token",
+    "tokenLabelHubspot": "Service key or private app token",
     "tokenLabelPipedrive": "API token",
     "tokenHelp": "The token is stored encrypted while the import runs and deleted when it ends or you cancel it.",
     "back": "Back",
@@ -2305,7 +2302,7 @@
       "lists": "Lists"
     },
     "unknownCount": "All",
-    "unavailable": "The token can't read {phases}. Those are skipped.",
+    "unavailable": "This key can't read {phases}. Those are skipped.",
     "dedupeNote": "Contacts are matched by email and companies by domain. A match gets its empty fields filled in instead of a duplicate.",
     "previouslyImported": "{count, number} records came from this account before. They are updated, not duplicated.",
     "noSample": "Nothing here.",
@@ -2383,7 +2380,7 @@
     "rerun": "Import again",
     "errors": {
       "invalid_token": "That token didn't work. Copy it again and check it belongs to the right account.",
-      "missing_scope": "The token is missing a read scope. Add the scopes listed above and try again.",
+      "missing_scope": "The key is missing a read scope. Add the scopes listed above and try again.",
       "provider_error": "We couldn't reach the provider. Try again in a minute.",
       "import_running": "There's already an import running in this workspace.",
       "rate_limited": "Too many attempts. Try again in an hour.",
@@ -2402,7 +2399,8 @@
     "locallyEdited": "{count, plural, one {# record that came from {provider} was edited in zerosoft} other {# records that came from {provider} were edited in zerosoft}} after the last import. They are not overwritten: only their empty fields are filled.",
     "overwriteLocal": "Replace with {provider} (overwrites the changes made in zerosoft)",
     "keptNote": "{count, plural, one {# with local changes, not overwritten} other {# with local changes, not overwritten}}.",
-    "openContacts": "Open contacts"
+    "openContacts": "Open contacts",
+    "connectedNote": "Check that this is the account you want to import from."
   },
   "ai": {
     "updatedAt": "Updated {when}",

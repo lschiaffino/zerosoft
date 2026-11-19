@@ -5,17 +5,27 @@
  *
  * Solo se activa con CRM_IMPORT_FAKE=1 y además NODE_ENV=test o DEMO_MODE=true
  * (ver fakeImportAllowed); en producción normal nunca. El token elige el
- * tamaño: "fake" (24 contactos) o "fake-<n>".
+ * tamaño: "fake" (24 contactos) o "fake-<n>". El HubSpot falso es la cuenta
+ * compartida de lib/hubspot/fake-portal.ts con este set de datos.
  */
 import type { FetchLike } from './crm-import-source';
+import { ALL_FAKE_SCOPES, FakeHubspotPortal, type FakeObjectType, type FakeTokenKind } from './hubspot/fake-portal';
 
 export function fakeImportAllowed(): boolean {
   if (process.env.CRM_IMPORT_FAKE !== '1') return false;
   return process.env.NODE_ENV === 'test' || process.env.DEMO_MODE === 'true';
 }
 
+/**
+ * Claves del proveedor falso: "fake" o "fake-<n>" (private app heredada con
+ * todos los permisos). Con "-svc" es una service key; con "-noowners" le
+ * falta un permiso obligatorio y con "-noemail" el de los emails. Ejemplos:
+ * "fake-svc", "fake-svc-noemail", "fake-noowners-40".
+ */
+const FAKE_TOKEN_RE = /^fake(-svc)?(-noowners|-noemail)?(-\d{1,6})?$/;
+
 export function isFakeToken(token: string): boolean {
-  return /^fake(-\d{1,6})?$/.test(token);
+  return FAKE_TOKEN_RE.test(token);
 }
 
 export interface FakeDataset {
@@ -25,8 +35,8 @@ export interface FakeDataset {
 }
 
 export function fakeDatasetFromToken(token: string, ownerEmail = 'demo@zerosoft.ai'): FakeDataset {
-  const m = /^fake-(\d+)$/.exec(token);
-  return { contacts: m ? Math.max(1, Number(m[1])) : 24, ownerEmails: [ownerEmail, 'sam@fake-crm.test'] };
+  const m = FAKE_TOKEN_RE.exec(token);
+  return { contacts: m?.[3] ? Math.max(1, Number(m[3].slice(1))) : 24, ownerEmails: [ownerEmail, 'sam@fake-crm.test'] };
 }
 
 function json(body: unknown, status = 200): Response {
@@ -100,116 +110,33 @@ function build(ds: FakeDataset) {
 
 // ---------- HubSpot ----------
 
-export function fakeHubspotFetch(ds: FakeDataset, log: string[] = []): FetchLike {
-  const d = build(ds);
-  const owners = [
-    { id: '1', email: ds.ownerEmails[0], firstName: 'Demo', lastName: 'Owner' },
-    { id: '2', email: ds.ownerEmails[1], firstName: 'Sam', lastName: 'Seller' },
-  ];
-  const objects: Record<string, Array<{ id: string; properties: Record<string, string> }>> = {
-    companies: d.companies.map((c) => ({
-      id: c.id,
-      properties: {
-        name: c.name,
-        domain: c.domain,
-        industry: c.industry,
-        numberofemployees: String(c.employees),
-        hubspot_owner_id: c.owner,
-        hs_parent_company_id: c.parent,
-        tier: c.tier,
-      },
-    })),
-    contacts: d.contacts.map((c) => ({
-      id: c.id,
-      properties: {
-        firstname: c.first,
-        lastname: c.last,
-        email: c.email,
-        lifecyclestage: 'marketingqualifiedlead',
-        hs_lead_status: 'IN_PROGRESS',
-        hs_analytics_source: 'ORGANIC_SEARCH',
-        hubspot_owner_id: c.owner,
-        favorite_color: c.color,
-      },
-    })),
-    deals: d.deals.map((x) => ({
-      id: x.id,
-      properties: {
-        dealname: x.name,
-        pipeline: 'default',
-        dealstage: x.stage,
-        amount: String(x.amount),
-        deal_currency_code: 'USD',
-        closedate: `${x.close}T00:00:00.000Z`,
-        hubspot_owner_id: x.owner,
-        renewal: 'true',
-      },
-    })),
-    notes: d.notes.map((x) => ({
-      id: x.id,
-      properties: { hs_note_body: x.body, hs_timestamp: x.at, hubspot_owner_id: x.owner },
-    })),
-    calls: d.calls.map((x) => ({
-      id: x.id,
-      properties: {
-        hs_call_title: x.title,
-        hs_call_body: 'Talked about goals',
-        hs_timestamp: x.at,
-        hs_call_direction: 'OUTBOUND',
-        hs_call_duration: '900000',
-        hubspot_owner_id: '1',
-      },
-    })),
-    meetings: d.meetings.map((x) => ({
-      id: x.id,
-      properties: {
-        hs_meeting_title: x.title,
-        hs_meeting_body: 'Product demo',
-        hs_timestamp: x.at,
-        hs_meeting_start_time: x.at,
-        hs_meeting_end_time: x.at.replace('16:00', '16:30'),
-        hubspot_owner_id: '2',
-      },
-    })),
-    tasks: d.tasks.map((x) => ({
-      id: x.id,
-      properties: { hs_task_subject: x.title, hs_timestamp: x.at, hs_task_status: 'NOT_STARTED', hubspot_owner_id: '1' },
-    })),
-    emails: d.emails.map((x) => ({
-      id: x.id,
-      properties: { hs_email_subject: x.title, hs_email_text: 'Here are the prices', hs_email_direction: 'INCOMING_EMAIL', hs_timestamp: x.at },
-    })),
-  };
-  const assoc: Record<string, Record<string, Array<{ toObjectId: string; associationTypes: Array<{ category: string; typeId: number; label: string | null }> }>>> = {};
-  const add = (from: string, to: string, id: string, toId: string, primary: boolean, typeId: number) => {
-    if (!toId) return;
-    const key = `${from}/${to}`;
-    assoc[key] ??= {};
-    (assoc[key][id] ??= []).push({
-      toObjectId: toId,
-      associationTypes: [{ category: 'HUBSPOT_DEFINED', typeId: primary ? typeId : 279, label: primary ? 'Primary' : null }],
-    });
-  };
-  for (const c of d.contacts) {
-    add('contacts', 'companies', c.id, c.secondary, false, 1);
-    add('contacts', 'companies', c.id, c.company, true, 1);
-  }
-  for (const x of d.deals) {
-    add('deals', 'contacts', x.id, x.contact, false, 3);
-    add('deals', 'companies', x.id, x.company, true, 5);
-  }
-  for (const x of d.notes) {
-    add('notes', 'contacts', x.id, x.contact, false, 202);
-    add('notes', 'deals', x.id, x.deal, false, 214);
-  }
-  for (const kind of ['calls', 'meetings', 'tasks', 'emails'] as const) {
-    for (const x of d[kind]) add(kind, 'contacts', x.id, x.contact, false, 194);
-  }
+export const FAKE_IMPORT_PORTAL = '434343';
 
-  const properties: Record<string, unknown[]> = {
+/**
+ * La cuenta falsa de HubSpot (lib/hubspot/fake-portal.ts) cargada con el set
+ * de datos del import. `token` decide el tipo de clave y sus permisos.
+ */
+export function fakeImportPortal(ds: FakeDataset): FakeHubspotPortal {
+  const d = build(ds);
+  const p = new FakeHubspotPortal({
+    portalId: FAKE_IMPORT_PORTAL,
+    validate: false,
+    grant: (token) => {
+      const m = FAKE_TOKEN_RE.exec(token);
+      if (!m) return null;
+      const kind: FakeTokenKind = m[1] ? 'service_key' : 'private_app';
+      if (!m[2]) return { kind, scopes: '*' };
+      const without = m[2] === '-noowners' ? 'crm.objects.owners.read' : 'sales-email-read';
+      return { kind, scopes: ALL_FAKE_SCOPES.filter((s) => s !== without) };
+    },
+  });
+  p.owners.set('1', { id: '1', email: ds.ownerEmails[0], firstName: 'Demo', lastName: 'Owner' });
+  p.owners.set('2', { id: '2', email: ds.ownerEmails[1], firstName: 'Sam', lastName: 'Seller' });
+  p.pipelines = [{ id: 'default', label: 'Sales Pipeline', stages: d.stages.map((s) => ({ id: s.id, label: s.label, probability: s.probability, closed: s.closed === 'true' })) }];
+  p.props = {
     contacts: [
-      { name: 'email', label: 'Email', type: 'string', fieldType: 'text', hubspotDefined: true },
-      { name: 'favorite_color', label: 'Favorite color', type: 'string', fieldType: 'text', hubspotDefined: false },
+      { name: 'email', label: 'Email', type: 'string', fieldType: 'text', groupName: '', hubspotDefined: true },
+      { name: 'favorite_color', label: 'Favorite color', type: 'string', fieldType: 'text', groupName: '' },
     ],
     companies: [
       {
@@ -217,78 +144,103 @@ export function fakeHubspotFetch(ds: FakeDataset, log: string[] = []): FetchLike
         label: 'Tier',
         type: 'enumeration',
         fieldType: 'select',
-        hubspotDefined: false,
+        groupName: '',
         options: [
           { label: 'Gold', value: 'gold' },
           { label: 'Silver', value: 'silver' },
         ],
       },
     ],
-    deals: [{ name: 'renewal', label: 'Renewal', type: 'enumeration', fieldType: 'booleancheckbox', hubspotDefined: false }],
+    deals: [{ name: 'renewal', label: 'Renewal', type: 'enumeration', fieldType: 'booleancheckbox', groupName: '' }],
   };
+  const put = (type: FakeObjectType, id: string, properties: Record<string, string>) => p.objects[type].set(id, { id, properties, ...(type === 'notes' ? { associations: [] } : {}) });
+  for (const c of d.companies) {
+    put('companies', c.id, {
+      name: c.name,
+      domain: c.domain,
+      industry: c.industry,
+      numberofemployees: String(c.employees),
+      hubspot_owner_id: c.owner,
+      hs_parent_company_id: c.parent,
+      tier: c.tier,
+    });
+  }
+  for (const c of d.contacts) {
+    put('contacts', c.id, {
+      firstname: c.first,
+      lastname: c.last,
+      email: c.email,
+      lifecyclestage: 'marketingqualifiedlead',
+      hs_lead_status: 'IN_PROGRESS',
+      hs_analytics_source: 'ORGANIC_SEARCH',
+      hubspot_owner_id: c.owner,
+      favorite_color: c.color,
+    });
+  }
+  for (const x of d.deals) {
+    put('deals', x.id, {
+      dealname: x.name,
+      pipeline: 'default',
+      dealstage: x.stage,
+      amount: String(x.amount),
+      deal_currency_code: 'USD',
+      closedate: `${x.close}T00:00:00.000Z`,
+      hubspot_owner_id: x.owner,
+      renewal: 'true',
+    });
+  }
+  for (const x of d.notes) put('notes', x.id, { hs_note_body: x.body, hs_timestamp: x.at, hubspot_owner_id: x.owner });
+  for (const x of d.calls) {
+    put('calls', x.id, {
+      hs_call_title: x.title,
+      hs_call_body: 'Talked about goals',
+      hs_timestamp: x.at,
+      hs_call_direction: 'OUTBOUND',
+      hs_call_duration: '900000',
+      hubspot_owner_id: '1',
+    });
+  }
+  for (const x of d.meetings) {
+    put('meetings', x.id, {
+      hs_meeting_title: x.title,
+      hs_meeting_body: 'Product demo',
+      hs_timestamp: x.at,
+      hs_meeting_start_time: x.at,
+      hs_meeting_end_time: x.at.replace('16:00', '16:30'),
+      hubspot_owner_id: '2',
+    });
+  }
+  for (const x of d.tasks) put('tasks', x.id, { hs_task_subject: x.title, hs_timestamp: x.at, hs_task_status: 'NOT_STARTED', hubspot_owner_id: '1' });
+  for (const x of d.emails) put('emails', x.id, { hs_email_subject: x.title, hs_email_text: 'Here are the prices', hs_email_direction: 'INCOMING_EMAIL', hs_timestamp: x.at });
 
+  for (const c of d.contacts) {
+    if (c.secondary) p.associate('contacts', c.id, 'companies', c.secondary);
+    p.associate('contacts', c.id, 'companies', c.company, { primary: true });
+  }
+  for (const x of d.deals) {
+    p.associate('deals', x.id, 'contacts', x.contact);
+    p.associate('deals', x.id, 'companies', x.company, { primary: true });
+  }
+  for (const x of d.notes) {
+    p.associate('notes', x.id, 'contacts', x.contact);
+    if (x.deal) p.associate('notes', x.id, 'deals', x.deal);
+  }
+  for (const kind of ['calls', 'meetings', 'tasks', 'emails'] as const) {
+    for (const x of d[kind]) p.associate(kind, x.id, 'contacts', x.contact);
+  }
+  // Listas: una de contactos (los primeros 3) y una de empresas (la primera).
+  p.lists = [
+    { listId: '71', name: 'Newsletter', objectTypeId: '0-1', processingType: 'MANUAL', members: d.contacts.slice(0, 3).map((c) => c.id) },
+    { listId: '72', name: 'Key accounts', objectTypeId: '0-2', processingType: 'DYNAMIC', members: [d.companies[0].id] },
+  ];
+  return p;
+}
+
+/** El `fetch` del import contra esa cuenta. `log` junta `MÉTODO ruta` de cada pedido. */
+export function fakeHubspotFetch(ds: FakeDataset, log: string[] = [], portal: FakeHubspotPortal = fakeImportPortal(ds)): FetchLike {
   return async (url, init) => {
-    const u = new URL(url);
-    const method = init?.method ?? 'GET';
-    log.push(`${method} ${u.pathname}`);
-    const auth = (init?.headers as Record<string, string> | undefined)?.authorization ?? '';
-    if (!/^Bearer fake(-\d+)?$/.test(auth)) return json({ status: 'error', category: 'INVALID_AUTHENTICATION' }, 401);
-    const limit = Number(u.searchParams.get('limit') ?? 100);
-    const after = Number(u.searchParams.get('after') ?? 0);
-    const path = u.pathname;
-    const paged = (rows: unknown[]) => {
-      const { items, next } = slice(rows, after, limit);
-      return json({ results: items, ...(next !== null ? { paging: { next: { after: String(next) } } } : {}) });
-    };
-    if (path === '/crm/v3/owners') return paged(owners);
-    let m = /^\/crm\/v3\/properties\/(\w+)$/.exec(path);
-    if (m) return json({ results: properties[m[1]] ?? [] });
-    if (path === '/crm/v3/pipelines/deals') {
-      return json({
-        results: [
-          {
-            id: 'default',
-            label: 'Sales Pipeline',
-            displayOrder: 0,
-            stages: d.stages.map((s, i) => ({
-              id: s.id,
-              label: s.label,
-              displayOrder: i,
-              metadata: { probability: s.probability, isClosed: s.closed },
-            })),
-          },
-        ],
-      });
-    }
-    // Listas: una de contactos (los primeros 3) y una de empresas (la primera).
-    if (path === '/crm/v3/lists/search' && method === 'POST') {
-      const lists = [
-        { listId: '71', name: 'Newsletter', objectTypeId: '0-1', processingType: 'MANUAL', size: Math.min(3, d.contacts.length) },
-        { listId: '72', name: 'Key accounts', objectTypeId: '0-2', processingType: 'DYNAMIC', size: 1 },
-      ];
-      const body = JSON.parse(String(init?.body ?? '{}')) as { count?: number; offset?: number };
-      const start = body.offset ?? 0;
-      const count = body.count ?? 20;
-      return json({ lists: lists.slice(start, start + count), hasMore: start + count < lists.length, offset: start + count, total: lists.length });
-    }
-    m = /^\/crm\/v3\/lists\/(\w+)\/memberships$/.exec(path);
-    if (m) {
-      const members = m[1] === '71' ? d.contacts.slice(0, 3).map((c) => c.id) : m[1] === '72' ? [d.companies[0].id] : [];
-      return paged(members.map((recordId) => ({ recordId, membershipTimestamp: '2026-01-01T00:00:00.000Z' })));
-    }
-    m = /^\/crm\/v3\/objects\/(\w+)\/search$/.exec(path);
-    if (m) return json({ total: objects[m[1]]?.length ?? 0, results: [] });
-    m = /^\/crm\/v3\/objects\/(\w+)$/.exec(path);
-    if (m) return paged(objects[m[1]] ?? []);
-    m = /^\/crm\/v4\/associations\/(\w+)\/(\w+)\/batch\/read$/.exec(path);
-    if (m && method === 'POST') {
-      const body = JSON.parse(String(init?.body ?? '{}')) as { inputs: Array<{ id: string }> };
-      const table = assoc[`${m[1]}/${m[2]}`] ?? {};
-      return json({
-        results: body.inputs.filter((i) => table[i.id]).map((i) => ({ from: { id: i.id }, to: table[i.id] })),
-      });
-    }
-    return json({ message: 'not found' }, 404);
+    log.push(`${init?.method ?? 'GET'} ${new URL(url).pathname}`);
+    return portal.fetch(url, init);
   };
 }
 

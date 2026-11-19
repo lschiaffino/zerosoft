@@ -1292,5 +1292,54 @@
     "timeError": "Escribí una hora, como 9, 9:30 o 21.",
     "zone": "Hora de {city}",
     "pastError": "Elegí una hora en el futuro."
+  },
+  "hubspot": {
+    "key": {
+      "label": "Clave de HubSpot",
+      "intro": "Pegá una service key o el token de acceso de una private app heredada. Sirve cualquiera de las dos. Revisamos la clave al conectar y te mostramos qué puede hacer.",
+      "newTitle": "Necesitás una clave nueva: creá una service key",
+      "newNote": "HubSpot ya no deja crear private apps. Las service keys las reemplazan.",
+      "new": {
+        "1": "En HubSpot, abrí Development › Keys › Service keys (Desarrollo › Claves › Claves de servicio). En algunas cuentas está en Settings › Integrations › Service keys. Tenés que ser super admin o tener acceso a Developer tools.",
+        "2": "Elegí Create service key y ponele un nombre, por ejemplo zerosoft.",
+        "3": "Elegí Add new scope, marcá los permisos que figuran acá y elegí Update.",
+        "4": "Elegí Create y confirmá. Después elegí Show, copiá la clave y pegala acá."
+      },
+      "legacyTitle": "Tu cuenta ya tiene una private app",
+      "legacyNote": "Las private apps que ya existen siguen andando. HubSpot planea dejar de darles soporte en septiembre de 2027, así que a la larga conviene pasar a una service key.",
+      "legacy": {
+        "1": "En HubSpot, abrí Development › Legacy apps (Desarrollo › Apps heredadas) y elegí tu private app.",
+        "2": "En la pestaña Scopes, revisá que tenga los permisos que figuran acá y sumá los que falten.",
+        "3": "En la pestaña Auth, elegí Show token, copialo y pegalo acá."
+      },
+      "newDocs": "Guía de HubSpot sobre las service keys",
+      "legacyDocs": "Guía de HubSpot sobre las private apps heredadas"
+    },
+    "account": "Cuenta de HubSpot {id}",
+    "kind": {
+      "service_key": "Conectado con una service key",
+      "private_app": "Conectado con una private app heredada",
+      "unknown": "Conectado"
+    },
+    "can": "Esta clave puede",
+    "cannot": "Esta clave todavía no puede",
+    "missingTitle": "A esta clave le faltan permisos",
+    "missingHelp": "En HubSpot, sumale estos permisos a la clave y volvé a pegarla.",
+    "scopeWithName": "{label} ({scope})",
+    "webhooksServiceKey": "Las service keys no pueden recibir webhooks. Lines revisa los cambios de HubSpot más o menos una vez por minuto.",
+    "scopes": {
+      "crm_objects_contacts_read": "Leer contactos",
+      "crm_objects_contacts_write": "Crear y editar contactos, y dejar notas",
+      "crm_objects_companies_read": "Leer empresas",
+      "crm_objects_companies_write": "Crear y editar empresas",
+      "crm_objects_deals_read": "Leer negocios y pipelines",
+      "crm_objects_deals_write": "Crear y editar negocios",
+      "crm_objects_owners_read": "Leer los owners, las personas que tienen asignados los registros",
+      "crm_schemas_contacts_read": "Leer la lista de propiedades de contacto",
+      "crm_schemas_companies_read": "Leer la lista de propiedades de empresa",
+      "crm_schemas_deals_read": "Leer la lista de propiedades de negocio",
+      "crm_lists_read": "Leer listas",
+      "sales_email_read": "Leer los emails registrados en los registros"
+    }
   }
 }

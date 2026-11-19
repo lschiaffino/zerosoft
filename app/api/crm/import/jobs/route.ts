@@ -27,7 +27,8 @@ export async function GET() {
 }
 
 /**
- * Conecta con el token y arma la vista previa (no escribe nada en el CRM). El
+ * Conecta con la clave (en HubSpot, una service key o el token de una private
+ * app heredada), la valida y arma la vista previa (no escribe nada en el CRM). El
  * token se guarda cifrado en el job y no vuelve nunca en las respuestas.
  */
 export async function POST(req: NextRequest) {
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return crmError(400, 'invalid_input');
   const res = await createImportPreview(user.id, realUserId(user), parsed.data.provider, parsed.data.token).catch(() => null);
   if (!res) return crmError(502, 'provider_error');
+  // Con los permisos obligatorios que faltan, para decirlos en palabras (nombres de permisos, nunca datos).
+  if (!res.ok && res.missing?.length) return NextResponse.json({ error: res.code, missing: res.missing }, { status: 400 });
   if (!res.ok) return crmError(res.code === 'import_running' ? 409 : 400, res.code);
   return NextResponse.json(res.job, { status: 201 });
 }

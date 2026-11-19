@@ -1,7 +1,9 @@
 /**
- * CRM — fuente HubSpot (API v3/v4 con un token de Private App). Server-only.
+ * CRM — fuente HubSpot (API v3/v4 con una service key o el token de una
+ * private app heredada). Server-only. El cliente HTTP, el presupuesto de
+ * pedidos y la validación de la clave son los compartidos de lib/hubspot/.
  *
- * Permisos (scopes) que tiene que tener la Private App, todos de lectura:
+ * Permisos (scopes) que tiene que tener la clave, todos de lectura:
  * - crm.objects.contacts.read, crm.objects.companies.read, crm.objects.deals.read
  *   (las notas, llamadas, reuniones y tareas se leen con el de contactos)
  * - crm.objects.owners.read
@@ -15,7 +17,7 @@
  * cliente HTTP respeta 100 pedidos cada 10 s y reintenta los 429.
  */
 import {
-  createHttpClient,
+  SourceError,
   dbTimestamp,
   domainFromUrl,
   htmlToText,
@@ -23,7 +25,6 @@ import {
   type FetchLike,
   type HttpRequest,
   type ImportPhase,
-  type RateLimiter,
   type SleepFn,
   type SourcePage,
   type SrcActivity,
@@ -39,6 +40,8 @@ import {
   ymd,
 } from './crm-import-source';
 import type { CrmCustomFieldType } from './schema/types';
+import { HubspotApiError, createHubspotClient, hubspotBudget, type HubspotBudgetLike } from './hubspot/client';
+import { inspectHubspotToken } from './hubspot/token';
 
 export const HUBSPOT_BASE = 'https://api.hubapi.com';
 
@@ -52,6 +55,20 @@ export const HUBSPOT_SCOPES = [
   'crm.schemas.deals.read',
   'crm.lists.read',
   'sales-email-read',
+] as const;
+
+/**
+ * Sin estos la vista previa no se puede armar: dueños, la definición de las
+ * propiedades de los tres objetos y los pipelines (que se leen con el permiso
+ * de negocios). Los demás solo dejan afuera su parte (contactos, empresas,
+ * listas, emails).
+ */
+export const HUBSPOT_REQUIRED_SCOPES = [
+  'crm.objects.owners.read',
+  'crm.schemas.contacts.read',
+  'crm.schemas.companies.read',
+  'crm.schemas.deals.read',
+  'crm.objects.deals.read',
 ] as const;
 
 const PHASES: ImportPhase[] = ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails', 'lists'];
@@ -175,18 +192,45 @@ function num(raw: string): number | null {
 export interface HubspotOptions {
   fetch?: FetchLike;
   sleep?: SleepFn;
-  limiter?: RateLimiter;
+  /** Presupuesto de pedidos. Por defecto, el compartido de la clave y su cuenta (lib/hubspot/client.ts). */
+  limiter?: HubspotBudgetLike;
   base?: string;
+  /** La cuenta de HubSpot, si ya se sabe: el cupo diario se comparte con las otras funciones conectadas a ella. */
+  portalId?: string;
+}
+
+/** Un error del cliente compartido como el SourceError que espera el job (código, status y ruta; nunca datos). */
+function toSourceError(e: unknown): unknown {
+  if (!(e instanceof HubspotApiError)) return e;
+  if (e.code === 'auth') return new SourceError('auth', 401, e.path);
+  if (e.code === 'scope') return new SourceError('scope', 403, e.path);
+  if (e.code === 'network') return new SourceError('network', 0, e.path);
+  if (e.code === 'rate_limited') return new SourceError('rate_limited', 429, e.path);
+  return new SourceError('http', e.status, e.path);
 }
 
 export function createHubspotSource(token: string, opts: HubspotOptions = {}): CrmSource {
   const base = opts.base ?? HUBSPOT_BASE;
-  const request: HttpRequest = createHttpClient({
+  const client = createHubspotClient({
+    token,
     fetch: opts.fetch,
     sleep: opts.sleep,
-    limiter: opts.limiter,
-    headers: { authorization: `Bearer ${token}` },
+    budget: opts.limiter ?? hubspotBudget({ token, portalId: opts.portalId, sleep: opts.sleep }),
+    base,
   });
+  // Mismo criterio de siempre: 429, 5xx y errores de red se reintentan hasta 5 veces.
+  const request: HttpRequest = async <T>(url: string, init: { method?: string; body?: unknown } = {}): Promise<T> => {
+    let res;
+    try {
+      res = await client.send(url, { method: init.method, body: init.body ? init.body : undefined, retries: 5, retry5xx: true });
+    } catch (e) {
+      throw toSourceError(e);
+    }
+    if (res.status === 401) throw new SourceError('auth', 401, res.path);
+    if (res.status === 403) throw new SourceError('scope', 403, res.path);
+    if (!res.ok) throw new SourceError('http', res.status, res.path);
+    return res.json() as T;
+  };
 
   async function allPages<T>(path: string): Promise<T[]> {
     const out: T[] = [];
@@ -377,6 +421,15 @@ export function createHubspotSource(token: string, opts: HubspotOptions = {}): C
   return {
     provider: 'hubspot',
     phases: () => [...PHASES],
+
+    async connection() {
+      try {
+        const info = await inspectHubspotToken(token, { client, probe: HUBSPOT_SCOPES });
+        return { portalId: info.portalId, kind: info.kind, scopes: info.scopes };
+      } catch (e) {
+        throw toSourceError(e);
+      }
+    },
 
     async owners(): Promise<SrcOwner[]> {
       const rows = await allPages<{ id: string; email?: string; firstName?: string; lastName?: string }>('/crm/v3/owners');

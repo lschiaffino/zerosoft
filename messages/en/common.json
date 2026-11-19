@@ -1292,5 +1292,54 @@
     "timeError": "Type a time like 9, 9:30 or 9pm.",
     "zone": "{city} time",
     "pastError": "Pick a time in the future."
+  },
+  "hubspot": {
+    "key": {
+      "label": "HubSpot key",
+      "intro": "Paste a service key or the access token of a legacy private app. Either one works. We check the key when you connect and show what it can do.",
+      "newTitle": "You need a new key: create a service key",
+      "newNote": "HubSpot no longer lets you create private apps. Service keys replace them.",
+      "new": {
+        "1": "In HubSpot, open Development › Keys › Service keys. Some accounts show it under Settings › Integrations › Service keys. You need to be a super admin or have Developer tools access.",
+        "2": "Select Create service key and name it, for example zerosoft.",
+        "3": "Select Add new scope, tick the scopes listed here and select Update.",
+        "4": "Select Create and confirm. Then select Show, copy the key and paste it here."
+      },
+      "legacyTitle": "Your account already has a private app",
+      "legacyNote": "Existing private apps keep working. HubSpot plans to stop supporting them in September 2027, so a service key is the safer choice for the long run.",
+      "legacy": {
+        "1": "In HubSpot, open Development › Legacy apps and select your private app.",
+        "2": "On the Scopes tab, check that it has the scopes listed here and add the ones it lacks.",
+        "3": "On the Auth tab, select Show token, copy it and paste it here."
+      },
+      "newDocs": "HubSpot guide to service keys",
+      "legacyDocs": "HubSpot guide to legacy private apps"
+    },
+    "account": "HubSpot account {id}",
+    "kind": {
+      "service_key": "Connected with a service key",
+      "private_app": "Connected with a legacy private app",
+      "unknown": "Connected"
+    },
+    "can": "This key can",
+    "cannot": "This key cannot yet",
+    "missingTitle": "This key is missing permissions",
+    "missingHelp": "In HubSpot, add these scopes to the key and paste it again.",
+    "scopeWithName": "{label} ({scope})",
+    "webhooksServiceKey": "Service keys cannot receive webhooks. Lines checks HubSpot for changes about once a minute instead.",
+    "scopes": {
+      "crm_objects_contacts_read": "Read contacts",
+      "crm_objects_contacts_write": "Create and edit contacts, and add notes",
+      "crm_objects_companies_read": "Read companies",
+      "crm_objects_companies_write": "Create and edit companies",
+      "crm_objects_deals_read": "Read deals and pipelines",
+      "crm_objects_deals_write": "Create and edit deals",
+      "crm_objects_owners_read": "Read owners, the people records are assigned to",
+      "crm_schemas_contacts_read": "Read the list of contact properties",
+      "crm_schemas_companies_read": "Read the list of company properties",
+      "crm_schemas_deals_read": "Read the list of deal properties",
+      "crm_lists_read": "Read lists",
+      "sales_email_read": "Read emails logged on records"
+    }
   }
 }

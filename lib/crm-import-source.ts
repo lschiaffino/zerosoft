@@ -162,8 +162,17 @@ export interface SourcePage {
   next: string | null;
 }
 
+/** Lo que se sabe de la clave con la que se conectó: a qué cuenta entra, de qué tipo es y con qué permisos. */
+export interface SourceConnection {
+  portalId: string;
+  kind: 'private_app' | 'service_key' | 'unknown';
+  scopes: string[];
+}
+
 export interface CrmSource {
   provider: ImportProvider;
+  /** Valida la clave antes de leer nada (HubSpot). Tira SourceError `auth` si no vale. */
+  connection?(): Promise<SourceConnection>;
   phases(): ImportPhase[];
   owners(): Promise<SrcOwner[]>;
   fields(): Promise<SrcField[]>;

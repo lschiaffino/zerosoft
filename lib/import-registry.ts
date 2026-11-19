@@ -35,6 +35,12 @@ export interface ImportSourceDef {
   /** Pasos de settings.importHub.steps.<clave> (de dónde sacar el token o el archivo). */
   steps: string;
   stepCount: number;
+  /**
+   * La clave sale de dos lugares según la cuenta (HubSpot: una service key
+   * nueva o una private app que ya existe): el hub muestra esa ayuda
+   * (components/hubspot/HubspotKeyHelp.tsx) antes de los pasos.
+   */
+  keyHelp?: 'hubspot';
   /** Dónde se crea el token o se exporta el archivo. */
   tokenUrl?: string;
   /** Documentación oficial. */
@@ -48,6 +54,7 @@ export interface ImportSourceDef {
   panelSource?: string;
 }
 
+/** Permisos de lectura que usa el import de HubSpot (los mismos para una service key o una private app heredada). */
 export const HUBSPOT_PRIVATE_APP_SCOPES = [
   'crm.objects.contacts.read',
   'crm.objects.companies.read',
@@ -70,9 +77,9 @@ export const IMPORT_SOURCES: readonly ImportSourceDef[] = [
     entities: ['contacts', 'companies', 'deals', 'pipelines', 'owners', 'activities', 'customFields', 'lists'],
     scopes: [...HUBSPOT_PRIVATE_APP_SCOPES],
     steps: 'hubspot',
-    stepCount: 5,
-    tokenUrl: 'https://app.hubspot.com/private-apps/',
-    docsUrl: 'https://developers.hubspot.com/docs/guides/apps/private-apps/overview',
+    stepCount: 2,
+    keyHelp: 'hubspot',
+    docsUrl: 'https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/account-service-keys',
     adminOnly: true,
     panel: 'crm',
   },
