@@ -2342,7 +2342,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
           <div className="gr-thread-actions">
             {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
-            <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
+            <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')} data-tour="lines-assign">
               {assignee ? <Avatar name={assignee} kind="dm" size={28} seed={chat.assignedTo ?? ''} /> : <UserPlus size={20} />}
               <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')} data-testid="chat-assignee">
                 <option value="">{t('thread.unassigned')}</option>
@@ -2500,10 +2500,10 @@ export default function ChatThread(props: ThreadProps) {
 
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
           {!editing && (
-            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')}>
+            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')} data-tour="lines-note">
               {(['reply', 'note'] as const).map((m) => (
                 <button
                   key={m}

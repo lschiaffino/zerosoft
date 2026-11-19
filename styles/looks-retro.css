@@ -279,6 +279,17 @@
 :root[data-look='retro'] .cmdk-results { background: var(--rt-face); }
 :root[data-look='retro'] dialog.ui-drawer { box-shadow: var(--rt-window); }
 
+/* Tarjeta de un tour guiado: ventana con barra de título (el contador y cerrar). */
+:root[data-look='retro'] .zs-tour { padding: 3px 3px 10px; gap: 6px; }
+:root[data-look='retro'] .zs-tour > :not(.zs-tour-head) { margin-inline: 10px; }
+:root[data-look='retro'] .zs-tour-head { padding: 2px 3px 2px 8px; color: var(--rt-title-fg); background: var(--rt-title); }
+:root[data-look='retro'] .zs-tour-count { color: inherit; font-family: var(--font-ui); font-weight: 700; }
+:root[data-look='retro'] .zs-tour-close { margin: 0; color: var(--ink); background: var(--rt-face); box-shadow: var(--rt-raised); }
+:root[data-look='retro'] .zs-tour-spot { border-radius: 0; outline-style: dashed; }
+@media (pointer: fine) and (min-width: 721px) {
+  :root[data-look='retro'] .zs-tour-close { --btn-h: 22px; width: 22px; min-height: 22px; }
+}
+
 /* ---------- Avisos ---------- */
 
 :root[data-look='retro'] .ui-toast:not([data-tone='error']) { color: var(--ink); background: var(--rt-face); box-shadow: var(--rt-window), 2px 2px 0 rgb(0 0 0 / 0.35); }
