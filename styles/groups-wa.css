@@ -884,7 +884,14 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .gr-inbox .gr-msg.has-avatar { padding-left: 32px; }
 .wa-sender-avatar { position: absolute; left: 0; top: 0; width: 26px; height: 26px; }
 .gr-inbox .wa-messages.is-selecting .gr-msg { cursor: pointer; }
-.wa-select-check { position: absolute; top: 6px; width: 18px; height: 18px; margin: 0; accent-color: var(--wa-primary); pointer-events: none; }
+.wa-select-check { position: absolute; top: 6px; width: 18px; height: 18px; margin: 0; accent-color: var(--wa-primary); cursor: pointer; }
+/* La casilla de una foto de álbum es un adorno: el control es la foto. */
+.wa-album-check { pointer-events: none; }
+/* Entrando con "Reenviar", lo que no se puede reenviar (borrado, sin salir, "ver una vez") queda apagado y sin casilla. */
+.gr-inbox .wa-messages.is-selecting .gr-msg.is-unpickable { cursor: default; }
+/* Eligiendo, un mensaje no muestra su flecha ni el botón de reaccionar. */
+.gr-inbox .wa-messages.is-selecting :is(.wa-hover, .gr-msg-actions) { display: none; }
+.gr-inbox .wa-messages.is-selecting .gr-msg.is-unpickable .gr-bubble { opacity: 0.55; }
 .gr-msg-in .wa-select-check, .gr-msg-note .wa-select-check { right: calc(100% + 10px); }
 .gr-msg-out .wa-select-check { right: calc(100% + 10px); }
 .gr-msg.has-avatar .wa-select-check { right: calc(100% - 24px); left: auto; }
