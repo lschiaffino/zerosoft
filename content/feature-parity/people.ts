@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-19',
   percentHidden: { note: loc(['This table lists everything BambooHR documents, feature by feature, including payroll, benefits, time tracking and global employment, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que BambooHR documenta, función por función, con nómina, beneficios, registro de horas y empleo global, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o BambooHR documenta, função por função, com folha, benefícios, registro de horas e emprego global, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
@@ -274,7 +274,13 @@ const parity: ProductParity = {
     row('directory-export', 'org', ['Directory export', 'Exportar directorio', 'Exportar diretório'], 'partial', {
       detail: ['Through a custom report CSV, for HR. Built; not yet walked end to end in a browser for each role', 'Con el CSV de un reporte a medida, para HR. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Pelo CSV de um relatório personalizado, para o RH. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'missing'),
+    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'have', {
+      detail: [
+        'Approved time off shows as "Out until" (or the half day) on the directory row and the profile, and an "Out today" filter lists only who is away. The leave type stays private',
+        'Una licencia aprobada se ve como "Fuera hasta" (o la media jornada) en la fila del directorio y en la ficha, y el filtro "Fuera hoy" muestra solo a quien no está. El tipo de licencia sigue siendo privado',
+        'Uma folga aprovada aparece como "Fora até" (ou o meio período) na linha do diretório e no perfil, e o filtro "Fora hoje" mostra só quem está fora. O tipo de folga continua privado',
+      ],
+    }),
     row('birthday-opt-out', 'org', ['Hide your own birthday', 'Ocultar el propio cumpleaños', 'Ocultar o próprio aniversário'], 'missing'),
     row('pto-policy-scope', 'timeoff', ['Policies per segment or person', 'Políticas por segmento o persona', 'Políticas por segmento ou pessoa'], 'have', {
       detail: ['By department, location, country and type, from Settings. Not per individual person', 'Por área, ubicación, país y tipo, desde Ajustes. No por persona individual', 'Por departamento, localização, país e tipo, em Ajustes. Não por pessoa individual'],
