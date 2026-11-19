@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { MessageMenu } from './Menu';
 import { Chevron, Plus } from './icons';
@@ -11,6 +11,8 @@ export interface StickerItem {
   url: string;
   animated: boolean;
   favorite: boolean;
+  width?: number | null;
+  height?: number | null;
   usedAt: string | null;
   createdAt: string;
 }
@@ -19,11 +21,27 @@ export interface StickerItem {
 export interface StickerTab {
   /** /api/groups/stickers (Lines) o /api/inbox/stickers (Inbox). */
   api: string;
+  /** La línea del chat abierto (Lines: el número; Inbox: la cuenta de WhatsApp): el panel muestra los stickers de esa. */
+  line: string;
   /** Mandar al chat abierto. true si salió (pasa a recientes). */
   onSend: (s: StickerItem) => Promise<boolean>;
 }
 
 const RECENT_MAX = 16;
+/** Cuántos de "Tus stickers" se dibujan de entrada (y cuántos suma "Ver más"): una colección grande no arma cientos de imágenes al abrir. */
+const ALL_PAGE = 60;
+/** Cada cuánto, como mucho, el panel pide lo que llegó a los chats de una línea (abrir y cerrar seguido no lo repite). */
+const CATCH_UP_MS = 45_000;
+
+/**
+ * Lo último que se vio de cada línea, mientras dure la página: volver a abrir el
+ * panel (o volver a un chat de esa línea) lo dibuja en el acto y se revalida
+ * por detrás. Por línea: nunca se muestra lo de otra.
+ */
+const seen = new Map<string, { items: StickerItem[]; imported: boolean }>();
+/** Cuándo se pidió por última vez lo que llegó a los chats de cada línea. */
+const caughtUp = new Map<string, number>();
+const lineUrl = (api: string, line: string) => `${api}?line=${encodeURIComponent(line)}`;
 
 async function call<T>(api: string, init?: RequestInit): Promise<{ data: T | null; error: string }> {
   try {
@@ -36,11 +54,18 @@ async function call<T>(api: string, init?: RequestInit): Promise<{ data: T | nul
 }
 
 /** Crea un sticker desde una imagen ("Sticker nuevo" del menú + y "Crear" de la pestaña). */
-export async function createSticker(api: string, file: File): Promise<{ sticker: StickerItem | null; error: string }> {
+export async function createSticker(api: string, line: string, file: File): Promise<{ sticker: StickerItem | null; error: string }> {
   const form = new FormData();
+  form.append('line', line);
   form.append('file', file);
   const r = await call<{ sticker: StickerItem }>(api, { method: 'POST', body: form });
-  return { sticker: r.data?.sticker ?? null, error: r.data?.sticker ? '' : r.error || 'server_error' };
+  const sticker = r.data?.sticker ?? null;
+  if (sticker) {
+    const key = lineUrl(api, line);
+    const hit = seen.get(key);
+    if (hit) seen.set(key, { ...hit, items: [sticker, ...hit.items.filter((x) => x.id !== sticker.id)] });
+  }
+  return { sticker, error: sticker ? '' : r.error || 'server_error' };
 }
 
 const post = <T,>(api: string, body: Record<string, unknown>) =>
@@ -48,76 +73,103 @@ const post = <T,>(api: string, body: Record<string, unknown>) =>
 
 /**
  * Pestaña Stickers del panel de emojis, como en WhatsApp Web: recientes,
- * favoritos y la colección de la persona; un clic lo manda. WhatsApp no deja
- * leer los stickers guardados de la cuenta, así que la colección se arma con
- * los stickers de sus chats ("Importar stickers de mis chats", y después se
- * mantiene sola) y con los que crea desde una imagen.
+ * favoritos y la colección de la persona en la línea del chat abierto; un clic
+ * lo manda. WhatsApp no deja leer los stickers guardados de la cuenta, así que
+ * la colección se arma con los stickers de los chats de esa línea y con los
+ * que crea desde una imagen.
+ *
+ * Rápido: la lista sale de la base y se dibuja en el acto (o antes, de lo ya
+ * visto en esta página). Traer lo que llegó a los chats va después, en otro
+ * pedido y por tandas, y la grilla se va llenando; nunca se espera eso para ver
+ * lo que ya hay. Quien lo usa lo monta con `key` por línea (EmojiPicker).
  */
-export default function StickerPanel({ api, onSend }: StickerTab) {
+export default function StickerPanel({ api, line, onSend }: StickerTab) {
   const t = useTranslations('groups.wa.stickers');
-  const [items, setItems] = useState<StickerItem[] | null>(null);
-  const [imported, setImported] = useState(false);
+  const key = lineUrl(api, line);
+  const [items, setItems] = useState<StickerItem[] | null>(() => seen.get(key)?.items ?? null);
+  const [imported, setImported] = useState(() => seen.get(key)?.imported ?? false);
   const [busy, setBusy] = useState<'' | 'import' | 'create'>('');
   const [found, setFound] = useState(0);
   const [error, setError] = useState('');
   const [sending, setSending] = useState('');
+  const [shown, setShown] = useState(ALL_PAGE);
   const fileRef = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
+  const syncing = useRef(false);
 
-  const load = useCallback(async () => {
-    const r = await call<{ stickers: StickerItem[]; imported: boolean }>(api);
-    if (!alive.current) return;
-    if (!r.data) {
-      setError(t('loadFailed'));
-      setItems((prev) => prev ?? []);
-      return;
-    }
-    setItems(r.data.stickers);
-    setImported(r.data.imported);
-  }, [api, t]);
-
+  // Lo que se ve queda recordado para la próxima vez que se abra esta línea.
   useEffect(() => {
-    alive.current = true;
-    void load();
-    return () => {
-      alive.current = false;
-    };
-  }, [load]);
+    if (items) seen.set(key, { items, imported });
+  }, [key, items, imported]);
 
-  async function importFromChats() {
-    setBusy('import');
-    setError('');
-    setFound(0);
+  /**
+   * Trae lo que llegó a los chats de la línea desde la última vez, por tandas (el servidor trae unas decenas por
+   * pedido) y la grilla se va llenando. `quiet`: por detrás al abrir, sin tapar nada; un error ahí no se muestra
+   * (lo que hay ya está a la vista y se vuelve a pedir la próxima vez).
+   */
+  async function importFromChats(quiet = false) {
+    if (syncing.current) return;
+    syncing.current = true;
+    if (!quiet) {
+      setBusy('import');
+      setError('');
+      setFound(0);
+    }
     let total = 0;
-    // Por tandas: el servidor trae unas decenas por pedido.
-    for (let i = 0; i < 30 && alive.current; i++) {
-      const r = await post<{ added: number; more: boolean; stickers: StickerItem[] }>(api, { action: 'import' });
+    for (let i = 0; i < 40 && alive.current; i++) {
+      const r = await post<{ added: number; more: boolean; stickers: StickerItem[] }>(api, { action: 'import', line });
+      if (!alive.current) break;
       if (!r.data) {
-        setError(t('importFailed'));
+        if (!quiet) setError(t('importFailed'));
         break;
       }
       total += r.data.added;
-      setFound(total);
-      setItems(r.data.stickers);
+      if (!quiet) setFound(total);
+      // Sin novedades no se toca la grilla (un favorito recién marcado no se pisa con la lista del servidor).
+      const list = r.data.stickers;
+      if (r.data.added > 0 || !quiet) setItems(list);
       setImported(true);
+      caughtUp.set(key, Date.now());
       if (!r.data.more) break;
     }
-    if (alive.current) setBusy('');
+    syncing.current = false;
+    if (alive.current && !quiet) setBusy('');
   }
+
+  useEffect(() => {
+    alive.current = true;
+    void (async () => {
+      // Solo la base: responde enseguida, sin esperar a WhatsApp.
+      const r = await call<{ stickers: StickerItem[]; imported: boolean }>(key);
+      if (!alive.current) return;
+      if (!r.data) {
+        setError(t('loadFailed'));
+        setItems((prev) => prev ?? []);
+        return;
+      }
+      setItems(r.data.stickers);
+      setImported(r.data.imported);
+      // Con la grilla ya dibujada, en otro pedido: lo que llegó a los chats de esta línea. Si la línea nunca importó,
+      // se ve el avance ("Importando… n") mientras se va llenando.
+      if (Date.now() - (caughtUp.get(key) ?? 0) < CATCH_UP_MS) return;
+      void importFromChats(r.data.imported);
+    })();
+    return () => {
+      alive.current = false;
+    };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function create(file: File) {
     setBusy('create');
     setError('');
-    const form = new FormData();
-    form.append('file', file);
-    const r = await call<{ sticker: StickerItem }>(api, { method: 'POST', body: form });
+    const r = await createSticker(api, line, file);
     if (!alive.current) return;
     setBusy('');
-    if (!r.data) {
+    if (!r.sticker) {
       setError(r.error === 'sticker_too_large' ? t('tooLarge') : r.error === 'sticker_convert_unavailable' ? t('convertUnavailable') : t('createFailed'));
       return;
     }
-    const s = r.data.sticker;
+    const s = r.sticker;
     setItems((prev) => [s, ...(prev ?? []).filter((x) => x.id !== s.id)]);
   }
 
@@ -150,14 +202,6 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
     }
   }
 
-  // La primera vez, con la colección vacía, se importan solos los stickers de los chats: la pestaña no abre vacía.
-  const autoImport = useRef(false);
-  useEffect(() => {
-    if (items === null || items.length > 0 || imported || autoImport.current || error) return;
-    autoImport.current = true;
-    void importFromChats();
-  }, [items, imported, error]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const sections = useMemo(() => {
     const list = items ?? [];
     const recent = list
@@ -178,6 +222,8 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
         <img
           src={s.url}
           alt=""
+          width={s.width || 512}
+          height={s.height || 512}
           loading="lazy"
           decoding="async"
           draggable={false}
@@ -244,9 +290,14 @@ export default function StickerPanel({ api, onSend }: StickerTab) {
           </div>
         ) : (
           sections.map((sec) => (
-            <section key={sec.key} aria-label={sec.title}>
+            <section key={sec.key} aria-label={sec.title} data-section={sec.key}>
               <p className="wa-emoji-title">{sec.title}</p>
-              <div className="wa-stk-grid">{sec.list.map((s) => tile(s, sec.key))}</div>
+              <div className="wa-stk-grid">{(sec.key === 'all' ? sec.list.slice(0, shown) : sec.list).map((s) => tile(s, sec.key))}</div>
+              {sec.key === 'all' && sec.list.length > shown && (
+                <button type="button" className="wa-stk-action wa-stk-more-btn" onClick={() => setShown((n) => n + ALL_PAGE)}>
+                  {t('showMore', { n: sec.list.length - shown })}
+                </button>
+              )}
             </section>
           ))
         )}

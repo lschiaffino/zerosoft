@@ -217,6 +217,8 @@ const WaConversation = forwardRef<
   const replyLine =
     pickedLine && sameLines.some((l) => l.chatId === pickedLine && l.canSend) ? pickedLine : (defaultReplyLine(sameLines, lastLineChat, thread.id)?.chatId ?? thread.id);
   const via = sameLines.length > 1 && replyLine !== thread.id ? replyLine : '';
+  // Los stickers son por cuenta: los de la cuenta por la que sale la respuesta (la del chat, o la elegida en "Responder desde").
+  const stickerLine = sameLines.find((l) => l.chatId === (via || thread.id))?.lineId ?? thread.accountId;
   const tray = useSendTray(thread.id, onError, via || undefined);
   const attachRef = useRef<AttachMenuHandle>(null);
   // Menú + de WhatsApp: contacto y encuesta (diálogos compartidos con Lines) y sticker nuevo.
@@ -250,9 +252,9 @@ const WaConversation = forwardRef<
   );
   /** "Sticker nuevo": se crea desde la imagen (queda en la colección) y sale al chat. */
   const newSticker = async (file: File) => {
-    const made = await createSticker('/api/inbox/stickers', file);
+    const made = await createSticker('/api/inbox/stickers', stickerLine, file);
     if (!made.sticker) return onError(made.error === 'sticker_too_large' ? 'sticker_too_large' : made.error === 'sticker_convert_unavailable' ? 'sticker_convert_unavailable' : 'send_failed');
-    const r = await api<{ messages: MessageDto[] }>('/api/inbox/stickers', { method: 'POST', json: { action: 'send', id: made.sticker.id, threadId: thread.id, clientId: newClientId() } });
+    const r = await api<{ messages: MessageDto[] }>('/api/inbox/stickers', { method: 'POST', json: { action: 'send', id: made.sticker.id, threadId: via || thread.id, clientId: newClientId() } });
     if (!r.ok) return onError(r.data.error ?? 'send_failed');
     sentHere(r.data.messages);
   };
@@ -1260,6 +1262,7 @@ const WaConversation = forwardRef<
           ref={composerRef}
           thread={thread}
           via={via || undefined}
+          stickerLine={stickerLine}
           snippets={props.snippets}
           disabled={!connected}
           paused={props.paused}
@@ -1319,6 +1322,7 @@ const WaConversation = forwardRef<
           onFiles={(files) => void tray.add(files)}
           onReplace={tray.replace}
           stickerApi="/api/inbox/stickers"
+          stickerLine={stickerLine}
         />
       )}
       {dragging && (

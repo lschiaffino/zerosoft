@@ -176,7 +176,7 @@ for (const width of [1280, 390]) {
         // 36 stickers distintos (uno por color), creados desde una imagen como lo hace "Crear".
         for (let i = 0; i < 36; i++) {
           const png = await sharp({ create: { width: 64, height: 64, channels: 4, background: { r: (i * 53) % 256, g: (i * 97) % 256, b: (i * 31) % 256, alpha: 1 } } }).png().toBuffer();
-          const res = await request.post(app.stickersApi, { multipart: { file: { name: `s${i}.png`, mimeType: 'image/png', buffer: png } } });
+          const res = await request.post(app.stickersApi, { multipart: { line: app.accountId, file: { name: `s${i}.png`, mimeType: 'image/png', buffer: png } } });
           expect(res.ok(), await res.text()).toBe(true);
         }
         const jid = `${phone()}@s.whatsapp.net`;
