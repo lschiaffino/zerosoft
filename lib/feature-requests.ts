@@ -206,12 +206,12 @@ export async function recordFeatureRequest(who: FeatureRequester, input: Feature
       .run(itemId, title, details, product, now, now, now);
     await recordStatusEvent(itemId, null, 'proposed');
   }
+  // Quien pide sigue el ítem aunque sea privado: le llega el aviso cuando sale.
+  // Antes de la señal, así queda con su idioma. INSERT OR IGNORE: si se desuscribió, no se reactiva.
+  await subscribe(itemId, who.personId, 'author', who.locale);
   // La señal (recalcula los votos y suscribe a la persona si el ítem ya es público).
   await attachFeedbackToItem(feedback, itemId);
   await db.prepare('UPDATE feedback SET status = ? WHERE id = ?').run('read', feedback.id);
-  // Quien pide sigue el ítem aunque sea privado: le llega el aviso cuando sale.
-  // INSERT OR IGNORE: si se desuscribió antes, no se reactiva.
-  await subscribe(itemId, who.personId, 'author', who.locale);
 
   if (priority) {
     await db.prepare('UPDATE roadmap_items SET priority = 1 WHERE id = ?').run(itemId);

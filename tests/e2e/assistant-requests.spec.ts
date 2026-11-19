@@ -33,7 +33,8 @@ test('pedir algo: link al pedido, la página del pedido, "¿dónde está mi pedi
   await input.press('Enter');
 
   const reply = panel.getByTestId('assistant-msg-assistant').last();
-  await expect(reply.getByTestId('assistant-activity')).toHaveAttribute('data-state', 'done', { timeout: 30_000 });
+  // La primera respuesta compila las rutas del asistente en `next dev`: más margen.
+  await expect(reply.getByTestId('assistant-activity')).toHaveAttribute('data-state', 'done', { timeout: 90_000 });
   // La respuesta comparte el link, y el aviso de abajo es un link a la misma página.
   const inReply = reply.getByRole('link', { name: 'See your request' });
   await expect(inReply).toHaveAttribute('href', /^\/en\/app\/settings\/requests\/[^/]+$/);
