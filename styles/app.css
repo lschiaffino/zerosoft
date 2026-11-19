@@ -575,7 +575,22 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .sidebar-collapsed .side-new-btn { justify-content: center; padding: 0; }
   .sidebar-collapsed .side-stop { padding-right: 0; }
   .sidebar-collapsed .side-user { flex-direction: column; padding: 4px 0; }
-  .sidebar-collapsed .side-menu { left: calc(100% + 8px); right: auto; top: 0; white-space: nowrap; }
+  /*
+   * Colapsado, "+ Nuevo" abre al lado del riel. Va fijo como el de la cuenta:
+   * absoluto quedaba adentro de .side (overflow), lo recortaba, y al enfocar el
+   * primer ítem el navegador corría .side de costado y el riel se iba de pantalla.
+   * top: auto lo deja en su lugar natural (debajo del botón) y el margen lo sube a la altura del botón.
+   */
+  .sidebar-collapsed .side-menu {
+    position: fixed;
+    top: auto;
+    left: calc(var(--side-w) + 8px);
+    right: auto;
+    margin-top: -36px;
+    max-height: calc(100dvh - 72px);
+    overflow-y: auto;
+    white-space: nowrap;
+  }
   .sidebar-collapsed .ws-switcher { flex: 0 0 auto; }
   .sidebar-collapsed .ws-switcher-btn { justify-content: center; }
   /* El sidebar recorta lo que se sale (overflow): colapsado, el menú va fijo al lado. */
