@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
@@ -29,39 +30,56 @@ async function seedLine(request: APIRequestContext): Promise<string> {
   return id;
 }
 
-type Import = Record<string, unknown>;
-
-/** La lista de chats real, con las importaciones que diga el test (la bandeja las lee de ahí). */
-async function mockImports(page: Page, current: () => Import[]) {
-  await page.route('**/api/groups/chats?*', async (route) => {
-    if (route.request().method() !== 'GET' || route.request().url().includes('meta=0')) return route.continue();
-    const headers = { ...route.request().headers() };
-    delete headers['if-none-match'];
-    try {
-      const res = await route.fetch({ headers });
-      const json = (await res.json()) as Record<string, unknown>;
-      // Sin los encabezados de la respuesta real: traen la compresión y el largo del cuerpo original (y el ETag), y con
-      // un cuerpo nuevo el navegador no la puede leer.
-      await route.fulfill({ status: 200, json: { ...json, imports: current() } });
-    } catch {
-      // La bandeja cortó este pedido porque pidió la lista de nuevo: no hay a quién responderle.
+/** La base de la corrida (playwright.config.ts): la importación se escribe ahí, como la dejaría el importador. */
+async function sql(q: string, args: Array<string | number | null> = []) {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  try {
+    for (let i = 0; ; i++) {
+      try {
+        return (await db.execute({ sql: q, args })).rows;
+      } catch (err) {
+        if (i >= 20 || !String(err).includes('SQLITE_BUSY')) throw err;
+        await new Promise((r) => setTimeout(r, 150));
+      }
     }
-  });
+  } finally {
+    db.close();
+  }
+}
+
+interface Import {
+  status: string;
+  phase: string;
+  chatsTotal: number;
+  chatsDone: number;
+  messages: number;
+  error: string;
+  startedAt: string;
+  finishedAt: string | null;
+  /** Hace cuánto fue el último avance guardado (más de 10 min: "no avanza"). */
+  quietMs: number;
 }
 
 /**
- * Espera a que el aviso esté en ese estado. La bandeja vuelve a pedir la lista al volver a la ventana (descarta un
- * segundo "volví" pegado al anterior, y cada pedido nuevo corta al que estaba en curso): se le avisa una vez, se
- * espera a que esa lista llegue entera y recién ahí se mira el aviso. Avisarle seguido cortaría todos los pedidos.
+ * Deja la importación de la línea en ese estado. Reclamada por una hora: el importador no la toca mientras dura la
+ * prueba, y la bandeja la lee como cualquier otra (la primera lista del servidor y las siguientes).
  */
+async function setImport(numberId: string, workspace: string, im: Import) {
+  const now = Date.now();
+  await sql(
+    `INSERT INTO groups_imports (number_id, user_id, status, phase, cursor, per_chat, chats_total, chats_done, messages, error, attempts, claimed_until, started_at, finished_at, updated_at)
+     VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+     ON CONFLICT(number_id) DO UPDATE SET status = excluded.status, phase = excluded.phase, chats_total = excluded.chats_total,
+       chats_done = excluded.chats_done, messages = excluded.messages, error = excluded.error, claimed_until = excluded.claimed_until,
+       started_at = excluded.started_at, finished_at = excluded.finished_at, updated_at = excluded.updated_at`,
+    [numberId, workspace, im.status, im.phase, im.chatsTotal, im.chatsDone, im.messages, im.error, new Date(now + 3_600_000).toISOString(), im.startedAt, im.finishedAt, new Date(now - im.quietMs).toISOString()],
+  );
+}
+
+/** Espera a que el aviso esté en ese estado: la bandeja vuelve a pedir la lista cada pocos segundos y al volver a la ventana. */
 async function showing(page: Page, kind: string) {
-  await expect(async () => {
-    await page.waitForTimeout(1100);
-    const list = page.waitForResponse((r) => r.url().includes('/api/groups/chats?') && !r.url().includes('meta=0') && r.status() === 200, { timeout: 30_000 });
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await (await list).finished();
-    await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 3000 });
-  }).toPass({ timeout: 150_000 });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 45_000 });
 }
 
 // La línea elegida no queda puesta para las pruebas que siguen.
@@ -74,42 +92,44 @@ test('Lines: el aviso de importación dice en qué anda, se va solo al terminar 
   const numberId = await seedLine(request);
   // La línea elegida se guarda por persona y la bandeja solo avisa de las importaciones de esa línea: se elige la de esta prueba.
   await request.put('/api/groups/prefs', { data: { line: numberId } });
-  const im = (patch: Import): Import => ({
-    numberId,
+  const ws = String((await sql('SELECT user_id FROM groups_numbers WHERE id = ?', [numberId]))[0]?.user_id ?? '');
+  expect(ws).not.toBe('');
+  // La importación real que arrancó al conectar el número falso termina enseguida: después se pisa con la de la prueba.
+  await expect
+    .poll(async () => String((await sql('SELECT status FROM groups_imports WHERE number_id = ?', [numberId]))[0]?.status ?? 'none'), { timeout: 30_000 })
+    .toMatch(/^(done|error|none)$/);
+  const im = (patch: Partial<Import>): Import => ({
     status: 'running',
     phase: 'messages',
     chatsTotal: 20,
     chatsDone: 7,
     messages: 140,
-    perChat: 0,
     error: '',
     startedAt: '2026-11-19T10:00:00.000Z',
     finishedAt: null,
-    idle: false,
+    quietMs: 0,
     ...patch,
   });
-  let current: Import[] = [im({})];
-  await mockImports(page, () => current);
+  const set = (patch: Partial<Import>) => setImport(numberId, ws, im(patch));
+  await set({});
   await page.setViewportSize({ width: 1280, height: 860 });
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const banner = page.getByTestId('lines-import-banner');
 
-  // Trayendo mensajes: avance con barra, y ya se puede cerrar. La primera lista puede venir ya armada del servidor
-  // (sin pasar por el pedido que esta prueba intercepta): se le pide a la bandeja que la vuelva a traer hasta que
-  // el aviso aparece, en vez de esperar a que lo haga sola.
+  // Trayendo mensajes: avance con barra, y ya se puede cerrar.
   await showing(page, 'progress');
   await expect(banner).toBeVisible();
   await expect(banner.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '35');
   await expect(banner.getByRole('button', { name: 'Close this notice' })).toBeVisible();
 
   // Todos los chats contados y la importación sigue (fotos y miembros): ya no es "importando mensajes: 20 de 20" con la barra llena.
-  current = [im({ phase: 'pictures', chatsDone: 20 })];
+  await set({ phase: 'pictures', chatsDone: 20 });
   await showing(page, 'finishing');
   await expect(banner.getByRole('progressbar')).toHaveCount(0);
   await expect(banner).not.toContainText('20 of 20');
 
   // Terminó: lo dice y se va solo, sin tocar nada.
-  current = [im({ status: 'done', phase: 'done', chatsDone: 20, finishedAt: new Date().toISOString() })];
+  await set({ status: 'done', phase: 'done', chatsDone: 20, finishedAt: new Date().toISOString() });
   await showing(page, 'done');
   await expect(banner).toContainText('20 chats');
   await expect(banner).toHaveCount(0, { timeout: 20_000 });
@@ -119,7 +139,7 @@ test('Lines: el aviso de importación dice en qué anda, se va solo al terminar 
   await expect(banner).toHaveCount(0);
 
   // Otra importación de la misma línea avisa de nuevo. Está frenada (línea desconectada) con todo contado: lo dice.
-  current = [im({ startedAt: '2026-11-19T11:00:00.000Z', phase: 'pictures', chatsDone: 20, error: 'not_connected' })];
+  await set({ startedAt: '2026-11-19T11:00:00.000Z', phase: 'pictures', chatsDone: 20, error: 'not_connected' });
   await showing(page, 'paused');
   await expect(banner.getByRole('progressbar')).toHaveCount(0);
   await expect(banner).toContainText('paused');
@@ -135,7 +155,7 @@ test('Lines: el aviso de importación dice en qué anda, se va solo al terminar 
   await expect(banner).toHaveCount(0);
 
   // En el teléfono: una que no avanza hace rato, sin scroll lateral.
-  current = [im({ startedAt: '2026-11-19T12:00:00.000Z', idle: true })];
+  await set({ startedAt: '2026-11-19T12:00:00.000Z', quietMs: 15 * 60_000 });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: 'networkidle' });
   await expect(banner).toHaveAttribute('data-kind', 'stalled', { timeout: 45_000 });
