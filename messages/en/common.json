@@ -1359,6 +1359,48 @@
         "title": "That's the tour",
         "body": "You can take it again from your account menu."
       }
+    },
+    "inbox": {
+      "intro": {
+        "title": "Welcome to Inbox",
+        "body": "Inbox brings your WhatsApp and Gmail into one list that only you see. This tour points out the main parts."
+      },
+      "connect": {
+        "title": "Connect an account",
+        "body": "Link your WhatsApp with a QR code or connect Gmail. Its chats and emails show up here."
+      },
+      "chatList": {
+        "title": "Your chats",
+        "body": "WhatsApp chats and emails land here, the latest first. Move through them with J and K."
+      },
+      "filters": {
+        "title": "Filter the list",
+        "body": "Tabs show everything, only WhatsApp, only email, groups or unread."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find a chat by name, number or something said in it. Press / to jump here."
+      },
+      "openChat": {
+        "title": "Open a chat",
+        "body": "Open any chat in the list to read it and reply."
+      },
+      "composer": {
+        "title": "Reply",
+        "body": "Write here and press Enter to send. Type / to see the commands for this chat."
+      },
+      "triage": {
+        "title": "Clear it out",
+        "body": "Archive a chat once it's handled (E), snooze it for later (H) or ask for a reminder in case nobody answers."
+      },
+      "settings": {
+        "title": "Inbox settings",
+        "body": "Connect more accounts, import from inbox-zero and save snippets in Inbox settings."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
     }
   }
 }

@@ -435,7 +435,7 @@ const WaComposer = forwardRef<
 
   const hasText = !!text.trim();
   return (
-    <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
+    <div className="wa-composer ib-wa-composer" data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       {above}
       {banner}
       {linkPv.card}
