@@ -514,6 +514,17 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 /* Apps conectadas: nombre, destino y datos en una sola celda para que la acción nunca quede fuera. */
 .st-connected-app { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .st-nowrap { white-space: nowrap; }
+/* La URL del conector (claude.ai › Connectors), arriba de la lista. */
+.st-connector { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; min-width: 0; }
+.st-connector .label { margin: 0; }
+.st-connector-row { display: flex; gap: 8px; align-items: center; max-width: 560px; min-width: 0; }
+.st-connector-row .input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 0.8125rem; }
+.st-connector .ui-help { margin: 0; }
+.st-connector-copy { display: flex; flex-shrink: 0; }
+@media (max-width: 480px) {
+  .st-connector-row { flex-wrap: wrap; }
+  .st-connector-copy, .st-connector-copy .btn { width: 100%; justify-content: center; }
+}
 /* Un nombre sin espacios (lo elige el cliente) no se sale del diálogo. */
 .ui-confirm .ui-modal-title, .ui-confirm .ui-modal-body { overflow-wrap: anywhere; }
 

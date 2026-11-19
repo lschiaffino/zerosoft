@@ -4464,7 +4464,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself."
+      "description": "Connect claude.ai, Claude Desktop, Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself."
     }
   }
 }

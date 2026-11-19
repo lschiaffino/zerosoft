@@ -910,6 +910,71 @@ test('la conexión queda encontrable desde Conexiones, y el vacío lleva a cómo
   await expect(page.getByRole('heading', { name: 'Connected apps' })).toBeVisible();
 });
 
+test('el conector de claude.ai está publicado: docs, pie de página y Ajustes con la URL para pegar', async ({ page }) => {
+  // En dev cada página compila la primera vez.
+  test.setTimeout(180_000);
+  await page.goto('/en');
+  const footerLink = page.getByTestId('footer-connect-claude');
+  await expect(footerLink).toHaveAttribute('href', /\/docs\/mcp$/);
+  await footerLink.click();
+  // En dev la primera navegación compila la página.
+  await page.waitForURL(/\/docs\/mcp$/, { timeout: 60_000 });
+  const section = page.getByTestId('mcp-docs-claude-ai');
+  await expect(section).toBeVisible();
+  // La página es estática: en CI se arma en el build, con el origen de ese momento. Alcanza con la ruta.
+  await expect(section.getByTestId('mcp-docs-endpoint')).toHaveText(/^https?:\/\/[^/]+\/api\/mcp$/);
+  for (const locale of ['es', 'pt']) {
+    await page.goto(`/${locale}/docs/mcp`);
+    await expect(page.getByTestId('mcp-docs-endpoint')).toHaveText(/^https?:\/\/[^/]+\/api\/mcp$/);
+  }
+
+  // Página nueva: la anterior puede seguir con una navegación del cliente en curso.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const settings = await page.context().newPage();
+  await settings.goto('/en/app/settings/api');
+  const connector = settings.locator('#connected:visible').getByTestId('connector-url');
+  await expect(connector.getByRole('textbox')).toHaveValue(ENDPOINT);
+  await connector.getByTestId('connector-url-copy').getByRole('button').click();
+  expect(await settings.evaluate(() => navigator.clipboard.readText())).toBe(ENDPOINT);
+  await expect(connector.getByTestId('connector-how-to')).toHaveAttribute('href', /\/en\/docs\/mcp#claude-ai$/);
+});
+
+const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
+
+test('la URL del conector en Ajustes y la página de docs en los cinco aspectos, claro y oscuro, 1280 y 390', async ({ browser, request }) => {
+  test.setTimeout(240_000);
+  try {
+    for (const look of LOOKS) {
+      // El aspecto es de la cuenta (users.ui_look); el usuario demo es compartido.
+      expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true);
+      for (const [theme, width] of [['light', 1280], ['dark', 1280], ['light', 390], ['dark', 390]] as const) {
+        const ctx = await browser.newContext({ baseURL: BASE, viewport: { width, height: 900 }, colorScheme: theme });
+        await ctx.addCookies([{ name: 'zs_theme', value: theme, url: BASE }]);
+        const page = await ctx.newPage();
+        await page.goto('/en/app/settings/api');
+        await expect(page.locator('html')).toHaveAttribute('data-look', look);
+        // :visible: mientras la página llega por streaming, React deja un instante la sección
+        // también en su contenedor oculto (div[hidden] S:0) y el locator estricto veía dos.
+        const connector = page.locator('#connected:visible').getByTestId('connector-url');
+        await expect(connector).toBeVisible();
+        // El botón entra en la pantalla, sin scroll lateral.
+        const copy = connector.getByTestId('connector-url-copy').getByRole('button');
+        await expect(copy).toBeInViewport({ ratio: 1 });
+        if (SHOTS) await connector.screenshot({ path: path.join(SHOTS, `connector-${look}-${theme}-${width}.png`) });
+        await shot(page, `settings-connector-${look}-${theme}-${width}`);
+        if (look === 'current') {
+          await page.goto('/en/docs/mcp');
+          await expect(page.getByTestId('mcp-docs-claude-ai')).toBeVisible();
+          await shot(page, `docs-claude-ai-${theme}-${width}`);
+        }
+        await ctx.close();
+      }
+    }
+  } finally {
+    await request.put('/api/profile/look', { data: { look: 'current' } });
+  }
+});
+
 test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ browser }) => {
   test.setTimeout(180_000);
   for (const width of [390, 1280]) {
