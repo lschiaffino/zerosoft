@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, NumberDto } from '@/lib/groups';
 import LineAccess from './LineAccess';
 import PersonPicker from './PersonPicker';
+import LineGroups from './LineGroups';
+import type { LineGroupDto } from '@/lib/groups-line-groups';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
 import MenuSelect from '@/components/ui/MenuSelect';
@@ -57,7 +59,10 @@ export default function NumbersSettings({
   people = [],
   teams = [],
   me = '',
+  initialGroups = [],
 }: {
+  /** Grupos de líneas: todos para un admin; para los demás, los que tienen alguna línea que ven. */
+  initialGroups?: LineGroupDto[];
   /** Quien mira: su nombre no hace falta en la columna Dueño ("Vos"). */
   me?: string;
   /** Owner o admin: administra todas las líneas y cambia dueños. Si no, solo las suyas (`canManage`). */
@@ -77,6 +82,7 @@ export default function NumbersSettings({
   const router = useRouter();
   const [toast, showToast] = useToast();
   const [numbers, setNumbers] = useState(initial);
+  const [groups, setGroups] = useState(initialGroups);
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(() => (reconnect ? (initial.find((n) => n.id === reconnect && n.canManage) ?? null) : null));
   // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
@@ -93,9 +99,29 @@ export default function NumbersSettings({
   }, []);
 
   const reload = useCallback(async () => {
-    const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers?stats=1');
+    const [res, gr] = await Promise.all([api<{ numbers: NumberDto[] }>('/api/groups/numbers?stats=1'), api<{ groups: LineGroupDto[] }>('/api/groups/line-groups')]);
     if (res.data) setNumbers(res.data.numbers);
+    if (gr.data) setGroups(gr.data.groups);
   }, []);
+
+  // La tabla va por grupo de líneas, en el orden de los grupos; las líneas sin grupo, al final.
+  const sections = useMemo(() => {
+    const shown = numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter);
+    const known = new Set(groups.map((g) => g.id));
+    const out = groups.map((g) => ({ id: g.id, name: g.name, lines: shown.filter((n) => n.groupId === g.id) })).filter((s) => s.lines.length > 0);
+    const loose = shown.filter((n) => !n.groupId || !known.has(n.groupId));
+    return { grouped: out, loose };
+  }, [numbers, groups, ownerFilter]);
+
+  // Grupo de la línea: lo elige un admin en la fila y se guarda en el acto.
+  async function setGroup(n: NumberDto, groupId: string) {
+    const res = await api<NumberDto>(`/api/groups/numbers/${n.id}`, { method: 'PATCH', body: { groupId: groupId || null } });
+    if (!res.data) return showToast(errText(res.error), true);
+    setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, groupId: groupId || null } : x)));
+    void reload();
+    router.refresh();
+  }
+  const groupOptions = useMemo(() => [{ value: '', label: t('lineGroups.noGroup') }, ...groups.map((g) => ({ value: g.id, label: g.name }))], [groups, t]);
 
   // El estado cambia solo (el teléfono se desvincula, el gateway se cae): la lista se refresca cada 10 s.
   useEffect(() => {
@@ -215,7 +241,16 @@ export default function NumbersSettings({
                 </th>
               </tr>
             </thead>
-            {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
+            {[...sections.grouped, ...(sections.loose.length ? [{ id: '', name: sections.grouped.length ? t('lineGroups.ungrouped') : '', lines: sections.loose }] : [])].map((section) => (
+              <Fragment key={section.id || 'loose'}>
+                {section.name && (
+                  <tbody className="gr-number-grouphead" data-testid="numbers-group-head">
+                    <tr>
+                      <td colSpan={5}>{section.name}</td>
+                    </tr>
+                  </tbody>
+                )}
+                {section.lines.map((n) => (
               <tbody key={n.id} className="gr-number" data-number-id={n.id}>
                 <tr className="gr-number-row">
                   <th scope="row" className="gr-number-line">
@@ -310,6 +345,16 @@ export default function NumbersSettings({
                           onChange={(v) => void setColor(n, v)}
                           options={colorOptions}
                         />
+                        {isAdmin && groups.length > 0 && (
+                          <MenuSelect
+                            className="gr-line-group-select"
+                            testId="line-group-select"
+                            label={t('lineGroups.groupOf', { name: n.name })}
+                            value={n.groupId ?? ''}
+                            onChange={(v) => void setGroup(n, v)}
+                            options={groupOptions}
+                          />
+                        )}
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
                           {t('lines.access')}
                         </button>
@@ -361,11 +406,27 @@ export default function NumbersSettings({
                   </tr>
                 )}
               </tbody>
+                ))}
+              </Fragment>
             ))}
           </table>
         </div>
       )}
 
+      {isAdmin && (
+        <LineGroups
+          groups={groups}
+          numbers={numbers}
+          people={people}
+          teams={teams}
+          notify={showToast}
+          onChanged={(next) => {
+            if (next) setGroups(next);
+            void reload();
+            router.refresh();
+          }}
+        />
+      )}
       <NumberForm
         open={adding || !!editing}
         editing={editing}
@@ -386,6 +447,7 @@ export default function NumbersSettings({
       />
       <LineAccess
         isOwner={Boolean(accessFor?.ownerId) && accessFor?.ownerId === me}
+        groupName={groups.find((g) => g.id === accessFor?.groupId)?.name ?? ''}
         number={accessFor}
         people={people}
         teams={teams}

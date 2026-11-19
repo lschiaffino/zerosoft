@@ -50,7 +50,7 @@ import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
+import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineGroupOption, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { requestChatInfo } from '@/lib/chat-info-request';
@@ -206,6 +206,7 @@ export default function InboxShell({
   me = '',
   initialLists = [],
   numbers = [],
+  lineGroups = [],
   initialLine = 'all',
   banner = null,
   agentsRow = null,
@@ -219,7 +220,9 @@ export default function InboxShell({
   initialLists?: SavedListDto[];
   /** Líneas que esta persona ve (visibilidad por línea). */
   numbers?: LineOption[];
-  /** Línea elegida la última vez ('all' = todas). */
+  /** Grupos de líneas donde esta persona ve alguna línea (lib/groups-line-groups.ts). */
+  lineGroups?: LineGroupOption[];
+  /** Línea elegida la última vez ('all' = todas; 'g:<id>' = un grupo de líneas entero). */
   initialLine?: string;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
@@ -258,7 +261,13 @@ export default function InboxShell({
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
   const switchingTo = useSwitchingTo();
-  const [line, setLine] = useState(numbers.some((n) => n.id === initialLine) ? initialLine : 'all');
+  const [line, setLine] = useState(
+    numbers.some((n) => n.id === initialLine) || (lineGroupOf(initialLine) && numbers.some((n) => n.groupId === lineGroupOf(initialLine))) ? initialLine : 'all',
+  );
+  // Un grupo de líneas elegido: varias líneas a la vez, como "todas" (cada chat dice de qué línea es).
+  const lineGroup = lineGroupOf(line);
+  const manyLines = line === 'all' || Boolean(lineGroup);
+  const inLine = (numberId: string) => line === 'all' || numberId === line || (Boolean(lineGroup) && numbers.some((n) => n.id === numberId && n.groupId === lineGroup));
   // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
   const folderSel = params.get('folder') ?? '';
   const sideBranch = useShellBranch();
@@ -435,7 +444,8 @@ export default function InboxShell({
     if (filters.lastMessage || filters.created) p.set('tz', String(-new Date().getTimezoneOffset()));
     if (deletedView) p.set('hidden', '1');
     else if (archivedView) p.set('archived', '1');
-    if (line !== 'all') p.set('number', line);
+    if (lineGroupOf(line)) p.set('linegroup', lineGroupOf(line));
+    else if (line !== 'all') p.set('number', line);
     if (folderSel) p.set('folder', folderSel);
     if (debounced) p.set('q', debounced);
     return p.toString();
@@ -1074,9 +1084,9 @@ export default function InboxShell({
                 {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
               </span>
             </span>
-            {(c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
+            {(c.labels.length > 0 || c.assignedTo || c.hubspotName || (manyLines && numbers.length > 1)) && (
               <span className="gr-row-meta">
-                {line === 'all' && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
+                {manyLines && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
                 {c.labels.slice(0, 2).map((l) => (
                   <LabelTag key={l.id} name={l.name} color={l.color} />
                 ))}
@@ -1329,7 +1339,7 @@ export default function InboxShell({
             {banner}
             {bandSlot ? (
               <>
-                {createPortal(<LineSelector numbers={numbers} value={line} onChange={pickLine} />, bandSlot)}
+                {createPortal(<LineSelector numbers={numbers} groups={lineGroups} value={line} onChange={pickLine} />, bandSlot)}
                 {/* Una lista guardada sí conserva su nombre: la miga dice solo "Bandeja". */}
                 {activeList && (
                   <div className="gr-list-titlebar">
@@ -1340,7 +1350,7 @@ export default function InboxShell({
             ) : (
               <div className="gr-list-titlebar">
                 <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
-                <LineSelector numbers={numbers} value={line} onChange={pickLine} />
+                <LineSelector numbers={numbers} groups={lineGroups} value={line} onChange={pickLine} />
                 <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
                   <Plus size={20} />
                 </button>
@@ -1527,7 +1537,7 @@ export default function InboxShell({
             </div>
           )}
           {/* Con una línea elegida, solo sus avisos: los de otra línea no son de esta vista. */}
-          {dropped.filter((n) => (line === 'all' || n.id === line) && !importsClosed.includes(`drop:${n.id}`)).map((n) => (
+          {dropped.filter((n) => inLine(n.id) && !importsClosed.includes(`drop:${n.id}`)).map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
               <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
@@ -1576,7 +1586,7 @@ export default function InboxShell({
               <p className="wa-deleted-note">{t('wa.deletedNote')}</p>
             </>
           )}
-          {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
+          {imports.filter((im) => inLine(im.numberId) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
                 {im.status === 'done'
@@ -1715,7 +1725,7 @@ export default function InboxShell({
         onConfirm={() => void removeList()}
         onCancel={() => setRemoving(false)}
       />
-      <NewChatDialog open={newChat} onClose={() => setNewChat(false)} line={line} suffix={listSuffix} />
+      <NewChatDialog open={newChat} onClose={() => setNewChat(false)} line={lineGroup ? 'all' : line} suffix={listSuffix} />
       <MoveToFolderModal
         open={!!moveIds}
         folders={folderData.folders}

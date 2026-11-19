@@ -470,6 +470,32 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-person-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .gr-person-email { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-person-empty { margin: 0; padding: 8px 10px; }
+/* Grupos de líneas (Ajustes › Números): la tabla lleva un renglón con el nombre de cada grupo; abajo, la lista
+   de grupos con sus acciones y el acceso por persona. */
+.table.gr-numbers-table .gr-number-grouphead td { height: auto; padding-top: 16px; padding-bottom: 6px; font-size: 0.75rem; font-weight: 600; color: var(--dim); }
+.table.gr-numbers-table .gr-number-grouphead tr { border-bottom: 0; }
+.gr-lgroups { display: grid; gap: 12px; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+.gr-lgroups-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.gr-lgroups-head > div { flex: 1 1 320px; min-width: 0; display: grid; gap: 4px; }
+.gr-lgroups-title { margin: 0; font-size: 1rem; font-weight: 600; }
+.gr-lgroups-subtitle { margin: 0; font-size: 0.875rem; font-weight: 600; }
+.gr-lgroups-list { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 8px; }
+.gr-lgroup { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 10px 12px; }
+.gr-lgroup + .gr-lgroup { border-top: 1px solid var(--line); }
+.gr-lgroup-main { flex: 1 1 260px; min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.gr-lgroup-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.gr-lgroup-warn { color: var(--warn-ink); }
+.gr-lgroup-checks { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.gr-lgroup-open { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.gr-paccess { display: grid; gap: 10px; padding-top: 12px; }
+.gr-paccess-head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.gr-paccess-head .gr-person-pick { border-color: var(--line); max-width: 260px; }
+.gr-paccess-body { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.gr-paccess-group { display: grid; gap: 2px; }
+.gr-paccess-line { padding-left: 24px; }
+.gr-paccess-group > .label + .gr-paccess-line, .gr-paccess-group:not(:has(.gr-paccess-group-name)) .gr-paccess-line { padding-left: 0; }
+.gr-paccess-foot { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.gr-lgroups .gr-check-label { flex-wrap: wrap; }
 .gr-person-help { flex: none; margin: 0; padding: 8px 10px 4px; border-top: 1px solid var(--line); font-size: 0.75rem; line-height: 1.45; }
 @media (max-width: 640px) {
   .gr-numbers-table .gr-number-owner .gr-person-pick { margin-left: 0; justify-self: start; }

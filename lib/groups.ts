@@ -117,6 +117,8 @@ export interface NumberRow {
   color?: string;
   /** Desde cuándo está en `status` (null: línea anterior a la columna, todavía sin cambios). */
   status_since?: string | null;
+  /** Grupo de líneas (lib/groups-line-groups.ts); null = sin grupo. */
+  line_group_id?: string | null;
 }
 
 export interface NumberDto {
@@ -139,6 +141,8 @@ export interface NumberDto {
   visibility: 'all' | 'restricted';
   /** Color elegido para la línea (lib/line-colors.ts); '' = sin color. */
   color: LineColor | '';
+  /** Grupo de líneas al que pertenece (lib/groups-line-groups.ts); null = ninguno. */
+  groupId: string | null;
   /** Desde cuándo está en su estado actual; null si no se sabe (ver la migración lines_number_status_since). */
   statusSince: string | null;
   /** Último mensaje y chats abiertos de la línea (lib/groups-number-stats.ts), para la tabla de Números. */
@@ -183,6 +187,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     ownerName: '',
     visibility: row.visibility === 'restricted' ? 'restricted' : 'all',
     color: lineColor(row.color),
+    groupId: row.line_group_id ?? null,
     statusSince: row.status_since ?? null,
   };
 }
@@ -846,6 +851,8 @@ export interface ChatQuery {
   props?: PropertyFilter[];
   kind?: 'dm' | 'group';
   numberId?: string;
+  /** Solo las líneas de este grupo (lib/groups-line-groups.ts). El acceso de quien mira se aplica aparte. */
+  lineGroupId?: string;
   /** Carpeta (incluye sus subcarpetas) o 'none' para los que no están en ninguna. */
   folderId?: string;
   /** Líneas de las que esta persona es dueña. */
@@ -990,6 +997,10 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (query.numberId) {
     where.push('c.number_id = ?');
     args.push(query.numberId);
+  }
+  if (query.lineGroupId) {
+    where.push('c.number_id IN (SELECT zlg.id FROM groups_numbers zlg WHERE zlg.user_id = c.user_id AND zlg.line_group_id = ?)');
+    args.push(query.lineGroupId);
   }
   if (query.ownerId) {
     where.push('c.number_id IN (SELECT zo.id FROM groups_numbers zo WHERE zo.user_id = c.user_id AND zo.owner_id = ?)');
