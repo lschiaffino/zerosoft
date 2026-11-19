@@ -11,6 +11,7 @@
  * llevan el código HTTP y la ruta sin query.
  */
 import type { CrmCustomFieldType } from './schema/types';
+import { backoffMs, realSleep, type FetchLike, type SleepFn } from './hubspot/retry';
 
 export type ImportProvider = 'hubspot' | 'pipedrive';
 export const IMPORT_PROVIDERS: readonly ImportProvider[] = ['hubspot', 'pipedrive'];
@@ -162,8 +163,17 @@ export interface SourcePage {
   next: string | null;
 }
 
+/** Lo que se sabe de la clave con la que se conectó: a qué cuenta entra, de qué tipo es y con qué permisos. */
+export interface SourceConnection {
+  portalId: string;
+  kind: 'private_app' | 'service_key' | 'unknown';
+  scopes: string[];
+}
+
 export interface CrmSource {
   provider: ImportProvider;
+  /** Valida la clave antes de leer nada (HubSpot). Tira SourceError `auth` si no vale. */
+  connection?(): Promise<SourceConnection>;
   phases(): ImportPhase[];
   owners(): Promise<SrcOwner[]>;
   fields(): Promise<SrcField[]>;
@@ -196,10 +206,9 @@ export function isFatalSourceError(e: unknown): boolean {
 
 // ---------- Ritmo y reintentos ----------
 
-export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
-export type SleepFn = (ms: number) => Promise<void>;
+// El tipo del fetch, la espera y el backoff viven en lib/hubspot/retry.ts (los comparte el cliente de HubSpot).
 
-export const realSleep: SleepFn = (ms) => new Promise((r) => setTimeout(r, ms));
+export { backoffMs, realSleep, type FetchLike, type SleepFn };
 
 /**
  * Ventana deslizante: como mucho `max` pedidos cada `windowMs` (HubSpot: 100
@@ -236,13 +245,6 @@ export interface HttpClientOptions {
   /** Reintentos ante 429, 5xx o error de red. */
   maxRetries?: number;
   headers: Record<string, string>;
-}
-
-/** Espera de un reintento: Retry-After (segundos) si viene, si no 1 s, 2 s, 4 s… con tope de 30 s. */
-export function backoffMs(attempt: number, retryAfter: string | null): number {
-  const secs = Number(retryAfter);
-  if (retryAfter && Number.isFinite(secs) && secs >= 0) return Math.min(secs * 1000, 60_000);
-  return Math.min(1000 * 2 ** attempt, 30_000);
 }
 
 export function createHttpClient(opts: HttpClientOptions) {

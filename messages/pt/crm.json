@@ -2299,15 +2299,12 @@
     },
     "connectTitle": "Conectar {provider}",
     "howto": {
-      "hs1": "No HubSpot, abra Configurações › Integrações › Apps privados e crie um app privado.",
-      "hs2": "Na aba Escopos, adicione os escopos de leitura abaixo. Nada é escrito no HubSpot.",
-      "hs3": "Crie o app e copie o token de acesso.",
       "pd1": "No Pipedrive, abra seu avatar › Preferências pessoais › API.",
       "pd2": "Copie seu token pessoal de API. Use uma conta admin para trazer os registros de todas as pessoas."
     },
     "scopes": "Escopos",
     "scopesNote": "sales-email-read só é necessário para os emails registrados. Sem ele, os emails são pulados.",
-    "tokenLabelHubspot": "Token de acesso",
+    "tokenLabelHubspot": "Service key ou token do private app",
     "tokenLabelPipedrive": "Token de API",
     "tokenHelp": "O token fica criptografado enquanto o import roda e é apagado quando termina ou você cancela.",
     "back": "Voltar",
@@ -2324,7 +2321,7 @@
       "lists": "Listas"
     },
     "unknownCount": "Tudo",
-    "unavailable": "O token não consegue ler {phases}. Isso é pulado.",
+    "unavailable": "Esta chave não consegue ler {phases}. Isso é pulado.",
     "dedupeNote": "Contatos são comparados por email e empresas por domínio. Se já existem, os campos vazios são preenchidos em vez de duplicar.",
     "previouslyImported": "{count, number} registros já vieram desta conta antes. Eles são atualizados, não duplicados.",
     "noSample": "Nada aqui.",
@@ -2402,7 +2399,7 @@
     "rerun": "Importar de novo",
     "errors": {
       "invalid_token": "Esse token não funcionou. Copie de novo e confira se é da conta certa.",
-      "missing_scope": "Falta um escopo de leitura no token. Adicione os escopos da lista e tente de novo.",
+      "missing_scope": "Falta uma permissão de leitura na chave. Adicione as permissões da lista e tente de novo.",
       "provider_error": "Não conseguimos falar com o provedor. Tente de novo em um minuto.",
       "import_running": "Já tem um import rodando neste workspace.",
       "rate_limited": "Tentativas demais. Tente de novo em uma hora.",
@@ -2421,7 +2418,8 @@
     "locallyEdited": "{count, plural, one {# registro que veio da {provider} foi editado no zerosoft} other {# registros que vieram da {provider} foram editados no zerosoft}} depois da última importação. Não são sobrescritos: só os campos vazios são preenchidos.",
     "overwriteLocal": "Substituir pelo que está na {provider} (sobrescreve as mudanças feitas no zerosoft)",
     "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
-    "openContacts": "Ver contatos"
+    "openContacts": "Ver contatos",
+    "connectedNote": "Confira se é a conta de onde você quer importar."
   },
   "ai": {
     "updatedAt": "Atualizado {when}",

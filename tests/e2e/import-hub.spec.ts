@@ -96,9 +96,13 @@ test('Notion por API: token rechazado, vista previa, import y reimport', async (
 test('HubSpot dentro del hub: permisos, listas e invitar owners que faltan', async ({ page }) => {
   await page.goto(`${HUB}?source=crm:hubspot`, { waitUntil: 'networkidle' });
   await expect(page.getByTestId('import-hub-scopes')).toContainText('crm.lists.read');
-  await expect(page.getByTestId('import-hub-howto').locator('ol li')).toHaveCount(5);
+  // Los pasos: crear una service key (4), usar la private app que ya existe (3) y conectar y asignar owners (2).
+  const howto = page.getByTestId('import-hub-howto');
+  await expect(howto.getByTestId('hubspot-key-new').locator('ol li')).toHaveCount(4);
+  await expect(howto.getByTestId('hubspot-key-legacy').locator('ol li')).toHaveCount(3);
+  await expect(howto.getByTestId('import-hub-steps').locator('li')).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Connect HubSpot' })).toBeVisible({ timeout: 20_000 });
-  await page.getByLabel('Access token').fill('fake');
+  await page.getByLabel('Service key or private app token').fill('fake');
   await page.getByRole('button', { name: 'Connect and preview' }).click();
   await expect(page.getByTestId('migrate-preview')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('migrate-count-lists')).toHaveText('2');
