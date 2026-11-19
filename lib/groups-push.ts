@@ -250,12 +250,20 @@ export async function takePending(ws: string, personId: string, limit = 5): Prom
   const since = new Date(Date.now() - NOTIFICATION_TTL_MS).toISOString();
   const rows = (await db
     .prepare(
-      `SELECT id, title, body, url, created_at FROM groups_notifications
+      `SELECT id, chat_id, title, body, url, created_at FROM groups_notifications
        WHERE user_id = ? AND person_id = ? AND delivered_at IS NULL AND created_at >= ? ORDER BY created_at DESC LIMIT ?`,
     )
-    .all(ws, personId, since, limit)) as Array<{ id: string; title: string; body: string; url: string; created_at: string }>;
+    .all(ws, personId, since, limit)) as Array<{ id: string; chat_id: string | null; title: string; body: string; url: string; created_at: string }>;
   const out: PendingNotification[] = [];
   for (const r of rows) {
+    // Aviso de un chat de Lines: solo si la persona lo sigue viendo (pudo perder la línea o el grupo después de encolarse).
+    if (r.chat_id && r.url.startsWith('/app/lines/')) {
+      const { personCanSeeChat } = await import('./groups-access');
+      if (!(await personCanSeeChat(ws, personId, r.chat_id).catch(() => false))) {
+        await db.prepare('DELETE FROM groups_notifications WHERE id = ?').run(r.id).catch(() => undefined);
+        continue;
+      }
+    }
     // Push de Talk: solo si la persona sigue en Talk de ese workspace (pudo perder la app o salir).
     if (r.url.startsWith('/app/talk/')) {
       const w = /[?&]w=([^&]+)/.exec(r.url)?.[1] ?? ws;

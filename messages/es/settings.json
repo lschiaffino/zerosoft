@@ -1497,7 +1497,11 @@
   },
   "appsPanel": {
     "title": "Apps del workspace",
-    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra.",
+    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra. Marcá con la estrella las apps que más usa tu equipo: van arriba en el menú de apps.",
+    "feature": "Destacar {name}",
+    "unfeature": "Dejar de destacar {name}",
+    "alwaysOn": "Siempre activada para todos.",
+    "featuredNote": "Destacadas: con al menos una, el menú de apps las muestra arriba y deja el resto en \"Otras apps\". Sin ninguna, muestra todas las apps por categoría.",
     "readOnly": "Solo el owner y los admins cambian esto.",
     "modes": {
       "all": "Todos",
@@ -1756,7 +1760,13 @@
         "name": "Retro",
         "desc": "Un escritorio de los noventa: botones y ventanas grises en relieve, campos blancos hundidos y barras de título."
       }
-    }
+    },
+    "toursTitle": "Tours guiados",
+    "toursDesc": "La primera vez que abrís una app, un tour corto te muestra sus partes principales.",
+    "toursAuto": "Mostrar el tour la primera vez que abro una app",
+    "toursReset": "Volver a mostrar todos los tours",
+    "toursResetDone": "Listo. Cada tour se abre de nuevo la próxima vez que entres a su app.",
+    "toursError": "No se pudo guardar. Probá de nuevo."
   },
   "offline": {
     "title": "Modo sin conexión",

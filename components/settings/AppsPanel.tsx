@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
 import QuickModal from '@/components/app/QuickModal';
 import ProductGlyph from '@/components/brand/ProductGlyph';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import Icon from '@/components/app/icons';
+import { PRODUCT_CONFIG, isWorkspaceGatedApp, type ProductKey } from '@/lib/products';
 import { EMPTY_RULE, type WorkspaceAppMode, type WorkspaceAppRule, type WorkspaceAppRules } from '@/lib/app-access';
 
 interface Person {
@@ -31,16 +33,24 @@ type PersonState = 'default' | 'allow' | 'deny';
  * cambio se guarda solo (PUT /api/teams/apps) y vale para la app, sus páginas,
  * su API, el MCP y la app de escritorio. Las apps habilitadas de cada persona
  * (Miembros y permisos) siguen valiendo encima de esto.
+ *
+ * La estrella destaca la app para todo el workspace (PUT
+ * /api/teams/apps/featured): con alguna destacada, el menú de apps las muestra
+ * arriba y pliega el resto en "Otras apps". Inbox, que siempre está, solo se
+ * destaca.
  */
 export default function AppsPanel({
   apps,
   initial,
+  initialFeatured = [],
   people,
   teams,
   canEdit,
 }: {
   apps: ProductKey[];
   initial: WorkspaceAppRules;
+  /** Apps destacadas del workspace. */
+  initialFeatured?: ProductKey[];
   people: Person[];
   teams: Team[];
   canEdit: boolean;
@@ -52,6 +62,32 @@ export default function AppsPanel({
   const [status, setStatus] = useState<{ app: ProductKey; kind: 'saved' | 'error' } | null>(null);
   const [picking, setPicking] = useState<{ app: ProductKey; mode: WorkspaceAppMode; rule: WorkspaceAppRule; prev: WorkspaceAppRule } | null>(null);
   const members = useMemo(() => people.filter((p) => p.role === 'member'), [people]);
+  const router = useRouter();
+  const [featured, setFeatured] = useState<ProductKey[]>(initialFeatured);
+  const [starring, setStarring] = useState<ProductKey | null>(null);
+
+  async function onStar(app: ProductKey, on: boolean) {
+    const prev = featured;
+    setStarring(app);
+    setStatus(null);
+    setFeatured(on ? [...prev.filter((k) => k !== app), app] : prev.filter((k) => k !== app));
+    const res = await fetch('/api/teams/apps/featured', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ app, featured: on }),
+    }).catch(() => null);
+    setStarring(null);
+    if (!res?.ok) {
+      setFeatured(prev);
+      setStatus({ app, kind: 'error' });
+      return;
+    }
+    const data = (await res.json().catch(() => null)) as { featured?: ProductKey[] } | null;
+    if (data?.featured) setFeatured(data.featured);
+    setStatus({ app, kind: 'saved' });
+    // El menú de apps de la banda sale del layout: se vuelve a pedir para que muestre el cambio sin recargar.
+    router.refresh();
+  }
 
   async function save(app: ProductKey, rule: WorkspaceAppRule, prev: WorkspaceAppRule): Promise<boolean> {
     setSaving(app);
@@ -124,8 +160,16 @@ export default function AppsPanel({
             const off = rule.mode === 'off';
             const name = PRODUCT_CONFIG[app].name;
             const busy = saving === app;
+            const gated = isWorkspaceGatedApp(app);
+            const starred = featured.includes(app);
             return (
-              <li key={app} className={`ws-apps-row card-${app}${off ? ' is-off' : ''}`} data-testid={`ws-app-${app}`} data-mode={rule.mode}>
+              <li
+                key={app}
+                className={`ws-apps-row card-${app}${off ? ' is-off' : ''}`}
+                data-testid={`ws-app-${app}`}
+                data-mode={rule.mode}
+                data-featured={starred ? '' : undefined}
+              >
                 <span className="ws-apps-glyph">
                   <ProductGlyph product={app} size={16} />
                 </span>
@@ -133,8 +177,8 @@ export default function AppsPanel({
                   <span className="ws-apps-name">{name}</span>
                   <span className="ws-apps-desc">{tp(`${app}.desc`)}</span>
                   <span className="ws-apps-sum" aria-live="polite">
-                    {summary(rule)}
-                    {!off && canEdit && (
+                    {gated ? summary(rule) : t('alwaysOn')}
+                    {gated && !off && canEdit && (
                       <>
                         {' · '}
                         <button type="button" className="ws-apps-edit" onClick={() => open(app, rule.mode, rule)} data-testid={`ws-app-edit-${app}`}>
@@ -150,43 +194,64 @@ export default function AppsPanel({
                   </span>
                 </span>
                 <span className="ws-apps-control">
-                  <label className="ui-check ws-apps-switch">
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={!off}
-                      disabled={!canEdit || busy}
-                      aria-label={t('enabledFor', { name })}
-                      onChange={(e) => onSwitch(app, e.target.checked)}
-                      data-testid={`ws-app-switch-${app}`}
-                    />
-                    <span>{t('enabled')}</span>
-                  </label>
-                  <label className="sr-only" htmlFor={`ws-app-mode-${app}`}>
-                    {t('accessFor', { name })}
-                  </label>
-                  <select
-                    id={`ws-app-mode-${app}`}
-                    className="select"
-                    value={off ? 'all' : rule.mode}
-                    disabled={!canEdit || busy || off}
-                    aria-busy={busy || undefined}
-                    onChange={(e) => onMode(app, e.target.value as WorkspaceAppMode)}
-                    data-testid={`ws-app-mode-${app}`}
-                  >
-                    {ON_MODES.map((m) => (
-                      <option key={m} value={m}>
-                        {t(`modes.${m}`)}
-                      </option>
-                    ))}
-                  </select>
+                  <span className="ws-apps-toggles">
+                    {gated && (
+                      <label className="ui-check ws-apps-switch">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={!off}
+                          disabled={!canEdit || busy}
+                          aria-label={t('enabledFor', { name })}
+                          onChange={(e) => onSwitch(app, e.target.checked)}
+                          data-testid={`ws-app-switch-${app}`}
+                        />
+                        <span>{t('enabled')}</span>
+                      </label>
+                    )}
+                    {/* Destacar: un botón con estado (aria-pressed). Apagada no se destaca, pero la marca queda para cuando vuelva. */}
+                    <button
+                      type="button"
+                      className="ws-apps-star"
+                      aria-pressed={starred}
+                      aria-label={t(starred ? 'unfeature' : 'feature', { name })}
+                      title={t(starred ? 'unfeature' : 'feature', { name })}
+                      disabled={!canEdit || off || starring !== null}
+                      onClick={() => void onStar(app, !starred)}
+                      data-testid={`ws-app-star-${app}`}
+                    >
+                      <Icon name="star" size={16} />
+                    </button>
+                  </span>
+                  {gated && (
+                    <>
+                      <label className="sr-only" htmlFor={`ws-app-mode-${app}`}>
+                        {t('accessFor', { name })}
+                      </label>
+                      <select
+                        id={`ws-app-mode-${app}`}
+                        className="select"
+                        value={off ? 'all' : rule.mode}
+                        disabled={!canEdit || busy || off}
+                        aria-busy={busy || undefined}
+                        onChange={(e) => onMode(app, e.target.value as WorkspaceAppMode)}
+                        data-testid={`ws-app-mode-${app}`}
+                      >
+                        {ON_MODES.map((m) => (
+                          <option key={m} value={m}>
+                            {t(`modes.${m}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                 </span>
               </li>
             );
           })}
         </ul>
         <p className="ui-help ws-apps-foot">
-          {t('offNote')} {t('compose')}
+          {t('offNote')} {t('compose')} {t('featuredNote')}
         </p>
       </FormSection>
 

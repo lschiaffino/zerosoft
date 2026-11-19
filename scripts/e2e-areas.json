@@ -41,6 +41,10 @@
       "specs": ["groups", "groups-*", "lines-*", "offline-lines-inbox", "member-capabilities", "tasks-unified"],
       "with": ["chat-ui", "inbox"]
     },
+    "tours": {
+      "names": ["tour", "tours"],
+      "specs": ["lines-tour"]
+    },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
       "paths": ["components/groups/wa/**", "styles/groups-wa.css", "components/ai/**", "lib/kbd-nav.ts", "components/app/CalmFocus.tsx", "styles/calm-focus.css"],
@@ -90,7 +94,7 @@
   },
 
   "full-only": [
-    "api-cache-control", "apps-coming-soon", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
+    "api-cache-control", "apps-coming-soon", "apps-featured", "csp", "bench-fixes-*", "brand-theme", "color-theme", "feedback-board", "flows", "import-hub",
     "members-permissions", "menus-layering", "offline-shell", "perf", "platform-home", "private-files", "qa-followups", "qa-polish",
     "responsive-apps-b", "screens", "sidebar-account-menu", "ui-audit-*", "workspace-*"
   ]

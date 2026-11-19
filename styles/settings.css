@@ -584,6 +584,30 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .ws-apps-status { margin-left: 8px; }
 .ws-apps-control { display: flex; flex-direction: column; gap: 8px; }
 .ws-apps-control .select { width: 100%; }
+/* Prendida y destacada en una fila: el interruptor a la izquierda, la estrella al borde. */
+.ws-apps-toggles { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.ws-apps-toggles > .ws-apps-star:only-child { margin-left: auto; }
+.ws-apps-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.ws-apps-star:hover:not(:disabled) { color: var(--ink); background: var(--ui-hover); }
+.ws-apps-star[aria-pressed='true'] { color: var(--ink); }
+.ws-apps-star[aria-pressed='true'] svg { fill: currentColor; }
+.ws-apps-star:disabled { opacity: 0.45; cursor: default; }
+.ws-apps-star:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .ws-apps-star { width: 44px; height: 44px; }
+}
 .ws-apps-personrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 190px); gap: 8px; align-items: center; padding: 4px 0; }
 .ws-apps-edit {
   padding: 0;

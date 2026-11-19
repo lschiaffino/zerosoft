@@ -1497,7 +1497,11 @@
   },
   "appsPanel": {
     "title": "Apps do workspace",
-    "desc": "Ligue ou desligue cada app para o workspace, escolha quem usa (todos, equipes ou pessoas) e ajuste por pessoa. Desativar uma tira de todo lugar para todos; o que está dentro fica guardado.",
+    "desc": "Ligue ou desligue cada app para o workspace, escolha quem usa (todos, equipes ou pessoas) e ajuste por pessoa. Desativar uma tira de todo lugar para todos; o que está dentro fica guardado. Marque com a estrela os apps que sua equipe mais usa: eles ficam no topo do menu de apps.",
+    "feature": "Destacar {name}",
+    "unfeature": "Deixar de destacar {name}",
+    "alwaysOn": "Sempre ativado para todos.",
+    "featuredNote": "Destaques: com pelo menos um, o menu de apps mostra esses no topo e deixa o resto em \"Outros apps\". Sem nenhum, mostra todos os apps por categoria.",
     "readOnly": "Só o owner e os admins mudam isto.",
     "modes": {
       "all": "Todos",
@@ -1756,7 +1760,13 @@
         "name": "Retrô",
         "desc": "Uma área de trabalho dos anos noventa: botões e janelas cinza em relevo, campos brancos afundados e barras de título."
       }
-    }
+    },
+    "toursTitle": "Tours guiados",
+    "toursDesc": "Na primeira vez que você abre um app, um tour curto mostra as partes principais.",
+    "toursAuto": "Mostrar o tour na primeira vez que abro um app",
+    "toursReset": "Mostrar todos os tours de novo",
+    "toursResetDone": "Pronto. Cada tour abre de novo na próxima vez que você entrar no app.",
+    "toursError": "Não foi possível salvar. Tente de novo."
   },
   "offline": {
     "title": "Modo sem conexão",

@@ -140,6 +140,10 @@ async function seedGroup(request: APIRequestContext, acc: { id: string; secret: 
     { type: 'revoke', chatId: gid, providerMessageId: `g9-${tag}` },
     { type: 'presence', chatId: gid, who: '15550001002', state: 'composing' },
   ]);
+  // Los mensajes son de hace 3 días (para probar fechas y separadores), pero el chat tiene que estar a la vista: con
+  // los chats que dejan las demás pruebas en la misma cuenta quedaba fuera de la primera tanda de la lista, y el clic
+  // en su fila esperaba hasta agotar el tiempo. Se lo sube en el orden de la lista sin tocar los mensajes.
+  await sql('UPDATE inbox_threads SET last_message_at = ? WHERE external_id = ?', [new Date().toISOString(), gid]);
   return gid;
 }
 

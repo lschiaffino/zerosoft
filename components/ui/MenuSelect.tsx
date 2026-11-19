@@ -12,6 +12,8 @@ export interface MenuSelectOption {
   depth?: number;
   /** Marca chica antes del texto (p. ej. el punto de color de una línea); también va en el botón. */
   lead?: ReactNode;
+  /** Encabeza a las opciones que siguen (un grupo que también se puede elegir): va en negrita, con una raya arriba. */
+  group?: boolean;
 }
 
 interface Box {
@@ -37,6 +39,7 @@ export default function MenuSelect({
   label,
   className,
   testId,
+  tour,
 }: {
   value: string;
   options: MenuSelectOption[];
@@ -45,6 +48,8 @@ export default function MenuSelect({
   label: string;
   className?: string;
   testId?: string;
+  /** Anclaje de un tour guiado (data-tour, ver lib/tours). */
+  tour?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -155,6 +160,7 @@ export default function MenuSelect({
         aria-controls={open ? id : undefined}
         aria-label={`${label}: ${current?.label ?? ''}`}
         data-testid={testId}
+        data-tour={tour}
         onClick={() => (open ? close() : show())}
         onKeyDown={onButtonKey}
       >
@@ -186,7 +192,8 @@ export default function MenuSelect({
                   data-i={i}
                   role="option"
                   aria-selected={selected}
-                  className={`zs-msel-opt${i === active ? ' is-active' : ''}`}
+                  data-value={o.value}
+                  className={`zs-msel-opt${i === active ? ' is-active' : ''}${o.group ? ' is-group' : ''}`}
                   style={o.depth ? { paddingInlineStart: 10 + o.depth * 12 } : undefined}
                   onPointerMove={() => i !== active && setActive(i)}
                   onClick={() => pick(o.value)}

@@ -276,7 +276,7 @@ const TOOLS: ToolDef[] = [
     run: async (ctx, a) => {
       const { getTicket, updateTicket } = await import('./groups-tickets');
       const before = await getTicket(ctx.ws, str(a.ticketId, 100) ?? '');
-      if (!before || (before.chatId ? !(await canSeeChat(ctx.viewer, before.chatId)) : ctx.viewer.restricted)) throw new GroupsError('not_found', 404);
+      if (!before || (before.chatId ? !(await canSeeChat(ctx.viewer, before.chatId)) : ctx.viewer.restricted || ctx.viewer.linesScoped)) throw new GroupsError('not_found', 404);
       const after = await updateTicket(ctx.ws, before.id, {
         ...(typeof a.status === 'string' ? { status: a.status as TicketStatus } : {}),
         ...(typeof a.priority === 'string' ? { priority: a.priority as TicketPriority } : {}),

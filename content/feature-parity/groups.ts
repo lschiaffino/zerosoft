@@ -527,9 +527,9 @@ const parity: ProductParity = {
     }),
     row('line-owner-visibility', 'admin', ['Line owner and who can see each line', 'Dueño de cada línea y quién la ve', 'Dono de cada linha e quem a vê'], 'have', {
       detail: [
-        'Each line has an owner and can be limited to chosen people or teams; admins and the owner always see it. Chats, messages, search, Cmd+K, the API, MCP, CRM and notifications all follow it. Covered by unit tests; not yet tried by a real team',
-        'Cada línea tiene un dueño y se puede limitar a personas o equipos elegidos; admins y dueño siempre la ven. Chats, mensajes, búsqueda, Cmd+K, API, MCP, CRM y avisos la respetan. Cubierto con tests unitarios; falta probarlo con un equipo real',
-        'Cada linha tem um dono e pode ser limitada a pessoas ou equipes escolhidas; admins e dono sempre a veem. Conversas, mensagens, busca, Cmd+K, API, MCP, CRM e avisos a respeitam. Coberto com testes unitários; falta testar com uma equipe real',
+        'Each line has an owner and can be limited to chosen people or teams; admins and the owner always see it. Lines can be put in groups (Sales, Operations) and a whole group given to people or teams, including the lines added to it later; the inbox selector lists lines under their group and filters by group. Chats, messages, search, Cmd+K, the API, MCP, CRM and notifications all follow it. Covered by unit tests; not yet tried by a real team',
+        'Cada línea tiene un dueño y se puede limitar a personas o equipos elegidos; admins y dueño siempre la ven. Las líneas se pueden poner en grupos (Ventas, Operaciones) y darle un grupo entero a personas o equipos, también con las líneas que se sumen después; el selector de la bandeja lista las líneas debajo de su grupo y filtra por grupo. Chats, mensajes, búsqueda, Cmd+K, API, MCP, CRM y avisos la respetan. Cubierto con tests unitarios; falta probarlo con un equipo real',
+        'Cada linha tem um dono e pode ser limitada a pessoas ou equipes escolhidas; admins e dono sempre a veem. As linhas podem ficar em grupos (Vendas, Operações) e um grupo inteiro pode ser dado a pessoas ou equipes, também com as linhas adicionadas depois; o seletor da caixa lista as linhas abaixo do grupo e filtra por grupo. Conversas, mensagens, busca, Cmd+K, API, MCP, CRM e avisos a respeitam. Coberto com testes unitários; falta testar com uma equipe real',
       ],
     }),
     row('masking', 'admin', ['Phone number masking', 'Ocultar números de teléfono', 'Ocultar números de telefone'], 'have', {

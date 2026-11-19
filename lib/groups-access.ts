@@ -5,6 +5,10 @@
  *   los chats que tienen alguna de sus etiquetas (groups_label_access) o que
  *   tiene asignados. Admins y dueño ven todo. Se aplica en la bandeja, la
  *   búsqueda, Cmd+K, la API, el MCP, los reportes y el export.
+ * - Líneas: un member ve las líneas de "todo el workspace", las que tiene a
+ *   su nombre, las que le dieron (a él o a un equipo suyo) y las de los grupos
+ *   de líneas que le dieron (lib/groups-line-groups.ts). Una sola regla,
+ *   numberAccessSql, que usan todas las consultas de chats.
  * - Ocultar teléfonos: por rol (member, admin; el dueño nunca). Los números
  *   se muestran como "+54 ••• 00" en la interfaz, el export y la API.
  *
@@ -94,7 +98,7 @@ export interface GroupsViewer {
   /**
    * Ve solo las líneas (números) que le dejaron ver: las de visibilidad "todo
    * el workspace", las que tiene a su nombre, las que le dieron por persona o
-   * por equipo. Admins y dueño ven todas.
+   * por equipo, y las de los grupos de líneas que le dieron. Admins y dueño ven todas.
    */
   linesScoped: boolean;
 }
@@ -126,10 +130,15 @@ export function systemViewer(ws: string): GroupsViewer {
 export function numberAccessSql(viewer: GroupsViewer | null | undefined, alias = 'n'): { sql: string; args: string[] } | null {
   if (!viewer?.linesScoped) return null;
   return {
+    // El acceso por grupo se lee en cada consulta, del grupo que la línea tiene en ese momento: una línea
+    // que entra al grupo se ve en el acto, y una que sale (o una persona que sale del grupo) deja de verse.
     sql: `(${alias}.visibility = 'all' OR ${alias}.owner_id = ? OR EXISTS (SELECT 1 FROM groups_number_access zna WHERE zna.number_id = ${alias}.id
            AND ((zna.kind = 'person' AND zna.ref_id = ?)
-             OR (zna.kind = 'team' AND zna.ref_id IN (SELECT ztm.team_id FROM groups_team_members ztm WHERE ztm.person_id = ?)))))`,
-    args: [viewer.me, viewer.me, viewer.me],
+             OR (zna.kind = 'team' AND zna.ref_id IN (SELECT ztm.team_id FROM groups_team_members ztm WHERE ztm.person_id = ?))))
+           OR (${alias}.line_group_id IS NOT NULL AND EXISTS (SELECT 1 FROM groups_line_group_access zga WHERE zga.group_id = ${alias}.line_group_id
+           AND ((zga.kind = 'person' AND zga.ref_id = ?)
+             OR (zga.kind = 'team' AND zga.ref_id IN (SELECT ztg.team_id FROM groups_team_members ztg WHERE ztg.person_id = ?))))))`,
+    args: [viewer.me, viewer.me, viewer.me, viewer.me, viewer.me],
   };
 }
 
