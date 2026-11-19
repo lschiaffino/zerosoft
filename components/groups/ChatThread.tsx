@@ -1322,7 +1322,7 @@ export default function ChatThread(props: ThreadProps) {
 
   /** "Sticker nuevo" del menú +: lo crea desde la imagen (queda en la colección) y lo manda. */
   async function newSticker(file: File) {
-    const r = await createSticker('/api/groups/stickers', file);
+    const r = await createSticker('/api/groups/stickers', stickerLine, file);
     if (!r.sticker) {
       showToast(r.error === 'sticker_too_large' ? t('wa.stickers.tooLarge') : r.error === 'sticker_convert_unavailable' ? t('wa.stickers.convertUnavailable') : t('wa.stickers.createFailed'), true);
       return;
@@ -1755,6 +1755,8 @@ export default function ChatThread(props: ThreadProps) {
   const replyLine = pickedLine &&chat.lines?.some((l) => l.chatId === pickedLine && l.canSend) ? pickedLine : (defaultReplyLine(chat.lines ?? [], lastLineChat, chat.id)?.chatId ?? chat.id);
   // El chat por el que sale (vacío: el abierto). Las notas internas siempre quedan en el abierto.
   const via = (chat.lines?.length ?? 0) > 1 && replyLine !== chat.id ? replyLine : '';
+  // Los stickers son por línea: los de la línea por la que sale la respuesta (la del chat, o la elegida en "Responder desde").
+  const stickerLine = chat.lines?.find((l) => l.chatId === (via || chat.id))?.lineId ?? chat.numberId;
   // El mismo chat en varias líneas: cada mensaje sabe por cuál entró o salió (MessageDto.chatId). La etiqueta de la
   // línea va en el primero y cada vez que cambia; todos la llevan en el título de la hora.
   const lineNames = new Map((chat.lines ?? []).map((l) => [l.chatId, l.name]));
@@ -2655,7 +2657,7 @@ export default function ChatThread(props: ThreadProps) {
                 </button>
                 {emojiOpen && (
                   <EmojiPicker
-                    stickers={mode === 'reply' ? { api: '/api/groups/stickers', onSend: (s) => sendSticker(s.id) } : undefined}
+                    stickers={mode === 'reply' ? { api: '/api/groups/stickers', line: stickerLine, onSend: (s) => sendSticker(s.id) } : undefined}
                     gifs={mode === 'reply' ? { api: '/api/groups/gifs', onSend: sendGif } : undefined}
                     onPick={(e) => {
                       insertEmoji(e);
@@ -2779,6 +2781,7 @@ export default function ChatThread(props: ThreadProps) {
             onFiles={addFiles}
             onReplace={tray.replace}
             stickerApi="/api/groups/stickers"
+            stickerLine={stickerLine}
             sending={sending}
           />
         )}

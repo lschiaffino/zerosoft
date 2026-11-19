@@ -9,21 +9,23 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * Lines: los stickers de quien mira (lib/wa-stickers.ts).
- * GET: { stickers, imported } (si ya importó, trae antes los que llegaron);
- * ?img=<id> devuelve la imagen.
- * POST JSON: { action: 'import' } (de sus chats, por tandas: `more`),
- * { action: 'favorite', id, favorite }, { action: 'favoriteMessage', messageId },
- * { action: 'remove', id }, { action: 'use', id } (la media para mandarlo por
- * la ruta de mensajes del chat; pasa a recientes). Multipart con `file`: crea
- * un sticker desde una imagen.
+ * Lines: los stickers de quien mira, por línea (lib/wa-stickers.ts).
+ * GET ?line=<número>: { stickers, imported } de esa línea, directo de la base
+ * (no trae nada de los chats); ?img=<id> devuelve la imagen. Una línea que la
+ * persona no ve responde 404, igual que una que no existe.
+ * POST JSON: { action: 'import', line } (de los chats de esa línea, por tandas:
+ * `more`), { action: 'favorite', id, favorite }, { action: 'favoriteMessage',
+ * messageId } (queda en la línea del chat del mensaje), { action: 'remove', id },
+ * { action: 'use', id } (la media para mandarlo por la ruta de mensajes del
+ * chat; pasa a recientes). Multipart con `file` y `line`: crea un sticker
+ * desde una imagen en esa línea.
  */
 export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   try {
     const viewer = await sessionViewer(s);
-    return await stickerResponse(req, linesStickerOwner(viewer), () => linesStickerSource(viewer));
+    return await stickerResponse(req, linesStickerOwner(viewer));
   } catch (err) {
     return fail(err);
   }
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
   try {
     const viewer = await sessionViewer(s);
     const owner = linesStickerOwner(viewer);
-    return await stickerRequest(req, owner, () => linesStickerSource(viewer), {
+    return await stickerRequest(req, owner, (line) => linesStickerSource(viewer, line), {
       favoriteMessage: (messageId) => favoriteLinesMessage(viewer, messageId),
       extra: async (action, b) => {
         if (action !== 'use') return null;

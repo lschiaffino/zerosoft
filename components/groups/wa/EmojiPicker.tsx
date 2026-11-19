@@ -190,7 +190,8 @@ export default function EmojiPicker({
     return (
       <div className="wa-emoji is-stickers" data-voice-off role="dialog" aria-label={t('stickers.tab')} ref={ref} onKeyDown={onKey}>
         {panelTabs}
-        <StickerPanel api={stickers.api} onSend={stickers.onSend} />
+        {/* Una colección por línea: al cambiar de línea el panel arranca de nuevo con la de esa. */}
+        <StickerPanel key={`${stickers.api}|${stickers.line}`} api={stickers.api} line={stickers.line} onSend={stickers.onSend} />
       </div>
     );
   }
