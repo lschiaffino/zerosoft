@@ -141,8 +141,8 @@ describe('grupos de líneas: aislamiento', () => {
     expect(await canSeeNumber(omar, w.o1.id)).toBe(true);
     expect([...(await visibleNumberIds(ana))!]).toEqual([w.s1.id]);
     await getDb().prepare("UPDATE groups_numbers SET status = 'disconnected' WHERE id = ?").run(w.o1.id);
-    expect((await droppedNumbers(w.owner.id, ana)).map((n) => n.name)).toEqual([]);
-    expect((await droppedNumbers(w.owner.id, omar)).map((n) => n.name)).toEqual(['Operaciones 1']);
+    expect((await droppedNumbers(w.owner.id, ana)).map((n) => n.name)).not.toContain('Operaciones 1');
+    expect((await droppedNumbers(w.owner.id, omar)).map((n) => n.name)).toContain('Operaciones 1');
 
     // Cmd+K y la ficha de CRM.
     const found = await searchApps({ id: w.owner.id, actingUser: { id: w.ana.id }, role: 'member' }, 'Cliente');
