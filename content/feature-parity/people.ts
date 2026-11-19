@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-19',
   percentHidden: { note: loc(['This table lists everything BambooHR documents, feature by feature, including payroll, benefits, time tracking and global employment, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que BambooHR documenta, función por función, con nómina, beneficios, registro de horas y empleo global, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o BambooHR documenta, função por função, com folha, benefícios, registro de horas e emprego global, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
@@ -261,7 +261,13 @@ const parity: ProductParity = {
     row('custom-tabs', 'records', ['Custom profile tabs', 'Pestañas personalizadas', 'Abas personalizadas no perfil'], 'missing'),
     row('custom-tables', 'records', ['Custom tables with rows', 'Tablas personalizadas', 'Tabelas personalizadas com linhas'], 'missing'),
     row('multi-level-approvals', 'records', ['Multi-level approvals', 'Aprobaciones en varios niveles', 'Aprovações em vários níveis'], 'missing'),
-    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'missing'),
+    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'have', {
+      detail: [
+        'A Notes tab on the profile for HR and the person\'s managers, never the person. Each note shows who wrote it and when; its author edits it, and the author or HR deletes it. Reading and changes go to the access log',
+        'Una pestaña Notas en la ficha para HR y los managers de la persona, nunca para la persona. Cada nota muestra quién la escribió y cuándo; la edita su autor, y la borra su autor o HR. Leerlas y cambiarlas queda en el registro de accesos',
+        'Uma aba Notas no perfil para o RH e os gestores da pessoa, nunca para a pessoa. Cada nota mostra quem a escreveu e quando; o autor a edita, e o autor ou o RH a exclui. Ler e alterar fica no registro de acessos',
+      ],
+    }),
     row('training-tracking', 'records', ['Training tracking', 'Seguimiento de capacitaciones', 'Acompanhamento de treinamentos'], 'missing'),
     row('termination-tracking', 'records', ['Termination records', 'Registro de terminaciones', 'Registro de desligamentos'], 'partial', {
       detail: ['Offboarding, end date and exit interview. Built; not yet walked end to end in a browser for each role', 'Offboarding, fecha de salida y entrevista de salida. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Desligamento, data de saída e entrevista de saída. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],

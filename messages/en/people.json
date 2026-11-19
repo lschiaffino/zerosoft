@@ -103,7 +103,8 @@
       "compensation": "Compensation",
       "onboarding": "Onboarding",
       "notes": "1:1 notes",
-      "history": "Job history"
+      "history": "Job history",
+      "hrnotes": "Notes"
     },
     "sections": "Profile sections",
     "job": "Job",
@@ -604,7 +605,9 @@
     "survey_answered": "This survey already has answers, so its text stays as it is.",
     "stale_change": "This value changed after the request. Check it and confirm.",
     "work_email_locked": "Only the owner or a named HR admin can change this work email.",
-    "not_leaving": "This person is not leaving."
+    "not_leaving": "This person is not leaving.",
+    "note_required": "Write the note first.",
+    "note_too_long": "Notes can be up to 5,000 characters."
   },
   "home": {
     "inbox": "Waiting for you",
@@ -731,5 +734,17 @@
     "delete_has_pay": "This record has pay history. Only the owner or an HR admin can delete it.",
     "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first.",
     "auto": "Automatic"
+  },
+  "hrNotes": {
+    "title": "Notes about {name}",
+    "privacy": "HR and their managers see these notes. The person does not.",
+    "new": "Write a note",
+    "add": "Add note",
+    "empty": "No notes yet. Write down agreements, talks or anything HR should remember.",
+    "someone": "Someone who left",
+    "edited": "edited",
+    "editLabel": "Edit note",
+    "deleteTitle": "Delete this note?",
+    "deleteBody": "It is deleted for everyone who sees this profile."
   }
 }
