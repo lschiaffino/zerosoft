@@ -108,6 +108,8 @@ test('Lines: reenviar una nota de voz por Evolution sale como nota de voz y qued
     await expect(page.getByRole('menuitem', { name: 'Forward' })).toBeVisible();
     if (process.env.LINES_SHOTS) await page.screenshot({ path: `${process.env.LINES_SHOTS}/lines-forward-menu.png` });
     await page.getByRole('menuitem', { name: 'Forward' }).click();
+    // "Forward" entra en selección con ese mensaje; el reenvío sale de la barra.
+    await page.getByTestId('selection-bar').locator('[data-action="forward"]').click();
     const modal = page.getByRole('dialog', { name: 'Forward message' });
     await expect(modal).toBeVisible();
     await expect(modal.locator('.gr-quote')).toContainText(/Voice message/i);

@@ -79,6 +79,7 @@ export default function MediaAlbum({
             <button
               type="button"
               className="wa-album-open"
+              data-select-id={selecting ? tile.id : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 if (selecting) onSelect?.(tile.id);
