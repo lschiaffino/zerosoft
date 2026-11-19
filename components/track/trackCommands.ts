@@ -770,6 +770,60 @@ export function buildIssueActions(
   return [...actions, ...flat];
 }
 
+// ---------- Vista rápida (peek) ----------
+//
+// La vista rápida vive en el layout de Track y no sabe editar: la vista de
+// abajo (la lista, el issue con sus sub-issues) sí. Mientras está abierta, la
+// vista que tiene ese issue en su store es la "dueña": sus atajos y los menús
+// de ⌘K actúan sobre el issue de la vista rápida (con su cambio optimista,
+// su ⌘Z y su aviso de error), y la vista rápida dibuja la fila de la dueña.
+
+interface PeekHost {
+  lookup: (id: string) => TrackIssueWithStatus | undefined;
+  data: () => CommandData;
+}
+
+/** Lo que la vista rápida necesita para editar: la fila al día y los datos de los menús. */
+export interface PeekState {
+  issue: TrackIssueWithStatus;
+  data: CommandData;
+}
+
+const peekHosts: PeekHost[] = [];
+const peekListeners = new Set<(state: PeekState | null) => void>();
+let peekId: string | null = null;
+let lastPeek: { host: PeekHost | null; issue: TrackIssueWithStatus | null; data: CommandData | null } = { host: null, issue: null, data: null };
+
+function peekOwner(): PeekHost | null {
+  if (!peekId) return null;
+  for (let i = peekHosts.length - 1; i >= 0; i--) if (peekHosts[i].lookup(peekId)) return peekHosts[i];
+  return null;
+}
+
+function emitPeek(force = false) {
+  const host = peekOwner();
+  const issue = host && peekId ? (host.lookup(peekId) ?? null) : null;
+  const data = host ? host.data() : null;
+  if (!force && host === lastPeek.host && issue === lastPeek.issue && data === lastPeek.data) return;
+  lastPeek = { host, issue, data };
+  const state = issue && data ? { issue, data } : null;
+  for (const fn of peekListeners) fn(state);
+}
+
+/** La vista rápida abrió (id) o cerró (null). */
+export function setPeekIssue(id: string | null): void {
+  peekId = id;
+  emitPeek(true);
+}
+
+/** La vista rápida escucha a su dueña; devuelve la limpieza. */
+export function subscribePeek(fn: (state: PeekState | null) => void): () => void {
+  peekListeners.add(fn);
+  return () => {
+    peekListeners.delete(fn);
+  };
+}
+
 // ---------- Objetivo y atajos ----------
 
 // "G" seguido de una tecla es navegación (TrackShortcuts): la segunda tecla no es un atajo de propiedad.
@@ -804,7 +858,8 @@ export function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 function overlayOpen(): boolean {
-  return Boolean(document.querySelector('[role="dialog"], dialog[open], .cmdk, [role="menu"]'));
+  // La vista rápida no cuenta: con ella abierta los atajos siguen, sobre su issue.
+  return Boolean(document.querySelector('[role="dialog"]:not([data-track-peek]), dialog[open], .cmdk, [role="menu"]'));
 }
 
 /** Atajo → página de la paleta o acción directa. Exportado para tests. */
@@ -874,9 +929,42 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
   const ref = useRef(opts);
   ref.current = opts;
   const enabled = opts.enabled ?? true;
+  const hostRef = useRef<PeekHost | null>(null);
+
+  // Dueña posible de la vista rápida: se anota mientras está activa.
+  useEffect(() => {
+    if (!enabled) return;
+    const host: PeekHost = { lookup: (id) => ref.current.lookup?.(id), data: () => ref.current.data };
+    peekHosts.push(host);
+    hostRef.current = host;
+    emitPeek();
+    return () => {
+      const at = peekHosts.indexOf(host);
+      if (at >= 0) peekHosts.splice(at, 1);
+      hostRef.current = null;
+      emitPeek();
+    };
+  }, [enabled]);
+
+  // Cada render de la vista (un cambio optimista, su vuelta atrás, el sondeo) llega a la vista rápida.
+  useEffect(() => {
+    if (peekId && hostRef.current) emitPeek();
+  });
 
   useEffect(() => {
     if (!enabled) return;
+    // Con la vista rápida abierta: su issue si esta vista es la dueña; nada si es de otra.
+    const peekTargets = (): TrackIssueWithStatus[] | null => {
+      if (!peekId) return null;
+      if (peekOwner() !== hostRef.current) return [];
+      const hit = ref.current.lookup?.(peekId);
+      return hit ? [hit] : [];
+    };
+    const targetsNow = () => peekTargets() ?? ref.current.getTargets();
+    const anchorFor = (page: string, targets: TrackIssueWithStatus[]) =>
+      peekId && targets.length === 1 && targets[0].id === peekId
+        ? document.querySelector(`[data-track-peek] [data-cmd-anchor="${page}"]`)
+        : (ref.current.anchorFor?.(page, targets) ?? null);
     const title = (targets: TrackIssueWithStatus[]) =>
       targets.length === 1 ? targets[0].identifier : ref.current.t('many', { count: targets.length });
     // Al abrir la paleta el fondo tapa la fila bajo el mouse: los objetivos se
@@ -887,11 +975,11 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
     };
     const current = (): TrackIssueWithStatus[] => {
       const o = ref.current;
-      if (!pinned) return o.getTargets();
+      if (!pinned) return targetsNow();
       return Array.from(pinned.values()).map((i) => o.lookup?.(i.id) ?? i);
     };
     const onCmdK = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !document.querySelector('.cmdk')) pin(ref.current.getTargets());
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !document.querySelector('.cmdk')) pin(targetsNow());
     };
     const onClosed = () => {
       pinned = null;
@@ -907,7 +995,7 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
           return;
         }
       }
-      if (!pinned) pin(o.getTargets());
+      if (!pinned) pin(targetsNow());
     };
     window.addEventListener('keydown', onCmdK, true);
     window.addEventListener(CMDK_CLOSED_EVENT, onClosed);
@@ -927,14 +1015,14 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
       const sc = shortcutFor(e);
       if (!sc) return;
       const o = ref.current;
-      const targets = o.getTargets();
+      const targets = targetsNow();
       if (targets.length === 0) return;
       const actions = buildIssueActions(targets, o.data, o.handlers, o.t, o.formatDay);
       if ('page' in sc) {
         if (!actions.some((a) => a.id === sc.page)) return;
         e.preventDefault();
         pin(targets);
-        openCommandMenu(sc.page, { anchor: o.anchorFor?.(sc.page, targets) ?? null });
+        openCommandMenu(sc.page, { anchor: anchorFor(sc.page, targets) });
         return;
       }
       if (sc.run.startsWith('priority:')) {
@@ -959,7 +1047,7 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
       }
       const action = actions.find((a) => a.id === sc.run);
       // ⌘⌫ sin permiso de borrar (miembro): avisa en vez de no hacer nada.
-      if (!action && sc.run === 'delete' && ref.current.getTargets().length) {
+      if (!action && sc.run === 'delete' && targets.length) {
         e.preventDefault();
         pushNotice(ref.current.t('deleteNotAllowed'));
         return;

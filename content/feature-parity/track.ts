@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-17',
+  lastReviewed: '2026-11-19',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -544,7 +544,7 @@ const parity: ProductParity = {
       id: 'property-shortcuts',
       area: 'ux',
       label: { en: 'Property shortcuts (S, P, A, L) and G to navigate', es: 'Atajos de propiedad (S, P, A, L) y G para navegar', pt: 'Atalhos de propriedade (S, P, A, L) e G para navegar' },
-      detail: { en: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P parent, ⌘⇧O sub-issue, ⌘. and ⌘⇧. copy, X and Shift+click to select, J/K, Enter, F, ⌘B, and G then I, M, E, P, S to navigate. They act on the selection, the hovered row or the open issue', es: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P padre, ⌘⇧O sub-issue, ⌘. y ⌘⇧. copiar, X y Shift+clic para seleccionar, J/K, Enter, F, ⌘B, y G seguido de I, M, E, P, S para navegar. Actúan sobre la selección, la fila bajo el mouse o el issue abierto', pt: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P pai, ⌘⇧O sub-issue, ⌘. e ⌘⇧. copiar, X e Shift+clique para selecionar, J/K, Enter, F, ⌘B, e G seguido de I, M, E, P, S para navegar. Agem na seleção, na linha sob o mouse ou no issue aberto' },
+      detail: { en: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P parent, ⌘⇧O sub-issue, ⌘. and ⌘⇧. copy, X and Shift+click to select, J/K, Enter, F, ⌘B, and G then I, M, E, P, S to navigate. They act on the selection, the hovered row, the issue in the peek (Space) or the open issue', es: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P padre, ⌘⇧O sub-issue, ⌘. y ⌘⇧. copiar, X y Shift+clic para seleccionar, J/K, Enter, F, ⌘B, y G seguido de I, M, E, P, S para navegar. Actúan sobre la selección, la fila bajo el mouse, el issue de la vista rápida (Espacio) o el issue abierto', pt: 'S, P, A, I, L, ⇧E, ⇧D, ⇧C, ⇧1-4, ⌘⇧P pai, ⌘⇧O sub-issue, ⌘. e ⌘⇧. copiar, X e Shift+clique para selecionar, J/K, Enter, F, ⌘B, e G seguido de I, M, E, P, S para navegar. Agem na seleção, na linha sob o mouse, no issue da visualização rápida (Espaço) ou no issue aberto' },
       status: 'have',
       competitorHas: true,
       weight: 2,

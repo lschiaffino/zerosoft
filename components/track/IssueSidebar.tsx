@@ -16,14 +16,15 @@ import type { TrackUiLabels } from './ui-labels';
 
 interface IssueSidebarProps {
   issue: TrackIssueWithStatus;
-  projectId: string;
-  projectName: string;
-  statuses: TrackStatusRow[];
-  cycles: TrackCycleRow[];
+  projectId?: string;
+  projectName?: string;
+  statuses?: TrackStatusRow[];
+  /** Solo decide si se muestra el chip de Cycle. */
+  cycles: Array<Pick<TrackCycleRow, 'id'>>;
   milestones: Array<{ id: string; name: string }>;
-  members: ProjectMember[];
+  members?: ProjectMember[];
   locale: string;
-  ui: TrackUiLabels;
+  ui: Pick<TrackUiLabels, 'priorities'>;
   today: string;
   labels: {
     status: string;
@@ -37,7 +38,7 @@ interface IssueSidebarProps {
     none: string;
     title: string;
   };
-  onPatch: (patch: IssuePatch) => void;
+  onPatch?: (patch: IssuePatch) => void;
   /** Labels por id o por nombre (se crean al vuelo). */
   onLabels?: (next: Array<{ id: string } | { name: string }>) => void;
   estimateScale?: string;
