@@ -67,4 +67,6 @@ npx @modelcontextprotocol/inspector --cli http://localhost:PORT/api/mcp --transp
 - Sin dependencia nueva: el protocolo es JSON-RPC simple y `lib/track-mcp.ts` ya estaba hecho a mano.
 - Registro dinámico de clientes (RFC 7591). Client ID Metadata Documents no está implementado: suma una salida HTTP a URLs ajenas y los clientes actuales caen a DCR.
 - Un token de solo lectura que intenta escribir recibe un error de herramienta, no un 403 HTTP con `insufficient_scope`. Con 403 el cliente reabre el navegador para pedir más scope, y acá la persona eligió solo lectura a propósito.
+- Campos de más: un atajo con esquema real o a mano y `invoke_operation` sobre una operación con esquema real (JSON, propiedades listadas) rechazan un campo que no conocen, con la lista de los que aceptan. Antes se descartaba callado (`name` en un contacto lo creaba vacío). Lo parcial o suelto sigue abierto.
+- Tope por IP de tokens inválidos: un token nuestro ya vencido no cuenta. claude.ai llama desde pocas IPs compartidas y un 429 ahí cortaría a todos en vez de pedir que renueven.
 - CORS abierto solo en los endpoints sin cookies (metadatos, registro, token, revocación). `/api/mcp` rechaza cualquier Origin ajeno.
