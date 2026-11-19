@@ -1260,6 +1260,7 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
+          data-tour="inbox-chat-row"
           aria-current={isOpen ? 'true' : undefined}
           title={th.lines?.length ? th.lines.map((l) => l.name).join(' · ') : undefined}
           onClick={(e) => {
@@ -1332,7 +1333,7 @@ export default function InboxApp(props: {
             </button>
           </div>
           {!(view === 'removed' && !folder) && (
-            <div className="ib-search">
+            <div className="ib-search" data-tour={noAccounts ? undefined : 'inbox-search'}>
               <label className="sr-only" htmlFor="ib-search">
                 {t('list.search')}
               </label>
@@ -1362,7 +1363,7 @@ export default function InboxApp(props: {
             </div>
           )}
           {tabView && !q && (
-            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')}>
+            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
               {TABS.map((v) => (
                 <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
                   {t(`tabs.${v}`)}
@@ -1370,7 +1371,8 @@ export default function InboxApp(props: {
               ))}
             </nav>
           )}
-          <div className="ib-mobile-views">
+          {/* En el teléfono las pestañas son esta lista: el paso de filtros del tour la señala. */}
+          <div className="ib-mobile-views" data-tour={noAccounts ? undefined : 'inbox-filters'}>
             <label className="sr-only" htmlFor="ib-view-select">
               {t('list.goTo')}
             </label>
@@ -1493,7 +1495,7 @@ export default function InboxApp(props: {
             ))}
           </div>
         ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
-          <div className="ib-list-empty">
+          <div className="ib-list-empty" data-tour={noAccounts && !q ? 'inbox-connect' : undefined}>
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && <AgentsRow {...props.agentsRow} />}
             {noAccounts && !q ? (
               <EmptyState
@@ -1530,7 +1532,7 @@ export default function InboxApp(props: {
             )}
           </div>
         ) : (
-          <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list>
+          <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list data-tour="inbox-chat-list">
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
               <li>
                 <AgentsRow {...props.agentsRow} />

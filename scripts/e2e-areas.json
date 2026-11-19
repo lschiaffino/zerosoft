@@ -43,7 +43,7 @@
     },
     "tours": {
       "names": ["tour", "tours"],
-      "specs": ["lines-tour"]
+      "specs": ["lines-tour", "inbox-tour"]
     },
     "chat-ui": {
       "names": ["wa", "chat-style", "chat-gestures", "ai-compose"],
