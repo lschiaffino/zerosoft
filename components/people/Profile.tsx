@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { CustomField, EmployeeDto } from '@/lib/people';
-import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
+import { HOLIDAY_COUNTRIES, type OutStatus } from '@/lib/people-time';
+import { api, Avatar, Dialog, Fact, Field, OutBadge, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
 import { CompensationSection, DocumentsSection, HistorySection, NotesSection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
 type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes' | 'hrnotes';
@@ -23,11 +23,13 @@ export interface ProfileProps {
   wsAdmin?: boolean;
   /** HR con la app Sign: puede abrir un sobre desde Documentos. */
   signEnabled?: boolean;
+  /** Fuera hoy por una licencia aprobada. */
+  out?: OutStatus | null;
 }
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
-export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false }: ProfileProps) {
+export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false, out = null }: ProfileProps) {
   const t = useTranslations('people');
   const countryName = useCountry();
   const router = useRouter();
@@ -187,6 +189,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
               )}
             </span>
             <span>{e.name}</span>
+            <OutBadge out={out} />
           </span>
         }
         description={[e.jobTitle, e.department].filter(Boolean).join(' · ') || t('profile.noTitle')}

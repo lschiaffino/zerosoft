@@ -92,7 +92,11 @@
     "emailHint": "If they are already in the workspace, the profile links to their account.",
     "countryHint": "Sets the public holidays for their time off.",
     "onboarding": "Onboarding checklist",
-    "noOnboarding": "None for now"
+    "noOnboarding": "None for now",
+    "outFilter": "Out today ({count})",
+    "outUntil": "Out until {date}",
+    "outAm": "Out this morning",
+    "outPm": "Out this afternoon"
   },
   "profile": {
     "tabs": {

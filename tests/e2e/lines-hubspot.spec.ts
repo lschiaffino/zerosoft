@@ -3,7 +3,7 @@ import { PHONE, check, setTheme, settle } from './responsive-audit';
 
 /**
  * Lines + HubSpot contra el HubSpot falso en memoria (GROUPS_INTEGRATIONS_FAKE):
- * conectar con el token de una private app, vincular un grupo a una empresa y
+ * conectar con la clave de HubSpot (private app heredada o service key), vincular un grupo a una empresa y
  * un negocio, aceptar el contacto sugerido por teléfono en un chat 1 a 1,
  * registrar la conversación, filtrar la bandeja y desconectar. Nada sale a
  * internet ni a WhatsApp.
@@ -106,19 +106,22 @@ test('HubSpot: conectar, vincular un grupo y un chat, registrar, filtrar y desco
   await card.getByRole('button', { name: 'Connect' }).click();
   const dialog = page.getByRole('dialog', { name: 'HubSpot' });
   await expect(dialog).toBeVisible();
-  // Los permisos que necesita la private app están a la vista.
+  // Los permisos que necesita la clave están a la vista.
   for (const scope of ['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.objects.contacts.read', 'crm.objects.owners.read', 'crm.objects.contacts.write']) {
     await expect(dialog.getByText(scope, { exact: true })).toBeVisible();
   }
-  const tokenInput = dialog.getByLabel('Private app access token');
+  const tokenInput = dialog.getByLabel('Service key or private app token');
   // Un token que HubSpot no acepta.
   await tokenInput.fill('not-a-hubspot-token');
   await dialog.getByRole('button', { name: 'Connect' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('did not accept that token');
-  // Un token al que le faltan permisos: dice cuáles.
+  await expect(dialog.getByRole('alert')).toContainText('did not accept that key');
+  // Un token al que le faltan permisos: dice cuáles, en palabras y con su nombre de HubSpot.
   await tokenInput.fill('pat-noscope-e2e');
   await dialog.getByRole('button', { name: 'Connect' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('crm.objects.companies.read, crm.objects.deals.read');
+  const missing = dialog.getByTestId('hubspot-key-missing');
+  await expect(missing).toContainText('crm.objects.companies.read');
+  await expect(missing).toContainText('crm.objects.deals.read');
+  await expect(missing).toContainText('Read companies');
   // El bueno.
   await tokenInput.fill(TOKEN);
   await dialog.getByRole('button', { name: 'Connect' }).click();

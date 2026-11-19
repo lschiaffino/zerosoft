@@ -92,7 +92,11 @@
     "emailHint": "Se a pessoa já está no workspace, o perfil fica vinculado à conta dela.",
     "countryHint": "Define os feriados que não contam nas folgas.",
     "onboarding": "Checklist de onboarding",
-    "noOnboarding": "Nenhum por enquanto"
+    "noOnboarding": "Nenhum por enquanto",
+    "outFilter": "Fora hoje ({count})",
+    "outUntil": "Fora até {date}",
+    "outAm": "Fora de manhã",
+    "outPm": "Fora à tarde"
   },
   "profile": {
     "tabs": {

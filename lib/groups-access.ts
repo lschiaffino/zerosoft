@@ -19,6 +19,7 @@ import { getDb } from './db';
 import type { TeamRole } from './teams';
 import type { ChatDto, ChatRow, MemberDto, MessageDto } from './groups';
 import { maskPhone, maskPhoneText } from './groups-mask';
+import type { LiveRaw, LiveViewer } from './wa-live';
 
 export { maskPhone, maskPhoneText };
 
@@ -164,26 +165,62 @@ export function chatAccessSql(viewer: GroupsViewer | null | undefined, alias = '
 }
 
 /**
+ * Anota que una conversación de Agents nació de este chat de Lines. El vínculo
+ * queda aunque después el chat cambie de agente o empiece otra conversación:
+ * la conversación vieja guarda los mensajes y sigue las reglas del chat.
+ */
+export async function linkAgentConversation(ws: string, chatId: string, conversationId: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `INSERT INTO groups_agent_conversations (conversation_id, user_id, chat_id, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(conversation_id) DO UPDATE SET chat_id = excluded.chat_id WHERE groups_agent_conversations.user_id = excluded.user_id`,
+    )
+    .run(conversationId, ws, chatId, new Date().toISOString());
+}
+
+/**
  * Conversaciones de Agents que nacieron de un chat de Lines (un agente asignado
- * al chat: groups_chats.agent_conversation_id). Llevan los mensajes del chat, así
- * que siguen sus reglas: quien no ve el chat no ve la conversación, y con
- * teléfonos ocultos no se ve ninguna (el texto trae el número de quien escribe).
+ * al chat: groups_agent_conversations, y la actual en groups_chats.agent_conversation_id).
+ * Llevan los mensajes del chat, así que siguen sus reglas: quien no ve el chat no
+ * ve la conversación (tampoco si el chat ya no está), y con teléfonos ocultos no
+ * se ve ninguna (el texto trae el número de quien escribe).
  * Condición SQL sobre `column` (id de agent_conversations); null si no restringe.
  */
 export async function linesAgentConversationSql(ws: string, personId: string, role: TeamRole, column: string): Promise<{ sql: string; args: string[] } | null> {
   if (role === 'owner' || role === 'admin') return null;
   const viewer = await groupsViewer(ws, personId, role);
-  if (viewer.mask) return { sql: `NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column})`, args: [] };
-  const access = chatAccessSql(viewer, 'zgc');
-  if (!access) return null;
-  return { sql: `NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.agent_conversation_id = ${column} AND NOT (${access.sql}))`, args: access.args };
+  if (viewer.mask) {
+    return {
+      sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.user_id = ? AND zgl.conversation_id = ${column})
+        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.user_id = ? AND zgc.agent_conversation_id = ${column}))`,
+      args: [ws, ws],
+    };
+  }
+  const linked = chatAccessSql(viewer, 'zgk');
+  const current = chatAccessSql(viewer, 'zgc');
+  if (!linked || !current) return null;
+  return {
+    sql: `(NOT EXISTS (SELECT 1 FROM groups_agent_conversations zgl WHERE zgl.user_id = ? AND zgl.conversation_id = ${column}
+          AND NOT EXISTS (SELECT 1 FROM groups_chats zgk WHERE zgk.id = zgl.chat_id AND zgk.user_id = ? AND ${linked.sql}))
+        AND NOT EXISTS (SELECT 1 FROM groups_chats zgc WHERE zgc.user_id = ? AND zgc.agent_conversation_id = ${column} AND NOT (${current.sql})))`,
+    args: [ws, ws, ...linked.args, ws, ...current.args],
+  };
+}
+
+/**
+ * Lo mismo para quien llega solo con su id (filas colgadas de una conversación de
+ * Agents: corridas, herramientas, pulgares): el rol se lee del workspace.
+ */
+export async function linesAgentConversationSqlFor(ws: string, personId: string, column: string): Promise<{ sql: string; args: string[] } | null> {
+  const { workspaceRole } = await import('./api-auth');
+  return linesAgentConversationSql(ws, personId, await workspaceRole(ws, personId), column);
 }
 
 /** ¿Ve esta conversación de Agents según el chat de Lines del que viene (si viene de uno)? */
 export async function canSeeLinesAgentConversation(ws: string, personId: string, role: TeamRole, conversationId: string): Promise<boolean> {
-  const cond = await linesAgentConversationSql(ws, personId, role, '?');
+  const cond = await linesAgentConversationSql(ws, personId, role, 'zq.id');
   if (!cond) return true;
-  return Boolean(await getDb().prepare(`SELECT 1 AS x WHERE ${cond.sql}`).get(conversationId, ...cond.args));
+  return Boolean(await getDb().prepare(`SELECT 1 AS x FROM (SELECT ? AS id) zq WHERE ${cond.sql}`).get(conversationId, ...cond.args));
 }
 
 /** ¿Ve esta línea? (visibilidad por línea; las etiquetas no cuentan). */
@@ -252,6 +289,48 @@ export async function visibleChatIds(viewer: GroupsViewer | null | undefined): P
     .prepare(`SELECT c.id FROM groups_chats c WHERE c.user_id = ? AND ${access.sql}`)
     .all(viewer.ws, ...access.args)) as Array<{ id: string }>;
   return new Set(rows.map((r) => r.id));
+}
+
+/** Cuántas líneas ve y cuántos de los chats que ve tienen asignado este agente (Agents › Canales). */
+export async function agentLinesCounts(viewer: GroupsViewer, agentId: string): Promise<{ numbers: number; assignedChats: number }> {
+  const db = getDb();
+  const lines = numberAccessSql(viewer);
+  const chats = chatAccessSql(viewer);
+  const n = (await db
+    .prepare(`SELECT COUNT(*) AS c FROM groups_numbers n WHERE n.user_id = ?${lines ? ` AND ${lines.sql}` : ''}`)
+    .get(viewer.ws, ...(lines?.args ?? []))) as { c: number };
+  const c = (await db
+    .prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE c.user_id = ? AND c.agent_id = ?${chats ? ` AND ${chats.sql}` : ''}`)
+    .get(viewer.ws, agentId, ...(chats?.args ?? []))) as { c: number };
+  return { numbers: Number(n.c), assignedChats: Number(c.c) };
+}
+
+/**
+ * Avisos en vivo pendientes (wa_live_events) de los chats que la persona puede abrir, entre `cursor` y `upTo`.
+ * null si ve todos. Para decidir con lo que ella ve, y no con lo que pasó en todo el workspace, si conviene
+ * releer la lista entera (lib/wa-live.ts).
+ */
+export function livePendingFor(viewer: GroupsViewer): ((cursor: number, upTo: number, limit: number) => Promise<LiveRaw[]>) | null {
+  const access = chatAccessSql(viewer);
+  if (!access) return null;
+  return async (cursor, upTo, limit) => {
+    const rows = (await getDb()
+      // CROSS JOIN: primero los avisos del workspace desde el cursor (por su índice) y cada chat por su clave.
+      .prepare(
+        `SELECT e.id, e.chat_id, e.number_id, e.kind FROM wa_live_events e CROSS JOIN groups_chats c ON c.id = e.chat_id
+         WHERE e.app = 'lines' AND e.scope_id = ? AND e.id > ? AND e.id <= ? AND +c.user_id = ? AND ${access.sql}
+         ORDER BY e.id LIMIT ?`,
+      )
+      .all(viewer.ws, cursor, upTo, viewer.ws, ...access.args, limit)) as Array<{ id: number; chat_id: string; number_id: string; kind: string }>;
+    return rows.map((r) => ({ ...r, id: Number(r.id), kind: r.kind === 'msg' ? 'msg' : 'chat' }));
+  };
+}
+
+/** Quién mira el aviso en vivo de Lines: sin restricciones ve todo; si no, con el filtro por chat y lo pendiente que ve. */
+export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
+  const visible = chatFilterFor(viewer);
+  const pending = livePendingFor(viewer);
+  return visible && pending ? { app: 'lines', ws: viewer.ws, visible, pending } : { app: 'lines', ws: viewer.ws, visible: null };
 }
 
 // ---------- Máscara ----------

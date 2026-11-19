@@ -471,6 +471,7 @@ describe('aviso en vivo de las listas', () => {
         asked++;
         return set ?? new Set(ids);
       },
+      pending: async () => null,
     });
     expect((await livePoll(only(null), before || 1)).events).toEqual([]);
     expect(asked).toBe(0);
@@ -491,6 +492,6 @@ describe('aviso en vivo de las listas', () => {
       { id: 3, chatId: 'a', kind: 'chat' },
       { id: 2, chatId: 'b', kind: 'msg' },
     ]);
-    expect(await liveBatch([e(1, 'a')], { app: 'lines', ws: 'w', visible: async () => new Set(['z']) })).toEqual([]);
+    expect(await liveBatch([e(1, 'a')], { app: 'lines', ws: 'w', visible: async () => new Set(['z']), pending: async () => null })).toEqual([]);
   });
 });

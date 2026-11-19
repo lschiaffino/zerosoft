@@ -477,7 +477,8 @@ describe('tareas desde el chat', () => {
     const task = await createGroupTask(user.id, user.id, { chatId, messageId: msg.id, dueAt: due, locale: 'es', timezone: 'America/Argentina/Buenos_Aires' });
     expect(task).toMatchObject({ title: 'Mandame la propuesta el lunes', chatId, messageId: msg.id, done: false, ownerId: user.id });
     const activity = (await getDb().prepare('SELECT type, subject, company_id, owner_id FROM crm_activities WHERE id = ?').get(task.activityId)) as Record<string, string>;
-    expect(activity).toMatchObject({ type: 'task', subject: 'Mandame la propuesta el lunes', company_id: company.id, owner_id: user.id });
+    // La tarea del CRM no copia el texto del mensaje: lleva un título neutro, y Lines muestra el del mensaje a quien ve el chat.
+    expect(activity).toMatchObject({ type: 'task', subject: 'Tarea de un mensaje', company_id: company.id, owner_id: user.id });
 
     expect(await fireTaskReminders({ now })).toBe(0);
     const at = new Date(now.getTime() + 31 * 60_000);

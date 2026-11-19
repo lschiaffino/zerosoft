@@ -15,6 +15,7 @@ import {
   computeBalance,
   countLeaveDays,
   isIsoDate,
+  outOnDay,
   seededHolidays,
   zonedInstant,
   zonedToday,
@@ -22,6 +23,7 @@ import {
   type Balance,
   type HalfDay,
   type Holiday,
+  type OutStatus,
   type PayPeriod,
 } from './people-time';
 import { emailPeople } from './people-email';
@@ -580,6 +582,22 @@ export async function teamCalendar(ctx: PeopleCtx, from: string, to: string, cou
   const years = [...new Set([Number(from.slice(0, 4)), Number(to.slice(0, 4))])];
   const holidays = (await holidaysFor(ctx.ws, country, years)).filter((h) => h.date >= from && h.date <= to);
   return { entries, holidays };
+}
+
+/**
+ * Quién está fuera hoy (el día de quien mira, en su zona de Cal) y hasta
+ * cuándo, por ficha. Como el calendario del equipo: todos ven quién está
+ * fuera, sin el tipo de licencia; solo cuentan las aprobadas.
+ */
+export async function whoIsOut(ctx: Pick<PeopleCtx, 'ws' | 'personId'>, day?: string): Promise<Record<string, OutStatus>> {
+  const on = day ?? zonedToday(await personTz(ctx.personId));
+  const rows = (await db()
+    .prepare(
+      `SELECT r.employee_id, r.start_date, r.end_date, r.half FROM people_requests r JOIN people_employees e ON e.id = r.employee_id
+       WHERE r.workspace_id = ? AND r.status = 'approved' AND r.end_date >= ? AND r.start_date <= ? AND e.status != 'terminated'`,
+    )
+    .all(ctx.ws, on, addDays(on, 400))) as Array<{ employee_id: string; start_date: string; end_date: string; half: string }>;
+  return Object.fromEntries(outOnDay(rows.map((r) => ({ employeeId: r.employee_id, startDate: r.start_date, endDate: r.end_date, half: r.half })), on));
 }
 
 export function settingsCountries(raw: string): string[] {

@@ -20,6 +20,7 @@
 import { getDb } from './db';
 import { HubspotError, hubspotConnected } from './groups-hubspot';
 import { createPersonHubspot, personHasHubspotLink, type PersonLite } from './groups-contacts';
+import { systemViewer } from './groups-access';
 import { realName } from './wa-people';
 
 const LID_NAMES = ['Contacto de WhatsApp', 'WhatsApp contact', 'Contato do WhatsApp'];
@@ -135,7 +136,7 @@ export async function sweepHubspotAutoContacts(limit = 10): Promise<number> {
         await done('linked');
         continue;
       }
-      const res = await createPersonHubspot(c.ws, null, false, person);
+      const res = await createPersonHubspot(systemViewer(c.ws), null, person);
       await done(res.created ? 'created' : 'existing');
       if (res.created) created++;
     } catch (err) {

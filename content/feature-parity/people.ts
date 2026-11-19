@@ -286,7 +286,13 @@ const parity: ProductParity = {
     row('directory-export', 'org', ['Directory export', 'Exportar directorio', 'Exportar diretório'], 'partial', {
       detail: ['Through a custom report CSV, for HR. Built; not yet walked end to end in a browser for each role', 'Con el CSV de un reporte a medida, para HR. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Pelo CSV de um relatório personalizado, para o RH. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'missing'),
+    row('ooo-in-directory', 'org', ['Out of office shown in the directory', 'Ausencia visible en el directorio', 'Ausência visível no diretório'], 'have', {
+      detail: [
+        'Approved time off shows as "Out until" (or the half day) on the directory row and the profile, and an "Out today" filter lists only who is away. The leave type stays private',
+        'Una licencia aprobada se ve como "Fuera hasta" (o la media jornada) en la fila del directorio y en la ficha, y el filtro "Fuera hoy" muestra solo a quien no está. El tipo de licencia sigue siendo privado',
+        'Uma folga aprovada aparece como "Fora até" (ou o meio período) na linha do diretório e no perfil, e o filtro "Fora hoje" mostra só quem está fora. O tipo de folga continua privado',
+      ],
+    }),
     row('birthday-opt-out', 'org', ['Hide your own birthday', 'Ocultar el propio cumpleaños', 'Ocultar o próprio aniversário'], 'partial', {
       detail: [
         'HR chooses who sees birthdays (everyone, managers or HR only) for the whole workspace, and the year is never shown. A person cannot hide only their own',
