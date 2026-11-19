@@ -3779,5 +3779,272 @@
     "allPipelines": "All pipelines",
     "emptyTitle": "No deals or activity in this period",
     "emptyBody": "Create a deal or log an activity and the numbers show up here."
+  },
+  "hubspotSync": {
+    "title": "HubSpot sync",
+    "desc": "Use zerosoft and HubSpot side by side while your team moves over. Connect your HubSpot account and see what a sync would do before anything changes.",
+    "loading": "Loading the HubSpot connection…",
+    "loadError": "We could not load the HubSpot connection.",
+    "retry": "Try again",
+    "off": {
+      "title": "Sync is off",
+      "body": "Nothing is written to HubSpot or to your CRM from here yet. Turning the sync on comes in a next update. For now you can connect the account and run the preview."
+    },
+    "connect": {
+      "title": "HubSpot account",
+      "intro": "Connect the HubSpot account your team uses. We check the key and show what it can do. Connecting does not copy or change any record.",
+      "linesBody": "This workspace already connected HubSpot in Lines. You can use that same key here without pasting it again.",
+      "linesCta": "Use the key connected in Lines",
+      "scopesNow": "Permissions needed now, to read",
+      "scopesLater": "Needed later, to write to HubSpot",
+      "keyLabel": "Service key or private app token",
+      "keyHelp": "The key is stored encrypted and is never shown again.",
+      "cta": "Connect HubSpot",
+      "checking": "Checking the key…",
+      "writeLater": "Reading and the preview work with this key. The permissions it lacks are only needed later, when the sync writes to HubSpot. You can add them to the key then.",
+      "fromLines": "Using the key connected in Lines.",
+      "checked": "Last checked",
+      "recheck": "Check again",
+      "replace": "Replace key",
+      "cancelReplace": "Keep the current key",
+      "disconnect": "Disconnect",
+      "disconnectTitle": "Disconnect HubSpot",
+      "disconnectBody": "The saved key is deleted and the preview is discarded. Your records in zerosoft and in HubSpot stay as they are.",
+      "keep": "Stay connected",
+      "disconnectConfirm": "Disconnect HubSpot"
+    },
+    "errors": {
+      "invalid_token": "HubSpot did not accept that key. Copy it again and check it belongs to the right account.",
+      "missing_scope": "The key is missing a read permission. Add the permissions listed and try again.",
+      "provider_error": "We could not reach HubSpot. Try again in a minute.",
+      "hubspot_busy": "HubSpot is limiting requests right now. Try again in a minute.",
+      "lines_not_connected": "There is no HubSpot key connected in Lines any more. Paste a key here.",
+      "not_connected": "Connect HubSpot first.",
+      "rate_limited": "Too many attempts. Try again in an hour.",
+      "forbidden": "Only workspace admins can do this.",
+      "invalid_input": "Check the key and try again."
+    },
+    "keyProblems": {
+      "invalid_token": "HubSpot no longer accepts this key. Replace it.",
+      "missing_scope": "This key lost a read permission it needs. Add it in HubSpot and check again.",
+      "portal_changed": "This key now opens a different HubSpot account. Disconnect and connect again.",
+      "provider_error": "We could not reach HubSpot on the last check.",
+      "hubspot_busy": "HubSpot was limiting requests on the last check. Try again later."
+    },
+    "preview": {
+      "title": "Preview what a sync would do",
+      "desc": "The preview reads both sides and compares them: what already matches, what would be created on each side, what would be updated and what needs a person to decide. It only reads.",
+      "run": "Run preview",
+      "again": "Run preview again",
+      "starting": "Starting…",
+      "cancel": "Cancel preview",
+      "cancelled": "The preview was cancelled. Nothing was changed."
+    },
+    "failures": {
+      "not_connected": "HubSpot is not connected any more.",
+      "portal_changed": "The connected HubSpot account changed while the preview ran. Run it again.",
+      "forbidden": "The person who started this preview is no longer an admin of the workspace.",
+      "invalid_token": "HubSpot stopped accepting the key. Replace it and run the preview again.",
+      "missing_scope": "The key is missing a read permission. Add it in HubSpot, check the key and run the preview again.",
+      "hubspot_busy": "HubSpot kept limiting requests and the preview stopped. Run it again later.",
+      "network": "We lost the connection to HubSpot several times and the preview stopped. Run it again.",
+      "provider_error": "HubSpot returned an error several times and the preview stopped. Run it again.",
+      "internal_error": "Something failed on our side and the preview stopped. Run it again."
+    },
+    "progress": {
+      "label": "Preview progress",
+      "stage": {
+        "schema": "Reading owners, pipelines and properties…",
+        "contacts": "Reading contacts from HubSpot…",
+        "companies": "Reading companies from HubSpot…",
+        "deals": "Reading deals from HubSpot…",
+        "compare": "Comparing both sides…"
+      },
+      "waiting": "HubSpot reached its daily request limit. The preview continues later with what it already read.",
+      "resume": "Next try",
+      "read": "{n} read",
+      "readOf": "{n} of {total} read",
+      "leave": "You can leave this page. The preview keeps running and the result will be here when you come back."
+    },
+    "objects": {
+      "contacts": "Contacts",
+      "companies": "Companies",
+      "deals": "Deals"
+    },
+    "stats": {
+      "hubspot": "In HubSpot",
+      "zerosoft": "In zerosoft",
+      "linked": "Already linked",
+      "matched": "Would be linked",
+      "create_zerosoft": "New in zerosoft",
+      "create_hubspot": "New in HubSpot",
+      "update": "Would be updated",
+      "review": "Need review"
+    },
+    "report": {
+      "nothingWritten": "Nothing has been written. This is only what a sync would do.",
+      "ranAt": "Preview finished",
+      "dealsNote": "Deals have no email or domain to match on. A deal counts as linked only if it was imported from this HubSpot account.",
+      "updateDetail": "Pairs where both sides have a different value: {conflicting}. HubSpot changed last: {hubspot}. zerosoft changed last: {zerosoft}.",
+      "differs": "Different on both sides: {fields}",
+      "fills": "Empty on one side: {fields}",
+      "newer": {
+        "hubspot": "HubSpot changed last",
+        "zerosoft": "zerosoft changed last"
+      },
+      "openHere": "Open in zerosoft",
+      "openHubspot": "Open in HubSpot",
+      "unnamed": "(no name)",
+      "sampleNote": "Showing the first {shown}.",
+      "more": "And {n} more."
+    },
+    "buckets": {
+      "matched": {
+        "title": "Would be linked",
+        "contacts": "A contact in HubSpot and one in zerosoft have the same email. The sync would treat them as the same person.",
+        "companies": "A company in HubSpot and one in zerosoft have the same domain. The sync would treat them as the same company.",
+        "deals": "Deals are never matched by name."
+      },
+      "create_zerosoft": {
+        "title": "Would be created in zerosoft",
+        "contacts": "These contacts are in HubSpot and no contact in zerosoft has their email.",
+        "companies": "These companies are in HubSpot and no company in zerosoft has their domain.",
+        "deals": "These deals are in HubSpot and are not linked to a deal in zerosoft."
+      },
+      "create_hubspot": {
+        "title": "Would be created in HubSpot",
+        "contacts": "These contacts are in zerosoft and no contact in HubSpot has their email.",
+        "companies": "These companies are in zerosoft and no company in HubSpot has their domain.",
+        "deals": "These deals are in zerosoft and are not linked to a deal in HubSpot."
+      },
+      "update": {
+        "title": "Would be updated",
+        "contacts": "The same contact on both sides, with a different value in at least one standard field. Custom field values are not compared yet.",
+        "companies": "The same company on both sides, with a different value in at least one standard field. Custom field values are not compared yet.",
+        "deals": "The same deal on both sides, with a different value in at least one standard field. Custom field values are not compared yet."
+      },
+      "linked": {
+        "title": "Already linked",
+        "contacts": "These contacts came from HubSpot through an import, so each one already knows its pair.",
+        "companies": "These companies came from HubSpot through an import, so each one already knows its pair.",
+        "deals": "These deals came from HubSpot through an import, so each one already knows its pair."
+      },
+      "multi_hubspot": {
+        "title": "More than one in HubSpot",
+        "contacts": "Two or more HubSpot contacts point to the same contact in zerosoft. Someone has to say which one is the pair.",
+        "companies": "Two or more HubSpot companies share a domain, or point to the same company in zerosoft. HubSpot allows repeated domains, so someone has to say which one is the pair.",
+        "deals": "Two or more HubSpot deals are linked to the same deal in zerosoft."
+      },
+      "multi_zerosoft": {
+        "title": "More than one in zerosoft",
+        "contacts": "One HubSpot contact matches several contacts in zerosoft with the same email. Merge them in Contacts › Duplicates first.",
+        "companies": "One HubSpot company matches several companies in zerosoft with the same domain. Merge them first.",
+        "deals": "One HubSpot deal matches several deals in zerosoft."
+      },
+      "duplicate_zerosoft": {
+        "title": "Repeated in zerosoft",
+        "contacts": "These contacts in zerosoft have an email that is also in HubSpot, but the pair could not be decided: more than one contact here has it, or the HubSpot contact is linked to another one.",
+        "companies": "These companies in zerosoft have a domain that is also in HubSpot, but the pair could not be decided: more than one company here has it, or the HubSpot company is linked to another one.",
+        "deals": "These deals in zerosoft repeat a deal that already has a pair in HubSpot."
+      },
+      "conflict": {
+        "title": "Linked to one, email of another",
+        "contacts": "The contact is linked to one contact in zerosoft, but its email in HubSpot now belongs to a different one.",
+        "companies": "The company is linked to one company in zerosoft, but its domain belongs to a different one.",
+        "deals": "The deal is linked to one deal in zerosoft, but looks like a different one."
+      },
+      "no_key_hubspot": {
+        "title": "In HubSpot, with nothing to match on",
+        "contacts": "These HubSpot contacts have no email, so they cannot be matched to anyone automatically.",
+        "companies": "These HubSpot companies have no domain, so they cannot be matched automatically.",
+        "deals": "These HubSpot deals cannot be matched automatically."
+      },
+      "no_key_zerosoft": {
+        "title": "In zerosoft, with nothing to match on",
+        "contacts": "These contacts in zerosoft have no email, so they cannot be matched to anyone automatically.",
+        "companies": "These companies in zerosoft have no domain, so they cannot be matched automatically.",
+        "deals": "These deals in zerosoft cannot be matched automatically."
+      },
+      "gone_hubspot": {
+        "title": "Linked, but not found in HubSpot",
+        "contacts": "These contacts were imported from HubSpot and HubSpot no longer returns their pair. It may have been deleted there, or the import came from another account.",
+        "companies": "These companies were imported from HubSpot and HubSpot no longer returns their pair. It may have been deleted there, or the import came from another account.",
+        "deals": "These deals were imported from HubSpot and HubSpot no longer returns their pair. It may have been deleted there, or the import came from another account."
+      }
+    },
+    "schema": {
+      "title": "Owners, pipelines and properties",
+      "desc": "What lines up between the two accounts and what has no equivalent yet.",
+      "owners": {
+        "title": "Owners",
+        "count": "{matched} of {total} matched",
+        "desc": "A HubSpot owner is matched to the person in this workspace with the same email. A record cannot keep its owner across the sync until that person is in both places.",
+        "hubspotOnly": "HubSpot owners without a person here ({n})",
+        "zerosoftOnly": "People here without a HubSpot owner ({n})",
+        "archived": "Deactivated owners in HubSpot, not matched: {n}."
+      },
+      "pipelines": {
+        "title": "Pipelines and stages",
+        "count": "{matched} of {total} matched",
+        "desc": "A HubSpot pipeline is matched to the one that was imported from it or that has the same name. Stages are matched the same way inside it.",
+        "matched": "matches {name}",
+        "unmatched": "no equivalent in zerosoft",
+        "stagesMissing": "Stages without an equivalent: {stages}",
+        "zerosoftOnly": "Pipelines in zerosoft without an equivalent in HubSpot",
+        "zerosoftOnlyStages": "Stages in zerosoft without an equivalent in HubSpot"
+      },
+      "properties": {
+        "title": {
+          "contacts": "Contact properties",
+          "companies": "Company properties",
+          "deals": "Deal properties"
+        },
+        "count": "{n} without a pair",
+        "standard": "Standard fields that are matched ({n}): {fields}.",
+        "readOnly": "HubSpot does not allow writing these, so they would only travel from HubSpot to zerosoft: {fields}.",
+        "customMatched": "Custom properties that already have a custom field in zerosoft: {n}.",
+        "hubspotOnly": "HubSpot custom properties without a field in zerosoft ({n})",
+        "zerosoftOnly": "Custom fields in zerosoft without a HubSpot property ({n})",
+        "standardOnly": "Fields in zerosoft with no place in HubSpot: {fields}.",
+        "builtIn": "HubSpot internal properties (analytics, calculated and hidden ones) that are left alone: {n}."
+      }
+    },
+    "fields": {
+      "first_name": "First name",
+      "last_name": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "job_title": "Job title",
+      "website": "Website",
+      "city": "City",
+      "country": "Country",
+      "lifecycle_stage": "Lifecycle stage",
+      "lead_status": "Lead status",
+      "owner_id": "Owner",
+      "name": "Name",
+      "domain": "Domain",
+      "industry": "Industry",
+      "employees": "Employees",
+      "stage_id": "Stage",
+      "amount": "Amount",
+      "currency": "Currency",
+      "close_date": "Close date",
+      "description": "Description"
+    },
+    "localFields": {
+      "source": "Source",
+      "tags": "Tags",
+      "score": "Lead score",
+      "description": "Description",
+      "priority": "Priority"
+    },
+    "limits": {
+      "title": "What this preview does not check",
+      "custom": "Values of custom fields. It says which custom properties have a pair, and compares only the standard fields.",
+      "activities": "Notes, calls, meetings, tasks and emails on the timeline.",
+      "associations": "Which contacts belong to which company or deal.",
+      "archived": "Records deleted in HubSpot.",
+      "moment": "It is a picture of the moment it ran. Run it again after you change things."
+    }
   }
 }

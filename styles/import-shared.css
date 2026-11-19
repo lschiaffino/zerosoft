@@ -107,3 +107,94 @@
 /* Docs › Importar: la vía por API debajo del import de archivos. */
 .docs-import-api { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 .docs-import-api p { margin: 0; }
+
+/* CRM › Ajustes › Integraciones › Sync con HubSpot (HubspotSyncPanel): la
+   conexión y el informe de la vista previa. Solo tokens: se ve igual de bien
+   en los cinco aspectos, claro y oscuro. Nada se desborda a 390 px. */
+.hsync { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.hsync-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.hsync-card > .ui-help, .hsync-card p { margin: 0; }
+.hsync-title { font-size: 0.9375rem; font-weight: 500; margin: 0; }
+.hsync-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.hsync-meta { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.hsync-actions { flex-wrap: wrap; gap: 8px 10px; }
+.hsync-scopes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.hsync-scopes .label { margin: 0 0 4px; }
+.hsync-lines,
+.hsync-confirm,
+.hsync-state {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg-soft);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.hsync-state { gap: 2px; }
+.hsync-state p, .hsync-lines p, .hsync-confirm p { margin: 0; }
+.hsync-state-title { font-weight: 500; font-size: 0.875rem; }
+.hsync-confirm { border-left-color: var(--bad-ink); }
+
+.hsync-progress { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hsync-progress p { margin: 0; }
+.hsync-progress-title { font-size: 0.875rem; font-weight: 500; }
+.hsync-progress-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.8125rem; max-width: 420px; }
+.hsync-progress-list li { display: flex; justify-content: space-between; gap: 12px; }
+
+.hsync-report { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: 4px; }
+.hsync-object { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.hsync-object p { margin: 0; }
+.hsync-object-title { font-size: 0.9375rem; font-weight: 500; margin: 0; }
+.hsync-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.hsync-stat { display: flex; flex-direction: column-reverse; gap: 2px; min-width: 0; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+.hsync-stat dt { font-size: 0.75rem; line-height: 1.3; color: var(--dim); overflow-wrap: anywhere; }
+.hsync-stat dd { margin: 0; font-size: 1.25rem; line-height: 1.2; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hsync-stat[data-warn='true'] dd { color: var(--warn-ink); }
+
+.hsync-bucket { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 0 12px; min-width: 0; }
+.hsync-bucket > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; cursor: pointer; padding: 9px 0; font-size: 0.8125rem; font-weight: 500; list-style-position: inside; }
+.hsync-bucket > summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.hsync-bucket > summary::marker { color: var(--dim); }
+.hsync-bucket > summary:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.hsync-bucket[open] { padding-bottom: 12px; }
+.hsync-bucket[open] > * + * { margin-top: 8px; }
+.hsync-bucket .label { margin: 10px 0 0; }
+.hsync-count { flex: none; color: var(--dim); font-weight: 400; font-variant-numeric: tabular-nums; }
+.hsync-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.8125rem; line-height: 1.45; min-width: 0; }
+.hsync-list li { overflow-wrap: anywhere; }
+.hsync-list code { font-size: 0.75rem; color: var(--dim); }
+.hsync-sub { display: block; font-size: 0.75rem; color: var(--dim); }
+.hsync-samples { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hsync-sample-list { list-style: none; margin: 0; padding: 0; min-width: 0; border-top: 1px solid var(--line); }
+.hsync-sample { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; min-width: 0; }
+.hsync-sample-main { display: flex; flex-wrap: wrap; gap: 0 10px; min-width: 0; }
+.hsync-sample-label { font-weight: 500; overflow-wrap: anywhere; }
+.hsync-sample-detail { overflow-wrap: anywhere; }
+.hsync-sample-diff { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0 14px; }
+.hsync-sample-links { display: flex; gap: 12px; font-size: 0.75rem; white-space: nowrap; }
+.hsync-sample-links a { color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
+.hsync-sample-links a:hover { color: var(--ink); }
+.hsync-sample-links a:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .hsync-card { padding: 12px; }
+  .hsync-scopes { grid-template-columns: minmax(0, 1fr); }
+  .hsync-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hsync-sample { grid-template-columns: minmax(0, 1fr); }
+  .hsync-sample-links { white-space: normal; flex-wrap: wrap; }
+}
