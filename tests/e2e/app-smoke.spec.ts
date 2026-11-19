@@ -1183,7 +1183,9 @@ test.describe('smoke apps del workspace', () => {
         await expect(page.getByTestId(`ws-app-switch-${app}`)).toBeVisible();
         await expect(page.getByTestId(`ws-app-mode-${app}`)).toBeVisible();
       }
-      await expect(page.getByTestId('ws-app-inbox')).toHaveCount(0);
+      // Inbox siempre está: su fila no se apaga, solo se destaca.
+      await expect(page.getByTestId('ws-app-switch-inbox')).toHaveCount(0);
+      await expect(page.getByTestId('ws-app-star-inbox')).toBeVisible();
       await expect(page.getByTestId('ws-app-chat')).toHaveCount(0);
     }
     await page.setViewportSize({ width: 390, height: 800 });

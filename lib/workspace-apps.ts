@@ -7,6 +7,7 @@ import { getDb, type Db } from './db';
 import { blockedApps, EMPTY_RULE, isDefaultRule, isRuleKey, parseRule, type WorkspaceAppRule, type WorkspaceAppRules } from './app-access';
 import { isAdminEmail } from './feedback';
 import { isComingSoon, type ProductKey } from './products';
+import { cleanFeaturedApps } from './featured-apps';
 
 function parseIds(raw: unknown): string[] {
   try {
@@ -58,6 +59,27 @@ export async function saveWorkspaceAppRule(
       .run(ownerId, app, rule.mode, JSON.stringify(rule.people), JSON.stringify(rule.teams), JSON.stringify(rule.denied), actorId);
   }
   return before;
+}
+
+/** Apps destacadas del workspace del owner, en el orden del menú. Sin la tabla (base vieja en un test), ninguna. */
+export async function loadWorkspaceFeaturedApps(ownerId: string, db: Db = getDb()): Promise<ProductKey[]> {
+  try {
+    const rows = (await db.prepare('SELECT app FROM workspace_featured_apps WHERE owner_id = ?').all(ownerId)) as Array<{ app: string }>;
+    return cleanFeaturedApps(rows.map((r) => r.app));
+  } catch (err) {
+    if (/no such table/i.test(String(err))) return [];
+    throw err;
+  }
+}
+
+/** Destaca una app o le saca la marca (una fila por app: dos admins a la vez no se pisan). Devuelve la lista nueva. */
+export async function setWorkspaceFeaturedApp(ownerId: string, app: ProductKey, featured: boolean, actorId: string, db: Db = getDb()): Promise<ProductKey[]> {
+  if (featured) {
+    await db.prepare('INSERT INTO workspace_featured_apps (owner_id, app, created_by) VALUES (?, ?, ?) ON CONFLICT(owner_id, app) DO NOTHING').run(ownerId, app, actorId);
+  } else {
+    await db.prepare('DELETE FROM workspace_featured_apps WHERE owner_id = ? AND app = ?').run(ownerId, app);
+  }
+  return loadWorkspaceFeaturedApps(ownerId, db);
 }
 
 /** Equipos del workspace de una persona (sin la tabla, ninguno). */
