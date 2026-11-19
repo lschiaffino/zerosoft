@@ -189,8 +189,11 @@ test('Inbox: fotos y videos mandados juntos van en un álbum como WhatsApp', asy
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events } });
   expect(res.ok(), await res.text()).toBe(true);
 
-  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  // El chat se abre por id: sus mensajes son de hace 2 h y, con los chats que dejan otras pruebas en la misma cuenta,
+  // puede quedar fuera de la primera tanda de la lista (el clic en la fila esperaba hasta agotar el tiempo).
+  const [th] = await sql('SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?', [String(acc.id), gid]);
+  expect(th, 'el grupo del álbum entró a Inbox').toBeTruthy();
+  await page.goto(`/en/app/inbox?t=${String(th.id)}`, { waitUntil: 'domcontentloaded' });
   const thread = page.locator('.ib-wa-thread');
   await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible();
   const { five } = await checkAlbums(page, thread);
