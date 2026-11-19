@@ -102,7 +102,8 @@ test('QR: un número que se desvincula muestra Reconectar y vuelve con un QR nue
   await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   const row = page.locator('.gr-number', { hasText: name });
   await expect(row.getByText('Disconnected', { exact: true })).toBeVisible();
-  await row.getByRole('button', { name: 'Reconnect' }).click();
+  // exact: el selector de dueño de la fila lleva el nombre de la línea ("Owner of Reconnect …").
+  await row.getByRole('button', { name: 'Reconnect', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: `Connect ${name}` });
   await expect(dialog.getByRole('img', { name: 'QR code to link WhatsApp' })).toBeVisible();
   await expect(dialog.getByText('The QR refreshes by itself.')).toBeVisible();
