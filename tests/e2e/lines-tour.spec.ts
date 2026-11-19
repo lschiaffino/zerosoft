@@ -83,6 +83,7 @@ test('persona sola: se abre solo, va y vuelve, abrir un chat avanza, termina y s
     await expect(p.getByTestId('tour-count')).toContainText('2');
     await p.getByTestId('tour-back').click();
     await stepIs(p, 'intro');
+    await expect(p.getByTestId('tour-next')).toBeFocused();
     await p.keyboard.press('Enter');
     await stepIs(p, 'chatList');
     await p.getByTestId('tour-next').click();

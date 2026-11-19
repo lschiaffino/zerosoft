@@ -15,6 +15,10 @@ const PAD = 6;
 const SETTLE_MS = 1200;
 /** Después de un paso que se cumple con un clic (abrir un chat), cuánto se espera al elemento siguiente. */
 const AFTER_CLICK_MS = 3500;
+/** Mínimo que se espera a un elemento antes de darlo por ausente (una lista que se está refrescando). */
+const GRACE_MS = 300;
+/** Tope de espera mientras algo de la pantalla está cargando. */
+const BUSY_MAX_MS = 8000;
 
 interface Box {
   top: number;
@@ -44,6 +48,11 @@ function findTarget(step: TourStep | undefined): HTMLElement | null {
     }
   }
   return null;
+}
+
+/** Algo de la pantalla está cargando (listas y paneles marcan aria-busy mientras traen datos). */
+function loading(): boolean {
+  return Array.from(document.querySelectorAll<HTMLElement>('[aria-busy="true"]')).some(onScreen);
 }
 
 function boxOf(el: HTMLElement): Box {
@@ -106,6 +115,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
   const pendingStart = useRef<string | null | false>(false);
   const autoTried = useRef(false);
   const lastSaved = useRef('');
+  const moving = useRef(false);
 
   const start = useCallback(
     (from: string | null) => {
@@ -116,6 +126,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
       setAccent(frame ? getComputedStyle(frame).getPropertyValue('--accent-ink').trim() : '');
       settleAt.current = Date.now() + SETTLE_MS;
       afterClick.current = false;
+      moving.current = false;
       lastSaved.current = '';
       setHistory([]);
       setDir(1);
@@ -123,7 +134,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
       setIdx(Math.max(at, 0));
       setRunning(true);
     },
-    [steps],
+    [steps, setHistory],
   );
 
   const close = useCallback(
@@ -183,8 +194,9 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
       setTarget({ idx, el: null });
       return;
     }
-    const wait = afterClick.current ? AFTER_CLICK_MS : Math.max(settleAt.current - Date.now(), 0);
+    const wait = afterClick.current ? AFTER_CLICK_MS : Math.max(settleAt.current - Date.now(), GRACE_MS);
     const deadline = Date.now() + wait;
+    const hardDeadline = Date.now() + Math.max(wait, BUSY_MAX_MS);
     let timer = 0;
     let alive = true;
     const tick = () => {
@@ -196,7 +208,8 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
         setTarget({ idx, el });
         return;
       }
-      if (Date.now() < deadline) {
+      // Mientras la página dice que está cargando (aria-busy), el elemento todavía puede aparecer.
+      if (Date.now() < deadline || (Date.now() < hardDeadline && loading())) {
         timer = window.setTimeout(tick, 120);
         return;
       }
@@ -218,19 +231,20 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [running, idx, steps, dir, nonce, close]);
+  }, [running, idx, steps, dir, nonce, close, setHistory]);
 
   // Un paso mostrado entra a la historia y queda guardado como progreso.
   useEffect(() => {
     if (!shown) return;
     afterClick.current = false;
+    moving.current = false;
     setHistory((h) => (h[h.length - 1] === shown.idx ? h : [...h.filter((i) => i < shown.idx), shown.idx]));
     const id = steps[shown.idx]?.id;
     if (id && lastSaved.current !== id) {
       lastSaved.current = id;
       post({ kind: 'progress', tour: def.key, status: 'active', step: id });
     }
-  }, [shown, steps, def.key]);
+  }, [shown, steps, def.key, setHistory]);
 
   // Seguir al elemento (scroll, cambios de tamaño). Si desaparece, se vuelve a buscar.
   useEffect(() => {
@@ -264,6 +278,9 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
 
   const next = useCallback(
     (byClick = false) => {
+      // Un solo paso por vez: un doble disparo (Enter y clic, dos clics seguidos) no saltea el siguiente.
+      if (moving.current) return;
+      moving.current = true;
       afterClick.current = byClick;
       setDir(1);
       setIdx((i) => i + 1);
@@ -272,11 +289,12 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
   );
   const back = useCallback(() => {
     const prev = history[history.length - 2];
-    if (prev === undefined) return;
+    if (prev === undefined || moving.current) return;
+    moving.current = true;
     setDir(-1);
     setHistory((h) => h.slice(0, -1));
     setIdx(prev);
-  }, [history]);
+  }, [history, setHistory]);
 
   // Un paso "usá esto": el clic en el elemento (o en uno igual, como otra fila) lo cumple.
   useEffect(() => {
@@ -319,8 +337,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
   // El foco va al botón principal de cada paso.
   useEffect(() => {
     if (!shown) return;
-    const id = window.requestAnimationFrame(() => pop.current?.querySelector<HTMLElement>('[data-tour-primary]')?.focus({ preventScroll: true }));
-    return () => window.cancelAnimationFrame(id);
+    pop.current?.querySelector<HTMLElement>('[data-tour-primary]')?.focus({ preventScroll: true });
   }, [shown]);
 
   const docked = viewport.w > 0 && viewport.w <= DOCK_MAX;
