@@ -10,7 +10,7 @@ import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { collapseSameChats, dedupeLineMessages, firstBy, mergedUnread } from '../same-chat';
 import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from './same-chat';
 import { open, seal } from '../secret-box';
-import { chatNameRank, isNameHit, type SearchRank } from '../chat-search-rank';
+import { chatNameHit, chatNameRank, isNameHit, type SearchRank } from '../chat-search-rank';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
@@ -652,16 +652,17 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
     const text = [...parsed.phrases, ...parsed.terms].join(' ') || q;
     const l = likeArg(text);
     rank = chatNameRank('t.title', 't.handle', text);
+    const byName = chatNameHit('t.title', 't.handle', text);
     const hits = await threadIdsMatching(owner, q);
     if (hits === null) {
       where.push(
-        `(t.title LIKE ? ESCAPE '\\' OR t.handle LIKE ? ESCAPE '\\' OR t.preview LIKE ? ESCAPE '\\'
+        `(${byName.sql} OR t.preview LIKE ? ESCAPE '\\'
           OR EXISTS (SELECT 1 FROM inbox_messages m WHERE m.thread_id = t.id AND (m.body LIKE ? ESCAPE '\\' OR m.subject LIKE ? ESCAPE '\\')))`,
       );
-      args.push(l, l, l, l, l);
+      args.push(...byName.args, l, l, l);
     } else {
-      where.push(`(t.title LIKE ? ESCAPE '\\' OR t.handle LIKE ? ESCAPE '\\' OR t.preview LIKE ? ESCAPE '\\'${hits.length ? ` OR t.id IN (${hits.map(() => '?').join(', ')})` : ''})`);
-      args.push(l, l, l, ...hits);
+      where.push(`(${byName.sql} OR t.preview LIKE ? ESCAPE '\\'${hits.length ? ` OR t.id IN (${hits.map(() => '?').join(', ')})` : ''})`);
+      args.push(...byName.args, l, ...hits);
     }
   }
   if (opts.folderId) {
