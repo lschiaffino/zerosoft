@@ -29,8 +29,8 @@ import { getDb } from './db';
 import { open } from './secret-box';
 import { fakeMode } from './groups-integrations';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
+import { HubspotApiError, createHubspotClient, hubspotBudget } from './hubspot/client';
 import {
-  HUBSPOT_API,
   HUBSPOT_WRITE_SCOPE,
   HubspotError,
   hubspotConn,
@@ -103,46 +103,32 @@ function validationDetail(json: Record<string, unknown>): string {
 async function call(conn: HubspotConn, method: string, path: string, body?: unknown, opts: CallOpts = {}): Promise<{ status: number; json: Record<string, unknown> }> {
   const retries = opts.retries ?? 2;
   const maxWait = opts.maxWaitMs ?? 4_000;
-  let waited = 0;
   const fail = async (err: HubspotError): Promise<never> => {
     if (!opts.quiet) await markHubspotUsed(conn.ws, err.code).catch(() => null);
     throw err;
   };
-  for (let attempt = 0; ; attempt++) {
-    let res: Response;
-    try {
-      res = await hubspotFetcher()(`${HUBSPOT_API}${path}`, {
-        method,
-        headers: { authorization: `Bearer ${conn.token}`, 'content-type': 'application/json', accept: 'application/json' },
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-      });
-    } catch {
-      return fail(new HubspotError('hubspot_unreachable', 502));
-    }
-    const text = await res.text().catch(() => '');
-    if (res.status === 429) {
-      // Límite por 10 segundos: se espera lo que pide HubSpot (o 1, 2, 4 s) y se reintenta. El diario no se reintenta.
-      const retryAfter = Number(res.headers.get('retry-after'));
-      const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt;
-      if (/DAILY/i.test(text) || attempt >= retries || waited + wait > maxWait) return fail(new HubspotError('hubspot_rate_limited', 429));
-      await pause(wait);
-      waited += wait;
-      continue;
-    }
-    let json: Record<string, unknown> = {};
-    try {
-      json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
-    } catch {
-      json = {};
-    }
-    if (res.status === 401) return fail(new HubspotError('hubspot_invalid_token', 502));
-    if (res.status === 403) return fail(new HubspotError('hubspot_missing_scopes', 502));
-    // Un registro que no está o un valor inválido no son un problema de la conexión.
-    if (res.status === 404) throw new HubspotError('hubspot_not_found', 404);
-    if (res.status === 400 || res.status === 409 || res.status === 422) throw new HubspotError('hubspot_validation', 422, validationDetail(json));
-    if (!res.ok) return fail(new HubspotError('hubspot_error', 502));
-    return { status: res.status, json };
+  // El cliente compartido (lib/hubspot/client.ts) lleva el presupuesto de la clave y de su cuenta, y los reintentos:
+  // el límite por 10 segundos espera lo que pide HubSpot (o 1, 2, 4 s) y se reintenta; el diario no.
+  let res;
+  try {
+    res = await createHubspotClient({
+      token: conn.token,
+      fetch: hubspotFetcher(),
+      sleep: pause,
+      budget: fakeMode() ? null : hubspotBudget({ token: conn.token, portalId: conn.portalId, maxWaitMs: maxWait, sleep: pause }),
+    }).send(path, { method, body, retries, maxWaitMs: maxWait, retryNetwork: false });
+  } catch (err) {
+    if (!(err instanceof HubspotApiError)) throw err;
+    return fail(err.code === 'network' ? new HubspotError('hubspot_unreachable', 502) : new HubspotError('hubspot_rate_limited', 429));
   }
+  const json = res.json();
+  if (res.status === 401) return fail(new HubspotError('hubspot_invalid_token', 502));
+  if (res.status === 403) return fail(new HubspotError('hubspot_missing_scopes', 502));
+  // Un registro que no está o un valor inválido no son un problema de la conexión.
+  if (res.status === 404) throw new HubspotError('hubspot_not_found', 404);
+  if (res.status === 400 || res.status === 409 || res.status === 422) throw new HubspotError('hubspot_validation', 422, validationDetail(json));
+  if (!res.ok) return fail(new HubspotError('hubspot_error', 502));
+  return { status: res.status, json };
 }
 
 /** La misma llamada para los contactos y negocios (lib/hubspot-objects.ts). */

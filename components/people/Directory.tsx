@@ -6,9 +6,10 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import type { EmployeeSummary } from '@/lib/people';
+import type { OutStatus } from '@/lib/people-time';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
 import CsvImportDialog from '@/components/ui/CsvImportDialog';
-import { api, Avatar, Dialog, Field, useErrorText, useToast, useCountry } from './people-ui';
+import { api, Avatar, Dialog, Field, OutBadge, useErrorText, useToast, useCountry } from './people-ui';
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
@@ -17,13 +18,15 @@ export interface DirectoryProps {
   facets: { departments: string[]; locations: string[] };
   hr: boolean;
   templates: Array<{ id: string; name: string }>;
-  filters: { q: string; department: string; location: string; type: string; status: string };
+  filters: { q: string; department: string; location: string; type: string; status: string; out: string };
+  /** Quién está fuera hoy (licencias aprobadas), por ficha. */
+  out: Record<string, OutStatus>;
   openNew: boolean;
   /** Pendientes y cumpleaños (solo sin filtros). */
   home?: ReactNode;
 }
 
-export default function Directory({ employees, facets, hr, templates, filters, openNew, home }: DirectoryProps) {
+export default function Directory({ employees, facets, hr, templates, filters, out, openNew, home }: DirectoryProps) {
   const t = useTranslations('people');
   const countryName = useCountry();
   const router = useRouter();
@@ -34,7 +37,8 @@ export default function Directory({ employees, facets, hr, templates, filters, o
   const [toast, push] = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const filtered = Boolean(filters.q || filters.department || filters.location || filters.type || filters.status);
+  const filtered = Boolean(filters.q || filters.department || filters.location || filters.type || filters.status || filters.out);
+  const outCount = Object.keys(out).length;
 
   const go = (next: Partial<DirectoryProps['filters']>) => {
     const f = { ...filters, ...next };
@@ -151,6 +155,17 @@ export default function Directory({ employees, facets, hr, templates, filters, o
             ))}
           </select>
         )}
+        {(outCount > 0 || filters.out) && (
+          <button
+            type="button"
+            className={`btn ${filters.out ? 'btn-primary' : 'btn-secondary'}`}
+            aria-pressed={Boolean(filters.out)}
+            data-testid="people-out-filter"
+            onClick={() => go({ out: filters.out ? '' : '1' })}
+          >
+            {t('directory.outFilter', { count: outCount })}
+          </button>
+        )}
       </div>
 
       {employees.length === 0 ? (
@@ -186,6 +201,7 @@ export default function Directory({ employees, facets, hr, templates, filters, o
                         <span className="ppl-rowtitle">{e.name}</span>
                         <span className="ppl-rowmeta">{e.jobTitle || t('profile.noTitle')}</span>
                       </span>
+                      <OutBadge out={out[e.id]} />
                       {e.status !== 'active' && <span className={`badge ${e.status === 'terminated' ? 'badge-outline' : 'badge-warn'}`}>{t(`status.${e.status}`)}</span>}
                     </Link>
                   </th>

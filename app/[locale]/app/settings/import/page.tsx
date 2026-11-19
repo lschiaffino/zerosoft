@@ -26,6 +26,7 @@ import FormSection from '@/components/ui/FormSection';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import CrmMigrationPanel from '@/components/crm/CrmMigrationPanel';
+import { HubspotKeyHelp, HubspotScopeList } from '@/components/hubspot/HubspotKeyHelp';
 import NotionApiImportPanel from '@/components/docs/NotionApiImportPanel';
 import NotionImportPanel from '@/components/docs/NotionImportPanel';
 import TrackImportPanel from '@/components/track/TrackImportPanel';
@@ -308,7 +309,8 @@ async function SourceDetail({
               source: def.name,
             })}
           </h3>
-          <ol className="st-imp-steps">
+          {def.keyHelp === 'hubspot' && <HubspotKeyHelp />}
+          <ol className="st-imp-steps" data-testid="import-hub-steps">
             {steps.map((s, i) => (
               <li key={i}>{s}</li>
             ))}
@@ -316,11 +318,15 @@ async function SourceDetail({
           {def.scopes && def.scopes.length > 0 && (
             <div className="st-imp-scopes">
               <p className="label">{t(def.id === 'docs:notion_api' ? 'capabilitiesTitle' : 'scopesTitle')}</p>
-              <ul className="mono" data-testid="import-hub-scopes">
-                {def.scopes.map((s) => (
-                  <li key={s}>{s}</li>
-                ))}
-              </ul>
+              {def.keyHelp === 'hubspot' ? (
+                <HubspotScopeList scopes={def.scopes} testId="import-hub-scopes" />
+              ) : (
+                <ul className="mono" data-testid="import-hub-scopes">
+                  {def.scopes.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
           {(def.tokenUrl || def.docsUrl) && (

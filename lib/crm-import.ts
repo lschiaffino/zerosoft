@@ -15,6 +15,7 @@
  */
 import { coerceCustomFieldValue } from './crm-custom-fields';
 import { CrmRefError } from './crm-refs';
+import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { setParentCompany } from './crm-assoc';
 import { getCrmSettings } from './crm-currency';
 import { PRIORITIES, SOURCES } from './crm-constants';
@@ -456,7 +457,7 @@ export async function importContacts(
   const tdb = txDb(tx);
   try {
     const findByEmail = tdb.prepare(
-      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1',
+      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1',
     );
     for (const [i, raw] of rows.entries()) {
       const rowNo = i + 1;
@@ -490,7 +491,12 @@ export async function importContacts(
         await updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb);
         result.updated++;
       } else {
-        const created = await createContact(userId, { ...data, custom: customVals }, tdb);
+        const created = await catchEmailTaken(createContact(userId, { ...data, custom: customVals }, tdb));
+        // Otra entrada creó ese email mientras corría el import: no se duplica.
+        if (created instanceof ContactEmailTakenError) {
+          result.skipped++;
+          continue;
+        }
         if (!ownerId) unowned.push(created.id);
         result.created++;
       }
@@ -661,20 +667,24 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
       const contactIds: string[] = [];
       for (const { email, name: personName } of extractEmails(raw.contactEmail)) {
         const found = (await db
-          .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+          .prepare(
+            'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1',
+          )
           .get(userId, email)) as { id: string } | undefined;
         if (found) {
           contactIds.push(found.id);
           continue;
         }
         const [firstName, ...rest] = personName.split(/\s+/).filter(Boolean);
-        const contact = await createContact(userId, {
-          email,
-          firstName: firstName ?? '',
-          lastName: rest.join(' '),
-          ...(company ? { companyId: company.id } : {}),
-        });
-        contactIds.push(contact.id);
+        const contact = await catchEmailTaken(
+          createContact(userId, {
+            email,
+            firstName: firstName ?? '',
+            lastName: rest.join(' '),
+            ...(company ? { companyId: company.id } : {}),
+          }),
+        );
+        contactIds.push(contact instanceof ContactEmailTakenError ? contact.existing.id : contact.id);
       }
       if (raw.contactEmail?.trim() && !contactIds.length) {
         result.errors.push(`Row ${rowNo}: no valid email in "${raw.contactEmail}", contact not linked`);

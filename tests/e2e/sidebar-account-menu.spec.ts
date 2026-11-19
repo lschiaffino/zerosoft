@@ -54,3 +54,34 @@ test('en el teléfono el menú de la cuenta entra en el drawer', async ({ page }
   expect(menu!.x + menu!.width).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth)).toBeLessThanOrEqual(391);
 });
+
+test('colapsado, "+ Nuevo" abre al lado del riel sin correrlo de pantalla', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/en/app/notes', { waitUntil: 'load' });
+  await page.addStyleTag({ content: 'nextjs-portal { display: none; }' });
+  const frame = page.locator('.app-frame');
+  const newBtn = page.getByTestId('side-new');
+  await expect(newBtn).toBeVisible();
+  if (!(await frame.getAttribute('class'))?.includes('sidebar-collapsed')) await page.locator('.side-handle').click();
+  await expect(frame).toHaveClass(/sidebar-collapsed/);
+  await expect(newBtn).toHaveAttribute('aria-haspopup', 'menu');
+  await newBtn.click();
+  const menu = page.locator('.side-new [role="menu"]');
+  await expect(menu.getByRole('menuitem').first()).toBeVisible();
+  // Antes el menú quedaba adentro del riel: lo recortaba y, al enfocar el primer
+  // ítem, el riel se corría de costado y el botón se iba de pantalla.
+  expect(await page.locator('.side').evaluate((el) => el.scrollLeft)).toBe(0);
+  const btn = (await newBtn.boundingBox())!;
+  const box = (await menu.boundingBox())!;
+  expect(btn.x).toBeGreaterThanOrEqual(0);
+  expect(box.x).toBeGreaterThanOrEqual(btn.x + btn.width);
+  expect(box.x + box.width).toBeLessThanOrEqual(1280);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(720);
+  // El ítem se ve entero, no recortado por el riel.
+  const item = (await menu.getByRole('menuitem').first().boundingBox())!;
+  expect(item.x).toBeGreaterThanOrEqual(box.x);
+  if (process.env.SHOT) await page.screenshot({ path: `${process.env.SHOT}/new-collapsed.png` });
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+});

@@ -26,6 +26,6 @@ export async function POST(req: NextRequest, props: Ctx) {
   if ('res' in ctx) return ctx.res;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
-  await dismissSuggestions(ctx.user.id, id, parsed.data.dismiss);
+  await dismissSuggestions(ctx.user.id, id, parsed.data.dismiss, isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId);
   return NextResponse.json({ suggestions: await listSuggestions(ctx.user.id, id, 30, new Date(), isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId) });
 }

@@ -3,7 +3,8 @@ import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } fr
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getContact, updateContact, deleteContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
+import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
+import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { apiScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
@@ -25,7 +26,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const params = await props.params;
   const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
-  const hidden = await apiGuardRecord(auth.user.id, 'contact', params.id, await apiScope(auth));
+  const scope = await apiScope(auth);
+  const hidden = await apiGuardRecord(auth.user.id, 'contact', params.id, scope);
   if (hidden) return hidden;
 
   const body: unknown = await req.json().catch(() => null);
@@ -37,8 +39,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fieldViewer = apiFieldViewer(auth);
   const fp = await guardRecordCustomWrite(fieldViewer, 'contact', params.id, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
-  const contact = await catchRef(updateContact(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
+  const contact = await catchContactWrite(updateContact(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, 'A referenced record does not exist.');
+  if (contact instanceof ContactEmailTakenError) return apiEmailTakenResponse(contact, scope);
   if (!contact) return apiError(404, 'not_found', 'Contact not found.');
   return NextResponse.json(cleanRow(redactRow(contact, await hiddenFieldsFor(fieldViewer, 'contacts'))));
 }

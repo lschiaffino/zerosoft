@@ -92,7 +92,11 @@
     "emailHint": "Si ya está en el workspace, la ficha queda enlazada a su cuenta.",
     "countryHint": "Define los feriados que no cuentan en sus licencias.",
     "onboarding": "Checklist de onboarding",
-    "noOnboarding": "Ninguna por ahora"
+    "noOnboarding": "Ninguna por ahora",
+    "outFilter": "Fuera hoy ({count})",
+    "outUntil": "Fuera hasta el {date}",
+    "outAm": "Fuera a la mañana",
+    "outPm": "Fuera a la tarde"
   },
   "profile": {
     "tabs": {
@@ -103,7 +107,8 @@
       "compensation": "Sueldo",
       "onboarding": "Onboarding",
       "notes": "Notas 1:1",
-      "history": "Historial"
+      "history": "Historial",
+      "hrnotes": "Notas"
     },
     "sections": "Secciones de la ficha",
     "job": "Trabajo",
@@ -604,7 +609,9 @@
     "survey_answered": "Esta encuesta ya tiene respuestas: el texto queda como está.",
     "stale_change": "Este valor cambió después del pedido. Revisalo y confirmá.",
     "work_email_locked": "Solo el owner o un HR admin marcado pueden cambiar este email de trabajo.",
-    "not_leaving": "Esta persona no está saliendo."
+    "not_leaving": "Esta persona no está saliendo.",
+    "note_required": "Escribí la nota primero.",
+    "note_too_long": "Una nota puede tener hasta 5.000 caracteres."
   },
   "home": {
     "inbox": "Te esperan",
@@ -731,5 +738,17 @@
     "delete_has_pay": "Esta ficha tiene historial de sueldos. Solo el owner o un HR admin la pueden borrar.",
     "linked_account_mismatch": "La cuenta enlazada de esta ficha no coincide con su email de trabajo. Confirmala primero en la ficha.",
     "auto": "Automático"
+  },
+  "hrNotes": {
+    "title": "Notas sobre {name}",
+    "privacy": "Las ven HR y sus managers. La persona no.",
+    "new": "Escribí una nota",
+    "add": "Agregar nota",
+    "empty": "Todavía no hay notas. Anotá acuerdos, charlas o lo que HR tenga que recordar.",
+    "someone": "Alguien que ya no está",
+    "edited": "editada",
+    "editLabel": "Editar nota",
+    "deleteTitle": "¿Borrar esta nota?",
+    "deleteBody": "Se borra para todos los que ven esta ficha."
   }
 }

@@ -134,8 +134,8 @@ export default async function ShopPage(props: Props) {
     }
     case 'products': {
       if (!id) {
-        const data = await listProducts(actor.ws, { q: sp.q, status: sp.status, limit: 200 });
-        return <ProductsList currency={currency} initial={data.items} total={data.total} q={sp.q ?? ''} status={sp.status ?? ''} />;
+        const data = await listProducts(actor.ws, { q: sp.q, status: sp.status, tag: sp.tag, vendor: sp.vendor, productType: sp.type, limit: 200 });
+        return <ProductsList currency={currency} initial={data.items} total={data.total} q={sp.q ?? ''} status={sp.status ?? ''} facets={{ tag: sp.tag ?? '', vendor: sp.vendor ?? '', type: sp.type ?? '' }} />;
       }
       if (sub) notFound();
       const [locations, collections] = await Promise.all([listLocations(actor.ws), listCollections(actor.ws)]);

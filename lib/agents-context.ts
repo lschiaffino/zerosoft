@@ -97,7 +97,7 @@ export async function visitorContextBlock(workspaceId: string, identity: AgentVi
     .prepare(
       `SELECT c.id, c.first_name, c.last_name, c.lifecycle_stage, c.job_title, c.city, c.country, co.name AS company
        FROM crm_contacts c LEFT JOIN crm_companies co ON co.id = c.company_id
-       WHERE c.user_id = ? AND lower(c.email) = ? ORDER BY c.created_at ASC LIMIT 1`,
+       WHERE c.user_id = ? AND lower(trim(c.email)) = lower(trim(?)) ORDER BY c.created_at ASC, c.id ASC LIMIT 1`,
     )
     .get(workspaceId, email)) as
     | { id: string; first_name: string; last_name: string; lifecycle_stage: string; job_title: string; city: string; country: string; company: string | null }

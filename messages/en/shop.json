@@ -163,7 +163,14 @@
     "bulkDelete": "Delete",
     "bulkApply": "Apply",
     "bulkDeleteTitle": "Delete {n} products?",
-    "bulkDeleteBody": "Their variants and stock go too. Past orders keep their lines. It can’t be undone."
+    "bulkDeleteBody": "Their variants and stock go too. Past orders keep their lines. It can’t be undone.",
+    "activeFilters": "Active filters",
+    "removeFilter": "Remove filter {kind}: {value}",
+    "facet": {
+      "tag": "Tag",
+      "vendor": "Vendor",
+      "type": "Type"
+    }
   },
   "editor": {
     "title": "Title",

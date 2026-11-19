@@ -264,6 +264,23 @@
       "companies": "Empresas",
       "mergeConfirmTitle": "Mesclar contatos"
     },
+    "emailTaken": {
+      "exists": "Já existe um contato com este email: {name}.",
+      "open": "Abrir",
+      "hidden": "Já existe um contato com este email. Ele é de outra pessoa da equipe, então você não pode abri-lo. Peça a um admin do workspace."
+    },
+    "dupes": {
+      "title": "Contatos duplicados",
+      "description": "Contatos que compartilham um email. Escolha qual fica e mescle os demais nele.",
+      "find": "Buscar duplicados",
+      "none": "Não há contatos que compartilhem um email.",
+      "keepLabel": "Contato que fica",
+      "keep": "Fica",
+      "merge": "{count, plural, one {Mesclar # contato no que fica} other {Mesclar # contatos no que fica}}",
+      "confirm": "{count, plural, one {Mesclar # contato em {keep}?} other {Mesclar # contatos em {keep}?}} Os deals, atividades, emails e listas passam para {keep}, e os campos vazios dele são preenchidos. Não dá para desfazer.",
+      "merged": "{count, plural, one {# contato mesclado} other {# contatos mesclados}}",
+      "note": "Mesclar não pode ser desfeito. O contato que fica recebe os deals, atividades, emails e listas dos outros, e os campos vazios dele são preenchidos com os deles."
+    },
     "form": {
       "firstName": "Nome",
       "lastName": "Sobrenome",
@@ -1195,6 +1212,8 @@
     "invalid_currency": "Use um código de moeda de 3 letras (por exemplo EUR) diferente da moeda base.",
     "invalid_rate": "A taxa precisa ser um número maior que zero.",
     "trash_conflict": "Já existe um registro com este id, então não é possível restaurar.",
+    "trash_email_taken": "Outro contato usa este email agora, então este não pode ser restaurado. Mude o email desse contato ou exclua-o, e depois restaure.",
+    "contact_email_taken": "Já existe um contato com este email.",
     "file_too_large": "O arquivo tem mais de 10 MB.",
     "file_type_not_allowed": "Esse tipo de arquivo não pode ser anexado.",
     "storage_unavailable": "Este servidor não tem onde guardar arquivos.",
@@ -1753,7 +1772,7 @@
       "successMessage": "Mensagem de agradecimento",
       "crm": "No CRM",
       "crmDesc": "O que acontece com o contato em cada envio.",
-      "dedupe": "Atualizar o contato existente quando o email coincidir",
+      "dedupe": "Atualizar o contato existente quando o email coincidir. Desativado: o envio é salvo e esse contato fica como está",
       "ownerAuto": "Round-robin ou dono do workspace",
       "list": "Adicionar à lista",
       "sequence": "Inscrever na sequência",
@@ -2280,15 +2299,12 @@
     },
     "connectTitle": "Conectar {provider}",
     "howto": {
-      "hs1": "No HubSpot, abra Configurações › Integrações › Apps privados e crie um app privado.",
-      "hs2": "Na aba Escopos, adicione os escopos de leitura abaixo. Nada é escrito no HubSpot.",
-      "hs3": "Crie o app e copie o token de acesso.",
       "pd1": "No Pipedrive, abra seu avatar › Preferências pessoais › API.",
       "pd2": "Copie seu token pessoal de API. Use uma conta admin para trazer os registros de todas as pessoas."
     },
     "scopes": "Escopos",
     "scopesNote": "sales-email-read só é necessário para os emails registrados. Sem ele, os emails são pulados.",
-    "tokenLabelHubspot": "Token de acesso",
+    "tokenLabelHubspot": "Service key ou token do private app",
     "tokenLabelPipedrive": "Token de API",
     "tokenHelp": "O token fica criptografado enquanto o import roda e é apagado quando termina ou você cancela.",
     "back": "Voltar",
@@ -2305,7 +2321,7 @@
       "lists": "Listas"
     },
     "unknownCount": "Tudo",
-    "unavailable": "O token não consegue ler {phases}. Isso é pulado.",
+    "unavailable": "Esta chave não consegue ler {phases}. Isso é pulado.",
     "dedupeNote": "Contatos são comparados por email e empresas por domínio. Se já existem, os campos vazios são preenchidos em vez de duplicar.",
     "previouslyImported": "{count, number} registros já vieram desta conta antes. Eles são atualizados, não duplicados.",
     "noSample": "Nada aqui.",
@@ -2383,7 +2399,7 @@
     "rerun": "Importar de novo",
     "errors": {
       "invalid_token": "Esse token não funcionou. Copie de novo e confira se é da conta certa.",
-      "missing_scope": "Falta um escopo de leitura no token. Adicione os escopos da lista e tente de novo.",
+      "missing_scope": "Falta uma permissão de leitura na chave. Adicione as permissões da lista e tente de novo.",
       "provider_error": "Não conseguimos falar com o provedor. Tente de novo em um minuto.",
       "import_running": "Já tem um import rodando neste workspace.",
       "rate_limited": "Tentativas demais. Tente de novo em uma hora.",
@@ -2402,7 +2418,8 @@
     "locallyEdited": "{count, plural, one {# registro que veio da {provider} foi editado no zerosoft} other {# registros que vieram da {provider} foram editados no zerosoft}} depois da última importação. Não são sobrescritos: só os campos vazios são preenchidos.",
     "overwriteLocal": "Substituir pelo que está na {provider} (sobrescreve as mudanças feitas no zerosoft)",
     "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
-    "openContacts": "Ver contatos"
+    "openContacts": "Ver contatos",
+    "connectedNote": "Confira se é a conta de onde você quer importar."
   },
   "ai": {
     "updatedAt": "Atualizado {when}",

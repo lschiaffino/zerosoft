@@ -6,6 +6,7 @@ import { DomainPrefillNote, siteExtras, useDomainPrefill } from './DomainPrefill
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
+import { EmailTakenText, emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
 import { LIFECYCLE_STAGES } from '@/lib/crm-constants';
 
 export type QuickCreateKind = 'contact' | 'company' | 'deal';
@@ -134,6 +135,8 @@ function QuickCreateForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createMore, setCreateMore] = useState(false);
+  /** Ya hay un contacto con ese email (undefined = sin aviso). */
+  const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
   const [createdNote, setCreatedNote] = useState<{ id: string; name: string } | null>(null);
 
   // Contacto
@@ -229,6 +232,7 @@ function QuickCreateForm({
     if (!canSubmit || busy) return;
     setBusy(true);
     setError(null);
+    setTaken(undefined);
     let url = '';
     let body: Record<string, unknown> = {};
     if (kind === 'contact') {
@@ -295,6 +299,12 @@ function QuickCreateForm({
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
+    // Ya hay un contacto con ese email: el aviso lo nombra y lo enlaza (si esta persona lo ve).
+    const existing = emailTakenFrom(data);
+    if (existing !== undefined) {
+      setTaken(existing);
+      return;
+    }
     setError(t(KNOWN_ERRORS.has(code) ? `errors.${code}` : 'errors.generic'));
   }
 
@@ -316,7 +326,7 @@ function QuickCreateForm({
       cancelLabel={t('common.cancel')}
       submitDisabled={!canSubmit}
       busy={busy}
-      error={error}
+      error={taken !== undefined ? <EmailTakenText existing={taken} onOpen={onClose} /> : error}
       hint={t('quick.hint')}
       footExtra={
         <>
