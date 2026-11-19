@@ -98,6 +98,11 @@ function useStepLabel() {
         if (out.error === 'nothing_to_do') return t('step.foldersNothing');
         return state === 'ok' ? t('step.foldersOk', { summary }) : t('step.foldersFailed');
       }
+      if (part.tool === 'request_feature' || part.tool === 'report_problem') {
+        if (state === 'running') return t('step.recording');
+        const title = String(input.title ?? '').slice(0, 120);
+        return failed(t(part.tool === 'request_feature' ? 'step.featureRecorded' : 'step.problemReported', { title }));
+      }
       if (part.tool.startsWith('propose_')) {
         if (state === 'running') return t('step.proposeRunning');
         return state === 'ok' && summary ? t('step.proposeOk', { summary }) : t('step.proposeFailed');
@@ -339,6 +344,25 @@ export function UserText({ text }: { text: string }) {
           {open ? t('message.showLess') : t('message.showAll')}
         </button>
       )}
+    </>
+  );
+}
+
+/**
+ * Aviso chico debajo de la respuesta cuando el asistente anotó un pedido o un
+ * problema para el equipo (el paso queda plegado en la actividad).
+ */
+export function RequestNotes({ parts }: { parts: StepPart[] }) {
+  const t = useTranslations('assistant');
+  const done = parts.filter((p): p is ToolPart => p.type === 'tool' && !p.running && Boolean(p.ok) && (p.tool === 'request_feature' || p.tool === 'report_problem'));
+  if (!done.length) return null;
+  return (
+    <>
+      {done.map((p) => (
+        <p key={p.callId} className="asst-notice muted" role="status" data-testid="assistant-request-recorded" data-kind={p.tool === 'request_feature' ? 'feature' : 'problem'}>
+          {t(p.tool === 'request_feature' ? 'requestNote.feature' : 'requestNote.problem', { title: String((p.input as Record<string, unknown> | undefined)?.title ?? '').slice(0, 120) })}
+        </p>
+      ))}
     </>
   );
 }

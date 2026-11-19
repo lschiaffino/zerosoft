@@ -15,7 +15,7 @@ import {
   type StoredMessage,
 } from './client';
 import { MessageAttachments, PendingTray, useAttachments } from './Attachments';
-import { Activity, AssistantMarkdown, UserText, type StepPart } from './Parts';
+import { Activity, AssistantMarkdown, RequestNotes, UserText, type StepPart } from './Parts';
 import { CollapsedRows } from './Rows';
 import { HoldScrollContext, useFollow } from './useFollow';
 
@@ -492,6 +492,7 @@ export default function AssistantChat({
                   </p>
                 )}
                 {m.content && (m.role === 'user' ? <UserText text={m.content} /> : <AssistantMarkdown text={m.content} streaming={Boolean(m.streaming)} />)}
+                {m.role === 'assistant' && <RequestNotes parts={steps} />}
                 {actions.map((p) => (
                   <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} onGranted={() => setContinueQueued(t('consentCard.continue'))} />
                 ))}

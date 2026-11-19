@@ -35,6 +35,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   if (done) {
     const out = (done.output ?? {}) as Record<string, unknown>;
     if (done.tool === 'propose_folders_from_json') return foldersReply(out);
+    if (done.tool === 'request_feature') return featureReply(out, asked);
     if (done.tool === 'inbox_folders') {
       const rows = (out.folders as Array<{ path: string; chats: number }>) ?? [];
       if (!rows.length) return { text: 'You have no Inbox folders yet.' };
@@ -113,6 +114,16 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     };
   }
   if (/^(?:summari[sz]e|list|show) my inbox folders/i.test(last)) return { reasoning: 'Read the Inbox folders and count the chats in each.', tool: 'inbox_folders', input: {} };
+  const wish = FEATURE_ASK.exec(last);
+  if (wish) {
+    const need = last.slice(wish[0].length).trim() || last;
+    const app = PRODUCT_WORDS.find((w) => new RegExp(`\\b${w}\\b`, 'i').test(last)) ?? 'other';
+    return {
+      reasoning: 'The product cannot do this yet. Record the request for the team and say so.',
+      tool: 'request_feature',
+      input: { title: `Request: ${need.replace(/\s+/g, ' ').slice(0, 100)}`, details: last, app },
+    };
+  }
   const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
   // Adjuntos: el último de la charla, de la línea de las instrucciones.
   const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}) \(/g)].map((m) => m[1]);
@@ -174,6 +185,22 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   const find = /^(?:find|search) (.+)$/i.exec(last);
   if (find) return { tool: 'search_workspace', input: { query: find[1] } };
   return { text: `I can look things up and prepare changes for you to confirm. Apps here: ${can.join(', ') || 'none'}.` };
+}
+
+/** Pedidos de algo que el producto no hace: "quiero que…", "I want…", "eu quero…". */
+const FEATURE_ASK = /^(?:quiero que|quisiera que|me gustar[ií]a que|i want(?: to be able)?(?: to)?|i would like|i'd like|can you add|please add|eu quero que|gostaria que)\b/i;
+const PRODUCT_WORDS = ['inbox', 'crm', 'track', 'docs', 'cal', 'flow', 'lines', 'notes', 'board'];
+
+/** Después de anotar el pedido: una frase, en el idioma de la persona, sin prometer fechas. */
+function featureReply(out: Record<string, unknown>, asked: string): FakeStep {
+  const lang: Lang = /\b(quiero|quisiera|gustar[ií]a|pueda|desde)\b/i.test(asked) ? 'es' : /\b(quero|gostaria|você)\b/i.test(asked) ? 'pt' : langOf(asked);
+  if (out.error) return { text: lang === 'es' ? 'No pude anotar el pedido ahora.' : lang === 'pt' ? 'Não consegui registrar o pedido agora.' : 'I could not record the request right now.' };
+  const text = {
+    es: 'Eso todavía no se puede hacer acá. Anoté tu pedido para el equipo y lo van a considerar.',
+    pt: 'Isso ainda não dá para fazer aqui. Registrei seu pedido para a equipe e ele vai ser considerado.',
+    en: 'That is not possible here yet. I recorded your request for the team and it will be considered.',
+  }[lang];
+  return { text };
 }
 
 /** Respuesta al plan de carpetas: una tabla con lo que se crea y lo que no encontró. */

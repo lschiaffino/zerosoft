@@ -118,6 +118,7 @@ export function RoadmapAdminRow({
         <span className={`badge ${item.is_public === 1 ? 'badge-outline' : ''}`}>
           {item.is_public === 1 ? t('admin.public') : t('admin.private')}
         </span>
+        {Number(item.priority ?? 0) === 1 && <span className="badge">{t('admin.priority')}</span>}
         <span className="data st-muted"><LocalText>{formatDateTime(item.created_at, locale)}</LocalText></span>
       </div>
 

@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isAdminEmail } from '@/lib/feedback';
 import { listRoadmapItemsAdmin, ROADMAP_STATUSES, type RoadmapStatus } from '@/lib/roadmap';
+import { listAssistantRequestItems } from '@/lib/feature-requests';
 import RoadmapAdminList from '@/components/app/RoadmapAdminList';
 import RoadmapKanban from '@/components/app/RoadmapKanban';
 import AdminNav, { LinkGroup } from '@/components/app/AdminNav';
@@ -19,25 +20,31 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 }
 
 /**
- * Roadmap (ítems del board, el feedback y los chats de soporte). Kanban con
- * drag and drop por defecto; ?view=list es la lista con filtros por estado.
+ * Roadmap (ítems del board, el feedback, los chats de soporte y los pedidos
+ * que anota el asistente). Kanban con drag and drop por defecto; ?view=list
+ * es la lista con filtros por estado o por origen (?source=assistant, con los
+ * prioritarios primero) y ?item=<id> abre ese ítem (el link de los issues).
  * Solo ADMIN_EMAILS; para el resto es un 404.
  */
 export default async function RoadmapAdminPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string; view?: string }>;
+  searchParams: Promise<{ status?: string; view?: string; source?: string; item?: string }>;
 }) {
   const { locale } = await props.params;
-  const { status, view } = await props.searchParams;
+  const { status, view, source, item } = await props.searchParams;
   const user = await requireUser(locale);
   if (!isAdminEmail(user.actingUser?.email ?? user.email)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'roadmap.admin' });
   const ts = await getTranslations({ locale, namespace: 'settings.admin' });
-  const isList = view === 'list';
+  const isList = view === 'list' || Boolean(item);
   const filter = isList && ROADMAP_STATUSES.includes(status as RoadmapStatus) ? (status as RoadmapStatus) : undefined;
+  const fromAssistant = isList && source === 'assistant';
   const all = await listRoadmapItemsAdmin();
-  const items = filter ? all.filter((i) => i.status === filter) : all;
+  const assistantOrder = fromAssistant ? new Map((await listAssistantRequestItems()).map((i, n) => [i.id, n])) : null;
+  const items = all
+    .filter((i) => (!filter || i.status === filter) && (!assistantOrder || assistantOrder.has(i.id)))
+    .sort((a, b) => (assistantOrder ? assistantOrder.get(a.id)! - assistantOrder.get(b.id)! : 0));
   const targets = all.map((i) => ({ id: i.id, title: i.title }));
 
   return (
@@ -66,12 +73,13 @@ export default async function RoadmapAdminPage(props: {
         <LinkGroup
           label={ts('filter')}
           items={[
-            { key: 'all', href: '/app/settings/roadmap?view=list', label: t('all'), active: !filter },
+            { key: 'all', href: '/app/settings/roadmap?view=list', label: t('all'), active: !filter && !fromAssistant },
+            { key: 'assistant', href: '/app/settings/roadmap?view=list&source=assistant', label: t('fromAssistant'), active: fromAssistant },
             ...ROADMAP_STATUSES.map((s) => ({
               key: s,
               href: `/app/settings/roadmap?view=list&status=${s}`,
               label: t(`status.${s}`),
-              active: filter === s,
+              active: filter === s && !fromAssistant,
             })),
           ]}
         />
@@ -80,7 +88,7 @@ export default async function RoadmapAdminPage(props: {
       {!isList ? (
         <RoadmapKanban initial={all} locale={locale} />
       ) : items.length === 0 ? (
-        filter ? (
+        filter || fromAssistant ? (
           <EmptyState
             title={ts('roadmapEmptyFiltered')}
             action={<Link href="/app/settings/roadmap?view=list" className="btn btn-secondary">{ts('showAll')}</Link>}
@@ -93,7 +101,7 @@ export default async function RoadmapAdminPage(props: {
           />
         )
       ) : (
-        <RoadmapAdminList initial={items} targets={targets} locale={locale} />
+        <RoadmapAdminList initial={items} targets={targets} locale={locale} openId={item ?? null} />
       )}
     </div>
   );
