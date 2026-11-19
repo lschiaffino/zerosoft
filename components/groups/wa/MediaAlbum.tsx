@@ -6,7 +6,7 @@ import { albumLayout } from '@/lib/wa-albums';
 import { duration, posterFrame } from './format';
 import { CameraIcon, Chevron, Play } from './icons';
 import { longPress } from './longPress';
-import { MessageMenu, type MenuItem } from './Menu';
+import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from './Menu';
 
 /** Una foto o video del álbum, con las acciones de su propio mensaje. */
 export interface AlbumTile {
@@ -54,7 +54,7 @@ export default function MediaAlbum({
     <div className={`wa-album is-${shape}`} role="group" aria-label={t('album', { n: tiles.length })} data-count={tiles.length}>
       {tiles.slice(0, shown).map((tile, i) => {
         const cover = more > 0 && i === shown - 1;
-        const openMenu = (el: HTMLElement) => el.querySelector<HTMLButtonElement>('.wa-album-chevron')?.click();
+        const openMenu = (el: HTMLElement, at?: { x: number; y: number }) => openMenuAt(el.querySelector<HTMLButtonElement>('.wa-album-chevron'), at);
         const hold = longPress((el) => (onHold ? onHold(tile.id, el) : openMenu(el)));
         return (
           <div
@@ -67,7 +67,7 @@ export default function MediaAlbum({
               e.stopPropagation();
               if (selecting || !tile.menu.length) return;
               e.preventDefault();
-              openMenu(e.currentTarget);
+              openMenu(e.currentTarget, pointerOf(e));
             }}
             {...hold}
             onPointerDown={(e) => {
