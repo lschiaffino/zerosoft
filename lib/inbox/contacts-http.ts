@@ -11,5 +11,5 @@ export async function inboxHubspotScope(): Promise<InboxHubspotScope | null> {
   if (!user || user.role === 'guest') return null;
   const me = user.actingUser?.id ?? user.id;
   const viewer = await groupsViewer(user.id, me, user.role);
-  return { ws: user.id, me, mask: viewer.mask };
+  return { ws: user.id, me, mask: viewer.mask, lines: viewer };
 }

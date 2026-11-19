@@ -1373,7 +1373,8 @@
     "chat": "From the chat {chat}.",
     "open": "Open the chat",
     "why": "You get this email because the task is yours in Lines.",
-    "notification": "Reminder: {title}"
+    "notification": "Reminder: {title}",
+    "defaultTitle": "Task from a message"
   },
   "access": {
     "adminsOnly": "Only workspace admins can change this.",

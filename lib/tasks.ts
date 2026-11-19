@@ -411,6 +411,22 @@ export async function taskLinksFor(
   return out;
 }
 
+/**
+ * Vínculos para la API pública: sin los de chats de Lines que la persona de la key no ve (ni el id del chat o
+ * del mensaje, ni el link). Dueño y admins: todos.
+ */
+export async function taskLinksForKey(auth: { user: { id: string }; personId: string; role: import('./teams').TeamRole }, taskIds: string[]): Promise<Map<string, TaskLink[]>> {
+  const all = await taskLinks(auth.user.id, taskIds);
+  if (![...all.values()].some((ls) => ls.some((l) => LINK_APP[l.kind] === 'groups'))) return all;
+  const { groupsViewer, visibleChatIds } = await import('./groups-access');
+  const chats = await visibleChatIds(await groupsViewer(auth.user.id, auth.personId, auth.role));
+  if (!chats) return all;
+  const out = new Map<string, TaskLink[]>();
+  // Un vínculo de Lines sin chat (el mensaje ya no está) tampoco sale: no se puede saber de qué chat era.
+  for (const [id, ls] of all) out.set(id, ls.filter((l) => LINK_APP[l.kind] !== 'groups' || (l.chatId !== undefined && chats.has(l.chatId))));
+  return out;
+}
+
 /** Suma a las tareas de un timeline de dónde vienen (el chat de WhatsApp, la página, el issue). */
 export async function withTaskSources<T extends { id: string; type?: string; external?: boolean }>(
   user: Parameters<typeof taskLinksFor>[0],

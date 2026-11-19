@@ -44,8 +44,8 @@ export async function GET(req: NextRequest) {
   const { page, pageSize } = pageParams(sp);
   const start = (page - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
-  const { taskLinks } = await import('@/lib/tasks');
-  const links = await taskLinks(auth.user.id, pageRows.map((r) => r.id));
+  const { taskLinksForKey } = await import('@/lib/tasks');
+  const links = await taskLinksForKey(auth, pageRows.map((r) => r.id));
   return NextResponse.json({
     tasks: pageRows.map((r) => ({ ...cleanRow(r), links: apiLinks(links.get(r.id)) })),
     total: rows.length,
@@ -65,14 +65,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { links: wanted, ...data } = parsed.data;
-  const { linkTargetExists, linkTask, taskLinks } = await import('@/lib/tasks');
+  const { linkTargetExists, linkTask, taskLinksForKey } = await import('@/lib/tasks');
   for (const l of wanted ?? []) {
     if (!(await linkTargetExists(auth.user.id, l.kind, l.id, { personId: auth.personId, role: auth.role }))) return apiError(400, 'invalid_link', 'A linked record does not exist.');
   }
   const task = await catchRef(createActivity(auth.user.id, { ...data, type: 'task' }));
   if (task instanceof CrmRefError) return apiError(400, task.code, 'A referenced record does not exist.');
   for (const l of wanted ?? []) await linkTask(auth.user.id, task.id, l.kind, l.id, auth.personId);
-  const links = await taskLinks(auth.user.id, [task.id]);
+  const links = await taskLinksForKey(auth, [task.id]);
   return NextResponse.json({ ...cleanRow(task), links: apiLinks(links.get(task.id)) }, { status: 201 });
 }
 

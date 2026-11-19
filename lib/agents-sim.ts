@@ -10,6 +10,7 @@
  * Server-only.
  */
 import { chatConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSqlFor } from './groups-access';
 import { z } from 'zod';
 import { getDb } from './db';
 import type { AgentConversationRow, AgentRow } from './db';
@@ -128,7 +129,11 @@ export interface ReplayCandidateDto {
 /** Conversaciones reales recientes (sin el playground) con al menos un mensaje del visitante. */
 export async function listReplayCandidates(workspaceId: string, agentId: string, limit = 10, viewerId?: string): Promise<ReplayCandidateDto[]> {
   // El título es el primer mensaje del visitante: sin acceso a la bandeja, no se lista.
-  const visible = viewerId ? chatConversationVisibleSql('c.chat_conversation_id', viewerId) : null;
+  const chatVisible = viewerId ? chatConversationVisibleSql('c.chat_conversation_id', viewerId) : null;
+  // Las que vienen de un chat de Lines: solo si la persona ve ese chat.
+  const linesVisible = viewerId ? await linesAgentConversationSqlFor(workspaceId, viewerId, 'c.id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
+  const visible = parts.length ? { sql: parts.map((x) => x.sql).join(' AND '), args: parts.flatMap((x) => x.args) } : null;
   const rows = (await getDb()
     .prepare(
       `SELECT c.id, c.title, c.channel, c.updated_at FROM agent_conversations c

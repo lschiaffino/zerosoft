@@ -33,14 +33,15 @@ async function channelsFor(ctx: Exclude<Awaited<ReturnType<typeof agentRouteCont
   if (groupsAccess) {
     const { getSettings } = await import('@/lib/groups');
     const settings = await getSettings(user.id);
-    const numbers = (await db.prepare('SELECT COUNT(*) AS c FROM groups_numbers WHERE user_id = ?').get(user.id)) as { c: number };
-    const chats = (await db.prepare('SELECT COUNT(*) AS c FROM groups_chats WHERE user_id = ? AND agent_id = ?').get(user.id, row.id)) as { c: number };
+    // Solo las líneas y los chats que esta persona ve en Lines (dueño y admins: todos).
+    const { agentLinesCounts, groupsViewer } = await import('@/lib/groups-access');
+    const counts = await agentLinesCounts(await groupsViewer(user.id, ctx.personId, user.role), row.id);
     whatsapp = {
       groupsAccess,
-      numbers: Number(numbers.c),
+      numbers: counts.numbers,
       isDefault: settings.defaultAgentId === row.id,
       otherDefault: Boolean(settings.defaultAgentId && settings.defaultAgentId !== row.id),
-      assignedChats: Number(chats.c),
+      assignedChats: counts.assignedChats,
     };
   }
   const { voiceNumbersFor } = await import('@/lib/agents-voice');

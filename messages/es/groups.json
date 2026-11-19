@@ -1373,7 +1373,8 @@
     "chat": "Del chat {chat}.",
     "open": "Abrir el chat",
     "why": "Te llega este email porque la tarea es tuya en Lines.",
-    "notification": "Recordatorio: {title}"
+    "notification": "Recordatorio: {title}",
+    "defaultTitle": "Tarea de un mensaje"
   },
   "access": {
     "adminsOnly": "Solo los admins del workspace pueden cambiar esto.",

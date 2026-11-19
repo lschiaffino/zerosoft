@@ -224,6 +224,8 @@ export function explicitPairsInsert(app: WaApp, run: string, scope: string, pair
  */
 export interface MergeOptions {
   mediaFiles?: boolean;
+  /** Pasar también groups_agent_conversations al chat que queda. Lo pide la corrida normal, como mediaFiles. */
+  agentLinks?: boolean;
 }
 
 /**
@@ -376,7 +378,8 @@ export function mergeStatements(app: WaApp, run: string, opts: MergeOptions = {}
       args: [],
     });
     stmts.push({ sql: `INSERT OR IGNORE INTO groups_chat_labels (chat_id, label_id) SELECT ${S('x.chat_id')}, x.label_id FROM groups_chat_labels x WHERE x.chat_id IN ${P}`, args: [] });
-    for (const table of ['groups_tickets', 'groups_tasks', 'groups_audit', 'groups_notifications', 'groups_import_chats']) {
+    // agentLinks: de qué chat nació cada conversación de Agents (la tabla es posterior a las migraciones que corren esta limpieza).
+    for (const table of ['groups_tickets', 'groups_tasks', 'groups_audit', 'groups_notifications', 'groups_import_chats', ...(opts.agentLinks ? ['groups_agent_conversations'] : [])]) {
       stmts.push({ sql: `UPDATE ${table} SET chat_id = ${S(`${table}.chat_id`)} WHERE chat_id IN ${P}`, args: [] });
     }
     // Con clave por chat: si el sobreviviente ya tiene la suya, queda la suya (la del perdedor se va con él).
