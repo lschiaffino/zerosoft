@@ -5,7 +5,7 @@ import { dayPart, getWorkspaceMode, homeCanUse } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
 import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
-import { isStaff, loadWorkspaceAppRules } from '@/lib/workspace-apps';
+import { isStaff, loadWorkspaceAppRules, loadWorkspaceFeaturedApps } from '@/lib/workspace-apps';
 import { appDenial } from '@/lib/app-access';
 import { worksOffline } from '@/lib/offline-apps';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -50,8 +50,10 @@ export default async function PlatformHomePage(props: {
   const ready = (k: ProductKey) => homeCanUse(user, k) && !isComingSoon(k);
   // Las que la persona eligió al empezar (o las del modo) primero, después el resto en el orden del menú.
   const chosen = chosenApps(person.profile);
-  const featured = featuredApps({ mode, chosen }).filter(ready);
-  const rest = moreAppsByCategory({ mode, chosen }).flatMap((g) => g.apps).filter(ready);
+  // Sin elección propia, primero las que destacó el workspace (Ajustes › Apps del workspace).
+  const workspace = await loadWorkspaceFeaturedApps(user.id).catch(() => []);
+  const featured = featuredApps({ mode, chosen, workspace }).filter(ready);
+  const rest = moreAppsByCategory({ mode, chosen, workspace }).flatMap((g) => g.apps).filter(ready);
   const apps = [...new Set([...featured, ...rest])];
   // Inbox es personal (la tiene todo el mundo): no cuenta como acceso al workspace.
   const workspaceApps = apps.filter((k) => k !== 'inbox');

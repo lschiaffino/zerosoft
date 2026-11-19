@@ -1500,7 +1500,11 @@
   },
   "appsPanel": {
     "title": "Workspace apps",
-    "desc": "Turn each app on or off for the workspace, choose who gets it (everyone, teams or people) and override it per person. Turning one off removes it everywhere for everyone; what's inside is kept.",
+    "desc": "Turn each app on or off for the workspace, choose who gets it (everyone, teams or people) and override it per person. Turning one off removes it everywhere for everyone; what's inside is kept. Star the apps your team uses most: they go at the top of the apps menu.",
+    "feature": "Feature {name}",
+    "unfeature": "Stop featuring {name}",
+    "alwaysOn": "Always on for everyone.",
+    "featuredNote": "Featured: with at least one, the apps menu shows those at the top and keeps the rest under \"Other apps\". With none, it shows every app by category.",
     "readOnly": "Only the owner and admins can change this.",
     "modes": {
       "all": "Everyone",
