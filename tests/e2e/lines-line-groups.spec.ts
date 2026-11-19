@@ -72,9 +72,10 @@ async function lineWithChat(request: APIRequestContext, name: string, contact: s
  * o justo cuando el scroll trae el botón a la vista: se repite hasta que abre.
  */
 async function openMenu(trigger: Locator, menu: Locator) {
-  await trigger.scrollIntoViewIfNeeded();
+  // Todo adentro del reintento: al cargar, la bandeja vuelve a montar su selector (pasa a la barra de arriba)
+  // y el botón que se estaba por tocar deja de existir.
   await expect(async () => {
-    if (!(await menu.isVisible())) await trigger.click();
+    if (!(await menu.isVisible())) await trigger.click({ timeout: 5_000 });
     await expect(menu).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
 }
@@ -185,6 +186,7 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     const mp = await ana.ctx.newPage();
     await mp.goto('/en/app/lines/inbox', { waitUntil: 'domcontentloaded' });
     await expect(mp.getByTestId('lines-line-select').first()).toBeVisible();
+    await expect(mp.getByTestId('chat-row').first()).toBeVisible();
     const menu = mp.getByRole('listbox', { name: 'Line' });
     await openMenu(mp.getByTestId('lines-line-select'), menu);
     await expect(menu.getByRole('option', { name: `Ventas ${tag}`, exact: false }).first()).toBeVisible();
@@ -239,6 +241,7 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     // Sin esperar a que la red quede quieta: la bandeja abierta sigue pidiendo (eventos en vivo, sondeos).
     await mp.goto('/en/app/lines/inbox', { waitUntil: 'domcontentloaded' });
     await expect(mp.getByTestId('lines-line-select').first()).toBeVisible();
+    await expect(mp.getByTestId('chat-row').first()).toBeVisible();
     expect(await overflow(mp)).toBeLessThanOrEqual(0);
     await openMenu(mp.getByTestId('lines-line-select').first(), menu);
     const box = (await menu.boundingBox())!;
