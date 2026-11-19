@@ -1424,7 +1424,7 @@
       },
       "filters": {
         "title": "Filter the list",
-        "body": "Tabs show everything, only WhatsApp, only email, groups or unread."
+        "body": "Choose what the list shows: everything, only WhatsApp, only email, groups or unread."
       },
       "search": {
         "title": "Search",

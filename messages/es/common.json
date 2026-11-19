@@ -1424,7 +1424,7 @@
       },
       "filters": {
         "title": "Filtrá la lista",
-        "body": "Las pestañas muestran todo, solo WhatsApp, solo correo, grupos o no leídos."
+        "body": "Elegí qué muestra la lista: todo, solo WhatsApp, solo correo, grupos o no leídos."
       },
       "search": {
         "title": "Buscá",

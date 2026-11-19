@@ -1333,7 +1333,7 @@ export default function InboxApp(props: {
             </button>
           </div>
           {!(view === 'removed' && !folder) && (
-            <div className="ib-search" data-tour="inbox-search">
+            <div className="ib-search" data-tour={noAccounts ? undefined : 'inbox-search'}>
               <label className="sr-only" htmlFor="ib-search">
                 {t('list.search')}
               </label>
@@ -1363,7 +1363,7 @@ export default function InboxApp(props: {
             </div>
           )}
           {tabView && !q && (
-            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour="inbox-filters">
+            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
               {TABS.map((v) => (
                 <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
                   {t(`tabs.${v}`)}
@@ -1371,7 +1371,8 @@ export default function InboxApp(props: {
               ))}
             </nav>
           )}
-          <div className="ib-mobile-views">
+          {/* En el teléfono las pestañas son esta lista: el paso de filtros del tour la señala. */}
+          <div className="ib-mobile-views" data-tour={noAccounts ? undefined : 'inbox-filters'}>
             <label className="sr-only" htmlFor="ib-view-select">
               {t('list.goTo')}
             </label>

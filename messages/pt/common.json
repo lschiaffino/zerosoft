@@ -1424,7 +1424,7 @@
       },
       "filters": {
         "title": "Filtre a lista",
-        "body": "As abas mostram tudo, só WhatsApp, só e-mail, grupos ou não lidos."
+        "body": "Escolha o que a lista mostra: tudo, só WhatsApp, só e-mail, grupos ou não lidos."
       },
       "search": {
         "title": "Busque",

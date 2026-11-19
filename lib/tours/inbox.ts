@@ -7,8 +7,8 @@ import type { TourDef } from './index';
  * Anclajes `data-tour`:
  *   inbox-connect    components/inbox/InboxApp.tsx (bandeja sin cuentas)
  *   inbox-chat-list  components/inbox/InboxApp.tsx (la lista)
- *   inbox-filters    components/inbox/InboxApp.tsx (pestañas de filtro)
- *   inbox-search     components/inbox/InboxApp.tsx (buscador)
+ *   inbox-filters    components/inbox/InboxApp.tsx (pestañas de filtro; en el teléfono, la lista de vistas)
+ *   inbox-search     components/inbox/InboxApp.tsx (buscador; los dos, solo con una cuenta conectada)
  *   inbox-chat-row   components/inbox/InboxApp.tsx (cada fila; gana la primera)
  *   inbox-composer   components/inbox/wa/WaComposer.tsx y components/inbox/Composer.tsx (responder)
  *   inbox-triage     components/inbox/wa/WaConversation.tsx y components/inbox/Conversation.tsx (hecho, posponer…)
