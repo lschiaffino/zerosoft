@@ -46,7 +46,7 @@ export const PREVIEW_KEEP_MS = 2 * PREVIEW_TTL_MS;
 /** Prefijo de la clave de la caché: HMAC de la URL, nunca la URL (puede llevar tokens en la query). */
 const KEY_PREFIX = 'h1:';
 /** Versión del lector: las filas guardadas con una anterior se vuelven a leer (no tenían medidas ni ícono). */
-const PREVIEW_VERSION = 3;
+const PREVIEW_VERSION = 4;
 /** Una vista previa pobre (sin imagen ni descripción: solo el nombre del sitio) se vuelve a leer al día, no a la semana. */
 const WEAK_TTL_MS = 86_400_000;
 /** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB). */
@@ -185,9 +185,79 @@ async function readPreview(url: string, now: Date): Promise<PreviewRow> {
   return p;
 }
 
+/**
+ * El id de un video de YouTube (watch, youtu.be, shorts, live, embed), o '' si la URL no es de un video. YouTube le
+ * sirve a un servidor una página sin título ni imagen (pide consentimiento o comprobar que no es un robot), así que
+ * leer la página como cualquier otro link dejaba el mensaje sin tarjeta. Sus videos se leen por oEmbed.
+ */
+export function youtubeVideoId(raw: string): string {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return '';
+  }
+  const host = u.hostname.toLowerCase().replace(/^(www|m|music)\./, '');
+  let id = '';
+  if (host === 'youtu.be') id = u.pathname.split('/')[1] ?? '';
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'watch') id = u.searchParams.get('v') ?? '';
+    else if (parts[0] === 'shorts' || parts[0] === 'live' || parts[0] === 'embed') id = parts[1] ?? '';
+  }
+  return /^[A-Za-z0-9_-]{6,20}$/.test(id) ? id : '';
+}
+
+/** Miniaturas de un video de YouTube, de la más grande a la que siempre existe. */
+export function youtubeThumbnails(id: string): string[] {
+  return ['maxresdefault', 'hq720', 'hqdefault'].map((name) => `https://i.ytimg.com/vi/${id}/${name}.jpg`);
+}
+
+/** Respuesta de oEmbed de YouTube → título y canal (null si no trae título). */
+export function youtubeOembedMeta(json: unknown): { title: string; description: string } | null {
+  const o = (json && typeof json === 'object' ? json : {}) as { title?: unknown; author_name?: unknown };
+  const title = typeof o.title === 'string' ? o.title.replace(/\s+/g, ' ').trim() : '';
+  if (!title) return null;
+  const author = typeof o.author_name === 'string' ? o.author_name.replace(/\s+/g, ' ').trim() : '';
+  return { title, description: author };
+}
+
+async function fetchYoutube(id: string): Promise<{ title: string; description: string } | null> {
+  if (process.env.DOCS_UNFURL_FAKE === '1') return null;
+  try {
+    const res = await safeFetch(
+      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
+      { headers: { accept: 'application/json', 'user-agent': 'zerosoft-docs-bot/1.0 (+link preview)' } },
+      5000,
+      { pinDns: true },
+    );
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => null);
+      return null;
+    }
+    const text = await res.text();
+    return text.length > 20_000 ? null : youtubeOembedMeta(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+/** La primera imagen de la lista que se pudo bajar. */
+async function firstImage(urls: string[]): Promise<FetchedImage> {
+  for (const u of urls) {
+    const img = await fetchImage(u, IMAGE_MAX, IMAGE_TYPES);
+    if (img.data) return img;
+  }
+  return NO_IMAGE;
+}
+
 async function fetchPreview(url: string, now: Date): Promise<PreviewRow> {
-  const got = await unfurlLinkDetailed(url, fakeHtml);
-  const meta = got?.meta;
+  const ytId = youtubeVideoId(url);
+  const yt = ytId ? await fetchYoutube(ytId) : null;
+  const got = yt
+    ? { meta: { url, site: 'youtube.com', title: yt.title, description: yt.description, favicon: 'https://www.youtube.com/favicon.ico' }, hints: { images: [] as string[], width: 0, height: 0 } }
+    : await unfurlLinkDetailed(url, fakeHtml);
+  const meta: { title?: string; description?: string; site?: string; image?: string; favicon?: string } | undefined = got?.meta;
   const hints = got?.hints ?? { images: [], width: 0, height: 0 };
   const title = (meta?.title ?? '').slice(0, 300);
   const first = meta?.image ?? hints.images[0];
@@ -195,7 +265,7 @@ async function fetchPreview(url: string, now: Date): Promise<PreviewRow> {
   // La imagen, la segunda y el ícono, en paralelo (cada una con su timeout).
   const [img, img2, icon] = title
     ? await Promise.all([
-        fetchImage(first, IMAGE_MAX, IMAGE_TYPES),
+        yt ? firstImage(youtubeThumbnails(ytId)) : fetchImage(first, IMAGE_MAX, IMAGE_TYPES),
         second ? fetchImage(second, IMAGE_MAX, IMAGE_TYPES) : Promise.resolve(NO_IMAGE),
         fetchImage(meta?.favicon, FAVICON_MAX, ICON_TYPES),
       ])

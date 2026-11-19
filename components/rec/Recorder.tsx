@@ -11,6 +11,8 @@ import {
   QUALITY,
   audioContextForClick,
   audioLevel,
+  meterBars,
+  screenShareErrorKey,
   canvasToBlob,
   compositorContext,
   createTicker,
@@ -178,7 +180,7 @@ export default function Recorder({
   const countdownTimer = useRef<number | null>(null);
   const cancelled = useRef(false);
   const mimeRef = useRef('');
-  const levelBuf = useRef(new Uint8Array(256));
+  const levelBuf = useRef(new Float32Array(256));
   const sizeRef = useRef({ width: 0, height: 0 });
   // Los textos de error se leen por ref: el efecto de la vista previa no se re-ejecuta por un `t` nuevo.
   const tRef = useRef(t);
@@ -274,7 +276,7 @@ export default function Recorder({
     void acquire();
     stopTicker.current?.();
     stopTicker.current = createTicker(15, () => {
-      if (meterRef.current) meterRef.current.style.transform = `scaleX(${audioLevel(analyser.current, levelBuf.current).toFixed(2)})`;
+      meterRef.current?.style.setProperty('--bars', String(meterBars(audioLevel(analyser.current, levelBuf.current))));
     });
     return () => {
       alive = false;
@@ -335,7 +337,7 @@ export default function Recorder({
 
   function tick() {
     const level = audioLevel(analyser.current, levelBuf.current);
-    if (meterRef.current) meterRef.current.style.transform = `scaleX(${level.toFixed(2)})`;
+    meterRef.current?.style.setProperty('--bars', String(meterBars(level)));
     if (desktop) {
       const now = performance.now();
       if (now - lastLevelAt.current >= 150) {
@@ -393,13 +395,16 @@ export default function Recorder({
       const sysSource = systemAudioSource(systemAudio, bridge);
       // App de escritorio en Mac: la captura nativa empieza ahora, con la pestaña adelante (la app
       // solo deja empezarla desde la pestaña en uso; el selector de pantalla puede sacarle el foco).
+      // No se espera acá: en WebKit (la app de Mac) getDisplayMedia tiene que salir dentro del mismo clic. Esperar a
+      // la captura nativa (que la primera vez abre el pedido de permiso de macOS) gastaba el clic y compartir
+      // pantalla fallaba con "se canceló o se bloqueó" sin que apareciera nada para elegir.
+      let sysStarting: Promise<MediaStream | null> | null = null;
       if (sysSource === 'native' && bridge) {
         releaseSys();
-        try {
-          sysStream.current = await getDesktopSystemAudio(bridge);
-        } catch {
+        sysStarting = getDesktopSystemAudio(bridge).catch(() => {
           sysProblem.current = 'failed';
-        }
+          return null;
+        });
       }
       try {
         const q = QUALITY[quality];
@@ -410,6 +415,7 @@ export default function Recorder({
           // Opciones de Chrome: dejar elegir pestaña, ventana o pantalla y traer el audio del sistema.
           ...({ selfBrowserSurface: 'include', surfaceSwitching: 'include', systemAudio: displayAudio ? 'include' : 'exclude' } as Record<string, string>),
         } as DisplayMediaStreamOptions);
+        if (sysStarting) sysStream.current = await sysStarting;
         // Sin permiso de grabar la pantalla, la Mac manda cuadros negros en vez de fallar: se avisa antes de grabar.
         const firstTrack = screen.getVideoTracks()[0];
         if (firstTrack && (await screenLooksBlack(firstTrack))) {
@@ -440,9 +446,13 @@ export default function Recorder({
           if (camVideo.current) camVideo.current.srcObject = null;
           setNativeCam(label);
         }
-      } catch {
+      } catch (err) {
+        // La captura nativa pudo haber arrancado igual: se suelta cuando termine de abrir.
+        if (sysStarting) sysStream.current = await sysStarting;
         releaseSys();
-        setError(t('errors.screen_denied'));
+        const name = (err as { name?: string } | null)?.name ?? '';
+        console.warn('[rec] screen share failed:', name || 'unknown');
+        setError(t(screenShareErrorKey(name, desktop)));
         return;
       }
     }
@@ -989,7 +999,7 @@ export default function Recorder({
             )}
           </div>
           <div className={`rec-setup-preview rec-setup-${mode}`}>
-            {usesScreen && <p className="rec-setup-screen">{t('screenHint')}</p>}
+            {usesScreen && <p className="rec-setup-screen">{t(desktop ? 'screenHintDesktop' : 'screenHint')}</p>}
           </div>
           {error && (
             <p className="ui-error" role="alert">
