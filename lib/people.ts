@@ -17,6 +17,7 @@ import {
   canEditField,
   canSeeCustomField,
   canSeeField,
+  canSeeNotes,
   canSeeSensitive,
   isManagerOf,
   isSelf,
@@ -534,6 +535,8 @@ export interface EmployeeDto extends EmployeeSummary {
     seePerformance: boolean;
     seeTimeOff: boolean;
     seeExit: boolean;
+    /** Pestaña Notas: HR y la cadena de managers, nunca la persona. */
+    seeNotes: boolean;
     isSelf: boolean;
     isManager: boolean;
   };
@@ -659,6 +662,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       seePerformance: canSeeSensitive(v, id, 'performance'),
       seeTimeOff: canSeeSensitive(v, id, 'timeoff'),
       seeExit: canSeeSensitive(v, id, 'exit'),
+      seeNotes: canSeeNotes(v, id),
       isSelf: isSelf(v, id),
       isManager: isManagerOf(v, id),
     },

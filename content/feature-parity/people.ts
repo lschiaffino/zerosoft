@@ -267,7 +267,13 @@ const parity: ProductParity = {
     row('custom-tabs', 'records', ['Custom profile tabs', 'Pestañas personalizadas', 'Abas personalizadas no perfil'], 'missing'),
     row('custom-tables', 'records', ['Custom tables with rows', 'Tablas personalizadas', 'Tabelas personalizadas com linhas'], 'missing'),
     row('multi-level-approvals', 'records', ['Multi-level approvals', 'Aprobaciones en varios niveles', 'Aprovações em vários níveis'], 'missing'),
-    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'missing'),
+    row('employee-notes', 'records', ['Employee notes', 'Notas sobre el empleado', 'Notas sobre o colaborador'], 'have', {
+      detail: [
+        'A Notes tab on the profile for HR and the person\'s managers, never the person. Each note shows who wrote it and when; its author edits it, and the author or HR deletes it. Reading and changes go to the access log',
+        'Una pestaña Notas en la ficha para HR y los managers de la persona, nunca para la persona. Cada nota muestra quién la escribió y cuándo; la edita su autor, y la borra su autor o HR. Leerlas y cambiarlas queda en el registro de accesos',
+        'Uma aba Notas no perfil para o RH e os gestores da pessoa, nunca para a pessoa. Cada nota mostra quem a escreveu e quando; o autor a edita, e o autor ou o RH a exclui. Ler e alterar fica no registro de acessos',
+      ],
+    }),
     row('training-tracking', 'records', ['Training tracking', 'Seguimiento de capacitaciones', 'Acompanhamento de treinamentos'], 'missing'),
     row('termination-tracking', 'records', ['Termination records', 'Registro de terminaciones', 'Registro de desligamentos'], 'partial', {
       detail: ['Offboarding, end date and exit interview. Built; not yet walked end to end in a browser for each role', 'Offboarding, fecha de salida y entrevista de salida. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Desligamento, data de saída e entrevista de saída. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],

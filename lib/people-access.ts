@@ -127,6 +127,22 @@ export function canSeeOneOnOne(viewer: PeopleViewer, note: { aId: string; bId: s
   return viewer.employeeId != null && (note.aId === viewer.employeeId || note.bId === viewer.employeeId);
 }
 
+/**
+ * Notas sobre una persona (pestaña Notas): HR y su cadena de managers. Nunca
+ * la propia persona, aunque sea HR: son notas sobre ella.
+ */
+export function canSeeNotes(viewer: PeopleViewer, employeeId: string): boolean {
+  if (isSelf(viewer, employeeId)) return false;
+  return viewer.hr || isManagerOf(viewer, employeeId);
+}
+
+/** Editar una nota: solo quien la escribió (y mientras la siga viendo). Borrarla: quien la escribió o HR. */
+export function canChangeNote(viewer: PeopleViewer, note: { employeeId: string; authorId: string }, action: 'edit' | 'delete'): boolean {
+  if (!canSeeNotes(viewer, note.employeeId)) return false;
+  if (note.authorId === viewer.personId) return true;
+  return action === 'delete' && viewer.hr;
+}
+
 /** Documento de una ficha: HR siempre; la persona si se lo compartieron; las políticas generales (sin ficha) todos. */
 export function canSeeDocument(viewer: PeopleViewer, doc: { employeeId: string | null; visibility: 'hr' | 'employee' }): boolean {
   if (viewer.hr) return true;
