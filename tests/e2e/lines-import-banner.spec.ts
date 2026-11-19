@@ -53,7 +53,7 @@ async function showing(page: Page, kind: string) {
   await expect(async () => {
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 1500 });
-  }).toPass({ timeout: 30_000 });
+  }).toPass({ timeout: 90_000 });
 }
 
 // La línea elegida no queda puesta para las pruebas que siguen.
@@ -86,9 +86,11 @@ test('Lines: el aviso de importación dice en qué anda, se va solo al terminar 
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const banner = page.getByTestId('lines-import-banner');
 
-  // Trayendo mensajes: avance con barra, y ya se puede cerrar.
-  await expect(banner).toBeVisible({ timeout: 90_000 });
-  await expect(banner).toHaveAttribute('data-kind', 'progress');
+  // Trayendo mensajes: avance con barra, y ya se puede cerrar. La primera lista puede venir ya armada del servidor
+  // (sin pasar por el pedido que esta prueba intercepta): se le pide a la bandeja que la vuelva a traer hasta que
+  // el aviso aparece, en vez de esperar a que lo haga sola.
+  await showing(page, 'progress');
+  await expect(banner).toBeVisible();
   await expect(banner.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '35');
   await expect(banner.getByRole('button', { name: 'Close this notice' })).toBeVisible();
 
