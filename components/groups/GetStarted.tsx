@@ -59,7 +59,7 @@ export default function GetStarted({
   );
 
   return (
-    <div className={`gr-start${inline ? ' is-inline' : ''}`}>
+    <div className={`gr-start${inline ? ' is-inline' : ''}`} data-tour={inline ? undefined : 'lines-connect'}>
       <div className="gr-start-actions">
         {managed || finish || !sample ? (
           <>
