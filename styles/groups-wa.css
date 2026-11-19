@@ -218,6 +218,10 @@
 .wa-import.is-done { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-import-close { flex: none; width: 28px; height: 28px; color: inherit; }
 .wa-import.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
+/* El aviso de importación (components/groups/wa/ImportNotices.tsx): el texto y su barra a la izquierda, cerrar siempre a la derecha. */
+.wa-import-notice, .wa-import-notice.is-done { flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 10px; }
+.wa-import-main { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; padding: 4px 0; overflow-wrap: anywhere; }
+.wa-import-notice .wa-import-close { margin-right: -4px; }
 .wa-dropped { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-dropped .btn { flex: none; }
 .wa-dropped .wa-import-close { margin-left: -4px; }

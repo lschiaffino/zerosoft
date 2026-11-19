@@ -48,6 +48,7 @@ import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
+import LinesImportNotices from './LinesImportNotices';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
@@ -195,8 +196,6 @@ function inboxQuery(listId: string | null, folder: string): string {
 }
 
 const IMPORTS_CLOSED_KEY = 'zs-lines-imports-closed';
-/** Una importación terminada: otra importación del mismo número (otros totales) vuelve a avisar. */
-const importKey = (im: { numberId: string; chatsTotal: number; messages: number }) => `${im.numberId}:${im.chatsTotal}:${im.messages}`;
 
 export default function InboxShell({
   labels,
@@ -299,7 +298,7 @@ export default function InboxShell({
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
   const [saving, setSaving] = useState<'new' | 'rename' | null>(null);
   const { hidden: detailsHidden } = useDetailsHidden();
-  // "Importación terminada" se puede cerrar y queda cerrado (por navegador) hasta la próxima importación.
+  // El aviso de una línea caída se puede cerrar y queda cerrado (por navegador). Los de importación: LinesImportNotices.
   const [importsClosed, setImportsClosed] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -1576,33 +1575,7 @@ export default function InboxShell({
               <p className="wa-deleted-note">{t('wa.deletedNote')}</p>
             </>
           )}
-          {imports.filter((im) => (line === 'all' || im.numberId === line) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
-            <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
-              <span>
-                {im.status === 'done'
-                  ? im.messages === 0
-                    ? t('wa.importNothingNew', { chats: im.chatsTotal })
-                    : t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
-                  : im.status === 'error'
-                    ? t('wa.importFailed')
-                    : im.phase === 'older'
-                      ? t('wa.importOlder', { messages: im.messages })
-                      : im.phase === 'messages' || im.phase === 'pictures'
-                        ? t('wa.importMessages', { done: im.chatsDone, total: im.chatsTotal })
-                        : t('wa.importChats', { n: im.chatsTotal })}
-              </span>
-              {(im.status === 'queued' || im.status === 'running') && (
-                <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
-                  <i style={{ width: `${im.chatsTotal ? Math.max(3, (im.chatsDone / im.chatsTotal) * 100) : 3}%` }} />
-                </span>
-              )}
-              {im.status === 'done' && (
-                <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(importKey(im))} aria-label={t('common.close')} title={t('common.close')}>
-                  <Close size={16} />
-                </button>
-              )}
-            </div>
-          ))}
+          <LinesImportNotices imports={imports} line={line} />
           {error && (
             <div className="gr-error" role="alert">
               {t('inbox.loadError')}
