@@ -153,7 +153,7 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     // El owner la deja solo para admins desde Ajustes.
     await owner.p.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
     await expect(owner.p.getByTestId('ws-app-chat')).toHaveCount(0);
-    await expect(owner.p.getByTestId('ws-app-inbox')).toHaveCount(0);
+    await expect(owner.p.getByTestId('ws-app-switch-inbox')).toHaveCount(0);
     await expect(owner.p.getByTestId('ws-app-notes')).toBeVisible();
     await owner.p.getByTestId('ws-app-mode-crm').selectOption('admins');
     await expect(owner.p.getByTestId('ws-app-crm')).toContainText('Only the owner and admins.');

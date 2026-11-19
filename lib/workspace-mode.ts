@@ -25,19 +25,23 @@ const TEAM_FEATURED: readonly ProductKey[] = ['track', 'crm', 'groups', 'docs', 
 
 /**
  * Apps destacadas, en orden. `chosen` (las que la persona eligió en el
- * onboarding, users.profile.apps) reemplazan a las del modo. `entryApp` (la
- * app por la que entró) va primero aunque no esté destacada.
+ * onboarding, users.profile.apps) reemplazan a las del modo; sin eso, valen
+ * las que destacó el workspace (`workspace`, Ajustes › Apps del workspace) y
+ * recién después las del modo. `entryApp` (la app por la que entró) va primero
+ * aunque no esté destacada.
  */
 export function featuredApps({
   mode,
   entryApp,
   chosen,
+  workspace,
 }: {
   mode: WorkspaceMode;
   entryApp?: ProductKey | null;
   chosen?: readonly ProductKey[] | null;
+  workspace?: readonly ProductKey[] | null;
 }): ProductKey[] {
-  const base = chosen && chosen.length ? chosen : mode === 'personal' ? PERSONAL_FEATURED : TEAM_FEATURED;
+  const base = chosen && chosen.length ? chosen : workspace && workspace.length ? workspace : mode === 'personal' ? PERSONAL_FEATURED : TEAM_FEATURED;
   if (!entryApp) return [...base];
   return [entryApp, ...base.filter((k) => k !== entryApp)];
 }
@@ -47,6 +51,7 @@ export function moreAppsByCategory(opts: {
   mode: WorkspaceMode;
   entryApp?: ProductKey | null;
   chosen?: readonly ProductKey[] | null;
+  workspace?: readonly ProductKey[] | null;
 }): Array<{ category: ProductCategory; apps: ProductKey[] }> {
   const featured = new Set(featuredApps(opts));
   return PRODUCT_CATEGORIES.map((category) => ({
