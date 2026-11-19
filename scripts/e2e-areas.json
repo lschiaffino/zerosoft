@@ -2,7 +2,7 @@
   "//": "Qué e2e corre un pull request según lo que toca (scripts/e2e-select.mjs; tests/unit/e2e-select.test.ts). En main y en la corrida nocturna corre todo. Un archivo que no cae en 'skip', en un área ni es un spec pide la suite completa.",
 
   "skip": [
-    "content/**", "research/**", "docs/**", "**/*.md", "desktop/**", "tests/unit/**",
+    "content/**", "research/**", "docs/**", "**/*.md", "desktop/**", "desktop-mac/**", ".github/workflows/desktop-mac.yml", "tests/unit/**",
     "infra/**", "ops/**", "services/**", "cli/**", "extensions/**", "mobile/**", ".env*.example",
     "scripts/api-public-routes.json", "scripts/api-route-guards.mjs",
     "Dockerfile", ".dockerignore", "docker-compose.yml", "docker/**",
