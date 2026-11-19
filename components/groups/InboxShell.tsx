@@ -390,6 +390,10 @@ export default function InboxShell({
   const listCache = useRef(new ListCache<CachedList>(30)).current;
   const live = useRef({ want: '', shown: '', rows: [] as ChatDto[], next: null as string | null, pinned: 0, kept: 0, etag: '', etagUrl: '', more: false, unreadOnly: false, current: null as string | null });
   const listAbort = useRef<AbortController | null>(null);
+  /** La relectura en curso: otra de la misma lista no la corta (con un servidor lento, ninguna llegaría a terminar). */
+  const listInflight = useRef<string | null>(null);
+  /** Llegó otro aviso mientras esa relectura estaba en curso: al terminar se lee una vez más (puede haber cambiado algo después). */
+  const listAgain = useRef(false);
   const moreAbort = useRef<AbortController | null>(null);
   const activeList = lists.find((l) => l.id === listId) ?? null;
 
@@ -481,11 +485,25 @@ export default function InboxShell({
       // Lo que cuenta para el tamaño de página: sin los fijados de adelante ni el chat abierto que se mantiene en "no leídos".
       const size = L.shown === key ? Math.min(Math.max(L.rows.length - L.pinned - L.kept, PAGE), MAX_HEAD) : PAGE;
       const url = `/api/groups/chats?${key}&cursor=&limit=${size}`;
+      // Una relectura de fondo de la misma lista que ya se está pidiendo espera a esa: si cada aviso o cada 5 s cortara
+      // la anterior, con un servidor lento la lista no llegaría nunca. Otra lista (u otro tamaño) sí corta la anterior.
+      if (silent && listInflight.current === url) {
+        listAgain.current = true;
+        return;
+      }
       listAbort.current?.abort();
       const ctrl = new AbortController();
       listAbort.current = ctrl;
+      listInflight.current = url;
       if (!silent) setError(false);
       const r = await fetchIfChanged<ListData>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (listAbort.current === ctrl) {
+        listInflight.current = null;
+        if (listAgain.current) {
+          listAgain.current = false;
+          queueMicrotask(() => void loadRef.current(true));
+        }
+      }
       if (r.state === 'aborted' || live.current.want !== key) return;
       setLoaded(true);
       if (r.state === 'error') {
@@ -527,6 +545,8 @@ export default function InboxShell({
     },
     [showRows],
   );
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   /** La página que sigue (al llegar al final de la lista): así se recorre toda la historia. */
   const loadMore = useCallback(async () => {
