@@ -1,0 +1,22 @@
+diff --git a/Dockerfile b/Dockerfile
+index 9180cc4..28c453e 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -56,6 +56,17 @@ RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
+     grep -c 'zsCount(record, "bad' "$f" | grep -q 2 && \
+     tail -n 1 "$f" | grep -q '^function zsCount'
+ 
++# zerosoft: un cambio de app-state cifrado con una clave que la línea no tiene (el teléfono rota su clave y a veces no
++# la comparte, ni responde cuando se la piden) tiraba la colección entera: "failed to find key ... to decode
++# mutation", regular_low quedaba sin versión y la línea no archivaba en ninguna dirección hasta volver a vincularla.
++# Ahora ese cambio se saltea: no se puede leer, pero su MAC igual entra en el hash de la colección (el hash se arma
++# con los MAC, que no van cifrados), así el estado local sigue igual al del teléfono y los demás cambios se leen y
++# se mandan. Los salteados se cuentan en globalThis.__zsAppStateNoKey, por id de clave.
++RUN f=node_modules/baileys/lib/Utils/chat-utils.js && \
++    grep -q '        const key = await getKey(record.keyId.id);' "$f" && \
++    sed -i 's/        const key = await getKey(record.keyId.id);/        let key; try { key = await getKey(record.keyId.id); } catch (zsErr) { try { const zsId = Buffer.from(record.keyId.id).toString("base64"); const zsNo = (globalThis.__zsAppStateNoKey = globalThis.__zsAppStateNoKey || {}); zsNo[zsId] = (zsNo[zsId] || 0) + 1; } catch { } ltGenerator.mix({ indexMac: record.index.blob, valueMac: Buffer.from(record.value.blob).slice(-32), operation: operation }); continue; }/' "$f" && \
++    grep -q 'globalThis.__zsAppStateNoKey' "$f"
++
+ # zerosoft: qué respondió WhatsApp al pedir cada colección de app-state (atributos y nombres de los nodos, sin
+ # contenido): si responde un error o nada, Baileys no lo anota y la colección queda sin leer sin motivo a la vista.
+ # Queda en globalThis.__zsAppStateLast y lo muestra /chat/appState.
