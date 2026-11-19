@@ -3090,7 +3090,9 @@
     "description": "HubSpot: HubSpot deduplicates contacts by email: creating a contact with an email that exists is blocked in the form and updates the existing record in imports, forms and the API (https://knowledge.hubspot.com/records/deduplication-of-records). Today: createContact inserts without checking the email (lib/crm.ts:827-861); the index on email is not unique (lib/schema/baseline.ts:90). Only the CSV import and the API migration dedupe (lib/crm-import.ts:439). Email is the identity of a contact in HubSpot, and the two-way sync needs the same rule on our side or every sync creates duplicates. First scope: the create form and quick create show the existing contact and block the save; the API returns 409 with the existing id; forms, Cal bookings and chats update the existing contact; a unique index per workspace on the lowercased email once existing duplicates are merged.",
     "product": "crm",
     "kind": "idea",
-    "parity": "contact-email-unique"
+    "parity": "contact-email-unique",
+    "status": "done",
+    "changelog": "2026-11-19-crm-contact-email-unique"
   },
   {
     "title": "CRM: Additional email addresses on a contact",

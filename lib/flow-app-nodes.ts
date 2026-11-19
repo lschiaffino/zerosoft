@@ -46,6 +46,8 @@ async function crmCall<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (err) {
     if (err instanceof CrmRefError) throw new StepError(err.code);
+    // El email nuevo ya es de otro contacto: el paso falla con un código claro.
+    if (err instanceof Error && err.message === 'contact_email_taken') throw new StepError('contact_email_taken');
     throw err;
   }
 }
@@ -91,7 +93,7 @@ export async function crmUpdateNode(ws: string, cfg: Cfg, tctx: Ctx, actorEmail 
     if (email) {
       if (!EMAIL_RE.test(email)) throw new StepError('invalid_email');
       const row = (await db
-        .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+        .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
         .get(ws, email)) as { id: string } | undefined;
       if (!row) throw new StepError('record_not_found');
       id = row.id;
@@ -191,7 +193,7 @@ async function contactRef(ws: string, raw: string): Promise<string | null> {
   if (!raw) return null;
   if (!raw.includes('@')) return raw;
   const row = (await getDb()
-    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
     .get(ws, raw.toLowerCase())) as { id: string } | undefined;
   if (!row) throw new StepError('invalid_contact');
   return row.id;

@@ -11,6 +11,7 @@ import { createActivity, createContact, updateActivity, updateContact } from './
 import { isValidPhone, parseQuestions } from './calendar-questions';
 import { isWorkspacePerson } from './crm-refs';
 import { assignNewLead, type AssignmentSource } from './crm-assignment';
+import { catchEmailTaken, ContactEmailTakenError, findContactByEmail as findByEmail } from './crm-contact-email';
 import type { CalendarBookingRow, ChatMessageRow, ChatVisitorRow, CrmContactRow } from './db';
 
 function splitName(full: string): { firstName: string; lastName: string } {
@@ -25,14 +26,9 @@ function toDbUtc(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-/** Contacto del workspace con ese email (sin distinguir mayúsculas). */
+/** Contacto del workspace con ese email (la regla vive en lib/crm-contact-email.ts). */
 export async function findContactByEmail(userId: string, email: string): Promise<CrmContactRow | null> {
-  if (!email) return null;
-  return (
-    ((await getDb()
-      .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) ORDER BY created_at ASC LIMIT 1')
-      .get(userId, email.trim())) as CrmContactRow | undefined) ?? null
-  );
+  return findByEmail(userId, email);
 }
 
 /** Busca el contacto por email o lo crea. `created` indica si es nuevo. */
@@ -50,7 +46,23 @@ export async function findOrCreateContact(
   },
 ): Promise<{ contact: CrmContactRow; created: boolean }> {
   const phone = input.phone?.trim() ?? '';
-  const existing = await findContactByEmail(userId, input.email);
+  const ownerId = input.ownerId && (await isWorkspacePerson(userId, input.ownerId)) ? input.ownerId : undefined;
+  let existing = await findContactByEmail(userId, input.email);
+  let contact: CrmContactRow | null = null;
+  if (!existing) {
+    // Otra entrada pudo crear el mismo email entre la búsqueda y el alta: se usa ese contacto.
+    const made = await catchEmailTaken(
+      createContact(userId, {
+        ...splitName(input.name ?? ''),
+        email: input.email.trim(),
+        ...(phone ? { phone } : {}),
+        source: input.source ?? 'other',
+        ownerId,
+      }),
+    );
+    if (made instanceof ContactEmailTakenError) existing = made.existing;
+    else contact = made;
+  }
   if (existing) {
     if (phone && !existing.phone) {
       const updated = await updateContact(userId, existing.id, { phone });
@@ -58,14 +70,7 @@ export async function findOrCreateContact(
     }
     return { contact: existing, created: false };
   }
-  const ownerId = input.ownerId && (await isWorkspacePerson(userId, input.ownerId)) ? input.ownerId : undefined;
-  const contact = await createContact(userId, {
-    ...splitName(input.name ?? ''),
-    email: input.email.trim(),
-    ...(phone ? { phone } : {}),
-    source: input.source ?? 'other',
-    ownerId,
-  });
+  if (!contact) throw new Error('contact_not_created');
   if (input.assign) {
     const assigned = await assignNewLead(userId, contact.id, input.assign);
     if (assigned) return { contact: { ...contact, owner_id: assigned }, created: true };

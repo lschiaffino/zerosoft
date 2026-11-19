@@ -205,13 +205,24 @@ export async function collectRows(db: Db, info: SchemaInfo, snap: RowSnapshot, t
  * Re-inserta una fila con las columnas que la tabla tiene hoy. `orIgnore` (por defecto) no pisa una fila que ya
  * esté; sin él, un choque tira. Una FK a algo que ya no existe devuelve false.
  */
-export async function insertSnapshotRow(db: Db, info: SchemaInfo, table: string, row: Row, opts: { orIgnore?: boolean } = {}): Promise<boolean> {
+export async function insertSnapshotRow(
+  db: Db,
+  info: SchemaInfo,
+  table: string,
+  row: Row,
+  /** `onlyIf`: condición SQL que tiene que cumplirse para insertar (misma sentencia). */
+  opts: { orIgnore?: boolean; onlyIf?: { sql: string; args: Array<string | number | null> } } = {},
+): Promise<boolean> {
   const current = new Set(info.columns.get(table) ?? []);
   const cols = Object.keys(row).filter((c) => current.has(c));
   if (!cols.length) return false;
   const res = await db
-    .prepare(`INSERT${opts.orIgnore === false ? '' : ' OR IGNORE'} INTO ${q(table)} (${cols.map(q).join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
-    .run(...cols.map((c) => decodeValue(row[c]) as string | number | null));
+    .prepare(
+      `INSERT${opts.orIgnore === false ? '' : ' OR IGNORE'} INTO ${q(table)} (${cols.map(q).join(', ')}) ${
+        opts.onlyIf ? `SELECT ${cols.map(() => '?').join(', ')} WHERE ${opts.onlyIf.sql}` : `VALUES (${cols.map(() => '?').join(', ')})`
+      }`,
+    )
+    .run(...cols.map((c) => decodeValue(row[c]) as string | number | null), ...(opts.onlyIf?.args ?? []));
   return res.changes > 0;
 }
 

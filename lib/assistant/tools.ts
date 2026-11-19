@@ -15,6 +15,7 @@ import { getMemberRole, removeMember } from '../teams';
 import { inviteMany } from '../workspace-invites';
 import { createContact, createDeal, createPipeline, createStage, deleteContact, listPipelinesWithStages, listTasks, searchAll } from '../crm';
 import { canSeeEntity, scopeAnd, sessionScope } from '../crm-visibility';
+import { catchEmailTaken, ContactEmailTakenError, emailTakenInfo, findContactByEmail } from '../crm-contact-email';
 import { listImportJobs as listCrmImportJobs } from '../crm-import-jobs';
 import { listWorkspaceImportJobs } from '../import-jobs';
 import { listDeliveries, listWebhooks } from '../webhooks';
@@ -445,8 +446,18 @@ const crm: AssistantTool[] = [
       phone: z.string().trim().max(50).optional(),
       jobTitle: z.string().trim().max(100).optional(),
     }),
-    prepare: async (_ctx, input) => {
+    prepare: async (ctx, input) => {
       if (!input.firstName && !input.lastName && !input.email) return { error: 'name_or_email_required' };
+      // El email es la identidad del contacto: si ya existe no se prepara otro.
+      const taken = await findContactByEmail(ctx.workspaceId, input.email);
+      if (taken) {
+        const info = emailTakenInfo(taken, await sessionScope(ctx.user));
+        return {
+          error: info.existing
+            ? `contact_email_taken: a contact with this email already exists (${info.existing.name}, /app/crm/contacts/${info.existing.id}). Offer to open or update it instead.`
+            : 'contact_email_taken: a contact with this email already exists, but this person cannot see it. Tell them to ask a workspace admin.',
+        };
+      }
       const label = `${input.firstName ?? ''} ${input.lastName ?? ''}`.trim() || input.email!;
       return {
         summary: `Create contact ${label}`,
@@ -455,7 +466,13 @@ const crm: AssistantTool[] = [
       };
     },
     execute: async (ctx, input) => {
-      const c = await createContact(ctx.workspaceId, { ...(input as Record<string, string>), ownerId: ctx.personId });
+      const c = await catchEmailTaken(createContact(ctx.workspaceId, { ...(input as Record<string, string>), ownerId: ctx.personId }));
+      if (c instanceof ContactEmailTakenError) {
+        const info = emailTakenInfo(c.existing, await sessionScope(ctx.user));
+        return info.existing
+          ? { ok: false, error: 'contact_email_taken', message: `A contact with this email already exists: ${info.existing.name}.`, href: `/app/crm/contacts/${info.existing.id}` }
+          : { ok: false, error: 'contact_email_taken', message: 'A contact with this email already exists, but you cannot see it. Ask a workspace admin.' };
+      }
       return { ok: true, message: `Contact ${contactName(c)} created.`, href: `/app/crm/contacts/${c.id}` };
     },
   }),

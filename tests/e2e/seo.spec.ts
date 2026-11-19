@@ -72,6 +72,30 @@ test('títulos únicos, canonical y hreflang en cada página pública', async ({
   }
 });
 
+test('JSON-LD con los tipos que leen buscadores e IAs', async ({ page }) => {
+  const expected: Record<string, string[]> = {
+    '/en': ['Organization', 'WebSite', 'SoftwareApplication', 'FAQPage'],
+    '/en/products': ['BreadcrumbList', 'CollectionPage'],
+    '/en/compare': ['BreadcrumbList', 'ItemList'],
+    '/en/compare/hubspot-alternative': ['BreadcrumbList', 'SoftwareApplication', 'FAQPage'],
+  };
+  for (const [url, types] of Object.entries(expected)) {
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    const nodes = blocks.flatMap((b) => {
+      const data = JSON.parse(b);
+      return (data['@graph'] ?? [data]) as { '@type': string; mainEntity?: { '@type': string; itemListElement?: unknown[] } }[];
+    });
+    const found = nodes.map((n) => n['@type']);
+    for (const t of types) expect(found, `${url} ${t}`).toContain(t);
+    if (url === '/en/products') {
+      const list = nodes.find((n) => n['@type'] === 'CollectionPage')?.mainEntity;
+      expect(list?.['@type']).toBe('ItemList');
+      expect(list?.itemListElement?.length ?? 0).toBeGreaterThan(10);
+    }
+  }
+});
+
 test('sin scroll horizontal a 390 px (claro y oscuro)', async ({ browser }) => {
   test.setTimeout(600_000);
   for (const scheme of ['light', 'dark'] as const) {

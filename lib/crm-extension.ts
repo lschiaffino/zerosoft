@@ -18,6 +18,7 @@
  */
 import { getDb, type CrmActivityRow, type CrmCompanyRow, type CrmContactRow } from './db';
 import { createActivity, createContact } from './crm';
+import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { BODY_TEXT_MAX, dbNow, newTrackingToken, pixelUrl } from './crm-email';
 import { parseAddressList } from './gmail';
 import { canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
@@ -78,12 +79,12 @@ async function visibleContactsByEmail(actor: ExtensionActor, emails: string[]): 
   const rows = (await getDb()
     .prepare(
       `SELECT c.* FROM crm_contacts c
-       WHERE c.user_id = ? AND lower(c.email) IN (${emails.map(() => '?').join(',')})${scope.sql}
+       WHERE c.user_id = ? AND lower(trim(c.email)) IN (${emails.map(() => '?').join(',')})${scope.sql}
        ORDER BY c.created_at ASC`,
     )
     .all(actor.workspaceId, ...emails, ...scope.args)) as CrmContactRow[];
   for (const r of rows) {
-    const key = r.email.toLowerCase();
+    const key = r.email.trim().toLowerCase();
     if (!out.has(key)) out.set(key, r);
   }
   return out;
@@ -293,7 +294,7 @@ export interface TrackEmailInput {
 
 export type TrackEmailResult =
   | { ok: true; emailId: string; pixelUrl: string; contactIds: string[]; createdContact: boolean }
-  | { ok: false; error: 'missing_recipient' };
+  | { ok: false; error: 'missing_recipient' | 'no_contact' };
 
 /**
  * Email que se va a enviar desde Gmail con "Registrar y trackear": se guarda
@@ -311,7 +312,14 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
   let createdContact = false;
   if (!contacts.size) {
     const first = to[0] ?? cc[0];
-    const created = await createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' });
+    const created = await catchEmailTaken(
+      createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' }),
+    );
+    // El email ya es de un contacto que esta persona no ve: no se crea otro
+    // (el email es la identidad del contacto) ni se registra nada en ese
+    // contacto. crm_emails exige un contacto, así que el envío no se trackea:
+    // misma respuesta que "Registrar" cuando no hay contacto visible.
+    if (created instanceof ContactEmailTakenError) return { ok: false, error: 'no_contact' };
     contacts.set(first, created);
     createdContact = true;
   }

@@ -120,7 +120,9 @@ describe('CRM: merge de contactos', () => {
   it('mueve deals, actividades y emails al contacto que queda', async () => {
     const a = await makeUser('a');
     const keep = await createContact(a.id, { email: 'dup@a.test', firstName: 'Keep' });
-    const drop = await createContact(a.id, { email: 'dup@a.test', firstName: 'Drop' });
+    // Un duplicado de antes de la regla del email único: createContact ya no los deja crear.
+    const drop = await createContact(a.id, { email: 'dup-2@a.test', firstName: 'Drop' });
+    await getDb().prepare('UPDATE crm_contacts SET email = ? WHERE id = ?').run('dup@a.test', drop.id);
     await createActivity(a.id, { type: 'note', subject: 'nota', contactId: drop.id });
     await getDb()
       .prepare(
