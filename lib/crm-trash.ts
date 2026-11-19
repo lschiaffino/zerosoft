@@ -25,6 +25,8 @@ import { getDb, type Db } from './db';
 import { syncContactPrimary, syncDealPrimary } from './crm-assoc';
 import { activityDatesUpdateSql, type ActivityDateTable } from './crm-activity-dates';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { findContactByEmail } from './crm-contact-email';
+import type { CrmContactRow } from './db';
 import { deleteUploads } from './uploads';
 import {
   chunks,
@@ -262,7 +264,9 @@ async function insertRow(db: Db, info: SchemaInfo, table: string, row: Row): Pro
 
 export type RestoreResult =
   | { ok: true; entity: TrashEntity; recordId: string }
-  | { ok: false; reason: 'not_found' | 'conflict' };
+  | { ok: false; reason: 'not_found' | 'conflict' }
+  /** El email del contacto en la papelera ya es de un contacto vivo (lib/crm-contact-email.ts). */
+  | { ok: false; reason: 'email_taken'; existing: CrmContactRow };
 
 async function getTrashRow(userId: string, id: string, scope: OwnerScope | undefined, db: Db) {
   const cond = ownerScopeSql('t', scope);
@@ -284,11 +288,21 @@ export async function restoreTrash(
   if (await db.prepare(`SELECT 1 FROM ${table} WHERE id = ?`).get(entry.record_id)) {
     return { ok: false, reason: 'conflict' };
   }
+  const snap = JSON.parse(entry.snapshot) as TrashSnapshot;
+  // El email es la identidad del contacto: si mientras estuvo en la papelera
+  // otro contacto tomó su email, no se restaura (quedarían dos con el mismo).
+  // La entrada sigue en la papelera hasta que el email se libere.
+  for (const { table: t, rows } of snap.tables) {
+    if (t !== 'crm_contacts') continue;
+    for (const row of rows) {
+      const taken = await findContactByEmail(userId, typeof row.email === 'string' ? row.email : '', db, String(row.id));
+      if (taken) return { ok: false, reason: 'email_taken', existing: taken };
+    }
+  }
   // Se reclama la entrada antes de re-insertar: dos restores a la vez no duplican.
   const claimed = await db.prepare('DELETE FROM crm_trash WHERE id = ? AND user_id = ?').run(trashId, userId);
   if (!claimed.changes) return { ok: false, reason: 'not_found' };
 
-  const snap = JSON.parse(entry.snapshot) as TrashSnapshot;
   const info = await schema(db);
   const contacts = new Set<string>();
   const deals = new Set<string>();

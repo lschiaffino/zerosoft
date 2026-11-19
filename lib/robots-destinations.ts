@@ -171,8 +171,14 @@ async function sendToCrm(
         if (Object.keys(patch).length) await crm.updateContact(workspaceId, existing.id, patch);
         updated += 1;
       } else {
-        await crm.createContact(workspaceId, { ...data, email, source: `robot:${robot.name}`.slice(0, 100) });
-        created += 1;
+        try {
+          await crm.createContact(workspaceId, { ...data, email, source: `robot:${robot.name}`.slice(0, 100) });
+          created += 1;
+        } catch (err) {
+          // Otra corrida creó el mismo email mientras tanto: no se duplica.
+          if (!(err instanceof Error && err.message === 'contact_email_taken')) throw err;
+          skipped += 1;
+        }
       }
     } else {
       const name = pick(row, 'name').slice(0, 300);

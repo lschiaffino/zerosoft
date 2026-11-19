@@ -153,10 +153,16 @@ describe('forms: envío público', () => {
     expect(JSON.parse(after.custom).plan).toBe('Team');
     expect((await getForm(ws.id, form.id))!.submission_count).toBe(2);
 
-    // updateExisting = false → un contacto nuevo por envío.
+    // updateExisting = false → tampoco crea otro contacto (el email es su
+    // identidad): el envío queda en el existente y no pisa lo que ya tenía.
     await updateForm(ws.id, form.id, { settings: { updateExisting: false } });
-    const dup = await submitForm(form.slug!, { values: { email: 'ada@acme.io' }, elapsedMs: 9000 });
-    expect(dup).toMatchObject({ ok: true, created: true });
+    const dup = await submitForm(form.slug!, { values: { email: 'ada@acme.io', name: 'Otra Persona' }, elapsedMs: 9000 });
+    expect(dup).toMatchObject({ ok: true, created: false, contactId: detail.contact.id });
+    expect((await getContact(ws.id, detail.contact.id))!.contact).toMatchObject({ first_name: 'Ada', last_name: 'Byron' });
+    const still = (await getDb()
+      .prepare("SELECT COUNT(*) AS c FROM crm_contacts WHERE user_id = ? AND lower(email) = 'ada@acme.io'")
+      .get(ws.id)) as { c: number };
+    expect(still.c).toBe(1);
   });
 
   it('anti-spam: honeypot y tiempo mínimo responden ok sin guardar; requeridos dan 400; pausado 409', async () => {

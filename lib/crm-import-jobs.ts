@@ -30,6 +30,7 @@ import { getCrmSettings } from './crm-currency';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
 import { coerceCustom, normalizeImportValue, parseImportDate, workspacePeople, type Person } from './crm-import';
 import { createPipeline, listCustomFields, listPipelinesWithStages, mergeFillPatch, parseCustom } from './crm';
+import { findContactByEmail, sameContactEmail } from './crm-contact-email';
 import {
   IMPORT_GROUPS,
   isFatalSourceError,
@@ -877,6 +878,13 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
   let id: string;
   let deduped = false;
   let touch = true;
+  // El email es la identidad del contacto (lib/crm-contact-email.ts): si en el
+  // otro CRM cambió por uno que acá ya es de OTRO contacto, el email no se
+  // pisa (quedarían dos con el mismo) y se avisa; el resto se actualiza.
+  if (existing && email && !sameContactEmail(existing.email, email) && (await findContactByEmail(userId, email, db, existing.id))) {
+    pushError(ctx, `contact ${src.id}: email not updated, another contact already uses it`);
+    for (const col of cols) if (col[0] === 'email') col[1] = '';
+  }
   if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'contact', src.id))) {
     const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify({ ...custom, ...parseCustom(existing.custom) }) } as CrmContactRow;
     await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
@@ -890,11 +898,7 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
     id = existing.id;
     ctx.counts.updated++;
   } else {
-    existing = email
-      ? ((await db
-          .prepare('SELECT * FROM crm_contacts WHERE user_id = ? AND lower(email) = ? ORDER BY created_at LIMIT 1')
-          .get(userId, email)) as CrmContactRow | undefined)
-      : undefined;
+    existing = (await findContactByEmail(userId, email, db)) ?? undefined;
     if (existing) {
       const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify(custom) } as CrmContactRow;
       await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));

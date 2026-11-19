@@ -44,7 +44,19 @@ export default function TrashTable({ rows, canPurge }: TrashTableProps) {
     setNotice(null);
     const res = await fetch(`/api/crm/trash/${row.id}/restore`, { method: 'POST' }).catch(() => null);
     setBusyId(null);
-    const data = (await res?.json().catch(() => null)) as { error?: string; recordId?: string } | null;
+    const data = (await res?.json().catch(() => null)) as {
+      error?: string;
+      recordId?: string;
+      existing?: { id: string; name: string } | null;
+    } | null;
+    if (!res?.ok && data?.error === 'contact_email_taken') {
+      // Otro contacto usa ese email ahora: se dice cuál solo si esta persona lo ve.
+      setNotice({
+        text: t('errors.trash_email_taken'),
+        href: data.existing ? `${RECORD_PATH.contact}/${data.existing.id}` : undefined,
+      });
+      return;
+    }
     if (!res?.ok) {
       setNotice({ text: data?.error === 'trash_conflict' ? t('errors.trash_conflict') : t('errors.generic') });
       return;

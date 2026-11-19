@@ -302,6 +302,7 @@ export default async function AppLayout(
                 { href: '/app/time/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
+                { href: '/app/crm/contacts/duplicates', label: tCrm('contacts.dupes.title') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
                 { href: '/app/crm/companies/duplicates', label: tCrm('record.more.duplicates') },
                 { href: '/app/crm/deals', label: tCrm('tabs.deals') },

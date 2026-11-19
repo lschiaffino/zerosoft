@@ -18,6 +18,7 @@
  */
 import { getDb, type CrmActivityRow, type CrmCompanyRow, type CrmContactRow } from './db';
 import { createActivity, createContact } from './crm';
+import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { BODY_TEXT_MAX, dbNow, newTrackingToken, pixelUrl } from './crm-email';
 import { parseAddressList } from './gmail';
 import { canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
@@ -309,11 +310,22 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
   if (!to.length && !cc.length) return { ok: false, error: 'missing_recipient' };
   const contacts = await visibleContactsByEmail(actor, [...new Set([...to, ...cc])]);
   let createdContact = false;
+  let hiddenId: string | null = null;
   if (!contacts.size) {
     const first = to[0] ?? cc[0];
-    const created = await createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' });
-    contacts.set(first, created);
-    createdContact = true;
+    const created = await catchEmailTaken(
+      createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' }),
+    );
+    if (created instanceof ContactEmailTakenError) {
+      // El email ya es de un contacto que esta persona no ve: no se crea otro
+      // (el email es la identidad del contacto). El envío queda en el timeline
+      // de ese contacto y a quien envía no se le devuelve nada de él.
+      contacts.set(first, created.existing);
+      hiddenId = created.existing.id;
+    } else {
+      contacts.set(first, created);
+      createdContact = true;
+    }
   }
   const contactIds = [...new Set([...contacts.values()].map((c) => c.id))];
   const primary = [...to, ...cc].map((e) => contacts.get(e)?.id).find(Boolean) ?? contactIds[0];
@@ -357,5 +369,5 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
     contactId: primary,
     sequence: null,
   });
-  return { ok: true, emailId, pixelUrl: pixelUrl(token), contactIds, createdContact };
+  return { ok: true, emailId, pixelUrl: pixelUrl(token), contactIds: contactIds.filter((id) => id !== hiddenId), createdContact };
 }

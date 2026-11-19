@@ -264,6 +264,23 @@
       "companies": "Companies",
       "mergeConfirmTitle": "Merge contacts"
     },
+    "emailTaken": {
+      "exists": "A contact with this email already exists: {name}.",
+      "open": "Open it",
+      "hidden": "A contact with this email already exists. It belongs to a teammate, so you can't open it. Ask a workspace admin."
+    },
+    "dupes": {
+      "title": "Duplicate contacts",
+      "description": "Contacts that share an email. Pick the one to keep and merge the rest into it.",
+      "find": "Find duplicates",
+      "none": "No contacts share an email.",
+      "keepLabel": "Contact to keep",
+      "keep": "Keeps",
+      "merge": "{count, plural, one {Merge # contact into the one kept} other {Merge # contacts into the one kept}}",
+      "confirm": "{count, plural, one {Merge # contact into {keep}?} other {Merge # contacts into {keep}?}} Deals, activities, emails and lists move to {keep}, and its empty fields are filled in. This can't be undone.",
+      "merged": "{count, plural, one {# contact merged} other {# contacts merged}}",
+      "note": "Merging can't be undone. The contact you keep gets the deals, activities, emails and lists of the others, and its empty fields are filled in from them."
+    },
     "form": {
       "firstName": "First name",
       "lastName": "Last name",
@@ -1195,6 +1212,8 @@
     "invalid_currency": "Use a 3-letter currency code (for example EUR) different from the base currency.",
     "invalid_rate": "The rate must be a number greater than zero.",
     "trash_conflict": "A record with this id already exists, so it can't be restored.",
+    "trash_email_taken": "Another contact uses this email now, so this one can't be restored. Change that contact's email or delete it, then restore.",
+    "contact_email_taken": "A contact with this email already exists.",
     "file_too_large": "The file is over 10 MB.",
     "file_type_not_allowed": "That file type can't be attached.",
     "storage_unavailable": "File storage is not set up on this server.",
@@ -1753,7 +1772,7 @@
       "successMessage": "Thank-you message",
       "crm": "In the CRM",
       "crmDesc": "What happens to the contact on every submission.",
-      "dedupe": "Update the existing contact when the email matches",
+      "dedupe": "When the email matches a contact, replace its values with the submitted ones. Off: only its empty fields are filled in",
       "ownerAuto": "Round-robin or workspace owner",
       "list": "Add to list",
       "sequence": "Enroll in sequence",

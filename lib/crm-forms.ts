@@ -34,6 +34,7 @@ import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
+import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 
 export interface CrmForm {
   id: string;
@@ -423,6 +424,20 @@ export type SubmitResult =
     }
   | { ok: false; error: 'not_found' | 'paused' | 'invalid' | 'captcha'; fieldErrors?: Record<string, FieldError> };
 
+/** Campo mapeado del form → columna de crm_contacts (para saber si ya tiene valor). */
+const CONTACT_COLUMN: Record<string, string> = {
+  firstName: 'first_name',
+  lastName: 'last_name',
+  jobTitle: 'job_title',
+};
+
+/** Custom fields que tienen valor (los vacíos se pueden completar). */
+function withoutEmpty(custom: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(custom).filter(([, v]) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)),
+  );
+}
+
 function lifecycleRank(stage: string): number {
   return (LIFECYCLE_STAGES as readonly string[]).indexOf(stage);
 }
@@ -508,7 +523,10 @@ export async function submitForm(
     }
   }
 
-  const existing: CrmContactRow | null = email && s.updateExisting ? await findContactByEmail(workspaceId, email) : null;
+  // El email es la identidad del contacto: un email que ya existe nunca crea
+  // otro contacto. "Actualizar contactos existentes" decide solo si lo que
+  // vino pisa lo que había o completa lo que estaba vacío.
+  let existing: CrmContactRow | null = email ? await findContactByEmail(workspaceId, email) : null;
   let contact: CrmContactRow;
   let created = false;
   // Dueño: la primera regla que coincide; si no, el dueño fijo; si no, round-robin.
@@ -520,16 +538,59 @@ export async function submitForm(
         ? s.ownerId
         : null;
 
+  const newContact = existing
+    ? null
+    : await catchEmailTaken(
+        crm.createContact(
+          workspaceId,
+          {
+            firstName: mapped.contact.firstName,
+            lastName: mapped.contact.lastName,
+            email: email || undefined,
+            phone: mapped.contact.phone,
+            jobTitle: mapped.contact.jobTitle,
+            website: mapped.contact.website,
+            city: mapped.contact.city,
+            country: mapped.contact.country,
+            lifecycleStage: s.lifecycleStage || undefined,
+            leadStatus: s.leadStatus || undefined,
+            source: s.source || 'form',
+            companyId,
+            ownerId: ownerValid,
+            custom: Object.keys(contactCustom).length ? contactCustom : undefined,
+          },
+          db,
+        ),
+      );
+  // Otro envío creó el mismo email entre la búsqueda y el alta: se sigue con ese contacto.
+  if (newContact instanceof ContactEmailTakenError) existing = newContact.existing;
+
   if (existing) {
     // Dedupe: completa/actualiza solo lo que vino (nunca borra con vacíos).
+    // Sin "actualizar existentes" solo se completa lo que estaba vacío.
+    const overwrite = s.updateExisting;
+    const current = existing as unknown as Record<string, unknown>;
     const patch: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(mapped.contact)) if (v && k !== 'email') patch[k] = v;
+    // El nombre va entero o no va: no se arma "nombre de uno, apellido de otro".
+    const named = !!(existing.first_name.trim() || existing.last_name.trim());
+    for (const [k, v] of Object.entries(mapped.contact)) {
+      if (!v || k === 'email') continue;
+      if (overwrite) patch[k] = v;
+      else if (k === 'firstName' || k === 'lastName') {
+        if (!named) patch[k] = v;
+      } else if (!String(current[CONTACT_COLUMN[k] ?? k] ?? '').trim()) patch[k] = v;
+    }
     if (Object.keys(contactCustom).length) {
-      patch.custom = { ...crm.parseCustom(existing.custom), ...contactCustom };
+      const had = crm.parseCustom(existing.custom);
+      const filled = withoutEmpty(had);
+      const incoming = overwrite
+        ? contactCustom
+        : Object.fromEntries(Object.entries(contactCustom).filter(([k]) => !(k in filled)));
+      if (Object.keys(incoming).length) patch.custom = { ...had, ...incoming };
     }
     if (companyId && !existing.company_id) patch.companyId = companyId;
     // Lifecycle solo avanza (nunca retrocede un customer a lead).
-    if (s.lifecycleStage && lifecycleRank(s.lifecycleStage) > lifecycleRank(existing.lifecycle_stage)) {
+    if (overwrite && s.lifecycleStage && lifecycleRank(s.lifecycleStage) > lifecycleRank(existing.lifecycle_stage)) {
       patch.lifecycleStage = s.lifecycleStage;
     }
     if (!existing.source && s.source) patch.source = s.source;
@@ -537,26 +598,7 @@ export async function submitForm(
       ? ((await crm.updateContact(workspaceId, existing.id, patch as never, db, 'form')) ?? existing)
       : existing;
   } else {
-    contact = await crm.createContact(
-      workspaceId,
-      {
-        firstName: mapped.contact.firstName,
-        lastName: mapped.contact.lastName,
-        email: email || undefined,
-        phone: mapped.contact.phone,
-        jobTitle: mapped.contact.jobTitle,
-        website: mapped.contact.website,
-        city: mapped.contact.city,
-        country: mapped.contact.country,
-        lifecycleStage: s.lifecycleStage || undefined,
-        leadStatus: s.leadStatus || undefined,
-        source: s.source || 'form',
-        companyId,
-        ownerId: ownerValid,
-        custom: Object.keys(contactCustom).length ? contactCustom : undefined,
-      },
-      db,
-    );
+    contact = newContact as CrmContactRow;
     created = true;
     if (!ownerValid) {
       const { assignNewLead } = await import('./crm-assignment');

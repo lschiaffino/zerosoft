@@ -266,6 +266,13 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .dup-keep { cursor: default; }
 .dup-name { font-weight: 500; }
 .dup-email { font-size: 0.8125rem; }
+/* Contactos duplicados: nombre, datos y "queda" entran a 390 sin scroll lateral. */
+.dup-contacts .dup-row { flex-wrap: wrap; padding: 6px 0; }
+.dup-contacts .dup-name, .dup-contacts .dup-key { min-width: 0; overflow-wrap: anywhere; }
+.dup-contacts .dup-row .badge { margin-left: auto; }
+/* Aviso de email ya usado bajo una celda editable: no ensancha la columna. */
+.cell-inline-alert { display: block; max-width: 280px; margin: 4px 0 0; white-space: normal; }
+.email-taken-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- Propiedades editables en línea ---------- */
 

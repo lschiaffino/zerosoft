@@ -264,6 +264,23 @@
       "companies": "Empresas",
       "mergeConfirmTitle": "Combinar contactos"
     },
+    "emailTaken": {
+      "exists": "Ya existe un contacto con este email: {name}.",
+      "open": "Abrirlo",
+      "hidden": "Ya existe un contacto con este email. Es de otra persona del equipo, así que no podés abrirlo. Pedile a un admin del workspace."
+    },
+    "dupes": {
+      "title": "Contactos duplicados",
+      "description": "Contactos que comparten un email. Elegí cuál queda y fusioná el resto en él.",
+      "find": "Buscar duplicados",
+      "none": "No hay contactos que compartan un email.",
+      "keepLabel": "Contacto que queda",
+      "keep": "Queda",
+      "merge": "{count, plural, one {Fusionar # contacto en el que queda} other {Fusionar # contactos en el que queda}}",
+      "confirm": "{count, plural, one {¿Fusionar # contacto en {keep}?} other {¿Fusionar # contactos en {keep}?}} Los deals, actividades, emails y listas pasan a {keep}, y se completan sus campos vacíos. No se puede deshacer.",
+      "merged": "{count, plural, one {# contacto fusionado} other {# contactos fusionados}}",
+      "note": "Fusionar no se puede deshacer. El contacto que queda recibe los deals, actividades, emails y listas de los otros, y sus campos vacíos se completan con los de ellos."
+    },
     "form": {
       "firstName": "Nombre",
       "lastName": "Apellido",
@@ -1195,6 +1212,8 @@
     "invalid_currency": "Usá un código de moneda de 3 letras (por ejemplo EUR) distinto de la moneda base.",
     "invalid_rate": "El tipo de cambio tiene que ser un número mayor que cero.",
     "trash_conflict": "Ya existe un registro con este id, así que no se puede restaurar.",
+    "trash_email_taken": "Otro contacto usa este email ahora, así que este no se puede restaurar. Cambiá el email de ese contacto o borralo, y después restaurá.",
+    "contact_email_taken": "Ya existe un contacto con este email.",
     "file_too_large": "El archivo pesa más de 10 MB.",
     "file_type_not_allowed": "Ese tipo de archivo no se puede adjuntar.",
     "storage_unavailable": "Este servidor no tiene configurado dónde guardar archivos.",
@@ -1753,7 +1772,7 @@
       "successMessage": "Mensaje de agradecimiento",
       "crm": "En el CRM",
       "crmDesc": "Qué pasa con el contacto en cada envío.",
-      "dedupe": "Actualizar el contacto existente si coincide el email",
+      "dedupe": "Si el email coincide con un contacto, reemplazar sus valores por los enviados. Desactivado: solo se completan sus campos vacíos",
       "ownerAuto": "Round-robin o dueño del workspace",
       "list": "Agregar a la lista",
       "sequence": "Inscribir en la secuencia",
