@@ -8,7 +8,7 @@ import { shortDomain } from '@/lib/utils';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import ApiKeysPanel from '@/components/app/ApiKeysPanel';
 import ConnectedClientsPanel from '@/components/app/ConnectedClientsPanel';
-import { listConnectedClients } from '@/lib/oauth/store';
+import { listConnectedClients, mcpResourceUrl } from '@/lib/oauth/store';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
 import FormSection from '@/components/ui/FormSection';
 
@@ -35,7 +35,7 @@ export default async function ApiSettingsPage(props: { params: Promise<{ locale:
 
   return (
     <div className="st-stack">
-      <ConnectedClientsPanel initial={connected} />
+      <ConnectedClientsPanel initial={connected} endpoint={mcpResourceUrl()} />
       <ApiKeysPanel initialKeys={keys} isAdmin={admin} />
       {webhooks ? (
         <WebhooksPanel

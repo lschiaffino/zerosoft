@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import CopyButton from '@/components/link/CopyButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DataTable from '@/components/ui/DataTable';
 import EmptyState from '@/components/ui/EmptyState';
@@ -13,7 +14,7 @@ import { parseDbUtc } from '@/lib/utils';
 const fmt = (iso: string, locale: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(iso));
 
 /** Ajustes › API: lo que la persona conectó por OAuth (Claude, la CLI). Solo lo suyo, aunque sea admin. */
-export default function ConnectedClientsPanel({ initial }: { initial: ConnectedClient[] }) {
+export default function ConnectedClientsPanel({ initial, endpoint }: { initial: ConnectedClient[]; endpoint: string }) {
   const t = useTranslations('settings.connected');
   const locale = useLocale();
   const [clients, setClients] = useState(initial);
@@ -44,6 +45,20 @@ export default function ConnectedClientsPanel({ initial }: { initial: ConnectedC
   return (
     <FormSection id="connected" title={t('title')} description={t('desc')} footer={<p className="ui-section-note">{t('note')}</p>}>
       {error && <p className="ui-error" role="alert">{error}</p>}
+      {/* La URL para pegar en claude.ai › Settings › Connectors (y en otros clientes MCP). */}
+      <div className="st-connector" data-testid="connector-url">
+        <label className="label" htmlFor="st-connector-url">{t('connectorLabel')}</label>
+        <div className="st-connector-row">
+          <input id="st-connector-url" className="input" readOnly value={endpoint} onFocus={(e) => e.currentTarget.select()} aria-describedby="st-connector-help" />
+          <span className="st-connector-copy" data-testid="connector-url-copy">
+            <CopyButton text={endpoint} className="btn btn-secondary" />
+          </span>
+        </div>
+        <p id="st-connector-help" className="ui-help">
+          {t('connectorHelp')}{' '}
+          <a href={`/${locale}/docs/mcp#claude-ai`} className="st-inline-link" data-testid="connector-how-to">{t('connectorHowTo')}</a>
+        </p>
+      </div>
       <DataTable
         caption={t('title')}
         rows={clients}

@@ -94,6 +94,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <h4>{t('colDevelopers')}</h4>
           <ul>
             <li><Link href="/docs">{t('apiDocs')}</Link></li>
+            <li><Link href="/docs/mcp" data-testid="footer-connect-claude">{t('connectClaude')}</Link></li>
             <li><Link href="/changelog">{t('changelog')}</Link></li>
             <li><Link href="/status">{t('status')}</Link></li>
             <li><a href={GITHUB_URL} target="_blank" rel="noreferrer">{t('github')}</a></li>

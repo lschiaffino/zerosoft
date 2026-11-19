@@ -62,6 +62,8 @@ npx @modelcontextprotocol/inspector --cli http://localhost:PORT/api/mcp --transp
   --header "Authorization: Bearer zs_..." --method tools/list
 ```
 
+claude.ai: la sesión se probó con el cliente oficial del SDK (`@modelcontextprotocol/sdk`, Streamable HTTP + OAuth) registrándose con el redirect de claude.ai (`https://claude.ai/api/mcp/auth_callback`) y aprobando la pantalla de permisos con Playwright. La sección de claude.ai en `/docs/mcp` y la URL del conector en Ajustes › API y webhooks están publicadas; el pie del sitio lleva a `/docs/mcp`. Falta una prueba con una cuenta real de claude.ai.
+
 ## Decisiones
 
 - Sin dependencia nueva: el protocolo es JSON-RPC simple y `lib/track-mcp.ts` ya estaba hecho a mano.

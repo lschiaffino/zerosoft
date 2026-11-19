@@ -28,12 +28,6 @@ zerosoft call crm.deals.update --json \\
     "body":{"priority":"high"}}'
 zerosoft setup claude`;
 
-/**
- * claude.ai necesita una URL pública para conectarse: se prende después de probarlo
- * contra zerosoft.ai ya desplegado, no antes.
- */
-const CLAUDE_AI_VERIFIED = false;
-
 /** Cómo conectar Claude Code, claude.ai y la CLI. */
 export default async function McpDocsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -51,6 +45,16 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
         <p className="doc-intro">{c.intro}</p>
       </section>
 
+      {/* El conector de claude.ai primero: es lo que busca la mayoría. Probado de punta a punta con el SDK oficial (docs/mcp.md). */}
+      <section id="claude-ai" className="mcp-docs-section" data-testid="mcp-docs-claude-ai">
+        <h2>{c.claudeAiTitle}</h2>
+        <p>{c.claudeAiSteps[0]}</p>
+        <p>{c.claudeAiSteps[1]}</p>
+        <pre className="code-block"><code data-testid="mcp-docs-endpoint">{endpoint}</code></pre>
+        <p>{c.claudeAiSteps[2]}</p>
+        {c.claudeAiNotes.map((p) => <p key={p}>{p}</p>)}
+      </section>
+
       <section id="claude-code" className="mcp-docs-section">
         <h2>{c.claudeCodeTitle}</h2>
         <p>{c.claudeCodeSteps[0]}</p>
@@ -59,15 +63,10 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
         <p>{c.claudeCodeSteps[1]}</p>
       </section>
 
-      {CLAUDE_AI_VERIFIED && (
-        <section id="claude-ai" className="mcp-docs-section">
-          <h2>{c.claudeAiTitle}</h2>
-          <p>{c.claudeAiSteps[0]}</p>
-          <p>{c.claudeAiSteps[1]}</p>
-          <pre className="code-block"><code>{endpoint}</code></pre>
-          <p>{c.claudeAiSteps[2]}</p>
-        </section>
-      )}
+      <section id="chatgpt" className="mcp-docs-section">
+        <h2>{c.chatgptTitle}</h2>
+        <p>{c.chatgptBody}</p>
+      </section>
 
       <section id="cursor" className="mcp-docs-section">
         <h2>{c.cursorTitle}</h2>

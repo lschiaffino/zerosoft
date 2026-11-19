@@ -9,6 +9,10 @@ export interface McpDocsCopy {
   claudeCodeSteps: string[];
   claudeAiTitle: string;
   claudeAiSteps: string[];
+  /** Claude Desktop y el celular usan los conectores de la cuenta; Team y Enterprise los agrega un admin. */
+  claudeAiNotes: string[];
+  chatgptTitle: string;
+  chatgptBody: string;
   cursorTitle: string;
   cursorBody: string;
   harnessTitle: string;
@@ -36,14 +40,20 @@ export interface McpDocsCopy {
 export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   en: {
     metaTitle: 'Connect Claude and the CLI',
-    metaDescription: 'Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself.',
+    metaDescription: 'Connect claude.ai, Claude Desktop, Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself.',
     title: 'Connect Claude to zerosoft.',
     titleDim: 'And use it from your terminal.',
     intro: 'One connector reaches all 20 apps. You sign in through the browser with your normal login, with no keys to paste, and Claude acts as you, with your role and permissions.',
     claudeCodeTitle: 'Claude Code',
     claudeCodeSteps: ['Add the server:', 'Run /mcp inside Claude Code, pick zerosoft and sign in. Your browser opens the permissions screen.'],
-    claudeAiTitle: 'claude.ai',
-    claudeAiSteps: ['Open Settings, then Connectors, and choose Add custom connector.', 'Paste this URL:', 'Connect and approve in the permissions screen.'],
+    claudeAiTitle: 'claude.ai and Claude Desktop',
+    claudeAiSteps: ['In claude.ai, open Settings, then Connectors, and choose Add custom connector. Name it zerosoft.', 'Paste this URL and add it:', 'Choose Connect. Sign in to zerosoft if you are not signed in, pick the workspace and the access, and approve.'],
+    claudeAiNotes: [
+      'Claude Desktop and the Claude mobile apps use the connectors of your Claude account: add it once in claude.ai and it shows up there too. In a chat, turn zerosoft on from the tools menu.',
+      'On Claude Team and Enterprise plans, an owner adds the connector for the organization first. Then each person connects their own zerosoft account.',
+    ],
+    chatgptTitle: 'ChatGPT',
+    chatgptBody: 'With developer mode turned on in ChatGPT, create a connector with the URL above and OAuth as the authentication. ChatGPT opens the same permissions screen.',
     cursorTitle: 'Cursor and other editors',
     cursorBody: 'Add zerosoft to .cursor/mcp.json (or the MCP settings of your editor) with the URL below. Cursor opens the browser to sign in the first time. If your editor does not support OAuth for remote servers, use the API key version.',
     harnessTitle: 'Any MCP client or agent harness',
@@ -95,14 +105,20 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   },
   es: {
     metaTitle: 'Conectar Claude y la CLI',
-    metaDescription: 'Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 20 apps como vos.',
+    metaDescription: 'Conectá claude.ai, Claude Desktop, Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 20 apps como vos.',
     title: 'Conectá Claude a zerosoft.',
     titleDim: 'Y usalo desde tu terminal.',
     intro: 'Un solo conector llega a las 20 apps. Entrás por el navegador con tu login de siempre, sin pegar keys, y Claude actúa como vos, con tu rol y tus permisos.',
     claudeCodeTitle: 'Claude Code',
     claudeCodeSteps: ['Agregá el servidor:', 'Corré /mcp dentro de Claude Code, elegí zerosoft e iniciá sesión. El navegador abre la pantalla de permisos.'],
-    claudeAiTitle: 'claude.ai',
-    claudeAiSteps: ['Abrí Settings, después Connectors, y elegí Add custom connector.', 'Pegá esta URL:', 'Conectá y aprobá en la pantalla de permisos.'],
+    claudeAiTitle: 'claude.ai y Claude Desktop',
+    claudeAiSteps: ['En claude.ai, abrí Settings, después Connectors, y elegí Add custom connector. Ponele de nombre zerosoft.', 'Pegá esta URL y agregalo:', 'Elegí Connect. Entrá a zerosoft si no estabas adentro, elegí el workspace y el acceso, y aprobá.'],
+    claudeAiNotes: [
+      'Claude Desktop y las apps de Claude para el celular usan los conectores de tu cuenta de Claude: lo agregás una vez en claude.ai y aparece ahí también. En un chat, prendé zerosoft desde el menú de herramientas.',
+      'En los planes Team y Enterprise de Claude, primero un owner agrega el conector para la organización. Después cada persona conecta su propia cuenta de zerosoft.',
+    ],
+    chatgptTitle: 'ChatGPT',
+    chatgptBody: 'Con el modo desarrollador prendido en ChatGPT, creá un conector con la URL de arriba y OAuth como autenticación. ChatGPT abre la misma pantalla de permisos.',
     cursorTitle: 'Cursor y otros editores',
     cursorBody: 'Agregá zerosoft a .cursor/mcp.json (o a los ajustes de MCP de tu editor) con la URL de abajo. Cursor abre el navegador para iniciar sesión la primera vez. Si tu editor no hace OAuth con servidores remotos, usá la versión con API key.',
     harnessTitle: 'Cualquier cliente MCP o harness de agentes',
@@ -154,14 +170,20 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   },
   pt: {
     metaTitle: 'Conectar o Claude e a CLI',
-    metaDescription: 'Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 20 apps como você.',
+    metaDescription: 'Conecte o claude.ai, o Claude Desktop, o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 20 apps como você.',
     title: 'Conecte o Claude à zerosoft.',
     titleDim: 'E use pelo seu terminal.',
     intro: 'Um único conector chega aos 20 apps. Você entra pelo navegador com seu login de sempre, sem colar chaves, e o Claude age como você, com seu papel e suas permissões.',
     claudeCodeTitle: 'Claude Code',
     claudeCodeSteps: ['Adicione o servidor:', 'Rode /mcp dentro do Claude Code, escolha zerosoft e entre. O navegador abre a tela de permissões.'],
-    claudeAiTitle: 'claude.ai',
-    claudeAiSteps: ['Abra Settings, depois Connectors, e escolha Add custom connector.', 'Cole esta URL:', 'Conecte e aprove na tela de permissões.'],
+    claudeAiTitle: 'claude.ai e Claude Desktop',
+    claudeAiSteps: ['No claude.ai, abra Settings, depois Connectors, e escolha Add custom connector. Dê o nome zerosoft.', 'Cole esta URL e adicione:', 'Escolha Connect. Entre na zerosoft se ainda não entrou, escolha o workspace e o acesso, e aprove.'],
+    claudeAiNotes: [
+      'O Claude Desktop e os apps do Claude para celular usam os conectores da sua conta do Claude: você adiciona uma vez no claude.ai e ele aparece lá também. Num chat, ative a zerosoft pelo menu de ferramentas.',
+      'Nos planos Team e Enterprise do Claude, primeiro um owner adiciona o conector para a organização. Depois cada pessoa conecta a própria conta da zerosoft.',
+    ],
+    chatgptTitle: 'ChatGPT',
+    chatgptBody: 'Com o modo desenvolvedor ativado no ChatGPT, crie um conector com a URL acima e OAuth como autenticação. O ChatGPT abre a mesma tela de permissões.',
     cursorTitle: 'Cursor e outros editores',
     cursorBody: 'Adicione a zerosoft ao .cursor/mcp.json (ou às configurações de MCP do seu editor) com a URL abaixo. O Cursor abre o navegador para entrar na primeira vez. Se o seu editor não faz OAuth com servidores remotos, use a versão com chave de API.',
     harnessTitle: 'Qualquer cliente MCP ou harness de agentes',
