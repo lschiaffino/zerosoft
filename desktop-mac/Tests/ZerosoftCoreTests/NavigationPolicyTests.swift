@@ -88,6 +88,7 @@ private func enc(_ s: String) -> String {
     #expect(Server.normalize("http://zerosoft.ai") == nil)
     #expect(Server.normalize("https://user:pw@zerosoft.ai") == nil)
     #expect(Server.normalize("ftp://zerosoft.ai") == nil)
+    #expect(Server.normalize("http://127.0.0.1:0") == nil)
     #expect(Server.normalize("zerosoft.ai") == nil)
     #expect(Server.normalize("") == nil)
     #expect(Server.resolve(nil) == "https://zerosoft.ai")

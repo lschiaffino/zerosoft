@@ -15,7 +15,7 @@ public enum Server {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), let scheme = url.scheme?.lowercased(),
               let host = url.host?.lowercased(), !host.isEmpty else { return nil }
-        if url.user != nil || url.password != nil { return nil }
+        if url.user != nil || url.password != nil || url.port == 0 { return nil }
         let local = host == "localhost" || host == "127.0.0.1"
         switch scheme {
         case "https": break

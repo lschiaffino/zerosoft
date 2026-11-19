@@ -7,7 +7,7 @@ final class MainWindowUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        server = FixtureServer(port: FixtureServer.freePort())
+        server = FixtureServer(port: try FixtureServer.freePort())
     }
 
     override func tearDownWithError() throws {
@@ -33,8 +33,18 @@ final class MainWindowUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    private func text(_ app: XCUIApplication, _ label: String) -> XCUIElement {
-        app.staticTexts[label].firstMatch
+    /// Web content on macOS puts a text in the label, the title or the value depending on the
+    /// role, so match any of them.
+    private func showing(_ text: String) -> NSPredicate {
+        NSPredicate(format: "label == %@ OR title == %@ OR value == %@", text, text, text)
+    }
+
+    private func text(_ app: XCUIApplication, _ text: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(showing(text)).firstMatch
+    }
+
+    private func link(_ app: XCUIApplication, _ text: String) -> XCUIElement {
+        app.links.matching(showing(text)).firstMatch
     }
 
     private func reason(_ app: XCUIApplication) -> String {
@@ -57,12 +67,12 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(element(app, "zs-error-view").exists)
 
         // Another origin goes to the browser and the page stays.
-        app.links["Other origin"].firstMatch.click()
+        link(app, "Other origin").click()
         waitForExternal(app, hasPrefix: "\(server.otherOrigin)/elsewhere")
         XCTAssertTrue(text(app, "zs-fixture-ok").exists)
 
         // The server's own origin loads inside.
-        app.links["Same origin"].firstMatch.click()
+        link(app, "Same origin").click()
         XCTAssertTrue(text(app, "zs-fixture-second").waitForExistence(timeout: 15))
     }
 
@@ -106,13 +116,15 @@ final class MainWindowUITests: XCTestCase {
         try server.start()
         let app = launch(lockdown: "on")
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20), "the page did not show with Lockdown on")
-        let features = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'features'")).firstMatch
+        let features = app.staticTexts
+            .matching(NSPredicate(format: "label BEGINSWITH 'features ' OR value BEGINSWITH 'features '")).firstMatch
         if features.waitForExistence(timeout: 5) {
-            let note = XCTAttachment(string: features.label)
+            let line = "\(features.label) \(features.value as? String ?? "")"
+            let note = XCTAttachment(string: line)
             note.name = "web features with Lockdown on"
             note.lifetime = .keepAlways
             add(note)
-            print("lockdown-on \(features.label)")
+            print("lockdown-on \(line)")
         }
     }
 }

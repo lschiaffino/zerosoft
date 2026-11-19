@@ -48,6 +48,8 @@ targets:
     platform: macOS
     sources:
       - path: UITests
+        excludes:
+          - "*.entitlements"
     dependencies:
       - target: zerosoft
     settings:
@@ -55,6 +57,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ai.zerosoft.mac.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: zerosoft
+        CODE_SIGN_ENTITLEMENTS: UITests/UITests.entitlements
 schemes:
   zerosoft:
     build:

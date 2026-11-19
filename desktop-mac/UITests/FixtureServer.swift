@@ -35,18 +35,30 @@ final class FixtureServer {
     }
 
     /// A port nothing listens on right now (bind to 0, read it, close).
-    static func freePort() -> UInt16 {
+    static func freePort() throws -> UInt16 {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw failure("socket") }
         defer { close(fd) }
         var addr = loopback(port: 0)
-        withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+        let bound = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
+        guard bound == 0 else { throw failure("bind") }
         var len = socklen_t(MemoryLayout<sockaddr_in>.size)
         withUnsafeMutablePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { _ = getsockname(fd, $0, &len) }
         }
-        return UInt16(bigEndian: addr.sin_port)
+        let port = UInt16(bigEndian: addr.sin_port)
+        guard port != 0 else { throw failure("getsockname") }
+        return port
+    }
+
+    /// The call that failed and errno, so a CI failure says what the runner refused.
+    private static func failure(_ call: String) -> NSError {
+        let code = errno
+        return NSError(domain: "FixtureServer", code: Int(code), userInfo: [
+            NSLocalizedDescriptionKey: "\(call) failed: errno \(code) (\(String(cString: strerror(code))))",
+        ])
     }
 
     private static func loopback(port: UInt16) -> sockaddr_in {
@@ -60,16 +72,22 @@ final class FixtureServer {
 
     func start() throws {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw POSIXError(.EIO) }
+        guard fd >= 0 else { throw Self.failure("socket") }
         var yes: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
         var addr = Self.loopback(port: port)
         let bound = withUnsafePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
-        guard bound == 0, listen(fd, 16) == 0 else {
+        guard bound == 0 else {
+            let error = Self.failure("bind \(port)")
             close(fd)
-            throw POSIXError(.EADDRINUSE)
+            throw error
+        }
+        guard listen(fd, 16) == 0 else {
+            let error = Self.failure("listen")
+            close(fd)
+            throw error
         }
         listenFD = fd
         let thread = Thread { [weak self] in self?.acceptLoop(fd) }

@@ -66,7 +66,7 @@ jobs:
           xcrun xcresulttool get test-results tests --path build/UITests.xcresult \
             | /usr/bin/python3 -c 'import json,sys
           def walk(n, d=0):
-              if n.get("nodeType") in ("Test Case", "Test Suite", "Unit test bundle", "UI test bundle"):
+              if n.get("nodeType") in ("Test Case", "Test Suite", "Unit test bundle", "UI test bundle", "Failure Message"):
                   print("  " * d + n.get("name", "") + ": " + n.get("result", ""))
               for c in n.get("children", []): walk(c, d + 1)
           for n in json.load(sys.stdin).get("testNodes", []): walk(n)' || true
