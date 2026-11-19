@@ -37,23 +37,31 @@ async function mockImports(page: Page, current: () => Import[]) {
     if (route.request().method() !== 'GET' || route.request().url().includes('meta=0')) return route.continue();
     const headers = { ...route.request().headers() };
     delete headers['if-none-match'];
-    const res = await route.fetch({ headers });
-    const json = (await res.json()) as Record<string, unknown>;
-    // Sin los encabezados de la respuesta real: traen la compresión y el largo del cuerpo original (y el ETag), y con
-    // un cuerpo nuevo el navegador no la puede leer.
-    await route.fulfill({ status: 200, json: { ...json, imports: current() } });
+    try {
+      const res = await route.fetch({ headers });
+      const json = (await res.json()) as Record<string, unknown>;
+      // Sin los encabezados de la respuesta real: traen la compresión y el largo del cuerpo original (y el ETag), y con
+      // un cuerpo nuevo el navegador no la puede leer.
+      await route.fulfill({ status: 200, json: { ...json, imports: current() } });
+    } catch {
+      // La bandeja cortó este pedido porque pidió la lista de nuevo: no hay a quién responderle.
+    }
   });
 }
 
 /**
- * Espera a que el aviso esté en ese estado. La bandeja vuelve a pedir la lista al volver a la ventana (y descarta un
- * segundo "volví" pegado al anterior): se le avisa hasta que la respuesta nueva llega a la pantalla.
+ * Espera a que el aviso esté en ese estado. La bandeja vuelve a pedir la lista al volver a la ventana (descarta un
+ * segundo "volví" pegado al anterior, y cada pedido nuevo corta al que estaba en curso): se le avisa una vez, se
+ * espera a que esa lista llegue entera y recién ahí se mira el aviso. Avisarle seguido cortaría todos los pedidos.
  */
 async function showing(page: Page, kind: string) {
   await expect(async () => {
+    await page.waitForTimeout(1100);
+    const list = page.waitForResponse((r) => r.url().includes('/api/groups/chats?') && !r.url().includes('meta=0') && r.status() === 200, { timeout: 30_000 });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 1500 });
-  }).toPass({ timeout: 90_000 });
+    await (await list).finished();
+    await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 3000 });
+  }).toPass({ timeout: 150_000 });
 }
 
 // La línea elegida no queda puesta para las pruebas que siguen.
