@@ -27,8 +27,12 @@ interface Box {
   height: number;
 }
 
+/** Guardados en fila: el progreso llega al servidor en el orden en que pasó (el último paso gana). */
+let queue: Promise<unknown> = Promise.resolve();
 function post(body: Record<string, unknown>) {
-  void fetch('/api/tours', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => undefined);
+  queue = queue
+    .then(() => fetch('/api/tours', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), keepalive: true }))
+    .catch(() => undefined);
 }
 
 /** A la vista: pintado, con tamaño y dentro del ancho de la ventana (un drawer cerrado no cuenta). */
