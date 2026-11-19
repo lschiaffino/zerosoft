@@ -163,7 +163,14 @@
     "bulkDelete": "Excluir",
     "bulkApply": "Aplicar",
     "bulkDeleteTitle": "Excluir {n} produtos?",
-    "bulkDeleteBody": "Saem as variantes e o estoque. Os pedidos anteriores mantêm as linhas. Não dá para desfazer."
+    "bulkDeleteBody": "Saem as variantes e o estoque. Os pedidos anteriores mantêm as linhas. Não dá para desfazer.",
+    "activeFilters": "Filtros ativos",
+    "removeFilter": "Remover filtro {kind}: {value}",
+    "facet": {
+      "tag": "Tag",
+      "vendor": "Fornecedor",
+      "type": "Tipo"
+    }
   },
   "editor": {
     "title": "Título",
