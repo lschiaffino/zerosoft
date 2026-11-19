@@ -6,7 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { EntryDto, ProjectDto, TaskDto } from '@/lib/time/core';
-import { addDays, formatMinutes, isIsoDate, liveMinutes, parseDuration, weekDays } from '@/lib/time/types';
+import { addDays, canTrackOn, formatMinutes, isIsoDate, liveMinutes, parseDuration, tasksForProject, weekDays } from '@/lib/time/types';
 import { api, groupByClient, localToday, TimeDialog, useDayFormat, useErrorText, useToast } from './ui';
 import WeekGrid from './WeekGrid';
 
@@ -30,6 +30,7 @@ type Draft = {
 export default function Timesheet({
   projects,
   tasks,
+  me,
   admin,
   initialDate,
   initialView,
@@ -37,6 +38,8 @@ export default function Timesheet({
 }: {
   projects: ProjectDto[];
   tasks: TaskDto[];
+  /** Id de la persona: carga horas solo en los proyectos donde está asignada. */
+  me: string;
   admin: boolean;
   initialDate: string | null;
   initialView: SheetView;
@@ -58,8 +61,8 @@ export default function Timesheet({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const openedNew = useRef(false);
 
-  const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
-  const activeTasks = useMemo(() => tasks.filter((x) => !x.archived), [tasks]);
+  const activeProjects = useMemo(() => projects.filter((p) => !p.archived && canTrackOn(p, me)), [projects, me]);
+  const tasksOf = useCallback((projectId: string) => tasksForProject(projects.find((p) => p.id === projectId), tasks), [projects, tasks]);
   const days = useMemo(() => (date ? weekDays(date) : []), [date]);
   const weekKey = days[0] ?? '';
 
@@ -117,19 +120,21 @@ export default function Timesheet({
 
   const openNewDraft = useCallback(() => {
     if (!date) return;
-    const last = [...(entries ?? [])].reverse().find((e) => activeProjects.some((p) => p.id === e.projectId) && activeTasks.some((x) => x.id === e.taskId));
+    const last = [...(entries ?? [])].reverse().find((e) => activeProjects.some((p) => p.id === e.projectId) && tasksOf(e.projectId).some((x) => x.id === e.taskId));
+    const projectId = last?.projectId ?? activeProjects[0]?.id ?? '';
+    const own = tasksOf(projectId);
     setFormError('');
     setDraft({
       id: null,
-      projectId: last?.projectId ?? activeProjects[0]?.id ?? '',
-      taskId: last?.taskId ?? (activeTasks.find((x) => x.billable) ?? activeTasks[0])?.id ?? '',
+      projectId,
+      taskId: last?.taskId ?? (own.find((x) => x.billable) ?? own[0])?.id ?? '',
       notes: '',
       duration: '',
       date,
       running: false,
       originalDuration: '',
     });
-  }, [date, entries, activeProjects, activeTasks]);
+  }, [date, entries, activeProjects, tasksOf]);
 
   // /app/time?new=1 (menú "+ Nuevo" y Cmd+K) abre el diálogo una vez que hay fecha.
   useEffect(() => {
@@ -233,6 +238,8 @@ export default function Timesheet({
   };
 
   const noProjects = activeProjects.length === 0;
+  // Hay proyectos activos pero ninguno con la persona en el equipo.
+  const adminNotAssigned = admin && noProjects && projects.some((p) => !p.archived);
   const trackButton = (
     <button type="button" className="btn btn-primary" onClick={openNewDraft} disabled={!date || noProjects} data-testid="time-track">
       {t('nav.track')}
@@ -246,10 +253,12 @@ export default function Timesheet({
       {noProjects ? (
         <EmptyState
           product="time"
-          title={t('sheet.noProjectsTitle')}
-          body={admin ? t('sheet.noProjectsAdmin') : t('sheet.noProjectsMember')}
+          title={adminNotAssigned ? t('sheet.notAssignedTitle') : t('sheet.noProjectsTitle')}
+          body={adminNotAssigned ? t('sheet.notAssignedAdmin') : admin ? t('sheet.noProjectsAdmin') : t('sheet.noProjectsMember')}
           action={
-            admin
+            adminNotAssigned
+              ? { label: t('nav.projects'), href: '/app/time/projects' }
+              : admin
               ? {
                   label: t('sheet.createProject'),
                   href: '/app/time/projects?new=1',
@@ -298,6 +307,7 @@ export default function Timesheet({
               onRetry={() => void load()}
               projects={projects}
               tasks={tasks}
+              me={me}
               now={now}
               setEntries={setEntries}
               push={push}
@@ -407,10 +417,23 @@ export default function Timesheet({
             <div className="ui-modal-body ui-fields">
               <label className="ui-field">
                 <span className="label">{t('sheet.project')}</span>
-                <select className="input" value={draft.projectId} onChange={(e) => setDraft({ ...draft, projectId: e.target.value })} required autoFocus={!draft.id} name="project">
+                <select
+                  className="input"
+                  value={draft.projectId}
+                  onChange={(e) => {
+                    const projectId = e.target.value;
+                    const own = tasksOf(projectId);
+                    // La tarea sigue si el proyecto nuevo la tiene; si no, la primera facturable.
+                    const taskId = own.some((x) => x.id === draft.taskId) ? draft.taskId : ((own.find((x) => x.billable) ?? own[0])?.id ?? '');
+                    setDraft({ ...draft, projectId, taskId });
+                  }}
+                  required
+                  autoFocus={!draft.id}
+                  name="project"
+                >
                   {/* Una entrada vieja de un proyecto archivado conserva su proyecto en la lista. */}
                   {draft.id && !activeProjects.some((p) => p.id === draft.projectId) && (
-                    <option value={draft.projectId}>{projects.find((p) => p.id === draft.projectId)?.name ?? draft.projectId}</option>
+                    <option value={draft.projectId}>{projects.find((p) => p.id === draft.projectId)?.name ?? entries?.find((x) => x.id === draft.id)?.projectName ?? draft.projectId}</option>
                   )}
                   {groupByClient(activeProjects).map(([client, list]) => (
                     <optgroup key={client ?? ''} label={client ?? t('sheet.noClient')}>
@@ -426,8 +449,10 @@ export default function Timesheet({
               <label className="ui-field">
                 <span className="label">{t('sheet.task')}</span>
                 <select className="input" value={draft.taskId} onChange={(e) => setDraft({ ...draft, taskId: e.target.value })} required name="task">
-                  {draft.id && !activeTasks.some((x) => x.id === draft.taskId) && <option value={draft.taskId}>{tasks.find((x) => x.id === draft.taskId)?.name ?? draft.taskId}</option>}
-                  {activeTasks.map((x) => (
+                  {draft.id && !tasksOf(draft.projectId).some((x) => x.id === draft.taskId) && (
+                    <option value={draft.taskId}>{tasks.find((x) => x.id === draft.taskId)?.name ?? draft.taskId}</option>
+                  )}
+                  {tasksOf(draft.projectId).map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>

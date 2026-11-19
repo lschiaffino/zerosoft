@@ -325,3 +325,129 @@ describe('Time: rutas por rol', () => {
     expect((await entries.GET(req('/api/time/entries?rowsBefore=2026-11-16'))).status).toBe(401);
   });
 });
+
+describe('Time: equipo y tareas por proyecto', () => {
+  it('canTrackOn y tasksForProject siguen la asignación', async () => {
+    const { canTrackOn, tasksForProject } = await import('@/lib/time/types');
+    expect(canTrackOn({ everyone: true, people: [] }, 'u1')).toBe(true);
+    expect(canTrackOn({ everyone: false, people: ['u2'] }, 'u1')).toBe(false);
+    expect(canTrackOn({ everyone: false, people: ['u1'] }, 'u1')).toBe(true);
+    const tasks = [
+      { id: 'a', name: 'A', billable: true, archived: false },
+      { id: 'b', name: 'B', billable: false, archived: false },
+      { id: 'c', name: 'C', billable: true, archived: true },
+    ];
+    expect(tasksForProject({ allTasks: true, tasks: [] }, tasks).map((x) => x.id)).toEqual(['a', 'b']);
+    expect(tasksForProject(null, tasks).map((x) => x.id)).toEqual(['a', 'b']);
+    // Solo las elegidas, activas, con el facturable del proyecto.
+    expect(
+      tasksForProject(
+        {
+          allTasks: false,
+          tasks: [
+            { taskId: 'b', billable: true },
+            { taskId: 'c', billable: true },
+          ],
+        },
+        tasks,
+      ),
+    ).toEqual([{ id: 'b', name: 'B', billable: true, archived: false }]);
+  });
+
+  async function setup(label: string) {
+    const w = await workspaceWithMember(label);
+    const owner = timeActorOf(asOwner(w.owner));
+    const member = timeActorOf(asMember(w.owner, w.member));
+    const friend = timeActorOf(asMember(w.owner, w.friend));
+    const stranger = timeActorOf(asOwner(w.stranger));
+    await ensureDefaultTasks(owner.ws, 'en');
+    const tasks = await listTasks(owner);
+    const project = await createProject(owner, { name: 'Private', rateCents: 5000 });
+    return { w, owner, member, friend, stranger, tasks, project };
+  }
+
+  it('un proyecto con equipo elegido solo lo ven y cargan sus personas', async () => {
+    const { owner, member, friend, tasks, project } = await setup('time-assign-team');
+    expect(project.everyone).toBe(true);
+    const saved = await updateProject(owner, project.id, { everyone: false, people: [member.person] });
+    expect(saved).toMatchObject({ everyone: false, people: [member.person] });
+    expect((await listProjects(member)).map((p) => p.id)).toContain(project.id);
+    expect((await listProjects(friend)).map((p) => p.id)).not.toContain(project.id);
+    expect(await searchTime(friend, 'Private')).toHaveLength(0);
+    // El admin lo ve para manejarlo, pero no carga horas sin estar en el equipo.
+    expect((await listProjects(owner)).map((p) => p.id)).toContain(project.id);
+    const task = tasks.find((x) => x.billable)!;
+    await expect(createEntry(friend, { date: '2026-11-18', projectId: project.id, taskId: task.id, minutes: 30 })).rejects.toMatchObject({ code: 'not_assigned' });
+    await expect(createEntry(owner, { date: '2026-11-18', projectId: project.id, taskId: task.id, minutes: 30 })).rejects.toMatchObject({ code: 'not_assigned' });
+    const e = await createEntry(member, { date: '2026-11-18', projectId: project.id, taskId: task.id, minutes: 30 });
+    // Mover una entrada a un proyecto ajeno tampoco.
+    const open = await createProject(owner, { name: 'Open' });
+    const f = await createEntry(friend, { date: '2026-11-18', projectId: open.id, taskId: task.id, minutes: 15 });
+    await expect(updateEntry(friend, f.id, { projectId: project.id })).rejects.toMatchObject({ code: 'not_assigned' });
+    // Quien sale del equipo sigue pudiendo editar sus horas viejas sin moverlas.
+    await updateProject(owner, project.id, { everyone: false, people: [owner.person] });
+    expect((await updateEntry(member, e.id, { minutes: 45 })).minutes).toBe(45);
+    expect((await listProjects(member)).map((p) => p.id)).not.toContain(project.id);
+  });
+
+  it('valida el equipo: personas del workspace con Time y al menos una', async () => {
+    const { owner, member, stranger, project } = await setup('time-assign-valid');
+    await expect(updateProject(owner, project.id, { everyone: false, people: [] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(updateProject(owner, project.id, { everyone: false, people: [stranger.person] })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(updateProject(member, project.id, { everyone: false, people: [member.person] })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(createProject(owner, { name: 'Bad team', everyone: false, people: [stranger.person] })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await listProjects(owner)).map((p) => p.name)).not.toContain('Bad team');
+    // Volver a todos borra la lista.
+    await updateProject(owner, project.id, { everyone: false, people: [member.person] });
+    expect(await updateProject(owner, project.id, { everyone: true })).toMatchObject({ everyone: true, people: [] });
+  });
+
+  it('las tareas del proyecto limitan la carga y fijan el facturable', async () => {
+    const { owner, member, stranger, tasks, project } = await setup('time-assign-tasks');
+    const billableTask = tasks.find((x) => x.billable)!;
+    const adminTask = tasks.find((x) => !x.billable)!;
+    const other = tasks.find((x) => x.billable && x.id !== billableTask.id)!;
+    const saved = await updateProject(owner, project.id, {
+      allTasks: false,
+      tasks: [
+        { taskId: billableTask.id, billable: false },
+        { taskId: adminTask.id, billable: true },
+      ],
+    });
+    expect(saved.allTasks).toBe(false);
+    expect(saved.tasks).toHaveLength(2);
+    await expect(createEntry(member, { date: '2026-11-18', projectId: project.id, taskId: other.id, minutes: 10 })).rejects.toMatchObject({ code: 'task_not_in_project' });
+    expect((await createEntry(member, { date: '2026-11-18', projectId: project.id, taskId: billableTask.id, minutes: 10 })).billable).toBe(false);
+    const e = await createEntry(member, { date: '2026-11-18', projectId: project.id, taskId: adminTask.id, minutes: 10 });
+    expect(e.billable).toBe(true);
+    await expect(updateEntry(member, e.id, { taskId: other.id })).rejects.toMatchObject({ code: 'task_not_in_project' });
+    // Una tarea de otro workspace no entra.
+    await ensureDefaultTasks(stranger.ws, 'en');
+    const foreign = (await listTasks(stranger))[0];
+    await expect(updateProject(owner, project.id, { allTasks: false, tasks: [{ taskId: foreign.id, billable: true }] })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(updateProject(owner, project.id, { allTasks: false, tasks: [] })).rejects.toMatchObject({ code: 'invalid_input' });
+    // Borrar una tarea sin horas la saca del proyecto.
+    const qa = await createTask(owner, { name: 'QA' });
+    await updateProject(owner, project.id, { allTasks: false, tasks: [{ taskId: billableTask.id, billable: true }, { taskId: qa.id, billable: true }] });
+    await deleteTask(owner, qa.id);
+    expect((await listProjects(owner)).find((p) => p.id === project.id)?.tasks.map((x) => x.taskId)).toEqual([billableTask.id]);
+  });
+
+  it('PATCH /api/time/projects/[id] guarda el equipo solo para quien administra', async () => {
+    const { w, member, project } = await setup('time-assign-route');
+    const { PATCH } = await import('@/lib/routes/time/projects/[id]/route');
+    const call = () =>
+      PATCH(new NextRequest(`http://x/api/time/projects/${project.id}`, { method: 'PATCH', body: JSON.stringify({ everyone: false, people: [member.person] }) }), {
+        params: Promise.resolve({ id: project.id }),
+      });
+    session.user = asMember(w.owner, w.member);
+    expect((await call()).status).toBe(403);
+    session.user = asOwner(w.stranger);
+    expect((await call()).status).toBe(404);
+    session.user = asOwner(w.owner);
+    const res = await call();
+    expect(res.status).toBe(200);
+    expect((await res.json()).project.people).toEqual([member.person]);
+    session.user = null;
+  });
+});

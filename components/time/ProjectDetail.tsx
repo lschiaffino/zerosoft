@@ -6,10 +6,11 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { ClientDto, ProjectDto } from '@/lib/time/core';
+import type { ClientDto, ProjectDto, TaskDto } from '@/lib/time/core';
 import { formatMinutes, type ReportRow, type ReportTotals } from '@/lib/time/types';
 import ProjectForm from './ProjectForm';
 import { BudgetBar } from './BudgetBar';
+import ProjectAssignments, { type TeamPerson } from './ProjectAssignments';
 import { api, useErrorText, useMoney, useToast } from './ui';
 
 function Breakdown({ title, rows, testId }: { title: string; rows: ReportRow[]; testId: string }) {
@@ -42,6 +43,9 @@ export default function ProjectDetail({
   totals,
   byTask,
   byPerson,
+  people,
+  tasks,
+  me,
 }: {
   project: ProjectDto;
   clients: ClientDto[];
@@ -50,6 +54,10 @@ export default function ProjectDetail({
   totals: ReportTotals;
   byTask: ReportRow[];
   byPerson: ReportRow[];
+  /** Personas con Time y tareas del workspace (solo para quien administra). */
+  people: TeamPerson[];
+  tasks: TaskDto[];
+  me: string;
 }) {
   const t = useTranslations('time');
   const router = useRouter();
@@ -150,6 +158,7 @@ export default function ProjectDetail({
           {byPerson.length > 0 && <Breakdown title={t('projects.byPerson')} rows={byPerson} testId="time-project-by-person" />}
         </div>
       )}
+      {admin && <ProjectAssignments project={project} people={people} tasks={tasks} me={me} onSaved={setProject} push={push} />}
       <p className="tm-footlink">
         <Link href={`/app/time/reports?projectId=${project.id}`}>{t('projects.openReport')}</Link>
       </p>

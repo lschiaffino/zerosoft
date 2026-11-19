@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { timeActorOf } from '@/lib/time/http';
-import { ensureDefaultTasks, getCurrency, getProject, listClients, listProjects, listTasks, reportEntries } from '@/lib/time/core';
+import { ensureDefaultTasks, getCurrency, getProject, listClients, listProjects, listTasks, listTimePeople, reportEntries } from '@/lib/time/core';
 import { summarize } from '@/lib/time/types';
 import Timesheet from '@/components/time/Timesheet';
 import ProjectsList from '@/components/time/ProjectsList';
@@ -42,7 +42,7 @@ export default async function TimePage(props: Props) {
   switch (section) {
     case undefined: {
       const [projects, tasks] = await Promise.all([listProjects(actor), listTasks(actor)]);
-      return <Timesheet projects={projects} tasks={tasks} admin={actor.admin} initialDate={sp.date ?? null} initialView={sp.view === 'week' ? 'week' : 'day'} openNew={sp.new === '1'} />;
+      return <Timesheet projects={projects} tasks={tasks} me={actor.person} admin={actor.admin} initialDate={sp.date ?? null} initialView={sp.view === 'week' ? 'week' : 'day'} openNew={sp.new === '1'} />;
     }
     case 'projects': {
       const [clients, currency] = await Promise.all([listClients(actor), getCurrency(actor.ws)]);
@@ -53,7 +53,21 @@ export default async function TimePage(props: Props) {
       const entries = await reportEntries(actor, { from: '2000-01-01', to: '2999-12-31', projectId: id });
       const byTask = summarize(entries, 'task');
       const byPerson = actor.admin ? summarize(entries, 'person').rows : [];
-      return <ProjectDetail project={project} clients={clients} admin={actor.admin} currency={currency} totals={byTask.totals} byTask={byTask.rows} byPerson={byPerson} />;
+      const [people, tasks] = actor.admin ? await Promise.all([listTimePeople(actor.ws), listTasks(actor)]) : [[], []];
+      return (
+        <ProjectDetail
+          project={project}
+          clients={clients}
+          admin={actor.admin}
+          currency={currency}
+          totals={byTask.totals}
+          byTask={byTask.rows}
+          byPerson={byPerson}
+          people={people}
+          tasks={tasks}
+          me={actor.person}
+        />
+      );
     }
     case 'reports':
       return <Reports admin={actor.admin} projects={await listProjects(actor)} initialProjectId={sp.projectId ?? null} />;
