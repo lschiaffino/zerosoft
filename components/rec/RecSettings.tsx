@@ -6,6 +6,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecContentOwner, RecSettingsDto } from '@/lib/rec-admin';
 import { REC_RETENTION_GRACE_DAYS, REC_RETENTION_OPTIONS } from '@/lib/rec-schema';
 import { parseDbUtc } from '@/lib/utils';
+import RecTrash from './RecTrash';
 
 interface Data {
   settings: RecSettingsDto;
@@ -155,6 +156,7 @@ export default function RecSettings() {
   const owner = data.owners?.find((o) => o.userId === from);
   const target = data.people?.find((p) => p.id === to);
   const dateFmt = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(d));
+  const names = new Map<string, string>([...(data.owners ?? []).map((o) => [o.userId, o.name] as const), ...(data.people ?? []).map((p) => [p.id, p.name || p.email] as const)]);
 
   return (
     <div className="rec-settings st-stack" data-testid="rec-settings">
@@ -253,6 +255,15 @@ export default function RecSettings() {
             {t('retentionOn', { date: dateFmt(s.retentionStartsAt), deleted: s.retentionDeleted })}
           </p>
         )}
+        <RecTrash
+          retentionOn={s.retentionDays !== null}
+          names={names}
+          onRestored={(title) => {
+            setToast(t('trash.restored', { title: title || t('trash.untitled') }));
+            void load();
+          }}
+          onError={setError}
+        />
         {!ro && (
           <div className="rec-pane-foot">
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void saveRetention()} data-testid="rec-retention-save">

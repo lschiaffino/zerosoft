@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { SettingsDto } from '@/lib/hiring/core';
 import type { CandidateField } from '@/lib/hiring/types';
 import { api, useErrorText, useToast } from './ui';
+import HiringTrash from './HiringTrash';
 
 /** Campos propios de candidatos: se guardan con el resto de los ajustes. */
 function CandidateFieldsEditor({ value, onChange }: { value: CandidateField[]; onChange: (v: CandidateField[]) => void }) {
@@ -198,6 +199,7 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
               </select>
               <span className="ui-help">{t('settings.retentionHelp')}</span>
             </label>
+            {canAdmin && <HiringTrash onNotice={push} />}
             <label className="ui-field">
               <span className="label">{t('settings.consentText')}</span>
               <textarea className="textarea" rows={3} maxLength={1000} placeholder={t('apply.consentDefault', { company: s.company })} value={s.consentText} onChange={(e) => setS({ ...s, consentText: e.target.value })} />

@@ -61,6 +61,13 @@ const parity: ProductParity = {
         'Uma conversa que está em várias linhas mostra Responder de no campo de escrever, por padrão na linha da última mensagem. Tudo o que você manda sai pela linha escolhida, e não dá para escolher linhas desconectadas ou que saíram do grupo. Uma conversa 1:1 só é respondida por linhas que já têm essa conversa',
       ],
     }),
+    row('line-colors', 'inbox', ['Color per line', 'Color por línea', 'Cor por linha'], 'have', {
+      detail: [
+        'Each line can have a color, picked in Settings › Numbers from a short palette. The chat list shows a dot in that color on each chat, one per line when a chat is on several lines, and so do the line selector and Reply from',
+        'Cada línea puede tener un color, elegido en Ajustes › Números de una paleta corta. La lista de chats muestra un punto de ese color en cada chat, uno por línea cuando el chat está en varias, y también el selector de línea y Responder desde',
+        'Cada linha pode ter uma cor, escolhida em Configurações › Números numa paleta curta. A lista de conversas mostra um ponto dessa cor em cada conversa, um por linha quando a conversa está em várias, e também o seletor de linha e Responder de',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',

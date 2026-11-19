@@ -22,7 +22,7 @@ export async function GET(req: Request, ctx: Ctx) {
 }
 
 /**
- * Nombre, credenciales y con quién se comparte. Admins, en cualquier línea;
+ * Nombre, color, credenciales y con quién se comparte. Admins, en cualquier línea;
  * un member con permiso para conectar números, en las suyas. Cambiar el dueño
  * es solo de admins.
  */
@@ -39,7 +39,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
   try {
     const config = body.config && typeof body.config === 'object' ? (body.config as Record<string, unknown>) : undefined;
-    const res = await updateNumber(s.ws, id, { name: str(body.name, 80), config });
+    const res = await updateNumber(s.ws, id, { name: str(body.name, 80), config, ...('color' in body ? { color: body.color ?? '' } : {}) });
     // Dueño y visibilidad: se guardan aparte, con las mismas validaciones del workspace.
     const hasAccess = 'ownerId' in body || 'visibility' in body || 'personIds' in body || 'teamIds' in body;
     if (hasAccess) {

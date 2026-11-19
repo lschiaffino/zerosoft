@@ -50,7 +50,7 @@ import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
+import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { requestChatInfo } from '@/lib/chat-info-request';
@@ -267,6 +267,7 @@ export default function InboxShell({
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
+  const lineColors = useMemo(() => new Map(numbers.map((n) => [n.id, n.color ?? ''])), [numbers]);
   // Los filtros de la lista (pestañas y panel) y, aparte, lo escrito en la búsqueda.
   const [filters, setFilters] = useState<LinesFilters>({});
   const [q, setQ] = useState('');
@@ -952,6 +953,8 @@ export default function InboxShell({
     const showCheck = selectMode || visibleSelected.length > 0;
     // El mismo chat en varias líneas es una sola fila: está abierta si el chat abierto es el de cualquiera de ellas.
     const isOpen = c.id === current || Boolean(current && c.lines?.some((l) => l.chatId === current));
+    // Un punto por cada línea con color en la que está el chat (Ajustes › Números).
+    const dots = (c.lines?.length ? c.lines.map((l) => ({ id: l.lineId, name: l.name, color: lineColors.get(l.lineId) || l.color || '' })) : [{ id: c.numberId, name: lineNames.get(c.numberId) ?? '', color: lineColors.get(c.numberId) ?? '' }]).filter((d) => d.color);
     return (
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
@@ -993,6 +996,13 @@ export default function InboxShell({
           <span className="gr-row-main">
             <span className="gr-row-top">
               <span className="gr-row-name">{debounced && !opts.snippet ? <Highlight text={c.name} q={debounced} /> : c.name}</span>
+              {dots.length > 0 && (
+                <span className="gr-line-dots" data-testid="row-line-dots">
+                  {dots.slice(0, 4).map((d) => (
+                    <LineDot key={d.id} color={d.color} label={d.name} />
+                  ))}
+                </span>
+              )}
               {/* Vencido o esperando: un reloj chico junto a la hora (rojo o ámbar), con el detalle al pasar el mouse. No suma una fila. */}
               <span
                 className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}${c.flagged ? ' is-overdue' : c.awaitingSince ? ' is-waiting' : ''}`}

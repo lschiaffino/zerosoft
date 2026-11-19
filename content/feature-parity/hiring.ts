@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Workable',
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-18',
   percentHidden: { note: loc(['This table lists everything Workable documents, feature by feature, including its AI agent, sourcing and integrations, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que Workable documenta, función por función, con su agente de IA, búsqueda de candidatos e integraciones, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o Workable documenta, função por função, com seu agente de IA, busca de candidatos e integrações, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'jobs', label: loc(['Jobs', 'Puestos', 'Vagas']) },
@@ -178,7 +178,7 @@ const parity: ProductParity = {
     }),
     row('consent', 'privacy', ['Consent on the application form', 'Consentimiento en el formulario', 'Consentimento no formulário'], 'have'),
     row('retention', 'privacy', ['Data retention', 'Retención de datos', 'Retenção de dados'], 'have', {
-      detail: ['Deletes candidates after N months without activity unless they agreed to stay', 'Borra candidatos tras N meses sin actividad salvo que hayan aceptado quedar', 'Exclui candidatos após N meses sem atividade, salvo se aceitaram ficar'],
+      detail: ['Deletes candidates after N months without activity unless they agreed to stay. They go to a trash first and an admin can restore them until the term ends', 'Borra candidatos tras N meses sin actividad salvo que hayan aceptado quedar. Antes pasan por una papelera y un admin los puede restaurar hasta que se cumple el plazo', 'Exclui candidatos após N meses sem atividade, salvo se aceitaram ficar. Antes passam por uma lixeira e um admin pode restaurá-los até o fim do prazo'],
     }),
     row('deletion-requests', 'privacy', ['Candidate data deletion', 'Borrado de datos del candidato', 'Exclusão de dados do candidato'], 'have', {
       detail: ['From the profile, or by the candidate with the link in the acknowledgement email', 'Desde el perfil, o por el candidato con el link del email de acuse', 'Pelo perfil, ou pelo candidato com o link do email de confirmação'],

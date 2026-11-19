@@ -656,6 +656,9 @@
     }
   },
   "numbers": {
+    "color": "Cor",
+    "colorNone": "Sem cor",
+    "colors": {"blue": "Azul", "green": "Verde", "orange": "Laranja", "red": "Vermelho", "purple": "Roxo", "teal": "Turquesa", "yellow": "Amarelo", "pink": "Rosa"},
     "intro": "Cada número é uma linha de WhatsApp pela qual a sua equipe responde. As credenciais são guardadas criptografadas e não aparecem de novo.",
     "add": "Adicionar número",
     "empty": "Ainda não há números.",
@@ -885,6 +888,7 @@
     "invalid_reply": "Essa mensagem não está nesta conversa.",
     "not_sent": "Essa mensagem ainda não tem ID do WhatsApp.",
     "invalid_provider": "Escolha como o número se conecta.",
+    "invalid_color": "Escolha uma cor da lista.",
     "too_many_numbers": "Até 50 números por workspace.",
     "invalid_phone_number_id": "O ID do número de telefone é o que a Meta mostra na configuração da API (só dígitos).",
     "missing_access_token": "Cole o token de acesso.",

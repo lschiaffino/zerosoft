@@ -92,6 +92,10 @@ const ENTRY_COLS = 'id, workspace_id, app, kind, record_id, scope_id, label, rea
  */
 const FILE_DROPPERS: Record<string, () => Promise<(refs: string[]) => Promise<unknown>>> = {
   forms: () => import('./forms/files').then((m) => m.deleteFormFiles),
+  // Los chunks de replay viven en la base (analytics_replay_chunks): son los "archivos" de una grabación.
+  analytics: () => import('./analytics/replay').then((m) => m.dropReplayChunks),
+  hiring: () => import('./hiring/files').then((m) => m.deleteHiringFiles),
+  rec: () => import('./rec').then((m) => m.dropRecFiles),
 };
 
 // ---------- Plazos ----------

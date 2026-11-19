@@ -111,5 +111,18 @@
     "reached": "Llegó al {n} %",
     "noScroll": "No hay datos de scroll en esta página y este tamaño de pantalla en el período.",
     "error": "No se cargaron los datos del mapa de calor. Probá de nuevo."
+  },
+  "trash": {
+    "title": "Papelera de grabaciones",
+    "help": "Las grabaciones que pasan su retención vienen acá primero. Las podés restaurar hasta la fecha que se ve; después se borran para siempre, el mismo día que antes. Una grabación restaurada vuelve a contar su retención desde hoy.",
+    "loading": "Cargando la papelera…",
+    "error": "No se pudo cargar la papelera. Probá de nuevo en un rato.",
+    "empty": "La papelera está vacía.",
+    "recording": "Grabación del {date}",
+    "purge": "Se borra para siempre el {date}",
+    "restore": "Restaurar",
+    "restored": "Restaurada. Volvió a la lista de grabaciones.",
+    "conflict": "Esa sesión se volvió a grabar mientras tanto: esta grabación no puede volver.",
+    "restoreError": "No se pudo restaurar. Probá de nuevo."
   }
 }
