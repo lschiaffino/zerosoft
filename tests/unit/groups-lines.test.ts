@@ -186,42 +186,49 @@ describe('visibilidad por línea', () => {
 });
 
 describe('carpetas de Lines', () => {
-  it('son del workspace, con subcarpetas, y los no leídos son por persona', async () => {
+  it('son de cada persona, con subcarpetas, y los conteos son de los chats que ve', async () => {
     const w = await world('ln-fold');
-    const vPablo = await groupsViewer(w.owner.id, w.pablo.id, 'member');
-    const vRuth = await groupsViewer(w.owner.id, w.ruth.id, 'member');
-    const clientes = await createFolder(w.owner.id, w.olga.id, { name: 'Clientes' });
-    const vip = await createFolder(w.owner.id, w.olga.id, { name: 'VIP', parentId: clientes.id });
-    await expect(createFolder(w.owner.id, w.olga.id, { name: 'clientes' })).rejects.toMatchObject({ code: 'duplicate_folder' });
-    await expect(createFolder(w.owner.id, w.olga.id, { name: '   ' })).rejects.toMatchObject({ code: 'invalid_name' });
-    // Mover: Pablo ve ambos chats; Ruth solo el público.
-    expect(await moveChatsToFolder(w.owner.id, vPablo, [w.pubChat.id, w.privChat.id], vip.id)).toEqual({ updated: 2, failed: 0 });
-    expect(await moveChatsToFolder(w.owner.id, vRuth, [w.privChat.id], clientes.id)).toEqual({ updated: 0, failed: 1 });
-    await expect(moveChatsToFolder(w.owner.id, vPablo, [w.pubChat.id], 'nope')).rejects.toMatchObject({ status: 404 });
-    // Cada uno ve las mismas carpetas con sus propios no leídos (los de abajo suben al padre).
-    const forPablo = await listFolders(w.owner.id, vPablo);
-    const forRuth = await listFolders(w.owner.id, vRuth);
-    expect(forPablo.folders.map((f) => f.name)).toEqual(forRuth.folders.map((f) => f.name));
+    const ws = w.owner.id;
+    const vPablo = await groupsViewer(ws, w.pablo.id, 'member');
+    const vRuth = await groupsViewer(ws, w.ruth.id, 'member');
+    const clientes = await createFolder(ws, w.pablo.id, { name: 'Clientes' });
+    const vip = await createFolder(ws, w.pablo.id, { name: 'VIP', parentId: clientes.id });
+    await expect(createFolder(ws, w.pablo.id, { name: 'clientes' })).rejects.toMatchObject({ code: 'duplicate_folder' });
+    await expect(createFolder(ws, w.pablo.id, { name: '   ' })).rejects.toMatchObject({ code: 'invalid_name' });
+    // Mover: Pablo ve ambos chats; Ruth solo el público, y la carpeta de Pablo para ella no existe.
+    expect(await moveChatsToFolder(ws, vPablo, [w.pubChat.id, w.privChat.id], vip.id)).toEqual({ updated: 2, failed: 0 });
+    await expect(moveChatsToFolder(ws, vRuth, [w.pubChat.id], clientes.id)).rejects.toMatchObject({ status: 404 });
+    const deRuth = await createFolder(ws, w.ruth.id, { name: 'Clientes' });
+    expect(await moveChatsToFolder(ws, vRuth, [w.pubChat.id, w.privChat.id], deRuth.id)).toEqual({ updated: 1, failed: 1 });
+    await expect(moveChatsToFolder(ws, vPablo, [w.pubChat.id], 'nope')).rejects.toMatchObject({ status: 404 });
+    // Cada uno ve sus carpetas con sus propios no leídos (los de abajo suben al padre).
+    const forPablo = await listFolders(ws, w.pablo.id, vPablo);
+    const forRuth = await listFolders(ws, w.ruth.id, vRuth);
+    expect(forPablo.folders.map((f) => f.id)).toEqual([clientes.id, vip.id]);
+    expect(forRuth.folders.map((f) => f.id)).toEqual([deRuth.id]);
     expect(forPablo.folders.find((f) => f.id === clientes.id)?.unread).toBe(2);
-    expect(forRuth.folders.find((f) => f.id === clientes.id)?.unread).toBe(1);
-    expect(forRuth.folders.find((f) => f.id === vip.id)?.chats).toBe(1);
-    // Filtrar por carpeta incluye subcarpetas; 'none' = sin carpeta.
-    expect((await listChats(w.owner.id, w.pablo.id, { viewer: vPablo, folderId: clientes.id })).rows).toHaveLength(2);
-    expect((await listChats(w.owner.id, w.ruth.id, { viewer: vRuth, folderId: clientes.id })).rows.map((c) => c.name)).toEqual(['Cliente Pub']);
-    expect((await listChats(w.owner.id, w.pablo.id, { viewer: vPablo, folderId: 'none' })).rows).toHaveLength(0);
+    expect(forPablo.folders.find((f) => f.id === vip.id)?.chats).toBe(2);
+    expect(forRuth.folders[0]).toMatchObject({ unread: 1, chats: 1 });
+    // Filtrar por carpeta incluye subcarpetas; 'none' = sin carpeta para quien pide.
+    expect((await listChats(ws, w.pablo.id, { viewer: vPablo, folderId: clientes.id })).rows).toHaveLength(2);
+    expect((await listChats(ws, w.ruth.id, { viewer: vRuth, folderId: deRuth.id })).rows.map((c) => c.name)).toEqual(['Cliente Pub']);
+    expect((await listChats(ws, w.ruth.id, { viewer: vRuth, folderId: clientes.id })).rows).toHaveLength(0);
+    expect((await listChats(ws, w.pablo.id, { viewer: vPablo, folderId: 'none' })).rows).toHaveLength(0);
     // Leer baja el conteo.
-    await updateChat(w.owner.id, w.pubChat.id, { read: true });
-    expect((await listFolders(w.owner.id, vRuth)).folders.find((f) => f.id === clientes.id)?.unread).toBe(0);
+    await updateChat(ws, w.pubChat.id, { read: true });
+    expect((await listFolders(ws, w.ruth.id, vRuth)).folders[0].unread).toBe(0);
+    expect((await listFolders(ws, w.pablo.id, vPablo)).folders.find((f) => f.id === clientes.id)?.unread).toBe(1);
     // Renombrar, mover y límite de profundidad.
-    await updateFolder(w.owner.id, vip.id, { name: 'Muy VIP' });
-    const a = await createFolder(w.owner.id, w.olga.id, { name: 'A', parentId: vip.id });
-    const b = await createFolder(w.owner.id, w.olga.id, { name: 'B', parentId: a.id });
-    await expect(createFolder(w.owner.id, w.olga.id, { name: 'C', parentId: b.id })).rejects.toMatchObject({ code: 'too_deep' });
-    await expect(updateFolder(w.owner.id, clientes.id, { parentId: b.id })).rejects.toBeTruthy();
-    // Borrar la carpeta deja los chats sin carpeta.
-    expect(await deleteFolder(w.owner.id, clientes.id)).toBe(true);
-    expect((await listChats(w.owner.id, w.pablo.id, { viewer: vPablo, folderId: 'none' })).rows).toHaveLength(2);
-    expect((await listFolders(w.owner.id, vPablo)).folders).toHaveLength(0);
-    expect(await deleteFolder(w.owner.id, clientes.id)).toBe(false);
+    await updateFolder(ws, w.pablo.id, vip.id, { name: 'Muy VIP' });
+    const a = await createFolder(ws, w.pablo.id, { name: 'A', parentId: vip.id });
+    const b = await createFolder(ws, w.pablo.id, { name: 'B', parentId: a.id });
+    await expect(createFolder(ws, w.pablo.id, { name: 'C', parentId: b.id })).rejects.toMatchObject({ code: 'too_deep' });
+    await expect(updateFolder(ws, w.pablo.id, clientes.id, { parentId: b.id })).rejects.toBeTruthy();
+    // Borrar la carpeta deja los chats sin carpeta, solo para su dueño.
+    expect(await deleteFolder(ws, w.pablo.id, clientes.id)).toBe(true);
+    expect((await listChats(ws, w.pablo.id, { viewer: vPablo, folderId: 'none' })).rows).toHaveLength(2);
+    expect((await listFolders(ws, w.pablo.id, vPablo)).folders).toHaveLength(0);
+    expect((await listFolders(ws, w.ruth.id, vRuth)).folders[0]).toMatchObject({ id: deRuth.id, chats: 1 });
+    expect(await deleteFolder(ws, w.pablo.id, clientes.id)).toBe(false);
   });
 });

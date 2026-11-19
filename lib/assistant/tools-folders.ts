@@ -29,7 +29,7 @@ import { ensureWhatsappAccount } from '../inbox/whatsapp';
 import { flattenTree, MAX_FOLDER_DEPTH } from '../inbox/folder-tree';
 import { LIMITS as INBOX_LIMITS, waPhoneOf } from '../inbox/types';
 import { chatAccessSql, canSeeNumber, groupsViewer, type GroupsViewer } from '../groups-access';
-import { createFolder as createLineFolder, listFolders as listLineFolders, moveChatsToFolder } from '../groups-lines';
+import { chatFoldersFor, createFolder as createLineFolder, listFolders as listLineFolders, moveChatsToFolder } from '../groups-lines';
 import { GroupsError } from '../groups';
 import enMessages from '../../messages/en/assistant.json';
 import esMessages from '../../messages/es/assistant.json';
@@ -196,25 +196,29 @@ async function inboxSnapshot(owner: string): Promise<Snapshot> {
   };
 }
 
-async function lineFolderRows(ws: string): Promise<ExistingFolder[]> {
-  const rows = (await getDb().prepare('SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? ORDER BY position, id').all(ws)) as Array<{
+/** Las carpetas de Lines de la persona (nunca las de otra). */
+async function lineFolderRows(ws: string, me: string): Promise<ExistingFolder[]> {
+  const rows = (await getDb().prepare('SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id').all(ws, me)) as Array<{
     id: string;
     name: string;
     parent_id: string | null;
   }>;
-  return rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parent_id }));
+  const own = new Set(rows.map((r) => r.id));
+  return rows.map((r) => ({ id: r.id, name: r.name, parentId: r.parent_id && own.has(r.parent_id) ? r.parent_id : null }));
 }
 
 async function linesSnapshot(ws: string, viewer: GroupsViewer, lineId: string | null): Promise<Snapshot> {
   const access = chatAccessSql(viewer, 'c');
   const rows = (await getDb()
     .prepare(
-      `SELECT c.id, c.name, c.phone, c.provider_chat_id, c.folder_id FROM groups_chats c
+      `SELECT c.id, c.name, c.phone, c.provider_chat_id,
+         (SELECT cf.folder_id FROM groups_chat_folders cf WHERE cf.chat_id = c.id AND cf.person_id = ?) AS folder_id
+       FROM groups_chats c
        WHERE c.user_id = ? AND c.hidden_at IS NULL${lineId ? ' AND c.number_id = ?' : ''}${access ? ` AND ${access.sql}` : ''}
        ORDER BY c.last_message_at DESC LIMIT 20000`,
     )
-    .all(ws, ...(lineId ? [lineId] : []), ...(access?.args ?? []))) as Array<{ id: string; name: string; phone: string; provider_chat_id: string; folder_id: string | null }>;
-  const existing = await lineFolderRows(ws);
+    .all(viewer.me, ws, ...(lineId ? [lineId] : []), ...(access?.args ?? []))) as Array<{ id: string; name: string; phone: string; provider_chat_id: string; folder_id: string | null }>;
+  const existing = await lineFolderRows(ws, viewer.me);
   return {
     existing,
     chats: rows.map((r) => ({
@@ -441,8 +445,8 @@ async function applyLines(ws: string, me: string, viewer: GroupsViewer, s: Store
       failedKeys.add(key);
       continue;
     }
-    // Se mira de nuevo antes de cada una: otra persona pudo crearla mientras tanto.
-    const known = existingPaths(await lineFolderRows(ws)).get(key);
+    // Se mira de nuevo antes de cada una: la persona pudo crearla mientras tanto (en otra pestaña).
+    const known = existingPaths(await lineFolderRows(ws, me)).get(key);
     if (known) {
       ids.set(key, known);
       out.reused++;
@@ -454,7 +458,7 @@ async function applyLines(ws: string, me: string, viewer: GroupsViewer, s: Store
       out.created++;
     } catch (err) {
       const code = err instanceof GroupsError ? err.code : 'error';
-      const again = existingPaths(await lineFolderRows(ws)).get(key);
+      const again = existingPaths(await lineFolderRows(ws, me)).get(key);
       if (code === 'duplicate_folder' && again) {
         ids.set(key, again);
         out.reused++;
@@ -472,9 +476,10 @@ async function applyLines(ws: string, me: string, viewer: GroupsViewer, s: Store
       const chunk = f.add.slice(i, i + 200);
       try {
         // Lo que cambió desde el plan: los que ya están acá no cuentan y, sin permiso para mover, los que entraron a otra carpeta se quedan.
-        const now = (await db
-          .prepare(`SELECT id, folder_id FROM groups_chats WHERE user_id = ? AND id IN (${chunk.map(() => '?').join(',')})`)
-          .all(ws, ...chunk)) as Array<{ id: string; folder_id: string | null }>;
+        const mine = await chatFoldersFor(ws, me, chunk);
+        const now = (
+          (await db.prepare(`SELECT id FROM groups_chats WHERE user_id = ? AND id IN (${chunk.map(() => '?').join(',')})`).all(ws, ...chunk)) as Array<{ id: string }>
+        ).map((c) => ({ id: c.id, folder_id: mine.get(c.id) ?? null }));
         const here = now.filter((c) => c.folder_id === folderId).length;
         const elsewhere = now.filter((c) => c.folder_id && c.folder_id !== folderId);
         const move = now.filter((c) => c.folder_id !== folderId && (!c.folder_id || s.removeFromOthers)).map((c) => c.id);
@@ -530,7 +535,7 @@ function folderPaths(rows: ExistingFolder[]): Map<string, string> {
 const proposeInput = z.object({
   target: z
     .enum(['inbox', 'lines', 'both'])
-    .describe('inbox = the person\'s own Inbox (default). lines = the shared Lines folders of the workspace. both = Inbox and Lines in one card (chat or WhatsApp folders in general).'),
+    .describe('inbox = the person\'s own Inbox (default). lines = the person\'s own Lines folders (nobody else sees them). both = Inbox and Lines in one card (chat or WhatsApp folders in general).'),
   attachment: z.string().max(64).optional().describe('Id of an attached .json file (att_...). Omit to use the latest JSON in this chat.'),
   json: z.string().max(20_000).optional().describe('Only for a short JSON the person typed in a different way. Normally omit: the tool reads the JSON from the chat itself.'),
   line: z.string().max(100).optional().describe('Lines only: match chats of this line (id, name or phone).'),
@@ -686,11 +691,11 @@ export const folderTools: AssistantTool[] = [
   readTool({
     name: 'lines_folders',
     app: 'groups',
-    description: 'Folders and subfolders of Lines (shared by the workspace), with the number of chats in each that the person can see.',
+    description: "The person's own folders and subfolders in Lines (each person has their own; nobody else sees them), with the number of chats in each that the person can see.",
     input: z.object({}),
     run: async (ctx) => {
       const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
-      const res = await listLineFolders(ctx.workspaceId, viewer);
+      const res = await listLineFolders(ctx.workspaceId, viewer.me, viewer);
       const paths = folderPaths(res.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId })));
       return { folders: flattenTree(res.folders).map(({ folder: f }) => ({ path: paths.get(f.id), chats: f.chats })), unfiled: res.unfiled.chats, href: '/app/lines/inbox' };
     },

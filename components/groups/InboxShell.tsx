@@ -662,7 +662,7 @@ export default function InboxShell({
   }
 
   /** Mueve chats a una carpeta (o los saca, con null). El aviso dice a dónde fueron y deja deshacer: cada chat vuelve a la carpeta donde estaba. */
-  async function moveToFolder(ids: string[], folderId: string | null) {
+  async function moveToFolder(ids: string[], folderId: string | null, newName?: string) {
     const before = new Map<string | null, string[]>();
     for (const id of ids) {
       const row = rowsRef.current.find((r) => r.id === id);
@@ -671,7 +671,7 @@ export default function InboxShell({
     }
     const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId } });
     if (!res.data) return showToast(errText(res.error), true);
-    const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? '') : '';
+    const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? newName ?? '') : '';
     const after = () => {
       void load(true);
       notifyFoldersChanged();
@@ -1732,10 +1732,10 @@ export default function InboxShell({
         open={!!moveIds}
         folders={folderData.folders}
         onClose={() => setMoveIds(null)}
-        onPick={(folderId) => {
+        onPick={(folderId, name) => {
           const ids = moveIds ?? [];
           setMoveIds(null);
-          void moveToFolder(ids, folderId);
+          void moveToFolder(ids, folderId, name);
         }}
       />
       <WhenDialog

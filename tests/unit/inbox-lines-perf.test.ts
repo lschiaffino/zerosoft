@@ -312,17 +312,24 @@ describe('Lines: la bandeja por páginas (cursor)', () => {
     const inPub = rows.filter((c) => c.numberId === w.pub.id);
     await moveChatsToFolder(w.owner.id, w.admin, [inPub[0].id, inPub[1].id, inPriv[0].id], folder.id);
     await moveChatsToFolder(w.owner.id, w.admin, [inPub[2].id, inPriv[1].id], sub.id);
-    const forAdmin = await listLineFolders(w.owner.id, w.admin);
+    const forAdmin = await listLineFolders(w.owner.id, w.owner.id, w.admin);
     expect(forAdmin.folders.find((f) => f.id === folder.id)).toMatchObject({ chats: 3, unread: 5 });
     expect(forAdmin.folders.find((f) => f.id === sub.id)).toMatchObject({ chats: 2, unread: 2 });
     expect(forAdmin.unfiled).toEqual({ chats: 12, unread: 12 });
-    const forRuth = await listLineFolders(w.owner.id, w.vRuth);
-    expect(forRuth.folders.find((f) => f.id === folder.id)).toMatchObject({ chats: 2, unread: 3 });
-    expect(forRuth.folders.find((f) => f.id === sub.id)).toMatchObject({ chats: 1, unread: 1 });
+    // Las carpetas son de cada persona: Ruth no ve las del dueño y arma las suyas, solo con chats que ve.
+    expect((await listLineFolders(w.owner.id, w.ruth.id, w.vRuth)).folders).toEqual([]);
+    const rFolder = await createLineFolder(w.owner.id, w.ruth.id, { name: 'Clientes' });
+    const rSub = await createLineFolder(w.owner.id, w.ruth.id, { name: 'VIP', parentId: rFolder.id });
+    expect(await moveChatsToFolder(w.owner.id, w.vRuth, [inPub[0].id, inPub[1].id, inPriv[0].id], rFolder.id)).toEqual({ updated: 2, failed: 1 });
+    expect(await moveChatsToFolder(w.owner.id, w.vRuth, [inPub[2].id, inPriv[1].id], rSub.id)).toEqual({ updated: 1, failed: 1 });
+    const forRuth = await listLineFolders(w.owner.id, w.ruth.id, w.vRuth);
+    expect(forRuth.folders.find((f) => f.id === rFolder.id)).toMatchObject({ chats: 2, unread: 3 });
+    expect(forRuth.folders.find((f) => f.id === rSub.id)).toMatchObject({ chats: 1, unread: 1 });
     expect(forRuth.unfiled).toEqual({ chats: 8, unread: 8 });
     // La carpeta (con sus subcarpetas) paginada, para cada quien.
     expect((await linePages(w.owner.id, w.owner.id, { viewer: w.admin, folderId: folder.id, limit: 2 })).flat()).toHaveLength(5);
-    expect((await linePages(w.owner.id, w.ruth.id, { viewer: w.vRuth, folderId: folder.id, limit: 2 })).flat()).toHaveLength(3);
+    expect((await linePages(w.owner.id, w.ruth.id, { viewer: w.vRuth, folderId: rFolder.id, limit: 2 })).flat()).toHaveLength(3);
+    expect((await linePages(w.owner.id, w.ruth.id, { viewer: w.vRuth, folderId: folder.id, limit: 2 })).flat()).toHaveLength(0);
   });
 
   it('la búsqueda arma la expresión con palabras como prefijo y sin sintaxis del motor', () => {

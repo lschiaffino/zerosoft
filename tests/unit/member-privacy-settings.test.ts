@@ -224,27 +224,29 @@ async function lines(label: string) {
 }
 
 describe('Lines: carpetas y etiquetas según los chats que ve cada persona', () => {
-  it('una carpeta con chats que la persona no ve no se puede borrar; sin ellos sí', async () => {
+  it('la carpeta de otra persona no se puede borrar (ni la ve un admin); la propia sí, con lo que tenga adentro', async () => {
     const w = await lines('mps-folder');
     const clientes = await createFolder(w.owner.id, w.pablo.id, { name: 'Clientes' });
     const sub = await createFolder(w.owner.id, w.pablo.id, { name: 'Activos', parentId: clientes.id });
     await moveChatsToFolder(w.owner.id, w.vPablo, [w.pubChat.id], clientes.id);
     await moveChatsToFolder(w.owner.id, w.vPablo, [w.privChat.id], sub.id);
     const filed = async () =>
-      ((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL').get(w.owner.id)) as { n: number }).n;
+      ((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_chat_folders WHERE user_id = ?').get(w.owner.id)) as { n: number }).n;
 
-    // Ruth no ve el chat de la subcarpeta: no borra ni la subcarpeta ni la que la contiene, y nada cambia.
-    await expect(deleteFolder(w.owner.id, sub.id, w.vRuth)).rejects.toMatchObject({ code: 'forbidden', status: 403 });
-    await expect(deleteFolder(w.owner.id, clientes.id, w.vRuth)).rejects.toMatchObject({ code: 'forbidden', status: 403 });
+    // Ni Ruth ni el dueño del workspace borran las carpetas de Pablo: para ellos no existen, y nada cambia.
+    expect(await deleteFolder(w.owner.id, w.ruth.id, sub.id)).toBe(false);
+    expect(await deleteFolder(w.owner.id, w.ruth.id, clientes.id)).toBe(false);
+    expect(await deleteFolder(w.owner.id, w.owner.id, clientes.id)).toBe(false);
     expect(await filed()).toBe(2);
-    expect((await listFolders(w.owner.id, w.vPablo)).folders).toHaveLength(2);
+    expect((await listFolders(w.owner.id, w.pablo.id, w.vPablo)).folders).toHaveLength(2);
+    expect((await listFolders(w.owner.id, w.ruth.id, w.vRuth)).folders).toHaveLength(0);
+    expect((await listFolders(w.owner.id, w.owner.id, w.vAdmin)).folders).toHaveLength(0);
 
-    // Una carpeta vacía o con chats que ve la borra como siempre.
+    // Cada quien borra las suyas.
     const vacia = await createFolder(w.owner.id, w.ruth.id, { name: 'Vacía' });
-    expect(await deleteFolder(w.owner.id, vacia.id, w.vRuth)).toBe(true);
-    // Quien ve todos los chats de adentro (Pablo) o un admin la borra.
-    expect(await deleteFolder(w.owner.id, sub.id, w.vPablo)).toBe(true);
-    expect(await deleteFolder(w.owner.id, clientes.id, w.vAdmin)).toBe(true);
+    expect(await deleteFolder(w.owner.id, w.ruth.id, vacia.id)).toBe(true);
+    expect(await deleteFolder(w.owner.id, w.pablo.id, sub.id)).toBe(true);
+    expect(await deleteFolder(w.owner.id, w.pablo.id, clientes.id)).toBe(true);
     expect(await filed()).toBe(0);
   });
 

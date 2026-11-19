@@ -75,11 +75,11 @@ const parity: ProductParity = {
         'Configurações › Números lista cada linha com o status e desde quando, a hora da última mensagem (sem conteúdo) e quantas conversas estão abertas. No celular as linhas se empilham',
       ],
     }),
-    row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
+    row('shared-folders', 'organize', ['Personal chat folders', 'Carpetas personales de chats', 'Pastas pessoais de conversas'], 'have', {
       detail: [
-        'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
-        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna',
-        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma',
+        'Each person has their own folders and subfolders, which nobody else sees, with their unread counts; hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
+        'Cada persona tiene sus propias carpetas y subcarpetas, que nadie más ve, con sus no leídos; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna',
+        'Cada pessoa tem suas próprias pastas e subpastas, que ninguém mais vê, com as não lidas; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma',
       ],
     }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
@@ -452,9 +452,9 @@ const parity: ProductParity = {
     row('folders-json', 'automation', ['Folders from a JSON with the assistant', 'Carpetas desde un JSON con el asistente', 'Pastas a partir de um JSON com o assistente'], 'partial', {
       competitorHas: false,
       detail: [
-        'Paste a JSON exported from another tool and the assistant plans the shared folders and which chats go in each, only with chats you can see. Chats already in another folder stay there unless you ask to move them; you confirm before anything changes. It cannot create chats that are not on a line yet. Tested with the fake model',
-        'Pegá un JSON exportado de otra herramienta y el asistente arma el plan de carpetas compartidas y qué chats van en cada una, solo con los chats que ves. Los que ya están en otra carpeta se quedan ahí salvo que pidas moverlos; confirmás antes de que cambie algo. No puede crear chats que todavía no están en una línea. Probado con el modelo falso',
-        'Cole um JSON exportado de outra ferramenta e o assistente monta o plano de pastas compartilhadas e quais conversas vão em cada uma, só com as conversas que você vê. As que já estão em outra pasta ficam lá a menos que você peça para movê-las; você confirma antes de qualquer mudança. Não consegue criar conversas que ainda não estão numa linha. Testado com o modelo falso',
+        'Paste a JSON exported from another tool and the assistant plans your folders and which chats go in each, only with chats you can see. Chats already in another folder stay there unless you ask to move them; you confirm before anything changes. It cannot create chats that are not on a line yet. Tested with the fake model',
+        'Pegá un JSON exportado de otra herramienta y el asistente arma el plan de tus carpetas y qué chats van en cada una, solo con los chats que ves. Los que ya están en otra carpeta se quedan ahí salvo que pidas moverlos; confirmás antes de que cambie algo. No puede crear chats que todavía no están en una línea. Probado con el modelo falso',
+        'Cole um JSON exportado de outra ferramenta e o assistente monta o plano das suas pastas e quais conversas vão em cada uma, só com as conversas que você vê. As que já estão em outra pasta ficam lá a menos que você peça para movê-las; você confirma antes de qualquer mudança. Não consegue criar conversas que ainda não estão numa linha. Testado com o modelo falso',
       ],
     }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {

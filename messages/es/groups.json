@@ -2116,7 +2116,8 @@
     "renameFolder": "Renombrar carpeta",
     "rename": "Renombrar",
     "folderName": "Nombre de la carpeta",
-    "foldersEmpty": "Todavía no hay carpetas. Creá una para ordenar los chats; todo el workspace ve las mismas carpetas.",
+    "foldersEmpty": "Todavía no tenés carpetas. Creá una para ordenar tus chats. Tus carpetas son tuyas: nadie más las ve.",
+    "createAndMove": "Crear y mover acá",
     "unfiled": "Sin carpeta",
     "unfiledEmpty": "Todos los chats están en una carpeta",
     "folderUnread": "{n, plural, one {# chat sin leer} other {# chats sin leer}}",
@@ -2154,7 +2155,7 @@
     "filterOwner": "Filtrar por dueño",
     "allOwners": "Todos los dueños",
     "branch": {
-      "branchEmpty": "Todavía no hay carpetas.",
+      "branchEmpty": "Todavía no tenés carpetas. Las que crees las ves solo vos.",
       "new": "Carpeta nueva",
       "collapse": "Plegar {name}",
       "expand": "Desplegar {name}",
