@@ -76,10 +76,16 @@ async function setImport(numberId: string, workspace: string, im: Import) {
   );
 }
 
-/** Espera a que el aviso esté en ese estado: la bandeja vuelve a pedir la lista cada pocos segundos y al volver a la ventana. */
+/**
+ * Espera a que el aviso esté en ese estado. Con el aviso en vivo prendido la bandeja relee la lista cada minuto (un
+ * cambio en la importación no genera un aviso en vivo); al volver a la ventana la relee en el acto: se le avisa cada
+ * pocos segundos. Una relectura de la misma lista ya no corta a la que está en camino, así que avisar seguido no traba.
+ */
 async function showing(page: Page, kind: string) {
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 45_000 });
+  await expect(async () => {
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByTestId('lines-import-banner')).toHaveAttribute('data-kind', kind, { timeout: 4000 });
+  }).toPass({ timeout: 120_000, intervals: [1500] });
 }
 
 // La línea elegida no queda puesta para las pruebas que siguen.
