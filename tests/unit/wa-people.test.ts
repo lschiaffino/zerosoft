@@ -342,7 +342,7 @@ describe('Inbox › Contactos', () => {
     await connectHubspot(w.ws, w.ws, TOKEN);
     const acc = await inboxAccount(w.ws, '5491100000003');
     await thread(w.ws, acc, { kind: 'dm', external: `${DANA}@s.whatsapp.net`, handle: DANA, title: 'Dana' });
-    const scope = { ws: w.ws, me: w.ws, mask: false };
+    const scope = { ws: w.ws, me: w.ws, mask: false, lines: systemViewer(w.ws) };
     const dana = (await listInboxContacts(w.ws, scope)).rows.find((r) => r.phone === DANA)!;
     expect(dana.hubspot).toEqual({ contact: null, company: null });
     expect((await inboxContactHubspotMatches(w.ws, scope, dana.id)).map((m) => m.contact.id)).toEqual(['7001']);

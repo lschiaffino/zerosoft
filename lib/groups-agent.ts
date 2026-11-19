@@ -33,6 +33,9 @@ export async function replyWithAgent(ws: string, chatId: string, messageId: stri
     return 'skipped';
   }
   if (res.conversation.id !== chat.agent_conversation_id) {
+    // Primero el vínculo que no se pierde (la conversación sigue las reglas del chat aunque el chat cambie de agente).
+    const { linkAgentConversation } = await import('./groups-access');
+    await linkAgentConversation(ws, chat.id, res.conversation.id);
     await getDb().prepare('UPDATE groups_chats SET agent_conversation_id = ? WHERE id = ?').run(res.conversation.id, chat.id);
   }
   if (res.result.handoff || !res.reply?.content?.trim()) return 'handoff';

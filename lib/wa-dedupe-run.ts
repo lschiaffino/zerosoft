@@ -40,7 +40,7 @@ export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: st
         ...explicitPairsInsert(app, run, scope, pairs),
       ],
       dbBatch,
-      { mediaFiles: true },
+      { mediaFiles: true, agentLinks: true },
     );
   } catch (err) {
     // eslint-disable-next-line no-console

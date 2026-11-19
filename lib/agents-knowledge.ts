@@ -10,6 +10,7 @@
  */
 import { getDb } from './db';
 import { agentConversationVisibleSql } from './chat-audience';
+import { linesAgentConversationSqlFor } from './groups-access';
 import type { AgentRow } from './db';
 import { extractDocsText } from './chat-data';
 import { parseCsv } from './csv-parse';
@@ -539,7 +540,11 @@ function suggestionKey(q: string): string {
  */
 export async function listSuggestions(workspaceId: string, agentId: string, days = 30, now = new Date(), viewerId?: string): Promise<AgentSuggestionDto[]> {
   const from = new Date(now.getTime() - days * 86_400_000).toISOString();
-  const visible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
+  const chatVisible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
+  // Las corridas de un chat de Lines: solo si la persona ve ese chat.
+  const linesVisible = viewerId ? await linesAgentConversationSqlFor(workspaceId, viewerId, 'agent_runs.conversation_id') : null;
+  const parts = [chatVisible, linesVisible].filter((x): x is { sql: string; args: string[] } => Boolean(x));
+  const visible = parts.length ? { sql: parts.map((x) => x.sql).join(' AND '), args: parts.flatMap((x) => x.args) } : null;
   const rows = (await getDb()
     .prepare(
       `SELECT id, conversation_id, question, created_at FROM agent_runs

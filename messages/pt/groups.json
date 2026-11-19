@@ -1373,7 +1373,8 @@
     "chat": "Do chat {chat}.",
     "open": "Abrir o chat",
     "why": "Você recebe este email porque a tarefa é sua no Lines.",
-    "notification": "Lembrete: {title}"
+    "notification": "Lembrete: {title}",
+    "defaultTitle": "Tarefa de uma mensagem"
   },
   "access": {
     "adminsOnly": "Só os admins do workspace podem mudar isto.",

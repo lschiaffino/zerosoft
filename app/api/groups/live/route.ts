@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { groupsSession, sessionViewer } from '@/lib/groups-http';
-import { chatFilterFor, type GroupsViewer } from '@/lib/groups-access';
+import { chatFilterFor, linesLiveViewer, livePendingFor, type GroupsViewer } from '@/lib/groups-access';
 import { livePoll, liveStream, liveStreamAllowed, wantsLiveStream, type ChatFilter, type LiveViewer } from '@/lib/wa-live';
 import { liveAccessNow, linesViewerNow } from '@/lib/wa-live-auth';
 import { requestCursor } from '@/lib/realtime';
@@ -11,9 +11,6 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 250;
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
-
-/** Quién mira: sin restricciones ve todo; si no, cada lote se filtra con el acceso al chat (líneas, etiquetas, invitados). */
-const liveViewer = (ws: string, v: GroupsViewer): LiveViewer => ({ app: 'lines', ws, visible: chatFilterFor(v) });
 
 /**
  * Aviso en vivo de Lines: qué chats del workspace cambiaron, solo de los que
@@ -32,21 +29,28 @@ export async function GET(req: Request) {
   if (want === 'off') return new NextResponse(null, { status: 204, headers: NO_STORE });
   if (want === 'poll') {
     // Quién mira (con su acceso) se lee solo si hay avisos que filtrar: sin cambios, la consulta no lee nada más.
+    let who: Promise<GroupsViewer> | null = null;
     let filter: Promise<ChatFilter | null> | null = null;
     const lazy: LiveViewer = {
       app: 'lines',
       ws: s.ws,
       visible: async (ids) => {
-        filter ??= sessionViewer(s).then(chatFilterFor);
+        filter ??= (who ??= sessionViewer(s)).then(chatFilterFor);
         const f = await filter;
         return f ? f(ids) : new Set(ids);
+      },
+      // Con mucho atraso: lo pendiente de los chats que ve (null si ve todos).
+      pending: async (from, upTo, limit) => {
+        const p = livePendingFor(await (who ??= sessionViewer(s)));
+        return p ? p(from, upTo, limit) : null;
       },
     };
     const res = await livePoll(lazy, cursor);
     return NextResponse.json({ ...res, stream: liveStreamAllowed(req, [s.ws]) }, { headers: NO_STORE });
   }
   // Lo que hace falta para revalidar se toma ahora: más tarde no se leen cookies ni headers (lib/wa-live-auth.ts).
-  const viewer = liveViewer(s.ws, await sessionViewer(s));
+  // Quién mira: sin restricciones ve todo; si no, cada lote se filtra con el acceso al chat (líneas, etiquetas, invitados).
+  const viewer = linesLiveViewer(await sessionViewer(s));
   const session = { userId: s.me, sid: s.user.sid ?? null, workspaceId: s.user.workspace?.id ?? null };
   const role = s.user.role;
   const res = liveStream({
@@ -61,7 +65,7 @@ export async function GET(req: Request) {
       const access = await liveAccessNow(session, 'groups');
       if (!access || access.ws !== s.ws) return null;
       const now = await linesViewerNow(s.ws, s.me, role, access.role);
-      return now ? liveViewer(s.ws, now) : null;
+      return now ? linesLiveViewer(now) : null;
     },
   });
   return res ?? NextResponse.json({ error: 'too_many_streams' }, { status: 429, headers: NO_STORE });
