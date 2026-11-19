@@ -371,6 +371,7 @@ for (const width of [1280, 390]) {
       const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name } });
       expect(created.ok()).toBe(true);
       const { id } = (await created.json()) as { id: string };
+      madeLines.push(id);
       await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
       await expect.poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 }).toBe('connected');
       const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string };
@@ -474,7 +475,11 @@ for (const width of [1280, 390]) {
   });
 }
 
-test.afterEach(async () => {
+/** Las líneas de Lines que crearon estos tests: se borran al terminar (con sus chats), para no alargar la bandeja compartida. */
+const madeLines: string[] = [];
+
+test.afterEach(async ({ request }) => {
+  for (const id of madeLines.splice(0)) await request.delete(`/api/groups/numbers/${id}`).catch(() => null);
   await sql("DELETE FROM inbox_messages WHERE thread_id IN (SELECT id FROM inbox_threads WHERE account_id LIKE 'iba_e2e_%')");
   await sql("DELETE FROM inbox_threads WHERE account_id LIKE 'iba_e2e_%'");
   await sql("DELETE FROM inbox_accounts WHERE id LIKE 'iba_e2e_%'");
