@@ -194,13 +194,55 @@ export function mixAudio(
   return { track: dest.stream.getAudioTracks()[0] ?? null, ctx, analyser };
 }
 
-/** Nivel 0–1 del micrófono (para el medidor). */
-export function audioLevel(analyser: AnalyserNode | null, buf: Uint8Array<ArrayBuffer>): number {
+/**
+ * Qué mensaje va cuando getDisplayMedia falla. En el navegador, NotAllowedError es casi siempre que la persona cerró
+ * el selector. En la app de escritorio no hay forma de distinguir "cancelé" de "macOS no dejó": el mensaje dice las
+ * dos cosas y cómo dar el permiso. Cualquier otro error es de la máquina (no hay qué capturar, falló el sistema).
+ */
+export function screenShareErrorKey(name: string, desktop: boolean): 'errors.screen_denied' | 'errors.screen_denied_desktop' | 'errors.screen_failed' {
+  if (name === 'NotAllowedError' || name === 'AbortError' || name === 'InvalidAccessError' || name === 'SecurityError') {
+    return desktop ? 'errors.screen_denied_desktop' : 'errors.screen_denied';
+  }
+  return desktop ? 'errors.screen_denied_desktop' : 'errors.screen_failed';
+}
+
+/** Piso y techo del medidor, en dBFS: por debajo del piso es ruido de fondo; el techo deja margen antes de saturar. */
+export const METER_FLOOR_DB = -55;
+export const METER_CEIL_DB = -5;
+/** Cuánto baja el medidor por lectura cuando el sonido afloja (sube al instante, baja de a poco, como un vúmetro). */
+const METER_RELEASE = 0.06;
+/** Barras del medidor (como el nivel de entrada de macOS). */
+export const METER_BARS = 15;
+
+/**
+ * Pico de una tanda de muestras (−1 a 1) → 0–1 en escala de decibeles. El oído y los medidores de sonido van en
+ * decibeles: en escala lineal una voz normal (un pico de 0,05 a 0,15) apenas movía la barra aunque el micrófono
+ * estuviera bien, y en Ajustes de macOS el mismo micrófono marcaba la mitad.
+ */
+export function levelFromPeak(peak: number): number {
+  if (!(peak > 0)) return 0;
+  const db = 20 * Math.log10(Math.min(1, peak));
+  return Math.min(1, Math.max(0, (db - METER_FLOOR_DB) / (METER_CEIL_DB - METER_FLOOR_DB)));
+}
+
+/** Nivel → cuántas barras prendidas. Cualquier sonido sobre el piso prende al menos una. */
+export function meterBars(level: number): number {
+  if (!(level > 0)) return 0;
+  return Math.min(METER_BARS, Math.max(1, Math.round(level * METER_BARS)));
+}
+
+const lastLevel = new WeakMap<AnalyserNode, number>();
+
+/** Nivel 0–1 del micrófono (para el medidor), en decibeles y con caída suave. */
+export function audioLevel(analyser: AnalyserNode | null, buf: Float32Array<ArrayBuffer>): number {
   if (!analyser) return 0;
-  analyser.getByteTimeDomainData(buf);
+  // En coma flotante: con bytes, el paso mínimo ya es −42 dB y el ruido de fondo no se distingue de una voz baja.
+  analyser.getFloatTimeDomainData(buf);
   let peak = 0;
-  for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
-  return Math.min(1, peak / 100);
+  for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+  const level = Math.max(levelFromPeak(peak), (lastLevel.get(analyser) ?? 0) - METER_RELEASE);
+  lastLevel.set(analyser, level);
+  return level;
 }
 
 type Drawable = HTMLCanvasElement | HTMLVideoElement;

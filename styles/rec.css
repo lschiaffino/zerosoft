@@ -55,8 +55,28 @@ section.rec-edit-block { padding-bottom: 20px; }
 .rec-setup-preview.rec-setup-screen_camera,
 .rec-setup-preview.rec-setup-screen { display: block; }
 
-.rec-meter { display: inline-block; width: 120px; max-width: 100%; height: 4px; background: var(--line); overflow: hidden; margin-top: 6px; }
-.rec-meter-fill { display: block; width: 100%; height: 100%; background: var(--ok); transform-origin: left; transform: scaleX(0); transition: transform 80ms linear; }
+/* Nivel del micrófono: 15 barras como el "nivel de entrada" de macOS. --bars (0–15) lo pone Recorder.tsx; el
+   relleno es el mismo dibujo de barras en verde, recortado a las que están prendidas. */
+.rec-meter {
+  --bar: 6px;
+  --gap: 4px;
+  position: relative;
+  display: inline-block;
+  width: calc(15 * var(--bar) + 14 * var(--gap));
+  max-width: 100%;
+  height: 12px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: repeating-linear-gradient(90deg, var(--line) 0 var(--bar), transparent var(--bar) calc(var(--bar) + var(--gap)));
+}
+.rec-meter-fill {
+  --bars: 0;
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: repeating-linear-gradient(90deg, var(--ok) 0 var(--bar), transparent var(--bar) calc(var(--bar) + var(--gap)));
+  clip-path: inset(0 calc(100% - var(--bars) * (var(--bar) + var(--gap))) 0 0);
+}
 
 .rec-stage-wrap[hidden] { display: none; }
 /* Al configurar, la vista previa de la cámara va arriba de las opciones (como Loom). */
@@ -135,7 +155,7 @@ section.rec-edit-block { padding-bottom: 20px; }
   border-radius: var(--radius-1);
   background: var(--bg);
 }
-.rec-bar .rec-meter { margin: 0; width: 80px; }
+.rec-bar .rec-meter { --bar: 4px; --gap: 3px; margin: 0; height: 10px; }
 .rec-bar-spacer { flex: 1; }
 .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-rec); animation: rec-blink 1.2s steps(2) infinite; }
 .rec-dot.paused { background: var(--warn); animation: none; }
