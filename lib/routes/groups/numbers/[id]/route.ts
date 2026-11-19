@@ -24,7 +24,7 @@ export async function GET(req: Request, ctx: Ctx) {
 /**
  * Nombre, color, credenciales y con quién se comparte. Admins, en cualquier línea;
  * un member con permiso para conectar números, en las suyas. Cambiar el dueño
- * es solo de admins.
+ * y el grupo de líneas (`groupId`) es solo de admins.
  */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
@@ -37,8 +37,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const next = typeof body.ownerId === 'string' && body.ownerId ? body.ownerId : null;
     if (next !== (row.owner_id ?? null)) return groupsError(403, 'forbidden');
   }
+  // El grupo decide quién ve la línea (lib/groups-line-groups.ts): lo cambia un admin.
+  if ('groupId' in body && !s.isAdmin) return groupsError(403, 'forbidden');
   try {
     const config = body.config && typeof body.config === 'object' ? (body.config as Record<string, unknown>) : undefined;
+    if ('groupId' in body) {
+      const { setNumberLineGroup } = await import('@/lib/groups-line-groups');
+      await setNumberLineGroup(s.ws, id, typeof body.groupId === 'string' && body.groupId ? body.groupId.slice(0, 100) : null);
+    }
     const res = await updateNumber(s.ws, id, { name: str(body.name, 80), config, ...('color' in body ? { color: body.color ?? '' } : {}) });
     // Dueño y visibilidad: se guardan aparte, con las mismas validaciones del workspace.
     const hasAccess = 'ownerId' in body || 'visibility' in body || 'personIds' in body || 'teamIds' in body;
