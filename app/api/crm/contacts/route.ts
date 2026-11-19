@@ -4,7 +4,8 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
-import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest) {
 
   const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'contact', null, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
-  const contact = await catchRef(createContact(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const contact = await catchContactWrite(createContact(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
+  // El email es la identidad del contacto: 409 con el existente solo si quien pide lo ve.
+  if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, await sessionScope(user));
   return NextResponse.json(contact, { status: 201 });
 }

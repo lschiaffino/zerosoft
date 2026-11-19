@@ -3,7 +3,8 @@ import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer 
 import { getCurrentUser } from '@/lib/session';
 import { deleteContact, getContact, updateContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
-import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { sessionScope, scopeContactDetail } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
@@ -38,8 +39,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fieldViewer = sessionFieldViewer(user);
   const fp = await guardRecordCustomWrite(fieldViewer, 'contact', params.id, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
-  const contact = await catchRef(updateContact(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email));
+  const contact = await catchContactWrite(updateContact(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
+  if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, scope);
   if (!contact) return notFound();
   return NextResponse.json(redactRow(contact, await hiddenFieldsFor(fieldViewer, 'contacts')));
 }

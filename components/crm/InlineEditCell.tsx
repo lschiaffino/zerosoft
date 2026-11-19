@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { useRouter } from '@/i18n/navigation';
+import EmailTakenNotice, { emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
 
 export type InlineEditType = 'text' | 'email' | 'number' | 'date' | 'select';
 
@@ -54,6 +55,8 @@ export default function InlineEditCell({
   const [busy, setBusy] = useState(false);
   /** Valor guardado sin red (en la cola offline) hasta que el server mande el nuevo. */
   const [pendingValue, setPendingValue] = useState<string | null>(null);
+  /** El email nuevo ya es de otro contacto (undefined = sin aviso). */
+  const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
   const [lastValue, setLastValue] = useState(value);
   if (value !== lastValue) {
     setLastValue(value);
@@ -98,6 +101,9 @@ export default function InlineEditCell({
       router.refresh();
       return;
     }
+    // Un email que ya es de otro contacto no se guarda en silencio: se dice cuál.
+    const existing = res ? emailTakenFrom(await res.json().catch(() => null)) : undefined;
+    if (existing !== undefined) setTaken(existing);
     setDraft(value);
     setEditing(false);
   }
@@ -166,17 +172,25 @@ export default function InlineEditCell({
         ? options.find((o) => o.value === shown)?.label ?? shown
         : shown;
 
-  return (
+  const cell = (
     <button
       type="button"
       className={`cell-inline${value ? '' : ' empty'} ${className}`}
       title={t('common.edit')}
       onClick={() => {
         setDraft(value);
+        setTaken(undefined);
         setEditing(true);
       }}
     >
       {display || '—'}
     </button>
+  );
+  if (taken === undefined) return cell;
+  return (
+    <>
+      {cell}
+      <EmailTakenNotice existing={taken} className="ui-error cell-inline-alert" />
+    </>
   );
 }

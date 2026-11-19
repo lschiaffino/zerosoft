@@ -34,6 +34,7 @@ import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
+import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 
 export interface CrmForm {
   id: string;
@@ -508,7 +509,11 @@ export async function submitForm(
     }
   }
 
-  const existing: CrmContactRow | null = email && s.updateExisting ? await findContactByEmail(workspaceId, email) : null;
+  // El email es la identidad del contacto: un email que ya existe nunca crea
+  // otro contacto. Con "actualizar contactos existentes" lo que vino lo
+  // actualiza; sin eso, el envío se guarda suelto y el contacto no se toca
+  // (el formulario es público: cualquiera puede escribir un email ajeno).
+  let existing: CrmContactRow | null = email ? await findContactByEmail(workspaceId, email) : null;
   let contact: CrmContactRow;
   let created = false;
   // Dueño: la primera regla que coincide; si no, el dueño fijo; si no, round-robin.
@@ -520,8 +525,101 @@ export async function submitForm(
         ? s.ownerId
         : null;
 
+  const newContact = existing
+    ? null
+    : await catchEmailTaken(
+        crm.createContact(
+          workspaceId,
+          {
+            firstName: mapped.contact.firstName,
+            lastName: mapped.contact.lastName,
+            email: email || undefined,
+            phone: mapped.contact.phone,
+            jobTitle: mapped.contact.jobTitle,
+            website: mapped.contact.website,
+            city: mapped.contact.city,
+            country: mapped.contact.country,
+            lifecycleStage: s.lifecycleStage || undefined,
+            leadStatus: s.leadStatus || undefined,
+            source: s.source || 'form',
+            companyId,
+            ownerId: ownerValid,
+            custom: Object.keys(contactCustom).length ? contactCustom : undefined,
+          },
+          db,
+        ),
+      );
+  // Otro envío creó el mismo email entre la búsqueda y el alta: se sigue con ese contacto.
+  if (newContact instanceof ContactEmailTakenError) existing = newContact.existing;
+
+  // Envío
+  const submissionId = crypto.randomUUID();
+  const utm: Record<string, string> = {};
+  for (const [k, v] of Object.entries(urlParams)) {
+    if (/^(utm_[a-z]+|gclid|fbclid)$/.test(k) && v) utm[k] = String(v).slice(0, 500);
+  }
+  const saveSubmission = async (contactId: string | null, isNew: boolean) => {
+    await db
+      .prepare(
+        `INSERT INTO crm_form_submissions (id, form_id, user_id, contact_id, contact_created, data, utm, page_url, referrer, ip_hash, user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        submissionId,
+        form.id,
+        workspaceId,
+        contactId,
+        isNew ? 1 : 0,
+        JSON.stringify({ ...values, ...(s.consentText ? { __consent: !!body.consent } : {}) }),
+        JSON.stringify(utm),
+        (body.pageUrl ?? '').slice(0, 2000),
+        (body.referrer ?? '').slice(0, 2000),
+        hashIp(meta.ip ?? ''),
+        (meta.userAgent ?? '').slice(0, 300),
+      );
+    await db.prepare('UPDATE crm_forms SET submission_count = submission_count + 1 WHERE id = ?').run(form.id);
+  };
+  // Los valores del envío, para la nota y los avisos.
+  const lines = form.fields
+    .filter((f) => values[f.id] !== '' && values[f.id] !== undefined)
+    .map((f) => `${f.label || f.id}: ${typeof values[f.id] === 'boolean' ? (values[f.id] ? 'yes' : 'no') : String(values[f.id])}`);
+  if (Object.keys(utm).length) lines.push('', ...Object.entries(utm).map(([k, v]) => `${k}: ${v}`));
+  if (body.pageUrl) lines.push('', `Page: ${body.pageUrl}`);
+
+  if (existing && !s.updateExisting) {
+    // El email ya es de un contacto y el form no actualiza existentes: el
+    // envío queda guardado sin contacto y con una nota suelta. No se toca el
+    // contacto ni sus tags, listas, secuencias o deals, y la respuesta pública
+    // es la misma que la de un envío cualquiera.
+    await saveSubmission(null, false);
+    await crm.createActivity(workspaceId, {
+      type: 'note',
+      subject: `Form submitted: ${form.name} (${email}, existing contact not updated)`,
+      body: lines.join('\n'),
+    });
+    await emitEvent(workspaceId, 'form.submitted', {
+      form: { id: form.id, name: form.name },
+      submission: { id: submissionId, values },
+      contact: null,
+      utm,
+    });
+    if (s.notifyOwner) {
+      const { createNotification } = await import('./notifications');
+      await createNotification({
+        userId: workspaceId,
+        type: 'crm_form',
+        title: localized('crmFormSubmitted', { who: email, name: form.name }),
+        body: lines.slice(0, 6).join('\n'),
+        href: '/app/crm/forms',
+        sourceType: 'crm_form',
+        sourceId: form.id,
+      }).catch(() => null);
+    }
+    return { ok: true, submissionId, created: false, ...success };
+  }
+
   if (existing) {
-    // Dedupe: completa/actualiza solo lo que vino (nunca borra con vacíos).
+    // "Actualizar existentes": pisa con lo que vino (nunca borra con vacíos).
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(mapped.contact)) if (v && k !== 'email') patch[k] = v;
     if (Object.keys(contactCustom).length) {
@@ -537,26 +635,7 @@ export async function submitForm(
       ? ((await crm.updateContact(workspaceId, existing.id, patch as never, db, 'form')) ?? existing)
       : existing;
   } else {
-    contact = await crm.createContact(
-      workspaceId,
-      {
-        firstName: mapped.contact.firstName,
-        lastName: mapped.contact.lastName,
-        email: email || undefined,
-        phone: mapped.contact.phone,
-        jobTitle: mapped.contact.jobTitle,
-        website: mapped.contact.website,
-        city: mapped.contact.city,
-        country: mapped.contact.country,
-        lifecycleStage: s.lifecycleStage || undefined,
-        leadStatus: s.leadStatus || undefined,
-        source: s.source || 'form',
-        companyId,
-        ownerId: ownerValid,
-        custom: Object.keys(contactCustom).length ? contactCustom : undefined,
-      },
-      db,
-    );
+    contact = newContact as CrmContactRow;
     created = true;
     if (!ownerValid) {
       const { assignNewLead } = await import('./crm-assignment');
@@ -565,38 +644,9 @@ export async function submitForm(
     contact = ((await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(contact.id)) as CrmContactRow) ?? contact;
   }
 
-  // Envío
-  const submissionId = crypto.randomUUID();
-  const utm: Record<string, string> = {};
-  for (const [k, v] of Object.entries(urlParams)) {
-    if (/^(utm_[a-z]+|gclid|fbclid)$/.test(k) && v) utm[k] = String(v).slice(0, 500);
-  }
-  await db
-    .prepare(
-      `INSERT INTO crm_form_submissions (id, form_id, user_id, contact_id, contact_created, data, utm, page_url, referrer, ip_hash, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      submissionId,
-      form.id,
-      workspaceId,
-      contact.id,
-      created ? 1 : 0,
-      JSON.stringify({ ...values, ...(s.consentText ? { __consent: !!body.consent } : {}) }),
-      JSON.stringify(utm),
-      (body.pageUrl ?? '').slice(0, 2000),
-      (body.referrer ?? '').slice(0, 2000),
-      hashIp(meta.ip ?? ''),
-      (meta.userAgent ?? '').slice(0, 300),
-    );
-  await db.prepare('UPDATE crm_forms SET submission_count = submission_count + 1 WHERE id = ?').run(form.id);
+  await saveSubmission(contact.id, created);
 
   // Timeline: actividad "Form submitted" con los valores.
-  const lines = form.fields
-    .filter((f) => values[f.id] !== '' && values[f.id] !== undefined)
-    .map((f) => `${f.label || f.id}: ${typeof values[f.id] === 'boolean' ? (values[f.id] ? 'yes' : 'no') : String(values[f.id])}`);
-  if (Object.keys(utm).length) lines.push('', ...Object.entries(utm).map(([k, v]) => `${k}: ${v}`));
-  if (body.pageUrl) lines.push('', `Page: ${body.pageUrl}`);
   await crm.createActivity(workspaceId, {
     type: 'note',
     subject: `Form submitted: ${form.name}`,

@@ -118,7 +118,7 @@ export async function saveFormSubmission(input: {
     } else {
       const { createActivity, updateContact } = await import('./crm');
       const existing = (await getDb()
-        .prepare('SELECT id, first_name, last_name FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1')
+        .prepare('SELECT id, first_name, last_name FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
         .get(agent.user_id, lead.email)) as { id: string; first_name: string; last_name: string } | undefined;
       const verified = (conversation.visitor_email ?? '').trim().toLowerCase() === lead.email;
       if (existing && !verified) {

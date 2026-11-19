@@ -82,7 +82,7 @@ export async function syncCrmContact(row: Pick<FormRow, 'workspace_id' | 'name' 
     .join('\n')
     .slice(0, 8000);
   const { createActivity } = await import('../crm');
-  const existing = (await getDb().prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) LIMIT 1').get(row.workspace_id, email)) as { id: string } | undefined;
+  const existing = (await getDb().prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) LIMIT 1').get(row.workspace_id, email)) as { id: string } | undefined;
   if (existing) {
     // Email que cualquiera pudo escribir: nadie pisa ni anota el contacto de otra persona.
     await createActivity(row.workspace_id, { type: 'note', subject: `Forms: ${row.name} (${email}, unverified)`, body: note });

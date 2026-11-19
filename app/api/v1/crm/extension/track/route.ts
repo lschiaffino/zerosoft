@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
     { workspaceId: auth.user.id, personId: auth.personId, scope: await apiScope(auth) },
     parsed.data,
   );
-  if (!res.ok) return apiError(400, res.error, 'Add at least one recipient.');
+  if (!res.ok) {
+    return apiError(400, res.error, res.error === 'no_contact' ? 'This email could not be tracked.' : 'Add at least one recipient.');
+  }
   return NextResponse.json(res, { status: 201 });
 }
