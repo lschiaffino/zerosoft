@@ -44,6 +44,7 @@ import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibili
 import {
   cleanContactEmail,
   ContactEmailTakenError,
+  emailFreeSql,
   emailKeySql,
   findContactByEmail,
   sameContactEmail,
@@ -1016,11 +1017,19 @@ export async function mergeContacts(
     await tdb.prepare('DELETE FROM crm_contact_companies WHERE contact_id = ?').run(dropId);
     await syncContactPrimary(keepId, tdb);
     // Campos vacíos del que queda se completan con los del descartado.
-    const fill = mergeFillPatch(keep, drop);
+    const filled = mergeFillPatch(keep, drop);
+    const fill = filled.filter(([col]) => col !== 'email');
     const sets = ['updated_at = ?', ...fill.map(([col]) => `${col} = ?`)];
     await tdb
       .prepare(`UPDATE crm_contacts SET ${sets.join(', ')} WHERE id = ?`)
       .run(now(), ...fill.map(([, v]) => v), keepId);
+    // El email del descartado pasa al que queda solo si ningún tercero lo
+    // tiene (el chequeo va en la misma sentencia; lib/crm-contact-email.ts).
+    const email = filled.find(([col]) => col === 'email')?.[1];
+    if (email) {
+      const free = emailFreeSql(userId, email, [keepId, dropId]);
+      await tdb.prepare(`UPDATE crm_contacts SET email = ? WHERE id = ? AND ${free.sql}`).run(email.trim(), keepId, ...free.args);
+    }
     // Tags del descartado.
     await tdb
       .prepare("UPDATE OR IGNORE crm_record_tags SET record_id = ? WHERE entity = 'contact' AND record_id = ?")

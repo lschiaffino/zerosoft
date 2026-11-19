@@ -109,6 +109,19 @@ export async function catchEmailTaken<T>(p: Promise<T>): Promise<T | ContactEmai
   }
 }
 
+/**
+ * Condición SQL (para un WHERE) que solo deja escribir si ningún otro contacto
+ * vivo del workspace tiene ese email. Va en la misma sentencia que el INSERT o
+ * el UPDATE para que el chequeo y la escritura sean una sola operación.
+ */
+export function emailFreeSql(userId: string, email: string, exceptIds: string[] = []): { sql: string; args: string[] } {
+  const except = exceptIds.length ? ` AND o.id NOT IN (${exceptIds.map(() => '?').join(',')})` : '';
+  return {
+    sql: `NOT EXISTS (SELECT 1 FROM crm_contacts o WHERE o.user_id = ?${except} AND ${emailKeySql('o')} = lower(trim(?)))`,
+    args: [userId, ...exceptIds, email],
+  };
+}
+
 // ---------- Duplicados que ya existen ----------
 
 export interface DuplicateGroup {
@@ -136,8 +149,10 @@ export async function findDuplicateContacts(
   db: Db = getDb(),
 ): Promise<DuplicateGroup[]> {
   const scope = ownerScopeSql('c', filter.ownerScope);
+  // El contacto pedido también tiene que verse: si no, se responde como si no tuviera duplicados.
+  const mine = ownerScopeSql('m', filter.ownerScope);
   const only = filter.contactId
-    ? ` AND ${emailKeySql('c')} = (SELECT ${emailKeySql('m')} FROM crm_contacts m WHERE m.id = ? AND m.user_id = ?)`
+    ? ` AND ${emailKeySql('c')} = (SELECT ${emailKeySql('m')} FROM crm_contacts m WHERE m.id = ? AND m.user_id = ?${mine.sql ? ` AND ${mine.sql}` : ''})`
     : '';
   const rows = (await db
     .prepare(
@@ -150,7 +165,7 @@ export async function findDuplicateContacts(
        ORDER BY ${emailKeySql('c')} ASC, c.created_at ASC, c.id ASC
        LIMIT ${DUPLICATE_ROWS_MAX}`,
     )
-    .all(userId, ...scope.args, ...(filter.contactId ? [filter.contactId, userId] : []), userId)) as Array<
+    .all(userId, ...scope.args, ...(filter.contactId ? [filter.contactId, userId, ...mine.args] : []), userId)) as Array<
     CrmContactRow & { email_key?: string }
   >;
   const groups = new Map<string, CrmContactRow[]>();

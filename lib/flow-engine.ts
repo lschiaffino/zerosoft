@@ -435,7 +435,7 @@ async function crmSequenceNode(ws: string, cfg: Record<string, unknown>, tctx: R
   const email = renderString(cfg.email ?? '', tctx).trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new StepError('invalid_email');
   const contact = (await getDb()
-    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1')
+    .prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1')
     .get(ws, email)) as { id: string } | undefined;
   if (!contact) throw new StepError('missing_contact');
   const { enrollContacts, defaultSenderFor } = await import('./crm-sequences');

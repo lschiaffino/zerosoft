@@ -356,7 +356,7 @@ function hostAllowed(host: string, domains: string[]): boolean {
 async function findContact(workspaceId: string, email: string) {
   return (await getDb()
     .prepare(
-      'SELECT id, first_name, last_name, email, lifecycle_stage, company_id FROM crm_contacts WHERE user_id = ? AND lower(email) = lower(?) ORDER BY created_at ASC LIMIT 1',
+      'SELECT id, first_name, last_name, email, lifecycle_stage, company_id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1',
     )
     .get(workspaceId, email.trim())) as
     | { id: string; first_name: string; last_name: string; email: string; lifecycle_stage: string; company_id: string | null }

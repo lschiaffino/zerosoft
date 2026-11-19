@@ -1772,7 +1772,7 @@
       "successMessage": "Mensagem de agradecimento",
       "crm": "No CRM",
       "crmDesc": "O que acontece com o contato em cada envio.",
-      "dedupe": "Quando o email coincidir com um contato, substituir os valores dele pelos enviados. Desativado: só os campos vazios dele são preenchidos",
+      "dedupe": "Atualizar o contato existente quando o email coincidir. Desativado: o envio é salvo e esse contato fica como está",
       "ownerAuto": "Round-robin ou dono do workspace",
       "list": "Adicionar à lista",
       "sequence": "Inscrever na sequência",

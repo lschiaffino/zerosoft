@@ -46,6 +46,7 @@ const v1Contacts = await import('@/app/api/v1/crm/contacts/route');
 const v1Contact = await import('@/lib/routes/v1/crm/contacts/[id]/route');
 const duplicatesRoute = await import('@/app/api/crm/contacts/duplicates/route');
 const restoreRoute = await import('@/lib/routes/crm/trash/[id]/restore/route');
+const formSubmitRoute = await import('@/lib/routes/crm/forms/submit/[key]/route');
 
 beforeEach(() => {
   session.user = null;
@@ -174,6 +175,22 @@ describe('email único: la regla', () => {
     expect(await listTrash(ws)).toHaveLength(0);
   });
 
+  it('fusionar no pasa al que queda un email que ya tiene un tercero', async () => {
+    const ws = (await makeUser('merge3')).id;
+    const keep = await createContact(ws, { firstName: 'Sin email' });
+    const drop = await legacyContact(ws, 'tres@fusion.test', 'Sale');
+    const third = await legacyContact(ws, 'TRES@fusion.test', 'Tercero');
+    await mergeContacts(ws, keep.id, drop);
+    expect((await getContact(ws, keep.id))!.contact.email).toBe('');
+    expect((await findContactByEmail(ws, 'tres@fusion.test'))?.id).toBe(third);
+    expect(await countByEmail(ws, 'tres@fusion.test')).toBe(1);
+    // Sin un tercero, el email del descartado sí pasa.
+    const keep2 = await createContact(ws, { firstName: 'Sin email 2' });
+    const drop2 = await createContact(ws, { email: 'libre@fusion.test' });
+    await mergeContacts(ws, keep2.id, drop2.id);
+    expect((await getContact(ws, keep2.id))!.contact.email).toBe('libre@fusion.test');
+  });
+
   it('restaurar con el email libre anda como siempre', async () => {
     const ws = (await makeUser('trash')).id;
     const c = await createContact(ws, { email: 'sola@vuelta.test' });
@@ -250,6 +267,32 @@ describe('email único: duplicados que ya existen', () => {
       // `member` solo ve un contacto de cada grupo: no hay nada que fusionar ni que mostrarle.
       else expect(body.groups).toEqual([]);
     }
+  });
+
+  it('?contactId= de un contacto que no se ve responde como si no tuviera duplicados', async () => {
+    const w = await workspaceWithMember('dupid');
+    await setMemberVisibility(w.owner.id, 'mine');
+    // `member` ve dos de los tres contactos del grupo; el pedido nombra al que no ve.
+    await legacyContact(w.owner.id, 'trio@vis.test', 'M1', w.member.id);
+    const mine = await legacyContact(w.owner.id, 'trio@vis.test', 'M2', w.member.id);
+    const hidden = await legacyContact(w.owner.id, 'trio@vis.test', 'Oculto', w.friend.id);
+    const get = async (id: string) => {
+      const res = await duplicatesRoute.GET(new NextRequest(`http://x/api/crm/contacts/duplicates?contactId=${id}`));
+      return { status: res.status, text: await res.text() };
+    };
+    session.user = asMember(w.owner, w.member);
+    const blind = await get(hidden);
+    expect(JSON.parse(blind.text)).toEqual({ groups: [] });
+    // Con uno propio ve el grupo, sin el contacto ajeno.
+    const seen = JSON.parse((await get(mine)).text) as { groups: Array<{ contacts: Array<{ id: string }> }> };
+    expect(seen.groups).toHaveLength(1);
+    expect(seen.groups[0].contacts.map((c) => c.id)).not.toContain(hidden);
+    expect(seen.groups[0].contacts).toHaveLength(2);
+    // Un id de otro workspace tampoco dice nada.
+    session.user = asOwner(w.stranger);
+    expect(JSON.parse((await get(mine)).text)).toEqual({ groups: [] });
+    session.user = asOwner(w.owner);
+    expect((JSON.parse((await get(hidden)).text) as { groups: Array<{ contacts: unknown[] }> }).groups[0].contacts).toHaveLength(3);
   });
 });
 
@@ -456,18 +499,52 @@ describe('email único: entradas automáticas actualizan el contacto que ya exis
     { id: 'phone', type: 'text', label: 'Phone', property: 'phone', required: false },
   ];
 
-  it('formulario del CRM sin "actualizar existentes": no crea otro contacto, completa lo vacío y no pisa', async () => {
+  it('formulario del CRM sin "actualizar existentes": no crea otro contacto ni toca el que existe; el envío queda guardado suelto', async () => {
     const ws = (await makeUser('form')).id;
     const existing = await createContact(ws, { email: 'eva@forma.test', firstName: 'Eva' });
+    const before = (await getContact(ws, existing.id))!.contact;
     const form = await createForm(ws, { name: 'Contacto', fields: FIELDS, settings: { minSubmitSeconds: 0, updateExisting: false } });
     const res = await submitForm(form.token, { values: { email: 'EVA@forma.test', name: 'Otra Persona', phone: '+54 11 5555 0103' }, elapsedMs: 9000 });
-    expect(res).toMatchObject({ ok: true, created: false, contactId: existing.id });
+    expect(res).toMatchObject({ ok: true, created: false });
+    expect(res).not.toHaveProperty('contactId');
     expect(await countByEmail(ws, 'eva@forma.test')).toBe(1);
+    // El contacto queda exactamente como estaba: ni campos, ni timeline.
     const after = (await getContact(ws, existing.id))!.contact;
-    // El nombre que tenía queda; el teléfono vacío se completa.
-    expect(after).toMatchObject({ first_name: 'Eva', last_name: '', phone: '+54 11 5555 0103', email: 'eva@forma.test' });
-    // El envío queda en el timeline del contacto que ya existía.
-    expect((await listTimeline(ws, { contactId: existing.id })).length).toBeGreaterThan(0);
+    expect(after).toEqual(before);
+    expect(await listTimeline(ws, { contactId: existing.id })).toHaveLength(0);
+    // El envío se guarda sin contacto y deja una nota suelta.
+    const db = getDb();
+    const sub = (await db.prepare('SELECT contact_id, contact_created FROM crm_form_submissions WHERE form_id = ?').all(form.id)) as Array<{
+      contact_id: string | null;
+      contact_created: number;
+    }>;
+    expect(sub).toEqual([{ contact_id: null, contact_created: 0 }]);
+    const notes = (await db
+      .prepare("SELECT contact_id, subject FROM crm_activities WHERE user_id = ? AND subject LIKE 'Form submitted:%'")
+      .all(ws)) as Array<{ contact_id: string | null; subject: string }>;
+    expect(notes).toHaveLength(1);
+    expect(notes[0].contact_id).toBeNull();
+  });
+
+  it('formulario público: la respuesta es la misma exista o no el email', async () => {
+    const ws = (await makeUser('form')).id;
+    await createContact(ws, { email: 'ya@forma.test', firstName: 'Ya' });
+    const form = await createForm(ws, { name: 'Contacto', fields: FIELDS, settings: { minSubmitSeconds: 0, updateExisting: false } });
+    const post = async (email: string, ip: string) => {
+      const res = await formSubmitRoute.POST(
+        new NextRequest(`http://x/api/crm/forms/submit/${form.token}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+          body: JSON.stringify({ values: { email, name: 'Alguien' }, elapsedMs: 9000 }),
+        }),
+        { params: Promise.resolve({ key: form.token }) },
+      );
+      return { status: res.status, body: await res.text() };
+    };
+    const known = await post('ya@forma.test', '10.9.0.1');
+    const fresh = await post('nueva@forma.test', '10.9.0.2');
+    expect(known.status).toBe(200);
+    expect(known).toEqual(fresh);
   });
 
   it('formulario del CRM con "actualizar existentes": pisa con lo que vino y nunca con vacíos', async () => {
@@ -587,20 +664,29 @@ describe('email único: entradas automáticas actualizan el contacto que ya exis
     expect((await getContact(ws, target.id))!.contact.email).toBe('mio@flujo.test');
   });
 
-  it('extensión de Gmail: si el destinatario ya es contacto de otra persona no crea otro ni devuelve nada de él', async () => {
+  it('extensión de Gmail: si el destinatario ya es contacto de otra persona no crea otro, no registra nada en él y no devuelve nada de él', async () => {
     const w = await workspaceWithMember('ext');
     const hidden = await createContact(w.owner.id, { email: 'cliente@correo.test', firstName: 'Clara', ownerId: w.friend.id });
     const actor = { workspaceId: w.owner.id, personId: w.member.id, scope: [w.member.id] };
-    const res = await trackExtensionEmail(actor, { to: 'Cliente <CLIENTE@correo.test>', subject: 'Hola', body: 'Te escribo' });
-    expect(res.ok).toBe(true);
-    if (!res.ok) return;
-    expect(res.createdContact).toBe(false);
-    expect(res.contactIds).toEqual([]);
+    const res = await trackExtensionEmail(actor, { to: 'Cliente <CLIENTE@correo.test>', subject: 'Asunto reservado', body: 'Te escribo' });
+    // La misma respuesta que "Registrar" cuando no hay un contacto visible.
+    expect(res).toEqual({ ok: false, error: 'no_contact' });
     expect(JSON.stringify(res)).not.toContain(hidden.id);
     expect(await countByEmail(w.owner.id, 'cliente@correo.test')).toBe(1);
-    // El envío queda en el contacto que ya existía.
-    const linked = (await getDb().prepare('SELECT contact_id FROM crm_emails WHERE id = ?').get(res.emailId)) as { contact_id: string };
-    expect(linked.contact_id).toBe(hidden.id);
+    const db = getDb();
+    // Nada en el contacto que no ve: ni email, ni vínculo, ni actividad en su timeline.
+    const emails = (await db.prepare('SELECT COUNT(*) AS c FROM crm_emails WHERE user_id = ?').get(w.owner.id)) as { c: number };
+    expect(emails.c).toBe(0);
+    const links = (await db.prepare('SELECT COUNT(*) AS c FROM crm_email_contacts WHERE contact_id = ?').get(hidden.id)) as { c: number };
+    expect(links.c).toBe(0);
+    expect(await listTimeline(w.owner.id, { contactId: hidden.id })).toHaveLength(0);
+    // Y su dueño no recibe ningún aviso con el asunto de quien envía.
+    const notified = (await db.prepare('SELECT COUNT(*) AS c FROM notifications WHERE user_id = ?').get(w.friend.id)) as { c: number };
+    expect(notified.c).toBe(0);
+    // Con un contacto que sí ve, el trackeo sigue andando.
+    const mine = await createContact(w.owner.id, { email: 'propio@correo.test', ownerId: w.member.id });
+    const ok = await trackExtensionEmail(actor, { to: 'propio@correo.test', subject: 'Hola', body: 'Te escribo' });
+    expect(ok).toMatchObject({ ok: true, contactIds: [mine.id], createdContact: false });
   });
 
   it('asistente: no prepara ni crea un contacto con un email que existe; nombra al existente solo si se ve', async () => {

@@ -1772,7 +1772,7 @@
       "successMessage": "Mensaje de agradecimiento",
       "crm": "En el CRM",
       "crmDesc": "Qué pasa con el contacto en cada envío.",
-      "dedupe": "Si el email coincide con un contacto, reemplazar sus valores por los enviados. Desactivado: solo se completan sus campos vacíos",
+      "dedupe": "Actualizar el contacto existente si coincide el email. Desactivado: el envío se guarda y ese contacto queda como está",
       "ownerAuto": "Round-robin o dueño del workspace",
       "list": "Agregar a la lista",
       "sequence": "Inscribir en la secuencia",

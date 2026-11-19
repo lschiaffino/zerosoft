@@ -25,7 +25,7 @@ import { getDb, type Db } from './db';
 import { syncContactPrimary, syncDealPrimary } from './crm-assoc';
 import { activityDatesUpdateSql, type ActivityDateTable } from './crm-activity-dates';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
-import { findContactByEmail } from './crm-contact-email';
+import { emailFreeSql, findContactByEmail } from './crm-contact-email';
 import type { CrmContactRow } from './db';
 import { deleteUploads } from './uploads';
 import {
@@ -311,9 +311,31 @@ export async function restoreTrash(
     crm_companies: new Set(),
     crm_deals: new Set(),
   };
+  let restored = 0;
   for (const { table: t, rows } of snap.tables) {
     for (const row of rows) {
-      if (!(await insertRow(db, info, t, row))) continue;
+      const email = t === 'crm_contacts' && typeof row.email === 'string' ? row.email.trim() : '';
+      if (email) {
+        // El contacto vuelve solo si su email sigue libre: el chequeo va en la
+        // misma sentencia que el INSERT (el de arriba pudo quedar viejo).
+        const free = emailFreeSql(userId, email, [String(row.id)]);
+        const ok = await insertSnapshotRow(db, info, t, row, { onlyIf: free }).catch(() => false);
+        if (!ok) {
+          const taken = restored === 0 ? await findContactByEmail(userId, email, db, String(row.id)) : null;
+          if (taken) {
+            // Nada se restauró todavía: la entrada vuelve a la papelera tal cual estaba.
+            await db
+              .prepare(
+                `INSERT OR IGNORE INTO crm_trash (id, user_id, entity, record_id, label, owner_id, deleted_by, deleted_at, snapshot, merged_into)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              )
+              .run(entry.id, entry.user_id, entry.entity, entry.record_id, entry.label, entry.owner_id, entry.deleted_by, entry.deleted_at, entry.snapshot, entry.merged_into);
+            return { ok: false, reason: 'email_taken', existing: taken };
+          }
+          continue;
+        }
+      } else if (!(await insertRow(db, info, t, row))) continue;
+      restored++;
       if (t === 'crm_contacts') contacts.add(String(row.id));
       if (t === 'crm_deals') deals.add(String(row.id));
       if (t === 'crm_contact_companies') contacts.add(String(row.contact_id));

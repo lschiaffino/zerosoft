@@ -1772,7 +1772,7 @@
       "successMessage": "Thank-you message",
       "crm": "In the CRM",
       "crmDesc": "What happens to the contact on every submission.",
-      "dedupe": "When the email matches a contact, replace its values with the submitted ones. Off: only its empty fields are filled in",
+      "dedupe": "Update the existing contact when the email matches. Off: the submission is saved and that contact is left as it is",
       "ownerAuto": "Round-robin or workspace owner",
       "list": "Add to list",
       "sequence": "Enroll in sequence",
