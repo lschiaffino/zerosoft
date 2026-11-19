@@ -810,7 +810,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* El mismo chat en varias líneas: por cuál entró o salió el mensaje (lib/same-chat.ts). */
 .gr-line-tag { color: var(--wa-text-2, currentColor); min-width: 0; overflow-wrap: anywhere; }
 /* "Responder desde": la línea por la que sale la respuesta (components/groups/ReplyFromSelect.tsx). */
-.gr-replyfrom { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 10px 2px; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text-2, currentColor); }
+.gr-replyfrom { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 10px 8px; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text-2, currentColor); }
 .gr-replyfrom-label { flex: none; }
 /* Compacto y callado, como el resto de la barra del compositor: sin el alto ni el borde de un campo de formulario
    (.app-frame .select le ganaba a esta regla y lo dejaba de 36px con borde). El borde aparece al pasar o al enfocar. */
