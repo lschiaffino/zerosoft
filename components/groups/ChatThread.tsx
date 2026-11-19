@@ -2503,10 +2503,23 @@ export default function ChatThread(props: ThreadProps) {
 
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
-          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
+        <div className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
+          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
+              las flechas (y Inicio/Fin) pasan de una a otra, como en cualquier lista de pestañas. */}
           {!editing && (
-            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')} data-tour="lines-note">
+            <div
+              className="wa-mode"
+              role="tablist"
+              aria-label={t('thread.modeLabel')}
+              data-tour="lines-note"
+              onKeyDown={(e) => {
+                const next = e.key === 'ArrowLeft' || e.key === 'Home' ? 'reply' : e.key === 'ArrowRight' || e.key === 'End' ? 'note' : null;
+                if (!next) return;
+                e.preventDefault();
+                setMode(next);
+                e.currentTarget.querySelector<HTMLButtonElement>(`.wa-mode-${next}`)?.focus();
+              }}
+            >
               {(['reply', 'note'] as const).map((m) => (
                 <button
                   key={m}
@@ -2514,6 +2527,7 @@ export default function ChatThread(props: ThreadProps) {
                   role="tab"
                   className={`wa-mode-tab wa-mode-${m}`}
                   aria-selected={mode === m}
+                  tabIndex={mode === m ? 0 : -1}
                   title={m === 'note' ? t('wa.writeNote') : t('wa.backToWhatsApp')}
                   onClick={() => {
                     setMode(m);
