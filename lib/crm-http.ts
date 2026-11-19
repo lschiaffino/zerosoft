@@ -8,6 +8,7 @@ import { getDb } from './db';
 import { CrmRefError } from './crm-refs';
 import { rateLimit } from './rate-limit';
 import { canSeeEntity, type OwnerScope } from './crm-visibility';
+import { CONTACT_EMAIL_TAKEN, ContactEmailTakenError, emailTakenInfo } from './crm-contact-email';
 
 export { CrmRefError };
 
@@ -86,6 +87,39 @@ export async function catchRef<T>(p: Promise<T>): Promise<T | CrmRefError> {
     if (e instanceof CrmRefError) return e;
     throw e;
   }
+}
+
+/** catchRef + el email ya tomado por otro contacto (lib/crm-contact-email.ts). */
+export async function catchContactWrite<T>(p: Promise<T>): Promise<T | CrmRefError | ContactEmailTakenError> {
+  try {
+    return await p;
+  } catch (e) {
+    if (e instanceof CrmRefError || e instanceof ContactEmailTakenError) return e;
+    throw e;
+  }
+}
+
+/**
+ * 409 de las rutas session: ya hay un contacto con ese email. `existing`
+ * (id y nombre) va solo si quien pide lo ve; si no, null y nada más.
+ */
+export function emailTakenResponse(err: ContactEmailTakenError, scope: OwnerScope | undefined): NextResponse {
+  return NextResponse.json({ error: CONTACT_EMAIL_TAKEN, ...emailTakenInfo(err.existing, scope) }, { status: 409 });
+}
+
+/** El mismo 409 en el formato de la API v1; `existingId` solo si la key ve ese contacto. */
+export function apiEmailTakenResponse(err: ContactEmailTakenError, scope: OwnerScope | undefined): NextResponse {
+  const { existing } = emailTakenInfo(err.existing, scope);
+  return NextResponse.json(
+    {
+      error: {
+        code: CONTACT_EMAIL_TAKEN,
+        message: 'A contact with this email already exists.',
+        ...(existing ? { existingId: existing.id } : {}),
+      },
+    },
+    { status: 409 },
+  );
 }
 
 /**

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
 import { utcToLocalInput } from '@/lib/utils';
+import EmailTakenNotice, { emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
 
 export interface PropField {
   /** Clave del payload PATCH (camelCase, ej. firstName, lifecycleStage).
@@ -91,6 +92,8 @@ export default function PropertiesPanel({
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Ya hay un contacto con ese email (undefined = sin aviso). */
+  const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
   const [expanded, setExpanded] = useState(!compactKeys || compactKeys.length === 0);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -113,6 +116,7 @@ export default function PropertiesPanel({
     setDraft(field.type === 'datetime' ? utcToLocalInput(field.value) : field.value);
     setEditingKey(field.key);
     setError(null);
+    setTaken(undefined);
   }
 
   function cancel() {
@@ -132,6 +136,7 @@ export default function PropertiesPanel({
     if (field.type === 'number' && raw === '') return;
     setSavingKey(field.key);
     setError(null);
+    setTaken(undefined);
     let payload: Record<string, unknown>;
     if (field.key.startsWith('custom.')) {
       const name = field.key.slice(7);
@@ -160,6 +165,12 @@ export default function PropertiesPanel({
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
+    // El email nuevo ya es de otro contacto: el aviso lo nombra y lo enlaza (si esta persona lo ve).
+    const existing = emailTakenFrom(data);
+    if (existing !== undefined) {
+      setTaken(existing);
+      return;
+    }
     setError(
       (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic'),
     );
@@ -354,6 +365,7 @@ export default function PropertiesPanel({
           </button>
         )}
         {error && <p className="ui-error" role="alert">{error}</p>}
+        {taken !== undefined && <EmailTakenNotice existing={taken} />}
       </div>
     );
   }
@@ -375,6 +387,7 @@ export default function PropertiesPanel({
         </button>
       )}
       {error && <p className="ui-error" role="alert">{error}</p>}
+      {taken !== undefined && <EmailTakenNotice existing={taken} />}
     </div>
   );
 }

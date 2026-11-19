@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import CustomFieldInput from './CustomFieldInput';
 import { contactPayload, type CustomFieldDef } from './formPayload';
+import EmailTakenNotice, { emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
 
 export type { CustomFieldDef } from './formPayload';
 
@@ -36,8 +38,11 @@ export default function ContactForm({
 }: ContactFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  /** Ya hay un contacto con ese email (undefined = sin aviso). */
+  const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
 
   async function onSubmit(fd: FormData) {
+    setTaken(undefined);
     const body = contactPayload(fd, customFields);
     const res = await fetch('/api/crm/contacts', {
       method: 'POST',
@@ -52,6 +57,12 @@ export default function ContactForm({
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
+    // El aviso con el contacto existente va junto al campo; el pie lo resume.
+    const existing = emailTakenFrom(data);
+    if (existing !== undefined) {
+      setTaken(existing);
+      return t('errors.contact_email_taken');
+    }
     return (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic');
   }
 
@@ -79,7 +90,17 @@ export default function ContactForm({
           <label className="label" htmlFor="cf-email">
             {t('contacts.form.email')}
           </label>
-          <input id="cf-email" name="email" className="input" type="email" autoComplete="email" spellCheck={false} />
+          <input
+            id="cf-email"
+            name="email"
+            className="input"
+            type="email"
+            autoComplete="email"
+            spellCheck={false}
+            aria-invalid={taken !== undefined || undefined}
+            onChange={() => setTaken(undefined)}
+          />
+          {taken !== undefined && <EmailTakenNotice existing={taken} />}
         </div>
         <div className="ui-field">
           <label className="label" htmlFor="cf-phone">

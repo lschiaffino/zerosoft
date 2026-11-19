@@ -11,7 +11,7 @@ import type { DocumentRow } from './core';
 export async function linkContact(workspaceId: string, session: { email: string | null; email_verified: number; visitor_id: string | null }, doc: DocumentRow): Promise<string | null> {
   if (!session.email || !session.email_verified) return null;
   const db = getDb();
-  const contact = (await db.prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(email) = ? LIMIT 1').get(workspaceId, session.email)) as { id: string } | undefined;
+  const contact = (await db.prepare('SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1').get(workspaceId, session.email)) as { id: string } | undefined;
   if (!contact) return null;
   if (session.visitor_id) await db.prepare('UPDATE send_visitors SET contact_id = ? WHERE id = ?').run(contact.id, session.visitor_id);
   const [subject, body] = await renderForRecipient(doc.owner_id, [localized('sendCrmSubject', { title: doc.title }), localized('sendCrmBody', { email: session.email })]);
