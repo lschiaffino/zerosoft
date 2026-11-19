@@ -146,7 +146,7 @@ test('ConfirmDialog destructivo: el foco arranca en Cancelar (Enter no borra)', 
   await expect(card.getByText('Connected', { exact: true })).toBeVisible();
 });
 
-test('390px: el launcher de feedback no tapa "Available" en Ajustes › Asignación', async ({ page }) => {
+test('390px: el launcher de feedback no tapa el estado en Ajustes › Asignación', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/app/lines/settings?tab=assignment', { waitUntil: 'networkidle' });
   const launcher = page.locator('.fl-root .fl-button');
@@ -154,6 +154,6 @@ test('390px: el launcher de feedback no tapa "Available" en Ajustes › Asignaci
   const btn = (await launcher.boundingBox())!;
   // La pestaña cabe en el margen lateral de 16px: nada de la página queda debajo.
   expect(btn.x).toBeGreaterThanOrEqual(390 - 16);
-  const available = (await page.getByText('Available', { exact: true }).first().boundingBox())!;
+  const available = (await page.getByTestId('presence-status').first().boundingBox())!;
   expect(available.x + available.width).toBeLessThanOrEqual(btn.x);
 });

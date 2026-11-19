@@ -68,6 +68,7 @@ import { headerWebhookTarget, type WebhookTarget } from './wa-webhook-secret';
 import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
+import { lineColor, type LineColor } from './line-colors';
 
 export { mediaKind, propertyText };
 
@@ -110,6 +111,8 @@ export interface NumberRow {
   /** "Confirmaciones de lectura" del WhatsApp de la línea ('all', 'none' o '' sin saber; lib/wa-privacy.ts). */
   read_receipts?: string;
   privacy_at?: string | null;
+  /** Color de la línea (lib/line-colors.ts); '' = sin color. */
+  color?: string;
 }
 
 export interface NumberDto {
@@ -130,6 +133,8 @@ export interface NumberDto {
   ownerId: string | null;
   ownerName: string;
   visibility: 'all' | 'restricted';
+  /** Color elegido para la línea (lib/line-colors.ts); '' = sin color. */
+  color: LineColor | '';
   /** Quién la ve cuando es restringida (solo se devuelve a admins y a quien es dueño de la línea). */
   access?: { personIds: string[]; teamIds: string[] };
   /** Quien mira puede conectarla, editarla y borrarla (lib/groups-number-perms.ts). Lo completan la ruta y la página. */
@@ -169,6 +174,7 @@ export function toNumberDto(row: NumberRow): NumberDto {
     ownerId: row.owner_id ?? null,
     ownerName: '',
     visibility: row.visibility === 'restricted' ? 'restricted' : 'all',
+    color: lineColor(row.color),
   };
 }
 
@@ -330,12 +336,19 @@ function defaultNumberName(kind: ProviderKind): string {
 export async function updateNumber(
   ws: string,
   id: string,
-  input: { name?: string; config?: Record<string, unknown> },
+  input: { name?: string; config?: Record<string, unknown>; color?: unknown },
 ): Promise<NumberDto> {
   const row = await getNumberRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
   const sets: string[] = [];
   const args: Array<string> = [];
+  if (input.color !== undefined) {
+    // '' o null quitan el color; un valor fuera de la paleta es un error.
+    const c = input.color === null || input.color === '' ? '' : lineColor(input.color);
+    if (input.color && !c) throw new GroupsError('invalid_color');
+    sets.push('color = ?');
+    args.push(c);
+  }
   if (typeof input.name === 'string') {
     sets.push('name = ?');
     args.push(input.name.trim().slice(0, 80) || row.name);

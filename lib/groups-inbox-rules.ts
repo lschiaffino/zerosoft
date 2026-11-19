@@ -72,6 +72,27 @@ export function nextInRotation(candidates: string[], last: string | null | undef
   return sorted.find((x) => x > last) ?? sorted[0];
 }
 
+/**
+ * Estado de cada persona para la asignación: online recibe chats nuevos,
+ * away conserva los suyos pero no recibe nuevos, offline tampoco (y, si la
+ * regla lo pide, sus chats abiertos se reparten entre los online).
+ */
+export const PRESENCES = ['online', 'away', 'offline'] as const;
+export type Presence = (typeof PRESENCES)[number];
+
+export function cleanPresence(v: unknown): Presence | null {
+  return typeof v === 'string' && (PRESENCES as readonly string[]).includes(v) ? (v as Presence) : null;
+}
+
+/** Fila de groups_availability → estado. Sin fila = online; filas viejas sin status: available 1 = online, 0 = offline. */
+export function presenceOf(row: { status?: string | null; available?: number | null } | undefined): Presence {
+  if (!row) return 'online';
+  return cleanPresence(row.status) ?? (row.available === 0 ? 'offline' : 'online');
+}
+
+/** Solo quien está online recibe chats nuevos de la asignación automática. */
+export const receivesNewChats = (p: Presence | undefined): boolean => (p ?? 'online') === 'online';
+
 export interface AssignRuleLike {
   enabled: boolean;
   numberId: string | null;

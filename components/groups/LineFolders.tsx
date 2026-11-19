@@ -6,6 +6,9 @@ import type { LineFolderDto } from '@/lib/groups-lines';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import MenuSelect from '@/components/ui/MenuSelect';
 import { Modal } from './ui';
+import LineDot from './LineDot';
+
+export { LineDot };
 
 /** Últimos 4 dígitos del teléfono, para distinguir líneas con nombres parecidos. */
 function phoneTail(phone: string): string {
@@ -19,7 +22,10 @@ export interface LineOption {
   phone: string;
   ownerId: string | null;
   ownerName: string;
+  /** Color elegido en Ajustes › Números (lib/line-colors.ts); '' = sin color. */
+  color?: string;
 }
+
 
 /** Selector de línea: una o "Todas las líneas". Se recuerda por persona en el servidor. */
 export function LineSelector({ numbers, value, onChange }: { numbers: LineOption[]; value: string; onChange: (v: string) => void }) {
@@ -32,7 +38,7 @@ export function LineSelector({ numbers, value, onChange }: { numbers: LineOption
       label={t('selectorLabel')}
       value={value}
       onChange={onChange}
-      options={[{ value: 'all', label: t('all') }, ...numbers.map((n) => ({ value: n.id, label: n.name, hint: n.phone ? phoneTail(n.phone) : undefined }))]}
+      options={[{ value: 'all', label: t('all') }, ...numbers.map((n) => ({ value: n.id, label: n.name, hint: n.phone ? phoneTail(n.phone) : undefined, lead: <LineDot color={n.color} /> }))]}
     />
   );
 }

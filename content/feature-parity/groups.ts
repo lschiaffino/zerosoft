@@ -61,6 +61,13 @@ const parity: ProductParity = {
         'Uma conversa que está em várias linhas mostra Responder de no campo de escrever, por padrão na linha da última mensagem. Tudo o que você manda sai pela linha escolhida, e não dá para escolher linhas desconectadas ou que saíram do grupo. Uma conversa 1:1 só é respondida por linhas que já têm essa conversa',
       ],
     }),
+    row('line-colors', 'inbox', ['Color per line', 'Color por línea', 'Cor por linha'], 'have', {
+      detail: [
+        'Each line can have a color, picked in Settings › Numbers from a short palette. The chat list shows a dot in that color on each chat, one per line when a chat is on several lines, and so do the line selector and Reply from',
+        'Cada línea puede tener un color, elegido en Ajustes › Números de una paleta corta. La lista de chats muestra un punto de ese color en cada chat, uno por línea cuando el chat está en varias, y también el selector de línea y Responder desde',
+        'Cada linha pode ter uma cor, escolhida em Configurações › Números numa paleta curta. A lista de conversas mostra um ponto dessa cor em cada conversa, um por linha quando a conversa está em várias, e também o seletor de linha e Responder de',
+      ],
+    }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
         'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
@@ -426,9 +433,9 @@ const parity: ProductParity = {
     row('send-action', 'automation', ['Send a WhatsApp message from an automation', 'Mandar un WhatsApp desde una automatización', 'Enviar um WhatsApp por uma automação'], 'have'),
     row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'have', {
       detail: [
-        'Rules by number, label or chat type that rotate among a team or some people, only those marked available',
-        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, solo entre quienes están disponibles',
-        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, só entre quem está disponível',
+        'Rules by number, label or chat type that rotate among a team or some people who are online (online, away or offline status). A rule can hand the open chats of someone who goes offline to the people online',
+        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas en línea (estado en línea, ausente o desconectado). Una regla puede pasar los chats abiertos de quien se desconecta a quienes están en línea',
+        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas online (status online, ausente ou offline). Uma regra pode passar os chats abertos de quem fica offline para quem está online',
       ],
     }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),

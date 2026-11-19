@@ -95,6 +95,9 @@ export interface WidgetCreatePayload {
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
   conversationAttributes?: ChatAttributeDef[];
+  font?: string;
+  visitorAttachments?: string;
+  replyTime?: string;
 }
 
 export interface WidgetUpdatePayload {
@@ -113,6 +116,9 @@ export interface WidgetUpdatePayload {
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
   conversationAttributes?: ChatAttributeDef[];
+  font?: string;
+  visitorAttachments?: string;
+  replyTime?: string;
 }
 
 /** Espera por defecto antes de mandar por email una respuesta sin leer. */
@@ -235,6 +241,18 @@ export async function updateChatWidget(
   if (payload.conversationAttributes !== undefined) {
     fields.push('conversation_attributes = ?');
     args.push(jsonStringify(payload.conversationAttributes));
+  }
+  if (payload.font !== undefined) {
+    fields.push('font = ?');
+    args.push(payload.font);
+  }
+  if (payload.visitorAttachments !== undefined) {
+    fields.push('visitor_attachments = ?');
+    args.push(payload.visitorAttachments);
+  }
+  if (payload.replyTime !== undefined) {
+    fields.push('reply_time = ?');
+    args.push(payload.replyTime);
   }
 
   if (fields.length > 0) {
@@ -2625,4 +2643,9 @@ export async function getChatReport(widgetIds: string[]): Promise<ChatReport> {
     csatAverage: avg(csatScores),
     csatCount: csatScores.length,
   };
+}
+
+/** Una respuesta guardada se usó. */
+export async function markCannedUsed(id: string): Promise<void> {
+  await getDb().prepare("UPDATE chat_canned_responses SET use_count = use_count + 1, last_used_at = datetime('now') WHERE id = ?").run(id);
 }

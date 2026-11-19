@@ -52,7 +52,13 @@
     "tourNext": "Suivant",
     "tourDone": "Terminé",
     "checklistProgress": "{done} sur {total} terminés",
-    "dismiss": "Ignorer"
+    "dismiss": "Ignorer",
+    "searchConversation": "Rechercher dans la conversation",
+    "searchNoMatches": "Aucun résultat",
+    "replyMinutes": "Répond généralement en quelques minutes",
+    "replyHour": "Répond généralement en moins d’une heure",
+    "replyDay": "Répond généralement en moins d’un jour",
+    "agentTyping": "Un agent écrit…"
   },
   "de": {
     "defaultWelcome": "Hallo! Wie können wir helfen?",
@@ -107,7 +113,13 @@
     "tourNext": "Weiter",
     "tourDone": "Fertig",
     "checklistProgress": "{done} von {total} erledigt",
-    "dismiss": "Ausblenden"
+    "dismiss": "Ausblenden",
+    "searchConversation": "In der Unterhaltung suchen",
+    "searchNoMatches": "Keine Treffer",
+    "replyMinutes": "Antwortet meist in wenigen Minuten",
+    "replyHour": "Antwortet meist innerhalb einer Stunde",
+    "replyDay": "Antwortet meist innerhalb eines Tages",
+    "agentTyping": "Ein Mitarbeiter schreibt…"
   },
   "it": {
     "defaultWelcome": "Ciao! Come possiamo aiutarti?",
@@ -162,7 +174,13 @@
     "tourNext": "Avanti",
     "tourDone": "Fine",
     "checklistProgress": "{done} di {total} completati",
-    "dismiss": "Ignora"
+    "dismiss": "Ignora",
+    "searchConversation": "Cerca nella conversazione",
+    "searchNoMatches": "Nessun risultato",
+    "replyMinutes": "Di solito risponde in pochi minuti",
+    "replyHour": "Di solito risponde entro un’ora",
+    "replyDay": "Di solito risponde entro un giorno",
+    "agentTyping": "Un operatore sta scrivendo…"
   },
   "nl": {
     "defaultWelcome": "Hallo! Waarmee kunnen we helpen?",
@@ -217,7 +235,13 @@
     "tourNext": "Volgende",
     "tourDone": "Klaar",
     "checklistProgress": "{done} van {total} voltooid",
-    "dismiss": "Sluiten"
+    "dismiss": "Sluiten",
+    "searchConversation": "Zoeken in gesprek",
+    "searchNoMatches": "Geen resultaten",
+    "replyMinutes": "Reageert meestal binnen enkele minuten",
+    "replyHour": "Reageert meestal binnen een uur",
+    "replyDay": "Reageert meestal binnen een dag",
+    "agentTyping": "Een medewerker typt…"
   },
   "pl": {
     "defaultWelcome": "Cześć! W czym możemy pomóc?",
@@ -272,7 +296,13 @@
     "tourNext": "Dalej",
     "tourDone": "Gotowe",
     "checklistProgress": "Ukończono {done} z {total}",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "searchConversation": "Szukaj w rozmowie",
+    "searchNoMatches": "Brak wyników",
+    "replyMinutes": "Zwykle odpowiada w kilka minut",
+    "replyHour": "Zwykle odpowiada w ciągu godziny",
+    "replyDay": "Zwykle odpowiada w ciągu dnia",
+    "agentTyping": "Konsultant pisze…"
   },
   "sv": {
     "defaultWelcome": "Hej! Hur kan vi hjälpa dig?",
@@ -327,7 +357,13 @@
     "tourNext": "Nästa",
     "tourDone": "Klart",
     "checklistProgress": "{done} av {total} klara",
-    "dismiss": "Avfärda"
+    "dismiss": "Avfärda",
+    "searchConversation": "Sök i konversationen",
+    "searchNoMatches": "Inga träffar",
+    "replyMinutes": "Svarar oftast inom några minuter",
+    "replyHour": "Svarar oftast inom en timme",
+    "replyDay": "Svarar oftast inom en dag",
+    "agentTyping": "En medarbetare skriver…"
   },
   "ru": {
     "defaultWelcome": "Здравствуйте! Чем мы можем помочь?",
@@ -382,7 +418,13 @@
     "tourNext": "Далее",
     "tourDone": "Готово",
     "checklistProgress": "Выполнено {done} из {total}",
-    "dismiss": "Скрыть"
+    "dismiss": "Скрыть",
+    "searchConversation": "Поиск в разговоре",
+    "searchNoMatches": "Ничего не найдено",
+    "replyMinutes": "Обычно отвечает за несколько минут",
+    "replyHour": "Обычно отвечает в течение часа",
+    "replyDay": "Обычно отвечает в течение дня",
+    "agentTyping": "Оператор печатает…"
   },
   "tr": {
     "defaultWelcome": "Merhaba! Size nasıl yardımcı olabiliriz?",
@@ -437,7 +479,13 @@
     "tourNext": "İleri",
     "tourDone": "Bitti",
     "checklistProgress": "{total} işlemden {done} tanesi tamamlandı",
-    "dismiss": "Kapat"
+    "dismiss": "Kapat",
+    "searchConversation": "Konuşmada ara",
+    "searchNoMatches": "Sonuç yok",
+    "replyMinutes": "Genellikle birkaç dakika içinde yanıtlar",
+    "replyHour": "Genellikle bir saat içinde yanıtlar",
+    "replyDay": "Genellikle bir gün içinde yanıtlar",
+    "agentTyping": "Temsilci yazıyor…"
   },
   "ja": {
     "defaultWelcome": "こんにちは。どのようなご用件でしょうか？",
@@ -492,7 +540,13 @@
     "tourNext": "次へ",
     "tourDone": "完了",
     "checklistProgress": "{total}件中{done}件完了",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "searchConversation": "会話内を検索",
+    "searchNoMatches": "一致なし",
+    "replyMinutes": "通常数分で返信します",
+    "replyHour": "通常1時間以内に返信します",
+    "replyDay": "通常1日以内に返信します",
+    "agentTyping": "担当者が入力中…"
   },
   "ko": {
     "defaultWelcome": "안녕하세요. 무엇을 도와드릴까요?",
@@ -547,7 +601,13 @@
     "tourNext": "다음",
     "tourDone": "완료",
     "checklistProgress": "{total}개 중 {done}개 완료",
-    "dismiss": "닫기"
+    "dismiss": "닫기",
+    "searchConversation": "대화에서 검색",
+    "searchNoMatches": "결과 없음",
+    "replyMinutes": "보통 몇 분 안에 답변합니다",
+    "replyHour": "보통 1시간 안에 답변합니다",
+    "replyDay": "보통 하루 안에 답변합니다",
+    "agentTyping": "상담원이 입력 중…"
   },
   "zh": {
     "defaultWelcome": "你好，有什么可以帮你？",
@@ -602,7 +662,13 @@
     "tourNext": "下一步",
     "tourDone": "完成",
     "checklistProgress": "已完成 {done}/{total}",
-    "dismiss": "忽略"
+    "dismiss": "忽略",
+    "searchConversation": "搜索对话",
+    "searchNoMatches": "没有结果",
+    "replyMinutes": "通常几分钟内回复",
+    "replyHour": "通常一小时内回复",
+    "replyDay": "通常一天内回复",
+    "agentTyping": "客服正在输入…"
   },
   "id": {
     "defaultWelcome": "Halo! Ada yang bisa kami bantu?",
@@ -657,6 +723,12 @@
     "tourNext": "Berikutnya",
     "tourDone": "Selesai",
     "checklistProgress": "{done} dari {total} selesai",
-    "dismiss": "Tutup"
+    "dismiss": "Tutup",
+    "searchConversation": "Cari di percakapan",
+    "searchNoMatches": "Tidak ada hasil",
+    "replyMinutes": "Biasanya membalas dalam beberapa menit",
+    "replyHour": "Biasanya membalas dalam satu jam",
+    "replyDay": "Biasanya membalas dalam satu hari",
+    "agentTyping": "Agen sedang mengetik…"
   }
 }

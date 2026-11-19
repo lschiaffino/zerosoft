@@ -28,6 +28,7 @@ import * as r25 from "@/app/api/hiring/reports/route";
 import * as r26 from "@/app/api/hiring/settings/route";
 import * as r27 from "@/app/api/hiring/templates/route";
 import * as r28 from "@/lib/routes/hiring/templates/[id]/route";
+import * as r29 from "@/app/api/hiring/trash/route";
 
 export const routes: Record<string, unknown> = {
   "/api/hiring/applications": r0,
@@ -59,4 +60,5 @@ export const routes: Record<string, unknown> = {
   "/api/hiring/settings": r26,
   "/api/hiring/templates": r27,
   "/api/hiring/templates/[id]": r28,
+  "/api/hiring/trash": r29,
 };

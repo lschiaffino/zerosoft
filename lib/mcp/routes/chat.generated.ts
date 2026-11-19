@@ -33,21 +33,22 @@ import * as r30 from "@/app/api/chat/reports/route";
 import * as r31 from "@/app/api/chat/routing/route";
 import * as r32 from "@/lib/routes/chat/rules/[id]/route";
 import * as r33 from "@/lib/routes/chat/rules/[id]/reorder/route";
-import * as r34 from "@/app/api/chat/tags/route";
-import * as r35 from "@/app/api/chat/teams/route";
-import * as r36 from "@/lib/routes/chat/teams/[id]/route";
-import * as r37 from "@/app/api/chat/views/route";
-import * as r38 from "@/lib/routes/chat/views/[id]/route";
-import * as r39 from "@/app/api/chat/visitors/route";
-import * as r40 from "@/lib/routes/chat/visitors/[id]/route";
-import * as r41 from "@/app/api/chat/widgets/route";
-import * as r42 from "@/lib/routes/chat/widgets/[id]/route";
-import * as r43 from "@/lib/routes/chat/widgets/[id]/access/route";
-import * as r44 from "@/lib/routes/chat/widgets/[id]/canned/route";
-import * as r45 from "@/lib/routes/chat/widgets/[id]/email/route";
-import * as r46 from "@/lib/routes/chat/widgets/[id]/outbound/route";
-import * as r47 from "@/lib/routes/chat/widgets/[id]/rules/route";
-import * as r48 from "@/lib/routes/chat/widgets/[id]/sla/route";
+import * as r34 from "@/app/api/chat/snooze-options/route";
+import * as r35 from "@/app/api/chat/tags/route";
+import * as r36 from "@/app/api/chat/teams/route";
+import * as r37 from "@/lib/routes/chat/teams/[id]/route";
+import * as r38 from "@/app/api/chat/views/route";
+import * as r39 from "@/lib/routes/chat/views/[id]/route";
+import * as r40 from "@/app/api/chat/visitors/route";
+import * as r41 from "@/lib/routes/chat/visitors/[id]/route";
+import * as r42 from "@/app/api/chat/widgets/route";
+import * as r43 from "@/lib/routes/chat/widgets/[id]/route";
+import * as r44 from "@/lib/routes/chat/widgets/[id]/access/route";
+import * as r45 from "@/lib/routes/chat/widgets/[id]/canned/route";
+import * as r46 from "@/lib/routes/chat/widgets/[id]/email/route";
+import * as r47 from "@/lib/routes/chat/widgets/[id]/outbound/route";
+import * as r48 from "@/lib/routes/chat/widgets/[id]/rules/route";
+import * as r49 from "@/lib/routes/chat/widgets/[id]/sla/route";
 
 export const routes: Record<string, unknown> = {
   "/api/chat/agent-status": r0,
@@ -84,19 +85,20 @@ export const routes: Record<string, unknown> = {
   "/api/chat/routing": r31,
   "/api/chat/rules/[id]": r32,
   "/api/chat/rules/[id]/reorder": r33,
-  "/api/chat/tags": r34,
-  "/api/chat/teams": r35,
-  "/api/chat/teams/[id]": r36,
-  "/api/chat/views": r37,
-  "/api/chat/views/[id]": r38,
-  "/api/chat/visitors": r39,
-  "/api/chat/visitors/[id]": r40,
-  "/api/chat/widgets": r41,
-  "/api/chat/widgets/[id]": r42,
-  "/api/chat/widgets/[id]/access": r43,
-  "/api/chat/widgets/[id]/canned": r44,
-  "/api/chat/widgets/[id]/email": r45,
-  "/api/chat/widgets/[id]/outbound": r46,
-  "/api/chat/widgets/[id]/rules": r47,
-  "/api/chat/widgets/[id]/sla": r48,
+  "/api/chat/snooze-options": r34,
+  "/api/chat/tags": r35,
+  "/api/chat/teams": r36,
+  "/api/chat/teams/[id]": r37,
+  "/api/chat/views": r38,
+  "/api/chat/views/[id]": r39,
+  "/api/chat/visitors": r40,
+  "/api/chat/visitors/[id]": r41,
+  "/api/chat/widgets": r42,
+  "/api/chat/widgets/[id]": r43,
+  "/api/chat/widgets/[id]/access": r44,
+  "/api/chat/widgets/[id]/canned": r45,
+  "/api/chat/widgets/[id]/email": r46,
+  "/api/chat/widgets/[id]/outbound": r47,
+  "/api/chat/widgets/[id]/rules": r48,
+  "/api/chat/widgets/[id]/sla": r49,
 };

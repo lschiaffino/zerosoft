@@ -90,6 +90,23 @@
 .gr-label-blue i { background: #2f6bff; }
 .gr-label-purple i { background: #7b4dff; }
 .gr-label-pink i { background: #e23d7f; }
+/* Color de cada línea (Ajustes › Números, lib/line-colors.ts): un punto chico.
+   Los tonos son los de los tokens de producto (rellenos, no texto). */
+.gr-line-dot { --line-c: var(--dim); display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line-c); vertical-align: middle; }
+.gr-line-dot.is-none { background: transparent; box-shadow: inset 0 0 0 1px var(--dim); }
+.gr-line-dot[data-line-color='blue'] { --line-c: var(--c-link); }
+.gr-line-dot[data-line-color='green'] { --line-c: var(--c-cal); }
+.gr-line-dot[data-line-color='orange'] { --line-c: var(--c-track); }
+.gr-line-dot[data-line-color='red'] { --line-c: var(--bad); }
+.gr-line-dot[data-line-color='purple'] { --line-c: var(--c-crm); }
+.gr-line-dot[data-line-color='teal'] { --line-c: var(--c-board); }
+.gr-line-dot[data-line-color='yellow'] { --line-c: var(--c-notes); }
+.gr-line-dot[data-line-color='pink'] { --line-c: var(--c-chat); }
+/* En la fila del chat: pegados al nombre (que se recorta antes que ellos), la hora sigue a la derecha. */
+.gr-line-dots { display: inline-flex; flex: none; align-items: center; gap: 3px; margin-right: auto; align-self: center; }
+.gr-row-top .gr-row-name { min-width: 0; }
+.gr-number-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.gr-replyfrom .gr-line-dot { margin-right: -2px; }
 .gr-label-row { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
 .gr-label-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .gr-label-toggle {
@@ -626,7 +643,9 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-presence-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-gray-2); }
 .gr-presence.is-on { color: var(--ink); }
 .gr-presence.is-on i,
-.gr-presence-dot.is-on { background: var(--ok); }
+.gr-presence-dot.is-on,
+.gr-presence-dot.is-online { background: var(--ok); }
+.gr-presence-dot.is-away { background: var(--warn); }
 .gr-thread-actions .btn[aria-pressed='true'] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
 .gr-thread-actions .btn[aria-pressed='true'] .kbd { color: inherit; border-color: currentColor; }
 .gr-bulkbar {

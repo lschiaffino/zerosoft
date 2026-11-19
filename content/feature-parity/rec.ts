@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-16',
+  lastReviewed: '2026-11-18',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -360,9 +360,9 @@ const parity: ProductParity = {
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing'),
     row('data-retention', 'admin', ['Data retention and content transfer', 'Retención de datos y traspaso de contenido', 'Retenção de dados e transferência de conteúdo'], 'have', {
       detail: [
-        'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Authors get an in-app notice (a video that ages in later, only when deleted) when those days start and when videos are deleted. Admins can transfer the videos and folders of someone who left to another person',
-        'Por workspace y apagada por defecto: borra videos de más de 30 a 730 días, con confirmación que dice cuántos y 7 días de aviso. Quienes los grabaron reciben un aviso en la app (un video que cumple la edad después, solo al borrarse) al empezar esos días y al borrarse. Los admins pueden pasar los videos y carpetas de alguien que se fue a otra persona',
-        'Por workspace e desligada por padrão: apaga vídeos com mais de 30 a 730 dias, com confirmação que diz quantos e 7 dias de aviso. Quem gravou recebe um aviso no app (um vídeo que atinge a idade depois, só ao ser apagado) no começo desses dias e ao apagar. Os admins podem passar os vídeos e pastas de alguém que saiu para outra pessoa',
+        'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Authors get an in-app notice (a video that ages in later, only when it goes to the trash) when those days start and when videos go to the trash. Videos wait in a trash until their term ends and the author or an admin can restore them. Admins can transfer the videos and folders of someone who left to another person',
+        'Por workspace y apagada por defecto: borra videos de más de 30 a 730 días, con confirmación que dice cuántos y 7 días de aviso. Quienes los grabaron reciben un aviso en la app (un video que cumple la edad después, solo al pasar a la papelera) al empezar esos días y al pasar a la papelera. Los videos esperan en una papelera hasta que se cumple su plazo y quien los grabó o un admin los puede restaurar. Los admins pueden pasar los videos y carpetas de alguien que se fue a otra persona',
+        'Por workspace e desligada por padrão: apaga vídeos com mais de 30 a 730 dias, com confirmação que diz quantos e 7 dias de aviso. Quem gravou recebe um aviso no app (um vídeo que atinge a idade depois, só ao ir para a lixeira) no começo desses dias e ao ir para a lixeira. Os vídeos esperam numa lixeira até o fim do prazo e quem gravou ou um admin pode restaurá-los. Os admins podem passar os vídeos e pastas de alguém que saiu para outra pessoa',
       ],
     }),
   ],

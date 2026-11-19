@@ -17,6 +17,8 @@ export interface ChatLineRef {
   lineId: string;
   /** Nombre visible de la línea. */
   name: string;
+  /** Color de la línea (Lines, lib/line-colors.ts); '' o ausente = sin color. */
+  color?: string;
   unread: number;
   lastMessageAt: string | null;
   /** La línea salió del grupo o se desconectó: se ve en el hilo pero no se puede responder por ahí. */
