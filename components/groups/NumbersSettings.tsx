@@ -267,6 +267,17 @@ export default function NumbersSettings({
                           {t('lines.restrictedTag')}
                         </span>
                       )}
+                      {/* Grupo de la línea: lo cambia un admin acá mismo (los grupos se arman más abajo). */}
+                      {isAdmin && groups.length > 0 && (
+                        <MenuSelect
+                          className={`gr-line-group-select${n.groupId ? '' : ' is-none'}`}
+                          testId="line-group-select"
+                          label={t('lineGroups.groupOf', { name: n.name })}
+                          value={n.groupId ?? ''}
+                          onChange={(v) => void setGroup(n, v)}
+                          options={groupOptions}
+                        />
+                      )}
                       {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
                       {n.archiveSyncBroken && n.provider !== 'sample' && (
                         <span className="ui-error" role="status" data-testid="line-archive-broken">
@@ -345,16 +356,6 @@ export default function NumbersSettings({
                           onChange={(v) => void setColor(n, v)}
                           options={colorOptions}
                         />
-                        {isAdmin && groups.length > 0 && (
-                          <MenuSelect
-                            className="gr-line-group-select"
-                            testId="line-group-select"
-                            label={t('lineGroups.groupOf', { name: n.name })}
-                            value={n.groupId ?? ''}
-                            onChange={(v) => void setGroup(n, v)}
-                            options={groupOptions}
-                          />
-                        )}
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
                           {t('lines.access')}
                         </button>

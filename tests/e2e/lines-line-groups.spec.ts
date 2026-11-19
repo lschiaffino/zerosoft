@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
-import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { setTheme } from './responsive-audit';
 
 /**
  * Lines: grupos de líneas y acceso por grupo. Un admin crea el grupo Ventas,
@@ -11,6 +12,7 @@ import { expect, test, type APIRequestContext, type Browser, type BrowserContext
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
 const phone = () => `54911${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
@@ -65,14 +67,26 @@ async function lineWithChat(request: APIRequestContext, name: string, contact: s
   return { id, chatId: list.rows[0].id, name, contact };
 }
 
+/**
+ * Abre un menú o selector y espera a verlo. El clic puede caer antes de que la página termine de hidratar,
+ * o justo cuando el scroll trae el botón a la vista: se repite hasta que abre.
+ */
+async function openMenu(trigger: Locator, menu: Locator) {
+  await trigger.scrollIntoViewIfNeeded();
+  await expect(async () => {
+    if (!(await menu.isVisible())) await trigger.click();
+    await expect(menu).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 const overflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const shot = async (p: Page, name: string) => {
   const dir = process.env.LINES_SHOTS_DIR;
-  if (dir) await p.screenshot({ path: `${dir}/${name}.png`, fullPage: false });
+  if (dir) await p.screenshot({ path: `${dir}/${name}.png`, fullPage: false, animations: 'disabled' });
 };
 
-test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas líneas en el selector y en la bandeja', async ({ browser, page, request }) => {
-  test.setTimeout(300_000);
+test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas líneas en el selector y en la bandeja', async ({ browser, page, request, baseURL }) => {
+  test.setTimeout(process.env.LINES_SHOTS_LOOKS ? 900_000 : 300_000);
   const tag = uid();
   const ana = await member(browser, `Ana Ventas ${tag}`);
   const groupIds: string[] = [];
@@ -90,9 +104,8 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     await expect(panel).toBeVisible();
 
     // Esc cierra el diálogo sin crear nada.
-    await panel.getByTestId('line-group-new').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByTestId('line-group-name')).toBeVisible();
+    await openMenu(panel.getByTestId('line-group-new'), dialog.getByTestId('line-group-name'));
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
 
@@ -114,8 +127,9 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
 
     // La línea B entra al grupo desde su fila; sigue abierta a todos y el grupo lo avisa.
     const rowB = page.locator(`[data-number-id="${b.id}"].gr-number`);
-    await rowB.getByTestId('line-group-select').click();
-    await page.getByRole('listbox', { name: `Group of Ventas B ${tag}` }).getByRole('option', { name: `Ventas ${tag}` }).click();
+    const groupMenu = page.getByRole('listbox', { name: `Group of Ventas B ${tag}` });
+    await openMenu(rowB.getByTestId('line-group-select'), groupMenu);
+    await groupMenu.getByRole('option', { name: `Ventas ${tag}` }).click();
     await expect(sales).toContainText(`Ventas B ${tag}`);
     await expect(sales.getByTestId('line-group-open-warning')).toBeVisible();
     // Editar el grupo ofrece restringirla.
@@ -138,11 +152,40 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     await sales.scrollIntoViewIfNeeded();
     await shot(page, 'groups-settings-1280');
 
+    // Solo local (con LINES_SHOTS_DIR y LINES_SHOTS_LOOKS): la pantalla, el diálogo del grupo y el selector de dueño en los cinco
+    // aspectos, claro y oscuro, para mirarlos.
+    if (process.env.LINES_SHOTS_DIR && process.env.LINES_SHOTS_LOOKS) {
+      try {
+        for (const look of LOOKS) {
+          for (const theme of ['light', 'dark'] as const) {
+            expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true);
+            await setTheme(page.context(), baseURL!, theme);
+            await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
+            await expect(page.locator('html')).toHaveAttribute('data-look', look);
+            await sales.scrollIntoViewIfNeeded();
+            await shot(page, `look-${look}-${theme}-groups`);
+            await openMenu(sales.getByTestId('line-group-edit'), dialog.getByTestId('line-group-name'));
+            await shot(page, `look-${look}-${theme}-form`);
+            await page.keyboard.press('Escape');
+            await expect(dialog).toHaveCount(0);
+            const owner = page.locator(`[data-number-id="${a.id}"].gr-number`).getByTestId('line-owner');
+            await openMenu(owner, page.getByTestId('line-owner-panel'));
+            await shot(page, `look-${look}-${theme}-owner`);
+            await page.keyboard.press('Escape');
+          }
+        }
+      } finally {
+        await request.put('/api/profile/look', { data: { look: 'current' } });
+        await setTheme(page.context(), baseURL!, 'light');
+        await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
+      }
+    }
+
     // ---------- Ana: solo Ventas ----------
     const mp = await ana.ctx.newPage();
     await mp.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-    await mp.getByTestId('lines-line-select').click();
     const menu = mp.getByRole('listbox', { name: 'Line' });
+    await openMenu(mp.getByTestId('lines-line-select'), menu);
     await expect(menu.getByRole('option', { name: `Ventas ${tag}`, exact: false }).first()).toBeVisible();
     await expect(menu.getByRole('option', { name: `Ventas A ${tag}` })).toBeVisible();
     await expect(menu.getByRole('option', { name: `Ventas B ${tag}` })).toBeVisible();
@@ -157,7 +200,7 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     // Esc cierra el menú; elegir el grupo filtra la bandeja a sus líneas.
     await mp.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
-    await mp.getByTestId('lines-line-select').click();
+    await openMenu(mp.getByTestId('lines-line-select'), menu);
     const listed = mp.waitForResponse((r) => r.url().includes('/api/groups/chats') && r.url().includes(`linegroup=${salesId}`));
     await menu.locator(`[data-value="g:${salesId}"]`).click();
     await listed;
@@ -194,8 +237,7 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     await mp.setViewportSize({ width: 390, height: 800 });
     await mp.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     expect(await overflow(mp)).toBeLessThanOrEqual(0);
-    await mp.getByTestId('lines-line-select').first().click();
-    await expect(menu).toBeVisible();
+    await openMenu(mp.getByTestId('lines-line-select').first(), menu);
     const box = (await menu.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
@@ -205,11 +247,12 @@ test('un admin arma el grupo Ventas y se lo da a una persona, que ve solo esas l
     // ---------- El admin le saca el grupo desde "Acceso por persona": corta en el acto ----------
     const access = page.getByTestId('person-access');
     await access.scrollIntoViewIfNeeded();
-    await access.getByTestId('person-access-pick').click();
+    await openMenu(access.getByTestId('person-access-pick'), page.getByTestId('person-access-pick-panel'));
     await page.getByTestId('person-access-pick-panel').getByRole('combobox').fill(`ventas ${tag}`);
     await page.keyboard.press('Enter');
     const g = access.locator(`[data-testid="person-access-group"][data-group-id="${salesId}"]`);
     await expect(g.locator('input').first()).toBeChecked();
+    await access.getByTestId('person-access-save').scrollIntoViewIfNeeded();
     await shot(page, 'person-access-1280');
     await g.locator('input').first().uncheck();
     await access.getByTestId('person-access-save').click();

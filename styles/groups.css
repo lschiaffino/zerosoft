@@ -474,6 +474,10 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
    de grupos con sus acciones y el acceso por persona. */
 .table.gr-numbers-table .gr-number-grouphead td { height: auto; padding-top: 16px; padding-bottom: 6px; font-size: 0.75rem; font-weight: 600; color: var(--dim); }
 .table.gr-numbers-table .gr-number-grouphead tr { border-bottom: 0; }
+.gr-number-main .gr-line-group-select { height: 24px; max-width: 180px; padding: 0 6px; font-size: 0.8125rem; font-weight: 400; border-color: var(--line); }
+.gr-number-main .gr-line-group-select.is-none .zs-msel-value { color: var(--dim); }
+@media (max-width: 1023px) { .gr-number-main .gr-line-group-select { height: 32px; } }
+.gr-lgroup-name { font-size: 0.9375rem; }
 .gr-lgroups { display: grid; gap: 12px; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--line); }
 .gr-lgroups-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
 .gr-lgroups-head > div { flex: 1 1 320px; min-width: 0; display: grid; gap: 4px; }
