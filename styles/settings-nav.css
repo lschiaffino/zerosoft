@@ -104,12 +104,16 @@
   border-color: var(--ink);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
 }
-/* Qué trae la versión nueva: una o dos líneas con lo último del changelog y el enlace. */
+/* Qué trae la versión nueva: el texto arriba (aviso y una o dos líneas del changelog) y un pie con el enlace a la
+   izquierda y los botones a la derecha. Antes los botones iban al costado, centrados contra un texto de alto
+   variable, y el enlace quedaba suelto en el medio. */
 /* Le gana a la regla de las apps a pantalla completa (más específica) para que el aviso no ocupe todo el ancho. */
-.zs-desk-update.zs-app-update { max-width: min(680px, calc(100vw - 32px)) !important; }
-.zs-app-update-text { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.zs-desk-update.zs-app-update { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 10px; width: min(520px, calc(100vw - 32px)) !important; max-width: none !important; padding: 12px 14px; }
+.zs-app-update-text { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .zs-app-update-text > p { flex: none; }
-.zs-desk-update .zs-app-update-news { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 0.8125rem; }
-.zs-app-update-news-text { flex: 1 1 220px; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.zs-desk-update .zs-app-update-news { font-size: 0.8125rem; }
+.zs-app-update-news-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.zs-app-update-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.zs-app-update-foot .zs-desk-update-actions { margin-left: auto; }
 .zs-app-update-link { flex: none; color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .zs-app-update-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

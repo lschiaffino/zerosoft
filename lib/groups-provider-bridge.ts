@@ -1569,7 +1569,26 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       return { ...(requestId ? { requestId } : {}), ...(used ? { anchorId: used } : {}) };
     },
     /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
-    async archiveChat(chatId, archive, last) {
+    async archiveChat(chatId, archive, last, altId) {
+      // Un 1:1 puede estar repartido en Evolution entre sus dos ids (lid y teléfono): lo que llega y lo que se manda
+      // desde el teléfono queda con el id del chat, y lo que mandamos nosotros por número, con el teléfono. Evolution
+      // busca "el último mensaje" solo bajo el id pedido: si el más nuevo está bajo el otro, la orden sale con una
+      // referencia vieja y el teléfono la descarta sin avisar (ve mensajes posteriores). Entonces va el más nuevo de
+      // los dos, con el id del chat.
+      const newest = async (jid: string): Promise<{ id: string; fromMe: boolean; ts: number } | null> => {
+        const r = (await api(`/chat/findMessages/${instance}`, 'POST', { where: { key: { remoteJid: jid } }, offset: 1, page: 1 })) as Json;
+        const records = ((r.messages ?? {}) as Json).records;
+        const m = Array.isArray(records) ? (records[0] as Json | undefined) : undefined;
+        const key = (m?.key ?? {}) as Json;
+        const raw = Number(m?.messageTimestamp);
+        const ts = Number.isFinite(raw) && raw > 0 ? Math.floor(raw > 1e12 ? raw / 1000 : raw) : 0;
+        return typeof key.id === 'string' && key.id && ts ? { id: key.id, fromMe: key.fromMe === true, ts } : null;
+      };
+      let other: ArchiveRef | undefined;
+      if (altId && altId !== chatId && !isGroupJid(chatId)) {
+        const [own, alt] = await Promise.all([newest(chatId).catch(() => null), newest(altId).catch(() => null)]);
+        if (alt && (!own || alt.ts > own.ts)) other = { id: alt.id, fromMe: alt.fromMe, timestamp: alt.ts };
+      }
       // Primero con el último mensaje que Evolution tiene guardado: lleva la clave exacta que conoce WhatsApp (en los
       // grupos, quien escribió va como "<lid>@lid"). Con la nuestra (el teléfono) Evolution respondía bien pero el
       // teléfono no encontraba el mensaje y descartaba el archivado sin avisar. Si Evolution no tiene mensajes de ese
@@ -1579,7 +1598,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       const appState = (err: unknown) =>
         err instanceof ProviderError && err.httpStatus === 409 ? new ProviderError('app_state_unavailable', 409) : err;
       try {
-        await api(`/chat/archiveChat/${instance}`, 'POST', { chat: chatId, archive });
+        await api(`/chat/archiveChat/${instance}`, 'POST', other ? evolutionArchiveBody(chatId, archive, other) : { chat: chatId, archive });
       } catch (err) {
         const e = appState(err);
         if (!last || e !== err) throw e;

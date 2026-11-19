@@ -326,7 +326,28 @@ for (const width of [1280, 390]) {
         await expect(banner).toBeVisible({ timeout: FIRST_MS });
         const news = banner.getByTestId('app-update-news');
         await expect(news).toContainText('New:');
-        await expect(news.getByRole('link', { name: 'See what’s new' })).toHaveAttribute('href', /\/changelog#/);
+        const link = banner.getByRole('link', { name: 'See what’s new' });
+        await expect(link).toHaveAttribute('href', /\/changelog#/);
+        // El pie: el enlace y los botones en una fila, debajo del texto; los botones terminan contra el borde derecho.
+        const box = async (l: Locator) => (await l.boundingBox())!;
+        const [bb, nb, lb, rb, db] = await Promise.all([box(banner), box(news), box(link), box(banner.getByRole('button', { name: 'Reload' })), box(banner.getByRole('button', { name: 'Not now' }))]);
+        expect(rb.y).toBeGreaterThanOrEqual(nb.y + nb.height - 1);
+        expect(Math.abs(rb.y + rb.height / 2 - (db.y + db.height / 2))).toBeLessThan(2);
+        expect(Math.abs(lb.y + lb.height / 2 - (rb.y + rb.height / 2))).toBeLessThan(8);
+        expect(lb.x + lb.width).toBeLessThanOrEqual(rb.x);
+        expect(bb.x + bb.width - (db.x + db.width)).toBeLessThan(24);
+        // Sigue el aspecto elegido: en Líneas, esquinas chicas y sin sombra, como los menús.
+        const lookStyle = await page.evaluate(() => {
+          const el = document.querySelector<HTMLElement>('[data-testid="app-update-banner"]')!;
+          const prev = document.documentElement.dataset.look;
+          document.documentElement.dataset.look = 'lines';
+          const cs = getComputedStyle(el);
+          const out = { radius: cs.borderTopLeftRadius, shadow: cs.boxShadow };
+          if (prev === undefined) delete document.documentElement.dataset.look;
+          else document.documentElement.dataset.look = prev;
+          return out;
+        });
+        expect(lookStyle).toEqual({ radius: '2px', shadow: 'none' });
         // Dos líneas como mucho.
         const lines = await news.locator('.zs-app-update-news-text').evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
         expect(lines).toBeLessThanOrEqual(2);
