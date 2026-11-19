@@ -84,13 +84,25 @@ export default function GroupsFoldersBranch() {
       if (e.type === 'scroll' && menuBox.current?.contains(e.target as Node | null)) return;
       setMenu(null);
     };
+    // Un clic afuera lo cierra (no depende del foco: un clic en algo que no se enfoca no lo mueve).
+    const outside = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (menuBox.current?.contains(t) || menuBtn.current?.contains(t)) return;
+      setMenu(null);
+    };
     window.addEventListener('scroll', close, true);
     window.addEventListener('resize', close);
+    document.addEventListener('pointerdown', outside, true);
     return () => {
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('resize', close);
+      document.removeEventListener('pointerdown', outside, true);
     };
   }, [menu]);
+  // Ya ubicado (antes estaba oculto y no se podía enfocar): el foco va a la primera opción.
+  useEffect(() => {
+    if (menuAt) menuBox.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }, [menuAt]);
   const [drop, setDrop] = useState<{ id: string; zone: Zone } | null>(null);
   const [error, setError] = useState('');
   const dragId = useRef<string | null>(null);
@@ -461,14 +473,13 @@ export default function GroupsFoldersBranch() {
                           if (!e.currentTarget.contains(to) && !menuBtn.current?.contains(to)) setMenu(null);
                         }}
                       >
-                        {menuItems(f).map((it, i) => (
+                        {menuItems(f).map((it) => (
                           <li key={it.key} role="none">
                             <button
                               type="button"
                               role="menuitem"
                               className={`grf-menu-item${it.danger ? ' grf-danger' : ''}`}
                               disabled={it.disabled}
-                              autoFocus={i === 0}
                               onClick={() => {
                                 setMenu(null);
                                 it.run();
