@@ -130,13 +130,18 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   - `POST /chat/appState/{instance}` (sin cuerpo, mismo `apikey`) responde el diagnóstico sin tocar nada ni mostrar
     claves: `{ connection, hasKeyId, hasKey, missingKeys, keysAsked, versions: { regular_low, ... } }`.
 
-- `0011-group-receipts-reach-webhook.patch`: los tildes de un mensaje propio en un grupo. "Entregado" y "leído"
-  llegan ahí como `message-receipt.update` (un aviso por persona), y Evolution solo los usaba para su base: el
-  webhook nunca los veía y en zerosoft el mensaje quedaba con un tilde para siempre. Ahora salen como
-  `MESSAGES_UPDATE` (`{ keyId, remoteJid, fromMe: true, status }`), igual que en un chat 1:1: `DELIVERY_ACK` con el
-  primer aviso y `READ` cuando leyeron todos los demás participantes, como WhatsApp. La cuenta de lectores vive en
-  memoria (un reinicio la pierde: ese mensaje queda en "entregado") y la de participantes sale de la caché de
-  metadata.
+- `0011-group-receipts-reach-webhook.patch` (retirado el 19/11): mandaba al webhook los tildes de "entregado" y
+  "leído" de los mensajes propios en grupos. Salió en `zs18` el 18/11 y a la hora y media la línea de Inbox empezó a
+  mandar tandas de 150 a 200 avisos juntos que saturaron la base de zerosoft; se volvió a `zs17`. No quedó probado
+  que fuera la causa, pero era el único cambio. Para reponerlo hace falta un tope de avisos por minuto. El parche
+  está en el historial de git.
+- `0012-skip-mutations-without-key.patch`: un cambio de app-state cifrado con una clave que la línea no tiene ya no
+  tira la colección. El 19/11 la línea de Inbox recibió un cambio de `regular_low` firmado con una clave del
+  teléfono que nunca le llegó (y el teléfono no respondió al pedido de 0010): Baileys cortaba con "failed to find
+  key", la colección quedaba sin versión y la línea no archivaba en ninguna dirección. Ahora ese cambio se saltea y
+  su MAC igual entra en el hash, así los demás cambios se leen y se mandan. Lo que decía el cambio salteado no se
+  llega a saber (si era un archivado hecho en el teléfono, ese no aparece). Cuenta por clave en
+  `globalThis.__zsAppStateNoKey`.
 
 **Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
 workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
