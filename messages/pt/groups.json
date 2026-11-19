@@ -656,6 +656,17 @@
     }
   },
   "numbers": {
+    "colLine": "Linha",
+    "colStatus": "Status",
+    "colLastMessage": "Última mensagem",
+    "colOpenChats": "Conversas abertas",
+    "colActions": "Ações",
+    "sinceRel": "há {time}",
+    "sinceNow": "desde agora há pouco",
+    "sinceDate": "desde {date}",
+    "lastAgo": "há {time}",
+    "lastNow": "agora há pouco",
+    "noMessages": "Ainda sem mensagens",
     "color": "Cor",
     "colorNone": "Sem cor",
     "colors": {"blue": "Azul", "green": "Verde", "orange": "Laranja", "red": "Vermelho", "purple": "Roxo", "teal": "Turquesa", "yellow": "Amarelo", "pink": "Rosa"},

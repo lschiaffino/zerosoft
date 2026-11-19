@@ -439,9 +439,27 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 
 /* ---------- Ajustes ---------- */
 
-.gr-numbers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.gr-number { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 12px 14px; }
-.gr-number-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+/* Tabla de Números: cada línea es un <tbody> con su fila de datos y la de acciones debajo (la raya va
+   al pie de la línea, no entre las dos filas). En el teléfono, .table-stack la pasa a tarjetas. */
+.table.gr-numbers-table tbody tr:hover { background: none; }
+.table.gr-numbers-table .gr-number-row:has(+ .gr-number-actions-row) > * { border-bottom: 0; }
+.table.gr-numbers-table .gr-number-row > * { vertical-align: top; padding-top: 12px; padding-bottom: 10px; }
+.table.gr-numbers-table .gr-number-actions-row > td { height: auto; padding-top: 0; padding-bottom: 12px; }
+.gr-numbers-table .gr-number-cell { white-space: nowrap; }
+.gr-numbers-table thead th:first-child { width: 100%; }
+.gr-number-status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.gr-number-since { font-size: 0.75rem; }
+.gr-number-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; font-weight: 400; }
+.gr-number-main .gr-number-name { font-weight: 600; }
+@media (max-width: 640px) {
+  .table-wrap.table-stack .gr-numbers-table .gr-number-row { padding-bottom: 8px; }
+  .table-wrap.table-stack .gr-numbers-table .gr-number-row:has(+ .gr-number-actions-row) { border-bottom: 0; }
+  .table-wrap.table-stack .gr-numbers-table .gr-number-actions-row { padding-top: 0; }
+  .table-wrap.table-stack .gr-numbers-table .gr-number-row > *,
+  .table-wrap.table-stack .gr-numbers-table .gr-number-actions-row > td { padding: 0; }
+  .table-wrap.table-stack .gr-numbers-table .gr-number-cell { white-space: normal; }
+  .gr-number-status { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+}
 /* Qué historial trae la conexión: en su propio renglón. */
 .gr-number-note { flex-basis: 100%; }
 .gr-number-actions { display: flex; flex-wrap: wrap; gap: 4px; }

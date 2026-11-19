@@ -212,7 +212,7 @@ describe('Lines: conectar números con la capacidad', () => {
     for (const action of ['connect', 'disconnect', 'sync', 'import']) {
       expect((await connect.POST(req(`${NUM}/${id}/connect`, 'POST', { action }), params({ id }))).status, action).toBe(403);
     }
-    const list = (await (await numbers.GET()).json()) as { canEdit: boolean };
+    const list = (await (await numbers.GET(new Request('http://localhost/api/groups/numbers'))).json()) as { canEdit: boolean };
     expect(list.canEdit).toBe(false);
     // El guest tampoco, aunque tuviera algo guardado.
     await getDb().prepare('UPDATE team_members SET capabilities = ? WHERE team_id = ? AND user_id = ?').run(`["${CAP}"]`, c.team.id, c.guest.id);
@@ -246,7 +246,7 @@ describe('Lines: conectar números con la capacidad', () => {
     expect((await number.PATCH(req(`${NUM}/${sharedId}`, 'PATCH', { name: 'x' }), params({ id: sharedId }))).status).toBe(403);
     expect((await number.DELETE(req(`${NUM}/${sharedId}`, 'DELETE'), params({ id: sharedId }))).status).toBe(403);
     expect((await connect.POST(req(`${NUM}/${sharedId}/connect`, 'POST', { action: 'disconnect' }), params({ id: sharedId }))).status).toBe(403);
-    const listed = (await (await numbers.GET()).json()) as { canEdit: boolean; numbers: Array<{ id: string; canManage: boolean; access?: unknown }> };
+    const listed = (await (await numbers.GET(new Request('http://localhost/api/groups/numbers'))).json()) as { canEdit: boolean; numbers: Array<{ id: string; canManage: boolean; access?: unknown }> };
     expect(listed.canEdit).toBe(true);
     expect(listed.numbers.find((n) => n.id === id)).toMatchObject({ canManage: true, access: { personIds: [c.nico.id], teamIds: [] } });
     expect(listed.numbers.find((n) => n.id === sharedId)).toMatchObject({ canManage: false });
@@ -260,7 +260,7 @@ describe('Lines: conectar números con la capacidad', () => {
     await actAs(c.owner, c.marta);
     expect((await number.GET(req(`${NUM}/${nicoId}`, 'GET'), params({ id: nicoId }))).status).toBe(404);
     expect((await number.DELETE(req(`${NUM}/${nicoId}`, 'DELETE'), params({ id: nicoId }))).status).toBe(404);
-    expect(((await (await numbers.GET()).json()) as { numbers: Array<{ id: string }> }).numbers.map((n) => n.id)).not.toContain(nicoId);
+    expect(((await (await numbers.GET(new Request('http://localhost/api/groups/numbers'))).json()) as { numbers: Array<{ id: string }> }).numbers.map((n) => n.id)).not.toContain(nicoId);
     // Nico ve la de Marta (se la compartió), pero no la administra.
     await actAs(c.owner, c.nico);
     expect((await number.DELETE(req(`${NUM}/${id}`, 'DELETE'), params({ id }))).status).toBe(403);

@@ -6,6 +6,7 @@ import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
 import { numberManager, withManage } from '@/lib/groups-number-perms';
+import { withNumberStats } from '@/lib/groups-number-stats';
 import { getPresence, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
@@ -80,7 +81,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     const manager = numberManager(user);
     body = (
       <NumbersSettings
-        initial={withManage(manager, await listNumbers(user.id, await pageViewer(user)))}
+        initial={await withNumberStats(user.id, await pageViewer(user), withManage(manager, await listNumbers(user.id, await pageViewer(user))))}
         people={await listPeople(user.id)}
         teams={(await listTeams(user.id)).map((tm) => ({ id: tm.id, name: tm.name }))}
         providers={availableProviders()}

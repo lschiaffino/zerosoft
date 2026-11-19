@@ -115,7 +115,7 @@ test('ajustes: dueño y acceso de una línea', async ({ page, request }) => {
   const tag = uid();
   const n = await fakeNumber(request, `Linea Acceso ${tag}`);
   await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
-  const card = page.locator('li.gr-number', { hasText: `Linea Acceso ${tag}` });
+  const card = page.locator('.gr-number', { hasText: `Linea Acceso ${tag}` });
   await card.getByTestId('line-access-btn').click();
   await expect(page.getByTestId('line-owner')).toBeVisible();
   await page.getByTestId('line-restricted').check();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, NumberDto } from '@/lib/groups';
@@ -11,6 +11,9 @@ import { Modal, api, useErrorText, useToast } from './ui';
 import MenuSelect from '@/components/ui/MenuSelect';
 import { LINE_COLORS } from '@/lib/line-colors';
 import LineDot from './LineDot';
+import { useRelativeTime } from './relative-time';
+import { parseDbUtc } from '@/lib/utils';
+import { useMounted } from '@/components/ui/useMounted';
 
 const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeholder?: string; optional?: boolean }>> = {
   cloud: [
@@ -86,7 +89,7 @@ export default function NumbersSettings({
   }, []);
 
   const reload = useCallback(async () => {
-    const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers');
+    const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers?stats=1');
     if (res.data) setNumbers(res.data.numbers);
   }, []);
 
@@ -130,6 +133,18 @@ export default function NumbersSettings({
     ...LINE_COLORS.map((c) => ({ value: c, label: t(`numbers.colors.${c}`), lead: <LineDot color={c} /> })),
   ];
 
+  // Tabla: desde cuándo está en su estado y hace cuánto fue el último mensaje (hora relativa, sin contenido).
+  // Las horas dependen del reloj y la zona del navegador: se escriben después de montar (sin desajuste al hidratar).
+  const mounted = useMounted();
+  const rel = useRelativeTime();
+  const locale = useLocale();
+  const recent = (iso: string) => Date.now() - parseDbUtc(iso).getTime() < 7 * 86_400_000;
+  const shortDate = (iso: string) => parseDbUtc(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const longDate = (iso: string) => (!mounted ? undefined : parseDbUtc(iso).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }));
+  const fresh = (iso: string) => Date.now() - parseDbUtc(iso).getTime() < 60_000;
+  const since = (iso: string) => (!mounted ? '' : fresh(iso) ? t('numbers.sinceNow') : recent(iso) ? t('numbers.sinceRel', { time: rel(iso) }) : t('numbers.sinceDate', { date: shortDate(iso) }));
+  const ago = (iso: string) => (!mounted ? '' : fresh(iso) ? t('numbers.lastNow') : recent(iso) ? t('numbers.lastAgo', { time: rel(iso) }) : shortDate(iso));
+
   async function remove() {
     if (!removing) return;
     const res = await api(`/api/groups/numbers/${removing.id}`, { method: 'DELETE' });
@@ -166,108 +181,148 @@ export default function NumbersSettings({
       {numbers.length === 0 ? (
         <p className="ui-help">{t('numbers.empty')}</p>
       ) : (
-        <ul className="gr-numbers">
-          {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
-            <li key={n.id} className="panel gr-number" data-number-id={n.id}>
-              <div className="gr-number-main">
-                <strong className="gr-number-name" data-testid="line-name">
-                  <LineDot color={n.color} />
-                  {n.name}
-                </strong>
-                <span className="ui-help">
-                  {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
-                </span>
-                {n.provider === 'sample' ? (
-                  <span className="badge">{t('sample.badge')}</span>
-                ) : (
-                  <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
-                )}
-                <span className="ui-help" data-testid="line-owner-label">
-                  {n.ownerName ? t('lines.ownerIs', { name: n.ownerName }) : t('lines.noOwner')}
-                  {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
-                </span>
-                {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
-                {n.archiveSyncBroken && n.provider !== 'sample' && (
-                  <span className="ui-error" role="status" data-testid="line-archive-broken">
-                    {t('wa.archiveBroken')}
-                  </span>
-                )}
-                {/* Qué historial trae cada tipo de conexión, sin prometer lo que el proveedor no da. */}
-                {(n.provider === 'cloud' || n.provider === 'waha') && (
-                  <span className="ui-help gr-number-note" data-testid="line-history-note">
-                    {t(n.provider === 'cloud' ? 'wa.historyNoneCloud' : 'wa.historyNoneWaha')}
-                  </span>
-                )}
-                {(n.provider === 'managed' || n.provider === 'evolution') && (
-                  <span className="ui-help gr-number-note" data-testid="line-history-note">
-                    {t('wa.historyLinked')}
-                  </span>
-                )}
-              </div>
-              {n.canManage && (
-                <div className="gr-number-actions">
-                  <MenuSelect
-                    className="gr-line-color-select"
-                    testId="line-color-select"
-                    label={t('numbers.color')}
-                    value={n.color}
-                    onChange={(v) => void setColor(n, v)}
-                    options={colorOptions}
-                  />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
-                    {t('lines.access')}
-                  </button>
-                </div>
-              )}
-              {n.canManage && n.provider === 'sample' && (
-                <div className="gr-number-actions">
-                  <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
-                    {t('sample.clear')}
-                  </button>
-                </div>
-              )}
-              {n.canManage && n.provider !== 'sample' && (
-                <div className="gr-number-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)} data-testid="line-connect-btn">
-                    {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
-                  </button>
-                  {n.caps.groups && n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
-                      {t('numbers.sync')}
-                    </button>
-                  )}
-                  {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
-                    <span className="gr-reimport" title={t('wa.reimportHelp')}>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
-                        {t('wa.reimport')}
-                      </button>
-                      <span className="gr-reimport-label" aria-hidden="true">
-                        {t('wa.perChat')}
+        // Una tabla: cada línea es un <tbody> con su fila de datos y, debajo, la de acciones. En el teléfono las
+        // filas se apilan como tarjetas (styles/groups.css), sin scroll lateral.
+        <div className="table-wrap table-stack">
+          <table className="table gr-numbers-table" data-testid="numbers-table">
+            <thead>
+              <tr>
+                <th scope="col">{t('numbers.colLine')}</th>
+                <th scope="col">{t('numbers.colStatus')}</th>
+                <th scope="col">{t('numbers.colLastMessage')}</th>
+                <th scope="col" className="num">
+                  {t('numbers.colOpenChats')}
+                </th>
+              </tr>
+            </thead>
+            {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
+              <tbody key={n.id} className="gr-number" data-number-id={n.id}>
+                <tr className="gr-number-row">
+                  <th scope="row" className="gr-number-line">
+                    <div className="gr-number-main">
+                      <strong className="gr-number-name" data-testid="line-name">
+                        <LineDot color={n.color} />
+                        {n.name}
+                      </strong>
+                      <span className="ui-help">
+                        {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
                       </span>
-                      <MenuSelect
-                        label={t('wa.perChat')}
-                        value={String(perChat)}
-                        onChange={(v) => setPerChat(Number(v))}
-                        options={[0, 20, 50, 100, 200].map((v) => ({ value: String(v), label: v === 0 ? t('wa.perChatAll') : String(v) }))}
-                      />
+                      <span className="ui-help" data-testid="line-owner-label">
+                        {n.ownerName ? t('lines.ownerIs', { name: n.ownerName }) : t('lines.noOwner')}
+                        {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
+                      </span>
+                      {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
+                      {n.archiveSyncBroken && n.provider !== 'sample' && (
+                        <span className="ui-error" role="status" data-testid="line-archive-broken">
+                          {t('wa.archiveBroken')}
+                        </span>
+                      )}
+                      {/* Qué historial trae cada tipo de conexión, sin prometer lo que el proveedor no da. */}
+                      {(n.provider === 'cloud' || n.provider === 'waha') && (
+                        <span className="ui-help gr-number-note" data-testid="line-history-note">
+                          {t(n.provider === 'cloud' ? 'wa.historyNoneCloud' : 'wa.historyNoneWaha')}
+                        </span>
+                      )}
+                      {(n.provider === 'managed' || n.provider === 'evolution') && (
+                        <span className="ui-help gr-number-note" data-testid="line-history-note">
+                          {t('wa.historyLinked')}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                  <td className="gr-number-cell" data-label={t('numbers.colStatus')} data-testid="line-status">
+                    <span className="gr-number-status">
+                      {n.provider === 'sample' ? (
+                        <span className="badge">{t('sample.badge')}</span>
+                      ) : (
+                        <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
+                      )}
+                      {n.provider !== 'sample' && n.statusSince && (
+                        <span className="ui-help gr-number-since" data-testid="line-status-since" title={longDate(n.statusSince)}>
+                          {since(n.statusSince)}
+                        </span>
+                      )}
                     </span>
-                  )}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
-                    {t('numbers.edit')}
-                  </button>
-                  {n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)} data-testid="line-disconnect-btn">
-                      {t('numbers.disconnect')}
-                    </button>
-                  )}
-                  <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
-                    {t('common.delete')}
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+                  </td>
+                  <td className="gr-number-cell" data-label={t('numbers.colLastMessage')} data-testid="line-last-message">
+                    {n.stats?.lastMessageAt ? (
+                      <time dateTime={n.stats.lastMessageAt} title={longDate(n.stats.lastMessageAt)}>
+                        {ago(n.stats.lastMessageAt)}
+                      </time>
+                    ) : (
+                      <span className="ui-help">{t('numbers.noMessages')}</span>
+                    )}
+                  </td>
+                  <td className="gr-number-cell num" data-label={t('numbers.colOpenChats')} data-testid="line-open-chats">
+                    {n.stats?.openChats ?? 0}
+                  </td>
+                </tr>
+                {n.canManage && (
+                  <tr className="gr-number-actions-row">
+                    <td colSpan={4} className="table-stack-actions">
+                      <div className="gr-number-actions">
+                        <MenuSelect
+                          className="gr-line-color-select"
+                          testId="line-color-select"
+                          label={t('numbers.color')}
+                          value={n.color}
+                          onChange={(v) => void setColor(n, v)}
+                          options={colorOptions}
+                        />
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
+                          {t('lines.access')}
+                        </button>
+                        {n.provider === 'sample' ? (
+                          <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
+                            {t('sample.clear')}
+                          </button>
+                        ) : (
+                          <>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)} data-testid="line-connect-btn">
+                              {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
+                            </button>
+                            {n.caps.groups && n.status === 'connected' && (
+                              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
+                                {t('numbers.sync')}
+                              </button>
+                            )}
+                            {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
+                              <span className="gr-reimport" title={t('wa.reimportHelp')}>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
+                                  {t('wa.reimport')}
+                                </button>
+                                <span className="gr-reimport-label" aria-hidden="true">
+                                  {t('wa.perChat')}
+                                </span>
+                                <MenuSelect
+                                  label={t('wa.perChat')}
+                                  value={String(perChat)}
+                                  onChange={(v) => setPerChat(Number(v))}
+                                  options={[0, 20, 50, 100, 200].map((v) => ({ value: String(v), label: v === 0 ? t('wa.perChatAll') : String(v) }))}
+                                />
+                              </span>
+                            )}
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
+                              {t('numbers.edit')}
+                            </button>
+                            {n.status === 'connected' && (
+                              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)} data-testid="line-disconnect-btn">
+                                {t('numbers.disconnect')}
+                              </button>
+                            )}
+                            <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
+                              {t('common.delete')}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            ))}
+          </table>
+        </div>
       )}
 
       <NumberForm

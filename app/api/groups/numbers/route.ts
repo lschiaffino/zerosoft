@@ -2,18 +2,22 @@ import { NextResponse } from 'next/server';
 import { availableProviders, createNumber, listNumbers } from '@/lib/groups';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 import { withManage } from '@/lib/groups-number-perms';
+import { withNumberStats } from '@/lib/groups-number-stats';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
  * Líneas que quien pide puede ver (sin credenciales), cuáles administra y los
- * proveedores disponibles. `canEdit`: puede agregar líneas.
+ * proveedores disponibles. `canEdit`: puede agregar líneas. Con `?stats=1`, cada
+ * línea trae su último mensaje y sus chats abiertos (la tabla de Números).
  */
-export async function GET() {
+export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
-  const numbers = withManage(s.manager, await listNumbers(s.ws, await sessionViewer(s)));
+  const viewer = await sessionViewer(s);
+  const list = withManage(s.manager, await listNumbers(s.ws, viewer));
+  const numbers = new URL(req.url).searchParams.get('stats') === '1' ? await withNumberStats(s.ws, viewer, list) : list;
   return NextResponse.json({ numbers, providers: availableProviders(), canEdit: s.manager.canAdd, isAdmin: s.isAdmin });
 }
 
