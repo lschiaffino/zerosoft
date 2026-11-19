@@ -992,8 +992,7 @@ export default function InboxShell({
           title={c.lines?.length ? c.lines.map((l) => l.name).join(' · ') : undefined}
           draggable={false}
         >
-          {/* Vencido: además del reloj, un filete de color al borde que no suma alto (styles/wa-accent.css). */}
-          {c.flagged && <span className="wa-overdue-edge" data-testid="row-overdue-edge" aria-hidden="true" title={t('inbox.flaggedHint', { time: c.awaitingSince ? rel(c.awaitingSince) : '' })} />}
+          {/* Vencido: lo dice el reloj junto a la hora. El filete al borde se sacó: con muchos chats vencidos marcaba casi toda la lista. */}
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
             <span className="gr-row-top">

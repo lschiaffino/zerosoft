@@ -66,6 +66,8 @@ test('Inbox: reenviar una nota de voz a otro chat', async ({ page, request }) =>
   await expect(page.getByRole('menuitem', { name: 'Forward' })).toBeVisible();
   if (process.env.INBOX_SHOTS) await page.screenshot({ path: `${process.env.INBOX_SHOTS}/inbox-forward-menu.png` });
   await page.getByRole('menuitem', { name: 'Forward' }).click();
+  // "Forward" entra en selección con ese mensaje; el reenvío sale de la barra.
+  await page.getByTestId('selection-bar').locator('[data-action="forward"]').click();
   const fwd = page.getByRole('dialog', { name: 'Forward to' });
   await expect(fwd.locator('.ib-wa-fwd-preview')).toHaveText('Voice message');
   await fwd.getByRole('textbox').fill(otherName.slice(0, 6));

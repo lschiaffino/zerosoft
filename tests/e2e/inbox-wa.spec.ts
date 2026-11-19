@@ -243,6 +243,8 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   await incoming.hover();
   await incoming.locator('.wa-chevron').click();
   await page.getByRole('menuitem', { name: 'Forward' }).click();
+  // "Forward" entra en selección con ese mensaje; el reenvío sale de la barra.
+  await page.getByTestId('selection-bar').locator('[data-action="forward"]').click();
   const fwd = page.getByRole('dialog', { name: 'Forward to' });
   await fwd.getByRole('textbox').fill(otherName.slice(0, 7));
   await fwd.getByText(otherName).click();

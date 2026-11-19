@@ -105,7 +105,7 @@ async function linesChatId(request: APIRequestContext, name: string): Promise<st
 }
 
 for (const width of [1280, 390]) {
-  test(`Lines: vencido con filete, tooltip y mismo alto (${width}px)`, async ({ page, request }) => {
+  test(`Lines: vencido con reloj y tooltip, sin filete, y mismo alto (${width}px)`, async ({ page, request }) => {
     const errors = watchErrors(page);
     await page.setViewportSize({ width, height: 800 });
     const n = await fakeNumber(request);
@@ -123,18 +123,19 @@ for (const width of [1280, 390]) {
     const fineItem = page.locator(`[data-testid="chat-row"][data-chat-id="${fineId}"]`);
     await expect(lateItem).toHaveAttribute('data-overdue', 'true');
     await expect(fineItem).not.toHaveAttribute('data-overdue', /.*/);
-    const edge = lateItem.getByTestId('row-overdue-edge');
-    await expect(edge).toBeVisible();
-    await expectEdgeAccent(edge);
-    await expect(edge).toHaveAttribute('title', /\S/);
-    await expect(fineItem.getByTestId('row-overdue-edge')).toHaveCount(0);
+    // Sin filete al borde: el vencido lo marca el reloj junto a la hora, con el detalle al pasar el mouse.
+    await expect(lateItem.getByTestId('row-overdue-edge')).toHaveCount(0);
+    const clock = lateItem.locator('.gr-row-time.is-overdue');
+    await expect(clock).toBeVisible();
+    await expect(clock).toHaveAttribute('title', /\S/);
+    await expect(fineItem.locator('.gr-row-time.is-overdue')).toHaveCount(0);
     expect(await rowHeight(lateItem.locator('.gr-row'))).toBe(await rowHeight(fineItem.locator('.gr-row')));
 
-    // Abierto (seleccionado): el filete sigue y el alto no cambia.
+    // Abierto (seleccionado): el alto no cambia.
     if (width > 720) {
       await lateItem.locator('.gr-row').click();
       await expect(lateItem.locator('.gr-row')).toHaveAttribute('aria-current', 'page');
-      await expect(edge).toBeVisible();
+      await expect(lateItem.getByTestId('row-overdue-edge')).toHaveCount(0);
       expect(await rowHeight(lateItem.locator('.gr-row'))).toBe(await rowHeight(fineItem.locator('.gr-row')));
     }
     expect(errors, errors.join('\n')).toEqual([]);
