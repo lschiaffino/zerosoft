@@ -3544,6 +3544,8 @@
     "paramPage": "Page number.",
     "paramPageSize": "Items per page (max 100).",
     "paramSearch": "Search query.",
+    "paramCrmFilters": "Advanced filters as JSON: the value the app puts in the filters parameter of a filtered list's URL. It holds groups of rules, each rule with f (property), o (operator) and v (value). Rules in a group are joined with AND, groups with OR (up to 5). An unknown property or operator returns 400 invalid_filter.",
+    "paramCrmFiltersTz": "IANA time zone for relative dates in filters (today, this_week, last_days). Defaults to UTC.",
     "paramFirstName": "First name.",
     "paramLastName": "Last name.",
     "paramEmail": "Email address.",

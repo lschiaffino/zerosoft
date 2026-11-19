@@ -33,7 +33,7 @@ interface CompanyFiltersProps {
   customFields: CustomFieldOption[];
   /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
   extraSorts?: Array<{ value: string; label: string }>;
-  /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
+  /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
   children?: React.ReactNode;
 }
 
@@ -96,7 +96,7 @@ export default function CompanyFilters({
   const activeFilters = [q, industry, lifecycle, owner, tag, createdFrom, createdTo, ...Object.values(custom)].filter(
     Boolean,
   ).length;
-  const moreActive = [createdFrom, createdTo, advanced, ...Object.values(custom)].filter(Boolean).length;
+  const moreActive = [createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
   return (
@@ -182,6 +182,7 @@ export default function CompanyFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
+        {children}
 
         <div className="filter-right">
           {activeFilters > 0 && (
@@ -265,7 +266,6 @@ export default function CompanyFilters({
               </select>
             </label>
           ))}
-          {children && <div className="filter-advanced">{children}</div>}
         </div>
       )}
     </div>

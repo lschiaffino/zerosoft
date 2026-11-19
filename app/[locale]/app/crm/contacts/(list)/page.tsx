@@ -2,7 +2,7 @@ import { listSequences } from '@/lib/crm-sequences';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
@@ -14,7 +14,6 @@ import {
   listContacts,
   listSavedViews,
   parseCustom,
-  parseFilterRules,
   type ContactFilter,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
@@ -23,10 +22,13 @@ import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilt
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
-import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
+import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
+import { contactFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
+import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { listScores } from '@/lib/crm-scoring';
 import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema';
 
@@ -113,7 +115,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const tag = one(searchParams.tag) ?? str(viewQuery.tag) ?? '';
   const custom = parseCustomFilter(searchParams, viewQuery);
   const rawFilters = one(searchParams.filters) ?? str(viewQuery.filters) ?? '';
-  const advancedRules = parseFilterRules(rawFilters);
   const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
@@ -124,6 +125,45 @@ export default async function ContactsPage(props: ContactsPageProps) {
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
       ? (sortParam as ContactSort)
       : 'newest';
+
+  // Las propiedades del panel de filtros avanzados se arman antes de consultar: el filtro de la URL
+  // se valida contra ellas (una regla que el panel no ofrece ni se aplica ni aparece como chip).
+  const [allTags, scores, companyRows] = await Promise.all([tagsP, scoresP, companiesP]);
+  const primaryScore = scores.find((s) => s.isPrimary);
+  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
+  const companies = companyRows.rows.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+  const teamMembers = membersP
+    ? await membersP
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+  const filterFields = contactFilterFields({
+    t: (k) => t(k),
+    owners,
+    tags: allTags.map((x) => ({ value: x.id, label: x.name })),
+    customDefs: customFieldDefs,
+    companies,
+    lifecycles: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+    leadStatuses: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    sources: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
+    scores: [
+      { key: 'score', label: primaryScore?.name ?? t('scoring.column') },
+      // Los otros scores por puntos y cada score con umbrales por tramo (Hot, Warm…).
+      ...scores.filter((s) => !s.isPrimary).map((s) => ({ key: `score:${s.id}`, label: s.name })),
+      ...scores
+        .filter((s) => s.thresholds.length > 0)
+        .map((s) => ({
+          key: `scoreTier:${s.id}`,
+          label: t('scoring.tierOf', { name: s.name }),
+          tiers: tierRanges(s.thresholds).map((r) => ({ value: tierFilterValue(r), label: r.label })),
+        })),
+    ],
+  });
+  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  const advancedCount = countFilterRules(filterModel);
+  const filtersParam = serializeFilterModel(filterModel);
 
   const { rows, total } = await listContacts(user.id, {
     ownerScope: scope,
@@ -138,31 +178,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
-    filters: advancedRules.length
-      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
-      : undefined,
+    filters: advancedCount ? filterModel : undefined,
+    filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
     customTypes,
     sort: sort as ContactFilter['sort'],
     page,
   });
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
-  const [allTags, rowTags, scores] = await Promise.all([
-    tagsP,
-    tagsForRecords(user.id, 'contact', rows.map((r) => r.id)),
-    scoresP,
-  ]);
-  const primaryScore = scores.find((s) => s.isPrimary);
-  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
-
-  const companies = (await companiesP).rows.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
-
-  const teamMembers = membersP
-    ? await membersP
-    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
-  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+  const rowTags = await tagsForRecords(user.id, 'contact', rows.map((r) => r.id));
 
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
@@ -177,69 +200,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
       return { name: cf.name, label: cf.label, options };
     })
     .filter((cf) => cf.options.length > 0);
-
-  // Campos del constructor avanzado: estándar + custom fields de la entidad.
-  const builderFields: FilterBuilderField[] = [
-    { key: 'name', label: t('filters.field.name'), type: 'text' },
-    { key: 'email', label: t('filters.field.email'), type: 'text' },
-    { key: 'company', label: t('filters.field.company'), type: 'select', options: companies },
-    {
-      key: 'lifecycle',
-      label: t('filters.field.lifecycle'),
-      type: 'select',
-      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
-    },
-    {
-      key: 'leadStatus',
-      label: t('filters.field.leadStatus'),
-      type: 'select',
-      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
-    },
-    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
-    {
-      key: 'source',
-      label: t('filters.field.source'),
-      type: 'select',
-      options: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
-    },
-    { key: 'score', label: primaryScore?.name ?? t('scoring.column'), type: 'number' },
-    // Los otros scores por puntos y cada score con umbrales por tramo (Hot, Warm…).
-    ...scores
-      .filter((s) => !s.isPrimary)
-      .map((s): FilterBuilderField => ({ key: `score:${s.id}`, label: s.name, type: 'number' })),
-    ...scores
-      .filter((s) => s.thresholds.length > 0)
-      .map(
-        (s): FilterBuilderField => ({
-          key: `scoreTier:${s.id}`,
-          label: t('scoring.tierOf', { name: s.name }),
-          type: 'select',
-          options: tierRanges(s.thresholds).map((r) => ({ value: tierFilterValue(r), label: r.label })),
-        }),
-      ),
-    { key: 'created', label: t('filters.field.created'), type: 'date' },
-    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
-    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
-    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
-    { key: 'daysSinceContacted', label: t('listFilters.fields.daysSinceContacted'), type: 'number' },
-    {
-      key: 'hasOpenDeal',
-      label: t('listFilters.fields.hasOpenDeal'),
-      type: 'select',
-      options: [
-        { value: '1', label: t('common.yes') },
-        { value: '0', label: t('common.no') },
-      ],
-    },
-    { key: 'emailsOpened', label: t('listFilters.fields.emailsOpened'), type: 'number' },
-    {
-      key: 'tag',
-      label: t('filters.field.tag'),
-      type: 'select',
-      options: allTags.map((x) => ({ value: x.id, label: x.name })),
-    },
-    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
-  ];
 
   const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
   const tableRows: ContactRow[] = rows.map((c) => ({
@@ -303,7 +263,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
-  if (rawFilters) query.filters = rawFilters;
+  if (filtersParam) query.filters = filtersParam;
   if (sort !== 'newest') query.sort = sort;
   if (activeView) query.view = activeView.id;
 
@@ -343,7 +303,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
-        advanced={rawFilters || undefined}
+        advanced={filtersParam || undefined}
         sort={sort}
         lifecycles={[...LIFECYCLE_STAGES]}
         leadStatuses={[...LEAD_STATUSES]}
@@ -359,11 +319,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
             desc: (label) => t('listSort.fieldDesc', { label }),
           })}
       >
-        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} resetKeys={['view']} />
       </ContactsFilters>
+      <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} resetKeys={['view']} />
 
       {tableRows.length === 0 ? (
-        hasFilters || advancedRules.length > 0 || activeView ? (
+        hasFilters || advancedCount > 0 || activeView ? (
           <EmptyState
             title={t('record.empty.noMatchTitle')}
             body={t('record.empty.noMatchBody')}

@@ -23,7 +23,7 @@ export default async function CrmPager({
   const t = await getTranslations({ locale, namespace: 'crm.record.pager' });
   return (
     <nav className="crm-pager" aria-label={t('label')}>
-      <span className="crm-pager-total">{t('total', { count: total })}</span>
+      <span className="crm-pager-total" data-testid="crm-total" data-total={total}>{t('total', { count: total })}</span>
       {pages > 1 && (
         <span className="crm-pager-nav">
           {page > 1 ? (
