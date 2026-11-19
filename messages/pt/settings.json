@@ -1246,11 +1246,8 @@
     "openImporter": "Abrir o importador do {app}",
     "steps": {
       "hubspot": {
-        "1": "No HubSpot, abra Configurações › Integrações › Apps privados (em contas novas: Desenvolvimento › Apps legados) e crie um app privado.",
-        "2": "Dê um nome (por exemplo, importação zerosoft). Em Escopos, adicione as permissões de leitura abaixo. Nada é escrito no HubSpot.",
-        "3": "Crie o app e copie o token de acesso (começa com pat-).",
-        "4": "Cole abaixo e conecte. Testamos o token e mostramos o que vai entrar: quantidades, owners, pipelines e propriedades personalizadas.",
-        "5": "Associe cada owner do HubSpot a uma pessoa do workspace (batem pelo email) ou convide quem falta, e comece."
+        "1": "Cole a chave abaixo e conecte. Conferimos e mostramos de qual conta ela é, o que ela pode ler e o que vai entrar: quantidades, owners, pipelines e propriedades personalizadas.",
+        "2": "Associe cada owner do HubSpot a uma pessoa do workspace (batem pelo email) ou convide quem falta, e comece."
       },
       "pipedrive": {
         "1": "No Pipedrive, abra seu avatar › Preferências pessoais › API.",

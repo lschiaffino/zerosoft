@@ -162,7 +162,7 @@ const Composer = forwardRef<
   };
 
   return (
-    <div className="ib-composer" aria-busy={busy !== '' || undefined}>
+    <div className="ib-composer" data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       <AiComposeBar ai={ai} tone="app" />
       {slash.menu}
       {!slash.open && snipQ !== null && matches.length > 0 && (

@@ -21,7 +21,7 @@ import {
   photoUrl,
   workspacePeople,
 } from '@/lib/people';
-import { balancesUnchecked, listCustomHolidays, listPolicies, listRequests } from '@/lib/people-timeoff';
+import { balancesUnchecked, listCustomHolidays, listPolicies, listRequests, whoIsOut } from '@/lib/people-timeoff';
 import { getTemplate, listChecklists, listTemplates, myOpenTasks } from '@/lib/people-onboarding';
 import { getCycle, listCycles, listReviews } from '@/lib/people-perf';
 import { pendingAcks } from '@/lib/people-docs';
@@ -104,11 +104,20 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
   const hrOnly = () => <EmptyState product="people" title={t('common.hrOnlyTitle')} body={t('common.hrOnlyBody')} />;
 
   if (!section) {
-    const filters = { q: sp.q ?? '', department: sp.department ?? '', location: sp.location ?? '', type: sp.type ?? '', status: ctx.viewer.hr ? (sp.status ?? '') : '' };
-    const [employees, facets, templates, inbox, coming] = await Promise.all([listEmployees(ctx, filters), directoryFacets(ctx), ctx.viewer.hr ? listTemplates(ctx.ws, 'onboarding') : Promise.resolve([]), homeInbox(ctx), celebrations(ctx)]);
+    const filters = { q: sp.q ?? '', department: sp.department ?? '', location: sp.location ?? '', type: sp.type ?? '', status: ctx.viewer.hr ? (sp.status ?? '') : '', out: sp.out === '1' ? '1' : '' };
+    const [all, facets, templates, inbox, coming, out] = await Promise.all([
+      listEmployees(ctx, filters),
+      directoryFacets(ctx),
+      ctx.viewer.hr ? listTemplates(ctx.ws, 'onboarding') : Promise.resolve([]),
+      homeInbox(ctx),
+      celebrations(ctx),
+      whoIsOut(ctx),
+    ]);
+    const employees = filters.out ? all.filter((e) => out[e.id]) : all;
     return (
       <Directory
         employees={employees}
+        out={out}
         facets={facets}
         hr={ctx.viewer.hr}
         templates={templates.map((x) => ({ id: x.id, name: x.name }))}
@@ -253,14 +262,16 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
       if (id) notFound();
       const employee = await getEmployee(ctx, section);
       if (!employee) notFound();
-      const [fields, people, templates] = await Promise.all([
+      const [fields, people, templates, out] = await Promise.all([
         listFields(ctx.ws),
         ctx.viewer.hr ? listEmployees(ctx) : Promise.resolve([]),
         ctx.viewer.hr ? listTemplates(ctx.ws) : Promise.resolve([]),
+        whoIsOut(ctx),
       ]);
       return (
         <Profile
           employee={employee}
+          out={out[employee.id] ?? null}
           fields={fields.filter((f) => !f.sensitive || ctx.viewer.hr || employee.can.isSelf)}
           people={people.map((p) => ({ id: p.id, name: p.name }))}
           hr={ctx.viewer.hr}

@@ -39,7 +39,7 @@ export async function repairLidDuplicates(client: Client, opts: { apply: boolean
     // Inbox: la libreta, los mensajes repetidos (recibidos y propios) y las respuestas que citan un mensaje del chat
     // del teléfono. Lines: la libreta (allí un mismo id de WhatsApp no puede estar en dos chats del mismo número).
     const inbox = await runMerge('inbox', (run) => [contactPairsInsert('inbox', run), inboxSharedPairsInsert(run, { own: true }), inboxQuotePairsInsert(run)], batch);
-    const lines = await runMerge('lines', (run) => [contactPairsInsert('lines', run)], batch);
+    const lines = await runMerge('lines', (run) => [contactPairsInsert('lines', run)], batch, { agentLinks: true, chatFolders: true });
     const handles = await tx.execute("UPDATE inbox_threads SET handle = '' WHERE kind = 'dm' AND external_id LIKE '%@lid' AND handle <> ''");
     const after = await counts();
     if (opts.apply) await tx.commit();

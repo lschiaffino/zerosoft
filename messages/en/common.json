@@ -1294,6 +1294,55 @@
     "zone": "{city} time",
     "pastError": "Pick a time in the future."
   },
+  "hubspot": {
+    "key": {
+      "label": "HubSpot key",
+      "intro": "Paste a service key or the access token of a legacy private app. Either one works. We check the key when you connect and show what it can do.",
+      "newTitle": "You need a new key: create a service key",
+      "newNote": "HubSpot no longer lets you create private apps. Service keys replace them.",
+      "new": {
+        "1": "In HubSpot, open Development › Keys › Service keys. Some accounts show it under Settings › Integrations › Service keys. You need to be a super admin or have Developer tools access.",
+        "2": "Select Create service key and name it, for example zerosoft.",
+        "3": "Select Add new scope, tick the scopes listed here and select Update.",
+        "4": "Select Create and confirm. Then select Show, copy the key and paste it here."
+      },
+      "legacyTitle": "Your account already has a private app",
+      "legacyNote": "Existing private apps keep working. HubSpot plans to stop supporting them in September 2027, so a service key is the safer choice for the long run.",
+      "legacy": {
+        "1": "In HubSpot, open Development › Legacy apps and select your private app.",
+        "2": "On the Scopes tab, check that it has the scopes listed here and add the ones it lacks.",
+        "3": "On the Auth tab, select Show token, copy it and paste it here."
+      },
+      "newDocs": "HubSpot guide to service keys",
+      "legacyDocs": "HubSpot guide to legacy private apps"
+    },
+    "account": "HubSpot account {id}",
+    "kind": {
+      "service_key": "Connected with a service key",
+      "private_app": "Connected with a legacy private app",
+      "unknown": "Connected"
+    },
+    "can": "This key can",
+    "cannot": "This key cannot yet",
+    "missingTitle": "This key is missing permissions",
+    "missingHelp": "In HubSpot, add these scopes to the key and paste it again.",
+    "scopeWithName": "{label} ({scope})",
+    "webhooksServiceKey": "If this is a service key, it cannot receive webhooks: Lines checks HubSpot for changes about once a minute, and the field below only applies to a legacy private app.",
+    "scopes": {
+      "crm_objects_contacts_read": "Read contacts",
+      "crm_objects_contacts_write": "Create and edit contacts, and add notes",
+      "crm_objects_companies_read": "Read companies",
+      "crm_objects_companies_write": "Create and edit companies",
+      "crm_objects_deals_read": "Read deals and pipelines",
+      "crm_objects_deals_write": "Create and edit deals",
+      "crm_objects_owners_read": "Read owners, the people records are assigned to",
+      "crm_schemas_contacts_read": "Read the list of contact properties",
+      "crm_schemas_companies_read": "Read the list of company properties",
+      "crm_schemas_deals_read": "Read the list of deal properties",
+      "crm_lists_read": "Read lists",
+      "sales_email_read": "Read emails logged on records"
+    }
+  },
   "tour": {
     "menu": "Tour of this app",
     "count": "{n} of {total}",
@@ -1354,6 +1403,48 @@
       "settings": {
         "title": "Lines settings",
         "body": "Connect more numbers and pick a color for each line in Lines settings."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "inbox": {
+      "intro": {
+        "title": "Welcome to Inbox",
+        "body": "Inbox brings your WhatsApp and Gmail into one list that only you see. This tour points out the main parts."
+      },
+      "connect": {
+        "title": "Connect an account",
+        "body": "Link your WhatsApp with a QR code or connect Gmail. Its chats and emails show up here."
+      },
+      "chatList": {
+        "title": "Your chats",
+        "body": "WhatsApp chats and emails land here, the latest first. Move through them with J and K."
+      },
+      "filters": {
+        "title": "Filter the list",
+        "body": "Choose what the list shows: everything, only WhatsApp, only email, groups or unread."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find a chat by name, number or something said in it. Press / to jump here."
+      },
+      "openChat": {
+        "title": "Open a chat",
+        "body": "Open any chat in the list to read it and reply."
+      },
+      "composer": {
+        "title": "Reply",
+        "body": "Write here and press Enter to send. Type / to see the commands for this chat."
+      },
+      "triage": {
+        "title": "Clear it out",
+        "body": "Archive a chat once it's handled (E), snooze it for later (H) or ask for a reminder in case nobody answers."
+      },
+      "settings": {
+        "title": "Inbox settings",
+        "body": "Connect more accounts, import from inbox-zero and save snippets in Inbox settings."
       },
       "done": {
         "title": "That's the tour",

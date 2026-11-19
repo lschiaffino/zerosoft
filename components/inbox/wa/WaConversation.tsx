@@ -1113,7 +1113,7 @@ const WaConversation = forwardRef<
             <span className={`wa-head-sub${live ? ' is-typing' : ''}`}>{subtitle}</span>
           </span>
         </button>
-        <div className="gr-thread-actions">
+        <div className="gr-thread-actions" data-tour="inbox-triage">
           <button type="button" className={`wa-icon-btn${thread.done ? ' is-on' : ''}`} onClick={() => onAction(thread.done ? 'undone' : 'done')} aria-label={thread.done ? t('actions.undone') : t('actions.done')} title={`${thread.done ? t('actions.undone') : t('actions.done')} (${thread.done ? '⇧E' : 'E'})`}>
             <CheckCircle size={20} />
           </button>

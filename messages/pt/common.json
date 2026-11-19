@@ -1294,6 +1294,55 @@
     "zone": "Horário de {city}",
     "pastError": "Escolha um horário no futuro."
   },
+  "hubspot": {
+    "key": {
+      "label": "Chave do HubSpot",
+      "intro": "Cole uma service key ou o token de acesso de um private app legado. Qualquer um dos dois serve. Conferimos a chave ao conectar e mostramos o que ela pode fazer.",
+      "newTitle": "Você precisa de uma chave nova: crie uma service key",
+      "newNote": "O HubSpot não deixa mais criar private apps. As service keys ocupam o lugar deles.",
+      "new": {
+        "1": "No HubSpot, abra Development › Keys › Service keys (Desenvolvimento › Chaves › Chaves de serviço). Em algumas contas fica em Settings › Integrations › Service keys. Você precisa ser superadmin ou ter acesso a Developer tools.",
+        "2": "Selecione Create service key e dê um nome, por exemplo zerosoft.",
+        "3": "Selecione Add new scope, marque as permissões listadas aqui e selecione Update.",
+        "4": "Selecione Create e confirme. Depois selecione Show, copie a chave e cole aqui."
+      },
+      "legacyTitle": "Sua conta já tem um private app",
+      "legacyNote": "Os private apps que já existem continuam funcionando. O HubSpot planeja encerrar o suporte a eles em setembro de 2027, então no longo prazo vale passar para uma service key.",
+      "legacy": {
+        "1": "No HubSpot, abra Development › Legacy apps (Desenvolvimento › Apps legados) e selecione seu private app.",
+        "2": "Na aba Scopes, confira se ele tem as permissões listadas aqui e adicione as que faltam.",
+        "3": "Na aba Auth, selecione Show token, copie e cole aqui."
+      },
+      "newDocs": "Guia do HubSpot sobre service keys",
+      "legacyDocs": "Guia do HubSpot sobre private apps legados"
+    },
+    "account": "Conta do HubSpot {id}",
+    "kind": {
+      "service_key": "Conectado com uma service key",
+      "private_app": "Conectado com um private app legado",
+      "unknown": "Conectado"
+    },
+    "can": "Esta chave pode",
+    "cannot": "Esta chave ainda não pode",
+    "missingTitle": "Faltam permissões nesta chave",
+    "missingHelp": "No HubSpot, adicione estas permissões à chave e cole de novo.",
+    "scopeWithName": "{label} ({scope})",
+    "webhooksServiceKey": "Se esta for uma service key, ela não recebe webhooks: o Lines confere as mudanças do HubSpot mais ou menos uma vez por minuto, e o campo abaixo só vale para um private app legado.",
+    "scopes": {
+      "crm_objects_contacts_read": "Ler contatos",
+      "crm_objects_contacts_write": "Criar e editar contatos, e deixar notas",
+      "crm_objects_companies_read": "Ler empresas",
+      "crm_objects_companies_write": "Criar e editar empresas",
+      "crm_objects_deals_read": "Ler negócios e pipelines",
+      "crm_objects_deals_write": "Criar e editar negócios",
+      "crm_objects_owners_read": "Ler os owners, as pessoas responsáveis pelos registros",
+      "crm_schemas_contacts_read": "Ler a lista de propriedades de contato",
+      "crm_schemas_companies_read": "Ler a lista de propriedades de empresa",
+      "crm_schemas_deals_read": "Ler a lista de propriedades de negócio",
+      "crm_lists_read": "Ler listas",
+      "sales_email_read": "Ler os emails registrados nos registros"
+    }
+  },
   "tour": {
     "menu": "Tour deste app",
     "count": "{n} de {total}",
@@ -1354,6 +1403,48 @@
       "settings": {
         "title": "Configurações do Lines",
         "body": "Nas configurações do Lines você conecta mais números e escolhe uma cor para cada linha."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
+    },
+    "inbox": {
+      "intro": {
+        "title": "Boas-vindas ao Inbox",
+        "body": "O Inbox junta seu WhatsApp e seu Gmail em uma só lista que só você vê. Este tour mostra as partes principais."
+      },
+      "connect": {
+        "title": "Conecte uma conta",
+        "body": "Vincule seu WhatsApp com um código QR ou conecte o Gmail. As conversas e os e-mails aparecem aqui."
+      },
+      "chatList": {
+        "title": "Suas conversas",
+        "body": "Aqui chegam as conversas do WhatsApp e os e-mails, os mais recentes primeiro. Navegue com J e K."
+      },
+      "filters": {
+        "title": "Filtre a lista",
+        "body": "Escolha o que a lista mostra: tudo, só WhatsApp, só e-mail, grupos ou não lidos."
+      },
+      "search": {
+        "title": "Busque",
+        "body": "Encontre uma conversa pelo nome, pelo número ou por algo que foi dito nela. Aperte / para vir aqui."
+      },
+      "openChat": {
+        "title": "Abra uma conversa",
+        "body": "Abra qualquer conversa da lista para ler e responder."
+      },
+      "composer": {
+        "title": "Responda",
+        "body": "Escreva aqui e aperte Enter para enviar. Digite / para ver os comandos desta conversa."
+      },
+      "triage": {
+        "title": "Zere a caixa",
+        "body": "Arquive uma conversa quando estiver resolvida (E), adie para depois (H) ou peça um lembrete caso ninguém responda."
+      },
+      "settings": {
+        "title": "Configurações do Inbox",
+        "body": "Nas configurações do Inbox você conecta mais contas, importa do inbox-zero e salva respostas rápidas."
       },
       "done": {
         "title": "Fim do tour",

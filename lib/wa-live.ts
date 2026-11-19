@@ -37,6 +37,8 @@ export interface LiveRaw {
   chat_id: string;
   number_id: string;
   kind: LiveKind;
+  /** Aviso solo para esta persona (movió un chat a una carpeta suya). Vacío: para todos los que ven el chat. */
+  person_id?: string | null;
 }
 
 export interface LiveEvent {
@@ -54,7 +56,16 @@ export type ChatFilter = (chatIds: string[]) => Promise<Set<string>>;
  * filtra los chats que la persona puede abrir (líneas restringidas, acceso por
  * etiqueta, invitados); null = ve todos (dueño y admins) y no cuesta nada.
  */
-export type LiveViewer = { app: 'inbox'; owner: string } | { app: 'lines'; ws: string; visible: ChatFilter | null };
+export type LiveViewer =
+  | { app: 'inbox'; owner: string }
+  | { app: 'lines'; ws: string; visible: null; me?: string }
+  | { app: 'lines'; ws: string; visible: ChatFilter; pending: LivePending; me?: string };
+
+/**
+ * Los avisos pendientes, entre `cursor` y `upTo`, de los chats que la persona puede abrir (Lines con acceso
+ * restringido). null: ve todos. Con esto el "releé todo" se decide por lo que ella ve.
+ */
+export type LivePending = (cursor: number, upTo: number, limit: number) => Promise<LiveRaw[] | null>;
 
 function scopeOf(viewer: LiveViewer): [LiveApp, string] {
   return viewer.app === 'inbox' ? ['inbox', viewer.owner] : ['lines', viewer.ws];
@@ -71,7 +82,7 @@ export async function latestLiveId(viewer: LiveViewer): Promise<number> {
 export async function fetchLive(viewer: LiveViewer, cursor: number, limit = PAGE): Promise<LiveRaw[]> {
   const [app, scope] = scopeOf(viewer);
   const rows = (await getDb()
-    .prepare('SELECT id, chat_id, number_id, kind FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
+    .prepare('SELECT id, chat_id, number_id, kind, person_id FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
     .all(app, scope, cursor, limit)) as LiveRaw[];
   return rows.map((r) => ({ ...r, id: Number(r.id), kind: r.kind === 'msg' ? 'msg' : 'chat' }));
 }
@@ -85,7 +96,10 @@ export async function fetchLive(viewer: LiveViewer, cursor: number, limit = PAGE
  */
 export async function liveBatch(rows: LiveRaw[], viewer: LiveViewer): Promise<LiveEvent[]> {
   const last = new Map<string, LiveEvent>();
+  // Un aviso de una persona (sus carpetas) no sale a nadie más: tampoco a quien ve todos los chats.
+  const me = viewer.app === 'lines' ? viewer.me : undefined;
   for (const r of rows) {
+    if (r.person_id && r.person_id !== me) continue;
     const prev = last.get(r.chat_id);
     last.set(r.chat_id, { id: r.id, chatId: r.chat_id, kind: prev?.kind === 'chat' || r.kind === 'chat' ? 'chat' : 'msg' });
   }
@@ -94,15 +108,32 @@ export async function liveBatch(rows: LiveRaw[], viewer: LiveViewer): Promise<Li
   return [...last.values()].filter((e) => allowed.has(e.chatId));
 }
 
+/**
+ * Mucho atraso (una página llena de avisos): ¿conviene releer la lista entera? Quien ve todo, sí. Quien no ve
+ * todo (Lines con acceso restringido) recibe primero el filtro: se cuentan solo los avisos de los chats que puede
+ * abrir, hasta el último aviso de ahora. Si son pocos salen como siempre, y si no ve ninguno no sale nada.
+ */
+async function liveBacklog(rows: LiveRaw[], viewer: LiveViewer, cursor: number): Promise<{ events: LiveEvent[]; cursor: number; gap: boolean }> {
+  const next = rows.length ? rows[rows.length - 1].id : cursor;
+  if (rows.length < PAGE) return { events: await liveBatch(rows, viewer), cursor: next, gap: false };
+  if (viewer.app !== 'lines' || !('pending' in viewer)) return { events: [], cursor: next, gap: true };
+  const upTo = Math.max(next, await latestLiveId(viewer));
+  const mine = await viewer.pending(cursor, upTo, PAGE);
+  if (mine === null) return { events: [], cursor: next, gap: true };
+  if (mine.length >= PAGE) return { events: [], cursor: upTo, gap: true };
+  // Ya vienen filtrados por acceso: solo se juntan por chat.
+  return { events: await liveBatch(mine, { app: 'lines', ws: viewer.ws, visible: null, me: viewer.me }), cursor: upTo, gap: false };
+}
+
 /** La consulta de la pantalla: lo nuevo desde `cursor`; sin cursor, solo el cursor actual. Sin avisos no consulta el acceso. */
 export async function livePoll(viewer: LiveViewer, cursor: number): Promise<{ events: LiveEvent[]; cursor: number }> {
   if (cursor <= 0) return { events: [], cursor: await latestLiveId(viewer) };
   const rows = await fetchLive(viewer, cursor);
   if (!rows.length) return { events: [], cursor };
-  const next = rows[rows.length - 1].id;
+  const back = await liveBacklog(rows, viewer, cursor);
   // Mucho atraso: un aviso sin chat pide releer la lista entera.
-  if (rows.length >= PAGE) return { events: [{ id: next, chatId: '', kind: 'chat' }], cursor: next };
-  return { events: await liveBatch(rows, viewer), cursor: next };
+  if (back.gap) return { events: [{ id: back.cursor, chatId: '', kind: 'chat' }], cursor: back.cursor };
+  return { events: back.events, cursor: back.cursor };
 }
 
 /** Limpia el feed: lo de más de una hora ya no sirve (por el índice de created_at: lee solo lo que borra). */
@@ -310,9 +341,8 @@ export function liveStream(opts: {
       const from = sub ? await sub.cursor() : await latestLiveId(viewer);
       // Sin cursor no hay nada que recuperar: la pantalla acaba de leer sus datos.
       if (cursor <= 0) return { events: [], cursor: from };
-      const rows = await fetchLive(viewer, cursor);
-      if (rows.length >= PAGE) return { events: [], cursor: rows[rows.length - 1].id, gap: true };
-      return { events: await liveBatch(rows, viewer), cursor: rows.length ? rows[rows.length - 1].id : cursor };
+      const back = await liveBacklog(await fetchLive(viewer, cursor), viewer, cursor);
+      return back.gap ? { events: [], cursor: back.cursor, gap: true } : { events: back.events, cursor: back.cursor };
     },
     subscribe: (push, revoke) => {
       close = revoke;

@@ -489,6 +489,17 @@ td.ppl-actions > * + * {
   border-top: 1px solid var(--line);
   padding: 10px 0;
 }
+.ppl-note-meta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ppl-note-actions,
+.ppl-row-gap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
 
 /* Organigrama: zoom y paneo */
 .ppl-org-tools {

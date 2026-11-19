@@ -287,7 +287,7 @@ const Conversation = forwardRef<
             {thread.followUpAt && <span className="ib-tag">{t('list.followUpAt', { when: longWhen(thread.followUpAt, locale) })}</span>}
           </p>
         </div>
-        <div className="ib-convo-actions">
+        <div className="ib-convo-actions" data-tour="inbox-triage">
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onAction(thread.done ? 'undone' : 'done')} title={thread.done ? '⇧E' : 'E'}>
             {thread.done ? t('actions.undone') : t('actions.done')}
           </button>

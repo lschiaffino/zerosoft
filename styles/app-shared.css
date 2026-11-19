@@ -764,3 +764,26 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 }
 @keyframes folder-rail-tip-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .folder-rail-tip { animation: none; } }
+
+/* HubSpot: ayuda para conseguir la clave y resumen de la clave conectada
+   (components/hubspot/HubspotKeyHelp.tsx). Lo usan Lines › Integraciones y el
+   importador del CRM. Solo tokens: se ve bien en los cinco aspectos. */
+.hs-key-help { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hs-key-help > .ui-help { margin: 0; }
+.hs-key-case { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 0 10px; min-width: 0; }
+.hs-key-case > summary { cursor: pointer; padding: 8px 0; font-size: 0.8125rem; font-weight: 500; overflow-wrap: anywhere; }
+.hs-key-case > summary:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.hs-key-case[open] { padding-bottom: 10px; }
+.hs-key-case ol { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 6px; font-size: 0.8125rem; line-height: 1.5; list-style: decimal; }
+.hs-key-case ol li { display: list-item; border: 0; padding: 0; margin: 0; }
+.hs-key-case a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.hs-key-case .ui-help { margin: 0 0 6px; }
+.hs-key-case li, .hs-key-case .ui-help { overflow-wrap: anywhere; }
+.hs-key-scopes { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 0.8125rem; min-width: 0; }
+.hs-key-scopes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.hs-key-scopes code { font-size: 0.75rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.hs-key-summary { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); min-width: 0; }
+.hs-key-summary .label { margin: 0; }
+.hs-key-account { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 0.875rem; }
+.hs-key-missing { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hs-key-missing p { margin: 0; }
