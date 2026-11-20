@@ -222,12 +222,20 @@ export function explicitPairsInsert(app: WaApp, run: string, scope: string, pair
  * mediaFiles: mover también la copia guardada de los archivos de Inbox (inbox_media_files). Lo pide la corrida normal;
  * las migraciones viejas que juntan chats corren antes de que esa tabla exista y no lo piden.
  */
+/** ¿Ya corrió la migración de carpetas del equipo? (durante un deploy por partes la tabla puede faltar). */
+export const TEAM_FOLDERS_TABLE_SQL = "SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = 'groups_chat_team_folders'";
+
 export interface MergeOptions {
   mediaFiles?: boolean;
   /** Pasar también groups_agent_conversations al chat que queda. Lo pide la corrida normal, como mediaFiles. */
   agentLinks?: boolean;
   /** Pasar también la carpeta de cada persona (groups_chat_folders) al chat que queda. Lo pide la corrida normal, como agentLinks. */
   chatFolders?: boolean;
+  /**
+   * Pasar también la carpeta del equipo (groups_chat_team_folders). Aparte de chatFolders: durante un deploy la tabla
+   * puede no existir todavía, así que quien llama lo pide solo si ya está (TEAM_FOLDERS_TABLE_SQL).
+   */
+  teamFolders?: boolean;
 }
 
 /**
@@ -384,6 +392,11 @@ export function mergeStatements(app: WaApp, run: string, opts: MergeOptions = {}
     // posterior a las migraciones que corren esta limpieza: solo cuando se pide.
     if (opts.chatFolders) stmts.push({
       sql: `INSERT OR IGNORE INTO groups_chat_folders (user_id, person_id, chat_id, folder_id, created_at) SELECT x.user_id, x.person_id, ${S('x.chat_id')}, x.folder_id, x.created_at FROM groups_chat_folders x WHERE x.chat_id IN ${P}`,
+      args: [],
+    });
+    // La carpeta del equipo (una por chat): si el sobreviviente ya está en una, queda esa. Solo si la tabla ya existe.
+    if (opts.teamFolders) stmts.push({
+      sql: `INSERT OR IGNORE INTO groups_chat_team_folders (user_id, chat_id, folder_id, created_by, created_at) SELECT x.user_id, ${S('x.chat_id')}, x.folder_id, x.created_by, x.created_at FROM groups_chat_team_folders x WHERE x.chat_id IN ${P}`,
       args: [],
     });
     // agentLinks: de qué chat nació cada conversación de Agents (la tabla es posterior a las migraciones que corren esta limpieza).

@@ -213,6 +213,7 @@ export function stepErrorInfo(raw: string): { code: string; key: string; values?
   if (code === 'rate_limited' || code === 'slack_ratelimited') return { code, key: 'rate_limited', inEditor: false };
   if (code === 'invalid_date' || code === 'wait_too_long') return { code, key: 'invalid_date', inEditor: true };
   if (code === 'table_not_found') return { code, key: 'table_not_found', inEditor: true };
+  if (code === 'project_not_found') return { code, key: 'project_not_found', inEditor: true };
   if (code === 'table_invalid_value' || code === 'table_unknown_column') return { code, key: 'table_value', inEditor: true };
   if (code === 'table_full' || code === 'table_row_too_large') return { code, key: 'table_full', inEditor: false };
   // Pasos de Docs (lib/docs-platform.ts).

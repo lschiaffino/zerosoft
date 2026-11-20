@@ -277,7 +277,7 @@
     "dropTitle": "Add to a folder",
     "dropEmpty": "No folders yet. Create one from the sidebar."
   },
-  "move": { "title": "Add to folder", "filter": "Filter folders", "none": "No folders yet.", "remove": "Remove", "newFolder": "New folder", "close": "Close" },
+  "move": { "title": "Add to folder", "filter": "Filter folders", "none": "No folders yet.", "remove": "Remove", "newFolder": "New folder", "close": "Close", "noFolder": "No folder", "noMatch": "No folder matches.", "current": "In it", "folderName": "Folder name", "create": "Create and add" },
   "more": {
     "deleteConfirm": "The chat leaves Inbox and waits 30 days in Removed from Inbox (under Archived) in case you want it back. Nothing is deleted on WhatsApp or Gmail.",
     "cancel": "Cancel",

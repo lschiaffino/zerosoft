@@ -18,6 +18,7 @@ import { isFileUrlPath } from './files/url';
 import { localized } from './notification-copy';
 import { createHash, randomBytes } from 'crypto';
 import { getDb } from './db';
+import { visibleIds, type OwnerScope } from './crm-visibility';
 import { deleteUploads } from './uploads';
 import { clampSeconds, fmtDuration, mergePages, topPages, watchedPct } from './crm-media-schema';
 
@@ -150,7 +151,26 @@ export interface DocumentLinkView {
   created_at: string;
 }
 
-export async function listDocumentLinks(userId: string, documentId: string): Promise<DocumentLinkView[]> {
+/**
+ * Visibilidad del CRM ('mine'/'team'): el contacto vinculado a un link o a un
+ * video que la persona no ve queda sin id, nombre ni email (el link y el video
+ * se siguen viendo: son del workspace). Sin scope no cambia nada.
+ */
+export async function hideUnseenContacts<T extends { contact_id: string | null; contact_name: string | null; contact_email?: string | null }>(
+  userId: string,
+  rows: T[],
+  scope: OwnerScope | undefined,
+): Promise<T[]> {
+  if (!scope) return rows;
+  const ids = [...new Set(rows.map((r) => r.contact_id).filter((id): id is string => Boolean(id)))];
+  const seen = new Set(await visibleIds(userId, 'crm_contacts', ids, scope));
+  return rows.map((r) => {
+    if (!r.contact_id || seen.has(r.contact_id)) return r;
+    return ('contact_email' in r ? { ...r, contact_id: null, contact_name: null, contact_email: null } : { ...r, contact_id: null, contact_name: null }) as T;
+  });
+}
+
+export async function listDocumentLinks(userId: string, documentId: string, scope?: OwnerScope): Promise<DocumentLinkView[]> {
   const rows = (await getDb()
     .prepare(
       `SELECT l.id, l.token, l.contact_id, l.views, l.last_viewed_at, l.created_at,
@@ -176,7 +196,7 @@ export async function listDocumentLinks(userId: string, documentId: string): Pro
     }
     out.push({ ...r, contact_name: r.contact_name || null, seconds, pages });
   }
-  return out;
+  return hideUnseenContacts(userId, out, scope);
 }
 
 export async function createDocumentLink(
@@ -359,7 +379,7 @@ export interface VideoRow {
 
 export type VideoListItem = VideoRow & { contact_name: string | null };
 
-export async function listVideos(userId: string, q = ''): Promise<VideoListItem[]> {
+export async function listVideos(userId: string, q = '', scope?: OwnerScope): Promise<VideoListItem[]> {
   const like = `%${q.trim().replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
   const rows = (await getDb()
     .prepare(
@@ -368,17 +388,21 @@ export async function listVideos(userId: string, q = ''): Promise<VideoListItem[
        WHERE v.user_id = ? AND v.title LIKE ? ESCAPE '\\' ORDER BY v.updated_at DESC LIMIT 500`,
     )
     .all(userId, like)) as VideoListItem[];
-  return rows.map((r) => ({ ...r, contact_name: r.contact_name || null }));
+  return hideUnseenContacts(
+    userId,
+    rows.map((r) => ({ ...r, contact_name: r.contact_name || null })),
+    scope,
+  );
 }
 
-export async function getVideo(userId: string, id: string): Promise<VideoListItem | null> {
+export async function getVideo(userId: string, id: string, scope?: OwnerScope): Promise<VideoListItem | null> {
   const row = (await getDb()
     .prepare(
       `SELECT v.*, TRIM(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) AS contact_name
        FROM crm_videos v LEFT JOIN crm_contacts c ON c.id = v.contact_id WHERE v.id = ? AND v.user_id = ?`,
     )
     .get(id, userId)) as VideoListItem | undefined;
-  return row ? { ...row, contact_name: row.contact_name || null } : null;
+  return row ? (await hideUnseenContacts(userId, [{ ...row, contact_name: row.contact_name || null }], scope))[0] : null;
 }
 
 export async function createVideo(

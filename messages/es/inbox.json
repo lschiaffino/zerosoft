@@ -277,7 +277,7 @@
     "dropTitle": "Sumar a una carpeta",
     "dropEmpty": "Todavía no hay carpetas. Creá una desde la barra lateral."
   },
-  "move": { "title": "Sumar a carpeta", "filter": "Filtrar carpetas", "none": "Todavía no hay carpetas.", "remove": "Sacar", "newFolder": "Carpeta nueva", "close": "Cerrar" },
+  "move": { "title": "Sumar a carpeta", "filter": "Filtrar carpetas", "none": "Todavía no hay carpetas.", "remove": "Sacar", "newFolder": "Carpeta nueva", "close": "Cerrar", "noFolder": "Sin carpeta", "noMatch": "Ninguna carpeta coincide.", "current": "Está acá", "folderName": "Nombre de la carpeta", "create": "Crear y agregar" },
   "more": {
     "deleteConfirm": "El chat sale de Inbox y queda 30 días en Sacados de Inbox (dentro de Archivados) por si lo querés recuperar. No se borra nada en WhatsApp ni en Gmail.",
     "cancel": "Cancelar",

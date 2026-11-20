@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { deleteDocument, getDocument, listDocumentLinks, renameDocument } from '@/lib/crm-media';
-import { canManage, json, mediaFail, mediaUser } from '@/lib/crm-media-http';
+import { canManage, json, mediaFail, mediaScope, mediaUser } from '@/lib/crm-media-http';
 import { crmError, notFound } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   if ('res' in u) return u.res;
   const doc = await getDocument(u.user.id, id);
   if (!doc) return notFound();
-  return json({ document: doc, links: await listDocumentLinks(u.user.id, id) });
+  return json({ document: doc, links: await listDocumentLinks(u.user.id, id, await mediaScope(u)) });
 }
 
 export async function PATCH(req: NextRequest, props: Ctx) {

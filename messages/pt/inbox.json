@@ -277,7 +277,7 @@
     "dropTitle": "Adicionar a uma pasta",
     "dropEmpty": "Ainda não há pastas. Crie uma na barra lateral."
   },
-  "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar" },
+  "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar", "noFolder": "Sem pasta", "noMatch": "Nenhuma pasta corresponde.", "current": "Está aqui", "folderName": "Nome da pasta", "create": "Criar e adicionar" },
   "more": {
     "deleteConfirm": "A conversa sai do Inbox e fica 30 dias em Removidos do Inbox (dentro de Arquivadas) caso você queira recuperá-la. Nada é apagado no WhatsApp nem no Gmail.",
     "cancel": "Cancelar",

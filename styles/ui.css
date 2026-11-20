@@ -823,6 +823,54 @@ dialog.ui-drawer:not([open]) { display: none; }
   .ui-when .ui-modal-foot .btn { min-height: 40px; }
 }
 
+/* Mover a carpeta (components/ui/FolderPickerDialog): el mismo diálogo en Inbox y Lines.
+   Compacto: búsqueda arriba, filas de 32px con el color de la carpeta y la sangría del árbol,
+   la marcada por el teclado con el fondo de hover, la actual con su tilde. En el teléfono es la hoja de abajo. */
+dialog.ui-modal.ui-fp { width: min(420px, calc(100vw - 32px)); }
+.ui-fp-head { min-height: 0; padding: 10px 12px 10px 16px; }
+.ui-fp-head .ui-modal-title { font-size: 1rem; }
+.ui-fp-close { --btn-h: 28px; flex: none; }
+.ui-fp-body { display: grid; gap: 8px; padding: 12px; }
+.ui-fp-q { width: 100%; }
+.ui-fp-list, .ui-fp-list ul { list-style: none; margin: 0; padding: 0; }
+.ui-fp-list { max-height: min(52vh, 380px); overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 1px; }
+.ui-fp-list ul { display: grid; gap: 1px; }
+.ui-fp-sec {
+  display: flex; align-items: center; gap: 6px; padding: 8px 8px 2px;
+  font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2);
+}
+.ui-fp-sec:first-child { padding-top: 2px; }
+.ui-fp-sec[aria-hidden] { display: none; }
+.ui-fp-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 4px 8px;
+  background: none; border: 0; border-radius: var(--radius-1);
+  font: inherit; font-size: 0.875rem; line-height: 1.3; text-align: start; color: inherit; cursor: pointer;
+}
+.ui-fp-row.is-active { background: var(--ui-hover); }
+.ui-fp-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.ui-fp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-fp-swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--app-btn, var(--ink)); }
+.ui-fp-swatch-none { background: none; border: 1px dashed var(--brand-gray-2); }
+.ui-fp-none .ui-fp-name { color: var(--brand-gray-2); }
+.ui-fp-row.is-current .ui-fp-name { font-weight: 600; }
+.ui-fp-hint { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.ui-fp-hint svg { color: var(--app-btn, var(--ink)); }
+.ui-fp-plus { flex: none; width: 10px; text-align: center; font-weight: 600; line-height: 1; }
+.ui-fp-new { color: var(--brand-gray-2); }
+.ui-fp-new.is-active { color: var(--ink); }
+.ui-fp-list > .ui-fp-group:last-child:has(.ui-fp-new) { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.ui-fp-empty { margin: 0; padding: 6px 8px; font-size: 0.8125rem; }
+.ui-fp-create { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 0; border-top: 1px solid var(--line); }
+.ui-fp-create .ui-fp-new-name { flex: 1 1 160px; min-width: 0; }
+.ui-fp-create .ui-error { flex-basis: 100%; margin: 0; }
+@media (max-width: 640px) {
+  /* Teléfono: la hoja de abajo, filas al alcance del dedo. */
+  .ui-fp-row { min-height: 44px; font-size: 0.9375rem; }
+  .ui-fp-close { --btn-h: 40px; }
+  .ui-fp-list { max-height: none; }
+  .ui-fp-create .btn { min-height: 40px; }
+}
+
 /* ---------- 8. Toasts ---------- */
 
 /* <div class="ui-toasts" role="status" aria-live="polite"><div class="ui-toast">…</div></div>
