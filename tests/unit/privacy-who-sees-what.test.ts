@@ -37,7 +37,7 @@ async function setup(label: string) {
   const theirs = await createNote({ workspaceId: ws, personId: w.friend.id }, { title: `Theirs ${word}` });
   const account = await createAccount(w.friend.id, { kind: 'whatsapp', provider: 'fake', label: 'WhatsApp' });
   await db.prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(account.id);
-  const thread = await upsertThread({ ...account, status: 'connected' }, { externalId: '30@s.whatsapp.net', kind: 'dm', title: `Chat ${word}` });
+  const thread = await upsertThread(account, { externalId: '30@s.whatsapp.net', kind: 'dm', title: `Chat ${word}` });
   await addMessage(thread, { externalId: `m-${label}`, fromMe: false, body: `Body ${word}` });
   const fleetId = crypto.randomUUID();
   await db
