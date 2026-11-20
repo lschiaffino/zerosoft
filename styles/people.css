@@ -887,3 +887,8 @@ td.ppl-ellipsis {
 .ppl-note {
   flex-wrap: wrap;
 }
+
+/* Pedidos de licencia a 390 (tabla en tarjetas): la nota debajo de las fechas no va en negrita. */
+.table-stack .ppl-table .ppl-rowmeta {
+  font-weight: 400;
+}

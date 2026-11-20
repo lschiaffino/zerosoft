@@ -39,7 +39,7 @@ export default function RequestsTable({ requests, showPerson, onChange, empty }:
 
   if (!requests.length) return <EmptyState compact quiet body={empty} />;
   return (
-    <div className="table-wrap">
+    <div className="table-wrap table-stack">
       {editing && (
         <EditRequest
           request={editing}
@@ -83,12 +83,14 @@ export default function RequestsTable({ requests, showPerson, onChange, empty }:
                 {r.half && <span className="ppl-muted"> ({t(r.half === 'am' ? 'timeoff.morning' : 'timeoff.afternoon')})</span>}
                 {r.note && <div className="ppl-rowmeta">{r.note}</div>}
               </td>
-              <td>{r.policyName ?? <span className="ppl-muted">{t('timeoff.out')}</span>}</td>
-              <td className="num">{num(r.days)}</td>
-              <td>
+              <td data-label={t('timeoff.type')}>{r.policyName ?? <span className="ppl-muted">{t('timeoff.out')}</span>}</td>
+              <td className="num" data-label={t('timeoff.days')}>
+                {num(r.days)}
+              </td>
+              <td data-label={t('timeoff.statusLabel')}>
                 <RequestStatus status={r.status} />
               </td>
-              <td className="ppl-actions">
+              <td className="ppl-actions table-stack-actions">
                 {r.canDecide && (
                   <>
                     <button type="button" className="btn btn-sm btn-primary" disabled={busy === r.id} onClick={() => act(r.id, 'approve')}>

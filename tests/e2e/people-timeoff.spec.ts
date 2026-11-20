@@ -75,6 +75,8 @@ function futureMonday(): string {
 
 test('editar un pedido: pendiente se corre de fecha; aprobado vuelve a pendiente y suelta Cal', async ({ browser, baseURL, request }) => {
   test.setTimeout(150_000);
+  // El demo (HR) entra primero: con una base nueva esto crea el esquema y su workspace.
+  await ok(request.get('/api/people/employees'));
   const mgr = await member(browser, baseURL!, `Mara Manager ${uid()}`);
   const emp = await member(browser, baseURL!, `Ema Edit ${uid()}`);
   try {
