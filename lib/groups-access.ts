@@ -15,6 +15,7 @@
  * El "viewer" se arma una vez por request y se pasa a las consultas.
  * Server-only (las funciones puras de máscara están en groups-mask.ts).
  */
+import { memberRef } from './wa-group-members';
 import { getDb } from './db';
 import type { TeamRole } from './teams';
 import type { ChatDto, ChatRow, MemberDto, MessageDto } from './groups';
@@ -367,9 +368,14 @@ export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageD
   };
 }
 
-export function maskMember(viewer: GroupsViewer | null | undefined, m: MemberDto): MemberDto & { masked?: boolean } {
+/**
+ * Un miembro para quien mira. Con los teléfonos ocultos sale enmascarado y, si
+ * se pasa el chat, con una referencia opaca (`ref`) para hacerlo admin o
+ * quitarlo sin ver su número (lib/wa-group-members.ts).
+ */
+export function maskMember(viewer: GroupsViewer | null | undefined, m: MemberDto, chatId?: string): MemberDto & { masked?: boolean; ref?: string } {
   if (!viewer?.mask) return m;
-  return { ...m, phone: maskField(m.phone), masked: true };
+  return { ...m, phone: maskField(m.phone), masked: true, ...(chatId ? { ref: memberRef(chatId, m.phone) } : {}) };
 }
 
 /** Nombre visible de una fila de chat (para listas armadas a mano: tickets, reportes, export). */
