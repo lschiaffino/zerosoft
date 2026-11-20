@@ -28,6 +28,20 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.inbox, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.inbox.steps]));
   });
 
+  it('el tour de Notes arranca en /app/notes; abrir una nota va antes que los pasos de la nota', () => {
+    expect(tourForPath('/app/notes')?.key).toBe('notes');
+    expect(tourForPath('/es/app/notes/clip')?.key).toBe('notes');
+    expect(tourForPath('/app/notesx')).toBeNull();
+    expect(atTourStart(TOURS.notes, '/pt/app/notes')).toBe(true);
+    expect(atTourStart(TOURS.notes, '/app/notes/settings')).toBe(false);
+    // Notes es de cada persona: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.notes, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.notes.steps]));
+    const steps = ids([...TOURS.notes.steps]);
+    expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('noteBar'));
+    expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('tags'));
+    expect(TOURS.notes.steps.find((s) => s.id === 'openNote')).toMatchObject({ advanceOn: 'click' });
+  });
+
   it('ids de pasos únicos por tour', () => {
     for (const key of TOUR_KEYS) {
       const list = ids([...TOURS[key].steps]);
