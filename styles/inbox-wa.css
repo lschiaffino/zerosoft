@@ -145,7 +145,7 @@
 /* Campo: la lista de snippets flota arriba. */
 .ib-wa-composer { position: relative; }
 .ib-wa-composer .ib-snippets { bottom: calc(100% + 4px); }
-.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
+.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; font-size: 0.875rem; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
 
 /* ---------- Info del contacto o del grupo (columna de la derecha) ---------- */
 .ib-wa-details { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wa-row-active); border-left: 1px solid var(--wa-border-strong); }
