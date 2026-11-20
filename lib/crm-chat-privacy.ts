@@ -89,11 +89,15 @@ export async function apiChatReader(auth: { user: { id: string }; personId: stri
 
 /** El lector de una persona fuera de un pedido (avisos del cron). Si ya no es del workspace, no ve ningún chat. */
 export async function personChatReader(ws: string, personId: string, locale: string | null | undefined, role?: TeamRole): Promise<ChatReader | null> {
-  if (personId === ws) return chatReaderFor({ ws, personId, role: 'owner' }, locale);
   const { personAppAccess } = await import('./api-auth');
   const access = await personAppAccess(ws, personId);
   if (!access) return { ws, viewer: null, locale: cleanLocale(locale) };
-  return chatReaderFor({ ws, personId, role: role ?? access.role, apps: access.apps }, locale);
+  // Lines apagada para esa persona en Apps del workspace: tampoco ve el texto de sus chats.
+  const { blockedAppsFor } = await import('./workspace-apps');
+  const email = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined;
+  const blockedApps = await blockedAppsFor({ ownerId: ws, personId, role: access.role, email: email?.email ?? null });
+  const apps: AppAccess = access.apps === '*' ? '*' : (access.apps as ProductKey[]);
+  return chatReaderFor({ ws, personId, role: role ?? access.role, apps, blockedApps }, locale);
 }
 
 /**

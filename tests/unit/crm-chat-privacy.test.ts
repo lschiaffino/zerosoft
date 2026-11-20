@@ -4,7 +4,8 @@ import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { connectNumber, createNumber, getNumberRowById, ingestEvents } from '@/lib/groups';
 import { setLineAccess } from '@/lib/groups-lines';
 import { createGroupTask } from '@/lib/groups-tasks';
-import { createActivity, exportRows, getActivity, getCrmOverview, listTasks, listTimeline, nextTaskFor, searchTasks } from '@/lib/crm';
+import { listTrash } from '@/lib/crm-trash';
+import { createActivity, deleteActivity, exportRows, getActivity, getCrmOverview, listTasks, listTimeline, nextTaskFor, searchTasks } from '@/lib/crm';
 import {
   chatHiddenSql,
   isChatHidden,
@@ -151,6 +152,15 @@ describe('crm chat privacy', () => {
     expect(await isChatHidden(w.ws, w.taskId, await personChatReader(w.ws, w.member.id, 'en'))).toBe(true);
     // Alguien que ya no es del workspace no ve ningún chat.
     expect(await isChatHidden(w.ws, w.taskId, await personChatReader(w.ws, w.stranger.id, 'en'))).toBe(true);
+  });
+
+  it('the trash shows the marker, not the title, and is not searchable by it', async () => {
+    const w = await world('ccp-trash');
+    expect(await deleteActivity(w.ws, w.taskId)).toBe(true);
+    const all = await listTrash(w.ws, { entity: 'activity' });
+    expect(all.find((r) => r.record_id === w.taskId)?.label).toBe(privateChatMarker('en'));
+    expect(JSON.stringify(all)).not.toContain(SECRET_TITLE);
+    expect(await listTrash(w.ws, { q: 'titulo reservado' })).toEqual([]);
   });
 
   it('keeps the order and leaves rows from other chats alone', async () => {
