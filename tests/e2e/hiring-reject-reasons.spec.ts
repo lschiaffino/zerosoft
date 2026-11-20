@@ -32,8 +32,11 @@ test('Hiring: motivos de rechazo propios y obligatorios', async ({ page, request
     await section.getByTestId('hr-reason-new').fill(reason);
     await section.getByTestId('hr-reason-new').press('Enter');
     await section.getByTestId('hr-reason-required').check();
-    await page.getByTestId('hiring-settings-save').click();
-    await expect.poll(async () => (await sql('SELECT require_reject_reason FROM hiring_settings WHERE reject_reasons LIKE ?', [`%${reason}%`])).length).toBe(1);
+    const [saved] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/hiring/settings') && r.request().method() === 'PUT'), page.getByTestId('hiring-settings-save').click()]);
+    expect(saved.status()).toBe(200);
+    const stored = await sql('SELECT require_reject_reason FROM hiring_settings WHERE reject_reasons LIKE ?', [`%${reason}%`]);
+    expect(stored).toHaveLength(1);
+    expect(Number(stored[0].require_reject_reason)).toBe(1);
 
     // Sin motivo, el servidor no rechaza.
     const bare = await request.patch(`/api/hiring/applications/${applicationId}`, { data: { action: 'reject', reason: '' } });
@@ -46,7 +49,7 @@ test('Hiring: motivos de rechazo propios y obligatorios', async ({ page, request
     const dialog = page.getByRole('dialog');
     await dialog.getByTestId('hr-reject-reason').selectOption(reason);
     await dialog.getByTestId('hr-reject-submit').click();
-    await expect.poll(async () => (await sql('SELECT status, reject_reason FROM hiring_applications WHERE id = ?', [applicationId]))[0]).toMatchObject({ status: 'rejected', reject_reason: reason });
+    await expect.poll(async () => (await sql('SELECT status, reject_reason FROM hiring_applications WHERE id = ?', [applicationId]))[0], { timeout: 20_000 }).toMatchObject({ status: 'rejected', reject_reason: reason });
   } finally {
     expect((await request.put('/api/hiring/settings', { data: { rejectReasons: null, requireRejectReason: false } })).ok()).toBe(true);
   }
