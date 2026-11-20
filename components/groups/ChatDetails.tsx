@@ -86,7 +86,7 @@ export default function ChatDetails({
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
   // Un miembro abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1 en la línea.
-  const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true));
+  const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
   const [memberBusy, setMemberBusy] = useState(false);
@@ -97,6 +97,7 @@ export default function ChatDetails({
   const [tickets, setTickets] = useState<TicketLite[] | null>(null);
   const [scheduled, setScheduled] = useState<ScheduledLite[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const [name, setName] = useState(chat.name);
   const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
@@ -183,6 +184,18 @@ export default function ChatDetails({
       router.push('/app/lines/list');
       router.refresh();
     }
+  }
+
+  // "Bloquear a X" (chat 1:1): en WhatsApp, por el adaptador de la línea, como en la info del contacto de WhatsApp.
+  async function setBlocked(on: boolean) {
+    setConfirmBlock(false);
+    const res = await api<ChatDto>(`/api/groups/chats/${chat.id}`, { body: { action: on ? 'block' : 'unblock' } });
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    onChange({ ...chat, blocked: !!res.data.blocked });
+    showToast(on ? tsheet('blockedToast', { name: chat.name }) : tsheet('unblockedToast', { name: chat.name }));
   }
 
   const toggleLabel = (id: string) => {
@@ -514,6 +527,20 @@ export default function ChatDetails({
         </details>
       </section>
 
+      {!isGroup && (chat.canBlock || chat.blocked) && (
+        <section className="gr-detail-section">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm gr-danger"
+            data-testid="chat-block"
+            data-blocked={chat.blocked ? 'true' : undefined}
+            onClick={() => (chat.blocked ? void setBlocked(false) : setConfirmBlock(true))}
+          >
+            {chat.blocked ? tsheet('unblockName', { name: chat.name }) : tsheet('blockName', { name: chat.name })}
+          </button>
+        </section>
+      )}
+
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
         {isAdmin && (
@@ -536,6 +563,16 @@ export default function ChatDetails({
         danger
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmBlock}
+        title={tsheet('blockTitle', { name: chat.name })}
+        body={tsheet('blockBody', { name: chat.name })}
+        confirmLabel={tsheet('block')}
+        cancelLabel={tsheet('cancel')}
+        danger
+        onConfirm={() => void setBlocked(true)}
+        onCancel={() => setConfirmBlock(false)}
       />
       {personSheet.sheet}
       {toast}
