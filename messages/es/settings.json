@@ -1500,7 +1500,6 @@
     "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra. Marcá con la estrella las apps que más usa tu equipo: van arriba en el menú de apps.",
     "feature": "Destacar {name}",
     "unfeature": "Dejar de destacar {name}",
-    "alwaysOn": "Siempre activada para todos.",
     "featuredNote": "Destacadas: con al menos una, el menú de apps las muestra arriba y deja el resto en \"Otras apps\". Sin ninguna, muestra todas las apps por categoría.",
     "readOnly": "Solo el owner y los admins cambian esto.",
     "modes": {

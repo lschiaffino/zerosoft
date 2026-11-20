@@ -227,7 +227,7 @@ export const chatTools: AssistantTool[] = [
   readTool({
     name: 'inbox_attention',
     // Inbox es personal: no depende de las apps del workspace.
-    app: null,
+    app: 'inbox',
     description:
       "What needs attention in the person's own Inbox (WhatsApp and email): chats waiting for their reply and for how long, overdue follow-ups, chats back from snooze and important unread. List data only (names, times, counts), no message text, so it needs no permission. Use it for 'what am I behind on', 'what do I owe', 'recommendations'.",
     input: z.object({ limit: z.number().int().min(1).max(30).optional() }),
@@ -238,7 +238,7 @@ export const chatTools: AssistantTool[] = [
   }),
   readTool({
     name: 'inbox_read_chats',
-    app: null,
+    app: 'inbox',
     consent: 'inbox',
     sensitive: true,
     description:
@@ -343,7 +343,7 @@ export const chatTools: AssistantTool[] = [
   }),
   writeTool({
     name: 'propose_inbox_actions',
-    app: null,
+    app: 'inbox',
     description:
       'Prepare changes to chats in the person\'s own Inbox, all in ONE card: reply drafts (left in the chat, never sent), snooze, follow-up reminder, archive, done, add to folder. Nothing changes until the person clicks Confirm.',
     input: proposeInput,

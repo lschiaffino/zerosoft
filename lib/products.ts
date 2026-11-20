@@ -110,9 +110,10 @@ export const APP_SWITCHER_ORDER = [
 export type ProductKey = keyof typeof PRODUCT_CONFIG;
 
 /**
- * Apps personales de cada persona (sus mensajes, no los del workspace): las
- * tiene siempre, en todo workspace, sin importar las apps que le habilitaron.
- * No se dan ni se quitan en Ajustes › Miembros.
+ * Apps personales de cada persona (sus mensajes, no los del workspace): no se
+ * dan ni se quitan en Ajustes › Miembros (la capa de la persona). El workspace
+ * sí las prende, las apaga y las restringe en Ajustes › Workspace › Apps, como
+ * cualquier otra app (por defecto, para todos).
  */
 export const ALWAYS_ON_APPS: readonly ProductKey[] = ['inbox'];
 
@@ -120,9 +121,13 @@ export function isAlwaysOnApp(key: string): boolean {
   return (ALWAYS_ON_APPS as readonly string[]).includes(key);
 }
 
-/** ¿La app entra en la lista de apps permitidas de la sesión? ('*' o lista; las personales siempre). */
+/**
+ * ¿La app entra en la lista de apps que abre la sesión? ('*' o la lista ya
+ * resuelta con las tres capas: userCanUseApp). Inbox entra solo si la lista la
+ * trae: el workspace la puede apagar.
+ */
 export function appAllowed(allowed: '*' | readonly string[] | null | undefined, key: ProductKey): boolean {
-  return allowed == null || allowed === '*' || isAlwaysOnApp(key) || allowed.includes(key);
+  return allowed == null || allowed === '*' || allowed.includes(key);
 }
 
 /** Apps con página en el sitio (hoy, todas). */
@@ -185,11 +190,11 @@ export const AVAILABLE_PRODUCT_KEYS: readonly ProductKey[] = (Object.keys(PRODUC
 
 /**
  * ¿La app se prende, se apaga y se restringe en Ajustes › Workspace › Apps?
- * Todas, de equipo o personales (Notes, Docs…), salvo las que siempre están
- * (Inbox): el dueño del workspace decide qué apps existen para su gente.
+ * Todas, de equipo o personales (Notes, Docs, Inbox…): el dueño del workspace
+ * decide qué apps existen para su gente.
  */
 export function isWorkspaceGatedApp(key: string): boolean {
-  return isProductKey(key) && !isAlwaysOnApp(key);
+  return isProductKey(key);
 }
 
 /** Número de la app en la suite, con dos dígitos ("01" … "15"). */
