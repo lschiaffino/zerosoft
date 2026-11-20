@@ -94,10 +94,11 @@ function mockFetch() {
 }
 
 describe('menciones: lo que sale a WhatsApp', () => {
-  it('Evolution: "mentioned" con los teléfonos; WAHA: "mentions" con ids', async () => {
+  it('Evolution: "mentioned" con los JIDs completos; WAHA: "mentions" con ids', async () => {
     const evo = mockFetch();
     await evolutionProvider({ baseUrl: 'https://evo.example.com', apiKey: 'k', session: 'acme' }, { fetch: evo.f }).sendText('123@g.us', 'hola @5491155550001', { mentions: ['5491155550001'] });
-    expect(evo.calls[0].body).toMatchObject({ number: '123@g.us', text: 'hola @5491155550001', mentioned: ['5491155550001'] });
+    // Primero pregunta cómo es el grupo (acá no lo dice: por teléfono); el JID va entero para que Evolution no le saque el 9.
+    expect(evo.calls.at(-1)!.body).toMatchObject({ number: '123@g.us', text: 'hola @5491155550001', mentioned: ['5491155550001@s.whatsapp.net'] });
     const waha = mockFetch();
     await wahaProvider({ baseUrl: 'https://waha.example.com', apiKey: 'k', session: 'acme' }, { fetch: waha.f }).sendText('123@g.us', 'hola @5491155550001', { mentions: ['5491155550001'] });
     expect(waha.calls[0].body).toMatchObject({ chatId: '123@g.us', mentions: ['5491155550001@c.us'] });

@@ -21,7 +21,7 @@ export default function ProductGrid({
     <ul className="sf-grid">
       {products.map((p) => (
         <li key={p.id} className="sf-card">
-          <Link href={`/store/${handle}/products/${p.handle}`} className="sf-card-link">
+          <Link href={`/store/${handle}/products/${p.handle}`} className="sf-card-link" data-testid="sf-card">
             <span className="sf-card-img">
               {p.image ? <img src={p.image} alt="" loading="lazy" /> : <span className="sf-card-ph" aria-hidden="true" />}
               {!p.available && <span className="sf-tag">{t.soldOut}</span>}

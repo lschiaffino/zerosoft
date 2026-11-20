@@ -298,6 +298,9 @@
 }
 .sf-section {
   margin-top: 32px;
+  /* El sitio le da padding a todo <section> (globals.css); la tienda no lo usa. */
+  padding-top: 0;
+  padding-bottom: 0;
 }
 .sf-section-head {
   display: flex;
@@ -820,8 +823,58 @@
 .sf-filters .sf-check {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
+  gap: 8px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.sf-filters .sf-check input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--sf-ink);
+}
+.sf-filterbar {
+  margin: 0 0 16px;
+}
+.sf-filterbar .sf-filters {
+  margin-bottom: 12px;
+}
+.sf-facet {
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.sf-facet .sf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sf-ink);
+}
+.sf-facet .sf-chip:disabled {
+  color: var(--sf-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.sf-chip-count {
+  font-size: 13px;
+  color: var(--sf-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sf-chip:focus-visible {
+  outline: 2px solid var(--sf-ink);
+  outline-offset: 2px;
+}
+.sf-results {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  min-height: 24px;
+  font-size: 14px;
+  color: var(--sf-muted);
 }
 .sf-orders {
   list-style: none;

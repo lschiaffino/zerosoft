@@ -159,7 +159,7 @@
 
 .notes-search { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
 .notes-search > svg { position: absolute; left: 10px; color: var(--brand-gray-2); pointer-events: none; }
-.notes-search .input { padding-left: 30px; padding-right: 30px; }
+.notes-search input.input { padding-left: 30px; padding-right: 30px; }
 .notes-search .kbd { position: absolute; right: 8px; height: 18px; color: var(--brand-gray-2); pointer-events: none; }
 .notes-search .input::-webkit-search-cancel-button { cursor: pointer; }
 

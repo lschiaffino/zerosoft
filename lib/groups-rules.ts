@@ -293,7 +293,11 @@ export function sendGapMs(perMinute: number): number {
  * pasen. Las desconocidas quedan vacías.
  */
 export function renderVariables(template: string, vars: Record<string, string>): string {
-  const out = String(template ?? '').replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_m, key: string) => vars[key] ?? '');
+  const text = String(template ?? '');
+  const VAR = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+  // Sin variables el texto sale tal cual, como uno mandado en el momento ("@Ana ?" no pierde el espacio).
+  if (!VAR.test(text)) return text;
+  const out = text.replace(VAR, (_m, key: string) => vars[key] ?? '');
   // Una variable vacía no deja espacios dobles ni espacios antes de la puntuación o el fin de línea.
   return out
     .replace(/[ \t]{2,}/g, ' ')

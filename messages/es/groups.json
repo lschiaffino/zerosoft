@@ -876,6 +876,7 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "too_many_stages": "Este tablero ya tiene el máximo de etapas (30).",
     "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
@@ -2797,5 +2798,52 @@
       "unknown_assignee": "la persona asignada no está en el workspace",
       "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
     }
+  },
+  "kanban": {
+    "toggle": "Vista kanban",
+    "toggleOn": "Ver como kanban",
+    "toggleOff": "Ver como lista",
+    "boardLabel": "Tablero",
+    "boardRegion": "Tablero kanban",
+    "teamStages": "Etapas del equipo",
+    "myStages": "Mis etapas",
+    "noStage": "Sin etapa",
+    "noValue": "Sin valor",
+    "newStage": "Nueva etapa",
+    "renameStage": "Renombrar etapa",
+    "deleteStage": "Eliminar etapa",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "collapse": "Plegar columna",
+    "expand": "Desplegar {name}",
+    "columnOptions": "Opciones de {name}",
+    "columnLabel": "{name}, {n, plural, one {# chat} other {# chats}}",
+    "moveTo": "Mover {name} a…",
+    "moved": "{name} pasó a {column}",
+    "waiting": "Esperando respuesta",
+    "noCompany": "Sin empresa",
+    "assignedTo": "Asignado a {name}",
+    "readOnly": {
+      "admin": "Solo un admin cambia las etapas del equipo.",
+      "hubspot_scope": "Solo lectura: la clave de HubSpot no puede editar empresas. Agregale el permiso de escritura de empresas en Ajustes › Integraciones.",
+      "hubspot_role": "Solo lectura: tu rol no puede editar propiedades de HubSpot.",
+      "hubspot_read_only": "Solo lectura: HubSpot no deja editar esta propiedad."
+    },
+    "emptyMine": "Tu tablero está vacío. Agregá etapas para ordenar los chats a tu manera; solo vos las ves.",
+    "emptyTeamAdmin": "Todavía no hay etapas del equipo. Agregá etapas como Onboarding o En vivo; las ve todo el workspace.",
+    "emptyTeam": "Todavía no hay etapas del equipo. Las puede agregar un admin.",
+    "truncated": "Se ven los primeros 1.000 chats. Usá los filtros para achicar el tablero.",
+    "loadError": "No se pudo cargar el tablero.",
+    "moreCards": "{n, plural, one {# chat más} other {# chats más}}. Usá los filtros para verlos.",
+    "dropHere": "Soltá chats acá",
+    "noCards": "Sin chats",
+    "stageCreated": "Etapa {name} creada",
+    "stageDeleted": "Etapa {name} eliminada",
+    "deleteTitle": "¿Eliminar la etapa {name}?",
+    "deleteBody": "Sus chats vuelven a Sin etapa. Los chats quedan como están.",
+    "stageName": "Nombre",
+    "stageNamePlaceholder": "Por ejemplo: Onboarding",
+    "stageColor": "Color",
+    "mineHelp": "Solo vos ves tus etapas y dónde pusiste cada chat."
   }
 }
