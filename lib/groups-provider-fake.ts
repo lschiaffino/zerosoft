@@ -34,6 +34,12 @@
  *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
  *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
  *   lo que Baileys: con 'none' el recibo queda 'read-self' (en `sent`).
+ * - Confirmaciones por persona en grupos (como Evolution con el parche 0013):
+ *   `{ type: 'fake_receipts', providerMessageId, receipts: [{ phone?, lid?,
+ *   deliveredAt?, readAt?, playedAt? }] }` en el webhook las guarda (horas en
+ *   ISO) y messageReceipts las devuelve; `{ type: 'fake_receipts_unsupported',
+ *   on: true }` hace de gateway sin el parche (null, como un 404).
+ *   fakeReceiptRequests() cuenta los pedidos.
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
@@ -52,6 +58,7 @@ import {
   type InboundEvent,
   type Participant,
 } from './groups-provider';
+import type { GatewayReceipt } from './wa-receipts';
 
 export function fakeProviderAllowed(): boolean {
   if (process.env.GROUPS_FAKE !== '1') return false;
@@ -101,6 +108,12 @@ interface FakeState {
   withheld?: Map<string, InboundEvent[]>;
   /** Cada pedido de historial que hizo la app (tests). */
   historyRequests?: FakeHistoryRequest[];
+  /** Confirmaciones por persona de cada mensaje propio en un grupo (fake_receipts). */
+  receipts?: Map<string, GatewayReceipt[]>;
+  /** Gateway sin el parche 0013: messageReceipts devuelve null. */
+  receiptsUnsupported?: boolean;
+  /** Cuántas veces la app pidió confirmaciones (tests). */
+  receiptRequests?: number;
 }
 
 export interface FakeHistoryRequest {
@@ -267,6 +280,11 @@ export function fakeOlderHistory(chatId: string, anchor: { id: string; timestamp
 /** Los pedidos de historial que recibió el número falso (tests). */
 export function fakeHistoryRequests(numberId: string): FakeHistoryRequest[] {
   return (stateFor(numberId).historyRequests ??= []);
+}
+
+/** Cuántas veces la app le pidió al número las confirmaciones de un mensaje (tests). */
+export function fakeReceiptRequests(numberId: string): number {
+  return stateFor(numberId).receiptRequests ?? 0;
 }
 
 /** Un `fake_withheld` del webhook: el número se guarda el mensaje y la app se entera de que falta. */
@@ -565,6 +583,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       requireConnected();
       return { readReceipts: s.readReceipts ?? 'all' };
     },
+    messageReceipts: async (_chatId, providerMessageId) => {
+      requireConnected();
+      s.receiptRequests = (s.receiptRequests ?? 0) + 1;
+      if (s.receiptsUnsupported) return null;
+      return (s.receipts?.get(providerMessageId) ?? []).map((r) => ({ ...r }));
+    },
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
     // Para probar "Chat nuevo": un teléfono que termina en 0000000 no tiene WhatsApp; el resto sí.
     checkNumber: async (phone) => {
@@ -721,6 +745,22 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       for (const e of events) {
         const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };
         if (ev.type === 'fake_privacy' && (ev.readreceipts === 'all' || ev.readreceipts === 'none')) s.readReceipts = ev.readreceipts;
+      }
+      // Las confirmaciones por persona que el gateway guardó (parche 0013): no pasan por la app, se piden.
+      for (const e of events) {
+        const ev = (e ?? {}) as { type?: unknown; providerMessageId?: unknown; receipts?: unknown; on?: unknown };
+        if (ev.type === 'fake_receipts_unsupported') s.receiptsUnsupported = ev.on !== false;
+        if (ev.type !== 'fake_receipts' || typeof ev.providerMessageId !== 'string' || !Array.isArray(ev.receipts)) continue;
+        const list = (ev.receipts as Array<Record<string, unknown>>).map((r) => {
+          const pick = (k: string) => (typeof r?.[k] === 'string' ? (r[k] as string) : undefined);
+          const out: GatewayReceipt = {};
+          for (const k of ['phone', 'lid', 'deliveredAt', 'readAt', 'playedAt'] as const) {
+            const v = pick(k);
+            if (v) out[k] = v;
+          }
+          return out;
+        });
+        (s.receipts ??= new Map()).set(ev.providerMessageId, list);
       }
       const out = events.flatMap((e): InboundEvent[] => {
         const t = (e as { type?: unknown })?.type;

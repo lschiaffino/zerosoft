@@ -3129,13 +3129,22 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         // Nunca vuelve atrás (read no pasa a delivered).
         const rank: Record<string, number> = { sent: 1, delivered: 2, read: 3, failed: 4 };
         const row = (await getDb()
-          .prepare('SELECT id, status FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
-          .get(number.id, ev.providerMessageId)) as { id: string; status: string } | undefined;
+          .prepare(
+            `SELECT m.id, m.status, m.user_id, c.kind FROM groups_messages m LEFT JOIN groups_chats c ON c.id = m.chat_id
+             WHERE m.number_id = ? AND m.provider_message_id = ?`,
+          )
+          .get(number.id, ev.providerMessageId)) as { id: string; status: string; user_id: string; kind: string | null } | undefined;
         if (row && (rank[ev.status] ?? 0) > (rank[row.status] ?? 0)) {
           // La hora de cada estado queda en meta.ack (Info del mensaje).
           await getDb()
             .prepare("UPDATE groups_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?) WHERE id = ?")
             .run(ev.status, ev.status, nowIso(), row.id);
+        }
+        // La confirmación de un 1:1 con su hora, para la Info del mensaje (lib/wa-receipts-store.ts). Solo cuando
+        // avanzan las tildes, o cuando llega "escuchado" (después de "leído"): una repetida no escribe nada.
+        if (row && row.kind === 'dm' && (ev.status === 'delivered' || ev.status === 'read') && ((rank[ev.status] ?? 0) > (rank[row.status] ?? 0) || ev.played)) {
+          const { recordDirectReceipt } = await import('./wa-receipts-store');
+          await recordDirectReceipt('lines', row.user_id, row.id, ev.status, !!ev.played).catch(() => undefined);
         }
       } else if (ev.type === 'edit' || ev.type === 'revoke') {
         const msg = (await getDb()

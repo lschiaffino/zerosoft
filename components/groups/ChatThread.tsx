@@ -48,6 +48,8 @@ import Avatar from './wa/Avatar';
 import { FloatingReactPicker, ReactionChip, ReactionDetails } from './wa/Reactions';
 import { useDismiss } from './wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
+import type { WaMessageInfo } from '@/lib/wa-receipts';
+import MessageInfo from './wa/MessageInfo';
 import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import EmojiPicker from './wa/EmojiPicker';
@@ -221,7 +223,8 @@ export default function ChatThread(props: ThreadProps) {
   // Toque largo (teléfono): el mensaje marcado, con la barra de reacciones y la hoja de acciones.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
   const [deletingSel, setDeletingSel] = useState(false);
-  const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
+  // Info del mensaje: el cuadro al lado del globito (./wa/MessageInfo.tsx).
+  const [infoFor, setInfoFor] = useState<{ m: MessageDto; anchor: HTMLElement } | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
   // Mandar desde un chat archivado lo desarchiva (como WhatsApp): el menú del chat lo refleja ya.
@@ -1202,6 +1205,17 @@ export default function ChatThread(props: ThreadProps) {
     } else showToast(errText(res.error), true);
   }
 
+  // Info del mensaje: quién lo recibió y lo leyó, con sus horas (enmascarado si esta persona no ve teléfonos).
+  function openInfo(m: MessageDto) {
+    const row = document.getElementById(`m-${m.id}`);
+    const anchor = row?.querySelector<HTMLElement>('.gr-bubble') ?? row;
+    if (anchor) setInfoFor({ m, anchor });
+  }
+  async function loadInfo(id: string): Promise<WaMessageInfo | null> {
+    const res = await api<{ info: WaMessageInfo }>(`/api/groups/chats/${props.chat.id}/members?info=${encodeURIComponent(id)}`);
+    return res.data && res.data.info && typeof res.data.info === 'object' ? res.data.info : null;
+  }
+
   // Quién reaccionó (nombre, foto y teléfono; enmascarado si esta persona no ve teléfonos), para el cuadro de reacciones.
   async function loadReactions(ids: string[]): Promise<WaReactor[] | null> {
     const res = await api<{ reactions: WaReactor[] }>(`/api/groups/chats/${props.chat.id}/members?reactions=${encodeURIComponent(ids.join(','))}`);
@@ -1499,7 +1513,7 @@ export default function ChatThread(props: ThreadProps) {
     // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, fijar, reenviar, copiar, editar |
     // responder en privado, mensaje a quien lo mandó | eliminar | seleccionar. Debajo, la capa del equipo.
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
-    if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
+    if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => openInfo(m) });
     if (live)
       items.push({
         key: 'reply',
@@ -3044,32 +3058,18 @@ export default function ChatThread(props: ThreadProps) {
       />
 
       <PollDialog open={pollOpen} supported={props.caps.polls} onClose={() => setPollOpen(false)} onSend={sendPoll} />
-      <Modal open={!!infoFor} title={t('wa.messageInfo')} onClose={() => setInfoFor(null)} foot={<button type="button" className="btn btn-primary" onClick={() => setInfoFor(null)}>{t('common.close')}</button>}>
-        {infoFor && (
-          <dl className="wa-info">
-            <div>
-              <dt>{t('wa.infoSent')}</dt>
-              <dd>{parseDbUtc(infoFor.createdAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
-            </div>
-            {(['delivered', 'read'] as const).map((k) => {
-              const at = ((infoFor.meta as { ack?: Record<string, string> }).ack ?? {})[k];
-              const reached = infoFor.status === 'read' || (k === 'delivered' && infoFor.status === 'delivered');
-              return (
-                <div key={k}>
-                  <dt>
-                    <Ticks status={k} label={t(`status.${k}`)} /> {t(`status.${k}`)}
-                  </dt>
-                  <dd>{at ? parseDbUtc(at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : reached ? t('wa.infoNoTime') : '—'}</dd>
-                </div>
-              );
-            })}
-            <div>
-              <dt>{t('wa.infoBy')}</dt>
-              <dd>{outAuthor(infoFor) || t('thread.byPhone')}</dd>
-            </div>
-          </dl>
-        )}
-      </Modal>
+      {infoFor && (
+        <MessageInfo
+          anchor={infoFor.anchor}
+          load={() => loadInfo(infoFor.m.id)}
+          preview={quoteLine(infoFor.m)}
+          previewTime={parseDbUtc(infoFor.m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}
+          status={infoFor.m.deletedAt ? '' : infoFor.m.status}
+          statusLabel={t(infoFor.m.status === 'read' && chat.readHidden ? 'status.readHidden' : `status.${infoFor.m.status}`)}
+          by={outAuthor(infoFor.m) || t('thread.byPhone')}
+          onClose={() => setInfoFor(null)}
+        />
+      )}
       <ContactPicker
         open={contactOpen}
         chatId={via || chat.id}

@@ -18,7 +18,8 @@ const ACTIONS: ParticipantAction[] = ['add', 'remove', 'promote', 'demote'];
 /**
  * Los miembros; ?phone=<dígitos> o ?message=<id> (quien lo mandó): la ficha de
  * esa persona; con &shared=media|docs|links|starred, lo compartido en su chat 1:1;
- * ?reactions=<id>,<id>: quién reaccionó a esos mensajes del chat.
+ * ?reactions=<id>,<id>: quién reaccionó a esos mensajes del chat;
+ * ?info=<id>: la Info de un mensaje propio (quién lo recibió y lo leyó).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
@@ -33,6 +34,15 @@ export async function GET(req: Request, ctx: Ctx) {
       const { reactionDetails } = await import('@/lib/groups-person');
       const ids = (sp.get('reactions') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
       return NextResponse.json({ reactions: await reactionDetails(guard.viewer, id, ids) });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  // Info de un mensaje propio: quién lo recibió y lo leyó, con sus horas (lib/groups-receipts.ts).
+  if (sp.has('info')) {
+    try {
+      const { linesMessageInfo } = await import('@/lib/groups-receipts');
+      return NextResponse.json({ info: await linesMessageInfo(guard.viewer, id, (sp.get('info') ?? '').slice(0, 100)) }, { headers: { 'cache-control': 'private, no-store' } });
     } catch (err) {
       return handleGroupsError(err);
     }

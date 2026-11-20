@@ -23,6 +23,7 @@ import type { MediaWire } from './wa-media-wire';
 import type { LinkHqRef } from './wa-link-thumb';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
+import type { GatewayReceipt } from './wa-receipts';
 
 export type ProviderKind = 'managed' | 'cloud' | 'waha' | 'evolution' | 'sample' | 'fake';
 export const PROVIDER_KINDS: readonly ProviderKind[] = ['managed', 'cloud', 'waha', 'evolution', 'sample', 'fake'];
@@ -266,7 +267,7 @@ export type InboundEvent =
    * Tildes de un mensaje. `chatId` solo cuando la confirmación vino de un chat 1:1 por lid ("<lid>@lid"): si el
    * mensaje está en el chat de un teléfono, ese lid es de ese teléfono (lib/wa-dedupe-run.ts).
    */
-  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed'; chatId?: string }
+  | { type: 'status'; providerMessageId: string; status: 'sent' | 'delivered' | 'read' | 'failed'; chatId?: string; /** Un audio escuchado (PLAYED): llega como 'read'. */ played?: boolean }
   /** Alguien editó un mensaje (texto nuevo). `at`: cuándo, si el proveedor lo dice (una edición vieja no pisa una nueva). */
   | { type: 'edit'; chatId: string; providerMessageId: string; body: string; at?: string }
   /** Alguien borró un mensaje para todos. */
@@ -507,6 +508,13 @@ export interface GroupsProvider {
    * administrado) y el falso: WAHA no tiene un equivalente.
    */
   privacySettings?(): Promise<PrivacySettings | null>;
+  /**
+   * Las confirmaciones por persona ("Leído por", "Entregado a") de un mensaje
+   * propio en un grupo. Solo Evolution con el parche 0013 de infra/evolution
+   * (el gateway las guarda y las da a pedido, sin webhooks) y el falso. null si
+   * el gateway no las da (sin el parche o con el parche apagado: 404).
+   */
+  messageReceipts?(chatId: string, providerMessageId: string): Promise<GatewayReceipt[] | null>;
   listTemplates(): Promise<Template[]>;
   /** Baja un archivo recibido (solo los proveedores que lo dejan, con tope de tamaño). */
   fetchMedia?(ref: MediaRef, maxBytes: number): Promise<FetchedMedia>;

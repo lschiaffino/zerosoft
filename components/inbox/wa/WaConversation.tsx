@@ -15,6 +15,8 @@ import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { FloatingReactPicker, ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
+import MessageInfo from '@/components/groups/wa/MessageInfo';
+import type { WaMessageInfo } from '@/lib/wa-receipts';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
@@ -170,7 +172,8 @@ const WaConversation = forwardRef<
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
   const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
-  const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
+  // Info del mensaje: el cuadro al lado del globito (components/groups/wa/MessageInfo.tsx).
+  const [infoFor, setInfoFor] = useState<{ m: MessageDto; anchor: HTMLElement } | null>(null);
   const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
   // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
@@ -483,6 +486,17 @@ const WaConversation = forwardRef<
   };
 
   // Quién reaccionó (nombre, foto y teléfono), para el cuadro de reacciones.
+  const openInfo = (m: MessageDto) => {
+    const row = document.getElementById(`m-${m.id}`);
+    const anchor = row?.querySelector<HTMLElement>('.gr-bubble') ?? row;
+    if (anchor) setInfoFor({ m, anchor });
+  };
+  // Info del mensaje: quién lo recibió y lo leyó, con sus horas.
+  const loadInfo = async (id: string): Promise<WaMessageInfo | null> => {
+    const r = await api<{ info: WaMessageInfo }>(`/api/inbox/threads/${thread.id}/wa?part=info&message=${encodeURIComponent(id)}`);
+    return r.ok && r.data.info && typeof r.data.info === 'object' ? r.data.info : null;
+  };
+
   const loadReactions = async (ids: string[]): Promise<WaReactor[] | null> => {
     const r = await api<{ reactions: WaReactor[] }>(`/api/inbox/threads/${thread.id}/wa?part=reactions&messages=${encodeURIComponent(ids.join(','))}`);
     return r.ok && Array.isArray(r.data.reactions) ? r.data.reactions : null;
@@ -550,7 +564,7 @@ const WaConversation = forwardRef<
     // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, reenviar, copiar, editar |
     // responder en privado, mensaje a quien lo mandó | eliminar.
     if (!m.revoked) {
-      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
+      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => openInfo(m) });
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
       const url = m.hasMedia && m.mediaType !== 'sticker' && !m.meta?.viewOnce ? inboxMediaUrl(m) : '';
@@ -1346,39 +1360,21 @@ const WaConversation = forwardRef<
         }}
       />
       {personSheet.sheet}
-      <Modal open={!!infoFor} title={w('info')} onClose={() => setInfoFor(null)}>
-        {infoFor && (
-          <>
-            <div className="ui-modal-body">
-              <p className="ib-wa-info-body">{mentionText(infoFor) || quoteText({ body: '', mediaType: infoFor.mediaType })}</p>
-              <dl className="wa-info">
-                <div>
-                  <dt>
-                    <Ticks status="read" label={t('message.status.read')} /> {t('message.status.read')}
-                  </dt>
-                  <dd>{infoFor.status === 'read' ? w('yes') : w('notYet')}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <Ticks status="delivered" label={t('message.status.delivered')} /> {t('message.status.delivered')}
-                  </dt>
-                  <dd>{infoFor.status === 'read' || infoFor.status === 'delivered' ? w('yes') : w('notYet')}</dd>
-                </div>
-                <div>
-                  <dt>{w('sentAt')}</dt>
-                  <dd>{longWhen(infoFor.sentAt, locale)}</dd>
-                </div>
-              </dl>
-              <p className="ib-help">{w('infoNote')}</p>
-            </div>
-            <div className="ui-modal-foot">
-              <button type="button" className="btn btn-secondary btn-sm" autoFocus onClick={() => setInfoFor(null)}>
-                {w('close')}
-              </button>
-            </div>
-          </>
-        )}
-      </Modal>
+      {infoFor && (
+        <MessageInfo
+          anchor={infoFor.anchor}
+          load={() => loadInfo(infoFor.m.id)}
+          preview={mentionText(infoFor.m) || quoteText({ body: '', mediaType: infoFor.m.mediaType })}
+          previewTime={new Date(infoFor.m.sentAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}
+          status={infoFor.m.revoked ? '' : infoFor.m.status}
+          statusLabel={t(
+            infoFor.m.status === 'read' && thread.readHidden
+              ? 'message.status.readHidden'
+              : `message.status.${['pending', 'queued', 'sent', 'delivered', 'read', 'failed'].includes(infoFor.m.status) ? infoFor.m.status : 'sent'}`,
+          )}
+          onClose={() => setInfoFor(null)}
+        />
+      )}
       <Modal open={renaming !== null} title={t('actions.rename')} onClose={() => setRenaming(null)}>
         <form
           onSubmit={(e) => {

@@ -15,7 +15,8 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
  * Panel de info de un chat de WhatsApp: ?part=shared&kind=media|docs|links|starred
  * (lo compartido en el chat), ?part=summary (el resumen guardado) o
  * ?part=person&phone=<dígitos> (la ficha de una persona del grupo) o
- * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes).
+ * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes) o
+ * ?part=info&message=<id> (la Info de un mensaje propio: quién lo recibió y lo leyó).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -28,6 +29,11 @@ export async function GET(req: Request, ctx: Ctx) {
     if (sp.get('part') === 'reactions') {
       const ids = (sp.get('messages') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
       return iJson({ reactions: await reactionDetails(owner, id, ids) });
+    }
+    // Info de un mensaje propio: quién lo recibió y lo leyó, con sus horas (lib/inbox/wa-receipts.ts).
+    if (sp.get('part') === 'info') {
+      const { inboxMessageInfo } = await import('@/lib/inbox/wa-receipts');
+      return iJson({ info: await inboxMessageInfo(owner, id, (sp.get('message') ?? '').slice(0, 100)) });
     }
     const kind = sp.get('kind') as SharedKind;
     if (!KINDS.includes(kind)) throw new InboxError('invalid_input', 400);
