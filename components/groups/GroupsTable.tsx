@@ -9,9 +9,9 @@ import FilterPanel, { FilterChips } from '@/components/ui/FilterPanel';
 import { filterChips, fold, type ChipStrings, type FilterCategory, type FilterField, type FilterValues } from '@/lib/filter-panel';
 import type { LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import { NONE, PROP_SET, PROP_UNSET, filtersToValues, propFieldId, serializeLinesFilters, valuesToFilters, type PropKinds } from '@/lib/groups-filters';
-import { cleanHubspotFilters, formatHubspotValue, hubspotTime, type HubspotPropDef, type HubspotPropFilter } from '@/lib/groups-hubspot-shared';
+import { cleanHubspotFilters, formatHubspotValue, hubspotTime, type HubspotOwner, type HubspotPropDef, type HubspotPropFilter } from '@/lib/groups-hubspot-shared';
 import { propertyText } from '@/lib/groups-rules';
-import type { GroupTableRow, GroupsTableDto } from '@/lib/groups-table';
+import type { GroupTableRow, GroupsTableDto, GroupsTableHsEdit } from '@/lib/groups-table';
 import {
   GROUPS_TABLE_MAX,
   GROUP_COLUMNS,
@@ -28,6 +28,8 @@ import {
   type SortValue,
 } from '@/lib/groups-table-view';
 import HubspotFilter from './HubspotFilter';
+import HubspotValueEditor from './HubspotValueEditor';
+import { moveCell, onGridKeyDown, useGridBox, type GridDir } from './table-grid';
 import PropertyInput, { filterOptions, PropertyValueText } from './PropertyInput';
 import { useHubspotSchema } from './hubspot-client';
 import { ChatPlate, LabelTag, Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
@@ -351,36 +353,115 @@ export default function GroupsTable({
     });
   const filtering = q.trim() !== '' || chips.length > 0;
 
-  // Edición en la celda: el valor va a todos los chats del grupo (uno por línea).
+  // ---------- Edición en la celda ----------
+  // Optimista: la celda cambia ya; si el servidor no lo acepta, vuelve el valor anterior y un aviso dice por qué.
+  const patchRows = useCallback((match: (r: GroupTableRow) => boolean, fn: (r: GroupTableRow) => GroupTableRow) => {
+    setData((d) => (d ? { ...d, rows: d.rows.map((x) => (match(x) ? fn(x) : x)) } : d));
+  }, []);
+  const chatIdsOf = (row: GroupTableRow) => [...new Set([row.chatId, ...row.lines.map((l) => l.chatId)])];
+  const withProp = (r: GroupTableRow, key: string, v: unknown): GroupTableRow => {
+    const props = { ...r.properties };
+    if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete props[key];
+    else props[key] = v;
+    return { ...r, properties: props };
+  };
+  // El valor va a todos los chats del grupo (uno por línea).
   const saveProp = useCallback(
     async (row: GroupTableRow, key: string, value: unknown): Promise<boolean> => {
-      const res = await api<{ chatIds: string[]; value: unknown }>('/api/groups/table', {
-        method: 'PATCH',
-        body: { chatIds: row.lines.map((l) => l.chatId).concat(row.chatId), key, value },
-      });
+      const prev = row.properties[key];
+      const same = (r: GroupTableRow) => r.key === row.key;
+      patchRows(same, (r) => withProp(r, key, value));
+      const res = await api<{ chatIds: string[]; value: unknown }>('/api/groups/table', { method: 'PATCH', body: { chatIds: chatIdsOf(row), key, value } });
       if (!res.data) {
+        patchRows(same, (r) => withProp(r, key, prev));
         showToast(errText(res.error), true);
         return false;
       }
       const saved = res.data.value;
-      setData((d) =>
-        d
-          ? {
-              ...d,
-              rows: d.rows.map((x) => {
-                if (x.key !== row.key) return x;
-                const props = { ...x.properties };
-                if (saved === null || saved === undefined) delete props[key];
-                else props[key] = saved;
-                return { ...x, properties: props };
-              }),
-            }
-          : d,
-      );
+      patchRows(same, (r) => withProp(r, key, saved));
       return true;
     },
-    [errText, showToast],
+    [errText, showToast, patchRows],
   );
+  const saveLabels = useCallback(
+    async (row: GroupTableRow, ids: string[]) => {
+      const prev = row.labels;
+      const same = (r: GroupTableRow) => r.key === row.key;
+      const next = labels.filter((l) => ids.includes(l.id)).sort((a, b) => a.name.localeCompare(b.name));
+      patchRows(same, (r) => ({ ...r, labels: next }));
+      const res = await api<{ labels: LabelDto[] | null }>('/api/groups/table', { method: 'PATCH', body: { chatIds: chatIdsOf(row), labelIds: ids } });
+      if (!res.data) {
+        patchRows(same, (r) => ({ ...r, labels: prev }));
+        showToast(errText(res.error), true);
+        return;
+      }
+      const saved = res.data.labels;
+      if (saved) patchRows(same, (r) => ({ ...r, labels: [...saved].sort((a, b) => a.name.localeCompare(b.name)) }));
+    },
+    [labels, errText, showToast, patchRows],
+  );
+  const saveStatus = useCallback(
+    async (row: GroupTableRow, status: 'open' | 'closed') => {
+      const prev = row.status;
+      const same = (r: GroupTableRow) => r.key === row.key;
+      patchRows(same, (r) => ({ ...r, status }));
+      const res = await api<{ status: string | null }>('/api/groups/table', { method: 'PATCH', body: { chatIds: chatIdsOf(row), status } });
+      if (!res.data) {
+        patchRows(same, (r) => ({ ...r, status: prev }));
+        showToast(errText(res.error), true);
+      }
+    },
+    [errText, showToast, patchRows],
+  );
+  // Una propiedad de la empresa de HubSpot: se escribe en HubSpot en el momento por el chat que la tiene vinculada
+  // (el mismo camino que el panel de HubSpot del chat, con sus permisos). Las filas de la misma empresa cambian juntas.
+  const saveHs = useCallback(
+    async (row: GroupTableRow, def: HubspotPropDef, raw: string | string[]) => {
+      const companyId = row.company?.id;
+      if (!companyId || !row.hsChatId) return;
+      const prev = row.hs[def.name] ?? '';
+      const next = Array.isArray(raw) ? raw.join(';') : raw;
+      if (next === prev) return;
+      const same = (r: GroupTableRow) => r.company?.id === companyId;
+      const put = (v: string) =>
+        patchRows(same, (r) => {
+          const hs = { ...r.hs };
+          if (v) hs[def.name] = v;
+          else delete hs[def.name];
+          return { ...r, hs };
+        });
+      put(next);
+      let code = 'network_error';
+      let detail = '';
+      let saved: string | null = null;
+      try {
+        const res = await fetch('/api/groups/hubspot/company', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ chatId: row.hsChatId, property: def.name, value: raw }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { value?: string; error?: string; detail?: string };
+        if (res.ok && typeof json.value === 'string') saved = json.value;
+        else {
+          code = typeof json.error === 'string' ? json.error : 'server_error';
+          detail = typeof json.detail === 'string' ? json.detail : '';
+        }
+      } catch {
+        code = 'network_error';
+      }
+      if (saved === null) {
+        put(prev);
+        const reason = code === 'hubspot_validation' && detail ? t('hubspot.screen.rejected', { detail }) : errText(code);
+        showToast(t('hubspot.screen.notSaved', { label: def.label, reason }), true);
+        return;
+      }
+      put(saved);
+    },
+    [errText, showToast, patchRows, t],
+  );
+  const hsEdit: GroupsTableHsEdit = canWrite ? (data?.hsEdit ?? initial.hsEdit ?? 'off') : 'off';
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useGridBox(wrapRef, [data === null, rows.length > 0, chips.length, data?.truncated, error, shown.join(',')]);
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.chatId));
   const toggle = (id: string) => {
@@ -506,11 +587,11 @@ export default function GroupsTable({
           product="groups"
         />
       ) : (
-        <div className="table-wrap table-stack gr-gt-wrap">
-          <table className="table gr-table gr-gt-table" aria-label={t('list.title')}>
+        <div className="table-wrap table-stack gr-gt-wrap gr-grid-wrap" ref={wrapRef} data-testid="groups-table-wrap">
+          <table className="table gr-table gr-gt-table gr-grid" aria-label={t('list.title')} onKeyDown={onGridKeyDown}>
             <thead>
               <tr>
-                <th className="gr-check-col">
+                <th className="gr-check-col gr-grid-pin">
                   <label className="tap-cell">
                     <input
                       type="checkbox"
@@ -524,7 +605,7 @@ export default function GroupsTable({
                 {['name', ...shown].map((c) => {
                   const on = view.sort?.col === c ? view.sort.dir : null;
                   return (
-                    <th key={c} className={c === 'members' ? 'num' : undefined} aria-sort={on === 'asc' ? 'ascending' : on === 'desc' ? 'descending' : undefined}>
+                    <th key={c} className={c === 'name' ? 'gr-grid-pin gr-grid-pin-last' : c === 'members' ? 'num' : undefined} data-col={c} aria-sort={on === 'asc' ? 'ascending' : on === 'desc' ? 'descending' : undefined}>
                       <button type="button" className="gr-gt-sort" onClick={() => updateView((v) => ({ ...v, sort: nextSort(v.sort, c) }))} title={t('gt.sortHeader', { col: columnLabel(c) })}>
                         {columnLabel(c)}
                         <span className="gr-gt-arrow" aria-hidden="true">
@@ -539,12 +620,12 @@ export default function GroupsTable({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.key} data-group={r.key}>
-                  <td className="gr-check-col">
+                  <td className="gr-check-col gr-grid-pin">
                     <label className="tap-cell">
                       <input type="checkbox" className="ui-check" checked={selected.has(r.chatId)} onChange={() => toggle(r.chatId)} aria-label={t('list.select', { name: r.name })} />
                     </label>
                   </td>
-                  <td>
+                  <td className="gr-grid-pin gr-grid-pin-last" data-col="name">
                     <Link href={`/app/lines/list/${r.chatId}`} className="gr-table-name">
                       <ChatPlate name={r.name} kind="group" />
                       <span className="gr-gt-name">{r.name}</span>
@@ -567,7 +648,13 @@ export default function GroupsTable({
                       hsDefs={hsDefs}
                       hsFormat={hsFormat}
                       rel={rel}
+                      labels={labels}
+                      owners={schema?.owners ?? []}
+                      hsEdit={hsEdit}
                       onSaveProp={canWrite ? saveProp : undefined}
+                      onSaveLabels={canWrite ? saveLabels : undefined}
+                      onSaveStatus={canWrite ? saveStatus : undefined}
+                      onSaveHs={saveHs}
                     />
                   ))}
                 </tr>
@@ -621,7 +708,13 @@ function Cell({
   hsDefs,
   hsFormat,
   rel,
+  labels,
+  owners,
+  hsEdit,
   onSaveProp,
+  onSaveLabels,
+  onSaveStatus,
+  onSaveHs,
 }: {
   col: string;
   row: GroupTableRow;
@@ -631,8 +724,16 @@ function Cell({
   hsDefs: Map<string, HubspotPropDef>;
   hsFormat: Parameters<typeof formatHubspotValue>[2];
   rel: (iso: string) => string;
-  /** Sin esto, las propiedades se ven pero no se editan. */
+  /** Las etiquetas del workspace (para elegir en la celda). */
+  labels: LabelDto[];
+  owners: HubspotOwner[];
+  /** Si se pueden editar las propiedades de la empresa de HubSpot (o por qué no). */
+  hsEdit: GroupsTableHsEdit;
+  /** Sin estos, los valores se ven pero no se editan. */
   onSaveProp?: (row: GroupTableRow, key: string, value: unknown) => Promise<boolean>;
+  onSaveLabels?: (row: GroupTableRow, ids: string[]) => Promise<void>;
+  onSaveStatus?: (row: GroupTableRow, status: 'open' | 'closed') => Promise<void>;
+  onSaveHs: (row: GroupTableRow, def: HubspotPropDef, raw: string | string[]) => Promise<void>;
 }) {
   const t = useTranslations('groups');
   if (col === 'lines') {
@@ -641,7 +742,7 @@ function Cell({
     const name = first ? (lineName.get(first.numberId) ?? '') : '';
     const others = rest.map((l) => lineName.get(l.numberId) ?? '').join(', ');
     return (
-      <td data-label={label}>
+      <td data-label={label} className="gr-gt-ro">
         <span className="gr-gt-lines">
           {first && (
             <Link href={`/app/lines/list/${first.chatId}`} className="gr-gt-line" title={t('gt.openInLine', { line: name })}>
@@ -663,25 +764,46 @@ function Cell({
   }
   if (col === 'members') {
     return (
-      <td className="num" data-label={label}>
+      <td className="num gr-gt-ro" data-label={label} title={t('gt.readOnly')} data-testid="groups-cell-ro">
         {row.memberCount}
       </td>
     );
   }
   if (col === 'labels') {
+    const tags = (
+      <span className="gr-label-row">
+        {row.labels.map((l) => (
+          <LabelTag key={l.id} name={l.name} color={l.color} />
+        ))}
+      </span>
+    );
+    if (!onSaveLabels || labels.length === 0) {
+      return (
+        <td className={row.labels.length ? 'gr-gt-ro' : 'gr-gt-ro gr-empty-cell'} data-label={row.labels.length ? label : undefined}>
+          {tags}
+        </td>
+      );
+    }
     return (
-      <td className={row.labels.length ? undefined : 'gr-empty-cell'} data-label={row.labels.length ? label : undefined}>
-        <span className="gr-label-row">
-          {row.labels.map((l) => (
-            <LabelTag key={l.id} name={l.name} color={l.color} />
-          ))}
-        </span>
-      </td>
+      <EditCell label={label} rowName={row.name} has={row.labels.length > 0} display={tags}>
+        {(done) => (
+          <LabelsEditor
+            labels={labels}
+            value={row.labels.map((l) => l.id)}
+            label={label}
+            onSave={(ids) => {
+              const now = row.labels.map((l) => l.id);
+              if (ids.length !== now.length || ids.some((id) => !now.includes(id))) void onSaveLabels(row, ids);
+              done();
+            }}
+          />
+        )}
+      </EditCell>
     );
   }
   if (col === 'company') {
     return (
-      <td data-label={label}>
+      <td data-label={label} className="gr-gt-ro">
         {row.company ? (
           <span className="gr-gt-company">
             <a href={row.company.url} target="_blank" rel="noopener noreferrer" className="gr-gt-company-link" aria-label={t('gt.openInHubspot', { name: row.company.name })}>
@@ -698,7 +820,7 @@ function Cell({
   }
   if (col === 'deal') {
     return (
-      <td className={row.deal ? undefined : 'gr-empty-cell'} data-label={row.deal ? label : undefined}>
+      <td className={row.deal ? 'gr-gt-ro' : 'gr-gt-ro gr-empty-cell'} data-label={row.deal ? label : undefined}>
         {row.deal && (
           <span className="gr-gt-company">
             <a href={row.deal.url} target="_blank" rel="noopener noreferrer" className="gr-gt-company-link" aria-label={t('gt.openInHubspot', { name: row.deal.name })}>
@@ -714,20 +836,45 @@ function Cell({
   if (col === 'stage') {
     const stage = row.deal?.stage ?? '';
     return (
-      <td className={stage ? undefined : 'gr-empty-cell'} data-label={stage ? label : undefined}>
+      <td className={stage ? 'gr-gt-ro' : 'gr-gt-ro gr-empty-cell'} data-label={stage ? label : undefined} title={t('gt.readOnly')}>
         {stage}
       </td>
     );
   }
   if (col === 'activity' || col === 'created') {
     return (
-      <td className="ui-help" data-label={label}>
+      <td className="ui-help gr-gt-ro" data-label={label} title={t('gt.readOnly')}>
         {rel(col === 'activity' ? row.lastActivity : row.createdAt)}
       </td>
     );
   }
   if (col === 'status') {
-    return <td data-label={label}>{row.status === 'open' ? t('gt.open') : t('gt.closed')}</td>;
+    const text = row.status === 'open' ? t('gt.open') : t('gt.closed');
+    if (!onSaveStatus) {
+      return (
+        <td data-label={label} className="gr-gt-ro">
+          {text}
+        </td>
+      );
+    }
+    return (
+      <EditCell label={label} rowName={row.name} has display={text}>
+        {(done) => (
+          <SelectEditor
+            label={label}
+            value={row.status}
+            options={[
+              { value: 'open', label: t('gt.open') },
+              { value: 'closed', label: t('gt.closed') },
+            ]}
+            onSave={(v) => {
+              if (v !== row.status) void onSaveStatus(row, v === 'closed' ? 'closed' : 'open');
+              done();
+            }}
+          />
+        )}
+      </EditCell>
+    );
   }
   if (col.startsWith('prop:')) {
     const def = properties.find((p) => p.key === col.slice(5));
@@ -735,18 +882,50 @@ function Cell({
     const has = Boolean(def) && v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
     if (def && onSaveProp) return <PropCell def={def} row={row} value={v} has={has} label={label} onSave={onSaveProp} />;
     return (
-      <td className={has ? undefined : 'gr-empty-cell'} data-label={has ? label : undefined}>
+      <td className={has ? 'gr-gt-ro' : 'gr-gt-ro gr-empty-cell'} data-label={has ? label : undefined}>
         {def && has ? <PropertyValueText def={def} value={v} /> : null}
       </td>
     );
   }
   if (col.startsWith('hs:')) {
     const name = col.slice(3);
-    const v = row.hs[name];
+    const v = row.hs[name] ?? '';
+    const def = hsDefs.get(name) ?? null;
+    const text = v ? formatHubspotValue(def, v, hsFormat) : '';
+    // Por qué no se edita (va en el tooltip de la celda); '' si se puede.
+    const why = !def
+      ? 'loading'
+      : !row.company
+        ? t('gt.hsNoCompany')
+        : def.readOnly || def.calculated
+          ? t('gt.hsReadOnly')
+          : hsEdit === 'scope'
+            ? t('gt.hsNoScope')
+            : hsEdit === 'mask'
+              ? t('gt.hsMasked')
+              : hsEdit !== 'ok'
+                ? t('gt.readOnly')
+                : row.company.broken
+                  ? t('gt.broken')
+                  : !row.hsChatId
+                    ? t('gt.hsNoCompany')
+                    : '';
+    if (why || !def) {
+      return (
+        <td
+          className={v ? 'gr-gt-ro' : 'gr-gt-ro gr-empty-cell'}
+          data-label={v ? label : undefined}
+          title={why && why !== 'loading' ? why : undefined}
+          data-testid="groups-cell-ro"
+        >
+          {text}
+        </td>
+      );
+    }
     return (
-      <td className={v ? undefined : 'gr-empty-cell'} data-label={v ? label : undefined}>
-        {v ? formatHubspotValue(hsDefs.get(name) ?? null, v, hsFormat) : null}
-      </td>
+      <EditCell label={label} rowName={row.name} has={Boolean(v)} display={text}>
+        {(done) => <HubspotValueEditor def={def} value={v} owners={owners} onSave={(raw) => (void onSaveHs(row, def, raw), done())} onCancel={() => done(true)} />}
+      </EditCell>
     );
   }
   return <td />;
@@ -760,10 +939,234 @@ function ExternalIcon() {
   );
 }
 
+/** Controles de un editor que no son sus botones de Guardar y Cancelar. */
+const FIELD_SELECTOR = 'input, select, textarea, .gr-multi-opt';
+const FOOT_SELECTOR = '.gr-gt-celleditor-foot, .gr-hsx-editor-actions';
+
+/**
+ * Una celda editable, como en una planilla: un clic (o Enter) abre el editor
+ * debajo de la celda. Enter guarda, Esc cancela y el foco vuelve a la celda,
+ * Tab guarda y pasa a la celda siguiente (Shift+Tab, a la anterior) y un clic
+ * afuera guarda. El editor es un formulario: guardar es enviarlo, y quien lo
+ * arma llama a `done` después de guardar (`done(true)`: cancelar).
+ */
+function EditCell({
+  label,
+  rowName,
+  has,
+  display,
+  children,
+}: {
+  label: string;
+  rowName: string;
+  has: boolean;
+  display: ReactNode;
+  children: (done: (cancel?: boolean) => void) => ReactNode;
+}) {
+  const t = useTranslations('groups');
+  const [editing, setEditing] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  /** Adónde va el foco al cerrar: a la celda (null), a la vecina, o se queda donde se hizo clic ('out'). */
+  const after = useRef<GridDir | 'out' | null>(null);
+  const done = useCallback(() => {
+    setEditing(false);
+    const go = after.current;
+    after.current = null;
+    if (go === 'out') return;
+    requestAnimationFrame(() => {
+      const cell = btn.current;
+      if (!cell) return;
+      if (go && moveCell(cell, go)) return;
+      cell.focus();
+    });
+  }, []);
+  /** Guarda (envía el formulario del editor) y después mueve el foco. */
+  const commit = useCallback(
+    (go: GridDir | 'out' | null) => {
+      after.current = go;
+      const form = box.current?.querySelector('form');
+      if (form) form.requestSubmit();
+      else done();
+    },
+    [done],
+  );
+  // El editor flota sobre la tabla (la celda corta lo que se sale y la tabla tiene scroll propio).
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  useEffect(() => {
+    if (!editing) return;
+    const place = () => {
+      const r = btn.current?.getBoundingClientRect();
+      if (!r) return;
+      const width = Math.min(320, window.innerWidth - 16);
+      const h = box.current?.offsetHeight || 160;
+      // Sin lugar abajo, se abre arriba de la celda.
+      const top = r.bottom + 4 + h > window.innerHeight - 8 && r.top - 4 - h >= 8 ? r.top - 4 - h : r.bottom + 4;
+      setPos({ top: Math.round(top), left: Math.round(Math.max(8, Math.min(r.left, window.innerWidth - width - 8))), width });
+    };
+    place();
+    // Al abrir, el foco va al control.
+    requestAnimationFrame(() => box.current?.querySelector<HTMLElement>(`${FIELD_SELECTOR}, button`)?.focus());
+    // Un clic afuera guarda (como salir de la celda en una planilla).
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (box.current?.contains(target) || btn.current?.contains(target)) return;
+      commit('out');
+    };
+    // Esc cancela aunque el foco todavía esté en la celda (antes de pasar al control).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      after.current = null;
+      done();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [editing, commit, done]);
+  const editLabel = t('gt.editCell', { col: label, name: rowName });
+  const close = (cancel?: boolean) => {
+    if (cancel) after.current = null;
+    done();
+  };
+
+  return (
+    <td className={`gr-gt-editcell${has ? '' : ' gr-empty-cell'}`} data-label={label}>
+      <button
+        ref={btn}
+        type="button"
+        className="gr-gt-cellbtn"
+        aria-label={editLabel}
+        aria-haspopup="dialog"
+        aria-expanded={editing}
+        data-testid="groups-cell-edit"
+        onClick={() => {
+          if (editing) return commit(null);
+          setEditing(true);
+        }}
+      >
+        {has ? (
+          <span className="gr-gt-cellvalue">{display}</span>
+        ) : (
+          <span className="gr-gt-cellplaceholder" aria-hidden="true">
+            {t('gt.addValue')}
+          </span>
+        )}
+      </button>
+      {editing && (
+        <div
+          ref={box}
+          className="gr-gt-celleditor"
+          style={pos ? { top: pos.top, left: pos.left, width: pos.width } : { visibility: 'hidden' }}
+          role="dialog"
+          aria-label={editLabel}
+          onKeyDown={(e) => {
+            const target = e.target as HTMLElement;
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              close(true);
+              return;
+            }
+            if (e.key === 'Tab') {
+              // Con un solo campo, Tab guarda y pasa de celda; con varios (opciones), recorre el editor y sale desde el último.
+              const fields = [...(box.current?.querySelectorAll<HTMLElement>(FIELD_SELECTOR) ?? [])].filter((el) => !el.closest(FOOT_SELECTOR));
+              const all = [...(box.current?.querySelectorAll<HTMLElement>(`${FIELD_SELECTOR}, button:not([disabled])`) ?? [])];
+              const edge = e.shiftKey ? all[0] : all[all.length - 1];
+              if (fields.length <= 1 || target === edge) {
+                e.preventDefault();
+                commit(e.shiftKey ? 'left' : 'right');
+              }
+              return;
+            }
+            // Enter guarda también desde una lista o una casilla (en un campo de texto ya lo hace el formulario).
+            if (e.key === 'Enter' && !e.shiftKey && (target.tagName === 'SELECT' || (target instanceof HTMLInputElement && target.type === 'checkbox'))) {
+              e.preventDefault();
+              commit(null);
+            }
+          }}
+        >
+          {children(close)}
+        </div>
+      )}
+    </td>
+  );
+}
+
+/** Un editor de una lista (estado del grupo). */
+function SelectEditor({ label, value, options, onSave }: { label: string; value: string; options: Array<{ value: string; label: string }>; onSave: (v: string) => void }) {
+  const t = useTranslations('groups');
+  const [draft, setDraft] = useState(value);
+  return (
+    <form
+      className="gr-gt-celleditor-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(draft);
+      }}
+    >
+      <select className="select" value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={label}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <div className="gr-gt-celleditor-foot">
+        <button type="submit" className="btn btn-primary btn-sm">
+          {t('common.save')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Las etiquetas del grupo: una casilla por etiqueta del workspace. */
+function LabelsEditor({ labels, value, label, onSave }: { labels: LabelDto[]; value: string[]; label: string; onSave: (ids: string[]) => void }) {
+  const t = useTranslations('groups');
+  const [picked, setPicked] = useState<string[]>(value);
+  return (
+    <form
+      className="gr-gt-celleditor-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(picked);
+      }}
+    >
+      <fieldset className="gr-gt-labelpick" aria-label={label}>
+        {labels.map((l) => (
+          <label key={l.id} className="gr-check-label gr-gt-option">
+            <input
+              type="checkbox"
+              className="ui-check"
+              checked={picked.includes(l.id)}
+              onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, l.id] : cur.filter((x) => x !== l.id)))}
+            />
+            <LabelTag name={l.name} color={l.color} />
+          </label>
+        ))}
+      </fieldset>
+      <div className="gr-gt-celleditor-foot">
+        <button type="submit" className="btn btn-primary btn-sm">
+          {t('common.save')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * Una propiedad de zerosoft editable en la celda, como en Airtable: la casilla
- * se marca ahí mismo; lo demás abre un editor chico debajo (Enter guarda,
- * Esc cancela y el foco vuelve a la celda).
+ * se marca ahí mismo; lo demás abre el editor de EditCell.
  */
 function PropCell({
   def,
@@ -781,55 +1184,6 @@ function PropCell({
   onSave: (row: GroupTableRow, key: string, value: unknown) => Promise<boolean>;
 }) {
   const t = useTranslations('groups');
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<unknown>(value);
-  const [busy, setBusy] = useState(false);
-  const btn = useRef<HTMLButtonElement>(null);
-  const box = useRef<HTMLFormElement>(null);
-  const close = useCallback((refocus = true) => {
-    setEditing(false);
-    if (refocus) requestAnimationFrame(() => btn.current?.focus());
-  }, []);
-  // El editor flota sobre la tabla (la celda corta lo que se sale y la tabla puede tener scroll propio).
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
-  useEffect(() => {
-    if (!editing) return;
-    const place = () => {
-      const r = btn.current?.getBoundingClientRect();
-      if (!r) return;
-      const width = Math.min(320, window.innerWidth - 16);
-      const h = box.current?.offsetHeight || 160;
-      // Sin lugar abajo, se abre arriba de la celda.
-      const top = r.bottom + 4 + h > window.innerHeight - 8 && r.top - 4 - h >= 8 ? r.top - 4 - h : r.bottom + 4;
-      setPos({ top: Math.round(top), left: Math.round(Math.max(8, Math.min(r.left, window.innerWidth - width - 8))), width });
-    };
-    place();
-    // Al abrir, el foco va al control; un clic afuera cierra sin guardar.
-    requestAnimationFrame(() => box.current?.querySelector<HTMLElement>('input, select, button.gr-multi-opt')?.focus());
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (box.current && !box.current.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) close(false);
-    };
-    // Esc cierra aunque el foco todavía esté en la celda (antes de pasar al control).
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      close();
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('touchstart', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('touchstart', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [editing, close]);
-  const editLabel = t('gt.editCell', { col: label, name: row.name });
-
   if (def.type === 'checkbox') {
     const on = value === 'true' || value === true;
     return (
@@ -839,77 +1193,52 @@ function PropCell({
             type="checkbox"
             className="ui-check"
             checked={on}
-            disabled={busy}
-            aria-label={editLabel}
-            onChange={async (e) => {
-              setBusy(true);
-              await onSave(row, def.key, e.target.checked ? 'true' : '');
-              setBusy(false);
-            }}
+            aria-label={t('gt.editCell', { col: label, name: row.name })}
+            onChange={(e) => void onSave(row, def.key, e.target.checked ? 'true' : '')}
           />
         </label>
       </td>
     );
   }
-
   return (
-    <td className={`gr-gt-editcell${has ? '' : ' gr-empty-cell'}`} data-label={label}>
-      <button
-        ref={btn}
-        type="button"
-        className="gr-gt-cellbtn"
-        aria-label={editLabel}
-        aria-haspopup="dialog"
-        aria-expanded={editing}
-        data-testid="groups-cell-edit"
-        onClick={() => {
-          if (editing) return close();
-          setDraft(value);
-          setEditing(true);
-        }}
-      >
-        {has ? (
-          <PropertyValueText def={def} value={value} />
-        ) : (
-          <span className="gr-gt-cellplaceholder" aria-hidden="true">
-            {t('gt.addValue')}
-          </span>
-        )}
-      </button>
-      {editing && (
-        <form
-          ref={box}
-          className="gr-gt-celleditor"
-          style={pos ? { top: pos.top, left: pos.left, width: pos.width } : { visibility: 'hidden' }}
-          role="dialog"
-          aria-label={editLabel}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.stopPropagation();
-              close();
-            }
+    <EditCell label={label} rowName={row.name} has={has} display={<PropertyValueText def={def} value={value} />}>
+      {(done) => (
+        <PropEditor
+          def={def}
+          value={value}
+          onSave={(v) => {
+            // Sin cambios no se escribe nada (Tab o un clic afuera solo salen de la celda).
+            if (JSON.stringify(v ?? null) !== JSON.stringify(value ?? null)) void onSave(row, def.key, v);
+            done();
           }}
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            const ok = await onSave(row, def.key, draft);
-            setBusy(false);
-            if (ok) close();
-          }}
-        >
-          <PropertyInput def={def} value={draft} onChange={setDraft} disabled={busy} />
-          <div className="gr-gt-celleditor-foot">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => close()}>
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-              {t('common.save')}
-            </button>
-          </div>
-        </form>
+          onCancel={() => done(true)}
+        />
       )}
-    </td>
+    </EditCell>
+  );
+}
+
+function PropEditor({ def, value, onSave, onCancel }: { def: PropertyDef; value: unknown; onSave: (v: unknown) => void; onCancel: () => void }) {
+  const t = useTranslations('groups');
+  const [draft, setDraft] = useState<unknown>(value);
+  return (
+    <form
+      className="gr-gt-celleditor-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(draft);
+      }}
+    >
+      <PropertyInput def={def} value={draft} onChange={setDraft} />
+      <div className="gr-gt-celleditor-foot">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+          {t('common.cancel')}
+        </button>
+        <button type="submit" className="btn btn-primary btn-sm">
+          {t('common.save')}
+        </button>
+      </div>
+    </form>
   );
 }
 

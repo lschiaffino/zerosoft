@@ -2700,7 +2700,12 @@
     "newColumn": "New column",
     "newColumnAdd": "Add column",
     "newColumnHelp": "A new zerosoft property for every group in the workspace. You can fill it in from the table or from each group.",
-    "propCreated": "Column {name} added"
+    "propCreated": "Column {name} added",
+    "readOnly": "Read only",
+    "hsNoCompany": "Link this group to a HubSpot company to edit its properties here.",
+    "hsReadOnly": "Read only in HubSpot (calculated or set by HubSpot).",
+    "hsNoScope": "The HubSpot connection can only read. To edit here, reconnect HubSpot with permission to write companies (crm.objects.companies.write).",
+    "hsMasked": "Your role sees hidden phone numbers, so it can view HubSpot values but not edit them."
   },
   "snooze": {
     "action": "Snooze chat",
