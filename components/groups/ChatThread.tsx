@@ -146,7 +146,8 @@ export interface ThreadProps {
   quickReplies: QuickReply[];
   properties: PropertyDef[];
   agents: Array<{ id: string; name: string }>;
-  crm: { contact: { id: string; name: string } | null; company: { id: string; name: string } | null };
+  /** null: la app CRM está apagada para quien mira (no se muestra nada del CRM). */
+  crm: { contact: { id: string; name: string } | null; company: { id: string; name: string } | null } | null;
   me: string;
   isAdmin: boolean;
   numberName: string;
@@ -2115,7 +2116,7 @@ export default function ChatThread(props: ThreadProps) {
               onMessage={isTempId(m.id) ? undefined : (i) => void openCardChat(m, i)}
               // Guardar en el CRM solo con el número a la vista (con los teléfonos ocultos llega enmascarado).
               onSave={
-                contacts.every((c) => /^\d{6,15}$/.test(c.phones?.[0] ?? '')) ? (i) => void saveContact(contacts[i].name, contacts[i].phones?.[0] ?? '') : undefined
+                props.crm && contacts.every((c) => /^\d{6,15}$/.test(c.phones?.[0] ?? '')) ? (i) => void saveContact(contacts[i].name, contacts[i].phones?.[0] ?? '') : undefined
               }
             />
           )}
