@@ -33,7 +33,7 @@ import { emitPeopleEvent, hrPeople, notifyPeople } from './people-effects';
 const db = () => getDb();
 
 export const POLICY_KINDS = ['vacation', 'sick', 'personal', 'other'] as const;
-export const ACCRUALS: AccrualKind[] = ['annual', 'monthly', 'per_pay_period', 'none'];
+export const ACCRUALS: AccrualKind[] = ['annual', 'monthly', 'per_pay_period', 'manual', 'none'];
 
 export interface Policy {
   id: string;
@@ -345,14 +345,57 @@ export async function balancesUnchecked(ws: string, employeeId: string, asOf = t
 export async function adjustBalance(ctx: PeopleCtx, employeeId: string, input: Record<string, unknown>) {
   requireHr(ctx);
   const policy = await getPolicy(ctx.ws, String(input.policyId ?? ''));
-  if (!policy) throw new PeopleError('invalid_policy');
+  // Una política sin saldo ("solo registra") no tiene nada que ajustar.
+  if (!policy || policy.accrual === 'none') throw new PeopleError('invalid_policy');
   if (!(await getEmployeeRow(ctx.ws, employeeId))) throw new PeopleError('not_found', 404);
   const days = Number(input.days);
   if (!Number.isFinite(days) || days === 0 || Math.abs(days) > 366) throw new PeopleError('invalid_number');
+  if (input.date !== undefined && input.date !== '' && !isIsoDate(input.date)) throw new PeopleError('invalid_date');
   const date = isIsoDate(input.date) ? input.date : today();
+  if (date > addDays(today(), 366)) throw new PeopleError('invalid_date');
   await db()
     .prepare('INSERT INTO people_adjustments (id, workspace_id, employee_id, policy_id, date, days, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(newId('adj'), ctx.ws, employeeId, policy.id, date, Math.round(days * 100) / 100, String(input.note ?? '').slice(0, 200), ctx.personId, nowIso());
+    .run(newId('adj'), ctx.ws, employeeId, policy.id, date, Math.round(days * 100) / 100, String(input.note ?? '').trim().slice(0, 200), ctx.personId, nowIso());
+}
+
+export interface AdjustmentDto {
+  id: string;
+  policyId: string;
+  policyName: string;
+  date: string;
+  days: number;
+  note: string;
+  byName: string | null;
+  createdAt: string;
+}
+
+/** Historial de ajustes de saldo de una ficha (quien ve sus licencias: HR, la persona y su cadena). */
+export async function listAdjustments(ctx: PeopleCtx, employeeId: string): Promise<AdjustmentDto[]> {
+  if (!canSeeSensitive(ctx.viewer, employeeId, 'timeoff')) throw new PeopleError('forbidden', 403);
+  const rows = (await db()
+    .prepare(
+      `SELECT a.id, a.policy_id, p.name AS policy_name, a.date, a.days, a.note, a.created_at, COALESCE(u.name, u.email) AS by_name
+       FROM people_adjustments a JOIN people_policies p ON p.id = a.policy_id LEFT JOIN users u ON u.id = a.created_by
+       WHERE a.workspace_id = ? AND a.employee_id = ? ORDER BY a.date DESC, a.created_at DESC LIMIT 200`,
+    )
+    .all(ctx.ws, employeeId)) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: String(r.id),
+    policyId: String(r.policy_id),
+    policyName: String(r.policy_name),
+    date: String(r.date),
+    days: Number(r.days),
+    note: String(r.note ?? ''),
+    byName: r.by_name == null ? null : String(r.by_name),
+    createdAt: String(r.created_at),
+  }));
+}
+
+/** Borrar un ajuste cargado por error (HR). */
+export async function deleteAdjustment(ctx: PeopleCtx, employeeId: string, adjustmentId: string): Promise<void> {
+  requireHr(ctx);
+  const res = await db().prepare('DELETE FROM people_adjustments WHERE id = ? AND employee_id = ? AND workspace_id = ?').run(adjustmentId, employeeId, ctx.ws);
+  if (!res.changes) throw new PeopleError('not_found', 404);
 }
 
 /** Días hábiles de un pedido con los feriados del país de la persona. */

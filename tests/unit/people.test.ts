@@ -57,7 +57,7 @@ import {
   updateEmployee,
   type PeopleCtx,
 } from '@/lib/people';
-import { createRequest, decideRequest, balancesFor, listPolicies, teamCalendar } from '@/lib/people-timeoff';
+import { adjustBalance, createPolicy, createRequest, decideRequest, deleteAdjustment, balancesFor, listAdjustments, listPolicies, teamCalendar } from '@/lib/people-timeoff';
 import { listTemplates, offboard, planTasks, startChecklist } from '@/lib/people-onboarding';
 import { createCycle, launchCycle, listReviews, submitReview, updateCycle } from '@/lib/people-perf';
 import { toolsFor } from '@/lib/assistant/tools';
@@ -225,6 +225,14 @@ describe('devengamiento', () => {
     expect(b.used).toBe(0.5);
     expect(b.adjusted).toBe(1);
     expect(b.balance).toBe(10.5);
+  });
+
+  it('manual: no devenga solo; el saldo es lo que carga HR menos lo usado, y pasa de año con el tope de arrastre', () => {
+    const p = policy({ accrual: 'manual', daysPerYear: 15, carryoverMax: 2 });
+    const b = computeBalance({ policy: p, startDate: '2024-01-01', asOf: '2026-12-31', approved: [{ date: '2026-03-02', days: 1 }], adjustments: [{ date: '2026-02-01', days: 4 }] });
+    expect(b).toMatchObject({ accrued: 0, adjusted: 4, used: 1, balance: 3 });
+    const next = computeBalance({ policy: p, startDate: '2024-01-01', asOf: '2027-01-05', approved: [{ date: '2026-03-02', days: 1 }], adjustments: [{ date: '2026-02-01', days: 4 }] });
+    expect(next).toMatchObject({ accrued: 0, carriedOver: 2, balance: 2 });
   });
 
   it('sin devengamiento solo registra lo usado', () => {
@@ -400,6 +408,35 @@ describe('People con la base', () => {
     expect(cal.entries.find((e) => e.employeeId === ids.carla)).toMatchObject({ policyName: null, status: 'approved' });
     // Eva no ve los saldos de Carla.
     await expect(balancesFor(await ctxOf(w, w.users.eva), ids.carla)).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('política manual: HR carga días con nota, el pedido se controla contra ese saldo y el historial lo ve quien ve las licencias', async () => {
+    const pol = await createPolicy(w.hr, { name: `Study days ${uid()}`, kind: 'other', accrual: 'manual', daysPerYear: 15 });
+    const eva = await ctxOf(w, w.users.eva);
+    const start = (await balancesFor(eva, ids.eva)).find((b) => b.policy.id === pol.id)!.balance;
+    expect(start).toMatchObject({ accrued: 0, available: 0 });
+    // Sin saldo cargado no se puede pedir.
+    const mon = futureMonday();
+    await expect(createRequest(eva, { policyId: pol.id, startDate: mon, endDate: mon })).rejects.toMatchObject({ code: 'insufficient_balance' });
+    // Solo HR ajusta; una política "solo registra" no se ajusta.
+    await expect(adjustBalance(eva, ids.eva, { policyId: pol.id, days: 5 })).rejects.toMatchObject({ code: 'forbidden' });
+    const none = await createPolicy(w.hr, { name: `Track only ${uid()}`, kind: 'other', accrual: 'none' });
+    await expect(adjustBalance(w.hr, ids.eva, { policyId: none.id, days: 1 })).rejects.toMatchObject({ code: 'invalid_policy' });
+    await expect(adjustBalance(w.hr, ids.eva, { policyId: pol.id, days: 1, date: 'mañana' })).rejects.toMatchObject({ code: 'invalid_date' });
+    await adjustBalance(w.hr, ids.eva, { policyId: pol.id, days: 2, note: 'Exam week' });
+    expect((await balancesFor(eva, ids.eva)).find((b) => b.policy.id === pol.id)!.balance).toMatchObject({ adjusted: 2, available: 2 });
+    const req = await createRequest(eva, { policyId: pol.id, startDate: mon, endDate: mon });
+    expect(req.days).toBe(1);
+    // Historial: Eva y HR lo ven con la nota y quién lo cargó; Dani (otro equipo) no.
+    const hist = await listAdjustments(eva, ids.eva);
+    expect(hist.find((a) => a.policyId === pol.id)).toMatchObject({ days: 2, note: 'Exam week' });
+    await expect(listAdjustments(await ctxOf(w, w.users.dani), ids.eva)).rejects.toMatchObject({ code: 'forbidden' });
+    // Borrar un ajuste: solo HR, y el saldo vuelve atrás.
+    const adj = hist.find((a) => a.policyId === pol.id)!;
+    await expect(deleteAdjustment(eva, ids.eva, adj.id)).rejects.toMatchObject({ code: 'forbidden' });
+    await deleteAdjustment(w.hr, ids.eva, adj.id);
+    expect((await balancesFor(eva, ids.eva)).find((b) => b.policy.id === pol.id)!.balance).toMatchObject({ adjusted: 0 });
+    await expect(deleteAdjustment(w.hr, ids.eva, adj.id)).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('el sueldo se guarda cifrado y solo lo ven HR y la persona (con auditoría)', async () => {

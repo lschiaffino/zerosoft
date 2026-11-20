@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   percentHidden: { note: loc(['This table lists everything BambooHR documents, feature by feature, including payroll, benefits, time tracking and global employment, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que BambooHR documenta, función por función, con nómina, beneficios, registro de horas y empleo global, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o BambooHR documenta, função por função, com folha, benefícios, registro de horas e emprego global, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
@@ -307,11 +307,15 @@ const parity: ProductParity = {
       detail: ['Vacation, sick, personal and other as policy kinds. Built; not yet walked end to end in a browser for each role', 'Vacaciones, enfermedad, personal y otro como tipos de política. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Férias, doença, pessoal e outro como tipos de política. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
     row('flexible-policies', 'timeoff', ['Flexible or unlimited policies', 'Políticas flexibles o ilimitadas', 'Políticas flexíveis ou ilimitadas'], 'missing'),
-    row('manual-policies', 'timeoff', ['Manually updated policies', 'Políticas de actualización manual', 'Políticas com atualização manual'], 'partial', {
-      detail: ['An accrual of none plus manual adjustments. Built; not yet walked end to end in a browser for each role', 'Sin devengo más ajustes manuales. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Sem acúmulo mais ajustes manuais. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('manual-policies', 'timeoff', ['Manually updated policies', 'Políticas de actualización manual', 'Políticas com atualização manual'], 'have', {
+      detail: [
+        'A policy updated manually by HR starts at zero; HR adds or removes days with a date and a note, and requests are checked against that balance',
+        'Una política que HR actualiza a mano arranca en cero; HR suma o resta días con fecha y nota, y los pedidos se controlan contra ese saldo',
+        'Uma política atualizada manualmente pelo RH começa em zero; o RH soma ou tira dias com data e nota, e os pedidos são verificados contra esse saldo',
+      ],
     }),
-    row('accrual-front-load', 'timeoff', ['Front-loaded annual allotment', 'Asignación anticipada anual', 'Concessão anual antecipada'], 'partial', {
-      detail: ['Annual accrual credits on January 1. Built; not yet walked end to end in a browser for each role', 'El devengo anual acredita el 1 de enero. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'O acúmulo anual credita em 1º de janeiro. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('accrual-front-load', 'timeoff', ['Front-loaded annual allotment', 'Asignación anticipada anual', 'Concessão anual antecipada'], 'have', {
+      detail: ['The yearly accrual credits the whole year on January 1 (the first year prorated from the start date)', 'El devengo anual acredita el año entero el 1 de enero (el primer año, prorrateado desde el ingreso)', 'O acúmulo anual credita o ano inteiro em 1º de janeiro (o primeiro ano proporcional à entrada)'],
     }),
     row('tenure-milestones', 'timeoff', ['Tenure milestones', 'Hitos de antigüedad', 'Marcos de tempo de casa'], 'have', {
       detail: ['More days from a given year of tenure, per policy, and each person sees the balance that matches their tenure', 'Más días desde un año de antigüedad, por política, y cada persona ve el saldo que le corresponde', 'Mais dias a partir de um ano de casa, por política, e cada pessoa vê o saldo correspondente'],
@@ -319,8 +323,8 @@ const parity: ProductParity = {
     row('carryover', 'timeoff', ['Carryover', 'Arrastre al año siguiente', 'Saldo transferido para o ano seguinte'], 'have', {
       detail: ['A carryover limit per policy, with the resulting balance on each person', 'Tope de arrastre por política, con el saldo resultante en cada persona', 'Limite de transferência por política, com o saldo resultante em cada pessoa'],
     }),
-    row('balance-cap', 'timeoff', ['Balance cap', 'Tope de saldo', 'Limite de saldo'], 'partial', {
-      detail: ['A balance cap per policy. Built; not yet walked end to end in a browser for each role', 'Saldo máximo por política. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Saldo máximo por política. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('balance-cap', 'timeoff', ['Balance cap', 'Tope de saldo', 'Limite de saldo'], 'have', {
+      detail: ['A cap per policy: accrual stops at the cap and resumes once days are taken', 'Un tope por política: el devengo frena en el tope y sigue cuando se usan días', 'Um limite por política: o acúmulo para no limite e volta quando dias são usados'],
     }),
     row('pto-cancel', 'timeoff', ['Edit or cancel a request', 'Editar o cancelar un pedido', 'Editar ou cancelar um pedido'], 'partial', {
       detail: ['Cancel, but not edit, a request. Built; not yet walked end to end in a browser for each role', 'Cancelar un pedido, no editarlo. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Cancelar um pedido, não editar. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
@@ -332,8 +336,12 @@ const parity: ProductParity = {
     row('pto-calendar', 'timeoff', ['Time off calendar', 'Calendario de ausencias', 'Calendário de ausências'], 'have', {
       detail: ['Team calendar in Time off; the type of leave only for those who may see it', 'Calendario del equipo en Licencias; el tipo de licencia solo para quien puede verlo', 'Calendário da equipe em Folgas; o tipo de folga só para quem pode ver'],
     }),
-    row('balance-adjustments', 'timeoff', ['Manual balance adjustments', 'Ajustes manuales de saldo', 'Ajustes manuais de saldo'], 'partial', {
-      detail: ['HR adjusts a balance on the profile. Built; not yet walked end to end in a browser for each role', 'HR ajusta el saldo en la ficha. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'O RH ajusta o saldo no perfil. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('balance-adjustments', 'timeoff', ['Manual balance adjustments', 'Ajustes manuales de saldo', 'Ajustes manuais de saldo'], 'have', {
+      detail: [
+        'HR adds or removes days on the profile with a date and a note; the history shows who did it, the person and their managers see it, and HR can delete a wrong one',
+        'HR suma o resta días en la ficha con fecha y nota; el historial muestra quién lo hizo, lo ven la persona y sus managers, y HR puede borrar uno equivocado',
+        'O RH soma ou tira dias no perfil com data e nota; o histórico mostra quem fez, a pessoa e os gestores veem, e o RH pode excluir um errado',
+      ],
     }),
     row('accrual-calculator', 'timeoff', ['Future balance calculator', 'Calculadora de saldo futuro', 'Calculadora de saldo futuro'], 'missing'),
     row('pto-mobile', 'timeoff', ['Time off in the mobile app', 'Tiempo libre en la app móvil', 'Ausências no app móvel'], 'missing'),

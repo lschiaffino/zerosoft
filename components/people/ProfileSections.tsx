@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { Balance } from '@/lib/people-time';
-import type { Policy, RequestDto } from '@/lib/people-timeoff';
+import type { AdjustmentDto, Policy, RequestDto } from '@/lib/people-timeoff';
 import type { PeopleDocument } from '@/lib/people-docs';
 import type { CompEntry } from '@/lib/people';
 import type { Checklist } from '@/lib/people-onboarding';
@@ -97,7 +97,9 @@ export function BalanceCards({ balances }: { balances: Array<{ policy: Policy; b
           <span className="ppl-card-meta">
             {policy.accrual === 'none'
               ? t('noAccrual')
-              : t('balanceMeta', { accrued: num(balance.accrued), used: num(balance.used + balance.scheduled), pending: num(balance.pending), carried: num(balance.carriedOver) })}
+              : policy.accrual === 'manual'
+                ? t('manualMeta', { added: num(balance.adjusted), used: num(balance.used + balance.scheduled), pending: num(balance.pending), carried: num(balance.carriedOver) })
+                : t('balanceMeta', { accrued: num(balance.accrued), used: num(balance.used + balance.scheduled), pending: num(balance.pending), carried: num(balance.carriedOver) })}
           </span>
           {balance.laterYears > 0 && <span className="ppl-card-meta" data-testid="people-later-years">{t('laterYears', { days: num(balance.laterYears) })}</span>}
           {balance.expiringAtYearEnd > 0 && <span className="ppl-card-meta ppl-warn">{t('expiring', { days: num(balance.expiringAtYearEnd) })}</span>}
@@ -113,10 +115,14 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
   const t = useTranslations('people');
   const [toast, push] = useToast();
   const errText = useErrorText();
-  const bal = useLoad<{ balances: Array<{ policy: Policy; balance: Balance }> }>(`/api/people/employees/${employeeId}/balances`);
+  const day = useDay();
+  const num = useNumber();
+  const bal = useLoad<{ balances: Array<{ policy: Policy; balance: Balance }>; adjustments: AdjustmentDto[] }>(`/api/people/employees/${employeeId}/balances`);
   const req = useLoad<{ requests: RequestDto[] }>(`/api/people/time-off?employeeId=${employeeId}`);
   const [requesting, setRequesting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  const [removing, setRemoving] = useState<AdjustmentDto | null>(null);
+  const [busy, setBusy] = useState(false);
   const reload = () => {
     bal.reload();
     req.reload();
@@ -124,14 +130,32 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
   const adjust = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const res = await api(`/api/people/employees/${employeeId}/balances`, { method: 'POST', json: { policyId: fd.get('policyId'), days: Number(fd.get('days')), note: fd.get('note') } });
+    setBusy(true);
+    const res = await api(`/api/people/employees/${employeeId}/balances`, {
+      method: 'POST',
+      json: { policyId: fd.get('policyId'), days: Number(fd.get('days')), date: fd.get('date'), note: fd.get('note') },
+    });
+    setBusy(false);
     if (!res.ok) return push(errText(res.data.error), 'bad');
     setAdjusting(false);
     push(t('common.saved'));
     reload();
   };
+  const removeAdjustment = async () => {
+    if (!removing) return;
+    setBusy(true);
+    const res = await api(`/api/people/employees/${employeeId}/balances?adjustment=${encodeURIComponent(removing.id)}`, { method: 'DELETE' });
+    setBusy(false);
+    setRemoving(null);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('timeoff.adjustmentDeleted'));
+    reload();
+  };
   if (bal.error || req.error) return <LoadError retry={reload} />;
   if (!bal.data || !req.data) return <Loading />;
+  // Solo las políticas con saldo se ajustan: "solo registra" no tiene saldo.
+  const adjustable = bal.data.balances.filter((b) => b.policy.accrual !== 'none');
+  const adjustments = bal.data.adjustments ?? [];
   return (
     <div className="ppl-stack">
       {toast}
@@ -139,8 +163,8 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
         title={t('timeoff.balances')}
         actions={
           <span className="ppl-panel-actions">
-            {hr && (
-              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setAdjusting(true)}>
+            {hr && adjustable.length > 0 && (
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setAdjusting(true)} data-testid="people-adjust">
                 {t('timeoff.adjust')}
               </button>
             )}
@@ -154,6 +178,54 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
       >
         <BalanceCards balances={bal.data.balances} />
       </Panel>
+      {(adjustments.length > 0 || hr) && (
+        <Panel title={t('timeoff.adjustments')} testId="people-adjustments">
+          {adjustments.length === 0 ? (
+            <EmptyState compact quiet body={t('timeoff.noAdjustments')} />
+          ) : (
+            <div className="table-wrap table-stack">
+              <table className="table ppl-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('timeoff.adjustDate')}</th>
+                    <th scope="col">{t('timeoff.type')}</th>
+                    <th scope="col" className="num">
+                      {t('timeoff.days')}
+                    </th>
+                    <th scope="col">{t('timeoff.note')}</th>
+                    <th scope="col">{t('timeoff.adjustedBy')}</th>
+                    {hr && (
+                      <th scope="col">
+                        <span className="sr-only">{t('common.actions')}</span>
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adjustments.map((a) => (
+                    <tr key={a.id} data-adjustment={a.id}>
+                      <td className="ppl-nowrap">{day(a.date)}</td>
+                      <td data-label={t('timeoff.type')}>{a.policyName}</td>
+                      <td className="num" data-label={t('timeoff.days')} data-testid="people-adjustment-days">
+                        {a.days > 0 ? `+${num(a.days)}` : num(a.days)}
+                      </td>
+                      <td data-label={t('timeoff.note')}>{a.note || <span className="ppl-muted">-</span>}</td>
+                      <td className="ppl-nowrap" data-label={t('timeoff.adjustedBy')}>{a.byName ?? <span className="ppl-muted">-</span>}</td>
+                      {hr && (
+                        <td className="ppl-actions table-stack-actions">
+                          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRemoving(a)} data-testid="people-adjustment-delete">
+                            {t('common.delete')}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      )}
       <Panel title={t('timeoff.history')}>
         <RequestsTable
           requests={req.data.requests}
@@ -183,7 +255,7 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
           <div className="ui-modal-body ui-fields">
             <Field label={t('timeoff.type')} htmlFor="adj-policy">
               <select id="adj-policy" name="policyId" className="select" autoFocus>
-                {bal.data.balances.map((b) => (
+                {adjustable.map((b) => (
                   <option key={b.policy.id} value={b.policy.id}>
                     {b.policy.name}
                   </option>
@@ -191,7 +263,10 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
               </select>
             </Field>
             <Field label={t('timeoff.adjustDays')} htmlFor="adj-days" hint={t('timeoff.adjustHint')}>
-              <input id="adj-days" name="days" type="number" step="0.5" className="input" required />
+              <input id="adj-days" name="days" type="number" step="0.5" min={-366} max={366} className="input" required />
+            </Field>
+            <Field label={t('timeoff.adjustDate')} htmlFor="adj-date" hint={t('timeoff.adjustDateHint')}>
+              <input id="adj-date" name="date" type="date" className="input" defaultValue={new Date().toISOString().slice(0, 10)} required />
             </Field>
             <Field label={t('timeoff.note')} htmlFor="adj-note">
               <input id="adj-note" name="note" className="input" maxLength={200} />
@@ -201,12 +276,23 @@ export function TimeOffSection({ employeeId, hr, isSelf }: { employeeId: string;
             <button type="button" className="btn btn-ghost" onClick={() => setAdjusting(false)}>
               {t('common.cancel')}
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={busy}>
               {t('common.save')}
             </button>
           </div>
         </form>
       </Dialog>
+      <ConfirmDialog
+        open={removing !== null}
+        title={t('timeoff.deleteAdjustmentTitle')}
+        body={t('timeoff.deleteAdjustmentBody')}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        danger
+        busy={busy}
+        onConfirm={() => void removeAdjustment()}
+        onCancel={() => setRemoving(null)}
+      />
     </div>
   );
 }
