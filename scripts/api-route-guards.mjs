@@ -47,6 +47,7 @@ export const GUARDS = [
   '@/lib/calls/http#callsActor',
   '@/lib/chat-http#chatSession',
   '@/lib/crm-files-http#recordFilesHandlers',
+  '@/lib/crm-hubspot-sync/http#syncAdmin',
   '@/lib/crm-media-http#mediaUser',
   '@/lib/crm-voice-http#callForSession',
   '@/lib/design-http#designActor',

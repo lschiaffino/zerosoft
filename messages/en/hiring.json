@@ -493,7 +493,9 @@
     "rejectReasons": "Rejection reasons",
     "noRejections": "No rejections in this period.",
     "reasonKnockout": "Knock-out question",
-    "reasonNone": "No reason given"
+    "reasonNone": "No reason given",
+    "csv": "Download CSV",
+    "downloadNamed": "Download {name} as CSV"
   },
   "settings": {
     "title": "Hiring settings",

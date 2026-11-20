@@ -132,9 +132,14 @@
     "tab_published": "Publicadas",
     "tab_failed": "Con errores",
     "search": "Buscar publicaciones",
-    "noResults": "Ninguna publicación coincide con la búsqueda.",
+    "noResults": "Ninguna publicación coincide con la búsqueda o los filtros.",
     "emptyTitle": "Todavía no hay publicaciones acá",
-    "emptyBody": "Escribí una publicación y mandala a varias cuentas, con su propio texto por red."
+    "emptyBody": "Escribí una publicación y mandala a varias cuentas, con su propio texto por red.",
+    "filterNetwork": "Filtrar por red",
+    "filterAccount": "Filtrar por cuenta",
+    "allNetworks": "Todas las redes",
+    "allAccounts": "Todas las cuentas",
+    "clearFilters": "Quitar filtros"
   },
   "compose": {
     "title": "Nueva publicación",
