@@ -2117,6 +2117,22 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responseStatus: 201,
   },
   {
+    id: 'groups-hubspot-send',
+    sectionId: 'groups',
+    method: 'POST',
+    path: '/api/v1/groups/hubspot/send',
+    titleKey: 'groupsHubspotSendTitle',
+    descKey: 'groupsHubspotSendDesc',
+    params: [
+      { name: 'text', type: 'string', required: true, descriptionKey: 'paramGroupsHubspotText' },
+      { name: 'companyId', type: 'string', descriptionKey: 'paramGroupsHubspotTarget' },
+      { name: 'to', type: 'string', descriptionKey: 'paramGroupsHubspotTo' },
+    ],
+    request: { companyId: '9001', text: 'Hi {{name}}, your renewal is ready.' },
+    response: { data: { sent: [{ chatId: 'gc_1', messageId: 'gm_3', duplicate: false }], skipped: 0 } },
+    responseStatus: 201,
+  },
+  {
     id: 'groups-tickets-list',
     sectionId: 'groups',
     method: 'GET',

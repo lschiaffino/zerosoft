@@ -868,7 +868,8 @@
     "flow": "Flow también puede mandar un mensaje de WhatsApp con el paso Lines: mandar mensaje de WhatsApp.",
     "docs": "Cada endpoint con ejemplos está en",
     "docsLink": "la documentación de la API",
-    "webhooksManage": "Creá endpoints, mirá el log de entregas y reenviá desde"
+    "webhooksManage": "Creá endpoints, mirá el log de entregas y reenviá desde",
+    "hubspotWorkflow": "Para mandar WhatsApp desde un workflow de HubSpot, sumá una acción \"Send a webhook\" que haga POST a /api/v1/groups/hubspot/send con una API key en el encabezado Authorization (Bearer zs_…) y ?text= con tu mensaje."
   },
   "crmBlock": {
     "title": "WhatsApp",
@@ -877,6 +878,10 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "hubspot_no_ticket_pipeline": "HubSpot no tiene un pipeline de tickets. Creá uno en HubSpot y probá de nuevo.",
+    "periskope_auth": "Periskope no aceptó la clave de API. Revisala y probá de nuevo.",
+    "periskope_rate_limited": "Periskope está limitando los pedidos. Esperá un minuto y probá de nuevo.",
+    "periskope_unavailable": "No se pudo llegar a Periskope. Probá de nuevo en un momento.",
     "too_many_stages": "Este tablero ya tiene el máximo de etapas (30).",
     "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
@@ -2286,6 +2291,7 @@
     "allInGroup": "Todo {name}"
   },
   "hubspot": {
+    "ticket": {"open": "Crear ticket en HubSpot", "title": "Crear un ticket en HubSpot", "help": "El ticket queda asociado a la empresa, el contacto y el negocio vinculados a este chat.", "subject": "Asunto", "content": "Descripción", "priority": "Prioridad", "noPriority": "Sin prioridad", "pipeline": "Pipeline", "stage": "Etapa", "create": "Crear ticket", "done": "Ticket creado en HubSpot.", "view": "Abrir en HubSpot", "linkedHelp": "Crea un ticket en HubSpot con los registros vinculados arriba.", "unlinkedHelp": "Crea un ticket en HubSpot. Vinculá antes una empresa, un contacto o un negocio para asociarlo.", "send": "Mandar a HubSpot", "sendAria": "Mandar el ticket {n} a HubSpot"},
     "createContact": "Crear contacto en HubSpot",
     "createContactHelp": "Usa el nombre y el número de este chat. Si el número ya está en HubSpot, vinculás ese contacto.",
     "createContactNoScope": "Para crear contactos, la clave de HubSpot necesita el permiso {scope}.",
@@ -2781,7 +2787,9 @@
     "until": "Pospuesto hasta {when}"
   },
   "migrate": {
-    "intro": "Traé de Periskope las etiquetas, las respuestas rápidas y el orden de tus chats. Los mensajes vienen de WhatsApp al conectar cada línea por QR, no del archivo. Esta importación es parcial: Periskope no publica las columnas de sus exports, así que leemos los nombres comunes y te decimos qué quedó afuera.",
+    "intro": "Traé tu trabajo de Periskope a Lines. Los mensajes vienen de WhatsApp al conectar cada línea por QR; esta importación suma lo que Periskope guarda encima de ellos.",
+    "csvTitle": "Importar archivos CSV",
+    "api": {"title": "Importar con la API de Periskope", "step2": "En Periskope, abrí Settings › Integrations › API y generá una clave de API.", "step3": "Pegá la clave acá, revisá la vista previa e importá. Podés volver a importar después: lo que ya está no se duplica.", "key": "Clave de la API de Periskope", "keyHelp": "Se usa solo para esta importación. No se guarda.", "working": "Leyendo tu cuenta de Periskope. Puede tardar hasta un minuto.", "previewTitle": "Esto es lo que se importaría:", "doneTitle": "Importado:", "chats": "Chats: {applied} de {rows} con etiquetas, asignado o propiedades", "contacts": "Contactos: {applied} de {rows} con etiquetas", "tickets": "Tickets: {applied} de {found} ({existing} ya estaban)", "notes": "Notas privadas: {applied} de {found} ({existing} ya estaban)", "created": "Etiquetas nuevas: {labels}. Propiedades nuevas: {properties}.", "truncated": "Tu cuenta tiene más de lo que entra en una corrida. Importá de nuevo para seguir.", "issue": "{n} × {reason}"},
     "step1": "Conectá tus líneas por QR en la pestaña Números y esperá a que se importen los chats.",
     "step2": "En Periskope, exportá la lista de chats o un CSV de Analytics › Data Exports. Para etiquetas y respuestas rápidas, usá una planilla con Nombre y Color, o Comando y Mensaje.",
     "step3": "Subí cada archivo acá, revisá la vista previa e importá.",
@@ -2820,7 +2828,8 @@
       "invalid_phone": "teléfono inválido",
       "chat_not_found": "el chat todavía no está en Lines",
       "unknown_assignee": "la persona asignada no está en el workspace",
-      "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
+      "not_applied": "no se pudo aplicar (revisá el acceso por línea)",
+      "invalid_value": "un valor de propiedad no coincide con sus opciones"
     }
   },
   "kanban": {

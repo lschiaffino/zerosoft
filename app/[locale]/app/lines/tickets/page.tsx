@@ -5,6 +5,8 @@ import { listTickets } from '@/lib/groups-tickets';
 import { ticketsForViewer } from '@/lib/groups-access';
 import { pageViewer } from '@/lib/groups-page';
 import { getDb } from '@/lib/db';
+import { hubspotConn } from '@/lib/groups-hubspot';
+import { hubspotTicketUrl } from '@/lib/groups-hubspot-tickets';
 import PageHeader from '@/components/ui/PageHeader';
 import TicketsBoard from '@/components/groups/TicketsBoard';
 import { roleAtLeast } from '@/lib/teams';
@@ -32,10 +34,16 @@ export default async function GroupsTicketsPage(props: { params: Promise<{ local
   // Solo los de tickets que la persona ve.
   const shown = new Set(tickets.map((x) => x.id));
   for (const l of links) if (shown.has(l.ticket_id)) (remote[l.ticket_id] ??= []).push({ kind: l.kind, remoteId: l.remote_id, remoteUrl: l.remote_url });
+  // Los mandados a HubSpot (lib/groups-hubspot-tickets.ts), con su link si HubSpot sigue conectado.
+  const hs = await hubspotConn(user.id);
+  for (const tk of tickets) {
+    if (!tk.hubspotTicketId) continue;
+    (remote[tk.id] ??= []).push({ kind: 'hubspot', remoteId: tk.hubspotTicketId, remoteUrl: hs ? hubspotTicketUrl(hs, tk.hubspotTicketId) : '' });
+  }
   return (
     <div className="ui-page">
       <PageHeader title={t('tickets.pageTitle')} description={t('tickets.desc', { emoji: settings.ticketEmoji || '🎫' })} />
-      <TicketsBoard initial={tickets} people={people} me={user.actingUser?.id ?? user.id} openId={sp.open ?? null} fields={fields} remote={remote} canExport={roleAtLeast(user.role, 'admin')} />
+      <TicketsBoard initial={tickets} people={people} me={user.actingUser?.id ?? user.id} openId={sp.open ?? null} fields={fields} remote={remote} canExport={roleAtLeast(user.role, 'admin')} hubspot={Boolean(hs) && user.role !== 'guest'} />
     </div>
   );
 }

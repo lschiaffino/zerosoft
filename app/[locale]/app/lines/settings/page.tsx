@@ -41,6 +41,7 @@ const API_ROUTES = [
   'GET, POST /api/v1/groups/broadcasts',
   'GET, POST /api/v1/groups/recurring',
   'POST /api/v1/groups/mcp',
+  'POST /api/v1/groups/hubspot/send',
 ];
 
 const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
@@ -190,6 +191,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         <p className="ui-help">
           {t('api.flow')} <Link href="/app/flow">Flow</Link>
         </p>
+        <p className="ui-help">{t('api.hubspotWorkflow')}</p>
       </div>
     );
 

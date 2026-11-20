@@ -608,7 +608,10 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   .gr-tickets-table tr,
   .gr-tickets-table td { display: block; width: 100%; }
   .gr-tickets-table tr { padding: 12px; border-bottom: 1px solid var(--line); }
-  .gr-tickets-table td { padding: 4px 0; border: 0; }
+  /* Sin la altura fija de la tabla: la línea de chat, origen y links no queda tapada por los selectores. */
+  .gr-tickets-table td { padding: 4px 0; border: 0; height: auto; }
+  /* La primera columna no queda fija (es una tarjeta, no una tabla que scrollea). */
+  .table-wrap:not(.table-stack) > .gr-tickets-table td.num:first-child { position: static; background: none; }
   .gr-tickets-table td.num { text-align: left; font-family: var(--font-data); color: var(--brand-gray-2); }
   .gr-tickets-table td.num::before { content: '#'; }
   .gr-tickets-table .gr-hide-sm { display: block; }
@@ -1000,6 +1003,8 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-hs-log { display: flex; flex-direction: column; gap: 6px; }
 .gr-hs-create { display: flex; flex-direction: column; gap: 6px; }
 .gr-hs-log .ui-help { margin: 0; }
+.gr-hs-ticket { display: flex; flex-direction: column; gap: 6px; }
+.gr-hs-ticket .ui-help { margin: 0; }
 .gr-hs-scope-groups { display: flex; flex-direction: column; gap: 10px; }
 .gr-hs-scope-groups .label { margin: 0 0 2px; }
 .gr-hs-scopes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
