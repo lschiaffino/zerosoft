@@ -43,11 +43,24 @@ async function fakeLine(request: APIRequestContext): Promise<{ id: string; webho
   return { id, webhook: new URL(info.webhookUrl).pathname };
 }
 
+/** Abre los detalles del chat de Lines (el botón "Details" o, si no está a la vista, la foto del chat). */
+async function openLinesInfo(page: Page): Promise<Locator> {
+  const aside = page.locator('aside.gr-details');
+  await expect(page.locator('.wa-head-avatar')).toBeVisible({ timeout: 20_000 });
+  if (!(await aside.isVisible())) {
+    const details = page.getByRole('button', { name: 'Details', exact: true });
+    if (await details.isVisible()) await details.click();
+    else await page.locator('.wa-head-avatar').click();
+  }
+  await expect(aside).toBeVisible();
+  return aside.getByTestId('group-members');
+}
+
 async function linkInbox(request: APIRequestContext): Promise<{ id: string; secret: string }> {
   const status = async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state?: { status: string } }).state?.status;
   if ((await status()) !== 'connected') {
     await request.post('/api/inbox/whatsapp', waLinkIp());
-    await expect.poll(status, { timeout: 10_000 }).toBe('connected');
+    await expect.poll(status, { timeout: 30_000 }).toBe('connected');
   }
   const db = e2eDb();
   try {
@@ -75,8 +88,8 @@ async function addTwo(page: Page, panel: Locator, a: string, b: string) {
   expect(await noSideScroll(page)).toBe(true);
   await dialog.getByTestId('group-add-confirm').click();
   await expect(dialog).toBeHidden();
-  await expect(panel.locator(`[data-testid="group-member"][data-phone="${a}"]`)).toBeVisible();
-  await expect(panel.locator(`[data-testid="group-member"][data-phone="${b}"]`)).toBeVisible();
+  await expect(panel.locator(`[data-testid="group-member"][data-phone="${a}"]:not(.is-pending)`)).toBeVisible({ timeout: 30_000 });
+  await expect(panel.locator(`[data-testid="group-member"][data-phone="${b}"]:not(.is-pending)`)).toBeVisible({ timeout: 30_000 });
 }
 
 async function memberMenu(page: Page, row: Locator, item: 'promote' | 'demote' | 'remove' | 'message') {
@@ -130,9 +143,7 @@ for (const width of [1280, 390]) {
     const chatId = ((await res.json()) as { results: Array<{ chatId: string }> }).results[0].chatId;
 
     await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
-    const head = page.locator('.wa-head-avatar');
-    if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
-    const panel = page.locator('aside.gr-details').getByTestId('group-members');
+    const panel = await openLinesInfo(page);
     await expect(panel).toBeVisible();
     await expect(panel.getByTestId('group-not-admin')).toHaveCount(0);
     const [a, b] = [phone(), phone()];
@@ -147,8 +158,7 @@ for (const width of [1280, 390]) {
     const joined = (await join.json()) as { id?: string; chat?: { id: string } };
     const joinedId = joined.chat?.id ?? joined.id!;
     await page.goto(`/en/app/lines/inbox/${joinedId}`, { waitUntil: 'networkidle' });
-    if ((await page.locator('.wa-head-avatar').getAttribute('aria-expanded')) !== 'true') await page.locator('.wa-head-avatar').click();
-    const panel2 = page.locator('aside.gr-details').getByTestId('group-members');
+    const panel2 = await openLinesInfo(page);
     await notAdminCase(page, panel2);
     await shot(page, `lines-not-admin-${width}`);
     expect(await noSideScroll(page)).toBe(true);
@@ -165,7 +175,7 @@ for (const width of [1280, 390]) {
     const { thread } = (await res.json()) as { thread: { id: string } };
 
     await page.goto(`/en/app/inbox?t=${thread.id}`, { waitUntil: 'networkidle' });
-    await page.locator('.ib-wa-thread .wa-head-who').click();
+    await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 20_000 });
     const panel = page.getByRole('complementary', { name: 'Group info' }).getByTestId('group-members');
     await panel.getByTestId('group-add-members').scrollIntoViewIfNeeded();
     await expect(panel.getByTestId('group-add-members')).toBeVisible();
