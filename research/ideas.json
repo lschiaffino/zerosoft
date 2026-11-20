@@ -3273,5 +3273,35 @@
     "description": "Shopify sells gift cards as a product that emails a code, and the balance is spent at checkout in one or several orders (https://help.shopify.com/en/manual/products/gift-card-products). Our parity table marks gift cards as missing (content/feature-parity/shop.ts) and checkout has only discount codes. Gifts are a large share of sales for small shops around holidays. First scope: a gift card product type, a code emailed to the recipient, a balance field, and a checkout box that applies the balance.",
     "product": "shop",
     "kind": "idea"
+  },
+  {
+    "title": "Sign: Place fields automatically by text anchors",
+    "description": "DocuSign AutoPlace puts tags at lines of text so they follow the text when the document changes (https://www.docusign.com/en-gb/features-and-benefits/features). Our fields are placed by hand in components/sign/FieldPlacer.tsx and the parity table marks auto-place as missing (content/feature-parity/sign.ts). For a small team that sends the same contract every week, this removes the repeated placing. First scope: a template field can carry an anchor string, and the PDF text layer finds it when the envelope is created from the template.",
+    "product": "sign",
+    "kind": "idea"
+  },
+  {
+    "title": "Sign: Send several documents in one envelope",
+    "description": "DocuSign envelopes hold several documents that are signed in one session and sealed together (https://www.docusign.com/en-gb/features-and-benefits/features). Our envelope has a single document_ref (lib/sign/core.ts), and the parity row multi-document is missing. A contract plus its annex or NDA is common for a small team. First scope: up to five PDFs per envelope, fields placed per document, one certificate of completion.",
+    "product": "sign",
+    "kind": "idea"
+  },
+  {
+    "title": "Sign: Add signing groups where any member can sign",
+    "description": "DocuSign signing groups let you send to a predefined group and any one member can sign (https://www.docusign.com/en-gb/features-and-benefits/features). We have named recipients only (lib/sign/core.ts, sign_recipients). Teams often want 'someone from finance' to sign without choosing a person. First scope: a recipient of kind group with a list of emails, the first to open and sign takes the slot and the others see it as done.",
+    "product": "sign",
+    "kind": "idea"
+  },
+  {
+    "title": "Sign: Offer a public self-service signing link from a template",
+    "description": "DocuSign PowerForms give a link anyone can open to generate and sign their own copy of a template (https://www.docusign.com/en-gb/features-and-benefits/features). We have templates and CSV bulk send (lib/sign/templates.ts) but no public link, and the parity row powerforms is missing. Useful for waivers, NDAs and intake forms. First scope: a per-template public link that asks for name and email, creates the envelope, and applies a daily cap to avoid abuse.",
+    "product": "sign",
+    "kind": "idea"
+  },
+  {
+    "title": "Sign: Add the sender's logo and colors to signing pages and emails",
+    "description": "DocuSign lets accounts set their own brand on the signing experience and emails (https://www.docusign.com/en-gb/features-and-benefits/features). Our signing room (components/sign/SigningRoom.tsx) and emails (lib/sign/i18n.ts, deliver in lib/sign/core.ts) use the Zerosoft look, and the parity row branding is missing. A clinic or studio wants its client to see its own name. First scope: a workspace logo and accent color shown in the signing header and the email.",
+    "product": "sign",
+    "kind": "idea"
   }
 ]
