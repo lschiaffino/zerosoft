@@ -1720,6 +1720,7 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .wa-info-meta { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; font-size: var(--wa-fs-tiny); color: var(--wa-meta-out); white-space: nowrap; }
 .wa-info-meta .wa-ticks:not(.is-read):not(.is-failed) { color: var(--wa-meta-out); }
 .wa-info-panel { padding: 2px 0 8px; }
+.wa-info-section { margin: 0; padding: 0; border: 0; background: none; }
 .wa-info-section + .wa-info-section { border-top: 1px solid var(--wa-border); }
 .wa-info-section-head {
   display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 22px 4px; font-size: var(--wa-fs-small); font-weight: 500;
