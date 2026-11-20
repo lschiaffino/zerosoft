@@ -1651,7 +1651,7 @@ export default function InboxApp(props: {
             onBack={closeConvo}
             onAction={act}
             onSent={sentTo(detail.thread.id)}
-            onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
+            onSendLater={(text, mentions) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text, ...(mentions?.length ? { mentions } : {}) })}
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);
               void reloadState();

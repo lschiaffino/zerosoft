@@ -358,7 +358,7 @@ export default function AssistantChat({
         } else if (e.type === 'action') {
           patch((m) => ({ ...m, parts: [...m.parts, { type: 'action', action: e.action }] }));
         } else if (e.type === 'notice') {
-          patch((m) => ({ ...m, notice: e.code }));
+          patch((m) => (e.code === 'step_limit' ? { ...m, limit: e.steps ?? 0 } : { ...m, notice: e.code }));
         } else if (e.type === 'error') {
           patch((m) => ({ ...m, error: e.code, waiting: false }));
         } else if (e.type === 'done') {
@@ -477,7 +477,7 @@ export default function AssistantChat({
               {loadingEarlier ? t('loading') : t('loadEarlier')}
             </button>
           )}
-          {items.map((m) => {
+          {items.map((m, index) => {
             const steps = m.parts.filter((p): p is StepPart => p.type !== 'action');
             const actions = m.parts.filter((p): p is Extract<ChatPart, { type: 'action' }> => p.type === 'action');
             // Trabajando: antes de la primera palabra, entre herramientas o con una herramienta corriendo.
@@ -496,6 +496,19 @@ export default function AssistantChat({
                 {actions.map((p) => (
                   <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} onGranted={() => setContinueQueued(t('consentCard.continue'))} />
                 ))}
+                {m.role === 'assistant' && m.limit != null && (
+                  // Llegó al tope de pasos (servidor): lo dice y, en la última respuesta, ofrece seguir con otro pedido.
+                  <div className="asst-limit" data-testid="assistant-step-limit">
+                    <p className="asst-notice muted" role="status">
+                      {t('stepLimit.notice', { steps: m.limit })}
+                    </p>
+                    {index === items.length - 1 && !m.streaming && (
+                      <button type="button" className="btn btn-secondary btn-sm" data-testid="assistant-continue" disabled={busy} onClick={() => void send(t('stepLimit.message'))}>
+                        {t('stepLimit.continue')}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {m.error && (
                   <p className="form-error" role="alert">
                     {t(errorKey(m.error))}

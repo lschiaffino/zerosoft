@@ -13,7 +13,7 @@ import type { GifItem } from '@/components/groups/wa/GifPanel';
 import Avatar from '@/components/groups/wa/Avatar';
 import MentionTextarea from '@/components/groups/wa/MentionTextarea';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
@@ -66,7 +66,8 @@ const WaComposer = forwardRef<
     /** La cuenta de WhatsApp por la que sale la respuesta: la pestaña Stickers muestra los de esa. */
     stickerLine: string;
     onSaveEdit: (m: MessageDto, body: string) => Promise<boolean>;
-    onSendLater: (text: string) => void;
+    /** Programar lo escrito; en un grupo, con sus menciones ("@Nombre" → teléfono) para que salgan como mención. */
+    onSendLater: (text: string, mentions?: WaMentionPick[]) => void;
     onError: (code: string) => void;
     onMic?: () => void;
     /** Pegar fotos o archivos en el campo (van a la vista previa). */
@@ -169,6 +170,11 @@ const WaComposer = forwardRef<
   // mención de WhatsApp ("@<teléfono>" con la lista de mencionados), que le avisa a la persona.
   const mentionPics = useMemo(() => new Map((mentionables ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar!])), [mentionables]);
   const mentionPool = useMemo(() => (mentionables?.length ? waMentionables(mentionables, picked.current) : null), [mentionables, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Programar lo escrito: en un grupo, con las menciones (al salir "@Nombre" pasa a "@<teléfono>", como al mandar ya). */
+  const later = () => {
+    const out = text.trim();
+    onSendLater(out, mentionPool ? waMentionPicks(out, mentionPool) : []);
+  };
   const mentionHits = useMemo(() => (mentionPool && !editing ? findMentionHits(text, mentionPool) : []), [text, mentionPool, editing]);
   const mentionQuery = mentionPool && !editing ? mentionQueryAt(text, caret) : null;
   const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
@@ -344,7 +350,7 @@ const WaComposer = forwardRef<
 
   // Comandos con "/": las acciones del chat (las pasa la conversación), las del campo, los snippets y la AI.
   // Con el menú abierto no se muestran las menciones, los snippets de ";" ni los emojis de ":".
-  const fieldCommands = useInboxComposerCommands({ onLater: () => busy === '' && onSendLater(text.trim()), openEmoji: () => setEmoji(true), dictate });
+  const fieldCommands = useInboxComposerCommands({ onLater: () => busy === '' && later(), openEmoji: () => setEmoji(true), dictate });
   const aiCommands = useAiSlashCommands(ai);
   const slash = useSlashMenu({
     text,
@@ -594,7 +600,7 @@ const WaComposer = forwardRef<
             // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde.
             if (e.key === 'Enter' && e.shiftKey && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              if (!editing && !disabled && busy === '') onSendLater(text.trim());
+              if (!editing && !disabled && busy === '') later();
               return;
             }
             if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
@@ -612,7 +618,7 @@ const WaComposer = forwardRef<
         />
         {!editing && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" disabled={disabled} />}
         {!editing && (
-          <button type="button" className="wa-icon-btn" data-testid="inbox-send-later" aria-label={t('later')} title={t('laterHint')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
+          <button type="button" className="wa-icon-btn" data-testid="inbox-send-later" aria-label={t('later')} title={t('laterHint')} disabled={disabled || busy !== ''} onClick={() => later()}>
             <ClockIcon size={20} />
           </button>
         )}
@@ -621,7 +627,7 @@ const WaComposer = forwardRef<
             // Clic derecho en Enviar: programar el envío (como en WhatsApp).
             if (editing || !hasText) return;
             e.preventDefault();
-            onSendLater(text.trim());
+            later();
           }}>
             {editing ? <span aria-hidden="true">✓</span> : <SendIcon size={20} />}
           </button>

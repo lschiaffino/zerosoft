@@ -259,6 +259,14 @@ const parity: ProductParity = {
     }),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
     row('message-search', 'inbox', ['Search chats and message text', 'Buscar chats y texto de mensajes', 'Buscar chats e texto das mensagens'], 'have'),
+    row('kanban-inbox', 'inbox', ['Kanban view of the inbox', 'Vista kanban de la bandeja', 'Visualização kanban da caixa'], 'better', {
+      competitorHas: false,
+      detail: [
+        'Chats as cards in columns: team stages set by an admin, your own private stages, or the options of a HubSpot company property (moving a card writes it to HubSpot). Filters, search, folders and lines apply to the board',
+        'Los chats como tarjetas en columnas: etapas del equipo que define un admin, tus etapas privadas o las opciones de una propiedad de la empresa de HubSpot (mover una tarjeta la escribe en HubSpot). Filtros, búsqueda, carpetas y líneas valen en el tablero',
+        'As conversas como cartões em colunas: etapas da equipe definidas por um admin, suas etapas privadas ou as opções de uma propriedade da empresa no HubSpot (mover um cartão grava no HubSpot). Filtros, busca, pastas e linhas valem no quadro',
+      ],
+    }),
     row('close-reopen', 'inbox', ['Close, reopen and mark as read', 'Cerrar, reabrir y marcar leído', 'Fechar, reabrir e marcar como lida'], 'have', {
       detail: [
         'Close, reopen, read or unread and pin chats to the top, one by one or in bulk, with E, U, P and X',

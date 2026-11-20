@@ -240,6 +240,11 @@ export type InboundEvent =
       senderLid?: string;
       /** Lid (dígitos) del chat 1:1 cuando vino como "@lid" y se resolvió al teléfono. */
       chatLid?: string;
+      /**
+       * Es de una conversación con Meta AI (un "@bot"): lo trae marcado (botMetadata, botMessageSecret,
+       * botInvokeMessage). Si llegó con el id de la cuenta propia, no es del chat con uno mismo (lib/wa-self-chat.ts).
+       */
+      bot?: boolean;
     }
   /**
    * Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp).
@@ -604,7 +609,7 @@ export function errorFromStatus(status: number): ProviderError {
  */
 export function phoneDigits(raw: string): string {
   const s = String(raw ?? '');
-  if (isLidJid(s)) return '';
+  if (isLidJid(s) || isBotJid(s)) return '';
   return s.replace(/@.*$/, '').replace(/[^\d]/g, '');
 }
 
@@ -612,6 +617,19 @@ export function phoneDigits(raw: string): string {
 export function isLidJid(raw: string): boolean {
   return /@lid$/i.test(String(raw ?? '').trim());
 }
+
+/** "<dígitos>@bot": un bot de WhatsApp (Meta AI y sus personajes). Tampoco es un teléfono. */
+export function isBotJid(raw: string): boolean {
+  return /@bot$/i.test(String(raw ?? '').trim());
+}
+
+/**
+ * El chat de Meta AI en WhatsApp. Lo que se habla con Meta AI desde el
+ * teléfono llega con el id de la cuenta propia (Baileys pone el remitente como
+ * chat cuando el destinatario es un "@bot"); se pasa a este chat
+ * (lib/wa-self-chat.ts). El historial ya lo trae con este id.
+ */
+export const META_AI_JID = '867051314767696@bot';
 
 /** Dígitos de un id "@lid" ('' si no es un lid). */
 export function lidDigits(raw: string): string {
