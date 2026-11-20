@@ -13,9 +13,23 @@ describe('tours: registro y rutas', () => {
     expect(tourForPath('/app/lines')?.key).toBe('lines');
     expect(tourForPath('/app/linesx')).toBeNull();
     expect(tourForPath('/app/inboxes')).toBeNull();
+    expect(tourForPath('/app/trackx')).toBeNull();
     expect(tourForPath(null)).toBeNull();
     expect(atTourStart(TOURS.lines, '/pt/app/lines/inbox')).toBe(true);
     expect(atTourStart(TOURS.lines, '/app/lines/inbox/abc')).toBe(false);
+  });
+
+  it('el tour de Track arranca en el resumen y sigue en Issues', () => {
+    expect(tourForPath('/app/track')?.key).toBe('track');
+    expect(tourForPath('/es/app/track/issues')?.key).toBe('track');
+    expect(atTourStart(TOURS.track, '/pt/app/track')).toBe(true);
+    expect(atTourStart(TOURS.track, '/app/track/issues')).toBe(false);
+    // Track no pregunta equipo o sola: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.track, { audience: 'team', admin: false }))).toEqual(ids(stepsFor(TOURS.track, { audience: 'solo', admin: true })));
+    const steps = ids([...TOURS.track.steps]);
+    // Abrir Issues (un clic en el lateral) va antes de filtros, visualización y vistas, que viven ahí.
+    expect(steps.indexOf('issues')).toBeLessThan(steps.indexOf('filters'));
+    expect(TOURS.track.steps.find((s) => s.id === 'issues')).toMatchObject({ advanceOn: 'click' });
   });
 
   it('el tour de Inbox vive en /app/inbox, arranca en la bandeja y no tiene pasos de equipo', () => {
@@ -26,6 +40,20 @@ describe('tours: registro y rutas', () => {
     // Inbox es de cada persona: los mismos pasos para todos.
     expect(ids(stepsFor(TOURS.inbox, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.inbox.steps]));
     expect(ids(stepsFor(TOURS.inbox, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.inbox.steps]));
+  });
+
+  it('el tour de Notes arranca en /app/notes; abrir una nota va antes que los pasos de la nota', () => {
+    expect(tourForPath('/app/notes')?.key).toBe('notes');
+    expect(tourForPath('/es/app/notes/clip')?.key).toBe('notes');
+    expect(tourForPath('/app/notesx')).toBeNull();
+    expect(atTourStart(TOURS.notes, '/pt/app/notes')).toBe(true);
+    expect(atTourStart(TOURS.notes, '/app/notes/settings')).toBe(false);
+    // Notes es de cada persona: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.notes, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.notes.steps]));
+    const steps = ids([...TOURS.notes.steps]);
+    expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('noteBar'));
+    expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('tags'));
+    expect(TOURS.notes.steps.find((s) => s.id === 'openNote')).toMatchObject({ advanceOn: 'click' });
   });
 
   it('ids de pasos únicos por tour', () => {

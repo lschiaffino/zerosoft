@@ -36,6 +36,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     const out = (done.output ?? {}) as Record<string, unknown>;
     if (done.tool === 'propose_folders_from_json') return foldersReply(out);
     if (done.tool === 'request_feature') return featureReply(out, asked);
+    if (done.tool === 'my_feature_requests') return myRequestsReply(out);
     if (done.tool === 'inbox_folders') {
       const rows = (out.folders as Array<{ path: string; chats: number }>) ?? [];
       if (!rows.length) return { text: 'You have no Inbox folders yet.' };
@@ -114,6 +115,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     };
   }
   if (/^(?:summari[sz]e|list|show) my inbox folders/i.test(last)) return { reasoning: 'Read the Inbox folders and count the chats in each.', tool: 'inbox_folders', input: {} };
+  if (MY_REQUESTS_ASK.test(last)) return { reasoning: 'Look up the requests this person made and share the links.', tool: 'my_feature_requests', input: {} };
   const wish = FEATURE_ASK.exec(last);
   if (wish) {
     const need = last.slice(wish[0].length).trim() || last;
@@ -195,12 +197,22 @@ const PRODUCT_WORDS = ['inbox', 'crm', 'track', 'docs', 'cal', 'flow', 'lines', 
 function featureReply(out: Record<string, unknown>, asked: string): FakeStep {
   const lang: Lang = /\b(quiero|quisiera|gustar[ií]a|pueda|desde)\b/i.test(asked) ? 'es' : /\b(quero|gostaria|você)\b/i.test(asked) ? 'pt' : langOf(asked);
   if (out.error) return { text: lang === 'es' ? 'No pude anotar el pedido ahora.' : lang === 'pt' ? 'Não consegui registrar o pedido agora.' : 'I could not record the request right now.' };
+  const url = typeof out.url === 'string' ? out.url : '';
   const text = {
-    es: 'Eso todavía no se puede hacer acá. Anoté tu pedido para el equipo y lo van a considerar.',
-    pt: 'Isso ainda não dá para fazer aqui. Registrei seu pedido para a equipe e ele vai ser considerado.',
-    en: 'That is not possible here yet. I recorded your request for the team and it will be considered.',
+    es: `Eso todavía no se puede hacer acá. Anoté tu pedido para el equipo y lo van a considerar.${url ? ` [Ver tu pedido](${url})` : ''}`,
+    pt: `Isso ainda não dá para fazer aqui. Registrei seu pedido para a equipe e ele vai ser considerado.${url ? ` [Ver o seu pedido](${url})` : ''}`,
+    en: `That is not possible here yet. I recorded your request for the team and it will be considered.${url ? ` [See your request](${url})` : ''}`,
   }[lang];
   return { text };
+}
+
+/** "¿Dónde anotaste mi pedido?", "link to my request", "meus pedidos". */
+const MY_REQUESTS_ASK = /\b(?:my requests?|link to my request|where is my request|mis pedidos|mi pedido|d[oó]nde anotaste|meus pedidos|meu pedido)\b/i;
+
+function myRequestsReply(out: Record<string, unknown>): FakeStep {
+  const rows = (out.requests as Array<{ title: string; status: string; url: string }> | undefined) ?? [];
+  if (!rows.length) return { text: `You have no recorded requests yet. They show up in [My requests](${String(out.listUrl ?? '')}).` };
+  return { text: rows.slice(0, 5).map((r) => `- [${r.title}](${r.url}) (${r.status})`).join('\n') };
 }
 
 /** Respuesta al plan de carpetas: una tabla con lo que se crea y lo que no encontró. */

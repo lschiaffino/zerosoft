@@ -128,7 +128,8 @@ export type AssistantEvent =
  */
 export const FEATURE_REQUEST_GUIDANCE = [
   'FEATURE REQUESTS: when the person asks for something the product cannot do yet, or does differently than they want (a missing feature, integration, field, setting or behaviour), never just refuse or send them to support. Do three things:',
-  '(a) first help with whatever is possible now (a workaround, the closest existing feature, the page where it lives); (b) call request_feature ONCE with a short neutral English title and the need in their own words (what they want to do and why, no emails or other people\'s data) and the app; (c) tell them in one sentence that you recorded the request for the team and it will be considered. Never promise a date or that it will be built.',
+  '(a) first help with whatever is possible now (a workaround, the closest existing feature, the page where it lives); (b) call request_feature ONCE with a short neutral English title and the need in their own words (what they want to do and why, no emails or other people\'s data) and the app; (c) tell them in one sentence that you recorded the request for the team and it will be considered, and ALWAYS share the url that request_feature returns as a Markdown link to their request (they get an email when it ships). Never promise a date or that it will be built.',
+  'If they ask where their request is, for a link to it or how it is going, call my_feature_requests and share the links. Never say there is no page or link for a request.',
   'If they only lack access to an app that exists, tell them who can give access (an admin of the workspace) instead of recording a request. Ordinary questions are not requests. Something broken (an error, a wrong result) is a bug: help diagnose, then use report_problem, not request_feature. Security issues are never recorded; tell them to report those privately.',
 ].join(' ');
 

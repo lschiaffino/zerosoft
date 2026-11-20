@@ -1897,9 +1897,10 @@
     "stickers": {
       "tab": "Figurinhas",
       "panels": "Emojis, GIFs e figurinhas",
-      "recent": "Recentes",
-      "favorites": "Favoritas",
-      "all": "Suas figurinhas",
+      "section": {"recent": "Recentes", "favorites": "Favoritas", "created": "Criadas por você", "chats": "Das suas conversas"},
+      "fromChats": "Das suas conversas ({n})",
+      "fromChatsHint": "Figurinhas que outras pessoas enviaram nas conversas deste número. Envie uma ou adicione aos favoritos para mantê-la acima.",
+      "mineEmpty": "As figurinhas que você enviar deste número, aqui ou pelo celular, aparecem em Recentes. Adicione uma aos favoritos para tê-la à mão.",
       "showMore": "Ver mais {n}",
       "send": "Enviar figurinha",
       "options": "Opções da figurinha",
@@ -1912,7 +1913,7 @@
       "importing": "Importando… {n} encontradas",
       "loading": "Carregando figurinhas",
       "emptyTitle": "Ainda não há figurinhas",
-      "emptyBody": "O WhatsApp não deixa apps conectados lerem as figurinhas salvas no seu celular. Cada número tem suas figurinhas: importe as enviadas e recebidas nas conversas deste número, ou crie uma a partir de uma imagem.",
+      "emptyBody": "O WhatsApp não deixa apps conectados lerem as figurinhas salvas no seu celular. Importe as figurinhas das conversas deste número: as que você enviou vão para Recentes. Ou crie uma a partir de uma imagem.",
       "noneFound": "Ainda não há figurinhas nas conversas deste número. As novas entram quando chegam.",
       "loadFailed": "Não foi possível carregar suas figurinhas.",
       "importFailed": "Não foi possível importar as figurinhas. Tente de novo.",
@@ -2702,7 +2703,12 @@
     "newColumn": "Nova coluna",
     "newColumnAdd": "Adicionar coluna",
     "newColumnHelp": "Uma nova propriedade do zerosoft para todos os grupos do workspace. Dá para preencher pela tabela ou por cada grupo.",
-    "propCreated": "Coluna {name} adicionada"
+    "propCreated": "Coluna {name} adicionada",
+    "readOnly": "Somente leitura",
+    "hsNoCompany": "Vincule este grupo a uma empresa do HubSpot para editar as propriedades dela aqui.",
+    "hsReadOnly": "Somente leitura no HubSpot (calculada ou definida pelo HubSpot).",
+    "hsNoScope": "A conexão com o HubSpot só pode ler. Para editar aqui, reconecte o HubSpot com permissão para escrever empresas (crm.objects.companies.write).",
+    "hsMasked": "Seu papel vê os telefones ocultos: pode ver os valores do HubSpot, mas não editá-los."
   },
   "snooze": {
     "action": "Adiar conversa",

@@ -12,7 +12,7 @@ import { inboxLineRefs, inboxSiblingsByKey, threadKey, threadWithSiblings } from
 import { open, seal } from '../secret-box';
 import { chatNameHit, chatNameRank, isNameHit, type SearchRank } from '../chat-search-rank';
 import { parseSearch, threadIdsMatching } from './message-search';
-import { sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
+import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { publicLink } from '../wa-link-thumb';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
@@ -484,6 +484,9 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
     threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id], true),
   ]);
   if (res[0].changes === 0) return false;
+  // "Mantener archivado": WhatsApp lo saca de Archivados en el teléfono con este mensaje; se vuelve a archivar
+  // (una vez por chat cada 20 s, después de responder; lib/wa-archive-sync.ts). Nunca falla.
+  if (!m.history && thread.channel === 'whatsapp' && thread.keep_archived === 1) await reArchiveKept('inbox', thread.id);
   noteNewest(thread, m, sentAt);
   // Lo que mandé desde la app a un chat por teléfono: si el eco de WhatsApp llegó antes solo con el lid y abrió otro
   // chat, se juntan (lib/wa-dedupe-run.ts). Después de responder: nunca suma espera al envío.
@@ -528,6 +531,7 @@ export async function addMessageToChat(
   ]);
   const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);
   const added = res[2].changes > 0;
+  if (added && !m.history && thread.channel === 'whatsapp' && thread.keep_archived === 1) await reArchiveKept('inbox', thread.id);
   if (added) noteNewest(thread, m, sentAt);
   return { thread, added, id };
 }

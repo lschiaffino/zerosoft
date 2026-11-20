@@ -5,6 +5,7 @@ import { ANALYTICS_TABS, analyticsTab, isEmptyData, type AnalyticsTab } from '@/
 import { periodChoice } from '@/lib/analytics-kit/period';
 import { viewerTz } from '@/lib/analytics-kit/server';
 import { pageViewer } from '@/lib/groups-page';
+import { roleAtLeast } from '@/lib/teams';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import { AnalyticsPage, analyticsFmt } from '@/components/analytics-kit/kit';
 import { AnalyticsView } from '@/components/groups/analytics/views';
@@ -131,9 +132,12 @@ export default async function LinesAnalyticsPage(props: { params: Promise<{ loca
       emptyFilteredBody={t('analytics.emptyFilteredBody')}
       contentKey={tab}
       foot={
+        // Exportar: solo admins (el servidor también lo frena).
+        roleAtLeast(viewer.role, 'admin') && (
         <>
           {t('analytics.exportMore')} <a href={`/api/groups/export?type=chats`}>{t('analytics.exportChats')}</a> · <a href={`/api/groups/export?type=tickets`}>{t('analytics.exportTickets')}</a>
         </>
+        )
       }
     >
       <AnalyticsView f={f} data={data} />

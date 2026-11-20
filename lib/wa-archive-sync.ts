@@ -167,6 +167,129 @@ export function snoozeWakeMark(app: ArchiveApp, chatWhere: string, whereArgs: Ar
   };
 }
 
+/**
+ * "Mantener archivado": WhatsApp saca un chat de Archivados con cada mensaje (salvo que la cuenta tenga prendido
+ * "Mantener chats archivados" en el teléfono). Acá el chat sigue archivado (trigger de 20261115_2258_chat_keep_archived),
+ * pero en el teléfono no: después de cada mensaje, guardado, se lo vuelve a archivar en WhatsApp, con ese mensaje (el
+ * más nuevo) de referencia; con uno más viejo el teléfono no lo deja archivado.
+ *
+ * Una vez por chat cada KEEP_REARCHIVE_DEBOUNCE_MS: el primer mensaje deja el pedido para dentro de ese tiempo, y los
+ * que llegan mientras espera se suman a ese pedido (al mandarlo se toma el mensaje más nuevo). Un pedido que espera su
+ * reintento tampoco se pisa (respeta el backoff), y una línea que no puede sincronizar el archivado
+ * (archive_sync_error) no anota nada: no vuelve a intentar con cada mensaje hasta que se la vuelva a vincular.
+ */
+export const KEEP_REARCHIVE_DEBOUNCE_MS = 20_000;
+
+/** Anota el re-archivado de un chat con "Mantener archivado". true si quedó un pedido nuevo (false: ya había uno, o no corresponde). */
+export async function queueKeepArchived(app: ArchiveApp, chatId: string, now = new Date()): Promise<boolean> {
+  const at = now.toISOString();
+  const from =
+    app === 'inbox'
+      ? `SELECT 'inbox', c.id, c.owner_id, 1, 1, ?, 0, ?, NULL, '' FROM inbox_threads c
+          WHERE c.id = ? AND c.channel = 'whatsapp' AND c.keep_archived = 1 AND c.archived_at IS NOT NULL
+            AND COALESCE((SELECT archive_sync_error FROM inbox_accounts a WHERE a.id = c.account_id), '') = ''`
+      : `SELECT 'lines', c.id, c.user_id, 1, 1, ?, 0, ?, NULL, '' FROM groups_chats c
+          WHERE c.id = ? AND c.keep_archived = 1 AND c.archived_at IS NOT NULL AND c.hidden_at IS NULL
+            AND COALESCE((SELECT archive_sync_error FROM groups_numbers n WHERE n.id = c.number_id), '') = ''`;
+  const res = await getDb()
+    .prepare(
+      `INSERT INTO wa_archive_push (app, chat_id, scope_id, archived, version, requested_at, attempts, next_at, done_at, last_error)
+       ${from}
+       ON CONFLICT(app, chat_id) DO UPDATE SET prev_archived = wa_archive_push.archived, prev_at = wa_archive_push.requested_at,
+         archived = 1, scope_id = excluded.scope_id, version = wa_archive_push.version + 1, requested_at = excluded.requested_at,
+         attempts = 0, next_at = excluded.next_at, claimed_until = NULL, done_at = NULL, last_error = ''
+       WHERE NOT (wa_archive_push.done_at IS NULL AND wa_archive_push.archived = 1)`,
+    )
+    .run(at, iso(now.getTime() + KEEP_REARCHIVE_DEBOUNCE_MS), chatId);
+  return res.changes > 0;
+}
+
+/**
+ * Después de guardar un mensaje (que llega o que sale) en un chat con "Mantener archivado": anota el re-archivado y,
+ * si es un pedido nuevo, lo manda después de responder, pasado el tiempo de espera. Si esa espera no llega a correr,
+ * lo manda el cron del minuto. Nunca falla ni demora a quien llama (el webhook).
+ */
+export async function reArchiveKept(app: ArchiveApp, chatId: string): Promise<void> {
+  try {
+    if (!(await queueKeepArchived(app, chatId))) return;
+  } catch (err) {
+    logFailure(app, 'keep_queue_error', err);
+    return;
+  }
+  const job = async () => {
+    await new Promise((r) => setTimeout(r, KEEP_REARCHIVE_DEBOUNCE_MS + 250));
+    await flushArchivePush(app, chatId, undefined, { waitUpToMs: PACE_GAP_MS + 500 }).catch((err) => logFailure(app, 'flush_error', err));
+  };
+  try {
+    after(job);
+  } catch {
+    // Sin request (tests, scripts): queda para el cron del minuto.
+  }
+}
+
+/** Un desarchivado del teléfono a menos de esto de un mensaje (o de un re-archivado nuestro) es el que hace WhatsApp por el mensaje. */
+export const MESSAGE_UNARCHIVE_WINDOW_MS = 120_000;
+/** Cuánto se espera antes de tomar un desarchivado como hecho a mano: el mensaje que lo causó puede guardarse un poco después. */
+export const PHONE_UNARCHIVE_SETTLE_MS = 8_000;
+
+/**
+ * Un "desarchivado" que avisa WhatsApp para un chat con "Mantener archivado". Hay dos:
+ * - el que el gateway (Baileys) deriva de cada mensaje nuevo cuando la cuenta no mantiene archivados: llega como
+ *   CHATS_UPDATE { archived: false }, igual que uno del teléfono. Es justo el que corregimos re-archivando.
+ * - el que hizo la persona en el teléfono (Desarchivar).
+ * Se distinguen por el momento: si hay un re-archivado pendiente, o se anotó o mandó uno, o llegó un mensaje, en los
+ * últimos MESSAGE_UNARCHIVE_WINDOW_MS, es el del mensaje ('message'). Si no, el de la persona ('phone').
+ */
+export async function keptUnarchiveCause(app: ArchiveApp, chat: { id: string; last_message_at: string | null }, now = Date.now()): Promise<'message' | 'phone'> {
+  const since = now - MESSAGE_UNARCHIVE_WINDOW_MS;
+  const row = await getArchivePush(app, chat.id);
+  if (row && row.archived === 1) {
+    if (!row.done_at) return 'message';
+    if (Math.max(Date.parse(row.requested_at) || 0, Date.parse(row.done_at) || 0) >= since) return 'message';
+  }
+  const last = chat.last_message_at ? secondsOf(chat.last_message_at) * 1000 : 0;
+  return last >= since ? 'message' : 'phone';
+}
+
+/**
+ * La persona sacó de Archivados en el teléfono un chat con "Mantener archivado": acá se hace lo mismo que desarchivarlo a
+ * mano (sale de Archivados y la marca se apaga, en el mismo UPDATE, así el trigger lo deja pasar), y no se re-archiva
+ * más. Se decide pasado PHONE_UNARCHIVE_SETTLE_MS, por si el aviso llegó antes que el mensaje que lo causó. Nunca manda
+ * nada a WhatsApp. Devuelve si lo aplicó.
+ */
+export async function releaseKeptOnPhoneUnarchive(app: ArchiveApp, chatId: string, settleMs = PHONE_UNARCHIVE_SETTLE_MS): Promise<boolean> {
+  if (settleMs > 0) await new Promise((r) => setTimeout(r, settleMs));
+  const db = getDb();
+  const table = app === 'inbox' ? 'inbox_threads' : 'groups_chats';
+  const chat = (await db.prepare(`SELECT id, last_message_at, keep_archived, archived_at FROM ${table} WHERE id = ?`).get(chatId)) as
+    | { id: string; last_message_at: string | null; keep_archived: number; archived_at: string | null }
+    | undefined;
+  if (!chat || chat.keep_archived !== 1 || !chat.archived_at) return false;
+  if ((await keptUnarchiveCause(app, chat)) === 'message') return false;
+  const now = new Date().toISOString();
+  const extra = app === 'inbox' ? ', done_at = NULL' : '';
+  const res = await db
+    .prepare(
+      `UPDATE ${table} SET keep_archived = 0, archived_at = NULL${extra}, snoozed_until = NULL, snooze_archived = 0, updated_at = ?
+        WHERE id = ? AND keep_archived = 1`,
+    )
+    .run(now, chatId);
+  return res.changes > 0;
+}
+
+/** Corre releaseKeptOnPhoneUnarchive después de responder (fuera de un request, acá mismo y sin esperar). */
+export async function releaseKeptLater(app: ArchiveApp, chatId: string, onApplied?: () => void): Promise<void> {
+  const job = async () => {
+    const ok = await releaseKeptOnPhoneUnarchive(app, chatId).catch(() => false);
+    if (ok) onApplied?.();
+  };
+  try {
+    after(job);
+  } catch {
+    if (await releaseKeptOnPhoneUnarchive(app, chatId, 0).catch(() => false)) onApplied?.();
+  }
+}
+
 /** Anota y manda lo que se pueda ya, sin esperar el ritmo (lo demás, el cron). Para el cron que despierta pospuestos. */
 export async function queueAndFlushArchivePush(app: ArchiveApp, scopeId: string, chatIds: string[], archived: boolean, now = new Date()): Promise<void> {
   if (!chatIds.length) return;
@@ -316,7 +439,7 @@ export async function isArchiveEcho(app: ArchiveApp, chatId: string, archived: b
  * Qué se hizo con un archivado que llegó desde el teléfono, en los logs (sin el número: solo el tipo de id y sus
  * últimos 2 dígitos). Siempre devuelve false salvo 'applied', para usarlo como return.
  */
-export function traceArchive(app: ArchiveApp, jid: string, archived: boolean, result: 'not_found' | 'hidden' | 'same' | 'echo' | 'stale' | 'applied'): boolean {
+export function traceArchive(app: ArchiveApp, jid: string, archived: boolean, result: 'not_found' | 'hidden' | 'same' | 'echo' | 'stale' | 'kept' | 'deferred' | 'applied'): boolean {
   const kind = isGroupJid(jid) ? 'group' : isLidJid(jid) ? 'lid' : 'pn';
   // eslint-disable-next-line no-console
   console.info('[wa-archive] phone', JSON.stringify({ app, kind, tail: jid.split('@')[0].slice(-2), archived, result }));

@@ -36,9 +36,12 @@ function csv(rows: unknown[][]): string {
   return rows.map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
-/** CSV de chats, tickets o mensajes (?type=chats|tickets|messages, &chat=<id> para un chat). */
+/**
+ * CSV de chats, tickets o mensajes (?type=chats|tickets|messages, &chat=<id> para un chat). Solo admins y el
+ * dueño del workspace: un export saca de la app, de una vez, conversaciones y datos de clientes.
+ */
 export async function GET(req: Request) {
-  const s = await groupsSession();
+  const s = await groupsSession({ admin: true });
   if (s instanceof NextResponse) return s;
   const p = new URL(req.url).searchParams;
   const type = p.get('type') ?? 'chats';

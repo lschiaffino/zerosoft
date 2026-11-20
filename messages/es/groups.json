@@ -1897,9 +1897,10 @@
     "stickers": {
       "tab": "Stickers",
       "panels": "Emojis, GIF y stickers",
-      "recent": "Recientes",
-      "favorites": "Favoritos",
-      "all": "Tus stickers",
+      "section": {"recent": "Recientes", "favorites": "Favoritos", "created": "Creados por vos", "chats": "De tus chats"},
+      "fromChats": "De tus chats ({n})",
+      "fromChatsHint": "Stickers que otras personas mandaron en los chats de este número. Mandá uno o agregalo a favoritos para tenerlo arriba.",
+      "mineEmpty": "Los stickers que mandes desde este número, acá o desde el teléfono, aparecen en Recientes. Agregá uno a favoritos para tenerlo a mano.",
       "showMore": "Ver {n} más",
       "send": "Enviar sticker",
       "options": "Opciones del sticker",
@@ -1912,7 +1913,7 @@
       "importing": "Importando… {n} encontrados",
       "loading": "Cargando stickers",
       "emptyTitle": "Todavía no hay stickers",
-      "emptyBody": "WhatsApp no deja que las apps vinculadas lean los stickers guardados en tu teléfono. Cada número tiene sus stickers: importá los que se mandaron y recibieron en los chats de este número, o creá uno desde una imagen.",
+      "emptyBody": "WhatsApp no deja que las apps vinculadas lean los stickers guardados en tu teléfono. Importá los stickers de los chats de este número: los que mandaste van a Recientes. O creá uno desde una imagen.",
       "noneFound": "Todavía no hay stickers en los chats de este número. Los nuevos se suman cuando llegan.",
       "loadFailed": "No se pudieron cargar tus stickers.",
       "importFailed": "No se pudieron importar los stickers. Probá de nuevo.",
@@ -2702,7 +2703,12 @@
     "newColumn": "Columna nueva",
     "newColumnAdd": "Agregar columna",
     "newColumnHelp": "Una propiedad nueva de zerosoft para todos los grupos del workspace. Se completa desde la tabla o desde cada grupo.",
-    "propCreated": "Columna {name} agregada"
+    "propCreated": "Columna {name} agregada",
+    "readOnly": "Solo lectura",
+    "hsNoCompany": "Vinculá este grupo a una empresa de HubSpot para editar sus propiedades acá.",
+    "hsReadOnly": "Solo lectura en HubSpot (calculada o la pone HubSpot).",
+    "hsNoScope": "La conexión con HubSpot solo puede leer. Para editar acá, volvé a conectar HubSpot con permiso para escribir empresas (crm.objects.companies.write).",
+    "hsMasked": "Tu rol ve los teléfonos ocultos: puede ver los valores de HubSpot pero no editarlos."
   },
   "snooze": {
     "action": "Posponer chat",

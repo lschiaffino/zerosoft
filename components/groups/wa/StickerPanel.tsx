@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { MessageMenu } from './Menu';
 import { Chevron, Plus } from './icons';
+import { stickerSections, type SectionKey } from '@/lib/wa-sticker-sections';
 
 /** Un sticker de la colección (lo que devuelve /api/<app>/stickers; ver lib/wa-stickers.ts). */
 export interface StickerItem {
@@ -13,7 +14,10 @@ export interface StickerItem {
   favorite: boolean;
   width?: number | null;
   height?: number | null;
+  /** Última vez que la persona lo mandó desde esta línea (desde acá o desde el teléfono). null: solo lo recibió. */
   usedAt: string | null;
+  /** Lo creó ella desde una imagen. */
+  created?: boolean;
   createdAt: string;
 }
 
@@ -27,9 +31,11 @@ export interface StickerTab {
   onSend: (s: StickerItem) => Promise<boolean>;
 }
 
-const RECENT_MAX = 16;
-/** Cuántos de "Tus stickers" se dibujan de entrada (y cuántos suma "Ver más"): una colección grande no arma cientos de imágenes al abrir. */
-const ALL_PAGE = 60;
+/**
+ * Cuántos de cada sección se dibujan de entrada (y cuántos suma "Ver más"): una colección grande no arma cientos de
+ * imágenes al abrir. Los recientes, como en WhatsApp, son pocos a la vista.
+ */
+const PAGE: Record<SectionKey, number> = { recent: 24, favorites: 60, created: 60, chats: 60 };
 /** Cada cuánto, como mucho, el panel pide lo que llegó a los chats de una línea (abrir y cerrar seguido no lo repite). */
 const CATCH_UP_MS = 45_000;
 
@@ -72,9 +78,9 @@ const post = <T,>(api: string, body: Record<string, unknown>) =>
   call<T>(api, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 /**
- * Pestaña Stickers del panel de emojis, como en WhatsApp Web: recientes,
- * favoritos y la colección de la persona en la línea del chat abierto; un clic
- * lo manda. WhatsApp no deja leer los stickers guardados de la cuenta, así que
+ * Pestaña Stickers del panel de emojis, como en WhatsApp Web: lo suyo en la
+ * línea del chat abierto (recientes, favoritos, creados) y, plegado, lo que
+ * recibió en sus chats (stickerSections); un clic lo manda. WhatsApp no deja leer los stickers guardados de la cuenta, así que
  * la colección se arma con los stickers de los chats de esa línea y con los
  * que crea desde una imagen.
  *
@@ -92,8 +98,11 @@ export default function StickerPanel({ api, line, onSend }: StickerTab) {
   const [found, setFound] = useState(0);
   const [error, setError] = useState('');
   const [sending, setSending] = useState('');
-  const [shown, setShown] = useState(ALL_PAGE);
+  const [more, setMore] = useState<Partial<Record<SectionKey, number>>>({});
+  // "De tus chats" empieza plegado: lo que solo recibió no tapa lo suyo.
+  const [chatsOpen, setChatsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const foldId = useId();
   const alive = useRef(true);
   const syncing = useRef(false);
 
@@ -202,18 +211,9 @@ export default function StickerPanel({ api, line, onSend }: StickerTab) {
     }
   }
 
-  const sections = useMemo(() => {
-    const list = items ?? [];
-    const recent = list
-      .filter((s) => s.usedAt)
-      .sort((a, b) => String(b.usedAt).localeCompare(String(a.usedAt)))
-      .slice(0, RECENT_MAX);
-    return [
-      { key: 'recent', title: t('recent'), list: recent },
-      { key: 'favorites', title: t('favorites'), list: list.filter((s) => s.favorite) },
-      { key: 'all', title: t('all'), list },
-    ].filter((s) => s.list.length > 0);
-  }, [items, t]);
+  const sections = useMemo(() => stickerSections(items ?? []), [items]);
+  const mine = sections.filter((sec) => sec.key !== 'chats');
+  const chats = sections.find((sec) => sec.key === 'chats');
 
   const tile = (s: StickerItem, section: string) => (
     <div key={`${section}-${s.id}`} className="wa-stk" data-sticker={s.id}>
@@ -289,17 +289,43 @@ export default function StickerPanel({ api, line, onSend }: StickerTab) {
             {imported && busy !== 'import' && <p className="wa-stk-note">{t('noneFound')}</p>}
           </div>
         ) : (
-          sections.map((sec) => (
-            <section key={sec.key} aria-label={sec.title} data-section={sec.key}>
-              <p className="wa-emoji-title">{sec.title}</p>
-              <div className="wa-stk-grid">{(sec.key === 'all' ? sec.list.slice(0, shown) : sec.list).map((s) => tile(s, sec.key))}</div>
-              {sec.key === 'all' && sec.list.length > shown && (
-                <button type="button" className="wa-stk-action wa-stk-more-btn" onClick={() => setShown((n) => n + ALL_PAGE)}>
-                  {t('showMore', { n: sec.list.length - shown })}
+          <>
+            {mine.length === 0 && <p className="wa-stk-hint">{t('mineEmpty')}</p>}
+            {mine.map((sec) => {
+              const limit = PAGE[sec.key] + (more[sec.key] ?? 0);
+              const title = t(`section.${sec.key}`);
+              return (
+                <section key={sec.key} aria-label={title} data-section={sec.key}>
+                  <p className="wa-emoji-title">{title}</p>
+                  <div className="wa-stk-grid">{sec.list.slice(0, limit).map((s) => tile(s, sec.key))}</div>
+                  {sec.list.length > limit && (
+                    <button type="button" className="wa-stk-action wa-stk-more-btn" onClick={() => setMore((m) => ({ ...m, [sec.key]: (m[sec.key] ?? 0) + PAGE[sec.key] }))}>
+                      {t('showMore', { n: sec.list.length - limit })}
+                    </button>
+                  )}
+                </section>
+              );
+            })}
+            {chats && (
+              <section aria-label={t('section.chats')} data-section="chats" data-open={chatsOpen || undefined}>
+                <button type="button" className="wa-stk-fold" aria-expanded={chatsOpen} aria-controls={`${foldId}-chats`} onClick={() => setChatsOpen((v) => !v)}>
+                  <Chevron size={14} />
+                  {t('fromChats', { n: chats.list.length })}
                 </button>
-              )}
-            </section>
-          ))
+                {chatsOpen && (
+                  <div id={`${foldId}-chats`}>
+                    <p className="wa-stk-hint">{t('fromChatsHint')}</p>
+                    <div className="wa-stk-grid">{chats.list.slice(0, PAGE.chats + (more.chats ?? 0)).map((s) => tile(s, 'chats'))}</div>
+                    {chats.list.length > PAGE.chats + (more.chats ?? 0) && (
+                      <button type="button" className="wa-stk-action wa-stk-more-btn" onClick={() => setMore((m) => ({ ...m, chats: (m.chats ?? 0) + PAGE.chats }))}>
+                        {t('showMore', { n: chats.list.length - PAGE.chats - (more.chats ?? 0) })}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>

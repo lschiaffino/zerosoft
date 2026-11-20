@@ -478,6 +478,7 @@
     "videos": "Videos",
     "desktopApp": "Desktop app",
     "compare": "Comparisons",
+    "directory": "Software directory",
     "colDownload": "Download",
     "dlMacArm": "Mac (Apple silicon)",
     "dlMacIntel": "Mac (Intel)",
@@ -1355,6 +1356,56 @@
     "ask": "Do you use it on your own or with a team?",
     "solo": "On my own",
     "team": "With a team",
+    "track": {
+      "intro": {
+        "title": "Welcome to Track",
+        "body": "Track keeps your team's issues, projects and cycles in one place. This tour points out the main parts."
+      },
+      "newTeam": {
+        "title": "Create a team",
+        "body": "Issues live in teams, like a product or an area. Create the first one to start adding issues."
+      },
+      "overview": {
+        "title": "Your teams at a glance",
+        "body": "Each row is a team with its current cycle, overdue issues and what waits in triage. Open one to see its issues."
+      },
+      "newIssue": {
+        "title": "Create an issue",
+        "body": "New creates an issue, a project or a team. Anywhere in Track, press C for a new issue."
+      },
+      "inbox": {
+        "title": "Inbox",
+        "body": "Assignments, mentions, comments and status changes on the issues you follow land here."
+      },
+      "myIssues": {
+        "title": "My issues",
+        "body": "Everything assigned to you, across all teams."
+      },
+      "issues": {
+        "title": "Open Issues",
+        "body": "Issues lists every issue in the workspace. Open it to see filters and views."
+      },
+      "filters": {
+        "title": "Filter",
+        "body": "Filter by status, priority, assignee, cycle, labels or due date. Press F to add a filter and / to search."
+      },
+      "display": {
+        "title": "Display",
+        "body": "Switch between list, board, calendar and Gantt, and choose how issues are grouped and sorted."
+      },
+      "views": {
+        "title": "Saved views",
+        "body": "Save the filters and display you use often as a view and come back to them in one click."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "C creates an issue, J and K move through the list and Enter opens it. G then I goes to Inbox. Cmd+K finds anything."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Welcome to Lines",
@@ -1445,6 +1496,44 @@
       "settings": {
         "title": "Inbox settings",
         "body": "Connect more accounts, import from inbox-zero and save snippets in Inbox settings."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "notes": {
+      "intro": {
+        "title": "Welcome to Notes",
+        "body": "Notes keeps your notes, notebooks and tags in one place, and they save as you type. This tour points out the main parts."
+      },
+      "newNote": {
+        "title": "Write a note",
+        "body": "Start a blank note here, or one from a template. Anywhere in Notes, press N for a new note."
+      },
+      "notebooks": {
+        "title": "Notebooks",
+        "body": "Group notes in notebooks, and notebooks in stacks. Above them are Home, Tasks, Pinned and the notes shared with you."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Search titles and text. Operators like tag: and notebook: narrow it, and the ? button lists them all. Press / to jump here."
+      },
+      "openNote": {
+        "title": "Open a note",
+        "body": "Open any note in the list to read and edit it."
+      },
+      "noteBar": {
+        "title": "The note's tools",
+        "body": "Move the note to a notebook, record audio, pin it, set a reminder or share it with a link or with people."
+      },
+      "tags": {
+        "title": "Tags",
+        "body": "Type a tag and press Enter. Tags show in the list and in the sidebar, across notebooks."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "N creates a note and / searches. Arrow keys move through the list. Cmd+K finds any note."
       },
       "done": {
         "title": "That's the tour",

@@ -10,7 +10,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
-import { sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
+import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
 import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
@@ -2066,6 +2066,8 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
   const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId], unarchive);
   if (!incoming && unarchive) {
     await dbBatch([unarchiveMark(at, 'c.id = ?', [chatId]), stmt]);
+    // Un chat con "Mantener archivado": lo que sale lo desarchiva en el teléfono; se vuelve a archivar (lib/wa-archive-sync.ts).
+    await reArchiveKept('lines', chatId);
     return;
   }
   if (incoming) {
@@ -2350,6 +2352,8 @@ export async function sendMessage(
   // Ganó el eco: la fila es la que guardó el webhook, ya con su autor (y él ya emitió el evento de "enviado").
   const row = inserted ?? (providerId ? ((res[1].rows[0] as unknown as MessageRow | undefined) ?? null) : null);
   if (!row) throw new GroupsError('send_failed', 502);
+  // "Mantener archivado": lo que sale lo desarchiva en el teléfono; se vuelve a archivar (lib/wa-archive-sync.ts).
+  if (status === 'sent' && chat.keep_archived === 1) await reArchiveKept('lines', chatId);
   // Quien tenga el chat abierto en esta instancia (otra pestaña, otra persona) lo ve ya.
   pokeLive('lines', ws);
   if (status === 'sent' && inserted) {
@@ -3008,6 +3012,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           continue;
         }
         res.messages++;
+        // "Mantener archivado": WhatsApp lo saca de Archivados en el teléfono con este mensaje; se vuelve a archivar
+        // (una vez por chat cada 20 s, después de responder; lib/wa-archive-sync.ts). Nunca falla.
+        if (stored.chat.keep_archived === 1 && stored.chat.archived_at) await reArchiveKept('lines', stored.chat.id);
         const chat = await finishChat(number, stored.chat, chatInput, stored.created).catch((err) => {
           logAfterError(err);
           return stored.chat;
@@ -3243,10 +3250,18 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, keptUnarchiveCause, releaseKeptLater, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
   if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
+  // "Mantener archivado": el desarchivado que WhatsApp hace por un mensaje se ignora (lo re-archivamos); el que hizo la
+  // persona en el teléfono apaga la marca, pasados unos segundos (lib/wa-archive-sync.ts, keptUnarchiveCause).
+  if (!archived && chat.keep_archived === 1) {
+    if ((await keptUnarchiveCause('lines', chat)) === 'message') return traceArchive('lines', chatId, archived, 'kept');
+    if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
+    await releaseKeptLater('lines', chat.id, () => pokeLive('lines', number.user_id));
+    return traceArchive('lines', chatId, archived, 'deferred');
+  }
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();

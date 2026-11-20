@@ -3,6 +3,7 @@ import { apiError, requireApiUser } from '@/lib/api-auth';
 import { getSequence, unenrollContact } from '@/lib/crm-sequences';
 import { unenrollSchema } from '@/lib/crm-email-schema';
 import { zodErrorCode } from '@/lib/crm-http';
+import { apiScope, canSeeRecord } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = unenrollSchema.safeParse(body);
   if (!parsed.success) return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   if (!(await getSequence(auth.user.id, id))) return apiError(404, 'not_found', 'Sequence not found.');
+  // Un contacto que la key no ve con la visibilidad del CRM no existe para ella.
+  if (!(await canSeeRecord(auth.user.id, 'crm_contacts', parsed.data.contactId, await apiScope(auth)))) {
+    return apiError(404, 'not_found', 'Contact not found.');
+  }
   const exited = await unenrollContact(auth.user.id, id, parsed.data.contactId);
   return NextResponse.json({ exited });
 }

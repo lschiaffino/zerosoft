@@ -12,7 +12,8 @@
  * 3. Persona (Ajustes › Miembros y permisos): las apps habilitadas de cada
  *    miembro (team_members.apps). El owner las tiene todas.
  *
- * Inbox (siempre prendida) no pasa por la capa 2.
+ * Inbox (personal) pasa por la capa 2 como las demás, pero no por la 3: no
+ * se da ni se quita en Miembros, se restringe con las excepciones de la 2.
  */
 import { isAlwaysOnApp, isComingSoon, isProductKey, isWorkspaceGatedApp, PRODUCT_KEYS, type ProductKey } from './products';
 

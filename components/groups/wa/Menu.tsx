@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { menuPlaceAt, menuPlaceNear } from '@/lib/menu-place';
 import { TOUCH_QUERY, useBackLayer, useMediaQuery } from './backLayer';
 import { useDismiss } from './useDismiss';
 
@@ -19,6 +20,33 @@ export interface MenuItem {
   /** Se ve pero no se puede elegir (ej. cambiar admins sin ser admin del grupo); `hint` dice por qué. */
   disabled?: boolean;
   hint?: string;
+}
+
+/** Evento con el que se abre un MessageMenu en un punto (ver openMenuAt). */
+const OPEN_AT = 'zs-menu-open-at';
+
+/**
+ * Abre el menú de este botón (la flecha de un mensaje o de una fila). Con
+ * `at` (el clic derecho o el toque), la lista se abre en ese punto, como el
+ * menú contextual de WhatsApp; sin `at`, pegada al botón, como al tocarlo.
+ */
+export function openMenuAt(button: HTMLButtonElement | null | undefined, at?: { x: number; y: number }) {
+  if (!button) return;
+  if (!at) {
+    button.click();
+    return;
+  }
+  button.dispatchEvent(new CustomEvent(OPEN_AT, { detail: at }));
+}
+
+/**
+ * El punto del clic derecho, para openMenuAt. Abierto con el teclado (la tecla de menú o Shift+F10) no hay
+ * puntero: sin punto, el menú va pegado a la flecha.
+ */
+export function pointerOf(e: { clientX: number; clientY: number; nativeEvent: Event }): { x: number; y: number } | undefined {
+  const type = (e.nativeEvent as Event & { pointerType?: string }).pointerType;
+  if (type === '' || (e.clientX === 0 && e.clientY === 0)) return undefined;
+  return { x: e.clientX, y: e.clientY };
 }
 
 /**
@@ -49,6 +77,8 @@ export function MessageMenu({
 }) {
   const [open, setOpenState] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
+  // Abierto con el clic derecho: en ese punto. Con el botón (o el teclado): pegado a él.
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
   // Teléfono: "atrás" cierra el menú abierto.
@@ -70,28 +100,39 @@ export function MessageMenu({
     [button, list],
   );
 
-  // Posición: debajo del botón si entra; si no, arriba. Siempre dentro de la ventana.
+  // Posición: en el punto del clic derecho, o debajo del botón si entra (si no, arriba). Siempre entera dentro
+  // de la ventana (lib/menu-place.ts); solo si es más alta que la ventana se corre por dentro.
   useLayoutEffect(() => {
     if (!open || !button.current || !list.current) return;
-    const b = button.current.getBoundingClientRect();
-    const l = list.current.getBoundingClientRect();
-    const vw = window.innerWidth;
+    const l = list.current;
+    // El alto natural de la lista (sin el máximo de una posición anterior).
+    const prev = l.style.maxHeight;
+    l.style.maxHeight = 'none';
+    const w = l.offsetWidth;
+    const h = l.offsetHeight;
+    l.style.maxHeight = prev;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
     const vh = window.innerHeight;
-    const gap = 4;
-    const below = vh - b.bottom - gap - 8;
-    const above = b.top - gap - 8;
-    const up = l.height > below && above > below;
-    const maxHeight = Math.max(120, up ? above : below);
-    const h = Math.min(l.height, maxHeight);
-    const top = up ? b.top - gap - h : b.bottom + gap;
-    let left = align === 'left' ? b.left : b.right - l.width;
-    left = Math.min(Math.max(8, left), vw - l.width - 8);
-    setPos({ top, left, maxHeight });
-  }, [open, align, items.length]);
+    setPos(at ? menuPlaceAt(at, w, h, vw, vh) : menuPlaceNear(button.current.getBoundingClientRect(), w, h, vw, vh, { align: align ?? 'right', gap: 4 }));
+  }, [open, at, align, items.length]);
+
+  // Clic derecho sobre el mensaje (openMenuAt): abre en el puntero; otro clic derecho lo mueve al nuevo punto.
+  useEffect(() => {
+    const b = button.current;
+    if (!b) return;
+    const onOpenAt = (e: Event) => {
+      const p = (e as CustomEvent<{ x: number; y: number }>).detail;
+      setAt({ x: p.x, y: p.y });
+      setOpen(true);
+    };
+    b.addEventListener(OPEN_AT, onOpenAt);
+    return () => b.removeEventListener(OPEN_AT, onOpenAt);
+  });
 
   useEffect(() => {
     if (!open) {
       setPos(null);
+      setAt(null);
       return;
     }
     // Sin mover el scroll: la lista todavía puede estar fuera de la pantalla hasta que se ubica.
@@ -181,7 +222,10 @@ export function MessageMenu({
         aria-expanded={open}
         aria-label={label}
         title={label}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setAt(null);
+          setOpen((v) => !v);
+        }}
       >
         {trigger ?? '⋯'}
       </button>
