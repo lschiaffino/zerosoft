@@ -1,0 +1,170 @@
+/*
+ * Lines: la bandeja como kanban (components/groups/InboxKanban.tsx). La lista
+ * de la bandeja ocupa todo el ancho: arriba la búsqueda, los filtros y las
+ * pestañas de siempre; abajo el tablero, que se desplaza de costado dentro de
+ * su caja (la página nunca). Un chat abierto va en un panel ancho a la derecha
+ * en escritorio y a pantalla completa en el teléfono. Solo tokens: sirve a los
+ * cinco aspectos en claro y oscuro (los aspectos dibujan botones y menús).
+ */
+
+/* ---------- El botón junto al selector de línea ---------- */
+.gr-kanban-toggle { flex: none; }
+.gr-kanban-toggle.is-on { color: var(--accent-ink, var(--ink)); background: var(--ui-selected); }
+.gr-kanban-toggle.is-on:hover { background: var(--ui-selected-hover, var(--ui-selected)); }
+
+/* ---------- La bandeja en modo kanban ---------- */
+.gr-inbox.is-kanban,
+.gr-inbox.is-kanban.has-details,
+.gr-inbox.is-kanban.is-details-hidden { grid-template-columns: minmax(0, 1fr); position: relative; }
+.gr-inbox.is-kanban > .gr-list { border-right: 0; min-width: 0; overflow: hidden; }
+.gr-inbox.is-kanban > .gr-splitter,
+.gr-inbox.is-kanban > .gr-splitter-details { display: none; }
+.gr-inbox.is-kanban:not(.has-chat) > :not(.gr-list) { display: none; }
+.gr-inbox.is-kanban > .gr-list > .wa-archived-row,
+.gr-inbox.is-kanban > .gr-list > .fl-agents-row { flex: none; }
+
+/* Arriba, en una franja: la búsqueda a la izquierda y las pestañas al lado. */
+@media (min-width: 720px) {
+  .gr-inbox.is-kanban .gr-list-head { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 16px; }
+  .gr-inbox.is-kanban .gr-list-head > * { flex: 1 1 100%; min-width: 0; }
+  .gr-inbox.is-kanban .gr-list-head > .wa-search-row { flex: 0 1 440px; }
+  .gr-inbox.is-kanban .gr-list-head > .gr-filters { flex: 1 1 320px; }
+}
+
+/* ---------- Tablero ---------- */
+.gr-kanban { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.gr-kanban-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px 8px; }
+.gr-kanban-head .gr-kanban-new { gap: 4px; }
+.gr-kanban-note { margin: 0; flex: 1 1 260px; font-size: 0.8125rem; line-height: 1.4; color: var(--brand-gray-2); }
+.gr-kanban-empty { padding: 0 16px 8px; }
+.gr-kanban-cols {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 2px 16px 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+.gr-kanban-col {
+  flex: 0 0 272px;
+  width: 272px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  scroll-snap-align: start;
+}
+.gr-kanban-col.is-over { border-color: var(--accent-ink, var(--ink)); background: var(--ui-hover); }
+.gr-kanban-col.is-collapsed { flex-basis: 44px; width: 44px; }
+.gr-kanban-col-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 4px 4px 12px; border-bottom: 1px solid var(--line); }
+.gr-kanban-col-name { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.gr-kanban-count { flex: none; font-family: var(--font-data); font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--brand-gray-2); }
+.gr-kanban-col-menu { margin-left: auto; flex: none; }
+.gr-kanban-dot { flex: none; gap: 0; }
+.gr-kanban-dot i { display: block; }
+
+.gr-kanban-unfold {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  writing-mode: vertical-rl;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.gr-kanban-unfold:hover { background: var(--ui-hover); }
+.gr-kanban-unfold:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.gr-kanban-unfold-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-height: 60vh; }
+
+.gr-kanban-cards { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.gr-kanban-drop-hint,
+.gr-kanban-more-row { padding: 10px 8px; font-size: 0.8125rem; color: var(--brand-gray-2); text-align: center; }
+.gr-kanban-drop-hint { border: 1px dashed var(--line); border-radius: var(--radius-1); }
+
+/* ---------- Tarjeta ---------- */
+.gr-kanban-card { position: relative; flex: none; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-kanban-card:hover { background: var(--ui-hover); }
+.gr-kanban-card.is-open { background: var(--ui-selected); }
+.gr-kanban-card.is-open:hover { background: var(--ui-selected-hover, var(--ui-selected)); }
+.gr-kanban-card[draggable='true'] { cursor: grab; }
+.gr-kanban-card.is-dragging { opacity: 0.45; }
+.gr-kanban-card.is-muted .gr-kanban-name { color: var(--ink-3); }
+.gr-kanban-open { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; color: inherit; text-decoration: none; border-radius: var(--radius-1); }
+.gr-kanban-open:focus-visible { outline: 2px solid var(--ink); outline-offset: -1px; }
+.gr-kanban-card-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gr-kanban-card-top .wa-avatar { flex: none; }
+.gr-kanban-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+.gr-kanban-time { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 0.75rem; white-space: nowrap; color: var(--brand-gray-2); }
+.gr-kanban-time.is-unread { color: var(--ink); font-weight: 600; }
+.gr-kanban-time.is-overdue { color: var(--bad-ink, var(--bad)); }
+.gr-kanban-time.is-waiting { color: var(--warn-ink, var(--warn)); }
+.gr-kanban-preview { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; line-height: 1.35; color: var(--ink-3); }
+.gr-kanban-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-height: 22px; padding-right: 30px; font-size: 0.75rem; }
+.gr-kanban-meta .gr-label { font-size: 0.6875rem; }
+.gr-kanban-line { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.gr-kanban-line .gr-line-badge { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.gr-kanban-more { color: var(--brand-gray-2); }
+.gr-kanban-end { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.gr-kanban-end .gr-unread { position: static; }
+.gr-kanban-assignee { display: inline-flex; }
+.gr-kanban-card-menu { position: absolute; right: 4px; bottom: 4px; }
+.gr-kanban-move { width: 28px; height: 28px; min-width: 28px; }
+
+.gr-kanban-colors { margin: 0; padding: 0; border: 0; }
+.gr-kanban-colors legend { margin-bottom: 6px; }
+
+/* ---------- Chat abierto encima del tablero ---------- */
+@media (min-width: 1024px) {
+  .gr-inbox.is-kanban.has-chat > .gr-thread {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(760px, 62%);
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+  }
+  .gr-inbox.is-kanban .gr-back,
+  .gr-inbox.is-kanban .wa-head .gr-back { display: inline-flex; }
+}
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .gr-inbox.is-kanban .gr-details:not(.is-open) { display: none; }
+}
+@media (min-width: 1440px) {
+  /* Ancho: los detalles al lado del chat, dentro del mismo panel. */
+  .gr-inbox.is-kanban.has-chat:not(.is-details-hidden) > .gr-thread { right: var(--gr-details-w, 320px); width: min(680px, calc(62% - var(--gr-details-w, 320px))); min-width: 440px; }
+  .gr-inbox.is-kanban.has-chat > .gr-details {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: var(--gr-details-w, 320px);
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+  }
+  .gr-inbox.is-kanban.has-chat.is-details-hidden > .gr-details { display: none; }
+}
+
+@media (max-width: 719px) {
+  .gr-kanban-head { padding: 8px 12px 6px; }
+  .gr-kanban-cols { padding: 2px 12px 12px; gap: 8px; scroll-snap-type: x mandatory; }
+  .gr-kanban-col { flex-basis: min(300px, calc(100vw - 48px)); width: min(300px, calc(100vw - 48px)); }
+  .gr-kanban-col.is-collapsed { flex-basis: 44px; width: 44px; }
+}
