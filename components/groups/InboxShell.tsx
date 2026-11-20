@@ -795,10 +795,11 @@ export default function InboxShell({
     };
   }, [unreadChats, activeList, t]);
 
-  async function rowAction(c: ChatDto, body: Record<string, unknown>) {
+  async function rowAction(c: ChatDto, body: Record<string, unknown>): Promise<boolean> {
     const res = await api(`/api/groups/chats/${c.id}`, { method: 'PATCH', body });
     if (!res.data) showToast(errText(res.error), true);
     void load(true);
+    return Boolean(res.data);
   }
 
   /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
@@ -875,6 +876,20 @@ export default function InboxShell({
     if (deletedView) return [{ key: 'restore', glyph: <Retry size={18} />, label: t('wa.restoreChat'), onSelect: () => restoreChat(c) }];
     return [
       { key: 'archive', glyph: <ArchiveIcon size={18} />, label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
+      // Mantener archivado: en un chat archivado, lo mismo que la llave del panel del chat.
+      ...(c.archived
+        ? [
+            {
+              key: 'keepArchived',
+              glyph: <ArchiveIcon size={18} />,
+              label: c.keepArchived ? t('wa.keepArchivedOff') : t('wa.keepArchived'),
+              onSelect: () => {
+                const on = !c.keepArchived;
+                void rowAction(c, { keepArchived: on }).then((r) => r && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
+              },
+            },
+          ]
+        : []),
       { key: 'snooze', glyph: <ClockIcon size={18} />, label: c.snoozedUntil ? t('snooze.cancel') : t('snooze.action'), onSelect: () => (c.snoozedUntil ? cancelSnooze(c) : setSnoozeFor(c)) },
       { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
