@@ -1962,6 +1962,198 @@ tr:hover .cell-quick { opacity: 0.8; }
   align-items: center;
 }
 
+/* === Filtros avanzados (components/crm/AdvancedFilters.tsx) ===
+   Panel lateral sobre dialog.ui-drawer (hoja a pantalla completa en el teléfono):
+   grupos de filtros unidos con "O"; dentro de un grupo, filtros unidos con "Y". */
+
+dialog.crm-af { width: min(460px, 100vw); }
+.crm-af-form { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.crm-af-body { display: flex; flex-direction: column; gap: 0; min-height: 0; overscroll-behavior: contain; }
+.crm-af-hint { margin: 0 0 16px; font-size: 0.8125rem; line-height: 1.45; color: var(--brand-gray-2); }
+
+.crm-af-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--brand-enamel);
+}
+.crm-af-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.crm-af-group-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-gray-2);
+}
+
+.crm-af-rule-wrap { display: flex; flex-direction: column; gap: 10px; }
+.crm-af-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.crm-af-rule .input,
+.crm-af-rule .select { width: 100%; max-width: none; min-width: 0; }
+.crm-af-rule-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.crm-af-prop {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.crm-af-prop:hover .crm-af-prop-name { text-decoration: underline; text-underline-offset: 3px; }
+.crm-af-prop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-af-prop svg { flex: none; color: var(--brand-gray-2); }
+
+.crm-af-and,
+.crm-af-or {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--brand-gray-2);
+}
+.crm-af-and { padding-left: 2px; }
+.crm-af-or { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.crm-af-or::before,
+.crm-af-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.crm-af-or-add { flex-wrap: wrap; margin-bottom: 0; }
+.crm-af-or-add::before { display: none; }
+.crm-af-limit { flex-basis: 100%; font-family: var(--font-ui); font-size: 0.8125rem; font-weight: 400; letter-spacing: 0; color: var(--brand-gray-2); }
+.crm-af-add { align-self: flex-start; }
+
+/* Buscador de propiedades */
+.crm-af-picker { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.crm-af-picker-head { display: flex; align-items: center; gap: 6px; }
+.crm-af-picker-head .input { flex: 1; }
+.crm-af-picker-list {
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.crm-af-picker-group {
+  padding: 8px 10px 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-gray-2);
+}
+.crm-af-picker-item {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.crm-af-picker-item.is-active { background: var(--ui-hover); }
+.crm-af-empty { margin: 0; padding: 10px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+
+/* Valores */
+.crm-af-options { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.crm-af-options-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 208px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.ui-check.crm-af-option { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 4px 10px; font-size: 0.875rem; }
+.ui-check.crm-af-option:hover { background: var(--ui-hover); }
+.ui-check.crm-af-option input[type='checkbox'] { flex: none; margin: 0; }
+.ui-check.crm-af-option span { min-width: 0; overflow-wrap: anywhere; }
+
+.crm-af-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.crm-af-range-sep { color: var(--brand-gray-2); }
+.crm-af-days { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--brand-gray-1); }
+.crm-af-days .input { flex: 0 1 120px; }
+
+.crm-af-tokens { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.crm-af-token-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.crm-af-token {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--ui-field);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  font-size: 0.8125rem;
+}
+.crm-af-token-text { align-self: center; min-width: 0; padding: 2px 4px 2px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-af-token-x {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+}
+.crm-af-token-x:hover { color: var(--ink); background: var(--ui-hover); }
+
+.crm-af-error { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--bad-ink); }
+.crm-af-foot { flex-wrap: wrap; }
+.crm-af-foot-note { flex-basis: 100%; margin: 0; font-size: 0.8125rem; color: var(--bad-ink); }
+.crm-af :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.crm-af .input:focus-visible,
+.crm-af .select:focus-visible { outline-offset: 0; }
+
+/* Chips de los filtros aplicados, entre la barra y la tabla. */
+.crm-af-chips { margin: 0 0 12px; }
+.crm-af-chip-item { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
+.crm-af-chip-or {
+  padding: 0 4px;
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--brand-gray-2);
+}
+
+@media (max-width: 640px) {
+  .crm-af-picker-item,
+  .ui-check.crm-af-option { min-height: 44px; }
+  .crm-af-token-x { width: 36px; min-height: 32px; }
+  .crm-af-foot .btn { flex: 1 1 auto; }
+  .crm-af-chips { margin-bottom: 10px; }
+}
+
 /* ============================================================
    Settings: índice + secciones con hairlines (densidad Linear).
    ============================================================ */
