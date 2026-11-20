@@ -7,6 +7,7 @@ import VideosLibrary from '@/components/crm/VideosLibrary';
 import { Link } from '@/i18n/navigation';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import '@/styles/rec.css';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export default async function VideosPage(props: { params: Promise<{ locale: stri
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm.media' });
-  const rows = await listVideos(user.id);
+  const rows = await listVideos(user.id, '', await sessionScope(user));
   const admin = isWorkspaceAdmin(user);
   const me = realUserId(user);
   const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');

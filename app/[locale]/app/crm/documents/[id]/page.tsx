@@ -4,6 +4,7 @@ import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getDocument, listDocumentLinks } from '@/lib/crm-media';
 import PageHeader from '@/components/ui/PageHeader';
 import DocumentDetail from '@/components/crm/DocumentDetail';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export default async function DocumentPage(props: { params: Promise<{ locale: st
   const t = await getTranslations({ locale, namespace: 'crm.media' });
   const doc = await getDocument(user.id, id);
   if (!doc) notFound();
-  const links = await listDocumentLinks(user.id, id);
+  const links = await listDocumentLinks(user.id, id, await sessionScope(user));
   const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
   const canManage = isWorkspaceAdmin(user) || !doc.created_by || doc.created_by === realUserId(user);
   return (

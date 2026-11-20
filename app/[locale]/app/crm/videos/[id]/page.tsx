@@ -5,6 +5,7 @@ import { getDb } from '@/lib/db';
 import { getVideo, listVideoViews } from '@/lib/crm-media';
 import PageHeader from '@/components/ui/PageHeader';
 import VideoDetail from '@/components/crm/VideoDetail';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,11 +13,11 @@ export default async function VideoPage(props: { params: Promise<{ locale: strin
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm.media' });
-  const video = await getVideo(user.id, id);
+  const video = await getVideo(user.id, id, await sessionScope(user));
   if (!video) notFound();
   const views = await listVideoViews(user.id, id);
   const contact = video.contact_id
-    ? ((await getDb().prepare('SELECT id, first_name, last_name, email FROM crm_contacts WHERE id = ?').get(video.contact_id)) as
+    ? ((await getDb().prepare('SELECT id, first_name, last_name, email FROM crm_contacts WHERE id = ? AND user_id = ?').get(video.contact_id, user.id)) as
         | { id: string; first_name: string; last_name: string; email: string }
         | undefined)
     : undefined;

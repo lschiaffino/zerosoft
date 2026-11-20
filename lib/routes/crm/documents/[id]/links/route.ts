@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createDocumentLink, deleteDocumentLink } from '@/lib/crm-media';
-import { json, mediaFail, mediaUser } from '@/lib/crm-media-http';
+import { json, mediaFail, mediaUser, unseenContact } from '@/lib/crm-media-http';
 import { crmError, notFound } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -16,6 +16,8 @@ export async function POST(req: NextRequest, props: Ctx) {
   if ('res' in u) return u.res;
   const parsed = z.object({ contactId: z.string().max(64).nullish() }).safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return crmError(400, 'invalid_input');
+  const hidden = await unseenContact(u, parsed.data.contactId);
+  if (hidden) return hidden;
   try {
     return json(await createDocumentLink(u.user.id, id, { contactId: parsed.data.contactId ?? null, createdBy: u.actor }), 201);
   } catch (err) {
