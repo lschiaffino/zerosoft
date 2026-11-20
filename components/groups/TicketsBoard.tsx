@@ -27,12 +27,15 @@ export default function TicketsBoard({
   openId,
   fields = [],
   remote = {},
+  canExport = false,
 }: {
   initial: TicketDto[];
   people: GroupsPerson[];
   me: string;
   openId: string | null;
   fields?: PropertyDef[];
+  /** Admin o dueño: puede exportar a CSV (el servidor también lo frena). */
+  canExport?: boolean;
   /** Tickets vinculados en Freshdesk o Zoho Desk, por id de ticket. */
   remote?: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>>;
 }) {
@@ -176,9 +179,11 @@ export default function TicketsBoard({
             <input className="input" value={fieldValue} onChange={(e) => setFieldValue(e.target.value)} placeholder={t('lists.hasValue')} aria-label={t('lists.propertyValue')} />
           ))}
         <span className="gr-toolbar-spacer" />
-        <a className="btn btn-secondary" href={`/api/groups/export?${exportQuery}`}>
+        {canExport && (
+          <a className="btn btn-secondary" href={`/api/groups/export?${exportQuery}`}>
           {t('common.exportCsv')}
         </a>
+        )}
       </div>
       {error && (
         <div className="gr-error" role="alert">
