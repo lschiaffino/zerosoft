@@ -3,9 +3,8 @@
  * confirmaciones de cada persona (tabla wa_message_receipts) y pedírselas al
  * gateway a demanda. Server-only. Lo puro está en lib/wa-receipts.ts.
  *
- * Carga: nada de esto agrega webhooks. Las confirmaciones de un 1:1 ya llegan
- * (status) y se guardan solo cuando cambian las tildes (como mucho tres
- * escrituras por mensaje). Las de un grupo se piden al gateway solo cuando
+ * Carga: nada de esto agrega webhooks ni escrituras por webhook (las horas de
+ * un 1:1 van en la misma escritura de las tildes, meta.ack). Las de un grupo se piden al gateway solo cuando
  * alguien abre la Info: un pedido por apertura, como mucho uno cada
  * RECEIPT_FETCH_GAP_MS por mensaje y por proceso, y ninguno durante
  * UNSUPPORTED_TTL_MS en una línea cuyo gateway no las da (404). Lo que trae se
@@ -82,18 +81,6 @@ export async function storeReceipts(app: ReceiptApp, ownerId: string, messageId:
       .run(...args);
   }
   return changed.length;
-}
-
-/**
- * La confirmación de un 1:1 que llegó por el webhook (status), con la hora de
- * llegada. Se llama solo cuando las tildes avanzaron.
- */
-export async function recordDirectReceipt(app: ReceiptApp, ownerId: string, messageId: string, status: string, played: boolean, now = new Date()): Promise<void> {
-  const at = now.toISOString();
-  const input: ReceiptInput =
-    status === 'delivered' ? { participant: '', deliveredAt: at } : status === 'read' ? { participant: '', readAt: at, ...(played ? { playedAt: at } : {}) } : { participant: '' };
-  if (!input.deliveredAt && !input.readAt) return;
-  await storeReceipts(app, ownerId, messageId, [input], now);
 }
 
 export type LiveReceipts = { kind: 'ok'; list: GatewayReceipt[] } | { kind: 'recent' } | { kind: 'unsupported' } | { kind: 'skipped' } | { kind: 'failed' };

@@ -427,22 +427,22 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
           const next = { sent: 1, delivered: 2, read: 3, failed: 0 }[e.status] ?? 0;
           const guard = e.status === 'failed' ? "status IN ('', 'sent')" : `${rank} < ${next}`;
-          const moved = await db
-            .prepare(`UPDATE inbox_messages SET status = ? WHERE external_id = ? AND from_me = 1 AND ${guard} AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`)
-            .run(e.status, e.providerMessageId, account.id);
-          // La confirmación de un 1:1 con su hora, para la Info del mensaje (lib/wa-receipts-store.ts). Solo cuando
-          // avanzan las tildes, o cuando llega "escuchado" (después de "leído"): una repetida no escribe nada.
-          if ((e.status === 'delivered' || e.status === 'read') && (moved.changes > 0 || e.played)) {
-            const mine = (await db
+          // La hora de cada estado queda en meta.ack, en la misma escritura (Info del mensaje de un 1:1, lib/inbox/wa-receipts.ts).
+          await db
+            .prepare(
+              `UPDATE inbox_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?)
+               WHERE external_id = ? AND from_me = 1 AND ${guard} AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
+            )
+            .run(e.status, e.status, nowIso(), e.providerMessageId, account.id);
+          // Un audio escuchado (llega como 'read' después de "leído"): su hora, una sola vez.
+          if (e.played) {
+            await db
               .prepare(
-                `SELECT m.id, m.owner_id FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
-                 WHERE m.external_id = ? AND m.from_me = 1 AND t.account_id = ? AND t.kind = 'dm' LIMIT 2`,
+                `UPDATE inbox_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played', ?)
+                 WHERE external_id = ? AND from_me = 1 AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played') IS NULL
+                   AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
               )
-              .all(e.providerMessageId, account.id)) as Array<{ id: string; owner_id: string }>;
-            if (mine.length) {
-              const { recordDirectReceipt } = await import('../wa-receipts-store');
-              for (const m of mine) await recordDirectReceipt('inbox', m.owner_id, m.id, e.status, !!e.played).catch(() => undefined);
-            }
+              .run(nowIso(), e.providerMessageId, account.id);
           }
           // Las tildes de la fila de la lista, si es el último mensaje del chat.
           await db

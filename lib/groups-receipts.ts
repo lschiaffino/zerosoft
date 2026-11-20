@@ -9,18 +9,8 @@ import { GroupsError, getNumberRow, providerFor, type ChatRow, type MessageRow }
 import { canSeeChat, type GroupsViewer } from './groups-access';
 import { linesPeople } from './groups-person';
 import { fetchLiveReceipts, receiptRows, storeReceipts } from './wa-receipts-store';
-import { gatewayInputs, participantKey, receiptTime, shownTimes, type WaMessageInfo } from './wa-receipts';
+import { ackTimes, gatewayInputs, participantKey, receiptTime, shownTimes, type WaMessageInfo } from './wa-receipts';
 
-/** Lo que Lines guardaba antes de la tabla: la hora de cada estado en meta.ack (1:1). */
-function legacyAck(meta: string | undefined): { delivered?: string; read?: string } {
-  try {
-    const m = JSON.parse(meta || '{}') as { ack?: Record<string, unknown> };
-    const ack = m && typeof m.ack === 'object' && m.ack ? m.ack : {};
-    return { delivered: receiptTime(ack.delivered) ?? undefined, read: receiptTime(ack.read) ?? undefined };
-  } catch {
-    return {};
-  }
-}
 
 export async function linesMessageInfo(viewer: GroupsViewer, chatId: string, messageId: string): Promise<WaMessageInfo> {
   if (!(await canSeeChat(viewer, chatId))) throw new GroupsError('not_found', 404);
@@ -35,10 +25,8 @@ export async function linesMessageInfo(viewer: GroupsViewer, chatId: string, mes
   const base = { group, voice, status: msg.status, sentAt: receiptTime(msg.created_at) ?? msg.created_at };
 
   if (!group) {
-    const row = (await receiptRows('lines', msg.id)).find((r) => r.participant === '');
-    const ack = legacyAck(msg.meta);
-    const t = shownTimes({ deliveredAt: row?.deliveredAt ?? ack.delivered ?? null, readAt: row?.readAt ?? ack.read ?? null, playedAt: row?.playedAt ?? null });
-    return { ...base, ...t, people: [], live: false, unavailable: false };
+    // Las horas de un 1:1 llegan por el webhook (status) y quedan en meta.ack del mensaje, sin otra escritura.
+    return { ...base, ...shownTimes(ackTimes(msg.meta)), people: [], live: false, unavailable: false };
   }
 
   // Grupo: lo que tenga el gateway en este momento (parche 0013), guardado; si no lo da, lo guardado.

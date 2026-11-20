@@ -7,7 +7,9 @@
  *
  * De dónde salen las horas:
  * - 1:1: la confirmación que manda WhatsApp por el webhook (status delivered /
- *   read, y "escuchado" en un audio) se guarda al llegar, con esa hora.
+ *   read, y "escuchado" en un audio) deja su hora en meta.ack del mensaje, en
+ *   la misma escritura que las tildes (ackTimes).
+ * - wa_message_receipts guarda una fila por persona (grupos).
  * - Grupos: WhatsApp manda una confirmación por persona, que Evolution no
  *   reenvía. Con el parche 0013 de infra/evolution el gateway las guarda y
  *   zerosoft se las pide al abrir la Info (sin webhooks); lo que trae queda
@@ -182,6 +184,20 @@ export function infoSections(people: readonly WaReceiptPerson[], voice: boolean)
   out.read.sort(newestFirst('readAt'));
   out.delivered.sort(newestFirst('deliveredAt'));
   return out;
+}
+
+/**
+ * Las horas de un 1:1: las guarda el webhook (status) en meta.ack del mensaje,
+ * en la misma escritura que las tildes (`{ ack: { delivered, read, played } }`).
+ */
+export function ackTimes(meta: string | null | undefined): ReceiptTimes {
+  try {
+    const m = JSON.parse(meta || '{}') as { ack?: Record<string, unknown> };
+    const ack = m && typeof m.ack === 'object' && m.ack ? m.ack : {};
+    return { deliveredAt: receiptTime(ack.delivered), readAt: receiptTime(ack.read), playedAt: receiptTime(ack.played) };
+  } catch {
+    return { deliveredAt: null, readAt: null, playedAt: null };
+  }
 }
 
 /** La clave de una persona sin el prefijo de lid, y si es un lid. */

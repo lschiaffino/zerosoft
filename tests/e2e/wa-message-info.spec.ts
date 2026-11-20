@@ -109,14 +109,15 @@ async function checkGroup(page: Page, bubble: Locator, scene: ReturnType<typeof 
   const read = pop.getByTestId('wa-info-read');
   await expect(read.getByTestId('wa-info-person')).toHaveCount(7);
   // Lo más nuevo arriba: la última que leyó.
-  await expect(read.getByTestId('wa-info-person-name').first()).toHaveText(scene.people[7].name);
+  // El nombre de perfil va con "~", como en WhatsApp.
+  await expect(read.getByTestId('wa-info-person-name').first()).toHaveText(new RegExp(`${scene.people[7].name}$`));
   await expect(read.getByTestId('wa-info-person-time').first()).toHaveText(/\d/);
   await read.getByTestId('wa-info-more').click();
   await expect(read.getByTestId('wa-info-person')).toHaveCount(8);
   await expect(read.getByTestId('wa-info-more')).toHaveAttribute('aria-expanded', 'true');
   const delivered = pop.getByTestId('wa-info-delivered');
   await expect(delivered.getByTestId('wa-info-person')).toHaveCount(1);
-  await expect(delivered.getByTestId('wa-info-person-name')).toHaveText(scene.people[8].name);
+  await expect(delivered.getByTestId('wa-info-person-name')).toHaveText(new RegExp(`${scene.people[8].name}$`));
   await expect(delivered.getByTestId('wa-info-person-time')).toHaveText(/\d/);
   await expect(pop.getByTestId('wa-info-unavailable')).toHaveCount(0);
   await expect(pop).toContainText(scene.body);
@@ -135,7 +136,7 @@ async function checkGroup(page: Page, bubble: Locator, scene: ReturnType<typeof 
   // Un clic afuera también lo cierra.
   await openInfo(page, bubble);
   await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
-  await page.mouse.click(wide ? 5 : 195, wide ? 400 : 60);
+  await page.mouse.click(wide ? 5 : 195, wide ? 5 : 60);
   await expect(pop).toBeHidden();
 }
 
@@ -160,10 +161,6 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 });
 
-test.afterAll(async ({ request }) => {
-  await request.put('/api/profile/look', { data: { look: 'current' } });
-});
-
 test.describe('Lines', () => {
   async function fakeNumber(request: APIRequestContext): Promise<{ id: string; webhookUrl: string }> {
     const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Info ${uid()}` } });
@@ -176,7 +173,7 @@ test.describe('Lines', () => {
 
   for (const width of [1280, 390]) {
     test(`grupo y 1:1 a ${width}: leído por, entregado a y horas`, async ({ page, request }) => {
-      test.setTimeout(240_000);
+      test.setTimeout(420_000);
       const errors = watchErrors(page);
       const n = await fakeNumber(request);
       const send = async (list: unknown[]) => expect((await request.post(new URL(n.webhookUrl).pathname, { data: { events: list } })).ok()).toBe(true);
@@ -192,32 +189,39 @@ test.describe('Lines', () => {
       await page.setViewportSize({ width, height: width > 600 ? 800 : 844 });
       await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
       await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
+      // Con `next dev` la primera apertura de un chat compila la página: se espera el título.
+      await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
       const bubble = page.locator('.gr-msg-out', { hasText: g.body });
       await expect(bubble).toBeVisible({ timeout: 30_000 });
       await checkGroup(page, bubble, g, width > 600);
       if (SHOTS && width > 600) {
-        for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
-          for (const w of [1280, 390]) {
-            await setLook(page, request, look, theme);
-            await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
-            await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-            await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
-            const pop = await openInfo(page, page.locator('.gr-msg-out', { hasText: g.body }));
-            await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
-            await page.waitForTimeout(250);
-            await page.screenshot({ path: `${SHOTS}/lines-group-${look}-${theme}-${w}.png` });
-            await page.keyboard.press('Escape');
+        try {
+          for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
+            for (const w of [1280, 390]) {
+              await setLook(page, request, look, theme);
+              await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
+              await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+              await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
+              await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
+              const pop = await openInfo(page, page.locator('.gr-msg-out', { hasText: g.body }));
+              await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
+              await page.waitForTimeout(250);
+              await page.screenshot({ path: `${SHOTS}/lines-group-${look}-${theme}-${w}.png` });
+              await page.keyboard.press('Escape');
+            }
           }
+        } finally {
+          await setLook(page, request, 'current', 'light');
         }
-        await setLook(page, request, 'current', 'light');
         await page.setViewportSize({ width, height: 800 });
         await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
       }
 
       if (width <= 600) await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.gr-row', { hasText: d.name }).click({ timeout: 60_000 });
+      // La fila del 1:1 por su último mensaje (el nombre puede ser el número).
+      await page.locator('.gr-row', { hasText: d.body }).click({ timeout: 60_000 });
       const dmBubble = page.locator('.gr-msg-out', { hasText: d.body });
-      await expect(dmBubble).toBeVisible({ timeout: 30_000 });
+      await expect(dmBubble).toBeVisible({ timeout: 150_000 });
       await checkDm(page, dmBubble);
       if (SHOTS && width > 600) {
         await openInfo(page, dmBubble);
@@ -230,7 +234,7 @@ test.describe('Lines', () => {
   }
 
   test('gateway sin el parche: aviso tranquilo en el grupo', async ({ page, request }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
     const errors = watchErrors(page);
     const n = await fakeNumber(request);
     const send = async (list: unknown[]) => expect((await request.post(new URL(n.webhookUrl).pathname, { data: { events: list } })).ok()).toBe(true);
@@ -239,6 +243,7 @@ test.describe('Lines', () => {
     await send([{ type: 'fake_receipts_unsupported', on: true }, ...g.events.slice(0, -1)]);
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
+    await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
     const bubble = page.locator('.gr-msg-out', { hasText: g.body });
     await expect(bubble).toBeVisible({ timeout: 30_000 });
     const pop = await openInfo(page, bubble);
@@ -260,7 +265,7 @@ test.describe('Inbox', () => {
 
   for (const width of [1280, 390]) {
     test(`grupo y 1:1 a ${width}: leído por, entregado a y horas`, async ({ page, request }) => {
-      test.setTimeout(240_000);
+      test.setTimeout(420_000);
       const errors = watchErrors(page);
       const acc = await linkWhatsapp(request);
       const send = async (list: unknown[]) => expect((await request.post(`/api/inbox/webhook/${acc.id}/${acc.secret}`, { data: { events: list } })).ok()).toBe(true);
@@ -277,30 +282,33 @@ test.describe('Inbox', () => {
       await page.locator('.ib-item', { hasText: g.title }).locator('.ib-row-btn').click({ timeout: 60_000 });
       const thread = page.locator('.ib-wa-thread');
       const bubble = thread.locator('.gr-msg-out', { hasText: g.body });
-      await expect(bubble).toBeVisible({ timeout: 90_000 });
+      await expect(bubble).toBeVisible({ timeout: 150_000 });
       await checkGroup(page, bubble, g, width > 600);
       if (SHOTS && width > 600) {
-        for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
-          for (const w of [1280, 390]) {
-            await setLook(page, request, look, theme);
-            await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
-            await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-            await page.locator('.ib-item', { hasText: g.title }).locator('.ib-row-btn').click({ timeout: 60_000 });
-            const pop = await openInfo(page, page.locator('.ib-wa-thread .gr-msg-out', { hasText: g.body }));
-            await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
-            await page.waitForTimeout(250);
-            await page.screenshot({ path: `${SHOTS}/inbox-group-${look}-${theme}-${w}.png` });
-            await page.keyboard.press('Escape');
+        try {
+          for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
+            for (const w of [1280, 390]) {
+              await setLook(page, request, look, theme);
+              await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
+              await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+              await page.locator('.ib-item', { hasText: g.title }).locator('.ib-row-btn').click({ timeout: 60_000 });
+              const pop = await openInfo(page, page.locator('.ib-wa-thread .gr-msg-out', { hasText: g.body }));
+              await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
+              await page.waitForTimeout(250);
+              await page.screenshot({ path: `${SHOTS}/inbox-group-${look}-${theme}-${w}.png` });
+              await page.keyboard.press('Escape');
+            }
           }
+        } finally {
+          await setLook(page, request, 'current', 'light');
         }
-        await setLook(page, request, 'current', 'light');
         await page.setViewportSize({ width, height: 800 });
       }
 
       await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.ib-item', { hasText: d.name }).locator('.ib-row-btn').click({ timeout: 60_000 });
+      await page.locator('.ib-item', { hasText: d.body }).locator('.ib-row-btn').click({ timeout: 60_000 });
       const dmBubble = page.locator('.ib-wa-thread .gr-msg-out', { hasText: d.body });
-      await expect(dmBubble).toBeVisible({ timeout: 90_000 });
+      await expect(dmBubble).toBeVisible({ timeout: 150_000 });
       await checkDm(page, dmBubble);
       expect(errors, errors.join('\n')).toEqual([]);
     });

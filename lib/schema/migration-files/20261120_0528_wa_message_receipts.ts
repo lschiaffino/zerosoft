@@ -7,8 +7,9 @@ import type { Migration } from '../migrations';
  *
  * - `app`: 'lines' (message_id = groups_messages.id) o 'inbox'
  *   (message_id = inbox_messages.id).
- * - `participant`: dígitos del teléfono de la persona, o de su lid si no se
- *   sabe el teléfono. En un 1:1 va '' (el otro lado del chat).
+ * - `participant`: dígitos del teléfono de la persona, o `lid:<dígitos>` si
+ *   no se sabe el teléfono. Las horas de un 1:1 no van acá: quedan en meta.ack
+ *   del mensaje, en la misma escritura que las tildes.
  * - `owner_id`: el workspace (Lines) o la persona (Inbox): el borrado de la
  *   cuenta lo encuentra por ahí.
  * - Cada hora queda con la primera vez que se supo (entregado, leído,

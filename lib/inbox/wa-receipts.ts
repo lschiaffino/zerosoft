@@ -10,7 +10,7 @@ import { InboxError } from './types';
 import { waProviderFor } from './whatsapp';
 import { inboxPeople } from './wa-meta';
 import { fetchLiveReceipts, receiptRows, storeReceipts } from '../wa-receipts-store';
-import { gatewayInputs, participantKey, receiptTime, shownTimes, type WaMessageInfo } from '../wa-receipts';
+import { ackTimes, gatewayInputs, participantKey, receiptTime, shownTimes, type WaMessageInfo } from '../wa-receipts';
 
 export async function inboxMessageInfo(owner: string, threadId: string, messageId: string): Promise<WaMessageInfo> {
   const db = getDb();
@@ -18,8 +18,8 @@ export async function inboxMessageInfo(owner: string, threadId: string, messageI
   if (!asked || asked.channel !== 'whatsapp') throw new InboxError('not_found', 404);
   // El mensaje puede ser de otra línea del mismo chat (la conversación junta las de todas): manda su propio chat.
   const msg = (await db
-    .prepare('SELECT id, thread_id, from_me, status, sent_at, media_type, external_id FROM inbox_messages WHERE id = ? AND owner_id = ?')
-    .get(messageId, owner)) as { id: string; thread_id: string; from_me: number; status: string; sent_at: string; media_type: string; external_id: string } | undefined;
+    .prepare('SELECT id, thread_id, from_me, status, sent_at, media_type, external_id, meta FROM inbox_messages WHERE id = ? AND owner_id = ?')
+    .get(messageId, owner)) as { id: string; thread_id: string; from_me: number; status: string; sent_at: string; media_type: string; external_id: string; meta: string } | undefined;
   if (!msg || !msg.from_me) throw new InboxError('not_found', 404);
   const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(msg.thread_id, owner)) as ThreadRow | undefined;
   if (!thread || thread.channel !== 'whatsapp') throw new InboxError('not_found', 404);
@@ -28,9 +28,8 @@ export async function inboxMessageInfo(owner: string, threadId: string, messageI
   const base = { group, voice, status: msg.status, sentAt: receiptTime(msg.sent_at) ?? msg.sent_at };
 
   if (!group) {
-    const row = (await receiptRows('inbox', msg.id)).find((r) => r.participant === '');
-    const t = shownTimes({ deliveredAt: row?.deliveredAt ?? null, readAt: row?.readAt ?? null, playedAt: row?.playedAt ?? null });
-    return { ...base, ...t, people: [], live: false, unavailable: false };
+    // Las horas de un 1:1 llegan por el webhook (status) y quedan en meta.ack del mensaje, sin otra escritura.
+    return { ...base, ...shownTimes(ackTimes(msg.meta)), people: [], live: false, unavailable: false };
   }
 
   let live = false;
