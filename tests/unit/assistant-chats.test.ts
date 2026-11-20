@@ -108,7 +108,8 @@ describe('qué tengo atrasado (Inbox)', () => {
     const first = await turn(user, 'sí, leelos');
     const ask = first.results.find((x) => x.tool === 'inbox_read_chats')!.output as { status: string };
     expect(ask.status).toBe('awaiting_permission');
-    expect(JSON.stringify(first.events)).not.toContain('4471');
+    // Sin los ids al azar (un uuid puede traer esos dígitos por casualidad).
+    expect(JSON.stringify(first.events).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|fake-\d+-[0-9a-f]+/g, '')).not.toContain('4471');
     expect(first.actions.map((a) => a.tool)).toEqual(['grant_chat_access']);
     expect(first.text).toContain('necesito leer esos chats');
     const denied = (await getDb().prepare("SELECT outcome FROM assistant_audit WHERE person_id = ? AND tool = 'inbox_read_chats'").all(w.u.id)) as Array<{ outcome: string }>;

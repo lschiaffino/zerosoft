@@ -149,6 +149,9 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   const box = await from.boundingBox();
   expect(box && box.height).toBeLessThanOrEqual(30);
   expect(await from.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+  // Con aire respecto de la caja del mensaje: no se pegan.
+  const input = await page.getByTestId('composer-input').boundingBox();
+  expect(box && input && input.y - (box.y + box.height)).toBeGreaterThanOrEqual(8);
   // Elegir la otra y mandar: el mensaje sale por esa línea.
   await from.selectOption(ventasChat);
   const field = page.getByTestId('composer-input');

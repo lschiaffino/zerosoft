@@ -56,6 +56,7 @@ import { parsePoll, pollPreview, voteOptions } from './groups-polls';
 import { defaultBridgeFetch } from './groups-provider-bridge';
 import { fillLinesNames, learnLinesContacts, learnLinesEvents } from './groups-wa-names';
 import { phoneForLid, resolveLidChats } from './wa-contacts';
+import { IMPORT_IDLE_MS } from './wa-import-notice';
 
 export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'older' | 'done';
 export type ImportState = 'queued' | 'running' | 'done' | 'error';
@@ -71,6 +72,8 @@ export interface ImportStatus {
   error: string;
   startedAt: string;
   finishedAt: string | null;
+  /** En curso, pero sin ningún avance guardado hace rato: la bandeja lo dice en vez de mostrar una barra quieta. */
+  idle: boolean;
 }
 
 interface ImportRow {
@@ -112,8 +115,10 @@ const MAX_PICTURE = 1024 * 1024;
 
 const nowIso = () => new Date().toISOString();
 
-function toStatus(r: ImportRow): ImportStatus {
+function toStatus(r: ImportRow, now = Date.now()): ImportStatus {
+  const open = r.status === 'queued' || r.status === 'running';
   return {
+    idle: open && now - Date.parse(r.updated_at) > IMPORT_IDLE_MS,
     numberId: r.number_id,
     status: r.status,
     phase: r.phase,
@@ -173,15 +178,22 @@ export async function getImportStatus(ws: string, numberId: string): Promise<Imp
   return r ? toStatus(r) : null;
 }
 
-/** Importaciones del workspace en curso o recién terminadas (la bandeja muestra el progreso). */
+/**
+ * Importaciones del workspace en curso o recién terminadas (la bandeja muestra el progreso). Una que terminó bien se
+ * avisa dos minutos; una que se cortó, un día: quien no estaba mirando en ese momento también tiene que enterarse.
+ */
 export async function activeImports(ws: string, viewer?: import('./groups-access').GroupsViewer): Promise<ImportStatus[]> {
   const since = new Date(Date.now() - 2 * 60_000).toISOString();
+  const failedSince = new Date(Date.now() - 24 * 3_600_000).toISOString();
   const rows = (await getDb()
-    .prepare("SELECT * FROM groups_imports WHERE user_id = ? AND (status IN ('queued', 'running') OR (finished_at IS NOT NULL AND finished_at > ?))")
-    .all(ws, since)) as ImportRow[];
+    .prepare(
+      `SELECT * FROM groups_imports WHERE user_id = ? AND (status IN ('queued', 'running')
+         OR (status = 'error' AND finished_at IS NOT NULL AND finished_at > ?) OR (status != 'error' AND finished_at IS NOT NULL AND finished_at > ?))`,
+    )
+    .all(ws, failedSince, since)) as ImportRow[];
   const { visibleNumberIds } = await import('./groups-access');
   const visible = await visibleNumberIds(viewer);
-  return rows.filter((r) => !visible || visible.has(r.number_id)).map(toStatus);
+  return rows.filter((r) => !visible || visible.has(r.number_id)).map((r) => toStatus(r));
 }
 
 /** Corre una tanda después de responder (o acá mismo si no hay request). */
@@ -625,9 +637,10 @@ export async function runImportChunk(numberId: string, opts: { budgetMs?: number
     await save(job, { status: 'done', phase: 'done', claimed_until: null, finished_at: nowIso() });
     return toStatus(job);
   }
-  // Sin conexión no hay qué leer: espera (el cron reintenta) sin gastar intentos.
+  // Sin conexión no hay qué leer: espera (el cron reintenta) sin gastar intentos. Queda anotado por qué espera:
+  // antes la fila seguía "running" sin error y la bandeja mostraba "Importando mensajes" con la barra llena para siempre.
   if (number.status !== 'connected') {
-    await save(job, { claimed_until: new Date(Date.now() + 60_000).toISOString() });
+    await save(job, { error: 'not_connected', claimed_until: new Date(Date.now() + 60_000).toISOString() });
     return toStatus(job);
   }
   try {
