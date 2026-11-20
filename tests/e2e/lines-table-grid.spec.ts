@@ -346,7 +346,8 @@ test('Contactos: cabecera y nombre fijos al bajar', async ({ page, request }) =>
   await page.goto('/en/app/lines/contacts', { waitUntil: 'networkidle' });
   await expect(async () => {
     await page.getByTestId('contacts-search').fill(tag);
-    await expect(page.getByTestId('contact-row')).toHaveCount(ROWS, { timeout: 3_000 });
+    // Una persona por grupo (y quizás alguna más que el proveedor falso suma a los grupos).
+    await expect.poll(() => page.getByTestId('contact-row').count(), { timeout: 3_000 }).toBeGreaterThanOrEqual(ROWS);
   }).toPass({ timeout: 30_000 });
   const wrap = page.getByTestId('contacts-table-wrap');
   const head = page.getByTestId('contacts-table').locator('thead th').first();
