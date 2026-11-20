@@ -100,6 +100,15 @@
 .sc-account[data-expired='true'] { opacity: 0.6; }
 .sc-account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-textarea { width: 100%; min-height: 160px; resize: vertical; }
+/* Sugerencias de #hashtags y @menciones: lista pegada debajo del texto, encima de lo que sigue. */
+.sc-suggest-wrap { position: relative; min-width: 0; }
+.sc-suggest { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-dropdown); width: min(320px, 100%); max-height: 240px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink-3); border-radius: var(--radius-1); }
+.sc-suggest-opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-0); cursor: pointer; font-size: 0.875rem; overflow-wrap: anywhere; }
+.sc-suggest-opt[aria-selected='true'] { background: var(--ui-selected); }
+/* Sobre la opción elegida (en Retro es azul oscuro), el conteo toma el color del texto en vez del gris. */
+.sc-suggest-opt[aria-selected='true'] .sc-muted { color: inherit; }
+/* "Insertar de la biblioteca" al lado del título del texto, no en una fila entera. */
+.sc-compose .sc-row > select.select { width: auto; max-width: min(240px, 100%); }
 .sc-counters { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; }
 .sc-counter { font-family: var(--font-data); color: var(--ink-3); }
 .sc-counter[data-over='true'] { color: var(--bad-ink); font-weight: 700; }

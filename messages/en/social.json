@@ -186,7 +186,9 @@
     "addToQueue": "Add to queue",
     "schedule": "Schedule",
     "previews": "Previews",
-    "previewEmpty": "Pick accounts to see how the post looks on each network."
+    "previewEmpty": "Pick accounts to see how the post looks on each network.",
+    "tagSuggestions": "Hashtags and mentions used before",
+    "tagUses": "{n, plural, one {# use} other {# uses}}"
   },
   "post": {
     "title": "Post",

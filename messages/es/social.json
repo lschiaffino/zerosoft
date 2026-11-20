@@ -186,7 +186,9 @@
     "addToQueue": "Sumar a la cola",
     "schedule": "Programar",
     "previews": "Vistas previas",
-    "previewEmpty": "Elegí cuentas para ver cómo queda en cada red."
+    "previewEmpty": "Elegí cuentas para ver cómo queda en cada red.",
+    "tagSuggestions": "Hashtags y menciones que ya usaron",
+    "tagUses": "{n, plural, one {# uso} other {# usos}}"
   },
   "post": {
     "title": "Publicación",
