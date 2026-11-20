@@ -278,7 +278,11 @@
       "position_filled": "Vaga preenchida",
       "withdrew": "O candidato desistiu",
       "no_response": "Sem resposta"
-    }
+    },
+    "pickReason": "Escolha um motivo",
+    "noReason": "Sem motivo",
+    "otherReason": "Outro…",
+    "otherLabel": "Escreva o motivo"
   },
   "profile": {
     "deleteData": "Excluir dados do candidato",
@@ -536,7 +540,16 @@
       "restored": "{name} voltou ao Hiring.",
       "conflict": "Este candidato não pode ser restaurado.",
       "restoreError": "Não foi possível restaurar o candidato."
-    }
+    },
+    "rejectReasons": "Motivos de recusa",
+    "rejectReasonsHelp": "A lista da qual se escolhe ao recusar um candidato. Os relatórios agrupam as recusas por esses motivos. Também dá para escolher Outro e escrever um.",
+    "reasonN": "Motivo {n}",
+    "removeReason": "Remover {name}",
+    "noReasons": "Não há motivos na lista: escreve-se um ao recusar.",
+    "newReason": "Novo motivo",
+    "addReason": "Adicionar motivo",
+    "resetReasons": "Voltar aos motivos padrão",
+    "requireReason": "Pedir um motivo para recusar um candidato"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",

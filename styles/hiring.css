@@ -333,6 +333,12 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
   }
 }
 
+/* Motivos de rechazo (Ajustes) */
+.hr-reason-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hr-reason-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hr-reason-row .input { flex: 1 1 auto; min-width: 0; width: auto; }
+.hr-reason-row .btn { flex: 0 0 auto; }
+
 /* Papelera de la retención (Ajustes) */
 .hr-trash { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .hr-trash h3, .hr-trash .ui-help, .hr-trash .ui-error { margin: 0; }
