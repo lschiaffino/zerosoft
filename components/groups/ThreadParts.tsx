@@ -89,30 +89,33 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
 }
 
 /** Mensajes fijados, arriba del hilo: clic va al mensaje, × lo desfija. */
-export function PinnedBar({
+export function PinnedBar<M extends { id: string; body: string } = MessageDto>({
   pinned,
   onJump,
   onUnpin,
   textOf = (m) => m.body,
+  mediaOf,
 }: {
-  pinned: MessageDto[];
-  onJump: (m: MessageDto) => void;
-  onUnpin: (m: MessageDto) => void;
+  pinned: M[];
+  onJump: (m: M) => void;
+  onUnpin: (m: M) => void;
   /** El texto con las menciones nombradas ("@Nombre" en lugar de "@<dígitos>"). */
-  textOf?: (m: MessageDto) => string;
+  textOf?: (m: M) => string;
+  /** Sin texto: qué es (Foto, Audio...). Por defecto, el de un mensaje de Lines. Inbox pasa el suyo. */
+  mediaOf?: (m: M) => string;
 }) {
   const t = useTranslations('groups.thread');
   const mediaText = useMediaText();
   if (pinned.length === 0) return null;
   return (
-    <div className="gr-pinned" role="region" aria-label={t('pinnedTitle')}>
+    <div className="gr-pinned" role="region" aria-label={t('pinnedTitle')} data-testid="pinned-bar">
       {pinned.map((m) => (
-        <div key={m.id} className="gr-pinned-row">
+        <div key={m.id} className="gr-pinned-row" data-testid="pinned-row">
           <button type="button" className="gr-pinned-jump" onClick={() => onJump(m)}>
             <span className="gr-pinned-tag">{t('pinned')}</span>
-            <span className="gr-pinned-text">{textOf(m).slice(0, 120) || mediaText({ media: m.media })}</span>
+            <span className="gr-pinned-text">{textOf(m).slice(0, 120) || (mediaOf ? mediaOf(m) : mediaText({ media: (m as unknown as MessageDto).media }))}</span>
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onUnpin(m)} aria-label={t('unpinLabel')}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onUnpin(m)} aria-label={t('unpinLabel')} data-testid="pinned-unpin">
             ×
           </button>
         </div>

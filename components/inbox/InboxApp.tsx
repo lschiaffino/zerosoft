@@ -1636,6 +1636,11 @@ export default function InboxApp(props: {
             ref={composer}
             meImage={props.meImage}
             detail={detail}
+            onJumpToMessage={(id) => {
+              // Un fijado más viejo que lo cargado: el chat se vuelve a abrir alrededor de ese mensaje.
+              focusRef.current = { threadId: detail.thread.id, messageId: id };
+              void loadDetail(detail.thread.id);
+            }}
             folders={state.folders}
             snippets={state.snippets}
             connected={detailAccount?.status === 'connected'}

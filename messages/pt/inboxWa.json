@@ -90,6 +90,8 @@
   "dropTitle": "Solte os arquivos aqui",
   "dropBody": "Fotos, vídeos e documentos. Dá para adicionar uma legenda antes de enviar.",
   "errors": {
+    "too_many_pins": "Até 3 mensagens fixadas por conversa. Desafixe uma antes.",
+    "not_pinnable": "Essa mensagem não pode ser fixada.",
     "mic_denied": "O navegador não permitiu usar o microfone.",
     "file_too_large": "O arquivo é grande demais para o WhatsApp.",
     "media_too_large": "O arquivo é grande demais para o WhatsApp.",
@@ -151,6 +153,7 @@
   "unblocked": "{name} foi desbloqueado",
   "pin": "Fixar",
   "unpin": "Desafixar",
+  "pinnedHereOnly": "Fixada aqui. O WhatsApp do celular não mostra.",
   "mention": "Mencionar alguém",
   "mentionSomeone": "alguém",
   "styleUseZerosoft": "Estilo das conversas: zerosoft",

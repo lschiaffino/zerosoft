@@ -260,9 +260,9 @@ const parity: ProductParity = {
     }),
     row('wa-conversation', 'whatsapp', ['Conversation like WhatsApp Web', 'Conversación como WhatsApp Web', 'Conversa como o WhatsApp Web'], 'partial', {
       detail: [
-        'Wallpaper, bubbles with tails, grouped messages, day chips, sender names in color, ticks, edited, forwarded and deleted, in light and dark. No chat search or pinned messages yet',
-        'Fondo, burbujas con cola, mensajes agrupados, separadores de día, nombres de color, tildes, editado, reenviado y borrado, en claro y oscuro. Todavía sin buscar en el chat ni mensajes fijados',
-        'Fundo, balões com ponta, mensagens agrupadas, separadores de dia, nomes coloridos, confirmações, editada, encaminhada e apagada, no claro e no escuro. Ainda sem busca na conversa nem mensagens fixadas',
+        'Wallpaper, bubbles with tails, grouped messages, day chips, sender names in color, ticks, edited, forwarded and deleted, in light and dark. Pinned messages (up to 3, from the message menu) show in a strip on top that jumps to each one, also older ones; with the current WhatsApp server they stay pinned here, not on the phone. No chat search yet',
+        'Fondo, burbujas con cola, mensajes agrupados, separadores de día, nombres de color, tildes, editado, reenviado y borrado, en claro y oscuro. Los mensajes fijados (hasta 3, desde el menú del mensaje) van en una franja arriba que lleva a cada uno, también a los viejos; con el servidor de WhatsApp actual quedan fijados acá, no en el teléfono. Todavía sin buscar en el chat',
+        'Fundo, balões com ponta, mensagens agrupadas, separadores de dia, nomes coloridos, confirmações, editada, encaminhada e apagada, no claro e no escuro. As mensagens fixadas (até 3, pelo menu da mensagem) ficam numa faixa no topo que leva a cada uma, também às antigas; com o servidor de WhatsApp atual ficam fixadas aqui, não no celular. Ainda sem busca na conversa',
       ],
     }),
     row('wa-message-actions', 'whatsapp', ['Reply, react, forward, copy, edit, delete, star', 'Responder, reaccionar, reenviar, copiar, editar, borrar, destacar', 'Responder, reagir, encaminhar, copiar, editar, apagar, favoritar'], 'partial', {
