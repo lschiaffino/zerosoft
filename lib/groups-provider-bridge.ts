@@ -16,6 +16,7 @@
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
+import { evolutionForward, forwardScoreOf } from './wa-forward';
 import {
   evolutionFileName,
   evolutionStickerBody,
@@ -742,6 +743,8 @@ interface BaileysContent {
   protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
   poll?: { question: string; options: string[]; multi: boolean };
   forwarded?: boolean;
+  /** contextInfo.forwardingScore: cuántas veces se reenvió. */
+  forwardScore?: number;
   link?: LinkPreview;
   /** Ids mencionados (dígitos de teléfono o lid). */
   mentions?: string[];
@@ -807,7 +810,11 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const top = (topContext ?? {}) as Json;
     const stanza = ctx.stanzaId ?? top.stanzaId;
     if (stanza) out.replyTo = String(stanza);
-    if (ctx.isForwarded === true || top.isForwarded === true) out.forwarded = true;
+    if (ctx.isForwarded === true || top.isForwarded === true) {
+      out.forwarded = true;
+      const score = forwardScoreOf(ctx.forwardingScore ?? top.forwardingScore);
+      if (score) out.forwardScore = score;
+    }
     const mentions = mentionIds(ctx.mentionedJid ?? top.mentionedJid);
     if (mentions.length) out.mentions = mentions;
     return out;
@@ -983,6 +990,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(fromMe ? { status: storedStatus(m) } : {}),
     ...(content.poll ? { poll: content.poll } : {}),
     ...(content.forwarded ? { forwarded: true } : {}),
+    ...(content.forwarded && content.forwardScore ? { forwardingScore: content.forwardScore } : {}),
     ...(content.link ? { link: content.link } : {}),
     ...(content.mentions?.length ? { mentions: content.mentions } : {}),
     ...(senderLid ? { senderLid } : {}),
@@ -1615,6 +1623,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
+        // Reenvío: la marca "Reenviado" de WhatsApp (parche 0013 del gateway; sin él, el campo se ignora).
+        ...evolutionForward(o?.forward),
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },
@@ -1631,12 +1641,13 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async sendMedia(chatId, media) {
       const kind = media.kind ?? planOutboundKind(media.mimetype, undefined, null);
       const source = media.base64 ?? media.url;
-      const quoted = media.replyTo ? { quoted: { key: { id: media.replyTo } } } : {};
+      // `forward` (reenvío) va en los cuatro: la marca "Reenviado" de WhatsApp (lib/wa-forward.ts).
+      const extra = { ...(media.replyTo ? { quoted: { key: { id: media.replyTo } } } : {}), ...evolutionForward(media.forward) };
       let r: Json;
       if (kind === 'voice') {
-        r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...quoted })) as Json;
+        r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...extra })) as Json;
       } else if (kind === 'sticker') {
-        r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...quoted })) as Json;
+        r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...extra })) as Json;
       } else {
         const fileName = evolutionFileName(media.filename, media.mimetype, kind);
         r = (await mediaApi(`/message/sendMedia/${instance}`, {
@@ -1650,7 +1661,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           // Un GIF (lib/wa-gifs.ts). Evolution lo lee desde la rama develop (después de 2.3.7); las versiones
           // anteriores ignoran el campo y fijan gifPlayback en false, así que llega como un video común.
           ...(kind === 'video' && media.gifPlayback ? { gifPlayback: true } : {}),
-          ...quoted,
+          ...extra,
         })) as Json;
       }
       const id = String(((r.key ?? {}) as Json).id ?? '');

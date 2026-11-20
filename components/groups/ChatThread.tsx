@@ -128,6 +128,7 @@ import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
+import { forwardedMany } from '@/lib/wa-forward';
 import HubspotDock from './HubspotDock';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -1948,8 +1949,8 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
           {m.forwarded && (
-            <p className="gr-forwarded">
-              <Forwarded size={13} /> {t('thread.forwarded')}
+            <p className="gr-forwarded" data-forwarded={forwardedMany(m.forwarded, m.meta) ? 'many' : 'once'}>
+              <Forwarded size={13} /> {forwardedMany(m.forwarded, m.meta) ? t('thread.forwardedMany') : t('thread.forwarded')}
             </p>
           )}
           {privateQuote && (

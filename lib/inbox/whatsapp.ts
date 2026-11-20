@@ -16,6 +16,7 @@ import { getDb } from '../db';
 import { fetchStateOf, logMediaFailure } from '../wa-media-wire';
 import { eagerWorthy } from '../wa-media-jobs';
 import { openWire, sealWire } from '../wa-media-wire-seal';
+import type { ForwardFlag } from '../wa-forward';
 import { storeLinkHq } from '../wa-link-thumb';
 import {
   addMessage,
@@ -614,7 +615,7 @@ export async function sendWhatsappText(
   account: AccountRow,
   thread: ThreadRow,
   text: string,
-  opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean; forwarded?: boolean } = {},
+  opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean; forwarded?: boolean; forward?: ForwardFlag } = {},
 ): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
@@ -623,6 +624,8 @@ export async function sendWhatsappText(
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       ...(opts.mentions?.length ? { mentions: opts.mentions } : {}),
       ...(opts.linkPreview === false ? { linkPreview: false } : {}),
+      // Reenvío: la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Un envío normal no la lleva.
+      ...(opts.forwarded && opts.forward ? { forward: opts.forward } : {}),
     };
     id = (await waProviderFor(account).sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
   } catch (err) {
@@ -636,9 +639,14 @@ export async function sendWhatsappText(
     status: 'sent',
     replyTo: opts.replyTo ?? '',
     // clientId: un reintento del mismo envío no lo guarda dos veces. noPreview: la persona sacó la vista previa del link.
-    ...(opts.clientId || opts.linkPreview === false
+    // fwd: cuántas veces se reenvió (un reenvío de este suma uno).
+    ...(opts.clientId || opts.linkPreview === false || (opts.forwarded && opts.forward)
       ? {
-          meta: JSON.stringify({ ...(opts.clientId ? { cid: opts.clientId } : {}), ...(opts.linkPreview === false ? { noPreview: true } : {}) }),
+          meta: JSON.stringify({
+            ...(opts.clientId ? { cid: opts.clientId } : {}),
+            ...(opts.linkPreview === false ? { noPreview: true } : {}),
+            ...(opts.forwarded && opts.forward ? { fwd: opts.forward.score } : {}),
+          }),
           ...(opts.clientId ? { clientId: opts.clientId } : {}),
         }
       : {}),

@@ -39,6 +39,7 @@ import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
+import { evolutionForward } from './wa-forward';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -77,6 +78,8 @@ export interface FakeSent {
   media?: { kind: string; mimetype: string; base64: boolean; gifPlayback?: boolean };
   /** Teléfonos mencionados (textos en grupos). */
   mentions?: string[];
+  /** Reenvío: la marca que pidió la app (score y, si va, el original), como la recibe el gateway (tests). */
+  forward?: { score: number; key?: { id: string; remoteJid: string; fromMe: boolean } };
   /** Marcar leído: el recibo que manda WhatsApp ('read-self' con las confirmaciones apagadas: el otro no lo ve). */
   receipt?: 'read' | 'read-self';
 }
@@ -542,10 +545,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendText: async (chatId, text, o) => {
       const r = send(chatId, text, 'text');
       if (o?.mentions?.length) s.sent[s.sent.length - 1].mentions = [...o.mentions];
+      if (o?.forward) s.sent[s.sent.length - 1].forward = evolutionForward(o.forward).forward;
       return r;
     },
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
+      if (media.forward) s.sent[s.sent.length - 1].forward = evolutionForward(media.forward).forward;
       return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {

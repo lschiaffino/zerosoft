@@ -16,6 +16,7 @@ import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { inboxMedia } from './media-store';
 import { readTranscript, retryableTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
 import { storeReaction } from './wa-meta';
+import { nextForwardScore, type ForwardFlag } from '../wa-forward';
 
 /** WhatsApp deja editar 15 minutos y borrar para todos unas 60 horas. */
 export const EDIT_WINDOW_MS = 15 * 60_000;
@@ -197,13 +198,14 @@ export interface ForwardOutcome {
 /**
  * Reenviar a otros chats de WhatsApp de la persona (hasta 5, como WhatsApp):
  * texto, fotos, videos, documentos, stickers y audios (una nota de voz sale
- * como nota de voz, con su duración y su onda). El servidor no tiene reenvío
- * nativo: sale una copia, que acá queda marcada "Reenviado" (en el teléfono
- * de quien la recibe llega sin esa marca). El archivo se baja una sola vez.
+ * como nota de voz, con su duración y su onda). Sale con la marca "Reenviado"
+ * de WhatsApp (score del original + 1, lib/wa-forward.ts), también acá. En la
+ * misma línea va el original y el gateway lo reenvía desde lo que tiene
+ * guardado; si no, sale como copia. El archivo se baja una sola vez.
  * "Ver una vez" no se reenvía. Un chat que falla no frena a los demás.
  */
 export async function forwardMessage(owner: string, messageId: string, targetIds: string[]): Promise<ForwardOutcome> {
-  const { msg, account } = await context(owner, messageId);
+  const { msg, thread: source, account } = await context(owner, messageId);
   if (msg.revoked_at) throw new InboxError('invalid_input', 400);
   let meta: WaMessageMeta = {};
   try {
@@ -216,20 +218,24 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
   if (!msg.media_type && !text) throw new InboxError('invalid_input', 400);
   if (msg.media_type && !msg.media_ref) throw new InboxError('media_unavailable', 400);
   let file: ReturnType<typeof inboxMedia> | null = null;
+  const score = nextForwardScore({ forwarded: msg.forwarded === 1, meta });
+  const original = msg.external_id && !msg.external_id.startsWith('local-') ? { id: msg.external_id, remoteJid: source.external_id, fromMe: msg.from_me === 1 } : null;
   const out: ForwardOutcome = { sent: [], failed: [] };
   for (const id of [...new Set(targetIds)].slice(0, 5)) {
     try {
       const thread = await getThreadRow(owner, id);
       if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
       const target = thread.account_id === account.id ? account : await getAccount(owner, thread.account_id);
+      // El original solo sirve en la misma línea (el gateway lo busca entre lo que guardó esa instancia).
+      const forward: ForwardFlag = { score, ...(original && target.id === account.id ? { key: original } : {}) };
       if (!msg.media_type) {
-        await sendWhatsappText(target, thread, text, { forwarded: true });
+        await sendWhatsappText(target, thread, text, { forwarded: true, forward });
       } else {
         file ??= inboxMedia(account, owner, msg);
         const src = { mediaType: msg.media_type, mediaName: msg.media_name, body: msg.body, meta };
-        await forwardWhatsappMedia(target, thread, src, await file);
-        // WhatsApp no muestra texto en un audio o un sticker: va aparte, como lo manda Lines.
-        if (text && !['image', 'video', 'document'].includes(msg.media_type)) await sendWhatsappText(target, thread, text, { forwarded: true });
+        await forwardWhatsappMedia(target, thread, src, await file, forward);
+        // WhatsApp no muestra texto en un audio o un sticker: va aparte, como lo manda Lines (sin el original: ese era el archivo).
+        if (text && !['image', 'video', 'document'].includes(msg.media_type)) await sendWhatsappText(target, thread, text, { forwarded: true, forward: { score } });
       }
       out.sent.push(thread.id);
     } catch (err) {

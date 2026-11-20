@@ -66,6 +66,7 @@ import { learnLinesEvents, withLinesMentions } from './groups-wa-names';
 import { resolveLidChats } from './wa-contacts';
 import type { MentionMap } from './wa-mentions';
 import { headerWebhookTarget, type WebhookTarget } from './wa-webhook-secret';
+import { storedForwardScore, type ForwardFlag } from './wa-forward';
 import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
@@ -2167,6 +2168,11 @@ export interface SendInput {
   authorKind?: 'person' | 'agent' | 'broadcast' | 'scheduled' | 'flow' | 'api';
   /** Reenvío por copia (el proveedor no reenvía nativo). */
   forwarded?: boolean;
+  /**
+   * La marca de reenvío para WhatsApp (score y, si es de la misma línea, el original): sale "Reenviado" en el
+   * teléfono de quien lo recibe. Solo con `forwarded`; el score queda en meta.fwd.
+   */
+  forward?: ForwardFlag;
   /** Encuesta nativa (WAHA y Evolution; la Cloud API de Meta no tiene). */
   poll?: PollInput | null;
   /** Tarjetas de contacto (vCard) para mandar. */
@@ -2287,12 +2293,18 @@ export async function sendMessage(
   let status = 'sent';
   let error = '';
   const mentions = poll || contacts.length ? [] : cleanMentions(input.mentions, body, chat.kind);
+  const forward = input.forwarded && input.forward ? input.forward : undefined;
   try {
     const res = poll
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
       : contacts.length
         ? await provider.sendContact!(chat.provider_chat_id, contacts)
-        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId, ...(input.linkPreview === false ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) });
+        : await provider.sendText(chat.provider_chat_id, body, {
+            replyTo: replyProviderId,
+            ...(input.linkPreview === false ? { linkPreview: false } : {}),
+            ...(mentions.length ? { mentions } : {}),
+            ...(forward ? { forward } : {}),
+          });
     providerId = res.id || null;
   } catch (err) {
     status = 'failed';
@@ -2306,6 +2318,8 @@ export async function sendMessage(
     ...(input.linkPreview === false && !poll && !contacts.length ? { noPreview: true } : {}),
     // Como las que llegan (contextInfo.mentionedJid): el hilo muestra "@Nombre" y los reintentos vuelven a mencionar.
     ...(mentions.length ? { mentions } : {}),
+    // Reenvío: cuántas veces (WhatsApp dice "Reenviado muchas veces" desde 5); un reintento vuelve a mandar la marca.
+    ...(forward ? { fwd: forward.score } : {}),
   };
   const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
   // Una sola ida a la base: el mensaje, el chat al tope de la lista y, si salió, el chat deja de esperar.
@@ -2484,6 +2498,7 @@ async function sendMediaMessage(
     waveform: kind === 'voice' && Array.isArray(media.waveform) ? media.waveform.slice(0, 64).map((v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)))) : undefined,
   });
   const authorKind = input.authorKind ?? 'person';
+  const forward = input.forwarded && input.forward ? input.forward : undefined;
   const at = nowIso();
   // La fila se guarda antes de mandar ("enviando"), con el clientId: si otro pedido con el mismo clientId ya la
   // guardó (un reintento, aun desde otra instancia), el INSERT no entra y no se manda el archivo otra vez.
@@ -2502,7 +2517,7 @@ async function sendMediaMessage(
     createdAt: at,
     forwarded: input.forwarded,
     clientId: input.clientId || null,
-    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}) },
+    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}), ...(forward ? { fwd: forward.score } : {}) },
   });
   if (!reserved) {
     const already = input.clientId ? await messageByClientId(chat.id, input.clientId) : null;
@@ -2527,6 +2542,7 @@ async function sendMediaMessage(
       ...(base64 ? { base64 } : {}),
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
       ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
+      ...(forward ? { forward } : {}),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2554,7 +2570,8 @@ async function sendMediaMessage(
     });
     // Audio, nota de voz y sticker no llevan texto en WhatsApp: va aparte, después del archivo.
     if (!captioned && body.trim()) {
-      await sendMessage(ws, actor, chat.id, { body, authorKind, forwarded: input.forwarded }).catch(() => null);
+      // El texto aparte también es parte del reenvío (sin el original: ese era el archivo).
+      await sendMessage(ws, actor, chat.id, { body, authorKind, forwarded: input.forwarded, ...(forward ? { forward: { score: forward.score } } : {}) }).catch(() => null);
     }
   }
   return toMessageDto(saved);
@@ -2582,6 +2599,8 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
+  // Un reenvío que falló vuelve a salir marcado como reenviado.
+  const forward: ForwardFlag | undefined = row.forwarded ? { score: storedForwardScore(parseJson<StoredMeta>(row.meta ?? '', {})) || 1 } : undefined;
   try {
     const poll = parsePoll(row.poll);
     const cards = parseJson<StoredMeta>(row.meta ?? '', {}).contacts ?? [];
@@ -2607,13 +2626,21 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(base64 ? { base64 } : {}),
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
             ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
+            ...(forward ? { forward } : {}),
           })
         ).id || null;
     } else {
       const stored = parseJson<StoredMeta & { noPreview?: boolean }>(row.meta ?? '', {});
       const noPreview = stored.noPreview === true;
       const mentions = cleanMentions(stored.mentions, row.body, chat.kind);
-      providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId, ...(noPreview ? { linkPreview: false } : {}), ...(mentions.length ? { mentions } : {}) })).id || null;
+      providerId = (
+        await provider.sendText(chat.provider_chat_id, row.body, {
+          replyTo: replyProviderId,
+          ...(noPreview ? { linkPreview: false } : {}),
+          ...(mentions.length ? { mentions } : {}),
+          ...(forward ? { forward } : {}),
+        })
+      ).id || null;
     }
   } catch (err) {
     status = 'failed';
@@ -2717,6 +2744,8 @@ export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): Sto
   // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
   const mentions = (ev.mentions ?? []).filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
   if (mentions.length) meta.mentions = mentions;
+  // Cuántas veces se reenvió (WhatsApp: "Reenviado muchas veces" desde 5): al reenviarlo, la copia suma uno.
+  if (ev.forwarded && ev.forwardingScore) meta.fwd = ev.forwardingScore;
   return Object.keys(meta).length ? meta : undefined;
 }
 

@@ -130,6 +130,8 @@ export interface WaMessageMeta {
   sha?: string;
   /** Forma de onda de la nota de voz (0 a 100). */
   waveform?: number[];
+  /** Reenviado: cuántas veces (contextInfo.forwardingScore; "Reenviado muchas veces" desde 5, lib/wa-forward.ts). */
+  fwd?: number;
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
   /** Tarjetas de contacto; `picture`: la foto guardada de esa persona (lib/wa-contact-pictures.ts), si hay. */
   contacts?: Array<{ name: string; phones: string[]; picture?: string }>;

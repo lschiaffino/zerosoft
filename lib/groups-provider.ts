@@ -21,6 +21,7 @@
  */
 import type { MediaWire } from './wa-media-wire';
 import type { LinkHqRef } from './wa-link-thumb';
+import type { ForwardFlag } from './wa-forward';
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
 
@@ -155,7 +156,8 @@ export interface MediaInput {
   /** Id en el proveedor del mensaje que se cita. */
   replyTo?: string;
   /** Video que WhatsApp reproduce como GIF (mudo, en loop, con la marca GIF): videoMessage.gifPlayback. */
-  gifPlayback?: boolean;
+  gifPlayback?: boolean;  /** Reenvío: sale con la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Solo al reenviar. */
+  forward?: ForwardFlag;
 }
 
 /** El mensaje desde el que se le piden al teléfono los anteriores. `timestamp` en segundos. */
@@ -225,6 +227,8 @@ export type InboundEvent =
       /** Encuesta creada en WhatsApp. */
       poll?: { question: string; options: string[]; multi: boolean };
       forwarded?: boolean;
+      /** Cuántas veces se reenvió (contextInfo.forwardingScore), si WhatsApp lo dijo. */
+      forwardingScore?: number;
       /** Vista previa del link que mandó WhatsApp con el texto (título, descripción, miniatura). */
       link?: LinkPreview;
       /** Datos de presentación: nota de voz, duración, ubicación, contacto compartido. */
@@ -484,7 +488,8 @@ export interface GroupsProvider {
   disconnect(): Promise<void>;
   /** `mentions`: teléfonos mencionados con "@teléfono" en el texto (grupos). */
   /** `linkPreview: false`: sin vista previa del link (la persona la sacó en el composer). */
-  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[]; linkPreview?: boolean }): Promise<SendResult>;
+  /** `forward`: reenvío, sale con la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Solo al reenviar. */
+  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[]; linkPreview?: boolean; forward?: ForwardFlag }): Promise<SendResult>;
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;

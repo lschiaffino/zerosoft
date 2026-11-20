@@ -40,6 +40,7 @@ import {
   type NumberRow,
 } from './groups';
 import { PROVIDER_CAPS, phoneDigits, type InboundEvent } from './groups-provider';
+import { nextForwardScore, type ForwardFlag } from './wa-forward';
 import type { MediaInfo, MediaKind } from './groups-media';
 import {
   MAX_FORWARD_TARGETS,
@@ -343,6 +344,8 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
   }
   // Un archivo de /api/files sale por outgoingMedia (lib/groups.ts), que chequea que sea de este workspace.
   const copyableMedia = msg.media_type && (isFileUrlPath(mediaUrl) || /^(https:\/\/|\/uploads\/)/.test(mediaUrl)) ? forwardMedia(mediaUrl, msg, info) : null;
+  // La marca "Reenviado" de WhatsApp: el score del original + 1 (lib/wa-forward.ts).
+  const score = nextForwardScore({ forwarded: Boolean(msg.forwarded), meta: parseJson<Record<string, unknown>>(msg.meta, {}) });
   const out: ForwardResult[] = [];
   for (const id of ids) {
     const target = await getChatRow(ws, id);
@@ -367,7 +370,7 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
           status: 'sent',
           createdAt: at,
           forwarded: true,
-          ...(info ? { meta: { media: info } } : {}),
+          meta: { ...(info ? { media: info } : {}), fwd: score },
         });
         await touchChat(target.id, at, (msg.body || msg.media_name || '').slice(0, 140), false);
         await markAnswered(target.id, at);
@@ -375,7 +378,15 @@ export async function forwardMessage(ws: string, actor: string, messageId: strin
         continue;
       }
       if (msg.media_type && !copyableMedia) throw new GroupsError('cannot_forward_media');
-      const sent = await sendMessage(ws, actor, target.id, { body: msg.body, media: copyableMedia, forwarded: true });
+      // En la misma línea va también el original: el gateway lo reenvía desde lo que tiene guardado (sin volver a subir
+      // el archivo), como el teléfono. Si no lo tiene, sale como un mensaje nuevo con la marca.
+      const forward: ForwardFlag = {
+        score,
+        ...(target.number_id === number.id && msg.provider_message_id
+          ? { key: { id: msg.provider_message_id, remoteJid: source.provider_chat_id, fromMe: msg.direction !== 'in' } }
+          : {}),
+      };
+      const sent = await sendMessage(ws, actor, target.id, { body: msg.body, media: copyableMedia, forwarded: true, forward });
       out.push(sent.status === 'failed' ? { chatId: id, name, ok: false, error: sent.error || 'send_failed' } : { chatId: id, name, ok: true });
     } catch (err) {
       out.push({ chatId: id, name, ok: false, error: providerErrorCode(err) });
