@@ -1,4 +1,5 @@
-import { expect as baseExpect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { e2eDb } from './helpers/db';
 
 /**
  * CRM: ficha de contacto, empresa y deal en tres columnas (como HubSpot).
@@ -618,5 +619,91 @@ test('la ficha en los cinco aspectos, claro y oscuro: tres columnas a 1280 y una
     }
   } finally {
     await setLook(request, 'current');
+  }
+});
+
+async function sql(q: string, args: Array<string | number | null> = []) {
+  const db = e2eDb();
+  try {
+    return (await db.execute({ sql: q, args })).rows as unknown as Array<Record<string, unknown>>;
+  } finally {
+    db.close();
+  }
+}
+
+/** Una persona nueva con su cuenta creada (la primera visita la da de alta). */
+async function person(browser: Browser, baseURL: string, label: string): Promise<{ ctx: BrowserContext; id: string }> {
+  const email = `rec-${label}-${uid()}@columns-e2e.io`;
+  const ctx = await browser.newContext({ baseURL, viewport: DESKTOP });
+  await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
+  await ctx.request.get('/api/teams/members');
+  const id = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
+  await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [id]);
+  return { ctx, id };
+}
+
+/** Los valores del card de valor en deals, como números (sin moneda ni separadores). */
+async function rollupNumbers(page: Page): Promise<number[]> {
+  const texts = await page.getByTestId('company-rollup').locator('dd').allTextContents();
+  return texts.map((t) => Number(t.replace(/[^0-9.]/g, '')));
+}
+
+test('un member que solo ve lo suyo: la empresa no muestra deals, hijas ni empresa principal ocultas', async ({ browser, baseURL }) => {
+  // Workspace propio (no el demo compartido): la visibilidad 'mine' es de todo el workspace.
+  const owner = await person(browser, baseURL!, 'owner');
+  const member = await person(browser, baseURL!, 'member');
+  try {
+    const team = `team-${uid()}`;
+    await sql("INSERT INTO teams (id, name, owner_id) VALUES (?, 'Columns team', ?)", [team, owner.id]);
+    await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [team, member.id]);
+    await sql("INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '*')", [team, member.id]);
+    const api = owner.ctx.request;
+    await json(api.put('/api/crm/visibility', { data: { visibility: 'mine' } }));
+
+    const tag = uid();
+    const hiddenName = `Hidden child ${tag}`;
+    const hiddenDeal = `Hidden deal ${tag}`;
+    const parent = await json<{ id: string }>(api.post('/api/crm/companies', { data: { name: `Parent ${tag}`, ownerId: member.id } }));
+    const visibleChild = (
+      await json<{ id: string }>(api.post('/api/crm/companies', { data: { name: `Visible child ${tag}`, ownerId: member.id, parentCompanyId: parent.id } }))
+    ).id;
+    const hidden = await json<{ id: string }>(
+      api.post('/api/crm/companies', { data: { name: hiddenName, ownerId: owner.id, parentCompanyId: parent.id } }),
+    );
+    const pipeline = await json<{ id: string }>(api.post('/api/crm/pipelines', { data: { name: `Scope ${tag}` } }));
+    const stage = await json<{ id: string }>(api.post(`/api/crm/pipelines/${pipeline.id}/stages`, { data: { name: 'Open' } }));
+    const deal = (name: string, ownerId: string, amount: number, companyId: string) =>
+      json<{ id: string }>(api.post('/api/crm/deals', { data: { name, amount, ownerId, companyId, pipelineId: pipeline.id, stageId: stage.id } }));
+    await deal(`Mine on parent ${tag}`, member.id, 130, parent.id);
+    const other = await deal(hiddenDeal, owner.id, 5000, parent.id);
+    await deal(`Mine on child ${tag}`, member.id, 70, visibleChild);
+    await deal(`Other on hidden ${tag}`, owner.id, 9000, hidden.id);
+    // Un contacto del member cuya empresa principal es la oculta.
+    const contact = await json<{ id: string }>(
+      api.post('/api/crm/contacts', { data: { firstName: 'Scoped', lastName: tag, email: `scoped-${tag}@columns.example`, ownerId: member.id, companyId: hidden.id } }),
+    );
+
+    const page = await member.ctx.newPage();
+    const errors = watchErrors(page);
+    await page.goto(`/en/app/crm/companies/${parent.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('company-rollup')).toBeVisible();
+    // Empresa: su deal de 130. Árbol: 130 + 70 en dos deals, con una sola hija.
+    await expect.poll(() => rollupNumbers(page)).toEqual([130, 0, 200, 0, 2]);
+    const body = page.locator('body');
+    await expect(body).not.toContainText(hiddenName);
+    await expect(body).not.toContainText(hiddenDeal);
+    expect(await page.content()).not.toContain(hidden.id);
+    expect(await page.content()).not.toContain(other.id);
+
+    // Contacto: la propiedad Empresa queda vacía y sin selector.
+    await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'domcontentloaded' });
+    const company = prop(page, 'companyId');
+    await expect(company).toBeVisible();
+    await expect(company.locator('select')).toHaveCount(0);
+    await expect(body).not.toContainText(hiddenName);
+    expect(errors).toEqual([]);
+  } finally {
+    await owner.ctx.close();
+    await member.ctx.close();
   }
 });
