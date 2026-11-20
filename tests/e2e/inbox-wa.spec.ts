@@ -178,14 +178,10 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
     document.body.appendChild(probe);
     const natural = probe.getBoundingClientRect().width;
     probe.remove();
-    const qs = getComputedStyle(el);
-    const bs = getComputedStyle(bubble);
-    const chain = [] as string[];
-    for (let n: HTMLElement | null = el; n && chain.length < 6; n = n.parentElement) { const c = getComputedStyle(n); chain.push(`${n.className.toString().slice(0, 40)}|${c.display}|${c.width}|${c.contain}|${c.maxWidth}`); }
-    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth, qContain: qs.contain, qDisplay: qs.display, qWidth: qs.width, bCls: bubble.className, bDisplay: bs.display, chain };
+    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth };
   });
-  expect(q.quote, JSON.stringify(q)).toBeLessThanOrEqual(q.bubble + 0.5);
-  expect(q.textW, JSON.stringify(q)).toBeGreaterThanOrEqual(Math.min(q.natural, 400) - 2);
+  expect(q.quote).toBeLessThanOrEqual(q.bubble + 0.5);
+  expect(q.textW).toBeGreaterThanOrEqual(Math.min(q.natural, 400) - 2);
   expect(q.textMax).toBe('400px');
   await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
   await expect(thread.locator('.gr-msg-in', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');

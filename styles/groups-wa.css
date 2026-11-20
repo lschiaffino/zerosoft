@@ -422,7 +422,9 @@
 .gr-inbox .gr-bubble > .gr-quote { box-sizing: border-box; }
 .gr-inbox .gr-bubble > .gr-quote > span, .gr-inbox .gr-bubble > .gr-quote > strong { max-width: 400px; }
 .gr-inbox .gr-quote strong { font-size: var(--wa-fs-small); font-weight: 500; color: var(--wa-primary-ink); }
-.gr-inbox .gr-quote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* Solo el hijo directo: RichText arma el texto con <span> por tramo (negrita, cursiva, menciones) y, con `span` a secas,
+   cada tramo era un bloque propio: la cita medía lo que su tramo más ancho y partía el renglón en cada uno. */
+.gr-inbox .gr-quote > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .gr-inbox .gr-quote.wa-q-me { border-left-color: #06cf9c; }
 .gr-inbox .gr-quote.wa-q-me strong { color: #06a07f; }
 .gr-inbox .gr-quote.wa-q-them { border-left-color: #53bdeb; }
