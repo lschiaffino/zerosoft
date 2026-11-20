@@ -1,0 +1,77 @@
+# XcodeGen spec for the Swift Mac app (docs/desktop-swift.md, section 4.1). The .xcodeproj is
+# generated from this file in CI (`xcodegen generate`) and never committed.
+name: zerosoft
+options:
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # Every concurrency check of Swift 6, as warnings. The sources also typecheck in Swift 6 mode
+    # (swiftc -swift-version 6 with the macOS 26 SDK); the switch waits for a green CI on it.
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Ad hoc signing ("Sign to Run Locally"). Developer ID and Store signing come in block 10.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+targets:
+  zerosoft:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+          - "*.entitlements"
+      # The same sources as the ZerosoftCore Swift package (Package.swift), compiled into the app.
+      - path: Sources/ZerosoftCore
+    settings:
+      base:
+        # Decision 7.4 recommends ai.zerosoft.mac; the owner registers it before block 10.
+        PRODUCT_BUNDLE_IDENTIFIER: ai.zerosoft.mac
+        PRODUCT_NAME: zerosoft
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: App/zerosoft.entitlements
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_TESTABILITY: NO
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: YES
+        Release:
+          # Xcode adds get-task-allow to ad hoc builds; a release keeps exactly the entitlements file.
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+  zerosoftUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITests
+        excludes:
+          - "*.entitlements"
+    dependencies:
+      - target: zerosoft
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.zerosoft.mac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: zerosoft
+        CODE_SIGN_ENTITLEMENTS: UITests/UITests.entitlements
+schemes:
+  zerosoft:
+    build:
+      targets:
+        zerosoft: all
+        zerosoftUITests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - name: zerosoftUITests

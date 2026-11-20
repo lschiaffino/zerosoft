@@ -590,6 +590,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     params: [
       { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
       { name: 'lifecycle', type: 'string', descriptionKey: 'paramLifecycleStage' },
+      { name: 'filters', type: 'string', descriptionKey: 'paramCrmFilters' },
+      { name: 'tz', type: 'string', descriptionKey: 'paramCrmFiltersTz' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
@@ -688,6 +690,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'companiesListDesc',
     params: [
       { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'filters', type: 'string', descriptionKey: 'paramCrmFilters' },
+      { name: 'tz', type: 'string', descriptionKey: 'paramCrmFiltersTz' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],
@@ -763,6 +767,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     descKey: 'dealsListDesc',
     params: [
       { name: 'pipelineId', type: 'string', descriptionKey: 'paramPipelineId' },
+      { name: 'filters', type: 'string', descriptionKey: 'paramCrmFilters' },
+      { name: 'tz', type: 'string', descriptionKey: 'paramCrmFiltersTz' },
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
     ],

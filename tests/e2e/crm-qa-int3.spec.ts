@@ -65,8 +65,9 @@ test.describe('a 390px', () => {
     await noHorizontalScroll(page);
     await page.keyboard.press('Escape');
 
-    await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
-    await expect(page.getByText('+54 9 11 5555-0100').first()).toBeVisible();
+    // En el teléfono las propiedades son la pestaña About de la ficha.
+    await page.goto(`/en/app/crm/contacts/${contact.id}?tab=properties`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('record-about').getByText('+54 9 11 5555-0100')).toBeVisible();
   });
 
   test('Overview, Products y la tarea nueva sin cortes', async ({ page, request }) => {

@@ -47,7 +47,7 @@ test('Zoom: el botón de la reunión del timeline crea el link', async ({ page, 
   await ok(request.post('/api/crm/apps/zoom', { data: { accountId: 'acc', clientId: 'cid', clientSecret: 'sec' } }));
   const contact = await ok<{ id: string }>(request.post('/api/crm/contacts', { data: { firstName: 'Zoe', lastName: `Zoom${uid()}`, email: `zoe${uid()}@e2e.dev` } }));
   await ok(request.post('/api/crm/activities', { data: { type: 'meeting', subject: 'Kickoff call', contactId: contact.id } }));
-  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Zoom link' }).first().click();
   await expect(page.getByText(/Zoom: https:\/\/zoom\.us\/j\/\d+/).first()).toBeVisible();
 });

@@ -428,7 +428,7 @@ export default function ChatThread(props: ThreadProps) {
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // "Info del contacto" de alguien del grupo (su foto o su nombre en un mensaje): la ficha de WhatsApp.
   const tsheet = useTranslations('groups.wa.contactSheet');
-  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true));
+  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).

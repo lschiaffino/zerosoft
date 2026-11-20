@@ -39,7 +39,7 @@ test('registrar llamada → Playbooks: guarda respuestas, propiedad y una sola l
   const contact = await ok<{ id: string }>(
     request.post('/api/crm/contacts', { data: { firstName: 'Phone', lastName: uid(), email: `${uid()}@pt.test`, phone: '+1 415 555 0177' } }),
   );
-  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
   const before = page.url();
   // El link tel: abriría la app de teléfono: en el test solo se evita la navegación (el registro abre igual).
   await page.evaluate(() =>

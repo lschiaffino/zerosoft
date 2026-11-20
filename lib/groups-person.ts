@@ -10,6 +10,7 @@ import { getDb } from './db';
 import { phoneDigits } from './groups-provider';
 import { GroupsError, getMessageRow, type ChatRow, type NumberRow, type Reaction } from './groups';
 import { canSeeChat, maskPhone, type GroupsViewer } from './groups-access';
+import { blockProvider } from './groups-block';
 import { displayName, lookupContacts, type ContactRow } from './wa-contacts';
 import type { PersonRole, WaPersonCard } from './wa-person';
 import { reactorName, reactorPhone, type WaReactor } from './wa-reactions';
@@ -105,11 +106,11 @@ export async function personCard(viewer: GroupsViewer, groupId: string, phone: s
     picture: contact?.picture || dm?.picture_url || '',
     role: member?.role ?? null,
     me,
-    dm: dm ? { id: dm.id, muted: Boolean(dm.muted_until && dm.muted_until > new Date().toISOString()), blocked: false } : null,
+    dm: dm ? { id: dm.id, muted: Boolean(dm.muted_until && dm.muted_until > new Date().toISOString()), blocked: Boolean(dm.blocked_at) } : null,
     shared: { media: Number(counts?.media ?? 0), docs: Number(counts?.docs ?? 0), links: Number(counts?.links ?? 0), starred: Number(counts?.starred ?? 0) },
     commonGroups: visible,
-    // Lines todavía no bloquea contactos.
-    canBlock: false,
+    // Bloquear: su chat 1:1, no uno mismo, y una línea conectada cuyo proveedor bloquea (Evolution).
+    canBlock: !!dm && !me && !!blockProvider(number),
   };
 }
 
