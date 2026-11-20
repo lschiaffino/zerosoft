@@ -217,8 +217,6 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
-    // La lista con todas las líneas: otro spec de la misma parte puede haber dejado elegida una sola.
-    await request.put('/api/groups/prefs', { data: { line: 'all' } });
     const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Selección ${uid()}` } });
     expect(created.ok()).toBe(true);
     const { id } = (await created.json()) as { id: string };
@@ -234,7 +232,10 @@ for (const width of [1280, 390]) {
         name: 'lines',
         open: async (name) => {
           await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-          await page.locator('.gr-row', { hasText: name }).click();
+          // Por el buscador: con muchos chats de otros specs en la misma parte, el chat (de hace 10 min) puede quedar
+          // fuera de la primera página de la lista.
+          await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(name);
+          await page.locator('.gr-row', { hasText: name }).first().click();
           await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
         },
         msg: (text) => page.locator('.gr-msg', { hasText: text }),
