@@ -148,9 +148,24 @@ const REQUIRED: Record<PeriskopeKind, string[]> = {
  * `dryRun`: no escribe, devuelve lo que haría (para la vista previa).
  */
 export async function importPeriskope(ws: string, actor: string, kind: PeriskopeKind, csv: string, opts: { dryRun?: boolean } = {}): Promise<PeriskopeResult> {
-  const dryRun = opts.dryRun === true;
   if (Buffer.byteLength(csv) > MAX_CSV_BYTES) throw new GroupsError('file_too_large', 413);
-  const rows = parseCsv(csv).filter((r) => r.some((c) => c.trim()));
+  return importPeriskopeRows(ws, actor, kind, parseCsv(csv), opts);
+}
+
+/**
+ * Lo mismo con las filas ya leídas (encabezado primero). La importación por
+ * API (lib/groups-periskope-api.ts) arma estas filas con lo que devuelve
+ * Periskope y pasa por acá, así las dos vías aplican lo mismo.
+ */
+export async function importPeriskopeRows(
+  ws: string,
+  actor: string,
+  kind: PeriskopeKind,
+  allRows: string[][],
+  opts: { dryRun?: boolean; maxRows?: number; audit?: boolean } = {},
+): Promise<PeriskopeResult> {
+  const dryRun = opts.dryRun === true;
+  const rows = allRows.filter((r) => r.some((c) => c.trim()));
   const result: PeriskopeResult = { kind, dryRun, rows: 0, applied: 0, created: { labels: 0, quickReplies: 0 }, ignoredColumns: [], issues: [] };
   if (rows.length === 0) {
     result.issues.push({ line: 1, reason: 'empty_file' });
@@ -164,7 +179,7 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
     return result;
   }
   // Chats y contactos tocan varias tablas por fila: menos filas por archivo para que termine dentro del request.
-  const maxRows = kind === 'chats' || kind === 'contacts' ? MAX_CHAT_ROWS : MAX_ROWS;
+  const maxRows = opts.maxRows ?? (kind === 'chats' || kind === 'contacts' ? MAX_CHAT_ROWS : MAX_ROWS);
   const data = body.slice(0, maxRows);
   result.rows = data.length;
   if (body.length > maxRows) result.issues.push({ line: maxRows + 2, reason: `too_many_rows:${maxRows}` });
@@ -201,7 +216,7 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
       }
       if (await ensureLabel(name, labelColorFrom(cell(r, 'color')))) result.applied++;
     }
-    return finish(ws, actor, result, extra.map((e) => e.name));
+    return finish(ws, actor, result, opts.audit !== false, extra.map((e) => e.name));
   }
 
   if (kind === 'quick_replies') {
@@ -222,7 +237,7 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
       result.created.quickReplies++;
       result.applied++;
     }
-    return finish(ws, actor, result, extra.map((e) => e.name));
+    return finish(ws, actor, result, opts.audit !== false, extra.map((e) => e.name));
   }
 
   // ---------- Chats y contactos: sobre los chats que ya están en Lines ----------
@@ -235,7 +250,7 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
   const defs = await listPropertyDefs(ws);
   const propCols = kind === 'chats' ? extra.flatMap((e) => {
     const d = defs.find((x) => normHeader(x.label) === normHeader(e.name) || normHeader(x.key) === normHeader(e.name));
-    return d ? [{ index: e.index, key: d.key, type: d.type }] : [];
+    return d ? [{ index: e.index, key: d.key, type: d.type, options: d.options, name: e.name }] : [];
   }) : [];
   const usedExtra = new Set(propCols.map((p) => p.index));
 
@@ -291,7 +306,18 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
     for (const p of propCols) {
       const v = (r[p.index] ?? '').trim();
       if (!v) continue;
-      props[p.key] = p.type === 'multiselect' ? splitList(v) : p.type === 'number' ? Number(v) : p.type === 'checkbox' ? /^(true|yes|si|sí|1|x)$/i.test(v) : v;
+      const value = p.type === 'multiselect' ? splitList(v) : p.type === 'number' ? Number(v) : p.type === 'checkbox' ? /^(true|yes|si|sí|1|x)$/i.test(v) : v;
+      // Un valor que la propiedad no acepta (opción que no existe, fecha en otro formato) se informa y no frena el resto de la fila.
+      const ok =
+        p.type === 'select' ? p.options.includes(v) :
+        p.type === 'multiselect' ? (value as string[]).every((x) => p.options.includes(x)) :
+        p.type === 'date' ? /^\d{4}-\d{2}-\d{2}$/.test(v) :
+        p.type === 'number' ? Number.isFinite(value) : true;
+      if (!ok) {
+        result.issues.push({ line, reason: `invalid_value:${p.name}` });
+        continue;
+      }
+      props[p.key] = value;
     }
     const name = cell(r, 'chatName');
     result.applied++;
@@ -313,13 +339,13 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
       if (name && !chat.name) await db.prepare("UPDATE groups_chats SET name = ? WHERE id = ? AND name = ''").run(name.slice(0, 200), chat.id);
     }
   }
-  return finish(ws, actor, result, extra.filter((e) => !usedExtra.has(e.index)).map((e) => e.name));
+  return finish(ws, actor, result, opts.audit !== false, extra.filter((e) => !usedExtra.has(e.index)).map((e) => e.name));
 }
 
-async function finish(ws: string, actor: string, result: PeriskopeResult, ignored: string[]): Promise<PeriskopeResult> {
+async function finish(ws: string, actor: string, result: PeriskopeResult, audit: boolean, ignored: string[]): Promise<PeriskopeResult> {
   result.ignoredColumns = ignored.slice(0, 50);
   result.issues = result.issues.slice(0, 200);
-  if (!result.dryRun && result.applied > 0) {
+  if (audit && !result.dryRun && result.applied > 0) {
     await recordAudit(ws, {
       chatId: null,
       chatName: 'Periskope',
