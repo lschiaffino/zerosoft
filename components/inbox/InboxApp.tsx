@@ -275,6 +275,9 @@ export default function InboxApp(props: {
   const listCache = useRef(new ListCache<CachedList>(30)).current;
   const live = useRef({ want: listKey, base: listBase, shown: listKey, threads: props.initialThreads, next: props.initialNext ?? null, pinned: props.initialPinned ?? 0, etag: '', etagUrl: '', more: false });
   const listAbort = useRef<AbortController | null>(null);
+  /** La lista que se está pidiendo ahora (su URL) y si llegó otro aviso mientras tanto. */
+  const listInflight = useRef<string | null>(null);
+  const listAgain = useRef(false);
   const moreAbort = useRef<AbortController | null>(null);
   const moreRef = useRef<HTMLLIElement>(null);
   const switching = shownKey !== listKey;
@@ -299,10 +302,25 @@ export default function InboxApp(props: {
       const L = live.current;
       const size = L.shown === key ? Math.min(Math.max(L.threads.length - L.pinned, PAGE), MAX_HEAD) : PAGE;
       const url = `${base}&cursor=&limit=${size}`;
+      // Una relectura de la misma lista que ya se está pidiendo espera a esa: si cada aviso en vivo o cada consulta
+      // periódica cortara la anterior, con un servidor lento la lista no llegaría nunca. Otra lista sí corta la anterior.
+      if (listInflight.current === url) {
+        listAgain.current = true;
+        return;
+      }
       listAbort.current?.abort();
       const ctrl = new AbortController();
       listAbort.current = ctrl;
+      listInflight.current = url;
       const r = await fetchIfChanged<ListPage>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (listAbort.current === ctrl) {
+        listInflight.current = null;
+        // Llegó otro aviso mientras tanto: se lee una vez más (puede haber cambiado algo después de esta lectura).
+        if (listAgain.current) {
+          listAgain.current = false;
+          queueMicrotask(() => void reloadRef.current());
+        }
+      }
       if (r.state === 'aborted' || live.current.want !== key) return;
       if (r.state === 'error') {
         // No llegó la lista pedida: no quedan a la vista las filas de la anterior (se ve el error con "Reintentar").
@@ -326,6 +344,8 @@ export default function InboxApp(props: {
   );
 
   const reloadList = useCallback(() => fetchHead(live.current.want, live.current.base), [fetchHead]);
+  const reloadRef = useRef(reloadList);
+  reloadRef.current = reloadList;
 
   /** La página que sigue (al llegar al final de la lista). */
   const loadMore = useCallback(async () => {
