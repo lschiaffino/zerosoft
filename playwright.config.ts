@@ -56,6 +56,7 @@ export default defineConfig({
       // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
       // dependería de la máquina (y de los créditos del Gateway).
       // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").
+      // El sync del CRM con HubSpot usa el mismo flag: la cuenta falsa de lib/hubspot/fake-portal.ts (claves "pat-…").
       CRM_IMPORT_FAKE: '1',
       // Notion por API contra el workspace falso (token "fake-notion"): hub de importación.
       NOTION_IMPORT_FAKE: '1',

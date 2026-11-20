@@ -11,8 +11,11 @@
  * está documentada para las private apps. Para una service key HubSpot no
  * documenta una consulta de permisos: si esa llamada no responde, la cuenta
  * sale de /account-info/v3/details y los permisos se prueban uno por uno (una
- * lectura mínima por permiso; para los de escritura, un PATCH sin propiedades
- * sobre el id 0, que no puede cambiar nada: 403 es "falta el permiso").
+ * lectura mínima por permiso; para los de escritura, un batch/update con la
+ * lista de registros vacía, que por construcción no puede tocar ninguno).
+ * Para un permiso de escritura solo un 403 dice que falta; una respuesta que
+ * no es un éxito ni un error de validación deja el permiso como "sin
+ * confirmar" (unknownScopes).
  */
 import { open, seal } from '../secret-box';
 import type { FetchLike, SleepFn } from './retry';
@@ -29,6 +32,8 @@ export interface HubspotTokenInfo {
   kind: HubspotTokenKind;
   /** De dónde salieron los permisos: de la info del token o de probar cada uno. */
   scopesFrom: 'token_info' | 'probe';
+  /** Permisos de escritura probados cuya respuesta no confirmó ni negó el permiso. */
+  unknownScopes: string[];
 }
 
 /** Forma mínima de una clave: algo, sin espacios y de un largo razonable. */
@@ -49,7 +54,8 @@ function probeFor(scope: string): { method: string; path: string; body?: unknown
   if (m) {
     return m[2] === 'read'
       ? { method: 'GET', path: `/crm/v3/objects/${m[1]}?limit=1` }
-      : { method: 'PATCH', path: `/crm/v3/objects/${m[1]}/0`, body: { properties: {} } };
+      : // Lista vacía: no nombra ningún registro, así que no puede cambiar nada aunque el permiso esté.
+        { method: 'POST', path: `/crm/v3/objects/${m[1]}/batch/update`, body: { inputs: [] } };
   }
   m = /^crm\.schemas\.(contacts|companies|deals)\.read$/.exec(scope);
   if (m) return { method: 'GET', path: `/crm/v3/properties/${m[1]}/${SCHEMA_PROBE[m[1]]}` };
@@ -116,13 +122,19 @@ export async function inspectHubspotToken(token: string, opts: InspectOptions = 
     if (!portalId && e.code !== 'scope') throw e;
   }
 
+  const unknownScopes: string[] = [];
   const probeOne = async (scope: string): Promise<boolean> => {
     const p = probeFor(scope);
     if (!p) return false;
     const res = await client.send(p.path, { method: p.method, body: p.body });
     if (res.status === 401) throw new HubspotApiError('auth', 401, res.path);
-    // 403: falta. Cualquier otra respuesta (200, 404 del id 0, 400 del cuerpo vacío) pasó el control de permisos.
-    return res.status !== 403 && res.status < 500;
+    if (p.method === 'GET') return res.status !== 403 && res.status < 500;
+    // Escritura: 403 falta; un éxito o un error de validación (400, 422) pasó el control de permisos.
+    // Cualquier otra cosa (404, 429, 5xx) no dice nada: queda sin confirmar.
+    if (res.status === 403) return false;
+    if ((res.status >= 200 && res.status < 300) || res.status === 400 || res.status === 422) return true;
+    unknownScopes.push(scope);
+    return false;
   };
   let scopesFrom: HubspotTokenInfo['scopesFrom'] = 'token_info';
   if (!scopes) {
@@ -134,7 +146,7 @@ export async function inspectHubspotToken(token: string, opts: InspectOptions = 
   }
   if (!/^\d{1,20}$/.test(portalId)) throw new HubspotApiError('auth', 401);
   bindHubspotTokenPortal(token, portalId);
-  return { portalId, uiDomain, scopes, kind, scopesFrom };
+  return { portalId, uiDomain, scopes, kind, scopesFrom, unknownScopes };
 }
 
 // ---------- Guardado ----------

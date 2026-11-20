@@ -126,6 +126,8 @@ describe('lo que sobrevive a la conexión se hace desde la web', () => {
     'PATCH /api/groups/numbers/[id]',
     'POST /api/import/jobs',
     'POST /api/crm/import/jobs',
+    'POST /api/crm/hubspot-sync',
+    'DELETE /api/crm/hubspot-sync',
   ])('%s', (k) => {
     expect(inCatalog.has(k), k).toBe(false);
     expect(WEB_ONLY.some((o) => `${o.method} ${o.path}` === k), k).toBe(true);
