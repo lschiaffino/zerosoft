@@ -62,7 +62,7 @@
     "send": { "names": ["send"], "specs": ["send", "send-*"] },
     "forms": { "names": ["forms"], "paths": ["app/[locale]/f/**"], "specs": ["forms", "forms-*"] },
     "sign": { "names": ["sign", "esign"], "specs": ["sign"] },
-    "time": { "names": ["time"], "specs": ["time", "time-week", "time-assign"] },
+    "time": { "names": ["time"], "specs": ["time", "time-week", "time-assign", "time-approvals"] },
     "chat": { "names": ["chat"], "specs": ["chat", "chat-gauntlet", "chat-parity", "chat-parity-*", "chat-restricted-inbox"] },
     "talk": { "names": ["talk"], "specs": ["talk", "talk-*"] },
     "link": { "names": ["link", "links"], "paths": ["app/[locale]/bio/**", "app/[locale]/gate/**"], "specs": ["link-*"] },

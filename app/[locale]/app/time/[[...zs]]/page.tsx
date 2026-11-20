@@ -10,13 +10,15 @@ import Timesheet from '@/components/time/Timesheet';
 import ProjectsList from '@/components/time/ProjectsList';
 import ProjectDetail from '@/components/time/ProjectDetail';
 import Reports from '@/components/time/Reports';
+import Approvals from '@/components/time/Approvals';
+import { countPendingSheets } from '@/lib/time/approvals';
 import TimeSettings from '@/components/time/TimeSettings';
 
 export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ locale: string; zs?: string[] }>; searchParams: Promise<Record<string, string | undefined>> };
 
-const TITLES: Record<string, string> = { projects: 'nav.projects', reports: 'nav.reports', settings: 'nav.settings' };
+const TITLES: Record<string, string> = { projects: 'nav.projects', approvals: 'nav.approvals', reports: 'nav.reports', settings: 'nav.settings' };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale, zs = [] } = await props.params;
@@ -26,7 +28,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 /**
  * Time en una sola ruta (presupuesto de rutas): /app/time (?date, ?view=week, ?new=1),
- * /app/time/projects (?new=1), /app/time/projects/<id>, /app/time/reports
+ * /app/time/projects (?new=1), /app/time/projects/<id>, /app/time/approvals, /app/time/reports
  * (?projectId) y /app/time/settings.
  */
 export default async function TimePage(props: Props) {
@@ -69,6 +71,8 @@ export default async function TimePage(props: Props) {
         />
       );
     }
+    case 'approvals':
+      return <Approvals admin={actor.admin} initialCount={await countPendingSheets(actor)} />;
     case 'reports':
       return <Reports admin={actor.admin} projects={await listProjects(actor)} initialProjectId={sp.projectId ?? null} />;
     case 'settings': {

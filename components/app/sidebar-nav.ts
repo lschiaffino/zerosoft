@@ -286,7 +286,7 @@ export interface SidebarLabels {
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Time (Harvest): hoja de horas, proyectos y reportes. */
-  time: { timesheet: string; projects: string; reports: string; track: string };
+  time: { timesheet: string; projects: string; approvals: string; reports: string; track: string };
   /** Fleet: tablero de agentes, chats, PRs y deploys. */
   fleet: { now: string; chats: string; prs: string; deploys: string; connect: string };
   /** Sign (DocuSign): sobres, plantillas. */
@@ -1058,6 +1058,7 @@ export function buildNav(
           items: [
             { href: '/app/time', label: labels.time.timesheet, active: pathname === '/app/time', icon: 'clock' },
             { href: '/app/time/projects', label: labels.time.projects, active: at('/app/time/projects'), icon: 'folder' },
+            { href: '/app/time/approvals', label: labels.time.approvals, active: at('/app/time/approvals'), icon: 'check' },
             { href: '/app/time/reports', label: labels.time.reports, active: at('/app/time/reports'), icon: 'reports' },
           ],
         },

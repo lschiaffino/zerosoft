@@ -23,6 +23,8 @@ type Props = {
   push: (msg: string, tone?: 'ok' | 'bad') => void;
   /** Abre un día en la vista del día (celdas con varias entradas o un cronómetro). */
   onOpenDay: (date: string) => void;
+  /** Semana enviada o aprobada: se ve, no se edita. */
+  readOnly?: boolean;
 };
 
 /**
@@ -31,7 +33,7 @@ type Props = {
  * (o con Enter). Las notas y el cronómetro quedan en la vista del día.
  * El componente va con `key` por semana: las filas agregadas a mano son de esa semana.
  */
-export default function WeekGrid({ days, today, entries, loadFailed, onRetry, projects, tasks, me, now, setEntries, push, onOpenDay }: Props) {
+export default function WeekGrid({ days, today, entries, loadFailed, onRetry, projects, tasks, me, now, setEntries, push, onOpenDay, readOnly = false }: Props) {
   const t = useTranslations('time');
   const errorText = useErrorText();
   const fmtDay = useDayFormat();
@@ -211,14 +213,16 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
           title={t('week.emptyTitle')}
           body={t('week.emptyBody')}
           action={
-            <div className="tm-actions tm-actions-center">
+            readOnly ? undefined : (
+              <div className="tm-actions tm-actions-center">
               <button type="button" className="btn btn-primary" onClick={openAdd} data-testid="time-week-add-row">
                 {t('week.addRow')}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => void copyRows()} disabled={copying} data-testid="time-week-copy-rows">
                 {t('week.copyRows')}
               </button>
-            </div>
+              </div>
+            )
           }
         />
       ) : (
@@ -283,6 +287,7 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
                             })}
                             onSave={(text) => saveCell(row, d, text)}
                             onOpenDay={() => onOpenDay(d)}
+                            readOnly={readOnly}
                           />
                         </td>
                       ))}
@@ -290,6 +295,7 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
                         {formatMinutes(rowTotal)}
                       </td>
                       <td className="tm-grid-x">
+                        {!readOnly && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm tm-icon-btn"
@@ -299,6 +305,7 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
                         >
                           ×
                         </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -322,12 +329,14 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
               </tfoot>
             </table>
           </div>
-          <div className="tm-grid-foot">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={openAdd} data-testid="time-week-add-row">
-              {t('week.addRow')}
-            </button>
-            <span className="tm-muted tm-small">{t('week.hint')}</span>
-          </div>
+          {!readOnly && (
+            <div className="tm-grid-foot">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={openAdd} data-testid="time-week-add-row">
+                {t('week.addRow')}
+              </button>
+              <span className="tm-muted tm-small">{t('week.hint')}</span>
+            </div>
+          )}
         </>
       )}
 
@@ -425,6 +434,7 @@ function GridCell({
   lockedLabel,
   onSave,
   onOpenDay,
+  readOnly,
 }: {
   cell: EntryDto[];
   minutes: number;
@@ -433,6 +443,7 @@ function GridCell({
   lockedLabel: string;
   onSave: (text: string) => Promise<boolean>;
   onOpenDay: () => void;
+  readOnly: boolean;
 }) {
   const locked = cell.length > 1 || cell.some((e) => e.timerStartedAt);
   const shown = cell.length ? formatMinutes(minutes) : '';
@@ -464,6 +475,7 @@ function GridCell({
   }
 
   const commit = async () => {
+    if (readOnly) return;
     if (value.trim() === committed.current.trim()) {
       setValue(committed.current);
       return;
@@ -493,6 +505,7 @@ function GridCell({
       placeholder=""
       aria-label={label}
       aria-busy={saving || undefined}
+      readOnly={readOnly}
       data-day={day}
       data-testid="time-week-cell"
       onChange={(e) => setValue(e.target.value)}
