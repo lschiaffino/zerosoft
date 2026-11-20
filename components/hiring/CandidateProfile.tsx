@@ -50,16 +50,14 @@ function EditCandidateDialog({ open, candidate, onClose, onSaved, onError }: { o
             <input className="input" name="email" type="email" maxLength={254} defaultValue={candidate.email} />
             {!candidate.email && <span className="ui-help">{t('profile.noEmailHelp')}</span>}
           </label>
-          <div className="ui-fields-2">
-            <label className="ui-field">
-              <span className="label">{t('profile.phone')}</span>
-              <input className="input" name="phone" type="tel" maxLength={40} defaultValue={candidate.phone} />
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('profile.location')}</span>
-              <input className="input" name="location" maxLength={120} defaultValue={candidate.location} />
-            </label>
-          </div>
+          <label className="ui-field">
+            <span className="label">{t('profile.phone')}</span>
+            <input className="input" name="phone" type="tel" maxLength={40} defaultValue={candidate.phone} />
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('profile.location')}</span>
+            <input className="input" name="location" maxLength={120} defaultValue={candidate.location} />
+          </label>
           <label className="ui-field">
             <span className="label">{t('profile.headline')}</span>
             <input className="input" name="headline" maxLength={200} defaultValue={candidate.headline} />
