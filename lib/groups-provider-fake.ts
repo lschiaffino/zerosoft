@@ -26,6 +26,8 @@
  *   teléfono). La devuelven findContacts (historial de Inbox), chatInfo
  *   (nombre, info, participantes con lid y nombre) y participants. `groups`
  *   suma a la persona a esos grupos (solo con lid si no trae teléfono).
+ *   `lidGroups: [<grupo>]` al lado de `contacts` deja esos grupos direccionados
+ *   por lid (las menciones salen como "@<lid>", ver FakeSent.mentioned).
  * - Mensajes que no se pudieron descifrar (como Evolution con el parche 0002):
  *   un evento `{ type: 'fake_withheld', message: <evento message> }` llega a
  *   la app como `missing` y el número se guarda el mensaje; fetchHistory del
@@ -48,6 +50,7 @@ import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
 import { evolutionForward } from './wa-forward';
+import { waMentionPayload } from './wa-mention-jids';
 import { FAKE_VIDEO_WEBM } from './wa-video-fixtures';
 import {
   PROVIDER_CAPS,
@@ -74,6 +77,8 @@ interface FakeGroup extends GroupInfo {
   participants: Participant[];
   /** Participantes que solo se ven por su lid (sin teléfono). */
   lids?: string[];
+  /** Cómo direcciona WhatsApp el grupo (por defecto por teléfono). */
+  addressing?: 'pn' | 'lid';
   inviteCode: string;
   ephemeral?: number;
   picture?: string;
@@ -87,10 +92,17 @@ export interface FakeSent {
   at: number;
   /** Media: el tipo de mensaje de WhatsApp, el mimetype y si fue en base64 (tests). */
   media?: { kind: string; mimetype: string; base64: boolean; gifPlayback?: boolean };
-  /** Teléfonos mencionados (textos en grupos). */
+  /** Teléfonos mencionados (textos en grupos), como los pidió la app. */
   mentions?: string[];
   /** Reenvío: la marca que pidió la app (score y, si va, el original), como la recibe el gateway (tests). */
   forward?: { score: number; key?: { id: string; remoteJid: string; fromMe: boolean } };
+  /**
+   * Lo que recibiría el servidor de WhatsApp (lib/wa-mention-jids.ts): los JIDs mencionados y el texto con el token
+   * de cada uno. Un grupo falso con `addressing: 'lid'` menciona por lid. El id que devuelve termina en
+   * "~<jid>,<jid>" (lo ven los e2e en la base).
+   */
+  mentioned?: string[];
+  mentionText?: string;
   /** Marcar leído: el recibo que manda WhatsApp ('read-self' con las confirmaciones apagadas: el otro no lo ve). */
   receipt?: 'read' | 'read-self';
 }
@@ -567,8 +579,20 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     sendText: async (chatId, text, o) => {
       const r = send(chatId, text, 'text');
-      if (o?.mentions?.length) s.sent[s.sent.length - 1].mentions = [...o.mentions];
       if (o?.forward) s.sent[s.sent.length - 1].forward = evolutionForward(o.forward).forward;
+      if (o?.mentions?.length) {
+        const g = chatId.endsWith('@g.us') ? s.groups.get(chatId) : undefined;
+        const members = g
+          ? [
+              ...g.participants.map((p) => ({ phone: p.phone, lid: findContact(s, { phone: p.phone })?.lid })),
+              ...(g.lids ?? []).map((lid) => ({ phone: findContact(s, { lid })?.phone ?? '', lid })),
+            ]
+          : [];
+        const wire = waMentionPayload(text, o.mentions, g ? { addressing: g.addressing ?? 'pn', members } : null);
+        Object.assign(s.sent[s.sent.length - 1], { mentions: [...o.mentions], mentioned: wire.mentioned, mentionText: wire.text });
+        // El id del mensaje lleva los JIDs mencionados: así un e2e (otro proceso) los ve en la base, en provider_message_id.
+        return { id: `${r.id}~${wire.mentioned.join(',')}` };
+      }
       return r;
     },
     sendMedia: async (chatId, media) => {
@@ -760,7 +784,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       const events = (body as { events?: unknown })?.events;
       if (!Array.isArray(events)) return [];
       // La libreta del servidor cambia sin que la app se entere (la trae el repaso diario).
-      for (const e of events) if ((e as { type?: unknown })?.type === 'fake_contacts') applyFakeContacts(s, (e as { contacts?: unknown }).contacts);
+      for (const e of events) {
+        if ((e as { type?: unknown })?.type !== 'fake_contacts') continue;
+        applyFakeContacts(s, (e as { contacts?: unknown }).contacts);
+        const lidGroups = (e as { lidGroups?: unknown }).lidGroups;
+        for (const gid of Array.isArray(lidGroups) ? lidGroups.map(String) : []) {
+          const g = s.groups.get(gid);
+          if (g) g.addressing = 'lid';
+        }
+      }
       // La privacidad también (la app la lee al conectar, en el repaso diario o pasado un día).
       for (const e of events) {
         const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };

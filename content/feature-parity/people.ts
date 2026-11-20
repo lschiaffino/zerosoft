@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   percentHidden: { note: loc(['This table lists everything BambooHR documents, feature by feature, including payroll, benefits, time tracking and global employment, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que BambooHR documenta, función por función, con nómina, beneficios, registro de horas y empleo global, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o BambooHR documenta, função por função, com folha, benefícios, registro de horas e emprego global, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
@@ -322,8 +322,12 @@ const parity: ProductParity = {
     row('balance-cap', 'timeoff', ['Balance cap', 'Tope de saldo', 'Limite de saldo'], 'partial', {
       detail: ['A balance cap per policy. Built; not yet walked end to end in a browser for each role', 'Saldo máximo por política. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Saldo máximo por política. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('pto-cancel', 'timeoff', ['Edit or cancel a request', 'Editar o cancelar un pedido', 'Editar ou cancelar um pedido'], 'partial', {
-      detail: ['Cancel, but not edit, a request. Built; not yet walked end to end in a browser for each role', 'Cancelar un pedido, no editarlo. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Cancelar um pedido, não editar. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('pto-cancel', 'timeoff', ['Edit or cancel a request', 'Editar o cancelar un pedido', 'Editar ou cancelar um pedido'], 'have', {
+      detail: [
+        'The person or HR changes the type, dates, half day or note of a pending request, or of an approved one that has not started; an approved one goes back for approval and frees Cal. Cancel while pending or before it ends',
+        'La persona o HR cambian el tipo, las fechas, el medio día o la nota de un pedido pendiente, o de uno aprobado que no empezó; el aprobado vuelve a aprobación y libera Cal. Cancelar mientras está pendiente o antes de que termine',
+        'A pessoa ou o RH mudam o tipo, as datas, o meio período ou a nota de um pedido pendente, ou de um aprovado que não começou; o aprovado volta para aprovação e libera o Cal. Cancelar enquanto está pendente ou antes de terminar',
+      ],
     }),
     row('holidays-by-location', 'timeoff', ['Holidays per location', 'Feriados por ubicación', 'Feriados por local'], 'partial', {
       detail: ['Per country, not per location. Built; not yet walked end to end in a browser for each role', 'Por país, no por ubicación. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Por país, não por localização. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],

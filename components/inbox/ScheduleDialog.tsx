@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ScheduledDto } from '@/lib/inbox/types';
 import WhenPicker, { whenShortcut } from '@/components/ui/WhenPicker';
@@ -29,6 +29,8 @@ export interface ScheduleTarget {
   channel: 'whatsapp' | 'gmail';
   /** Texto del campo (primer mensaje) al programar uno nuevo. */
   text?: string;
+  /** Menciones del texto en un grupo ("@label" → teléfono): salen como mención de WhatsApp. */
+  mentions?: Array<{ phone: string; label: string }>;
   /** Editar lo que falta de una secuencia programada. */
   edit?: ScheduledDto[];
 }
@@ -88,6 +90,11 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
   const [busy, setBusy] = useState(false);
   const key = useRef(newKey() + newKey());
   const files = useRef<Record<string, HTMLInputElement | null>>({});
+  // A quién es cada "@Nombre" del texto (las del campo, o las de la secuencia que se edita): van con cada parte.
+  const mentions = useMemo(() => {
+    const all = [...(target?.mentions ?? []), ...(target?.edit ?? []).flatMap((s) => s.mentions ?? [])];
+    return all.filter((m, i) => all.findIndex((x) => x.phone === m.phone && x.label === m.label) === i).slice(0, 50);
+  }, [target]);
 
   useEffect(() => {
     if (!target) return;
@@ -127,6 +134,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
       body: p.body.trim(),
       delaySec: i === 0 ? 0 : p.delaySec,
       media: p.media,
+      ...(whatsapp && !p.media && mentions.length ? { mentions } : {}),
     }));
     const sendAt = at.toISOString();
     const r = editing

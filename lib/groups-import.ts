@@ -51,12 +51,13 @@ import {
   type MessageRow,
   type NumberRow,
 } from './groups';
-import { isGroupJid, isLidJid, phoneDigits, type GroupsProvider, type InboundEvent } from './groups-provider';
+import { isBotJid, isGroupJid, isLidJid, phoneDigits, type GroupsProvider, type InboundEvent } from './groups-provider';
 import { parsePoll, pollPreview, voteOptions } from './groups-polls';
 import { defaultBridgeFetch } from './groups-provider-bridge';
 import { fillLinesNames, learnLinesContacts, learnLinesEvents } from './groups-wa-names';
 import { phoneForLid, resolveLidChats } from './wa-contacts';
 import { IMPORT_IDLE_MS } from './wa-import-notice';
+import { routeSelfChat } from './wa-self-chat';
 
 export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'older' | 'done';
 export type ImportState = 'queued' | 'running' | 'done' | 'error';
@@ -244,7 +245,8 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
   // Todo esto es historial: la libreta completa nombres que faltan, no pisa los que hay con los de mensajes viejos.
-  const marked = incoming.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e));
+  // Lo que vino con el id de la línea y no es del chat con uno mismo va a su chat (lib/wa-self-chat.ts).
+  const marked = routeSelfChat(incoming.slice(0, 2000), number.phone).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e));
   const learned = await learnLinesEvents(number, marked);
   // Un chat 1:1 que llegó por lid y cuyo teléfono ya se conoce va al chat del teléfono (no abre otro).
   const resolved = await resolveLidChats({ app: 'lines', accountId: number.id }, learned).catch(() => learned);
@@ -271,7 +273,7 @@ export async function ingestHistory(number: NumberRow, incoming: InboundEvent[])
       return hit;
     }
     const isGroup = ev.isGroup || isGroupJid(ev.chatId);
-    let name = isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || undefined;
+    let name = isGroup ? ev.chatName : ev.fromMe ? (isBotJid(ev.chatId) ? ev.chatName : undefined) : ev.senderName || undefined;
     if (!isGroup && !name && isLidJid(ev.chatId)) name = lidName ??= await lidChatName(ws);
     const row = await upsertChat(number, { providerChatId: ev.chatId, kind: isGroup ? 'group' : 'dm', name, phone: isGroup ? '' : phoneDigits(ev.chatId) }, { silent: true });
     chats.set(ev.chatId, row);

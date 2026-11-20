@@ -121,6 +121,11 @@ const part = z.object({
     .optional(),
   /** Mensaje del chat (nuestro id) que cita. */
   replyTo: id.optional(),
+  /** Menciones en un grupo: "@label" en el texto es la persona con ese teléfono (lib/wa-compose-mentions.ts). */
+  mentions: z
+    .array(z.object({ phone: z.string().regex(/^\d{6,16}$/), label: z.string().max(200) }))
+    .max(50)
+    .optional(),
 });
 const parts = z.array(part).min(1).max(10);
 

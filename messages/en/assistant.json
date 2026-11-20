@@ -350,7 +350,13 @@
     "failed": "The model stopped responding before I could finish.",
     "pending": "{count, plural, one {One change is waiting for your confirmation on the card above.} other {# changes are waiting for your confirmation on the cards above.}}",
     "nothingPending": "I did not get to prepare any change yet.",
-    "next": "Tell me if I should keep going, or what to adjust."
+    "next": "Tell me if I should keep going, or what to adjust.",
+    "limit": "I reached the limit of {steps} steps for this request."
+  },
+  "stepLimit": {
+    "notice": "Reached the limit of {steps} steps for one request.",
+    "continue": "Continue",
+    "message": "Continue where you left off."
   },
   "activity": {
     "verbs": [

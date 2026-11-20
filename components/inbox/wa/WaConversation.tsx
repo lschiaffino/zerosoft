@@ -64,6 +64,7 @@ import { typingLabel } from './ChatRow';
 import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent';
 import { parseEvent } from '@/lib/wa-group-events';
 import { forwardedMany } from '@/lib/wa-forward';
+import type { WaMentionPick } from '@/lib/wa-compose-mentions';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -120,7 +121,7 @@ const WaConversation = forwardRef<
     onBack: () => void;
     onAction: (action: string) => void;
     onSent: (messages: MessageDto[]) => void;
-    onSendLater: (text: string) => void;
+    onSendLater: (text: string, mentions?: WaMentionPick[]) => void;
     onScheduledChange: () => void;
     onError: (code: string) => void;
     onToast: (text: string) => void;

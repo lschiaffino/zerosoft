@@ -27,7 +27,7 @@ import {
   type PayPeriod,
 } from './people-time';
 import { emailPeople } from './people-email';
-import { activeManagerUser, getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
+import { activeManagerUser, getEmployeeRow, newId, type EmployeeRow, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
 import { emitPeopleEvent, hrPeople, notifyPeople } from './people-effects';
 
 const db = () => getDb();
@@ -248,11 +248,18 @@ export interface RequestDto {
   createdAt: string;
   canDecide: boolean;
   canCancel: boolean;
+  /** La persona o HR, mientras está pendiente o aprobado sin empezar. Editar lo vuelve a pendiente. */
+  canEdit: boolean;
 }
 
 async function hasManager(ws: string, employeeId: string): Promise<boolean> {
   const r = await getEmployeeRow(ws, employeeId);
   return Boolean(r?.manager_id);
+}
+
+function editable(ctx: PeopleCtx, r: { employee_id: string; status: RequestStatus; start_date: string }): boolean {
+  if (!ctx.viewer.hr && !isSelf(ctx.viewer, r.employee_id)) return false;
+  return r.status === 'pending' || (r.status === 'approved' && r.start_date > today());
 }
 
 function toDto(ctx: PeopleCtx, r: RequestRow & { employee_name: string; policy_name: string; decided_name: string | null; employee_has_manager: number }): RequestDto {
@@ -276,6 +283,7 @@ function toDto(ctx: PeopleCtx, r: RequestRow & { employee_name: string; policy_n
     createdAt: r.created_at,
     canDecide: decider && r.status === 'pending',
     canCancel: (ctx.viewer.hr || isSelf(ctx.viewer, r.employee_id)) && (r.status === 'pending' || (r.status === 'approved' && r.end_date >= today())),
+    canEdit: seeType && editable(ctx, r),
   };
 }
 
@@ -363,15 +371,19 @@ export async function requestDays(ws: string, employeeId: string, start: string,
   return countLeaveDays(start, end, hol.map((h) => h.date), half);
 }
 
-export async function createRequest(
+type RequestInput = { employeeId?: string; policyId?: string; startDate?: string; endDate?: string; half?: string; note?: string };
+
+/**
+ * Valida tipo, fechas, medio día, solapamiento y saldo de un pedido nuevo o
+ * editado. `replacing` = el pedido que se edita: no choca consigo mismo y sus
+ * días vuelven al saldo antes de comparar.
+ */
+async function checkRequest(
   ctx: PeopleCtx,
-  input: { employeeId?: string; policyId?: string; startDate?: string; endDate?: string; half?: string; note?: string },
-): Promise<RequestDto> {
-  const employeeId = input.employeeId || ctx.viewer.employeeId;
-  if (!employeeId) throw new PeopleError('no_profile', 409);
-  if (!canRequestFor(ctx.viewer, employeeId)) throw new PeopleError('forbidden', 403);
-  const emp = await getEmployeeRow(ctx.ws, employeeId);
-  if (!emp || emp.status === 'terminated') throw new PeopleError('not_found', 404);
+  emp: EmployeeRow,
+  input: RequestInput,
+  replacing?: { id: string; policyId: string; days: number },
+): Promise<{ policy: Policy; start: string; end: string; half: HalfDay; days: number }> {
   const policy = await getPolicy(ctx.ws, String(input.policyId ?? ''));
   if (!policy || policy.archived || !policyApplies(policy.appliesTo, emp)) throw new PeopleError('invalid_policy');
   const start = input.startDate;
@@ -380,17 +392,28 @@ export async function createRequest(
   if (start > addDays(today(), 730) || end > addDays(start, 366)) throw new PeopleError('invalid_dates');
   const half = (input.half === 'am' || input.half === 'pm' ? input.half : '') as HalfDay;
   if (half && (start !== end || !policy.halfDay)) throw new PeopleError('half_day_not_allowed');
-  const days = await requestDays(ctx.ws, employeeId, start, end, half);
+  const days = await requestDays(ctx.ws, emp.id, start, end, half);
   if (days <= 0) throw new PeopleError('no_working_days');
   const overlap = await db()
-    .prepare("SELECT 1 AS x FROM people_requests WHERE employee_id = ? AND status IN ('pending', 'approved') AND start_date <= ? AND end_date >= ? LIMIT 1")
-    .get(employeeId, end, start);
+    .prepare("SELECT 1 AS x FROM people_requests WHERE employee_id = ? AND id != ? AND status IN ('pending', 'approved') AND start_date <= ? AND end_date >= ? LIMIT 1")
+    .get(emp.id, replacing?.id ?? '', end, start);
   if (overlap) throw new PeopleError('overlap', 409);
   if (policy.accrual !== 'none') {
     const asOf = start > today() ? start : today();
-    const bal = (await balancesUnchecked(ctx.ws, employeeId, asOf)).find((b) => b.policy.id === policy.id)?.balance;
-    if (bal && days > bal.available) throw new PeopleError('insufficient_balance', 409);
+    const bal = (await balancesUnchecked(ctx.ws, emp.id, asOf)).find((b) => b.policy.id === policy.id)?.balance;
+    const back = replacing && replacing.policyId === policy.id ? replacing.days : 0;
+    if (bal && days > bal.available + back) throw new PeopleError('insufficient_balance', 409);
   }
+  return { policy, start, end, half, days };
+}
+
+export async function createRequest(ctx: PeopleCtx, input: RequestInput): Promise<RequestDto> {
+  const employeeId = input.employeeId || ctx.viewer.employeeId;
+  if (!employeeId) throw new PeopleError('no_profile', 409);
+  if (!canRequestFor(ctx.viewer, employeeId)) throw new PeopleError('forbidden', 403);
+  const emp = await getEmployeeRow(ctx.ws, employeeId);
+  if (!emp || emp.status === 'terminated') throw new PeopleError('not_found', 404);
+  const { policy, start, end, half, days } = await checkRequest(ctx, emp, input);
   const id = newId('req');
   const now = nowIso();
   await db()
@@ -507,6 +530,49 @@ export async function cancelRequest(ctx: PeopleCtx, id: string): Promise<Request
   const res = await db().prepare("UPDATE people_requests SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending', 'approved')").run(nowIso(), id);
   if (!res.changes) throw new PeopleError('not_cancellable', 409);
   await clearEffects(ctx.ws, r);
+  return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
+}
+
+/**
+ * Editar un pedido (tipo, fechas, medio día, nota): la persona o HR, mientras
+ * está pendiente o aprobado y todavía no empezó. Vuelve a pendiente (como en
+ * BambooHR, un cambio se aprueba de nuevo): si estaba aprobado se sacan el
+ * bloqueo de Cal y el estado de Talk, y quien aprueba recibe el aviso.
+ */
+export async function editRequest(ctx: PeopleCtx, id: string, input: RequestInput): Promise<RequestDto> {
+  const r = await getRequestRow(ctx.ws, id);
+  if (!r) throw new PeopleError('not_found', 404);
+  if (!ctx.viewer.hr && !isSelf(ctx.viewer, r.employee_id)) throw new PeopleError('forbidden', 403);
+  if (!editable(ctx, r)) throw new PeopleError('request_locked', 409);
+  const emp = await getEmployeeRow(ctx.ws, r.employee_id);
+  if (!emp || emp.status === 'terminated') throw new PeopleError('not_found', 404);
+  const next: RequestInput = {
+    policyId: input.policyId ?? r.policy_id,
+    startDate: input.startDate ?? r.start_date,
+    endDate: input.endDate ?? input.startDate ?? r.end_date,
+    half: input.half ?? r.half,
+    note: input.note ?? r.note,
+  };
+  const { policy, start, end, half, days } = await checkRequest(ctx, emp, next, { id, policyId: r.policy_id, days: Number(r.days) });
+  // Compare-and-set sobre el estado leído: una decisión o una cancelación en el medio gana.
+  const res = await db()
+    .prepare(
+      `UPDATE people_requests SET policy_id = ?, start_date = ?, end_date = ?, half = ?, days = ?, note = ?, status = 'pending',
+         decided_by = NULL, decided_at = NULL, decision_note = '', cal_slot_id = NULL, talk_set = 0, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status = ?`,
+    )
+    .run(policy.id, start, end, half, days, String(next.note ?? '').slice(0, 500), nowIso(), id, ctx.ws, r.status);
+  if (!res.changes) throw new PeopleError('request_locked', 409);
+  if (r.status === 'approved') await clearEffects(ctx.ws, r);
+  const mgrUser = await activeManagerUser(ctx.ws, r.employee_id);
+  const to = (mgrUser ? [mgrUser] : await hrPeople(ctx.ws)).filter((u) => u !== emp.user_id && u !== ctx.personId);
+  await notifyPeople(to, {
+    title: localized('timeOffEdited', { name: emp.name }),
+    body: localized('timeOffRequestedBody', { range: end !== start ? `${start} - ${end}` : start, days }),
+    href: '/app/people/time-off?tab=approvals',
+    sourceId: id,
+  });
+  await emailPeople(to, 'timeoff_request', `${id}:edit:${start}:${end}:${half}:${policy.id}`);
   return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
 }
 
