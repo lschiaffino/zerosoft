@@ -1,7 +1,7 @@
 /**
  * Info del mensaje (Lines e Inbox): las confirmaciones por persona
  * (lib/wa-receipts.ts, lib/wa-receipts-store.ts), lo que da el gateway con el
- * parche 0013 (pedido a demanda, con el proveedor falso) y lo que ve cada
+ * parche 0014 (pedido a demanda, con el proveedor falso) y lo que ve cada
  * quien (acceso por línea y teléfonos ocultos). Números y nombres inventados.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -118,7 +118,7 @@ describe('confirmaciones (puro)', () => {
   });
 });
 
-describe('gateway: /chat/messageReceipts (parche 0013)', () => {
+describe('gateway: /chat/messageReceipts (parche 0014)', () => {
   it('lee la respuesta: jid de teléfono o lid (con el teléfono si el gateway lo sabe), horas en segundos', () => {
     const out = parseEvolutionReceipts({
       receipts: [

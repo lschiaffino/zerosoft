@@ -29,7 +29,7 @@ export async function linesMessageInfo(viewer: GroupsViewer, chatId: string, mes
     return { ...base, ...shownTimes(ackTimes(msg.meta)), people: [], live: false, unavailable: false };
   }
 
-  // Grupo: lo que tenga el gateway en este momento (parche 0013), guardado; si no lo da, lo guardado.
+  // Grupo: lo que tenga el gateway en este momento (parche 0014), guardado; si no lo da, lo guardado.
   let live = false;
   const number = msg.provider_message_id ? await getNumberRow(viewer.ws, chat.number_id) : null;
   if (number && number.status === 'connected' && msg.provider_message_id) {

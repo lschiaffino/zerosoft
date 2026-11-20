@@ -726,7 +726,7 @@ export function parseEvolutionPrivacy(raw: unknown): PrivacySettings | null {
 }
 
 /**
- * /chat/messageReceipts (parche 0013 de infra/evolution) → las confirmaciones
+ * /chat/messageReceipts (parche 0014 de infra/evolution) → las confirmaciones
  * por persona: `{ receipts: [{ userJid, phone?, deliveredAt?, readAt?,
  * playedAt? }] }`, con las horas en segundos Unix. `userJid` es el teléfono
  * (`@s.whatsapp.net`) o el lid (`@lid`); `phone` es el teléfono de un lid si
@@ -1735,7 +1735,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
     },
     /**
-     * /chat/messageReceipts (parche 0013 de infra/evolution): las confirmaciones
+     * /chat/messageReceipts (parche 0014 de infra/evolution): las confirmaciones
      * por persona que el gateway guardó de un mensaje propio en un grupo, a
      * pedido (Evolution no las manda por el webhook). Sin el parche, o con el
      * parche apagado, responde 404: null.

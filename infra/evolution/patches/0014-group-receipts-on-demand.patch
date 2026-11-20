@@ -6,7 +6,7 @@ index 28c453e..a2d661d 100644
      sed -i 's/                const decoded = await extractSyncdPatches(result, config?.options);/                try { for (const c of getBinaryNodeChildren(getBinaryNodeChild(result, "sync"), "collection")) { (globalThis.__zsAppStateLast = globalThis.__zsAppStateLast || {})[(authState.creds.me?.id || "").split(":")[0].slice(-4) + ":" + c.attrs.name] = { attrs: c.attrs, children: (Array.isArray(c.content) ? c.content : []).map(n => ({ tag: n.tag, attrs: n.attrs, size: n.content?.length })), at: new Date().toISOString() }; } } catch { }\n                const decoded = await extractSyncdPatches(result, config?.options);/' "$f" && \
      grep -q '__zsAppStateLast' "$f"
  
-+# zerosoft (0013): en un grupo, Baileys 7.0.0-rc.9 guarda la confirmación de "escuchado" (un audio) como
++# zerosoft (0014): en un grupo, Baileys 7.0.0-rc.9 guarda la confirmación de "escuchado" (un audio) como
 +# readTimestamp, igual que "leído". Acá va como playedTimestamp, para la Info del mensaje ("Escuchado por").
 +# Falla el build si la línea cambió.
 +RUN f=node_modules/baileys/lib/Socket/messages-recv.js && \
@@ -42,7 +42,7 @@ index 6425754..e02fd21 100644
      return await instance.fetchHistory(data);
    }
  
-+  // zerosoft (0013): who received and read one of our group messages, as stored here. 404 when it is off
++  // zerosoft (0014): who received and read one of our group messages, as stored here. 404 when it is off
 +  // (ZS_MESSAGE_RECEIPTS) or not available, so a caller can tell "this gateway doesn't do it" from an error.
 +  public async messageReceipts({ instanceName }: InstanceDto, data: MessageReceiptsDto) {
 +    const instance = this.waMonitor.waInstances[instanceName];
@@ -61,7 +61,7 @@ index 0c3add0..94cee4e 100644
    anchor?: { id: string; fromMe?: boolean; timestamp: number; participant?: string };
  }
  
-+// zerosoft: the per-person receipts of one of our messages in a group (patch 0013).
++// zerosoft: the per-person receipts of one of our messages in a group (patch 0014).
 +export class MessageReceiptsDto {
 +  id: string;
 +  remoteJid?: string;
@@ -86,7 +86,7 @@ index 7aecbdd..c362901 100644
    return Math.round(parseFloat(duration));
  }
  
-+// zerosoft (0013): "Leído por" / "Entregado a" de los mensajes propios en grupos, sin webhooks.
++// zerosoft (0014): "Leído por" / "Entregado a" de los mensajes propios en grupos, sin webhooks.
 +// Baileys emite message-receipt.update por persona (en un grupo de 200 son 400 eventos por mensaje). En vez de
 +// mandarlos al webhook (0011 saturó la base de zerosoft), se juntan en memoria, se escriben de a tandas en una
 +// tabla propia (ZsMessageReceipt, clave instancia + mensaje + persona) y zerosoft los pide cuando alguien abre la
@@ -232,7 +232,7 @@ index 7aecbdd..c362901 100644
  
              if (events['message-receipt.update']) {
                const payload = events['message-receipt.update'] as MessageUserReceiptUpdate[];
-+              // zerosoft (0013): quién recibió y leyó los mensajes propios en grupos, guardado acá para pedirlo.
++              // zerosoft (0014): quién recibió y leyó los mensajes propios en grupos, guardado acá para pedirlo.
 +              if (zsReceiptsEnabled()) {
 +                const me = this.client?.user;
 +                const own = [me?.id, (me as any)?.lid].filter(Boolean).map((j: string) => jidNormalizedUser(j));
@@ -245,7 +245,7 @@ index 7aecbdd..c362901 100644
      };
    }
  
-+  // zerosoft (0013): las confirmaciones por persona de un mensaje propio de un grupo (lo que guardó
++  // zerosoft (0014): las confirmaciones por persona de un mensaje propio de un grupo (lo que guardó
 +  // zsQueueReceipts), con el teléfono de cada lid si Baileys lo sabe. Horas en segundos Unix.
 +  public async messageReceipts(data: MessageReceiptsDto) {
 +    if (!zsReceiptsEnabled()) throw new NotFoundException('Message receipts are off');

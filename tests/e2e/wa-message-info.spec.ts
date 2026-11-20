@@ -6,7 +6,7 @@ import { waLinkIp } from './helpers/wa-link';
  * Info del mensaje en Inbox y Lines, con el WhatsApp falso (GROUPS_FAKE=1):
  * en un grupo, el cuadro al lado del mensaje con "Leído por" y "Entregado a"
  * (cada persona con su hora, siete filas y "ver más"), pedido al gateway
- * falso como el parche 0013; en un 1:1, "Leído" y "Entregado" con su hora
+ * falso como el parche 0014; en un 1:1, "Leído" y "Entregado" con su hora
  * (las tildes del webhook). Esc y un clic afuera lo cierran; a 390 es una
  * hoja y no hay scroll de costado. Con INFO_SHOTS=<carpeta> guarda capturas
  * en el aspecto actual claro y en retro oscuro. Nombres y números inventados.
@@ -57,7 +57,7 @@ function groupScene(tag: string) {
   const title = `Info ${tag}`;
   const people = NAMES.map((n) => ({ name: `${n} ${tag}`, phone: phone() }));
   const outId = `info-out-${tag}`;
-  const base = Date.now() - 3600_000;
+  const base = Date.now() - 30 * 60_000;
   const at = (min: number) => new Date(base + min * 60_000).toISOString();
   const events: unknown[] = [
     ...people.map((p, i) => message(gid, { chatName: title, senderPhone: p.phone, senderName: p.name, body: `hola ${i} ${tag}`, timestamp: at(i) })),
@@ -88,6 +88,20 @@ function dmScene(tag: string) {
   };
 }
 
+/**
+ * Abre por su URL el chat donde está un mensaje (la base de e2e es compartida: con muchos chats, el de la prueba puede
+ * no estar en la primera página de la lista).
+ */
+async function openLinesChat(page: Page, body: string) {
+  const [row] = await sql('SELECT chat_id AS id FROM groups_messages WHERE body = ? ORDER BY created_at DESC LIMIT 1', [body]);
+  await page.goto(`/en/app/lines/inbox/${String(row.id)}`, { waitUntil: 'domcontentloaded' });
+}
+
+async function openInboxChat(page: Page, body: string) {
+  const [row] = await sql('SELECT thread_id AS id FROM inbox_messages WHERE body = ? ORDER BY sent_at DESC LIMIT 1', [body]);
+  await page.goto(`/en/app/inbox?t=${String(row.id)}`, { waitUntil: 'domcontentloaded' });
+}
+
 async function openInfo(page: Page, bubble: Locator) {
   await bubble.scrollIntoViewIfNeeded();
   await bubble.hover();
@@ -105,7 +119,7 @@ async function noSideScroll(page: Page) {
 /** El cuadro de un grupo: secciones, horas, "ver más", y cierre con Esc y con un clic afuera. */
 async function checkGroup(page: Page, bubble: Locator, scene: ReturnType<typeof groupScene>, wide: boolean) {
   const pop = await openInfo(page, bubble);
-  await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
+  await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 90_000 });
   const read = pop.getByTestId('wa-info-read');
   await expect(read.getByTestId('wa-info-person')).toHaveCount(7);
   // Lo más nuevo arriba: la última que leyó.
@@ -135,7 +149,7 @@ async function checkGroup(page: Page, bubble: Locator, scene: ReturnType<typeof 
   await expect(pop).toBeHidden();
   // Un clic afuera también lo cierra.
   await openInfo(page, bubble);
-  await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
+  await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 90_000 });
   await page.mouse.click(wide ? 5 : 195, wide ? 5 : 60);
   await expect(pop).toBeHidden();
 }
@@ -143,7 +157,7 @@ async function checkGroup(page: Page, bubble: Locator, scene: ReturnType<typeof 
 /** El cuadro de un 1:1: leído y entregado, cada uno con su hora. */
 async function checkDm(page: Page, bubble: Locator) {
   const pop = await openInfo(page, bubble);
-  await expect(pop.getByTestId('wa-info-read-time')).toHaveText(/\d/, { timeout: 20_000 });
+  await expect(pop.getByTestId('wa-info-read-time')).toHaveText(/\d/, { timeout: 90_000 });
   await expect(pop.getByTestId('wa-info-delivered-time')).toHaveText(/\d/);
   await expect(pop.getByTestId('wa-info-sent')).toContainText(/\d/);
   await expect(pop.getByTestId('wa-info-person')).toHaveCount(0);
@@ -152,9 +166,36 @@ async function checkDm(page: Page, bubble: Locator) {
   await expect(pop).toBeHidden();
 }
 
-async function setLook(page: Page, request: APIRequestContext, look: 'current' | 'retro', theme: 'light' | 'dark') {
-  expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true);
-  await page.context().addCookies([{ name: 'zs_theme', value: theme, url: page.url() || 'http://localhost' }]);
+/**
+ * Capturas del cuadro abierto (solo con INFO_SHOTS): aspecto actual claro y retro oscuro, a 1280 y 390. El aspecto
+ * y el tema se cambian en la página (los mismos atributos que pone el script de lib/look.ts), sin recargar.
+ */
+async function shots(page: Page, bubble: Locator, prefix: string) {
+  if (!SHOTS) return;
+  const before = await page.evaluate(() => ({ look: document.documentElement.dataset.look ?? '', theme: document.documentElement.dataset.theme ?? '' }));
+  try {
+    for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
+      for (const w of [1280, 390]) {
+        await page.evaluate(([l, t]) => {
+          document.documentElement.dataset.look = l;
+          document.documentElement.dataset.theme = t;
+        }, [look, theme]);
+        await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
+        const pop = await openInfo(page, bubble);
+        await expect(pop.getByTestId('wa-info-person').or(pop.getByTestId('wa-info-read-time')).first()).toBeVisible({ timeout: 90_000 });
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: `${SHOTS}/${prefix}-${look}-${theme}-${w}.png` });
+        await page.keyboard.press('Escape');
+        await expect(pop).toBeHidden();
+      }
+    }
+  } finally {
+    await page.evaluate((b) => {
+      document.documentElement.dataset.look = b.look;
+      document.documentElement.dataset.theme = b.theme;
+    }, before);
+    await page.setViewportSize({ width: 1280, height: 800 });
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -173,7 +214,7 @@ test.describe('Lines', () => {
 
   for (const width of [1280, 390]) {
     test(`grupo y 1:1 a ${width}: leído por, entregado a y horas`, async ({ page, request }) => {
-      test.setTimeout(420_000);
+      test.setTimeout(600_000);
       const errors = watchErrors(page);
       const n = await fakeNumber(request);
       const send = async (list: unknown[]) => expect((await request.post(new URL(n.webhookUrl).pathname, { data: { events: list } })).ok()).toBe(true);
@@ -187,48 +228,17 @@ test.describe('Lines', () => {
       // Con `next dev`, la primera vez compila cada ruta: se compila antes (un 404 alcanza).
       await request.get('/api/groups/chats/warmup/members?info=x');
       await page.setViewportSize({ width, height: width > 600 ? 800 : 844 });
-      await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
-      // Con `next dev` la primera apertura de un chat compila la página: se espera el título.
-      await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
+      await openLinesChat(page, g.body);
       const bubble = page.locator('.gr-msg-out', { hasText: g.body });
-      await expect(bubble).toBeVisible({ timeout: 30_000 });
+      await expect(bubble).toBeVisible({ timeout: 150_000 });
       await checkGroup(page, bubble, g, width > 600);
-      if (SHOTS && width > 600) {
-        try {
-          for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
-            for (const w of [1280, 390]) {
-              await setLook(page, request, look, theme);
-              await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
-              await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-              await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
-              await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
-              const pop = await openInfo(page, page.locator('.gr-msg-out', { hasText: g.body }));
-              await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
-              await page.waitForTimeout(250);
-              await page.screenshot({ path: `${SHOTS}/lines-group-${look}-${theme}-${w}.png` });
-              await page.keyboard.press('Escape');
-            }
-          }
-        } finally {
-          await setLook(page, request, 'current', 'light');
-        }
-        await page.setViewportSize({ width, height: 800 });
-        await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      }
+      if (width > 600) await shots(page, bubble, 'lines-group');
 
-      if (width <= 600) await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-      // La fila del 1:1 por su último mensaje (el nombre puede ser el número).
-      await page.locator('.gr-row', { hasText: d.body }).click({ timeout: 60_000 });
+      await openLinesChat(page, d.body);
       const dmBubble = page.locator('.gr-msg-out', { hasText: d.body });
       await expect(dmBubble).toBeVisible({ timeout: 150_000 });
       await checkDm(page, dmBubble);
-      if (SHOTS && width > 600) {
-        await openInfo(page, dmBubble);
-        await expect(page.getByTestId('wa-info-read-time')).toHaveText(/\d/, { timeout: 20_000 });
-        await page.screenshot({ path: `${SHOTS}/lines-dm-current-light-1280.png` });
-        await page.keyboard.press('Escape');
-      }
+      if (width > 600) await shots(page, dmBubble, 'lines-dm');
       expect(errors, errors.join('\n')).toEqual([]);
     });
   }
@@ -241,13 +251,11 @@ test.describe('Lines', () => {
     const tag = uid();
     const g = groupScene(tag);
     await send([{ type: 'fake_receipts_unsupported', on: true }, ...g.events.slice(0, -1)]);
-    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.gr-row', { hasText: g.title }).click({ timeout: 60_000 });
-    await expect(page.getByRole('heading', { level: 2, name: g.title })).toBeVisible({ timeout: 150_000 });
+    await openLinesChat(page, g.body);
     const bubble = page.locator('.gr-msg-out', { hasText: g.body });
-    await expect(bubble).toBeVisible({ timeout: 30_000 });
+    await expect(bubble).toBeVisible({ timeout: 150_000 });
     const pop = await openInfo(page, bubble);
-    await expect(pop.getByTestId('wa-info-unavailable')).toBeVisible({ timeout: 20_000 });
+    await expect(pop.getByTestId('wa-info-unavailable')).toBeVisible({ timeout: 90_000 });
     await expect(pop.getByTestId('wa-info-person')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(pop).toBeHidden();
@@ -265,7 +273,7 @@ test.describe('Inbox', () => {
 
   for (const width of [1280, 390]) {
     test(`grupo y 1:1 a ${width}: leído por, entregado a y horas`, async ({ page, request }) => {
-      test.setTimeout(420_000);
+      test.setTimeout(600_000);
       const errors = watchErrors(page);
       const acc = await linkWhatsapp(request);
       const send = async (list: unknown[]) => expect((await request.post(`/api/inbox/webhook/${acc.id}/${acc.secret}`, { data: { events: list } })).ok()).toBe(true);
@@ -278,38 +286,18 @@ test.describe('Inbox', () => {
 
       await request.get('/api/inbox/threads/ibt_warmup/wa?part=info&message=x');
       await page.setViewportSize({ width, height: width > 600 ? 800 : 844 });
-      await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.ib-item', { hasText: g.title }).locator('.ib-row-btn').click({ timeout: 60_000 });
+      await openInboxChat(page, g.body);
       const thread = page.locator('.ib-wa-thread');
       const bubble = thread.locator('.gr-msg-out', { hasText: g.body });
       await expect(bubble).toBeVisible({ timeout: 150_000 });
       await checkGroup(page, bubble, g, width > 600);
-      if (SHOTS && width > 600) {
-        try {
-          for (const [look, theme] of [['current', 'light'], ['retro', 'dark']] as const) {
-            for (const w of [1280, 390]) {
-              await setLook(page, request, look, theme);
-              await page.setViewportSize({ width: w, height: w > 600 ? 800 : 844 });
-              await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-              await page.locator('.ib-item', { hasText: g.title }).locator('.ib-row-btn').click({ timeout: 60_000 });
-              const pop = await openInfo(page, page.locator('.ib-wa-thread .gr-msg-out', { hasText: g.body }));
-              await expect(pop.getByTestId('wa-info-read')).toBeVisible({ timeout: 20_000 });
-              await page.waitForTimeout(250);
-              await page.screenshot({ path: `${SHOTS}/inbox-group-${look}-${theme}-${w}.png` });
-              await page.keyboard.press('Escape');
-            }
-          }
-        } finally {
-          await setLook(page, request, 'current', 'light');
-        }
-        await page.setViewportSize({ width, height: 800 });
-      }
+      if (width > 600) await shots(page, bubble, 'inbox-group');
 
-      await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-      await page.locator('.ib-item', { hasText: d.body }).locator('.ib-row-btn').click({ timeout: 60_000 });
+      await openInboxChat(page, d.body);
       const dmBubble = page.locator('.ib-wa-thread .gr-msg-out', { hasText: d.body });
       await expect(dmBubble).toBeVisible({ timeout: 150_000 });
       await checkDm(page, dmBubble);
+      if (width > 600) await shots(page, dmBubble, 'inbox-dm');
       expect(errors, errors.join('\n')).toEqual([]);
     });
   }

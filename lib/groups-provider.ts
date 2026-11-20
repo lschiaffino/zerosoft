@@ -510,7 +510,7 @@ export interface GroupsProvider {
   privacySettings?(): Promise<PrivacySettings | null>;
   /**
    * Las confirmaciones por persona ("Leído por", "Entregado a") de un mensaje
-   * propio en un grupo. Solo Evolution con el parche 0013 de infra/evolution
+   * propio en un grupo. Solo Evolution con el parche 0014 de infra/evolution
    * (el gateway las guarda y las da a pedido, sin webhooks) y el falso. null si
    * el gateway no las da (sin el parche o con el parche apagado: 404).
    */

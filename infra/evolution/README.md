@@ -143,7 +143,7 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   llega a saber (si era un archivado hecho en el teléfono, ese no aparece). Cuenta por clave en
   `globalThis.__zsAppStateNoKey`.
 
-- `0013-group-receipts-on-demand.patch`: "Leído por" y "Entregado a" de los mensajes propios en grupos, **sin
+- `0014-group-receipts-on-demand.patch`: "Leído por" y "Entregado a" de los mensajes propios en grupos, **sin
   webhooks** (lo que no pudo 0011). Baileys emite `message-receipt.update` por persona (`{ key, receipt: { userJid,
   receiptTimestamp | readTimestamp } }`); Evolution 2.3.7 solo lo usaba para marcar leídos los mensajes *recibidos*
   de ese chat (`updateMessagesReadedByTimestamp`) y no lo guardaba ni lo mandaba (`MessageUpdate` guarda el

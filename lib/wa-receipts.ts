@@ -11,7 +11,7 @@
  *   la misma escritura que las tildes (ackTimes).
  * - wa_message_receipts guarda una fila por persona (grupos).
  * - Grupos: WhatsApp manda una confirmación por persona, que Evolution no
- *   reenvía. Con el parche 0013 de infra/evolution el gateway las guarda y
+ *   reenvía. Con el parche 0014 de infra/evolution el gateway las guarda y
  *   zerosoft se las pide al abrir la Info (sin webhooks); lo que trae queda
  *   guardado acá también.
  */

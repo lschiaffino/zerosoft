@@ -34,7 +34,7 @@
  *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
  *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
  *   lo que Baileys: con 'none' el recibo queda 'read-self' (en `sent`).
- * - Confirmaciones por persona en grupos (como Evolution con el parche 0013):
+ * - Confirmaciones por persona en grupos (como Evolution con el parche 0014):
  *   `{ type: 'fake_receipts', providerMessageId, receipts: [{ phone?, lid?,
  *   deliveredAt?, readAt?, playedAt? }] }` en el webhook las guarda (horas en
  *   ISO) y messageReceipts las devuelve; `{ type: 'fake_receipts_unsupported',
@@ -110,7 +110,7 @@ interface FakeState {
   historyRequests?: FakeHistoryRequest[];
   /** Confirmaciones por persona de cada mensaje propio en un grupo (fake_receipts). */
   receipts?: Map<string, GatewayReceipt[]>;
-  /** Gateway sin el parche 0013: messageReceipts devuelve null. */
+  /** Gateway sin el parche 0014: messageReceipts devuelve null. */
   receiptsUnsupported?: boolean;
   /** Cuántas veces la app pidió confirmaciones (tests). */
   receiptRequests?: number;
@@ -746,7 +746,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
         const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };
         if (ev.type === 'fake_privacy' && (ev.readreceipts === 'all' || ev.readreceipts === 'none')) s.readReceipts = ev.readreceipts;
       }
-      // Las confirmaciones por persona que el gateway guardó (parche 0013): no pasan por la app, se piden.
+      // Las confirmaciones por persona que el gateway guardó (parche 0014): no pasan por la app, se piden.
       for (const e of events) {
         const ev = (e ?? {}) as { type?: unknown; providerMessageId?: unknown; receipts?: unknown; on?: unknown };
         if (ev.type === 'fake_receipts_unsupported') s.receiptsUnsupported = ev.on !== false;
