@@ -11,7 +11,7 @@
 import { isFileUrlPath } from './files/url';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
-import { getDb } from './db';
+import { dbBatch, getDb } from './db';
 import { sanitizeDocsHtml } from './docs-sanitize';
 import { open as openSecret } from './secret-box';
 import {
@@ -46,7 +46,7 @@ import {
   type StoreSettings,
   type DiscountInput,
 } from './shop-schema';
-import { roundToCurrency, type DiscountRule, type ShippingRate, type TaxRate } from './shop-money';
+import { priceChangeError, repriceVariant, roundToCurrency, type DiscountRule, type PriceChange, type ShippingRate, type TaxRate } from './shop-money';
 
 export { ShopError };
 
@@ -848,6 +848,35 @@ export async function bulkProducts(actor: ShopActor, ids: string[], action: 'act
   const store = await getStore(actor.ws);
   if (store) await revalidateStore(store.handle);
   return n;
+}
+
+/**
+ * Cambia los precios de todas las variantes de varios productos (hasta 200) en
+ * una sola transacción: poner en oferta, terminar la oferta o subir/bajar un
+ * porcentaje. Devuelve cuántas variantes cambiaron.
+ */
+export async function bulkPrices(actor: ShopActor, ids: string[], change: PriceChange): Promise<{ products: number; variants: number }> {
+  const clean = [...new Set(ids.filter((x) => typeof x === 'string' && x.length <= 80))].slice(0, 200);
+  if (!clean.length || priceChangeError(change)) throw new ShopError('invalid_input');
+  const store = await getStore(actor.ws);
+  if (!store) throw new ShopError('not_found', 404);
+  const rows = (await getDb()
+    .prepare(`SELECT id, product_id, price_cents, compare_at_cents FROM shop_variants WHERE workspace_id = ? AND product_id IN (${clean.map(() => '?').join(',')})`)
+    .all(actor.ws, ...clean)) as Array<{ id: string; product_id: string; price_cents: number; compare_at_cents: number | null }>;
+  const ts = nowDb();
+  const stmts: Array<{ sql: string; args: Array<string | number | null> }> = [];
+  const touched = new Set<string>();
+  for (const r of rows) {
+    const next = repriceVariant({ priceCents: Number(r.price_cents), compareAtCents: r.compare_at_cents == null ? null : Number(r.compare_at_cents) }, change, store.currency);
+    if (!next) continue;
+    stmts.push({ sql: 'UPDATE shop_variants SET price_cents = ?, compare_at_cents = ? WHERE id = ? AND workspace_id = ?', args: [next.priceCents, next.compareAtCents, r.id, actor.ws] });
+    touched.add(r.product_id);
+  }
+  if (!stmts.length) return { products: 0, variants: 0 };
+  for (const pid of touched) stmts.push({ sql: 'UPDATE shop_products SET updated_at = ? WHERE id = ? AND workspace_id = ?', args: [ts, pid, actor.ws] });
+  await dbBatch(stmts);
+  await revalidateWs(actor.ws);
+  return { products: touched.size, variants: stmts.length - touched.size };
 }
 
 export async function deleteProduct(actor: ShopActor, id: string): Promise<boolean> {
