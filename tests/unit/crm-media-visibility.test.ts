@@ -26,6 +26,13 @@ beforeEach(() => {
   session.user = null;
 });
 
+/** Los handlers tipan `Response | undefined` (la rama de sesión): en la prueba siempre responden. */
+async function res(p: Promise<Response | undefined>): Promise<Response> {
+  const r = await p;
+  if (!r) throw new Error('no response');
+  return r;
+}
+
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const req = (method: string, body?: unknown) =>
   new NextRequest('http://x/api/crm/videos', {
@@ -59,21 +66,21 @@ describe('CRM: documentos y videos respetan la visibilidad de miembros', () => {
   it('lista y detalle de videos sin el contacto que el member no ve', async () => {
     const { w, hidden, video } = await setup('media-vis-video');
     session.user = asMember(w.owner, w.member);
-    const list = (await (await videosRoute.GET(req('GET'))).json()) as { rows: Array<Linked & { id: string }> };
+    const list = (await (await res(videosRoute.GET(req('GET')))).json()) as { rows: Array<Linked & { id: string }> };
     const row = list.rows.find((r) => r.id === video.id)!;
     expect(row).toMatchObject({ contact_id: null, contact_name: null });
-    const detail = (await (await videoRoute.GET(req('GET'), ctx(video.id))).json()) as { video: Linked };
+    const detail = (await (await res(videoRoute.GET(req('GET'), ctx(video.id)))).json()) as { video: Linked };
     expect(detail.video).toMatchObject({ contact_id: null, contact_name: null });
 
     session.user = asOwner(w.owner);
-    const ownerDetail = (await (await videoRoute.GET(req('GET'), ctx(video.id))).json()) as { video: Linked };
+    const ownerDetail = (await (await res(videoRoute.GET(req('GET'), ctx(video.id)))).json()) as { video: Linked };
     expect(ownerDetail.video.contact_id).toBe(hidden.id);
   });
 
   it('los links de un documento no muestran nombre ni email del contacto oculto', async () => {
     const { w, mine, doc } = await setup('media-vis-doc');
     session.user = asMember(w.owner, w.member);
-    const body = (await (await documentRoute.GET(req('GET'), ctx(doc.id))).json()) as { links: Linked[] };
+    const body = (await (await res(documentRoute.GET(req('GET'), ctx(doc.id)))).json()) as { links: Linked[] };
     expect(body.links.map((l) => l.contact_id).sort()).toEqual([mine.id, null].sort());
     const masked = body.links.find((l) => l.contact_id === null)!;
     expect(masked).toMatchObject({ contact_name: null, contact_email: null });
@@ -82,9 +89,9 @@ describe('CRM: documentos y videos respetan la visibilidad de miembros', () => {
   it('no se puede vincular un contacto que el member no ve', async () => {
     const { w, mine, hidden, video, doc } = await setup('media-vis-link');
     session.user = asMember(w.owner, w.member);
-    expect((await linksRoute.POST(req('POST', { contactId: hidden.id }), ctx(doc.id))).status).toBe(400);
-    expect((await videoRoute.PATCH(req('PATCH', { contactId: hidden.id }), ctx(video.id))).status).toBe(400);
-    const ok = await videoRoute.PATCH(req('PATCH', { contactId: mine.id }), ctx(video.id));
+    expect((await res(linksRoute.POST(req('POST', { contactId: hidden.id }), ctx(doc.id)))).status).toBe(400);
+    expect((await res(videoRoute.PATCH(req('PATCH', { contactId: hidden.id }), ctx(video.id)))).status).toBe(400);
+    const ok = await res(videoRoute.PATCH(req('PATCH', { contactId: mine.id }), ctx(video.id)));
     expect(ok.status).toBe(200);
     expect(((await ok.json()) as Linked).contact_id).toBe(mine.id);
   });
