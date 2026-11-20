@@ -27,6 +27,7 @@ import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/compon
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
+import PinnedBar from '@/components/groups/wa/PinnedBar';
 import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
@@ -73,6 +74,8 @@ export interface WaThreadDetail {
   extended?: boolean;
   /** Mensaje al que ir (resultado de búsqueda). */
   focus?: string;
+  /** Mensajes fijados del chat (la franja de arriba), aunque sean más viejos que la página. */
+  pinned?: MessageDto[];
 }
 
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -134,6 +137,8 @@ const WaConversation = forwardRef<
     /** Respuesta en privado pendiente: si es para este chat, se abre respondiendo al mensaje del grupo. */
     privateReply?: { threadId: string; message: MessageDto; chat: { id: string; title: string } } | null;
     onPrivateReplyUsed?: () => void;
+    /** Ir a un mensaje que no está en la pantalla (un fijado viejo): se abre el chat alrededor de él. */
+    onJumpToMessage?: (id: string) => void;
   }
 >(function WaConversation(props, composerRef) {
   const { detail, connected, onAction, onError, onRefresh } = props;
@@ -142,6 +147,7 @@ const WaConversation = forwardRef<
   const ws = useTranslations('groups.wa.stickers');
   const gw = useTranslations('groups.wa');
   const tsheet = useTranslations('groups.wa.contactSheet');
+  const gt = useTranslations('groups.thread');
   const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
@@ -405,9 +411,13 @@ const WaConversation = forwardRef<
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
   const keepAtEnd = () => anchor.restore();
 
-  const jumpTo = (id: string) => {
+  const jumpTo = (id: string, load = true) => {
     const el = document.getElementById(`m-${id}`);
-    if (!el) return;
+    if (!el) {
+      // Más viejo que lo cargado (un fijado): el chat se abre alrededor de ese mensaje (una vez).
+      if (load) props.onJumpToMessage?.(id);
+      return;
+    }
     anchor.unstick();
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     setFlash(id);
@@ -420,7 +430,7 @@ const WaConversation = forwardRef<
     const focus = detail.focus;
     let off = 0;
     const id = window.setTimeout(() => {
-      jumpTo(focus);
+      jumpTo(focus, false);
       // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
       setHitId(focus);
       off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
@@ -572,6 +582,7 @@ const WaConversation = forwardRef<
       const url = m.hasMedia && m.mediaType !== 'sticker' && !m.meta?.viewOnce ? inboxMediaUrl(m) : '';
       if (url) items.push({ key: 'download', label: w('download'), onSelect: () => downloadFile(url, m.mediaName) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
+      if (m.mediaType !== 'system') items.push({ key: 'pin', label: m.pinnedAt ? w('unpin') : w('pin'), onSelect: () => void togglePin(m) });
       // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
       if (canForwardMsg(m)) items.push({ key: 'forward', label: w('forward'), onSelect: () => selection.startForward(m.id) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
@@ -607,6 +618,18 @@ const WaConversation = forwardRef<
     } catch {
       onError('generic');
     }
+  };
+  // Fijar (hasta 3, como WhatsApp): la franja de arriba del chat. En WhatsApp también si el proveedor puede.
+  const pinned = detail.pinned ?? [];
+  const togglePin = async (m: MessageDto) => {
+    const on = !m.pinnedAt;
+    const r = await api<{ inWhatsApp?: boolean }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: on ? 'pin' : 'unpin' } });
+    if (!r.ok) {
+      onError(r.data.error ?? 'generic');
+      return;
+    }
+    props.onToast(on ? (r.data.inWhatsApp ? gt('pinnedWhatsApp') : w('pinnedHereOnly')) : gt('unpinned'));
+    onRefresh();
   };
   const starSelected = async () => {
     const list = selectedMsgs().filter((m) => !m.revoked);
@@ -804,7 +827,7 @@ const WaConversation = forwardRef<
     const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
-    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0));
+    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0) + (m.pinnedAt ? 16 : 0));
     const gestures = swipeAndHold({
       onSwipe: selecting || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
       onHold: (el) => (selecting ? toggleSelected(m.id) : setHeld({ id: m.id, el })),
@@ -1011,6 +1034,7 @@ const WaConversation = forwardRef<
                 ★
               </span>
             )}
+            {m.pinnedAt && <PinIcon size={12} label={gt('pinned')} />}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt} title={lineNames.size > 1 ? lineNames.get(lineOf(m)) : undefined}>
               {time}
@@ -1168,6 +1192,13 @@ const WaConversation = forwardRef<
           <MessageMenu label={t('actions.more')} items={headMenu} className="wa-icon-btn" />
         </div>
       </header>
+      <PinnedBar
+        pinned={pinned}
+        onJump={(m) => jumpTo(m.id)}
+        onUnpin={(m) => void togglePin(m)}
+        textOf={(m) => mentionText(m)}
+        mediaOf={(m) => w(`kind.${m.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}
+      />
       {(thread.snoozedUntil || thread.followUpAt) && (
         <p className="gr-banner wa-strip">
           {thread.snoozedUntil && t('list.snoozedUntil', { when: longWhen(thread.snoozedUntil, locale) })}

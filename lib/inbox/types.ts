@@ -227,6 +227,8 @@ export interface MessageDto {
   reactions?: MessageReaction[];
   forwarded?: boolean;
   starred?: boolean;
+  /** Fijado en el chat (como en WhatsApp): cuándo. */
+  pinnedAt?: string;
   meta?: WaMessageMeta | null;
   /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono), si se sabe. */
   mentionNames?: MentionNames;

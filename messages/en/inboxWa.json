@@ -90,6 +90,8 @@
   "dropTitle": "Drop the files here",
   "dropBody": "Photos, videos and documents. You can add a caption before sending.",
   "errors": {
+    "too_many_pins": "Up to 3 pinned messages per chat. Unpin one first.",
+    "not_pinnable": "That message cannot be pinned.",
     "mic_denied": "The browser did not allow the microphone.",
     "file_too_large": "The file is too big for WhatsApp.",
     "media_too_large": "The file is too big for WhatsApp.",
@@ -151,6 +153,7 @@
   "unblocked": "{name} is unblocked",
   "pin": "Pin",
   "unpin": "Unpin",
+  "pinnedHereOnly": "Pinned here. WhatsApp on the phone does not show it.",
   "mention": "Mention someone",
   "mentionSomeone": "someone",
   "styleUseZerosoft": "Chat style: zerosoft",
