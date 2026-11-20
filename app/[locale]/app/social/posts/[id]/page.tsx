@@ -5,6 +5,7 @@ import Composer from '@/components/social/Composer';
 import PostDetail from '@/components/social/PostDetail';
 import { requireUser, userCanUseApp } from '@/lib/session';
 import { getPost, listAccounts, listLibrary, listPostEvents, socialActor, socialRoleOf, SocialError } from '@/lib/social';
+import { socialAiOffered } from '@/lib/social-ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export default async function SocialPostPage(props: { params: Promise<{ locale: 
     return (
       <div className="ui-page">
         <PageHeader title={t('compose.editTitle')} back={{ href: `/app/social/posts/${id}`, label: t('post.title') }} />
-        <Composer accounts={accounts} post={post} library={library} canShorten={userCanUseApp(user, 'link')} drafter={role === 'drafter'} />
+        <Composer accounts={accounts} post={post} library={library} canShorten={userCanUseApp(user, 'link')} drafter={role === 'drafter'} ai={socialAiOffered()} />
       </div>
     );
   }

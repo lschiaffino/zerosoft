@@ -13,6 +13,9 @@ import { useTagSuggest } from './useTagSuggest';
 
 type When = 'now' | 'schedule' | 'queue' | 'draft';
 
+/** Cambios que la IA le hace al texto (lib/social-ai.ts). */
+const AI_CHANGES = ['shorter', 'longer', 'casual', 'formal', 'fix'] as const;
+
 interface BestTimes {
   source: 'data' | 'default';
   samples: number;
@@ -119,6 +122,7 @@ export default function Composer({
   drafter,
   initialDate,
   initialAccountId,
+  ai = false,
 }: {
   accounts: AccountDto[];
   post: PostDto | null;
@@ -127,6 +131,8 @@ export default function Composer({
   drafter: boolean;
   initialDate?: string | null;
   initialAccountId?: string | null;
+  /** Ofrece "Escribir con IA" (hay IA configurada en el servidor). */
+  ai?: boolean;
 }) {
   const t = useTranslations('social.compose');
   const tNet = useTranslations('social.networks');
@@ -156,6 +162,14 @@ export default function Composer({
   const [best, setBest] = useState<BestTimes | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // Escribir con IA: idea → publicación, o cambiar el texto de la pestaña abierta (con deshacer).
+  const [aiOpen, setAiOpen] = useState(false);
+  const [idea, setIdea] = useState('');
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [undo, setUndo] = useState<{ tab: 'all' | SocialNetwork; text: string } | null>(null);
+  const aiButtonRef = useRef<HTMLButtonElement>(null);
+  const ideaRef = useRef<HTMLInputElement>(null);
 
   const chosen = useMemo(() => accounts.filter((a) => selected.includes(a.id)), [accounts, selected]);
   const networks = useMemo(() => [...new Set(chosen.map((a) => a.network))], [chosen]);
@@ -222,6 +236,45 @@ export default function Composer({
     const next = `${editing.slice(0, pos)}${glue}${snippet}${editing.slice(pos)}`;
     if (tab === 'all') setText(next);
     else setOverrides((o) => ({ ...o, [tab]: next }));
+  }
+
+  // La IA escribe en el texto propio de la red abierta si lo tiene; si no, en el común.
+  const aiTab: 'all' | SocialNetwork = tab !== 'all' && overrides[tab] != null ? tab : 'all';
+  const editing = aiTab === 'all' ? text : (overrides[aiTab] ?? text);
+  const aiNetworks = aiTab === 'all' ? networks : [aiTab];
+
+  function setTextOf(target: 'all' | SocialNetwork, next: string) {
+    if (target === 'all') setText(next);
+    else setOverrides((o) => ({ ...o, [target]: next }));
+  }
+
+  useEffect(() => {
+    if (aiOpen) ideaRef.current?.focus();
+  }, [aiOpen]);
+
+  function closeAi() {
+    setAiOpen(false);
+    aiButtonRef.current?.focus();
+  }
+
+  async function runAi(change?: (typeof AI_CHANGES)[number]) {
+    if (aiBusy) return;
+    if (!change && !idea.trim()) return;
+    setAiBusy(change ?? 'write');
+    setAiError(null);
+    try {
+      const r = await api<{ text: string }>('/ai', {
+        method: 'POST',
+        json: change ? { text: editing, change, networks: aiNetworks, locale } : { idea: idea.trim(), networks: aiNetworks, locale },
+      });
+      setUndo({ tab: aiTab, text: editing });
+      setTextOf(aiTab, r.text);
+      if (!change) setIdea('');
+    } catch (err) {
+      setAiError(errorText(err));
+    } finally {
+      setAiBusy(null);
+    }
   }
 
   async function upload(files: FileList | null) {
@@ -336,7 +389,7 @@ export default function Composer({
         </section>
 
         <section className="sc-panel" aria-labelledby="sc-text-title">
-          <div className="sc-row">
+          <div className="sc-row sc-panel-head">
             <h2 id="sc-text-title" className="sc-grow">
               {t('text')}
             </h2>
@@ -350,7 +403,96 @@ export default function Composer({
                 ))}
               </select>
             )}
+            {ai && (
+              <button
+                ref={aiButtonRef}
+                type="button"
+                className="btn btn-sm"
+                aria-expanded={aiOpen}
+                aria-controls="sc-ai-panel"
+                data-testid="compose-ai-open"
+                onClick={() => (aiOpen ? closeAi() : setAiOpen(true))}
+              >
+                {t('aiOpen')}
+              </button>
+            )}
           </div>
+          {ai && aiOpen && (
+            <div
+              id="sc-ai-panel"
+              className="sc-ai"
+              role="group"
+              aria-label={t('aiOpen')}
+              data-testid="compose-ai"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  closeAi();
+                }
+              }}
+            >
+              <div className="ui-field">
+                <label className="label" htmlFor="sc-ai-idea">
+                  {t('aiIdea')}
+                </label>
+                <div className="sc-row">
+                  <input
+                    id="sc-ai-idea"
+                    ref={ideaRef}
+                    className="input sc-grow"
+                    value={idea}
+                    maxLength={1000}
+                    placeholder={t('aiIdeaHint')}
+                    data-testid="compose-ai-idea"
+                    onChange={(e) => setIdea(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter escribe con la IA; nunca manda el formulario (que programaría la publicación).
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void runAi();
+                      }
+                    }}
+                  />
+                  <button type="button" className="btn btn-sm btn-secondary" data-testid="compose-ai-write" aria-busy={aiBusy === 'write'} disabled={!idea.trim() || Boolean(aiBusy)} onClick={() => void runAi()}>
+                    {t('aiWrite')}
+                  </button>
+                </div>
+              </div>
+              {editing.trim() && (
+                <div className="sc-row" role="group" aria-label={t('aiChanges')}>
+                  <span className="sc-muted sc-small">{t('aiChanges')}</span>
+                  {AI_CHANGES.map((c) => (
+                    <button key={c} type="button" className="btn btn-sm" data-testid={`compose-ai-${c}`} aria-busy={aiBusy === c} disabled={Boolean(aiBusy)} onClick={() => void runAi(c)}>
+                      {t(`ai_${c}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {aiNetworks.length > 0 && <p className="sc-muted sc-small">{t('aiLimit', { limit: Math.min(...aiNetworks.map((n) => NETWORK_SPECS[n].limit)) })}</p>}
+              {aiError && (
+                <p className="sc-error" role="alert">
+                  {aiError}
+                </p>
+              )}
+              {undo && !aiError && (
+                <div className="sc-row" role="status">
+                  <span className="sc-muted sc-small sc-grow">{t('aiDone')}</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    data-testid="compose-ai-undo"
+                    onClick={() => {
+                      setTextOf(undo.tab, undo.text);
+                      setUndo(null);
+                    }}
+                  >
+                    {t('aiUndo')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {networks.length > 0 && (
             <div className="ui-tabs" role="tablist" aria-label={t('perNetwork')}>
               <button type="button" role="tab" className="ui-tab" aria-selected={tab === 'all'} onClick={() => setTab('all')}>
