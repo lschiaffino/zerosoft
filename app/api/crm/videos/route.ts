@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createVideo, listVideos } from '@/lib/crm-media';
-import { json, mediaFail, mediaUser, storeMultipart } from '@/lib/crm-media-http';
+import { json, mediaFail, mediaScope, mediaUser, storeMultipart, unseenContact } from '@/lib/crm-media-http';
 import { isAllowedVideoType } from '@/lib/crm-media-schema';
 import { crmError } from '@/lib/crm-http';
 
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const u = await mediaUser();
   if ('res' in u) return u.res;
-  return json({ rows: await listVideos(u.user.id, req.nextUrl.searchParams.get('q') ?? '') });
+  return json({ rows: await listVideos(u.user.id, req.nextUrl.searchParams.get('q') ?? '', await mediaScope(u)) });
 }
 
 const registerSchema = z.object({
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     if ((req.headers.get('content-type') ?? '').includes('multipart/form-data')) {
       const stored = await storeMultipart(await req.formData().catch(() => null), 'video');
       const f = stored.fields;
+      const hidden = await unseenContact(u, f.contactId);
+      if (hidden) return hidden;
       const video = await createVideo(u.user.id, {
         title: f.title ?? '',
         url: stored.url,
@@ -46,6 +48,8 @@ export async function POST(req: NextRequest) {
     }
     const parsed = registerSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success || !isAllowedVideoType(parsed.data.contentType)) return crmError(400, 'invalid_input');
+    const hidden = await unseenContact(u, parsed.data.contactId);
+    if (hidden) return hidden;
     return json(await createVideo(u.user.id, { ...parsed.data, createdBy: u.actor }), 201);
   } catch (err) {
     return mediaFail(err);
