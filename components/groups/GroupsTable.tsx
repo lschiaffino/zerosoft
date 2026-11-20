@@ -147,8 +147,11 @@ export default function GroupsTable({
   const filtersKey = serializeLinesFilters(view.filters);
   const statusKey = view.status.join(',');
   const hsKey = hubspotOn ? hsColumnsOf(view.columns).join(',') : '';
-  const reqKey = JSON.stringify([filtersKey, statusKey, q.trim(), hsKey]);
-  const lastKey = useRef(JSON.stringify(['', '', '', '']));
+  // Con columnas de HubSpot, se vuelve a pedir una vez cuando llega el esquema: en una conexión recién hecha
+  // el servidor todavía no conocía esas propiedades y las había dejado vacías.
+  const schemaReady = hsKey && schema ? 's' : '';
+  const reqKey = JSON.stringify([filtersKey, statusKey, q.trim(), hsKey, schemaReady]);
+  const lastKey = useRef(JSON.stringify(['', '', '', '', '']));
   const seq = useRef(0);
   const load = useCallback(async () => {
     const p = new URLSearchParams();

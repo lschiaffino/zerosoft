@@ -120,6 +120,7 @@ test('cabecera y nombre fijos, edición en la celda de zerosoft y de HubSpot, Es
   expect(created.ok(), await created.text()).toBe(true);
   await request.delete('/api/groups/hubspot');
   expect((await request.post('/api/groups/hubspot', { data: { token: TOKEN } })).ok()).toBe(true);
+  expect((await request.get('/api/groups/hubspot/properties')).ok()).toBe(true);
   const linked = await request.post('/api/groups/hubspot/links', { data: { chatId: chats.get(first.jid), type: 'company', objectId: companyId } });
   expect(linked.ok(), await linked.text()).toBe(true);
 
