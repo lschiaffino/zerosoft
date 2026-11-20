@@ -20,6 +20,7 @@ export const runtime = 'nodejs';
  *   /api/og/tool/<slug>[/<locale>] ("hub" = /tools)
  *   /api/og/changelog[/<locale>]
  *   /api/og/compare/<locale>/<slug>
+ *   /api/og/software/<locale>/<slug> (una categoría del directorio)
  *   /api/og/page/<locale>/<key>     (páginas fijas de lib/seo-routes.ts)
  *   /api/og/feedback-board/<locale>[/roadmap]
  *   /api/og/cover/<slug>            (la portada de un post, SVG, para la página misma)
@@ -32,7 +33,7 @@ export const runtime = 'nodejs';
  *   /api/og/board/<id> (ítem del board de feedback)
  */
 
-const SITE_KINDS = new Set(['home', 'product', 'blog', 'tool', 'changelog', 'compare', 'page', 'feedback-board']);
+const SITE_KINDS = new Set(['home', 'product', 'blog', 'tool', 'changelog', 'compare', 'software', 'page', 'feedback-board']);
 
 /** Contenido de un workspace: si deja de ser público, la tarjeta se va en minutos. */
 const SHARED_CACHE = 'public, max-age=300, s-maxage=300';

@@ -16,6 +16,8 @@ const PATHS = [
   '/compare/zerosoft-vs-hubspot',
   '/compare/notion-alternative',
   '/compare/zerosoft-vs-excalidraw-plus',
+  '/software',
+  '/software/crm',
   '/tools',
   '/blog',
   '/blog/migrar-de-linear-a-track',

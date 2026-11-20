@@ -4466,5 +4466,49 @@
       "title": "Connect Claude and the CLI",
       "description": "Connect claude.ai, Claude Desktop, Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself."
     }
+  },
+  "directory": {
+    "meta": {
+      "title": "Open-source software directory, by category",
+      "description": "Open-source and paid software by category, from CRM and team chat to e-signatures, with each project's license and the zerosoft app that covers it."
+    },
+    "crumb": "Software",
+    "title": "Software directory.",
+    "titleDim": "Open source and paid, by category.",
+    "lead": "Open-source and paid software for {count} kinds of work, with the license of each open-source project and the zerosoft app that does the same job. zerosoft is open source as well: $0 on your own server, with a free plan on zerosoft Cloud.",
+    "caption": "Open-source and paid software by category, with the zerosoft app for each one",
+    "col": {
+      "category": "Category",
+      "openSource": "Open source",
+      "paid": "Paid",
+      "zerosoft": "In zerosoft"
+    },
+    "reviewed": "Licenses checked in each project's repository on {date}.",
+    "scope": "Open source means a license approved by the OSI. Projects that publish their code under a license that is not open source are listed apart as source-available. Paid means proprietary software with paid plans; prices are left out because they change often.",
+    "category": {
+      "metaTitle": "{title}: alternatives to {paid}",
+      "metaDescription": "Open source, with license: {openNames}. Paid: {paidNames}. And zerosoft {apps}, open source and $0 on your own server.",
+      "lead": "zerosoft {apps} {count, plural, one {is an open-source alternative} other {are open-source alternatives}} to {paid}: $0 on your own server, with a free plan on zerosoft Cloud.",
+      "zerosoftTitle": "In zerosoft",
+      "openTitle": "Open source",
+      "openDim": "{count, plural, one {# project} other {# projects}} with an OSI license.",
+      "sourceAvailableTitle": "Source available",
+      "sourceAvailableDim": "Public code, under a license that is not open source.",
+      "paidTitle": "Paid",
+      "paidDim": "Proprietary, with paid plans.",
+      "caption": "{title}: {group}",
+      "col": {
+        "name": "Product",
+        "license": "License",
+        "code": "Code"
+      },
+      "proprietary": "Proprietary",
+      "sourceLink": "Source code",
+      "productPage": "zerosoft {name}",
+      "comparePage": "{name} vs {competitor}",
+      "comingSoon": "Coming soon: not usable yet.",
+      "others": "Other categories",
+      "all": "All categories"
+    }
   }
 }
