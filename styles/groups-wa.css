@@ -1209,6 +1209,29 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
   .wa-linkcard-thumb { width: 68px; min-height: 68px; }
 }
 
+/* Invitación a un grupo de WhatsApp (components/groups/wa/InviteCard.tsx): foto redonda entera, nombre, subtítulo y botones. */
+.wa-invite { display: flex; flex-direction: column; width: 300px; max-width: 100%; margin: 0 0 6px; overflow: hidden; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-invite { background: var(--wa-quote-out); }
+.wa-invite-head { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 12px 10px; }
+.wa-invite-photo { flex: none; display: flex; }
+.wa-invite-photo .wa-avatar { object-fit: cover; }
+.wa-invite-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wa-invite-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; }
+.wa-invite-sub { font-size: var(--wa-fs-small); line-height: 1.35; color: var(--wa-text-2); }
+.wa-invite-status { margin: 0; padding: 0 12px 10px; font-size: var(--wa-fs-small); line-height: 1.4; color: var(--wa-text-2); overflow-wrap: anywhere; }
+.wa-invite-status.is-error { color: var(--wa-danger); }
+.wa-invite-actions { display: flex; border-top: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-invite-actions > button, .wa-invite-actions > a { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 38px; padding: 4px 8px; font: inherit; font-size: 0.875rem; text-align: center; color: var(--wa-primary-ink); text-decoration: none; background: none; border: 0; cursor: pointer; }
+.wa-invite-actions > * + * { border-left: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-invite-actions > button:hover, .wa-invite-actions > a:hover { background: color-mix(in srgb, var(--wa-text-2) 10%, transparent); }
+.wa-invite-actions > button:focus-visible, .wa-invite-actions > a:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-invite-actions > button:disabled { cursor: default; opacity: 0.6; }
+.gr-inbox .gr-bubble:has(> .wa-invite) { max-width: min(316px, 100%); }
+@media (max-width: 480px) {
+  .wa-invite { width: min(300px, 70vw); }
+  .wa-invite-actions > button, .wa-invite-actions > a { padding: 4px 6px; font-size: 0.8125rem; white-space: nowrap; }
+}
+
 /* Vista previa del link mientras se escribe (components/groups/wa/ComposerLinkPreview.tsx), arriba del campo. */
 .wa-compose-link { display: flex; align-items: center; gap: 10px; margin: 0 0 5px; padding: 6px 6px 6px 6px; background: var(--wa-panel); border-radius: 8px; min-width: 0; }
 .wa-compose-link-img { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: var(--wa-row-active); }

@@ -971,6 +971,8 @@
     "invalid_ephemeral": "Essa duração não está disponível.",
     "invalid_invite": "Isso não parece um link de convite do WhatsApp.",
     "invite_invalid": "O link de convite venceu ou foi redefinido. Peça um novo.",
+    "invite_already_member": "Este número já está no grupo.",
+    "invite_approval_required": "Pedido enviado. Um admin do grupo precisa aprovar.",
     "too_many_properties": "Há propriedades demais. Apague alguma antes.",
     "too_many_templates": "Há modelos demais. Apague algum antes.",
     "too_many_lists": "Há listas salvas demais. Apague alguma antes.",
@@ -2082,6 +2084,28 @@
     "refreshRetry": "Tentar de novo",
     "refreshDismiss": "Fechar",
     "archivedTag": "Arquivado",
+    "invite": {
+      "subtitle": "Convite para grupo do WhatsApp",
+      "unnamed": "Grupo do WhatsApp",
+      "join": "Entrar no grupo",
+      "joining": "Entrando…",
+      "openGroup": "Abrir grupo",
+      "openInWhatsapp": "Abrir no WhatsApp",
+      "cancel": "Cancelar",
+      "confirmTitle": "Entrar em «{name}» pela linha {line}?",
+      "confirmTitleAccount": "Entrar em «{name}» com seu WhatsApp?",
+      "confirmBody": "Os membros do grupo vão ver que este número entrou.",
+      "joined": "Você entrou em «{name}».",
+      "errors": {
+        "invite_invalid": "O link de convite é inválido ou foi redefinido.",
+        "invite_already_member": "Este número já está no grupo.",
+        "invite_approval_required": "Pedido enviado. Um admin do grupo precisa aprovar.",
+        "not_connected": "Este número de WhatsApp não está conectado.",
+        "groups_unsupported": "Este número não pode entrar em grupos (WhatsApp Cloud API).",
+        "rate_limited": "Muitas tentativas. Espere um pouco e tente de novo.",
+        "failed": "Não foi possível entrar no grupo. Tente de novo ou abra no WhatsApp."
+      }
+    },
     "reactions": {
       "title": "{count, plural, one {# reação} other {# reações}}",
       "chip": "{count, plural, one {# reação} other {# reações}}: {list}. Ver quem reagiu",

@@ -38,6 +38,7 @@ import {
   lidDigits,
   phoneDigits,
   safeEqual,
+  inviteFailureOf,
   type ArchiveRef,
   type BridgeConfig,
   type ChatInfo,
@@ -1761,10 +1762,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       await api(`/group/updateGroupPicture/${instance}${q(groupId)}`, 'POST', { image: image.url });
     },
     async joinGroup(code) {
-      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`)) as Json;
+      // Evolution responde { accepted: true, groupJid } o un error con el de WhatsApp en el cuerpo
+      // ("not-authorized": link reiniciado, "conflict": ya está, ...): se reduce a una etiqueta.
+      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`, 'GET', undefined, { errorReason: inviteFailureOf })) as Json;
       const id = String(r.groupJid ?? r.id ?? (typeof r.accepted === 'string' ? r.accepted : ''));
-      if (!id || !isGroupJid(id)) throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
-      return { id };
+      if (id && isGroupJid(id)) return { id };
+      // Aceptada sin grupo: el grupo pide aprobación de un admin y quedó la solicitud.
+      if (r.accepted === true) {
+        const e = new ProviderError('provider_error');
+        e.reason = 'approval_required';
+        throw e;
+      }
+      throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
     },
     async leaveGroup(groupId) {
       await api(`/group/leaveGroup/${instance}${q(groupId)}`, 'DELETE');

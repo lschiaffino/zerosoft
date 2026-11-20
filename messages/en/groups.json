@@ -971,6 +971,8 @@
     "invalid_ephemeral": "That duration is not available.",
     "invalid_invite": "That does not look like a WhatsApp invite link.",
     "invite_invalid": "The invite link expired or was reset. Ask for a new one.",
+    "invite_already_member": "This number is already in the group.",
+    "invite_approval_required": "Request sent. A group admin has to approve it.",
     "too_many_properties": "There are too many properties. Delete one first.",
     "too_many_templates": "There are too many templates. Delete one first.",
     "too_many_lists": "There are too many saved lists. Delete one first.",
@@ -2082,6 +2084,28 @@
     "refreshRetry": "Try again",
     "refreshDismiss": "Close",
     "archivedTag": "Archived",
+    "invite": {
+      "subtitle": "WhatsApp group invite",
+      "unnamed": "WhatsApp group",
+      "join": "Join group",
+      "joining": "Joining…",
+      "openGroup": "Open group",
+      "openInWhatsapp": "Open in WhatsApp",
+      "cancel": "Cancel",
+      "confirmTitle": "Join «{name}» from {line}?",
+      "confirmTitleAccount": "Join «{name}» with your WhatsApp?",
+      "confirmBody": "The group members will see that this number joined.",
+      "joined": "You joined «{name}».",
+      "errors": {
+        "invite_invalid": "This invite link is invalid or was reset.",
+        "invite_already_member": "This number is already in the group.",
+        "invite_approval_required": "Request sent. A group admin has to approve it.",
+        "not_connected": "This WhatsApp number is not connected.",
+        "groups_unsupported": "This number can’t join groups (WhatsApp Cloud API).",
+        "rate_limited": "Too many tries. Wait a moment and try again.",
+        "failed": "Couldn’t join the group. Try again or open it in WhatsApp."
+      }
+    },
     "reactions": {
       "title": "{count, plural, one {# Reaction} other {# Reactions}}",
       "chip": "{count, plural, one {# reaction} other {# reactions}}: {list}. Show who reacted",
