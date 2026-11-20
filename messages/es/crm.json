@@ -2056,6 +2056,25 @@
   "record": {
     "rename": "Renombrar",
     "tabsLabel": "Secciones del registro",
+    "layoutTabs": {
+      "overview": "Resumen",
+      "activity": "Actividades",
+      "properties": "Datos",
+      "related": "Asociaciones"
+    },
+    "quickActions": "Acciones rápidas",
+    "highlights": "Datos destacados",
+    "recentCommunications": "Comunicaciones recientes",
+    "noCommunications": "Todavía no hay emails, llamadas ni reuniones.",
+    "moreCount": "y {count} más",
+    "seeAllActivity": "Ver toda la actividad",
+    "cards": {
+      "collapse": "Plegar {name}",
+      "expand": "Desplegar {name}",
+      "add": "Agregar",
+      "groups": "WhatsApp",
+      "track": "Pedidos de Track"
+    },
     "tabs": {
       "activity": "Actividad",
       "properties": "Propiedades",
