@@ -232,7 +232,9 @@ for (const width of [1280, 390]) {
         name: 'lines',
         open: async (name) => {
           await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-          await page.locator('.gr-row', { hasText: name }).click();
+          // Con muchos chats de otros tests en la base, el chat puede quedar fuera de la primera página: se busca.
+          await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(name);
+          await page.locator('.gr-row', { hasText: name }).first().click();
           await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
         },
         msg: (text) => page.locator('.gr-msg', { hasText: text }),
