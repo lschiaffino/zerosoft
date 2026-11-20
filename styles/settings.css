@@ -714,3 +714,40 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .st-desktop-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 28px; margin: 0; }
 .st-desktop-sections > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .st-desktop-sections dd { margin: 0; }
+
+/* ---------- Mis pedidos ---------- */
+
+.st-req-desc { max-width: 72ch; font-size: 0.875rem; line-height: 1.5; }
+.st-req-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-req-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.st-req-title { min-width: 0; font-weight: 600; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.st-req-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.st-req-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.st-req-meta { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 12px; color: var(--muted); font-size: 0.8125rem; }
+.st-req-stage { font-weight: 600; color: var(--ink); }
+.st-req-stage[data-stage='shipped'] { color: var(--ok-ink); }
+.st-req-stage[data-stage='declined'] { color: var(--muted); }
+.st-req-stage[data-stage='in_progress'],
+.st-req-stage[data-stage='planned'] { color: var(--warn-ink); }
+.st-req { gap: 20px; max-width: 72ch; }
+.st-req-heading { margin: 0; font-size: 1.25rem; line-height: 1.25; overflow-wrap: anywhere; }
+.st-req .st-block-title { font-size: 1rem; }
+.st-req .st-block p { margin: 0; font-size: 0.875rem; line-height: 1.5; }
+.st-req-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.st-req-words { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.st-req-words li { display: grid; gap: 4px; padding-left: 12px; border-left: 2px solid var(--line); font-size: 0.8125rem; }
+.st-req-text { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); font-size: 0.875rem; }
+.st-req-private { font-size: 0.8125rem; }
+
+@media (max-width: 600px) {
+  .st-req-row { grid-template-columns: minmax(0, 1fr); }
+  .st-req-meta { justify-content: flex-start; }
+}

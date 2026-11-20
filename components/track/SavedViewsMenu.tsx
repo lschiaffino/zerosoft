@@ -203,6 +203,7 @@ export default function SavedViewsMenu({
     <div
       className="track-saved-views"
       ref={wrap}
+      data-tour="track-views"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && open && !editing) {
           e.preventDefault();

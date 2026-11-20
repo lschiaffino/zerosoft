@@ -34,6 +34,8 @@ type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & {
   value: string;
   /** Menciones del texto, en orden y sin superponerse. Sin ninguna, el campo es un textarea común. */
   highlights: ReadonlyArray<HighlightRange>;
+  /** Algo que flota sobre el borde del campo sin ocupar lugar (p. ej. el "Pulir" de la AI). */
+  adornment?: ReactNode;
 };
 
 /**
@@ -44,7 +46,7 @@ type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & {
  * cursor y la selección siguen siendo los del textarea). La capa no recibe
  * clics. Solo aparece cuando hay alguna mención.
  */
-const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionTextarea({ value, highlights, className, onScroll, ...rest }, ref) {
+const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionTextarea({ value, highlights, adornment, className, onScroll, ...rest }, ref) {
   const area = useRef<HTMLTextAreaElement>(null);
   const mirror = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => area.current as HTMLTextAreaElement);
@@ -113,6 +115,7 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionT
           {parts}
         </div>
       )}
+      {adornment}
     </div>
   );
 });

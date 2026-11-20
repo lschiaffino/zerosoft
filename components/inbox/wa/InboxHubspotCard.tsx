@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import LocalText from '@/components/ui/LocalText';
-import { ChatPersonHubspot } from '@/components/groups/wa/PersonHubspot';
+import { ChatPersonHubspot, ExternalIcon } from '@/components/groups/wa/PersonHubspot';
 import HubspotScreen from '@/components/groups/HubspotScreen';
 import HubspotMyProps from '@/components/groups/HubspotMyProps';
 import { useHubspotSchema } from '@/components/groups/hubspot-client';
@@ -108,7 +108,8 @@ export default function InboxHubspotCard({ threadId }: { threadId: string }) {
           <p className="ib-hs-record-head">
             <span className="gr-hs-kind">{th('types.deal')}</span>
             <a className="gr-hs-name" href={deal.company?.url} target="_blank" rel="noopener noreferrer" aria-label={th('open', { name: deal.company?.name ?? '' })}>
-              {deal.company?.name}
+              <span>{deal.company?.name}</span>
+              <ExternalIcon />
             </a>
           </p>
           {deal.company?.broken ? <p className="ui-error">{th('screen.recordGone')}</p> : props('deal', shownOf(dealSchema, deal))}
@@ -120,7 +121,7 @@ export default function InboxHubspotCard({ threadId }: { threadId: string }) {
             {th('mine.open')}
           </button>
           {!docked && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setScreen(true)} data-testid="inbox-hs-open">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setScreen(true)} data-testid="inbox-hs-open">
               {th('screen.open')}
             </button>
           )}

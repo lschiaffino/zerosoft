@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { ensureLeadStages, listLeads } from '@/lib/crm-leads';
 import type { OwnerScope } from '@/lib/crm-visibility';
+import { visibleRecordIds } from '@/lib/crm-record-scope';
 import { SOURCES } from '@/lib/crm-constants';
 import LeadCreate from './LeadCreate';
 
@@ -35,6 +36,13 @@ export default async function RelatedLeads({
     ensureLeadStages(workspaceId, {}),
     listLeads(workspaceId, { contactId, companyId, ownerScope: scope, pageSize: 50 }),
   ]);
+  // El deal de un lead convertido puede ser de otra persona: su nombre solo va si quien mira lo puede ver.
+  const visibleDeals = await visibleRecordIds(
+    workspaceId,
+    'crm_deals',
+    rows.flatMap((l) => (l.deal_id ? [l.deal_id] : [])),
+    scope,
+  );
   return (
     <section className="record-block" data-testid="related-leads">
       <div className="assoc-head">
@@ -63,7 +71,7 @@ export default async function RelatedLeads({
               <Link href={`/app/crm/leads/${l.id}`}>{l.name}</Link>
               <span className="muted">
                 {l.stage_name ?? '—'}
-                {l.deal_name ? ` · ${l.deal_name}` : ''}
+                {l.deal_name && l.deal_id && visibleDeals.has(l.deal_id) ? ` · ${l.deal_name}` : ''}
               </span>
             </li>
           ))}

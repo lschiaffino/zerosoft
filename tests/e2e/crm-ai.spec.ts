@@ -45,7 +45,7 @@ async function noHorizontalScroll(page: Page) {
 test('deal: resumen, score, plan a tarea y score en el board', async ({ page, request }) => {
   const errors = watchErrors(page);
   const s = await setup(request);
-  await page.goto(`/en/app/crm/deals/${s.dealId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/deals/${s.dealId}?tab=activity`, { waitUntil: 'networkidle' });
 
   const summary = page.getByRole('region', { name: 'AI summary' });
   await expect(summary).toContainText('Get a short summary');
@@ -103,7 +103,7 @@ test('llamada: resumen con IA y próximos pasos a tareas', async ({ page, reques
       },
     }),
   );
-  await page.goto(`/en/app/crm/contacts/${s.contactId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/contacts/${s.contactId}?tab=activity`, { waitUntil: 'networkidle' });
   const item = page.locator('.tl-item').filter({ hasText: 'Discovery call' });
   await item.getByRole('button', { name: 'Summarize with AI' }).click();
   const block = page.getByTestId('ai-call-summary');

@@ -3544,6 +3544,8 @@
     "paramPage": "Page number.",
     "paramPageSize": "Items per page (max 100).",
     "paramSearch": "Search query.",
+    "paramCrmFilters": "Advanced filters as JSON: the value the app puts in the filters parameter of a filtered list's URL. It holds groups of rules, each rule with f (property), o (operator) and v (value). Rules in a group are joined with AND, groups with OR (up to 5). An unknown property or operator returns 400 invalid_filter.",
+    "paramCrmFiltersTz": "IANA time zone for relative dates in filters (today, this_week, last_days). Defaults to UTC.",
     "paramFirstName": "First name.",
     "paramLastName": "Last name.",
     "paramEmail": "Email address.",
@@ -3675,7 +3677,7 @@
     "sequencesUnenrollTitle": "Unenroll a contact",
     "sequencesUnenrollDesc": "Removes the contact from the sequence (status exited, reason manual).",
     "paramTemplateKind": "Filter by kind: template or snippet.",
-    "paramSenderId": "Workspace member whose Gmail sends the emails. Defaults to the contact owner, then the sequence creator.",
+    "paramSenderId": "Workspace member whose Gmail sends the emails. Only the workspace owner or an admin can set it (defaults to the contact owner, then the sequence creator); a member's key always sends from that member's mailbox.",
     "crmProductsTitle": "CRM · Products & line items",
     "crmProductsDesc": "Product catalog and the line items of each deal. While a deal has line items, its amount is the sum of their net totals (after discount, before tax) unless amountOverride is on.",
     "crmQuotesTitle": "CRM · Quotes",
@@ -4465,6 +4467,50 @@
     "meta": {
       "title": "Connect Claude and the CLI",
       "description": "Connect claude.ai, Claude Desktop, Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself."
+    }
+  },
+  "directory": {
+    "meta": {
+      "title": "Open-source software directory, by category",
+      "description": "Open-source and paid software by category, from CRM and team chat to e-signatures, with each project's license and the zerosoft app that covers it."
+    },
+    "crumb": "Software",
+    "title": "Software directory.",
+    "titleDim": "Open source and paid, by category.",
+    "lead": "Open-source and paid software for {count} kinds of work, with the license of each open-source project and the zerosoft app that does the same job. zerosoft is open source as well: $0 on your own server, with a free plan on zerosoft Cloud.",
+    "caption": "Open-source and paid software by category, with the zerosoft app for each one",
+    "col": {
+      "category": "Category",
+      "openSource": "Open source",
+      "paid": "Paid",
+      "zerosoft": "In zerosoft"
+    },
+    "reviewed": "Licenses checked in each project's repository on {date}.",
+    "scope": "Open source means a license approved by the OSI. Projects that publish their code under a license that is not open source are listed apart as source-available. Paid means proprietary software with paid plans; prices are left out because they change often.",
+    "category": {
+      "metaTitle": "{title}: alternatives to {paid}",
+      "metaDescription": "Open source, with license: {openNames}. Paid: {paidNames}. And zerosoft {apps}, open source and $0 on your own server.",
+      "lead": "zerosoft {apps} {count, plural, one {is an open-source alternative} other {are open-source alternatives}} to {paid}: $0 on your own server, with a free plan on zerosoft Cloud.",
+      "zerosoftTitle": "In zerosoft",
+      "openTitle": "Open source",
+      "openDim": "{count, plural, one {# project} other {# projects}} with an OSI license.",
+      "sourceAvailableTitle": "Source available",
+      "sourceAvailableDim": "Public code, under a license that is not open source.",
+      "paidTitle": "Paid",
+      "paidDim": "Proprietary, with paid plans.",
+      "caption": "{title}: {group}",
+      "col": {
+        "name": "Product",
+        "license": "License",
+        "code": "Code"
+      },
+      "proprietary": "Proprietary",
+      "sourceLink": "Source code",
+      "productPage": "zerosoft {name}",
+      "comparePage": "{name} vs {competitor}",
+      "comingSoon": "Coming soon: not usable yet.",
+      "others": "Other categories",
+      "all": "All categories"
     }
   }
 }

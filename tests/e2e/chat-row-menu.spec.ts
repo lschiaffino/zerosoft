@@ -481,6 +481,12 @@ test('Inbox: un chat de Archivados que aparece al buscar ofrece Desarchivar, no 
   await expect(row).toContainText('Archived');
   await rightClick(page, row);
   await expect(menu(page).getByRole('menuitem', { name: 'Archive chat', exact: true })).toHaveCount(0);
+  // Mantener archivado también desde el clic derecho, como en el panel del chat.
+  await menu(page).getByRole('menuitem', { name: 'Keep archived' }).click();
+  await expect(menu(page)).toHaveCount(0);
+  await expect.poll(async () => Number((await sql('SELECT keep_archived FROM inbox_threads WHERE title = ?', [name]))[0]?.keep_archived)).toBe(1);
+  await rightClick(page, row);
+  await expect(menu(page).getByRole('menuitem', { name: 'Stop keeping archived' })).toBeVisible();
   await menu(page).getByRole('menuitem', { name: 'Unarchive chat' }).click();
   await expect(menu(page)).toHaveCount(0);
   // Salió de Archivados: sin etiqueta, y el menú vuelve a ofrecer Archivar.

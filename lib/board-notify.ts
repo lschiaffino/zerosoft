@@ -5,12 +5,18 @@ import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { absoluteBoardUrl, absoluteItemUrl, siteUrl } from './board-urls';
 import { boardItemAppHref } from './board-paths';
+import { activeRequesterSubscribers, changelogUrl as requestChangelogUrl, isPublishedItem, requestPath } from './my-requests';
 
 /**
  * Avisos del board: autor, votantes y comentaristas quedan suscriptos solos
  * (roadmap_subscriptions). Cuando un ítem pasa a planned / in_progress / done
  * reciben una notificación in-app y, si RESEND_API_KEY está configurada, un
  * email con link para desuscribirse. Sin RESEND_API_KEY no se manda email.
+ *
+ * Un ítem privado (un pedido que nunca se publicó) solo avisa cuando sale
+ * ('done'), y solo a quienes lo pidieron y siguen suscriptos: cada uno con su
+ * propio título y el link a su página del pedido (/app/settings/requests/<id>).
+ * Los otros cambios de estado de un ítem privado son internos y no avisan.
  */
 
 type MailLocale = 'en' | 'es' | 'pt';
@@ -24,6 +30,8 @@ const COPY: Record<MailLocale, {
   view: string;
   unsubscribe: string;
   why: string;
+  /** Aviso de "ya salió" de un pedido privado. */
+  req: { subject: string; heading: string; body: string; view: string; why: string; unsubscribe: string };
 }> = {
   en: {
     status: { planned: 'Planned', in_progress: 'In progress', done: 'Launched' },
@@ -34,6 +42,14 @@ const COPY: Record<MailLocale, {
     view: 'See the idea',
     unsubscribe: 'Stop updates for this idea',
     why: 'You get this because you posted, voted or commented on this idea.',
+    req: {
+      subject: 'Shipped: {title}',
+      heading: 'What you asked for is out',
+      body: 'Your request "{title}" is now available.',
+      view: 'See your request',
+      why: 'You get this because you asked for this.',
+      unsubscribe: 'Stop updates for this request',
+    },
   },
   es: {
     status: { planned: 'Planeado', in_progress: 'En curso', done: 'Lanzado' },
@@ -44,6 +60,14 @@ const COPY: Record<MailLocale, {
     view: 'Ver la idea',
     unsubscribe: 'Dejar de recibir avisos de esta idea',
     why: 'Te llega porque propusiste, votaste o comentaste esta idea.',
+    req: {
+      subject: 'Ya salió: {title}',
+      heading: 'Ya salió lo que pediste',
+      body: 'Tu pedido "{title}" ya está disponible.',
+      view: 'Ver tu pedido',
+      why: 'Te llega porque lo pediste.',
+      unsubscribe: 'Dejar de recibir avisos de este pedido',
+    },
   },
   pt: {
     status: { planned: 'Planejado', in_progress: 'Em andamento', done: 'Lançado' },
@@ -54,6 +78,14 @@ const COPY: Record<MailLocale, {
     view: 'Ver a ideia',
     unsubscribe: 'Parar de receber avisos desta ideia',
     why: 'Você recebe isto porque propôs, votou ou comentou nesta ideia.',
+    req: {
+      subject: 'Já saiu: {title}',
+      heading: 'Já saiu o que você pediu',
+      body: 'O seu pedido "{title}" já está disponível.',
+      view: 'Ver o seu pedido',
+      why: 'Você recebe isto porque pediu isto.',
+      unsubscribe: 'Parar de receber avisos deste pedido',
+    },
   },
 };
 
@@ -109,6 +141,7 @@ export async function notifyStatusChange(item: RoadmapItemRow, from: string | nu
   let notified = 0;
   let emailed = 0;
   if (from === item.status) return { notified, emailed };
+  if (!isPublishedItem(item)) return notifyPrivateShipped(item);
   const subscribers = await listActiveSubscribers(item.id).catch(() => []);
   const sendMail = Boolean(process.env.RESEND_API_KEY);
   for (const sub of subscribers) {
@@ -158,6 +191,68 @@ export async function notifyStatusChange(item: RoadmapItemRow, from: string | nu
         subject: fill(c.subject, { title: item.title, status }),
         text,
         html: renderBrandedHtml({ heading: fill(c.heading, { status }), paragraphs, eyebrow: 'zerosoft · feedback' }),
+      });
+      if (res.ok) emailed += 1;
+    } catch {
+      // seguir con el resto
+    }
+  }
+  return { notified, emailed };
+}
+
+/**
+ * Un pedido privado que salió: un aviso (in-app y email) por persona que lo
+ * pidió y sigue suscripta. El email lleva solo su título, su link y el del
+ * changelog: nada de otras personas que pidieron lo mismo.
+ */
+async function notifyPrivateShipped(item: RoadmapItemRow): Promise<{ notified: number; emailed: number }> {
+  let notified = 0;
+  let emailed = 0;
+  if (item.status !== 'done') return { notified, emailed };
+  const recipients = await activeRequesterSubscribers(item.id).catch(() => []);
+  const sendMail = Boolean(process.env.RESEND_API_KEY);
+  for (const sub of recipients) {
+    const lang = mailLocale(sub.locale);
+    const c = COPY[lang].req;
+    const vars = { title: sub.title };
+    try {
+      await createNotification({
+        userId: sub.user_id,
+        type: 'roadmap_status',
+        title: fill(c.subject, vars),
+        body: fill(c.body, vars),
+        href: requestPath(item.id),
+        sourceType: 'roadmap_item',
+        sourceId: item.id,
+        meta: { to: item.status },
+      });
+      notified += 1;
+    } catch {
+      // la notificación in-app es best effort
+    }
+    if (!sendMail || !sub.email) continue;
+    const pageUrl = `${siteUrl()}/${lang}${requestPath(item.id)}`;
+    const shipped = requestChangelogUrl(lang, item.shipped_changelog_id);
+    const unsub = unsubscribeUrl(item.id, sub.user_id);
+    const paragraphs = [
+      escapeHtml(fill(c.body, vars)),
+      ...(shipped ? [fill(escapeHtml(COPY[lang].shipped), { url: `<a href="${escapeHtml(shipped)}">${escapeHtml(shipped)}</a>` })] : []),
+      `<a href="${escapeHtml(pageUrl)}">${escapeHtml(c.view)}</a>`,
+      `<span style="color:#888888;font-size:12px;">${escapeHtml(c.why)} <a href="${escapeHtml(unsub)}" style="color:#888888;">${escapeHtml(c.unsubscribe)}</a></span>`,
+    ];
+    const text = [
+      fill(c.body, vars),
+      ...(shipped ? [fill(COPY[lang].shipped, { url: shipped })] : []),
+      `${c.view}: ${pageUrl}`,
+      '',
+      `${c.why} ${c.unsubscribe}: ${unsub}`,
+    ].join('\n');
+    try {
+      const res = await sendEmail({
+        to: sub.email,
+        subject: fill(c.subject, vars),
+        text,
+        html: renderBrandedHtml({ heading: c.heading, paragraphs, eyebrow: 'zerosoft · feedback' }),
       });
       if (res.ok) emailed += 1;
     } catch {

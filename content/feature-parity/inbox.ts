@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -376,6 +376,13 @@ const parity: ProductParity = {
         'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
         'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. Salir o editar un grupo se hace en el teléfono',
         'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. Sair ou editar um grupo é feito no celular',
+      ],
+    }),
+    row('wa-group-members', 'whatsapp', ['Add members and change group admins', 'Agregar miembros y cambiar admins del grupo', 'Adicionar membros e mudar admins do grupo'], 'partial', {
+      detail: [
+        'In the group info: Add members (several at once, from your contacts or a typed number), Invite via link, and a menu on each member to make or dismiss a group admin, remove them or message them. If your number is not an admin of the group the actions show disabled with the reason. When WhatsApp refuses someone (privacy settings) you can send them the invite link. Tested with the fake provider; not yet tried with real WhatsApp',
+        'En la info del grupo: Agregar miembros (varios a la vez, de tus contactos o un número escrito), Invitar con link, y un menú en cada miembro para hacerlo admin o quitarle el admin, sacarlo o mandarle un mensaje. Si tu número no es admin del grupo, las acciones se ven deshabilitadas con el motivo. Si WhatsApp rechaza a alguien (su privacidad), le podés mandar el link. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Nos dados do grupo: Adicionar membros (vários de uma vez, dos seus contatos ou um número digitado), Convidar via link e um menu em cada membro para torná-lo admin ou tirar o admin, removê-lo ou mandar mensagem. Se o seu número não é admin do grupo, as ações aparecem desabilitadas com o motivo. Se o WhatsApp recusa alguém (privacidade), você pode enviar o link. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-ai-summary', 'whatsapp', ['AI summary of a chat', 'Resumen con IA de un chat', 'Resumo com IA de uma conversa'], 'better', {

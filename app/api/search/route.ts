@@ -122,8 +122,8 @@ async function getPrivate(req: NextRequest) {
     // Send: documentos y espacios por título, solo los que la persona ve.
     userCanUseApp(user, 'send') && user.role !== 'guest' ? searchSend(sendActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Inbox: chats y correos de la persona (los suyos, nunca de otra persona del workspace).
-    // Con un token (MCP, API, asistente) no se lee la bandeja personal, como en /api/inbox.
-    delegatedIdentity() ? Promise.resolve([]) : searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
+    // Con un token (MCP, API, asistente) no se lee la bandeja personal, como en /api/inbox; apagada en el workspace, tampoco.
+    delegatedIdentity() || !userCanUseApp(user, 'inbox') ? Promise.resolve([]) : searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
     // Calls: llamadas por título o por lo que se dijo, solo las que la persona ve.
     userCanUseApp(user, 'calls') && user.role !== 'guest' ? searchCalls(callsActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Fleet: sesiones de agentes de la persona por título, proyecto o rama.

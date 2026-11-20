@@ -2,7 +2,8 @@
 
 import LocalText from '@/components/ui/LocalText';
 import { formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { COMPOSE_EVENT, type ComposeType } from './recordLayout';
 import { useTranslations } from 'next-intl';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -78,6 +79,8 @@ interface TimelineProps {
   emailTools?: EmailTools;
   /** Personas del workspace que se pueden @mencionar en notas y tareas. */
   mentionables?: Mentionable[];
+  /** Acción rápida de la ficha (`?compose=`): abre el composer en ese tipo y le da el foco. */
+  compose?: ComposeType | null;
 }
 
 /** Tipos donde el texto acepta @menciones (y avisan). */
@@ -133,6 +136,7 @@ export default function Timeline({
   defaultEmail = '',
   emailTools,
   mentionables = [],
+  compose = null,
 }: TimelineProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -189,6 +193,32 @@ export default function Timeline({
   const type: ActivityType = filter === 'all' ? allType : filter;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  // Acciones rápidas de la ficha (Nota, Email, Llamada, Tarea, Reunión): eligen
+  // el tipo del composer y le dejan el foco. Llegan por `?compose=` cuando la
+  // ficha estaba en otra pestaña, o por evento si el timeline ya está a la vista.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canEmail = recordType !== 'lead' && recordType !== 'objectRecord';
+  useEffect(() => {
+    function open(kind: string | null | undefined) {
+      if (!kind || !(ALL_TYPES as readonly string[]).includes(kind)) return;
+      if (kind === 'email' && !canEmail) return;
+      // La lista queda en "Todas": la acción elige qué se va a escribir, no esconde el resto del timeline.
+      setFilter('all');
+      setAllType(kind as ActivityType);
+      // El foco va después del render que cambia los campos del composer.
+      window.setTimeout(() => {
+        const form = wrapRef.current?.querySelector<HTMLFormElement>('.tl-composer');
+        if (!form || form.offsetParent === null) return;
+        form.scrollIntoView({ block: 'nearest' });
+        form.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea')?.focus({ preventScroll: true });
+      }, 0);
+    }
+    open(compose);
+    const onCompose = (e: Event) => open((e as CustomEvent<{ type?: string }>).detail?.type);
+    window.addEventListener(COMPOSE_EVENT, onCompose);
+    return () => window.removeEventListener(COMPOSE_EVENT, onCompose);
+  }, [compose, canEmail]);
 
   // Edición inline (subject + body)
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -401,7 +431,7 @@ export default function Timeline({
   }
 
   return (
-    <div className="timeline-wrap">
+    <div className="timeline-wrap" ref={wrapRef}>
       {/* Una sola fila de tabs (como HubSpot): filtra la lista y define qué
           tipo de actividad crea el composer. En "All" el tipo se elige con
           un select compacto dentro del composer. */}

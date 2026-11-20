@@ -149,7 +149,7 @@ test.describe('CRM instalable y offline', () => {
     // Primera carga: el worker toma el control; desde la segunda guarda lo que se abre.
     await page.reload({ waitUntil: 'networkidle' });
     expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-    await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: `Offline ${tag}` })).toBeVisible();
 
     await context.setOffline(true);
