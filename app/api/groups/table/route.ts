@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
 import { conditionalJson } from '@/lib/etag';
 import { linesFiltersFromParam } from '@/lib/groups-filters';
-import { cleanHsColumns, listGroupsTable, setGroupProperty } from '@/lib/groups-table';
+import { cleanHsColumns, listGroupsTable, setGroupChats, setGroupProperty } from '@/lib/groups-table';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,12 +37,28 @@ export async function GET(req: Request) {
 /**
  * Edición en la celda: { chatIds, key, value } pone el valor de una propiedad
  * de zerosoft en los chats del grupo (uno por línea) que quien edita ve.
+ * { chatIds, labelIds } o { chatIds, status } cambian las etiquetas o el
+ * estado (abierto o cerrado) de esos chats. Las propiedades de la empresa de
+ * HubSpot se editan por PATCH /api/groups/hubspot/company.
  */
 export async function PATCH(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   if (s.user.role === 'guest') return groupsError(403, 'forbidden');
   const b = await readJson(req);
+  if (Array.isArray(b.labelIds) || b.status !== undefined) {
+    if (b.status !== undefined && b.status !== 'open' && b.status !== 'closed') return groupsError(400, 'invalid_input');
+    try {
+      return NextResponse.json(
+        await setGroupChats(s.ws, s.me, await sessionViewer(s), strArr(b.chatIds, 20), {
+          ...(Array.isArray(b.labelIds) ? { labelIds: strArr(b.labelIds, 20) } : {}),
+          ...(b.status === 'open' || b.status === 'closed' ? { status: b.status } : {}),
+        }),
+      );
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   const key = str(b.key, 40) ?? '';
   if (!/^[a-z0-9_]{1,40}$/.test(key)) return groupsError(400, 'invalid_input');
   try {

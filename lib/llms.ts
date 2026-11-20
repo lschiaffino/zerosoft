@@ -10,6 +10,7 @@ import { AI_MULTIPLIER, PAID_MINIMUM, PRICE_MULTIPLIER, PRICING_MEASURED } from 
 import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey, productHref, AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, isComingSoon } from '@/lib/products';
 import { TOOLS } from '@/lib/tools/registry';
 import { absoluteUrl } from '@/lib/seo';
+import { DIRECTORY_PATH, DIRECTORY_REVIEWED, SOFTWARE_DIRECTORY, categoryPath, type DirectoryCategory, type DirectoryProduct } from '@/lib/software-directory';
 
 /**
  * /llms.txt y /llms-full.txt (convención de llmstxt.org): un resumen en
@@ -65,6 +66,33 @@ function pricingSection(): string {
   ].join('\n');
 }
 
+const DIRECTORY_NOTE = `Open-source licenses checked in each project's repository on ${DIRECTORY_REVIEWED}; paid products are listed without prices.`;
+
+const appNames = (c: DirectoryCategory) => c.apps.map((k) => `zerosoft ${PRODUCT_CONFIG[k].name}`).join(' and ');
+const withLicense = (p: DirectoryProduct) => `${p.name} (${p.license})`;
+
+/** Una línea por categoría del directorio: zerosoft, los open source con licencia y los pagos. */
+function directoryLine(c: DirectoryCategory): string {
+  const parts = [`[${c.title.en}](${url(categoryPath(c.slug))}): ${appNames(c)} (open source, AGPLv3)`, `open source: ${c.openSource.map(withLicense).join(', ')}`];
+  if (c.sourceAvailable?.length) parts.push(`source-available: ${c.sourceAvailable.map(withLicense).join(', ')}`);
+  parts.push(`paid: ${c.paid.map((p) => p.name).join(', ')}`);
+  return `${parts.join('; ')}.`;
+}
+
+/** El directorio completo para llms-full.txt: cada producto con su sitio, licencia y código. */
+function directoryFull(): string[] {
+  const out: string[] = ['## Software directory', '', `URL: ${url(DIRECTORY_PATH)}. ${DIRECTORY_NOTE}`, ''];
+  const item = (p: DirectoryProduct) => `- ${p.name}: ${p.url}${p.license ? `, license ${p.license}` : ''}${p.source ? `, code ${p.source}` : ''}`;
+  for (const c of SOFTWARE_DIRECTORY) {
+    out.push(`### ${c.title.en}`, '', `URL: ${url(categoryPath(c.slug))}`, '', c.summary.en, '');
+    out.push(`zerosoft: ${c.apps.map((k) => `${PRODUCT_CONFIG[k].name} (${url(productHref(k))})`).join(', ')}. Open source (AGPLv3), $0 self-hosted.`, '');
+    out.push('Open source:', '', ...c.openSource.map(item), '');
+    if (c.sourceAvailable?.length) out.push('Source available (not an open-source license):', '', ...c.sourceAvailable.map(item), '');
+    out.push('Paid (proprietary):', '', ...c.paid.map((p) => `- ${p.name}: ${p.url}`), '');
+  }
+  return out;
+}
+
 /** /llms.txt: el índice. */
 export function llmsTxt(): string {
   const lines: string[] = ['# zerosoft', '', `> ${SUMMARY}`, ''];
@@ -91,6 +119,9 @@ export function llmsTxt(): string {
     const soon = isComingSoon(c.product) ? ' (coming soon: not usable yet)' : '';
     lines.push(`- ${c.competitor}: zerosoft ${c.name} is an open-source alternative${soon}, $0 self-hosted. ${url(`/compare/${c.altSlug}`)}`);
   }
+  lines.push('', '## Software directory: open source and paid, by category', '');
+  lines.push(`Index: ${url(DIRECTORY_PATH)}. ${DIRECTORY_NOTE}`, '');
+  for (const c of SOFTWARE_DIRECTORY) lines.push(`- ${directoryLine(c)}`);
   lines.push('', '## Comparisons', '');
   for (const c of getComparisons()) {
     lines.push(
@@ -148,6 +179,7 @@ export function llmsFullTxt(): string {
       for (const f of qs) out.push(`Q: ${f.q}`, `A: ${oneLine(f.a)}`, '');
     }
   }
+  out.push(...directoryFull());
   out.push('## Guides', '');
   const guides = getAllPosts('en').filter((p) => p.tags.some((t) => /migration|guide|comparison|tutorial/i.test(t)));
   for (const meta of guides) {

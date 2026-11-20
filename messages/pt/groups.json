@@ -2702,7 +2702,12 @@
     "newColumn": "Nova coluna",
     "newColumnAdd": "Adicionar coluna",
     "newColumnHelp": "Uma nova propriedade do zerosoft para todos os grupos do workspace. Dá para preencher pela tabela ou por cada grupo.",
-    "propCreated": "Coluna {name} adicionada"
+    "propCreated": "Coluna {name} adicionada",
+    "readOnly": "Somente leitura",
+    "hsNoCompany": "Vincule este grupo a uma empresa do HubSpot para editar as propriedades dela aqui.",
+    "hsReadOnly": "Somente leitura no HubSpot (calculada ou definida pelo HubSpot).",
+    "hsNoScope": "A conexão com o HubSpot só pode ler. Para editar aqui, reconecte o HubSpot com permissão para escrever empresas (crm.objects.companies.write).",
+    "hsMasked": "Seu papel vê os telefones ocultos: pode ver os valores do HubSpot, mas não editá-los."
   },
   "snooze": {
     "action": "Adiar conversa",

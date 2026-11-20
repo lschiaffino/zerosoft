@@ -35,12 +35,26 @@ act() { if [ -n "${DRY_RUN:-}" ]; then log "dry-run: $*"; else "$@" >> "$LOG" 2>
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG"; }
 now() { date +%s; }
 
+# take_lock DIR MAX_AGE_S: lock con el PID del dueño adentro. Se rompe si es de antes del último arranque de la Mac,
+# si su proceso ya no existe o si pasó MAX_AGE_S. Antes solo contaba la edad: el 20/11 la Mac se colgó con una pasada
+# a medio camino, el watchdog la reinició y el lock huérfano frenó todas las pasadas 40 min sin dejar nada en el log.
+BOOT_EPOCH=$(/usr/sbin/sysctl -n kern.boottime 2>/dev/null | sed -nE 's/^\{ sec = ([0-9]+),.*/\1/p')
+take_lock() {
+  local d="$1" max="$2" pid mt why=""
+  if mkdir "$d" 2>/dev/null; then echo $$ > "$d/pid"; return 0; fi
+  pid=$(cat "$d/pid" 2>/dev/null || true); mt=$(stat -f %m "$d" 2>/dev/null || echo 0)
+  if [ "$mt" -lt "${BOOT_EPOCH:-0}" ]; then why="es de antes del arranque de la Mac"
+  elif [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then why="su proceso ($pid) ya no existe"
+  elif [ $(( $(now) - mt )) -gt "$max" ]; then why="tiene más de $(( max / 60 )) min"
+  else return 1; fi
+  log "lock: rompo $(basename "$d") ($why)"
+  rm -rf "$d"; mkdir "$d" 2>/dev/null || return 1
+  echo $$ > "$d/pid"
+}
+
 # Un solo watcher a la vez (launchd puede arrancar otro si uno tarda).
 LOCK="$STATE/lock"
-if ! mkdir "$LOCK" 2>/dev/null; then
-  # Lock viejo (más de 40 min): el proceso anterior murió.
-  if [ $(( $(now) - $(stat -f %m "$LOCK" 2>/dev/null || echo 0) )) -gt 2400 ]; then rm -rf "$LOCK"; mkdir "$LOCK"; else exit 0; fi
-fi
+take_lock "$LOCK" 2400 || exit 0
 trap 'rm -rf "$LOCK"' EXIT
 
 api() { # api METHOD PATH [JSON]
@@ -133,15 +147,41 @@ except Exception: print("")' 2>/dev/null)
 }
 railway_pass
 
+# ---------- 2b: ¿sigue corriendo el cron de Vercel? ----------
+# /api/cron/minute corre cada minuto y anota lastRunAt (GET /api/status/summary). Si queda viejo, nadie más lo
+# nota (el cron es el que abre incidentes): aviso en el log y una notificación de macOS, como mucho cada 2 h.
+CRON_STALE_S=600
+cron_pass() {
+  [ "$(since cron-check)" -lt 300 ] && return 0
+  mark cron-check
+  local age
+  age=$(api GET /api/status/summary 2>/dev/null | python3 -I -c 'import sys,json,datetime
+try:
+  d=json.load(sys.stdin); t=d.get("lastRunAt")
+  if not t: print(-1); sys.exit(0)
+  print(int(datetime.datetime.now(datetime.timezone.utc).timestamp()-datetime.datetime.fromisoformat(t.replace("Z","+00:00")).timestamp()))
+except Exception: print("")' 2>/dev/null)
+  [ -z "$age" ] && return 0   # sin respuesta de la API: lo cubre el chequeo de la web, no es señal del cron
+  if [ "$age" -lt 0 ] || [ "$age" -gt $CRON_STALE_S ]; then
+    if [ "$(since cron-alert)" -gt 7200 ]; then
+      log "cron: /api/cron/minute no corre hace $(( age / 60 )) min (lastRunAt viejo o vacío)"
+      osascript -e "display notification \"El cron de Vercel no corre hace $(( age / 60 )) min (lastRunAt).\" with title \"zerosoft watcher\"" >/dev/null 2>&1 || true
+      mark cron-alert
+    fi
+  elif [ -f "$STATE/cron-alert" ]; then
+    log "cron: volvió a correr (lastRunAt hace ${age}s)"
+    rm -f "$STATE/cron-alert"
+  fi
+}
+cron_pass
+
 # ---------- 3: incidentes abiertos → Claude ----------
 # launchd no arranca otra pasada mientras ésta siga viva, así que mientras Claude trabaja (hasta 30 min) los reportes
 # los sigue mandando esta misma pasada, una vez por minuto. Si no, el estado abre "no report from the watcher" por la
 # sesión misma y el incidente no se puede cerrar.
 rm -rf "$LOCK"
 CLAUDE_LOCK="$STATE/claude-lock"
-if ! mkdir "$CLAUDE_LOCK" 2>/dev/null; then
-  if [ $(( $(now) - $(stat -f %m "$CLAUDE_LOCK" 2>/dev/null || echo 0) )) -gt $(( CLAUDE_TIMEOUT_S + 600 )) ]; then rm -rf "$CLAUDE_LOCK"; mkdir "$CLAUDE_LOCK"; else exit 0; fi
-fi
+take_lock "$CLAUDE_LOCK" $(( CLAUDE_TIMEOUT_S + 600 )) || exit 0
 trap 'rm -rf "$CLAUDE_LOCK"' EXIT
 open=$(api GET '/api/status/incidents?state=open' 2>/dev/null || true)
 echo "$open" | python3 -I -c 'import sys,json

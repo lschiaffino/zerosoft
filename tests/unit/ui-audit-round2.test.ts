@@ -34,8 +34,8 @@ describe('Cmd+K por app', () => {
 
   it('toda app de la suite se reconoce por su ruta, en cliente y en servidor', () => {
     for (const key of PRODUCT_KEYS) {
-      // Inbox es personal: se ofrece siempre, aunque la lista esté vacía.
-      expect(hrefAllowed([], `/app/${key === 'link' ? 'links' : key === 'cal' ? 'calendar' : key}/x`), key).toBe(key === 'inbox');
+      // Ninguna se ofrece con la lista vacía, Inbox tampoco (el workspace la puede apagar).
+      expect(hrefAllowed([], `/app/${key === 'link' ? 'links' : key === 'cal' ? 'calendar' : key}/x`), key).toBe(false);
     }
     expect(fromWorkspace).toBe(appFromPath);
   });

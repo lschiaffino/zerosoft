@@ -7,6 +7,7 @@ import { pageViewer } from '@/lib/groups-page';
 import { getDb } from '@/lib/db';
 import PageHeader from '@/components/ui/PageHeader';
 import TicketsBoard from '@/components/groups/TicketsBoard';
+import { roleAtLeast } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function GroupsTicketsPage(props: { params: Promise<{ local
   return (
     <div className="ui-page">
       <PageHeader title={t('tickets.pageTitle')} description={t('tickets.desc', { emoji: settings.ticketEmoji || '🎫' })} />
-      <TicketsBoard initial={tickets} people={people} me={user.actingUser?.id ?? user.id} openId={sp.open ?? null} fields={fields} remote={remote} />
+      <TicketsBoard initial={tickets} people={people} me={user.actingUser?.id ?? user.id} openId={sp.open ?? null} fields={fields} remote={remote} canExport={roleAtLeast(user.role, 'admin')} />
     </div>
   );
 }

@@ -601,17 +601,50 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 
 /* ---------- Composer ---------- */
 .gr-inbox .wa-composer { padding: 5px var(--wa-pad-x) 8px; background: var(--wa-panel-header); border-top: 0; }
-.gr-inbox .wa-composer.is-note { background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); }
+/* Solapas "WhatsApp | Nota interna": dos solapas de carpeta que sobresalen del composer sobre el fondo del chat.
+   La activa es del mismo color que el panel de abajo (verde de WhatsApp al responder, amarillo de nota al escribir
+   una nota) y se pega a él; la otra queda un poco más baja y apagada, con su color. Sin franja gris detrás: la fila
+   pinta el mismo fondo que .wa-messages, con el patrón anclado abajo allá y arriba acá para que siga sin corte. */
+.gr-inbox {
+  --wa-reply-surface: var(--wa-bubble-out);
+  --wa-note-surface: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header));
+  --wa-reply-tab-off: color-mix(in srgb, var(--wa-reply-surface) 75%, var(--wa-conv-bg));
+  --wa-note-tab-off: color-mix(in srgb, var(--wa-note-surface) 75%, var(--wa-conv-bg));
+  /* El filete de arriba de cada solapa, en el color fuerte: el verde de WhatsApp y el amarillo de las notas. */
+  --wa-reply-edge: var(--wa-badge);
+  --wa-note-edge: var(--wa-note-line);
+}
+.gr-inbox .wa-messages { background-position: 0 100%; }
+.gr-inbox .wa-composer.has-mode { background: var(--wa-reply-surface); }
+.gr-inbox .wa-composer.is-note { background: var(--wa-note-surface); }
 .wa-team-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 5px; }
-.wa-mode { display: flex; align-items: flex-end; gap: 2px; margin: -5px 0 5px; padding: 0; border-bottom: 1px solid var(--wa-border); }
-.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 28px; margin-bottom: -1px; padding: 0 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer; }
-.wa-mode-tab:hover { color: var(--wa-text); }
-.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); font-weight: 500; background: var(--wa-panel-header); border-color: var(--wa-border); }
-.wa-mode-note[aria-selected='true'] { color: var(--wa-text); background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); border-color: var(--wa-note-line); }
-.wa-composer.is-note .wa-mode { border-bottom-color: var(--wa-note-line); }
-.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
-/* Teléfono y tableta: las pestañas son blancos de 40 px para el dedo. */
-@media (max-width: 1023px) { .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; } }
+.wa-mode {
+  display: flex; align-items: flex-end; gap: 4px; margin: -5px calc(-1 * var(--wa-pad-x)) 5px; padding: 6px var(--wa-pad-x) 0;
+  background-color: var(--wa-conv-bg);
+  background-image:
+    radial-gradient(circle at 25% 25%, var(--wa-doodle) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 75% 75%, var(--wa-doodle) 1.2px, transparent 1.7px);
+  background-size: 26px 26px;
+  background-position: 0 0;
+}
+.wa-mode-tab {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; height: 26px; padding: 0 12px; font: inherit; font-size: var(--wa-fs-small);
+  color: var(--wa-text); border: 0; border-top: 2px solid transparent; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer;
+}
+.wa-mode-reply { background: var(--wa-reply-tab-off); border-top-color: var(--wa-reply-edge); }
+.wa-mode-note { background: var(--wa-note-tab-off); border-top-color: var(--wa-note-edge); }
+.wa-mode-reply:hover { background: var(--wa-reply-surface); }
+.wa-mode-note:hover { background: var(--wa-note-surface); }
+.wa-mode-tab[aria-selected='true'] { height: 30px; font-weight: 500; }
+.wa-mode-reply[aria-selected='true'] { background: var(--wa-reply-surface); }
+.wa-mode-note[aria-selected='true'] { background: var(--wa-note-surface); }
+.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-text); outline-offset: -2px; }
+/* Teléfono y tableta: las solapas son blancos de 40 px para el dedo (la de adelante, 44). */
+@media (max-width: 1023px) {
+  .wa-mode { margin-inline: -8px; padding-inline: 8px; }
+  .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; }
+  .wa-mode-tab[aria-selected='true'] { height: 44px; }
+}
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
 .wa-team-tools .btn { gap: 5px; }

@@ -36,7 +36,7 @@ export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/r
  * (que la pide a /api/settings/nav) y la nav embebida en esa ventana.
  * Admin va al final de Workspace y solo para ADMIN_EMAILS.
  */
-export const SETTINGS_ACCOUNT_KEYS = ['profile', 'appearance', 'notifications'] as const;
+export const SETTINGS_ACCOUNT_KEYS = ['profile', 'appearance', 'notifications', 'requests'] as const;
 export const SETTINGS_WORKSPACE_KEYS = ['workspace', 'members', 'apps', 'teams', 'billing', 'api', 'connections', 'import', 'security'] as const;
 /** Este dispositivo: sin conexión y la app de escritorio. */
 export const SETTINGS_DEVICE_KEYS = ['offline', 'desktop'] as const;
