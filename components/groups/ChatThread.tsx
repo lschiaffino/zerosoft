@@ -32,6 +32,7 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
+import type { InviteJoin } from './wa/InviteCard';
 import { linkFromMeta } from './wa/link-preview-data';
 import Transcript from './wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
@@ -48,6 +49,8 @@ import Avatar from './wa/Avatar';
 import { FloatingReactPicker, ReactionChip, ReactionDetails } from './wa/Reactions';
 import { useDismiss } from './wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
+import type { WaMessageInfo } from '@/lib/wa-receipts';
+import MessageInfo from './wa/MessageInfo';
 import MentionTextarea from './wa/MentionTextarea';
 import RichText from './wa/RichText';
 import EmojiPicker from './wa/EmojiPicker';
@@ -57,7 +60,7 @@ import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
 import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
-import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
+import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji, previewUrl } from './wa/format';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
 
 /** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
@@ -222,7 +225,8 @@ export default function ChatThread(props: ThreadProps) {
   // Toque largo (teléfono): el mensaje marcado, con la barra de reacciones y la hoja de acciones.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
   const [deletingSel, setDeletingSel] = useState(false);
-  const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
+  // Info del mensaje: el cuadro al lado del globito (./wa/MessageInfo.tsx).
+  const [infoFor, setInfoFor] = useState<{ m: MessageDto; anchor: HTMLElement } | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
   // Mandar desde un chat archivado lo desarchiva (como WhatsApp): el menú del chat lo refleja ya.
@@ -426,7 +430,7 @@ export default function ChatThread(props: ThreadProps) {
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // "Info del contacto" de alguien del grupo (su foto o su nombre en un mensaje): la ficha de WhatsApp.
   const tsheet = useTranslations('groups.wa.contactSheet');
-  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true));
+  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -1203,6 +1207,17 @@ export default function ChatThread(props: ThreadProps) {
     } else showToast(errText(res.error), true);
   }
 
+  // Info del mensaje: quién lo recibió y lo leyó, con sus horas (enmascarado si esta persona no ve teléfonos).
+  function openInfo(m: MessageDto) {
+    const row = document.getElementById(`m-${m.id}`);
+    const anchor = row?.querySelector<HTMLElement>('.gr-bubble') ?? row;
+    if (anchor) setInfoFor({ m, anchor });
+  }
+  async function loadInfo(id: string): Promise<WaMessageInfo | null> {
+    const res = await api<{ info: WaMessageInfo }>(`/api/groups/chats/${props.chat.id}/members?info=${encodeURIComponent(id)}`);
+    return res.data && res.data.info && typeof res.data.info === 'object' ? res.data.info : null;
+  }
+
   // Quién reaccionó (nombre, foto y teléfono; enmascarado si esta persona no ve teléfonos), para el cuadro de reacciones.
   async function loadReactions(ids: string[]): Promise<WaReactor[] | null> {
     const res = await api<{ reactions: WaReactor[] }>(`/api/groups/chats/${props.chat.id}/members?reactions=${encodeURIComponent(ids.join(','))}`);
@@ -1279,6 +1294,12 @@ export default function ChatThread(props: ThreadProps) {
     setPinned((list) => (pin ? [updated, ...list.filter((p) => p.id !== updated.id)] : list.filter((p) => p.id !== updated.id)));
     showToast(pin ? (res.data.inWhatsApp ? t('thread.pinnedWhatsApp') : t('thread.pinnedHere')) : t('thread.unpinned'));
   }
+
+  // Los destacados de la pantalla: si cambian, la info del chat vuelve a leer su lista.
+  const starredKey = messages
+    .filter((m) => (m.meta as Record<string, unknown>).starred === true)
+    .map((m) => m.id)
+    .join(',');
 
   function jumpTo(m: MessageDto) {
     const el = document.getElementById(`m-${m.id}`);
@@ -1500,7 +1521,7 @@ export default function ChatThread(props: ThreadProps) {
     // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, fijar, reenviar, copiar, editar |
     // responder en privado, mensaje a quien lo mandó | eliminar | seleccionar. Debajo, la capa del equipo.
     if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
-    if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
+    if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => openInfo(m) });
     if (live)
       items.push({
         key: 'reply',
@@ -1547,6 +1568,24 @@ export default function ChatThread(props: ThreadProps) {
     const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id, card } });
     if (!res.data) return showToast(errText(res.error), true);
     router.push(`/app/lines/inbox/${res.data.id}${window.location.search}`);
+  }
+
+  /**
+   * "Unirme al grupo" en una invitación: entra con la línea por la que llegó el mensaje (en un chat de varias
+   * líneas, la suya). El servidor revisa que quien mira vea esa línea, como para crear un chat.
+   */
+  function inviteJoinFor(m: MessageDto, url: string): InviteJoin | undefined {
+    if (!props.caps.groups || props.sample) return undefined;
+    const line = chat.lines?.find((l) => l.chatId === m.chatId);
+    const numberId = line?.lineId ?? chat.numberId;
+    return {
+      lineName: line?.name || props.numberName,
+      run: async () => {
+        const res = await api<{ id: string; name?: string }>('/api/groups/join', { body: { numberId, invite: url } });
+        return res.data ? { ok: true, id: res.data.id, name: res.data.name } : { ok: false, code: res.error };
+      },
+      onOpen: (id) => router.push(`/app/lines/inbox/${id}${window.location.search}`),
+    };
   }
 
   /** "Mensaje a <persona>" o "Responder en privado": su chat 1:1 en la misma línea (se crea si no existe). */
@@ -1649,8 +1688,11 @@ export default function ChatThread(props: ThreadProps) {
 
   async function starSelected() {
     if (!selecting) return;
-    for (const id of selecting) {
-      const res = await api<MessageDto>(`/api/groups/messages/${id}`, { body: { action: 'star' } });
+    // Como WhatsApp (e Inbox): si alguno no está destacado se destacan todos; si ya lo estaban todos, se sacan.
+    const chosen = messages.filter((m) => selecting.has(m.id) && !m.deletedAt && !isTempId(m.id));
+    const star = chosen.some((m) => (m.meta as Record<string, unknown>).starred !== true);
+    for (const { id } of chosen) {
+      const res = await api<MessageDto>(`/api/groups/messages/${id}`, { body: { action: star ? 'star' : 'unstar' } });
       if (res.data) merge([res.data]);
     }
     setSelecting(null);
@@ -2109,7 +2151,9 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} given={linkFromMeta(m.meta)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && previewUrl(m.body) && (
+            <LinkPreview url={previewUrl(m.body)} given={linkFromMeta(m.meta)} join={isTempId(m.id) ? undefined : inviteJoinFor(m, previewUrl(m.body))} />
+          )}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden && contacts.length > 0 && (
             <ContactCards
@@ -2180,6 +2224,8 @@ export default function ChatThread(props: ThreadProps) {
                 </Link>
               )}
               {m.direction === 'in' && m.needsReply === true && <span className="gr-question-tag">{t('thread.question')}</span>}
+              {/* Lugar para la hora (va abajo a la derecha, encima del último renglón): sin esto, "Enviado desde …" se pisaba con la hora. */}
+              <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
             </p>
           )}
           <p className="gr-msg-foot">
@@ -2834,6 +2880,17 @@ export default function ChatThread(props: ThreadProps) {
           me={props.me}
           isAdmin={props.isAdmin}
           compact
+          starredKey={starredKey}
+          onJumpToMessage={(id) => {
+            const m = messages.find((x) => x.id === id);
+            if (!m) {
+              showToast(t('thread.pinnedOld'));
+              return;
+            }
+            // En el teléfono la info tapa el chat: se cierra para ver el mensaje.
+            if (!side.wide) setDetailsOpen(false);
+            window.setTimeout(() => jumpTo(m), 0);
+          }}
         />
       </aside>
 
@@ -3045,32 +3102,18 @@ export default function ChatThread(props: ThreadProps) {
       />
 
       <PollDialog open={pollOpen} supported={props.caps.polls} onClose={() => setPollOpen(false)} onSend={sendPoll} />
-      <Modal open={!!infoFor} title={t('wa.messageInfo')} onClose={() => setInfoFor(null)} foot={<button type="button" className="btn btn-primary" onClick={() => setInfoFor(null)}>{t('common.close')}</button>}>
-        {infoFor && (
-          <dl className="wa-info">
-            <div>
-              <dt>{t('wa.infoSent')}</dt>
-              <dd>{parseDbUtc(infoFor.createdAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
-            </div>
-            {(['delivered', 'read'] as const).map((k) => {
-              const at = ((infoFor.meta as { ack?: Record<string, string> }).ack ?? {})[k];
-              const reached = infoFor.status === 'read' || (k === 'delivered' && infoFor.status === 'delivered');
-              return (
-                <div key={k}>
-                  <dt>
-                    <Ticks status={k} label={t(`status.${k}`)} /> {t(`status.${k}`)}
-                  </dt>
-                  <dd>{at ? parseDbUtc(at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : reached ? t('wa.infoNoTime') : '—'}</dd>
-                </div>
-              );
-            })}
-            <div>
-              <dt>{t('wa.infoBy')}</dt>
-              <dd>{outAuthor(infoFor) || t('thread.byPhone')}</dd>
-            </div>
-          </dl>
-        )}
-      </Modal>
+      {infoFor && (
+        <MessageInfo
+          anchor={infoFor.anchor}
+          load={() => loadInfo(infoFor.m.id)}
+          preview={quoteLine(infoFor.m)}
+          previewTime={parseDbUtc(infoFor.m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}
+          status={infoFor.m.deletedAt ? '' : infoFor.m.status}
+          statusLabel={t(infoFor.m.status === 'read' && chat.readHidden ? 'status.readHidden' : `status.${infoFor.m.status}`)}
+          by={outAuthor(infoFor.m) || t('thread.byPhone')}
+          onClose={() => setInfoFor(null)}
+        />
+      )}
       <ContactPicker
         open={contactOpen}
         chatId={via || chat.id}

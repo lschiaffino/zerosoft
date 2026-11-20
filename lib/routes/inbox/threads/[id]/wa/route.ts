@@ -3,6 +3,7 @@ import { limitByIp } from '@/lib/rate-limit';
 import { InboxError } from '@/lib/inbox/types';
 import { personCard, reactionDetails, sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
 import { makeSummary, readSummary } from '@/lib/inbox/wa-summary';
+import { MEMBER_ACTIONS } from '@/lib/wa-group-members';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,8 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
  * Panel de info de un chat de WhatsApp: ?part=shared&kind=media|docs|links|starred
  * (lo compartido en el chat), ?part=summary (el resumen guardado) o
  * ?part=person&phone=<dígitos> (la ficha de una persona del grupo) o
- * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes).
+ * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes) o
+ * ?part=info&message=<id> (la Info de un mensaje propio: quién lo recibió y lo leyó).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -29,6 +31,11 @@ export async function GET(req: Request, ctx: Ctx) {
       const ids = (sp.get('messages') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
       return iJson({ reactions: await reactionDetails(owner, id, ids) });
     }
+    // Info de un mensaje propio: quién lo recibió y lo leyó, con sus horas (lib/inbox/wa-receipts.ts).
+    if (sp.get('part') === 'info') {
+      const { inboxMessageInfo } = await import('@/lib/inbox/wa-receipts');
+      return iJson({ info: await inboxMessageInfo(owner, id, (sp.get('message') ?? '').slice(0, 100)) });
+    }
     const kind = sp.get('kind') as SharedKind;
     if (!KINDS.includes(kind)) throw new InboxError('invalid_input', 400);
     return iJson({ items: await sharedContent(owner, id, kind) });
@@ -41,7 +48,9 @@ export async function GET(req: Request, ctx: Ctx) {
  * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused");
  * { action: 'fetchMissing' } "Traer mensajes que faltan" ({ action: 'fetchMissingStatus' } dice cómo va);
  * { action: 'fetchMissing', auto: true } le pide al teléfono el historial de un chat con huecos;
- * { action: 'loadOlder' } le pide los mensajes anteriores al más viejo guardado.
+ * { action: 'loadOlder' } le pide los mensajes anteriores al más viejo guardado;
+ * { action: 'members', op, phones } agrega, quita o cambia admins del grupo (resultado por persona),
+ * { action: 'invite', revoke? } da el link y { action: 'inviteSend', phones, text } lo manda por 1:1.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -96,6 +105,21 @@ export async function POST(req: Request, ctx: Ctx) {
       if (!out) throw new InboxError('not_found', 404);
       const r = olderResponse(out);
       return iJson(r.body, r.status);
+    });
+  }
+  // Miembros del grupo: { action: 'members', op: add|remove|promote|demote, phones }, { action: 'invite', revoke? }
+  // (el link) y { action: 'inviteSend', phones, text } (el link por 1:1 a quienes WhatsApp no dejó agregar).
+  if (b?.action === 'members' || b?.action === 'invite' || b?.action === 'inviteSend') {
+    const limitedM = await limitByIp(req, 'inbox-group-members', 60, 60).catch(() => null);
+    if (limitedM) return limitedM;
+    const body = b as { op?: unknown; phones?: unknown; revoke?: unknown; text?: unknown };
+    return withOwner(async (owner) => {
+      const { updateGroupMembers, groupInviteLinkFor, sendGroupInvites } = await import('@/lib/inbox/wa-group-members');
+      if (b.action === 'invite') return iJson({ link: await groupInviteLinkFor(owner, id, body.revoke === true) });
+      if (b.action === 'inviteSend') return iJson({ results: await sendGroupInvites(owner, id, body.phones, body.text) });
+      const op = MEMBER_ACTIONS.find((a) => a === body.op);
+      if (!op) throw new InboxError('invalid_input', 400);
+      return iJson(await updateGroupMembers(owner, id, op, body.phones));
     });
   }
   const limited = await limitByIp(req, 'inbox-ai', 60, 60).catch(() => null);

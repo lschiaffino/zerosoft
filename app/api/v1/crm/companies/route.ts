@@ -6,6 +6,7 @@ import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,8 +17,12 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
+  // Filtro avanzado (el mismo modelo que el listado de la app); `tz` fija la zona de las fechas relativas.
+  const filter = await requestFilter(sp, 'companies', { viewer: apiFieldViewer(auth), viewerId: auth.personId, timeZone: sp.get('tz') });
+  if ('error' in filter) return apiError(400, 'invalid_filter', 'The filters parameter is not valid: unknown property or operator, a missing value, or too many groups.');
   const { rows, total } = await listCompanies(auth.user.id, {
     ownerScope: await apiScope(auth),
+    ...filter,
     q: sp.get('q') ?? undefined,
     page,
     pageSize,

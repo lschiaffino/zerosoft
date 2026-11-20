@@ -17,6 +17,7 @@ import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
 import { evolutionForward, forwardScoreOf } from './wa-forward';
+import { receiptTime, type GatewayReceipt } from './wa-receipts';
 import {
   evolutionFileName,
   evolutionStickerBody,
@@ -39,6 +40,7 @@ import {
   lidDigits,
   phoneDigits,
   safeEqual,
+  inviteFailureOf,
   type ArchiveRef,
   type BridgeConfig,
   type ChatInfo,
@@ -725,6 +727,37 @@ export function parseEvolutionPrivacy(raw: unknown): PrivacySettings | null {
   return v === 'all' || v === 'none' ? { readReceipts: v } : null;
 }
 
+/**
+ * /chat/messageReceipts (parche 0014 de infra/evolution) → las confirmaciones
+ * por persona: `{ receipts: [{ userJid, phone?, deliveredAt?, readAt?,
+ * playedAt? }] }`, con las horas en segundos Unix. `userJid` es el teléfono
+ * (`@s.whatsapp.net`) o el lid (`@lid`); `phone` es el teléfono de un lid si
+ * el gateway lo sabe.
+ */
+export function parseEvolutionReceipts(raw: unknown): GatewayReceipt[] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Json;
+  const list = Array.isArray(r.receipts) ? (r.receipts as unknown[]) : [];
+  const out: GatewayReceipt[] = [];
+  for (const item of list.slice(0, 2000)) {
+    if (!item || typeof item !== 'object') continue;
+    const x = item as Json;
+    const jid = String(x.userJid ?? '');
+    const user = jid.replace(/@.*$/, '').replace(/:\d+$/, '').replace(/\D/g, '');
+    const lid = /@lid$/.test(jid) ? user : '';
+    const phone = lid ? phoneDigits(String(x.phone ?? '')) : /@(s\.whatsapp\.net|c\.us)$/.test(jid) ? user : '';
+    if (!phone && !lid) continue;
+    const times = { deliveredAt: receiptTime(x.deliveredAt), readAt: receiptTime(x.readAt), playedAt: receiptTime(x.playedAt) };
+    out.push({
+      ...(phone ? { phone } : {}),
+      ...(lid ? { lid } : {}),
+      ...(times.deliveredAt ? { deliveredAt: times.deliveredAt } : {}),
+      ...(times.readAt ? { readAt: times.readAt } : {}),
+      ...(times.playedAt ? { playedAt: times.playedAt } : {}),
+    });
+  }
+  return out;
+}
+
 export function cleanPushName(raw: unknown): string {
   const s = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
   if (!s || /^(você|voce|you|tú|tu)$/i.test(s)) return '';
@@ -1167,7 +1200,9 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         // La confirmación de un chat 1:1 que vino solo por lid: con ella se aprende de quién es ese lid.
         const sk = (u.key ?? {}) as Json;
         const rj = pnJid(String(u.remoteJid ?? sk.remoteJid ?? ''), sk.remoteJidAlt, u.remoteJidAlt);
-        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}) });
+        // PLAYED (un audio escuchado) llega como 'read' con la marca: la Info del mensaje lo muestra aparte.
+        const played = String(u.status ?? '').toUpperCase() === 'PLAYED';
+        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}), ...(played ? { played: true } : {}) });
         // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
         const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
         if (agg && id) {
@@ -1711,6 +1746,20 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async privacySettings() {
       return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
     },
+    /**
+     * /chat/messageReceipts (parche 0014 de infra/evolution): las confirmaciones
+     * por persona que el gateway guardó de un mensaje propio en un grupo, a
+     * pedido (Evolution no las manda por el webhook). Sin el parche, o con el
+     * parche apagado, responde 404: null.
+     */
+    async messageReceipts(chatId, providerMessageId) {
+      try {
+        return parseEvolutionReceipts(await api(`/chat/messageReceipts/${instance}`, 'POST', { id: providerMessageId, remoteJid: chatId }));
+      } catch (err) {
+        if (err instanceof ProviderError && err.code === 'not_found') return null;
+        throw err;
+      }
+    },
     fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes, slowApi),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
@@ -1772,10 +1821,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       await api(`/group/updateGroupPicture/${instance}${q(groupId)}`, 'POST', { image: image.url });
     },
     async joinGroup(code) {
-      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`)) as Json;
+      // Evolution responde { accepted: true, groupJid } o un error con el de WhatsApp en el cuerpo
+      // ("not-authorized": link reiniciado, "conflict": ya está, ...): se reduce a una etiqueta.
+      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`, 'GET', undefined, { errorReason: inviteFailureOf })) as Json;
       const id = String(r.groupJid ?? r.id ?? (typeof r.accepted === 'string' ? r.accepted : ''));
-      if (!id || !isGroupJid(id)) throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
-      return { id };
+      if (id && isGroupJid(id)) return { id };
+      // Aceptada sin grupo: el grupo pide aprobación de un admin y quedó la solicitud.
+      if (r.accepted === true) {
+        const e = new ProviderError('provider_error');
+        e.reason = 'approval_required';
+        throw e;
+      }
+      throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
     },
     async leaveGroup(groupId) {
       await api(`/group/leaveGroup/${instance}${q(groupId)}`, 'DELETE');

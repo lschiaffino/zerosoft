@@ -606,13 +606,11 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
    una nota) y se pega a él; la otra queda un poco más baja y apagada, con su color. Sin franja gris detrás: la fila
    pinta el mismo fondo que .wa-messages, con el patrón anclado abajo allá y arriba acá para que siga sin corte. */
 .gr-inbox {
-  --wa-reply-surface: var(--wa-bubble-out);
+  /* Responder: el gris de siempre del composer; la nota, amarilla. */
+  --wa-reply-surface: var(--wa-panel-header);
   --wa-note-surface: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header));
   --wa-reply-tab-off: color-mix(in srgb, var(--wa-reply-surface) 75%, var(--wa-conv-bg));
   --wa-note-tab-off: color-mix(in srgb, var(--wa-note-surface) 75%, var(--wa-conv-bg));
-  /* El filete de arriba de cada solapa, en el color fuerte: el verde de WhatsApp y el amarillo de las notas. */
-  --wa-reply-edge: var(--wa-badge);
-  --wa-note-edge: var(--wa-note-line);
 }
 .gr-inbox .wa-messages { background-position: 0 100%; }
 .gr-inbox .wa-composer.has-mode { background: var(--wa-reply-surface); }
@@ -629,10 +627,10 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 }
 .wa-mode-tab {
   display: inline-flex; align-items: center; gap: 5px; flex: none; height: 26px; padding: 0 12px; font: inherit; font-size: var(--wa-fs-small);
-  color: var(--wa-text); border: 0; border-top: 2px solid transparent; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer;
+  color: var(--wa-text); border: 0; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer;
 }
-.wa-mode-reply { background: var(--wa-reply-tab-off); border-top-color: var(--wa-reply-edge); }
-.wa-mode-note { background: var(--wa-note-tab-off); border-top-color: var(--wa-note-edge); }
+.wa-mode-reply { background: var(--wa-reply-tab-off); }
+.wa-mode-note { background: var(--wa-note-tab-off); }
 .wa-mode-reply:hover { background: var(--wa-reply-surface); }
 .wa-mode-note:hover { background: var(--wa-note-surface); }
 .wa-mode-tab[aria-selected='true'] { height: 30px; font-weight: 500; }
@@ -796,6 +794,16 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-image img.is-loaded { opacity: 1; }
 .wa-image[style] img:not(.wa-thumb) { width: 100%; height: 100%; max-height: none; min-width: 0; object-fit: var(--wa-media-fit, cover); }
 .wa-video-thumb > img { width: 100%; height: 100%; object-fit: cover; }
+/* Portada del video: el primer cuadro llena la caja (que ya tiene la proporción del video); la miniatura de
+   WhatsApp, borrosa, solo de lugar hasta que el cuadro está. Sin topes de alto heredados (.gr-media img): sin bandas. */
+.wa-poster { position: absolute; inset: 0; display: block; overflow: hidden; pointer-events: none; }
+.wa-poster > img, .wa-poster > video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; max-height: none; min-width: 0; object-fit: cover; border-radius: 0; }
+.wa-poster > .wa-thumb { filter: blur(8px); transform: scale(1.05); }
+.wa-poster > video { opacity: 0; transition: opacity 0.15s; }
+.wa-poster[data-poster="frame"] > video { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .wa-poster > video { transition: none; } }
+.wa-video-len { display: inline-flex; align-items: center; gap: 4px; }
+.wa-video-len svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
 .wa-viewonce { display: inline-flex; align-items: center; gap: 8px; padding: 8px 6px; font-size: 0.875rem; font-style: italic; color: var(--wa-text-2); }
 .gr-inbox .gr-msg-foot .wa-retry { display: inline-flex; padding: 0 2px; color: var(--wa-danger); background: none; border: 0; cursor: pointer; pointer-events: auto; }
 .wa-retry:focus-visible { outline: 2px solid var(--wa-primary); }
@@ -1108,7 +1116,9 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-contact-list .wa-contact-card .wa-contact-actions { margin-bottom: 0; }
 
 /* Info del mensaje. */
-.wa-info { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+/* "Info del mensaje" (Lines e Inbox): el texto del tamaño del chat, no del de un formulario (se veía más grande que
+   los mensajes de atrás). */
+.wa-info { display: flex; flex-direction: column; gap: 8px; margin: 0; font-size: 0.875rem; }
 .wa-info > div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .wa-info dt { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
 .wa-info dd { margin: 0; color: var(--ink-2); text-align: right; }
@@ -1174,31 +1184,62 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
    - grande: la imagen arriba a todo el ancho (dos en grilla), título, descripción y pie con el dominio;
    - compacta: logo o imagen chica al costado;
    - solo texto: sin imagen.
-   El ancho de la grande lo pone --wa-link-w; la imagen no pasa de 4:5 de alto (se recorta, cover). */
-.wa-linkcard { --wa-link-w: 330px; display: flex; margin: 0 0 6px; max-width: min(var(--wa-link-w), 100%); overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+   Las tres tienen el ancho --wa-link-w (o el de la burbuja si es más angosta); la imagen no pasa de 4:5 de alto
+   (se recorta, cover). Título en negrita sin subrayar, descripción de dos líneas como mucho, dominio chico y gris. */
+.wa-linkcard {
+  --wa-link-w: 330px; box-sizing: border-box; display: flex; width: var(--wa-link-w); max-width: 100%; margin: 0 0 6px; overflow: hidden;
+  color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px;
+}
+/* Ningún texto de la tarjeta va subrayado (ni con un aspecto que subraye los links): se toca la tarjeta entera. */
+.wa-linkcard, .wa-linkcard:hover, .wa-linkcard * { text-decoration: none; }
 .gr-msg-out .wa-linkcard { background: var(--wa-quote-out); }
-.wa-linkcard.is-large { flex-direction: column; width: var(--wa-link-w); }
+.wa-linkcard:hover { background: color-mix(in srgb, var(--wa-quote-bg), var(--wa-text) 4%); }
+.gr-msg-out .wa-linkcard:hover { background: color-mix(in srgb, var(--wa-quote-out), var(--wa-text) 4%); }
+.wa-linkcard.is-large { flex-direction: column; }
 .wa-linkcard-media { display: block; width: 100%; max-height: 360px; overflow: hidden; background: var(--wa-row-active); }
 .wa-linkcard-media img { display: block; width: 100%; height: 100%; max-height: 360px; object-fit: cover; }
 .wa-linkcard-media.is-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; aspect-ratio: 2 / 1; }
 .wa-linkcard-media.is-grid img { aspect-ratio: 1; }
-.wa-linkcard-thumb { flex: none; align-self: stretch; width: 82px; min-height: 82px; object-fit: cover; background: var(--wa-row-active); }
-.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 10px 8px; }
-.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; }
+/* Miniatura cuadrada a la izquierda (logo, imagen chica). */
+.wa-linkcard-thumb { flex: none; align-self: stretch; width: 82px; min-height: 82px; max-height: 120px; object-fit: cover; background: var(--wa-row-active); }
+.wa-linkcard-text { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 7px 10px 8px; }
+.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; color: var(--wa-text); }
+/* La descripción, como mucho dos líneas en todas las variantes. */
 .wa-linkcard-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-small); line-height: 1.4; color: var(--wa-text-2); }
-.wa-linkcard.is-large .wa-linkcard-desc { -webkit-line-clamp: 3; }
-.wa-linkcard.is-text .wa-linkcard-desc { -webkit-line-clamp: 4; }
-.wa-linkcard-foot { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 3px; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.wa-linkcard-foot { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 2px; font-size: var(--wa-fs-meta); line-height: 1.3; color: var(--wa-text-2); }
 .wa-linkcard-foot svg { flex: none; }
 .wa-linkcard-domain { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-linkcard-fav { flex: none; width: 14px; height: 14px; object-fit: contain; border-radius: 3px; }
-.wa-linkcard:hover strong { text-decoration: underline; }
 .wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
-/* La burbuja con una tarjeta grande toma su ancho (el texto del link va abajo, como en WhatsApp). */
-.gr-inbox .gr-bubble:has(> .wa-linkcard.is-large) { max-width: min(calc(var(--wa-link-w, 330px) + 16px), 100%); }
+/* La burbuja con una tarjeta toma su ancho, como con una foto: el texto del mensaje se acomoda abajo y la tarjeta
+   nunca queda más angosta que el texto. En una burbuja angosta (390 px) la tarjeta se achica a la burbuja. */
+.gr-inbox .gr-bubble:has(> .wa-linkcard) { max-width: min(calc(var(--wa-link-w, 330px) + 18px), 100%); }
 @media (max-width: 480px) {
   .wa-linkcard, .gr-inbox .gr-bubble { --wa-link-w: min(300px, 70vw); }
   .wa-linkcard-thumb { width: 68px; min-height: 68px; }
+}
+
+/* Invitación a un grupo de WhatsApp (components/groups/wa/InviteCard.tsx): foto redonda entera, nombre, subtítulo y botones. */
+.wa-invite { display: flex; flex-direction: column; width: 300px; max-width: 100%; margin: 0 0 6px; overflow: hidden; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-invite { background: var(--wa-quote-out); }
+.wa-invite-head { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 12px 10px; }
+.wa-invite-photo { flex: none; display: flex; }
+.wa-invite-photo .wa-avatar { object-fit: cover; }
+.wa-invite-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wa-invite-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; }
+.wa-invite-sub { font-size: var(--wa-fs-small); line-height: 1.35; color: var(--wa-text-2); }
+.wa-invite-status { margin: 0; padding: 0 12px 10px; font-size: var(--wa-fs-small); line-height: 1.4; color: var(--wa-text-2); overflow-wrap: anywhere; }
+.wa-invite-status.is-error { color: var(--wa-danger); }
+.wa-invite-actions { display: flex; border-top: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-invite-actions > button, .wa-invite-actions > a { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 38px; padding: 4px 8px; font: inherit; font-size: 0.875rem; text-align: center; color: var(--wa-primary-ink); text-decoration: none; background: none; border: 0; cursor: pointer; }
+.wa-invite-actions > * + * { border-left: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-invite-actions > button:hover, .wa-invite-actions > a:hover { background: color-mix(in srgb, var(--wa-text-2) 10%, transparent); }
+.wa-invite-actions > button:focus-visible, .wa-invite-actions > a:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-invite-actions > button:disabled { cursor: default; opacity: 0.6; }
+.gr-inbox .gr-bubble:has(> .wa-invite) { max-width: min(316px, 100%); }
+@media (max-width: 480px) {
+  .wa-invite { width: min(300px, 70vw); }
+  .wa-invite-actions > button, .wa-invite-actions > a { padding: 4px 6px; font-size: 0.8125rem; white-space: nowrap; }
 }
 
 /* Vista previa del link mientras se escribe (components/groups/wa/ComposerLinkPreview.tsx), arriba del campo. */
@@ -1697,6 +1738,61 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
   .wa-rx-pop, .wa-rx-pop.is-sheet, .wa-rx-backdrop, .wa-rx-row.is-skeleton { animation: none; }
 }
 
+/* Info del mensaje (components/groups/wa/MessageInfo.tsx), Inbox y Lines: al lado del globito, con la superficie y
+   los tokens del cuadro de reacciones (claro, oscuro, estilo zerosoft y la hoja del teléfono). Letra del chat. */
+.wa-info-pop { width: 360px; max-height: min(580px, 84vh); padding-top: 12px; }
+.wa-info-head { display: flex; align-items: center; gap: 8px; padding: 0 10px 10px 22px; }
+.wa-info-head .wa-rx-title { flex: 1 1 auto; min-width: 0; margin: 0; }
+.wa-info-close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
+  color: var(--wa-icon); background: none; border: 0; border-radius: 50%; cursor: pointer;
+}
+.wa-info-close:hover { color: var(--wa-text); background: var(--wa-row-hover); }
+.wa-info-close:focus-visible, .wa-info-more:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-info-preview { display: flex; justify-content: flex-end; padding: 12px 16px; background: var(--wa-conv-bg); border-block: 1px solid var(--wa-border); }
+.wa-info-bubble {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; gap: 2px 8px; min-width: 0; max-width: 88%;
+  padding: 6px 8px 6px 9px; color: var(--wa-text); background: var(--wa-bubble-out); border-radius: 8px; box-shadow: var(--wa-shadow-bubble);
+}
+.wa-info-text {
+  display: -webkit-box; min-width: 0; overflow: hidden; font-size: var(--wa-fs-body); line-height: var(--wa-lh-body);
+  overflow-wrap: anywhere; white-space: pre-wrap; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
+.wa-info-meta { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; font-size: var(--wa-fs-tiny); color: var(--wa-meta-out); white-space: nowrap; }
+.wa-info-meta .wa-ticks:not(.is-read):not(.is-failed) { color: var(--wa-meta-out); }
+.wa-info-panel { padding: 2px 0 8px; }
+.wa-info-section { margin: 0; padding: 0; border: 0; background: none; }
+.wa-info-section + .wa-info-section { border-top: 1px solid var(--wa-border); }
+.wa-info-section-head {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 22px 4px; font-size: var(--wa-fs-small); font-weight: 500;
+  line-height: 1.3; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wa-text-2);
+}
+.wa-info-section-icon { display: inline-flex; flex: none; justify-content: center; width: 18px; color: var(--wa-text-2); }
+.wa-info-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.wa-info-row { min-height: 56px; padding: 8px 22px; }
+.wa-info-when {
+  flex: none; max-width: 48%; overflow: hidden; font-size: var(--wa-fs-small); color: var(--wa-text-2); text-align: right;
+  text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.wa-info-more {
+  display: block; width: 100%; padding: 10px 22px 12px; font: inherit; font-size: var(--wa-fs-ui); color: var(--wa-primary-ink);
+  text-align: left; background: none; border: 0; cursor: pointer;
+}
+.wa-info-more:hover { background: var(--wa-row-hover); }
+.wa-info-direct { padding: 4px 0; }
+.wa-info-direct-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 22px; font-size: var(--wa-fs-name); }
+.wa-info-direct-label { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
+.wa-info-note { margin: 0; padding: 14px 22px; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text-2); }
+.wa-info-sent { display: flex; align-items: center; gap: 12px; padding: 10px 22px 2px; font-size: var(--wa-fs-small); color: var(--wa-text-2); border-top: 1px solid var(--wa-border); }
+.wa-info-sent + .wa-info-sent { padding-top: 2px; border-top: 0; }
+.wa-info-sent > :first-child { flex: 1 1 auto; }
+.wa-info-by { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-info-pop.is-sheet { max-height: 84vh; }
+.wa-info-pop.is-sheet .wa-info-head { padding: 0 12px 10px 20px; }
+.wa-info-pop.is-sheet :is(.wa-info-row, .wa-info-section-head, .wa-info-direct-row, .wa-info-note, .wa-info-sent, .wa-info-more) { padding-inline: 20px; }
+.wa-info-pop[data-chat-style='zerosoft'] .wa-info-bubble { border: 1px solid var(--line); border-radius: var(--radius-1); box-shadow: none; }
+.wa-info-pop[data-chat-style='zerosoft'] .wa-info-close { border-radius: var(--radius-1); }
+
 /* La lista de mensajes recibe el foco (tabIndex -1) para que el teclado la mueva: sin recuadro al tocar
    una tecla después de hacer clic en ella (Chrome activa :focus-visible y quedaba un borde verde alrededor
    de todo el chat). Ni en Inbox ni en Lines; WhatsApp tampoco lo muestra. */
@@ -1749,3 +1845,71 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .wa-phone-copy:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
 .wa-details-head .wa-phone-copy span { color: inherit; font-size: inherit; }
 @media (pointer: coarse) { .wa-phone-copy { min-height: 40px; } }
+
+/* Miembros de un grupo (components/groups/wa/GroupMembers.tsx), en el panel de info de Lines e Inbox.
+   Tokens de WhatsApp con los de la app de respaldo: la página del grupo de Lines no está dentro de la bandeja. */
+.wa-gm { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wa-gm-title { margin: 0; font-size: var(--wa-fs-preview, 0.875rem); font-weight: 500; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-actions { display: flex; flex-direction: column; }
+.wa-gm-action {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 4px; font: inherit; font-size: var(--wa-fs-ui, 0.9375rem);
+  text-align: left; color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-gm-action:hover:not(:disabled) { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm-action:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-action:disabled { color: var(--wa-text-2, var(--ink-3)); cursor: not-allowed; }
+.wa-gm-action-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: 50%;
+  color: var(--wa-badge-ink, var(--bg)); background: var(--wa-primary, var(--ink));
+}
+.wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
+.wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.wa-gm-link .input { flex: 1 1 160px; min-width: 0; font-family: var(--font-data); font-size: 0.8125rem; }
+.wa-gm-issues { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--bad-ink, var(--line)); border-radius: var(--radius-1); color: var(--wa-text, var(--ink)); }
+.wa-gm-issues-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.875rem; }
+.wa-gm-issues-head .wa-icon-btn { width: 28px; height: 28px; }
+.wa-gm-issues ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wa-gm-issues li { display: flex; flex-direction: column; font-size: 0.8125rem; min-width: 0; }
+.wa-gm-issue-who { font-weight: 600; overflow-wrap: anywhere; }
+.wa-gm-issue-why { color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-issues .btn { align-self: flex-start; }
+.wa-gm-search { position: relative; display: flex; align-items: center; }
+.wa-gm-search > svg { position: absolute; left: 12px; color: var(--wa-icon, var(--ink-3)); pointer-events: none; }
+.wa-gm-search .input { width: 100%; padding-left: 38px; }
+.wa-gm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wa-gm-row { display: flex; align-items: center; gap: 6px; min-height: 52px; min-width: 0; }
+.wa-gm-row.is-pending { opacity: 0.6; }
+.wa-gm-open {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 6px 4px; font: inherit; text-align: left;
+  color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1);
+}
+button.wa-gm-open { cursor: pointer; }
+button.wa-gm-open:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-who { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 1px; }
+.wa-gm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-ui, 0.9375rem); }
+.wa-gm-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-preview, 0.8125rem); color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-phone { font-variant-numeric: tabular-nums; }
+.wa-gm-badge {
+  flex: none; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; white-space: nowrap;
+  color: var(--wa-primary-ink, var(--ink)); background: var(--wa-chip-on-bg, var(--bg-soft)); border-radius: var(--radius-1);
+}
+.wa-gm .wa-gm-more { width: 36px; height: 36px; font-size: 1.125rem; color: var(--wa-icon, var(--ink-2)); }
+.wa-gm .wa-gm-more:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm .wa-gm-more:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: 1px; }
+.gr-menu-item:disabled { color: var(--ink-3); cursor: not-allowed; background: transparent; }
+.wa-gm-dialog { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wa-gm-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.wa-gm-chips li { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 4px 2px 8px; font-size: 0.8125rem; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.wa-gm-chips li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-gm-chips button { display: inline-flex; padding: 4px; color: var(--ink-2); background: none; border: 0; cursor: pointer; border-radius: var(--radius-1); }
+.wa-gm-chips button:hover { background: var(--ui-hover); }
+.wa-gm-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: min(50vh, 360px); overflow-y: auto; overflow-x: hidden; }
+.wa-gm-pick-row { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 6px; border-radius: var(--radius-1); cursor: pointer; min-width: 0; }
+.wa-gm-pick-row:hover { background: var(--ui-hover); }
+.wa-gm-pick-row input { flex: none; }
+.wa-gm-pick-row:has(input:disabled) { cursor: default; opacity: 0.7; }
+.wa-gm-empty { padding: 8px 6px; white-space: normal; }
+@media (pointer: coarse) { .wa-gm .wa-gm-more { width: 44px; height: 44px; } }

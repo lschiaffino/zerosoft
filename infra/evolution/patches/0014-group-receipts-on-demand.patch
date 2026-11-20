@@ -1,0 +1,352 @@
+diff --git a/Dockerfile b/Dockerfile
+index 28c453e..a2d661d 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -75,6 +75,14 @@ RUN f=node_modules/baileys/lib/Socket/chats.js && \
+     sed -i 's/                const decoded = await extractSyncdPatches(result, config?.options);/                try { for (const c of getBinaryNodeChildren(getBinaryNodeChild(result, "sync"), "collection")) { (globalThis.__zsAppStateLast = globalThis.__zsAppStateLast || {})[(authState.creds.me?.id || "").split(":")[0].slice(-4) + ":" + c.attrs.name] = { attrs: c.attrs, children: (Array.isArray(c.content) ? c.content : []).map(n => ({ tag: n.tag, attrs: n.attrs, size: n.content?.length })), at: new Date().toISOString() }; } } catch { }\n                const decoded = await extractSyncdPatches(result, config?.options);/' "$f" && \
+     grep -q '__zsAppStateLast' "$f"
+ 
++# zerosoft (0014): en un grupo, Baileys 7.0.0-rc.9 guarda la confirmación de "escuchado" (un audio) como
++# readTimestamp, igual que "leído". Acá va como playedTimestamp, para la Info del mensaje ("Escuchado por").
++# Falla el build si la línea cambió.
++RUN f=node_modules/baileys/lib/Socket/messages-recv.js && \
++    grep -q "const updateKey = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp';" "$f" && \
++    sed -i "s/const updateKey = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : 'readTimestamp';/const updateKey = status === proto.WebMessageInfo.Status.DELIVERY_ACK ? 'receiptTimestamp' : status === proto.WebMessageInfo.Status.PLAYED ? 'playedTimestamp' : 'readTimestamp';/" "$f" && \
++    grep -q "Status.PLAYED ? 'playedTimestamp'" "$f"
++
+ COPY ./src ./src
+ COPY ./public ./public
+ COPY ./prisma ./prisma
+diff --git a/src/api/controllers/chat.controller.ts b/src/api/controllers/chat.controller.ts
+index 6425754..e02fd21 100644
+--- a/src/api/controllers/chat.controller.ts
++++ b/src/api/controllers/chat.controller.ts
+@@ -5,6 +5,7 @@ import {
+   FetchHistoryDto,
+   getBase64FromMediaMessageDto,
+   MarkChatUnreadDto,
++  MessageReceiptsDto,
+   NumberDto,
+   PrivacySettingDto,
+   ProfileNameDto,
+@@ -18,7 +19,7 @@ import {
+ import { InstanceDto } from '@api/dto/instance.dto';
+ import { Query } from '@api/repository/repository.service';
+ import { WAMonitoringService } from '@api/services/monitor.service';
+-import { BadRequestException } from '@exceptions';
++import { BadRequestException, NotFoundException } from '@exceptions';
+ import { Contact, Message, MessageUpdate } from '@prisma/client';
+ 
+ export class ChatController {
+@@ -57,6 +58,14 @@ export class ChatController {
+     return await instance.fetchHistory(data);
+   }
+ 
++  // zerosoft (0014): who received and read one of our group messages, as stored here. 404 when it is off
++  // (ZS_MESSAGE_RECEIPTS) or not available, so a caller can tell "this gateway doesn't do it" from an error.
++  public async messageReceipts({ instanceName }: InstanceDto, data: MessageReceiptsDto) {
++    const instance = this.waMonitor.waInstances[instanceName];
++    if (typeof instance?.messageReceipts !== 'function') throw new NotFoundException('Message receipts are not available here');
++    return await instance.messageReceipts(data);
++  }
++
+   public async markChatUnread({ instanceName }: InstanceDto, data: MarkChatUnreadDto) {
+     return await this.waMonitor.waInstances[instanceName].markChatUnread(data);
+   }
+diff --git a/src/api/dto/chat.dto.ts b/src/api/dto/chat.dto.ts
+index 0c3add0..94cee4e 100644
+--- a/src/api/dto/chat.dto.ts
++++ b/src/api/dto/chat.dto.ts
+@@ -90,6 +90,12 @@ export class FetchHistoryDto {
+   anchor?: { id: string; fromMe?: boolean; timestamp: number; participant?: string };
+ }
+ 
++// zerosoft: the per-person receipts of one of our messages in a group (patch 0014).
++export class MessageReceiptsDto {
++  id: string;
++  remoteJid?: string;
++}
++
+ export class MarkChatUnreadDto {
+   lastMessage?: LastMessage;
+   chat?: string;
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 7aecbdd..c362901 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -5,6 +5,7 @@ import {
+   BlockUserDto,
+   DeleteMessage,
+   FetchHistoryDto,
++  MessageReceiptsDto,
+   getBase64FromMediaMessageDto,
+   LastMessage,
+   MarkChatUnreadDto,
+@@ -225,6 +226,145 @@ async function getVideoDuration(input: Buffer | string | Readable): Promise<numb
+   return Math.round(parseFloat(duration));
+ }
+ 
++// zerosoft (0014): "Leído por" / "Entregado a" de los mensajes propios en grupos, sin webhooks.
++// Baileys emite message-receipt.update por persona (en un grupo de 200 son 400 eventos por mensaje). En vez de
++// mandarlos al webhook (0011 saturó la base de zerosoft), se juntan en memoria, se escriben de a tandas en una
++// tabla propia (ZsMessageReceipt, clave instancia + mensaje + persona) y zerosoft los pide cuando alguien abre la
++// Info del mensaje (POST /chat/messageReceipts). Apagado salvo ZS_MESSAGE_RECEIPTS=true, y solo con Postgres.
++type ZsReceipt = { instanceId: string; keyId: string; remoteJid: string; userJid: string; delivered: number | null; read: number | null; played: number | null };
++const ZS_RECEIPT_FLUSH_MS = 2_000;
++const ZS_RECEIPT_MAX_QUEUE = 20_000;
++const ZS_RECEIPT_BATCH = 500;
++const ZS_RECEIPT_KEEP_DAYS = 30;
++const zsReceiptQueue = new Map<string, ZsReceipt>();
++let zsReceiptTimer: NodeJS.Timeout | null = null;
++let zsReceiptTable: Promise<boolean> | null = null;
++let zsReceiptPrisma: PrismaRepository | null = null;
++let zsReceiptCleanedAt = 0;
++const zsReceiptStats = { queued: 0, dropped: 0, written: 0, failed: 0 };
++
++function zsReceiptsEnabled(): boolean {
++  if (process.env.ZS_MESSAGE_RECEIPTS !== 'true') return false;
++  const provider = process.env.DATABASE_PROVIDER || 'postgresql';
++  return provider === 'postgresql' || provider === 'psql_bouncer';
++}
++
++const zsMin = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.min(a, b));
++const zsSeconds = (v: unknown): number | null => {
++  const n = Number(v);
++  return Number.isFinite(n) && n > 0 ? Math.floor(n > 1e12 ? n / 1000 : n) : null;
++};
++
++function zsEnsureReceiptTable(prisma: PrismaRepository): Promise<boolean> {
++  if (!zsReceiptTable) {
++    zsReceiptTable = (async () => {
++      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ZsMessageReceipt" (
++        "instanceId" VARCHAR(100) NOT NULL,
++        "keyId" VARCHAR(100) NOT NULL,
++        "remoteJid" VARCHAR(100) NOT NULL,
++        "userJid" VARCHAR(100) NOT NULL,
++        "deliveredAt" INTEGER,
++        "readAt" INTEGER,
++        "playedAt" INTEGER,
++        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
++        PRIMARY KEY ("instanceId", "keyId", "userJid"))`);
++      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "ZsMessageReceipt_updatedAt_idx" ON "ZsMessageReceipt" ("updatedAt")');
++      return true;
++    })().catch((err) => {
++      zsReceiptTable = null;
++      console.error('[zs-receipts] could not create the table', (err as any)?.message ?? err);
++      return false;
++    });
++  }
++  return zsReceiptTable;
++}
++
++/** Junta las confirmaciones en memoria (la misma persona y mensaje queda en una fila, con la primera hora). */
++function zsQueueReceipts(instanceId: string, prisma: PrismaRepository, list: MessageUserReceiptUpdate[], own: string[]) {
++  zsReceiptPrisma = prisma;
++  for (const ev of list) {
++    const key = ev?.key;
++    const r: any = ev?.receipt ?? {};
++    const remoteJid = typeof key?.remoteJid === 'string' ? key.remoteJid : '';
++    const userJid = typeof r.userJid === 'string' ? jidNormalizedUser(r.userJid) : '';
++    // Solo grupos, solo mensajes propios, nunca la propia cuenta (otros dispositivos).
++    if (!key?.id || !remoteJid.endsWith('@g.us') || key.fromMe === false || !userJid || own.includes(userJid)) continue;
++    const row: ZsReceipt = {
++      instanceId,
++      keyId: String(key.id).slice(0, 100),
++      remoteJid: remoteJid.slice(0, 100),
++      userJid: userJid.slice(0, 100),
++      delivered: zsSeconds(r.receiptTimestamp),
++      read: zsSeconds(r.readTimestamp),
++      played: zsSeconds(r.playedTimestamp),
++    };
++    if (row.delivered === null && row.read === null && row.played === null) continue;
++    const id = `${instanceId}|${row.keyId}|${row.userJid}`;
++    const prev = zsReceiptQueue.get(id);
++    if (prev) {
++      prev.delivered = zsMin(prev.delivered, row.delivered);
++      prev.read = zsMin(prev.read, row.read);
++      prev.played = zsMin(prev.played, row.played);
++      continue;
++    }
++    // Tope: con la base caída la cola no crece sin límite (se pierde lo que no entra; zerosoft muestra lo que hay).
++    if (zsReceiptQueue.size >= ZS_RECEIPT_MAX_QUEUE) {
++      zsReceiptStats.dropped++;
++      continue;
++    }
++    zsReceiptQueue.set(id, row);
++    zsReceiptStats.queued++;
++  }
++  if (zsReceiptQueue.size && !zsReceiptTimer) {
++    zsReceiptTimer = setTimeout(() => {
++      zsReceiptTimer = null;
++      void zsFlushReceipts();
++    }, ZS_RECEIPT_FLUSH_MS);
++  }
++}
++
++/** Escribe la cola: un INSERT de hasta 500 filas por sentencia; cada hora queda con la más temprana. */
++async function zsFlushReceipts(): Promise<void> {
++  const prisma = zsReceiptPrisma;
++  if (!prisma || !zsReceiptQueue.size) return;
++  if (!(await zsEnsureReceiptTable(prisma))) return;
++  const rows = [...zsReceiptQueue.values()];
++  zsReceiptQueue.clear();
++  for (let i = 0; i < rows.length; i += ZS_RECEIPT_BATCH) {
++    const chunk = rows.slice(i, i + ZS_RECEIPT_BATCH);
++    const values: unknown[] = [];
++    const marks = chunk.map((r, j) => {
++      values.push(r.instanceId, r.keyId, r.remoteJid, r.userJid, r.delivered, r.read, r.played);
++      const b = j * 7;
++      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}::int, $${b + 6}::int, $${b + 7}::int, now())`;
++    });
++    try {
++      await prisma.$executeRawUnsafe(
++        `INSERT INTO "ZsMessageReceipt" ("instanceId", "keyId", "remoteJid", "userJid", "deliveredAt", "readAt", "playedAt", "updatedAt")
++         VALUES ${marks.join(', ')}
++         ON CONFLICT ("instanceId", "keyId", "userJid") DO UPDATE SET
++           "deliveredAt" = LEAST("ZsMessageReceipt"."deliveredAt", EXCLUDED."deliveredAt"),
++           "readAt" = LEAST("ZsMessageReceipt"."readAt", EXCLUDED."readAt"),
++           "playedAt" = LEAST("ZsMessageReceipt"."playedAt", EXCLUDED."playedAt"),
++           "updatedAt" = now()`,
++        ...values,
++      );
++      zsReceiptStats.written += chunk.length;
++    } catch (err) {
++      zsReceiptStats.failed += chunk.length;
++      console.error('[zs-receipts] write failed', (err as any)?.message ?? err);
++    }
++  }
++  // Lo de más de 30 días se borra (una vez por hora y por proceso).
++  if (Date.now() - zsReceiptCleanedAt > 3_600_000) {
++    zsReceiptCleanedAt = Date.now();
++    await prisma
++      .$executeRawUnsafe(`DELETE FROM "ZsMessageReceipt" WHERE "updatedAt" < now() - interval '${ZS_RECEIPT_KEEP_DAYS} days'`)
++      .catch(() => undefined);
++  }
++  (globalThis as any).__zsReceipts = { ...zsReceiptStats, pending: zsReceiptQueue.size };
++}
++
+ export class BaileysStartupService extends ChannelStartupService {
+   private messageProcessor = new BaileysMessageProcessor();
+ 
+@@ -1970,6 +2110,12 @@ export class BaileysStartupService extends ChannelStartupService {
+ 
+             if (events['message-receipt.update']) {
+               const payload = events['message-receipt.update'] as MessageUserReceiptUpdate[];
++              // zerosoft (0014): quién recibió y leyó los mensajes propios en grupos, guardado acá para pedirlo.
++              if (zsReceiptsEnabled()) {
++                const me = this.client?.user;
++                const own = [me?.id, (me as any)?.lid].filter(Boolean).map((j: string) => jidNormalizedUser(j));
++                zsQueueReceipts(this.instanceId, this.prismaRepository, payload, own);
++              }
+               const remotesJidMap: Record<string, number> = {};
+ 
+               for (const event of payload) {
+@@ -3996,6 +4142,49 @@ export class BaileysStartupService extends ChannelStartupService {
+     };
+   }
+ 
++  // zerosoft (0014): las confirmaciones por persona de un mensaje propio de un grupo (lo que guardó
++  // zsQueueReceipts), con el teléfono de cada lid si Baileys lo sabe. Horas en segundos Unix.
++  public async messageReceipts(data: MessageReceiptsDto) {
++    if (!zsReceiptsEnabled()) throw new NotFoundException('Message receipts are off');
++    if (!(await zsEnsureReceiptTable(this.prismaRepository))) throw new NotFoundException('Message receipts are not available');
++    // Lo que todavía está en la cola sale antes de leer.
++    zsReceiptPrisma = this.prismaRepository;
++    await zsFlushReceipts();
++    const id = String(data.id).slice(0, 100);
++    const rows: any[] = data.remoteJid
++      ? await this.prismaRepository.$queryRawUnsafe(
++          'SELECT "userJid", "deliveredAt", "readAt", "playedAt" FROM "ZsMessageReceipt" WHERE "instanceId" = $1 AND "keyId" = $2 AND "remoteJid" = $3 LIMIT 2000',
++          this.instanceId,
++          id,
++          String(data.remoteJid).slice(0, 100),
++        )
++      : await this.prismaRepository.$queryRawUnsafe(
++          'SELECT "userJid", "deliveredAt", "readAt", "playedAt" FROM "ZsMessageReceipt" WHERE "instanceId" = $1 AND "keyId" = $2 LIMIT 2000',
++          this.instanceId,
++          id,
++        );
++    const receipts = [];
++    for (const r of rows) {
++      let phone: string | undefined;
++      if (typeof r.userJid === 'string' && r.userJid.endsWith('@lid')) {
++        try {
++          const pn = await this.client?.signalRepository?.lidMapping?.getPNForLID(r.userJid);
++          if (pn) phone = jidNormalizedUser(pn);
++        } catch {
++          // Sin teléfono conocido: va solo el lid.
++        }
++      }
++      receipts.push({
++        userJid: r.userJid,
++        ...(phone ? { phone } : {}),
++        deliveredAt: r.deliveredAt ?? null,
++        readAt: r.readAt ?? null,
++        playedAt: r.playedAt ?? null,
++      });
++    }
++    return { id, receipts };
++  }
++
+   // zerosoft: diagnóstico del archivado de la línea, sin tocar nada ni mostrar claves.
+   public async appStateInfo() {
+     const keyId = this.client?.authState?.creds?.myAppStateKeyId;
+diff --git a/src/api/routes/chat.router.ts b/src/api/routes/chat.router.ts
+index 6813c8a..fac90d3 100644
+--- a/src/api/routes/chat.router.ts
++++ b/src/api/routes/chat.router.ts
+@@ -6,6 +6,7 @@ import {
+   FetchHistoryDto,
+   getBase64FromMediaMessageDto,
+   MarkChatUnreadDto,
++  MessageReceiptsDto,
+   NumberDto,
+   PrivacySettingDto,
+   ProfileNameDto,
+@@ -27,6 +28,7 @@ import {
+   deleteMessageSchema,
+   fetchHistorySchema,
+   markChatUnreadSchema,
++  messageReceiptsSchema,
+   messageUpSchema,
+   messageValidateSchema,
+   presenceSchema,
+@@ -112,6 +114,16 @@ export class ChatRouter extends RouterBroker {
+ 
+         return res.status(HttpStatus.CREATED).json(response);
+       })
++      .post(this.routerPath('messageReceipts'), ...guards, async (req, res) => {
++        const response = await this.dataValidate<MessageReceiptsDto>({
++          request: req,
++          schema: messageReceiptsSchema,
++          ClassRef: MessageReceiptsDto,
++          execute: (instance, data) => chatController.messageReceipts(instance, data),
++        });
++
++        return res.status(HttpStatus.OK).json(response);
++      })
+       .post(this.routerPath('markChatUnread'), ...guards, async (req, res) => {
+         const response = await this.dataValidate<MarkChatUnreadDto>({
+           request: req,
+diff --git a/src/validate/chat.schema.ts b/src/validate/chat.schema.ts
+index 17df601..7b0f7a4 100644
+--- a/src/validate/chat.schema.ts
++++ b/src/validate/chat.schema.ts
+@@ -114,6 +114,17 @@ export const fetchHistorySchema: JSONSchema7 = {
+   ...isNotEmpty('remoteJid'),
+ };
+ 
++export const messageReceiptsSchema: JSONSchema7 = {
++  $id: v4(),
++  type: 'object',
++  properties: {
++    id: { type: 'string', maxLength: 100 },
++    remoteJid: { type: 'string', maxLength: 100 },
++  },
++  required: ['id'],
++  ...isNotEmpty('id'),
++};
++
+ export const markChatUnreadSchema: JSONSchema7 = {
+   $id: v4(),
+   type: 'object',

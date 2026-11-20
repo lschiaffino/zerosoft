@@ -29,6 +29,8 @@ import {
 } from '@/lib/groups-table-view';
 import HubspotFilter from './HubspotFilter';
 import HubspotValueEditor from './HubspotValueEditor';
+import HubspotLinkCell, { type HsCellRecord, type HsCellSearch } from './HubspotLinkCell';
+import type { HubspotRecord } from '@/lib/groups-hubspot';
 import { moveCell, onGridKeyDown, useGridBox, type GridDir } from './table-grid';
 import PropertyInput, { filterOptions, PropertyValueText } from './PropertyInput';
 import { useHubspotSchema } from './hubspot-client';
@@ -465,6 +467,42 @@ export default function GroupsTable({
     },
     [errText, showToast, patchRows, t],
   );
+  // La empresa de HubSpot del grupo, vinculada o cambiada en la celda: el mismo pedido que el panel de HubSpot del
+  // grupo (con sus permisos). Vincular por un chat pasa la empresa a todas las líneas del grupo; desvincular la quita de todas.
+  const linkCompany = useCallback(
+    async (row: GroupTableRow, rec: HsCellRecord) => {
+      const prev = { company: row.company, hs: row.hs, hsChatId: row.hsChatId };
+      const same = (r: GroupTableRow) => r.key === row.key;
+      patchRows(same, (r) => ({ ...r, company: { id: rec.id, name: rec.name, url: rec.url, broken: false }, hs: {}, hsChatId: row.chatId }));
+      const res = await api<{ links: HubspotRecord[] }>('/api/groups/hubspot/links', { body: { chatId: row.chatId, type: 'company', objectId: rec.id } });
+      if (!res.data) {
+        patchRows(same, (r) => ({ ...r, ...prev }));
+        showToast(t('gt.link.notLinked', { reason: errText(res.error) }), true);
+        return;
+      }
+      const got = res.data.links.find((l) => l.type === 'company');
+      if (got) patchRows(same, (r) => ({ ...r, company: { id: got.id, name: got.name, url: got.url, broken: Boolean(got.missing) } }));
+      showToast(t('hubspot.linked', { name: got?.name ?? rec.name }));
+      // Las columnas de propiedades de la empresa traen sus valores.
+      void load();
+    },
+    [patchRows, showToast, errText, t, load],
+  );
+  const unlinkCompany = useCallback(
+    async (row: GroupTableRow) => {
+      const prev = { company: row.company, hs: row.hs, hsChatId: row.hsChatId };
+      const same = (r: GroupTableRow) => r.key === row.key;
+      patchRows(same, (r) => ({ ...r, company: null, hs: {}, hsChatId: null }));
+      const res = await api(`/api/groups/hubspot/links?chat=${encodeURIComponent(row.hsChatId ?? row.chatId)}&type=company`, { method: 'DELETE' });
+      if (!res.data) {
+        patchRows(same, (r) => ({ ...r, ...prev }));
+        showToast(t('gt.link.notUnlinked', { reason: errText(res.error) }), true);
+        return;
+      }
+      showToast(t('hubspot.unlinked'));
+    },
+    [patchRows, showToast, errText, t],
+  );
   const hsEdit: GroupsTableHsEdit = canWrite ? (data?.hsEdit ?? initial.hsEdit ?? 'off') : 'off';
   const wrapRef = useRef<HTMLDivElement>(null);
   useGridBox(wrapRef, [data === null, rows.length > 0, chips.length, data?.truncated, error, shown.join(',')]);
@@ -661,6 +699,8 @@ export default function GroupsTable({
                       onSaveLabels={canWrite ? saveLabels : undefined}
                       onSaveStatus={canWrite ? saveStatus : undefined}
                       onSaveHs={saveHs}
+                      onLinkCompany={canWrite ? linkCompany : undefined}
+                      onUnlinkCompany={unlinkCompany}
                     />
                   ))}
                 </tr>
@@ -721,6 +761,8 @@ function Cell({
   onSaveLabels,
   onSaveStatus,
   onSaveHs,
+  onLinkCompany,
+  onUnlinkCompany,
 }: {
   col: string;
   row: GroupTableRow;
@@ -740,8 +782,12 @@ function Cell({
   onSaveLabels?: (row: GroupTableRow, ids: string[]) => Promise<void>;
   onSaveStatus?: (row: GroupTableRow, status: 'open' | 'closed') => Promise<void>;
   onSaveHs: (row: GroupTableRow, def: HubspotPropDef, raw: string | string[]) => Promise<void>;
+  /** Sin este, la empresa se ve pero no se vincula en la celda (invitados). */
+  onLinkCompany?: (row: GroupTableRow, rec: HsCellRecord) => Promise<void>;
+  onUnlinkCompany: (row: GroupTableRow) => Promise<void>;
 }) {
   const t = useTranslations('groups');
+  if (col === 'company') return <CompanyCell row={row} label={label} onLink={onLinkCompany} onUnlink={onUnlinkCompany} />;
   if (col === 'lines') {
     // Una sola fila: la línea principal y "+N" con las demás en el tooltip.
     const [first, ...rest] = row.lines;
@@ -805,23 +851,6 @@ function Cell({
           />
         )}
       </EditCell>
-    );
-  }
-  if (col === 'company') {
-    return (
-      <td data-label={label} className="gr-gt-ro">
-        {row.company ? (
-          <span className="gr-gt-company">
-            <a href={row.company.url} target="_blank" rel="noopener noreferrer" className="gr-gt-company-link" aria-label={t('gt.openInHubspot', { name: row.company.name })}>
-              <span>{row.company.name}</span>
-              <ExternalIcon />
-            </a>
-            {row.company.broken && <span className="badge badge-warn">{t('gt.broken')}</span>}
-          </span>
-        ) : (
-          <span className="ui-help">{t('gt.notLinked')}</span>
-        )}
-      </td>
     );
   }
   if (col === 'deal') {
@@ -935,6 +964,61 @@ function Cell({
     );
   }
   return <td />;
+}
+
+/**
+ * La empresa de HubSpot del grupo: vinculada, con link a HubSpot y un menú con
+ * "Cambiar" y "Desvincular"; sin vincular, "Sin vincular" se vuelve en la celda
+ * un buscador de empresas (el mismo del panel del grupo).
+ */
+function CompanyCell({
+  row,
+  label,
+  onLink,
+  onUnlink,
+}: {
+  row: GroupTableRow;
+  label: string;
+  onLink?: (row: GroupTableRow, rec: HsCellRecord) => Promise<void>;
+  onUnlink: (row: GroupTableRow) => Promise<void>;
+}) {
+  const t = useTranslations('groups');
+  const errText = useErrorText();
+  const chatId = row.chatId;
+  const search = useCallback<HsCellSearch>(
+    async (q, signal) => {
+      const res = await api<{ results: HubspotRecord[] }>(`/api/groups/hubspot/search?chat=${encodeURIComponent(chatId)}&type=company&q=${encodeURIComponent(q)}`, { signal });
+      if (!res.data) return { error: errText(res.error) };
+      return { results: res.data.results.map((r) => ({ id: r.id, name: r.name, url: r.url, meta: [r.domain, r.owner].filter(Boolean).join(' · ') || undefined })) };
+    },
+    [chatId, errText],
+  );
+  const name = row.company?.name ?? '';
+  return (
+    <HubspotLinkCell
+      label={label}
+      linked={row.company ? { name: row.company.name, url: row.company.url } : null}
+      extra={row.company?.broken ? <span className="badge badge-warn">{t('gt.broken')}</span> : undefined}
+      canEdit={Boolean(onLink)}
+      text={{
+        notLinked: t('gt.notLinked'),
+        linkAction: t('gt.link.linkAction', { name: row.name }),
+        search: t('hubspot.search.company'),
+        results: t('hubspot.results'),
+        minChars: t('gt.link.minChars'),
+        searching: t('hubspot.searching'),
+        noResults: t('gt.link.noResults'),
+        options: t('gt.link.options', { name: row.name }),
+        change: t('gt.link.change'),
+        unlink: t('hubspot.unlink'),
+        open: t('gt.openInHubspot', { name }),
+      }}
+      search={search}
+      onLink={(rec) => void onLink?.(row, rec)}
+      onUnlink={() => void onUnlink(row)}
+      testId="groups-company"
+    />
+  );
 }
 
 function ExternalIcon() {

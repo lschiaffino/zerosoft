@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { groupInviteLink, listMembers, syncMembers, updateMembers } from '@/lib/groups';
+import { groupInviteLink, listMembers, syncMembers } from '@/lib/groups';
 import type { ParticipantAction } from '@/lib/groups-provider';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, strArr } from '@/lib/groups-http';
 import { maskMember, type GroupsViewer } from '@/lib/groups-access';
 import { getChat } from '@/lib/groups';
 import { recordAudit } from '@/lib/groups-audit';
 
-const masked = (viewer: GroupsViewer, list: Awaited<ReturnType<typeof listMembers>>) => list.map((m) => maskMember(viewer, m));
+const maskedFor = (viewer: GroupsViewer, chatId: string, list: Awaited<ReturnType<typeof listMembers>>) => list.map((m) => maskMember(viewer, m, chatId));
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,8 @@ const ACTIONS: ParticipantAction[] = ['add', 'remove', 'promote', 'demote'];
 /**
  * Los miembros; ?phone=<dígitos> o ?message=<id> (quien lo mandó): la ficha de
  * esa persona; con &shared=media|docs|links|starred, lo compartido en su chat 1:1;
- * ?reactions=<id>,<id>: quién reaccionó a esos mensajes del chat.
+ * ?reactions=<id>,<id>: quién reaccionó a esos mensajes del chat;
+ * ?info=<id>: la Info de un mensaje propio (quién lo recibió y lo leyó).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
@@ -33,6 +34,15 @@ export async function GET(req: Request, ctx: Ctx) {
       const { reactionDetails } = await import('@/lib/groups-person');
       const ids = (sp.get('reactions') ?? '').split(',').map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 30);
       return NextResponse.json({ reactions: await reactionDetails(guard.viewer, id, ids) });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  // Info de un mensaje propio: quién lo recibió y lo leyó, con sus horas (lib/groups-receipts.ts).
+  if (sp.has('info')) {
+    try {
+      const { linesMessageInfo } = await import('@/lib/groups-receipts');
+      return NextResponse.json({ info: await linesMessageInfo(guard.viewer, id, (sp.get('info') ?? '').slice(0, 100)) }, { headers: { 'cache-control': 'private, no-store' } });
     } catch (err) {
       return handleGroupsError(err);
     }
@@ -52,11 +62,13 @@ export async function GET(req: Request, ctx: Ctx) {
       return handleGroupsError(err);
     }
   }
-  return NextResponse.json({ members: masked(guard.viewer, await listMembers(s.ws, id)) });
+  return NextResponse.json({ members: maskedFor(guard.viewer, id, await listMembers(s.ws, id)) });
 }
 
 /**
- * { action: add|remove|promote|demote, phones } en este grupo,
+ * { action: add|remove|promote|demote, phones?, refs? } en este grupo (resultado por persona;
+ * not_group_admin 403 si el número de la línea no es admin del grupo),
+ * { action: 'inviteSend', phones?, refs?, text } manda el link por 1:1 a esas personas,
  * { action: 'sync' } para releer los miembros, o
  * { action: 'invite', revoke? } para el link de invitación, o
  * { action: 'message', phone? | messageId? (y card?: la tarjeta de contacto de ese mensaje) } para abrir el chat 1:1 con esa persona.
@@ -69,7 +81,7 @@ export async function POST(req: Request, ctx: Ctx) {
   if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   try {
-    if (b.action === 'sync') return NextResponse.json({ members: masked(guard.viewer, await syncMembers(s.ws, id)) });
+    if (b.action === 'sync') return NextResponse.json({ members: maskedFor(guard.viewer, id, await syncMembers(s.ws, id)) });
     if (b.action === 'invite') return NextResponse.json({ link: await groupInviteLink(s.ws, id, b.revoke === true) });
     // "Mensaje" desde la ficha de una persona: abre (o crea) su chat 1:1 en la misma línea, sin pasarle el teléfono a quien no lo ve.
     if (b.action === 'message') {
@@ -83,16 +95,23 @@ export async function POST(req: Request, ctx: Ctx) {
       const res = await startChat(guard.viewer, { numberId: chat.numberId, phone });
       return NextResponse.json(res, { status: res.created ? 201 : 200 });
     }
+    // "Mandar el link" a quienes WhatsApp no dejó agregar (su privacidad): un mensaje 1:1 desde la línea.
+    if (b.action === 'inviteSend') {
+      const { sendInviteLinks } = await import('@/lib/groups-members');
+      const results = await sendInviteLinks(guard.viewer, id, { phones: strArr(b.phones, 50), refs: strArr(b.refs, 50), text: b.text });
+      return NextResponse.json({ results });
+    }
     const action = ACTIONS.find((a) => a === b.action);
     if (!action) return groupsError(400, 'invalid_action');
-    const [result] = await updateMembers(s.ws, [id], action, strArr(b.phones, 200));
-    if (!result.ok) return groupsError(502, result.error ?? 'provider_error');
-    const done = result.results.filter((r) => r.ok).map((r) => r.phone);
-    if (done.length) {
+    // Teléfonos escritos o referencias (miembro, contacto o chat de la línea), con el resultado por persona.
+    const { manageLinesMembers } = await import('@/lib/groups-members');
+    const results = await manageLinesMembers(guard.viewer, id, action, { phones: strArr(b.phones, 200), refs: strArr(b.refs, 50) });
+    const done = results.filter((r) => r.ok).length;
+    if (done) {
       const chat = await getChat(s.ws, id);
-      await recordAudit(s.ws, { chatId: id, chatName: chat?.name ?? '', actorId: s.me, action: 'members', detail: { action, count: done.length } });
+      await recordAudit(s.ws, { chatId: id, chatName: chat?.name ?? '', actorId: s.me, action: 'members', detail: { action, count: done } });
     }
-    return NextResponse.json({ result, members: masked(guard.viewer, await listMembers(s.ws, id)) });
+    return NextResponse.json({ result: { ok: true, results }, members: maskedFor(guard.viewer, id, await listMembers(s.ws, id)) });
   } catch (err) {
     return handleGroupsError(err);
   }

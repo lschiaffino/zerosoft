@@ -477,32 +477,58 @@ export async function reactionDetails(owner: string, threadId: string, messageId
   const list = rows.flatMap((r) => readReactions(r.reactions).filter((x) => x.emoji).map((x) => ({ ...x, messageId: r.id })));
   const digitsOf = (by: string) => (by === 'me' ? '' : by.replace(/@.*$/, '').replace(/\D/g, ''));
   const keys = [...new Set(list.map((r) => digitsOf(r.by)).filter(Boolean))];
-  const contacts = keys.length
-    ? await lookupContacts(inboxScope({ id: thread.account_id, owner_id: owner }), keys).catch(() => new Map<string, ContactRow>())
-    : new Map<string, ContactRow>();
-  const phones = [...new Set(keys.map((k) => contacts.get(k)?.phone || k))];
-  // El chat 1:1 con cada persona: su nombre (puesto en la app o de la libreta) y su foto.
-  const dms = phones.length
-    ? ((await db
-        .prepare(
-          `SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle IN (${phones.map(() => '?').join(',')})
-           ORDER BY last_message_at DESC`,
-        )
-        .all(owner, thread.account_id, ...phones)) as Array<{ id: string; title: string; handle: string; avatar_url: string | null }>)
-    : [];
-  const dmBy = new Map<string, (typeof dms)[number]>();
-  for (const d of dms) if (!dmBy.has(d.handle)) dmBy.set(d.handle, d);
+  const people = await inboxPeople(owner, thread.account_id, keys, new Map(list.filter((r) => r.name).map((r) => [digitsOf(r.by), r.name ?? ''])));
   return list.map((r): WaReactor => {
     const base = { messageId: r.messageId, emoji: r.emoji, ...(r.at ? { at: r.at } : {}) };
     if (r.by === 'me') return { ...base, me: true, name: '', pushName: false, phone: '', picture: '' };
-    const key = digitsOf(r.by);
+    const p = people.get(digitsOf(r.by)) ?? { name: '', pushName: false, phone: '', picture: '' };
+    return { ...base, me: false, ...p };
+  });
+}
+
+/** Una persona de un chat de Inbox como la muestran los cuadros de reacciones y de Info del mensaje. */
+export interface InboxPersonLite {
+  name: string;
+  pushName: boolean;
+  phone: string;
+  masked?: true;
+  picture: string;
+}
+
+/**
+ * Nombre (el de la libreta o el del chat 1:1 con esa persona; si no, el de
+ * perfil), teléfono y foto de personas de una cuenta, por los dígitos de su
+ * teléfono o de su lid. `seen`: el nombre con el que se las vio (una reacción).
+ * `lids`: claves que se sabe que son lids (sin teléfono en la libreta, no se muestran como teléfono).
+ */
+export async function inboxPeople(owner: string, accountId: string, keys: string[], seen?: Map<string, string>, lids?: ReadonlySet<string>): Promise<Map<string, InboxPersonLite>> {
+  const out = new Map<string, InboxPersonLite>();
+  const uniq = [...new Set(keys.filter(Boolean))].slice(0, 2000);
+  if (!uniq.length) return out;
+  const db = getDb();
+  const contacts = await lookupContacts(inboxScope({ id: accountId, owner_id: owner }), uniq).catch(() => new Map<string, ContactRow>());
+  const phones = [...new Set(uniq.map((k) => contacts.get(k)?.phone || k))];
+  // El chat 1:1 con cada persona: su nombre (puesto en la app o de la libreta) y su foto.
+  const dmBy = new Map<string, { id: string; title: string; handle: string; avatar_url: string | null }>();
+  for (let i = 0; i < phones.length; i += 200) {
+    const chunk = phones.slice(i, i + 200);
+    const dms = (await db
+      .prepare(
+        `SELECT id, title, handle, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'dm' AND handle IN (${chunk.map(() => '?').join(',')})
+         ORDER BY last_message_at DESC`,
+      )
+      .all(owner, accountId, ...chunk)) as Array<{ id: string; title: string; handle: string; avatar_url: string | null }>;
+    for (const d of dms) if (!dmBy.has(d.handle)) dmBy.set(d.handle, d);
+  }
+  for (const key of uniq) {
     const c = contacts.get(key);
     // Un lid que la libreta conoce: su teléfono. Uno que no conoce no es un teléfono.
-    const digits = c?.phone || (c && c.lid === key ? '' : key);
+    const digits = c?.phone || ((c && c.lid === key) || lids?.has(key) ? '' : key);
     const dm = digits ? dmBy.get(digits) : undefined;
-    const { name, pushName } = reactorName({ saved: [c?.saved_name, dm?.title], push: [c?.push_name, r.name] });
-    return { ...base, me: false, name, pushName, ...reactorPhone(digits, false), picture: c?.picture || (dm?.avatar_url ? `/api/inbox/avatar/${dm.id}` : '') };
-  });
+    const { name, pushName } = reactorName({ saved: [c?.saved_name, dm?.title], push: [c?.push_name, seen?.get(key)] });
+    out.set(key, { name, pushName, ...reactorPhone(digits, false), picture: c?.picture || (dm?.avatar_url ? `/api/inbox/avatar/${dm.id}` : '') });
+  }
+  return out;
 }
 
 export type SharedKind = 'media' | 'docs' | 'links' | 'starred';

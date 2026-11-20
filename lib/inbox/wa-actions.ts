@@ -1,11 +1,11 @@
 /**
  * Inbox: lo que se hace sobre un mensaje de WhatsApp, como en WhatsApp Web.
  * Responder citando, reaccionar, editar lo propio (15 min), borrar para
- * todos (lo propio) o solo para mí, destacar, reenviar y las tildes azules
+ * todos (lo propio) o solo para mí, destacar, fijar, reenviar y las tildes azules
  * al abrir el chat. Todo filtra por la dueña. Server-only.
  */
 import { privateQuoteAllowed } from '../wa-person';
-import { ProviderError, phoneDigits } from '../groups-provider';
+import { PROVIDER_CAPS, ProviderError, phoneDigits } from '../groups-provider';
 import { getDb } from '../db';
 import { addMessage, getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { pokeLive } from '../wa-live';
@@ -187,6 +187,34 @@ export async function hideMessage(owner: string, messageId: string, now = new Da
 export async function starMessage(owner: string, messageId: string, on: boolean, now = new Date()): Promise<void> {
   const msg = await getMessageRow(owner, messageId);
   await getDb().prepare('UPDATE inbox_messages SET starred_at = ? WHERE id = ? AND owner_id = ?').run(on ? nowIso(now) : null, msg.id, owner);
+}
+
+/** Hasta 3 mensajes fijados por chat, como WhatsApp. */
+export const MAX_PINNED_MESSAGES = 3;
+
+/**
+ * Fijar o desfijar un mensaje del chat. Si el proveedor de la cuenta fija en
+ * WhatsApp (caps.pin) también lo hace ahí; si no (la línea administrada,
+ * Evolution), queda fijado solo en Inbox. `inWhatsApp`: si salió al teléfono.
+ */
+export async function pinMessage(owner: string, messageId: string, on: boolean, now = new Date()): Promise<{ inWhatsApp: boolean }> {
+  const { msg, thread, account } = await context(owner, messageId);
+  if (on && (msg.revoked_at || (msg as { media_type?: string }).media_type === 'system')) throw new InboxError('not_pinnable', 400);
+  const db = getDb();
+  if (on && !msg.pinned_at) {
+    const c = (await db.prepare('SELECT COUNT(*) AS c FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND pinned_at IS NOT NULL AND hidden_at IS NULL').get(thread.id, owner)) as { c: number };
+    if (Number(c.c) >= MAX_PINNED_MESSAGES) throw new InboxError('too_many_pins', 400);
+  }
+  const inWhatsApp = account.status === 'connected' && !!msg.external_id && PROVIDER_CAPS[account.provider === 'fake' ? 'fake' : 'managed'].pin;
+  if (inWhatsApp) {
+    try {
+      await connected(account).pinMessage(thread.external_id, msg.external_id, on);
+    } catch (err) {
+      providerFail(err);
+    }
+  }
+  await db.prepare('UPDATE inbox_messages SET pinned_at = ? WHERE id = ? AND owner_id = ?').run(on ? msg.pinned_at || nowIso(now) : null, msg.id, owner);
+  return { inWhatsApp };
 }
 
 /** Lo que salió y lo que no al reenviar (cada chat por su lado, como WhatsApp). */

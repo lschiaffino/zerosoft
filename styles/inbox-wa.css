@@ -145,7 +145,7 @@
 /* Campo: la lista de snippets flota arriba. */
 .ib-wa-composer { position: relative; }
 .ib-wa-composer .ib-snippets { bottom: calc(100% + 4px); }
-.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
+.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; font-size: 0.875rem; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
 
 /* ---------- Info del contacto o del grupo (columna de la derecha) ---------- */
 .ib-wa-details { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wa-row-active); border-left: 1px solid var(--wa-border-strong); }
@@ -188,7 +188,11 @@
 .ib-wa-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ib-wa-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-ui); }
 .ib-wa-link { color: var(--wa-link); }
-.ib-wa-starred { display: flex; flex-direction: column; gap: 2px; padding: 7px 20px; border-top: 1px solid var(--wa-border); font-size: var(--wa-fs-preview); color: var(--wa-text); overflow-wrap: anywhere; }
+.ib-wa-starred { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 7px 20px; border: 0; border-top: 1px solid var(--wa-border); background: none; font: inherit; font-size: var(--wa-fs-preview); color: var(--wa-text); text-align: start; overflow-wrap: anywhere; cursor: pointer; }
+.ib-wa-starred:disabled { cursor: default; }
+.ib-wa-starred:not(:disabled):hover { background: var(--wa-row-hover); }
+.ib-wa-starred:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ib-wa-starred-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; }
 .ib-wa-member-search { margin: 2px 0 4px; }
 .ib-wa-member-search .input { width: 100%; height: var(--wa-search-h); padding-left: 40px; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
 .ib-wa-actions { padding-top: 6px; padding-bottom: 6px; }
@@ -221,6 +225,7 @@
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-main { min-height: 58px; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-row-btn { min-height: 58px; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-linkcard,
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-invite,
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-poll li { border-radius: var(--radius-1); }
 
 /* Miniatura de la foto o el video del último mensaje en la fila. */
@@ -229,3 +234,5 @@
 .ib-wa-keep { cursor: pointer; }
 .ib-wa-keep .ib-wa-row-main { min-width: 0; }
 .ib-wa-keep .ui-switch { flex: none; margin-left: auto; }
+.ib-wa-members .wa-gm-actions, .ib-wa-members .wa-gm-list { margin: 0 -16px; }
+.ib-wa-members .wa-gm-action, .ib-wa-members .wa-gm-row { padding-left: 16px; padding-right: 12px; }

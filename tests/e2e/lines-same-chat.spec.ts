@@ -140,6 +140,15 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   const first = msgs.filter({ hasText: `por ventas ${w.tag}` });
   const last = msgs.filter({ hasText: `por soporte ${w.tag}` });
   await expect(last).toHaveCount(1, { timeout: 30_000 });
+  // "Recibido en …" y la hora no se pisan.
+  for (const m of [first, last]) {
+    const tag = await m.getByTestId('msg-line').boundingBox();
+    const time = await m.locator('.gr-msg-foot time').boundingBox();
+    if (tag && time) {
+      const overlap = tag.x < time.x + time.width && time.x < tag.x + tag.width && tag.y < time.y + time.height && time.y < tag.y + tag.height;
+      expect(overlap).toBe(false);
+    }
+  }
   const ventasChat = (await first.getAttribute('data-line'))!;
   const soporteChat = (await last.getAttribute('data-line'))!;
   // Por defecto: la línea por la que llegó el último mensaje.
@@ -148,10 +157,13 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   // Compacto, como el resto de la barra del compositor: no el alto ni el borde de un campo de formulario.
   const box = await from.boundingBox();
   expect(box && box.height).toBeLessThanOrEqual(30);
-  expect(await from.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
-  // Con aire respecto de la caja del mensaje: no se pegan.
+  // El nombre como texto, sin recuadro: al pasar se subraya.
+  expect(await from.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe('0px');
+  await from.hover();
+  expect(await from.evaluate((el) => getComputedStyle(el).textDecorationLine)).toContain('underline');
+  // Sin pegarse a la caja del mensaje.
   const input = await page.getByTestId('composer-input').boundingBox();
-  expect(box && input && input.y - (box.y + box.height)).toBeGreaterThanOrEqual(8);
+  expect(box && input && input.y - (box.y + box.height)).toBeGreaterThanOrEqual(4);
   // Elegir la otra y mandar: el mensaje sale por esa línea.
   await from.selectOption(ventasChat);
   const field = page.getByTestId('composer-input');

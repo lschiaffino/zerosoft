@@ -1,18 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
-import { ArchiveIcon, Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/components/groups/wa/icons';
+import { ArchiveIcon, Ban, Close, DocIcon, MuteIcon, Sparkle } from '@/components/groups/wa/icons';
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
 import InboxHubspotCard from './InboxHubspotCard';
+import GroupMembers, { type GroupMember } from '@/components/groups/wa/GroupMembers';
+import type { ParticipantDto } from '@/lib/inbox/types';
+import type { MemberTargetResult } from '@/lib/wa-group-members';
+import type { NewChatEntry } from '@/lib/wa-new-chat';
+
+const toMember = (p: ParticipantDto): GroupMember => ({ phone: p.phone, name: p.name, role: p.role, picture: p.avatar, me: p.me });
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -52,7 +58,13 @@ export default function ContactPanel({
   onError,
   onToast,
   onChanged,
+  onJumpToMessage,
+  starredKey = '',
 }: {
+  /** Un destacado lleva a su mensaje en la conversación. */
+  onJumpToMessage?: (id: string) => void;
+  /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
+  starredKey?: string;
   thread: ThreadDto;
   wa: WaDetailsDto | null;
   onClose: () => void;
@@ -73,12 +85,10 @@ export default function ContactPanel({
   const [shared, setShared] = useState<Record<string, SharedItem[] | null>>({});
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryBusy, setSummaryBusy] = useState(false);
-  const [q, setQ] = useState('');
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [muteOpen, setMuteOpen] = useState(false);
-  const tsheet = useTranslations('groups.wa.contactSheet');
   // Un participante abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast });
 
@@ -94,7 +104,6 @@ export default function ContactPanel({
   useEffect(() => {
     setShared({});
     setSummary(null);
-    setQ('');
     setConfirmBlock(false);
     void load('media');
     void load('starred');
@@ -104,6 +113,14 @@ export default function ContactPanel({
   useEffect(() => {
     if (shared[tab] === undefined) void load(tab);
   }, [tab, shared, load]);
+
+  // Se destacó o se sacó un destacado en la conversación: la lista se vuelve a leer (la primera vez la lee la de arriba).
+  const starredSeen = useRef(starredKey);
+  useEffect(() => {
+    if (starredSeen.current === starredKey) return;
+    starredSeen.current = starredKey;
+    void load('starred');
+  }, [starredKey, load]);
 
   const summarize = async () => {
     setSummaryBusy(true);
@@ -140,10 +157,13 @@ export default function ContactPanel({
     [media, name, w],
   );
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
-  const participants = (wa?.participants ?? []).filter((p) => {
-    const s = q.trim().toLowerCase();
-    return !s || p.name.toLowerCase().includes(s) || p.phone.includes(s.replace(/\D/g, '') || '§');
-  });
+  // Los participantes del panel de miembros (se corrigen con lo que devuelve WhatsApp al agregar o quitar).
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const participantsKey = (wa?.participants ?? []).map((p) => `${p.phone}:${p.role}:${p.name}`).join(',');
+  useEffect(() => {
+    setMembers((wa?.participants ?? []).map(toMember));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participantsKey]);
   const muted = !!thread.mutedUntil;
   const starred = shared.starred ?? null;
   const list = shared[tab] ?? null;
@@ -292,11 +312,15 @@ export default function ContactPanel({
           ) : (
             <ul className="ib-wa-rows">
               {starred.slice(0, 20).map((m) => (
-                <li key={m.id} className="ib-wa-starred">
-                  <span className="ib-wa-muted">
-                    {(m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name) + ' · ' + longWhen(m.sentAt, locale)}
-                  </span>
-                  <span dir="auto">{m.body || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}</span>
+                <li key={m.id}>
+                  <button type="button" className="ib-wa-starred" data-testid="chat-starred-item" onClick={() => onJumpToMessage?.(m.id)} disabled={!onJumpToMessage}>
+                    <span className="ib-wa-muted">
+                      {(m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name) + ' · ' + longWhen(m.sentAt, locale)}
+                    </span>
+                    <span dir="auto" className="ib-wa-starred-text">
+                      {m.body || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -304,43 +328,50 @@ export default function ContactPanel({
         </section>
 
         {group ? (
-          <section className="ib-wa-card">
-            <h3 className="ib-wa-card-title">{w('groupMembers', { n: wa?.size || wa?.participants.length || 0 })}</h3>
-            {(wa?.participants.length ?? 0) > 8 && (
-              <label className="wa-search ib-wa-member-search">
-                <Search size={16} />
-                <span className="sr-only">{w('searchMembers')}</span>
-                <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={w('searchMembers')} />
-              </label>
-            )}
-            {(wa?.participants.length ?? 0) === 0 ? (
-              <p className="ib-wa-muted">{w('membersUnknown')}</p>
-            ) : (
-              <ul className="ib-wa-rows">
-                {participants.slice(0, 300).map((p) => (
-                  <li key={p.phone}>
-                    <button
-                      type="button"
-                      className="ib-wa-row"
-                      disabled={p.me}
-                      onClick={() => personSheet.open(p.phone, p.name || formatPhone(p.phone), p.avatar || undefined)}
-                      title={p.me ? undefined : tsheet('openFor', { name: p.name || formatPhone(p.phone) })}
-                      data-testid="wa-participant"
-                    >
-                      <Avatar name={p.me ? w('you') : p.name || formatPhone(p.phone)} kind="dm" src={p.avatar || undefined} seed={p.phone} size={40} />
-                      <span className="ib-wa-row-main">
-                        <span className="ib-wa-row-name" dir="auto">
-                          {p.me ? w('you') : p.name || formatPhone(p.phone)}
-                        </span>
-                        {!p.me && p.name && <span className="ib-wa-muted">{formatPhone(p.phone)}</span>}
-                      </span>
-                      {p.role !== 'member' && <span className="ib-wa-badge">{w('admin')}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {wa && wa.size > wa.participants.length && <p className="ib-wa-muted">{w('membersHidden', { n: wa.size - wa.participants.length })}</p>}
+          <section className="ib-wa-card ib-wa-members" data-testid="inbox-members-section">
+            <GroupMembers
+              members={members}
+              size={wa?.size}
+              groupName={name}
+              canManage={thread.channel === 'whatsapp'}
+              showPhone={formatPhone}
+              toast={(text) => onToast(text)}
+              onMembers={(list) => setMembers(list)}
+              run={async (action, targets) => {
+                const r = await api<{ results: MemberTargetResult[]; participants: ParticipantDto[] }>(`/api/inbox/threads/${thread.id}/wa`, {
+                  method: 'POST',
+                  json: { action: 'members', op: action, phones: targets.phones },
+                });
+                if (!r.ok) return { ok: false, error: r.data.error ?? 'generic' };
+                onChanged();
+                return { ok: true, results: r.data.results, members: r.data.participants.map(toMember) };
+              }}
+              searchContacts={async (query) => {
+                const r = await api<{ frequent: NewChatEntry[]; contacts: NewChatEntry[] }>(`/api/inbox/contacts?q=${encodeURIComponent(query)}&limit=50`);
+                if (!r.ok) return [];
+                const seen = new Set<string>();
+                return [...(r.data.frequent ?? []), ...(r.data.contacts ?? [])]
+                  .filter((e) => e.phone && !seen.has(e.phone) && seen.add(e.phone))
+                  .map((e) => ({ key: e.key, name: e.name, phoneLabel: e.phoneLabel, phone: e.phone, pictureUrl: e.pictureUrl }));
+              }}
+              getInviteLink={async (revoke) => {
+                const r = await api<{ link: string }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'invite', revoke } });
+                return r.ok ? { link: r.data.link } : { error: r.data.error ?? 'generic' };
+              }}
+              sendInvite={async (targets, text) => {
+                const r = await api<{ results: MemberTargetResult[] }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'inviteSend', phones: targets.phones, text } });
+                return r.ok ? { results: r.data.results } : { error: r.data.error ?? 'generic' };
+              }}
+              onOpen={(m) => personSheet.open(m.phone, m.name || formatPhone(m.phone), m.picture || undefined)}
+              onMessage={(m) => {
+                const known = (wa?.participants ?? []).find((p) => p.phone === m.phone)?.threadId;
+                if (known) onOpenThread(known);
+                else void onStartChat(m.phone);
+              }}
+            >
+              {(wa?.participants.length ?? 0) === 0 && <p className="ib-wa-muted">{w('membersUnknown')}</p>}
+              {wa && wa.size > members.length && members.length > 0 && <p className="ib-wa-muted">{w('membersHidden', { n: wa.size - members.length })}</p>}
+            </GroupMembers>
           </section>
         ) : (
           (wa?.commonGroups?.length ?? 0) > 0 && (

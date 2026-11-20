@@ -1,0 +1,49 @@
+/**
+ * CRM: el filtro avanzado de un pedido HTTP (query param `filters`), para las
+ * rutas de sesión, la API v1 y el export. Valida contra las propiedades que
+ * ve quien pide: las de fábrica del objeto más las propias que no tiene ocultas.
+ */
+import { CRM_FILTER_FIELDS } from './crm';
+import { filterTypeFor } from './crm-custom-fields';
+import { fieldAccessFor, type FieldViewer } from './crm-field-perms';
+import { FilterError, parseStrictFilter, type FilterEnv, type FilterFieldType, type FilterModel } from './crm-filters';
+import { isValidTimeZone } from './user-tz';
+
+export type FilterEntity = keyof typeof CRM_FILTER_FIELDS;
+
+export interface RequestFilter {
+  /** undefined = el pedido no trae filtro. */
+  filters?: FilterModel;
+  customTypes?: Record<string, FilterFieldType>;
+  filterEnv?: FilterEnv & { strictCustom: true };
+}
+
+/** Largo máximo del JSON del filtro en la URL. */
+const MAX_FILTER_PARAM = 16_000;
+
+/**
+ * Lee y valida `filters`. `{ error: true }` si el JSON está roto, pasa los
+ * límites o nombra una propiedad u operador que no existe (o que quien pide no
+ * ve): la ruta responde 400 en vez de devolver una lista sin filtrar.
+ */
+export async function requestFilter(
+  sp: URLSearchParams,
+  entity: FilterEntity,
+  who: { viewer: FieldViewer; viewerId: string; timeZone?: string | null },
+): Promise<RequestFilter | { error: true }> {
+  const raw = sp.get('filters');
+  if (!raw) return {};
+  if (raw.length > MAX_FILTER_PARAM) return { error: true };
+  const tz = who.timeZone && who.timeZone.length <= 64 && isValidTimeZone(who.timeZone) ? who.timeZone : 'UTC';
+  const visible = (await fieldAccessFor(who.viewer, entity)).visible;
+  const customTypes: Record<string, FilterFieldType> = Object.fromEntries(visible.map((d) => [d.name, filterTypeFor(d.type)]));
+  const filterEnv = { viewerId: who.viewerId, timeZone: tz, strictCustom: true as const };
+  const { alias, fields } = CRM_FILTER_FIELDS[entity];
+  try {
+    const filters = parseStrictFilter({ alias, fields, customTypes, ...filterEnv }, raw);
+    return { filters, customTypes, filterEnv };
+  } catch (err) {
+    if (err instanceof FilterError) return { error: true };
+    throw err;
+  }
+}
