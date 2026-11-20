@@ -315,6 +315,12 @@ export class FakeHubspotPortal {
   /** Qué dice la consulta de info de private apps de una service key. HubSpot no lo documenta. */
   serviceKeyTokenInfo: 'unsupported' | 'supported' = 'unsupported';
   /**
+   * Respuesta forzada a un batch/update con la lista vacía (la prueba de los
+   * permisos de escritura), una vez pasado el control de permisos. null: lo
+   * que haría la cuenta (200 con la lista vacía).
+   */
+  emptyBatchUpdateStatus: number | null = null;
+  /**
    * Fusionar por la API: empresas y negocios quedan en un registro nuevo con otro
    * id, y los dos anteriores van a hs_merged_object_ids (como hace HubSpot desde
    * 2025). Los contactos conservan siempre el id del principal. false: empresas
@@ -928,6 +934,7 @@ export class FakeHubspotPortal {
     if (sub === 'batch/update' && method === 'POST') {
       const noWrite = writeDenied();
       if (noWrite) return noWrite;
+      if (!inputs.length && this.emptyBatchUpdateStatus !== null) return json(this.emptyBatchUpdateStatus, { status: 'error', message: 'forced' });
       if (inputs.length > 100) return tooMany();
       const bad = inputs.flatMap((i) => this.problems(type, (i.properties ?? {}) as FakeProps));
       if (bad.length) return this.invalid(bad);
