@@ -190,32 +190,60 @@ export async function reactionDetails(viewer: GroupsViewer, chatId: string, mess
   });
   const digitsOf = (by: string) => by.replace(/@.*$/, '').replace(/\D/g, '');
   const keys = [...new Set(list.filter((r) => !r.fromMe).map((r) => digitsOf(r.by)).filter(Boolean))];
-  const contacts = keys.length ? await lookupContacts({ app: 'lines', accountId: chat.number_id }, keys).catch(() => new Map<string, ContactRow>()) : new Map<string, ContactRow>();
-  const marks = keys.map(() => '?').join(',');
-  const members = keys.length
-    ? ((await db.prepare(`SELECT phone, name FROM groups_members WHERE chat_id = ? AND phone IN (${marks})`).all(chat.id, ...keys)) as Array<{ phone: string; name: string }>)
-    : [];
-  const sent = keys.length
-    ? ((await db
-        .prepare(
-          `SELECT sender_phone, MAX(sender_name) AS sender_name FROM groups_messages
-           WHERE chat_id = ? AND direction = 'in' AND sender_name <> '' AND sender_phone IN (${marks}) GROUP BY sender_phone`,
-        )
-        .all(chat.id, ...keys)) as Array<{ sender_phone: string; sender_name: string }>)
-    : [];
-  const memberName = new Map(members.map((m) => [m.phone, m.name]));
-  const sentName = new Map(sent.map((m) => [m.sender_phone, m.sender_name]));
-  const dm = chat.kind === 'dm';
+  const people = await linesPeople(viewer, chat, keys);
   return list.map((r): WaReactor => {
     const base = { messageId: r.messageId, emoji: r.emoji, ...(r.at ? { at: r.at } : {}) };
     if (r.fromMe) return { ...base, me: true, name: '', pushName: false, phone: '', picture: '' };
-    const key = digitsOf(r.by);
+    const p = people.get(digitsOf(r.by)) ?? { name: '', pushName: false, phone: '', picture: '' };
+    return { ...base, me: false, ...p };
+  });
+}
+
+/** Una persona del chat como la muestran los cuadros de reacciones y de Info del mensaje. */
+export interface LinesPersonLite {
+  name: string;
+  pushName: boolean;
+  phone: string;
+  masked?: true;
+  picture: string;
+}
+
+/**
+ * Nombre, teléfono (enmascarado si quien mira no ve teléfonos) y foto de
+ * personas de un chat de Lines, por los dígitos de su teléfono o de su lid:
+ * la libreta de la línea, el nombre en el grupo y el que usaron al escribir.
+ * `lids`: claves que se sabe que son lids (sin teléfono en la libreta, no se muestran como teléfono).
+ */
+export async function linesPeople(viewer: GroupsViewer, chat: ChatRow, keys: string[], lids?: ReadonlySet<string>): Promise<Map<string, LinesPersonLite>> {
+  const db = getDb();
+  const out = new Map<string, LinesPersonLite>();
+  const uniq = [...new Set(keys.filter(Boolean))].slice(0, 2000);
+  if (!uniq.length) return out;
+  const contacts = await lookupContacts({ app: 'lines', accountId: chat.number_id }, uniq).catch(() => new Map<string, ContactRow>());
+  const memberName = new Map<string, string>();
+  const sentName = new Map<string, string>();
+  for (let i = 0; i < uniq.length; i += 200) {
+    const chunk = uniq.slice(i, i + 200);
+    const marks = chunk.map(() => '?').join(',');
+    const members = (await db.prepare(`SELECT phone, name FROM groups_members WHERE chat_id = ? AND phone IN (${marks})`).all(chat.id, ...chunk)) as Array<{ phone: string; name: string }>;
+    for (const m of members) memberName.set(m.phone, m.name);
+    const sent = (await db
+      .prepare(
+        `SELECT sender_phone, MAX(sender_name) AS sender_name FROM groups_messages
+         WHERE chat_id = ? AND direction = 'in' AND sender_name <> '' AND sender_phone IN (${marks}) GROUP BY sender_phone`,
+      )
+      .all(chat.id, ...chunk)) as Array<{ sender_phone: string; sender_name: string }>;
+    for (const m of sent) sentName.set(m.sender_phone, m.sender_name);
+  }
+  const dm = chat.kind === 'dm';
+  for (const key of uniq) {
     const c = contacts.get(key);
     // Un lid que la libreta conoce: su teléfono. Uno que no conoce no es un teléfono.
-    const digits = c?.phone || (c && c.lid === key ? '' : key);
+    const digits = c?.phone || ((c && c.lid === key) || lids?.has(key) ? '' : key);
     // En un 1:1, el nombre del chat (si no es el número) es el de la persona.
     const chatName = dm && chat.name && chat.name.replace(/\D/g, '') !== digits ? chat.name : '';
     const { name, pushName } = reactorName({ saved: [c?.saved_name, chatName], push: [c?.push_name, memberName.get(key), sentName.get(key)] });
-    return { ...base, me: false, name, pushName, ...reactorPhone(digits, viewer.mask), picture: c?.picture || (dm ? (chat.picture_url ?? '') : '') };
-  });
+    out.set(key, { name, pushName, ...reactorPhone(digits, viewer.mask), picture: c?.picture || (dm ? (chat.picture_url ?? '') : '') });
+  }
+  return out;
 }

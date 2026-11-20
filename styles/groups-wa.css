@@ -1726,6 +1726,61 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
   .wa-rx-pop, .wa-rx-pop.is-sheet, .wa-rx-backdrop, .wa-rx-row.is-skeleton { animation: none; }
 }
 
+/* Info del mensaje (components/groups/wa/MessageInfo.tsx), Inbox y Lines: al lado del globito, con la superficie y
+   los tokens del cuadro de reacciones (claro, oscuro, estilo zerosoft y la hoja del teléfono). Letra del chat. */
+.wa-info-pop { width: 360px; max-height: min(580px, 84vh); padding-top: 12px; }
+.wa-info-head { display: flex; align-items: center; gap: 8px; padding: 0 10px 10px 22px; }
+.wa-info-head .wa-rx-title { flex: 1 1 auto; min-width: 0; margin: 0; }
+.wa-info-close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
+  color: var(--wa-icon); background: none; border: 0; border-radius: 50%; cursor: pointer;
+}
+.wa-info-close:hover { color: var(--wa-text); background: var(--wa-row-hover); }
+.wa-info-close:focus-visible, .wa-info-more:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-info-preview { display: flex; justify-content: flex-end; padding: 12px 16px; background: var(--wa-conv-bg); border-block: 1px solid var(--wa-border); }
+.wa-info-bubble {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; gap: 2px 8px; min-width: 0; max-width: 88%;
+  padding: 6px 8px 6px 9px; color: var(--wa-text); background: var(--wa-bubble-out); border-radius: 8px; box-shadow: var(--wa-shadow-bubble);
+}
+.wa-info-text {
+  display: -webkit-box; min-width: 0; overflow: hidden; font-size: var(--wa-fs-body); line-height: var(--wa-lh-body);
+  overflow-wrap: anywhere; white-space: pre-wrap; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
+.wa-info-meta { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; font-size: var(--wa-fs-tiny); color: var(--wa-meta-out); white-space: nowrap; }
+.wa-info-meta .wa-ticks:not(.is-read):not(.is-failed) { color: var(--wa-meta-out); }
+.wa-info-panel { padding: 2px 0 8px; }
+.wa-info-section { margin: 0; padding: 0; border: 0; background: none; }
+.wa-info-section + .wa-info-section { border-top: 1px solid var(--wa-border); }
+.wa-info-section-head {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 22px 4px; font-size: var(--wa-fs-small); font-weight: 500;
+  line-height: 1.3; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wa-text-2);
+}
+.wa-info-section-icon { display: inline-flex; flex: none; justify-content: center; width: 18px; color: var(--wa-text-2); }
+.wa-info-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.wa-info-row { min-height: 56px; padding: 8px 22px; }
+.wa-info-when {
+  flex: none; max-width: 48%; overflow: hidden; font-size: var(--wa-fs-small); color: var(--wa-text-2); text-align: right;
+  text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.wa-info-more {
+  display: block; width: 100%; padding: 10px 22px 12px; font: inherit; font-size: var(--wa-fs-ui); color: var(--wa-primary-ink);
+  text-align: left; background: none; border: 0; cursor: pointer;
+}
+.wa-info-more:hover { background: var(--wa-row-hover); }
+.wa-info-direct { padding: 4px 0; }
+.wa-info-direct-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 22px; font-size: var(--wa-fs-name); }
+.wa-info-direct-label { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
+.wa-info-note { margin: 0; padding: 14px 22px; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text-2); }
+.wa-info-sent { display: flex; align-items: center; gap: 12px; padding: 10px 22px 2px; font-size: var(--wa-fs-small); color: var(--wa-text-2); border-top: 1px solid var(--wa-border); }
+.wa-info-sent + .wa-info-sent { padding-top: 2px; border-top: 0; }
+.wa-info-sent > :first-child { flex: 1 1 auto; }
+.wa-info-by { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-info-pop.is-sheet { max-height: 84vh; }
+.wa-info-pop.is-sheet .wa-info-head { padding: 0 12px 10px 20px; }
+.wa-info-pop.is-sheet :is(.wa-info-row, .wa-info-section-head, .wa-info-direct-row, .wa-info-note, .wa-info-sent, .wa-info-more) { padding-inline: 20px; }
+.wa-info-pop[data-chat-style='zerosoft'] .wa-info-bubble { border: 1px solid var(--line); border-radius: var(--radius-1); box-shadow: none; }
+.wa-info-pop[data-chat-style='zerosoft'] .wa-info-close { border-radius: var(--radius-1); }
+
 /* La lista de mensajes recibe el foco (tabIndex -1) para que el teclado la mueva: sin recuadro al tocar
    una tecla después de hacer clic en ella (Chrome activa :focus-visible y quedaba un borde verde alrededor
    de todo el chat). Ni en Inbox ni en Lines; WhatsApp tampoco lo muestra. */

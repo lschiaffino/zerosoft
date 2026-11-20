@@ -3142,10 +3142,18 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           .prepare('SELECT id, status FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
           .get(number.id, ev.providerMessageId)) as { id: string; status: string } | undefined;
         if (row && (rank[ev.status] ?? 0) > (rank[row.status] ?? 0)) {
-          // La hora de cada estado queda en meta.ack (Info del mensaje).
+          // La hora de cada estado queda en meta.ack (Info del mensaje de un 1:1, lib/groups-receipts.ts).
           await getDb()
             .prepare("UPDATE groups_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?) WHERE id = ?")
             .run(ev.status, ev.status, nowIso(), row.id);
+        }
+        // Un audio escuchado (llega como 'read' después de "leído"): su hora, una sola vez.
+        if (row && ev.played) {
+          await getDb()
+            .prepare(
+              "UPDATE groups_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played', ?) WHERE id = ? AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played') IS NULL",
+            )
+            .run(nowIso(), row.id);
         }
       } else if (ev.type === 'edit' || ev.type === 'revoke') {
         const msg = (await getDb()
