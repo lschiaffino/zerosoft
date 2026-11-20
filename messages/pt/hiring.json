@@ -616,7 +616,8 @@
     "job_not_open": "Essa vaga não está aberta.",
     "application_withdrawn": "Esta candidatura foi retirada.",
     "name_or_email": "Escreva um nome ou um email.",
-    "no_email": "Este candidato não tem email. Adicione um no perfil primeiro."
+    "no_email": "Este candidato não tem email. Adicione um no perfil primeiro.",
+    "invalid_link": "Um link não é válido: cada um começa com https://"
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",
