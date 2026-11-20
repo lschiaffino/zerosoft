@@ -11,7 +11,7 @@ import { Modal, api, useErrorText } from '../dialog-kit';
 import Avatar from './Avatar';
 import PersonHubspot from './PersonHubspot';
 import { onGridKeyDown, useGridBox } from '../table-grid';
-import { useToast } from '../ui';
+import { useToast } from '../toast';
 import HubspotLinkCell, { type HsCellRecord, type HsCellSearch } from '../HubspotLinkCell';
 import type { HubspotRecord } from '@/lib/groups-hubspot';
 
@@ -505,6 +505,7 @@ function ContactHubspotCell({
       onLink={(rec) => void onLink(row, rec)}
       onUnlink={() => void onUnlink(row)}
       testId="contacts-hubspot"
+      linkedTestId="contact-hubspot"
     />
   );
 }

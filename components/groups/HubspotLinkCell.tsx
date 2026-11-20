@@ -59,6 +59,7 @@ export default function HubspotLinkCell({
   onLink,
   onUnlink,
   testId,
+  linkedTestId,
 }: {
   /** Nombre de la columna (la etiqueta de la tarjeta en el teléfono). */
   label: string;
@@ -71,6 +72,8 @@ export default function HubspotLinkCell({
   onLink: (rec: HsCellRecord) => void;
   onUnlink: () => void;
   testId: string;
+  /** data-testid del registro vinculado (el nombre y lo que va al lado). */
+  linkedTestId?: string;
 }) {
   const [mode, setMode] = useState<'idle' | 'search' | 'menu'>('idle');
   const cell = useRef<HTMLTableCellElement>(null);
@@ -94,7 +97,7 @@ export default function HubspotLinkCell({
       {mode === 'search' ? (
         <SearchBox cell={cell} text={text} search={search} onPick={pick} onCancel={finish} testId={testId} />
       ) : linked ? (
-        <span className="gr-gt-company gr-hslink-linked">
+        <span className="gr-gt-company gr-hslink-linked" data-testid={linkedTestId}>
           <a href={linked.url} target="_blank" rel="noopener noreferrer" className="gr-gt-company-link" aria-label={text.open}>
             <span>{linked.name}</span>
             <ExternalIcon />
