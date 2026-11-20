@@ -259,6 +259,7 @@ export default function ContactSheet({
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
+                            data-testid="wa-sheet-block-confirm"
                             onClick={() => {
                               setConfirmBlock(false);
                               onBlock(true);
@@ -274,6 +275,7 @@ export default function ContactSheet({
                         className="wa-sheet-row is-danger"
                         onClick={() => (card.dm!.blocked ? onBlock(false) : setConfirmBlock(true))}
                         data-testid="wa-sheet-block"
+                        data-blocked={card.dm.blocked ? 'true' : undefined}
                       >
                         <Ban size={20} />
                         <span className="wa-sheet-row-main">{card.dm.blocked ? t('unblockName', { name }) : t('blockName', { name })}</span>

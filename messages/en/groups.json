@@ -2048,7 +2048,9 @@
       "video": "Video",
       "loadFailed": "Could not load this contact",
       "openFailed": "Could not open the chat",
-      "openFor": "Contact info of {name}"
+      "openFor": "Contact info of {name}",
+      "blockedToast": "{name} is blocked",
+      "unblockedToast": "{name} is unblocked"
     },
     "replyPrivately": "Reply privately",
     "messageName": "Message {name}",

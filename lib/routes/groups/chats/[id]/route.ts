@@ -83,6 +83,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 /**
+ * { action: 'block' | 'unblock' }: bloquear o desbloquear en WhatsApp al contacto de un chat 1:1.
  * { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado.
  * { action: 'loadOlder' }: "Cargar mensajes anteriores": lo que guardó el gateway y, si no hay más, el teléfono.
  * { action: 'fetchMissing' }: "Traer mensajes que faltan": le pide al teléfono lo anterior a los huecos y al último
@@ -97,6 +98,16 @@ export async function POST(req: Request, ctx: Ctx) {
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
   const b = (await req.json().catch(() => ({}))) as { action?: string; auto?: unknown };
+  if (b.action === 'block' || b.action === 'unblock') {
+    // "Bloquear a X" / "Desbloquear" en la info del chat 1:1: en WhatsApp, por el adaptador de la línea.
+    try {
+      const { setChatBlocked } = await import('@/lib/groups-block');
+      const chat = await setChatBlocked(s.ws, id, b.action === 'block');
+      return NextResponse.json(maskChat(guard.viewer, chat));
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   if (b.action === 'fetchMissing' && b.auto !== true) {
     // "Traer mensajes que faltan" a mano: anclas exactas alrededor de los huecos y antes del último mensaje.
     try {
