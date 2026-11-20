@@ -529,7 +529,7 @@ export default function ChatDetails({
       </section>
 
       {!isGroup && (chat.canBlock || chat.blocked) && (
-        <section className="gr-detail-section">
+        <section className="gr-detail-section gr-detail-block">
           <button
             type="button"
             className="btn btn-ghost btn-sm gr-danger"
