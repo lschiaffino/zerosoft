@@ -1501,7 +1501,6 @@
     "desc": "Ligue ou desligue cada app para o workspace, escolha quem usa (todos, equipes ou pessoas) e ajuste por pessoa. Desativar uma tira de todo lugar para todos; o que está dentro fica guardado. Marque com a estrela os apps que sua equipe mais usa: eles ficam no topo do menu de apps.",
     "feature": "Destacar {name}",
     "unfeature": "Deixar de destacar {name}",
-    "alwaysOn": "Sempre ativado para todos.",
     "featuredNote": "Destaques: com pelo menos um, o menu de apps mostra esses no topo e deixa o resto em \"Outros apps\". Sem nenhum, mostra todos os apps por categoria.",
     "readOnly": "Só o owner e os admins mudam isto.",
     "modes": {
