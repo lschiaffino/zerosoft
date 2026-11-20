@@ -139,7 +139,6 @@
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--ink);
   border-radius: var(--radius-1);
   background: var(--bg-soft);
   font-size: 0.8125rem;
@@ -148,7 +147,7 @@
 .hsync-state { gap: 2px; }
 .hsync-state p, .hsync-lines p, .hsync-confirm p { margin: 0; }
 .hsync-state-title { font-weight: 500; font-size: 0.875rem; }
-.hsync-confirm { border-left-color: var(--bad-ink); }
+.hsync-confirm { border-color: var(--bad-ink); }
 
 .hsync-progress { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .hsync-progress p { margin: 0; }
