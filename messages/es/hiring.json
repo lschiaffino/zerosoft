@@ -493,7 +493,9 @@
     "rejectReasons": "Motivos de rechazo",
     "noRejections": "No hay rechazos en este período.",
     "reasonKnockout": "Pregunta knock-out",
-    "reasonNone": "Sin motivo"
+    "reasonNone": "Sin motivo",
+    "csv": "Descargar CSV",
+    "downloadNamed": "Descargar {name} en CSV"
   },
   "settings": {
     "title": "Ajustes de Hiring",
