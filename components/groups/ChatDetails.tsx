@@ -35,6 +35,16 @@ interface TicketLite {
   breached: boolean;
 }
 
+interface StarredLite {
+  id: string;
+  body: string;
+  name: string;
+  mime: string;
+  sentAt: string;
+  fromMe: boolean;
+  senderName: string;
+}
+
 interface ScheduledLite {
   id: string;
   body: string;
@@ -61,6 +71,8 @@ export default function ChatDetails({
   me = '',
   isAdmin = false,
   compact = false,
+  starredKey = '',
+  onJumpToMessage,
 }: {
   chat: ChatDto;
   onChange: (c: ChatDto) => void;
@@ -77,6 +89,10 @@ export default function ChatDetails({
   /** Quitar un chat de Groups es de admins. */
   isAdmin?: boolean;
   compact?: boolean;
+  /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
+  starredKey?: string;
+  /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
+  onJumpToMessage?: (id: string) => void;
 }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
@@ -100,6 +116,18 @@ export default function ChatDetails({
   const [name, setName] = useState(chat.name);
   const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
+  // Mensajes destacados del chat, como en la info de WhatsApp (un toque lleva al mensaje).
+  const tstar = useTranslations('groups.wa.contactSheet');
+  const [starred, setStarred] = useState<StarredLite[] | null>(null);
+  useEffect(() => {
+    if (!onJumpToMessage) return;
+    let live = true;
+    void api<{ items: StarredLite[] }>(`/api/groups/chats/${chat.id}?shared=starred`).then((r) => live && setStarred(r.data?.items ?? []));
+    return () => {
+      live = false;
+    };
+    // La función cambia en cada dibujo de la conversación: cuenta solo si está o no.
+  }, [chat.id, starredKey, !!onJumpToMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
   // (una etiqueta, "mantener archivado") trae un chat nuevo con `properties` en otro objeto: depender del objeto
@@ -462,6 +490,32 @@ export default function ChatDetails({
       </section>
 
       {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
+
+      {onJumpToMessage && (
+        <section className="gr-detail-section" data-testid="chat-starred">
+          <h3 className="gr-detail-title">{tstar('starred')}</h3>
+          {starred === null ? (
+            <p className="ui-help">{t('common.loading')}</p>
+          ) : starred.length === 0 ? (
+            <p className="ui-help">{tstar('empty.starred')}</p>
+          ) : (
+            <ul className="gr-mini-list gr-starred-list">
+              {starred.slice(0, 20).map((m) => (
+                <li key={m.id}>
+                  <button type="button" className="gr-starred-item" data-testid="chat-starred-item" onClick={() => onJumpToMessage(m.id)}>
+                    <span className="ui-help">
+                      {m.fromMe ? tstar('you') : m.senderName || chat.name} · <LocalText>{parseDbUtc(m.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
+                    </span>
+                    <span className="gr-starred-text" dir="auto">
+                      {m.body || m.name || (m.mime.startsWith('image/') ? tstar('photo') : m.mime.startsWith('video/') ? tstar('video') : tstar('document'))}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <ChatTasksSection chatId={chat.id} people={people} me={me} />
 

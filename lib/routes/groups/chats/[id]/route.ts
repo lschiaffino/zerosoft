@@ -9,12 +9,21 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, ctx: Ctx) {
+/** El chat y sus miembros; ?shared=starred: los mensajes destacados del chat (la info del chat, como WhatsApp). */
+export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
+  if (new URL(req.url).searchParams.get('shared') === 'starred') {
+    try {
+      const { sharedContent } = await import('@/lib/groups-person');
+      return NextResponse.json({ items: await sharedContent(guard.viewer, id, 'starred') });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   const [chat, row] = await Promise.all([getChat(s.ws, id), getChatRow(s.ws, id)]);
   if (!chat || !row) return groupsError(404, 'not_found');
   const { withSameChatLines } = await import('@/lib/groups-same-chat');

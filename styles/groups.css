@@ -356,6 +356,15 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   min-width: 0;
 }
 .gr-mini-list li > span:first-child { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+/* Destacados en la info del chat: cada uno es un botón que lleva al mensaje. */
+.gr-starred-list li { padding: 0; }
+.gr-starred-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-width: 0;
+  padding: 8px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer;
+}
+.gr-starred-item:hover { background: var(--ui-hover); }
+.gr-starred-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gr-starred-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; width: 100%; }
 
 .gr-group-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 40px; }
 .gr-recent { align-self: start; }
