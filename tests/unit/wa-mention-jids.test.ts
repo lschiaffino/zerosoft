@@ -216,7 +216,7 @@ describe('Inbox: un programado con mención sale como el mandado en el momento',
       await getDb().prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(account.id);
       await new Promise((r) => setTimeout(r, 1600));
       const gid = addressing === 'lid' ? '120363100000000021@g.us' : '120363100000000022@g.us';
-      const thread = await upsertThread({ ...account, status: 'connected' }, { externalId: gid, kind: 'group', title: 'Grupo de prueba' });
+      const thread = await upsertThread(account, { externalId: gid, kind: 'group', title: 'Grupo de prueba' });
       shapeFakeGroup(`inbox-${account.id}`, gid, addressing);
 
       const now = serializeWaMentions(typed, people);
