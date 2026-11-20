@@ -119,7 +119,7 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
 
   return (
     <>
-      <FormSection title={t('addressTitle')} description={t('addressHelp')}>
+      <FormSection setting="docs-site-address" title={t('addressTitle')} description={t('addressHelp')}>
         {publicBase ? (
           <p>
             <a href={publicBase} target="_blank" rel="noopener noreferrer" className="docs-inline-link data" data-testid="docs-site-address">
@@ -131,7 +131,7 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
         )}
       </FormSection>
 
-      <FormSection title={t('domainTitle')} description={t('domainHelp')}>
+      <FormSection setting="docs-site-domain" title={t('domainTitle')} description={t('domainHelp')}>
         {!site.hostname ? (
           <form
             className="ui-fields"
@@ -237,7 +237,7 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
         )}
       </FormSection>
 
-      <FormSection
+      <FormSection setting="docs-site-seo"
         title={t('seoTitle')}
         description={t('seoHelp')}
         onSubmit={(fd) =>
@@ -268,7 +268,7 @@ export function DocsSiteSettings({ handle, publicBase }: { handle: string | null
         </div>
       </FormSection>
 
-      <FormSection title={t('analyticsTitle')} description={t('analyticsHelp')}>
+      <FormSection setting="docs-site-analytics" title={t('analyticsTitle')} description={t('analyticsHelp')}>
         {!analytics ? null : analytics.views === 0 ? (
           <EmptyState title={t('noVisits')} body={t('noVisitsBody')} />
         ) : (
@@ -316,7 +316,7 @@ export function DocsWorkspaceExport({ allowed }: { allowed: boolean }) {
   const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
   return (
-    <FormSection
+    <FormSection setting="docs-site-export"
       title={t('workspaceTitle')}
       description={t('workspaceHelp')}
       disabled={!allowed}

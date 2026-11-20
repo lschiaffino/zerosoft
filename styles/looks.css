@@ -184,7 +184,7 @@
   .talk-msg-actions, .talk-menu, .talk-suggest, .track-rte-toolbar, .track-bulk-bar, .track-request-options, .track-menu,
   .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu, .track-filter-menu,
   .track-saved-views-menu, .track-mention-dropdown, .vc-rec-indicator-menu, .vc-transforms, .vc-recipe-menu, .vc-pop,
-  .an-sv-pop, .flow-groups-results, .zs-app-update, .zs-tour, dialog.ui-filter-panel
+  .an-sv-pop, .flow-groups-results, .zs-app-update, .zs-tour, .st-search-pop, dialog.ui-filter-panel
 ) {
   background-color: var(--pop-bg);
   border: 1px solid var(--pop-edge);
@@ -206,7 +206,7 @@
   .talk-msg-actions, .talk-menu, .talk-suggest, .track-rte-toolbar, .track-bulk-bar, .track-request-options, .track-menu,
   .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu, .track-filter-menu,
   .track-saved-views-menu, .track-mention-dropdown, .vc-rec-indicator-menu, .vc-transforms, .vc-recipe-menu, .vc-pop,
-  .an-sv-pop, .flow-groups-results, .zs-app-update, .zs-tour, dialog.ui-filter-panel, .cmdk
+  .an-sv-pop, .flow-groups-results, .zs-app-update, .zs-tour, .st-search-pop, dialog.ui-filter-panel, .cmdk
 ) {
   background-image: var(--glass-sheen);
   -webkit-backdrop-filter: var(--pop-blur);

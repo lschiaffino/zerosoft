@@ -90,7 +90,7 @@ export default async function CrmSettingsPage(props: {
   if (tab === 'access') {
     const [people, visibility, salesTeams] = await Promise.all([workspacePeople(user), getMemberVisibility(user.id), listSalesTeams(user.id)]);
     body = (
-      <FormSection
+      <FormSection setting="crm-access"
         title={t('access.title')}
         description={t('access.desc')}
         footer={
@@ -131,19 +131,19 @@ export default async function CrmSettingsPage(props: {
     ]);
     body = (
       <>
-        <FormSection title={t('leads.stagesTitle')} description={t('leads.stagesDesc')}>
+        <FormSection setting="crm-lead-stages" title={t('leads.stagesTitle')} description={t('leads.stagesDesc')}>
           <LeadStagesEditor
             initial={leadStages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, position: s.position }))}
             canEdit={admin}
           />
         </FormSection>
-        <FormSection title={t('settings.pipelines')} description={t('settings.pipelinesDesc')}>
+        <FormSection setting="crm-pipelines" title={t('settings.pipelines')} description={t('settings.pipelinesDesc')}>
           <PipelinesEditor
             initialPipelines={pipelines}
             customFields={dealFields.map((f) => ({ name: f.name, label: f.label }))}
           />
         </FormSection>
-        <FormSection title={t('approvals.rules.title')} description={t('approvals.rules.desc')}>
+        <FormSection setting="crm-approvals" title={t('approvals.rules.title')} description={t('approvals.rules.desc')}>
           <ApprovalRulesPanel
             rules={approvalRules}
             pipelines={pipelines.map((p) => ({ id: p.id, name: p.name, stages: p.stages.map((s) => ({ id: s.id, name: s.name })) }))}
@@ -153,10 +153,10 @@ export default async function CrmSettingsPage(props: {
             canEdit={admin}
           />
         </FormSection>
-        <FormSection title={t('quotas.title')} description={t('quotas.desc')}>
+        <FormSection setting="crm-quotas" title={t('quotas.title')} description={t('quotas.desc')}>
           <QuotasPanel progress={quotas} people={people} baseCurrency={crmSettings.baseCurrency} locale={locale} canEdit={admin} />
         </FormSection>
-        <FormSection title={t('settings.currency')} description={t('settings.currencyDesc')}>
+        <FormSection setting="crm-currency" title={t('settings.currency')} description={t('settings.currencyDesc')}>
           <CurrencySettings
             baseCurrency={crmSettings.baseCurrency}
             rates={rates.map((r) => ({ currency: r.currency, rate: r.rate, updated_at: r.updated_at }))}
@@ -166,7 +166,7 @@ export default async function CrmSettingsPage(props: {
           />
         </FormSection>
         <QuoteSettings quoteAcceptMovesDeal={crmSettings.quoteAcceptMovesDeal} canEdit={admin} />
-        <FormSection title={t('calls.settingsTitle')} description={t('calls.settingsDesc')}>
+        <FormSection setting="crm-call-outcomes" title={t('calls.settingsTitle')} description={t('calls.settingsDesc')}>
           <CallOutcomesSettings kind="call" outcomes={crmSettings.callOutcomes} custom={crmSettings.callOutcomesCustom} canEdit={admin} />
           <CallOutcomesSettings
             kind="whatsapp"
@@ -192,10 +192,10 @@ export default async function CrmSettingsPage(props: {
     };
     body = (
       <>
-        <FormSection title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
+        <FormSection setting="crm-custom-fields" title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
           <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} />
         </FormSection>
-        <FormSection title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>
+        <FormSection setting="crm-field-permissions" title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>
           <FieldPermissionsPanel
             fields={customFields.map((f) => ({ id: f.id, name: f.name, label: f.label, entityLabel: entityLabel(f.entity) }))}
             teams={salesTeams.map((x) => ({ id: x.id, name: x.name }))}
@@ -203,7 +203,7 @@ export default async function CrmSettingsPage(props: {
             canEdit={admin}
           />
         </FormSection>
-        <FormSection title={t('settings.tags')} description={t('settings.tagsDesc')}>
+        <FormSection setting="crm-tags" title={t('settings.tags')} description={t('settings.tagsDesc')}>
           <TagsManager
             initialTags={tags.map((x) => ({
               id: x.id,
@@ -229,7 +229,7 @@ export default async function CrmSettingsPage(props: {
     ]);
     body = (
       <>
-        <FormSection title={t('assignment.title')} description={t('assignment.desc')}>
+        <FormSection setting="crm-assignment" title={t('assignment.title')} description={t('assignment.desc')}>
           <AssignmentPanel
             rule={{ enabled: assignmentRule.enabled, sources: assignmentRule.sources, pool: assignmentRule.pool }}
             unavailable={[...away]}
@@ -246,7 +246,7 @@ export default async function CrmSettingsPage(props: {
             canEdit={admin}
           />
         </FormSection>
-        <FormSection title={t('scoring.title')} description={t('scoring.desc')}>
+        <FormSection setting="crm-scoring" title={t('scoring.title')} description={t('scoring.desc')}>
           <ScoringRulesPanel
             initialRules={scoreRules}
             initialScores={scores}
@@ -282,10 +282,10 @@ export default async function CrmSettingsPage(props: {
       : null;
     body = (
       <>
-        <FormSection title={t('apps.title')} description={t('apps.desc')}>
+        <FormSection setting="crm-apps" title={t('apps.title')} description={t('apps.desc')}>
           <AppsPanel initial={apps} canEdit={admin} />
         </FormSection>
-        <FormSection title={t('settings.gmailTitle')} description={t('settings.gmailDesc')}>
+        <FormSection setting="crm-gmail" title={t('settings.gmailTitle')} description={t('settings.gmailDesc')}>
           <GmailPanel
             connected={gmail !== null}
             email={gmail?.email ?? ''}
@@ -295,7 +295,7 @@ export default async function CrmSettingsPage(props: {
             canSend={gmail ? scopeAllowsSend(gmail.scope) : false}
           />
         </FormSection>
-        <FormSection title={t('outlook.title')} description={t('outlook.desc')}>
+        <FormSection setting="crm-outlook" title={t('outlook.title')} description={t('outlook.desc')}>
           <OutlookPanel
             configured={microsoftConfigured()}
             connected={outlook !== null}
@@ -306,10 +306,10 @@ export default async function CrmSettingsPage(props: {
             redirectUri={outlookRedirectUri()}
           />
         </FormSection>
-        <FormSection title={t('settings.trackingTitle')} description={t('settings.trackingDesc')}>
+        <FormSection setting="crm-email-tracking" title={t('settings.trackingTitle')} description={t('settings.trackingDesc')}>
           <EmailTrackingSetting enabled={emailSettings.trackingEnabled} canEdit={admin} />
         </FormSection>
-        <FormSection title={t('voice.settings.title')} description={t('voice.settings.desc')}>
+        <FormSection setting="crm-voice" title={t('voice.settings.title')} description={t('voice.settings.desc')}>
           <VoicePanel
             configured={voiceMissing.length === 0}
             missing={voiceMissing}
@@ -321,7 +321,7 @@ export default async function CrmSettingsPage(props: {
             defaultConsent={defaultConsentText(locale)}
           />
         </FormSection>
-        <FormSection title={t('extension.title')} description={t('extension.desc')}>
+        <FormSection setting="crm-extension" title={t('extension.title')} description={t('extension.desc')}>
           <ExtensionPanel appUrl={(process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '')} />
         </FormSection>
       </>
@@ -331,13 +331,13 @@ export default async function CrmSettingsPage(props: {
     const from = sp.from === 'hubspot' || sp.from === 'pipedrive' ? sp.from : null;
     body = (
       <>
-        <FormSection title={t('settings.migrateTitle')} description={t('settings.migrateDesc')}>
+        <FormSection setting="crm-migrate" title={t('settings.migrateTitle')} description={t('settings.migrateDesc')}>
           <CrmMigrationPanel canAdmin={admin} initialProvider={from} locale={locale} />
         </FormSection>
-        <FormSection title={t('settings.importCta')} description={t('settings.importDesc')}>
+        <FormSection setting="crm-import" title={t('settings.importCta')} description={t('settings.importDesc')}>
           <ImportPanel />
         </FormSection>
-        <FormSection title={t('settings.exportCta')} description={t('settings.exportTagline')}>
+        <FormSection setting="crm-export" title={t('settings.exportCta')} description={t('settings.exportTagline')}>
           {admin ? <ExportPanel locale={locale} /> : <p className="ui-help">{t('common.adminOnly')}</p>}
         </FormSection>
       </>

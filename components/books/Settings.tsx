@@ -7,6 +7,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import SettingsSearch from '@/components/app/SettingsSearch';
 import type { AuditEntry, SettingsDto, TaxRateRow, SeriesRow } from '@/lib/books';
 import type { BooksPaymentsView } from '@/lib/books-payments';
 import type { EInvoiceView } from '@/lib/books-einvoice';
@@ -66,7 +67,7 @@ export default function BooksSettings({
   return (
     <div className="app-page ui-page bk-page">
       {toast}
-      <PageHeader title={t('nav.settings')} description={t('settings.desc')} />
+      <PageHeader title={t('nav.settings')} description={t('settings.desc')} actions={<SettingsSearch variant="header" />} />
       <nav className="ui-tabs bk-filter" aria-label={t('nav.settings')}>
         {visible.map((x) => (
           <Link key={x} className="ui-tab" aria-current={tab === x ? 'page' : undefined} aria-selected={tab === x} href={`/app/books/settings?tab=${x}`}>

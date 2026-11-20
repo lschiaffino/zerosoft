@@ -90,7 +90,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
 
   return (
     <>
-      <FormSection
+      <FormSection setting="workspace-details"
         title={t('detailsTitle')}
         description={t('detailsDesc')}
         disabled={!canEdit}
@@ -181,7 +181,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
         </div>
       </FormSection>
 
-      <FormSection
+      <FormSection setting="workspace-mode"
         title={t('modeTitle')}
         description={t('modeDesc')}
         disabled={!canEdit}
@@ -201,7 +201,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
         </div>
       </FormSection>
 
-      <FormSection
+      <FormSection setting="workspace-domains"
         title={t('domainsTitle')}
         description={t('domainsDesc')}
         disabled={!canEdit}
@@ -243,7 +243,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
       </FormSection>
 
       {ws.viewerIsOwner ? (
-        <FormSection title={t('dangerTitle')} description={t('dangerDesc')} id="danger">
+        <FormSection setting="workspace-danger" title={t('dangerTitle')} description={t('dangerDesc')} id="danger">
           <div className="ws-danger" data-testid="ws-danger-owner">
             <div>
               <p className="st-strong">{t('transferTitle')}</p>
@@ -253,7 +253,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
           </div>
         </FormSection>
       ) : (
-        <FormSection title={t('leaveTitle', { workspace: ws.name })} description={t('leaveBody')} id="leave-workspace">
+        <FormSection setting="workspace-leave" title={t('leaveTitle', { workspace: ws.name })} description={t('leaveBody')} id="leave-workspace">
           <div className="ws-danger" data-testid="ws-danger-member">
             <Link href="/app/settings/members#leave" className="btn btn-secondary btn-sm">
               {t('leaveCta')}

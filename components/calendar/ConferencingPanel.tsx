@@ -31,7 +31,7 @@ export default function ConferencingPanel({ initial }: { initial: HostConferenci
   }
 
   return (
-    <FormSection title={t('location.conferencingTitle')} description={t('location.conferencingLead')} onSubmit={save}>
+    <FormSection setting="cal-conferencing" title={t('location.conferencingTitle')} description={t('location.conferencingLead')} onSubmit={save}>
       <div className="ui-field">
         <label className="label" htmlFor={`${id}-zoom`}>
           {t('location.zoomLink')} <span className="ui-optional">{t('editor.optional')}</span>

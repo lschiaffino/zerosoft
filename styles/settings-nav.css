@@ -9,6 +9,7 @@
 .st-layout { grid-template-columns: 220px minmax(0, 1fr); }
 .st-nav-wrap { position: sticky; top: 72px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .st-nav { display: flex; flex-direction: column; gap: 20px; }
+.st-nav[hidden] { display: none; }
 .st-nav-group { display: flex; flex-direction: column; gap: 2px; }
 .st-nav-heading { padding: 0 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
 .st-nav-link { gap: 8px; }
@@ -117,3 +118,72 @@
 .zs-app-update-foot .zs-desk-update-actions { margin-left: auto; }
 .zs-app-update-link { flex: none; color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .zs-app-update-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- Búsqueda de Ajustes (components/app/SettingsSearch.tsx) ----------
+   En la nav de /app/settings (los resultados reemplazan la lista) y en la cabecera
+   de los ajustes de cada app (los resultados flotan debajo de la caja). */
+
+.st-search { position: relative; min-width: 0; }
+.st-search-input { width: 100%; min-height: 32px; }
+.st-search-input::-webkit-search-cancel-button { cursor: pointer; }
+.st-search-header { flex: 0 1 260px; width: 260px; max-width: 100%; }
+.st-search-inline { margin-top: 10px; }
+.st-search-pop {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.12);
+}
+.st-search-groups { display: flex; flex-direction: column; gap: 14px; }
+.st-search-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-search-heading { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.st-search-option { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 10px; border-radius: var(--radius-1); cursor: pointer; }
+.st-search-option:hover { background: var(--ui-hover); }
+.st-search-option[aria-selected='true'] { background: var(--ui-selected); }
+.st-search-title { font-size: 0.875rem; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.st-search-crumbs { font-size: 0.75rem; line-height: 1.35; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.st-search-empty { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 4px 10px; font-size: 0.8125rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.st-search-empty p { margin: 0; }
+.st-search-try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st-search-suggestion {
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.st-search-suggestion:hover { background: var(--ui-hover); }
+.st-search-suggestion:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+/* Bajo 1180px la lista de la nav es un select: la búsqueda queda arriba de él. */
+@media (max-width: 1180px) {
+  .st-nav-wrap:not(.st-nav-embed) .st-nav-search { display: block; order: -1; }
+}
+@media (max-width: 640px) {
+  .st-search-header { flex: 1 1 100%; width: 100%; }
+  .st-search-pop { left: 0; right: 0; width: auto; }
+}
+/* En la ventana de Ajustes del escritorio la nav ya trae la búsqueda. */
+.st-embed .st-search-header { display: none; }
+
+/* El ajuste que encontró la búsqueda: baja hasta él y se marca un momento. */
+[data-setting] { scroll-margin-top: 96px; scroll-margin-bottom: 24px; }
+.st-flash { outline: 2px solid transparent; outline-offset: 4px; animation: st-flash 2.2s ease-out; }
+@keyframes st-flash {
+  0%, 35% { outline-color: var(--accent-ink, var(--ink)); background-color: var(--ui-selected); }
+  100% { outline-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .st-flash { animation: none; outline-color: var(--accent-ink, var(--ink)); }
+}
