@@ -48,6 +48,7 @@
   "peopleOnboarding": "Onboarding tasks for {name}",
   "peopleOffboarding": "Offboarding tasks for {name}",
   "timeOffRequested": "{name} requested time off",
+  "timeOffEdited": "{name} changed a time off request",
   "timeOffRequestedBody": "{range} · {days} day(s)",
   "timeOffApproved": "Your time off was approved",
   "timeOffDeclined": "Your time off was declined",

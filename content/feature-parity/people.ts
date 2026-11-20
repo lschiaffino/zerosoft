@@ -326,8 +326,12 @@ const parity: ProductParity = {
     row('balance-cap', 'timeoff', ['Balance cap', 'Tope de saldo', 'Limite de saldo'], 'have', {
       detail: ['A cap per policy: accrual stops at the cap and resumes once days are taken', 'Un tope por política: el devengo frena en el tope y sigue cuando se usan días', 'Um limite por política: o acúmulo para no limite e volta quando dias são usados'],
     }),
-    row('pto-cancel', 'timeoff', ['Edit or cancel a request', 'Editar o cancelar un pedido', 'Editar ou cancelar um pedido'], 'partial', {
-      detail: ['Cancel, but not edit, a request. Built; not yet walked end to end in a browser for each role', 'Cancelar un pedido, no editarlo. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Cancelar um pedido, não editar. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('pto-cancel', 'timeoff', ['Edit or cancel a request', 'Editar o cancelar un pedido', 'Editar ou cancelar um pedido'], 'have', {
+      detail: [
+        'The person or HR changes the type, dates, half day or note of a pending request, or of an approved one that has not started; an approved one goes back for approval and frees Cal. Cancel while pending or before it ends',
+        'La persona o HR cambian el tipo, las fechas, el medio día o la nota de un pedido pendiente, o de uno aprobado que no empezó; el aprobado vuelve a aprobación y libera Cal. Cancelar mientras está pendiente o antes de que termine',
+        'A pessoa ou o RH mudam o tipo, as datas, o meio período ou a nota de um pedido pendente, ou de um aprovado que não começou; o aprovado volta para aprovação e libera o Cal. Cancelar enquanto está pendente ou antes de terminar',
+      ],
     }),
     row('holidays-by-location', 'timeoff', ['Holidays per location', 'Feriados por ubicación', 'Feriados por local'], 'partial', {
       detail: ['Per country, not per location. Built; not yet walked end to end in a browser for each role', 'Por país, no por ubicación. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Por país, não por localização. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],

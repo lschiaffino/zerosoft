@@ -57,7 +57,7 @@ import {
   updateEmployee,
   type PeopleCtx,
 } from '@/lib/people';
-import { adjustBalance, createPolicy, createRequest, decideRequest, deleteAdjustment, balancesFor, listAdjustments, listPolicies, teamCalendar } from '@/lib/people-timeoff';
+import { adjustBalance, cancelRequest, createPolicy, createRequest, decideRequest, deleteAdjustment, editRequest, balancesFor, listAdjustments, listPolicies, listRequests, teamCalendar } from '@/lib/people-timeoff';
 import { listTemplates, offboard, planTasks, startChecklist } from '@/lib/people-onboarding';
 import { createCycle, launchCycle, listReviews, submitReview, updateCycle } from '@/lib/people-perf';
 import { toolsFor } from '@/lib/assistant/tools';
@@ -437,6 +437,33 @@ describe('People con la base', () => {
     await deleteAdjustment(w.hr, ids.eva, adj.id);
     expect((await balancesFor(eva, ids.eva)).find((b) => b.policy.id === pol.id)!.balance).toMatchObject({ adjusted: 0 });
     await expect(deleteAdjustment(w.hr, ids.eva, adj.id)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('editar un pedido: la persona o HR; aprobado vuelve a pendiente, saca el bloqueo de Cal y no choca consigo mismo', async () => {
+    const dani = await ctxOf(w, w.users.dani);
+    const vacation = (await listPolicies(w.owner)).find((p) => p.kind === 'vacation')!;
+    // Dani es de AR: un lunes a jueves sin feriados, lejos de los pedidos de las otras pruebas.
+    let mon = addDays(futureMonday(), 14);
+    while ([0, 1, 2, 3].some((i) => seededHolidays('AR', Number(addDays(mon, i).slice(0, 4))).some((h) => h.date === addDays(mon, i)))) mon = addDays(mon, 7);
+    const req = await createRequest(dani, { policyId: vacation.id, startDate: mon, endDate: addDays(mon, 1), note: 'trip' });
+    expect(req.canEdit).toBe(true);
+    // Correr un día dentro del mismo rango no choca con él mismo.
+    const moved = await editRequest(dani, req.id, { startDate: addDays(mon, 1), endDate: addDays(mon, 2) });
+    expect(moved).toMatchObject({ status: 'pending', startDate: addDays(mon, 1), endDate: addDays(mon, 2), days: 2, note: 'trip' });
+    // Ni el manager (no es suyo) ni un par editan; el manager sí lo ve, pero sin Editar.
+    await expect(editRequest(await ctxOf(w, w.users.eva), req.id, { startDate: mon })).rejects.toMatchObject({ code: 'forbidden' });
+    const mgr = await ctxOf(w, w.users.manager);
+    await expect(editRequest(mgr, req.id, { startDate: mon })).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await listRequests(mgr, { scope: 'approvals' })).find((r) => r.id === req.id)).toMatchObject({ canDecide: true, canEdit: false });
+    await decideRequest(mgr, req.id, 'approve');
+    expect(await getDb().prepare('SELECT 1 AS x FROM calendar_blocked_slots WHERE user_id = ? AND starts_at = ?').get(w.users.dani, `${addDays(mon, 1)}T00:00:00.000Z`)).toBeTruthy();
+    // Editar uno aprobado lo vuelve a pendiente y saca el bloqueo de Cal.
+    const back = await editRequest(dani, req.id, { startDate: addDays(mon, 3), endDate: addDays(mon, 3), half: 'am' });
+    expect(back).toMatchObject({ status: 'pending', days: 0.5, half: 'am', decidedByName: null });
+    expect(await getDb().prepare('SELECT 1 AS x FROM calendar_blocked_slots WHERE user_id = ? AND starts_at = ?').get(w.users.dani, `${addDays(mon, 1)}T00:00:00.000Z`)).toBeFalsy();
+    // Cancelado: ya no se edita.
+    await cancelRequest(dani, req.id);
+    await expect(editRequest(w.hr, req.id, { startDate: mon })).rejects.toMatchObject({ code: 'request_locked' });
   });
 
   it('el sueldo se guarda cifrado y solo lo ven HR y la persona (con auditoría)', async () => {

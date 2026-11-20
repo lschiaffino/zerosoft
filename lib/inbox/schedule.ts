@@ -13,6 +13,7 @@ import { getDb } from '../db';
 import { deleteUploads, localUploadPath } from '../uploads';
 import { futureIso, getScheduledOwned, getThreadRow, listScheduled, newId, nowIso, type ScheduledRow } from './core';
 import { InboxError, LIMITS, type ScheduledDto } from './types';
+import { cleanWaMentionPicks, type WaMentionPick } from '../wa-compose-mentions';
 
 export const MAX_PARTS = 10;
 /** Espera máxima entre dos mensajes de una secuencia. */
@@ -36,6 +37,8 @@ export interface PartInput {
   media?: PartMedia | null;
   /** Mensaje del chat (nuestro id) que cita. */
   replyTo?: string | null;
+  /** Menciones ("@label" en el texto → teléfono), solo en grupos de WhatsApp. */
+  mentions?: unknown;
 }
 
 export interface CleanPart {
@@ -43,6 +46,7 @@ export interface CleanPart {
   delaySec: number;
   media: PartMedia | null;
   replyTo: string;
+  mentions: WaMentionPick[];
 }
 
 /** Una nota de voz dura al menos esto (segundos): más corta no se programa (un toque sin querer). */
@@ -91,6 +95,8 @@ export function cleanParts(parts: PartInput[], channel: string): CleanPart[] {
       delaySec: delay,
       media: media ? { url: media.url, name: String(media.name || 'archivo').slice(0, 200), type, ...(voice ? { voice: true, duration: seconds } : {}) } : null,
       replyTo: typeof p.replyTo === 'string' ? p.replyTo.slice(0, 60) : '',
+      // Solo las de un texto de WhatsApp (un pie de archivo sale sin menciones, como al mandar ya).
+      mentions: channel === 'whatsapp' && !media ? cleanWaMentionPicks(p.mentions) : [],
     };
   });
 }
@@ -125,8 +131,8 @@ async function insertParts(owner: string, threadId: string, batchId: string, fir
     const p = parts[i];
     await db
       .prepare(
-        `INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, media_url, media_name, media_type, media_kind, media_duration, reply_to, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, media_url, media_name, media_type, media_kind, media_duration, reply_to, created_at, updated_at, mentions)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         newId('ibq'),
@@ -145,6 +151,7 @@ async function insertParts(owner: string, threadId: string, batchId: string, fir
         p.replyTo,
         nowS,
         nowS,
+        p.mentions.length ? JSON.stringify(p.mentions) : '',
       );
   }
 }

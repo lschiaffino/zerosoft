@@ -58,12 +58,55 @@ describe('el turno nunca termina callado', () => {
     const u = await makeUser('wrap-dig');
     setAssistantModelOverride(fakeModel(fakeAssistantStep));
     const r = await turn(owner(u), 'dig through the catalog for folder operations');
-    // Usó todos los pasos menos el de cierre, y el cierre es texto.
-    expect(r.tools).toBe(ASSISTANT_MAX_STEPS - 1);
+    // Usó los pasos del tope (en el servidor), y el cierre es texto que dice que llegó al tope.
+    expect(ASSISTANT_MAX_STEPS).toBe(8);
+    expect(r.tools).toBe(ASSISTANT_MAX_STEPS);
+    expect(r.text).toMatch(/reached the step limit/);
     expect(r.text).toMatch(/I used \d+ steps and stopped there/);
     expect(r.events.some((e) => e.type === 'error')).toBe(false);
     expect(r.saved?.content).toMatch(/Tell me if I should keep going/);
+    // El aviso del tope va en el stream y queda guardado con el mensaje (la charla ofrece "Seguir").
+    expect(r.events).toContainEqual({ type: 'notice', code: 'step_limit', steps: ASSISTANT_MAX_STEPS });
+    expect(r.saved?.parts).toContainEqual({ type: 'limit', steps: ASSISTANT_MAX_STEPS });
     expect(r.events[r.events.length - 1].type).toBe('done');
+  });
+
+  it('el tope cuenta llamadas a herramientas: varias por paso también llegan al tope', async () => {
+    const u = await makeUser('wrap-parallel');
+    // Tres herramientas por vuelta: tras la tercera ya son 9 (>= 8) y la cuarta llamada es el cierre.
+    // Si el tope contara solo vueltas, la cuarta (texto) cerraría el turno sin aviso.
+    setAssistantModelOverride(
+      scriptedModel((call) => (call >= 3 ? { text: 'Listo por ahora.' } : { tools: [0, 1, 2].map((i) => ({ tool: 'find_operations', input: { query: `carpetas ${call}-${i}` } })) })),
+    );
+    const r = await turn(owner(u), 'configurá mis carpetas', 'es');
+    expect(r.tools).toBe(9);
+    expect(r.events.some((e) => e.type === 'notice' && e.code === 'step_limit')).toBe(true);
+  });
+
+  it('un pedido que termina antes del tope no avisa nada', async () => {
+    const u = await makeUser('wrap-under');
+    setAssistantModelOverride(fakeModel(fakeAssistantStep));
+    const r = await turn(owner(u), 'show my inbox folders silently');
+    expect(r.events.some((e) => e.type === 'notice' && e.code === 'step_limit')).toBe(false);
+    expect(r.saved?.parts.some((p) => p.type === 'limit')).toBe(false);
+  });
+
+  it('"Seguir" después del tope es otro pedido con su propio tope', async () => {
+    const u = await makeUser('wrap-continue');
+    setAssistantModelOverride(fakeModel(fakeAssistantStep));
+    const who = { workspaceId: u.id, personId: u.id };
+    const conv = await createConversation(who, 'seguir');
+    const run = async (message: string) => {
+      await addMessage(conv.id, 'user', message);
+      const events: AssistantEvent[] = [];
+      for await (const e of runAssistantTurn({ user: owner(u), conversationId: conv.id, message, page: null, locale: 'en' })) events.push(e);
+      return events;
+    };
+    const first = await run('dig through the catalog for folder operations');
+    expect(first.some((e) => e.type === 'notice' && e.code === 'step_limit')).toBe(true);
+    const second = await run('Continue where you left off.');
+    expect(second.some((e) => e.type === 'notice')).toBe(false);
+    expect(second.flatMap((e) => (e.type === 'text' ? [e.delta] : [])).join('')).toMatch(/Picked up where I left off/);
   });
 
   it('termina callado después de una herramienta: pide el cierre al modelo', async () => {
@@ -81,6 +124,7 @@ describe('el turno nunca termina callado', () => {
     const r = await turn(owner(u), 'configurá mis carpetas', 'es');
     expect(r.text.trim().length).toBeGreaterThan(0);
     expect(r.text).toMatch(/Decime si sigo o qué querés ajustar\./);
+    expect(r.text).toMatch(/Llegué al tope de 8 pasos/);
     expect(r.saved?.content).toBe(r.text.trim());
     expect(r.events.some((e) => e.type === 'error')).toBe(false);
   });
@@ -90,6 +134,9 @@ describe('el turno nunca termina callado', () => {
     setAssistantModelOverride(scriptedModel([{ text: '' }]));
     const r = await turn(owner(u), 'hola', 'es');
     expect(r.text).toMatch(/Decime si sigo o qué querés ajustar\./);
+    // Sin herramientas no hay tope: el cierre no habla del límite ni ofrece "Seguir".
+    expect(r.text).not.toMatch(/Llegué al tope/);
+    expect(r.events.some((e) => e.type === 'notice' && e.code === 'step_limit')).toBe(false);
     expect(r.saved?.content.trim().length).toBeGreaterThan(0);
   });
 
@@ -116,6 +163,7 @@ describe('el turno nunca termina callado', () => {
     );
     expect(fallbackWrapUp('en', { steps: 2, pending: 0, failed: true })).toMatch(/^The model stopped responding/);
     expect(fallbackWrapUp('pt', { steps: 3, pending: 2, failed: false })).toContain('Há 2 mudanças');
+    expect(fallbackWrapUp('es', { steps: 8, pending: 0, failed: false, limit: true })).toMatch(/^Llegué al tope de 8 pasos para este pedido\./);
   });
 
   it('find_operations trae el esquema de los primeros y avisa que las carpetas van de una', async () => {

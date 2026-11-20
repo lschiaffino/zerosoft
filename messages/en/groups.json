@@ -876,6 +876,7 @@
     "waiting": "Waiting for reply"
   },
   "errors": {
+    "too_many_stages": "This board already has the most stages it can have (30).",
     "not_group_admin": "Only group admins can do that, and this WhatsApp number is not an admin of the group.", "no_targets": "Pick at least one person.",
     "pageTitle": "This page did not load",
     "pageBody": "Something failed on our side. Try again.",
@@ -2797,5 +2798,52 @@
       "unknown_assignee": "the assignee is not in the workspace",
       "not_applied": "could not be applied (check line access)"
     }
+  },
+  "kanban": {
+    "toggle": "Kanban view",
+    "toggleOn": "Show as kanban",
+    "toggleOff": "Show as list",
+    "boardLabel": "Board",
+    "boardRegion": "Kanban board",
+    "teamStages": "Team stages",
+    "myStages": "My stages",
+    "noStage": "No stage",
+    "noValue": "No value",
+    "newStage": "New stage",
+    "renameStage": "Rename stage",
+    "deleteStage": "Delete stage",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "collapse": "Collapse column",
+    "expand": "Expand {name}",
+    "columnOptions": "Options for {name}",
+    "columnLabel": "{name}, {n, plural, one {# chat} other {# chats}}",
+    "moveTo": "Move {name} to…",
+    "moved": "{name} moved to {column}",
+    "waiting": "Waiting for a reply",
+    "noCompany": "No company",
+    "assignedTo": "Assigned to {name}",
+    "readOnly": {
+      "admin": "Only admins can change team stages.",
+      "hubspot_scope": "Read only: the HubSpot key can’t edit companies. Add the companies write permission to the key in Settings › Integrations.",
+      "hubspot_role": "Read only: your role can’t edit HubSpot properties.",
+      "hubspot_read_only": "Read only: HubSpot doesn’t allow editing this property."
+    },
+    "emptyMine": "Your board is empty. Add stages to sort chats your way; only you see them.",
+    "emptyTeamAdmin": "No team stages yet. Add stages like Onboarding or Live; everyone in the workspace sees them.",
+    "emptyTeam": "No team stages yet. An admin can add them.",
+    "truncated": "Showing the first 1,000 chats. Use filters to narrow the board.",
+    "loadError": "The board didn’t load.",
+    "moreCards": "{n, plural, one {# more chat} other {# more chats}}. Use filters to see them.",
+    "dropHere": "Drop chats here",
+    "noCards": "No chats",
+    "stageCreated": "Stage {name} created",
+    "stageDeleted": "Stage {name} deleted",
+    "deleteTitle": "Delete the stage {name}?",
+    "deleteBody": "Its chats go back to No stage. The chats themselves stay as they are.",
+    "stageName": "Name",
+    "stageNamePlaceholder": "For example: Onboarding",
+    "stageColor": "Color",
+    "mineHelp": "Only you see your stages and where you put each chat."
   }
 }

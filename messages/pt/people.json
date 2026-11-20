@@ -179,10 +179,15 @@
     "approve": "Aprovar",
     "deny": "Recusar",
     "cancel": "Cancelar pedido",
+    "edit": "Editar",
+    "editTitle": "Editar pedido",
+    "saveChanges": "Salvar alterações",
+    "editReapproval": "Este pedido está aprovado. Ao salvar a alteração ele volta para aprovação.",
     "done": {
       "approve": "Aprovado",
       "deny": "Recusado",
-      "cancel": "Pedido cancelado"
+      "cancel": "Pedido cancelado",
+      "edit": "Pedido atualizado e enviado para aprovação"
     },
     "status": {
       "pending": "Pendente",
@@ -589,6 +594,7 @@
     "insufficient_balance": "Não há dias suficientes disponíveis.",
     "not_pending": "Isto já foi decidido.",
     "not_cancellable": "Este pedido não pode mais ser cancelado.",
+    "request_locked": "Este pedido não pode mais ser alterado.",
     "no_profile": "Para isso você precisa de um perfil no People.",
     "invalid_template": "Escolha um modelo.",
     "already_launched": "Este ciclo já foi lançado.",

@@ -179,10 +179,15 @@
     "approve": "Approve",
     "deny": "Decline",
     "cancel": "Cancel request",
+    "edit": "Edit",
+    "editTitle": "Edit request",
+    "saveChanges": "Save changes",
+    "editReapproval": "This request is approved. Saving the change sends it back for approval.",
     "done": {
       "approve": "Approved",
       "deny": "Declined",
-      "cancel": "Request cancelled"
+      "cancel": "Request cancelled",
+      "edit": "Request updated and sent for approval"
     },
     "status": {
       "pending": "Pending",
@@ -589,6 +594,7 @@
     "insufficient_balance": "Not enough days available.",
     "not_pending": "This was already decided.",
     "not_cancellable": "This request can no longer be cancelled.",
+    "request_locked": "This request can no longer be changed.",
     "no_profile": "You need a People profile for that.",
     "invalid_template": "Pick a template.",
     "already_launched": "This cycle was already launched.",

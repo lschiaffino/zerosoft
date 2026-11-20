@@ -48,6 +48,7 @@
   "peopleOnboarding": "Tareas de ingreso de {name}",
   "peopleOffboarding": "Tareas de salida de {name}",
   "timeOffRequested": "{name} pidió días libres",
+  "timeOffEdited": "{name} cambió un pedido de días libres",
   "timeOffRequestedBody": "{range} · {days} día(s)",
   "timeOffApproved": "Aprobaron tus días libres",
   "timeOffDeclined": "Rechazaron tus días libres",
