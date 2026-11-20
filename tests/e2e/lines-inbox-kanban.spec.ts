@@ -208,7 +208,8 @@ for (const size of [
       await groupsTab.click();
       await expect(groupsTab).toHaveAttribute('aria-selected', 'true');
       await expect(card(page, uno)).toHaveCount(0, { timeout: 30_000 });
-      await groupsTab.click();
+      // Las pestañas no se apagan solas: "All" vuelve a todos.
+      await page.getByRole('tab', { name: 'All' }).click();
       await expect(groupsTab).toHaveAttribute('aria-selected', 'false');
       await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
       const folder = await request.post('/api/groups/folders', { data: { name: `Kanban carpeta ${tag}` } });
