@@ -280,9 +280,12 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[0].items.map((i) => i.href)).toEqual(['/app/docs', '/app/crm', '/app/calendar']);
     expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.filter((p) => !isComingSoon(p.line)).length);
   });
-  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
-    const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
+  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox solo si la lista resuelta la trae)', () => {
+    const groups = homeAppGroups(L, { allowed: ['crm', 'social', 'inbox'] });
     expect(groups.slice(0, -1).map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/inbox']]);
+    // Apagada en Apps del workspace, la lista resuelta no la trae y no aparece.
+    const off = homeAppGroups(L, { allowed: ['crm', 'social'] });
+    expect(off.slice(0, -1).map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm']]);
   });
   it('el staff abre las Próximamente como vista previa', () => {
     const soon = homeAppGroups(L, { staff: true }).at(-1)!;

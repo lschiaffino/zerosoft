@@ -60,10 +60,12 @@ export default async function TrackOverview({ locale }: { locale: string }) {
         <EmptyState
           title={t('overview.emptyTitle')}
           body={t('overview.emptySub')}
-          action={<QuickProjectButton testId="track-new-project-empty" listenParam />}
+          action={<QuickProjectButton testId="track-new-project-empty" tour="track-new-team" listenParam />}
           secondary={t('overview.emptySecondary')}
         />
       ) : (
+        // Con el anclaje del tour de Track (lib/tours/track.ts).
+        <div data-tour="track-overview">
         <DataTable
           caption={t('overview.title')}
           className="track-overview"
@@ -88,6 +90,7 @@ export default async function TrackOverview({ locale }: { locale: string }) {
             { key: 'open', header: t('projects.column.open'), numeric: true, width: '110px', cell: (p) => count(p.open_issues, false) },
           ]}
         />
+        </div>
       )}
     </div>
   );

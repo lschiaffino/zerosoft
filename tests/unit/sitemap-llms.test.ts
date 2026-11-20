@@ -8,6 +8,7 @@ import { PRODUCT_CONFIG, PRODUCT_KEYS, productHref, productKeyFromSlug } from '@
 import { TOOLS } from '@/lib/tools/registry';
 import { siteOrigin } from '@/lib/seo';
 import { STATIC_PAGES } from '@/lib/seo-routes';
+import { SOFTWARE_DIRECTORY } from '@/lib/software-directory';
 import keywords from '@/content/seo-keywords.json';
 
 const origin = siteOrigin();
@@ -26,6 +27,7 @@ describe('sitemap.xml', () => {
       for (const k of PRODUCT_KEYS) expect(urls).toContain(`${origin}/${l}${productHref(k)}`);
       for (const s of compareSlugs()) expect(urls).toContain(`${origin}/${l}/compare/${s}`);
       for (const t of TOOLS) expect(urls).toContain(`${origin}/${l}/tools/${t.slug}`);
+      for (const c of SOFTWARE_DIRECTORY) expect(urls).toContain(`${origin}/${l}/software/${c.slug}`);
     }
   });
 
@@ -88,6 +90,15 @@ describe('llms.txt', () => {
     }
     expect(txt).toContain(`${origin}/llms-full.txt`);
   });
+  it('trae el directorio de software: cada categoría con su página y la app de zerosoft', () => {
+    expect(txt).toMatch(/^## Software directory: open source and paid, by category$/m);
+    expect(txt).toContain(`${origin}/en/software`);
+    for (const c of SOFTWARE_DIRECTORY) {
+      expect(txt).toContain(`(${origin}/en/software/${c.slug})`);
+      for (const k of c.apps) expect(txt).toContain(`zerosoft ${PRODUCT_CONFIG[k].name}`);
+    }
+    expect(llmsFullTxt()).toMatch(/^## Software directory$/m);
+  });
   it('responde "alternativa open source a X" para cada competidor, con la página de alternativa', () => {
     expect(txt).toMatch(/^## Open-source alternatives to paid software$/m);
     for (const c of getComparisons()) {
@@ -127,6 +138,7 @@ describe('contenido del blog', () => {
     ...PRODUCT_KEYS.map((k) => productHref(k)),
     ...compareSlugs().map((s) => `/compare/${s}`),
     ...TOOLS.map((t) => `/tools/${t.slug}`),
+    ...SOFTWARE_DIRECTORY.map((c) => `/software/${c.slug}`),
     '/feedback-board',
     '/feedback-board/roadmap',
   ]);

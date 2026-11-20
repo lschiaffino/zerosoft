@@ -18,7 +18,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const [chat, row] = await Promise.all([getChat(s.ws, id), getChatRow(s.ws, id)]);
   if (!chat || !row) return groupsError(404, 'not_found');
   const { withSameChatLines } = await import('@/lib/groups-same-chat');
-  return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
+  return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m, id)) });
 }
 
 /** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */

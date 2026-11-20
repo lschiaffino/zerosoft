@@ -876,6 +876,7 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -1718,6 +1719,7 @@
   "wa": {
     "events": {"someone": "Alguien", "createdMe": "Creaste el grupo «{subject}»", "created": "{by} creó el grupo «{subject}»", "createdUnknown": "Se creó el grupo «{subject}»", "createdMeNoName": "Creaste este grupo", "createdNoName": "{by} creó este grupo", "createdUnknownNoName": "Se creó este grupo", "addedYou": "{by} te agregó", "addedYouUnknown": "Te agregaron", "addedMe": "Agregaste a {who}", "added": "{by} agregó a {who}", "addedUnknown": "Se agregó a {who}", "removedYou": "{by} te sacó", "removedYouUnknown": "Te sacaron del grupo", "removedMe": "Sacaste a {who}", "removed": "{by} sacó a {who}", "removedUnknown": "Sacaron a {who}", "leftMe": "Saliste", "left": "{who} salió", "joinedMe": "Te uniste con el link de invitación", "joined": "{who} se unió con el link de invitación", "promotedYou": "Ahora sos admin", "promoted": "{who} ahora es admin", "demotedYou": "Ya no sos admin", "demoted": "{who} ya no es admin", "subjectMe": "Cambiaste el nombre del grupo a «{subject}»", "subject": "{by} cambió el nombre del grupo a «{subject}»", "subjectUnknown": "El grupo ahora se llama «{subject}»", "descriptionMe": "Cambiaste la descripción del grupo", "description": "{by} cambió la descripción del grupo", "descriptionUnknown": "Cambió la descripción del grupo", "iconMe": "Cambiaste la foto del grupo", "icon": "{by} cambió la foto del grupo", "iconUnknown": "Cambió la foto del grupo"},
     "newGroup": {"label": "Grupo nuevo", "members": "Grupo · {n, plural, one {# miembro} other {# miembros}}", "groupOnly": "Grupo", "addMembers": "Agregar miembros", "invite": "Invitar con link", "inviteCopied": "Link de invitación copiado", "description": "Agregar descripción", "info": "Info del grupo", "hint": "Saludá para arrancar la conversación."},
+    "members": {"title": "{n, plural, one {# miembro} other {# miembros}}", "add": "Agregar miembros", "invite": "Invitar con link", "search": "Buscar miembros", "you": "Vos", "admin": "Admin del grupo", "options": "Opciones de {name}", "message": "Mandarle un mensaje a {name}", "makeAdmin": "Hacer admin del grupo", "dismissAdmin": "Quitar como admin", "remove": "Quitar a {name}", "notAdmin": "Solo los admins del grupo pueden agregar miembros o cambiar admins. Este número de WhatsApp no es admin del grupo: pedile a un admin que lo haga admin.", "adding": "Agregando…", "promoted": "{name} ahora es admin del grupo", "dismissed": "{name} ya no es admin del grupo", "removed": "{name} salió del grupo", "added": "{n, plural, one {Se agregó # persona} other {Se agregaron # personas}}", "issuesTitle": "Algunos cambios no se hicieron", "dismiss": "Cerrar", "sendInvite": "{n, plural, one {Mandarle el link de invitación} other {Mandarles el link a los #}}", "inviteSent": "{n, plural, one {Link de invitación enviado} other {Link de invitación enviado a #}}", "inviteText": "Sumate al grupo de WhatsApp “{group}” con este link:", "linkCopied": "Link de invitación copiado", "linkReset": "Link nuevo. El anterior deja de andar.", "copy": "Copiar", "reset": "Cambiar link", "sampleInvite": "Es un grupo de ejemplo: no tiene link de invitación real.", "showMore": "Ver {n} más", "addTitle": "Agregar miembros", "searchContacts": "Buscá un nombre o escribí un número", "addPhone": "Agregar {phone}", "alreadyIn": "Ya está en el grupo", "noResults": "Ningún contacto coincide. Escribí el número completo con código de país.", "selected": "{n} elegidos", "unpick": "Sacar a {name} de la selección", "addN": "{n, plural, =0 {Agregar} other {Agregar #}}", "cancel": "Cancelar", "addHelp": "Podés elegir varias personas a la vez. Si la privacidad de alguien no deja que lo agreguen, le podés mandar el link de invitación.", "errors": {"privacy": "Su privacidad no deja que lo agreguen. Mandale el link de invitación.", "already_member": "Ya está en el grupo.", "recently_left": "Salió del grupo hace poco y WhatsApp todavía no deja volver a agregarlo.", "not_member": "Ya no está en el grupo.", "not_on_whatsapp": "Este número no tiene WhatsApp.", "not_group_admin": "Este número no es admin del grupo.", "own_number": "Es el mismo número conectado.", "not_found": "No encontramos ese contacto.", "invalid_phone": "Revisá el número y poné el código de país.", "failed": "WhatsApp no aceptó el cambio."}},
     "pause": "Pausar",
     "play": "Reproducir",
     "seek": "Posición en el audio",
@@ -2719,7 +2721,12 @@
     "newColumn": "Columna nueva",
     "newColumnAdd": "Agregar columna",
     "newColumnHelp": "Una propiedad nueva de zerosoft para todos los grupos del workspace. Se completa desde la tabla o desde cada grupo.",
-    "propCreated": "Columna {name} agregada"
+    "propCreated": "Columna {name} agregada",
+    "readOnly": "Solo lectura",
+    "hsNoCompany": "Vinculá este grupo a una empresa de HubSpot para editar sus propiedades acá.",
+    "hsReadOnly": "Solo lectura en HubSpot (calculada o la pone HubSpot).",
+    "hsNoScope": "La conexión con HubSpot solo puede leer. Para editar acá, volvé a conectar HubSpot con permiso para escribir empresas (crm.objects.companies.write).",
+    "hsMasked": "Tu rol ve los teléfonos ocultos: puede ver los valores de HubSpot pero no editarlos."
   },
   "snooze": {
     "action": "Posponer chat",

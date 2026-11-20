@@ -2056,6 +2056,25 @@
   "record": {
     "rename": "Rename",
     "tabsLabel": "Record sections",
+    "layoutTabs": {
+      "overview": "Overview",
+      "activity": "Activities",
+      "properties": "About",
+      "related": "Associations"
+    },
+    "quickActions": "Quick actions",
+    "highlights": "Highlights",
+    "recentCommunications": "Recent communications",
+    "noCommunications": "No emails, calls or meetings yet.",
+    "moreCount": "and {count} more",
+    "seeAllActivity": "See all activity",
+    "cards": {
+      "collapse": "Collapse {name}",
+      "expand": "Expand {name}",
+      "add": "Add",
+      "groups": "WhatsApp",
+      "track": "Track requests"
+    },
     "tabs": {
       "activity": "Activity",
       "properties": "Properties",

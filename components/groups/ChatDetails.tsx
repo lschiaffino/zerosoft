@@ -1,7 +1,8 @@
 'use client';
 
-import { MessageMenu } from './ThreadParts';
-import Avatar from './wa/Avatar';
+import GroupMembers from './wa/GroupMembers';
+import type { MemberTargetResult } from '@/lib/wa-group-members';
+import type { NewChatEntry } from '@/lib/wa-new-chat';
 import { useLinesPersonSheet } from './person-sheet';
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
@@ -84,15 +85,11 @@ export default function ChatDetails({
   const inbox = useGroupsInbox();
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
-  const tsheet = useTranslations('groups.wa.contactSheet');
   // Un miembro abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1 en la línea.
   const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true));
   const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
-  const [phones, setPhones] = useState('');
   const [memberBusy, setMemberBusy] = useState(false);
-  const [memberResult, setMemberResult] = useState<Array<{ phone: string; ok: boolean; error?: string }> | null>(null);
-  const [link, setLink] = useState(chat.inviteLink);
   const crmOn = crm !== null;
   const [crmState, setCrmState] = useState(crm ?? { contact: null, company: null });
   const [crmQuery, setCrmQuery] = useState('');
@@ -113,7 +110,6 @@ export default function ChatDetails({
   }, [chat.id, propsKey]);
   useEffect(() => setName(chat.name), [chat.id, chat.name]);
   useEffect(() => setDescription(chat.description), [chat.id, chat.description]);
-  useEffect(() => setLink(chat.inviteLink), [chat.id, chat.inviteLink]);
 
   useEffect(() => {
     void api<{ tickets: TicketLite[] }>(`/api/groups/tickets?chat=${chat.id}&status=all`).then((r) => setTickets(r.data?.tickets ?? []));
@@ -146,50 +142,12 @@ export default function ChatDetails({
     return res.data;
   }
 
-  const [memberQ, setMemberQ] = useState('');
-  // Grupos grandes (1.000 miembros): se dibujan de a 200.
-  const [memberLimit, setMemberLimit] = useState(200);
-  const shownMembers = memberQ.trim()
-    ? members.filter((m) => `${m.name} ${m.phone}`.toLowerCase().includes(memberQ.trim().toLowerCase().replace(/^\+/, '')))
-    : members;
-
-  async function memberAction(action: 'add' | 'remove' | 'promote' | 'demote', list: string[]) {
-    setMemberBusy(true);
-    setMemberResult(null);
-    const res = await api<{ result: { results: Array<{ phone: string; ok: boolean; error?: string }> }; members: MemberDto[] }>(
-      `/api/groups/chats/${chat.id}/members`,
-      { body: { action, phones: list } },
-    );
-    setMemberBusy(false);
-    if (!res.data) {
-      showToast(errText(res.error), true);
-      return;
-    }
-    setMembers(res.data.members);
-    onChange({ ...chat, memberCount: res.data.members.length });
-    // El encabezado de la página del grupo (servidor) y la lista muestran la cantidad.
-    router.refresh();
-    inbox.refresh();
-    if (action === 'add') {
-      setMemberResult(res.data.result.results);
-      setPhones('');
-    }
-  }
-
   async function syncMembers() {
     setMemberBusy(true);
     const res = await api<{ members: MemberDto[] }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'sync' } });
     setMemberBusy(false);
     if (res.data) setMembers(res.data.members);
     else showToast(errText(res.error), true);
-  }
-
-  async function invite(revoke: boolean) {
-    const res = await api<{ link: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'invite', revoke } });
-    if (res.data) {
-      setLink(res.data.link);
-      showToast(revoke ? t('details.inviteRevoked') : t('details.inviteReady'));
-    } else showToast(errText(res.error), true);
   }
 
   async function linkCrm(item: { id: string; group: string; label: string }) {
@@ -299,6 +257,83 @@ export default function ChatDetails({
         <p className="gr-detail-link">
           <Link href={`/app/lines/list/${chat.id}`}>{t('details.openGroup')}</Link>
         </p>
+      )}
+
+      {isGroup && (
+        <section className="gr-detail-section" data-testid="lines-members-section">
+          <GroupMembers
+            members={members}
+            groupName={chat.name}
+            canManage={caps.groups}
+            unsupported={t('details.groupsUnsupported')}
+            initialLink={chat.inviteLink}
+            showPhone={(p) => `+${p}`}
+            toast={showToast}
+            limit={compact ? 30 : 200}
+            more={
+              compact
+                ? (n) =>
+                    n > 30 && (
+                      <Link href={`/app/lines/list/${chat.id}`} className="ui-help">
+                        {t('details.allMembers', { n })}
+                      </Link>
+                    )
+                : undefined
+            }
+            onMembers={(list) => {
+              setMembers(list as MemberDto[]);
+              onChange({ ...chat, memberCount: list.length });
+            }}
+            run={async (action, targets) => {
+              const res = await api<{ result: { results: MemberTargetResult[] }; members: MemberDto[] }>(`/api/groups/chats/${chat.id}/members`, {
+                body: { action, ...targets },
+              });
+              if (!res.data) return { ok: false, error: res.error };
+              // El encabezado de la página del grupo (servidor) y la lista muestran la cantidad.
+              router.refresh();
+              inbox.refresh();
+              return { ok: true, results: res.data.result.results, members: res.data.members };
+            }}
+            searchContacts={async (q) => {
+              const r = await api<{ frequent: NewChatEntry[]; contacts: NewChatEntry[] }>(
+                `/api/groups/contacts?number=${encodeURIComponent(chat.numberId)}&q=${encodeURIComponent(q)}&limit=50`,
+              );
+              const seen = new Set<string>();
+              return [...(r.data?.frequent ?? []), ...(r.data?.contacts ?? [])]
+                .filter((e) => !seen.has(e.key) && seen.add(e.key))
+                .map((e) => ({
+                  key: e.key,
+                  name: e.name,
+                  phoneLabel: e.phoneLabel,
+                  phone: e.phone,
+                  pictureUrl: e.pictureUrl,
+                  ref: e.contactId ? `contact:${e.contactId}` : e.chatId ? `chat:${e.chatId}` : undefined,
+                }));
+            }}
+            getInviteLink={async (revoke) => {
+              const res = await api<{ link: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'invite', revoke } });
+              return res.data ? { link: res.data.link } : { error: res.error };
+            }}
+            sendInvite={async (targets, text) => {
+              const res = await api<{ results: MemberTargetResult[] }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'inviteSend', ...targets, text } });
+              return res.data ? { results: res.data.results } : { error: res.error };
+            }}
+            onOpen={(m) => personSheet.open({ phone: m.phone }, m.name || `+${m.phone}`, m.picture || undefined)}
+            onMessage={async (m) => {
+              const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', phone: m.phone } });
+              if (res.data) router.push(`/app/lines/inbox/${res.data.id}`);
+              else showToast(errText(res.error), true);
+            }}
+          >
+            {caps.groups && (
+              <p className="gr-detail-link">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void syncMembers()} aria-busy={memberBusy || undefined}>
+                  {t('details.syncMembers')}
+                </button>
+              </p>
+            )}
+          </GroupMembers>
+        </section>
       )}
 
       <section className="gr-detail-section">
@@ -426,135 +461,6 @@ export default function ChatDetails({
         <p className="ui-help">{agents.length === 0 ? t('details.agentNone') : t('details.agentHelp')}</p>
       </section>
 
-      {isGroup && (
-        <section className="gr-detail-section">
-          <div className="gr-detail-head">
-            <h3 className="gr-detail-title">{t('details.members', { n: members.length })}</h3>
-            {caps.groups && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void syncMembers()} aria-busy={memberBusy || undefined}>
-                {t('details.syncMembers')}
-              </button>
-            )}
-          </div>
-          {!caps.groups ? (
-            <p className="ui-help">{t('details.groupsUnsupported')}</p>
-          ) : (
-            <>
-              <form
-                className="gr-inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const list = phones.split(/[\n,;]+/).filter(Boolean);
-                  if (list.length) void memberAction('add', list);
-                }}
-              >
-                <input className="input" value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={t('details.addPlaceholder')} aria-label={t('details.addMembers')} data-focus-target="add-members" />
-                <button type="submit" className="btn btn-secondary btn-sm" disabled={!phones.trim() || memberBusy}>
-                  {t('details.add')}
-                </button>
-              </form>
-              {memberResult && memberResult.some((r) => !r.ok) && (
-                <p className="ui-help" role="status">
-                  {t('details.notAdded', { phones: memberResult.filter((r) => !r.ok).map((r) => `+${r.phone}`).join(', ') })}
-                </p>
-              )}
-              {members.length > 8 && (
-                <input
-                  className="input gr-member-search"
-                  type="search"
-                  value={memberQ}
-                  onChange={(e) => setMemberQ(e.target.value)}
-                  placeholder={t('details.searchMembers')}
-                  aria-label={t('details.searchMembers')}
-                />
-              )}
-              <ul className="gr-members">
-                {shownMembers.slice(0, compact && !memberQ ? 30 : memberLimit).map((m) => (
-                  <li key={m.phone}>
-                    {(m as MemberDto & { masked?: boolean }).masked ? (
-                      <>
-                        <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
-                        <span className="gr-member-who">
-                          <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
-                          {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
-                        </span>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="wa-person gr-member-open"
-                        onClick={() => personSheet.open({ phone: m.phone }, m.name || `+${m.phone}`, m.picture || undefined)}
-                        aria-label={tsheet('openFor', { name: m.name || `+${m.phone}` })}
-                        data-testid="wa-member"
-                      >
-                        <Avatar name={m.name || `+${m.phone}`} kind="dm" src={m.picture || undefined} size={32} seed={m.phone} />
-                        <span className="gr-member-who">
-                          <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
-                          {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
-                        </span>
-                      </button>
-                    )}
-                    {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
-                    {m.role !== 'superadmin' && !(m as MemberDto & { masked?: boolean }).masked && (
-                      <span className="gr-member-actions">
-                        <MessageMenu
-                          label={t('details.memberOptions', { name: m.name || `+${m.phone}` })}
-                          align="right"
-                          items={[
-                            { key: 'role', label: m.role === 'admin' ? t('details.demote') : t('details.promote'), onSelect: () => void memberAction(m.role === 'admin' ? 'demote' : 'promote', [m.phone]) },
-                            { key: 'remove', label: t('details.removeMember'), danger: true, onSelect: () => void memberAction('remove', [m.phone]) },
-                          ]}
-                        />
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {!(compact && !memberQ) && shownMembers.length > memberLimit && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMemberLimit((n) => n + 200)}>
-                  {t('details.moreMembers', { n: shownMembers.length - memberLimit })}
-                </button>
-              )}
-              {compact && !memberQ && members.length > 30 && (
-                <Link href={`/app/lines/list/${chat.id}`} className="ui-help">
-                  {t('details.allMembers', { n: members.length })}
-                </Link>
-              )}
-              <div className="gr-invite">
-                <h4 className="gr-detail-title">{t('details.invite')}</h4>
-                {link.startsWith('sample:') ? (
-                  <p className="gr-banner" role="status">
-                    {t('details.sampleInvite')}
-                  </p>
-                ) : link ? (
-                  <p className="gr-invite-link">
-                    <input className="input" readOnly value={link} aria-label={t('details.invite')} onFocus={(e) => e.target.select()} />
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => {
-                        void navigator.clipboard?.writeText(link).catch(() => null);
-                        showToast(t('common.copied'));
-                      }}
-                    >
-                      {t('common.copy')}
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void invite(true)}>
-                      {t('details.revoke')}
-                    </button>
-                  </p>
-                ) : (
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void invite(false)}>
-                    {t('details.getInvite')}
-                  </button>
-                )}
-                <p className="ui-help">{t('details.inviteHelp')}</p>
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
       {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
 
       <ChatTasksSection chatId={chat.id} people={people} me={me} />
@@ -610,9 +516,11 @@ export default function ChatDetails({
 
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
-        <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
+        {isAdmin && (
+          <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>
+        )}
         {isAdmin && (
           <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setConfirmDelete(true)}>
             {t('details.remove')}

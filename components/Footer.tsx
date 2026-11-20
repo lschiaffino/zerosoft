@@ -59,6 +59,9 @@ export default async function Footer({ locale }: { locale: string }) {
             <li>
               <Link href="/compare">{t('compare')}</Link>
             </li>
+            <li>
+              <Link href="/software">{t('directory')}</Link>
+            </li>
           </ul>
           {/* La app de escritorio, debajo de Explorar (una columna más apretaba la marca): cada link cuenta el clic y baja el instalador (lib/desktop-os.ts). */}
           <h4>{t('colDownload')}</h4>

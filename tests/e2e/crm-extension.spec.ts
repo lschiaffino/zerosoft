@@ -134,7 +134,8 @@ test('Gmail: panel del remitente, crear contacto, registrar y trackear', async (
     expect(side.tasks.map((t: { subject: string }) => t.subject)).toContain(`Mandar propuesta ${run}`);
 
     const app = await context.newPage();
-    await app.goto(`${baseURL}/en${side.contact.url}`);
+    // El cuerpo del email está en el timeline (pestaña Actividades); la ficha abre en el Resumen.
+    await app.goto(`${baseURL}/en${side.contact.url}?tab=activity`);
     await expect(app.getByText(subject, { exact: false }).first()).toBeVisible();
     await expect(app.getByText('Hi Carla, here is the proposal.', { exact: false }).first()).toBeVisible();
   } finally {

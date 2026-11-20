@@ -106,8 +106,8 @@ describe('tarjeta grande o compacta', () => {
 describe('lector de vistas previas', () => {
   it('lee las og:image de la página y las medidas que declara', () => {
     const html = `<meta property="og:image" content="/a.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image" content="https://cdn.test/b.jpg"><meta property="og:image" content="/a.png">`;
-    expect(parseImageHints(html, 'https://site.test/page')).toEqual({ images: ['https://site.test/a.png', 'https://cdn.test/b.jpg'], width: 1200, height: 630 });
-    expect(parseImageHints('<meta property="og:image" content="javascript:alert(1)">', 'https://site.test/')).toEqual({ images: [], width: 0, height: 0 });
+    expect(parseImageHints(html, 'https://site.test/page')).toEqual({ images: ['https://site.test/a.png', 'https://cdn.test/b.jpg'], candidates: ['https://site.test/a.png', 'https://cdn.test/b.jpg'], width: 1200, height: 630 });
+    expect(parseImageHints('<meta property="og:image" content="javascript:alert(1)">', 'https://site.test/')).toEqual({ images: [], candidates: [], width: 0, height: 0 });
   });
 
   it('guarda las medidas, el ícono y la segunda imagen; la imagen sale de nuestro dominio', async () => {

@@ -358,11 +358,29 @@ export function RequestNotes({ parts }: { parts: StepPart[] }) {
   if (!done.length) return null;
   return (
     <>
-      {done.map((p) => (
-        <p key={p.callId} className="asst-notice muted" role="status" data-testid="assistant-request-recorded" data-kind={p.tool === 'request_feature' ? 'feature' : 'problem'}>
-          {t(p.tool === 'request_feature' ? 'requestNote.feature' : 'requestNote.problem', { title: String((p.input as Record<string, unknown> | undefined)?.title ?? '').slice(0, 120) })}
-        </p>
-      ))}
+      {done.map((p) => {
+        const title = String((p.input as Record<string, unknown> | undefined)?.title ?? '').slice(0, 120);
+        const url = p.tool === 'request_feature' ? requestUrl(p.output) : null;
+        return (
+          <p key={p.callId} className="asst-notice muted" role="status" data-testid="assistant-request-recorded" data-kind={p.tool === 'request_feature' ? 'feature' : 'problem'}>
+            {url ? (
+              <a href={url} data-testid="assistant-request-link" {...(url.startsWith('/') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
+                {t('requestNote.feature', { title })}
+              </a>
+            ) : (
+              t(p.tool === 'request_feature' ? 'requestNote.feature' : 'requestNote.problem', { title })
+            )}
+          </p>
+        );
+      })}
     </>
   );
+}
+
+/** Link del pedido que devuelve request_feature: ruta de la app o la página pública (https). */
+function requestUrl(output: unknown): string | null {
+  const url = output && typeof output === 'object' ? (output as { url?: unknown }).url : null;
+  if (typeof url !== 'string') return null;
+  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  return /^https:\/\//.test(url) || /^http:\/\/localhost[:/]/.test(url) ? url : null;
 }

@@ -2056,6 +2056,25 @@
   "record": {
     "rename": "Renomear",
     "tabsLabel": "Seções do registro",
+    "layoutTabs": {
+      "overview": "Visão geral",
+      "activity": "Atividades",
+      "properties": "Sobre",
+      "related": "Associações"
+    },
+    "quickActions": "Ações rápidas",
+    "highlights": "Destaques",
+    "recentCommunications": "Comunicações recentes",
+    "noCommunications": "Ainda não há emails, ligações nem reuniões.",
+    "moreCount": "e mais {count}",
+    "seeAllActivity": "Ver toda a atividade",
+    "cards": {
+      "collapse": "Recolher {name}",
+      "expand": "Expandir {name}",
+      "add": "Adicionar",
+      "groups": "WhatsApp",
+      "track": "Pedidos do Track"
+    },
     "tabs": {
       "activity": "Atividade",
       "properties": "Propriedades",
