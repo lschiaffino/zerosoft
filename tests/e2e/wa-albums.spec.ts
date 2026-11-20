@@ -127,14 +127,14 @@ async function checkAlbums(page: Page, thread: Locator) {
   await expect(thread.locator('.wa-image')).toHaveCount(1);
 
   // Foto con texto largo, como WhatsApp: la foto define el ancho, el texto se acomoda debajo a ese ancho
-  // y la foto va al ras de los bordes de la burbuja (sin margen adentro).
+  // y la foto ocupa la burbuja menos el marquito de 3px (como WhatsApp Web).
   const single = thread.locator('.gr-msg:has(.wa-image)');
   const [img, cap, bub] = [await box(single.locator('.wa-image')), await box(single.locator('.wa-text')), await box(single.locator('.gr-bubble'))];
   expect(img.width).toBeGreaterThan(150);
   expect(img.height).toBeGreaterThan(img.width);
   expect(cap.width).toBeLessThanOrEqual(img.width + 2);
-  expect(Math.abs(bub.width - img.width)).toBeLessThan(2);
-  expect(Math.abs(bub.x - img.x)).toBeLessThan(1.5);
+  expect(Math.abs(bub.width - 6 - img.width)).toBeLessThan(2);
+  expect(Math.abs(bub.x + 3 - img.x)).toBeLessThan(1.5);
   expect(cap.height).toBeGreaterThan(60);
   // En el álbum, igual: el texto no ensancha la burbuja más que la grilla.
   const [grid, gridCap] = [await box(five), await box(bubbles.nth(2).locator('.wa-text'))];

@@ -649,6 +649,8 @@ export interface ListPostsOptions {
   to?: string;
   status?: PostStatus | 'scheduled_any' | 'needs_approval';
   accountId?: string;
+  /** Solo las que van a alguna cuenta de esta red. */
+  network?: SocialNetwork;
   q?: string;
   limit?: number;
 }
@@ -676,6 +678,12 @@ export async function listPosts(actor: SocialActor, opts: ListPostsOptions = {})
   if (opts.accountId) {
     where.push('EXISTS (SELECT 1 FROM social_post_targets x WHERE x.post_id = p.id AND x.account_id = ?)');
     args.push(opts.accountId);
+  }
+  if (opts.network) {
+    where.push(
+      'EXISTS (SELECT 1 FROM social_post_targets y JOIN social_accounts ya ON ya.id = y.account_id AND ya.workspace_id = p.workspace_id WHERE y.post_id = p.id AND ya.network = ?)',
+    );
+    args.push(opts.network);
   }
   if (opts.q?.trim()) {
     where.push("p.text LIKE ? ESCAPE '\\'");

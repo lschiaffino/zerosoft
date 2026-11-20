@@ -4,7 +4,9 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { actorOf } from '@/lib/hiring/http';
-import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, settingsDtoFor } from '@/lib/hiring/core';
+import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, parseJson, settingsDtoFor, type SettingsRow } from '@/lib/hiring/core';
+import { REJECT_REASONS } from '@/lib/hiring/types';
+import type { RejectConfig } from '@/components/hiring/ui';
 import { getCandidateProfile, listApplications, visibleTags } from '@/lib/hiring/candidates';
 import { myPendingEvaluations } from '@/lib/hiring/evaluation';
 import { myPendingApprovals } from '@/lib/hiring/approvals';
@@ -33,6 +35,17 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'hiring' });
   const section = (SECTIONS as readonly string[]).includes(zs[0] ?? '') ? zs[0] : null;
   return { title: section ? `${t(`nav.${section}`)} · Hiring` : t('meta.title') };
+}
+
+/** Motivos de fábrica en el idioma del equipo: así el informe por motivo junta a todos, sin importar quién rechazó. */
+async function defaultRejectReasons(settings: SettingsRow): Promise<string[]> {
+  const t = await getTranslations({ locale: settings.locale, namespace: 'hiring.reject.reasons' });
+  return REJECT_REASONS.map((r) => t(r));
+}
+
+async function rejectConfig(settings: SettingsRow): Promise<RejectConfig> {
+  const own = settings.reject_reasons == null ? null : parseJson<string[]>(settings.reject_reasons, []);
+  return { reasons: own ?? (await defaultRejectReasons(settings)), required: Number(settings.require_reject_reason ?? 0) === 1 };
 }
 
 /**
@@ -77,15 +90,16 @@ export default async function HiringPage(props: Props) {
       }
       if (sub) notFound();
       const apps = detail.canManage ? await listApplications(actor, { jobId: id, status: sp.status ?? 'active' }) : [];
-      return <JobPipeline detail={detail} initial={apps} view={sp.view === 'list' ? 'list' : 'board'} status={sp.status ?? 'active'} careersUrl={careersUrl} />;
+      return <JobPipeline detail={detail} initial={apps} view={sp.view === 'list' ? 'list' : 'board'} status={sp.status ?? 'active'} careersUrl={careersUrl} reject={await rejectConfig(settings)} />;
     }
     case 'candidates': {
       if (!id) {
-        const [apps, jobs, tags, templates] = await Promise.all([
+        const [apps, jobs, tags, templates, reject] = await Promise.all([
           listApplications(actor, { q: sp.q, jobId: sp.job, status: sp.status ?? 'active', source: sp.source, tag: sp.tag, knockedOut: sp.knockout === '1' }),
           listJobs(actor, { status: 'all' }),
           visibleTags(actor),
           listTemplates(actor, 'rejection'),
+          rejectConfig(settings),
         ]);
         return (
           <CandidatesList
@@ -93,6 +107,7 @@ export default async function HiringPage(props: Props) {
             jobs={jobs.filter((j) => j.canManage).map((j) => ({ id: j.id, title: j.title }))}
             tags={tags}
             templates={templates.map((t) => ({ id: t.id, name: t.name }))}
+            reject={reject}
             filters={{ q: sp.q ?? '', job: sp.job ?? '', status: sp.status ?? 'active', source: sp.source ?? '', tag: sp.tag ?? '', knockout: sp.knockout === '1' }}
           />
         );
@@ -100,7 +115,7 @@ export default async function HiringPage(props: Props) {
       if (sub) notFound();
       const profile = await getCandidateProfile(actor, id);
       if (!profile) notFound();
-      const [templates, allJobs] = await Promise.all([listTemplates(actor), listJobs(actor, { status: 'all' })]);
+      const [templates, allJobs, reject] = await Promise.all([listTemplates(actor), listJobs(actor, { status: 'all' }), rejectConfig(settings)]);
       return (
         <CandidateProfile
           initial={profile}
@@ -111,6 +126,7 @@ export default async function HiringPage(props: Props) {
           templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, jobId: t.jobId, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
           repliesEnabled={repliesEnabled()}
           signEnabled={userCanUseApp(user, 'sign')}
+          reject={reject}
         />
       );
     }
@@ -133,7 +149,7 @@ export default async function HiringPage(props: Props) {
     }
     case 'settings': {
       if (id) notFound();
-      return <HiringSettings initial={settingsDtoFor(settings, actor.admin)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} people={actor.admin ? (await hiringPeople(actor.ws)).map((p) => ({ id: p.id, name: p.name ?? p.email })) : []} />;
+      return <HiringSettings initial={settingsDtoFor(settings, actor.admin)} defaultRejectReasons={await defaultRejectReasons(settings)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} people={actor.admin ? (await hiringPeople(actor.ws)).map((p) => ({ id: p.id, name: p.name ?? p.email })) : []} />;
     }
     default:
       notFound();

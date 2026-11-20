@@ -132,9 +132,14 @@
     "tab_published": "Published",
     "tab_failed": "Failed",
     "search": "Search posts",
-    "noResults": "No posts match that search.",
+    "noResults": "No posts match the search or filters.",
     "emptyTitle": "No posts here yet",
-    "emptyBody": "Write one post and send it to several accounts, with its own text per network."
+    "emptyBody": "Write one post and send it to several accounts, with its own text per network.",
+    "filterNetwork": "Filter by network",
+    "filterAccount": "Filter by account",
+    "allNetworks": "All networks",
+    "allAccounts": "All accounts",
+    "clearFilters": "Clear filters"
   },
   "compose": {
     "title": "New post",
@@ -181,7 +186,9 @@
     "addToQueue": "Add to queue",
     "schedule": "Schedule",
     "previews": "Previews",
-    "previewEmpty": "Pick accounts to see how the post looks on each network."
+    "previewEmpty": "Pick accounts to see how the post looks on each network.",
+    "tagSuggestions": "Hashtags and mentions used before",
+    "tagUses": "{n, plural, one {# use} other {# uses}}"
   },
   "post": {
     "title": "Post",

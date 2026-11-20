@@ -9,7 +9,7 @@ import type { InterviewDto } from '@/lib/hiring/interviews';
 import type { OfferDto } from '@/lib/hiring/offers';
 import { OVERALL } from '@/lib/hiring/types';
 import { VARIABLES } from './variables';
-import { AppStatusBadge, HrDialog, RejectReasonOptions, api, money, useDate, useErrorText, useToast } from './ui';
+import { AppStatusBadge, HrDialog, RejectReasonField, api, money, useDate, useErrorText, useToast, type RejectConfig } from './ui';
 
 type Tpl = { id: string; jobId: string | null; kind: string; name: string; subject: string; body: string };
 const TABS = ['timeline', 'resume', 'scorecards', 'interviews', 'offers'] as const;
@@ -86,6 +86,7 @@ export default function CandidateProfile({
   templates,
   repliesEnabled,
   signEnabled = false,
+  reject,
 }: {
   initial: Profile;
   focusApp: string | null;
@@ -97,6 +98,7 @@ export default function CandidateProfile({
   repliesEnabled: boolean;
   /** La persona tiene Sign: la oferta aprobada puede salir a firmar con firma electrónica. */
   signEnabled?: boolean;
+  reject: RejectConfig;
 }) {
   const t = useTranslations('hiring');
   const locale = useLocale();
@@ -255,7 +257,7 @@ export default function CandidateProfile({
                 {t('profile.reactivate')}
               </button>
             ) : (
-              <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRejectOpen(true)}>
+              <button type="button" className="btn btn-danger" data-testid="hr-reject-open" disabled={busy} onClick={() => setRejectOpen(true)}>
                 {t('profile.reject')}
               </button>
             )}
@@ -273,7 +275,7 @@ export default function CandidateProfile({
         <div className="hr-profile-main">
           <div className="ui-tabs" role="tablist" aria-label={c.name}>
             {visibleTabs.map((k) => (
-              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+              <button key={k} type="button" role="tab" className="ui-tab" data-profile-tab={k} aria-selected={tab === k} onClick={() => setTab(k)}>
                 {t(`profile.tabs.${k}`)}
               </button>
             ))}
@@ -812,11 +814,7 @@ export default function CandidateProfile({
           }}
         >
           <div className="ui-modal-body ui-fields">
-            <label className="ui-field">
-              <span className="label">{t('reject.reason')}</span>
-              <input className="input" list="hr-reject-reasons" maxLength={300} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} autoFocus />
-              <RejectReasonOptions />
-            </label>
+            <RejectReasonField key={app.id} config={reject} value={rejectReason} onChange={setRejectReason} autoFocus />
             <label className="ui-check">
               <input type="checkbox" checked={rejectEmail} onChange={(e) => setRejectEmail(e.target.checked)} />
               {t('reject.sendEmail')}
@@ -841,7 +839,7 @@ export default function CandidateProfile({
             <button type="button" className="btn btn-ghost" onClick={() => setRejectOpen(false)}>
               {t('common.cancel')}
             </button>
-            <button type="submit" className="btn btn-danger">
+            <button type="submit" className="btn btn-danger" data-testid="hr-reject-submit">
               {t('profile.reject')}
             </button>
           </div>

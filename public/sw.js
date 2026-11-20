@@ -169,6 +169,7 @@ const NEVER_QUEUE = [
   '/api/crm/search',
   '/api/crm/voice',
   '/api/crm/calls',
+  '/api/crm/hubspot-sync',
 ];
 
 // APIs que aceptan encolar cuando la página lo pide (header x-zs-offline).

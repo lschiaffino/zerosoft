@@ -8,7 +8,7 @@ import CsvImportDialog from '@/components/ui/CsvImportDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import type { JobDetail } from '@/lib/hiring/core';
 import type { ApplicationListItem } from '@/lib/hiring/candidates';
-import { HrDialog, JobStatusBadge, api, useDate, useErrorText, useToast } from './ui';
+import { HrDialog, JobStatusBadge, api, useDate, useErrorText, useToast, type RejectConfig } from './ui';
 import BulkBar from './BulkBar';
 
 export default function JobPipeline({
@@ -17,12 +17,14 @@ export default function JobPipeline({
   view,
   status,
   careersUrl,
+  reject,
 }: {
   detail: JobDetail;
   initial: ApplicationListItem[];
   view: 'board' | 'list';
   status: string;
   careersUrl: string;
+  reject: RejectConfig;
 }) {
   const t = useTranslations('hiring');
   const router = useRouter();
@@ -238,7 +240,7 @@ export default function JobPipeline({
         </div>
       ) : (
         <>
-          <BulkBar selected={[...selected]} stages={stages} onDone={() => { setSelected(new Set()); router.refresh(); void api<{ applications: ApplicationListItem[] }>(`/api/hiring/applications?jobId=${job.id}&status=${status}`).then((r) => r.ok && setApps(r.data.applications)); }} push={push} />
+          <BulkBar selected={[...selected]} stages={stages} reject={reject} onDone={() => { setSelected(new Set()); router.refresh(); void api<{ applications: ApplicationListItem[] }>(`/api/hiring/applications?jobId=${job.id}&status=${status}`).then((r) => r.ok && setApps(r.data.applications)); }} push={push} />
           <div className="table-wrap">
             <table className="table hr-table">
               <thead>

@@ -132,9 +132,14 @@
     "tab_published": "Publicadas",
     "tab_failed": "Com erros",
     "search": "Buscar publicações",
-    "noResults": "Nenhuma publicação corresponde à busca.",
+    "noResults": "Nenhuma publicação corresponde à busca ou aos filtros.",
     "emptyTitle": "Ainda não há publicações aqui",
-    "emptyBody": "Escreva uma publicação e envie para várias contas, com texto próprio por rede."
+    "emptyBody": "Escreva uma publicação e envie para várias contas, com texto próprio por rede.",
+    "filterNetwork": "Filtrar por rede",
+    "filterAccount": "Filtrar por conta",
+    "allNetworks": "Todas as redes",
+    "allAccounts": "Todas as contas",
+    "clearFilters": "Limpar filtros"
   },
   "compose": {
     "title": "Nova publicação",
@@ -181,7 +186,9 @@
     "addToQueue": "Adicionar à fila",
     "schedule": "Agendar",
     "previews": "Prévias",
-    "previewEmpty": "Escolha contas para ver como fica em cada rede."
+    "previewEmpty": "Escolha contas para ver como fica em cada rede.",
+    "tagSuggestions": "Hashtags e menções já usados",
+    "tagUses": "{n, plural, one {# uso} other {# usos}}"
   },
   "post": {
     "title": "Publicação",

@@ -866,10 +866,17 @@ export async function markHired(ws: string, appId: string, actorId: string | nul
 
 export const rejectSchema = z.object({ reason: z.string().trim().max(300).default(''), sendEmail: z.boolean().default(false), templateId: z.string().max(80).nullable().default(null) });
 
+/** Con "pedir motivo" en Ajustes, nadie rechaza sin escribir o elegir uno. */
+async function requireReasonIfSet(ws: string, reason: string | undefined): Promise<void> {
+  if ((reason ?? '').trim()) return;
+  if (Number((await ensureSettings(ws)).require_reject_reason ?? 0) === 1) throw new HiringError('reason_required');
+}
+
 /** Rechazo hecho por una persona (con email de rechazo opcional desde una plantilla). */
 export async function rejectApplication(actor: HiringActor, appId: string, input: z.infer<typeof rejectSchema>): Promise<ApplicationRow> {
   const { app, job, candidate } = await requireManageApp(actor, appId);
   if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
+  await requireReasonIfSet(actor.ws, input.reason);
   const ts = nowIso();
   await getDb().prepare("UPDATE hiring_applications SET status = 'rejected', reject_reason = ?, rejected_at = ?, updated_at = ? WHERE id = ?").run(input.reason, ts, ts, app.id);
   await addEvent(actor.ws, candidate.id, app.id, 'rejected', actor.person, { reason: input.reason });
@@ -955,6 +962,8 @@ export const bulkSchema = z.object({
 
 /** Acciones en lote sobre postulaciones: cada una con su propio chequeo de acceso. */
 export async function bulkApplications(actor: HiringActor, input: z.infer<typeof bulkSchema>): Promise<{ done: number; failed: number }> {
+  // Sin motivo cuando hace falta: falla el lote entero con el error claro, no cada una en silencio.
+  if (input.action === 'reject') await requireReasonIfSet(actor.ws, input.reason);
   let done = 0;
   let failed = 0;
   for (const id of input.ids) {
