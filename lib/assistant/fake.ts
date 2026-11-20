@@ -9,6 +9,8 @@ import type { FakeCallInfo, FakeStep } from '../crm-ai-fake';
 const WRAP_UP_MARK = '[wrap-up]';
 /** "Revisá todo el catálogo": el modelo falso busca sin parar (como el que se quedaba sin pasos). */
 const DIG = /^dig through (?:the|every) catalog|^revis(?:a|á) todo el cat(?:a|á)logo/i;
+/** El mensaje del botón "Seguir" (messages/<locale>/assistant.json stepLimit.message). */
+const KEEP_GOING = /^(?:continue where you left off|segu[ií] desde donde quedaste|continue de onde parou)/i;
 
 function apps(system: string): string[] {
   const m = /Apps they can use here: ([^.\n]*)\./.exec(system);
@@ -22,11 +24,17 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   // Cierre: sin herramientas, cuenta qué hizo y qué espera confirmación.
   if (last.startsWith(WRAP_UP_MARK)) {
     const pending = info.toolResults.filter((r) => (r.output as { status?: unknown } | null)?.status === 'awaiting_user_confirmation').length;
+    const limit = last.includes('[step-limit]') ? 'I reached the step limit for this request. ' : '';
     return {
-      text: `I used ${info.toolResults.length} steps and stopped there. ${pending ? `${pending} change(s) wait for your confirmation on the card.` : 'Nothing waits for confirmation yet.'} Tell me if I should keep going.`,
+      text: `${limit}I used ${info.toolResults.length} steps and stopped there. ${pending ? `${pending} change(s) wait for your confirmation on the card.` : 'Nothing waits for confirmation yet.'} Tell me if I should keep going.`,
     };
   }
   const asked = [...info.userTexts].reverse().find((u) => !u.startsWith(WRAP_UP_MARK)) ?? '';
+  // "Seguir" después del tope de pasos: termina lo que había quedado (sin volver a buscar).
+  if (KEEP_GOING.test(asked)) {
+    if (done) return { text: `Picked up where I left off and finished (${info.toolResults.length} more steps).` };
+    return { tool: 'find_operations', input: { query: 'folders, continued' } };
+  }
   if (DIG.test(asked)) return { tool: 'find_operations', input: { query: `folders ${info.toolResults.length}` } };
   // "Callado": el modelo termina sin texto después de una herramienta (el motor pide el cierre).
   if (done && /^(?:list|show) my inbox folders silently/i.test(asked)) return { text: '' };

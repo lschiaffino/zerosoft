@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import type { RequestDto } from '@/lib/people-timeoff';
 import { api, Dialog, Field, useErrorText } from './people-ui';
 
 export interface PolicyOption {
@@ -11,27 +12,32 @@ export interface PolicyOption {
   available?: number | null;
 }
 
-/** Pedir licencia: tipo, fechas, medio día (si la política lo permite y es un solo día) y nota. */
+/**
+ * Pedir licencia: tipo, fechas, medio día (si la política lo permite y es un solo día) y nota.
+ * Con `editing`, el mismo formulario cambia un pedido existente (vuelve a pendiente).
+ */
 export default function RequestDialog({
   open,
   onClose,
   onDone,
   policies,
   employeeId,
+  editing,
 }: {
   open: boolean;
   onClose: () => void;
   onDone: () => void;
   policies: PolicyOption[];
   employeeId?: string;
+  editing?: RequestDto;
 }) {
   const t = useTranslations('people');
   const errText = useErrorText();
   const today = new Date().toISOString().slice(0, 10);
-  const [policyId, setPolicyId] = useState(policies[0]?.id ?? '');
-  const [start, setStart] = useState(today);
-  const [end, setEnd] = useState(today);
-  const [half, setHalf] = useState('');
+  const [policyId, setPolicyId] = useState(editing?.policyId ?? policies[0]?.id ?? '');
+  const [start, setStart] = useState(editing?.startDate ?? today);
+  const [end, setEnd] = useState(editing?.endDate ?? today);
+  const [half, setHalf] = useState<string>(editing?.half ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const policy = policies.find((p) => p.id === policyId);
@@ -42,17 +48,17 @@ export default function RequestDialog({
     const fd = new FormData(e.currentTarget);
     setBusy(true);
     setError('');
-    const res = await api('/api/people/time-off', {
-      method: 'POST',
-      json: { employeeId, policyId, startDate: start, endDate: end, half: halfAllowed ? half : '', note: String(fd.get('note') ?? '') },
-    });
+    const body = { policyId, startDate: start, endDate: end, half: halfAllowed ? half : '', note: String(fd.get('note') ?? '') };
+    const res = editing
+      ? await api(`/api/people/time-off/${editing.id}`, { method: 'PATCH', json: { action: 'edit', ...body } })
+      : await api('/api/people/time-off', { method: 'POST', json: { employeeId, ...body } });
     setBusy(false);
     if (!res.ok) return setError(errText(res.data.error));
     onDone();
   };
 
   return (
-    <Dialog open={open} title={t('timeoff.request')} onClose={onClose}>
+    <Dialog open={open} title={editing ? t('timeoff.editTitle') : t('timeoff.request')} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="ui-modal-body ui-fields">
           <Field label={t('timeoff.type')} htmlFor="rq-policy">
@@ -92,9 +98,14 @@ export default function RequestDialog({
             </Field>
           )}
           <Field label={t('timeoff.note')} htmlFor="rq-note">
-            <textarea id="rq-note" name="note" className="textarea" maxLength={500} />
+            <textarea id="rq-note" name="note" className="textarea" maxLength={500} defaultValue={editing?.note ?? ''} />
           </Field>
           <p className="ppl-hint">{t('timeoff.workingDaysHint')}</p>
+          {editing?.status === 'approved' && (
+            <p className="ppl-hint" data-testid="people-edit-reapproval">
+              {t('timeoff.editReapproval')}
+            </p>
+          )}
           {error && (
             <p className="ppl-error" role="alert">
               {error}
@@ -106,7 +117,7 @@ export default function RequestDialog({
             {t('common.cancel')}
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy || !policyId}>
-            {t('timeoff.send')}
+            {editing ? t('timeoff.saveChanges') : t('timeoff.send')}
           </button>
         </div>
       </form>

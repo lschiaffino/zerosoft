@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
-import { chatContact, contactHubspotMatches, contactMessageTarget, createContactHubspot, linesContact, linkContactHubspot, unlinkContactHubspot } from '@/lib/groups-contacts';
+import { chatContact, contactHubspotMatches, contactHubspotSearch, contactMessageTarget, createContactHubspot, linesContact, linkContactHubspot, unlinkContactHubspot } from '@/lib/groups-contacts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,9 @@ const NO_STORE = { 'cache-control': 'private, no-store' };
 /**
  * La ficha de un contacto de Lines: ?id=<id de la persona>. Con
  * &hubspot=matches, los contactos de HubSpot con su teléfono. 404 si la
- * persona no está en ningún chat que quien pide ve.
+ * persona no está en ningún chat que quien pide ve. Con &hubspot=search&q=<texto>,
+ * busca contactos de HubSpot por nombre para vincularla (la celda de la tabla;
+ * los invitados no buscan, como en el panel del chat).
  */
 export async function GET(req: Request) {
   const s = await groupsSession();
@@ -22,6 +24,10 @@ export async function GET(req: Request) {
     // ?chat=<id>: la persona de ese chat 1:1 (el panel de HubSpot del chat).
     const chat = sp.get('chat');
     if (chat) return NextResponse.json(await chatContact(viewer, chat.slice(0, 100)), { headers: NO_STORE });
+    if (sp.get('hubspot') === 'search') {
+      if (s.user.role === 'guest') return groupsError(403, 'forbidden');
+      return NextResponse.json({ results: await contactHubspotSearch(viewer, id, (sp.get('q') ?? '').slice(0, 100)) }, { headers: NO_STORE });
+    }
     if (sp.get('hubspot') === 'matches') return NextResponse.json({ matches: await contactHubspotMatches(viewer, id) }, { headers: NO_STORE });
     return NextResponse.json(await linesContact(viewer, id), { headers: NO_STORE });
   } catch (err) {

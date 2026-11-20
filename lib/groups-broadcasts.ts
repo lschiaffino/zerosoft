@@ -16,6 +16,7 @@ import { PROVIDER_CAPS } from './groups-provider';
 import { maskPhoneText } from './groups-mask';
 import { normalizePoll, parsePoll, type PollInput } from './groups-polls';
 import { allowedSends, chatVariables, clampPerMinute, renderVariables, sendGapMs } from './groups-rules';
+import { applyWaMentionPicks, cleanWaMentionPicks } from './wa-compose-mentions';
 
 const nowIso = () => new Date().toISOString();
 
@@ -46,6 +47,8 @@ export interface BroadcastRow {
   recurring_id?: string | null;
   poll?: string;
   reply_to_id?: string | null;
+  /** Menciones del programado, JSON `[{ phone, label }]` (lib/wa-compose-mentions.ts). */
+  mentions?: string | null;
 }
 
 export interface BroadcastDto {
@@ -121,6 +124,11 @@ export interface CreateBroadcastInput {
   poll?: unknown;
   /** Cita a un mensaje del chat. Solo para un programado a un único chat. */
   replyToId?: string | null;
+  /**
+   * Menciones ("@Nombre" en el texto → a quién es): solo en un programado a un único grupo. Al salir, "@Nombre" pasa a
+   * "@<teléfono>" con la lista de mencionados, como al mandar en el momento.
+   */
+  mentions?: unknown;
 }
 
 /**
@@ -185,11 +193,13 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
     if (!target) throw new GroupsError('invalid_reply');
     replyToId = input.replyToId;
   }
+  // Menciones: las de un programado a un grupo (en un envío masivo cada chat tiene otra gente).
+  const picks = kind === 'scheduled' && mine.length === 1 && !poll && !voice ? cleanWaMentionPicks(input.mentions) : [];
   await db
     .prepare(
       `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, media_kind, media_duration, kind, status, scheduled_at,
-         per_minute, total, created_by, created_at, poll, reply_to_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
+         per_minute, total, created_by, created_at, poll, reply_to_id, mentions)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -210,6 +220,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
       now,
       poll ? JSON.stringify(poll) : '',
       replyToId,
+      picks.length ? JSON.stringify(picks) : '',
     );
   for (const c of mine) {
     await db.prepare('INSERT OR IGNORE INTO groups_broadcast_recipients (id, broadcast_id, chat_id) VALUES (?, ?, ?)').run(randomUUID(), id, c.id);
@@ -566,10 +577,13 @@ export async function processBroadcasts(
             const quoted = b.reply_to_id
               ? await db.prepare('SELECT id FROM groups_messages WHERE id = ? AND user_id = ? AND chat_id = ?').get(b.reply_to_id, b.user_id, chat.id)
               : null;
+            // Menciones guardadas: "@Nombre" sale como "@<teléfono>" con la lista, igual que al mandar en el momento.
+            const out = chat.kind === 'group' && !b.media_type ? applyWaMentionPicks(text, b.mentions) : { body: text, mentions: [] };
             const msg = await sendMessage(b.user_id, b.created_by, chat.id, {
               replyToId: quoted ? b.reply_to_id : null,
               poll: parsePoll(b.poll),
-              body: text,
+              body: out.body,
+              ...(out.mentions.length ? { mentions: out.mentions } : {}),
               media: b.media_type
                 ? {
                     url: b.media_url,

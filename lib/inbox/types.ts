@@ -227,6 +227,8 @@ export interface MessageDto {
   reactions?: MessageReaction[];
   forwarded?: boolean;
   starred?: boolean;
+  /** Fijado en el chat (como en WhatsApp): cuándo. */
+  pinnedAt?: string;
   meta?: WaMessageMeta | null;
   /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono), si se sabe. */
   mentionNames?: MentionNames;
@@ -292,6 +294,8 @@ export interface ScheduledDto {
   mediaDuration: number;
   /** Mensaje (nuestro id) que cita ('' si no cita). */
   replyTo: string;
+  /** Menciones del texto ("@label" → teléfono), en grupos de WhatsApp. */
+  mentions: Array<{ phone: string; label: string }>;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;

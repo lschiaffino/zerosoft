@@ -54,7 +54,13 @@ export interface ReasoningPart {
   ms: number;
 }
 
-export type MessagePart = ToolCardPart | ActionPart | AttachmentPart | ReasoningPart;
+/** El turno llegó al tope de pasos (engine.ts ASSISTANT_MAX_STEPS): la charla ofrece seguir. */
+export interface LimitPart {
+  type: 'limit';
+  steps: number;
+}
+
+export type MessagePart = ToolCardPart | ActionPart | AttachmentPart | ReasoningPart | LimitPart;
 
 export interface MessageRow {
   id: string;

@@ -876,6 +876,7 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "too_many_stages": "Este tablero ya tiene el máximo de etapas (30).",
     "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
@@ -971,6 +972,8 @@
     "invalid_ephemeral": "Esa duración no está disponible.",
     "invalid_invite": "Eso no parece un link de invitación de WhatsApp.",
     "invite_invalid": "El link de invitación venció o lo regeneraron. Pedí uno nuevo.",
+    "invite_already_member": "Este número ya está en el grupo.",
+    "invite_approval_required": "Solicitud enviada. Un admin del grupo tiene que aprobarla.",
     "too_many_properties": "Hay demasiadas propiedades. Borrá alguna primero.",
     "too_many_templates": "Hay demasiadas plantillas. Borrá alguna primero.",
     "too_many_lists": "Hay demasiadas listas guardadas. Borrá alguna primero.",
@@ -1717,6 +1720,7 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "info": {"title": "Info del mensaje", "close": "Cerrar", "readBy": "Leído por", "deliveredTo": "Entregado a", "playedBy": "Escuchado por", "read": "Leído", "delivered": "Entregado", "played": "Escuchado", "sent": "Enviado", "by": "Enviado por", "notYet": "Todavía no", "noTime": "Sin hora informada", "more": "{count} más", "less": "Ver menos", "nobody": "Todavía no se entregó a nadie.", "unavailable": "Esta línea todavía no informa quién recibió o leyó los mensajes del grupo.", "loading": "Cargando la info del mensaje", "error": "No se pudo cargar la info del mensaje.", "retry": "Reintentar", "today": "Hoy", "yesterday": "Ayer", "at": "{day}, {time}"},
     "events": {"someone": "Alguien", "createdMe": "Creaste el grupo «{subject}»", "created": "{by} creó el grupo «{subject}»", "createdUnknown": "Se creó el grupo «{subject}»", "createdMeNoName": "Creaste este grupo", "createdNoName": "{by} creó este grupo", "createdUnknownNoName": "Se creó este grupo", "addedYou": "{by} te agregó", "addedYouUnknown": "Te agregaron", "addedMe": "Agregaste a {who}", "added": "{by} agregó a {who}", "addedUnknown": "Se agregó a {who}", "removedYou": "{by} te sacó", "removedYouUnknown": "Te sacaron del grupo", "removedMe": "Sacaste a {who}", "removed": "{by} sacó a {who}", "removedUnknown": "Sacaron a {who}", "leftMe": "Saliste", "left": "{who} salió", "joinedMe": "Te uniste con el link de invitación", "joined": "{who} se unió con el link de invitación", "promotedYou": "Ahora sos admin", "promoted": "{who} ahora es admin", "demotedYou": "Ya no sos admin", "demoted": "{who} ya no es admin", "subjectMe": "Cambiaste el nombre del grupo a «{subject}»", "subject": "{by} cambió el nombre del grupo a «{subject}»", "subjectUnknown": "El grupo ahora se llama «{subject}»", "descriptionMe": "Cambiaste la descripción del grupo", "description": "{by} cambió la descripción del grupo", "descriptionUnknown": "Cambió la descripción del grupo", "iconMe": "Cambiaste la foto del grupo", "icon": "{by} cambió la foto del grupo", "iconUnknown": "Cambió la foto del grupo"},
     "newGroup": {"label": "Grupo nuevo", "members": "Grupo · {n, plural, one {# miembro} other {# miembros}}", "groupOnly": "Grupo", "addMembers": "Agregar miembros", "invite": "Invitar con link", "inviteCopied": "Link de invitación copiado", "description": "Agregar descripción", "info": "Info del grupo", "hint": "Saludá para arrancar la conversación."},
     "members": {"title": "{n, plural, one {# miembro} other {# miembros}}", "add": "Agregar miembros", "invite": "Invitar con link", "search": "Buscar miembros", "you": "Vos", "admin": "Admin del grupo", "options": "Opciones de {name}", "message": "Mandarle un mensaje a {name}", "makeAdmin": "Hacer admin del grupo", "dismissAdmin": "Quitar como admin", "remove": "Quitar a {name}", "notAdmin": "Solo los admins del grupo pueden agregar miembros o cambiar admins. Este número de WhatsApp no es admin del grupo: pedile a un admin que lo haga admin.", "adding": "Agregando…", "promoted": "{name} ahora es admin del grupo", "dismissed": "{name} ya no es admin del grupo", "removed": "{name} salió del grupo", "added": "{n, plural, one {Se agregó # persona} other {Se agregaron # personas}}", "issuesTitle": "Algunos cambios no se hicieron", "dismiss": "Cerrar", "sendInvite": "{n, plural, one {Mandarle el link de invitación} other {Mandarles el link a los #}}", "inviteSent": "{n, plural, one {Link de invitación enviado} other {Link de invitación enviado a #}}", "inviteText": "Sumate al grupo de WhatsApp “{group}” con este link:", "linkCopied": "Link de invitación copiado", "linkReset": "Link nuevo. El anterior deja de andar.", "copy": "Copiar", "reset": "Cambiar link", "sampleInvite": "Es un grupo de ejemplo: no tiene link de invitación real.", "showMore": "Ver {n} más", "addTitle": "Agregar miembros", "searchContacts": "Buscá un nombre o escribí un número", "addPhone": "Agregar {phone}", "alreadyIn": "Ya está en el grupo", "noResults": "Ningún contacto coincide. Escribí el número completo con código de país.", "selected": "{n} elegidos", "unpick": "Sacar a {name} de la selección", "addN": "{n, plural, =0 {Agregar} other {Agregar #}}", "cancel": "Cancelar", "addHelp": "Podés elegir varias personas a la vez. Si la privacidad de alguien no deja que lo agreguen, le podés mandar el link de invitación.", "errors": {"privacy": "Su privacidad no deja que lo agreguen. Mandale el link de invitación.", "already_member": "Ya está en el grupo.", "recently_left": "Salió del grupo hace poco y WhatsApp todavía no deja volver a agregarlo.", "not_member": "Ya no está en el grupo.", "not_on_whatsapp": "Este número no tiene WhatsApp.", "not_group_admin": "Este número no es admin del grupo.", "own_number": "Es el mismo número conectado.", "not_found": "No encontramos ese contacto.", "invalid_phone": "Revisá el número y poné el código de país.", "failed": "WhatsApp no aceptó el cambio."}},
@@ -2048,7 +2052,9 @@
       "video": "Video",
       "loadFailed": "No se pudo cargar este contacto",
       "openFailed": "No se pudo abrir el chat",
-      "openFor": "Info. del contacto de {name}"
+      "openFor": "Info. del contacto de {name}",
+      "blockedToast": "{name} está bloqueado",
+      "unblockedToast": "{name} ya no está bloqueado"
     },
     "replyPrivately": "Responder en privado",
     "messageName": "Enviar mensaje a {name}",
@@ -2080,6 +2086,28 @@
     "refreshRetry": "Reintentar",
     "refreshDismiss": "Cerrar",
     "archivedTag": "Archivado",
+    "invite": {
+      "subtitle": "Invitación a grupo de WhatsApp",
+      "unnamed": "Grupo de WhatsApp",
+      "join": "Unirme al grupo",
+      "joining": "Uniéndote…",
+      "openGroup": "Abrir grupo",
+      "openInWhatsapp": "Abrir en WhatsApp",
+      "cancel": "Cancelar",
+      "confirmTitle": "¿Unirte a «{name}» desde {line}?",
+      "confirmTitleAccount": "¿Unirte a «{name}» con tu WhatsApp?",
+      "confirmBody": "Los miembros del grupo van a ver que este número se unió.",
+      "joined": "Te uniste a «{name}».",
+      "errors": {
+        "invite_invalid": "El link de invitación no es válido o lo reiniciaron.",
+        "invite_already_member": "Este número ya está en el grupo.",
+        "invite_approval_required": "Solicitud enviada. Un admin del grupo tiene que aprobarla.",
+        "not_connected": "Este número de WhatsApp no está conectado.",
+        "groups_unsupported": "Este número no puede unirse a grupos (API de WhatsApp Cloud).",
+        "rate_limited": "Demasiados intentos. Esperá un momento y probá de nuevo.",
+        "failed": "No se pudo entrar al grupo. Probá de nuevo o abrilo en WhatsApp."
+      }
+    },
     "reactions": {
       "title": "{count, plural, one {# reacción} other {# reacciones}}",
       "chip": "{count, plural, one {# reacción} other {# reacciones}}: {list}. Ver quién reaccionó",
@@ -2675,6 +2703,15 @@
     "open": "Abierto",
     "closed": "Cerrado",
     "notLinked": "Sin vincular",
+    "link": {
+      "linkAction": "Vincular una empresa de HubSpot a {name}",
+      "minChars": "Escribí al menos 2 letras",
+      "noResults": "No se encontraron empresas",
+      "options": "Empresa de HubSpot de {name}",
+      "change": "Cambiar",
+      "notLinked": "No se pudo vincular: {reason}",
+      "notUnlinked": "No se pudo desvincular: {reason}"
+    },
     "openInHubspot": "Abrir {name} en HubSpot",
     "broken": "Borrada o fusionada en HubSpot",
     "openInLine": "Abrir en {line}",
@@ -2761,5 +2798,52 @@
       "unknown_assignee": "la persona asignada no está en el workspace",
       "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
     }
+  },
+  "kanban": {
+    "toggle": "Vista kanban",
+    "toggleOn": "Ver como kanban",
+    "toggleOff": "Ver como lista",
+    "boardLabel": "Tablero",
+    "boardRegion": "Tablero kanban",
+    "teamStages": "Etapas del equipo",
+    "myStages": "Mis etapas",
+    "noStage": "Sin etapa",
+    "noValue": "Sin valor",
+    "newStage": "Nueva etapa",
+    "renameStage": "Renombrar etapa",
+    "deleteStage": "Eliminar etapa",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "collapse": "Plegar columna",
+    "expand": "Desplegar {name}",
+    "columnOptions": "Opciones de {name}",
+    "columnLabel": "{name}, {n, plural, one {# chat} other {# chats}}",
+    "moveTo": "Mover {name} a…",
+    "moved": "{name} pasó a {column}",
+    "waiting": "Esperando respuesta",
+    "noCompany": "Sin empresa",
+    "assignedTo": "Asignado a {name}",
+    "readOnly": {
+      "admin": "Solo un admin cambia las etapas del equipo.",
+      "hubspot_scope": "Solo lectura: la clave de HubSpot no puede editar empresas. Agregale el permiso de escritura de empresas en Ajustes › Integraciones.",
+      "hubspot_role": "Solo lectura: tu rol no puede editar propiedades de HubSpot.",
+      "hubspot_read_only": "Solo lectura: HubSpot no deja editar esta propiedad."
+    },
+    "emptyMine": "Tu tablero está vacío. Agregá etapas para ordenar los chats a tu manera; solo vos las ves.",
+    "emptyTeamAdmin": "Todavía no hay etapas del equipo. Agregá etapas como Onboarding o En vivo; las ve todo el workspace.",
+    "emptyTeam": "Todavía no hay etapas del equipo. Las puede agregar un admin.",
+    "truncated": "Se ven los primeros 1.000 chats. Usá los filtros para achicar el tablero.",
+    "loadError": "No se pudo cargar el tablero.",
+    "moreCards": "{n, plural, one {# chat más} other {# chats más}}. Usá los filtros para verlos.",
+    "dropHere": "Soltá chats acá",
+    "noCards": "Sin chats",
+    "stageCreated": "Etapa {name} creada",
+    "stageDeleted": "Etapa {name} eliminada",
+    "deleteTitle": "¿Eliminar la etapa {name}?",
+    "deleteBody": "Sus chats vuelven a Sin etapa. Los chats quedan como están.",
+    "stageName": "Nombre",
+    "stageNamePlaceholder": "Por ejemplo: Onboarding",
+    "stageColor": "Color",
+    "mineHelp": "Solo vos ves tus etapas y dónde pusiste cada chat."
   }
 }

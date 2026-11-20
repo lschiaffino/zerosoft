@@ -62,6 +62,7 @@ async function paint(page: Page) {
       strip: bg('.wa-mode'),
       wall: bg('.wa-messages'),
       replyH: (document.querySelector('.wa-mode-reply') as HTMLElement).getBoundingClientRect().height,
+      replyEdge: getComputedStyle(document.querySelector('.wa-mode-reply') as HTMLElement).borderTopWidth,
       noteH: (document.querySelector('.wa-mode-note') as HTMLElement).getBoundingClientRect().height,
     };
     probe.remove();
@@ -70,8 +71,9 @@ async function paint(page: Page) {
 }
 
 const near = (a: Rgb, b: Rgb) => a.every((v, i) => Math.abs(v - b[i]) <= 2);
-const greenish = ([r, g, b]: Rgb) => g > r + 4 && g > b + 4;
 const yellowish = ([r, g, b]: Rgb) => r > b + 12 && g > b + 12;
+/** Gris: sin un tono que domine (el composer de siempre). */
+const grayish = ([r, g, b]: Rgb) => Math.max(r, g, b) - Math.min(r, g, b) <= 14;
 
 async function openChat(page: Page, request: APIRequestContext, width: number) {
   const post = await fakeLinesNumber(request);
@@ -96,14 +98,16 @@ for (const width of [1280, 390]) {
     await expect(reply).toHaveAttribute('aria-selected', 'true');
     await expect(note).toHaveAttribute('aria-selected', 'false');
 
-    // Respondiendo: la solapa de WhatsApp es verde y del color del panel; la de la nota, amarilla y más baja.
+    // Respondiendo: la solapa de WhatsApp es gris como el composer de siempre y del color del panel; la de la nota, amarilla y más baja.
     let c = await paint(page);
-    expect(greenish(c.replySurface), `reply ${c.replySurface}`).toBe(true);
+    expect(grayish(c.replySurface), `reply ${c.replySurface}`).toBe(true);
     expect(yellowish(c.noteSurface), `note ${c.noteSurface}`).toBe(true);
     expect(near(c.reply, c.composer), `${c.reply} vs ${c.composer}`).toBe(true);
     expect(near(c.composer, c.replySurface)).toBe(true);
-    expect(greenish(c.reply)).toBe(true);
+    expect(grayish(c.reply)).toBe(true);
     expect(yellowish(c.note)).toBe(true);
+    // Sin filete de color arriba de las solapas.
+    expect(c.replyEdge).toBe('0px');
     expect(c.replyH).toBeGreaterThan(c.noteH);
     // Detrás de las solapas se ve el fondo del chat, no una franja gris.
     expect(near(c.strip, c.wall), `${c.strip} vs ${c.wall}`).toBe(true);
@@ -118,7 +122,7 @@ for (const width of [1280, 390]) {
     expect(near(c.note, c.composer), `${c.note} vs ${c.composer}`).toBe(true);
     expect(near(c.composer, c.noteSurface)).toBe(true);
     expect(yellowish(c.note)).toBe(true);
-    expect(greenish(c.reply)).toBe(true);
+    expect(grayish(c.reply)).toBe(true);
     expect(c.noteH).toBeGreaterThan(c.replyH);
     await page.keyboard.press('ArrowLeft');
     await expect(reply).toHaveAttribute('aria-selected', 'true');
@@ -139,7 +143,9 @@ for (const width of [1280, 390]) {
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     c = await paint(page);
     expect(near(c.note, c.composer)).toBe(true);
-    expect(greenish(c.reply), `dark reply ${c.reply}`).toBe(true);
+    // En oscuro el gris del composer tira a azul (como WhatsApp): basta con que no sea amarillo ni verde.
+    expect(yellowish(c.reply), `dark reply ${c.reply}`).toBe(false);
+    expect(c.reply[1] > c.reply[0] + 12 && c.reply[1] > c.reply[2] + 12, `dark reply ${c.reply}`).toBe(false);
     expect(c.composer.reduce((a, b) => a + b, 0)).toBeLessThan(300);
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

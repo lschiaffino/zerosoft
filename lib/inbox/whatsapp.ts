@@ -11,7 +11,7 @@
 import { fakeProvider, fakeProviderAllowed } from '../groups-provider-fake';
 import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance, queueManagedDelete, validManagedConfig, type ManagedEnv } from '../groups-provider-managed';
 import { cleanPushName } from '../groups-provider-bridge';
-import { ProviderError, type MediaRef, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
+import { META_AI_JID, ProviderError, type MediaRef, isBotJid, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import { fetchStateOf, logMediaFailure } from '../wa-media-wire';
 import { eagerWorthy } from '../wa-media-jobs';
@@ -39,6 +39,7 @@ import { inboxTwinsFromMessages, mergeLidChats, routeLidByKnownMessages } from '
 import { pokeLive } from '../wa-live';
 import { transientError } from '../transient-error';
 import { headerWebhookTarget, type WebhookTarget } from '../wa-webhook-secret';
+import { isOwnChat, routeSelfChat } from '../wa-self-chat';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -221,8 +222,9 @@ type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
 
 function threadInput(e: { chatId: string; isGroup?: boolean; chatName?: string; senderName?: string; fromMe?: boolean }) {
   const kind = e.isGroup || waKindOf(e.chatId) === 'group' ? 'group' : 'dm';
-  // En un chat de a dos, el nombre es el de la otra persona (pushName de lo que manda ella).
-  const title = kind === 'group' ? e.chatName : e.fromMe ? undefined : e.senderName || e.chatName;
+  // En un chat de a dos, el nombre es el de la otra persona (pushName de lo que manda ella). El de Meta AI ("@bot")
+  // lo trae el evento también en lo propio (lib/wa-self-chat.ts).
+  const title = kind === 'group' ? e.chatName : e.fromMe ? (isBotJid(e.chatId) ? e.chatName : undefined) : e.senderName || e.chatName;
   return { externalId: e.chatId, kind, title, handle: kind === 'dm' ? phoneDigits(e.chatId) : '' } as const;
 }
 
@@ -370,6 +372,14 @@ async function findPhoneThread(account: AccountRow, chatId: string) {
   return t;
 }
 
+/**
+ * Una edición o un borrado con el id propio puede ser de un mensaje de Meta AI (que ya está en su chat, lib/wa-self-chat.ts):
+ * también se busca ahí. En cualquier otro chat, el mismo id (no suma nada).
+ */
+function botChatFor(account: Pick<AccountRow, 'address'>, chatId: string): string {
+  return isOwnChat(chatId, account.address) ? META_AI_JID : chatId;
+}
+
 /** Guarda lo que manda el servidor de WhatsApp (webhook o historial). Devuelve cuántos mensajes nuevos entraron. */
 export async function ingestWhatsappEvents(account: AccountRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<{ messages: number; failed?: number }> {
   const db = getDb();
@@ -379,7 +389,9 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   // La libreta (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero: los mensajes
   // ya la usan. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
   // Lo que llega como historial lleva la marca en cada mensaje (la libreta no pisa nombres con los de mensajes viejos).
-  let slice = opts.history ? events.slice(0, 2000).map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e)) : events.slice(0, 2000);
+  // Lo que llega con el id de la cuenta y no es del chat con uno mismo (Meta AI, un lid con el teléfono propio) va a su chat (lib/wa-self-chat.ts).
+  const routed = routeSelfChat(events.slice(0, 2000), account.address);
+  let slice = opts.history ? routed.map((e) => (e.type === 'message' && !e.history ? { ...e, history: true } : e)) : routed;
   let learning: Promise<unknown> | null = null;
   if (slice.some(needsBookFirst)) await learnFromEvents(account, slice).catch(() => null);
   else learning = learnFromEvents(account, slice).catch(() => null);
@@ -427,9 +439,23 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
           const next = { sent: 1, delivered: 2, read: 3, failed: 0 }[e.status] ?? 0;
           const guard = e.status === 'failed' ? "status IN ('', 'sent')" : `${rank} < ${next}`;
+          // La hora de cada estado queda en meta.ack, en la misma escritura (Info del mensaje de un 1:1, lib/inbox/wa-receipts.ts).
           await db
-            .prepare(`UPDATE inbox_messages SET status = ? WHERE external_id = ? AND from_me = 1 AND ${guard} AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`)
-            .run(e.status, e.providerMessageId, account.id);
+            .prepare(
+              `UPDATE inbox_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?)
+               WHERE external_id = ? AND from_me = 1 AND ${guard} AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
+            )
+            .run(e.status, e.status, nowIso(), e.providerMessageId, account.id);
+          // Un audio escuchado (llega como 'read' después de "leído"): su hora, una sola vez.
+          if (e.played) {
+            await db
+              .prepare(
+                `UPDATE inbox_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played', ?)
+                 WHERE external_id = ? AND from_me = 1 AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played') IS NULL
+                   AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`,
+              )
+              .run(nowIso(), e.providerMessageId, account.id);
+          }
           // Las tildes de la fila de la lista, si es el último mensaje del chat.
           await db
             .prepare(
@@ -448,14 +474,14 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           break;
         case 'edit':
           await db
-            .prepare('UPDATE inbox_messages SET body = ?, edited = 1 WHERE external_id = ? AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?)')
-            .run(e.body.slice(0, 100_000), e.providerMessageId, account.id, e.chatId);
+            .prepare('UPDATE inbox_messages SET body = ?, edited = 1 WHERE external_id = ? AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id IN (?, ?))')
+            .run(e.body.slice(0, 100_000), e.providerMessageId, account.id, e.chatId, botChatFor(account, e.chatId));
           break;
         case 'revoke':
           // Se marca y se conserva el contenido: solo lo ve la persona dueña de la cuenta.
           await db
-            .prepare('UPDATE inbox_messages SET revoked_at = ? WHERE external_id = ? AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?)')
-            .run(nowIso(), e.providerMessageId, account.id, e.chatId);
+            .prepare('UPDATE inbox_messages SET revoked_at = ? WHERE external_id = ? AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id IN (?, ?))')
+            .run(nowIso(), e.providerMessageId, account.id, e.chatId, botChatFor(account, e.chatId));
           break;
         case 'session': {
           const fresh = { ...account };
