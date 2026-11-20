@@ -143,6 +143,12 @@ export default function InboxKanban({
     const id = setTimeout(() => void load(true), 300);
     return () => clearTimeout(id);
   }, [listRows, load]);
+  // Si no cargó (red o servidor lentos), se reintenta cada 5 s mientras se ve el error.
+  useEffect(() => {
+    if (!error) return;
+    const id = setInterval(() => void load(true), 5000);
+    return () => clearInterval(id);
+  }, [error, load]);
   // Las etapas del equipo las mueve otra gente: cada 30 s con la pestaña visible (con ETag: sin cambios no pesa).
   useEffect(() => {
     const id = setInterval(() => {

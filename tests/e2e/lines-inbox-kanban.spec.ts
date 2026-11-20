@@ -120,6 +120,7 @@ for (const size of [
       // Con next dev cada ruta compila en su primer pedido: que no le toque a un paso con espera corta.
       await request.get('/api/groups/kanban/stages?scope=team');
       await request.post('/api/groups/kanban/move', { data: {} });
+      expect((await request.get(`/en/app/lines/inbox/${dos}`)).status()).toBe(200);
       await page.setViewportSize(size);
 
       // ---------- El botón solo está en la bandeja de Lines ----------
@@ -139,7 +140,8 @@ for (const size of [
       }).toPass({ timeout: 45_000 });
       await expect(page.getByTestId('lines-kanban')).toBeVisible({ timeout: 30_000 });
       await search(page, tag);
-      await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
+      // Un servidor recién levantado (next dev) puede tardar en la primera lectura: el tablero se relee solo.
+      await expect(card(page, uno)).toBeVisible({ timeout: 90_000 });
       await expect(card(page, dos)).toBeVisible();
 
       // ---------- Dos etapas del equipo (admin) ----------
@@ -149,7 +151,7 @@ for (const size of [
         await expect(dialog).toBeVisible();
         await dialog.getByTestId('kanban-stage-name').fill(stage);
         await dialog.getByRole('button', { name: 'Save' }).click();
-        await expect(dialog).toBeHidden({ timeout: 15_000 });
+        await expect(dialog).toBeHidden({ timeout: 30_000 });
         await expect(columnNamed(page, stage)).toBeVisible({ timeout: 15_000 });
       }
       const stages = (await (await request.get('/api/groups/kanban/stages?scope=team')).json()) as { stages: Array<{ id: string; name: string }> };
@@ -180,8 +182,8 @@ for (const size of [
       await expect(page.getByRole('menu')).toHaveCount(0);
       await page.getByTestId('lines-kanban-board').click();
       await expect(page.getByRole('listbox')).toBeVisible();
-      // Un clic afuera (en el título de una columna, que no hace nada).
-      await columnNamed(page, 'No stage').getByRole('heading').click();
+      // Un clic afuera (en el margen del tablero, que no hace nada; el menú abierto tapa las primeras columnas).
+      await page.locator('.gr-kanban-cols').click({ position: { x: 4, y: 300 } });
       await expect(page.getByRole('listbox')).toHaveCount(0);
 
       // ---------- Recargar: sigue en kanban y la tarjeta en su columna ----------
@@ -192,24 +194,29 @@ for (const size of [
 
       // Abrir una tarjeta abre el chat.
       await card(page, dos).getByRole('link').click();
-      await expect(page).toHaveURL(new RegExp(`/app/lines/inbox/${dos}`));
-      await expect(page.locator('.gr-thread')).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/app/lines/inbox/${dos}`), { timeout: 60_000 });
+      const back = page.locator('.gr-thread .gr-back');
+      await expect(back).toBeVisible({ timeout: 60_000 });
       await shot(page, `chat-${size.width}`);
       expect(await overflow(page)).toBeLessThanOrEqual(1);
-      await page.locator('.gr-back').first().click();
-      await expect(page).toHaveURL(/\/app\/lines\/inbox(\?.*)?$/);
+      await back.click();
+      await expect(page).toHaveURL(/\/app\/lines\/inbox(\?.*)?$/, { timeout: 30_000 });
 
       // ---------- Filtros y carpetas achican las tarjetas ----------
-      await page.getByRole('tab', { name: 'Groups' }).click();
-      await expect(card(page, uno)).toHaveCount(0);
-      await page.getByRole('tab', { name: 'Groups' }).click();
-      await expect(card(page, uno)).toBeVisible();
+      const groupsTab = page.getByRole('tab', { name: 'Groups' });
+      await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
+      await groupsTab.click();
+      await expect(groupsTab).toHaveAttribute('aria-selected', 'true');
+      await expect(card(page, uno)).toHaveCount(0, { timeout: 30_000 });
+      await groupsTab.click();
+      await expect(groupsTab).toHaveAttribute('aria-selected', 'false');
+      await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
       const folder = await request.post('/api/groups/folders', { data: { name: `Kanban carpeta ${tag}` } });
       const folderId = ((await folder.json()) as { id: string }).id;
       await request.post('/api/groups/chats/bulk', { data: { ids: [uno], action: 'folder', folderId } });
       await page.goto(`/en/app/lines/inbox?folder=${folderId}`, { waitUntil: 'domcontentloaded' });
       await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
-      await expect(card(page, dos)).toHaveCount(0);
+      await expect(card(page, dos)).toHaveCount(0, { timeout: 30_000 });
       await request.delete(`/api/groups/folders?id=${folderId}`);
 
       // ---------- Mis etapas: las de A no las ve B ----------
