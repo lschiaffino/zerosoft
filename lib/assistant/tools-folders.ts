@@ -199,7 +199,7 @@ async function inboxSnapshot(owner: string): Promise<Snapshot> {
 /** Las carpetas de Lines de la persona (nunca las de otra). */
 async function lineFolderRows(ws: string, me: string): Promise<ExistingFolder[]> {
   await adoptOwnerlessFolders(ws);
-  const rows = (await getDb().prepare('SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id').all(ws, me)) as Array<{
+  const rows = (await getDb().prepare("SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? AND scope = 'personal' ORDER BY position, id").all(ws, me)) as Array<{
     id: string;
     name: string;
     parent_id: string | null;

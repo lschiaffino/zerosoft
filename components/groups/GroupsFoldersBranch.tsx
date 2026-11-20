@@ -523,7 +523,13 @@ export default function GroupsFoldersBranch() {
           {/* "Sin carpeta" arriba, antes de la primera carpeta: se filtran los sueltos (ni en una suya ni en una del equipo) y se arrastran a las carpetas de abajo. */}
           <li className={`docs-tree-row${selected === 'none' ? ' active' : ''}`} data-chat-drop="none" data-chat-drop-scope="lines" data-chat-drop-name={tl('unfiled')} data-testid="lines-nofolder">
             <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-            <Link href={selected === 'none' ? base : hrefOf('none')} prefetch={false} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
+            <Link
+              href={selected === 'none' ? base : hrefOf('none')}
+              prefetch={false}
+              className="docs-tree-link"
+              aria-current={selected === 'none' ? 'page' : undefined}
+              title={tl('unfiledHint')}
+            >
               <span className="docs-tree-icon" aria-hidden="true">
                 <FolderIcon size={15} />
               </span>

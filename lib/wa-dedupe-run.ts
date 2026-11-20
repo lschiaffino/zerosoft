@@ -8,7 +8,7 @@
  */
 import { dbBatch, getDb } from './db';
 import { rememberContacts, type ContactScope } from './wa-contacts';
-import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, runMerge, twinPairs, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
+import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, runMerge, TEAM_FOLDERS_TABLE_SQL, twinPairs, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
 
 const EMPTY: MergeCounts = { merged: 0, renamed: 0, messages: 0 };
 
@@ -17,6 +17,19 @@ const EMPTY: MergeCounts = { merged: 0, renamed: 0, messages: 0 };
  * chats por lid (los que la tanda acaba de mapear); sin `lids`, todos.
  * `pairs`: pares ya resueltos por mensajes repetidos.
  */
+/** La tabla de carpetas del equipo: una vez que está, queda (se recuerda para no preguntar en cada mezcla). */
+let teamFoldersReady = false;
+async function hasTeamFolders(): Promise<boolean> {
+  if (!teamFoldersReady) {
+    try {
+      teamFoldersReady = Boolean(await getDb().prepare(TEAM_FOLDERS_TABLE_SQL).get());
+    } catch {
+      teamFoldersReady = false;
+    }
+  }
+  return teamFoldersReady;
+}
+
 export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: string[]; pairs?: ChatPair[]; all?: boolean } = {}): Promise<MergeCounts> {
   const lids = opts.lids?.filter(Boolean) ?? [];
   const pairs = opts.pairs ?? [];
@@ -40,7 +53,7 @@ export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: st
         ...explicitPairsInsert(app, run, scope, pairs),
       ],
       dbBatch,
-      { mediaFiles: true, agentLinks: true, chatFolders: true },
+      { mediaFiles: true, agentLinks: true, chatFolders: true, teamFolders: await hasTeamFolders() },
     );
   } catch (err) {
     // eslint-disable-next-line no-console

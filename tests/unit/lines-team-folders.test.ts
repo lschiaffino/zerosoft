@@ -342,6 +342,13 @@ describe('Lines: carpetas del equipo', () => {
       { params: Promise.resolve({ id: w.dos.id }) },
     );
     expect(wrong.status).toBe(404);
+    // Y al revés: folderId es solo la carpeta propia; una del equipo por ahí es 404 y no cambia nada.
+    const viaFolderId = await chat.PATCH(
+      new Request(`http://localhost/api/groups/chats/${w.dos.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ folderId: ventas }) }),
+      { params: Promise.resolve({ id: w.dos.id }) },
+    );
+    expect(viaFolderId.status).toBe(404);
+    expect(await chatFoldersFor(w.ws, w.ana.id, [w.dos.id])).toEqual(new Map());
 
     // El dueño borra: los chats salen de ella y la personal de Ana sigue.
     await move([w.uno.id], personal);
@@ -401,6 +408,64 @@ describe('Lines: carpetas del equipo', () => {
     expect(forDani.map((c) => c.id)).not.toContain(w.tres.id);
     const stranger = await makeUser('tf-v1-stranger');
     expect(await rows(stranger.id, stranger.id)).toEqual([]);
+  });
+});
+
+describe('Lines: carpetas del equipo, bordes', () => {
+  it('ordenar antes de una carpeta de la otra sección se rechaza', async () => {
+    const w = await world('tf-before');
+    const ventas = await createFolder(w.ws, w.carla.id, { name: 'Ventas', team: true }, admin);
+    const soporte = await createFolder(w.ws, w.carla.id, { name: 'Soporte', team: true }, admin);
+    const mia = await createFolder(w.ws, w.carla.id, { name: 'Mía' }, admin);
+    const otra = await createFolder(w.ws, w.carla.id, { name: 'Otra' }, admin);
+    await expect(updateFolder(w.ws, w.carla.id, soporte.id, { beforeId: mia.id }, admin)).rejects.toMatchObject({ status: 400 });
+    await expect(updateFolder(w.ws, w.carla.id, otra.id, { beforeId: ventas.id }, admin)).rejects.toMatchObject({ status: 400 });
+    // Dentro de la misma sección, sí.
+    await updateFolder(w.ws, w.carla.id, soporte.id, { beforeId: ventas.id }, admin);
+    expect((await listFolders(w.ws, w.carla.id, w.vCarla)).team.map((f) => f.name)).toEqual(['Soporte', 'Ventas']);
+  });
+
+  it('la reparación de carpetas sin dueño (#524) no toca las del equipo', async () => {
+    const w = await world('tf-legacy');
+    const ventas = await createFolder(w.ws, w.carla.id, { name: 'Ventas', team: true }, admin);
+    await moveChatsToFolder(w.ws, w.vAna, [w.uno.id], ventas.id);
+    // Una carpeta como la que escribe una instancia vieja: sin dueño, con el chat en la columna de antes.
+    const db = getDb();
+    await db
+      .prepare("INSERT INTO groups_folders (id, user_id, owner_id, parent_id, name, position, created_by, created_at) VALUES ('tf-legacy-f', ?, NULL, NULL, 'Vieja', 0, ?, datetime('now'))")
+      .run(w.ws, w.beto.id);
+    await db.prepare("UPDATE groups_chats SET folder_id = 'tf-legacy-f' WHERE id = ?").run(w.dos.id);
+    const forBeto = await listFolders(w.ws, w.beto.id, w.vBeto);
+    expect(forBeto.folders.map((f) => f.name)).toEqual(['Vieja']);
+    expect(forBeto.team).toMatchObject([{ id: ventas.id, name: 'Ventas', chats: 1 }]);
+    expect(await getDb().prepare('SELECT owner_id, scope FROM groups_folders WHERE id = ?').get(ventas.id)).toEqual({ owner_id: '', scope: 'team' });
+    expect(await getDb().prepare('SELECT owner_id, scope FROM groups_folders WHERE id = ?').get('tf-legacy-f')).toEqual({ owner_id: w.beto.id, scope: 'personal' });
+    expect(await teamFoldersFor(w.ws, [w.uno.id, w.dos.id])).toEqual(new Map([[w.uno.id, ventas.id]]));
+    // Nadie la toma por suya.
+    for (const v of [w.vAna, w.vCarla, w.vOwner]) expect((await listFolders(w.ws, v.me, v)).folders).toEqual([]);
+  });
+
+  it('un invitado no administra las del equipo y solo ve chats de líneas que ve', async () => {
+    const w = await world('tf-guest');
+    const gus = await makeUser('tf-guest-gus');
+    await addMember(w.team.id, gus.id, 'guest');
+    // Un invitado ve solo los chats asignados a él, y solo en líneas que ve: Uno (pública) sí, Tres (privada) no.
+    for (const c of [w.uno, w.tres]) await getDb().prepare('UPDATE groups_chats SET assigned_to = ? WHERE id = ?').run(gus.id, c.id);
+    const vGus = await groupsViewer(w.ws, gus.id, 'guest');
+    const ventas = await createFolder(w.ws, w.carla.id, { name: 'Ventas', team: true }, admin);
+    await moveChatsToFolder(w.ws, w.vAna, [w.uno.id, w.tres.id], ventas.id);
+    const folders = await import('@/app/api/groups/folders/route');
+    const req = (method: string, body?: unknown, query = '') =>
+      new Request(`http://localhost/api/groups/folders${query}`, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+    session.user = asMember(w.owner, gus, 'guest');
+    expect((await folders.POST(req('POST', { name: 'Del invitado', team: true }))).status).toBe(403);
+    expect((await folders.PATCH(req('PATCH', { id: ventas.id, name: 'Robada' }))).status).toBe(403);
+    expect((await folders.DELETE(req('DELETE', undefined, `?id=${ventas.id}`))).status).toBe(403);
+    const got = (await (await folders.GET(req('GET'))).json()) as { team: Array<{ id: string; chats: number }>; canManageTeam: boolean };
+    expect(got.canManageTeam).toBe(false);
+    expect(got.team.find((f) => f.id === ventas.id)?.chats).toBe(1);
+    expect((await listChats(w.ws, gus.id, { viewer: vGus, folderId: ventas.id })).rows.map((c) => c.id)).toEqual([w.uno.id]);
+    expect((await listFolders(w.ws, w.ana.id, w.vAna)).team[0].name).toBe('Ventas');
   });
 });
 

@@ -73,6 +73,8 @@ const chatOf = async (request: APIRequestContext, numberId: string, chatId: stri
   ((await (await request.get(`/api/groups/chats?number=${numberId}&meta=0`)).json()) as { rows: Array<{ id: string; folderId: string | null; teamFolderId?: string | null }> }).rows.find(
     (c) => c.id === chatId,
   );
+const moveTo = async (request: APIRequestContext, chatId: string, folderId: string) =>
+  expect((await request.post('/api/groups/chats/bulk', { data: { ids: [chatId], action: 'folder', folderId } })).status()).toBe(200);
 const overflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const shot = async (p: Page, name: string) => {
   const dir = process.env.LINES_SHOTS_DIR;
@@ -185,13 +187,15 @@ for (const size of [
 
       // ---------- B: pone el chat en la subcarpeta del equipo desde "Mover a carpeta" ----------
       const dialog = bp.getByRole('dialog', { name: 'Move to folder' });
-      await expect(async () => {
-        if (!(await dialog.isVisible())) {
-          await row.click({ button: 'right', timeout: 5_000 });
-          await bp.getByRole('menuitem', { name: 'Move to folder' }).click({ timeout: 5_000 });
-        }
-        await expect(dialog).toBeVisible({ timeout: 2_000 });
-      }).toPass({ timeout: 30_000 });
+      const openMove = () =>
+        expect(async () => {
+          if (!(await dialog.isVisible())) {
+            await row.click({ button: 'right', timeout: 5_000 });
+            await bp.getByRole('menuitem', { name: 'Move to folder' }).click({ timeout: 5_000 });
+          }
+          await expect(dialog).toBeVisible({ timeout: 2_000 });
+        }).toPass({ timeout: 30_000 });
+      await openMove();
       await expect(dialog.getByTestId('lines-move-team').getByRole('button', { name: teamName })).toBeVisible();
       await shot(bp, `move-member-${size.width}`);
       expect(await overflow(bp)).toBeLessThanOrEqual(1);
@@ -200,6 +204,21 @@ for (const size of [
       await expect.poll(async () => (await chatOf(br, line.id, line.chatId))?.teamFolderId, { timeout: 30_000 }).toBe(norte.id);
       // Su carpeta personal no cambió (no tenía), y la del admin tampoco.
       expect((await chatOf(br, line.id, line.chatId))?.folderId).toBeNull();
+      // Sacarlo de la carpeta del equipo pregunta antes (es para todos), y "No" (lo que queda enfocado) no lo saca.
+      const ask = bp.getByRole('alertdialog', { name: `Also remove from the team folder “${subName}” for everyone?` });
+      const askUnfile = async () => {
+        await expect(async () => {
+          await openMove();
+          await expect(dialog.getByTestId('lines-move-team-none')).toBeVisible({ timeout: 2_000 });
+        }).toPass({ timeout: 30_000 });
+        await dialog.getByTestId('lines-move-team-none').click();
+        await expect(ask).toBeVisible({ timeout: 15_000 });
+        await expect(ask.getByTestId('confirm-dialog-cancel')).toBeFocused();
+      };
+      await askUnfile();
+      await bp.keyboard.press('Enter');
+      await expect(ask).toBeHidden();
+      expect((await chatOf(br, line.id, line.chatId))?.teamFolderId).toBe(norte.id);
 
       // ---------- Admin: lo ve en la carpeta del equipo ----------
       expect(await chatOf(request, line.id, line.chatId)).toMatchObject({ teamFolderId: norte.id, folderId: null });
@@ -244,6 +263,15 @@ for (const size of [
         await shot(page, `select-admin-${size.width}`);
         await page.keyboard.press('Escape');
       }
+
+      // ---------- B lo saca de la del equipo, confirmando: sale para todos y su carpeta personal sigue ----------
+      await bp.reload({ waitUntil: 'domcontentloaded' });
+      await expect(row).toBeVisible({ timeout: 30_000 });
+      await askUnfile();
+      await ask.getByTestId('confirm-dialog-confirm').click();
+      await expect.poll(async () => (await chatOf(request, line.id, line.chatId))?.teamFolderId, { timeout: 30_000 }).toBeNull();
+      expect((await chatOf(br, line.id, line.chatId))?.folderId).toBe(bMineId);
+      await moveTo(request, line.chatId, norte.id);
 
       // ---------- Admin borra la del equipo: el chat sale de ella, la personal de B sigue ----------
       expect((await request.delete(`/api/groups/folders?id=${ventas.id}`)).status()).toBe(200);

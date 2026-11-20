@@ -49,9 +49,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (b.snoozedUntil === null || typeof b.snoozedUntil === 'string') patch.snoozedUntil = (b.snoozedUntil as string | null) || null;
   if (typeof b.hidden === 'boolean') patch.hidden = b.hidden;
   try {
+    // folderId es solo la carpeta propia: una del equipo es 404 (esa va por teamFolderId).
     if (b.folderId === null || typeof b.folderId === 'string') {
-      const { moveChatsToFolder } = await import('@/lib/groups-lines');
-      await moveChatsToFolder(s.ws, guard.viewer, [id], (b.folderId as string | null) || null);
+      const { folderKindOf, moveChatsToFolder } = await import('@/lib/groups-lines');
+      const to = (b.folderId as string | null) || null;
+      if (to && (await folderKindOf(s.ws, s.me, to)) !== 'personal') return groupsError(404, 'not_found');
+      await moveChatsToFolder(s.ws, guard.viewer, [id], to);
     }
     // La carpeta del equipo (la misma para todos): la cambia cualquiera que puede editar el chat.
     if (b.teamFolderId === null || typeof b.teamFolderId === 'string') {

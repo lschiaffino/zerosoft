@@ -206,7 +206,7 @@ function rootOrphans(rows: FolderRow[]): FolderRow[] {
 async function folderRows(ws: string, me: string): Promise<FolderRow[]> {
   await adoptOwnerlessFolders(ws);
   return rootOrphans(
-    (await getDb().prepare('SELECT id, parent_id, name, position FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id').all(ws, me)) as FolderRow[],
+    (await getDb().prepare("SELECT id, parent_id, name, position FROM groups_folders WHERE user_id = ? AND owner_id = ? AND scope = 'personal' ORDER BY position, id").all(ws, me)) as FolderRow[],
   );
 }
 
@@ -220,7 +220,7 @@ async function teamFolderRows(ws: string): Promise<FolderRow[]> {
 const rowsOf = (ws: string, me: string, kind: FolderKind) => (kind === 'team' ? teamFolderRows(ws) : folderRows(ws, me));
 
 /** Condición SQL (y su argumento) que deja solo las carpetas de ese tipo: las del equipo, o las de `me`. */
-const kindSql = (kind: FolderKind, me: string): { sql: string; args: string[] } => (kind === 'team' ? { sql: "scope = 'team'", args: [] } : { sql: 'owner_id = ?', args: [me] });
+const kindSql = (kind: FolderKind, me: string): { sql: string; args: string[] } => (kind === 'team' ? { sql: "scope = 'team'", args: [] } : { sql: "scope = 'personal' AND owner_id = ?", args: [me] });
 
 const asTree = (rows: FolderRow[]): TreeFolder[] => rows.map((r) => ({ id: r.id, parentId: r.parent_id, position: r.position }));
 
@@ -240,7 +240,7 @@ export async function folderKindOf(ws: string, me: string, id: string): Promise<
     await adoptOwnerlessFolders(ws);
     row = await read();
   }
-  return row?.owner_id === me ? 'personal' : null;
+  return row?.owner_id === me && row.scope !== 'team' ? 'personal' : null;
 }
 
 /** La carpeta y sus subcarpetas, con su tipo (null si quien pregunta no la ve). */
@@ -437,6 +437,8 @@ export async function updateFolder(
     parentId = input.parentId !== undefined ? input.parentId || null : parentId;
     const check = canMoveFolder(asTree(rows), id, parentId);
     if (check !== 'ok') throw new GroupsError(check, 400);
+    // Ordenar antes de una carpeta de la otra sección (o de otra persona) no vale: se rechaza, no se ignora.
+    if (input.beforeId && !rows.some((r) => r.id === input.beforeId)) throw new GroupsError('invalid_parent', 400);
   }
   const name = input.name !== undefined ? cleanFolderName(input.name) : row.name;
   if ((input.name !== undefined || moving) && dupName(rows, parentId, name, id)) throw new GroupsError('duplicate_folder', 409);

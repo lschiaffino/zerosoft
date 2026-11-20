@@ -275,6 +275,8 @@ export default function InboxShell({
   const railBranch = useCollapsedBranch();
   const [folderData, setFolderData] = useState<LineFoldersResponse>(EMPTY_FOLDERS);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
+  // La pregunta antes de sacar chats de una carpeta del equipo (para todos).
+  const [unfileAsk, setUnfileAsk] = useState<{ ids: string[]; team: boolean; name: string } | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const lineColors = useMemo(() => new Map(numbers.map((n) => [n.id, n.color ?? ''])), [numbers]);
   // Los filtros de la lista (pestañas y panel) y, aparte, lo escrito en la búsqueda.
@@ -722,6 +724,21 @@ export default function InboxShell({
     setSelected(new Set());
     after();
   }
+  /**
+   * Sacar chats de su carpeta sin tocar a los demás: soltarlos en "Sin carpeta" saca solo lo propio. Si alguno está
+   * además en una carpeta del equipo, se pregunta antes de sacarlo de ahí para todos (por defecto, no). `team` es la
+   * acción explícita "sacar de la carpeta del equipo" (Mover a carpeta › Equipo › Sin carpeta): solo esa, también
+   * con la pregunta.
+   */
+  function unfile(ids: string[], team = false) {
+    const rows = ids.map((id) => rowsRef.current.find((r) => r.id === id)).filter((r): r is ChatDto => Boolean(r));
+    const inTeam = rows.find((r) => r.teamFolderId)?.teamFolderId;
+    if (!inTeam) {
+      if (!team) void moveToFolder(ids, null, undefined, 'personal');
+      return;
+    }
+    setUnfileAsk({ ids, team, name: folderData.team.find((f) => f.id === inTeam)?.name ?? '' });
+  }
   useEffect(() => {
     const changed = () => {
       void reloadFolders();
@@ -977,7 +994,7 @@ export default function InboxShell({
       const team = folderData.team.some((f) => f.id === target);
       return ids.some((id) => ((team ? rowOf(id)?.teamFolderId : rowOf(id)?.folderId) ?? null) !== target);
     },
-    onDrop: (ids, target) => void moveToFolder(ids, target === 'none' ? null : target),
+    onDrop: (ids, target) => (target === 'none' ? unfile(ids) : void moveToFolder(ids, target)),
     onHoldTap: (id) => {
       if (!selectMode && visibleSelected.length === 0) openRowMenu(id);
     },
@@ -1749,7 +1766,27 @@ export default function InboxShell({
         onPick={(folderId, name, scope) => {
           const ids = moveIds ?? [];
           setMoveIds(null);
-          void moveToFolder(ids, folderId, name, scope);
+          if (!folderId) unfile(ids, scope === 'team');
+          else void moveToFolder(ids, folderId, name, scope);
+        }}
+      />
+      <ConfirmDialog
+        open={!!unfileAsk}
+        title={t('lines.unfileTeamTitle', { name: unfileAsk?.name ?? '' })}
+        body={unfileAsk?.team ? t('lines.unfileTeamOnlyBody', { n: unfileAsk.ids.length }) : t('lines.unfileTeamBody', { n: unfileAsk?.ids.length ?? 1 })}
+        confirmLabel={t('lines.unfileTeamYes')}
+        cancelLabel={t('lines.unfileTeamNo')}
+        danger
+        onConfirm={() => {
+          const ask = unfileAsk;
+          setUnfileAsk(null);
+          if (ask) void moveToFolder(ask.ids, null, undefined, ask.team ? 'team' : 'all');
+        }}
+        onCancel={() => {
+          const ask = unfileAsk;
+          setUnfileAsk(null);
+          // No: lo propio igual sale (lo que pidió al soltarlo en "Sin carpeta"); la carpeta del equipo queda.
+          if (ask && !ask.team && ask.ids.some((id) => rowsRef.current.find((r) => r.id === id)?.folderId)) void moveToFolder(ask.ids, null, undefined, 'personal');
         }}
       />
       <WhenDialog

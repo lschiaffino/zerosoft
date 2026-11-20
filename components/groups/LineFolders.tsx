@@ -113,7 +113,7 @@ export function FolderSelect({ folders, team = [], value, onChange }: { folders:
       onChange={onChange}
       options={[
         { value: '', label: t('allChats') },
-        { value: 'none', label: t('unfiled') },
+        { value: 'none', label: t('unfiled'), hint: team.length ? t('unfiledShort') : undefined },
         ...teamRows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth, hint: depth === 0 ? t('teamFolders') : undefined })),
         ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth })),
       ]}
