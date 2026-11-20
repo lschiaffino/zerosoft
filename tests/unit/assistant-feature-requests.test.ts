@@ -154,8 +154,10 @@ describe('request_feature', () => {
     // Descartar: cerrado y fuera de lo abierto; un pedido nuevo igual crea otro ítem privado.
     await updateRoadmapItem(id, { status: 'declined', isPublic: false, declinedReason: 'Out of scope' });
     expect((await getRoadmapItem(id))!.status).toBe('declined');
-    await ask(author, { title });
-    expect((await itemFor(title))!.item_id).not.toBe(id);
+    // (created_at va al segundo: el id nuevo sale del link del resultado, no del último feedback.)
+    const again = await ask(author, { title });
+    expect(again).toMatchObject({ addedToExisting: false });
+    expect(String(again.url)).not.toContain(id);
   });
 });
 
