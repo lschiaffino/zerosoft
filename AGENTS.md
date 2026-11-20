@@ -157,11 +157,13 @@ it should be here too.
 - **Feature parity.** When you add or remove a capability, update
   `content/feature-parity/<app>.ts` (`status` and `lastReviewed`). The parity
   percentage on each product page comes from there.
-- **API routes need a guard.** Every `route.ts` under `app/api` or
-  `lib/routes` calls a session or API-key guard (the list is `GUARDS` in
-  `scripts/api-route-guards.mjs`). A route that is public on purpose (signed
-  webhook, cron, share link, public page) goes in
-  `scripts/api-public-routes.json` with the reason;
+- **API routes need a guard.** Every exported handler (GET, POST...) of a
+  `route.ts` under `app/api` or `lib/routes` reaches a session or API-key
+  guard (the list is `GUARDS` in `scripts/api-route-guards.mjs`), directly or
+  through a function in the same file. A route that is public on purpose
+  (signed webhook, cron, share link, public page) goes in
+  `scripts/api-public-routes.json` with the reason, as `<file>` or, for a
+  single public handler next to guarded ones, `<file>#<METHOD>`;
   `tests/unit/api-route-guards.test.ts` fails otherwise. Access tests use
   `tests/unit/access-helpers.ts` (anonymous, other workspace, teammate, owner).
 - **Security.** Security bugs never go on the public board or in public
