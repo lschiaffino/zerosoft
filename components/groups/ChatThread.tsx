@@ -2223,6 +2223,8 @@ export default function ChatThread(props: ThreadProps) {
                 </Link>
               )}
               {m.direction === 'in' && m.needsReply === true && <span className="gr-question-tag">{t('thread.question')}</span>}
+              {/* Lugar para la hora (va abajo a la derecha, encima del último renglón): sin esto, "Enviado desde …" se pisaba con la hora. */}
+              <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
             </p>
           )}
           <p className="gr-msg-foot">
