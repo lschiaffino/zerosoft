@@ -15,6 +15,8 @@ import { useInboxPersonSheet } from './person-sheet';
 import { canReplyPrivately } from '@/lib/wa-person';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { FloatingReactPicker, ReactionChip, ReactionDetails } from '@/components/groups/wa/Reactions';
+import MessageInfo from '@/components/groups/wa/MessageInfo';
+import type { WaMessageInfo } from '@/lib/wa-receipts';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
 import type { WaReactor } from '@/lib/wa-reactions';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
@@ -25,6 +27,7 @@ import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/compon
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
+import PinnedBar from '@/components/groups/wa/PinnedBar';
 import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
@@ -38,6 +41,8 @@ import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
+import type { InviteJoin } from '@/components/groups/wa/InviteCard';
+import { inviteLinks } from '@/lib/wa-invite';
 import Transcript from '@/components/groups/wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
 import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from '@/components/groups/wa/RefreshMissing';
@@ -69,6 +74,8 @@ export interface WaThreadDetail {
   extended?: boolean;
   /** Mensaje al que ir (resultado de búsqueda). */
   focus?: string;
+  /** Mensajes fijados del chat (la franja de arriba), aunque sean más viejos que la página. */
+  pinned?: MessageDto[];
 }
 
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -130,6 +137,8 @@ const WaConversation = forwardRef<
     /** Respuesta en privado pendiente: si es para este chat, se abre respondiendo al mensaje del grupo. */
     privateReply?: { threadId: string; message: MessageDto; chat: { id: string; title: string } } | null;
     onPrivateReplyUsed?: () => void;
+    /** Ir a un mensaje que no está en la pantalla (un fijado viejo): se abre el chat alrededor de él. */
+    onJumpToMessage?: (id: string) => void;
   }
 >(function WaConversation(props, composerRef) {
   const { detail, connected, onAction, onError, onRefresh } = props;
@@ -138,6 +147,7 @@ const WaConversation = forwardRef<
   const ws = useTranslations('groups.wa.stickers');
   const gw = useTranslations('groups.wa');
   const tsheet = useTranslations('groups.wa.contactSheet');
+  const gt = useTranslations('groups.thread');
   const router = useRouter();
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
@@ -170,7 +180,8 @@ const WaConversation = forwardRef<
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   // Audios que se volvieron a bajar en esta pantalla (por mensaje): la transcripción se vuelve a pedir.
   const [recoveredAudio, setRecoveredAudio] = useState<Record<string, number>>({});
-  const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
+  // Info del mensaje: el cuadro al lado del globito (components/groups/wa/MessageInfo.tsx).
+  const [infoFor, setInfoFor] = useState<{ m: MessageDto; anchor: HTMLElement } | null>(null);
   const [forwardFor, setForwardFor] = useState<MessageDto | MessageDto[] | null>(null);
   // Toque largo (teléfono): el mensaje marcado con su menú abajo. Selección: varios mensajes con la barra en lugar del campo.
   const [held, setHeld] = useState<{ id: string; el: HTMLElement } | null>(null);
@@ -400,9 +411,13 @@ const WaConversation = forwardRef<
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
   const keepAtEnd = () => anchor.restore();
 
-  const jumpTo = (id: string) => {
+  const jumpTo = (id: string, load = true) => {
     const el = document.getElementById(`m-${id}`);
-    if (!el) return;
+    if (!el) {
+      // Más viejo que lo cargado (un fijado): el chat se abre alrededor de ese mensaje (una vez).
+      if (load) props.onJumpToMessage?.(id);
+      return;
+    }
     anchor.unstick();
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     setFlash(id);
@@ -415,7 +430,7 @@ const WaConversation = forwardRef<
     const focus = detail.focus;
     let off = 0;
     const id = window.setTimeout(() => {
-      jumpTo(focus);
+      jumpTo(focus, false);
       // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
       setHitId(focus);
       off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
@@ -483,6 +498,17 @@ const WaConversation = forwardRef<
   };
 
   // Quién reaccionó (nombre, foto y teléfono), para el cuadro de reacciones.
+  const openInfo = (m: MessageDto) => {
+    const row = document.getElementById(`m-${m.id}`);
+    const anchor = row?.querySelector<HTMLElement>('.gr-bubble') ?? row;
+    if (anchor) setInfoFor({ m, anchor });
+  };
+  // Info del mensaje: quién lo recibió y lo leyó, con sus horas.
+  const loadInfo = async (id: string): Promise<WaMessageInfo | null> => {
+    const r = await api<{ info: WaMessageInfo }>(`/api/inbox/threads/${thread.id}/wa?part=info&message=${encodeURIComponent(id)}`);
+    return r.ok && r.data.info && typeof r.data.info === 'object' ? r.data.info : null;
+  };
+
   const loadReactions = async (ids: string[]): Promise<WaReactor[] | null> => {
     const r = await api<{ reactions: WaReactor[] }>(`/api/inbox/threads/${thread.id}/wa?part=reactions&messages=${encodeURIComponent(ids.join(','))}`);
     return r.ok && Array.isArray(r.data.reactions) ? r.data.reactions : null;
@@ -550,12 +576,13 @@ const WaConversation = forwardRef<
     // El orden de WhatsApp: info, responder, reaccionar, descargar, destacar, reenviar, copiar, editar |
     // responder en privado, mensaje a quien lo mandó | eliminar.
     if (!m.revoked) {
-      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => setInfoFor(m) });
+      if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => openInfo(m) });
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
       items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
       const url = m.hasMedia && m.mediaType !== 'sticker' && !m.meta?.viewOnce ? inboxMediaUrl(m) : '';
       if (url) items.push({ key: 'download', label: w('download'), onSelect: () => downloadFile(url, m.mediaName) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
+      if (m.mediaType !== 'system') items.push({ key: 'pin', label: m.pinnedAt ? w('unpin') : w('pin'), onSelect: () => void togglePin(m) });
       // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
       if (canForwardMsg(m)) items.push({ key: 'forward', label: w('forward'), onSelect: () => selection.startForward(m.id) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
@@ -591,6 +618,18 @@ const WaConversation = forwardRef<
     } catch {
       onError('generic');
     }
+  };
+  // Fijar (hasta 3, como WhatsApp): la franja de arriba del chat. En WhatsApp también si el proveedor puede.
+  const pinned = detail.pinned ?? [];
+  const togglePin = async (m: MessageDto) => {
+    const on = !m.pinnedAt;
+    const r = await api<{ inWhatsApp?: boolean }>(`/api/inbox/messages/${m.id}`, { method: 'PATCH', json: { action: on ? 'pin' : 'unpin' } });
+    if (!r.ok) {
+      onError(r.data.error ?? 'generic');
+      return;
+    }
+    props.onToast(on ? (r.data.inWhatsApp ? gt('pinnedWhatsApp') : w('pinnedHereOnly')) : gt('unpinned'));
+    onRefresh();
   };
   const starSelected = async () => {
     const list = selectedMsgs().filter((m) => !m.revoked);
@@ -746,6 +785,23 @@ const WaConversation = forwardRef<
   }
 
   /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
+  /**
+   * "Unirme al grupo" en una invitación: entra con la cuenta del chat donde llegó (en un chat de varias cuentas,
+   * la del mensaje) y abre el grupo. Solo la dueña de la cuenta (el servidor filtra por ella).
+   */
+  function inviteJoinFor(m: MessageDto, url: string): InviteJoin | undefined {
+    if (!url) return undefined;
+    const threadId = lineOf(m);
+    return {
+      lineName: lineNames.get(threadId) ?? '',
+      run: async () => {
+        const r = await api<{ thread?: { id: string; title?: string } }>('/api/inbox/groups/join', { method: 'POST', json: { invite: url, threadId } });
+        return r.ok && r.data.thread ? { ok: true, id: r.data.thread.id, name: r.data.thread.title } : { ok: false, code: r.data.error ?? 'failed' };
+      },
+      onOpen: props.onOpenThread,
+    };
+  }
+
   function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const dir = m.fromMe ? 'out' : 'in';
     const hidden = m.revoked && !revealed.has(m.id);
@@ -771,7 +827,7 @@ const WaConversation = forwardRef<
     const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
-    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0));
+    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0) + (m.pinnedAt ? 16 : 0));
     const gestures = swipeAndHold({
       onSwipe: selecting || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
       onHold: (el) => (selecting ? toggleSelected(m.id) : setHeld({ id: m.id, el })),
@@ -926,7 +982,8 @@ const WaConversation = forwardRef<
           ) : null}
           {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
-              url={meta.link?.url ?? firstUrl(m.body)}
+              url={inviteLinks(m.body)[0]?.url ?? meta.link?.url ?? firstUrl(m.body)}
+              join={isTempId(m.id) ? undefined : inviteJoinFor(m, inviteLinks(m.body)[0]?.url ?? meta.link?.url ?? '')}
               given={
                 meta.link
                   ? {
@@ -977,6 +1034,7 @@ const WaConversation = forwardRef<
                 ★
               </span>
             )}
+            {m.pinnedAt && <PinIcon size={12} label={gt('pinned')} />}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt} title={lineNames.size > 1 ? lineNames.get(lineOf(m)) : undefined}>
               {time}
@@ -1134,6 +1192,13 @@ const WaConversation = forwardRef<
           <MessageMenu label={t('actions.more')} items={headMenu} className="wa-icon-btn" />
         </div>
       </header>
+      <PinnedBar
+        pinned={pinned}
+        onJump={(m) => jumpTo(m.id)}
+        onUnpin={(m) => void togglePin(m)}
+        textOf={(m) => mentionText(m)}
+        mediaOf={(m) => w(`kind.${m.meta?.ptt ? 'voice' : ['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}
+      />
       {(thread.snoozedUntil || thread.followUpAt) && (
         <p className="gr-banner wa-strip">
           {thread.snoozedUntil && t('list.snoozedUntil', { when: longWhen(thread.snoozedUntil, locale) })}
@@ -1346,39 +1411,21 @@ const WaConversation = forwardRef<
         }}
       />
       {personSheet.sheet}
-      <Modal open={!!infoFor} title={w('info')} onClose={() => setInfoFor(null)}>
-        {infoFor && (
-          <>
-            <div className="ui-modal-body">
-              <p className="ib-wa-info-body">{mentionText(infoFor) || quoteText({ body: '', mediaType: infoFor.mediaType })}</p>
-              <dl className="wa-info">
-                <div>
-                  <dt>
-                    <Ticks status="read" label={t('message.status.read')} /> {t('message.status.read')}
-                  </dt>
-                  <dd>{infoFor.status === 'read' ? w('yes') : w('notYet')}</dd>
-                </div>
-                <div>
-                  <dt>
-                    <Ticks status="delivered" label={t('message.status.delivered')} /> {t('message.status.delivered')}
-                  </dt>
-                  <dd>{infoFor.status === 'read' || infoFor.status === 'delivered' ? w('yes') : w('notYet')}</dd>
-                </div>
-                <div>
-                  <dt>{w('sentAt')}</dt>
-                  <dd>{longWhen(infoFor.sentAt, locale)}</dd>
-                </div>
-              </dl>
-              <p className="ib-help">{w('infoNote')}</p>
-            </div>
-            <div className="ui-modal-foot">
-              <button type="button" className="btn btn-secondary btn-sm" autoFocus onClick={() => setInfoFor(null)}>
-                {w('close')}
-              </button>
-            </div>
-          </>
-        )}
-      </Modal>
+      {infoFor && (
+        <MessageInfo
+          anchor={infoFor.anchor}
+          load={() => loadInfo(infoFor.m.id)}
+          preview={mentionText(infoFor.m) || quoteText({ body: '', mediaType: infoFor.m.mediaType })}
+          previewTime={new Date(infoFor.m.sentAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}
+          status={infoFor.m.revoked ? '' : infoFor.m.status}
+          statusLabel={t(
+            infoFor.m.status === 'read' && thread.readHidden
+              ? 'message.status.readHidden'
+              : `message.status.${['pending', 'queued', 'sent', 'delivered', 'read', 'failed'].includes(infoFor.m.status) ? infoFor.m.status : 'sent'}`,
+          )}
+          onClose={() => setInfoFor(null)}
+        />
+      )}
       <Modal open={renaming !== null} title={t('actions.rename')} onClose={() => setRenaming(null)}>
         <form
           onSubmit={(e) => {

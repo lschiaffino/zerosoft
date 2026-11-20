@@ -16,6 +16,7 @@ export default function Avatar({
   // Igual a --wa-avatar (styles/groups-wa.css): la columna de la fila en la lista.
   size = 44,
   seed,
+  eager = false,
 }: {
   name: string;
   kind: 'dm' | 'group';
@@ -23,6 +24,8 @@ export default function Avatar({
   size?: number;
   /** Lo que fija el color (por defecto el nombre). */
   seed?: string;
+  /** Cargar ya (dentro de una burbuja del hilo la carga diferida del navegador puede no arrancar nunca). */
+  eager?: boolean;
 }) {
   const [broken, setBroken] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
@@ -46,7 +49,7 @@ export default function Avatar({
         width={size}
         height={size}
         style={style}
-        loading="lazy"
+        loading={eager ? 'eager' : 'lazy'}
         onError={() => setBroken(true)}
         onLoad={(e) => tiny(e.currentTarget) && setBroken(true)}
       />

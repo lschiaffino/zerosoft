@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
@@ -58,7 +58,13 @@ export default function ContactPanel({
   onError,
   onToast,
   onChanged,
+  onJumpToMessage,
+  starredKey = '',
 }: {
+  /** Un destacado lleva a su mensaje en la conversación. */
+  onJumpToMessage?: (id: string) => void;
+  /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
+  starredKey?: string;
   thread: ThreadDto;
   wa: WaDetailsDto | null;
   onClose: () => void;
@@ -107,6 +113,14 @@ export default function ContactPanel({
   useEffect(() => {
     if (shared[tab] === undefined) void load(tab);
   }, [tab, shared, load]);
+
+  // Se destacó o se sacó un destacado en la conversación: la lista se vuelve a leer (la primera vez la lee la de arriba).
+  const starredSeen = useRef(starredKey);
+  useEffect(() => {
+    if (starredSeen.current === starredKey) return;
+    starredSeen.current = starredKey;
+    void load('starred');
+  }, [starredKey, load]);
 
   const summarize = async () => {
     setSummaryBusy(true);
@@ -298,11 +312,15 @@ export default function ContactPanel({
           ) : (
             <ul className="ib-wa-rows">
               {starred.slice(0, 20).map((m) => (
-                <li key={m.id} className="ib-wa-starred">
-                  <span className="ib-wa-muted">
-                    {(m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name) + ' · ' + longWhen(m.sentAt, locale)}
-                  </span>
-                  <span dir="auto">{m.body || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}</span>
+                <li key={m.id}>
+                  <button type="button" className="ib-wa-starred" data-testid="chat-starred-item" onClick={() => onJumpToMessage?.(m.id)} disabled={!onJumpToMessage}>
+                    <span className="ib-wa-muted">
+                      {(m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name) + ' · ' + longWhen(m.sentAt, locale)}
+                    </span>
+                    <span dir="auto" className="ib-wa-starred-text">
+                      {m.body || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

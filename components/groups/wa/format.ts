@@ -4,6 +4,7 @@
  * la interfaz y los tests).
  */
 import { parseDbUtc } from '@/lib/utils';
+import { inviteLinks } from '@/lib/wa-invite';
 
 const DAY = 86_400_000;
 
@@ -175,6 +176,11 @@ export function waveBars(wave: number[] | undefined, seed: string, n = 36): numb
 export function firstUrl(text: string): string {
   const m = /\bhttps?:\/\/[^\s<>"']+/i.exec(text ?? '');
   return m ? m[0].replace(/[).,;:!?]+$/, '') : '';
+}
+
+/** El link de la tarjeta del mensaje: la primera invitación a un grupo de WhatsApp si hay, si no el primer link. */
+export function previewUrl(text: string): string {
+  return inviteLinks(text)[0]?.url ?? firstUrl(text);
 }
 
 /** Teléfono con formato, como lo muestra WhatsApp: "+54 9 11 5555-0000" (lo enmascarado queda como vino). */
