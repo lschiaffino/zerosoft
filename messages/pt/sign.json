@@ -249,6 +249,7 @@
     "recipients": "Destinatários",
     "current": "é a vez",
     "notified": "enviado {date}",
+    "remindedOn": "lembrete {date}",
     "viewed": "aberto {date}",
     "signed": "assinou {date}",
     "declined": "recusou {date}",
