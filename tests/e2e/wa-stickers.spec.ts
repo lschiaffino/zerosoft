@@ -73,19 +73,37 @@ async function expectBareStickers(page: Page, thread: Locator) {
   await expect(thread.locator('.wa-gif video')).toHaveAttribute('loop', '');
 }
 
-/** Abre la pestaña Stickers, importa los de los chats y manda el primero. */
+/**
+ * Abre la pestaña Stickers, importa los de los chats y manda el primero. Lo recibido queda plegado en "De tus chats"
+ * (no es suyo); el que manda sube a Recientes.
+ */
 async function importAndSend(page: Page, composer: Locator, thread: Locator, shotName: string) {
   await composer.getByRole('button', { name: 'Emoji', exact: true }).click();
   const panel = page.locator('.wa-emoji');
   await panel.getByRole('tab', { name: 'Stickers' }).click();
-  // Con la colección vacía, la pestaña importa sola los stickers de los chats: dos archivos distintos (el animado y el quieto).
-  await expect(panel.locator('section[aria-label="Your stickers"] .wa-stk')).toHaveCount(2, { timeout: 20_000 });
-  await expect.poll(() => panel.locator('.wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
+  // Con la colección vacía, la pestaña importa sola los stickers de los chats: dos archivos distintos (el animado y el
+  // quieto), recibidos: van a "De tus chats", plegado, con la cuenta en el botón.
+  const chats = panel.locator('section[data-section="chats"]');
+  const fold = chats.locator('.wa-stk-fold');
+  await expect(fold).toHaveAttribute('aria-expanded', 'false', { timeout: 20_000 });
+  await expect(fold).toContainText('(2)');
+  await expect(chats.locator('.wa-stk')).toHaveCount(0);
+  await expect(panel.locator('section[data-section="recent"]')).toHaveCount(0);
+  await shot(page, `${shotName}-folded`);
+  await fold.click();
+  await expect(fold).toHaveAttribute('aria-expanded', 'true');
+  await expect(chats.locator('.wa-stk')).toHaveCount(2);
+  await expect.poll(() => chats.locator('.wa-stk-send img').last().evaluate((i) => (i as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
   await shot(page, shotName);
   const before = await thread.locator('.gr-msg-out .wa-image.is-sticker').count();
-  await panel.locator('section[aria-label="Your stickers"] .wa-stk-send').first().click();
+  const sentId = await chats.locator('.wa-stk').first().getAttribute('data-sticker');
+  await chats.locator('.wa-stk-send').first().click();
   await expect(thread.locator('.gr-msg-out .wa-image.is-sticker')).toHaveCount(before + 1, { timeout: 20_000 });
+  // El que mandó sube a Recientes y sale de "De tus chats"; el otro sigue ahí.
   await expect(panel.locator('section[aria-label="Recent"] .wa-stk')).toHaveCount(1);
+  await expect(panel.locator(`section[data-section="recent"] [data-sticker="${sentId}"]`)).toHaveCount(1);
+  await expect(chats.locator('.wa-stk')).toHaveCount(1);
+  await expect(chats.locator(`[data-sticker="${sentId}"]`)).toHaveCount(0);
   // Recuerda la pestaña.
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
@@ -286,8 +304,17 @@ async function openStickers(page: Page, thread: Locator): Promise<Locator> {
   return panel;
 }
 
-const shownIds = (panel: Locator) => panel.locator('section[data-section="all"] .wa-stk').evaluateAll((els) => els.map((el) => el.getAttribute('data-sticker') ?? '').sort());
-const allLoaded = (panel: Locator) => panel.locator('section[data-section="all"] .wa-stk-send img').evaluateAll((els) => els.length > 0 && els.every((el) => (el as HTMLImageElement).naturalWidth > 0));
+/** Los stickers a la vista en todas las secciones (sin repetir: uno puede estar en dos). */
+const shownIds = (panel: Locator) => panel.locator('.wa-stk').evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute('data-sticker') ?? ''))].sort());
+const allLoaded = (panel: Locator) => panel.locator('.wa-stk-send img').evaluateAll((els) => els.length > 0 && els.every((el) => (el as HTMLImageElement).naturalWidth > 0));
+/** Despliega "De tus chats" (cada línea tiene recibidos ahí y uno creado arriba). */
+async function openChats(panel: Locator) {
+  const fold = panel.locator('section[data-section="chats"] .wa-stk-fold');
+  await expect(fold).toBeVisible({ timeout: 30_000 });
+  await expect(panel.locator('section[data-section="created"] .wa-stk')).toHaveCount(1);
+  await fold.click();
+  await expect(fold).toHaveAttribute('aria-expanded', 'true');
+}
 
 /** La captura de la pestaña, y la misma en retro oscuro (los aspectos y el tema son atributos de <html>). */
 async function shotLooks(page: Page, name: string) {
@@ -328,6 +355,7 @@ async function expectPerLine(
 
   let thread = await o.open(o.chatA);
   let panel = await openStickers(page, thread);
+  await openChats(panel);
   await expect.poll(() => shownIds(panel), { timeout: 30_000 }).toEqual(idsA);
   await expect.poll(() => allLoaded(panel), { timeout: 30_000 }).toBe(true);
   // La grilla está dibujada y el pedido de traer lo nuevo todavía no volvió.
@@ -338,8 +366,10 @@ async function expectPerLine(
   await shotLooks(page, `${o.name}-line-a-${o.width}`);
   // Al soltarlo, la grilla suma el que había llegado, sin perder los que estaban.
   gate.release();
-  await expect(panel.locator('section[data-section="all"] .wa-stk')).toHaveCount(idsA.length + 1, { timeout: 30_000 });
-  for (const id of idsA) await expect(panel.locator(`section[data-section="all"] [data-sticker="${id}"]`)).toHaveCount(1);
+  await expect(panel.locator('.wa-stk')).toHaveCount(idsA.length + 1, { timeout: 30_000 });
+  // Llegó recibido: a "De tus chats".
+  await expect(panel.locator('section[data-section="chats"] .wa-stk')).toHaveCount(2);
+  for (const id of idsA) await expect(panel.locator(`[data-sticker="${id}"]`)).toHaveCount(1);
   // Se maneja con el teclado y Esc lo cierra.
   await panel.locator('.wa-stk-send').first().focus();
   await expect(panel.locator('.wa-stk-send').first()).toBeFocused();
@@ -348,6 +378,7 @@ async function expectPerLine(
 
   thread = await o.open(o.chatB);
   panel = await openStickers(page, thread);
+  await openChats(panel);
   await expect.poll(() => shownIds(panel), { timeout: 30_000 }).toEqual(idsB);
   await expect.poll(() => allLoaded(panel), { timeout: 30_000 }).toBe(true);
   for (const id of idsA) await expect(panel.locator(`[data-sticker="${id}"]`)).toHaveCount(0);

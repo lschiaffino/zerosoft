@@ -187,7 +187,7 @@ for (const width of [1280, 390]) {
         const panel = page.locator('.wa-emoji');
         await panel.getByRole('tab', { name: 'Stickers' }).click();
         const scroller = panel.locator('.wa-stk-scroll');
-        await expect(panel.locator('section[aria-label="Your stickers"] .wa-stk')).toHaveCount(36, { timeout: FIRST_MS });
+        await expect(panel.locator('section[data-section="created"] .wa-stk')).toHaveCount(36, { timeout: FIRST_MS });
         // Las imágenes se ven (bajan perezosas: las de arriba primero, las de abajo al llegar).
         const loaded = (i: Locator) => i.evaluate((el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0);
         await expect.poll(() => loaded(panel.locator('.wa-stk-send img').first()), { timeout: FIRST_MS }).toBe(true);

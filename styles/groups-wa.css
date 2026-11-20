@@ -1014,6 +1014,13 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-stk-empty .wa-stk-empty-title { margin-bottom: 4px; font-weight: 600; color: var(--wa-text); }
 .wa-stk-primary { height: 32px; padding: 0 14px; font: inherit; font-size: 0.875rem; font-weight: 500; color: #fff; background: var(--wa-primary); border: 0; border-radius: 6px; cursor: pointer; }
 .wa-stk-note { margin-top: 10px !important; font-size: 0.8125rem; }
+/* "De tus chats": lo que solo recibió, plegado debajo de lo suyo. */
+.wa-stk-fold { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0 2px; padding: 6px 4px; font: inherit; font-size: 0.75rem; color: var(--wa-text-2); text-align: left; background: none; border: 0; border-top: 1px solid var(--wa-border, var(--line)); cursor: pointer; }
+.wa-stk-fold:hover { color: var(--wa-text); }
+.wa-stk-fold:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-stk-fold svg { flex: none; transform: rotate(-90deg); transition: transform 120ms ease; }
+.wa-stk-fold[aria-expanded='true'] svg { transform: none; }
+.wa-stk-hint { margin: 2px 4px 6px; font-size: 0.75rem; line-height: 1.4; color: var(--wa-text-2); }
 .wa-stk-error { margin: 0 2px 6px; font-size: 0.8125rem; color: var(--wa-danger, #ea0038); }
 
 /* Pestaña GIFs: búsqueda, categorías, mosaico de vistas previas animadas y la atribución del proveedor. */
