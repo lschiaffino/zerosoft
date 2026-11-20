@@ -1171,7 +1171,7 @@ for (const c of APPS) {
   });
 }
 
-// Ajustes › Workspace › Apps: cada app disponible (menos Inbox, que siempre está) tiene su interruptor y su acceso.
+// Ajustes › Workspace › Apps: cada app disponible (Inbox también) tiene su interruptor, su acceso y su estrella.
 test.describe('smoke apps del workspace', () => {
   test('lista todas las apps con interruptor, en claro y oscuro y a 390px sin scroll horizontal', async ({ page, context, baseURL }) => {
     const errors = watchErrors(page);
@@ -1179,13 +1179,13 @@ test.describe('smoke apps del workspace', () => {
       await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
       await page.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
       await expect(page.getByTestId('workspace-apps')).toBeVisible();
-      for (const app of ['crm', 'track', 'docs', 'notes', 'rec']) {
+      for (const app of ['crm', 'track', 'docs', 'notes', 'rec', 'inbox']) {
         await expect(page.getByTestId(`ws-app-switch-${app}`)).toBeVisible();
         await expect(page.getByTestId(`ws-app-mode-${app}`)).toBeVisible();
+        await expect(page.getByTestId(`ws-app-star-${app}`)).toBeVisible();
       }
-      // Inbox siempre está: su fila no se apaga, solo se destaca.
-      await expect(page.getByTestId('ws-app-switch-inbox')).toHaveCount(0);
-      await expect(page.getByTestId('ws-app-star-inbox')).toBeVisible();
+      // Inbox se configura como las demás: interruptor, acceso y excepciones.
+      await expect(page.getByTestId('ws-app-edit-inbox')).toBeVisible();
       await expect(page.getByTestId('ws-app-chat')).toHaveCount(0);
     }
     await page.setViewportSize({ width: 390, height: 800 });

@@ -6,6 +6,7 @@ import { contactCreateSchema } from '@/lib/crm-schema';
 import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { apiScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
 import { assignNewLead } from '@/lib/crm-assignment';
 
 export const runtime = 'nodejs';
@@ -17,8 +18,12 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
+  // Filtro avanzado (el mismo modelo que el listado de la app); `tz` fija la zona de las fechas relativas.
+  const filter = await requestFilter(sp, 'contacts', { viewer: apiFieldViewer(auth), viewerId: auth.personId, timeZone: sp.get('tz') });
+  if ('error' in filter) return apiError(400, 'invalid_filter', 'The filters parameter is not valid: unknown property or operator, a missing value, or too many groups.');
   const { rows, total } = await listContacts(auth.user.id, {
     ownerScope: await apiScope(auth),
+    ...filter,
     q: sp.get('q') ?? undefined,
     page,
     pageSize,

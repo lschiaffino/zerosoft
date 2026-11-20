@@ -53,8 +53,8 @@ describe('lib/products: Próximamente en una sola config', () => {
     for (const k of COMING_SOON_APPS) expect(AVAILABLE_PRODUCT_KEYS).not.toContain(k);
     expect(AVAILABLE_PRODUCT_KEYS).toContain('crm');
   });
-  it('todas se pueden apagar por workspace salvo Inbox, que siempre está', () => {
-    expect(isWorkspaceGatedApp('inbox')).toBe(false);
+  it('todas se pueden apagar por workspace, Inbox también', () => {
+    expect(isWorkspaceGatedApp('inbox')).toBe(true);
     for (const k of ['notes', 'docs', 'cal', 'board', 'voice', 'crm', 'groups', 'pulse', 'rec'] as const) expect(isWorkspaceGatedApp(k), k).toBe(true);
   });
 });
@@ -106,9 +106,9 @@ describe('appDenial: la regla única (rol × modo de la app × toggles)', () => 
     expect(appDenial(subject('owner'), 'crm', rules('off'))).toBe('workspace_off');
   });
 
-  it('una app personal también se apaga; Inbox no', () => {
+  it('una app personal también se apaga, Inbox incluida', () => {
     expect(appDenial(subject('member'), 'notes', { notes: { mode: 'off', people: [], teams: [], denied: [] } })).toBe('workspace_off');
-    expect(appDenial(subject('owner'), 'inbox', { inbox: { mode: 'off', people: [], teams: [], denied: [] } } as WorkspaceAppRules)).toBeNull();
+    expect(appDenial(subject('owner'), 'inbox', { inbox: { mode: 'off', people: [], teams: [], denied: [] } } as WorkspaceAppRules)).toBe('workspace_off');
   });
 
   it('excepción por persona: excluida en cualquier modo, salvo owner y admins', () => {
@@ -193,14 +193,15 @@ describe('PUT /api/teams/apps', () => {
     expect(log.map((l) => l.target_label).sort()).toEqual(['CRM', 'Track']);
   });
 
-  it('acepta apps personales (menos Inbox), no Próximamente ni modos raros; filtra personas de otro workspace', async () => {
+  it('acepta apps personales (Inbox también), no Próximamente ni modos raros; filtra personas de otro workspace', async () => {
     const owner = await makeUser('aa4o');
     const team = await ensureWorkspace(owner.id);
     const ana = await makeUser('aa4a');
     const outsider = await makeUser('aa4x');
     await addMember(team.id, ana.id, 'member');
     await actAs(owner, owner, 'owner');
-    expect((await put({ app: 'inbox', mode: 'off' })).status).toBe(400);
+    expect((await put({ app: 'inbox', mode: 'off' })).status).toBe(200);
+    expect((await loadWorkspaceAppRules(owner.id)).inbox?.mode).toBe('off');
     expect((await put({ app: 'notes', mode: 'off' })).status).toBe(200);
     expect((await put({ app: 'chat', mode: 'off' })).status).toBe(400);
     expect((await put({ app: 'crm', mode: 'everyone' })).status).toBe(400);

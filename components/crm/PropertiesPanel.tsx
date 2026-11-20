@@ -186,7 +186,7 @@ export default function PropertiesPanel({
         ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
         : field.value;
     return (
-      <div key={field.key} className="prop-row">
+      <div key={field.key} className="prop-row" data-prop={field.key}>
         <dt className="prop-label">{field.label}</dt>
         <dd className="prop-value">
           {editing ? (
@@ -274,7 +274,7 @@ export default function PropertiesPanel({
           ) : field.readOnly ? (
             <span className={`prop-value prop-readonly${field.value && field.value !== '[]' ? '' : ' empty'}`} data-testid="prop-readonly">
               {field.href && field.value ? (
-                <a className="prop-link" href={field.href} target={field.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                <a className="prop-link" href={field.href} target={/^(tel|mailto):/.test(field.href) ? undefined : '_blank'} rel="noreferrer">
                   {display}
                 </a>
               ) : (
@@ -286,7 +286,7 @@ export default function PropertiesPanel({
             <a
               className="prop-value prop-link"
               href={field.href}
-              target={field.href.startsWith('tel:') ? undefined : '_blank'}
+              target={/^(tel|mailto):/.test(field.href) ? undefined : '_blank'}
               rel="noreferrer"
             >
               {display}

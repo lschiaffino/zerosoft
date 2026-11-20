@@ -3544,6 +3544,8 @@
     "paramPage": "Número da página.",
     "paramPageSize": "Items por página (máx 100).",
     "paramSearch": "Query de busca.",
+    "paramCrmFilters": "Filtros avançados em JSON: o valor que o app coloca no parâmetro filters da URL de uma listagem filtrada. Tem grupos de regras, cada regra com f (propriedade), o (operador) e v (valor). As regras de um grupo se unem com E e os grupos com OU (até 5). Uma propriedade ou um operador desconhecido retorna 400 invalid_filter.",
+    "paramCrmFiltersTz": "Fuso horário IANA para as datas relativas dos filtros (today, this_week, last_days). Por padrão, UTC.",
     "paramFirstName": "Nome.",
     "paramLastName": "Sobrenome.",
     "paramEmail": "Endereço de email.",
@@ -4465,6 +4467,50 @@
     "meta": {
       "title": "Conectar o Claude e a CLI",
       "description": "Conecte o claude.ai, o Claude Desktop, o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 20 apps como você."
+    }
+  },
+  "directory": {
+    "meta": {
+      "title": "Diretório de software open source, por categoria",
+      "description": "Software open source e pago por categoria, do CRM e do chat de equipe à assinatura eletrônica, com a licença de cada projeto e o app do zerosoft que o cobre."
+    },
+    "crumb": "Software",
+    "title": "Diretório de software.",
+    "titleDim": "Open source e pago, por categoria.",
+    "lead": "Software open source e pago para {count} tipos de trabalho, com a licença de cada projeto open source e o app do zerosoft que faz o mesmo. O zerosoft também é open source: $0 no seu servidor, com um plano grátis no zerosoft Cloud.",
+    "caption": "Software open source e pago por categoria, com o app do zerosoft de cada uma",
+    "col": {
+      "category": "Categoria",
+      "openSource": "Open source",
+      "paid": "Pago",
+      "zerosoft": "No zerosoft"
+    },
+    "reviewed": "Licenças conferidas no repositório de cada projeto em {date}.",
+    "scope": "Open source quer dizer uma licença aprovada pela OSI. Os projetos que publicam o código com uma licença que não é open source ficam à parte, como source-available. Pago quer dizer software proprietário com planos pagos; os preços ficam de fora porque mudam com frequência.",
+    "category": {
+      "metaTitle": "{title}: alternativas ao {paid}",
+      "metaDescription": "Open source, com licença: {openNames}. Pagos: {paidNames}. E o zerosoft {apps}, open source e $0 no seu servidor.",
+      "lead": "O zerosoft {apps} {count, plural, one {é uma alternativa open source} other {são alternativas open source}} ao {paid}: $0 no seu servidor, com um plano grátis no zerosoft Cloud.",
+      "zerosoftTitle": "No zerosoft",
+      "openTitle": "Open source",
+      "openDim": "{count, plural, one {# projeto} other {# projetos}} com licença OSI.",
+      "sourceAvailableTitle": "Source-available",
+      "sourceAvailableDim": "Código público, com uma licença que não é open source.",
+      "paidTitle": "Pago",
+      "paidDim": "Proprietário, com planos pagos.",
+      "caption": "{title}: {group}",
+      "col": {
+        "name": "Produto",
+        "license": "Licença",
+        "code": "Código"
+      },
+      "proprietary": "Proprietária",
+      "sourceLink": "Código-fonte",
+      "productPage": "zerosoft {name}",
+      "comparePage": "{name} vs {competitor}",
+      "comingSoon": "Em breve: ainda não dá para usar.",
+      "others": "Outras categorias",
+      "all": "Todas as categorias"
     }
   }
 }

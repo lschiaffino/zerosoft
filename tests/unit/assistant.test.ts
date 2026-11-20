@@ -77,7 +77,9 @@ describe('asistente: permisos por rol y app', () => {
   it('cada herramienta de una app se corta sin esa app', () => {
     for (const t of ALL_TOOLS) {
       if (!t.app) continue;
-      expect(canUseTool({ role: 'member', apps: [] }, t)).toBe(false);
+      // Inbox no tiene toggle en Miembros: la corta el workspace (blockedApps).
+      if (t.app === 'inbox') expect(canUseTool({ role: 'member', apps: [], blockedApps: ['inbox'] } as never, t)).toBe(false);
+      else expect(canUseTool({ role: 'member', apps: [] }, t)).toBe(false);
       if (!t.admin && !t.allApps) expect(canUseTool({ role: 'member', apps: [t.app] }, t)).toBe(true);
     }
   });

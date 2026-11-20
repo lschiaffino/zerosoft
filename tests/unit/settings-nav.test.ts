@@ -30,6 +30,7 @@ describe('settings: secciones de la plataforma', () => {
       'profile',
       'appearance',
       'notifications',
+      'requests',
       'workspace',
       'members',
       'apps',
