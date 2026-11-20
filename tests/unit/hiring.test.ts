@@ -17,7 +17,7 @@ import {
   type HiringActor,
   type Question,
 } from '@/lib/hiring/types';
-import { createJob, ensureSettings, listStages, setTeam, updateJob, updateSettings } from '@/lib/hiring/core';
+import { cleanRejectReasons, createJob, ensureSettings, listStages, setTeam, settingsDto, settingsSchema, updateJob, updateSettings } from '@/lib/hiring/core';
 import {
   applyPublic,
   deleteCandidate,
@@ -27,6 +27,7 @@ import {
   purgeExpiredCandidates,
   searchHiring,
   addCandidateManually,
+  bulkApplications,
   forgetByToken,
   rejectApplication,
   sha256,
@@ -572,5 +573,26 @@ describe('respuestas por email y página de empleos', () => {
     await updateJob(w.recruiter, j.jobId, { salaryPublic: true });
     const ld2 = jobPostingJsonLd(c, (await publishedJob(c.settings.workspace_id, j.slug))!, '');
     expect(ld2.baseSalary).toMatchObject({ currency: 'USD', value: { minValue: 50000, maxValue: 70000 } });
+  });
+});
+
+describe('motivos de rechazo propios', () => {
+  it('un admin edita la lista y pide motivo; sin motivo no se rechaza, ni de a uno ni en lote', async () => {
+    const own = await world();
+    // Quien no administra no los cambia.
+    await expect(updateSettings(own.recruiter, { rejectReasons: ['x'] })).rejects.toMatchObject({ status: 403 });
+    expect(settingsDto(await ensureSettings(own.owner.ws)).rejectReasons).toBeNull();
+    const saved = settingsDto(await updateSettings(own.owner, settingsSchema.parse({ rejectReasons: ['Overqualified', ' overqualified ', 'No visa\n'], requireRejectReason: true })));
+    expect(saved).toMatchObject({ rejectReasons: ['Overqualified', 'No visa'], requireRejectReason: true });
+    const j = await setupJob(own);
+    const a = await apply(own, j.slug, `rr-${uid()}@example.com`);
+    const b = await apply(own, j.slug, `rr-${uid()}@example.com`);
+    await expect(rejectApplication(own.recruiter, a.applicationId, { reason: '  ', sendEmail: false, templateId: null })).rejects.toMatchObject({ code: 'reason_required' });
+    await expect(bulkApplications(own.recruiter, { ids: [a.applicationId, b.applicationId], action: 'reject', reason: '' })).rejects.toMatchObject({ code: 'reason_required' });
+    await rejectApplication(own.recruiter, a.applicationId, { reason: 'No visa', sendEmail: false, templateId: null });
+    expect(await bulkApplications(own.recruiter, { ids: [b.applicationId], action: 'reject', reason: 'Overqualified' })).toEqual({ done: 1, failed: 0 });
+    // Volver a los de fábrica y sin pedir motivo.
+    expect(settingsDto(await updateSettings(own.owner, { rejectReasons: null, requireRejectReason: false }))).toMatchObject({ rejectReasons: null, requireRejectReason: false });
+    expect(cleanRejectReasons(['A', 'a', 'B'])).toEqual(['A', 'B']);
   });
 });

@@ -278,7 +278,11 @@
       "position_filled": "Puesto cubierto",
       "withdrew": "El candidato se retiró",
       "no_response": "Sin respuesta"
-    }
+    },
+    "pickReason": "Elegí un motivo",
+    "noReason": "Sin motivo",
+    "otherReason": "Otro…",
+    "otherLabel": "Escribí el motivo"
   },
   "profile": {
     "deleteData": "Borrar datos del candidato",
@@ -538,7 +542,16 @@
       "restored": "{name} volvió a Hiring.",
       "conflict": "Este candidato no se puede restaurar.",
       "restoreError": "No se pudo restaurar al candidato."
-    }
+    },
+    "rejectReasons": "Motivos de rechazo",
+    "rejectReasonsHelp": "La lista de la que se elige al rechazar a un candidato. Los informes agrupan los rechazos por estos motivos. También se puede elegir Otro y escribir uno.",
+    "reasonN": "Motivo {n}",
+    "removeReason": "Quitar {name}",
+    "noReasons": "No hay motivos en la lista: se escribe uno al rechazar.",
+    "newReason": "Motivo nuevo",
+    "addReason": "Agregar motivo",
+    "resetReasons": "Volver a los motivos de fábrica",
+    "requireReason": "Pedir un motivo para rechazar a un candidato"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",

@@ -225,9 +225,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['For those who manage both jobs', 'Para quien gestiona los dos puestos', 'Para quem gerencia as duas vagas'],
     }),
-    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'partial', {
+    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'have', {
       weight: 2,
-      detail: ['A suggested list or your own text, and a report per reason. The reason is optional and the list cannot be edited', 'Una lista sugerida o tu propio texto, y un reporte por motivo. El motivo es opcional y la lista no se edita', 'Uma lista sugerida ou seu próprio texto, e um relatório por motivo. O motivo é opcional e a lista não se edita'],
+      detail: ['An admin edits the list in Settings and can make a reason required; people pick one or write another, and Reports counts rejections per reason', 'Un admin edita la lista en Ajustes y puede hacer obligatorio el motivo; se elige uno o se escribe otro, e Informes cuenta los rechazos por motivo', 'Um admin edita a lista em Ajustes e pode tornar o motivo obrigatório; escolhe-se um ou escreve-se outro, e Relatórios conta as recusas por motivo'],
     }),
     row('interview-kits', 'evaluation', ['Interview guides per stage', 'Guías de entrevista por etapa', 'Guias de entrevista por etapa'], 'have', {
       weight: 2,
