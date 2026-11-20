@@ -132,9 +132,14 @@
     "tab_published": "Published",
     "tab_failed": "Failed",
     "search": "Search posts",
-    "noResults": "No posts match that search.",
+    "noResults": "No posts match the search or filters.",
     "emptyTitle": "No posts here yet",
-    "emptyBody": "Write one post and send it to several accounts, with its own text per network."
+    "emptyBody": "Write one post and send it to several accounts, with its own text per network.",
+    "filterNetwork": "Filter by network",
+    "filterAccount": "Filter by account",
+    "allNetworks": "All networks",
+    "allAccounts": "All accounts",
+    "clearFilters": "Clear filters"
   },
   "compose": {
     "title": "New post",

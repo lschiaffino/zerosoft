@@ -51,6 +51,7 @@ import { ensureLeadStages } from '@/lib/crm-leads';
 import { listObjects, objectEntity } from '@/lib/crm-objects';
 import { listFieldPermissions } from '@/lib/crm-field-perms';
 import AppsPanel from '@/components/crm/AppsPanel';
+import HubspotSyncPanel from '@/components/crm/HubspotSyncPanel';
 import { listApps } from '@/lib/crm-apps';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -284,6 +285,9 @@ export default async function CrmSettingsPage(props: {
       <>
         <FormSection title={t('apps.title')} description={t('apps.desc')}>
           <AppsPanel initial={apps} canEdit={admin} />
+        </FormSection>
+        <FormSection id="hubspot-sync" title={t('hubspotSync.title')} description={t('hubspotSync.desc')}>
+          <HubspotSyncPanel canAdmin={admin} locale={locale} />
         </FormSection>
         <FormSection title={t('settings.gmailTitle')} description={t('settings.gmailDesc')}>
           <GmailPanel
