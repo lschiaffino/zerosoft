@@ -21,7 +21,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m)) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar y posponer. */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -53,6 +53,13 @@ export async function PATCH(req: Request, ctx: Ctx) {
       const { moveChatsToFolder } = await import('@/lib/groups-lines');
       await moveChatsToFolder(s.ws, guard.viewer, [id], (b.folderId as string | null) || null);
     }
+    // La carpeta del equipo (la misma para todos): la cambia cualquiera que puede editar el chat.
+    if (b.teamFolderId === null || typeof b.teamFolderId === 'string') {
+      const { folderKindOf, moveChatsToFolder } = await import('@/lib/groups-lines');
+      const to = (b.teamFolderId as string | null) || null;
+      if (to && (await folderKindOf(s.ws, s.me, to)) !== 'team') return groupsError(404, 'not_found');
+      await moveChatsToFolder(s.ws, guard.viewer, [id], to, { kind: 'team' });
+    }
     const after = await patchChatAs(s.ws, { id: s.me }, id, patch);
     // El mismo chat en otras líneas: leer, archivar, posponer, cerrar, silenciar o eliminar vale para todas.
     const { SAME_CHAT_PATCH_KEYS, withSameChatIds } = await import('@/lib/groups-same-chat');
@@ -64,10 +71,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
         await patchChatAs(s.ws, { id: s.me }, other, shared).catch(() => null);
       }
     }
-    // La carpeta es de quien pide: la respuesta lleva la suya.
-    const { chatFoldersFor } = await import('@/lib/groups-lines');
+    // La carpeta personal es de quien pide: la respuesta lleva la suya, y la del equipo.
+    const { chatFoldersFor, teamFoldersFor } = await import('@/lib/groups-lines');
     const mine = (await chatFoldersFor(s.ws, guard.viewer.me, [id])).get(id) ?? null;
-    return NextResponse.json(maskChat(guard.viewer, { ...after, folderId: mine }));
+    const team = (await teamFoldersFor(s.ws, [id])).get(id) ?? null;
+    return NextResponse.json(maskChat(guard.viewer, { ...after, folderId: mine, teamFolderId: team }));
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -203,7 +203,7 @@ describe('Lines: las carpetas son de cada persona', () => {
     await moveChatsToFolder(w.owner.id, w.vAna, [w.uno.id], f.id);
     const stranger = await makeUser('pf-ws-stranger');
     const vStranger = await groupsViewer(stranger.id, stranger.id, 'owner');
-    expect(await listFolders(stranger.id, stranger.id, vStranger)).toEqual({ folders: [], unfiled: { unread: 0, chats: 0 } });
+    expect(await listFolders(stranger.id, stranger.id, vStranger)).toEqual({ folders: [], team: [], unfiled: { unread: 0, chats: 0 } });
     // Ni siquiera la propia Ana desde otro workspace.
     expect((await listFolders(stranger.id, w.ana.id, await groupsViewer(stranger.id, w.ana.id, 'member'))).folders).toEqual([]);
     await expect(updateFolder(stranger.id, stranger.id, f.id, { name: 'X' })).rejects.toMatchObject({ status: 404 });

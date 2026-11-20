@@ -7,6 +7,7 @@ import { flattenTree } from '@/lib/inbox/folder-tree';
 import MenuSelect from '@/components/ui/MenuSelect';
 import { Modal, api, useErrorText } from './ui';
 import LineDot from './LineDot';
+import { FolderIcon, GroupIcon } from './wa/icons';
 
 export { LineDot };
 
@@ -84,11 +85,25 @@ export function notifyFoldersChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(FOLDERS_CHANGED));
 }
 
-/** Selector de carpeta para cuando el sidebar no está a la vista (teléfono o sidebar colapsado). */
-export function FolderSelect({ folders, value, onChange }: { folders: LineFolderDto[]; value: string; onChange: (v: string) => void }) {
+/** Lo que responde /api/groups/folders: las carpetas de quien mira, las del equipo y si puede administrar las del equipo. */
+export interface LineFoldersResponse {
+  folders: LineFolderDto[];
+  team: LineFolderDto[];
+  unfiled: { unread: number; chats: number };
+  canManageTeam: boolean;
+}
+
+export const EMPTY_FOLDERS: LineFoldersResponse = { folders: [], team: [], unfiled: { unread: 0, chats: 0 }, canManageTeam: false };
+
+/**
+ * Selector de carpeta para cuando el sidebar no está a la vista (teléfono o sidebar colapsado). Las del equipo van
+ * primero, marcadas "Equipo"; las propias después.
+ */
+export function FolderSelect({ folders, team = [], value, onChange }: { folders: LineFolderDto[]; team?: LineFolderDto[]; value: string; onChange: (v: string) => void }) {
   const t = useTranslations('groups.lines');
   const rows = useMemo(() => flattenTree(folders), [folders]);
-  if (folders.length === 0) return null;
+  const teamRows = useMemo(() => flattenTree(team), [team]);
+  if (folders.length === 0 && team.length === 0) return null;
   return (
     <MenuSelect
       className="gr-folder-select"
@@ -96,30 +111,45 @@ export function FolderSelect({ folders, value, onChange }: { folders: LineFolder
       label={t('folders')}
       value={value}
       onChange={onChange}
-      options={[{ value: '', label: t('allChats') }, { value: 'none', label: t('unfiled') }, ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth }))]}
+      options={[
+        { value: '', label: t('allChats') },
+        { value: 'none', label: t('unfiled') },
+        ...teamRows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth, hint: depth === 0 ? t('teamFolders') : undefined })),
+        ...rows.map(({ folder: f, depth }) => ({ value: f.id, label: f.name, depth })),
+      ]}
     />
   );
 }
 
 /**
- * "Mover a carpeta" desde el menú de un chat o la barra de selección (alternativa al arrastre, con teclado).
- * Las carpetas son de cada persona: quien todavía no tiene ninguna crea la primera acá mismo y el chat va a esa.
+ * "Mover a carpeta" desde el menú de un chat o la barra de selección (alternativa al arrastre, con teclado), en dos
+ * secciones: las del equipo (lo que se pone ahí lo ve todo el workspace) y las propias. Quien todavía no tiene
+ * ninguna propia crea la primera acá mismo y el chat va a esa. `teamValue` y `value` marcan dónde está ahora (un
+ * solo chat).
  */
 export function MoveToFolderModal({
   open,
   folders,
+  team = [],
+  value,
+  teamValue,
   onClose,
   onPick,
 }: {
   open: boolean;
   folders: LineFolderDto[];
+  team?: LineFolderDto[];
+  value?: string | null;
+  teamValue?: string | null;
   onClose: () => void;
-  onPick: (folderId: string | null, name?: string) => void;
+  /** folderId null = sacarlo; `scope` dice de cuál (la propia, la del equipo, o de las dos con 'all'). */
+  onPick: (folderId: string | null, name?: string, scope?: 'personal' | 'team' | 'all') => void;
 }) {
   const t = useTranslations('groups.lines');
   const tc = useTranslations('groups.common');
   const errText = useErrorText();
   const rows = useMemo(() => flattenTree(folders), [folders]);
+  const teamRows = useMemo(() => flattenTree(team), [team]);
   const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -137,8 +167,9 @@ export function MoveToFolderModal({
     setBusy(false);
     if (!r.data) return setError(errText(r.error));
     notifyFoldersChanged();
-    onPick(r.data.id, r.data.name);
+    onPick(r.data.id, r.data.name, 'personal');
   };
+  const sections = team.length > 0;
   return (
     <Modal
       open={open}
@@ -152,18 +183,46 @@ export function MoveToFolderModal({
         </button>
       }
     >
+      {sections && (
+        <>
+          <p className="gr-folder-sec" id="gr-move-team">
+            <GroupIcon size={14} />
+            <span>{t('teamFolders')}</span>
+          </p>
+          <ul className="gr-folder-list gr-folder-pick" aria-labelledby="gr-move-team" data-testid="lines-move-team">
+            {teamRows.map(({ folder: f, depth }) => (
+              <li key={f.id} style={{ paddingInlineStart: depth * 14 }}>
+                <button type="button" className="gr-folder" onClick={() => onPick(f.id, f.name, 'team')} aria-pressed={teamValue === f.id || undefined}>
+                  <span className="gr-folder-name">{f.name}</span>
+                </button>
+              </li>
+            ))}
+            {teamValue && (
+              <li>
+                <button type="button" className="gr-folder" onClick={() => onPick(null, undefined, 'team')} data-testid="lines-move-team-none">
+                  <span className="gr-folder-name">{t('unfiled')}</span>
+                </button>
+              </li>
+            )}
+          </ul>
+          <p className="gr-folder-sec" id="gr-move-mine">
+            <FolderIcon size={14} />
+            <span>{t('myFolders')}</span>
+          </p>
+        </>
+      )}
       {folders.length === 0 && <p className="ui-help">{t('foldersEmpty')}</p>}
-      <ul className="gr-folder-list gr-folder-pick">
+      <ul className="gr-folder-list gr-folder-pick" aria-labelledby={sections ? 'gr-move-mine' : undefined} data-testid="lines-move-mine">
         {rows.map(({ folder: f, depth }) => (
           <li key={f.id} style={{ paddingInlineStart: depth * 14 }}>
-            <button type="button" className="gr-folder" onClick={() => onPick(f.id)}>
+            <button type="button" className="gr-folder" onClick={() => onPick(f.id, f.name, 'personal')} aria-pressed={value === f.id || undefined}>
               <span className="gr-folder-name">{f.name}</span>
             </button>
           </li>
         ))}
         {folders.length > 0 && (
           <li>
-            <button type="button" className="gr-folder" onClick={() => onPick(null)}>
+            <button type="button" className="gr-folder" onClick={() => onPick(null, undefined, 'personal')}>
               <span className="gr-folder-name">{t('unfiled')}</span>
             </button>
           </li>

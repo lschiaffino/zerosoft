@@ -125,7 +125,8 @@ for (const size of [
         // Sin carpetas todavía: el botón para crear la primera está a la vista.
         await expect(side.getByTestId('lines-folder-new')).toBeVisible();
       } else {
-        await expect(bp.getByTestId('lines-folder-select')).toHaveCount(0);
+        // Sin carpetas suyas: el selector no está, o (si otra prueba dejó carpetas del equipo) no lista la de A.
+        await expect(bp.getByTestId('lines-folder-select').filter({ hasText: `Clientes ${tag}` })).toHaveCount(0);
       }
       await expect(bp.getByText(`Clientes ${tag}`)).toHaveCount(0);
 

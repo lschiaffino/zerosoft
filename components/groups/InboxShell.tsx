@@ -51,8 +51,7 @@ import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import LinesImportNotices from './LinesImportNotices';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
-import type { LineFolderDto } from '@/lib/groups-lines';
-import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineGroupOption, type LineOption } from './LineFolders';
+import { EMPTY_FOLDERS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineFoldersResponse, type LineGroupOption, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { requestChatInfo } from '@/lib/chat-info-request';
@@ -274,7 +273,7 @@ export default function InboxShell({
   const sideBranch = useShellBranch();
   // Con el sidebar colapsado las carpetas van como íconos en el lateral (GroupsFoldersBranch).
   const railBranch = useCollapsedBranch();
-  const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
+  const [folderData, setFolderData] = useState<LineFoldersResponse>(EMPTY_FOLDERS);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const lineColors = useMemo(() => new Map(numbers.map((n) => [n.id, n.color ?? ''])), [numbers]);
@@ -659,10 +658,10 @@ export default function InboxShell({
 
   const foldersEtag = useRef('');
   const reloadFolders = useCallback(async () => {
-    const r = await fetchIfChanged<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>('/api/groups/folders', foldersEtag.current);
+    const r = await fetchIfChanged<LineFoldersResponse>('/api/groups/folders', foldersEtag.current);
     if (r.state !== 'fresh') return;
     foldersEtag.current = r.etag;
-    setFolderData(r.data);
+    setFolderData({ ...EMPTY_FOLDERS, ...r.data });
   }, []);
   useEffect(() => {
     void reloadFolders();
@@ -680,23 +679,34 @@ export default function InboxShell({
     void api('/api/groups/prefs', { method: 'PUT', body: { line: v } });
   }
 
-  /** Mueve chats a una carpeta (o los saca, con null). El aviso dice a dónde fueron y deja deshacer: cada chat vuelve a la carpeta donde estaba. */
-  async function moveToFolder(ids: string[], folderId: string | null, newName?: string) {
-    const before = new Map<string | null, string[]>();
+  /**
+   * Mueve chats a una carpeta propia o del equipo (o los saca, con null: `scope` dice de cuál; soltarlos en "Sin
+   * carpeta" los saca de las dos). El aviso dice a dónde fueron y deja deshacer: cada chat vuelve a donde estaba.
+   */
+  async function moveToFolder(ids: string[], folderId: string | null, newName?: string, scope?: 'personal' | 'team' | 'all') {
+    const kind: 'personal' | 'team' | 'all' = folderId ? (folderData.team.some((f) => f.id === folderId) ? 'team' : 'personal') : (scope ?? 'all');
+    const before = new Map<string, { folderId: string | null; scope: 'personal' | 'team'; ids: string[] }>();
+    const note = (sc: 'personal' | 'team', prev: string | null, id: string) => {
+      const key = `${sc}:${prev ?? ''}`;
+      const op = before.get(key) ?? { folderId: prev, scope: sc, ids: [] };
+      op.ids.push(id);
+      before.set(key, op);
+    };
     for (const id of ids) {
       const row = rowsRef.current.find((r) => r.id === id);
-      if (!row || row.folderId === folderId) continue;
-      before.set(row.folderId, [...(before.get(row.folderId) ?? []), id]);
+      if (!row) continue;
+      if (kind !== 'team' && (row.folderId ?? null) !== (kind === 'personal' ? folderId : null)) note('personal', row.folderId ?? null, id);
+      if (kind !== 'personal' && (row.teamFolderId ?? null) !== (kind === 'team' ? folderId : null)) note('team', row.teamFolderId ?? null, id);
     }
-    const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId } });
+    const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId, scope: kind } });
     if (!res.data) return showToast(errText(res.error), true);
-    const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? newName ?? '') : '';
+    const name = folderId ? ([...folderData.team, ...folderData.folders].find((f) => f.id === folderId)?.name ?? newName ?? '') : '';
     const after = () => {
       void load(true);
       notifyFoldersChanged();
     };
     const undo = async () => {
-      for (const [prev, list] of before) await api('/api/groups/chats/bulk', { body: { ids: list, action: 'folder', folderId: prev } });
+      for (const op of before.values()) await api('/api/groups/chats/bulk', { body: { ids: op.ids, action: 'folder', folderId: op.folderId, scope: op.scope } });
       after();
     };
     // En "Sin carpeta" los que ya tienen carpeta salen de la lista enseguida (la recarga lo confirma).
@@ -721,7 +731,7 @@ export default function InboxShell({
     return () => window.removeEventListener(FOLDERS_CHANGED, changed);
   }, [reloadFolders, load]);
   const pickFolder = (id: string) => pushUrl(`${window.location.pathname}${inboxQuery(listId, id)}`);
-  const folderName = folderSel === 'none' ? t('lines.unfiled') : (folderData.folders.find((f) => f.id === folderSel)?.name ?? '');
+  const folderName = folderSel === 'none' ? t('lines.unfiled') : ([...folderData.team, ...folderData.folders].find((f) => f.id === folderSel)?.name ?? '');
 
   const refresh = useCallback(() => void load(true), [load]);
 
@@ -961,8 +971,11 @@ export default function InboxShell({
       return { label: c.name, avatar: <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} size={24} /> };
     },
     canDrop: (ids, target) => {
-      const to = target === 'none' ? null : target;
-      return ids.some((id) => (rowsRef.current.find((r) => r.id === id)?.folderId ?? null) !== to);
+      const rowOf = (id: string) => rowsRef.current.find((r) => r.id === id);
+      // "Sin carpeta" saca de las dos (la propia y la del equipo); una del equipo compara con la del equipo.
+      if (target === 'none') return ids.some((id) => Boolean(rowOf(id)?.folderId || rowOf(id)?.teamFolderId));
+      const team = folderData.team.some((f) => f.id === target);
+      return ids.some((id) => ((team ? rowOf(id)?.teamFolderId : rowOf(id)?.folderId) ?? null) !== target);
     },
     onDrop: (ids, target) => void moveToFolder(ids, target === 'none' ? null : target),
     onHoldTap: (id) => {
@@ -971,8 +984,12 @@ export default function InboxShell({
     tray: {
       title: t('swipe.dropTitle'),
       empty: t('swipe.dropEmpty'),
-      items: folderData.folders.length
-        ? [...flattenTree(folderData.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })), { id: 'none', name: t('lines.unfiled'), depth: 0 }]
+      items: folderData.folders.length || folderData.team.length
+        ? [
+            ...flattenTree(folderData.team).map(({ folder: f, depth }) => ({ id: f.id, name: depth === 0 ? `${f.name} · ${t('lines.teamFolders')}` : f.name, depth })),
+            ...flattenTree(folderData.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })),
+            { id: 'none', name: t('lines.unfiled'), depth: 0 },
+          ]
         : [],
     },
   });
@@ -1428,7 +1445,7 @@ export default function InboxShell({
                 )}
               </p>
             )}
-            {!archivedView && !sideBranch && !railBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
+            {!archivedView && !sideBranch && !railBranch && <FolderSelect folders={folderData.folders} team={folderData.team} value={folderSel} onChange={pickFolder} />}
             {!archivedView && (sideBranch || railBranch) && folderSel && folderName && (
               <p className="gr-folder-current" data-testid="lines-folder-current">
                 <span className="gr-folder-name">{folderName}</span>
@@ -1725,11 +1742,14 @@ export default function InboxShell({
       <MoveToFolderModal
         open={!!moveIds}
         folders={folderData.folders}
+        team={folderData.team}
+        value={moveIds?.length === 1 ? (rowsRef.current.find((r) => r.id === moveIds[0])?.folderId ?? null) : undefined}
+        teamValue={moveIds?.length === 1 ? (rowsRef.current.find((r) => r.id === moveIds[0])?.teamFolderId ?? null) : undefined}
         onClose={() => setMoveIds(null)}
-        onPick={(folderId, name) => {
+        onPick={(folderId, name, scope) => {
           const ids = moveIds ?? [];
           setMoveIds(null);
-          void moveToFolder(ids, folderId, name);
+          void moveToFolder(ids, folderId, name, scope);
         }}
       />
       <WhenDialog

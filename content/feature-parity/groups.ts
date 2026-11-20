@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -75,11 +75,11 @@ const parity: ProductParity = {
         'Configurações › Números lista cada linha com o status e desde quando, a hora da última mensagem (sem conteúdo) e quantas conversas estão abertas. No celular as linhas se empilham',
       ],
     }),
-    row('shared-folders', 'organize', ['Personal chat folders', 'Carpetas personales de chats', 'Pastas pessoais de conversas'], 'have', {
+    row('shared-folders', 'organize', ['Team and personal chat folders', 'Carpetas de chats del equipo y personales', 'Pastas de conversas da equipe e pessoais'], 'have', {
       detail: [
-        'Each person has their own folders and subfolders, which nobody else sees, with their unread counts; hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
-        'Cada persona tiene sus propias carpetas y subcarpetas, que nadie más ve, con sus no leídos; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna',
-        'Cada pessoa tem suas próprias pastas e subpastas, que ninguém mais vê, com as não lidas; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma',
+        'Two kinds of folders side by side, each with subfolders and unread counts. Team folders: admins create, rename and delete them, everyone in the workspace sees them, and anyone who can edit a chat can put it in one (one team folder per chat, the same for everyone). Personal folders: each person has their own, which nobody else sees. A chat can be in a team folder and in your own folder at once. Counts and lists only include chats on lines you can see. Hold a chat (or a selection) and drop it on any folder, with undo, or use Move to folder. "No folder" at the top of the tree lists the chats that are in none',
+        'Dos tipos de carpetas, una al lado de la otra, cada una con subcarpetas y no leídos. Del equipo: las crean, renombran y borran los admins, las ve todo el workspace y cualquiera que puede editar un chat lo pone en una (una carpeta del equipo por chat, la misma para todos). Personales: cada persona tiene las suyas, que nadie más ve. Un chat puede estar en una del equipo y en una tuya a la vez. Los conteos y las listas solo incluyen chats de líneas que ves. Mantené apretado un chat (o una selección) y soltalo en cualquier carpeta, con deshacer, o usá Mover a carpeta. "Sin carpeta" arriba del árbol lista los chats que no están en ninguna',
+        'Dois tipos de pastas, lado a lado, cada uma com subpastas e não lidas. Da equipe: os admins criam, renomeiam e excluem, todo o workspace vê e qualquer pessoa que pode editar uma conversa a coloca numa (uma pasta da equipe por conversa, a mesma para todos). Pessoais: cada pessoa tem as suas, que ninguém mais vê. Uma conversa pode estar numa pasta da equipe e numa sua ao mesmo tempo. As contagens e listas só incluem conversas de linhas que você vê. Segure uma conversa (ou uma seleção) e solte em qualquer pasta, com desfazer, ou use Mover para pasta. "Sem pasta" no topo da árvore lista as conversas que não estão em nenhuma',
       ],
     }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
