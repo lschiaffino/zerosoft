@@ -368,3 +368,41 @@ export function isZeroDecimalCurrency(currency: string): boolean {
 
 /** Monedas que se pueden elegir para la tienda. */
 export const SHOP_CURRENCIES = ['USD', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', 'EUR', 'GBP', 'CAD'] as const;
+
+/**
+ * Cambio de precios de varios productos a la vez (lista de productos):
+ * - sale: X% menos sobre el precio de lista (el "antes" si ya estaba en oferta),
+ *   que queda como precio tachado. Aplicarlo dos veces no descuenta dos veces.
+ * - end-sale: vuelve al precio tachado y lo saca.
+ * - adjust: sube o baja X% el precio y, si hay, también el tachado.
+ */
+export type PriceChange = { mode: 'sale'; percent: number } | { mode: 'end-sale' } | { mode: 'adjust'; percent: number };
+
+export function priceChangeError(c: unknown): 'invalid_input' | null {
+  const ch = c as Partial<{ mode: string; percent: unknown }> | null;
+  if (!ch || typeof ch !== 'object') return 'invalid_input';
+  if (ch.mode === 'end-sale') return null;
+  const p = ch.percent;
+  if (typeof p !== 'number' || !Number.isFinite(p) || Math.round(p * 100) !== p * 100) return 'invalid_input';
+  if (ch.mode === 'sale') return p >= 1 && p <= 90 ? null : 'invalid_input';
+  if (ch.mode === 'adjust') return p !== 0 && p >= -90 && p <= 500 ? null : 'invalid_input';
+  return 'invalid_input';
+}
+
+/** Precio nuevo de una variante, o null si no cambia. */
+export function repriceVariant(v: { priceCents: number; compareAtCents: number | null }, c: PriceChange, currency: string): { priceCents: number; compareAtCents: number | null } | null {
+  const onSale = v.compareAtCents != null && v.compareAtCents > v.priceCents;
+  let next: { priceCents: number; compareAtCents: number | null };
+  if (c.mode === 'end-sale') {
+    if (!onSale) return null;
+    next = { priceCents: v.compareAtCents!, compareAtCents: null };
+  } else if (c.mode === 'sale') {
+    const base = onSale ? v.compareAtCents! : v.priceCents;
+    if (base <= 0) return null;
+    next = { priceCents: roundToCurrency((base * (100 - c.percent)) / 100, currency), compareAtCents: base };
+  } else {
+    const scale = (cents: number) => Math.max(0, roundToCurrency((cents * (100 + c.percent)) / 100, currency));
+    next = { priceCents: scale(v.priceCents), compareAtCents: v.compareAtCents == null ? null : scale(v.compareAtCents) };
+  }
+  return next.priceCents === v.priceCents && next.compareAtCents === v.compareAtCents ? null : next;
+}
