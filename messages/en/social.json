@@ -203,7 +203,9 @@
     "ai_fix": "Fix spelling",
     "aiUndo": "Undo",
     "aiDone": "The AI changed the text. Check it before you post.",
-    "aiLimit": "The AI keeps the post under {limit, number} characters, the tightest limit of the networks you picked."
+    "aiLimit": "The AI keeps the post under {limit, number} characters, the tightest limit of the networks you picked.",
+    "tagSuggestions": "Hashtags and mentions used before",
+    "tagUses": "{n, plural, one {# use} other {# uses}}"
   },
   "post": {
     "title": "Post",

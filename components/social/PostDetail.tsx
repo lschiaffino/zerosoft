@@ -94,23 +94,6 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
               </Link>
             )}
           </div>
-          {movable && (
-            <form
-              className="sc-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void reschedule();
-              }}
-            >
-              <label className="ui-field sc-grow">
-                <span className="label">{t('rescheduleLabel')}</span>
-                <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} data-testid="post-reschedule-at" />
-              </label>
-              <button type="submit" className="btn btn-sm" disabled={!when || busy === 'reschedule'} aria-busy={busy === 'reschedule'} data-testid="post-reschedule">
-                {t('reschedule')}
-              </button>
-            </form>
-          )}
           <p className="sc-preview-text" data-testid="post-text">
             {post.text || t('mediaOnly')}
           </p>
@@ -130,6 +113,27 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
           )}
           {post.firstComment && <p className="sc-muted sc-small">{t('firstComment', { text: post.firstComment })}</p>}
           <p className="sc-muted sc-small">{t('by', { name: post.createdByName ?? '' })}</p>
+          {/* Reprogramar va después del texto: primero se lee qué sale, después cuándo. */}
+          {movable && (
+            <>
+              <hr className="sc-sep" />
+              <form
+                className="sc-row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void reschedule();
+                }}
+              >
+                <label className="ui-field sc-grow">
+                  <span className="label">{t('rescheduleLabel')}</span>
+                  <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} data-testid="post-reschedule-at" />
+                </label>
+                <button type="submit" className="btn btn-sm" disabled={!when || busy === 'reschedule'} aria-busy={busy === 'reschedule'} data-testid="post-reschedule">
+                  {t('reschedule')}
+                </button>
+              </form>
+            </>
+          )}
         </section>
 
         {post.canApprove && (

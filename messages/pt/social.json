@@ -203,7 +203,9 @@
     "ai_fix": "Corrigir ortografia",
     "aiUndo": "Desfazer",
     "aiDone": "A IA mudou o texto. Revise antes de publicar.",
-    "aiLimit": "A IA deixa a publicação abaixo de {limit, number} caracteres, o menor limite das redes escolhidas."
+    "aiLimit": "A IA deixa a publicação abaixo de {limit, number} caracteres, o menor limite das redes escolhidas.",
+    "tagSuggestions": "Hashtags e menções já usados",
+    "tagUses": "{n, plural, one {# uso} other {# usos}}"
   },
   "post": {
     "title": "Publicação",

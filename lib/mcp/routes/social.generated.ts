@@ -16,7 +16,8 @@ import * as r13 from "@/lib/routes/social/posts/[id]/route";
 import * as r14 from "@/app/api/social/posts/bulk/route";
 import * as r15 from "@/app/api/social/queue-next/route";
 import * as r16 from "@/app/api/social/shorten/route";
-import * as r17 from "@/app/api/social/upload/route";
+import * as r17 from "@/app/api/social/tags/route";
+import * as r18 from "@/app/api/social/upload/route";
 
 export const routes: Record<string, unknown> = {
   "/api/social/accounts": r0,
@@ -36,5 +37,6 @@ export const routes: Record<string, unknown> = {
   "/api/social/posts/bulk": r14,
   "/api/social/queue-next": r15,
   "/api/social/shorten": r16,
-  "/api/social/upload": r17,
+  "/api/social/tags": r17,
+  "/api/social/upload": r18,
 };

@@ -7,7 +7,9 @@ import { useRouter } from '@/i18n/navigation';
 import type { AccountDto, PostDto } from '@/lib/social';
 import type { LibraryItem } from '@/lib/social';
 import { countText, extractTags, NETWORK_SPECS, textFor, validateForNetwork, type MediaItem, type SocialNetwork, type ValidationIssue } from '@/lib/social-networks';
+import type { SocialTagSuggestions } from '@/lib/social-tag-match';
 import { api, fmtDateTime, initial, NetworkTag, useErrorText, useIssueText, type ApiError } from './shared';
+import { useTagSuggest } from './useTagSuggest';
 
 type When = 'now' | 'schedule' | 'queue' | 'draft';
 
@@ -172,6 +174,25 @@ export default function Composer({
   const chosen = useMemo(() => accounts.filter((a) => selected.includes(a.id)), [accounts, selected]);
   const networks = useMemo(() => [...new Set(chosen.map((a) => a.network))], [chosen]);
   const tags = useMemo(() => extractTags(text), [text]);
+  // #hashtags y @menciones que el equipo ya usó: se sugieren al escribir (components/social/useTagSuggest.tsx).
+  const [tagData, setTagData] = useState<SocialTagSuggestions | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<SocialTagSuggestions>('/tags')
+      .then((r) => live && setTagData(r))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const suggest = useTagSuggest({
+    ref: textRef,
+    value: tab === 'all' ? text : (overrides[tab] ?? text),
+    setValue: (next) => (tab === 'all' ? setText(next) : setOverrides((o) => ({ ...o, [tab]: next }))),
+    data: tagData,
+    label: t('tagSuggestions'),
+    countLabel: (n) => t('tagUses', { n }),
+  });
   const textOf = (n: SocialNetwork) => textFor(text, overrides[n]);
   const issues = useMemo(
     () => networks.map((n) => ({ network: n, issues: validateForNetwork(n, textFor(text, overrides[n]), media) })).filter((x) => x.issues.length),
@@ -486,25 +507,33 @@ export default function Composer({
             </div>
           )}
           {tab === 'all' ? (
-            <textarea
-              ref={textRef}
-              className="textarea sc-textarea"
-              aria-label={t('text')}
-              data-testid="compose-text"
-              value={text}
-              placeholder={t('placeholder')}
-              onChange={(e) => setText(e.target.value)}
-            />
-          ) : overrides[tab] != null ? (
-            <>
+            <div className="sc-suggest-wrap">
               <textarea
                 ref={textRef}
                 className="textarea sc-textarea"
-                aria-label={t('textFor', { network: NETWORK_SPECS[tab].name })}
-                data-testid={`compose-text-${tab}`}
-                value={overrides[tab]}
-                onChange={(e) => setOverrides((o) => ({ ...o, [tab]: e.target.value }))}
+                aria-label={t('text')}
+                data-testid="compose-text"
+                value={text}
+                placeholder={t('placeholder')}
+                onChange={(e) => setText(e.target.value)}
+                {...suggest.bind}
               />
+              {suggest.popup}
+            </div>
+          ) : overrides[tab] != null ? (
+            <>
+              <div className="sc-suggest-wrap">
+                <textarea
+                  ref={textRef}
+                  className="textarea sc-textarea"
+                  aria-label={t('textFor', { network: NETWORK_SPECS[tab].name })}
+                  data-testid={`compose-text-${tab}`}
+                  value={overrides[tab]}
+                  onChange={(e) => setOverrides((o) => ({ ...o, [tab]: e.target.value }))}
+                  {...suggest.bind}
+                />
+                {suggest.popup}
+              </div>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOverrides((o) => ({ ...o, [tab]: undefined }))}>
                 {t('useCommonText')}
               </button>
