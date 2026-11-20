@@ -81,7 +81,7 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   expect(task.priority).toBe('high');
 
   // En el contacto del CRM: la tarea en el timeline con el link de vuelta al chat.
-  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
   const source = page.locator('.tl-source', { hasText: chatName });
   await expect(source).toBeVisible();
   await expect(source).toHaveAttribute('href', new RegExp(`/app/lines/inbox/${chat.id}$`));

@@ -38,7 +38,7 @@ interface DealsFiltersProps {
   customFields: CustomFieldOption[];
   /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
   extraSorts?: Array<{ value: string; label: string }>;
-  /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
+  /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
   children?: React.ReactNode;
 }
 
@@ -117,7 +117,7 @@ export default function DealsFilters({
     createdTo,
     ...Object.values(custom),
   ].filter(Boolean).length;
-  const moreActive = [source, createdFrom, createdTo, advanced, ...Object.values(custom)].filter(Boolean).length;
+  const moreActive = [source, createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
   return (
@@ -212,6 +212,7 @@ export default function DealsFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
+        {children}
 
         <div className="filter-right">
           {activeFilters > 0 && (
@@ -314,7 +315,6 @@ export default function DealsFilters({
               </select>
             </label>
           ))}
-          {children && <div className="filter-advanced">{children}</div>}
         </div>
       )}
     </div>

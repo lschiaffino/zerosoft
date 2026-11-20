@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
@@ -9,13 +9,12 @@ import {
   ACTIVITY_DATE_SORTS,
   LIFECYCLE_STAGES,
   listCompanies,
-  parseFilterRules,
   type CompanyFilter,
   parseCustom,
 } from '@/lib/crm';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { listMembers } from '@/lib/teams';
@@ -23,7 +22,10 @@ import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
-import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
+import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
+import { companyFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
+import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { getUserTimeZone } from '@/lib/user-tz';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import CrmPager from '@/components/crm/CrmPager';
@@ -77,7 +79,6 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const custom = parseCustomFilter(searchParams);
   const page = Number(one(searchParams.page) ?? '1') || 1;
   const rawFilters = one(searchParams.filters) ?? '';
-  const advancedRules = parseFilterRules(rawFilters);
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
   const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'companies')).visible;
@@ -88,6 +89,40 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     COMPANY_SORTS.includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
       ? (sortParam as NonNullable<CompanyFilter['sort']>)
       : 'newest';
+
+  // Industrias presentes para el filtro (select).
+  const industries = (
+    (await getDb()
+      .prepare(
+        `SELECT DISTINCT industry FROM crm_companies
+         WHERE user_id = ? AND industry != '' ORDER BY industry COLLATE NOCASE`,
+      )
+      .all(user.id)) as Array<{ industry: string }>
+  ).map((r) => r.industry);
+
+  const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
+
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
+    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
+  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
+
+  const allTags = await listTags(user.id);
+  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
+
+  // Las propiedades del panel de filtros avanzados se arman antes de consultar: el filtro de la URL
+  // se valida contra ellas (una regla que el panel no ofrece ni se aplica ni aparece como chip).
+  const filterFields = companyFilterFields({
+    t: (k) => t(k),
+    owners,
+    tags: allTags.map((x) => ({ value: x.id, label: x.name })),
+    customDefs: customFieldDefs,
+    industries: industries.map((ind) => ({ value: ind, label: ind })),
+    lifecycles,
+  });
+  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  const advancedCount = countFilterRules(filterModel);
+  const filtersParam = serializeFilterModel(filterModel);
 
   const { rows, total } = await listCompanies(user.id, {
     ownerScope: scope,
@@ -101,9 +136,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
-    filters: advancedRules.length
-      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
-      : undefined,
+    filters: advancedCount ? filterModel : undefined,
+    filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
     customTypes,
     sort,
     page,
@@ -126,11 +160,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       .all(...ids, user.id)) as Array<{ cid: string; c: number }>;
     for (const r of counts) dealCounts.set(r.cid, r.c);
   }
-  const [allTags, rowTags] = await Promise.all([
-    listTags(user.id),
-    tagsForRecords(user.id, 'company', rows.map((r) => r.id)),
-  ]);
-  const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
+  const rowTags = await tagsForRecords(user.id, 'company', rows.map((r) => r.id));
   // Nombre de la empresa madre de cada fila (columna "Parent company").
   const parentIds = [...new Set(rows.map((r) => r.parent_company_id).filter((v): v is string => !!v))];
   const parentNames = new Map<string, string>();
@@ -141,25 +171,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     for (const r of prows) parentNames.set(r.id, r.name);
   }
 
-  // Industrias presentes para el filtro (select).
-  const industries = (
-    (await getDb()
-      .prepare(
-        `SELECT DISTINCT industry FROM crm_companies
-         WHERE user_id = ? AND industry != '' ORDER BY industry COLLATE NOCASE`,
-      )
-      .all(user.id)) as Array<{ industry: string }>
-  ).map((r) => r.industry);
-
   const lifecycleLabel = (v: string): string =>
     (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
-
-  const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
-
-  const teamMembers = workspaceTeamId(user)
-    ? await listMembers(workspaceTeamId(user)!)
-    : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
-  const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
@@ -174,31 +187,6 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       return { name: cf.name, label: cf.label, options };
     })
     .filter((cf) => cf.options.length > 0);
-
-  // Campos del constructor avanzado: estándar + custom fields de la entidad.
-  const builderFields: FilterBuilderField[] = [
-    { key: 'name', label: t('filters.field.name'), type: 'text' },
-    { key: 'domain', label: t('filters.field.domain'), type: 'text' },
-    {
-      key: 'industry',
-      label: t('filters.field.industry'),
-      type: 'select',
-      options: industries.map((ind) => ({ value: ind, label: ind })),
-    },
-    { key: 'lifecycle', label: t('filters.field.lifecycle'), type: 'select', options: lifecycles },
-    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
-    { key: 'created', label: t('filters.field.created'), type: 'date' },
-    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
-    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
-    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
-    {
-      key: 'tag',
-      label: t('filters.field.tag'),
-      type: 'select',
-      options: allTags.map((x) => ({ value: x.id, label: x.name })),
-    },
-    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
-  ];
 
   const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
   const tableRows: CompanyRow[] = rows.map((c) => ({
@@ -246,7 +234,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
-  if (rawFilters) query.filters = rawFilters;
+  if (filtersParam) query.filters = filtersParam;
   if (sort !== 'newest') query.sort = sort;
 
   const hasFilters =
@@ -283,7 +271,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         createdFrom={createdFrom}
         createdTo={createdTo}
         custom={custom}
-        advanced={rawFilters || undefined}
+        advanced={filtersParam || undefined}
         sort={sort}
         industries={industries}
         lifecycles={lifecycles}
@@ -296,11 +284,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             desc: (label) => t('listSort.fieldDesc', { label }),
           })}
       >
-        <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+        <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} />
       </CompanyFilters>
+      <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
 
       {tableRows.length === 0 ? (
-        hasFilters || advancedRules.length > 0 ? (
+        hasFilters || advancedCount > 0 ? (
           <EmptyState
             title={t('record.empty.noMatchTitle')}
             body={t('record.empty.noMatchBody')}

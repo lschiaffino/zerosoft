@@ -213,7 +213,8 @@ test('empresa: completar desde el sitio (descripción, redes, rubro y tamaño)',
   const tag = uid();
   const co = await (await request.post('/api/crm/companies', { data: { name: `Site ${tag}` } })).json();
   await request.patch(`/api/crm/companies/${co.id}`, { data: { domain: `norte-${tag}.io` } });
-  await page.goto(`/en/app/crm/companies/${co.id}`, { waitUntil: 'networkidle' });
+  // La descripción y las redes están en el Resumen de la ficha (y editables en la columna de propiedades).
+  await page.goto(`/en/app/crm/companies/${co.id}?tab=overview`, { waitUntil: 'networkidle' });
   await page.getByTestId('company-enrich').click();
   await expect(page.getByRole('status').filter({ hasText: /Filled \d+ fields/ })).toBeVisible();
   await expect(page.getByTestId('company-description')).toContainText('builds tools for small teams');
