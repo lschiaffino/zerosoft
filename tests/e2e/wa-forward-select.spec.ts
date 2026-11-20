@@ -217,6 +217,8 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
+    // La lista con todas las líneas: otro spec de la misma parte puede haber dejado elegida una sola.
+    await request.put('/api/groups/prefs', { data: { line: 'all' } });
     const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Selección ${uid()}` } });
     expect(created.ok()).toBe(true);
     const { id } = (await created.json()) as { id: string };
