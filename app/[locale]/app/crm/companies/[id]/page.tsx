@@ -8,6 +8,7 @@ import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
 import { getCompany, LIFECYCLE_STAGES, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
@@ -254,11 +255,13 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const contactScope = scopeAnd('crm_contacts', scope);
   const dealScope = scopeAnd('crm_deals', scope);
+  // Tareas de chats de Lines que la persona no ve: sin su texto.
+  const chatReader = await sessionChatReader(user, locale);
   const [timeline, threadsRaw, nextTaskRaw, aiAvailable, aiSummaryRaw, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
     await Promise.all([
-      listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope }),
+      listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope, chatReader }),
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
-      nextTaskFor(user.id, { companyId: id }),
+      nextTaskFor(user.id, { companyId: id, chatReader }),
       crmAiAvailable(),
       getRecordSummary(user.id, 'company', company.id, scope),
       listRecordFiles(user.id, 'company', company.id),

@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { listPipelinesWithStages } from '@/lib/crm';
 import {
   addWidget,
@@ -66,6 +67,7 @@ export default async function CrmDashboardsPage(
   const pipelines = await listPipelinesWithStages(user.id);
   const owners = await listReportOwners(user, scope);
   const defaultPipelineId = pipelines[0]?.id ?? null;
+  const chatReader = await sessionChatReader(user, locale);
 
   // Prefetch del dataset de cada tipo de widget (pipeline default, rango 30d).
   const entries = await Promise.all(
@@ -78,6 +80,7 @@ export default async function CrmDashboardsPage(
             { type, pipelineId: defaultPipelineId, range: '30d' },
             owners,
             scope,
+            chatReader,
           ),
         ] as const,
     ),

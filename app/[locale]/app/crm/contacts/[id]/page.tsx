@@ -9,6 +9,7 @@ import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { scoreTier } from '@/lib/crm-scoring-schema';
 import { contactScores, listScores } from '@/lib/crm-scoring';
 import { getDb } from '@/lib/db';
@@ -220,6 +221,8 @@ export default async function ContactDetailPage(props: {
 
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const dealScope = ownerScopeSql('d', scope);
+  // Tareas de chats de Lines que la persona no ve: sin su texto.
+  const chatReader = await sessionChatReader(user, locale);
   const [
     scores,
     timeline,
@@ -239,11 +242,11 @@ export default async function ContactDetailPage(props: {
     recordFilesRaw,
   ] = await Promise.all([
     listScores(user.id),
-    listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope }),
+    listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope, chatReader }),
     listEmailThreads(user.id, { contactId: id, limit: 100 }),
     listEmailTemplates(user.id),
     getEmailSettings(user.id),
-    nextTaskFor(user.id, { contactId: id }),
+    nextTaskFor(user.id, { contactId: id, chatReader }),
     listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope }),
     fieldAccessFor(sessionFieldViewer(user), 'contacts'),
     contactScores(user.id, contact),

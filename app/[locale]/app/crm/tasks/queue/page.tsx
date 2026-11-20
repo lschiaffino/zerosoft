@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { listQueueTasks, parseQueueScope, QUEUE_SCOPES } from '@/lib/crm-work-queue';
 import { listMembers } from '@/lib/teams';
 import { getUserTimeZone } from '@/lib/user-tz';
@@ -30,7 +31,7 @@ export default async function WorkQueuePage(props: QueuePageProps) {
   const ownerId = ownerParam === 'all' ? null : ownerParam || me;
   const timeZone = await getUserTimeZone();
   const [tasks, members] = await Promise.all([
-    listQueueTasks(user.id, { ownerId, scope, timeZone, ownerScope: await sessionScope(user) }),
+    listQueueTasks(user.id, { ownerId, scope, timeZone, ownerScope: await sessionScope(user), chatReader: await sessionChatReader(user, locale) }),
     workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
   ]);
   // La cola se re-monta si cambian los filtros (vuelve a la primera tarea).

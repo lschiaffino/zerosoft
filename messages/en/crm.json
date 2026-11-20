@@ -530,6 +530,8 @@
   "tasks": {
     "title": "Tasks",
     "newTask": "+ New task",
+    "privateChat": "Task from a Lines chat",
+    "privateChatHint": "It was created from a Lines chat you don't have access to, so its title and notes are hidden.",
     "overdue": "Overdue",
     "today": "Today",
     "upcoming": "Upcoming",

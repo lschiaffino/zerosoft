@@ -314,7 +314,9 @@ export async function buildRecordContext(
     }
   }
 
-  const activities = await listTimeline(workspaceId, { ...filter, limit: 40, ownerScope: scope });
+  // El resumen se guarda una vez para todos: las tareas de chats de Lines van sin su texto (lib/crm-chat-privacy.ts).
+  const { noChatReader } = await import('./crm-chat-privacy');
+  const activities = await listTimeline(workspaceId, { ...filter, limit: 40, ownerScope: scope, chatReader: noChatReader(workspaceId) });
   const emails = await emailsFor(workspaceId, contactIds);
   if (activities.length) {
     lines.push('Activity (newest first):');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canSeeActivity, sessionScope } from '@/lib/crm-visibility';
+import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
@@ -20,19 +21,26 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = activityUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
+  // Tarea de un chat de Lines que la persona no ve: puede completarla, moverla o reasignarla, pero no
+  // reescribir un texto que no ve, y la respuesta tampoco lo trae.
+  const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const reader = await sessionChatReader(user, locale);
+  const textEdit = parsed.data.subject !== undefined || parsed.data.body !== undefined;
+  if (textEdit && (await isChatHidden(user.id, params.id, reader))) return crmError(403, 'chat_private');
   const before = await getActivity(user.id, params.id);
-  const activity = await catchRef(updateActivity(user.id, params.id, parsed.data));
-  if (activity instanceof CrmRefError) return crmError(400, activity.code);
-  if (!activity) return notFound();
+  const updated = await catchRef(updateActivity(user.id, params.id, parsed.data));
+  if (updated instanceof CrmRefError) return crmError(400, updated.code);
+  if (!updated) return notFound();
+  const activity = (await redactChatTask(user.id, updated, reader)) ?? updated;
   // Solo se avisa a quienes la edición suma como mencionados.
-  if (before && (parsed.data.subject !== undefined || parsed.data.body !== undefined)) {
+  if (before && textEdit) {
     await notifyActivityMentions({
-      activity,
+      activity: updated,
       actor: user.actingUser ?? user,
       people: await mentionablePeople(user),
       workspaceId: user.id,
       before: `${before.subject}\n${before.body}`,
-      locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
+      locale,
     }).catch(() => []);
   }
   return NextResponse.json(activity);

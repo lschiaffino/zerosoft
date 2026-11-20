@@ -11,6 +11,7 @@ import { getSplits } from '@/lib/crm-splits';
 import ApprovalBanner, { type ApprovalBannerItem } from '@/components/crm/ApprovalBanner';
 import DealSplitsPanel from '@/components/crm/DealSplitsPanel';
 import { canSeeActivity, canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
@@ -303,6 +304,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const contactScope = scopeAnd('crm_contacts', scope);
   const companyScope = scopeAnd('crm_companies', scope);
+  // Tareas de chats de Lines que la persona no ve: sin su texto.
+  const chatReader = await sessionChatReader(user, locale);
   const [
     activities,
     threadsRaw,
@@ -320,11 +323,11 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     contactRows,
     allCompanies,
   ] = await Promise.all([
-    listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope }),
+    listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope, chatReader }),
     listEmailThreads(user.id, { dealId: id, limit: 100 }),
     listEmailTemplates(user.id),
     getEmailSettings(user.id),
-    nextTaskFor(user.id, { dealId: id }),
+    nextTaskFor(user.id, { dealId: id, chatReader }),
     crmAiAvailable(),
     getRecordSummary(user.id, 'deal', deal.id, scope),
     getDealScore(user.id, deal.id, scope),
