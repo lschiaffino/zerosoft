@@ -7,7 +7,7 @@ import FormSection from '@/components/ui/FormSection';
 import QuickModal from '@/components/app/QuickModal';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import Icon from '@/components/app/icons';
-import { PRODUCT_CONFIG, isWorkspaceGatedApp, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { EMPTY_RULE, type WorkspaceAppMode, type WorkspaceAppRule, type WorkspaceAppRules } from '@/lib/app-access';
 
 interface Person {
@@ -36,8 +36,7 @@ type PersonState = 'default' | 'allow' | 'deny';
  *
  * La estrella destaca la app para todo el workspace (PUT
  * /api/teams/apps/featured): con alguna destacada, el menú de apps las muestra
- * arriba y pliega el resto en "Otras apps". Inbox, que siempre está, solo se
- * destaca.
+ * arriba y pliega el resto en "Otras apps". Inbox tiene los mismos controles.
  */
 export default function AppsPanel({
   apps,
@@ -160,7 +159,6 @@ export default function AppsPanel({
             const off = rule.mode === 'off';
             const name = PRODUCT_CONFIG[app].name;
             const busy = saving === app;
-            const gated = isWorkspaceGatedApp(app);
             const starred = featured.includes(app);
             return (
               <li
@@ -177,8 +175,8 @@ export default function AppsPanel({
                   <span className="ws-apps-name">{name}</span>
                   <span className="ws-apps-desc">{tp(`${app}.desc`)}</span>
                   <span className="ws-apps-sum" aria-live="polite">
-                    {gated ? summary(rule) : t('alwaysOn')}
-                    {gated && !off && canEdit && (
+                    {summary(rule)}
+                    {!off && canEdit && (
                       <>
                         {' · '}
                         <button type="button" className="ws-apps-edit" onClick={() => open(app, rule.mode, rule)} data-testid={`ws-app-edit-${app}`}>
@@ -195,20 +193,18 @@ export default function AppsPanel({
                 </span>
                 <span className="ws-apps-control">
                   <span className="ws-apps-toggles">
-                    {gated && (
-                      <label className="ui-check ws-apps-switch">
-                        <input
-                          type="checkbox"
-                          role="switch"
-                          checked={!off}
-                          disabled={!canEdit || busy}
-                          aria-label={t('enabledFor', { name })}
-                          onChange={(e) => onSwitch(app, e.target.checked)}
-                          data-testid={`ws-app-switch-${app}`}
-                        />
-                        <span>{t('enabled')}</span>
-                      </label>
-                    )}
+                    <label className="ui-check ws-apps-switch">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={!off}
+                        disabled={!canEdit || busy}
+                        aria-label={t('enabledFor', { name })}
+                        onChange={(e) => onSwitch(app, e.target.checked)}
+                        data-testid={`ws-app-switch-${app}`}
+                      />
+                      <span>{t('enabled')}</span>
+                    </label>
                     {/* Destacar: un botón con estado (aria-pressed). Apagada no se destaca, pero la marca queda para cuando vuelva. */}
                     <button
                       type="button"
@@ -223,28 +219,24 @@ export default function AppsPanel({
                       <Icon name="star" size={16} />
                     </button>
                   </span>
-                  {gated && (
-                    <>
-                      <label className="sr-only" htmlFor={`ws-app-mode-${app}`}>
-                        {t('accessFor', { name })}
-                      </label>
-                      <select
-                        id={`ws-app-mode-${app}`}
-                        className="select"
-                        value={off ? 'all' : rule.mode}
-                        disabled={!canEdit || busy || off}
-                        aria-busy={busy || undefined}
-                        onChange={(e) => onMode(app, e.target.value as WorkspaceAppMode)}
-                        data-testid={`ws-app-mode-${app}`}
-                      >
-                        {ON_MODES.map((m) => (
-                          <option key={m} value={m}>
-                            {t(`modes.${m}`)}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
+                  <label className="sr-only" htmlFor={`ws-app-mode-${app}`}>
+                    {t('accessFor', { name })}
+                  </label>
+                  <select
+                    id={`ws-app-mode-${app}`}
+                    className="select"
+                    value={off ? 'all' : rule.mode}
+                    disabled={!canEdit || busy || off}
+                    aria-busy={busy || undefined}
+                    onChange={(e) => onMode(app, e.target.value as WorkspaceAppMode)}
+                    data-testid={`ws-app-mode-${app}`}
+                  >
+                    {ON_MODES.map((m) => (
+                      <option key={m} value={m}>
+                        {t(`modes.${m}`)}
+                      </option>
+                    ))}
+                  </select>
                 </span>
               </li>
             );

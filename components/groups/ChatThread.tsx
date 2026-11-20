@@ -25,7 +25,7 @@ import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
-import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -146,7 +146,8 @@ export interface ThreadProps {
   quickReplies: QuickReply[];
   properties: PropertyDef[];
   agents: Array<{ id: string; name: string }>;
-  crm: { contact: { id: string; name: string } | null; company: { id: string; name: string } | null };
+  /** null: la app CRM está apagada para quien mira (no se muestra nada del CRM). */
+  crm: { contact: { id: string; name: string } | null; company: { id: string; name: string } | null } | null;
   me: string;
   isAdmin: boolean;
   numberName: string;
@@ -424,7 +425,7 @@ export default function ChatThread(props: ThreadProps) {
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
   // "Info del contacto" de alguien del grupo (su foto o su nombre en un mensaje): la ficha de WhatsApp.
   const tsheet = useTranslations('groups.wa.contactSheet');
-  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true));
+  const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
@@ -2115,7 +2116,7 @@ export default function ChatThread(props: ThreadProps) {
               onMessage={isTempId(m.id) ? undefined : (i) => void openCardChat(m, i)}
               // Guardar en el CRM solo con el número a la vista (con los teléfonos ocultos llega enmascarado).
               onSave={
-                contacts.every((c) => /^\d{6,15}$/.test(c.phones?.[0] ?? '')) ? (i) => void saveContact(contacts[i].name, contacts[i].phones?.[0] ?? '') : undefined
+                props.crm && contacts.every((c) => /^\d{6,15}$/.test(c.phones?.[0] ?? '')) ? (i) => void saveContact(contacts[i].name, contacts[i].phones?.[0] ?? '') : undefined
               }
             />
           )}
@@ -2504,10 +2505,23 @@ export default function ChatThread(props: ThreadProps) {
 
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
-          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. */}
+        <div className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
+          {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
+              las flechas (y Inicio/Fin) pasan de una a otra, como en cualquier lista de pestañas. */}
           {!editing && (
-            <div className="wa-mode" role="tablist" aria-label={t('thread.modeLabel')} data-tour="lines-note">
+            <div
+              className="wa-mode"
+              role="tablist"
+              aria-label={t('thread.modeLabel')}
+              data-tour="lines-note"
+              onKeyDown={(e) => {
+                const next = e.key === 'ArrowLeft' || e.key === 'Home' ? 'reply' : e.key === 'ArrowRight' || e.key === 'End' ? 'note' : null;
+                if (!next) return;
+                e.preventDefault();
+                setMode(next);
+                e.currentTarget.querySelector<HTMLButtonElement>(`.wa-mode-${next}`)?.focus();
+              }}
+            >
               {(['reply', 'note'] as const).map((m) => (
                 <button
                   key={m}
@@ -2515,6 +2529,7 @@ export default function ChatThread(props: ThreadProps) {
                   role="tab"
                   className={`wa-mode-tab wa-mode-${m}`}
                   aria-selected={mode === m}
+                  tabIndex={mode === m ? 0 : -1}
                   title={m === 'note' ? t('wa.writeNote') : t('wa.backToWhatsApp')}
                   onClick={() => {
                     setMode(m);
@@ -2544,7 +2559,7 @@ export default function ChatThread(props: ThreadProps) {
               {t('thread.noteHint')}
             </p>
           )}
-          {aiAllowed && <AiComposeBar ai={ai} />}
+          {aiAllowed && <AiComposeBar ai={ai} floating />}
           {editing && (
             <div className="wa-replying wa-editing">
               <span className="gr-quote wa-q-me">
@@ -2690,6 +2705,7 @@ export default function ChatThread(props: ThreadProps) {
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 data-testid="composer-input"
+                adornment={aiAllowed ? <AiComposeChip ai={ai} /> : null}
                 rows={1}
                 highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}

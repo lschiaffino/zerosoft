@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { setSubscription } from '@/lib/board';
 import { verifyUnsubscribeToken } from '@/lib/board-notify';
 import { getRoadmapItem } from '@/lib/roadmap';
-import { absoluteItemUrl } from '@/lib/board-urls';
+import { absoluteItemUrl, siteUrl } from '@/lib/board-urls';
+import { isPublishedItem, requestPath } from '@/lib/my-requests';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,5 +19,7 @@ export async function GET(req: Request) {
   const item = await getRoadmapItem(itemId);
   if (!item) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   await setSubscription(itemId, userId, false);
+  // Un pedido privado no tiene página pública: vuelve a la página del pedido (pide sesión).
+  if (!isPublishedItem(item)) return NextResponse.redirect(`${siteUrl()}/en${requestPath(item.id)}?unsubscribed=1`, 303);
   return NextResponse.redirect(`${absoluteItemUrl('en', item.id, item.title)}?unsubscribed=1`, 303);
 }

@@ -13,6 +13,7 @@ import HubspotScreen from './HubspotScreen';
 import HubspotMyProps from './HubspotMyProps';
 import { useHubspotSchema } from './hubspot-client';
 import { useHubspotDocked } from './hubspot-dock';
+import { ExternalIcon } from './wa/PersonHubspot';
 import { useGroupsInbox } from './InboxShell';
 import { api, useErrorText } from './ui';
 
@@ -243,7 +244,7 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
             </button>
             {/* Con el panel fijado al costado, las propiedades ya están a la vista. */}
             {!docked && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setScreen(true)} data-testid="hubspot-open-screen">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setScreen(true)} data-testid="hubspot-open-screen">
                 {t('hubspot.screen.open')}
               </button>
             )}
@@ -274,7 +275,8 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
                   <span className="gr-hs-kind">{t(`hubspot.types.${r.type}`)}</span>
                   <span className="gr-hs-head">
                     <a className="gr-hs-name" href={r.url} target="_blank" rel="noopener noreferrer" aria-label={t('hubspot.open', { name: r.name })}>
-                      {r.name}
+                      <span>{r.name}</span>
+                      <ExternalIcon />
                     </a>
                     <button type="button" className="btn btn-ghost btn-sm" disabled={busy} aria-label={t('hubspot.unlinkLabel', { name: r.name })} onClick={() => void unlink(r)}>
                       {t('hubspot.unlink')}

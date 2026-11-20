@@ -1173,6 +1173,10 @@ export default function InboxApp(props: {
       { key: 'unread', label: th.unread > 0 ? t('more.read') : t('more.unread'), onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
       // En Archivados están los archivados y los "hechos": los dos llevan la etiqueta Archivado y los dos se desarchivan.
       { key: 'archive', label: th.archived || th.done ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived || th.done ? 'unarchive' : 'archive' }) },
+      // Mantener archivado: en un chat de WhatsApp archivado, lo mismo que la llave del panel del chat.
+      ...(th.channel === 'whatsapp' && (th.archived || th.done)
+        ? [{ key: 'keepArchived', label: th.keepArchived ? t('rowMenu.keepArchivedOff') : t('rowMenu.keepArchived'), onSelect: () => void keepArchived([id], !th.keepArchived) }]
+        : []),
       th.snoozedUntil
         ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },

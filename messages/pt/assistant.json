@@ -337,7 +337,8 @@
       "groups_chats": "os chats do Lines",
       "list_import_jobs": "as importações recentes",
       "integration_health": "as contas conectadas",
-      "email_status": "a entrega de emails"
+      "email_status": "a entrega de emails",
+      "my_feature_requests": "os seus pedidos"
     },
     "foldersRunning": "Lendo seu JSON e procurando os chats…",
     "foldersOk": "Plano pronto: {summary}",

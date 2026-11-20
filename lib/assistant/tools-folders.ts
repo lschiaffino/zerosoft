@@ -650,7 +650,7 @@ export const folderTools: AssistantTool[] = [
   readTool({
     name: 'inbox_folders',
     // Inbox está siempre (personal): no depende de las apps del workspace.
-    app: null,
+    app: 'inbox',
     description: "The person's own Inbox folders and subfolders (path and number of chats in each), plus how many chats they have. Personal: never another person's.",
     input: z.object({}),
     run: async (ctx) => {
@@ -675,7 +675,7 @@ export const folderTools: AssistantTool[] = [
   readTool({
     name: 'inbox_find_chats',
     // Inbox está siempre (personal): no depende de las apps del workspace.
-    app: null,
+    app: 'inbox',
     description: "Find chats in the person's own Inbox by name, phone or email (no messages). Use to resolve a chat the folder plan could not match.",
     input: z.object({ query: z.string().trim().min(1).max(120) }),
     run: async (ctx, { query }) => {

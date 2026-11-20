@@ -478,6 +478,7 @@
     "videos": "Vídeos",
     "desktopApp": "App de desktop",
     "compare": "Comparações",
+    "directory": "Diretório de software",
     "colDownload": "Baixar",
     "dlMacArm": "Mac (Apple silicon)",
     "dlMacIntel": "Mac (Intel)",
@@ -1355,6 +1356,56 @@
     "ask": "Você vai usar por conta própria ou com uma equipe?",
     "solo": "Por conta própria",
     "team": "Com uma equipe",
+    "track": {
+      "intro": {
+        "title": "Boas-vindas ao Track",
+        "body": "O Track reúne os issues, projetos e ciclos da sua equipe em um só lugar. Este tour mostra as partes principais."
+      },
+      "newTeam": {
+        "title": "Crie uma equipe",
+        "body": "Os issues ficam em equipes, como um produto ou uma área. Crie a primeira para começar a adicionar issues."
+      },
+      "overview": {
+        "title": "Suas equipes num relance",
+        "body": "Cada linha é uma equipe com o ciclo atual, os issues atrasados e o que espera na triagem. Abra uma para ver os issues."
+      },
+      "newIssue": {
+        "title": "Crie um issue",
+        "body": "Novo cria um issue, um projeto ou uma equipe. Em qualquer parte do Track, aperte C para um issue novo."
+      },
+      "inbox": {
+        "title": "Caixa de entrada",
+        "body": "Atribuições, menções, comentários e mudanças de status dos issues que você segue chegam aqui."
+      },
+      "myIssues": {
+        "title": "Meus issues",
+        "body": "Tudo o que está atribuído a você, em todas as equipes."
+      },
+      "issues": {
+        "title": "Abra Issues",
+        "body": "Issues lista todos os issues do espaço. Abra para ver os filtros e as visualizações."
+      },
+      "filters": {
+        "title": "Filtrar",
+        "body": "Filtre por status, prioridade, responsável, ciclo, etiquetas ou prazo. Aperte F para adicionar um filtro e / para buscar."
+      },
+      "display": {
+        "title": "Exibição",
+        "body": "Alterne entre lista, quadro, calendário e Gantt, e escolha como os issues são agrupados e ordenados."
+      },
+      "views": {
+        "title": "Visualizações salvas",
+        "body": "Salve como visualização os filtros e a exibição que você usa sempre e volte a eles com um clique."
+      },
+      "shortcuts": {
+        "title": "Atalhos de teclado",
+        "body": "C cria um issue, J e K percorrem a lista e Enter abre. G e depois I vai para a Caixa de entrada. Cmd+K encontra qualquer coisa."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Boas-vindas ao Lines",
