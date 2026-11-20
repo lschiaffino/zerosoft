@@ -19,6 +19,7 @@ const SECTIONS: Array<[string, string]> = [
   ['/app/settings/import', 'Import'],
   ['/app/settings/security', 'Security'],
   ['/app/settings/notifications', 'Notifications'],
+  ['/app/settings/requests', 'My requests'],
   ['/app/settings/offline', 'Offline'],
   ['/app/settings/desktop', 'Desktop app'],
 ];

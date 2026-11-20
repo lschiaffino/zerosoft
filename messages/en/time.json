@@ -47,7 +47,7 @@
     "emptyDayBody": "Start a timer or type the hours you worked.",
     "noProjectsTitle": "No projects yet",
     "noProjectsAdmin": "Create a project to start tracking time against it.",
-    "noProjectsMember": "Ask an owner or admin of the workspace to create a project.",
+    "noProjectsMember": "Ask an owner or admin of the workspace to create a project or add you to one.",
     "createProject": "Create a project",
     "deleteTitle": "Delete this entry?",
     "deleteBody": "The hours go away from the timesheet and the reports.",
@@ -58,7 +58,9 @@
     "loadError": "The timesheet didn't load.",
     "entryLabel": "{project}, {task}, {duration}",
     "view": "View",
-    "day": "Day"
+    "day": "Day",
+    "notAssignedTitle": "You're not on any project",
+    "notAssignedAdmin": "Open a project and add yourself to its team to track time on it."
   },
   "week": {
     "projectTask": "Project and task",
@@ -194,7 +196,9 @@
     "in_use": "This task has hours. Archive it instead.",
     "duplicate": "There's already one with that name.",
     "unauthorized": "Your session ended. Sign in again.",
-    "rate_limited": "Too many changes in a row. Wait a minute."
+    "rate_limited": "Too many changes in a row. Wait a minute.",
+    "not_assigned": "You're not on this project's team. Ask an owner or admin to add you.",
+    "task_not_in_project": "That task isn't on this project. Pick another one."
   },
   "csv": {
     "date": "Date",
@@ -208,5 +212,23 @@
     "amount": "Amount",
     "yes": "Yes",
     "no": "No"
+  },
+  "assign": {
+    "team": "Team",
+    "everyone": "Everyone with Time",
+    "everyoneHint": "Every person in the workspace who can use Time tracks hours here.",
+    "onlyPeople": "Only these people",
+    "onlyPeopleHint": "Only the people checked below see the project and track hours on it.",
+    "pickOnePerson": "Check at least one person.",
+    "teamSaved": "Team saved",
+    "tasks": "Tasks",
+    "allTasks": "All tasks",
+    "allTasksHint": "Every active task, billable as set in Settings.",
+    "onlyTasks": "Only these tasks",
+    "onlyTasksHint": "Pick the tasks for this project and whether each one is billable here.",
+    "pickOneTask": "Check at least one task.",
+    "billable": "Billable",
+    "tasksSaved": "Tasks saved",
+    "save": "Save"
   }
 }

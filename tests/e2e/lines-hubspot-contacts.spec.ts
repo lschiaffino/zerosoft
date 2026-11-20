@@ -420,6 +420,14 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
   };
   await openInbox(page);
   await expect(card.getByTestId('inbox-hs-props-contact').locator('[data-prop="hs_lead_status"]')).toBeVisible();
+  // Con un nombre de propiedad muy largo, el valor sigue teniendo lugar: la columna de nombres no pasa del 45%.
+  const widths = await card.getByTestId('inbox-hs-props-contact').evaluate((dl) => {
+    const dt = dl.querySelector('dt');
+    if (dt) dt.textContent = 'A property name that is much longer than the panel is wide, like the custom ones teams create';
+    const list = dl.getBoundingClientRect().width;
+    return { list, values: Array.from(dl.querySelectorAll('dd')).map((dd) => dd.getBoundingClientRect().width) };
+  });
+  for (const w of widths.values) expect(w).toBeGreaterThan(widths.list * 0.4);
   await expect(card.getByTestId('inbox-hs-deal').locator('[data-prop="dealtype"]')).toBeVisible();
   await card.getByTestId('inbox-hs-open').click();
   await expect(screen).toBeVisible();

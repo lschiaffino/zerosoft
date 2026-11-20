@@ -218,6 +218,10 @@
 .wa-import.is-done { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-import-close { flex: none; width: 28px; height: 28px; color: inherit; }
 .wa-import.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
+/* El aviso de importación (components/groups/wa/ImportNotices.tsx): el texto y su barra a la izquierda, cerrar siempre a la derecha. */
+.wa-import-notice, .wa-import-notice.is-done { flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 10px; }
+.wa-import-main { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; padding: 4px 0; overflow-wrap: anywhere; }
+.wa-import-notice .wa-import-close { margin-right: -4px; }
 .wa-dropped { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-dropped .btn { flex: none; }
 .wa-dropped .wa-import-close { margin-left: -4px; }
@@ -411,6 +415,11 @@
   border: 0; border-left: 4px solid var(--wa-primary); border-radius: 6px; cursor: pointer; white-space: normal;
 }
 .gr-inbox .gr-msg-out .gr-quote { background: var(--wa-quote-out); }
+/* La cita no ensancha la burbuja, como en WhatsApp: el ancho lo pone el mensaje (texto, audio, foto) y la cita se
+   acomoda a ese ancho en hasta 3 renglones. Con un mensaje corto ("ok"), la burbuja toma un ancho mínimo para que la
+   cita se lea. En la barra de respuesta del composer (.wa-replying) la cita sigue ocupando su lugar. */
+.gr-inbox .gr-bubble > .gr-quote { contain: inline-size; box-sizing: border-box; }
+.gr-inbox .gr-bubble:has(> .gr-quote) { min-width: min(260px, 100%); }
 .gr-inbox .gr-quote strong { font-size: var(--wa-fs-small); font-weight: 500; color: var(--wa-primary-ink); }
 .gr-inbox .gr-quote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .gr-inbox .gr-quote.wa-q-me { border-left-color: #06cf9c; }
@@ -592,17 +601,50 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 
 /* ---------- Composer ---------- */
 .gr-inbox .wa-composer { padding: 5px var(--wa-pad-x) 8px; background: var(--wa-panel-header); border-top: 0; }
-.gr-inbox .wa-composer.is-note { background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); }
+/* Solapas "WhatsApp | Nota interna": dos solapas de carpeta que sobresalen del composer sobre el fondo del chat.
+   La activa es del mismo color que el panel de abajo (verde de WhatsApp al responder, amarillo de nota al escribir
+   una nota) y se pega a él; la otra queda un poco más baja y apagada, con su color. Sin franja gris detrás: la fila
+   pinta el mismo fondo que .wa-messages, con el patrón anclado abajo allá y arriba acá para que siga sin corte. */
+.gr-inbox {
+  --wa-reply-surface: var(--wa-bubble-out);
+  --wa-note-surface: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header));
+  --wa-reply-tab-off: color-mix(in srgb, var(--wa-reply-surface) 75%, var(--wa-conv-bg));
+  --wa-note-tab-off: color-mix(in srgb, var(--wa-note-surface) 75%, var(--wa-conv-bg));
+  /* El filete de arriba de cada solapa, en el color fuerte: el verde de WhatsApp y el amarillo de las notas. */
+  --wa-reply-edge: var(--wa-badge);
+  --wa-note-edge: var(--wa-note-line);
+}
+.gr-inbox .wa-messages { background-position: 0 100%; }
+.gr-inbox .wa-composer.has-mode { background: var(--wa-reply-surface); }
+.gr-inbox .wa-composer.is-note { background: var(--wa-note-surface); }
 .wa-team-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 5px; }
-.wa-mode { display: flex; align-items: flex-end; gap: 2px; margin: -5px 0 5px; padding: 0; border-bottom: 1px solid var(--wa-border); }
-.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 28px; margin-bottom: -1px; padding: 0 11px; font-size: var(--wa-fs-small); color: var(--wa-text-2); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer; }
-.wa-mode-tab:hover { color: var(--wa-text); }
-.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); font-weight: 500; background: var(--wa-panel-header); border-color: var(--wa-border); }
-.wa-mode-note[aria-selected='true'] { color: var(--wa-text); background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); border-color: var(--wa-note-line); }
-.wa-composer.is-note .wa-mode { border-bottom-color: var(--wa-note-line); }
-.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
-/* Teléfono y tableta: las pestañas son blancos de 40 px para el dedo. */
-@media (max-width: 1023px) { .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; } }
+.wa-mode {
+  display: flex; align-items: flex-end; gap: 4px; margin: -5px calc(-1 * var(--wa-pad-x)) 5px; padding: 6px var(--wa-pad-x) 0;
+  background-color: var(--wa-conv-bg);
+  background-image:
+    radial-gradient(circle at 25% 25%, var(--wa-doodle) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 75% 75%, var(--wa-doodle) 1.2px, transparent 1.7px);
+  background-size: 26px 26px;
+  background-position: 0 0;
+}
+.wa-mode-tab {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; height: 26px; padding: 0 12px; font: inherit; font-size: var(--wa-fs-small);
+  color: var(--wa-text); border: 0; border-top: 2px solid transparent; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer;
+}
+.wa-mode-reply { background: var(--wa-reply-tab-off); border-top-color: var(--wa-reply-edge); }
+.wa-mode-note { background: var(--wa-note-tab-off); border-top-color: var(--wa-note-edge); }
+.wa-mode-reply:hover { background: var(--wa-reply-surface); }
+.wa-mode-note:hover { background: var(--wa-note-surface); }
+.wa-mode-tab[aria-selected='true'] { height: 30px; font-weight: 500; }
+.wa-mode-reply[aria-selected='true'] { background: var(--wa-reply-surface); }
+.wa-mode-note[aria-selected='true'] { background: var(--wa-note-surface); }
+.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-text); outline-offset: -2px; }
+/* Teléfono y tableta: las solapas son blancos de 40 px para el dedo (la de adelante, 44). */
+@media (max-width: 1023px) {
+  .wa-mode { margin-inline: -8px; padding-inline: 8px; }
+  .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; }
+  .wa-mode-tab[aria-selected='true'] { height: 44px; }
+}
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
 .wa-team-tools .btn { gap: 5px; }
@@ -1003,12 +1045,20 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-stk:hover .wa-stk-more, .wa-stk-more:focus-visible, .wa-stk-more[aria-expanded='true'] { opacity: 1; }
 .wa-stk-more:focus-visible { outline: 2px solid var(--wa-primary); }
 @media (hover: none) { .wa-stk-more { opacity: 1; } }
+.wa-stk-more-btn { margin: 6px 2px 8px; }
 .wa-stk-skel { aspect-ratio: 1; margin: 6px; background: var(--wa-row-hover); border-radius: 6px; }
 .wa-stk-empty { padding: 20px 12px; text-align: center; font-size: 0.875rem; line-height: 1.45; color: var(--wa-text-2); }
 .wa-stk-empty p { margin: 0 0 10px; }
 .wa-stk-empty .wa-stk-empty-title { margin-bottom: 4px; font-weight: 600; color: var(--wa-text); }
 .wa-stk-primary { height: 32px; padding: 0 14px; font: inherit; font-size: 0.875rem; font-weight: 500; color: #fff; background: var(--wa-primary); border: 0; border-radius: 6px; cursor: pointer; }
 .wa-stk-note { margin-top: 10px !important; font-size: 0.8125rem; }
+/* "De tus chats": lo que solo recibió, plegado debajo de lo suyo. */
+.wa-stk-fold { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0 2px; padding: 6px 4px; font: inherit; font-size: 0.75rem; color: var(--wa-text-2); text-align: left; background: none; border: 0; border-top: 1px solid var(--wa-border, var(--line)); cursor: pointer; }
+.wa-stk-fold:hover { color: var(--wa-text); }
+.wa-stk-fold:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-stk-fold svg { flex: none; transform: rotate(-90deg); transition: transform 120ms ease; }
+.wa-stk-fold[aria-expanded='true'] svg { transform: none; }
+.wa-stk-hint { margin: 2px 4px 6px; font-size: 0.75rem; line-height: 1.4; color: var(--wa-text-2); }
 .wa-stk-error { margin: 0 2px 6px; font-size: 0.8125rem; color: var(--wa-danger, #ea0038); }
 
 /* Pestaña GIFs: búsqueda, categorías, mosaico de vistas previas animadas y la atribución del proveedor. */

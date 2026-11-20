@@ -10,6 +10,7 @@
  */
 import { getDb, type CrmSequenceEnrollmentRow, type CrmSequenceRow, type CrmSequenceStepRow } from './db';
 import { createActivity } from './crm';
+import { ownerScopeSql, type OwnerScope } from './crm-visibility';
 import {
   dbNow,
   getEmailTemplate,
@@ -397,10 +398,16 @@ export interface EnrollmentListRow extends CrmSequenceEnrollmentRow {
 
 export async function listEnrollments(
   userId: string,
-  f: { sequenceId?: string; contactId?: string; status?: EnrollmentStatus; limit?: number },
+  f: { sequenceId?: string; contactId?: string; status?: EnrollmentStatus; limit?: number; scope?: OwnerScope },
 ): Promise<EnrollmentListRow[]> {
   const where = ['e.user_id = ?'];
   const args: Array<string | number> = [userId];
+  // Visibilidad del CRM: sin los contactos que quien mira no ve.
+  const visible = ownerScopeSql('c', f.scope);
+  if (visible.sql) {
+    where.push(visible.sql);
+    args.push(...visible.args);
+  }
   if (f.sequenceId) {
     where.push('e.sequence_id = ?');
     args.push(f.sequenceId);

@@ -133,6 +133,8 @@ works without one.
 | `AI_FREE_TOKENS_PER_MONTH` / `AI_RATE_LIMIT_PER_MINUTE` / `AI_ENABLED` | AI quota per workspace, rate limit, and an off switch. |
 | `ZEROSOFT_LICENSE_KEY` | Enterprise license key for `ee/` features (optional). |
 | `ADMIN_EMAILS` | Emails that can see the feedback, roadmap and changelog admin pages. |
+| `FEATURE_PRIORITY_EMAILS` | Emails (comma-separated) whose feature requests to the assistant go to the top of the internal backlog and are always accepted for building. Server only. |
+| `BACKLOG_GITHUB_REPO` / `BACKLOG_GITHUB_TOKEN` | Optional. Each feature request the assistant records (and each priority bump) is also filed as an issue in this private repo (`owner/name`), labeled `from-assistant` and `priority`, with an opaque requester id instead of names or emails. The token needs read and write access to issues. Unset: nothing is sent. |
 | `GIPHY_API_KEY` / `TENOR_API_KEY` / `GIF_PROVIDER` | GIF search in the emoji panel of Lines and Inbox (the GIFs tab). One key is enough; with both, GIPHY wins unless `GIF_PROVIDER=tenor`. Unset: the tab says GIF search isn't set up and the rest works. The key stays on the server. |
 
 Social network apps (Meta, LinkedIn, X, TikTok, YouTube, Threads) are covered

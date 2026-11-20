@@ -19,9 +19,12 @@ export default function QuickProjectButton({
   className = 'btn btn-primary',
   testId = 'track-new-project',
   listenParam = false,
+  tour,
 }: {
   className?: string;
   testId?: string;
+  /** Anclaje de un tour guiado (data-tour, ver lib/tours). */
+  tour?: string;
   /** Abre el modal con ?newProject=1 (lo usa el menú ⌘K). */
   listenParam?: boolean;
 }) {
@@ -68,7 +71,7 @@ export default function QuickProjectButton({
 
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)} data-testid={testId}>
+      <button type="button" className={className} onClick={() => setOpen(true)} data-testid={testId} data-tour={tour}>
         {t('projects.newCta')}
       </button>
       <QuickModal

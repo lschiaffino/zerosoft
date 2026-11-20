@@ -166,6 +166,13 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   // Respuesta con su cita y reacciones agrupadas.
   const mine = thread.locator('.gr-msg-out', { hasText: 'Yo llevo la carne' });
   await expect(mine.locator('.gr-quote')).toContainText('¿Quién viene el sábado?');
+  // La cita no ensancha la burbuja: aunque el mensaje citado fuera muy largo, su ancho no supera el de la burbuja.
+  const q = await mine.locator('.gr-quote').evaluate((el) => {
+    const bubble = el.closest('.gr-bubble')!;
+    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, contain: getComputedStyle(el).contain };
+  });
+  expect(q.quote).toBeLessThanOrEqual(q.bubble);
+  expect(q.contain).toContain('inline-size');
   await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
   await expect(thread.locator('.gr-msg-in', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
   // Media: foto (abre el visor), audio, documento, ubicación, contacto, encuesta, reenviado, borrado.

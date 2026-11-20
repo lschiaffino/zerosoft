@@ -317,11 +317,11 @@ export function livePendingFor(viewer: GroupsViewer): ((cursor: number, upTo: nu
     const rows = (await getDb()
       // CROSS JOIN: primero los avisos del workspace desde el cursor (por su índice) y cada chat por su clave.
       .prepare(
-        `SELECT e.id, e.chat_id, e.number_id, e.kind FROM wa_live_events e CROSS JOIN groups_chats c ON c.id = e.chat_id
-         WHERE e.app = 'lines' AND e.scope_id = ? AND e.id > ? AND e.id <= ? AND +c.user_id = ? AND ${access.sql}
+        `SELECT e.id, e.chat_id, e.number_id, e.kind, e.person_id FROM wa_live_events e CROSS JOIN groups_chats c ON c.id = e.chat_id
+         WHERE e.app = 'lines' AND e.scope_id = ? AND e.id > ? AND e.id <= ? AND e.person_id IN ('', ?) AND +c.user_id = ? AND ${access.sql}
          ORDER BY e.id LIMIT ?`,
       )
-      .all(viewer.ws, cursor, upTo, viewer.ws, ...access.args, limit)) as Array<{ id: number; chat_id: string; number_id: string; kind: string }>;
+      .all(viewer.ws, cursor, upTo, viewer.me, viewer.ws, ...access.args, limit)) as Array<{ id: number; chat_id: string; number_id: string; kind: string; person_id: string }>;
     return rows.map((r) => ({ ...r, id: Number(r.id), kind: r.kind === 'msg' ? 'msg' : 'chat' }));
   };
 }
@@ -330,7 +330,7 @@ export function livePendingFor(viewer: GroupsViewer): ((cursor: number, upTo: nu
 export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
   const visible = chatFilterFor(viewer);
   const pending = livePendingFor(viewer);
-  return visible && pending ? { app: 'lines', ws: viewer.ws, visible, pending } : { app: 'lines', ws: viewer.ws, visible: null };
+  return visible && pending ? { app: 'lines', ws: viewer.ws, visible, pending, me: viewer.me } : { app: 'lines', ws: viewer.ws, visible: null, me: viewer.me };
 }
 
 // ---------- Máscara ----------

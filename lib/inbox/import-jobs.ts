@@ -34,6 +34,7 @@ import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmai
 import { importPart, parseImport, type ImportResult } from './import';
 import { InboxError } from './types';
 import { bookChatId, ingestWhatsappEvents, waProviderFor } from './whatsapp';
+import { IMPORT_IDLE_MS } from '../wa-import-notice';
 import { fillInboxTitles, learnFromHistoryContacts } from './wa-names';
 import { phoneDigits } from '../groups-provider';
 
@@ -90,6 +91,8 @@ export interface ImportJobDto {
   createdAt: string;
   updatedAt: string;
   finishedAt: string | null;
+  /** En curso, pero sin ningún avance guardado hace rato: el aviso de la lista lo dice (lib/wa-import-notice.ts). */
+  idle?: boolean;
 }
 
 interface JobRow {
@@ -138,6 +141,7 @@ function dto(r: JobRow): ImportJobDto {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     finishedAt: r.finished_at,
+    idle: (r.status === 'running' || r.status === 'waiting') && Date.now() - Date.parse(r.updated_at) > IMPORT_IDLE_MS,
   };
 }
 
@@ -409,6 +413,9 @@ async function stepWhatsapp(job: JobRow, deadline: number, now: Date): Promise<v
         cursor.jid = undefined;
         cursor.page = 1;
         progress.chatsDone = (progress.chatsDone ?? 0) + 1;
+        // Era el último chat: termina en este mismo paso. Si no, con el tope de pedidos o de tiempo justo acá quedaba
+        // "en curso" con todos los chats contados hasta el próximo paso del cron.
+        if (cursor.queue.length === 0) cursor.phase = 'done';
       }
     }
     progress.failures = 0;

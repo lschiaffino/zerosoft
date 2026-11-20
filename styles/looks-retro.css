@@ -249,6 +249,9 @@
 :root[data-look='retro'] .ui-tab[aria-current='page'],
 :root[data-look='retro'] .ui-tab.active { background: var(--rt-face); box-shadow: inset 1px 1px var(--rt-light), inset -1px 0 var(--rt-dark), inset -2px 0 var(--rt-shadow); }
 :root[data-look='retro'] .ui-tab::after { display: none; }
+/* Solapas WhatsApp | Nota interna del composer de Lines: pestañas de Windows 98 con sus colores (verde y amarillo). */
+:root[data-look='retro'] .wa-mode-tab { border-radius: 0; box-shadow: inset 1px 0 var(--rt-light), inset 2px 0 var(--rt-hi), inset -1px 0 var(--rt-dark), inset -2px 0 var(--rt-shadow); }
+:root[data-look='retro'] .wa-mode-tab:focus-visible { outline: 1px dotted var(--wa-text); outline-offset: -4px; }
 
 /* ---------- Menús y ventanas ---------- */
 

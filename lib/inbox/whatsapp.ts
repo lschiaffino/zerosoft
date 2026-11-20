@@ -327,11 +327,19 @@ function needsBookFirst(e: InboundEvent): boolean {
  */
 export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
   const t = await findPhoneThread(account, chatId);
-  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('../wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, keptUnarchiveCause, releaseKeptLater, traceArchive } = await import('../wa-archive-sync');
   if (!t) return traceArchive('inbox', chatId, archived, 'not_found');
   // En Inbox, archivado es "archivado" o "hecho" (la misma vista y el mismo botón, y así se manda a WhatsApp).
   if ((!!t.archived_at || !!t.done_at) === archived) return traceArchive('inbox', chatId, archived, 'same');
   if (await isStaleUnarchive('inbox', account.id, archived)) return traceArchive('inbox', chatId, archived, 'stale');
+  // "Mantener archivado": el desarchivado que WhatsApp hace por un mensaje se ignora (lo re-archivamos); el que hizo la
+  // persona en el teléfono apaga la marca, pasados unos segundos (lib/wa-archive-sync.ts, keptUnarchiveCause).
+  if (!archived && t.keep_archived === 1) {
+    if ((await keptUnarchiveCause('inbox', t)) === 'message') return traceArchive('inbox', chatId, archived, 'kept');
+    if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
+    await releaseKeptLater('inbox', t.id, () => pokeLive('inbox', account.owner_id));
+    return traceArchive('inbox', chatId, archived, 'deferred');
+  }
   if (await isArchiveEcho('inbox', t.id, archived)) return traceArchive('inbox', chatId, archived, 'echo');
   traceArchive('inbox', chatId, archived, 'applied');
   // Desarchivar desde el teléfono un chat "hecho" acá lo vuelve a la bandeja (antes quedaba en Archivados).

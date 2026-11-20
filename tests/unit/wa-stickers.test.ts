@@ -199,7 +199,7 @@ describe('colección', () => {
     // El 3 ya estaba (mismo SHA-256): la segunda vuelta lo saltea sin bajarlo.
     await addSticker(owner, FAKE_ANIMATED_STICKER_WEBP);
     fetched.length = 0;
-    await getDb().prepare('UPDATE wa_sticker_sync SET cursor = 2 WHERE user_id = ?').run(owner.userId);
+    await getDb().prepare('UPDATE wa_sticker_line_sync SET cursor = 2 WHERE user_id = ?').run(owner.userId);
     await syncStickers(owner, source, { limit: 10 });
     expect(fetched).toEqual([4]);
   });
@@ -240,8 +240,8 @@ describe('Lines: de los chats que la persona ve', () => {
     expect(chat.lastMessagePreview).toBe('[sticker]');
 
     const viewer = await groupsViewer(u.id, u.id, 'owner');
-    const owner = linesStickerOwner(viewer);
-    const r = await syncStickers(owner, linesStickerSource(viewer), { limit: 50 });
+    const owner = linesStickerOwner(viewer, n.id);
+    const r = await syncStickers(owner, linesStickerSource(viewer, n.id), { limit: 50 });
     // Dos archivos distintos (stk-1 y stk-2 son el mismo).
     expect(r.added).toBe(2);
     const list = await listStickers(owner);
@@ -257,7 +257,7 @@ describe('Lines: de los chats que la persona ve', () => {
     await getDb().prepare("UPDATE groups_numbers SET visibility = 'private' WHERE id = ?").run(n.id);
     const memberViewer = await groupsViewer(u.id, member.id, 'member');
     await updatePlatformSettings(u.id, {});
-    const none = await syncStickers(linesStickerOwner(memberViewer), linesStickerSource(memberViewer), { limit: 50 });
+    const none = await syncStickers(linesStickerOwner(memberViewer, n.id), linesStickerSource(memberViewer, n.id), { limit: 50 });
     expect(none.added).toBe(0);
     await expect(favoriteLinesMessage(memberViewer, msgs[0].id)).rejects.toMatchObject({ code: 'not_found' });
 
@@ -297,8 +297,8 @@ describe('Inbox: guardar, importar y mandar', () => {
     expect(page.messages[0]).toMatchObject({ mediaType: 'sticker', hasMedia: true });
     expect(page.messages[0].meta).toMatchObject({ animated: true });
 
-    const owner = inboxStickerOwner(u.id);
-    const r = await syncStickers(owner, inboxStickerSource(u.id), { limit: 10 });
+    const owner = inboxStickerOwner(u.id, account.id);
+    const r = await syncStickers(owner, inboxStickerSource(u.id, account.id), { limit: 10 });
     expect(r.added).toBe(1);
     const [s] = await listStickers(owner);
     expect(s.animated).toBe(true);

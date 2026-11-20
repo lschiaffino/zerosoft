@@ -713,7 +713,7 @@ export default function NoteEditorPane({
 
   return (
     <div className="note-pane" ref={wrapRef}>
-      <div className="note-bar">
+      <div className="note-bar" data-tour="notes-note-bar">
         {back}
         <select
           className="select note-notebook"
@@ -878,7 +878,7 @@ export default function NoteEditorPane({
       )}
 
       {!locked && !offline && <NoteFileFailures noteId={note.id} blocks={note.content} />}
-      <div className="note-meta">
+      <div className="note-meta" data-tour="notes-tags">
         {tags.map((tg) => (
           <span key={tg} className="note-tag">
             <span>

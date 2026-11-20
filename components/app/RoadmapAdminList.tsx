@@ -20,10 +20,13 @@ export default function RoadmapAdminList({
   initial,
   targets,
   locale,
+  openId: initialOpen = null,
 }: {
   initial: AdminItem[];
   targets: Array<{ id: string; title: string }>;
   locale: string;
+  /** Ítem abierto al entrar (?item=<id>, el link de los issues del backlog). */
+  openId?: string | null;
 }) {
   const mounted = useMounted();
   const t = useTranslations('roadmap');
@@ -31,7 +34,7 @@ export default function RoadmapAdminList({
   const ts = useTranslations('settings.admin');
   const [items, setItems] = useState(initial);
   const [allTargets, setAllTargets] = useState(targets);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
 
   function onSaved(id: string, next: RoadmapItemRow) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...next } : i)));
@@ -67,9 +70,17 @@ export default function RoadmapAdminList({
             key: 'title',
             header: t('admin.titleLabel'),
             cell: (i) => (
-              <button type="button" className="st-row-open" onClick={() => setOpenId(i.id)} aria-haspopup="dialog">
-                {i.title}
-              </button>
+              <>
+                <button type="button" className="st-row-open" onClick={() => setOpenId(i.id)} aria-haspopup="dialog">
+                  {i.title}
+                </button>
+                {Number(i.priority ?? 0) === 1 && (
+                  <>
+                    {' '}
+                    <span className="badge" data-testid="roadmap-priority">{t('admin.priority')}</span>
+                  </>
+                )}
+              </>
             ),
           },
           { key: 'product', header: t('admin.productLabel'), cell: (i) => <ProductTag product={i.product} label={tp(i.product)} /> },

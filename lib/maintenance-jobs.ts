@@ -11,6 +11,8 @@
  *   lid-repair       dry | apply                  chats duplicados por lid de WhatsApp (lib/wa-dedupe-repair.ts)
  *   wa-webhook-header dry | apply                 webhook de las líneas conectadas con el secreto en un header
  *                                                 (lib/wa-webhook-migrate.ts)
+ *   wa-media-audit   dry                          solo lectura: archivos de WhatsApp que dependen de Evolution y
+ *                                                 filas por instancia (lib/wa-media-audit.ts)
  *
  * Cada tick corre una tanda acotada (~20 s entre todos) y guarda el cursor en `maintenance_jobs` (una fila por
  * trabajo y modo), así retoma en el tick siguiente y se detiene al terminar. Seguridad: `apply` no arranca si el
@@ -27,6 +29,7 @@ import { ensureMigrated, getClient } from './db';
 import { migrateStep, newMigrateProgress, SCHEDULED_TABLES, type MigrateOptions, type MigrateProgress, type SeenKeys } from './files/migrate';
 import type { LidRepairReport } from './wa-dedupe-repair';
 import type { WebhookMigrateDeps, WebhookMigrateState } from './wa-webhook-migrate';
+import type { MediaAuditDeps, MediaAuditState } from './wa-media-audit';
 
 export type JobMode = 'dry' | 'apply' | 'apply-delete';
 
@@ -36,6 +39,8 @@ export const MAINTENANCE_JOBS: Record<string, readonly JobMode[]> = {
   'files-scheduled': ['dry', 'apply', 'apply-delete'],
   'lid-repair': ['dry', 'apply'],
   'wa-webhook-header': ['dry', 'apply'],
+  // Solo lectura: no tiene apply (la poda de Evolution se decide aparte, docs/design/evolution-disk-retention.md).
+  'wa-media-audit': ['dry'],
 };
 
 const MODE_ORDER: Record<JobMode, number> = { dry: 0, apply: 1, 'apply-delete': 2 };
@@ -111,6 +116,8 @@ export interface RunOptions {
   lidRepair?: (client: Client, opts: { apply: boolean }) => Promise<LidRepairReport>;
   /** Para tests: cómo se registra el webhook de cada línea. */
   webhookDeps?: WebhookMigrateDeps;
+  /** Para tests: instancias del servidor y nombre de instancia de cada línea. */
+  mediaAuditDeps?: MediaAuditDeps;
 }
 
 interface StepResult {
@@ -239,6 +246,14 @@ async function webhookStep(spec: JobSpec, state: unknown, deadline: number, o: R
   return { state: s, report, done, line: `${side('inbox', s.inbox)}; ${side('lines', s.lines)}, phase ${s.phase}` };
 }
 
+async function mediaAuditJobStep(state: unknown, deadline: number, o: RunOptions): Promise<StepResult> {
+  const { newMediaAuditState, mediaAuditStep, mediaAuditLine } = await import('./wa-media-audit');
+  const s: MediaAuditState = state && typeof state === 'object' && 'phase' in state ? (state as MediaAuditState) : newMediaAuditState();
+  const done = await mediaAuditStep(s, { deadline, deps: o.mediaAuditDeps });
+  const report = { phase: s.phase, totals: s.totals, lines: s.lines, truncated: s.truncated, instances: s.instances, instancesError: s.instancesError };
+  return { state: s, report, done, line: mediaAuditLine(s) };
+}
+
 /**
  * Un tick: corre lo que pide MAINTENANCE_JOBS con el tiempo que haya. Devuelve null si la variable no está.
  * Nunca tira: un trabajo que falla queda anotado en su fila.
@@ -307,7 +322,9 @@ export async function runMaintenanceJobs(o: RunOptions = {}): Promise<TickResult
             ? await lidStep(client, spec, o)
             : spec.job === 'wa-webhook-header'
               ? await webhookStep(spec, safeJson(cur?.state), deadline, o)
-              : await filesStep(client, spec, safeJson(cur?.state), deadline, o);
+              : spec.job === 'wa-media-audit'
+                ? await mediaAuditJobStep(safeJson(cur?.state), deadline, o)
+                : await filesStep(client, spec, safeJson(cur?.state), deadline, o);
         const at = Date.now();
         await client.execute({
           sql: `UPDATE maintenance_jobs SET status = ?, state = ?, report = ?, ticks = ?, errors = 0, last_error = NULL, locked_until = NULL,

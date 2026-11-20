@@ -68,8 +68,9 @@ test('Apps destacadas: el admin marca dos, el menú las pone arriba y pliega el 
     await p.keyboard.press('Escape');
     await expect(panel(p)).toHaveCount(0);
 
-    // Inbox siempre está: su fila no tiene interruptor, solo la estrella.
-    await expect(p.getByTestId('ws-app-switch-inbox')).toHaveCount(0);
+    // Inbox tiene los mismos controles que las demás: interruptor, acceso y estrella.
+    await expect(p.getByTestId('ws-app-switch-inbox')).toBeChecked();
+    await expect(p.getByTestId('ws-app-mode-inbox')).toBeVisible();
     await expect(p.getByTestId('ws-app-star-inbox')).toBeVisible();
 
     // El admin destaca CRM y Docs.

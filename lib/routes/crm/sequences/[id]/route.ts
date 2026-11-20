@@ -4,6 +4,7 @@ import { deleteSequence, getSequence, listEnrollments, sequenceStepStats, update
 import { canManageOwned } from '@/lib/crm-email';
 import { sequenceUpdateSchema } from '@/lib/crm-email-schema';
 import { forbidden, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest, props: Props) {
   return NextResponse.json({
     ...seq,
     stats: await sequenceStepStats(user.id, id),
-    enrollments: await listEnrollments(user.id, { sequenceId: id }),
+    enrollments: await listEnrollments(user.id, { sequenceId: id, scope: await sessionScope(user) }),
   });
 }
 

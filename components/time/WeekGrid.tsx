@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { EntryDto, ProjectDto, TaskDto } from '@/lib/time/core';
-import { cellPlan, formatMinutes, liveMinutes, parseDuration, rowKey, weekRows, type RowKey, type WeekRow } from '@/lib/time/types';
+import { canTrackOn, cellPlan, formatMinutes, liveMinutes, parseDuration, rowKey, tasksForProject, weekRows, type RowKey, type WeekRow } from '@/lib/time/types';
 import { api, groupByClient, TimeDialog, useDayFormat, useErrorText } from './ui';
 
 type Props = {
@@ -16,6 +16,8 @@ type Props = {
   onRetry: () => void;
   projects: ProjectDto[];
   tasks: TaskDto[];
+  /** Id de la persona: las filas nuevas son de proyectos donde está asignada. */
+  me: string;
   now: number;
   setEntries: Dispatch<SetStateAction<EntryDto[] | null>>;
   push: (msg: string, tone?: 'ok' | 'bad') => void;
@@ -29,7 +31,7 @@ type Props = {
  * (o con Enter). Las notas y el cronómetro quedan en la vista del día.
  * El componente va con `key` por semana: las filas agregadas a mano son de esa semana.
  */
-export default function WeekGrid({ days, today, entries, loadFailed, onRetry, projects, tasks, now, setEntries, push, onOpenDay }: Props) {
+export default function WeekGrid({ days, today, entries, loadFailed, onRetry, projects, tasks, me, now, setEntries, push, onOpenDay }: Props) {
   const t = useTranslations('time');
   const errorText = useErrorText();
   const fmtDay = useDayFormat();
@@ -42,8 +44,7 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
   const [focusRow, setFocusRow] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
-  const activeTasks = useMemo(() => tasks.filter((x) => !x.archived), [tasks]);
+  const activeProjects = useMemo(() => projects.filter((p) => !p.archived && canTrackOn(p, me)), [projects, me]);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const taskById = useMemo(() => new Map(tasks.map((x) => [x.id, x])), [tasks]);
   const rows = useMemo(() => weekRows(entries ?? [], days, extra), [entries, days, extra]);
@@ -61,12 +62,18 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
     setFocusRow(null);
   }, [focusRow, rows, days, today]);
 
-  const names = (r: RowKey) => ({
-    project: projectById.get(r.projectId)?.name ?? '',
-    client: projectById.get(r.projectId)?.clientName ?? null,
-    code: projectById.get(r.projectId)?.code ?? '',
-    task: taskById.get(r.taskId)?.name ?? '',
-  });
+  const tasksOf = (projectId: string) => tasksForProject(projectById.get(projectId), tasks);
+  // Una fila de un proyecto donde la persona ya no está asignada toma los nombres de sus entradas.
+  const names = (r: RowKey & { cells?: Record<string, EntryDto[]> }) => {
+    const e = r.cells ? Object.values(r.cells).flat()[0] : undefined;
+    const p = projectById.get(r.projectId);
+    return {
+      project: p?.name ?? e?.projectName ?? '',
+      client: p ? p.clientName : (e?.clientName ?? null),
+      code: p?.code ?? '',
+      task: taskById.get(r.taskId)?.name ?? e?.taskName ?? '',
+    };
+  };
 
   /** Guarda lo escrito en una celda. Devuelve false si no se guardó (el texto vuelve al valor anterior). */
   const saveCell = async (row: WeekRow<EntryDto>, date: string, text: string): Promise<boolean> => {
@@ -117,9 +124,10 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
   const openAdd = () => {
     const taken = new Set(rows.map((r) => r.key));
     const project = activeProjects[0];
-    const free = activeTasks.filter((x) => !taken.has(rowKey({ projectId: project?.id ?? '', taskId: x.id })));
+    const own = tasksOf(project?.id ?? '');
+    const free = own.filter((x) => !taken.has(rowKey({ projectId: project?.id ?? '', taskId: x.id })));
     // Como en el día: primero una tarea facturable que todavía no tenga fila.
-    const task = free.find((x) => x.billable) ?? free[0] ?? activeTasks[0];
+    const task = free.find((x) => x.billable) ?? free[0] ?? own[0];
     setAddError('');
     setAdding({ projectId: project?.id ?? '', taskId: task?.id ?? '' });
   };
@@ -142,7 +150,10 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
     const r = await api<{ week: string | null; rows: RowKey[] }>(`/api/time/entries?rowsBefore=${days[0]}`);
     setCopying(false);
     if (!r.ok) return push(errorText(r.data.error), 'bad');
-    const fresh = r.data.rows.filter((x) => !rows.some((row) => row.key === rowKey(x)));
+    // Solo filas donde la persona sigue asignada y la tarea sigue en el proyecto.
+    const fresh = r.data.rows.filter(
+      (x) => !rows.some((row) => row.key === rowKey(x)) && activeProjects.some((p) => p.id === x.projectId) && tasksOf(x.projectId).some((task) => task.id === x.taskId),
+    );
     if (!r.data.week || fresh.length === 0) return push(t('week.nothingToCopy'));
     setExtra((cur) => [...cur, ...fresh]);
     push(t('week.copied', { count: fresh.length }));
@@ -326,7 +337,20 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
             <div className="ui-modal-body ui-fields">
               <label className="ui-field">
                 <span className="label">{t('sheet.project')}</span>
-                <select className="input" value={adding.projectId} onChange={(e) => setAdding({ ...adding, projectId: e.target.value })} required autoFocus name="project">
+                <select
+                  className="input"
+                  value={adding.projectId}
+                  onChange={(e) => {
+                    const projectId = e.target.value;
+                    const own = tasksOf(projectId);
+                    // La tarea elegida sigue si el proyecto nuevo la tiene; si no, la primera facturable.
+                    const taskId = own.some((x) => x.id === adding.taskId) ? adding.taskId : ((own.find((x) => x.billable) ?? own[0])?.id ?? '');
+                    setAdding({ projectId, taskId });
+                  }}
+                  required
+                  autoFocus
+                  name="project"
+                >
                   {groupByClient(activeProjects).map(([client, list]) => (
                     <optgroup key={client ?? ''} label={client ?? t('sheet.noClient')}>
                       {list.map((p) => (
@@ -341,7 +365,7 @@ export default function WeekGrid({ days, today, entries, loadFailed, onRetry, pr
               <label className="ui-field">
                 <span className="label">{t('sheet.task')}</span>
                 <select className="input" value={adding.taskId} onChange={(e) => setAdding({ ...adding, taskId: e.target.value })} required name="task">
-                  {activeTasks.map((x) => (
+                  {tasksOf(adding.projectId).map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>

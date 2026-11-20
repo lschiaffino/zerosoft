@@ -147,6 +147,38 @@ describe('Export de datos: el dueño del workspace no se lleva lo personal de lo
     expect(rows.every((r) => r.person_id === w.owner.id)).toBe(true);
   });
 
+  it('ni las sesiones de Fleet ni los diseños privados de otra persona', async () => {
+    const w = await workspace('pv-export-fleet');
+    const db = getDb();
+    const ts = new Date().toISOString();
+    const addSession = async (person: string, title: string) => {
+      const id = crypto.randomUUID();
+      await db
+        .prepare('INSERT INTO fleet_sessions (id, workspace_id, person_id, session_key, title, started_at, last_event_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(id, w.owner.id, person, id, title, ts, ts, ts);
+      await db
+        .prepare('INSERT INTO fleet_messages (id, session_id, workspace_id, person_id, role, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(crypto.randomUUID(), id, w.owner.id, person, 'user', `${title} prompt`, ts);
+    };
+    const design = async (person: string, name: string, access: string) =>
+      db
+        .prepare('INSERT INTO design_designs (id, workspace_id, created_by, name, width, height, doc, workspace_access, created_at, updated_at) VALUES (?, ?, ?, ?, 100, 100, ?, ?, ?, ?)')
+        .run(crypto.randomUUID(), w.owner.id, person, name, '{}', access, ts, ts);
+    await addSession(w.owner.id, 'sesion-del-dueno');
+    await addSession(w.ana.id, 'sesion-de-ana');
+    await design(w.owner.id, 'diseno-del-dueno', 'none');
+    await design(w.ana.id, 'diseno-privado-de-ana', 'none');
+    await design(w.ana.id, 'diseno-compartido-de-ana', 'view');
+    const exp = await exportAccountData(w.owner);
+    const all = await Promise.all((await listZipEntries(bufferSource(exp.zip))).map(async (e) => (await readZipEntry(bufferSource(exp.zip), e, 5e6)).toString('utf8')));
+    const text = all.join('\n');
+    expect(text).toContain('sesion-del-dueno prompt');
+    expect(text).not.toContain('sesion-de-ana');
+    expect(text).toContain('diseno-del-dueno');
+    expect(text).toContain('diseno-compartido-de-ana');
+    expect(text).not.toContain('diseno-privado-de-ana');
+  });
+
   it('tampoco los issues ni comentarios de un equipo privado del que no es parte', async () => {
     const w = await workspace('pv-export-track');
     const open = await createProject(w.owner.id, w.team.id, { name: 'Abierto' });

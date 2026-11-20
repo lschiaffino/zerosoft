@@ -1664,6 +1664,14 @@ export interface RoadmapItemRow {
   declined_reason: string | null; // motivo visible cuando status = declined
   comment_count: number;
   status_changed_at: string | null;
+  /** 1 = lo pidió alguien de FEATURE_PRIORITY_EMAILS (va primero y siempre se construye). */
+  priority?: number;
+  /** Issue en BACKLOG_GITHUB_REPO (null si no se mandó). */
+  github_issue?: number | null;
+  /** Cambios sin mandar al issue (>0: lo manda el tick). */
+  github_dirty?: number;
+  github_claimed_at?: string | null;
+  github_attempts?: number;
   created_at: string;
   updated_at: string;
 }

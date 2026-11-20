@@ -73,7 +73,51 @@ function Act({ off, onAct, className, children, title, testid }: { off?: boolean
  * `tone`: 'chat' usa los colores del chat (WhatsApp o zerosoft, claro y
  * oscuro, según el estilo elegido); 'app' usa los de la app (correo, diálogos).
  */
-export default function AiComposeBar({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'chat' | 'app' }) {
+/**
+ * Con la barra cerrada, en un chat: "Pulir" (un mensaje largo escrito a mano) o "Insertado · Deshacer", como un
+ * chip que flota sobre el borde de arriba del campo, sin ocupar lugar (no empuja la conversación). Va adentro de la
+ * caja del campo (MentionTextarea `adornment`); AiComposeBar con `floating` no lo repite.
+ */
+export function AiComposeChip({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'chat' | 'app' }) {
+  if (ai.open) return null;
+  return <ClosedOffer ai={ai} tone={tone} floating />;
+}
+
+function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'chat' | 'app'; floating?: boolean }) {
+  const t = useTranslations('common.aiCompose');
+  const float = floating ? ' aic-float' : '';
+  // Un mensaje largo escrito a mano: se ofrece pulirlo (abre la barra con el resultado para revisar; nunca manda).
+  if (ai.undo === null && worthPolishing(ai.composerText)) {
+    return (
+      <p className={`aic-undo aic-polish aic-${tone}${float}`} data-testid="ai-compose-polish">
+        <button
+          type="button"
+          className="aic-link"
+          title={t('polishHint')}
+          // Desde el chip el campo no pierde el foco con el mouse; la barra lo toma al abrir.
+          onMouseDown={floating ? (e) => e.preventDefault() : undefined}
+          onClick={() => {
+            ai.openBar();
+            ai.refine('polish');
+          }}
+        >
+          <PencilSparkle size={15} /> {t('changes.polish')}
+        </button>
+      </p>
+    );
+  }
+  if (ai.undo === null) return null;
+  return (
+    <p className={`aic-undo aic-${tone}${float}`} role="status" data-testid="ai-compose-undo">
+      <span>{t('inserted')}</span>
+      <button type="button" className="aic-link" onMouseDown={floating ? (e) => e.preventDefault() : undefined} onClick={ai.undoInsert}>
+        {t('undo')}
+      </button>
+    </p>
+  );
+}
+
+export default function AiComposeBar({ ai, tone = 'chat', floating = false }: { ai: AiCompose; tone?: 'chat' | 'app'; floating?: boolean }) {
   const t = useTranslations('common.aiCompose');
   const id = useId();
   const field = useRef<HTMLInputElement>(null);
@@ -94,35 +138,7 @@ export default function AiComposeBar({ ai, tone = 'chat' }: { ai: AiCompose; ton
     if (!active || active === document.body) field.current?.focus();
   }, [open, phase, hasError]);
 
-  if (!open) {
-    // Un mensaje largo escrito a mano: se ofrece pulirlo (abre la barra con el resultado para revisar; nunca manda).
-    if (ai.undo === null && worthPolishing(ai.composerText)) {
-      return (
-        <p className={`aic-undo aic-polish aic-${tone}`} data-testid="ai-compose-polish">
-          <button
-            type="button"
-            className="aic-link"
-            title={t('polishHint')}
-            onClick={() => {
-              ai.openBar();
-              ai.refine('polish');
-            }}
-          >
-            <PencilSparkle size={15} /> {t('changes.polish')}
-          </button>
-        </p>
-      );
-    }
-    if (ai.undo === null) return null;
-    return (
-      <p className={`aic-undo aic-${tone}`} role="status" data-testid="ai-compose-undo">
-        <span>{t('inserted')}</span>
-        <button type="button" className="aic-link" onClick={ai.undoInsert}>
-          {t('undo')}
-        </button>
-      </p>
-    );
-  }
+  if (!open) return floating ? null : <ClosedOffer ai={ai} tone={tone} />;
 
   const working = state.phase === 'working';
   const hasDraft = state.current !== null;

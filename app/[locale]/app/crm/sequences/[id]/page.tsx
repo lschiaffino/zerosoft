@@ -5,6 +5,7 @@ import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getSequence, listEnrollments, sequenceStepStats } from '@/lib/crm-sequences';
 import { canManageOwned, listEmailTemplates, parseDbDate } from '@/lib/crm-email';
 import SequenceEditor from '@/components/crm/SequenceEditor';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export default async function SequenceDetailPage(props: { params: Promise<{ loca
   const [templates, stats, enrollments] = await Promise.all([
     listEmailTemplates(user.id, 'template'),
     sequenceStepStats(user.id, id),
-    listEnrollments(user.id, { sequenceId: id, limit: 500 }),
+    listEnrollments(user.id, { sequenceId: id, limit: 500, scope: await sessionScope(user) }),
   ]);
   const fmt = new Intl.DateTimeFormat(locale, {
     month: 'short',
