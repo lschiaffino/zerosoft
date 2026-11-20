@@ -148,7 +148,8 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
         await open.click();
         await expect(panel).toBeVisible();
         const box = await panel.boundingBox();
-        expect(box?.width).toBe(PHONE.width);
+        // La hoja ocupa el ancho de la pantalla (con el redondeo de subpíxeles del navegador).
+        expect(box?.width ?? 0).toBeCloseTo(PHONE.width, 0);
         await noHorizontalScroll(page);
         await panel.getByTestId('adv-filters-close').click();
         await expect(panel).toBeHidden();

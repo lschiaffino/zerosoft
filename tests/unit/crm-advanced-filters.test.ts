@@ -47,6 +47,8 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const contactsRoute = await import('@/app/api/crm/contacts/route');
+const companiesRoute = await import('@/app/api/crm/companies/route');
+const dealsRoute = await import('@/app/api/crm/deals/route');
 const exportRoute = await import('@/app/api/crm/export/route');
 const v1Contacts = await import('@/app/api/v1/crm/contacts/route');
 const v1Companies = await import('@/app/api/v1/crm/companies/route');
@@ -648,7 +650,7 @@ describe('visibilidad y workspace: un grupo O nunca ensancha lo que se ve', () =
     expect(((await v1Bad.json()) as { error: { code: string } }).error.code).toBe('invalid_filter');
     expect((await v1Companies.GET(nextReq(`http://x/api/v1/crm/companies?filters=${q(model([{ f: 'name', o: 'known' }]))}`, memberKey))).status).toBe(200);
     expect((await v1Companies.GET(nextReq(`http://x/api/v1/crm/companies?filters=${q(model([{ f: 'email', o: 'known' }]))}`, memberKey))).status).toBe(400);
-    expect((await v1Deals.GET(nextReq(`http://x/api/v1/crm/deals?filters=${q(model([{ f: 'amount', o: 'gte', v: '1' }]))}`, memberKey))).status).toBe(200);
+    expect((await v1Deals.GET(nextReq(`http://x/api/v1/crm/deals?pipelineId=${p.id}&filters=${q(model([{ f: 'amount', o: 'gte', v: '1' }]))}`, memberKey))).status).toBe(200);
     // `tz` fija la zona de las fechas relativas.
     const tz = await v1Contacts.GET(nextReq(`http://x/api/v1/crm/contacts?tz=America/Lima&filters=${q(model([{ f: 'created', o: 'today' }]))}`, memberKey));
     expect(((await tz.json()) as { total: number }).total).toBe(2);
@@ -660,6 +662,76 @@ describe('visibilidad y workspace: un grupo O nunca ensancha lo que se ve', () =
     expect((await exportRoute.GET(nextReq(`http://x/api/crm/export?entity=contacts&format=json&filters=${q(model([{ f: 'nope', o: 'known' }]))}`))).status).toBe(400);
     const full = await (await exportRoute.GET(nextReq('http://x/api/crm/export?entity=contacts&format=json'))).json();
     expect(full as unknown[]).toHaveLength(4);
+  });
+
+  it('empresas y deals: un member con "mine" y grupos O solo recibe lo suyo (lista, sesión, API v1 y export)', async () => {
+    const w = await workspace();
+    const scope = await ownerScopeFor({ workspaceId: w.owner.id, personId: w.m1.id, role: 'member' });
+    const coMine = await createCompany(w.owner.id, { name: 'Alpha Mine', city: 'Lima', ownerId: w.m1.id });
+    const coTheirs = await createCompany(w.owner.id, { name: 'Alpha Theirs', city: 'Lima', ownerId: w.m2.id });
+    const coBoss = await createCompany(w.owner.id, { name: 'Beta Boss', city: 'Quito', ownerId: w.owner.id });
+    await createCompany(w.other.id, { name: 'Alpha Foreign', city: 'Lima' });
+    const p = await createPipeline(w.owner.id, 'Sales');
+    const st = (await createStage(w.owner.id, p.id, { name: 'Open' }))!;
+    const deal = async (name: string, ownerId: string, amount: number) => {
+      const r = await createDeal(w.owner.id, { name, pipelineId: p.id, stageId: st.id, amount, ownerId });
+      if (!r.ok) throw new Error(r.reason);
+      return r.deal;
+    };
+    const dMine = await deal('Mine deal', w.m1.id, 10);
+    await deal('Theirs deal', w.m2.id, 5000);
+    await deal('Boss deal', w.owner.id, 9000);
+
+    const companyModels = [
+      model([{ f: 'city', o: 'equals', v: ['Lima'] }], [{ f: 'city', o: 'equals', v: ['Quito'] }]),
+      model([{ f: 'owner', o: 'is', v: [w.m2.id] }], [{ f: 'owner', o: 'isnot', v: ['me'] }], [{ f: 'name', o: 'known' }]),
+      model([{ f: 'name', o: 'contains', v: ['Alpha', 'Beta'] }], [{ f: 'owner', o: 'unknown' }]),
+    ];
+    for (const m of companyModels) {
+      const res = await listCompanies(w.owner.id, { filters: m, ownerScope: scope, filterEnv: { viewerId: w.m1.id }, pageSize: 100 });
+      expect(res.rows.map((r) => r.id).every((id) => id === coMine.id), JSON.stringify(m)).toBe(true);
+      expect(res.total).toBe(res.rows.length);
+      const exported = await exportRows(w.owner.id, 'companies', scope, { model: m, env: { viewerId: w.m1.id } });
+      expect(exported.every((r) => r.id === coMine.id)).toBe(true);
+    }
+    expect((await listCompanies(w.owner.id, { filters: companyModels[0], ownerScope: scope })).rows.map((r) => r.id)).toEqual([coMine.id]);
+    // El owner ve las tres del workspace (nunca la ajena).
+    const all = await listCompanies(w.owner.id, { filters: companyModels[0], pageSize: 100 });
+    expect(all.rows.map((r) => r.id).sort()).toEqual([coMine.id, coTheirs.id, coBoss.id].sort());
+
+    const dealModels = [
+      model([{ f: 'amount', o: 'gte', v: '1000' }], [{ f: 'amount', o: 'lt', v: '1000' }]),
+      model([{ f: 'owner', o: 'is', v: [w.m2.id, w.owner.id] }], [{ f: 'stage', o: 'is', v: [st.id] }]),
+      model([{ f: 'name', o: 'known' }], [{ f: 'name', o: 'unknown' }]),
+    ];
+    for (const m of dealModels) {
+      const res = await listDeals(w.owner.id, { pipelineId: p.id, filters: m, ownerScope: scope, filterEnv: { viewerId: w.m1.id }, pageSize: 100 });
+      expect(res.rows.map((r) => r.id), JSON.stringify(m)).toEqual([dMine.id]);
+      expect(res.total).toBe(1);
+      const exported = await exportRows(w.owner.id, 'deals', scope, { model: m, env: { viewerId: w.m1.id } });
+      expect(exported.every((r) => r.id === dMine.id)).toBe(true);
+    }
+
+    // Las rutas de la sesión, como el member.
+    actAs(w.owner, w.m1, 'member');
+    const coRes = (await (await companiesRoute.GET(nextReq(`http://x/api/crm/companies?filters=${q(companyModels[1])}`))).json()) as {
+      rows: Array<{ id: string }>;
+    };
+    expect(coRes.rows.map((r) => r.id)).toEqual([coMine.id]);
+    const dRes = (await (await dealsRoute.GET(nextReq(`http://x/api/crm/deals?pipelineId=${p.id}&filters=${q(dealModels[0])}`))).json()) as {
+      rows: Array<{ id: string }>;
+    };
+    expect(dRes.rows.map((r) => r.id)).toEqual([dMine.id]);
+    // API v1 con la key del member.
+    const key = (await createApiKey(w.owner.id, 'm1', w.m1.id)).key;
+    const v1co = (await (await v1Companies.GET(nextReq(`http://x/api/v1/crm/companies?filters=${q(companyModels[0])}`, key))).json()) as {
+      companies: Array<{ id: string }>;
+    };
+    expect(v1co.companies.map((c) => c.id)).toEqual([coMine.id]);
+    const v1d = (await (await v1Deals.GET(nextReq(`http://x/api/v1/crm/deals?pipelineId=${p.id}&filters=${q(dealModels[1])}`, key))).json()) as {
+      deals: Array<{ id: string }>;
+    };
+    expect(v1d.deals.map((d) => d.id)).toEqual([dMine.id]);
   });
 
   it('una propiedad propia oculta para members no se puede usar como filtro (ni para sondear su valor)', async () => {
