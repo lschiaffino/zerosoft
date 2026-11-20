@@ -184,6 +184,7 @@
     "deletedTag": "Deleted for everyone",
     "edited": "Edited",
     "forwarded": "Forwarded",
+    "forwardedMany": "Forwarded many times",
     "pinned": "Pinned",
     "pinnedTitle": "Pinned messages",
     "unpinLabel": "Unpin message",

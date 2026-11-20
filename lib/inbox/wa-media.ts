@@ -13,6 +13,7 @@ import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId, 
 import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
+import type { ForwardFlag } from '../wa-forward';
 
 /** Lo que entra por el pedido (el resto va por Blob). */
 export const INLINE_MEDIA_MAX = 4 * 1024 * 1024;
@@ -189,8 +190,8 @@ export function forwardKind(src: Pick<ForwardSource, 'mediaType' | 'meta'>, mime
 }
 
 /** Lo que se ve del archivo (medidas, duración, onda, miniatura) pasa a la copia; nada propio del original (cid, menciones). */
-function forwardMeta(meta: WaMessageMeta, kind: MediaKind, mime: string, size: number): WaMessageMeta {
-  const out: WaMessageMeta = { mime, size };
+function forwardMeta(meta: WaMessageMeta, kind: MediaKind, mime: string, size: number, score: number): WaMessageMeta {
+  const out: WaMessageMeta = { mime, size, ...(score ? { fwd: score } : {}) };
   for (const k of ['width', 'height', 'duration', 'pages', 'thumb', 'animated', 'waveform'] as const) {
     if (meta[k] !== undefined) (out as Record<string, unknown>)[k] = meta[k];
   }
@@ -199,12 +200,19 @@ function forwardMeta(meta: WaMessageMeta, kind: MediaKind, mime: string, size: n
 }
 
 /**
- * Reenvía por copia un archivo ya bajado (el servidor de WhatsApp no tiene
- * reenvío nativo): sale en base64 con el mismo tipo y queda guardado como
+ * Reenvía un archivo ya bajado: sale en base64 con el mismo tipo y la marca
+ * "Reenviado" de WhatsApp (`forward`; con el original, el gateway lo reenvía
+ * desde lo que tiene guardado y no usa la copia), y queda guardado como
  * "Reenviado". El texto de un audio o sticker (WhatsApp no lo muestra) lo
  * manda quien llama, aparte. Devuelve el id del mensaje en WhatsApp.
  */
-export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRow, src: ForwardSource, file: { data: Buffer; mimetype: string; filename: string }): Promise<string> {
+export async function forwardWhatsappMedia(
+  account: AccountRow,
+  thread: ThreadRow,
+  src: ForwardSource,
+  file: { data: Buffer; mimetype: string; filename: string },
+  forward: ForwardFlag | undefined,
+): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   const mimetype = (baseMime(file.mimetype || src.meta.mime || '') || 'application/octet-stream').slice(0, 100);
   let kind: MediaKind;
@@ -230,6 +238,7 @@ export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRo
         base64: file.data.toString('base64'),
         // Un GIF reenviado sigue siendo GIF.
         ...(kind === 'video' && src.meta.animated ? { gifPlayback: true } : {}),
+        ...(forward ? { forward } : {}),
       })
     ).id;
   } catch (err) {
@@ -243,7 +252,7 @@ export async function forwardWhatsappMedia(account: AccountRow, thread: ThreadRo
     mediaType: storedType(kind),
     mediaName: kind === 'document' || kind === 'audio' ? filename : '',
     mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
-    meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length)),
+    meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length, forward?.score ?? 0)),
     kind: kind === 'voice' ? 'voice' : kind === 'video' && src.meta.animated ? 'gif' : storedType(kind),
     status: 'sent',
     forwarded: true,
