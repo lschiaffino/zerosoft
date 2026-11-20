@@ -415,11 +415,12 @@
   border: 0; border-left: 4px solid var(--wa-primary); border-radius: 6px; cursor: pointer; white-space: normal;
 }
 .gr-inbox .gr-msg-out .gr-quote { background: var(--wa-quote-out); }
-/* La cita no ensancha la burbuja, como en WhatsApp: el ancho lo pone el mensaje (texto, audio, foto) y la cita se
-   acomoda a ese ancho en hasta 3 renglones. Con un mensaje corto ("ok"), la burbuja toma un ancho mínimo para que la
-   cita se lea. En la barra de respuesta del composer (.wa-replying) la cita sigue ocupando su lugar. */
-.gr-inbox .gr-bubble > .gr-quote { contain: inline-size; box-sizing: border-box; }
-.gr-inbox .gr-bubble:has(> .gr-quote) { min-width: min(260px, 100%); }
+/* La cita y el ancho de la burbuja, como en WhatsApp: la cita ensancha la burbuja hasta el ancho de su texto, pero
+   no más de 400px; si el mensaje es más ancho, la cita ocupa todo el ancho. Así una cita corta se lee en un renglón
+   aunque la respuesta sea "ok", y una larga no estira la burbuja hasta el borde: baja de renglón (hasta 3, con "…").
+   El tope va en el texto (no en la cita): limita cuánto empuja sin impedir que la cita llene una burbuja más ancha. */
+.gr-inbox .gr-bubble > .gr-quote { box-sizing: border-box; }
+.gr-inbox .gr-bubble > .gr-quote > span, .gr-inbox .gr-bubble > .gr-quote > strong { max-width: 400px; }
 .gr-inbox .gr-quote strong { font-size: var(--wa-fs-small); font-weight: 500; color: var(--wa-primary-ink); }
 .gr-inbox .gr-quote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .gr-inbox .gr-quote.wa-q-me { border-left-color: #06cf9c; }
