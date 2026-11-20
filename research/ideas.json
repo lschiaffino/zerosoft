@@ -3057,7 +3057,9 @@
     "description": "HubSpot: Operators depend on the property type: is any of, is none of, contains, is known, is unknown, is between, is more or less than X days ago, rolling date ranges and more (https://knowledge.hubspot.com/segments/determine-filter-criteria). Today: lib/crm.ts:159-162 TEXT_OPS, NUMBER_OPS, SELECT_OPS, DATE_OPS; :204-300 buildRuleCondition. Views and lists copied from HubSpot use these operators all the time (no owner, lead status is any of, last activity more than 30 days ago). First scope: extend buildRuleCondition with known and unknown, any of and none of, not contains, greater or equal, relative date ranges, then OR between groups of AND rules, then filters on the primary company of a contact and the contacts of a deal. Also covers the parity rows filter-groups, filter-associated.",
     "product": "crm",
     "kind": "idea",
-    "parity": "filter-operators"
+    "parity": "filter-operators",
+    "status": "done",
+    "changelog": "2026-11-19-crm-advanced-filters"
   },
   {
     "title": "CRM: Select every record that matches the filter for bulk actions",
