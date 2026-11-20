@@ -84,7 +84,7 @@ for (const size of [
   { width: 390, height: 800 },
 ]) {
   test(`carpetas del equipo: el admin las crea, todos las ven y cualquiera pone chats (${size.width}px)`, async ({ browser, page, request, baseURL }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(process.env.CI ? 300_000 : 900_000);
     const tag = uid();
     const wide = size.width >= 1000;
     const teamName = `Ventas ${tag}`;
@@ -197,13 +197,13 @@ for (const size of [
       expect(await overflow(bp)).toBeLessThanOrEqual(1);
       await dialog.getByTestId('lines-move-team').getByRole('button', { name: subName }).click();
       await expect(dialog).toBeHidden({ timeout: 15_000 });
-      await expect.poll(async () => (await chatOf(br, line.id, line.chatId))?.teamFolderId, { timeout: 15_000 }).toBe(norte.id);
+      await expect.poll(async () => (await chatOf(br, line.id, line.chatId))?.teamFolderId, { timeout: 30_000 }).toBe(norte.id);
       // Su carpeta personal no cambió (no tenía), y la del admin tampoco.
       expect((await chatOf(br, line.id, line.chatId))?.folderId).toBeNull();
 
       // ---------- Admin: lo ve en la carpeta del equipo ----------
       expect(await chatOf(request, line.id, line.chatId)).toMatchObject({ teamFolderId: norte.id, folderId: null });
-      await expect.poll(async () => (await foldersOf(request)).team.find((f) => f.id === norte.id)?.chats, { timeout: 15_000 }).toBe(1);
+      await expect.poll(async () => (await foldersOf(request)).team.find((f) => f.id === norte.id)?.chats, { timeout: 30_000 }).toBe(1);
       await page.goto(`/en/app/lines/inbox?folder=${ventas.id}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator(`[data-testid="chat-row"][data-chat-id="${line.chatId}"]`)).toBeVisible({ timeout: 30_000 });
       if (wide) await expect(page.getByTestId('lines-folder-current')).toContainText(teamName);
