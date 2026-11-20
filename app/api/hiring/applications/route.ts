@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       raw = await readJson(req);
     }
     const parsed = manualAddSchema.safeParse(raw);
-    if (!parsed.success) throw new HiringError('invalid_input');
+    if (!parsed.success) throw new HiringError(parsed.error.issues.some((i) => i.message === 'name_or_email') ? 'name_or_email' : 'invalid_input');
     return hJson(await addCandidateManually(a.actor, parsed.data, resume), 201);
   } catch (err) {
     return hFail(err);

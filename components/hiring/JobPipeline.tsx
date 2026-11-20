@@ -65,6 +65,10 @@ export default function JobPipeline({
     e.preventDefault();
     setAdding(true);
     const form = new FormData(e.currentTarget);
+    if (!String(form.get('name') ?? '').trim() && !String(form.get('email') ?? '').trim()) {
+      setAdding(false);
+      return push(errText('name_or_email'), 'bad');
+    }
     form.set('jobId', job.id);
     const res = await api<{ candidateId: string; duplicate: boolean }>('/api/hiring/applications', { method: 'POST', body: form });
     setAdding(false);
@@ -103,7 +107,7 @@ export default function JobPipeline({
             <button type="button" className="btn btn-secondary" onClick={() => setImportOpen(true)}>
               {t('import.button')}
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="btn btn-primary" data-testid="hr-add-candidate" onClick={() => setAddOpen(true)}>
               {t('pipeline.addCandidate')}
             </button>
           </>
@@ -299,15 +303,16 @@ export default function JobPipeline({
       )}
 
       <HrDialog open={addOpen} title={t('pipeline.addCandidate')} onClose={() => setAddOpen(false)}>
-        <form onSubmit={add}>
+        <form onSubmit={add} data-testid="hr-add-form">
           <div className="ui-modal-body ui-fields">
             <label className="ui-field">
               <span className="label">{t('apply.name')}</span>
-              <input className="input" name="name" required maxLength={160} autoFocus />
+              <input className="input" name="name" maxLength={160} autoFocus />
             </label>
             <label className="ui-field">
               <span className="label">{t('apply.email')}</span>
-              <input className="input" name="email" type="email" required maxLength={254} />
+              <input className="input" name="email" type="email" maxLength={254} />
+              <span className="ui-help">{t('pipeline.nameOrEmail')}</span>
             </label>
             <label className="ui-field">
               <span className="label">{t('candidates.colSource')}</span>

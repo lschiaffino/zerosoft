@@ -27,6 +27,8 @@ import {
   purgeExpiredCandidates,
   searchHiring,
   addCandidateManually,
+  manualAddSchema,
+  updateCandidate,
   forgetByToken,
   rejectApplication,
   sha256,
@@ -35,7 +37,7 @@ import { submitScorecard, sendFeedbackReminders } from '@/lib/hiring/evaluation'
 import { actOnOffer, createOffer, respondToOffer } from '@/lib/hiring/offers';
 import { hiringTools } from '@/lib/assistant/tools-hiring';
 import type { ToolCtx } from '@/lib/assistant/registry';
-import { createTemplate, parseHiringAddress, hiringReplyAddress, processHiringInbound } from '@/lib/hiring/comms';
+import { createTemplate, sendCandidateEmail, parseHiringAddress, hiringReplyAddress, processHiringInbound } from '@/lib/hiring/comms';
 import { registerOnHire, type HireEvent } from '@/lib/hiring/events';
 import { jobPostingJsonLd, publishedCareers, publishedJob } from '@/lib/hiring/careers';
 import { descriptionHtml } from '@/lib/hiring/markdown';
@@ -572,5 +574,36 @@ describe('respuestas por email y página de empleos', () => {
     await updateJob(w.recruiter, j.jobId, { salaryPublic: true });
     const ld2 = jobPostingJsonLd(c, (await publishedJob(c.settings.workspace_id, j.slug))!, '');
     expect(ld2.baseSalary).toMatchObject({ currency: 'USD', value: { minValue: 50000, maxValue: 70000 } });
+  });
+});
+
+describe('carga con nombre o email y edición del perfil', () => {
+  it('alcanza con uno de los dos; sin email no se juntan entre sí ni sale ningún email', async () => {
+    const j = await setupJob(w);
+    expect(manualAddSchema.safeParse({ jobId: j.jobId }).success).toBe(false);
+    expect(manualAddSchema.parse({ jobId: j.jobId, email: 'Solo@Example.com' }).name).toBe('solo@example.com');
+    const a = await addCandidateManually(w.recruiter, manualAddSchema.parse({ jobId: j.jobId, name: 'Sin Email Uno' }), null);
+    const b = await addCandidateManually(w.recruiter, manualAddSchema.parse({ jobId: j.jobId, name: 'Sin Email Dos' }), null);
+    expect(a.candidateId).not.toBe(b.candidateId);
+    expect(a.duplicate || b.duplicate).toBe(false);
+    await expect(addCandidateManually(w.recruiter, manualAddSchema.parse({ jobId: j.jobId, name: 'X', email: 'not-an-email' }), null)).rejects.toMatchObject({ code: 'invalid_email' });
+    const row = (await getDb().prepare('SELECT * FROM hiring_candidates WHERE id = ?').get(a.candidateId)) as { id: string; name: string; email: string };
+    const res = await sendCandidateEmail(w.owner.ws, { candidate: row as never, job: { title: 'Engineer' } as never, applicationId: a.applicationId, senderName: 'Owner' }, { subject: 'Hi', body: 'Hello' }, w.recruiter.person);
+    expect(res).toEqual({ ok: false, code: 'no_email' });
+    // Rechazar con email avisa en la línea de tiempo sin fallar.
+    await rejectApplication(w.recruiter, a.applicationId, { reason: '', sendEmail: true, templateId: null });
+    const dropped = (await getDb().prepare("SELECT data FROM hiring_events WHERE application_id = ? AND kind = 'email_dropped'").all(a.applicationId)) as Array<{ data: string }>;
+    expect(dropped.map((d) => JSON.parse(d.data).reason)).toEqual(['no_email', 'no_email']);
+  });
+
+  it('el equipo edita nombre, email y datos; un interviewer no; un email inválido no entra', async () => {
+    const j = await setupJob(w);
+    const { candidateId } = await addCandidateManually(w.recruiter, manualAddSchema.parse({ jobId: j.jobId, name: 'Edit Me' }), null);
+    const dto = await updateCandidate(w.recruiter, candidateId, { name: 'Edited Name', email: ' Edited@Example.com ', phone: '+1 555', location: 'Lima', headline: 'Engineer', links: ['https://example.com/me'] });
+    expect(dto).toMatchObject({ name: 'Edited Name', email: 'edited@example.com', phone: '+1 555', location: 'Lima', headline: 'Engineer', links: ['https://example.com/me'] });
+    await expect(updateCandidate(w.recruiter, candidateId, { email: 'nope' })).rejects.toMatchObject({ code: 'invalid_email' });
+    await expect(updateCandidate(w.interviewer, candidateId, { name: 'Hijack' })).rejects.toMatchObject({ status: 404 });
+    // Vaciar el email lo saca, sin tocar lo demás.
+    expect(await updateCandidate(w.recruiter, candidateId, { email: '' })).toMatchObject({ email: '', name: 'Edited Name' });
   });
 });

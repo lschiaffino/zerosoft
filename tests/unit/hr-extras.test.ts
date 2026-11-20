@@ -73,11 +73,15 @@ describe('CSV', () => {
     expect(rows.map((r) => r.error)).toEqual([null, 'name_required', 'invalid_email', 'duplicate_in_file', 'invalid_date', 'invalid_type']);
     expect(readEmployeeCsv('Email\nx@y.co').missing).toEqual(['name']);
   });
-  it('Hiring: pide nombre y email y detecta repetidos', () => {
-    expect(readCandidateCsv('Name\nA').missing).toEqual(['email']);
-    const { rows } = readCandidateCsv('Nombre,Correo,Etiquetas,Fuente\nAna,ANA@x.co,a|b,LinkedIn\nBeto,ana@x.co,,\n');
+  it('Hiring: pide nombre o email y detecta repetidos', () => {
+    expect(readCandidateCsv('Phone\n1').missing).toEqual(['name', 'email']);
+    // Solo con nombre, o solo con email (el email hace de nombre).
+    expect(readCandidateCsv('Name\nA').rows[0]).toMatchObject({ name: 'A', email: '', error: null });
+    expect(readCandidateCsv('Email\nb@x.co').rows[0]).toMatchObject({ name: 'b@x.co', email: 'b@x.co', error: null });
+    const { rows } = readCandidateCsv('Nombre,Correo,Etiquetas,Fuente\nAna,ANA@x.co,a|b,LinkedIn\nBeto,ana@x.co,,\nCe,,,\nDi,,,\n,,,lin\nEl,bad,,\n');
     expect(rows[0]).toMatchObject({ email: 'ana@x.co', tags: ['a', 'b'], source: 'linkedin', error: null });
-    expect(rows[1].error).toBe('duplicate_in_file');
+    // Dos sin email no son repetidos entre sí.
+    expect(rows.map((r) => r.error)).toEqual([null, 'duplicate_in_file', null, null, 'name_required', 'invalid_email']);
   });
 });
 
