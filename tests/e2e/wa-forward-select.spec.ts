@@ -144,7 +144,9 @@ function seed(tag: string, jid: (end: string) => string) {
   const a = jid('3');
   const b = jid('4');
   const texts: [string, string, string] = [`Primero ${tag}`, `Segundo ${tag}`, `Tercero ${tag}`];
-  const at = (i: number) => new Date(Date.now() - (10 - i) * 60_000).toISOString();
+  // Hace segundos, no minutos: con la base compartida llena de chats de otros tests, uno de hace 10 minutos
+  // quedaba fuera de la primera página de la lista y la fila no aparecía.
+  const at = (i: number) => new Date(Date.now() - (10 - i) * 1000).toISOString();
   const inMsg = (chatId: string, senderName: string, body: string, i: number, id = `fs-${tag}-${i}`) => ({
     type: 'message',
     chatId,
