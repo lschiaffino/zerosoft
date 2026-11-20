@@ -849,7 +849,7 @@ section.board-templates { padding: 0; }
 .board-list-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .board-search { display: flex; align-items: center; gap: 8px; max-width: 420px; position: relative; }
 .board-search > svg { position: absolute; left: 10px; color: var(--brand-gray-2); pointer-events: none; }
-.board-search .input { width: 100%; padding-left: 32px; }
+.board-search input.input { width: 100%; padding-left: 32px; }
 .board-folders { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
 .board-folder-tab {
   display: inline-flex;
