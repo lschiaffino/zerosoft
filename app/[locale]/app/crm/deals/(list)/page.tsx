@@ -13,7 +13,6 @@ import {
   listDeals,
   listDealsForBoard,
   listPipelinesWithStages,
-  parseFilterRules,
   PRIORITIES,
   SOURCES,
   type BoardStage,
@@ -24,7 +23,10 @@ import { formatDate, parseDbUtc } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
-import FilterBuilder, { type FilterBuilderField } from '@/components/crm/FilterBuilder';
+import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
+import { dealFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
+import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
@@ -36,9 +38,10 @@ import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
 import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import { FORECAST_CATEGORIES } from '@/lib/crm-forecast';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
-import { customBuilderFields, customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
+import { customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 
@@ -177,32 +180,18 @@ export default async function DealsPage(props: DealsPageProps) {
 
   const customTypes = customFilterTypes(customFieldDefs);
 
-  // Campos del constructor avanzado: estándar + custom fields de la entidad.
-  const builderFields: FilterBuilderField[] = [
-    { key: 'name', label: t('filters.field.name'), type: 'text' },
-    { key: 'amount', label: t('filters.field.amount'), type: 'number' },
-    {
-      key: 'stage',
-      label: t('filters.field.stage'),
-      type: 'select',
-      options: pipeline.stages.map((s) => ({ value: s.id, label: s.name })),
-    },
-    { key: 'priority', label: t('filters.field.priority'), type: 'select', options: priorities },
-    { key: 'source', label: t('filters.field.source'), type: 'select', options: sources },
-    {
-      key: 'tag',
-      label: t('filters.field.tag'),
-      type: 'select',
-      options: allTags.map((x) => ({ value: x.id, label: x.name })),
-    },
-    { key: 'owner', label: t('filters.field.owner'), type: 'select', options: owners },
-    { key: 'closeDate', label: t('filters.field.closeDate'), type: 'date' },
-    { key: 'created', label: t('filters.field.created'), type: 'date' },
-    { key: 'lastActivity', label: t('activityDates.lastActivity'), type: 'date' },
-    { key: 'lastContacted', label: t('activityDates.lastContacted'), type: 'date' },
-    { key: 'nextActivity', label: t('activityDates.nextActivity'), type: 'date' },
-    ...customBuilderFields(customFieldDefs, { yes: t('common.yes'), no: t('common.no') }, owners),
-  ];
+  // Propiedades del panel de filtros avanzados: propiedades del deal + las propias.
+  const filterFields = dealFilterFields({
+    t: (k) => t(k),
+    owners,
+    tags: allTags.map((x) => ({ value: x.id, label: x.name })),
+    customDefs: customFieldDefs,
+    stages: pipeline.stages.map((s) => ({ value: s.id, label: s.name })),
+    priorities,
+    sources,
+    currencies: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
+    forecastCategories: FORECAST_CATEGORIES.map((c) => ({ value: c as string, label: t(`forecast.category.${c}`) })),
+  });
 
   // ---------- Vista tabla (server-side con searchParams) ----------
   let tableContent: React.ReactNode = null;
@@ -221,7 +210,10 @@ export default async function DealsPage(props: DealsPageProps) {
     const tag = one(searchParams.tag) ?? '';
     const stalled = one(searchParams.stalled) === '1';
     const rawFilters = one(searchParams.filters) ?? '';
-    const advancedRules = parseFilterRules(rawFilters);
+    // El filtro de la URL se valida contra lo que el panel ofrece: lo demás ni se aplica ni aparece como chip.
+    const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+    const advancedCount = countFilterRules(filterModel);
+    const filtersParam = serializeFilterModel(filterModel);
     const sortParam = one(searchParams.sort);
     const sort: DealSort =
       (DEAL_SORTS as readonly string[]).includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
@@ -244,9 +236,8 @@ export default async function DealsPage(props: DealsPageProps) {
       custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
-      filters: advancedRules.length
-      ? advancedRules.filter((r) => !r.f.startsWith('custom:') || customFieldDefs.some((d) => `custom:${d.name}` === r.f))
-      : undefined,
+      filters: advancedCount ? filterModel : undefined,
+      filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
       customTypes,
       sort,
       page,
@@ -343,7 +334,7 @@ export default async function DealsPage(props: DealsPageProps) {
     Object.entries(custom).forEach(([k, v]) => {
       if (v) query[`custom_${k}`] = v;
     });
-    if (rawFilters) query.filters = rawFilters;
+    if (filtersParam) query.filters = filtersParam;
     if (sort !== 'newest') query.sort = sort;
 
     tableContent = (
@@ -361,7 +352,7 @@ export default async function DealsPage(props: DealsPageProps) {
           createdFrom={createdFrom}
           createdTo={createdTo}
           custom={custom}
-          advanced={rawFilters || undefined}
+          advanced={filtersParam || undefined}
           sort={sort}
           stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
           priorities={priorities}
@@ -375,8 +366,9 @@ export default async function DealsPage(props: DealsPageProps) {
             desc: (label) => t('listSort.fieldDesc', { label }),
           })}
         >
-          <FilterBuilder fields={builderFields} initial={advancedRules} baseQuery={query} />
+          <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} />
         </DealsFilters>
+        <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
         {tableRows.length === 0 ? (
           Object.keys(query).length > 2 ? (
             <EmptyState

@@ -268,8 +268,11 @@ test('descripción del grupo: se ve, se edita y queda; sumar un miembro actualiz
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.getByLabel('Description', { exact: true })).toHaveValue(next);
     await expect(page.getByText('4 members').first()).toBeVisible();
-    await page.getByPlaceholder(/Phones to add/).fill('+54 9 11 5555 0101');
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByTestId('group-add-members').click();
+    const dialog = page.getByRole('dialog', { name: 'Add members' });
+    await dialog.getByTestId('group-add-search').fill('+54 9 11 5555 0101');
+    await dialog.getByTestId('group-add-search').press('Enter');
+    await dialog.getByTestId('group-add-confirm').click();
     await expect(page.locator('.ui-page-header').getByText('5 members')).toBeVisible();
   } finally {
     await ctx.close();

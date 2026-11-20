@@ -37,6 +37,43 @@ function attr(tag: string, name: string): string | undefined {
   return m ? (m[2] ?? m[3] ?? m[4]) : undefined;
 }
 
+/** La clave de un <meta>: property, name o itemprop (schema.org), en minúsculas. */
+function metaKey(tag: string): string {
+  return (attr(tag, 'property') ?? attr(tag, 'name') ?? attr(tag, 'itemprop') ?? '').toLowerCase();
+}
+
+/**
+ * De dónde sale la imagen de una página, en orden: og:image (y og:image:url),
+ * og:image:secure_url, twitter:image (y twitter:image:src), <link
+ * rel="image_src"> y el itemprop="image" de schema.org. Cada una resuelta
+ * contra la URL final (las relativas incluidas) y solo http(s).
+ */
+const IMAGE_KEYS = ['og:image', 'og:image:url', 'og:image:secure_url', 'twitter:image', 'twitter:image:src', 'image_src', 'image'];
+
+function imageCandidates(head: string, url: string): string[] {
+  const byKey = new Map<string, string[]>();
+  for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
+    const key = metaKey(tag);
+    const content = attr(tag, 'content');
+    if (content === undefined || key === 'image_src' || !IMAGE_KEYS.includes(key)) continue;
+    byKey.set(key, [...(byKey.get(key) ?? []), content]);
+  }
+  for (const tag of head.match(/<link\b[^>]*>/gi) ?? []) {
+    if (/(^|\s)image_src(\s|$)/i.test(attr(tag, 'rel') ?? '')) {
+      const href = attr(tag, 'href');
+      if (href) byKey.set('image_src', [...(byKey.get('image_src') ?? []), href]);
+    }
+  }
+  const out: string[] = [];
+  for (const key of IMAGE_KEYS) {
+    for (const raw of byKey.get(key) ?? []) {
+      const abs = absolute(raw, url);
+      if (abs && !out.includes(abs)) out.push(abs);
+    }
+  }
+  return out;
+}
+
 function absolute(raw: string | undefined, base: string): string | undefined {
   if (!raw) return undefined;
   try {
@@ -52,7 +89,7 @@ export function parseLinkMeta(html: string, url: string): DocsLinkPreview {
   const head = html.slice(0, MAX_BYTES);
   const metas = new Map<string, string>();
   for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
-    const key = (attr(tag, 'property') ?? attr(tag, 'name') ?? '').toLowerCase();
+    const key = metaKey(tag);
     const content = attr(tag, 'content');
     if (key && content !== undefined && !metas.has(key)) metas.set(key, content);
   }
@@ -67,7 +104,7 @@ export function parseLinkMeta(html: string, url: string): DocsLinkPreview {
   const titleTag = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const title = clean(metas.get('og:title') ?? metas.get('twitter:title') ?? titleTag, 300);
   const description = clean(metas.get('og:description') ?? metas.get('twitter:description') ?? metas.get('description'), 500);
-  const image = absolute(metas.get('og:image') ?? metas.get('og:image:url') ?? metas.get('twitter:image'), url);
+  const image = imageCandidates(head, url)[0];
   const site = clean(metas.get('og:site_name'), 120) ?? linkSite(url);
   const favicon = absolute(icon ?? '/favicon.ico', url);
   const out: DocsLinkPreview = { url };
@@ -85,12 +122,15 @@ function fakeHtml(url: string): string {
 }
 
 /**
- * Lo que hace falta para elegir la tarjeta de un link en los chats: todas las
- * og:image (hasta 4, sin repetir) y las medidas que declara la página
+ * Lo que hace falta para elegir la tarjeta de un link en los chats: las
+ * og:image (hasta 4, sin repetir: la grilla de dos sale de acá), todas las
+ * imágenes candidatas en orden (imageCandidates: si la primera no se puede
+ * bajar se prueba la siguiente) y las medidas que declara la página
  * (og:image:width/height; 0 si no las dice). Puro.
  */
 export interface LinkImageHints {
   images: string[];
+  candidates: string[];
   width: number;
   height: number;
 }
@@ -101,16 +141,17 @@ export function parseImageHints(html: string, url: string): LinkImageHints {
   let width = 0;
   let height = 0;
   for (const tag of head.match(/<meta\b[^>]*>/gi) ?? []) {
-    const key = (attr(tag, 'property') ?? attr(tag, 'name') ?? '').toLowerCase();
+    const key = metaKey(tag);
     const content = attr(tag, 'content');
     if (content === undefined) continue;
-    if (key === 'og:image' || key === 'og:image:url' || key === 'og:image:secure_url' || key === 'twitter:image') {
+    // Solo og:image repetido es una galería; secure_url y twitter:image suelen ser la misma imagen con otra URL.
+    if (key === 'og:image' || key === 'og:image:url') {
       const abs = absolute(content, url);
       if (abs && !images.includes(abs) && images.length < 4) images.push(abs);
     } else if (key === 'og:image:width' && !width) width = Math.max(0, Math.min(20_000, parseInt(content, 10) || 0));
     else if (key === 'og:image:height' && !height) height = Math.max(0, Math.min(20_000, parseInt(content, 10) || 0));
   }
-  return { images, width, height };
+  return { images, candidates: imageCandidates(head, url).slice(0, 6), width, height };
 }
 
 /** Una respuesta de una página: redirección (a dónde), HTML, o nada que sirva. */
@@ -211,7 +252,7 @@ export async function unfurlLinkDetailed(raw: string, fake: (url: string) => str
   if (!url) return null;
   const get = process.env.DOCS_UNFURL_FAKE === '1' ? async (u: string): Promise<PageHop> => ({ status: 200, html: fake(u) }) : fetchHop;
   const page = await followToPage(url, get).catch(() => null);
-  if (!page) return { meta: { url, site: linkSite(url) }, hints: { images: [], width: 0, height: 0 } };
+  if (!page) return { meta: { url, site: linkSite(url) }, hints: { images: [], candidates: [], width: 0, height: 0 } };
   const meta = parseLinkMeta(page.html, page.finalUrl);
   return { meta: { ...meta, url }, hints: parseImageHints(page.html, page.finalUrl) };
 }
