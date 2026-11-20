@@ -3,7 +3,8 @@
  *
  * Alcance:
  * - Todo se lee y se escribe dentro del workspace del actor (`ws`).
- * - Cada persona carga, edita y borra solo sus entradas.
+ * - Cada persona carga, edita y borra solo sus entradas, y no en una semana enviada o aprobada
+ *   (lib/time/approvals.ts).
  * - Clientes, proyectos, tareas y la moneda los maneja quien administra.
  * - Los reportes de un miembro muestran solo sus horas; los de un admin, las de todos.
  * - Un proyecto es de todas las personas con Time o solo de las elegidas, y usa todas las
@@ -13,6 +14,7 @@
 import { randomBytes } from 'crypto';
 import { getDb } from '../db';
 import { canUseApp, workspaceMemberSql } from '../workspace';
+import { assertWeekOpen } from './approvals';
 import {
   CURRENCIES,
   MAX_ENTRY_MINUTES,
@@ -557,8 +559,9 @@ export async function recentWeekRows(
 }
 
 async function myEntryRow(actor: TimeActor, id: string) {
-  return (await getDb().prepare('SELECT id, project_id, task_id, minutes, timer_started_at FROM time_entries WHERE id = ? AND workspace_id = ? AND person_id = ?').get(id, actor.ws, actor.person)) as
-    | { id: string; project_id: string; task_id: string; minutes: number; timer_started_at: string | null }
+  return (await getDb()
+    .prepare('SELECT id, project_id, task_id, spent_date, minutes, timer_started_at FROM time_entries WHERE id = ? AND workspace_id = ? AND person_id = ?')
+    .get(id, actor.ws, actor.person)) as { id: string; project_id: string; task_id: string; spent_date: string; minutes: number; timer_started_at: string | null }
     | undefined;
 }
 
@@ -624,6 +627,7 @@ export async function createEntry(actor: TimeActor, input: EntryInput): Promise<
   const minutes = input.minutes ?? 0;
   if (!Number.isInteger(minutes) || minutes < 0) throw new TimeError('invalid_input', 400);
   if (minutes > MAX_ENTRY_MINUTES) throw new TimeError('too_long', 400);
+  await assertWeekOpen(actor, input.date);
   const { billable } = await activeProjectAndTask(actor, input.projectId, input.taskId);
   const start = Boolean(input.start) || input.minutes == null;
   if (start) await stopRunning(actor);
@@ -659,6 +663,8 @@ export async function updateEntry(actor: TimeActor, id: string, patch: EntryPatc
   if (patch.date !== undefined && !isIsoDate(patch.date)) throw new TimeError('invalid_input', 400);
   if (patch.minutes !== undefined && (!Number.isInteger(patch.minutes) || patch.minutes < 0)) throw new TimeError('invalid_input', 400);
   if (patch.minutes !== undefined && patch.minutes > MAX_ENTRY_MINUTES) throw new TimeError('too_long', 400);
+  // Ni la semana de la entrada ni a la que se mueve pueden estar enviadas o aprobadas.
+  await assertWeekOpen(actor, row.spent_date, ...(patch.date ? [patch.date] : []));
   const db = getDb();
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
@@ -710,6 +716,7 @@ export async function updateEntry(actor: TimeActor, id: string, patch: EntryPatc
 export async function deleteEntry(actor: TimeActor, id: string): Promise<void> {
   const row = await myEntryRow(actor, id);
   if (!row) throw new TimeError('not_found', 404);
+  await assertWeekOpen(actor, row.spent_date);
   await getDb().prepare('DELETE FROM time_entries WHERE id = ? AND workspace_id = ? AND person_id = ?').run(id, actor.ws, actor.person);
 }
 
