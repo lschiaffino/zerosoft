@@ -14,6 +14,7 @@ import {
   type StoreDto,
   type StoreRow,
 } from './shop';
+import type { FilterableProduct, FilterVariant } from './shop-filters';
 import { parseJson, plainText, type ProductOption } from './shop-schema';
 
 export interface PublicStore {
@@ -86,6 +87,39 @@ export async function storefrontProducts(ws: string, opts: { ids?: string[]; q?:
   // Colección manual: el orden de la colección.
   if (opts.ids) return opts.ids.map((id) => cards.find((c) => c.id === id)).filter((c): c is ProductCard => Boolean(c));
   return cards;
+}
+
+/** Tarjeta con sus variantes (opciones, precio y si hay stock), para filtrar una colección por talle, color... */
+export type FilterableCard = ProductCard & FilterableProduct;
+
+/** Suma a cada tarjeta los nombres de sus opciones y sus variantes, en una sola consulta. */
+export async function withVariants(ws: string, cards: ProductCard[]): Promise<FilterableCard[]> {
+  if (!cards.length) return [];
+  const ids = cards.map((c) => c.id);
+  const db = getDb();
+  const marks = ids.map(() => '?').join(',');
+  const [products, variants] = await Promise.all([
+    db.prepare(`SELECT id, options, vendor, product_type FROM shop_products WHERE workspace_id = ? AND id IN (${marks})`).all(ws, ...ids) as Promise<
+      Array<{ id: string; options: string; vendor: string; product_type: string }>
+    >,
+    db
+      .prepare(
+        `SELECT v.product_id, v.options, v.price_cents,
+           (v.track_inventory = 0 OR v.continue_selling = 1 OR EXISTS (
+             SELECT 1 FROM shop_inventory i WHERE i.variant_id = v.id AND i.available - i.reserved > 0)) AS avail
+         FROM shop_variants v WHERE v.workspace_id = ? AND v.product_id IN (${marks}) ORDER BY v.product_id, v.position ASC`,
+      )
+      .all(ws, ...ids) as Promise<Array<{ product_id: string; options: string; price_cents: number; avail: number }>>,
+  ]);
+  const names = new Map(products.map((p) => [p.id, parseJson<ProductOption[]>(p.options, []).map((o) => o.name)]));
+  const attrs = new Map(products.map((p) => [p.id, p]));
+  const byProduct = new Map<string, FilterVariant[]>();
+  for (const v of variants) {
+    const list = byProduct.get(v.product_id) ?? [];
+    list.push({ options: parseJson<string[]>(v.options, []), priceCents: Number(v.price_cents), available: Number(v.avail) > 0 });
+    byProduct.set(v.product_id, list);
+  }
+  return cards.map((c) => ({ ...c, optionNames: names.get(c.id) ?? [], variants: byProduct.get(c.id) ?? [], vendor: attrs.get(c.id)?.vendor ?? '', productType: attrs.get(c.id)?.product_type ?? '' }));
 }
 
 /** Productos parecidos para la página de producto: misma colección o mismo tipo, sin el propio. */
@@ -188,11 +222,11 @@ export async function storefrontCollections(ws: string): Promise<PublicCollectio
   return rows.map(publicCollection);
 }
 
-export async function storefrontCollection(ws: string, handle: string): Promise<{ collection: PublicCollection; products: ProductCard[] } | null> {
+export async function storefrontCollection(ws: string, handle: string): Promise<{ collection: PublicCollection; products: FilterableCard[] } | null> {
   const c = (await getDb().prepare('SELECT * FROM shop_collections WHERE workspace_id = ? AND handle = ? AND published = 1').get(ws, handle)) as CollectionRow | undefined;
   if (!c) return null;
   const ids = await collectionProductIds(ws, c, true);
-  return { collection: publicCollection(c), products: await storefrontProducts(ws, { ids }) };
+  return { collection: publicCollection(c), products: await withVariants(ws, await storefrontProducts(ws, { ids })) };
 }
 
 /** Productos de las colecciones destacadas (portada), o los últimos si no hay. */
