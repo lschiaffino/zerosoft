@@ -203,7 +203,7 @@ describe('Lines: las carpetas son de cada persona', () => {
     await moveChatsToFolder(w.owner.id, w.vAna, [w.uno.id], f.id);
     const stranger = await makeUser('pf-ws-stranger');
     const vStranger = await groupsViewer(stranger.id, stranger.id, 'owner');
-    expect(await listFolders(stranger.id, stranger.id, vStranger)).toEqual({ folders: [], unfiled: { unread: 0, chats: 0 } });
+    expect(await listFolders(stranger.id, stranger.id, vStranger)).toEqual({ folders: [], team: [], unfiled: { unread: 0, chats: 0 } });
     // Ni siquiera la propia Ana desde otro workspace.
     expect((await listFolders(stranger.id, w.ana.id, await groupsViewer(stranger.id, w.ana.id, 'member'))).folders).toEqual([]);
     await expect(updateFolder(stranger.id, stranger.id, f.id, { name: 'X' })).rejects.toMatchObject({ status: 404 });
@@ -416,7 +416,7 @@ describe('Lines: la migración a carpetas personales', () => {
       ['Sin autor', 1],
     ]);
     // Quien no había creado ninguna empieza sin carpetas, admin incluida.
-    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], unfiled: { chats: 4, unread: 4 } });
+    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], team: [], unfiled: { chats: 4, unread: 4 } });
     // No se borró nada: las filas y la columna de antes siguen como estaban.
     const left = (await db.prepare('SELECT id, folder_id FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL ORDER BY id').all(ws)) as Array<{ id: string; folder_id: string }>;
     expect(left).toHaveLength(4);
