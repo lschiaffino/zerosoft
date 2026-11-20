@@ -65,7 +65,7 @@ describe('content/software-directory', () => {
 describe('JSON-LD de una categoría', () => {
   it('ItemList con zerosoft primero y cada producto listado', () => {
     const c = SOFTWARE_DIRECTORY[0];
-    const [page] = categoryLd(c, 'en', { title: 't', description: 'd', appDescriptions: {} }) as [
+    const [page] = categoryLd(c, 'en', { title: 't', description: 'd', appDescriptions: {} }) as unknown as [
       { '@type': string; mainEntity: { numberOfItems: number; itemListElement: { position: number; item: { name?: string; '@id'?: string } }[] } },
     ];
     expect(page['@type']).toBe('CollectionPage');
