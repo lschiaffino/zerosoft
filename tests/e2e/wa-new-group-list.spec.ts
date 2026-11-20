@@ -10,7 +10,9 @@ import { waLinkIp } from './helpers/wa-link';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const phone = () => `5491${Math.floor(1e9 + Math.random() * 8e9)}`;
+// El WhatsApp falso no agrega a quien termina en 99 (simula un alta rechazada,
+// lib/groups-provider-fake.ts): el último dígito nunca es 9.
+const phone = () => `5491${Math.floor(1e8 + Math.random() * 8e8)}${Math.floor(Math.random() * 9)}`;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -63,7 +65,8 @@ for (const width of [1280, 390]) {
     const card = page.getByTestId('new-group-card');
     await expect(card).toBeVisible({ timeout: 20_000 });
     await expect(card).toContainText('You created this group');
-    await expect(card).toContainText('Group · 3 members');
+    // Yo y los dos teléfonos.
+    await expect(card.getByTestId('new-group-members')).toHaveAttribute('data-count', '3');
     expect(await noSideScroll(page)).toBe(true);
     // "Group info" abre el panel del grupo (una acción que existe en Inbox).
     await card.getByRole('button', { name: 'Group info' }).click();
