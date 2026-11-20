@@ -1000,6 +1000,8 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-hs-log { display: flex; flex-direction: column; gap: 6px; }
 .gr-hs-create { display: flex; flex-direction: column; gap: 6px; }
 .gr-hs-log .ui-help { margin: 0; }
+.gr-hs-ticket { display: flex; flex-direction: column; gap: 6px; }
+.gr-hs-ticket .ui-help { margin: 0; }
 .gr-hs-scope-groups { display: flex; flex-direction: column; gap: 10px; }
 .gr-hs-scope-groups .label { margin: 0 0 2px; }
 .gr-hs-scopes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }

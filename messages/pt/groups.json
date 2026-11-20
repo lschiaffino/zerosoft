@@ -877,6 +877,7 @@
     "waiting": "Aguardando resposta"
   },
   "errors": {
+    "hubspot_no_ticket_pipeline": "O HubSpot não tem um pipeline de tickets. Crie um no HubSpot e tente de novo.",
     "too_many_stages": "Este quadro já tem o máximo de etapas (30).",
     "not_group_admin": "Só os admins do grupo podem fazer isso, e este número de WhatsApp não é admin do grupo.", "no_targets": "Escolha pelo menos uma pessoa.",
     "pageTitle": "Esta página não carregou",
@@ -2286,6 +2287,7 @@
     "allInGroup": "Tudo de {name}"
   },
   "hubspot": {
+    "ticket": {"open": "Criar ticket no HubSpot", "title": "Criar um ticket no HubSpot", "help": "O ticket fica associado à empresa, ao contato e ao negócio vinculados a este chat.", "subject": "Assunto", "content": "Descrição", "priority": "Prioridade", "noPriority": "Sem prioridade", "pipeline": "Pipeline", "stage": "Etapa", "create": "Criar ticket", "done": "Ticket criado no HubSpot.", "view": "Abrir no HubSpot", "linkedHelp": "Cria um ticket no HubSpot com os registros vinculados acima.", "unlinkedHelp": "Cria um ticket no HubSpot. Vincule antes uma empresa, um contato ou um negócio para associá-lo.", "send": "Enviar ao HubSpot", "sendAria": "Enviar o ticket {n} ao HubSpot"},
     "createContact": "Criar contato no HubSpot",
     "createContactHelp": "Usa o nome e o número desta conversa. Se o número já está no HubSpot, você vincula esse contato.",
     "createContactNoScope": "Para criar contatos, a chave do HubSpot precisa da permissão {scope}.",

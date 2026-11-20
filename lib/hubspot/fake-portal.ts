@@ -128,7 +128,7 @@ export interface FakeRate {
   dailyRemaining: number;
 }
 
-export const FAKE_OBJECT_TYPES = ['contacts', 'companies', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails'] as const;
+export const FAKE_OBJECT_TYPES = ['contacts', 'companies', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails', 'tickets'] as const;
 export type FakeObjectType = (typeof FAKE_OBJECT_TYPES)[number];
 const isType = (v: string): v is FakeObjectType => (FAKE_OBJECT_TYPES as readonly string[]).includes(v);
 
@@ -145,6 +145,8 @@ export const ALL_FAKE_SCOPES = [
   'crm.schemas.deals.read',
   'crm.lists.read',
   'sales-email-read',
+  // Tickets: un solo permiso para leer y escribir, como en HubSpot.
+  'tickets',
 ];
 
 /** typeId de HubSpot para cada par (el primero es el de la asociación primaria, si existe). */
@@ -185,6 +187,12 @@ const ASSOC_TYPES: Record<string, { primary?: number; plain: number }> = {
   'companies/emails': { plain: 185 },
   'emails/deals': { plain: 210 },
   'deals/emails': { plain: 209 },
+  'tickets/contacts': { plain: 16 },
+  'contacts/tickets': { plain: 15 },
+  'tickets/companies': { plain: 339 },
+  'companies/tickets': { plain: 340 },
+  'tickets/deals': { plain: 28 },
+  'deals/tickets': { plain: 27 },
 };
 
 interface AssocLink {
@@ -252,6 +260,7 @@ function toApiProp(d: FakePropertyDef, i: number) {
 function objectScope(type: string, mode: 'read' | 'write'): string {
   if (type === 'contacts' || type === 'companies' || type === 'deals') return `crm.objects.${type}.${mode}`;
   if (type === 'emails' && mode === 'read') return 'sales-email-read';
+  if (type === 'tickets') return 'tickets';
   return `crm.objects.contacts.${mode}`;
 }
 
@@ -297,6 +306,19 @@ export class FakeHubspotPortal {
   propGroups: Record<string, FakePropertyGroup[]> = {};
   owners = new Map<string, FakeOwner>();
   pipelines: FakePipeline[] = [];
+  /** Pipelines de tickets (el de soporte por defecto de HubSpot). */
+  ticketPipelines: FakePipeline[] = [
+    {
+      id: '0',
+      label: 'Support pipeline',
+      stages: [
+        { id: '1', label: 'New' },
+        { id: '2', label: 'Waiting on contact' },
+        { id: '3', label: 'Waiting on us' },
+        { id: '4', label: 'Closed', closed: true },
+      ],
+    },
+  ];
   lists: FakeList[] = [];
   /** `de/a` → id de origen → destinos. */
   assoc = new Map<string, Map<string, AssocLink[]>>();
@@ -767,11 +789,12 @@ export class FakeHubspotPortal {
     }
 
     // ----- Pipelines -----
-    const pipe = /^\/crm\/v3\/pipelines\/deals(?:\/([^/]+))?(\/stages)?$/.exec(path);
+    const pipe = /^\/crm\/v3\/pipelines\/(deals|tickets)(?:\/([^/]+))?(\/stages)?$/.exec(path)?.slice(1);
     if (pipe && method === 'GET') {
-      const denied = need('crm.objects.deals.read');
+      const isTickets = pipe[0] === 'tickets';
+      const denied = need(isTickets ? 'tickets' : 'crm.objects.deals.read');
       if (denied) return denied;
-      const api = this.pipelines.map((p, i) => ({
+      const api = (isTickets ? this.ticketPipelines : this.pipelines).map((p, i) => ({
         id: p.id,
         label: p.label,
         displayOrder: i,

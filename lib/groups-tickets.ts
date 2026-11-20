@@ -53,6 +53,8 @@ export interface TicketRow {
   updated_at: string;
   /** Campos propios del ticket (JSON). */
   fields?: string;
+  /** El ticket de HubSpot creado desde este (lib/groups-hubspot-tickets.ts). */
+  hubspot_ticket_id?: string | null;
 }
 
 export interface TicketDto {
@@ -74,6 +76,8 @@ export interface TicketDto {
   breached: boolean;
   createdAt: string;
   fields: Record<string, PropertyValue>;
+  /** El ticket de HubSpot creado desde este, si se mandó. */
+  hubspotTicketId?: string | null;
 }
 
 type TicketJoin = TicketRow & { chat_name: string | null; chat_phone: string | null; chat_pid: string | null; message_body: string | null };
@@ -101,6 +105,7 @@ export function toTicketDto(row: TicketJoin, now = new Date()): TicketDto {
     breached: Boolean(row.breached_at) || isTicketBreached(row, now),
     createdAt: row.created_at,
     fields: parseFields(row.fields),
+    ...(row.hubspot_ticket_id ? { hubspotTicketId: row.hubspot_ticket_id } : {}),
   };
 }
 
