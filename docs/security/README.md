@@ -45,6 +45,7 @@ evidence; the rest is process the owner runs and an auditor tests.
 | [retention.md](retention.md) | 8.10 | C1.2, P4.2 |
 | [encryption.md](encryption.md) | 8.24 | CC6.1, CC6.7 |
 | [dpa-template.md](dpa-template.md): data processing agreement for customers | 5.34 | P6 |
+| [privacy-audit-2026-11.md](privacy-audit-2026-11.md): who sees what inside a team | 5.15, 8.3 | CC6.1, C1.1 |
 
 Internal-only material (the scored risk register, vendor contracts and DPAs as signed,
 access reviews, incident records, training records) lives in the private
